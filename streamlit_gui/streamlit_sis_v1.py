@@ -8,7 +8,7 @@ app_name = 'GENESIS_BOTS_ALPHA'
 
 st.set_page_config(layout="wide")
 
-if 'wh_name' not in st.session_state
+if 'wh_name' not in st.session_state:
     st.session_state['wh_name'] = 'XSMALL'
 
 SnowMode = True

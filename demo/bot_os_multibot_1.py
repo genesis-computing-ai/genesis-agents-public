@@ -27,8 +27,10 @@ logging.basicConfig(level=logging.WARN, format='%(asctime)s - %(levelname)s - %(
 
 import core.global_flags as global_flags
 
-print("****** GENBOT VERSION 0.8 *******")
+print("****** GENBOT VERSION 0.9 *******")
 logger.warning('******* GENBOT VERSION 0.9*******')
+runner_id = os.getenv('RUNNER_ID','jl-local-runner')
+print("Runner ID: ", runner_id )
 snowflake_secure_value = os.getenv('SNOWFLAKE_SECURE')
 if snowflake_secure_value is not None:
     print("SNOWFLAKE_SECURE:", snowflake_secure_value)
@@ -45,7 +47,7 @@ db_schema = genbot_internal_project_and_schema.split('.')
 project_id = db_schema[0]
 dataset_name = db_schema[1]
 
-genesis_source = os.getenv('GENESIS_SOURCE',default="BigQuery")
+genesis_source = os.getenv('GENESIS_SOURCE',default="Snowflake")
 
 if genesis_source == 'BigQuery':
     credentials_path = os.getenv('GOOGLE_APPLICATION_CREDENTIALS',default=".secrets/gcp.json")

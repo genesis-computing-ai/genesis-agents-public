@@ -28,7 +28,7 @@ logging.basicConfig(level=logging.WARN, format='%(asctime)s - %(levelname)s - %(
 import core.global_flags as global_flags
 
 print("****** GENBOT VERSION 0.8 *******")
-logger.warning('******* GENBOT VERSION 0.8*******')
+logger.warning('******* GENBOT VERSION 0.9*******')
 snowflake_secure_value = os.getenv('SNOWFLAKE_SECURE')
 if snowflake_secure_value is not None:
     print("SNOWFLAKE_SECURE:", snowflake_secure_value)

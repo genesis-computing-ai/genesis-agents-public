@@ -1,0 +1,23 @@
+
+
+// local
+docker build --rm -t genesis_app:latest .
+docker run --env-file ./snowflake_app/docker.env -p 8501:8501 -p 8000:8000 genesis_app:latest
+
+// remote 
+docker build --rm -t genesis_app:latest --platform linux/amd64 .
+docker tag genesis_app:latest dshrnxx-genesis.registry.snowflakecomputing.com/spcs_test/app_test_schema/app_test_repository/genesis_app:latest
+docker push dshrnxx-genesis.registry.snowflakecomputing.com/spcs_test/app_test_schema/app_test_repository/genesis_app:latest
+
+// natapp
+docker build --rm -t genesis_app:latest --platform linux/amd64 .
+docker tag genesis_app:latest dshrnxx-genesis.registry.snowflakecomputing.com/genesisapp_master/code_schema/service_repo/genesis_app:latest
+docker push dshrnxx-genesis.registry.snowflakecomputing.com/genesisapp_master/code_schema/service_repo/genesis_app:latest
+
+/spcs_test/app_test_schema/app_test_repository/genesis_app:latest
+
+// natapp east
+
+docker build --rm -t genesis_app:latest --platform linux/amd64 .
+docker tag genesis_app:latest dshrnxx-genesis-east-pro.registry.snowflakecomputing.com/genesisapp_master/code_schema/service_repo/genesis_app:latest
+docker push dshrnxx-genesis-east-pro.registry.snowflakecomputing.com/genesisapp_master/code_schema/service_repo/genesis_app:latest

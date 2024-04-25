@@ -28,23 +28,6 @@ database_tool_functions = [
             }
         }
     },
-#    {
-#        "type": "function",
-#        "function": {
-#            "name": "get_full_table_details",
-#            "description": "Gets full verbose details for a specific table including full DDL and sample data.",
-#            "parameters": {
-#                "type": "object",
-#                "properties": {
-#                    "database": {"type": "string", "description": "The name of the database where the table is located."},
-#                    "schema": {"type": "string", "description": "The name of the schema where the table is located."},
-#                    "table": {"type": "string", "description": "The name of the table to retrieve full details for."},
-#                    "query": {"type": "string", "description": "Always use *."},
-#                },
-#                "required": ["database", "schema", "table", "query"]
-#            }
-#        }
-#    },
     {
         "type": "function",
         "function": {
@@ -76,7 +59,72 @@ database_tool_functions = [
             }
         }
     },
+        {
+        "type": "function",
+        "function": {
+            "name": "get_full_table_details",
+            "description": "Gets full verbose details for a specific table including full DDL and sample data.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "database": {"type": "string", "description": "The name of the database where the table is located."},
+                    "schema": {"type": "string", "description": "The name of the schema where the table is located."},
+                    "table": {"type": "string", "description": "The name of the table to retrieve full details for."},
+                    "query": {"type": "string", "description": "Always use *."},
+                },
+                "required": ["database", "schema", "table", "query"]
+            }
+        }
+    },
 ]
+
+snowflake_semantic_functions = [
+    {
+        "type": "function",
+        "function": {
+            "name": "_get_semantic_model",
+            "description": "Retrieves an existing semantic model from the map based on the model name and thread id.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "model_name": {"type": "string", "description": "The name of the model to retrieve."},
+                },
+                "required": ["model_name"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "_modify_and_update_semantic_model",
+            "description": "Modifies the semantic model based on the provided modifications, updates the model in the map, and returns the modified semantic model without the resulting YAML.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "model_name": {"type": "string", "description": "The name of the model to modify."},
+                    "command": {"type": "string", "description": "The command to run. Run command 'help' to get full details of how to use this tool."},
+                    "modifications": {"type": "object", "description": "The modifications to apply to the semantic model. Run command 'help' to see valid options."},
+                },
+                "required": ["model_name", "command"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "_initialize_semantic_model",
+            "description": "Creates an empty semantic model and stores it in a map with the thread_id as the key.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "model_name": {"type": "string", "description": "The name of the model to initialize."},
+                },
+                "required": ["model_name",]
+            }
+        }
+    },
+]
+
 
 snowflake_stage_functions = [
     {
@@ -150,16 +198,21 @@ snowflake_stage_functions = [
     },
 ]
 
+snowflake_semantic_tools = {
+    "_get_semantic_model": "db_adapter.get_semantic_model",
+    "_modify_and_update_semantic_model": "db_adapter.modify_and_update_semantic_model",
+    "_initialize_semantic_model": "db_adapter.initialize_semantic_model",
+}
 
 database_tools = {"run_query": "run_query_f.local", "search_metadata": "search_metadata_f.local", 
-                  #"get_full_table_details": "search_metadata_f.local",
-                 "semantic_copilot": "semantic_copilot_f.local"}
+                 "semantic_copilot": "semantic_copilot_f.local",
+                 "get_full_table_details": "search_metadata_f.local",}
 
 snowflake_stage_tools = {
     "_list_stage_contents": "db_adapter.list_stage_contents",
     "_add_file_to_stage": "db_adapter.add_file_to_stage",
     "_read_file_from_stage": "db_adapter.read_file_from_stage",
-    "_delete_file_from_stage": "db_adapter.delete_file_from_stage"
+    "_delete_file_from_stage": "db_adapter.delete_file_from_stage",
 }
 
 

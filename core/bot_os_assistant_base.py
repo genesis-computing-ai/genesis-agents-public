@@ -94,8 +94,11 @@ def execute_function(func_name:str, arguments, available_functions, completion_c
     function = available_functions.get(func_name)
     if function:
         s_arguments = json.loads(arguments)
-        if "dispatch_bot_id" in function.__code__.co_varnames: # FixMe: expose this as a tool arg that can be set by the AI
-            s_arguments["dispatch_bot_id"] = bot_id
+        try:
+            if "dispatch_bot_id" in function.__code__.co_varnames: # FixMe: expose this as a tool arg that can be set by the AI
+                s_arguments["dispatch_bot_id"] = bot_id
+        except:
+            pass
         if func_name.startswith("_"): # run internal BotOS functions in process
             s_arguments["thread_id"] = thread_id
             completion_callback(execute_function_blocking(func_name, s_arguments, available_functions))

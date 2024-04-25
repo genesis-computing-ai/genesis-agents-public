@@ -55,10 +55,55 @@ def modify_semantic_model(semantic_model, command, parameters):
         'add_table', 'remove_table', 'update_table', 'add_dimension', 'update_dimension', 'remove_dimension',
         'add_time_dimension', 'remove_time_dimension', 'update_time_dimension',
         'add_measure', 'remove_measure', 'update_measure', 'add_filter', 'remove_filter', 'update_filter',
-        'set_model_name', 'set_model_description'
+        'set_model_name', 'set_model_description', 'help'
     ]
     if command not in valid_commands:
         return {"success": False, "message": "Invalid command provided. Valid commands are: " + ", ".join(valid_commands)}
+
+    if command == 'help':
+
+        help_message = """
+        The following commands are available to modify the semantic model:
+
+        - 'add_table': Adds a new table to the semantic model. 
+            Parameters: 'table_name', 'database', 'schema', 'table', 'description' (optional).
+        - 'remove_table': Removes an existing table from the semantic model. 
+            Parameters: 'table_name'.
+        - 'update_table': Updates an existing table's details in the semantic model. 
+            Parameters: 'table_name', 'new_values' (a dictionary with any of 'name', 'description', 'database', 'schema', 'table').
+        - 'add_dimension': Adds a new dimension to an existing table. 
+            Parameters: 'table_name', 'dimension_name', 'expr', 'description' (optional), 'synonyms' (optional, list), 'unique' (optional, boolean), 'sample_values' (optional, list).
+        - 'update_dimension': Updates an existing dimension in a table. 
+            Parameters: 'table_name', 'dimension_name', 'new_values' (a dictionary with any of 'name', 'expr', 'description', 'synonyms', 'unique', 'sample_values').
+        - 'remove_dimension': Removes an existing dimension from a table. 
+            Parameters: 'table_name', 'dimension_name'.
+        - 'add_time_dimension': Adds a new time dimension to an existing table. 
+            Parameters: 'table_name', 'time_dimension_name', 'expr', 'description' (optional), 'synonyms' (optional, list), 'unique' (optional, boolean), 'sample_values' (optional, list).
+        - 'remove_time_dimension': Removes an existing time dimension from a table. 
+            Parameters: 'table_name', 'time_dimension_name'.
+        - 'update_time_dimension': Updates an existing time dimension in a table. 
+            Parameters: 'table_name', 'time_dimension_name', 'new_values' (a dictionary with any of 'name', 'expr', 'description', 'synonyms', 'unique', 'sample_values').
+        - 'add_measure': Adds a new measure to an existing table. 
+            Parameters: 'table_name', 'measure_name', 'expr', 'description' (optional), 'synonyms' (optional, list), 'unique' (optional, boolean), 'sample_values' (optional, list), 'default_aggregation' (optional).
+        - 'remove_measure': Removes an existing measure from a table. 
+            Parameters: 'table_name', 'measure_name'.
+        - 'update_measure': Updates an existing measure in a table. 
+            Parameters: 'table_name', 'measure_name', 'new_values' (a dictionary with any of 'name', 'expr', 'description', 'synonyms', 'unique', 'sample_values', 'default_aggregation').
+        - 'add_filter': Adds a new filter to an existing table. 
+            Parameters: 'table_name', 'filter_name', 'expr', 'description' (optional), 'synonyms' (optional, list).
+        - 'remove_filter': Removes an existing filter from a table. 
+            Parameters: 'table_name', 'filter_name'.
+        - 'update_filter': Updates an existing filter in a table. 
+            Parameters: 'table_name', 'filter_name', 'new_values' (a dictionary with any of 'name', 'expr', 'description', 'synonyms').
+        - 'set_model_name': Sets the name of the semantic model. 
+            Parameters: 'model_name'.
+        - 'set_model_description': Sets the description of the semantic model. 
+            Parameters: 'model_description'.
+
+        Note that all "expr" must be SQL-executable expressions that could work as part of a SELECT clause (for dimension and measures, often just the physical column name) or WHERE clause (for filters).
+        """
+        return {"success": True, "message": help_message}
+
 
     try:
         if command == 'set_model_name':
@@ -529,8 +574,86 @@ for _ in range(1):
     suggestions = suggest_improvements(semantic_json)
 
 
+
+# Define a global map to store semantic models by thread_id
+semantic_models_map = {}
+
+def initialize_semantic_model(model_name, thread_id):
+    """
+    Creates an empty semantic model and stores it in a map with the thread_id as the key.
+    
+    Args:
+        model_name (str): The name of the model to initialize.
+        thread_id (str): The unique identifier for the thread.
+    """
+    # Create an empty semantic model
+    empty_model = create_empty_semantic_model(model_name)
+    # Store the model in the map using thread_id as the key
+    map_key = thread_id + "__" + model_name
+    semantic_models_map[thread_id] = empty_model
+
+    if empty_model is not None:
+        return {"Success": True, "Message": f"The model {model_name} has been initialized."}
+    else:
+        return {"Success": False, "Error": "Failed to initialize the model."}
+
+def modify_and_update_semantic_model(model_name, thread_id, modifications):
+    """
+    Modifies the semantic model based on the provided modifications, updates the model in the map,
+    and returns the modified semantic model without the resulting YAML.
+
+    Args:
+        model_name (str): The name of the model to modify.
+        thread_id (str): The unique identifier for the thread.
+        modifications (dict): The modifications to apply to the semantic model.
+
+    Returns:
+        dict: The modified semantic model.
+    """
+    # Construct the map key
+    map_key = thread_id + "__" + model_name
+    # Retrieve the semantic model from the map
+    semantic_model = semantic_models_map.get(map_key)
+    if not semantic_model:
+        raise ValueError(f"No semantic model found for model_name: {model_name} and thread_id: {thread_id}")
+
+    # Call modify_semantic_model with the retrieved model and the modifications
+    result = modify_semantic_model(semantic_model, modifications)
+
+    # Check if 'semantic_yaml' is in the result and store it back into the map
+    if 'semantic_yaml' in result:
+        semantic_models_map[map_key] = result['semantic_yaml']
+        # Strip 'semantic_yaml' parameter from result
+        del result['semantic_yaml']
+    # Return the modified semantic model without the resulting YAML
+    return result
+
+
+def get_semantic_model(model_name, thread_id):
+    """
+    Retrieves an existing semantic model from the map based on the model name and thread id.
+
+    Args:
+        model_name (str): The name of the model to retrieve.
+        thread_id (str): The unique identifier for the thread.
+
+    Returns:
+        dict: A JSON wrapper with the semantic model if found, otherwise an error message.
+    """
+    # Construct the map key
+    map_key = thread_id + "__" + model_name
+    # Retrieve the semantic model from the map
+    semantic_model = semantic_models_map.get(map_key)
+    if semantic_model:
+        return {"Success": True, "SemanticModel": semantic_model}
+    else:
+        return {"Success": False, "Error": f"No semantic model found for model_name: {model_name} and thread_id: {thread_id}"}
+
+
+
 print("Test completed successfully.")
 
 #yaml_model = convert_model_to_yaml(semantic_json)
 #print(yaml_model)
+
 

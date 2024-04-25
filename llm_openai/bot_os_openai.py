@@ -1,5 +1,5 @@
 import json
-import os, uuid
+import os, uuid, re
 from typing import TypedDict
 from core.bot_os_assistant_base import BotOsAssistantInterface, execute_function
 from openai import OpenAI
@@ -95,6 +95,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                                           model=model_name,
                                           tool_resources=self.tool_resources
                 )
+         self.first_message = True
          
       logger.debug(f"BotOsAssistantOpenAI:__init__: assistant.id={self.assistant.id}")
 
@@ -258,15 +259,33 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
             role="user", 
          )
       except Exception as e:
-         logger.error(f"Thread message for {thread_id} creation failed or already running: {e}")
+         fixed = False
          try:
-            thread_message = self.client.beta.threads.messages.create(
-               thread_id=thread_id, content="Error on input submission: "+str(e), 
-               role="user", 
-            )
-         except:
-            return
+            if 'while a run' in e.body.get('message') and self.first_message == True:
+               run_id_match = re.search(r'run_([a-zA-Z0-9]+)', e.body.get('message'))
+               if run_id_match:
+                  run_id = "run_" + run_id_match.group(1)
+                  logger.error(f"Extracted run_id: {run_id}")
+                  self.client.beta.threads.runs.cancel(run_id=run_id, thread_id=thread_id)
+                  logger.info(f"Cancelled run_id: {run_id}")
+                  thread_message = self.client.beta.threads.messages.create(
+                     thread_id=thread_id, attachments=attachments, content=content, 
+                     role="user", 
+                  )
+               fixed = True
+         except Exception as e:
+            pass
+         if not fixed:
+            logger.error(f"Thread message for {thread_id} creation failed or already running: {e}")
+            try:
+               thread_message = self.client.beta.threads.messages.create(
+                  thread_id=thread_id, content="Error on input submission: "+str(e), 
+                  role="user", 
+               )
+            except:
+               return
       logger.debug(f"add_message - created {thread_message}")
+      self.first_message = False 
       run = self.client.beta.threads.runs.create(
          thread_id=thread.id, assistant_id=self.assistant.id, metadata=input_message.metadata)
       self.thread_run_map[thread_id] = {"run": run.id, "completed_at": None}

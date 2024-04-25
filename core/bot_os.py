@@ -1,6 +1,7 @@
 import datetime
 import random
 import re
+import os
 import threading
 from core.bot_os_corpus import FileCorpus
 from core.bot_os_input import BotOsInputAdapter, BotOsInputMessage, BotOsOutputMessage
@@ -9,6 +10,7 @@ from llm_openai.bot_os_openai import BotOsAssistantOpenAI
 from core.bot_os_reminders import RemindersTest
 import schema_explorer.embeddings_index_handler as embeddings_handler
 from core.bot_os_defaults import _BOT_OS_BUILTIN_TOOLS
+import pickle
 
 import logging
 import json
@@ -18,9 +20,12 @@ logging.basicConfig(level=logging.WARN, format='%(asctime)s - %(levelname)s - %(
 
 
 class BotOsThread:
-    def __init__(self, asistant_implementaion, input_adapter) -> None:
+    def __init__(self, asistant_implementaion, input_adapter, thread_id = None) -> None:
         self.assistant_impl = asistant_implementaion
-        self.thread_id      = asistant_implementaion.create_thread()
+        if thread_id == None:
+            self.thread_id      = asistant_implementaion.create_thread()
+        else:
+            self.thread_id = thread_id
         self.input_adapter  = input_adapter
         self.input_adapter.thread_id = self.thread_id
         self.validated      = False
@@ -129,8 +134,17 @@ class BotOsSession:
         self.current_task_index = 0
         self.in_to_out_thread_map = {}
         self.out_to_in_thread_map = {}
+
         self.next_messages = []
         self.bot_id = bot_id
+
+        sanitized_bot_id = re.sub(r'[^a-zA-Z0-9]', '', self.bot_id)
+        thread_maps_filename = f'./thread_maps_{sanitized_bot_id}.pickle'
+        if os.path.exists(thread_maps_filename):
+            with open(thread_maps_filename, 'rb') as handle:
+                maps = pickle.load(handle)
+                self.in_to_out_thread_map = maps.get('in_to_out', {})
+                self.out_to_in_thread_map = maps.get('out_to_in', {})
 
     def create_thread(self, input_adapter) -> str:
 
@@ -151,7 +165,13 @@ class BotOsSession:
         return mem
 
     def add_message(self, input_message:BotOsInputMessage):# thread_id:str, message:str, files=[]):
-        thread = self.threads[input_message.thread_id]
+ 
+        if input_message.thread_id not in self.threads:
+            logger.error(f"Thread ID {input_message.thread_id} not found in existing threads.")
+            thread = BotOsThread(self.assistant_impl, self.input_adapters[0], thread_id=input_message.thread_id)
+            self.threads[input_message.thread_id] = thread
+        else:
+            thread = self.threads[input_message.thread_id]
         print(f"add_message: {self.bot_id} - {input_message.msg} size:{len(input_message.msg)}")
         thread.add_message(input_message)
         logger.debug(f'added message {input_message.msg}')
@@ -202,6 +222,10 @@ class BotOsSession:
                     input_message.thread_id = out_thread
                 self.in_to_out_thread_map[input_message.thread_id] = out_thread
                 self.out_to_in_thread_map[out_thread] = input_message.thread_id
+                # Save the out_to_in_thread_map to a file
+                sanitized_bot_id = re.sub(r'[^a-zA-Z0-9]', '', self.bot_id)
+                with open(f'./thread_maps_{sanitized_bot_id}.pickle', 'wb') as handle:
+                    pickle.dump({'out_to_in': self.out_to_in_thread_map, 'in_to_out': self.in_to_out_thread_map}, handle, protocol=pickle.HIGHEST_PROTOCOL)
             logger.error(f"Out Thread {out_thread} ->> In Thead {input_message.thread_id}")
            
            # input_message.metadata["input_thread"] = input_message.thread_id

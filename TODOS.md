@@ -4,8 +4,15 @@ GENESIS BOT TODOS
 =================
 
 CLEANUP:
+Fix vision-chat-analysis, add to available_tools, give to eliza and stuart by default
+Make patch upgrade of app work in NA/SPCS
+Make thread map save to local database to survive container restart 
+Make a way to backup the internal schema and recover it 
+In install of Eliza make and grant an external workspace database and tell Eliza about it in her prompt (include grants on future objects to accountadmin)
+(soon) add log sharing back to provider
 (soon) Make sure deploy button before slack keys activated tells you what to do (e.g. put in slack config keys first)
 (soon) Add undeploy from Slack button on bot config
+Expose harvest tables to app public so user can read write backup and restore
 ! Harvest semantic models and return in get_metadata dynamically (look in SEMANTIC_STAGES for each schema we harvest)
 (soon) figure out native app auto and manual upgrades, service restart, containers ok? (was getting errors before)
 (test) Make sure harvester works ok with mixed case table and database and schema names (and system in general)

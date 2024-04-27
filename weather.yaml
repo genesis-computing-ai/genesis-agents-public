@@ -1,0 +1,404 @@
+name: Weather_Data_Model
+description: A semantic model designed to represent key weather metrics in Snowflake,
+  focusing on geography, date, and top 10 weather attributes from each table.
+tables:
+- name: History_Day_Summary
+  description: A table storing daily historical weather metrics which contains key
+    data points related to temperature, humidity, pressure, wind, and other weather-related
+    measurements.
+  base_table:
+    database: WEATHER_DB
+    schema: PUBLIC
+    table: HISTORY_DAY
+  dimensions:
+  - name: Country
+    expr: COUNTRY
+    description: Country where the weather station providing the data is located.
+    synonyms:
+    - Nation
+    - Country Code
+    data_type: TEXT
+    unique: false
+    sample_values:
+    - US
+  - name: Postal_Code
+    expr: POSTAL_CODE
+    description: Postal zip code to which the weather data corresponds.
+    synonyms:
+    - ZIP Code
+    - Postal Area
+    data_type: TEXT
+    unique: false
+    sample_values:
+    - '63074'
+    - '72130'
+  time_dimensions:
+  - name: Date Valid
+    expr: DATE_VALID_STD
+    description: The date for which the weather data is valid.
+    synonyms:
+    - Valid Date
+    - Data Date
+    data_type: DATE
+    unique: false
+    sample_values:
+    - '2022-05-19'
+  measures:
+  - name: Avg Temperature
+    expr: AVG_TEMPERATURE_AIR_2M_F
+    description: Average air temperature at 2 meters above ground.
+    synonyms:
+    - Average Temp
+    - Mean Temperature
+    data_type: NUMBER
+    default_aggregation: AVG
+    sample_values:
+    - '69.3'
+    - '75.2'
+  - name: Max Temperature
+    expr: MAX_TEMPERATURE_AIR_2M_F
+    description: Maximum air temperature at 2 meters above ground.
+    synonyms:
+    - Highest Temp
+    - Peak Temperature
+    data_type: NUMBER
+    default_aggregation: MAX
+    sample_values:
+    - '78.7'
+    - '83.8'
+  - name: Min Temperature
+    expr: MIN_TEMPERATURE_AIR_2M_F
+    description: Minimum air temperature at 2 meters above ground.
+    synonyms:
+    - Lowest Temp
+    - Minimum Temperature
+    data_type: NUMBER
+    default_aggregation: MIN
+    sample_values:
+    - '63.2'
+    - '66.4'
+  - name: Avg Wind Speed
+    expr: AVG_WIND_SPEED_10M_MPH
+    description: Average wind speed at 10 meters above ground.
+    synonyms:
+    - Wind Speed Avg
+    - Mean Wind Speed
+    data_type: NUMBER
+    default_aggregation: AVG
+    sample_values:
+    - '5.2'
+    - '11.0'
+  - name: Max Wind Speed
+    expr: MAX_WIND_SPEED_10M_MPH
+    description: Maximum wind speed at 10 meters above ground.
+    synonyms:
+    - Wind Speed Max
+    - Peak Wind Speed
+    data_type: NUMBER
+    default_aggregation: MAX
+    sample_values:
+    - '9.6'
+    - '17.7'
+  - name: Total Precipitation
+    expr: TOT_PRECIPITATION_IN
+    description: Total precipitation in inches.
+    synonyms:
+    - Rainfall
+    - Precipitation Total
+    data_type: NUMBER
+    default_aggregation: SUM
+    sample_values:
+    - '0.42'
+    - '0.00'
+  - name: Total Snowfall
+    expr: TOT_SNOWFALL_IN
+    description: Total snowfall in inches.
+    synonyms:
+    - Snowfall
+    - Snow Total
+    data_type: NUMBER
+    default_aggregation: SUM
+    sample_values:
+    - '0.00'
+  - name: Total Snow Depth
+    expr: TOT_SNOWDEPTH_IN
+    description: Total snow depth in inches.
+    synonyms:
+    - Snow Depth
+    - Depth of Snow
+    data_type: NUMBER
+    default_aggregation: MAX
+    sample_values:
+    - '0.0'
+  - name: Max Cloud Cover
+    expr: MAX_CLOUD_COVER_TOT_PCT
+    description: Maximum cloud cover percentage for the day.
+    synonyms:
+    - Cloud Cover Max
+    - Peak Cloudiness
+    data_type: NUMBER
+    default_aggregation: MAX
+    sample_values:
+    - '100'
+    - '97'
+  - name: Total Solar Radiation
+    expr: TOT_RADIATION_SOLAR_TOTAL_WPM2
+    description: Total solar radiation in watts per square meter.
+    synonyms:
+    - Solar Radiation Total
+    - Sunlight Exposure
+    data_type: NUMBER
+    default_aggregation: SUM
+    sample_values:
+    - '3204.7'
+    - '6341.9'
+  filters: []
+- name: Forecast Day Summary
+  description: A table storing daily forecasted weather metrics which contains key
+    data points related to temperature, humidity, pressure, wind, and other weather-related
+    measurements.
+  base_table:
+    database: WEATHER_DB
+    schema: PUBLIC
+    table: FORECAST_DAY
+  dimensions:
+  - name: Country
+    expr: COUNTRY
+    description: Country where the weather forecast is provided.
+    synonyms:
+    - Nation
+    - Country Code
+    data_type: TEXT
+    unique: false
+    sample_values:
+    - US
+  - name: Postal Code
+    expr: POSTAL_CODE
+    description: Postal zip code for which the weather forecast applies.
+    synonyms:
+    - ZIP Code
+    - Forecast Area
+    data_type: TEXT
+    unique: false
+    sample_values:
+    - '33890'
+    - '33662'
+  time_dimensions:
+  - name: Date Valid
+    expr: DATE_VALID_STD
+    description: The date for which the forecasted weather data is valid.
+    synonyms:
+    - Forecast Date
+    - Prediction Date
+    data_type: DATE
+    unique: false
+    sample_values:
+    - '2024-04-15'
+  measures:
+  - name: Avg Forecast Temperature
+    expr: AVG_TEMPERATURE_AIR_2M_F
+    description: Average forecasted air temperature at 2 meters.
+    synonyms:
+    - Forecast Avg Temp
+    - Mean Forecast Temperature
+    data_type: NUMBER
+    default_aggregation: AVG
+    sample_values:
+    - '71.2'
+    - '72.4'
+  - name: Max Forecast Temperature
+    expr: MAX_TEMPERATURE_AIR_2M_F
+    description: Maximum forecasted air temperature at 2 meters.
+    synonyms:
+    - Highest Forecast Temp
+    - Peak Forecast Temperature
+    data_type: NUMBER
+    default_aggregation: MAX
+    sample_values:
+    - '86.1'
+    - '85.8'
+  - name: Min Forecast Temperature
+    expr: MIN_TEMPERATURE_AIR_2M_F
+    description: Minimum forecasted air temperature at 2 meters.
+    synonyms:
+    - Lowest Forecast Temp
+    - Minimum Forecast Temperature
+    data_type: NUMBER
+    default_aggregation: MIN
+    sample_values:
+    - '58.6'
+    - '60.3'
+  - name: Avg Forecast Wind Speed
+    expr: AVG_WIND_SPEED_10M_MPH
+    description: Average forecasted wind speed at 10 meters.
+    synonyms:
+    - Wind Speed Forecast Avg
+    - Mean Forecast Wind Speed
+    data_type: NUMBER
+    default_aggregation: AVG
+    sample_values:
+    - '6.9'
+    - '5.7'
+  - name: Max Forecast Wind Speed
+    expr: MAX_WIND_SPEED_10M_MPH
+    description: Maximum forecasted wind speed at 10 meters.
+    synonyms:
+    - Wind Speed Forecast Max
+    - Peak Forecast Wind Speed
+    data_type: NUMBER
+    default_aggregation: MAX
+    sample_values:
+    - '11.4'
+    - '7.0'
+  - name: Forecast Total Precipitation
+    expr: TOT_PRECIPITATION_IN
+    description: Total forecasted precipitation in inches.
+    synonyms:
+    - Rainfall Forecast
+    - Precipitation Forecast Total
+    data_type: NUMBER
+    default_aggregation: SUM
+    sample_values:
+    - '0.00'
+  - name: Forecast Total Snowfall
+    expr: TOT_SNOWFALL_IN
+    description: Total forecasted snowfall in inches.
+    synonyms:
+    - Snowfall Forecast
+    - Snow Forecast Total
+    data_type: NUMBER
+    default_aggregation: SUM
+    sample_values:
+    - '0.00'
+  - name: Forecast Max Cloud Cover
+    expr: MAX_CLOUD_COVER_TOT_PCT
+    description: Maximum forecasted cloud cover percentage for the day.
+    synonyms:
+    - Cloud Cover Forecast Max
+    - Peak Forecast Cloudiness
+    data_type: NUMBER
+    default_aggregation: MAX
+    sample_values:
+    - '100'
+    - '98'
+  - name: Forecast Total Solar Radiation
+    expr: TOT_RADIATION_SOLAR_TOTAL_WPM2
+    description: Total forecasted solar radiation in watts per square meter.
+    synonyms:
+    - Solar Radiation Forecast Total
+    - Sunlight Forecast Exposure
+    data_type: NUMBER
+    default_aggregation: SUM
+    sample_values:
+    - '7787.7'
+    - '7761.2'
+  filters: []
+- name: Climatology Day Summary
+  description: A table storing daily climatology data metrics, including temperature
+    variations, humidity levels, atmospheric pressure, wind speeds, and solar radiation,
+    representing average and variability aspects over time.
+  base_table:
+    database: WEATHER_DB
+    schema: PUBLIC
+    table: CLIMATOLOGY_DAY
+  dimensions:
+  - name: Country
+    expr: COUNTRY
+    description: Country associated with the climatology data.
+    synonyms:
+    - Nation
+    - Country Code
+    data_type: TEXT
+    unique: false
+    sample_values:
+    - US
+  - name: Postal Code
+    expr: POSTAL_CODE
+    description: Postal code for which the climatology data is recorded.
+    synonyms:
+    - ZIP Code
+    - Postal Area
+    data_type: TEXT
+    unique: false
+    sample_values:
+    - 01059
+    - '01331'
+  time_dimensions:
+  - name: Day of Year Standard
+    expr: DOY_STD
+    description: Standard day of the year for the climatology data.
+    synonyms:
+    - DOY
+    - Day of Year
+    data_type: NUMBER
+    unique: true
+    sample_values:
+    - '137'
+  measures:
+  - name: Average Daily Min Temperature
+    expr: AVG_OF__DAILY_MIN_TEMPERATURE_AIR_F
+    description: Average of daily minimum air temperatures recorded.
+    synonyms:
+    - Avg Daily Min Temp
+    - Average Min Temperature Daily
+    data_type: NUMBER
+    default_aggregation: AVG
+    sample_values:
+    - '48.1'
+    - '46.5'
+  - name: Average Daily Max Temperature
+    expr: AVG_OF__DAILY_MAX_TEMPERATURE_AIR_F
+    description: Average of daily maximum air temperatures recorded.
+    synonyms:
+    - Avg Daily Max Temp
+    - Average Max Temperature Daily
+    data_type: NUMBER
+    default_aggregation: AVG
+    sample_values:
+    - '72.3'
+    - '70.4'
+  - name: Average Daily Avg Temperature
+    expr: AVG_OF__DAILY_AVG_TEMPERATURE_AIR_F
+    description: Average of daily average air temperatures.
+    synonyms:
+    - Avg Daily Average Temp
+    - Average Mean Temperature Daily
+    data_type: NUMBER
+    default_aggregation: AVG
+    sample_values:
+    - '60.4'
+    - '58.7'
+  - name: Average Daily Avg Humidity
+    expr: AVG_OF__DAILY_AVG_HUMIDITY_RELATIVE_PCT
+    description: Average of daily average relative humidity percentages.
+    synonyms:
+    - Avg Daily Humidity
+    - Average Humidity Daily
+    data_type: NUMBER
+    default_aggregation: AVG
+    sample_values:
+    - '69'
+    - '68'
+  - name: Average Daily Precipitation
+    expr: AVG_OF__POS_DAILY_TOT_PRECIPITATION_IN
+    description: Average of daily total precipitation in inches for days with precipitation.
+    synonyms:
+    - Avg Daily Precipitation
+    - Average Precipitation Daily
+    data_type: NUMBER
+    default_aggregation: AVG
+    sample_values:
+    - '0.31'
+    - '0.26'
+  - name: Average Daily Max Wind Speed
+    expr: AVG_OF__DAILY_MAX_WIND_SPEED_10M_MPH
+    description: Average of daily maximum wind speeds at 10 meters.
+    synonyms:
+    - Avg Daily Max Wind Speed
+    - Average Max Wind Speed Daily
+    data_type: NUMBER
+    default_aggregation: AVG
+    sample_values:
+    - '12.0'
+    - '11.2'
+  filters: []

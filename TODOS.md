@@ -4,6 +4,7 @@ GENESIS BOT TODOS
 =================
 
 CLEANUP:
+Trap openai errors during execute_run such as out of credits, rate limit exceeded, and provide a message back to the user 
 Fix vision-chat-analysis, add to available_tools, give to eliza and stuart by default
 Make patch upgrade of app work in NA/SPCS
 Make thread map save to local database to survive container restart 

@@ -283,6 +283,7 @@ class SnowflakeConnector(DatabaseConnector):
             if not available_databases:
                 return {"Success": False, "Message": "No available databases to display."}
 
+
             return {"Success": True, "Data": json.dumps(available_databases)}
         
         except Exception as e:
@@ -677,7 +678,8 @@ class SnowflakeConnector(DatabaseConnector):
                     ('database_tools', 'Discover database metadata, find database tables, and run SQL queries on a database'),
                     ('harvester_tools', 'Control the database harvester, add new databases to harvest, add schema inclusions and exclusions, see harvest status'),
                     ('snowflake_stage_tools', 'Read, update, write, list, and delete from Snowflake Stages including Snowflake Semantic Models.'),
-                    ('snowflake_semantic_tools', 'Create and modify Snowflake Semantic Models')
+                    ('snowflake_semantic_tools', 'Create and modify Snowflake Semantic Models'),
+                    ('vision_chat_analysis', 'Tools to interpret visual images and pictures')
                ]
                 insert_tools_query = f"""
                 INSERT INTO {self.available_tools_table_name} (TOOL_NAME, TOOL_DESCRIPTION)
@@ -1894,7 +1896,7 @@ class SnowflakeConnector(DatabaseConnector):
         }
         HOST = self.connection.host
         num_retry, max_retries = 0, 3
-        while num_retry <= 3:
+        while num_retry <= 10:
             num_retry += 1
             logger.warning('Checking REST token...')
             rest_token = self.connection.rest.token
@@ -2137,10 +2139,10 @@ class SnowflakeConnector(DatabaseConnector):
     # with methods run_query() for executing queries and logger is a logging instance.
     # Test instance creation and calling list_stage method
 
-    def create_empty_semantic_model(model_name="", model_description="", thread_id=None):
+    def create_empty_semantic_model(self, model_name="", model_description="", thread_id=None):
         # Define the basic structure of the semantic model with an empty tables list
         semantic_model = {
-            'model_name': model_name,
+            'name': model_name,
             'description': model_description,  # Description is left empty to be filled later
             'tables': []  # Initialize with an empty list of tables
         }
@@ -2161,9 +2163,11 @@ class SnowflakeConnector(DatabaseConnector):
             str: The semantic model in YAML format.
         """
         try:
-            yaml_model = yaml.dump(json_model, default_flow_style=False, sort_keys=False)
+
+            sanitized_model = {k: v for k, v in json_model.items() if isinstance(v, (str, int, float, bool, list, dict, type(None)))}
+            yaml_model = yaml.dump(sanitized_model, default_flow_style=False, sort_keys=False)
             return yaml_model
-        except yaml.YAMLError as exc:
+        except Exception as exc:
             print(f"Error converting JSON to YAML: {exc}")
             return None
 
@@ -2193,10 +2197,8 @@ class SnowflakeConnector(DatabaseConnector):
             'add_measure', 'remove_measure', 'update_measure', 'add_filter', 'remove_filter', 'update_filter',
             'set_model_name', 'set_model_description', 'help'
         ]
-        if command not in valid_commands:
-            return {"success": False, "message": "Invalid command provided. Valid commands are: " + ", ".join(valid_commands)}
 
-        if command == 'help':
+        if command == 'help' or command not in valid_commands:
 
             help_message = """
             The following commands are available to modify the semantic model:
@@ -2208,23 +2210,23 @@ class SnowflakeConnector(DatabaseConnector):
             - 'update_table': Updates an existing table's details in the semantic model. 
                 Parameters: 'table_name', 'new_values' (a dictionary with any of 'name', 'description', 'database', 'schema', 'table').
             - 'add_dimension': Adds a new dimension to an existing table. 
-                Parameters: 'table_name', 'dimension_name', 'expr', 'description' (optional), 'synonyms' (optional, list), 'unique' (optional, boolean), 'sample_values' (optional, list).
+                Parameters: 'table_name', 'dimension_name', 'expr', 'data_type' (required, one of 'TEXT', 'DATE', 'NUMBER'), 'description' (optional), 'synonyms' (optional, list), 'unique' (optional, boolean), 'sample_values' (optional, list).
             - 'update_dimension': Updates an existing dimension in a table. 
-                Parameters: 'table_name', 'dimension_name', 'new_values' (a dictionary with any of 'name', 'expr', 'description', 'synonyms', 'unique', 'sample_values').
+                Parameters: 'table_name', 'dimension_name', 'new_values' (a dictionary with any of 'name', 'expr', 'data_type', 'description', 'synonyms', 'unique', 'sample_values').
             - 'remove_dimension': Removes an existing dimension from a table. 
                 Parameters: 'table_name', 'dimension_name'.
             - 'add_time_dimension': Adds a new time dimension to an existing table. 
-                Parameters: 'table_name', 'time_dimension_name', 'expr', 'description' (optional), 'synonyms' (optional, list), 'unique' (optional, boolean), 'sample_values' (optional, list).
+                Parameters: 'table_name', 'time_dimension_name', 'expr', 'data_type' (required, one of 'TEXT', 'DATE', 'NUMBER'), 'description' (optional), 'synonyms' (optional, list), 'unique' (optional, boolean), 'sample_values' (optional, list).
             - 'remove_time_dimension': Removes an existing time dimension from a table. 
                 Parameters: 'table_name', 'time_dimension_name'.
             - 'update_time_dimension': Updates an existing time dimension in a table. 
-                Parameters: 'table_name', 'time_dimension_name', 'new_values' (a dictionary with any of 'name', 'expr', 'description', 'synonyms', 'unique', 'sample_values').
+                Parameters: 'table_name', 'time_dimension_name', 'new_values' (a dictionary with any of 'name', 'expr', 'data_type', 'description', 'synonyms', 'unique', 'sample_values').
             - 'add_measure': Adds a new measure to an existing table. 
-                Parameters: 'table_name', 'measure_name', 'expr', 'description' (optional), 'synonyms' (optional, list), 'unique' (optional, boolean), 'sample_values' (optional, list), 'default_aggregation' (optional).
+                Parameters: 'table_name', 'measure_name', 'expr', 'data_type' (required, one of 'TEXT', 'DATE', 'NUMBER'), 'description' (optional), 'synonyms' (optional, list), 'unique' (optional, boolean), 'sample_values' (optional, list), 'default_aggregation' (optional).
             - 'remove_measure': Removes an existing measure from a table. 
                 Parameters: 'table_name', 'measure_name'.
             - 'update_measure': Updates an existing measure in a table. 
-                Parameters: 'table_name', 'measure_name', 'new_values' (a dictionary with any of 'name', 'expr', 'description', 'synonyms', 'unique', 'sample_values', 'default_aggregation').
+                Parameters: 'table_name', 'measure_name', 'new_values' (a dictionary with any of 'name', 'expr', 'data_type', 'description', 'synonyms', 'unique', 'sample_values', 'default_aggregation').
             - 'add_filter': Adds a new filter to an existing table. 
                 Parameters: 'table_name', 'filter_name', 'expr', 'description' (optional), 'synonyms' (optional, list).
             - 'remove_filter': Removes an existing filter from a table. 
@@ -2235,10 +2237,12 @@ class SnowflakeConnector(DatabaseConnector):
                 Parameters: 'model_name'.
             - 'set_model_description': Sets the description of the semantic model. 
                 Parameters: 'model_description'.
-
-            Note that all "expr" must be SQL-executable expressions that could work as part of a SELECT clause (for dimension and measures, often just the physical column name) or WHERE clause (for filters).
+            Note that all "expr" must be SQL-executable expressions that could work as part of a SELECT clause (for dimension and measures, often just the base column name) or WHERE clause (for filters).
             """
-            return {"success": True, "message": help_message}
+            if command not in valid_commands:
+                return {"success": False, "function_instructions": help_message}
+            else:
+                return {"success": True, "message": help_message}
 
 
         try:
@@ -2258,11 +2262,18 @@ class SnowflakeConnector(DatabaseConnector):
             if command in ['remove_table', 'add_table', 'update_table'] and not table and command != 'add_table':
                 return {"success": False, "message": f"Table '{table_name}' not found."}
 
+            if command in ['add_dimension', 'add_time_dimension', 'add_measure', 'update_dimension', 'update_time_dimension', 'update_measure']:
+                data_type = parameters.get('data_type')
+                if data_type is not None:
+                    data_type = data_type.upper()
+                if data_type is None or data_type not in ['TEXT', 'DATE', 'NUMBER']:
+                    return {"success": False, "message": "data_type is required and must be one of TEXT, DATE, or NUMBER."}
+
             if command == 'add_table':
-                required_physical_table_keys = ['database', 'schema', 'table']
-                if not all(key in parameters for key in required_physical_table_keys):
-                    missing_keys = [key for key in required_physical_table_keys if key not in parameters]
-                    return {"success": False, "message": f"Missing physical table parameters: {', '.join(missing_keys)}."}
+                required_base_table_keys = ['database', 'schema', 'table']
+                if not all(key in parameters for key in required_base_table_keys):
+                    missing_keys = [key for key in required_base_table_keys if key not in parameters]
+                    return {"success": False, "message": f"Missing base table parameters: {', '.join(missing_keys)}."}
                 
                 if table:
                     return {"success": False, "message": f"Table '{table_name}' already exists.", "semantic_yaml": semantic_model}
@@ -2270,7 +2281,7 @@ class SnowflakeConnector(DatabaseConnector):
                 new_table = {
                     'name': table_name,
                     'description': parameters.get('description', ''),
-                    'physical_table': {
+                    'base_table': {
                         'database': parameters['database'],
                         'schema': parameters['schema'],
                         'table': parameters['table']
@@ -2295,10 +2306,10 @@ class SnowflakeConnector(DatabaseConnector):
                     if key in table:
                         table[key] = value
                 if 'database' in parameters or 'schema' in parameters or 'table' in parameters:
-                    table['physical_table'] = {
-                        'database': parameters.get('database', table['physical_table']['database']),
-                        'schema': parameters.get('schema', table['physical_table']['schema']),
-                        'table': parameters.get('table', table['physical_table']['table'])
+                    table['base_table'] = {
+                        'database': parameters.get('database', table['base_table']['database']),
+                        'schema': parameters.get('schema', table['base_table']['schema']),
+                        'table': parameters.get('table', table['base_table']['table'])
                     }
                 description = parameters.get('description')
                 if description:
@@ -2335,6 +2346,9 @@ class SnowflakeConnector(DatabaseConnector):
                     synonyms = parameters.get('synonyms', [])
                     if synonyms:
                         new_item['synonyms'] = synonyms
+                    data_type = parameters.get('data_type', None)
+                    if data_type is not None:
+                        new_item['data_type'] = data_type
                     unique = parameters.get('unique', None)
                     if unique is not None:
                         new_item['unique'] = unique
@@ -2357,6 +2371,10 @@ class SnowflakeConnector(DatabaseConnector):
                         expr = new_values.pop('expr')
                         if expr is not None:
                             item['expr'] = expr
+
+                    if 'data_type' in parameters['new_values']:
+                        item['data_type'] = parameters['new_values']['data_type']  # Update the DATA_TYPE
+
                     if 'unique' in new_values:
                         unique = new_values.pop('unique')
                         if isinstance(unique, bool):
@@ -2405,12 +2423,12 @@ class SnowflakeConnector(DatabaseConnector):
         for table_name in tables:
             database_name = random_string('database')
             schema_name = random_string('schema')
-            physical_table_name = random_string('physical_table')
+            base_table = random_string('base_table')
             semantic_model = modify_semantic_model(semantic_model, 'add_table', {
                 'table_name': table_name,
                 'database': database_name,
                 'schema': schema_name,
-                'table': physical_table_name
+                'table': base_table
             })
             semantic_model = semantic_model.get('semantic_yaml')
 
@@ -2583,22 +2601,22 @@ class SnowflakeConnector(DatabaseConnector):
             if random.choice([True, False]):  # Randomly decide whether to update the physical table
                 new_database_name = random_string('new_database')
                 new_schema_name = random_string('new_schema')
-                new_physical_table_name = random_string('new_physical_table')
+                new_base_table_name = random_string('new_base_table')
                 result = modify_semantic_model(semantic_model, 'update_table', {
                     'table_name': current_table_name,
                     'new_values': {
-                        'physical_table': {
+                        'base_table': {
                             'database': new_database_name,
                             'schema': new_schema_name,
-                            'table': new_physical_table_name
+                            'table': new_base_table_name
                         }
                     }
                 })
                 if result.get('success'):
                     semantic_model = result.get('semantic_yaml')
-                    updated_table_names[table_name] = new_physical_table_name  # Track the updated table names
+                    updated_table_names[table_name] = new_base_table_name  # Track the updated table names
                 else:
-                    raise Exception(f"Error updating physical table: {result.get('message')}")
+                    raise Exception(f"Error updating base table: {result.get('message')}")
                 
         assert 'tables' in semantic_model
         assert len(semantic_model['tables']) == num_tables
@@ -2609,13 +2627,13 @@ class SnowflakeConnector(DatabaseConnector):
             assert 'filters' in table and 2 <= len(table['filters']) <= 5
         # Check that each table has a physical table with the correct fields set
         for table in semantic_model.get('tables', []):
-            physical_table = table.get('physical_table')
-            if not physical_table:
-                raise Exception(f"Table '{table['name']}' does not have a physical table associated with it.")
+            base_table = table.get('base_table')
+            if not base_table:
+                raise Exception(f"Table '{table['name']}' does not have a base table associated with it.")
             required_fields = ['database', 'schema', 'table']
             for field in required_fields:
-                if field not in physical_table or not physical_table[field]:
-                    raise Exception(f"Physical table for '{table['name']}' does not have the required field '{field}' set correctly.")
+                if field not in base_table or not base_table[field]:
+                    raise Exception(f"Base table for '{table['name']}' does not have the required field '{field}' set correctly.")
 
         return semantic_model
 
@@ -2658,9 +2676,9 @@ class SnowflakeConnector(DatabaseConnector):
                     suggestions.append(f"Table '{table['name']}' has no description. Consider adding a description for clarity.")
 
                 # Check for physical table mapping
-                physical_table = table.get('physical_table')
-                if not physical_table or not all(key in physical_table for key in ['database', 'schema', 'table']):
-                    suggestions.append(f"Table '{table['name']}' has incomplete physical table mapping. Ensure 'database', 'schema', and 'table' are defined.")
+                base_table = table.get('base_table')
+                if not base_table or not all(key in base_table for key in ['database', 'schema', 'table']):
+                    suggestions.append(f"Table '{table['name']}' has incomplete base table mapping. Ensure 'database', 'schema', and 'table' are defined.")
 
                 # Check for dimensions, measures, and filters
                 if not table.get('dimensions'):
@@ -2700,7 +2718,7 @@ class SnowflakeConnector(DatabaseConnector):
         return suggestions
     # Define a global map to store semantic models by thread_id
 
-    def initialize_semantic_model(self, model_name, thread_id=None):
+    def initialize_semantic_model(self, model_name=None, model_description=None, thread_id=None):
         """
         Creates an empty semantic model and stores it in a map with the thread_id as the key.
         
@@ -2709,17 +2727,20 @@ class SnowflakeConnector(DatabaseConnector):
             thread_id (str): The unique identifier for the thread.
         """
         # Create an empty semantic model
-        empty_model = self.create_empty_semantic_model(model_name)
+        if not model_name:
+             return {"Success": False, "Error": "model_name not provided"}
+        
+        empty_model = self.create_empty_semantic_model(model_name=model_name, model_description=model_description)
         # Store the model in the map using thread_id as the key
         map_key = thread_id + "__" + model_name
-        self.semantic_models_map[thread_id] = empty_model
+        self.semantic_models_map[map_key] = empty_model
 
         if empty_model is not None:
             return {"Success": True, "Message": f"The model {model_name} has been initialized."}
         else:
             return {"Success": False, "Error": "Failed to initialize the model."}
 
-    def modify_and_update_semantic_model(self, model_name, command, modifications, thread_id=None):
+    def modify_and_update_semantic_model(self, model_name, command, parameters=None, thread_id=None):
         """
         Modifies the semantic model based on the provided modifications, updates the model in the map,
         and returns the modified semantic model without the resulting YAML.
@@ -2733,6 +2754,12 @@ class SnowflakeConnector(DatabaseConnector):
             dict: The modified semantic model.
         """
         # Construct the map key
+        # Parse the command and modifications if provided in the command string
+        import json
+
+        if isinstance(parameters, str):
+            parameters = json.loads(parameters)
+
         map_key = thread_id + "__" + model_name
         # Retrieve the semantic model from the map
         semantic_model = self.semantic_models_map.get(map_key)
@@ -2740,13 +2767,17 @@ class SnowflakeConnector(DatabaseConnector):
             raise ValueError(f"No semantic model found for model_name: {model_name} and thread_id: {thread_id}")
 
         # Call modify_semantic_model with the retrieved model and the modifications
-        result = self.modify_semantic_model(model=semantic_model, command=command, modifications=modifications)
+        result = self.modify_semantic_model(semantic_model=semantic_model, command=command, parameters=parameters)
 
         # Check if 'semantic_yaml' is in the result and store it back into the map
         if 'semantic_yaml' in result:
             self.semantic_models_map[map_key] = result['semantic_yaml']
             # Strip 'semantic_yaml' parameter from result
             del result['semantic_yaml']
+
+            # Call the suggestions function with the model and add the suggestions to the result
+       #     suggestions_result = self.suggest_improvements(self.semantic_models_map[map_key])
+       #     result['suggestions'] = suggestions_result
         # Return the modified semantic model without the resulting YAML
         return result
 
@@ -2766,8 +2797,9 @@ class SnowflakeConnector(DatabaseConnector):
         map_key = thread_id + "__" + model_name
         # Retrieve the semantic model from the map
         semantic_model = self.semantic_models_map.get(map_key)
-        if semantic_model:
-            return {"Success": True, "SemanticModel": semantic_model}
+        semantic_yaml = self.convert_model_to_yaml(semantic_model)
+        if semantic_yaml:
+            return {"Success": True, "SemanticModel": yaml.dump(semantic_yaml)}
         else:
             return {"Success": False, "Error": f"No semantic model found for model_name: {model_name} and thread_id: {thread_id}"}
 

@@ -96,16 +96,16 @@ snowflake_semantic_functions = [
     {
         "type": "function",
         "function": {
-            "name": "_modify_and_update_semantic_model",
-            "description": "Modifies the semantic model based on the provided modifications, updates the model in the map, and returns the modified semantic model without the resulting YAML.",
+            "name": "_modify_semantic_model",
+            "description": "Modifies an existing semantic model. Call command 'help' for full instructions.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "model_name": {"type": "string", "description": "The name of the model to modify."},
-                    "command": {"type": "string", "description": "The command to run. Run command 'help' to get full details of how to use this tool."},
-                    "modifications": {"type": "object", "description": "The modifications to apply to the semantic model. Run command 'help' to see valid options."},
+                    "command": {"type": "string", "description": "The command to run, call command 'help' for full instructions.."},
+                    "parameters": {"type": "string", "description": "The command's parameters expressed in a JSON string."},
                 },
-                "required": ["model_name", "command"]
+                "required": ["model_name", "command", "parameters"]
             }
         }
     },
@@ -118,6 +118,7 @@ snowflake_semantic_functions = [
                 "type": "object",
                 "properties": {
                     "model_name": {"type": "string", "description": "The name of the model to initialize."},
+                    "model_description": {"type": "string", "description": "Description of the new semantic model."},
                 },
                 "required": ["model_name",]
             }
@@ -200,7 +201,7 @@ snowflake_stage_functions = [
 
 snowflake_semantic_tools = {
     "_get_semantic_model": "db_adapter.get_semantic_model",
-    "_modify_and_update_semantic_model": "db_adapter.modify_and_update_semantic_model",
+    "_modify_semantic_model": "db_adapter.modify_and_update_semantic_model",
     "_initialize_semantic_model": "db_adapter.initialize_semantic_model",
 }
 

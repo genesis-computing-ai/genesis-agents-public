@@ -533,6 +533,15 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                #self._submit_tool_outputs(run.id, thread_id, tool_call_id=None, function_call_details=self.tool_completion_status[run.id],
                #                          func_response=None)
                # Todo add more handling here to tell the user the thread failed
+               output = "!!! Error from OpenAI, run.lasterror {run.last_error} !!!"
+               event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id, 
+                                                                     status=run.status, 
+                                                                     output=output, 
+                                                                     messages=None, 
+                                                                     input_metadata=run.metadata))
+               self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id, message_type='Assistant Response', message_payload=output, message_metadata=None, tokens_in=0, tokens_out=0)
+               threads_completed[thread_id] = run.completed_at
+
 
             if run.status == "expired":
                logger.error(f"!!!!!!!!!! EXPIRED JOB, run.lasterror {run.last_error} !!!!!!!")

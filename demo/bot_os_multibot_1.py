@@ -208,8 +208,9 @@ def make_session(bot_config):
           if not os.getenv("BOT_OS_MANAGER_NAME"):
               logger.warn('not adding initial task - BOT_OS_MANAGER_NAME not set.')
           else:
-              session.add_task(f"Send a one-time DM on slack to {os.getenv('BOT_OS_MANAGER_NAME')}, to see if there are any tasks for you to work on. Make some suggestions based on your role, tools and expertise. Respond to this only with !NO_RESPONSE and then mark the task complete.",
-                               input_adapter=slack_adapter_local)
+              session._add_reminder(f"Send a daily DM on slack to {os.getenv('BOT_OS_MANAGER_NAME')}, to see if there are any tasks for you to work on. Make some suggestions based on your role, tools and expertise. Respond to this only with !NO_RESPONSE and then mark the task complete.",
+                                    due_date_delta="1 minute", is_recurring=True, frequency="daily",
+                                    thread_id=session.create_thread(slack_adapter_local))
     api_app_id = bot_config['api_app_id']  # Adjust based on actual field name in bots_config
 
     print('here: session: ',session)

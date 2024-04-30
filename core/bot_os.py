@@ -267,7 +267,7 @@ class BotOsSession:
     
     def _add_reminder(self, task_to_remember:str, due_date_delta:str, is_recurring:bool=False, frequency = None,
                       thread_id = "") -> dict:
-        logger.warn(f"_add_reminder - {thread_id} - {task_to_remember} - {due_date}")
+        logger.warn(f"_add_reminder - {thread_id} - {task_to_remember} - {due_date_delta}")
 
         if self.reminder_impl is None:
             raise(Exception("no reminder system defined"))

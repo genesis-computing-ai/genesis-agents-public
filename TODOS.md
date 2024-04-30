@@ -4,13 +4,19 @@ GENESIS BOT TODOS
 =================
 
 CLEANUP:
+MR - upgrades of native app, Make patch upgrade of app work in NA/SPCS
+MR - (soon) add log sharing back to provider
+Try harvester with mistral or yak model to save costs 
+Add update message back to slack thread if tools are still running for more than a minute or if the run is still thinking.. (update her Thinking message)
 Trap openai errors during execute_run such as out of credits, rate limit exceeded, and provide a message back to the user 
 Fix vision-chat-analysis, add to available_tools, give to eliza and stuart by default
-Make patch upgrade of app work in NA/SPCS
 Make thread map save to local database to survive container restart 
 Make a way to backup the internal schema and recover it 
 In install of Eliza make and grant an external workspace database and tell Eliza about it in her prompt (include grants on future objects to accountadmin)
-(soon) add log sharing back to provider
+Have Stuart put semantic stages to a standard place and CREATE STAGE my_int_stage ENCRYPTION = (TYPE = 'SNOWFLAKE_SSE');
+(soon) Give them 100 OpenAI turns a day or someting using our key, then have it switch to their own key
+make a metadata backup and recovery script so we have it ready
+Add a way for Eve for example to add another bot to a channel and then not process that thread anymore unless tagged again
 (soon) Make sure deploy button before slack keys activated tells you what to do (e.g. put in slack config keys first)
 (soon) Add undeploy from Slack button on bot config
 Expose harvest tables to app public so user can read write backup and restore

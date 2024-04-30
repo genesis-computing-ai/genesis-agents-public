@@ -48,14 +48,15 @@ database_tool_functions = [
         "type": "function",
         "function": {
             "name": "semantic_copilot",
-            "description": "Calls the Snowflake semantic copilot to generate proposed SQL against a semantic model.  Only use this when you know the name of an existing !SEMANTIC object, or get one in response to search_metadata.  If you can answer the users question by executing the resulting SQL, call run_query with that SQL to get the answers.",
+            "description": "Calls the Snowflake semantic copilot to generate proposed SQL against a semantic model. Only this if you know the name of an existing semantic model.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "prompt": {"type": "string", "description": "Brief but complete natural language description of what you want the resulting SQL to do."},
-                    "semantic_model": {"type": "string", "description": "The semantic model in the format \"!SEMANTIC\".\"database\".\"schema\".\"stage\".\"model\" to use for the copilot."},
+                    "semantic_model": {"type": "string", "description": "The name of the semantic model."},
+                    "prod": {"type": "boolean", "description": "True for a production model, false to use a dev non-prod model.", "default": True}
                 },
-                "required": ["prompt", "semantic_model"]
+                "required": ["prompt", "semantic_model", "prod"]
             }
         }
     },
@@ -97,7 +98,7 @@ snowflake_semantic_functions = [
         "type": "function",
         "function": {
             "name": "_modify_semantic_model",
-            "description": "Modifies an existing semantic model. Call command 'help' for full instructions.",
+            "description": "Modifies an existing semantic model. Call command 'help' for full instructions. Do NOT call this tool in parallel on the same model.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -124,8 +125,23 @@ snowflake_semantic_functions = [
             }
         }
     },
-]
-
+    {
+        "type": "function",
+        "function": {
+            "name": "_deploy_semantic_model",
+            "description": "Deploys / saves a semantic model to the production or dev based on the production flag.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "model_name": {"type": "string", "description": "The name of the model to deploy/save."},
+                    "target_name": {"type": "string", "description": "The target name of the model to deploy/save, if different from model_name."},
+                    "prod": {"type": "boolean", "description": "Flag to determine if the model should be deployed to production, or saved to dev. True deploy to production, False=save to dev.", "default": False}
+                },
+                "required": ["model_name", "thread_id"]
+            }
+        }
+    }
+    ]   
 
 snowflake_stage_functions = [
     {
@@ -196,14 +212,60 @@ snowflake_stage_functions = [
                 "required": ["database", "schema", "stage", "file_name"]
             }
         }
+    },    # Section for listing semantic models
+    {
+        "type": "function",
+        "function": {
+            "name": "_list_semantic_models",
+            "description": "Lists the semantic models available in the system.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "prod": {
+                        "type": "boolean",
+                        "description": "True for production models, false for dev models. Omit for both.",
+                        "default": False
+                    }
+                },
+                "required": []
+            }
+        }
     },
+    # Section for loading a semantic model
+    {
+        "type": "function",
+        "function": {
+            "name": "_load_semantic_model",
+            "description": "Loads a semantic model into the system for use.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "model_name": {
+                        "type": "string",
+                        "description": "The name of the semantic model to load."
+                    },
+                    "prod": {
+                        "type": "boolean",
+                        "description": "Flag to indicate if the model is a production model. Defaults to false to load dev models.",
+                        "default": False
+                    },
+                },
+                "required": ["model_name"]
+            }
+        }
+    }
 ]
+
 
 snowflake_semantic_tools = {
     "_get_semantic_model": "db_adapter.get_semantic_model",
     "_modify_semantic_model": "db_adapter.modify_and_update_semantic_model",
     "_initialize_semantic_model": "db_adapter.initialize_semantic_model",
+    "_deploy_semantic_model": "db_adapter.deploy_semantic_model",
+    "_load_semantic_model": "db_adapter.load_semantic_model",
+    "_list_semantic_models": "db_adapter.list_semantic_models"
 }
+
 
 database_tools = {"run_query": "run_query_f.local", "search_metadata": "search_metadata_f.local", 
                  "semantic_copilot": "semantic_copilot_f.local",
@@ -218,7 +280,7 @@ snowflake_stage_tools = {
 
 
 def bind_semantic_copilot(data_connection_info):
-    def _semantic_copilot(prompt:str, semantic_model:str):
+    def _semantic_copilot(prompt:str, semantic_model:str, prod:bool = True):
      #   if connection == 'Snowflake':
         my_dc = SnowflakeConnector('Snowflake')
      #   else:
@@ -226,7 +288,7 @@ def bind_semantic_copilot(data_connection_info):
 
         logger.info(f"Semantic copilot called with prompt: {prompt} and semantic model: {semantic_model}")
         try:
-            result = my_dc.semantic_copilot(prompt, semantic_model)
+            result = my_dc.semantic_copilot(prompt=prompt, semantic_model=semantic_model, prod=prod)
             return result
         except Exception as e:
             logger.error(f"Error in semantic_copilot: {str(e)}")

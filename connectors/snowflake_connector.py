@@ -423,6 +423,46 @@ class SnowflakeConnector(DatabaseConnector):
 
     def ensure_table_exists(self):
  
+        semantic_stage_check_query = f"SHOW STAGES LIKE 'SEMANTIC_MODELS_DEV' IN SCHEMA {self.schema};"
+        try:
+            cursor = self.client.cursor()
+            cursor.execute(semantic_stage_check_query)
+            if not cursor.fetchone():
+                semantic_stage_ddl = f"""
+                CREATE STAGE {self.schema}.SEMANTIC_MODELS_DEV
+                ENCRYPTION = (TYPE = 'SNOWFLAKE_SSE');
+                """
+                cursor.execute(semantic_stage_ddl)
+                self.client.commit()
+                print(f"Stage {self.schema}.SEMANTIC_MODELS_DEV created.")
+            else:
+                print(f"Stage {self.schema}.SEMANTIC_MODELS_DEV already exists.")
+        except Exception as e:
+            print(f"An error occurred while checking or creating stage SEMANTIC_MODELS_DEV: {e}")
+        finally:
+            if cursor is not None:
+                cursor.close()
+
+        semantic_stage_check_query = f"SHOW STAGES LIKE 'SEMANTIC_MODELS' IN SCHEMA {self.schema};"
+        try:
+            cursor = self.client.cursor()
+            cursor.execute(semantic_stage_check_query)
+            if not cursor.fetchone():
+                semantic_stage_ddl = f"""
+                CREATE STAGE {self.schema}.SEMANTIC_MODELS
+                ENCRYPTION = (TYPE = 'SNOWFLAKE_SSE');
+                """
+                cursor.execute(semantic_stage_ddl)
+                self.client.commit()
+                print(f"Stage {self.schema}.SEMANTIC_MODELS created.")
+            else:
+                print(f"Stage {self.schema}.SEMANTIC_MODELS already exists.")
+        except Exception as e:
+            print(f"An error occurred while checking or creating stage SEMANTIC_MODELS: {e}")
+        finally:
+            if cursor is not None:
+                cursor.close()
+ 
         udf_check_query = f"SHOW USER FUNCTIONS LIKE 'SET_BOT_APP_LEVEL_KEY' IN SCHEMA {self.schema};"
         try:
             cursor = self.client.cursor()
@@ -1854,27 +1894,12 @@ class SnowflakeConnector(DatabaseConnector):
             raise e
 
 
-    def semantic_copilot(self, prompt='What data is available?', semantic_model=None):
+    def semantic_copilot(self,  prompt='What data is available?',semantic_model=None, prod=True ):
         # Parse the semantic_model into its components and validate
-        model_parts = semantic_model.split(".")
-        # Ensure each part of the model is enclosed in double quotes
-        model_parts = ['"' + part.strip('"') + '"' for part in model_parts]
-        if len(model_parts) == 6:
-            model_parts[4] = model_parts[4].strip('"') + "." + model_parts[5].strip('"')
-            model_parts[4] = f'"{model_parts[4]}"'
-            model_parts.pop()
-        if len(model_parts) != 5 or model_parts[0] != '"!SEMANTIC"':
-            error_message = 'semantic_model must be in the format "!SEMANTIC"."database"."schema"."stage"."model", '
-            if len(model_parts) < 5:
-                error_message += 'but it is missing some components or the "!SEMANTIC" part is not at the start.'
-            else:
-                error_message += 'but it has too many components or the "!SEMANTIC" part is not at the start.'
-            logger.error(error_message)
-            return {
-                "success": False,
-                "error": error_message
-            }
-        _, database, schema, stage, model = model_parts
+
+        database, schema = self.genbot_internal_project_and_schema.split('.')
+        stage = "SEMANTIC_MODELS" if prod else "SEMANTIC_MODELS_DEV"
+        model = semantic_model
         database, schema, stage, model = [f'"{part}"' if not part.startswith('"') else part for part in [database, schema, stage, model]]
         if not all(part.startswith('"') and part.endswith('"') for part in [database, schema, stage, model]):
             error_message = 'All five components of semantic_model must be enclosed in double quotes. For example "!SEMANTIC"."DB"."SCH"."STAGE"."model.yaml'            
@@ -1984,7 +2009,7 @@ class SnowflakeConnector(DatabaseConnector):
             logger.error(f"Error listing stage contents: {e}")
             return []
 
-    def add_file_to_stage(self, database: str=None, schema: str=None, stage: str=None, openai_file_id: str=None, file_name: str=None, thread_id=None):
+    def add_file_to_stage(self, database: str=None, schema: str=None, stage: str=None, openai_file_id: str=None, file_name: str=None, file_content: str=None, thread_id=None):
         """
         Add a file to a Snowflake stage.
 
@@ -1999,32 +2024,48 @@ class SnowflakeConnector(DatabaseConnector):
             dict: A dictionary with the result of the operation.
         """
 
-        file_name  = file_name.replace('serverlocal:', '') 
-        openai_file_id  = openai_file_id.replace('serverlocal:', '') 
+        if file_content is None:
+            file_name  = file_name.replace('serverlocal:', '') 
+            openai_file_id  = openai_file_id.replace('serverlocal:', '') 
 
-        if file_name.startswith("file-"):
-            return {
-                "success": False,
-                "error": "Please provide a human-readable file name in the file_name parameter, with a supported extension, not the OpenAI file ID. If unsure, ask the user what the file should be called."
-            }
+            if file_name.startswith("file-"):
+                return {
+                    "success": False,
+                    "error": "Please provide a human-readable file name in the file_name parameter, with a supported extension, not the OpenAI file ID. If unsure, ask the user what the file should be called."
+                }
 
-        if '/' in file_name:
-            file_name = file_name.split('/')[-1]
-        if '/' in openai_file_id:
-            openai_file_id = openai_file_id.split('/')[-1]
+            if '/' in file_name:
+                file_name = file_name.split('/')[-1]
+            if '/' in openai_file_id:
+                openai_file_id = openai_file_id.split('/')[-1]
 
-        file_path = f'./downloaded_files/{thread_id}/' + file_name
-        existing_location = f"./downloaded_files/{thread_id}/{openai_file_id}"
-        
-        if os.path.isfile(existing_location) and (file_path != existing_location):
-            with open(existing_location, 'rb') as source_file:
-                with open(file_path, 'wb') as dest_file:
-                    dest_file.write(source_file.read())
-         
-        if not os.path.isfile(file_path):
+            file_path = f'./downloaded_files/{thread_id}/' + file_name
+            existing_location = f"./downloaded_files/{thread_id}/{openai_file_id}"
+            
+            if os.path.isfile(existing_location) and (file_path != existing_location):
+                with open(existing_location, 'rb') as source_file:
+                    with open(file_path, 'wb') as dest_file:
+                        dest_file.write(source_file.read())
+            
+            if not os.path.isfile(file_path):
 
-            logger.error(f"File not found: {file_path}")
-            return {"success": False, "error": f"Needs user review: Please first save and RETURN THE FILE *AS A FILE* to the user for their review, and once confirmed by the user, call this function again referencing the SAME OPENAI_FILE_ID THAT YOU RETURNED TO THE USER to save it to stage."}
+                logger.error(f"File not found: {file_path}")
+                return {"success": False, "error": f"Needs user review: Please first save and RETURN THE FILE *AS A FILE* to the user for their review, and once confirmed by the user, call this function again referencing the SAME OPENAI_FILE_ID THAT YOU RETURNED TO THE USER to save it to stage."}
+ 
+        else:
+            if thread_id is None:
+                thread_id = ''.join(random.choices(string.ascii_letters + string.digits, k=6))
+            
+        if file_content is not None:
+            # Ensure the directory exists
+            directory = f'./downloaded_files/{thread_id}'
+            if not os.path.exists(directory):
+                os.makedirs(directory)
+            
+            # Write the content to the file
+            file_path = os.path.join(directory, file_name)
+            with open(file_path, 'w') as file:
+                file.write(file_content)
 
         try:
             query = f"PUT file://{file_path} @{database}.{schema}.{stage} AUTO_COMPRESS=FALSE"
@@ -2048,7 +2089,6 @@ class SnowflakeConnector(DatabaseConnector):
         """
         try:
             # Define the local directory to save the file
-
             local_dir = os.path.join(".", "downloaded_files", ".", thread_id)
                    
             if '/' in file_name:
@@ -2198,9 +2238,15 @@ class SnowflakeConnector(DatabaseConnector):
             'set_model_name', 'set_model_description', 'help'
         ]
 
+
+        base_message = ""
+
+        if command.startswith('update_') and 'new_values' not in parameters:
+            base_message = "Error: The 'new_values' parameter must be provided as a dictionary object for update_* commands.\n\n"
+
         if command == 'help' or command not in valid_commands:
 
-            help_message = """
+            help_message = base_message + """
             The following commands are available to modify the semantic model:
 
             - 'add_table': Adds a new table to the semantic model. 
@@ -2261,13 +2307,32 @@ class SnowflakeConnector(DatabaseConnector):
 
             if command in ['remove_table', 'add_table', 'update_table'] and not table and command != 'add_table':
                 return {"success": False, "message": f"Table '{table_name}' not found."}
+            valid_data_types = [
+                "NUMBER", "DECIMAL", "NUMERIC", "INT", "INTEGER", "BIGINT", "SMALLINT", "TINYINT", "BYTEINT",
+                "FLOAT", "FLOAT4", "FLOAT8", "DOUBLE", "DOUBLE PRECISION", "REAL",
+                "VARCHAR", "CHAR", "CHARACTER", "STRING", "TEXT", "BINARY", "VARBINARY",
+                "BOOLEAN",
+                "DATE", "DATETIME", "TIME", "TIMESTAMP", "TIMESTAMP_LTZ", "TIMESTAMP_NTZ", "TIMESTAMP_TZ",
+                "VARIANT", "OBJECT", "ARRAY",
+                "GEOGRAPHY", "GEOMETRY"
+                ]
+
+###TODO ADD CHECK FOR NEW_VALUES ON UPDATE
 
             if command in ['add_dimension', 'add_time_dimension', 'add_measure', 'update_dimension', 'update_time_dimension', 'update_measure']:
                 data_type = parameters.get('data_type')
                 if data_type is not None:
                     data_type = data_type.upper()
-                if data_type is None or data_type not in ['TEXT', 'DATE', 'NUMBER']:
-                    return {"success": False, "message": "data_type is required and must be one of TEXT, DATE, or NUMBER."}
+                new_values = parameters.get('new_values', {})
+                if data_type is None:
+                    data_type = new_values.get('data_type',None)
+                if data_type is not None:
+                    data_type = data_type.upper()
+                if data_type is None and command.startswith('add_'):
+                    return {"success": False, "message": "data_type is required for adding new elements."}
+                if data_type is not None and data_type not in valid_data_types:
+                    return {"success": False, "message": "data_type is required, try using TEXT, DATE, or NUMBER."}
+
 
             if command == 'add_table':
                 required_base_table_keys = ['database', 'schema', 'table']
@@ -2355,7 +2420,7 @@ class SnowflakeConnector(DatabaseConnector):
                     if 'measure' in command:
                         default_aggregation = parameters.get('default_aggregation')
                         if default_aggregation:
-                            new_item['default_aggregation'] = default_aggregation
+                            new_item['default_aggregation'] = default_aggregation.lower()
                     if 'filter' not in command:
                         sample_values = parameters.get('sample_values', [])
                         if sample_values:
@@ -2375,6 +2440,9 @@ class SnowflakeConnector(DatabaseConnector):
                     if 'data_type' in parameters['new_values']:
                         item['data_type'] = parameters['new_values']['data_type']  # Update the DATA_TYPE
 
+                    if 'default_aggregation' in parameters['new_values']:
+                        item['default_aggregation'] = parameters['new_values']['default_aggregation'].lower()  # Update the DATA_TYPE
+
                     if 'unique' in new_values:
                         unique = new_values.pop('unique')
                         if isinstance(unique, bool):
@@ -2382,7 +2450,7 @@ class SnowflakeConnector(DatabaseConnector):
                     if 'measure' in command:
                         default_aggregation = new_values.pop('default_aggregation', None)
                         if default_aggregation is not None:
-                            item['default_aggregation'] = default_aggregation
+                            item['default_aggregation'] = default_aggregation.lower()
                     if 'filter' not in command:
                         sample_values = new_values.pop('sample_values', None)
                         if sample_values is not None:
@@ -2802,6 +2870,128 @@ class SnowflakeConnector(DatabaseConnector):
             return {"Success": True, "SemanticModel": yaml.dump(semantic_yaml)}
         else:
             return {"Success": False, "Error": f"No semantic model found for model_name: {model_name} and thread_id: {thread_id}"}
+
+    def deploy_semantic_model(self, model_name=None, target_name=None, prod=False, thread_id=None):
+
+        map_key = thread_id + "__" + model_name
+        # Retrieve the semantic model from the map
+        semantic_model = self.semantic_models_map.get(map_key)
+        semantic_yaml = self.convert_model_to_yaml(semantic_model)
+
+        # Determine the stage based on the prod flag
+        stage_name = "SEMANTIC_MODELS" if prod else "SEMANTIC_MODELS_DEV"
+        # Convert the semantic model to YAML and save it to the appropriate stage
+        try:
+            # Convert semantic model to YAML
+
+            semantic_yaml_str = semantic_yaml
+            # Define the file name for the YAML file
+            if target_name is None:
+                yaml_file_name = f"{model_name}.yaml"
+            else:
+                yaml_file_name = f"{target_name}.yaml"
+            # Save the YAML string to the stage
+            db, sch = self.genbot_internal_project_and_schema.split('.')
+            self.add_file_to_stage(
+                database=db,
+                schema=sch,
+                stage=stage_name,
+                file_name=yaml_file_name,
+                file_content=semantic_yaml_str
+            )
+            print(f"Semantic YAML for model '{model_name}' saved to stage '{stage_name}'.")
+        except Exception as e:
+            return {"Success": False, "Error": f"Failed to save semantic YAML to stage '{stage_name}': {e}"}
+
+    def load_semantic_model(self, model_name,  prod=False, thread_id=None):
+        """
+        Loads a semantic model from the specified stage into the semantic models map.
+
+        Args:
+            model_name (str): The name of the model to load.
+            thread_id (str): The unique identifier for the thread.
+            prod (bool): Flag to determine if the model should be loaded from production stage. Defaults to False.
+
+        Returns:
+            dict: A JSON wrapper with the result of the operation.
+        """
+        # Determine the stage based on the prod flag
+        stage_name = "SEMANTIC_MODELS" if prod else "SEMANTIC_MODELS_DEV"
+        # Define the file name for the YAML file
+        yaml_file_name = model_name
+        if not yaml_file_name.endswith('.yaml'):
+            yaml_file_name += '.yaml'
+        # Attempt to read the YAML file from the stage
+        try:
+            db, sch = self.genbot_internal_project_and_schema.split('.')
+            if thread_id is None:
+                thread_id = ''.join(random.choices(string.ascii_letters + string.digits, k=6))
+
+            file_content = self.read_file_from_stage(
+                database=db,
+                schema=sch,
+                stage=stage_name,
+                file_name=yaml_file_name,
+                return_contents=True, 
+                thread_id=thread_id
+            )
+            if file_content:
+                # Convert YAML content to a Python object
+                semantic_model = yaml.safe_load(file_content)
+                # Construct the map key
+                map_key = thread_id + "__" + model_name
+                # Store the semantic model in the map
+                self.semantic_models_map[map_key] = semantic_model
+                return {"Success": True, "Message": f"Semantic model '{model_name}' loaded from stage '{stage_name}'."}
+            else:
+                return {"Success": False, "Error": f"Semantic model '{model_name}' not found in stage '{stage_name}'."}
+        except Exception as e:
+            return {"Success": False, "Error": f"Failed to load semantic model from stage '{stage_name}': {e}"}
+
+    def list_semantic_models(self, prod=None, thread_id=None):
+        """
+        Lists the semantic models in both production and non-production stages.
+
+        Returns:
+            dict: A JSON object containing the lists of models in production and non-production stages.
+        """
+        # Split the combined project and schema string into separate database and schema variables
+        db, sch = self.genbot_internal_project_and_schema.split('.')
+        prod_stage_name = "SEMANTIC_MODELS"
+        dev_stage_name = "SEMANTIC_MODELS_DEV"
+        prod_models = []
+        dev_models = []
+        try:
+            # List models in production stage
+            prod_stage_contents = self.list_stage_contents(
+                database=db,
+                schema=sch,
+                stage=prod_stage_name
+            )
+            prod_models = [model['name'] for model in prod_stage_contents]
+
+            # List models in non-production stage
+            dev_stage_contents = self.list_stage_contents(
+                database=db,
+                schema=sch,
+                stage=dev_stage_name
+            )
+            dev_models = [model['name'] for model in dev_stage_contents]
+
+            prod_models = [model.split('/')[-1] if '/' in model else model for model in prod_models]
+            dev_models = [model.split('/')[-1] if '/' in model else model for model in dev_models]
+            prod_models = [model.replace('.yaml', '') for model in prod_models]
+            dev_models = [model.replace('.yaml', '') for model in dev_models]
+            return {
+                "Success": True,
+                "ProdModels": prod_models,
+                "DevModels": dev_models
+            }
+        except Exception as e:
+            return {
+                "Success": False,
+                "Error": str(e)
+            }
 
 
 def test_stage_functions():

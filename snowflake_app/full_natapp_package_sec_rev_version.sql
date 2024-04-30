@@ -1,9 +1,10 @@
 use use database app_local_db;
 
+show compute pools;
+
+show stages;
 
 SHOW VERSIONS IN APPLICATION PACKAGE GENESISAPP_APP_PKG_EXT;
-
-
 
 select current_region(), current_account();
 
@@ -297,10 +298,10 @@ $$
 import streamlit as st
 import os, json
 
-prefix = 'genesis_bots_alpha.app1'
-core_prefix = 'genesis_bots_alpha.CORE'
+prefix = 'genesis_bots.app1'
+core_prefix = 'genesis_bots.CORE'
 
-app_name = 'GENESIS_BOTS_ALPHA'
+app_name = 'GENESIS_BOTS'
 
 st.set_page_config(layout="wide")
 
@@ -917,9 +918,7 @@ def grant_data():
 
     st.subheader('Grant Data Access')
     st.write('The Genesis application can help you with your data in Snowflake. To do so, you need to grant this application access to your data. The helper procedure below can help you grant access to everything in a database to this application. This application runs securely inside your Snowflake account.')
-    wh_text = f'''-- select role to use, generally Accountadmin or Sysadmin
-use role ACCOUNTADMIN;
-
+    wh_text = f'''
 -- set the name of the installed application
 set APP_DATABASE = '{app_name}';
 
@@ -1056,10 +1055,7 @@ def config_wh():
 
     st.write('Genesis Bots needs rights to use a Snowflake compute engine, known as a Virtual Warehouse, to run queries on Snowflake. Please open a new Snowflake worksheet and run these commands to grant Genesis access to an existing Warehouse, or to make a new one for its use. This step does not provide Genesis Bots with access to any of your data, just the ability to run SQL on Snowflake in general.')
     
-    wh_text = f'''-- select role to use, generally Accountadmin or Sysadmin
-use role ACCOUNTADMIN;
-
--- set the name of the installed application
+    wh_text = f'''-- set the name of the installed application
 set APP_DATABASE = '{app_name}';
 
 -- set warehouse name to use
@@ -1111,10 +1107,7 @@ def config_pool():
     st.write('Genesis Bots has a server component that runs securely inside your Snowflake account, that coordinates the actions of your Genesis Bots, and manages their interactions with other users and bots. To run this server, you need to create and grant Genesis Server access to a Snowflake Compute Pool.')
     st.write('Please go back to your Snowflake worksheet and run these commands to create a new compute pool and grant Genesis the rights to use it.  This uses the smallest Snowflake compute pool, which costs about 0.11 Snowflake Credits per hour, or about $5/day.  Once you start the server, you will be able to suspend it and it when not in use.')
     
-    wh_text = f'''-- select role to use, generally Accountadmin or Sysadmin
-use role ACCOUNTADMIN;
-
--- set the name of the installed application
+    wh_text = f'''-- set the name of the installed application
 set APP_DATABASE = '{app_name}';
 
 -- remove an existing pool, if you've installed this app before
@@ -1141,10 +1134,7 @@ def config_eai():
     st.write("Genesis Bots currently uses OpenAI GPT4-Turbo as its main LLM, as it is the only model that we've found powerful and reliable enough to power our bots. To access OpenAI from the Genesis Server, you'll need to create a Snowflake External Access Integration so that the Genesis Server can call OpenAI. Genesis can also optionally connect to Slack via Ngrok, to allow your bots to interact via Slack.")
     st.write('So please go back to the worksheet one more time, and run these commands to create a external access integration, and grant Genesis the rights to use it. Genesis will only be able to access the endpoints listed, OpenAI, and optionally Slack.')
     
-    wh_text = f'''-- select role to use, generally Accountadmin or Sysadmin
-use role ACCOUNTADMIN;
-
--- set the name of the installed application
+    wh_text = f'''-- set the name of the installed application
 set APP_DATABASE = '{app_name}';
 
 -- create a local database to store the network rule (you can change these to an existing database and schema if you like)
@@ -1281,7 +1271,7 @@ def start_stop():
 
         st.session_state.wh_name  = '<your warehouse name>'
 
-    st.write('You can use the below commands in a worksheet to stop, start, and monitor the Gensis Server:')
+    st.write('You cccan use the below commands in a worksheet to stop, start, and monitor the Gensis Server:')
     start_stop_text = f'''USE DATABASE IDENTIFIER("{app_name}");
 
 // reinitialize
@@ -1373,7 +1363,7 @@ else:
 $$)
 ;
 select * from script_tmp;
-
+select * from script;
 
 CREATE OR REPLACE TEMPORARY TABLE script_tmp AS SELECT 'README' NAME,REGEXP_REPLACE($$
 
@@ -1444,13 +1434,9 @@ To allow Genesis to access to required external APIs (OpenAI and Slack)
 
 -- Note: Please use the default Streamlit App for a full walkthrough of these steps
 
--- use a role with sufficient priviliges for the
-
-use role ACCOUNTADMIN;
-
 -- set the name of the installed application and warehouse to use
 
-set APP_DATABASE = 'GENESIS_BOTS_ALPHA';
+set APP_DATABASE = 'GENESIS_BOTS';
 set APP_WAREHOUSE = 'XSMALL';  -- ok to use an existing warehouse
 
 -- create the warehouse if needed
@@ -1574,14 +1560,6 @@ VALUES ('GENESISAPP_HARVESTER_SERVICE',
 :::)
 ;
 
-
---        secrets:
---         - snowflakeSecret: APP_LOCAL_DB.EGRESS.OPENAI_API_KEY
---           secretKeyRef: SECRET_STRING
---           envVarName: OPENAI_API_KEY
---         - snowflakeSecret: APP_LOCAL_DB.EGRESS.NGROK_AUTHTOKEN
---           secretKeyRef: SECRET_STRING
---           envVarName: NGROK_AUTH_TOKEN
 
 
 CREATE OR REPLACE PROCEDURE APP.WAIT_FOR_STARTUP(INSTANCE_NAME VARCHAR, SERVICE_NAME VARCHAR, MAX_WAIT INTEGER)
@@ -1963,51 +1941,6 @@ CREATE OR REPLACE STREAMLIT CORE.SIS_LAUNCH
 
 GRANT USAGE ON STREAMLIT CORE.SIS_LAUNCH TO APPLICATION ROLE app_public;
 
-CREATE OR REPLACE PROCEDURE CORE.RUN_ARBITRARY(sql_query VARCHAR)
-RETURNS VARIANT
-LANGUAGE JAVASCRIPT
-EXECUTE AS OWNER
-AS
-:::
-    // Prepare a statement using the provided SQL query
-    var statement = snowflake.createStatement({sqlText: SQL_QUERY});
-    
-    // Execute the statement
-    var result_set = statement.execute();
-    
-    // Initialize an array to hold each row's data
-    var rows = [];
-    
-    // Iterate over each row in the result set
-    while (result_set.next()) {
-        // Initialize an object to store the current row's data
-        var row = {};
-        
-        // Iterate over each column in the current row
-        for (var colIdx = 1; colIdx <= result_set.getColumnCount(); colIdx++) {
-            // Get the column name and value
-            var columnName = result_set.getColumnName(colIdx);
-            var columnValue = result_set.getColumnValue(colIdx);
-            
-            // Add the column name and value to the current row's object
-            row[columnName] = columnValue;
-        }
-        
-        // Add the current row's object to the rows array
-        rows.push(row);
-    }
-    
-    // Convert the rows array to a JSON string
-    var jsonResult = JSON.stringify(rows);
-    
-    // Return the JSON string
-    // Note: Snowflake automatically converts the returned string to a VARIANT (JSON) data type
-    return JSON.parse(jsonResult);
-:::;
-
-
- 
-GRANT USAGE ON PROCEDURE CORE.RUN_ARBITRARY(VARCHAR) TO APPLICATION ROLE app_public;
 
 $$,':::','$$') VALUE;
 
@@ -2018,6 +1951,7 @@ INSERT INTO SCRIPT SELECT * FROM SCRIPT_TMP;
 
 --delete from script;
 INSERT INTO SCRIPT SELECT * FROM SCRIPT_TMP;
+select * from script;
 
 
 -- ########## SCRIPTS CONTENT  ###########################################
@@ -2080,7 +2014,7 @@ END;
 
 select current_role();
 
-DROP APPLICATION IF EXISTS GENESIS_BOTS_ALPHA;
+DROP APPLICATION IF EXISTS GENESIS_BOTS;
 show applications;
 
 show compute pools;
@@ -2089,8 +2023,8 @@ drop service genesis_server;
 SHOW SERVICES IN COMPUTE POOL GENESIS_TEST_POOL;
 ALTER COMPUTE POOL GENESIS_TEST_POOL STOP ALL;
 
-SET APP_DATABASE='GENESIS_BOTS_ALPHA';
-CREATE APPLICATION GENESIS_BOTS_ALPHA FROM APPLICATION PACKAGE GENESISAPP_APP_PKG_EXT USING VERSION V0_1;
+SET APP_DATABASE='GENESIS_BOTS_ALPHA_EXT';
+CREATE APPLICATION GENESIS_BOTS_ALPHA_EXT FROM APPLICATION PACKAGE GENESISAPP_APP_PKG_EXT USING VERSION V0_1;
 
 call GENESISAPP_APP.core.get_eai();
 // to get streamlit up and running

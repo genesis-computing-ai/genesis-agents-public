@@ -1,0 +1,19 @@
+*.pyc
+kb/*
+demo/kb*/*
+.jay
+.secrets/*
+.DS_Store
+bot_os_env.sh
+tmp_uploaded_files/*
+tmp copy/*
+kb_annoy/*
+kb_annoy_old/*
+kb_vector/user_preferences/*
+kb_*/*
+tmp/*
+kb_test/*
+downloaded_files/*
+uploads/*
+saved_llm_settings_local.json
+.DS_Store

@@ -4,11 +4,11 @@ GENESIS BOT TODOS
 =================
 
 CLEANUP:
-dont add file_search tool onto attachments that are unsupported (PNG)
-(test) Test new harvester ddl on a shared database 
+x dont add file_search tool onto attachments that are unsupported (PNG)
+x (test in NA, and add a grant example w/imported privs) Test new harvester ddl on a shared database 
 Give semantic index modify a way to add and modify multiple things at the same time
 x Don't let it update the same semantic model in multiple threads at the same time
-Fix vision-chat-analysis, add to available_tools, give to eliza and stuart by default
+(test in na) Fix vision-chat-analysis, add to available_tools, give to eliza and stuart by default
 (testing) Figure out why chat_vision_analysis isn't seeing the files provided via slack upload 
 x Have semantic creator make sure sample values are in quoted strings
 x Long messages sent to Eve via Streamlit don't seem to work (like updatig Stuarts instructions) (was quote bug i think)

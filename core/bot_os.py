@@ -216,7 +216,7 @@ class BotOsSession:
             out_thread = self.in_to_out_thread_map.get(input_message.thread_id,None)
          
             if out_thread is None:
-                logger.error(f"NO Map to Out thread ... making new one for ->> In Thead {input_message.thread_id}")
+               # logger.error(f"NO Map to Out thread ... making new one for ->> In Thead {input_message.thread_id}")
                 out_thread = self.create_thread(a)
                 if input_message.thread_id is None:
                     input_message.thread_id = out_thread
@@ -226,7 +226,7 @@ class BotOsSession:
                 sanitized_bot_id = re.sub(r'[^a-zA-Z0-9]', '', self.bot_id)
                 with open(f'./thread_maps_{sanitized_bot_id}.pickle', 'wb') as handle:
                     pickle.dump({'out_to_in': self.out_to_in_thread_map, 'in_to_out': self.in_to_out_thread_map}, handle, protocol=pickle.HIGHEST_PROTOCOL)
-            logger.error(f"Out Thread {out_thread} ->> In Thead {input_message.thread_id}")
+           # logger.error(f"Out Thread {out_thread} ->> In Thead {input_message.thread_id}")
            
            # input_message.metadata["input_thread"] = input_message.thread_id
            # input_message.metadata["input_uuid"] = input_message.input_uuid

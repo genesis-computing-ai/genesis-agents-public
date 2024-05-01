@@ -1073,7 +1073,7 @@ class SnowflakeConnector(DatabaseConnector):
 
         # Snowflake token testing
 
-        logger.warn('Creating connection..')
+      #  logger.warn('Creating connection..')
         SNOWFLAKE_ACCOUNT = os.getenv('SNOWFLAKE_ACCOUNT',None)
         SNOWFLAKE_HOST = os.getenv('SNOWFLAKE_HOST', None)
         logger.info('Checking possible SPCS ENV vars -- Account, Host: %s, %s', SNOWFLAKE_ACCOUNT, SNOWFLAKE_HOST)

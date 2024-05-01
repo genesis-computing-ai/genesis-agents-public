@@ -177,13 +177,13 @@ def load_embeddings_from_csv(csv_file_path):
 
 def create_annoy_index(embeddings, n_trees=10):
     
-    print('creating index')
-    print('len embeddings ',len(embeddings))
+   # print('creating index')
+   # print('len embeddings ',len(embeddings))
     dimension = len(embeddings[0])  # Assuming all embeddings have the same dimension
-    print('dimension ',dimension)
+   # print('dimension ',dimension)
 
     index = AnnoyIndex(dimension, 'angular')  # Using angular distance
-    print('index 1 ',index)
+    #print('index 1 ',index)
 
     try:
         with tqdm(total=len(embeddings), desc="Indexing embeddings") as pbar:
@@ -193,7 +193,7 @@ def create_annoy_index(embeddings, n_trees=10):
             index.build(n_trees)
     except Exception as e:
         print('indexing exception: ',e)
-    print('index 2 ',index)
+    #print('index 2 ',index)
     return index
 
 

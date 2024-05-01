@@ -248,7 +248,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       if thread_id is None:
          raise(Exception("thread_id is None"))
       thread = self.client.beta.threads.retrieve(thread_id)
-      logger.warn(f"ADDING MESSAGE -- input thread_id: {thread_id} -> openai thread: {thread}")
+      #logger.warn(f"ADDING MESSAGE -- input thread_id: {thread_id} -> openai thread: {thread}")
       try:
          #logger.error("REMINDER: Update for message new files line 117 on botosopenai.py")
          file_ids, file_map = self._upload_files(input_message.files, thread_id=thread_id)

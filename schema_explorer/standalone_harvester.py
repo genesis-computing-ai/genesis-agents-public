@@ -123,10 +123,13 @@ while True:
     if genesis_source == 'Snowflake' and os.getenv('AUTO_HARVEST', 'TRUE').upper() == 'TRUE':
         logger.info('Checking for any newly granted databases to add to harvest...')
         update_harvest_control_with_new_databases(harvester_db_connector)
+    
 
     logger.info(f"Checking for new tables... (once per {refresh_seconds} seconds)")
     #embeddings_handler.load_or_create_embeddings_index(bigquery_connector.metadata_table_name, refresh=True)
     schema_explorer.explore_and_summarize_tables_parallel()
     #print("Checking Cached Annoy Index")
+  #  logger.info(f"Checking for new semantic models... (once per {refresh_seconds} seconds)")
+  #  schema_explorer.explore_semantic_models()
     #embeddings_handler.make_and_save_index(bigquery_connector.metadata_table_name)
     time.sleep(refresh_seconds)

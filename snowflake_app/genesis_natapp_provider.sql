@@ -225,6 +225,60 @@ $$;
 
 -- ########## END UTILITY FUNCTIONS  #####################################
 
+-- ########## DATA SHARING  ##############################################
+
+-- dynamically generate shared views and grants for spider_data
+CREATE OR REPLACE PROCEDURE CODE_SCHEMA.GENERATE_SHARED_VIEWS(SCHEMA_NAME VARCHAR)
+RETURNS STRING
+LANGUAGE SQL
+AS
+$$
+DECLARE
+  result STRING DEFAULT '';
+  create_view_query STRING;
+  grant_query STRING;
+  table_name STRING;
+  table_catalog STRING;
+  table_schema STRING;
+  new_schema_name STRING;
+  i INT DEFAULT 1;
+  select_statement STRING;
+BEGIN
+  lookup_schema_name := SCHEMA_NAME;
+  new_schema_name := SCHEMA_NAME || '_SHARED';
+
+  EXECUTE IMMEDIATE 'CREATE SCHEMA IF NOT EXISTS GENESISAPP_APP_PKG.' || new_schema_name;
+  EXECUTE IMMEDIATE 'GRANT USAGE ON SCHEMA GENESISAPP_APP_PKG.' || new_schema_name || ' TO SHARE IN APPLICATION PACKAGE GENESISAPP_APP_PKG';
+  
+  LET table_cursor CURSOR FOR SELECT TABLE_NAME, TABLE_CATALOG, TABLE_SCHEMA FROM SPIDER_DATA.INFORMATION_SCHEMA.TABLES
+    WHERE TABLE_SCHEMA = ?;
+  OPEN table_cursor USING(lookup_schema_name);
+  
+  FOR table_record IN table_cursor DO
+    table_name := table_record.table_name;
+    table_catalog := table_record.table_catalog;
+    table_schema := table_record.table_schema;
+    create_view_query := 'CREATE OR REPLACE VIEW GENESISAPP_APP_PKG.' || table_schema || '.' || table_name || ' AS SELECT * FROM ' || table_catalog || '.' || table_schema || '.' || table_name || ';';
+    grant_query := 'GRANT SELECT ON VIEW GENESISAPP_APP_PKG.' || table_schema || '.' || table_name || ' TO SHARE IN APPLICATION PACKAGE GENESISAPP_APP_PKG;';
+    EXECUTE IMMEDIATE create_view_query;
+    EXECUTE IMMEDIATE grant_query;
+    result := result || 'Executed: ' || grant_query || CHAR(10) || 'Executed: ' || create_view_query || CHAR(10);
+    i := i + 1;
+  END FOR;
+  RETURN result;
+END;
+$$;
+
+
+GRANT REFERENCE_USAGE ON DATABASE SPIDER_DATA TO SHARE IN APPLICATION PACKAGE GENESISAPP_APP_PKG_MR;
+
+-- Call the procedure to generate shared views and grants
+CALL CODE_SCHEMA.GENERATE_SHARED_VIEWS('BASEBALL');
+CALL CODE_SCHEMA.GENERATE_SHARED_VIEWS('FORMULA_1');
+
+
+-- ########## END DATA SHARING  ##########################################
+
 
 -- ########## SCRIPTS CONTENT  ###########################################
 USE SCHEMA GENESISAPP_APP_PKG.CODE_SCHEMA;
@@ -246,6 +300,9 @@ artifacts:
    - /genesisapp_master/code_schema/service_repo/genesis_app:latest  
  extension_code: true
  default_streamlit: core.sis_launch
+configuration:
+  trace_level: OFF
+  log_level: DEBUG
 privileges:
   - BIND SERVICE ENDPOINT:
       description: "Allow access to application endpoints"
@@ -263,7 +320,7 @@ $$)
 
 
 use schema genesisapp_app_pkg.code_schema;
-delete from script;
+-- delete from script;
 
 INSERT INTO SCRIPT (NAME , VALUE)
 VALUES ('SIS_ENV',
@@ -303,7 +360,7 @@ in your Snowflake account to grant the application access to the following resou
 3. A Network Rule and External Access Integration, to allow Genesis to access the following external endpoints:
     - OpenAI API
     - Slack
-4. Optionally, acccess to any of your existing Databases, Schemas, and Tables you'd like to use with Genesis.
+4. Optionally, access to any of your existing Databases, Schemas, and Tables you'd like to use with Genesis.
 
 ### Account level privileges
 
@@ -356,7 +413,7 @@ To allow Genesis to access to required external APIs (OpenAI and Slack)
 
 -- Note: Please use the default Streamlit App for a full walkthrough of these steps
 
--- use a role with sufficient priviliges for the
+-- use a role with sufficient privileges for the
 
 use role ACCOUNTADMIN;
 
@@ -423,7 +480,7 @@ Please use the default Streamlit to interact with the Genesis application.
 
 $$,':::','$$') VALUE;
 
-delete from script;
+-- delete from script;
 INSERT INTO SCRIPT SELECT * FROM SCRIPT_TMP;
 
 
@@ -458,6 +515,9 @@ VALUES ('GENESISAPP_SERVICE_SERVICE',
       - name: udfendpoint
         port: 8080
         public: true
+      logExporters:
+        eventTableConfig:
+          logLevel: INFO
 :::)
 ;
 
@@ -482,9 +542,41 @@ VALUES ('GENESISAPP_HARVESTER_SERVICE',
       - name: udfendpoint
         port: 8080
         public: false
+      logExporters:
+        eventTableConfig:
+          logLevel: INFO
 :::)
 ;
 
+CREATE OR REPLACE PROCEDURE APP.UPGRADE_SERVICE(INSTANCE_NAME VARCHAR,SERVICE_NAME VARCHAR)
+RETURNS VARCHAR NOT NULL
+LANGUAGE SQL
+AS
+:::
+DECLARE
+    schema_exists BOOLEAN;
+BEGIN
+    SELECT COUNT(*) > 0 INTO :schema_exists
+    FROM INFORMATION_SCHEMA.SCHEMATA
+    WHERE SCHEMA_NAME = :INSTANCE_NAME;
+
+    IF (:schema_exists) then
+      LET spec VARCHAR := (
+            SELECT REGEXP_REPLACE(VALUE
+              ,'{{app_db_sch}}',lower(current_database())||'.'||lower(:INSTANCE_NAME)) AS VALUE
+            FROM APP.YAML WHERE NAME=:SERVICE_NAME);
+      EXECUTE IMMEDIATE
+        'ALTER SERVICE IF EXISTS '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
+        ' FROM SPECIFICATION  '||chr(36)||chr(36)||'\n'|| :spec ||'\n'||chr(36)||chr(36) ||
+        ' ';
+    END IF;
+
+END;
+:::
+;
+
+CALL APP.UPGRADE_SERVICE('APP1','GENESISAPP_SERVICE_SERVICE');
+CALL APP.UPGRADE_SERVICE('APP1','GENESISAPP_HARVESTER_SERVICE');
 
 --        secrets:
 --         - snowflakeSecret: APP_LOCAL_DB.EGRESS.OPENAI_API_KEY
@@ -920,15 +1012,53 @@ AS
  
 GRANT USAGE ON PROCEDURE CORE.RUN_ARBITRARY(VARCHAR) TO APPLICATION ROLE app_public;
 
+
+CREATE OR REPLACE PROCEDURE CORE.GENERATE_APP_SHARED_VIEWS(SCHEMA_NAME VARCHAR)
+RETURNS STRING
+LANGUAGE SQL
+AS
+:::
+DECLARE
+    view_name STRING;
+    new_view_name STRING;
+    create_view_query STRING;
+    grant_query STRING;
+    result STRING;
+BEGIN
+
+    EXECUTE IMMEDIATE 'CREATE SCHEMA IF NOT EXISTS ' || :SCHEMA_NAME || ';';
+    EXECUTE IMMEDIATE 'GRANT USAGE ON SCHEMA ' || :SCHEMA_NAME || ' TO APPLICATION ROLE app_public;';
+
+  LET view_cursor CURSOR FOR SELECT RTRIM(TABLE_SCHEMA,'_SHARED') || '.' || TABLE_NAME NEW_VIEW_NAME, TABLE_SCHEMA || '.' || TABLE_NAME VIEW_NAME FROM GENESISAPP_APP_PKG.INFORMATION_SCHEMA.VIEWS WHERE TABLE_SCHEMA = ?;
+  OPEN view_cursor USING(:SCHEMA_NAME || '_SHARED');
+  
+  FOR view_record IN view_cursor DO
+    view_name := view_record.view_name;
+    new_view_name := view_record.new_view_name;
+    create_view_query := 'CREATE OR REPLACE VIEW ' || new_view_name || ' AS SELECT * FROM ' || view_name || ';';
+    grant_query := 'GRANT SELECT ON VIEW ' || new_view_name || ' TO APPLICATION ROLE APP_PUBLIC;';
+    EXECUTE IMMEDIATE create_view_query;
+    EXECUTE IMMEDIATE grant_query;
+    result := result || 'Executed: ' || grant_query || CHAR(10) || 'Executed: ' || create_view_query || CHAR(10);
+  END FOR;
+    
+    RETURN 'Shared views created successfully.';
+END;
+::: 
+;
+
+CALL CORE.GENERATE_APP_SHARED_VIEWS('BASEBALL');
+CALL CORE.GENERATE_APP_SHARED_VIEWS('FORMULA_1');
+
 $$,':::','$$') VALUE;
 
 
 USE SCHEMA GENESISAPP_APP_PKG.CODE_SCHEMA;
-DELETE FROM SCRIPT;
+-- DELETE FROM SCRIPT;
 INSERT INTO SCRIPT SELECT * FROM SCRIPT_TMP;
 
 --delete from script;
-INSERT INTO SCRIPT SELECT * FROM SCRIPT_TMP;
+-- INSERT INTO SCRIPT SELECT * FROM SCRIPT_TMP;
 
 
 -- ########## SCRIPTS CONTENT  ###########################################

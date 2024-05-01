@@ -242,7 +242,7 @@ def snow_generate_filename_from_last_modified(table_id):
 
         # Ensure we have a valid result and last_crawled_time is not None
         if not result or result[0]['last_crawled_time'] is None:
-            return('NO_DATA_CRAWLED')
+            return('NO_DATA_CRAWLED.json','NO_DATA_CRAWLED.json' )
             #raise ValueError("Table last crawled timestamp is None. Unable to generate filename.")
 
         # The `last_crawled_time` attribute should be a datetime object. Format it.

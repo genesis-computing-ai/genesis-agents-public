@@ -634,7 +634,8 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                   logger.warn(f"!!!!!!!!!! WARNING: received unexpected content type: {latest_message.content[0]}!!!!!!!")
                   output = str(latest_message.content[0])
                if output != '!NO_RESPONSE_REQUIRED':
-                  output += '  `'+"$"+str(round(run.usage.prompt_tokens/1000000*10+run.usage.completion_tokens/1000000*30,4))+'`'
+                  if os.getenv('SHOW_COST', 'false').lower() == 'true':
+                     output += '  `'+"$"+str(round(run.usage.prompt_tokens/1000000*10+run.usage.completion_tokens/1000000*30,4))+'`'
                   event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id, 
                                                                      status=run.status, 
                                                                      output=output, 

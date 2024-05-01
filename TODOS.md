@@ -4,6 +4,11 @@ GENESIS BOT TODOS
 =================
 
 CLEANUP:
+Make Eliza demo video on baseball
+Change accountadmin 
+Change endpoints query to the framework version
+Eve deploy on fresh install complained about file types for null files
+Check resubmitting key via streamlit with a valid key alresady in place , gives timeout errot, also clarify page that you dont need to do this again
 MR - (in progress) upgrades of native app, Make patch upgrade of app work in NA/SPCS
 MR - (in progress) add log sharing back to provider
 MR - Expose harvest tables to app public so user can read write backup and restore

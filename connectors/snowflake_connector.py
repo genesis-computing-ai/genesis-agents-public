@@ -426,7 +426,6 @@ class SnowflakeConnector(DatabaseConnector):
     def ensure_table_exists(self):
  
 
- 
         semantic_stage_check_query = f"SHOW STAGES LIKE 'SEMANTIC_MODELS_DEV' IN SCHEMA {self.schema};"
         try:
             cursor = self.client.cursor()

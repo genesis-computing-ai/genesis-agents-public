@@ -4,43 +4,44 @@ GENESIS BOT TODOS
 =================
 
 CLEANUP:
-Give it a way to add and modify multiple things at the same time
-Don't let it update the same semantic model in multiple threads at the same time
-Figure out why chat_vision_analysis isn't seeing the files provided via slack upload 
-Have semantic creator make sure sample values are in quoted strings
-Long messages sent to Eve via Streamlit don't seem to work (like updatig Stuarts instructions)
+dont add file_search tool onto attachments that are unsupported (PNG)
+(test) Test new harvester ddl on a shared database 
+Give semantic index modify a way to add and modify multiple things at the same time
+x Don't let it update the same semantic model in multiple threads at the same time
+Fix vision-chat-analysis, add to available_tools, give to eliza and stuart by default
+(testing) Figure out why chat_vision_analysis isn't seeing the files provided via slack upload 
+x Have semantic creator make sure sample values are in quoted strings
+x Long messages sent to Eve via Streamlit don't seem to work (like updatig Stuarts instructions) (was quote bug i think)
 Updating bot instrucrions when wrong / invialid botid provided not sending error back to Eve 
-Harvest all of baseball and formula_1, crawl it, and share it to the consumers
-MR - upgrades of native app, Make patch upgrade of app work in NA/SPCS
-MR - (soon) add log sharing back to provider
+MR/JL - Harvest all of baseball and formula_1, crawl it, and share it to the consumers
+MR - (in progress) upgrades of native app, Make patch upgrade of app work in NA/SPCS
+MR - (in progress) add log sharing back to provider
 Try harvester with mistral or yak model to save costs 
 Add update message back to slack thread if tools are still running for more than a minute or if the run is still thinking.. (update her Thinking message)
-Trap openai errors during execute_run such as out of credits, rate limit exceeded, and provide a message back to the user 
-Fix vision-chat-analysis, add to available_tools, give to eliza and stuart by default
+x Trap openai errors during execute_run such as out of credits, rate limit exceeded, and provide a message back to the user 
 Make thread map save to local database to survive container restart 
 In install of Eliza make and grant an external workspace database and tell Eliza about it in her prompt (include grants on future objects to accountadmin)
 x Have Stuart put semantic stages to a standard place and CREATE STAGE my_int_stage ENCRYPTION = (TYPE = 'SNOWFLAKE_SSE');
 (soon) Give them 100 OpenAI turns a day or someting using our key, then have it switch to their own key
-make a metadata backup and recovery script so we have it ready
+(have a rough one) make a metadata backup and recovery script so we have it ready
 Add a way for Eve for example to add another bot to a channel and then not process that thread anymore unless tagged again
 (soon) Make sure deploy button before slack keys activated tells you what to do (e.g. put in slack config keys first)
 (soon) Add undeploy from Slack button on bot config
-Expose harvest tables to app public so user can read write backup and restore
+MR - Expose harvest tables to app public so user can read write backup and restore
 ! Harvest semantic models and return in get_metadata dynamically (look in SEMANTIC_STAGES for each schema we harvest)
-(soon) figure out native app auto and manual upgrades, service restart, containers ok? (was getting errors before)
 (test) Make sure harvester works ok with mixed case table and database and schema names (and system in general)
 (soon) harvester dont crash if cant access schemas for a database listed in control file
-(soon) Make harvester fall back to "describe table" if get_ddl doesn't work (for shared objects) then test on weather data 
+x (soon) Make harvester fall back to "describe table" if get_ddl doesn't work (for shared objects) then test on weather data 
 (soon) make sure endpoint is not the empty message, if so wait until its provisioned before updating any callback URLS, if there are any bots that needs them
 (soon) fix wait spinner on api key page
-(soon) Spider data loader, fix nil and '' numeric loading to get full baseball data in (or go back to strings)
-(soon) Harvest all spider data once nil/'' fix is in / Make harvester work on all Spider tables
+x (soon) Spider data loader, fix nil and '' numeric loading to get full baseball data in (or go back to strings)
+x (soon) Harvest all spider data once nil/'' fix is in / Make harvester work on all Spider tables
 (soon) Make the thinking message go away when a bot decides not to respond
 (soon) Add a sevice restart button to SiS
-(soon) Test Upgrades & backup (made manual version) Add a backup and restore metadata function to SiS
-(soon) add a place in Streamlit to see the files in stage add a file, remove a file
-(soon) add tab to see service logs for service and harvester
-(soon) add tab to see chat logs from messages table
+x (soon) Test Upgrades & backup (made manual version) Add a backup and restore metadata function to SiS
+(later) add a place in Streamlit to see the files in stage add a file, remove a file
+MR - (soon) add tab to see service logs for service and harvester
+MR - (soon) add tab to see chat logs from messages table
 (soon) add files list to bot configurations page in SiS
 (later) Make the queries in bot_os_memory.py parameterized
 (later) app deploy tokens are user specific, how to add a collaborator so another user can configure it?

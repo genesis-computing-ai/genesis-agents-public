@@ -19,7 +19,7 @@ class SchemaExplorer:
         print("harvesting using models: ",self.model, self.embedding_model)
 
     def alt_get_ddl(self,table_name = None):
-        print(table_name) 
+        #print(table_name) 
         describe_query = f"DESCRIBE TABLE {table_name}"
         try:
             describe_result = self.db_connector.run_query(query=describe_query, max_rows=1000, max_rows_override=True)
@@ -40,7 +40,7 @@ class SchemaExplorer:
                 key = " UNIQUE"
             ddl_statement += f"    {column_name} {column_type}{nullable}{default}{key}{comment},\n"
         ddl_statement = ddl_statement.rstrip(',\n') + "\n);"
-        print(ddl_statement)
+        #print(ddl_statement)
         return ddl_statement
         
     def format_sample_data(self, sample_data):

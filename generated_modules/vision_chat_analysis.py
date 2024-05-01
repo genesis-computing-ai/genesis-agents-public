@@ -12,7 +12,15 @@ def vision_chat_analysis(image_data, query):#, detail='auto'):
     if image_data.startswith('http'):
         raise(Exception("need to pass uploaded file_id only for now"))
     else:
-        image_payload = encode_image(image_data)
+        try:
+            image_payload = encode_image(image_data)
+        except Exception as e:
+            a = ""
+            if not os.path.isfile(image_data):
+                a = (f"The file {image_data} does not exist.\n")
+            msg =  f"{a}Failed to encode image from file {image_data}: {e}"
+            print(msg)
+            return msg 
 
     headers = {
         "Content-Type": "application/json",

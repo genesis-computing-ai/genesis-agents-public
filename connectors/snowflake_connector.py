@@ -607,7 +607,7 @@ class SnowflakeConnector(DatabaseConnector):
                 bot_id += ''.join(random.choices(string.ascii_letters + string.digits, k=6))
                 bot_name = "Eve"
                 bot_instructions = BASE_EVE_BOT_INSTRUCTIONS
-                available_tools = '["slack_tools", "make_baby_bot", "integrate_code", "snowflake_stage_tools"]'
+                available_tools = '["slack_tools", "make_baby_bot", "integrate_code", "snowflake_stage_tools", "vision_chat_analysis"]'
                 udf_active = "Y"
                 slack_active = "N"
 
@@ -627,7 +627,7 @@ class SnowflakeConnector(DatabaseConnector):
                 bot_id += ''.join(random.choices(string.ascii_letters + string.digits, k=6))
                 bot_name = "Eliza"
                 bot_instructions = ELIZA_DATA_ANALYST_INSTRUCTIONS
-                available_tools = '["slack_tools", "webpage_downloader", "database_tools", "snowflake_stage_tools"]'
+                available_tools = '["slack_tools", "webpage_downloader", "database_tools", "snowflake_stage_tools", "vision_chat_analysis"]'
                 udf_active = "Y"
                 slack_active = "N"
 
@@ -647,7 +647,7 @@ class SnowflakeConnector(DatabaseConnector):
                 bot_id += ''.join(random.choices(string.ascii_letters + string.digits, k=6))
                 bot_name = "Stuart"
                 bot_instructions = STUART_DATA_STEWARD_INSTRUCTIONS
-                available_tools = '["slack_tools", "database_tools", "snowflake_stage_tools", "snowflake_semantic_tools"]'
+                available_tools = '["slack_tools", "database_tools", "snowflake_stage_tools", "snowflake_semantic_tools", "vision_chat_analysis"]'
                 udf_active = "Y"
                 slack_active = "N"
 

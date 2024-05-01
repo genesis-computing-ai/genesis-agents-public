@@ -50,6 +50,10 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       #print(f'yoyo mytools {my_tools}')
       #logger.warn(f'yoyo mytools {my_tools}')
       self.my_tools = my_tools
+         
+      self.allowed_types_search = [".c", ".cs", ".cpp", ".doc", ".docx", ".html", ".java", ".json", ".md", ".pdf", ".php", ".pptx", ".py", ".rb", ".tex", ".txt", ".css", ".js", ".sh", ".ts"]
+      self.allowed_types_code_i = [".c", ".cs", ".cpp", ".doc", ".docx", ".html", ".java", ".json", ".md", ".pdf", ".php", ".pptx", ".py", ".rb", ".tex", ".txt", ".css", ".js", ".sh", ".ts", ".csv", ".jpeg", ".jpg", ".gif", ".png", ".tar", ".xlsx", ".xml", ".zip"]
+
 
       genbot_internal_project_and_schema = os.getenv('GENESIS_INTERNAL_DB_SCHEMA','None')
       if genbot_internal_project_and_schema == 'None':
@@ -236,9 +240,10 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
          
       logger.debug(f"BotOsAssistantOpenAI:_upload_files - uploaded {len(file_ids)} files") 
       return file_ids, file_map
-   
+
    def add_message(self, input_message:BotOsInputMessage):#thread_id:str, message:str, files):
       logger.debug("BotOsAssistantOpenAI:add_message") 
+      
       thread_id = input_message.thread_id
       if thread_id is None:
          raise(Exception("thread_id is None"))
@@ -247,13 +252,23 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       try:
          #logger.error("REMINDER: Update for message new files line 117 on botosopenai.py")
          file_ids, file_map = self._upload_files(input_message.files, thread_id=thread_id)
-         attachments = [{"file_id": file_id, "tools": [{"type": "file_search"}, {"type": "code_interpreter"}]} for file_id in file_ids]
+         attachments = []
+         for file_id in file_ids:
+             tools = []
+             # Retrieve the file name from the file_map using the file_id
+             file_name = next((item['file_name'] for item in file_map if item['file_id'] == file_id), None)
+             # Only include the file_search tool if the file_name does not have a PNG extension
+             if file_name and any(file_name.lower().endswith(ext) for ext in self.allowed_types_search):
+                 tools.insert(0, {"type": "file_search"})
+             if file_name and any(file_name.lower().endswith(ext) for ext in self.allowed_types_code_i):
+                 tools.append({"type": "code_interpreter"})
+             attachments.append({"file_id": file_id, "tools": tools})
+
          content = input_message.msg
          if file_map:
              content += "\n\nFile Name to Id Mappings:\n"
              for mapping in file_map:
                  content += f"- {mapping['file_name']}: {mapping['file_id']}\n"
-
          thread_message = self.client.beta.threads.messages.create(
             thread_id=thread_id, attachments=attachments, content=content, 
             role="user", 

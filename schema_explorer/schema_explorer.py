@@ -54,8 +54,10 @@ class SchemaExplorer:
             #print('sample data string: ',sample_data_str)
             self.store_table_summary(database, schema, table, ddl=ddl, ddl_short=ddl_short,summary=summary, sample_data=sample_data_str)
   
-        except NotImplementedError:
-            print(f"The get_table_ddl method is not implemented for {type(self.db_connector)}.")
+        except Exception as e:
+            print(f"Harvester Error for {database}.{schema}.{table}: {e}")
+            self.store_table_summary(database, schema, table, summary="Harvester Error: {e}", ddl="Harvester Error", ddl_short="Harvester Error", sample_data="Harvester Error")
+   
 
     def store_table_summary(self, database, schema, table, ddl, ddl_short, summary, sample_data):
         """
@@ -311,21 +313,24 @@ class SchemaExplorer:
             if len(non_indexed_tables) > 0:
                 print(f'starting indexing of {len(non_indexed_tables)} new or changed objects in {dataset}...')
             for row in non_indexed_tables:
-                qualified_table_name = row['qualified_table_name']
-                print("     -> ", qualified_table_name)
-                database, schema, table = (part.strip('"') for part in qualified_table_name.split('.', 2))
+                try:
+                    qualified_table_name = row['qualified_table_name']
+                    print("     -> ", qualified_table_name)
+                    database, schema, table = (part.strip('"') for part in qualified_table_name.split('.', 2))
 
-                # Proceed with generating the summary
-                columns = self.db_connector.get_columns(database, schema, table)
-                prompt = self.generate_table_summary_prompt(database, schema, table, columns)
-                summary = self.generate_summary(prompt)
-                #print(summary)
-                #embedding = self.get_embedding(summary)  
-                ddl = row.get('ddl',None)
-                ddl_short = self.get_ddl_short(ddl)
-                print(f"storing: database: {database}, schema: {schema}, table: {table}, summary len: {len(summary)}, ddl: {ddl} ")                
-
-                self.store_table_memory(database, schema, table, summary, ddl=ddl, ddl_short=ddl_short)
+                    # Proceed with generating the summary
+                    columns = self.db_connector.get_columns(database, schema, table)
+                    prompt = self.generate_table_summary_prompt(database, schema, table, columns)
+                    summary = self.generate_summary(prompt)
+                    #print(summary)
+                    #embedding = self.get_embedding(summary)  
+                    ddl = row.get('ddl',None)
+                    ddl_short = self.get_ddl_short(ddl)
+                    print(f"storing: database: {database}, schema: {schema}, table: {table}, summary len: {len(summary)}, ddl: {ddl} ") 
+                    self.store_table_memory(database, schema, table, summary, ddl=ddl, ddl_short=ddl_short)
+                except Exception as e:
+                    print(f"Harvester Error for {database}.{schema}.{table}: {e}")
+                    self.store_table_memory(database, schema, table, summary="Harvester Error: {e}", ddl="Harvester Error", ddl_short="Harvester Error")
                 
                 local_summaries[qualified_table_name] = summary
             return dataset, local_summaries

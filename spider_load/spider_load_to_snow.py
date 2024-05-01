@@ -5,12 +5,12 @@ from snowflake.connector import connect
 
 
 def _create_connection():
-    account = os.getenv('SNOWFLAKE_ACCOUNT')
-    user = os.getenv('SNOWFLAKE_USER')
-    password = os.getenv('SNOWFLAKE_PASSWORD')
-    database = os.getenv('SNOWFLAKE_DATABASE', None)
-    warehouse = os.getenv('SNOWFLAKE_WAREHOUSE', None)
-    role = os.getenv('SNOWFLAKE_ROLE', None)
+    account = os.getenv('SNOWFLAKE_ACCOUNT_OVERRIDE')
+    user = os.getenv('SNOWFLAKE_USER_OVERRIDE')
+    password = os.getenv('SNOWFLAKE_PASSWORD_OVERRIDE')
+    database = os.getenv('SNOWFLAKE_DATABASE_OVERRIDE', None)
+    warehouse = os.getenv('SNOWFLAKE_WAREHOUSE_OVERRIDE', None)
+    role = os.getenv('SNOWFLAKE_ROLE_OVERRIDE', None)
 
     return connect(
         user=user,
@@ -49,11 +49,11 @@ def sqlite_to_bigquery(sqlite_file_path, bigquery_dataset_id):
     snowflake_client = _create_connection()
     data_uploaded = False  # Track if any data is uploaded to the dataset
 
-    if schema_exists(snowflake_client, bigquery_dataset_id):
-        #print(f"Dataset {bigquery_dataset_id} already exists. Deleting.")
-        #delete_dataset(bigquery_client, bigquery_dataset_id)
-        print(f"Schema {bigquery_dataset_id} already exists. Skipping dataset to avoid duplicates.")
-        return
+  #  if schema_exists(snowflake_client, bigquery_dataset_id):
+  #      #print(f"Dataset {bigquery_dataset_id} already exists. Deleting.")
+  #      #delete_dataset(bigquery_client, bigquery_dataset_id)
+  #      print(f"Schema {bigquery_dataset_id} already exists. Skipping dataset to avoid duplicates.")
+  #      return
 
     conn = sqlite3.connect(sqlite_file_path)
     cursor = conn.cursor()
@@ -73,8 +73,37 @@ def sqlite_to_bigquery(sqlite_file_path, bigquery_dataset_id):
         #column_definitions = ', '.join([f"{column[1].lower()} STRING" for column in columns_info])
         column_definitions = ', '.join([f"\"{column[1].upper()}\" {column[2].upper().replace('BOOL','BOOLEAN')}" for column in columns_info])
 
+        check_table_exists_sql = f"SHOW TABLES LIKE '{table_name}' IN SCHEMA SPIDER_DATA.{bigquery_dataset_id}"
+        snowflake_cursor = snowflake_client.cursor()
+        snowflake_cursor.execute(check_table_exists_sql)
+        table_exists = snowflake_cursor.fetchone() is not None
+        snowflake_cursor.close()
+        if table_exists:
+            print(f"Table {table_name} already exists. Checking if it is empty.")
+            check_table_empty_sql = f"SELECT COUNT(*) FROM SPIDER_DATA.{bigquery_dataset_id}.{table_name}"
+            snowflake_cursor = snowflake_client.cursor()
+            snowflake_cursor.execute(check_table_empty_sql)
+            result = snowflake_cursor.fetchone()
+            snowflake_cursor.close()
+  #          if result[0] > 0:
+ #               print(f"Table {table_name} is not empty. Skipping load.")
+ #               continue
+  #              truncate_table_sql = f"TRUNCATE TABLE SPIDER_DATA.{bigquery_dataset_id}.{table_name}"
+  #              snowflake_cursor = snowflake_client.cursor()
+  #              try:
+  #                  snowflake_cursor.execute(truncate_table_sql)
+  #                  print(f"Table {table_name} has been truncated.")
+  #              except Exception as e:
+  #                  print(f"Error truncating table {table_name}: {e}")
+  #              finally:
+  #                  snowflake_cursor.close()
+
+ 
         create_table_sql = f"CREATE TABLE IF NOT EXISTS SPIDER_DATA.{bigquery_dataset_id}.{table_name} ({column_definitions})"
         try:
+            if table_name != 'pitstops' and table_name != 'circuits':
+                continue
+
             snowflake_client.cursor().execute(create_table_sql)
             cursor.execute(f"SELECT * FROM {table_name}")
             rows = cursor.fetchall()
@@ -92,10 +121,15 @@ def sqlite_to_bigquery(sqlite_file_path, bigquery_dataset_id):
                     # Execute the batch insert
                     snowflake_cursor = snowflake_client.cursor()
                     try:
-                        snowflake_cursor.executemany(insert_sql, batch)
+                        # Convert empty strings in the batch to None (NULL in SQL)
+                        cleaned_batch = [
+                            [None if isinstance(value, str) and value.strip() == '' else value for value in row]
+                            for row in batch
+                        ]
+                        snowflake_cursor.executemany(insert_sql, cleaned_batch)
                         snowflake_client.commit()
                         data_uploaded = True
-                        print(f"Batch of {len(batch)} rows from table {table_name} uploaded to Snowflake successfully.")
+                        print(f"Batch of {len(cleaned_batch)} rows from table {table_name} uploaded to Snowflake successfully.")
                     except Exception as e:
                         print(f"Errors occurred while uploading a batch from table {table_name} data: {e}")
                     finally:
@@ -113,8 +147,9 @@ def process_sqlite_files( folder_path):
     for sqlite_file_path in glob.glob(f"{folder_path}/**/*.sqlite", recursive=True):
         filename_without_extension = os.path.splitext(os.path.basename(sqlite_file_path))[0]
         bigquery_dataset_id = filename_without_extension.lower()
-        print(f"Processing file: {sqlite_file_path} with dataset ID: {bigquery_dataset_id}")
-        sqlite_to_bigquery( sqlite_file_path, bigquery_dataset_id)
+        if bigquery_dataset_id == 'formula_1':
+            print(f"Processing file: {sqlite_file_path} with dataset ID: {bigquery_dataset_id}")
+            sqlite_to_bigquery( sqlite_file_path, bigquery_dataset_id)
 
 # Usage
 folder_path = './spider_load/database/'

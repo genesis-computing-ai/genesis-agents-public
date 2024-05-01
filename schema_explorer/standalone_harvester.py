@@ -17,8 +17,8 @@ logging.basicConfig(level=logging.WARN, format='%(asctime)s - %(levelname)s - %(
 genesis_source = os.getenv('GENESIS_SOURCE',default="BigQuery")
 
 ### LLM KEY STUFF
-print('Starting harvester... hi!!!!!!')
-logger.info('Starting harvester... hi via logger!!!!!!!')
+print('Starting harvester... ')
+logger.info('Starting harvester... ')
 
 logger.info('Starting DB connection...')
 if genesis_source == 'BigQuery':

@@ -16,10 +16,12 @@ import requests
 from .database_connector import DatabaseConnector
 from core.bot_os_defaults import BASE_EVE_BOT_INSTRUCTIONS, ELIZA_DATA_ANALYST_INSTRUCTIONS
 #from database_connector import DatabaseConnector
+from threading import Lock
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.WARN, format='%(asctime)s - %(levelname)s - %(message)s')
 
+_semantic_lock = Lock()
 
 class SnowflakeConnector(DatabaseConnector):
     def __init__(self,  connection_name):
@@ -2424,7 +2426,8 @@ class SnowflakeConnector(DatabaseConnector):
                     if 'filter' not in command:
                         sample_values = parameters.get('sample_values', [])
                         if sample_values:
-                            new_item['sample_values'] = sample_values
+                            new_item['sample_values'] = [str(value) for value in sample_values if isinstance(value, (int, float, str, datetime.date))]
+                           # new_item['sample_values'] = sample_values
                     item_list.append(new_item)
                     return {"success": True, "message": f"{item_key[:-5].capitalize()} '{item_name}' added to table '{table_name}'.", "semantic_yaml": semantic_model}
 
@@ -2811,7 +2814,8 @@ class SnowflakeConnector(DatabaseConnector):
     def modify_and_update_semantic_model(self, model_name, command, parameters=None, thread_id=None):
         """
         Modifies the semantic model based on the provided modifications, updates the model in the map,
-        and returns the modified semantic model without the resulting YAML.
+        and returns the modified semantic model without the resulting YAML. Ensures that only one thread
+        can run this method at a time.
 
         Args:
             model_name (str): The name of the model to modify.
@@ -2821,33 +2825,35 @@ class SnowflakeConnector(DatabaseConnector):
         Returns:
             dict: The modified semantic model.
         """
-        # Construct the map key
-        # Parse the command and modifications if provided in the command string
-        import json
 
-        if isinstance(parameters, str):
-            parameters = json.loads(parameters)
+        with _semantic_lock:
+            # Construct the map key
+            # Parse the command and modifications if provided in the command string
+            import json
 
-        map_key = thread_id + "__" + model_name
-        # Retrieve the semantic model from the map
-        semantic_model = self.semantic_models_map.get(map_key)
-        if not semantic_model:
-            raise ValueError(f"No semantic model found for model_name: {model_name} and thread_id: {thread_id}")
+            if isinstance(parameters, str):
+                parameters = json.loads(parameters)
 
-        # Call modify_semantic_model with the retrieved model and the modifications
-        result = self.modify_semantic_model(semantic_model=semantic_model, command=command, parameters=parameters)
+            map_key = thread_id + "__" + model_name
+            # Retrieve the semantic model from the map
+            semantic_model = self.semantic_models_map.get(map_key)
+            if not semantic_model:
+                raise ValueError(f"No semantic model found for model_name: {model_name} and thread_id: {thread_id}")
 
-        # Check if 'semantic_yaml' is in the result and store it back into the map
-        if 'semantic_yaml' in result:
-            self.semantic_models_map[map_key] = result['semantic_yaml']
-            # Strip 'semantic_yaml' parameter from result
-            del result['semantic_yaml']
+            # Call modify_semantic_model with the retrieved model and the modifications
+            result = self.modify_semantic_model(semantic_model=semantic_model, command=command, parameters=parameters)
 
-            # Call the suggestions function with the model and add the suggestions to the result
-       #     suggestions_result = self.suggest_improvements(self.semantic_models_map[map_key])
-       #     result['suggestions'] = suggestions_result
-        # Return the modified semantic model without the resulting YAML
-        return result
+            # Check if 'semantic_yaml' is in the result and store it back into the map
+            if 'semantic_yaml' in result:
+                self.semantic_models_map[map_key] = result['semantic_yaml']
+                # Strip 'semantic_yaml' parameter from result
+                del result['semantic_yaml']
+
+                # Call the suggestions function with the model and add the suggestions to the result
+           #     suggestions_result = self.suggest_improvements(self.semantic_models_map[map_key])
+           #     result['suggestions'] = suggestions_result
+            # Return the modified semantic model without the resulting YAML
+            return result
 
 
     def get_semantic_model(self, model_name, thread_id):

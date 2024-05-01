@@ -4,6 +4,13 @@ GENESIS BOT TODOS
 =================
 
 CLEANUP:
+Give it a way to add and modify multiple things at the same time
+Don't let it update the same semantic model in multiple threads at the same time
+Figure out why chat_vision_analysis isn't seeing the files provided via slack upload 
+Have semantic creator make sure sample values are in quoted strings
+Long messages sent to Eve via Streamlit don't seem to work (like updatig Stuarts instructions)
+Updating bot instrucrions when wrong / invialid botid provided not sending error back to Eve 
+Harvest all of baseball and formula_1, crawl it, and share it to the consumers
 MR - upgrades of native app, Make patch upgrade of app work in NA/SPCS
 MR - (soon) add log sharing back to provider
 Try harvester with mistral or yak model to save costs 
@@ -11,9 +18,8 @@ Add update message back to slack thread if tools are still running for more than
 Trap openai errors during execute_run such as out of credits, rate limit exceeded, and provide a message back to the user 
 Fix vision-chat-analysis, add to available_tools, give to eliza and stuart by default
 Make thread map save to local database to survive container restart 
-Make a way to backup the internal schema and recover it 
 In install of Eliza make and grant an external workspace database and tell Eliza about it in her prompt (include grants on future objects to accountadmin)
-Have Stuart put semantic stages to a standard place and CREATE STAGE my_int_stage ENCRYPTION = (TYPE = 'SNOWFLAKE_SSE');
+x Have Stuart put semantic stages to a standard place and CREATE STAGE my_int_stage ENCRYPTION = (TYPE = 'SNOWFLAKE_SSE');
 (soon) Give them 100 OpenAI turns a day or someting using our key, then have it switch to their own key
 make a metadata backup and recovery script so we have it ready
 Add a way for Eve for example to add another bot to a channel and then not process that thread anymore unless tagged again

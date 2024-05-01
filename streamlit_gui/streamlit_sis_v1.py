@@ -864,7 +864,7 @@ def config_pool():
     st.subheader('Step 2: Configure Compute Pool')
 
     st.write('Genesis Bots has a server component that runs securely inside your Snowflake account, that coordinates the actions of your Genesis Bots, and manages their interactions with other users and bots. To run this server, you need to create and grant Genesis Server access to a Snowflake Compute Pool.')
-    st.write('Please go back to your Snowflake worksheet and run these commands to create a new compute pool and grant Genesis the rights to use it.  This uses the smallest Snowflake compute pool, which costs about 0.11 Snowflake Credits per hour, or about $5/day.  Once you start the server, you will be able to suspend it and it when not in use.')
+    st.write('Please go back to your Snowflake worksheet and run these commands to create a new compute pool and grant Genesis the rights to use it.  This uses the smallest Snowflake compute pool, which costs about 0.11 Snowflake Credits per hour, or about $5/day.  Once you start the server, you will be able to suspend it when not in use.')
     
     wh_text = f'''-- select role to use, generally Accountadmin or Sysadmin
 use role ACCOUNTADMIN;
@@ -986,7 +986,7 @@ def start_service():
                 st.success(f'Success: Server Started')
 
                 # Add a button to the app
-                st.write("**Now push the botton below, you're one step away from making and chatting with your bots!**")
+                st.write("**Now push the button below, you're one step away from making and chatting with your bots!**")
                 if st.button('Continue Setup!'):
                     # When the button is clicked, rerun the app from the top
                     st.experimental_rerun()

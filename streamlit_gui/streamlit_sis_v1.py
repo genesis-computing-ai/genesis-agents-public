@@ -255,13 +255,11 @@ def submit_to_udf_proxy(input_text, thread_id, bot_id):
 
     if SnowMode:
 
-        sql = f"select {prefix}.submit_udf('{input_text}', '{thread_id}', '{bot_id}') "
-        data = session.sql(sql).collect()
+        sql = "select {}.submit_udf(?, ?, ?)".format(prefix)
+        data = session.sql(sql, (input_text, thread_id, bot_id)).collect()
         response = data[0][0]
         return response
     
-    # add snowmode
-
     url = f"http://127.0.0.1:8080/udf_proxy/submit_udf"
     headers = {"Content-Type": "application/json"}
     data = json.dumps({"data": [[1, input_text, thread_id, bot_id]]})

@@ -14,7 +14,7 @@ import snowflake.connector
 import random, string
 import requests
 from .database_connector import DatabaseConnector
-from core.bot_os_defaults import BASE_EVE_BOT_INSTRUCTIONS, ELIZA_DATA_ANALYST_INSTRUCTIONS
+from core.bot_os_defaults import BASE_EVE_BOT_INSTRUCTIONS, ELIZA_DATA_ANALYST_INSTRUCTIONS, STUART_DATA_STEWARD_INSTRUCTIONS
 #from database_connector import DatabaseConnector
 from threading import Lock
 
@@ -641,6 +641,27 @@ class SnowflakeConnector(DatabaseConnector):
                 cursor.execute(insert_initial_row_query, (runner_id, bot_id, bot_name, bot_instructions, available_tools, udf_active, slack_active))
                 self.client.commit()
                 print(f"Inserted initial Eliza row into {self.bot_servicing_table_name} with runner_id: {runner_id}")
+
+                runner_id = os.getenv('RUNNER_ID', 'jl-local-runner')
+                bot_id = 'Stuart-' 
+                bot_id += ''.join(random.choices(string.ascii_letters + string.digits, k=6))
+                bot_name = "Stuart"
+                bot_instructions = STUART_DATA_STEWARD_INSTRUCTIONS
+                available_tools = '["slack_tools", "database_tools", "snowflake_stage_tools", "snowflake_semantic_tools"]'
+                udf_active = "Y"
+                slack_active = "N"
+
+                insert_initial_row_query = f"""
+                INSERT INTO {self.bot_servicing_table_name} (
+                    RUNNER_ID, BOT_ID, BOT_NAME, BOT_INSTRUCTIONS, AVAILABLE_TOOLS, UDF_ACTIVE, SLACK_ACTIVE,
+                    API_APP_ID, BOT_SLACK_USER_ID, SLACK_APP_TOKEN, SLACK_APP_LEVEL_KEY, SLACK_SIGNING_SECRET, SLACK_CHANNEL_ID, AUTH_URL, AUTH_STATE, CLIENT_ID, CLIENT_SECRET, FILES
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+                """
+                cursor.execute(insert_initial_row_query, (runner_id, bot_id, bot_name, bot_instructions, available_tools, udf_active, slack_active))
+                self.client.commit()
+                print(f"Inserted initial Eliza row into {self.bot_servicing_table_name} with runner_id: {runner_id}")
+
 
             else:
                 # Check if the 'ddl_short' column exists in the metadata table

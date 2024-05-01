@@ -77,11 +77,25 @@ database_tool_functions = [
             }
         }
     },
-]
-
-snowflake_semantic_functions = [
-    {
+       {
         "type": "function",
+        "function": {
+            "name": "_list_semantic_models",
+            "description": "Lists the semantic models available in the system.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "prod": {
+                        "type": "boolean",
+                        "description": "True for production models, false for dev models. Omit for both.",
+                        "default": False
+                    }
+                },
+                "required": []
+            }
+        }
+    },
+       {    "type": "function",
         "function": {
             "name": "_get_semantic_model",
             "description": "Retrieves an existing semantic model from the map based on the model name and thread id.",
@@ -94,6 +108,10 @@ snowflake_semantic_functions = [
             }
         }
     },
+]
+
+snowflake_semantic_functions = [
+
     {
         "type": "function",
         "function": {
@@ -138,6 +156,29 @@ snowflake_semantic_functions = [
                     "prod": {"type": "boolean", "description": "Flag to determine if the model should be deployed to production, or saved to dev. True deploy to production, False=save to dev.", "default": False}
                 },
                 "required": ["model_name", "thread_id"]
+            }
+        }
+    },
+      # Section for loading a semantic model
+    {
+        "type": "function",
+        "function": {
+            "name": "_load_semantic_model",
+            "description": "Loads a semantic model into the system for use.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "model_name": {
+                        "type": "string",
+                        "description": "The name of the semantic model to load."
+                    },
+                    "prod": {
+                        "type": "boolean",
+                        "description": "Flag to indicate if the model is a production model. Defaults to false to load dev models.",
+                        "default": False
+                    },
+                },
+                "required": ["model_name"]
             }
         }
     }
@@ -213,63 +254,23 @@ snowflake_stage_functions = [
             }
         }
     },    # Section for listing semantic models
-    {
-        "type": "function",
-        "function": {
-            "name": "_list_semantic_models",
-            "description": "Lists the semantic models available in the system.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "prod": {
-                        "type": "boolean",
-                        "description": "True for production models, false for dev models. Omit for both.",
-                        "default": False
-                    }
-                },
-                "required": []
-            }
-        }
-    },
-    # Section for loading a semantic model
-    {
-        "type": "function",
-        "function": {
-            "name": "_load_semantic_model",
-            "description": "Loads a semantic model into the system for use.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "model_name": {
-                        "type": "string",
-                        "description": "The name of the semantic model to load."
-                    },
-                    "prod": {
-                        "type": "boolean",
-                        "description": "Flag to indicate if the model is a production model. Defaults to false to load dev models.",
-                        "default": False
-                    },
-                },
-                "required": ["model_name"]
-            }
-        }
-    }
+ 
+  
 ]
 
 
 snowflake_semantic_tools = {
-    "_get_semantic_model": "db_adapter.get_semantic_model",
     "_modify_semantic_model": "db_adapter.modify_and_update_semantic_model",
     "_initialize_semantic_model": "db_adapter.initialize_semantic_model",
     "_deploy_semantic_model": "db_adapter.deploy_semantic_model",
     "_load_semantic_model": "db_adapter.load_semantic_model",
-    "_list_semantic_models": "db_adapter.list_semantic_models"
 }
-
 
 database_tools = {"run_query": "run_query_f.local", "search_metadata": "search_metadata_f.local", 
                  "semantic_copilot": "semantic_copilot_f.local",
-                 "get_full_table_details": "search_metadata_f.local",}
+                 "get_full_table_details": "search_metadata_f.local",
+                  "_list_semantic_models": "db_adapter.list_semantic_models", 
+                  "_get_semantic_model": "db_adapter.get_semantic_model",}
 
 snowflake_stage_tools = {
     "_list_stage_contents": "db_adapter.list_stage_contents",

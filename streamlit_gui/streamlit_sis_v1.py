@@ -1069,8 +1069,6 @@ SHOW ENDPOINTS IN SERVICE GENESISAPP_SERVICE_SERVICE;  --temporary
     st.text_area("", start_stop_text, height=620)
 
 
-
-
 if SnowMode:
     try:
         sql = f"select {prefix}.list_available_bots() "

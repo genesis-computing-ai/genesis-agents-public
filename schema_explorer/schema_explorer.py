@@ -1,11 +1,10 @@
-import openai
 import os, csv, io
 import simplejson as json
-#import core.bot_os_memory
 from openai import OpenAI
 import random 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import logging
+from datetime import datetime
 
 # Assuming OpenAI SDK initialization
 
@@ -19,7 +18,31 @@ class SchemaExplorer:
         self.run_number = 0
         print("harvesting using models: ",self.model, self.embedding_model)
 
-
+    def alt_get_ddl(self,table_name = None):
+        print(table_name) 
+        describe_query = f"DESCRIBE TABLE {table_name}"
+        try:
+            describe_result = self.db_connector.run_query(query=describe_query, max_rows=1000, max_rows_override=True)
+        except:
+            return None 
+        
+        ddl_statement = "CREATE TABLE " + table_name + " (\n"
+        for column in describe_result:
+            column_name = column['name']
+            column_type = column['type']
+            nullable = " NOT NULL" if not column['null?'] else ""
+            default = f" DEFAULT {column['default']}" if column['default'] is not None else ""
+            comment = f" COMMENT '{column['comment']}'" if 'comment' in column and column['comment'] is not None else ""
+            key = ""
+            if column.get('primary_key', False):
+                key = " PRIMARY KEY"
+            elif column.get('unique_key', False):
+                key = " UNIQUE"
+            ddl_statement += f"    {column_name} {column_type}{nullable}{default}{key}{comment},\n"
+        ddl_statement = ddl_statement.rstrip(',\n') + "\n);"
+        print(ddl_statement)
+        return ddl_statement
+        
     def format_sample_data(self, sample_data):
         # Utility method to format sample data into a string
         # Implementation depends on how you want to present the data
@@ -43,7 +66,8 @@ class SchemaExplorer:
         """
         try:
             if ddl is None:
-                ddl = self.db_connector.get_table_ddl(database_name=database, schema_name=schema, table_name=table)
+                ddl = self.alt_get_ddl(table_name='"'+database+'"."'+schema+'"."'+table+'"')
+                #ddl = self.db_connector.get_table_ddl(database_name=database, schema_name=schema, table_name=table)
 
             sample_data = self.db_connector.get_sample_data(database, schema, table)
             sample_data_str = ""
@@ -252,7 +276,7 @@ class SchemaExplorer:
                     quoted_table_name = f'"{db}"."{sch}"."{table_name}"'
                     # Check if the table is in the metadata table
                     check_query = f"""
-                    SELECT qualified_table_name, ddl_hash
+                    SELECT qualified_table_name, ddl_hash, last_crawled_timestamp
                     FROM {self.db_connector.metadata_table_name}
                     WHERE source_name = '{self.db_connector.source_name}'
                     AND qualified_table_name = '{quoted_table_name}'
@@ -261,14 +285,15 @@ class SchemaExplorer:
                     existing_table_info = self.db_connector.run_query(check_query)
                     if not existing_table_info:
                         # Table is not in metadata table
-                        query_ddl = f"SELECT GET_DDL('{table_info.get('object_type','TABLE')}', '{quoted_table_name}')"
+                        #query_ddl = f"SELECT GET_DDL('{table_info.get('object_type','TABLE')}', '{quoted_table_name}')"
                         #print(f'New table found, {quoted_table_name}')
-                        ddl_result = self.db_connector.run_query(query_ddl)
+                        #ddl_result = self.db_connector.run_query(query_ddl)
+                        current_ddl = self.alt_get_ddl(table_name=quoted_table_name)
                         #print('New table DDL: ',ddl_result)
-                        o_type = table_info.get('object_type','TABLE')
-                        field_name = f"GET_DDL('{o_type}', '{quoted_table_name.upper()}')"
+                        #o_type = table_info.get('object_type','TABLE')
+                        #field_name = f"GET_DDL('{o_type}', '{quoted_table_name.upper()}')"
                         #print('looking for: ',field_name)
-                        current_ddl = ddl_result[0][field_name]
+                        #current_ddl = ddl_result[0][field_name]
                         #print('current ddl: ',current_ddl)
                         current_ddl_hash = self.db_connector.sha256_hash_hex_string(current_ddl)
                         #print('current ddl hash: ',current_ddl_hash)
@@ -276,24 +301,22 @@ class SchemaExplorer:
                         print('Newly found object added to harvest array: ',new_table)
                         non_indexed_tables.append(new_table)
                     else:
-                        # Table is in metadata table, check if DDL hash has changed
-                        # Fetch the DDL for the specific table and calculate its hash
-                        query_ddl = f"SELECT GET_DDL('{table_info.get('object_type','TABLE')}', '{quoted_table_name}')"
-                        #print(f'existing, running query: {query_ddl}') 
-                        try:
-                            ddl_result = self.db_connector.run_query(query_ddl)
-                        except Exception as e:
-                            print('ddl result query error: ',e)
-                            ddl_result = None
-                        #print(f'ddl result: {ddl_result}') 
-                        if ddl_result:
-                            o_type = table_info.get('object_type','TABLE')
-                            field_name = f"GET_DDL('{o_type}', '{quoted_table_name.upper()}')"
-                            current_ddl = ddl_result[0][field_name]
-                            current_ddl_hash = self.db_connector.sha256_hash_hex_string(current_ddl)
-                            if existing_table_info[0].get('DDL_HASH',None) != current_ddl_hash:
-                                print('Existing but modified object added to harvest array: ',new_table)
-                                non_indexed_tables.append({"qualified_table_name": quoted_table_name, "ddl_hash": current_ddl_hash, "ddl": current_ddl})           
+                        last_crawled = existing_table_info[0]['LAST_CRAWLED_TIMESTAMP']
+
+                        # to not reindex things crawled before the change to the new alt_get_ddl approach 
+                        cutoff_datetime = datetime(2024, 5, 1)
+
+                        # Set check_for_updated_ddl based on the last_crawled date
+                        check_for_updated_ddl = last_crawled > cutoff_datetime
+                        if check_for_updated_ddl:
+                            # Fetch the DDL for the specific table and calculate its hash
+                            current_ddl = self.alt_get_ddl(table_name=quoted_table_name)
+                            if current_ddl:
+                                current_ddl_hash = self.db_connector.sha256_hash_hex_string(current_ddl)
+                                existing_ddl_hash = existing_table_info[0]['DDL_HASH']
+                                if existing_ddl_hash != current_ddl_hash:
+                                    print('DDL has changed for', quoted_table_name)
+                                    non_indexed_tables.append({"qualified_table_name": quoted_table_name, "ddl_hash": current_ddl_hash, "ddl": current_ddl})
             else:
                 query = f"""
                 SELECT CONCAT("{dataset}.", table_name) AS qualified_table_name

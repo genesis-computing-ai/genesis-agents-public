@@ -1229,7 +1229,7 @@ class SnowflakeConnector(DatabaseConnector):
 
 
 # handle the job_config stuff ... 
-    def run_query(self, query, max_rows=20, max_rows_override=False, job_config=None):
+    def run_query(self, query=None, max_rows=20, max_rows_override=False, job_config=None):
         """
         Runs a query on Snowflake, supporting parameterized queries.
 

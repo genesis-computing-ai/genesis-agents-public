@@ -218,7 +218,7 @@ def generate_filename_from_last_modified(table_id):
         return filename, metafilename
     except Exception as e:
         # Handle errors: for example, table not found, or API errors
-        print(f"An error occurred: {e}")
+        #print(f"An error occurred: {e}")
         # Return a default filename or re-raise the exception based on your use case
         return "default_filename.ann", "default_metadata.json"
 
@@ -257,7 +257,7 @@ def snow_generate_filename_from_last_modified(table_id):
         return filename, metafilename
     except Exception as e:
         # Handle errors: for example, table not found, or API errors
-        print(f"An error occurred: {e}, possibly no data yet harvested, using default name for index file.")
+        #print(f"An error occurred: {e}, possibly no data yet harvested, using default name for index file.")
         # Return a default filename or re-raise the exception based on your use case
         return "default_filename.ann", "default_metadata.json"
 

@@ -279,6 +279,7 @@ if llm_api_key is None and genesis_source == 'Snowflake':
         print("===========")
         print("NOTE: LLM Key not found in Env Var nor in Database LLM_CONFIG table.. starting without LLM Key, please provide via Streamlit")
         print("===========")
+        logger.warn('LLM Key not found in Env Var nor in Database LLM_CONFIG table.. starting without LLM Key, please provide via Streamlit')
 
 if llm_api_key is not None and default_llm_engine.lower() == 'openai':
     os.environ["OPENAI_API_KEY"] = llm_api_key

@@ -14,9 +14,6 @@ SET APP_COMPUTE_POOL_FAMILY = 'CPU_X64_XS';
 
 
 
-
-
-
 USE ROLE ACCOUNTADMIN;
 
 
@@ -92,7 +89,7 @@ CREATE COMPUTE POOL IF NOT EXISTS IDENTIFIER($APP_COMPUTE_POOL)
 
 
 USE WAREHOUSE identifier($APP_WAREHOUSE);
-drop database genesisapp_master;
+--drop database genesisapp_master;
 use warehouse xsmall;
 use role accountadmin;
 
@@ -128,6 +125,7 @@ use schema genesisapp_master.code_schema;
 show image repositories;
 //sfengineering-ss-lprpr-test1.registry.snowflakecomputing.com/genesisapp_master/code_schema/service_repo
 
+use role accountadmin;
 
 -- ########## UTILITY FUNCTIONS  #########################################
 USE SCHEMA GENESISAPP_APP_PKG.CODE_SCHEMA;
@@ -306,6 +304,8 @@ configuration:
 privileges:
   - BIND SERVICE ENDPOINT:
       description: "Allow access to application endpoints"
+  - IMPORTED PRIVILEGES ON SNOWFLAKE DB:
+      description: "to use of CORTEX LLM functions"
 $$)
 ;
 --privileges:
@@ -339,7 +339,7 @@ $$)
 INSERT INTO SCRIPT (NAME , VALUE)
 VALUES ('SIS_APP',
 $$
-# get latest from Cursor
+From cursor
 $$)
 ;
 
@@ -367,6 +367,9 @@ in your Snowflake account to grant the application access to the following resou
 `BIND SERVICE ENDPOINT` on **ACCOUNT**
 To allow Genesis to open two endpoints, one for Slack to authorize new Apps via OAuth, and one for inbound
 access to the Streamlit Genesis GUI
+
+`IMPORTED PRIVILEGES` ON **SNOWFLAKE DB**
+To allow use of Snowflake CORTEX LLM functions
 
 ### Privileges to objects
 `USAGE` on **COMPUTE POOL**
@@ -406,6 +409,7 @@ To allow Genesis to access to required external APIs (OpenAI and Slack)
 
 `EXTERNAL ACCESS INTEGRATION`GENESIS_EAI
 To allow Genesis to access to required external APIs (OpenAI and Slack)
+
 
 ---
 

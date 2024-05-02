@@ -4,7 +4,9 @@ GENESIS BOT TODOS
 =================
 
 CLEANUP:
+Add error checking for missing data or grants to harvester so it doesnt crash on that 
 Make Eliza demo video on baseball
+Have harvester not harvest the app database
 Change accountadmin 
 Change endpoints query to the framework version
 Eve deploy on fresh install complained about file types for null files

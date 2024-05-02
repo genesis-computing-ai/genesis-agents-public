@@ -894,7 +894,8 @@ def config_eai():
     st.subheader('Step 3: Configure External Access Integration (EAI)')
 
     st.write("Genesis Bots currently uses OpenAI GPT4-Turbo as its main LLM, as it is the only model that we've found powerful and reliable enough to power our bots. To access OpenAI from the Genesis Server, you'll need to create a Snowflake External Access Integration so that the Genesis Server can call OpenAI. Genesis can also optionally connect to Slack via Ngrok, to allow your bots to interact via Slack.")
-    st.write('So please go back to the worksheet one more time, and run these commands to create a external access integration, and grant Genesis the rights to use it. Genesis will only be able to access the endpoints listed, OpenAI, and optionally Slack.')
+    st.write('The Genesis Server can also capture and output events to a Snowflake Event Table, allowing you to track what is happening inside the server. Optionally, these logs can be shared back to the Genesis Provider for enhanced supoort for your GenBots.')
+    st.write('So please go back to the worksheet one more time, and run these commands to create a external access integration, and grant Genesis the rights to use it. Genesis will only be able to access the endpoints listed, OpenAI, and optionally Slack. The steps for adding the event logging are optional as well, but recommended.')
     
     wh_text = f'''-- select role to use, generally Accountadmin or Sysadmin
 use role ACCOUNTADMIN;
@@ -921,6 +922,19 @@ GRANT BIND SERVICE ENDPOINT ON ACCOUNT TO APPLICATION  IDENTIFIER($APP_DATABASE)
 
 -- grant Genesis Server the ability to use this external access integration
 GRANT USAGE ON INTEGRATION GENESIS_EAI TO APPLICATION   IDENTIFIER($APP_DATABASE);
+
+-- (optional steps for event logging) 
+-- create a schema to hold the event table
+CREATE SCHEMA IF NOT EXISTS GENESIS_LOCAL_DB.EVENTS;
+
+-- create an event table to capture events from the Genesis Server
+CREATE EVENT TABLE GENESIS_LOCAL_DB.EVENTS.GENESIS_APP_EVENTS;
+
+-- set the event table on your account. 
+ALTER ACCOUNT SET EVENT_TABLE=GENESIS_LOCAL_DB.EVENTS.GENESIS_APP_EVENTS;
+
+-- allow sharing of the captured events with the Genesis Provider
+ALTER APPLICATION IDENTIFIER($APP_DATABASE) SET SHARE_EVENTS_WITH_PROVIDER = TRUE;
    
 '''
 

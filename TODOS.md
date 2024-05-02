@@ -7,12 +7,13 @@ CLEANUP:
 Add error checking for missing data or grants to harvester so it doesnt crash on that 
 Make Eliza demo video on baseball
 Have harvester not harvest the app database
-Change accountadmin 
+Change accountadmin
 Change endpoints query to the framework version
 Eve deploy on fresh install complained about file types for null files
 Check resubmitting key via streamlit with a valid key alresady in place , gives timeout errot, also clarify page that you dont need to do this again
-MR - (in progress) upgrades of native app, Make patch upgrade of app work in NA/SPCS
-MR - (in progress) add log sharing back to provider
+MR - make deploy to slack button in SiS app tell you to setup slack tokens first if not yet set up
+x MR - (in progress) upgrades of native app, Make patch upgrade of app work in NA/SPCS
+x MR - (in progress) add log sharing back to provider
 MR - Expose harvest tables to app public so user can read write backup and restore
 MR - add Spider baseball and f1 schemas as share-thru app w/pre-made harvest results for demo data on start
 MR - (soon) add tab to see service logs for service and harvester

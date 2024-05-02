@@ -4,6 +4,7 @@ GENESIS BOT TODOS
 =================
 
 SHORT-TERM:
+add instructions to data granting on how to grant from a shared database
 JL- Make Eliza demo video on baseball
 JL-(test) Add error checking for missing data or grants to harvester so it doesnt crash on that 
 (test) Eve deploy on fresh install complained about file types for null files, make sure deploy button works

@@ -237,7 +237,7 @@ class BotOsSession:
             logger.debug("execute completed")
 
         current_time = datetime.datetime.now()
-        if (current_time - self.last_annoy_refresh).total_seconds() > 60 and not self.refresh_lock:
+        if (current_time - self.last_annoy_refresh).total_seconds() > 180 and not self.refresh_lock:
             self.refresh_lock = True
             self.last_annoy_refresh = current_time 
             if current_time == self.last_annoy_refresh:

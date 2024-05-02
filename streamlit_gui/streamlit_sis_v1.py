@@ -1,10 +1,11 @@
 import streamlit as st
 import os, json
 
-prefix = 'genesis_bots_alpha.app1'
-core_prefix = 'genesis_bots_alpha.CORE'
-
 app_name = 'GENESIS_BOTS_ALPHA'
+prefix = app_name+'.app1'
+core_prefix = app_name+'.CORE'
+
+# Retrieve the current database name from Snowflake and set it to app_name
 
 st.set_page_config(layout="wide")
 
@@ -323,6 +324,36 @@ def deploy_bot(bot_id):
     else:
         raise Exception(f"Failed to deploy bot: {response.text}")
 
+# Add the new page function above the existing pages dictionary
+def show_server_logs():
+    st.subheader('Show Server Logs')
+
+    # Dropdown for log type selection
+    log_type = st.selectbox("Select log type:", ["Bot Service", "Harvester", "Task Service"])
+
+    if log_type == "Bot Service":
+        # Run Snowflake SQL commands for Bot Service
+        status_result = session.sql(f"SELECT SYSTEM$GET_SERVICE_STATUS('{prefix}.GENESISAPP_SERVICE_SERVICE')").collect()
+        logs_result = session.sql(f"SELECT SYSTEM$GET_SERVICE_LOGS('{prefix}.GENESISAPP_SERVICE_SERVICE',0,'chattest',1000)").collect()
+
+        # Display the results in textareas
+        st.markdown( status_result[0][0])
+        st.text_area("Service Logs", logs_result[0][0], height=600)
+
+    elif log_type == "Harvester":
+        # Run Snowflake SQL commands for Harvester
+        status_result = session.sql(f"SELECT SYSTEM$GET_SERVICE_STATUS('{prefix}.GENESISAPP_HARVESTER_SERVICE')").collect()
+        logs_result = session.sql(f"SELECT SYSTEM$GET_SERVICE_LOGS('{prefix}.GENESISAPP_HARVESTER_SERVICE',0,'genesis-harvester',1000)").collect()
+
+        # Display the results in textareas
+        st.markdown(status_result[0][0])
+        st.text_area("Harvester Logs", logs_result[0][0], height=600)
+
+    elif log_type == "Task Service":
+        # Placeholder for Task Service logs
+        st.write("Coming soon")
+
+
 def llm_config(): # Check if data is not empty
 
     bot_details = get_bot_details()
@@ -337,6 +368,8 @@ def llm_config(): # Check if data is not empty
 
     if True:
         st.header("LLM Model & API Key Setup")
+        if cur_key == '<existing key present on server>':
+            st.success('Your key is already set and active. If you want to change it, you can do so below.')
         st.write("Genesis Bots require access to OpenAI, as these are the only LLMs currently powerful enough to service the bots. Please visit https://platform.openai.com/signup to get a paid API key for OpenAI before proceeding.")
         llm_model = st.selectbox("Choose LLM Model:", ["OpenAI"])
         llm_api_key = st.text_input("Enter API Key:", value=cur_key)
@@ -647,7 +680,7 @@ def grant_data():
 
     st.subheader('Grant Data Access')
     st.write('The Genesis application can help you with your data in Snowflake. To do so, you need to grant this application access to your data. The helper procedure below can help you grant access to everything in a database to this application. This application runs securely inside your Snowflake account.')
-    wh_text = f'''-- select role to use, generally Accountadmin or Sysadmin
+    wh_text = f'''-- select role to use, generally ACCOUNTADMIN.  See documentation for required permissions if not using ACCOUNTADMIN.
 use role ACCOUNTADMIN;
 
 -- set the name of the installed application
@@ -720,9 +753,7 @@ def bot_config():
         bot_details.sort(key=lambda x: (not "Eve" in x["bot_name"], x["bot_name"]))
 
         slack_tokens = get_slack_tokens()
-        slack_ready = False 
-        if slack_tokens.get('Token') != '...':
-            slack_ready = True
+        slack_ready = slack_tokens.get("SlackActiveFlag",False)
 
     # st.write(slack_tokens)
 
@@ -1053,19 +1084,15 @@ def start_stop():
     st.write('You can use the below commands in a worksheet to stop, start, and monitor the Gensis Server:')
     start_stop_text = f'''USE DATABASE IDENTIFIER("{app_name}");
 
-// reinitialize
-call {app_name}.core.drop_app_instance('APP1');
-CALL {app_name}.CORE.INITIALIZE_APP_INSTANCE('APP1','GENESIS_POOL','GENESIS_EAI','{st.session_state.wh_name}');
-
 // pause service
 
 call {app_name}.core.stop_app_instance('APP1');
-alter compute pool GENESIS_POOL SUSPEND;
+alter compute pool GENESIS_POOL SUSPEND; -- to also pause the compute pool
 
 // resume service
 
-alter compute pool GENESIS_POOL RESUME;
-call {app_name}.core.start_app_instance('APP1');
+alter compute pool GENESIS_POOL RESUME; -- if you paused the compute pool
+call {app_name}.core.start_app_instance('APP1'); 
 
 // check service
 
@@ -1075,13 +1102,14 @@ USE SCHEMA APP1;
 SELECT SYSTEM$GET_SERVICE_STATUS('GENESISAPP_SERVICE_SERVICE');
 SELECT SYSTEM$GET_SERVICE_LOGS('GENESISAPP_SERVICE_SERVICE',0,'chattest',1000);
 
-// get endpoints
+// reinitialize -- note: this wipes out the app metadata and existing harvests and bots
 
-SHOW ENDPOINTS IN SERVICE GENESISAPP_SERVICE_SERVICE;  --temporary
+call {app_name}.core.drop_app_instance('APP1');
+CALL {app_name}.CORE.INITIALIZE_APP_INSTANCE('APP1','GENESIS_POOL','GENESIS_EAI','{st.session_state.wh_name}');
+
 
     '''
     st.text_area("", start_stop_text, height=620)
-
 
 if SnowMode:
     try:
@@ -1097,7 +1125,7 @@ if data:
     pages = {
     #    "Talk to Your Bots": "/",
         "Chat with Bots": chat_page,
-        "Setup LLM Model & Key": llm_config,
+        "LLM Model & Key": llm_config,
       #  "Setup Ngrok": setup_ngrok, 
         "Setup Slack Connection": setup_slack,
         "Grant Data Access": grant_data,
@@ -1105,6 +1133,7 @@ if data:
         "Harvester Status": db_harvester,
         "Bot Configuration": bot_config,
         "Server Stop/Start": start_stop,
+        "Server Logs": show_server_logs,
     }
     
     if st.session_state.get('needs_keys', False):

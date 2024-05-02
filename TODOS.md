@@ -3,41 +3,29 @@
 GENESIS BOT TODOS
 =================
 
-CLEANUP:
-Add error checking for missing data or grants to harvester so it doesnt crash on that 
-Make Eliza demo video on baseball
-Have harvester not harvest the app database
-Change accountadmin
-Change endpoints query to the framework version
-Eve deploy on fresh install complained about file types for null files
-Check resubmitting key via streamlit with a valid key alresady in place , gives timeout errot, also clarify page that you dont need to do this again
-MR - make deploy to slack button in SiS app tell you to setup slack tokens first if not yet set up
-x MR - (in progress) upgrades of native app, Make patch upgrade of app work in NA/SPCS
-x MR - (in progress) add log sharing back to provider
-MR - Expose harvest tables to app public so user can read write backup and restore
-MR - add Spider baseball and f1 schemas as share-thru app w/pre-made harvest results for demo data on start
-MR - (soon) add tab to see service logs for service and harvester
-MR - (soon) add tab to see chat logs from messages table
-Harvest semantic models and return in get_metadata dynamically
-Give semantic index modify a way to add and modify multiple things at the same time
-Updating bot instrucrions when wrong / invialid botid provided not sending error back to Eve 
-Try harvester with mistral or yak model to save costs 
-Add update message back to slack thread if tools are still running for more than a minute or if the run is still thinking.. (update her Thinking message)
-Make thread map save to local database to survive container restart 
-In install of Eliza make and grant an external workspace database and tell Eliza about it in her prompt (include grants on future objects to accountadmin)
-(test in NA, and add a grant example w/imported privs) Test new harvester ddl on a shared database 
-(test in na) Fix vision-chat-analysis, add to available_tools, give to eliza and stuart by default
-(testing) Figure out why chat_vision_analysis isn't seeing the files provided via slack upload 
+SHORT-TERM:
+JL- Make Eliza demo video on baseball
+JL-(test) Add error checking for missing data or grants to harvester so it doesnt crash on that 
+(test) Eve deploy on fresh install complained about file types for null files, make sure deploy button works
+(test) make deploy to slack button in SiS app tell you to setup slack tokens first if not yet set up
+(in progress) MR - add Spider baseball and f1 schemas as share-thru app w/pre-made harvest results for demo data on start
+(soon) add tab to see chat logs from messages table
+(soon) Harvest semantic models and return in get_metadata dynamically
+(soon) Give semantic index modify a way to add and modify multiple things at the same time
+(test/fix) Updating bot instrucrions when wrong / invialid botid provided not sending error back to Eve 
+(soon) Try harvester with mistral or yak model to save costs 
+(soon) Add update message back to slack thread if tools are still running for more than a minute or if the run is still thinking.. (update her Thinking message)
+(soon) In install of Eliza make and grant an external workspace database and tell Eliza about it in her prompt (include grants on future objects to accountadmin)
 (soon) Give them 100 OpenAI turns a day or someting using our key, then have it switch to their own key
 (have a rough one) make a metadata backup and recovery script so we have it ready
-(soon) Make sure deploy button before slack keys activated tells you what to do (e.g. put in slack config keys first)
 (soon) Add undeploy from Slack button on bot config
 (test) Make sure harvester works ok with mixed case table and database and schema names (and system in general)
-(soon) harvester dont crash if cant access schemas for a database listed in control file
+(test) harvester dont crash if cant access schemas for a database listed in control file
 (soon) make sure endpoint is not the empty message, if so wait until its provisioned before updating any callback URLS, if there are any bots that needs them
 (soon) fix wait spinner on api key page
 (soon) Make the thinking message go away when a bot decides not to respond
 (soon) Add a sevice restart button to SiS
+(later) Make thread map save to local database to survive container restart 
 (later) block metadata app1 from user query 
 (later) Add a way for Eve for example to add another bot to a channel and then not process that thread anymore unless tagged again
 (later) add a place in Streamlit to see the files in stage add a file, remove a file
@@ -48,7 +36,6 @@ In install of Eliza make and grant an external workspace database and tell Eliza
 (later) add refresh button to harvester_status
 (later) Add logo to streamlit GUI
 (later) remove bots vector indexes when removing a bot
-(later) Share baseball and formula 1 tables from provider
 (later) Give a way for local streamlit to upload and download files from the botos server
 (later) Go back to snowflake secure mode for harvester too if it works
 
@@ -72,7 +59,6 @@ CLEANUPS AND NEEDED TESTS:
 Make all queries use bind variables to prevent SQL injection
 
 BIG THINGS:
-x Add a semantic YAML steward tool... the AI feeds it piece by piece, asks it whats missing, and fills it in until its complete ...& make stuart bot and demo 
 (in progress) Semantic CoPilot tools, Semantic model creation and maintenance, related demos, add to Elsa flows and to metadata search results
 Harvester: robustness and improvements
 Memory system: revamp and improve (go beyond simple RAG, back to KB?, post-chat capture, ongoing refinement, local indexing)
@@ -88,14 +74,12 @@ Add initial message, tasks and reminders to make genbots proactive
 Parallel sub-bot runs (take a task, divide it by x dimension, trigger sub-bots in parallel)
 
 MEDIUM THINGS:
-!-> Harvester: Have harvester only get sample data for known simple data types (data_harvest table tripps it up for example), and add error handling on sample data not available, and on any other issues
+(test) -> Harvester: Have harvester only get sample data for known simple data types (data_harvest table tripps it up for example), and add error handling on sample data not available, and on any other issues
 (try reka-core 128k in april) Model backends: Test & figure out when we can use Cortex-native models (Mistral, Reka, etc)
 Azure OpenAI support
-(done??) SiS - don't crash sis app if you submit another line while its thinking
-(is this done?) Images/docs: Add image analysis and image production using openai vision mode, need to add as a separate tool
-(done??) Images/docs: Add/test document retreival for documents that the AI produces (images and non images) so they show up in Slack
-Harvester add error handling and logging
-Harvester test it in various ways 
+(test)  SiS - don't crash sis app if you submit another line while its thinking
+(test) Harvester add error handling and logging
+(test) Harvester test it in various ways 
 (asked) SiS how to get "open in worksheet" button for setup scripts
 Prevent bots from deleting themselves
 Have Harvester use Mistral for descriptions and embeddings
@@ -127,6 +111,20 @@ Add a mechanism for license control based on current_account()... share a table 
     Have a trial period where you can use it in trial mode before it goes into limited mode
 
 DONE:
+x Add a semantic YAML steward tool... the AI feeds it piece by piece, asks it whats missing, and fills it in until its complete ...& make stuart bot and demo 
+x Make sure deploy button before slack keys activated tells you what to do (e.g. put in slack config keys first)
+x Images/docs: Add/test document retreival for documents that the AI produces (images and non images) so they show up in Slack
+x (is this done?) Images/docs: Add image analysis and image production using openai vision mode, need to add as a separate tool
+x (test in NA, and add a grant example w/imported privs) Test new harvester ddl on a shared database 
+x  Fix vision-chat-analysis, add to available_tools, give to eliza and stuart by default
+x  Figure out why chat_vision_analysis isn't seeing the files provided via slack upload 
+x Have harvester not harvest the app database
+x (removed endpoint calls) Change endpoints query to the framework version
+x llm config page -  clarify page that you dont need to do this again
+x MR - upgrades of native app, Make patch upgrade of app work in NA/SPCS
+x MR - add log sharing back to provider
+x (soon) add tab to see service logs for service and harvester
+n Expose harvest tables to app public so user can read write backup and restore
 x (soon) Spider data loader, fix nil and '' numeric loading to get full baseball data in (or go back to strings)
 x (soon) Harvest all spider data once nil/'' fix is in / Make harvester work on all Spider tables
 x (soon) Test Upgrades & backup (made manual version) Add a backup and restore metadata function to SiS

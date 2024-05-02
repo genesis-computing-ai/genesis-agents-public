@@ -192,22 +192,25 @@ class SchemaExplorer:
 
     def get_active_schemas(self, database):
 
-        inclusions = database["schema_inclusions"]
-        if isinstance(inclusions, str):
-            inclusions = json.loads(inclusions)
-        if inclusions is None:
-            inclusions = []
-        if len(inclusions) == 0:
-            schemas = self.db_connector.get_schemas(database["database_name"])
-        else:
-            schemas = inclusions
-        exclusions = database["schema_exclusions"]
-        if isinstance(exclusions, str):
-            exclusions = json.loads(exclusions)
-        if exclusions is None:
-            exclusions = []
-        schemas = [schema for schema in schemas if schema not in exclusions]
-        return schemas
+        try:
+            inclusions = database["schema_inclusions"]
+            if isinstance(inclusions, str):
+                inclusions = json.loads(inclusions)
+            if inclusions is None:
+                inclusions = []
+            if len(inclusions) == 0:
+                schemas = self.db_connector.get_schemas(database["database_name"])
+            else:
+                schemas = inclusions
+            exclusions = database["schema_exclusions"]
+            if isinstance(exclusions, str):
+                exclusions = json.loads(exclusions)
+            if exclusions is None:
+                exclusions = []
+            schemas = [schema for schema in schemas if schema not in exclusions]
+            return schemas
+        except:
+            return []
 
     def update_initial_crawl_flag(self, database_name, crawl_flag):
 

@@ -105,19 +105,29 @@ def update_harvest_control_with_new_databases(connector):
     available_databases = connector.get_visible_databases()
     controlled_databases = [db['database_name'] for db in connector.get_databases()]
 
+    internal_schema = os.getenv('GENESIS_INTERNAL_DB_SCHEMA', None)
+    internal_db, internal_sch = internal_schema.split('.') if '.' in internal_schema else None
+
     for db in available_databases:
         if db not in controlled_databases:
-            logger.info(f"Adding new database to harvest control: {db}")
+            logger.info(f"Adding new database to harvest control: {db}, the system db is {internal_db}")
+            schema_exclusions = ['INFORMATION_SCHEMA']
+            if db.upper() == internal_db.upper():
+                schema_exclusions.append(internal_sch)
+                schema_exclusions.append('CORE')
+                schema_exclusions.append('APP')
+                
             connector.set_harvest_control_data(
                 source_name='Snowflake',
                 database_name=db,
-                schema_exclusions=['INFORMATION_SCHEMA']
+                schema_exclusions=schema_exclusions
             )
-
 # Check and update harvest control data if the source is Snowflake
 
 refresh_seconds = os.getenv("HARVESTER_REFRESH_SECONDS", 60)
 refresh_seconds = int(refresh_seconds)
+
+
 
 while True:
     if genesis_source == 'Snowflake' and os.getenv('AUTO_HARVEST', 'TRUE').upper() == 'TRUE':

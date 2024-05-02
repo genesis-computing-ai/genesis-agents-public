@@ -18,3 +18,5 @@ uploads/*
 saved_llm_settings_local.json
 .DS_Store
 *.pickle
+/snowflake_app/mr_genesis_natapp_provider.sql
+

@@ -38,6 +38,7 @@ In install of Eliza make and grant an external workspace database and tell Eliza
 (soon) fix wait spinner on api key page
 (soon) Make the thinking message go away when a bot decides not to respond
 (soon) Add a sevice restart button to SiS
+(later) block metadata app1 from user query 
 (later) Add a way for Eve for example to add another bot to a channel and then not process that thread anymore unless tagged again
 (later) add a place in Streamlit to see the files in stage add a file, remove a file
 (soon) add files list to bot configurations page in SiS

@@ -305,18 +305,21 @@ class SchemaExplorer:
                         non_indexed_tables.append(new_table)
                     else:
                         last_crawled = existing_table_info[0]['LAST_CRAWLED_TIMESTAMP']
+                        existing_ddl_hash = existing_table_info[0]['DDL_HASH']
 
+                        shared_view = existing_ddl_hash == 'SHARED_VIEW'
                         # to not reindex things crawled before the change to the new alt_get_ddl approach 
                         cutoff_datetime = datetime(2024, 5, 1)
 
                         # Set check_for_updated_ddl based on the last_crawled date
                         check_for_updated_ddl = last_crawled > cutoff_datetime
+                        if shared_view:
+                            check_for_updated_ddl = False
                         if check_for_updated_ddl:
                             # Fetch the DDL for the specific table and calculate its hash
                             current_ddl = self.alt_get_ddl(table_name=quoted_table_name)
                             if current_ddl:
                                 current_ddl_hash = self.db_connector.sha256_hash_hex_string(current_ddl)
-                                existing_ddl_hash = existing_table_info[0]['DDL_HASH']
                                 if existing_ddl_hash != current_ddl_hash:
                                     print('DDL has changed for', quoted_table_name)
                                     non_indexed_tables.append({"qualified_table_name": quoted_table_name, "ddl_hash": current_ddl_hash, "ddl": current_ddl})

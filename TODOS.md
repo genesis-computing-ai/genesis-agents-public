@@ -4,7 +4,11 @@ GENESIS BOT TODOS
 =================
 
 SHORT-TERM:
+if you change slack token via streamlit, have it relaunch bots (or activate them any time they have a token even is slack is off)
+why doesn't eliza respond when youre in a thread with her if shes not tagged?
+why do bots go unresponsive when annoy indexing of data while harvester is actively running
 add instructions to data granting on how to grant from a shared database
+updating bot instructions via eve is not working
 JL- Make Eliza demo video on baseball
 JL-(test) Add error checking for missing data or grants to harvester so it doesnt crash on that 
 (test) Eve deploy on fresh install complained about file types for null files, make sure deploy button works

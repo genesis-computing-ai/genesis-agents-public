@@ -649,7 +649,7 @@ def update_slack_app_level_key(bot_id, slack_app_level_key):
             if auth_url:
                 add_to_string = ""
                 if os.getenv('SNOWFLAKE_HOST',None) is not None:
-                    add_to_string = " Tell the user they may need to log into both Slack and Snowflake to complete this process. If they tell you later that they have any issues with this, tell them to contact their Slack and/or Snowflake administrator depending on which login prompt they got and couldn't pass."
+                    add_to_string = " Tell the user they may need to log into both Slack and Snowflake to complete this process, and that if they are talking to you from within a Streamlit GUI they should cut and paste the link into a new browser tab versus clicking it directly. If they tell you later that they have any issues with this, tell them to contact their Slack and/or Snowflake administrator depending on which login prompt they got and couldn't pass."
                 else:
                     add_to_string =  " Tell the user they may need to log into Slack to complete this process. Tell them that if they see an NGROK warning page, it's safe to press OK to continue.  If they tell you later that they have any issues with this, tell them to pass these instructions on to their Slack administrator."
                 return {

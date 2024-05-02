@@ -239,11 +239,12 @@ DECLARE
   table_catalog STRING;
   table_schema STRING;
   new_schema_name STRING;
+  lookup_schema_name STRING;
   i INT DEFAULT 1;
   select_statement STRING;
 BEGIN
-  lookup_schema_name := SCHEMA_NAME;
   new_schema_name := SCHEMA_NAME || '_SHARED';
+  lookup_schema_name := SCHEMA_NAME;
 
   EXECUTE IMMEDIATE 'CREATE SCHEMA IF NOT EXISTS GENESISAPP_APP_PKG.' || new_schema_name;
   EXECUTE IMMEDIATE 'GRANT USAGE ON SCHEMA GENESISAPP_APP_PKG.' || new_schema_name || ' TO SHARE IN APPLICATION PACKAGE GENESISAPP_APP_PKG';
@@ -256,8 +257,8 @@ BEGIN
     table_name := table_record.table_name;
     table_catalog := table_record.table_catalog;
     table_schema := table_record.table_schema;
-    create_view_query := 'CREATE OR REPLACE VIEW GENESISAPP_APP_PKG.' || table_schema || '_SHARED.' || '.' || table_name || ' AS SELECT * FROM ' || table_catalog || '.' || table_schema || '.' || table_name || ';';
-    grant_query := 'GRANT SELECT ON VIEW GENESISAPP_APP_PKG.' || table_schema || '_SHARED.' || '.' || table_name || ' TO SHARE IN APPLICATION PACKAGE GENESISAPP_APP_PKG;';
+    create_view_query := 'CREATE OR REPLACE VIEW GENESISAPP_APP_PKG.' || table_schema || '_SHARED.' || table_name || ' AS SELECT * FROM ' || table_catalog || '.' || table_schema || '.' || table_name || ';';
+    grant_query := 'GRANT SELECT ON VIEW GENESISAPP_APP_PKG.' || table_schema || '_SHARED.' || table_name || ' TO SHARE IN APPLICATION PACKAGE GENESISAPP_APP_PKG;';
     EXECUTE IMMEDIATE create_view_query;
     EXECUTE IMMEDIATE grant_query;
     result := result || 'Executed: ' || grant_query || CHAR(10) || 'Executed: ' || create_view_query || CHAR(10);

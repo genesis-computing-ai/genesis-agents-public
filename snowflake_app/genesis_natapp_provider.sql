@@ -256,8 +256,8 @@ BEGIN
     table_name := table_record.table_name;
     table_catalog := table_record.table_catalog;
     table_schema := table_record.table_schema;
-    create_view_query := 'CREATE OR REPLACE VIEW GENESISAPP_APP_PKG.' || table_schema || '.' || table_name || ' AS SELECT * FROM ' || table_catalog || '.' || table_schema || '.' || table_name || ';';
-    grant_query := 'GRANT SELECT ON VIEW GENESISAPP_APP_PKG.' || table_schema || '.' || table_name || ' TO SHARE IN APPLICATION PACKAGE GENESISAPP_APP_PKG;';
+    create_view_query := 'CREATE OR REPLACE VIEW GENESISAPP_APP_PKG.' || table_schema || '_SHARED.' || '.' || table_name || ' AS SELECT * FROM ' || table_catalog || '.' || table_schema || '.' || table_name || ';';
+    grant_query := 'GRANT SELECT ON VIEW GENESISAPP_APP_PKG.' || table_schema || '_SHARED.' || '.' || table_name || ' TO SHARE IN APPLICATION PACKAGE GENESISAPP_APP_PKG;';
     EXECUTE IMMEDIATE create_view_query;
     EXECUTE IMMEDIATE grant_query;
     result := result || 'Executed: ' || grant_query || CHAR(10) || 'Executed: ' || create_view_query || CHAR(10);
@@ -1016,40 +1016,6 @@ AS
  
 GRANT USAGE ON PROCEDURE CORE.RUN_ARBITRARY(VARCHAR) TO APPLICATION ROLE app_public;
 
-
-CREATE OR REPLACE PROCEDURE CORE.GENERATE_APP_SHARED_VIEWS(SCHEMA_NAME VARCHAR)
-RETURNS STRING
-LANGUAGE SQL
-AS
-:::
-DECLARE
-    view_name STRING;
-    new_view_name STRING;
-    create_view_query STRING;
-    grant_query STRING;
-    result STRING;
-BEGIN
-
-    EXECUTE IMMEDIATE 'CREATE SCHEMA IF NOT EXISTS ' || :SCHEMA_NAME || ';';
-    EXECUTE IMMEDIATE 'GRANT USAGE ON SCHEMA ' || :SCHEMA_NAME || ' TO APPLICATION ROLE app_public;';
-
-  LET view_cursor CURSOR FOR SELECT RTRIM(TABLE_SCHEMA,'_SHARED') || '.' || TABLE_NAME NEW_VIEW_NAME, TABLE_SCHEMA || '.' || TABLE_NAME VIEW_NAME FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE_SCHEMA = ?;
-  OPEN view_cursor USING(:SCHEMA_NAME || '_SHARED');
-  
-  FOR view_record IN view_cursor DO
-    view_name := view_record.view_name;
-    new_view_name := view_record.new_view_name;
-    create_view_query := 'CREATE OR REPLACE VIEW ' || new_view_name || ' AS SELECT * FROM ' || view_name || ';';
-    grant_query := 'GRANT SELECT ON VIEW ' || new_view_name || ' TO APPLICATION ROLE APP_PUBLIC;';
-    EXECUTE IMMEDIATE create_view_query;
-    EXECUTE IMMEDIATE grant_query;
-    result := result || 'Executed: ' || grant_query || CHAR(10) || 'Executed: ' || create_view_query || CHAR(10);
-  END FOR;
-    
-    RETURN 'Shared views created successfully.';
-END;
-::: 
-;
 
 
 

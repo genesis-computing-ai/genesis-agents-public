@@ -9,9 +9,10 @@ logger = logging.getLogger(__name__)
 
 class BotOsAssistantInterface:
     @abstractmethod
-    def __init__(self, name:str, instructions:str, tools:list[dict], available_functions:dict, 
-                 files:list, update_existing:bool, all_tools:list[dict], all_functions:dict, all_function_to_tool_map:dict) -> None:
-        pass
+    def __init__(self, name:str, instructions:str, 
+                tools:list[dict] = {}, available_functions={}, files=[], 
+                update_existing=False, log_db_connector=None, bot_id='default_bot_id', bot_name='default_bot_name', all_tools:list[dict]={}, all_functions={},all_function_to_tool_map={}) -> None:
+       pass
 
     @staticmethod
     @abstractmethod

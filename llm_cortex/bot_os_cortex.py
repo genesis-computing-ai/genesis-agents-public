@@ -3,6 +3,7 @@ import datetime
 from decimal import Decimal
 import html
 import json
+import os
 import uuid
 import urllib.parse
 
@@ -26,6 +27,9 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         self.available_functions = available_functions
         self.bot_id = bot_id
         self.bot_name = bot_name
+        self.cortex_threads_schema_input_table  = os.getenv("SNOWFLAKE_CORTEX_THREADS_SCHEMA") + ".GENESIS_THREADS"
+        self.cortex_threads_schema_output_table = os.getenv("SNOWFLAKE_CORTEX_THREADS_SCHEMA") + ".GENESIS_THREADS_MANUAL"
+        self.cortex_threads_stored_proc         = os.getenv("SNOWFLAKE_CORTEX_THREADS_SCHEMA") + ".UPDATE_THREADS"
         self.client = SnowflakeConnector(connection_name='Snowflake')
         logger.debug("BotOsAssistantSnowflakeCortex:__init__ - SnowflakeConnector initialized")
 
@@ -34,8 +38,8 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         timestamp = datetime.datetime.now()
         message_type = 'System Prompt'
     
-        insert_query = """
-        INSERT INTO genesis_test.public.genesis_threads (
+        insert_query = f"""
+        INSERT INTO {self.cortex_threads_schema_input_table} (
             TIMESTAMP, BOT_ID, BOT_NAME, THREAD_ID, MESSAGE_TYPE, MESSAGE_PAYLOAD, MESSAGE_METADATA
         ) VALUES (%s, %s, %s, %s, %s, %s, %s)
         """
@@ -50,6 +54,8 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                 timestamp, self.bot_id, self.bot_name, thread_id, message_type, str(self.tools), "",
             ))
             self.client.connection.commit()
+            cursor.execute(f"call {self.cortex_threads_stored_proc}()")
+            self.client.connection.commit()
 
             logger.info(f"Successfully inserted system prompt for thread_id: {thread_id}")
         except Exception as e:
@@ -63,8 +69,8 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         message_type = 'User Prompt'
         message_metadata = json.dumps(input_message.metadata)  # Assuming BotOsInputMessage has a metadata attribute that needs to be converted to string
     
-        insert_query = """
-        INSERT INTO genesis_test.public.genesis_threads (
+        insert_query = f"""
+        INSERT INTO {self.cortex_threads_schema_input_table} (
             TIMESTAMP, BOT_ID, BOT_NAME, THREAD_ID, MESSAGE_TYPE, MESSAGE_PAYLOAD, MESSAGE_METADATA
         ) VALUES (%s, %s, %s, %s, %s, %s, %s)
         """
@@ -75,6 +81,9 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                 timestamp, self.bot_id, self.bot_name, thread_id, message_type, message_payload, message_metadata,
             ))
             self.client.connection.commit()
+            cursor.execute(f"call {self.cortex_threads_stored_proc}()")
+            self.client.connection.commit()
+
             logger.info(f"Successfully inserted message log for bot_id: {self.bot_id}")
             self.active_runs.append({"thread_id": thread_id, "timestamp": timestamp})
         except Exception as e:
@@ -89,8 +98,8 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         thread_id = thread_to_check["thread_id"]
         timestamp = thread_to_check["timestamp"]
         if True:
-            query = """
-            SELECT message_payload, message_metadata FROM genesis_test.public.genesis_threads_dynamic
+            query = f"""
+            SELECT message_payload, message_metadata FROM {self.cortex_threads_schema_output_table}
             WHERE thread_id = %s AND model_name = %s AND message_type = 'Assistant Response' AND timestamp = %s
             """
             try:
@@ -140,8 +149,8 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         """
         Inserts tool call results back into the genesis_test.public.genesis_threads table.
         """
-        insert_query = """
-        INSERT INTO genesis_test.public.genesis_threads (
+        insert_query = f"""
+        INSERT INTO {self.cortex_threads_schema_input_table} (
             TIMESTAMP, BOT_ID, BOT_NAME, THREAD_ID, MESSAGE_TYPE, MESSAGE_PAYLOAD, MESSAGE_METADATA
         ) VALUES (%s, %s, %s, %s, %s, %s, %s)
         """
@@ -158,6 +167,9 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             cursor.execute(insert_query, (new_timestamp, self.bot_id, self.bot_name, thread_id, "Tool Response", results_str,
                                           message_metadata))
             self.client.connection.commit()
+            cursor.execute(f"call {self.cortex_threads_stored_proc}()")
+            self.client.connection.commit()
+
             self.active_runs.append({"thread_id": thread_id, "timestamp": new_timestamp})
 
             logger.info(f"Successfully inserted tool call results for Thread ID {thread_id} and Tool Call ID {new_timestamp} old: {timestamp}")

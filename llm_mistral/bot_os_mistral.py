@@ -1,7 +1,7 @@
 import json
 import os, uuid
 from typing import TypedDict
-from bot_os_assistant_base import BotOsAssistantInterface, execute_function, execute_function_blocking
+from core.bot_os_assistant_base import BotOsAssistantInterface, execute_function, execute_function_blocking
 import requests
 from mistralai.client import MistralClient
 from mistralai.models.chat_completion import ChatMessage
@@ -9,7 +9,7 @@ from mistralai.models.chat_completion import ChatMessage
 
 import logging
 
-from bot_os_input import BotOsInputMessage, BotOsOutputMessage
+from core.bot_os_input import BotOsInputMessage, BotOsOutputMessage
 logger = logging.getLogger(__name__)
 
 def _get_function_details(run):

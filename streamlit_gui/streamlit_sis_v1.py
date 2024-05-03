@@ -1082,7 +1082,7 @@ def start_stop():
         st.session_state.wh_name  = '<your warehouse name>'
 
     st.write('You can use the below commands in a worksheet to stop, start, and monitor the Gensis Server:')
-    start_stop_text = f'''USE DATABASE IDENTIFIER("{app_name}");
+    start_stop_text = f'''USE DATABASE {app_name};
 
 // pause service
 

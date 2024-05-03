@@ -20,6 +20,9 @@ from llm_reka.bot_os_reka import BotOsAssistantReka
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 import threading
+from connectors.snowflake_connector import SnowflakeConnector
+import json
+import time, datetime
 
 import logging
 logger = logging.getLogger(__name__)
@@ -27,8 +30,8 @@ logging.basicConfig(level=logging.WARN, format='%(asctime)s - %(levelname)s - %(
 
 import core.global_flags as global_flags
 
-print("****** GENBOT VERSION 0.96 *******")
-logger.warning('******* GENBOT VERSION 0.96*******')
+print("****** GENBOT VERSION 0.95 *******")
+logger.warning('******* GENBOT VERSION 0.95*******')
 runner_id = os.getenv('RUNNER_ID','jl-local-runner')
 print("Runner ID: ", runner_id )
 snowflake_secure_value = os.getenv('SNOWFLAKE_SECURE')
@@ -911,42 +914,64 @@ def slack_event_handle(bot_id=None):
 
 scheduler.start()
 
-ngrok_active = launch_ngrok_and_update_bots(update_endpoints=global_flags.slack_active)
+def service_tasks_loop():
 
-SERVICE_HOST = os.getenv('SERVER_HOST', '0.0.0.0')
+    while True:
+        # Retrieve the list of bots and their tasks
+        
+        active_sessions = sessions
+        for session in active_sessions:
+            bot_id = session.bot_id
+            bots = db_adapter.manage_tasks(action='LIST', bot_id=bot_id, task_id=None)
 
-logging.getLogger('werkzeug').setLevel(logging.WARN)
+            if bots.get("Success"):
+                for bot in bots.get("Tasks", []):
+                    for task in bot['tasks']:
+                        # Process the task using the bot
+                        task_result = process_task(bot_id, task)
+                        db_adapter.insert_task_history(
+                            task_id=task['task_id'],
+                            work_done_summary=task_result['work_done_summary'],
+                            task_status=task_result['task_status'],
+                            updated_task_learnings=task_result['updated_task_learnings'],
+                            report_message=task_result.get('report_message', ''),
+                            done_flag=task_result['done_flag'],
+                            needs_help_flag=task_result['needs_help_flag'],
+                            task_clarity_comments=task_result.get('task_clarity_comments', '')
+                        )
+                        # Update the task in the TASKS table
+                        db_adapter.manage_tasks(
+                            action='UPDATE', 
+                            bot_id=bot_id, 
+                            task_id=task['task_id'], 
+                            task_details={
+                                'next_check_ts': task_result.get('next_check_ts'),
+                                'last_task_status': task_result.get('task_status'),
+                                'task_learnings': task_result.get('updated_task_learnings'),
+                                'task_active': task_result.get('done_flag')
+                            }
+                        )
+            # Sleep for a specified interval before checking for tasks again
+        time.sleep(60)  
+            # Check for tasks every minute
+def process_task(bot_id, task):
+    # Use a prompt similar to tmp/tmp_task_thoughts.txt to interact with the bot
+    # Perform the task and construct the response JSON
+    response_json = {
+        "work_done_summary": "Task processed",
+        "task_status": "Task completed",
+        "updated_task_learnings": "No new learnings",
+        "report_message": "",
+        "done_flag": True,
+        "needs_help_flag": False,
+        "task_clarity_comments": "",
+        "next_check_ts": (datetime.now() + datetime.timedelta(minutes=5)).strftime('%Y-%m-%d %H:%M:%S')
+    }
+    return response_json
 
-# Initialize Slack Bolt app
-#tok = 'xapp-1-A06VCAXMAKA-6988391388305-458da01d3a1d9ea609d7727424db689eb402bc9e43d8aa8174a11e0ed02719e6'
-#@slack_app = App(token=tok)
-#bot_tok = 'xoxb-6550650260448-6961055350487-vf1D28VBQzemQHJr3fgNIaGL'
+# Start the task servicing loop
+service_tasks_loop()
 
 
-# Define Slack event handlers
-#@slack_app.event("message")
-#def handle_message_events(event, say):
- #   say("Hello, I'm here to assist you!")
-#    pass
-
-#@slack_app.event("app_mention")
-#def mention_handler(event, say):
-#    print(event)
-  #  say('hi')
-
-def run_flask_app():
-    app.run(host=SERVICE_HOST, port=8080, debug=False, use_reloader=True)
-
-#def run_slack_app():
-#    handler = SocketModeHandler(slack_app, tok)
-#    handler.start()
-#    print('hi')
 
 
-# Run Slack app in a separate thread
-#slack_thread = threading.Thread(target=run_slack_app)
-#slack_thread.start()
-
-if __name__ == "__main__":
-    # Run Flask app in the main thread
-    run_flask_app()

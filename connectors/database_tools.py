@@ -184,6 +184,45 @@ snowflake_semantic_functions = [
     }
     ]   
 
+autonomous_functions = [
+    {
+        "type": "function",
+        "function": {
+            "name": "_manage_tasks",
+            "description": "Manages tasks for bots, including creating, updating, and deleting tasks.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "action": {"type": "string", "description": "The action to perform on the task: CREATE, UPDATE, or DELETE.  Or LIST to get details on all tasks for a bot, or TIME to get current system time."},
+                    "bot_id": {"type": "string", "description": "The identifier of the bot for which to manage tasks."},
+                    "task_id": {"type": "string", "description": "The unique identifier of the task, create as bot_id_<random 6 character string>."},
+                    "task_details": {
+                        "type": "object",
+                        "description": "The details of the task, required for create and update actions.",
+                        "properties": {
+                            "task_name": {"type": "string", "description": "The name of the task."},
+                            "primary_report_to_type": {"type": "string", "description": "SLACK_USER if a human set up the task, or SLACK_BOT if another bot did"},
+                            "primary_report_to_id": {"type": "string", "description": "The Slack User ID the person or bot to report status to."},
+                            "next_check_ts": {"type": "string", "description": "The timestamp for the next check of the task in format 'YYYY-MM-DD HH:MM:SS'. Call action TIME to get current time. Make sure this time is in the future."},
+                            "action_trigger_type": {"type": "string", "description": "TIMER or QUERY_ROWS"},
+                            "action_trigger_details": {"type": "string", "description": "For TIMER, a description of when to call the task, eg every hour, Tuesdays at 9am, every morning. For QUERY_ROWS the query for when any rows are returned the task should be triggered."},
+                            "task_instructions": {"type": "string", "description": "Detailed instructions for completing the task."},
+                            "reporting_instructions": {"type": "string", "description": "What information to report back on and how (post to channel, DM a user, etc.)"},
+                            "last_task_status": {"type": "string", "description": "The current status of the task."},
+                            "task_learnings": {"type": "string", "description": "Learnings or notes associated with the task from any prior runs."},
+                            "task_active": {"type": "boolean", "description": "Is task active"}
+                        },
+                        "required": ["task_name", "action_trigger_details", "task_instructions", "reporting_instructions", "last_task_status", "task_learnings", "task_active"]
+                    }
+                },
+                "required": ["action", "bot_id"]
+            }
+        }
+    }
+]
+
+
+
 snowflake_stage_functions = [
     {
         "type": "function",
@@ -279,6 +318,9 @@ snowflake_stage_tools = {
     "_delete_file_from_stage": "db_adapter.delete_file_from_stage",
 }
 
+autonomous_tools = {
+    "_manage_tasks": "db_adapter.manage_tasks"
+}
 
 def bind_semantic_copilot(data_connection_info):
     def _semantic_copilot(prompt:str, semantic_model:str, prod:bool = True):

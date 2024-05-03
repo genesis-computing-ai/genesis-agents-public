@@ -421,10 +421,234 @@ class SnowflakeConnector(DatabaseConnector):
             if cursor is not None:
                 cursor.close()
     
-          
+
+
+    def manage_tasks(self, action, bot_id, task_id, task_details=None, thread_id = None):
+        """
+        Manages tasks in the TASKS table with actions to create, delete, or update a task.
+
+        Args:
+            action (str): The action to perform - 'CREATE', 'DELETE', or 'UPDATE'.
+            bot_id (str): The bot ID associated with the task.
+            task_id (str): The task ID for the task to manage.
+            task_details (dict, optional): The details of the task for create or update actions.
+
+        Returns:
+            dict: A dictionary with the result of the operation.
+        """
+        required_fields = ['task_name', 'primary_report_to_type', 'primary_report_to_id',
+                           'next_check_ts', 'action_trigger_type', 'action_trigger_details',
+                           'task_instructions', 'reporting_instructions', 'last_task_status',
+                           'task_learnings', 'task_active' ]
+        
+        if action == 'TIME':
+            return {"current_system_time": datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+
+        action = action.upper()
+
+        if action == 'CREATE':
+            return {"Success": False, "Error": "Please reconfirm all the task details with the user, then call this function again with the action CREATE_CONFIRMED to actually create the task.", "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"} 
+ 
+        if action == 'CREATE_CONFIRMED':
+            action = 'CREATE'
+
+        if action not in ['CREATE', 'DELETE', 'UPDATE', 'LIST']:
+            return {"Success": False, "Error": "Invalid action specified."}
+        
+        cursor = self.client.cursor()
+    
+        if action == 'LIST':
+            try:
+                list_query = f"SELECT * FROM {self.schema}.TASKS WHERE bot_id = %s"
+                cursor.execute(list_query, (bot_id,))
+                tasks = cursor.fetchall()
+                task_list = []
+                for task in tasks:
+                    task_dict = {
+                        'task_id': task[0],
+                        'bot_id': task[1],
+                        'task_name': task[2],
+                        'primary_report_to_type': task[3],
+                        'primary_report_to_id': task[4],
+                        'next_check_ts': task[5].strftime('%Y-%m-%d %H:%M:%S'),
+                        'action_trigger_type': task[6],
+                        'action_trigger_details': task[7],
+                        'task_instructions': task[8],
+                        'reporting_instructions': task[9],
+                        'last_task_status': task[10],
+                        'task_learnings': task[11],
+                        'task_active': task[12]
+                    }
+                    task_list.append(task_dict)
+                return {"Success": True, "Tasks": task_list}
+            except Exception as e:
+                return {"Success": False, "Error": f"Failed to list tasks for bot {bot_id}: {e}"}
+
+
+        if action in ['CREATE', 'UPDATE'] and not task_details:
+            return {"Success": False, "Error": "Task details must be provided for CREATE or UPDATE action."}
+
+        if action in ['CREATE', 'UPDATE'] and any(field not in task_details for field in required_fields):
+            missing_fields = [field for field in required_fields if field not in task_details]
+            return {"Success": False, "Error": f"Missing required task details: {', '.join(missing_fields)}"}
+
+        # Convert timestamp from string in format 'YYYY-MM-DD HH:MM:SS' to a Snowflake-compatible timestamp
+        try:
+            formatted_next_check_ts = datetime.strptime(task_details['next_check_ts'], '%Y-%m-%d %H:%M:%S')
+        except ValueError as ve:
+            return {
+                "Success": False, 
+                "Error": f"Invalid timestamp format for 'next_check_ts'. Required format: 'YYYY-MM-DD HH:MM:SS'. Error details: {ve}",
+                "Info": f"Current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+            }
+        if formatted_next_check_ts < datetime.now():
+            return {
+                "Success": False,
+                "Error": "The 'next_check_ts' is in the past.",
+                "Info": f"Current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+            }
+
+        try:
+            if action == 'CREATE':
+                insert_query = f"""
+                    INSERT INTO {self.schema}.TASKS (
+                        task_id, bot_id, task_name, primary_report_to_type, primary_report_to_id,
+                        next_check_ts, action_trigger_type, action_trigger_details, task_instructions,
+                        reporting_instructions, last_task_status, task_learnings, task_active
+                    ) VALUES (
+                        %(task_id)s, %(bot_id)s, %(task_name)s, %(primary_report_to_type)s, %(primary_report_to_id)s,
+                        %(next_check_ts)s, %(action_trigger_type)s, %(action_trigger_details)s, %(task_instructions)s,
+                        %(reporting_instructions)s, %(last_task_status)s, %(task_learnings)s, %(task_active)s
+                    )
+                """
+                cursor.execute(insert_query, {**task_details, "task_id": task_id, "bot_id": bot_id})
+                self.client.commit()
+
+            elif action == 'DELETE':
+                delete_query = f"""
+                    DELETE FROM {self.schema}.TASKS
+                    WHERE task_id = %s AND bot_id = %s
+                """
+                cursor.execute(delete_query, (task_id, bot_id))
+                self.client.commit()
+
+            elif action == 'UPDATE':
+                update_query = f"""
+                    UPDATE {self.schema}.TASKS
+                    SET {', '.join([f"{key} = %({key})s" for key in task_details.keys()])}
+                    WHERE task_id = %(task_id)s AND bot_id = %(bot_id)s
+                """
+                cursor.execute(update_query, {**task_details, "task_id": task_id, "bot_id": bot_id})
+                self.client.commit()
+
+            affected_rows = cursor.rowcount
+            return {"Success": True, "Message": f"Task successfully created, next check scheduled for {task_details['next_check_ts']}"}
+        except Exception as e:
+            return {"Success": False, "Error": str(e)}
+
+        finally:
+            cursor.close()      
+
+    def insert_task_history(self, task_id, work_done_summary, task_status, updated_task_learnings, report_message, done_flag, needs_help_flag, task_clarity_comments):
+        """
+        Inserts a row into the TASK_HISTORY table.
+
+        Args:
+            task_id (str): The unique identifier for the task.
+            work_done_summary (str): A summary of the work done.
+            task_status (str): The status of the task.
+            updated_task_learnings (str): Any new learnings from the task.
+            report_message (str): The message to report about the task.
+            done_flag (bool): Flag indicating if the task is done.
+            needs_help_flag (bool): Flag indicating if help is needed.
+            task_clarity_comments (str): Comments on the clarity of the task.
+        """
+        insert_query = f"""
+            INSERT INTO {self.schema}.TASK_HISTORY (
+                task_id, work_done_summary, task_status, updated_task_learnings, 
+                report_message, done_flag, needs_help_flag, task_clarity_comments
+            ) VALUES (
+                %s, %s, %s, %s, %s, %s, %s, %s
+            )
+        """
+        try:
+            cursor = self.client.cursor()
+            cursor.execute(insert_query, (
+                task_id, work_done_summary, task_status, updated_task_learnings, 
+                report_message, done_flag, needs_help_flag, task_clarity_comments
+            ))
+            self.client.commit()
+            cursor.close()
+            print(f"Task history row inserted successfully for task_id: {task_id}")
+        except Exception as e:
+            print(f"An error occurred while inserting the task history row: {e}")
+            if cursor is not None:
+                cursor.close()
 
     def ensure_table_exists(self):
  
+        tasks_table_check_query = f"SHOW TABLES LIKE 'TASKS' IN SCHEMA {self.schema};"
+        try:
+            cursor = self.client.cursor()
+            cursor.execute(tasks_table_check_query)
+            if not cursor.fetchone():
+                create_tasks_table_ddl = f"""
+                CREATE TABLE {self.schema}.TASKS (
+                    task_id VARCHAR(255),
+                    bot_id VARCHAR(255),
+                    task_name VARCHAR(255),
+                    primary_report_to_type VARCHAR(50),
+                    primary_report_to_id VARCHAR(255),
+                    next_check_ts TIMESTAMP,
+                    action_trigger_type VARCHAR(50),
+                    action_trigger_details VARCHAR(1000),
+                    task_instructions TEXT,
+                    reporting_instructions TEXT,
+                    last_task_status VARCHAR(255),
+                    task_learnings TEXT,
+                    task_active BOOLEAN
+                );
+                """
+                cursor.execute(create_tasks_table_ddl)
+                self.client.commit()
+                print(f"Table {self.schema}.TASKS created successfully.")
+            else:
+                print(f"Table {self.schema}.TASKS already exists.")
+        except Exception as e:
+            print(f"An error occurred while checking or creating the TASKS table: {e}")
+        finally:
+            if cursor is not None:
+                cursor.close()
+
+        task_history_check_query = f"SHOW TABLES LIKE 'TASK_HISTORY' IN SCHEMA {self.schema};"
+        try:
+            cursor = self.client.cursor()
+            cursor.execute(task_history_check_query)
+            if not cursor.fetchone():
+                create_task_history_table_ddl = f"""
+                CREATE TABLE {self.schema}.TASK_HISTORY (
+                    task_id VARCHAR(255),
+                    run_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
+                    work_done_summary TEXT,
+                    task_status TEXT,
+                    updated_task_learnings TEXT,
+                    report_message TEXT,
+                    done_flag BOOLEAN,
+                    needs_help_flag BOOLEAN,
+                    task_clarity_comments TEXT
+                );
+                """
+                cursor.execute(create_task_history_table_ddl)
+                self.client.commit()
+                print(f"Table {self.schema}.TASK_HISTORY created successfully.")
+            else:
+                print(f"Table {self.schema}.TASK_HISTORY already exists.")
+        except Exception as e:
+            print(f"An error occurred while checking or creating the TASK_HISTORY table: {e}")
+        finally:
+            if cursor is not None:
+                cursor.close()
 
         semantic_stage_check_query = f"SHOW STAGES LIKE 'SEMANTIC_MODELS_DEV' IN SCHEMA {self.schema};"
         try:
@@ -718,8 +942,8 @@ class SnowflakeConnector(DatabaseConnector):
         available_tools_table_check_query = f"SHOW TABLES LIKE 'AVAILABLE_TOOLS' IN SCHEMA {self.schema};"
         try:
             cursor = self.client.cursor()
-            cursor.execute(available_tools_table_check_query)
-            if not cursor.fetchone():
+            #cursor.execute(available_tools_table_check_query)
+            if True:
                 available_tools_table_ddl = f"""
                 CREATE OR REPLACE TABLE {self.available_tools_table_name} (
                     TOOL_NAME VARCHAR(16777216),
@@ -728,7 +952,7 @@ class SnowflakeConnector(DatabaseConnector):
                 """
                 cursor.execute(available_tools_table_ddl)
                 self.client.commit()
-                print(f"Table {self.available_tools_table_name} created.")
+                print(f"Table {self.available_tools_table_name} (re)created, this is expected on every run.")
 
                 # Insert rows with tool names and descriptions
                 tools_data = [
@@ -740,7 +964,8 @@ class SnowflakeConnector(DatabaseConnector):
                     ('harvester_tools', 'Control the database harvester, add new databases to harvest, add schema inclusions and exclusions, see harvest status'),
                     ('snowflake_stage_tools', 'Read, update, write, list, and delete from Snowflake Stages including Snowflake Semantic Models.'),
                     ('snowflake_semantic_tools', 'Create and modify Snowflake Semantic Models'),
-                    ('vision_chat_analysis', 'Tools to interpret visual images and pictures')
+                    ('vision_chat_analysis', 'Tools to interpret visual images and pictures'),
+                    ('autonomous_functions','Tools for bots to create and managed autonomous tasks'),
                ]
                 insert_tools_query = f"""
                 INSERT INTO {self.available_tools_table_name} (TOOL_NAME, TOOL_DESCRIPTION)

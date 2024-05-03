@@ -10,7 +10,7 @@ from connectors.bigquery_connector import BigQueryConnector
 from connectors.snowflake_connector import SnowflakeConnector
 from slack.slack_bot_os_adapter import SlackBotAdapter
 from slack.slack_tools import slack_tools, slack_tools_descriptions
-from connectors.database_tools import bind_run_query, bind_search_metadata, bind_semantic_copilot, database_tool_functions, database_tools, snowflake_stage_functions, snowflake_stage_tools, snowflake_semantic_functions, snowflake_semantic_tools
+from connectors.database_tools import bind_run_query, bind_search_metadata, bind_semantic_copilot, autonomous_functions, autonomous_tools, database_tool_functions, database_tools, snowflake_stage_functions, snowflake_stage_tools, snowflake_semantic_functions, snowflake_semantic_tools
 from schema_explorer.harvester_tools import harvester_tools_list, harvester_tools_functions
 from development.integration_tools import integration_tool_descriptions, integration_tools_new
 from bot_genesis.make_baby_bot import get_bot_details
@@ -81,6 +81,10 @@ def get_tools(which_tools, db_adapter, slack_adapter_local=None, include_slack=T
             tools.extend(snowflake_stage_functions)
             available_functions_load.update(snowflake_stage_tools)
             function_to_tool_map[tool_name]=snowflake_stage_functions
+        elif tool_name == 'autonomous_functions':
+            tools.extend(autonomous_functions)
+            available_functions_load.update(autonomous_tools)
+            function_to_tool_map[tool_name]=autonomous_functions
         else:
             try:
                 module_path = "generated_modules."+tool_name

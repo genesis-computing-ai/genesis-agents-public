@@ -9,6 +9,7 @@ EXPOSE 8501 8080 8000
 COPY llm_openai ./llm_openai
 COPY llm_reka ./llm_reka
 COPY llm_mistral ./llm_mistral
+COPY llm_cortex ./llm_cortex
 COPY schema_explorer ./schema_explorer
 COPY slack ./slack
 COPY streamlit_gui ./streamlit_gui

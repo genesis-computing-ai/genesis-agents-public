@@ -820,7 +820,7 @@ class SnowflakeConnector(DatabaseConnector):
                     UDF_ACTIVE VARCHAR(16777216),
                     SLACK_ACTIVE VARCHAR(16777216),
                     FILES VARCHAR(16777216),
-                    BOT_IMPLEMENTATION(16777216)
+                    BOT_IMPLEMENTATION VARCHAR(16777216)
                 );
                 """
                 cursor.execute(bot_servicing_table_ddl)
@@ -1100,6 +1100,16 @@ class SnowflakeConnector(DatabaseConnector):
                 cursor.execute(metadata_table_ddl)
                 self.client.commit()
                 print(f"Table {metadata_table_id} created.")
+
+                insert_initial_metadata_query = f"""
+                INSERT INTO {metadata_table_id} (SOURCE_NAME, QUALIFIED_TABLE_NAME, DATABASE_NAME, MEMORY_UUID, SCHEMA_NAME, TABLE_NAME, COMPLETE_DESCRIPTION, DDL, DDL_SHORT, DDL_HASH, SUMMARY, SAMPLE_DATA_TEXT, LAST_CRAWLED_TIMESTAMP, CRAWL_STATUS, ROLE_USED_FOR_CRAWL, EMBEDDING)
+                SELECT SOURCE_NAME, replace(QUALIFIED_TABLE_NAME,'APP_NAME', CURRENT_DATABASE()) QUALIFIED_TABLE_NAME,  CURRENT_DATABASE() DATABASE_NAME, MEMORY_UUID, SCHEMA_NAME, TABLE_NAME, REPLACE(COMPLETE_DESCRIPTION,'APP_NAME', CURRENT_DATABASE()) COMPLETE_DESCRIPTION, REPLACE(DDL,'APP_NAME', CURRENT_DATABASE()) DDL, REPLACE(DDL_SHORT,'APP_NAME', CURRENT_DATABASE()) DDL_SHORT, 'SHARED_VIEW' DDL_HASH, REPLACE(SUMMARY,'APP_NAME', CURRENT_DATABASE()) SUMMARY, SAMPLE_DATA_TEXT, LAST_CRAWLED_TIMESTAMP, CRAWL_STATUS, ROLE_USED_FOR_CRAWL, EMBEDDING 
+ FROM SHARED_HARVEST.HARVEST_RESULTS
+                """
+                cursor.execute(insert_initial_metadata_query)
+                self.client.commit()
+                print(f"Inserted initial rows into {metadata_table_id}")
+
             else:
                 # Check if the 'ddl_short' column exists in the metadata table
                 ddl_short_check_query = f"DESCRIBE TABLE {self.metadata_table_name};"

@@ -43,6 +43,7 @@ JL-(test) Add error checking for missing data or grants to harvester so it doesn
 (later) remove bots vector indexes when removing a bot
 (later) Give a way for local streamlit to upload and download files from the botos server
 (later) Go back to snowflake secure mode for harvester too if it works
+(later) Allow user to turn off sample data
 
 ! Persistancey:
 1. have it proactively suggest tasks to do if it doesn't have enough, and recurring ones, and bootstrap ones

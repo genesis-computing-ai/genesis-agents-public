@@ -819,7 +819,8 @@ class SnowflakeConnector(DatabaseConnector):
                     CLIENT_SECRET VARCHAR(16777216),
                     UDF_ACTIVE VARCHAR(16777216),
                     SLACK_ACTIVE VARCHAR(16777216),
-                    FILES VARCHAR(16777216)
+                    FILES VARCHAR(16777216),
+                    BOT_IMPLEMENTATION(16777216)
                 );
                 """
                 cursor.execute(bot_servicing_table_ddl)
@@ -896,6 +897,13 @@ class SnowflakeConnector(DatabaseConnector):
                         cursor.execute(alter_table_query)
                         self.client.commit()
                         logger.info(f"Column 'SLACK_APP_LEVEL_KEY' added to table {self.bot_servicing_table_name}.")
+                    if 'BOT_IMPLEMENTATION' not in columns:
+                        alter_table_query = f"ALTER TABLE {self.bot_servicing_table_name} ADD COLUMN BOT_IMPLEMENTATION STRING;"
+                        cursor.execute(alter_table_query)
+                        self.client.commit()
+                        logger.info(f"Column 'BOT_IMPLEMENTATION' added to table {self.bot_servicing_table_name}.")
+                except Exception as e:
+                    print(f"An error occurred while checking or altering table {self.bot_servicing_table_name} to add BOT_IMPLEMENTATION column: {e}")
                 except Exception as e:
                     print(f"An error occurred while checking or altering table {metadata_table_id}: {e}")
                 print(f"Table {self.bot_servicing_table_name} already exists.")
@@ -1109,7 +1117,59 @@ class SnowflakeConnector(DatabaseConnector):
         except Exception as e:
             print(f"An error occurred while checking or creating table {metadata_table_id}: {e}")
 
+        cursor = self.client.cursor()
 
+        cortex_threads_input_table_check_query = f"SHOW TABLES LIKE 'CORTEX_THREADS_INPUT' IN SCHEMA {self.schema};"
+        try:
+            cursor.execute(cortex_threads_input_table_check_query)
+            if not cursor.fetchone():
+                cortex_threads_input_table_ddl = f"""
+                CREATE TABLE {self.schema}.CORTEX_THREADS_INPUT (
+                    timestamp TIMESTAMP,
+                    bot_id VARCHAR,
+                    bot_name VARCHAR,
+                    thread_id VARCHAR,
+                    message_type VARCHAR,
+                    message_payload VARCHAR,
+                    message_metadata VARCHAR,
+                    tokens_in NUMBER,
+                    tokens_out NUMBER
+                );
+                """
+                cursor.execute(cortex_threads_input_table_ddl)
+                self.client.commit()
+                print(f"Table {self.schema}.CORTEX_THREADS_INPUT created.")
+            else:
+                print(f"Table {self.schema}.CORTEX_THREADS_INPUT already exists.")
+        except Exception as e:
+            print(f"An error occurred while checking or creating table CORTEX_THREADS_INPUT: {e}")
+
+        cortex_threads_output_table_check_query = f"SHOW TABLES LIKE 'CORTEX_THREADS_OUTPUT' IN SCHEMA {self.schema};"
+        try:
+            cursor.execute(cortex_threads_output_table_check_query)
+            if not cursor.fetchone():
+                cortex_threads_output_table_ddl = f"""
+                CREATE TABLE {self.schema}.CORTEX_THREADS_OUTPUT (
+                    timestamp TIMESTAMP,
+                    bot_id VARCHAR,
+                    bot_name VARCHAR,
+                    thread_id VARCHAR,
+                    message_type VARCHAR,
+                    message_payload VARCHAR,
+                    message_metadata VARCHAR,
+                    tokens_in NUMBER,
+                    tokens_out NUMBER,
+                    model_name VARCHAR, -- either mistral-large, snowflake-arctic, etc.
+                    messages_concatenated VARCHAR
+                );
+                """
+                cursor.execute(cortex_threads_output_table_ddl)
+                self.client.commit()
+                print(f"Table {self.schema}.CORTEX_THREADS_OUTPUT created.")
+            else:
+                print(f"Table {self.schema}.CORTEX_THREADS_OUTPUT already exists.")
+        except Exception as e:
+            print(f"An error occurred while checking or creating table CORTEX_THREADS_OUTPUT: {e}")
 
     def insert_table_summary(self, database_name, schema_name, table_name, ddl, ddl_short, summary, sample_data_text, complete_description="", crawl_status="Completed", role_used_for_crawl="Default", embedding=None):
 
@@ -1508,9 +1568,9 @@ class SnowflakeConnector(DatabaseConnector):
         # Get the database schema from environment variables
 
         if full:
-            select_str = "api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instructions, runner_id, slack_app_token, slack_app_level_key, slack_signing_secret, slack_channel_id, available_tools, udf_active, slack_active, files"
+            select_str = "api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instructions, runner_id, slack_app_token, slack_app_level_key, slack_signing_secret, slack_channel_id, available_tools, udf_active, slack_active, files, bot_implementation"
         else:
-            select_str = "runner_id, bot_id, bot_name, bot_instructions, available_tools, bot_slack_user_id, api_app_id, auth_url, udf_active, slack_active, files"
+            select_str = "runner_id, bot_id, bot_name, bot_instructions, available_tools, bot_slack_user_id, api_app_id, auth_url, udf_active, slack_active, files, bot_implementation"
 
         # Query to select all bots from the BOT_SERVICING table
         if runner_id is None:
@@ -1767,7 +1827,7 @@ class SnowflakeConnector(DatabaseConnector):
 
     def db_insert_new_bot(self, api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instructions, runner_id, slack_signing_secret, 
                     slack_channel_id, available_tools, auth_url, auth_state, client_id, client_secret, udf_active, 
-                    slack_active, files, project_id, dataset_name, bot_servicing_table):
+                    slack_active, files, bot_implementation, project_id, dataset_name, bot_servicing_table):
         """
         Inserts a new bot configuration into the BOT_SERVICING table.
 
@@ -1782,6 +1842,7 @@ class SnowflakeConnector(DatabaseConnector):
             slack_channel_id (str): The Slack channel ID where the bot will operate.
             available_tools (json): A JSON of tools the bot has access to.
             files (json): A JSON of files to include with the bot.
+            bot_implementation (str): cortex or openai or ...
         """
 
         insert_query = f"""
@@ -1924,6 +1985,45 @@ class SnowflakeConnector(DatabaseConnector):
             logger.error(f"Failed to update bot_instructions for bot_id: {bot_id} with error: {e}")
             return {"success": False, "error": str(e)}
         
+    def db_update_bot_implementation(self, project_id, dataset_name, bot_servicing_table, bot_id, bot_implementation, runner_id):
+        """
+        Updates the implementation type for a specific bot in the database.
+
+        Args:
+            project_id (str): The project ID where the bot servicing table is located.
+            dataset_name (str): The dataset name where the bot servicing table is located.
+            bot_servicing_table (str): The name of the table where bot details are stored.
+            bot_id (str): The unique identifier for the bot.
+            bot_implementation (str): The new implementation type to be set for the bot.
+            runner_id (str): The runner ID associated with the bot.
+
+        Returns:
+            dict: A dictionary with the result of the operation, indicating success or failure.
+        """
+
+        # Query to update the bot implementation in the database
+        update_query = f"""
+            UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
+            SET bot_implementation = %s
+            WHERE bot_id = %s AND runner_id = %s
+        """
+
+        # Execute the update query
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute(update_query, (bot_implementation, bot_id, runner_id))
+            self.connection.commit()
+            logger.info(f"Successfully updated bot_implementation for bot_id: {bot_id}")
+
+            return {
+                "success": True,
+                "message": f"bot_implementation updated for bot_id: {bot_id}."
+            }
+
+        except Exception as e:
+            logger.error(f"Failed to update bot_implementation for bot_id: {bot_id} with error: {e}")
+            return {"success": False, "error": str(e)}
+
     def db_get_bot_details(self, project_id, dataset_name, bot_servicing_table, bot_id):
         """
         Retrieves the details of a bot based on the provided bot_id from the BOT_SERVICING table.
@@ -1960,7 +2060,7 @@ class SnowflakeConnector(DatabaseConnector):
             return None
 
     def db_update_existing_bot(self, api_app_id, bot_id, bot_slack_user_id, client_id, client_secret, slack_signing_secret, 
-                            auth_url, auth_state, udf_active, slack_active, files, project_id, dataset_name, bot_servicing_table):
+                            auth_url, auth_state, udf_active, slack_active, files, bot_implementation, project_id, dataset_name, bot_servicing_table):
         """
         Updates an existing bot configuration in the BOT_SERVICING table with new values for the provided parameters.
 
@@ -1975,13 +2075,14 @@ class SnowflakeConnector(DatabaseConnector):
             udf_active (str): Indicates if the UDF feature is active for the bot.
             slack_active (str): Indicates if the Slack feature is active for the bot.
             files (json-embedded list): A list of files to include with the bot.
+            bot_implementation (str): openai or cortex or ...
         """
 
         update_query = f"""
             UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
             SET API_APP_ID = %s, BOT_SLACK_USER_ID = %s, CLIENT_ID = %s, CLIENT_SECRET = %s,
                 SLACK_SIGNING_SECRET = %s, AUTH_URL = %s, AUTH_STATE = %s,
-                UDF_ACTIVE = %s, SLACK_ACTIVE = %s, FILES = %s
+                UDF_ACTIVE = %s, SLACK_ACTIVE = %s, FILES = %s, BOT_IMPLEMENTATION = %s
             WHERE BOT_ID = %s
         """
 
@@ -1989,7 +2090,7 @@ class SnowflakeConnector(DatabaseConnector):
             self.client.cursor().execute(update_query, (
                 api_app_id, bot_slack_user_id, client_id, client_secret,
                 slack_signing_secret, auth_url, auth_state, udf_active,
-                slack_active, files, bot_id
+                slack_active, files, bot_implementation, bot_id
             ))
             self.client.commit()
             print(f"Successfully updated existing bot configuration for bot_id: {bot_id}")

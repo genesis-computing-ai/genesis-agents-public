@@ -27,9 +27,8 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         self.available_functions = available_functions
         self.bot_id = bot_id
         self.bot_name = bot_name
-        self.cortex_threads_schema_input_table  = os.getenv("SNOWFLAKE_CORTEX_THREADS_SCHEMA") + ".GENESIS_THREADS"
-        self.cortex_threads_schema_output_table = os.getenv("SNOWFLAKE_CORTEX_THREADS_SCHEMA") + ".GENESIS_THREADS_MANUAL"
-        self.cortex_threads_stored_proc         = os.getenv("SNOWFLAKE_CORTEX_THREADS_SCHEMA") + ".UPDATE_THREADS"
+        self.cortex_threads_schema_input_table  = os.getenv("GENESIS_INTERNAL_DB_SCHEMA") + ".CORTEX_THREADS_INPUT"
+        self.cortex_threads_schema_output_table = os.getenv("GENESIS_INTERNAL_DB_SCHEMA") + ".CORTEX_THREADS_OUTPUT"
         self.client = SnowflakeConnector(connection_name='Snowflake')
         logger.debug("BotOsAssistantSnowflakeCortex:__init__ - SnowflakeConnector initialized")
 
@@ -54,8 +53,8 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                 timestamp, self.bot_id, self.bot_name, thread_id, message_type, str(self.tools), "",
             ))
             self.client.connection.commit()
-            cursor.execute(f"call {self.cortex_threads_stored_proc}()")
-            self.client.connection.commit()
+            #cursor.execute(f"call {self.cortex_threads_stored_proc}()")
+            #self.client.connection.commit()
 
             logger.info(f"Successfully inserted system prompt for thread_id: {thread_id}")
         except Exception as e:
@@ -81,8 +80,9 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                 timestamp, self.bot_id, self.bot_name, thread_id, message_type, message_payload, message_metadata,
             ))
             self.client.connection.commit()
-            cursor.execute(f"call {self.cortex_threads_stored_proc}()")
-            self.client.connection.commit()
+            #cursor.execute(f"call {self.cortex_threads_stored_proc}()")
+            #self.client.connection.commit()
+            #self.update_threads()
 
             logger.info(f"Successfully inserted message log for bot_id: {self.bot_id}")
             self.active_runs.append({"thread_id": thread_id, "timestamp": timestamp})
@@ -98,6 +98,8 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         thread_id = thread_to_check["thread_id"]
         timestamp = thread_to_check["timestamp"]
         if True:
+            self.update_threads(thread_id)
+
             query = f"""
             SELECT message_payload, message_metadata FROM {self.cortex_threads_schema_output_table}
             WHERE thread_id = %s AND model_name = %s AND message_type = 'Assistant Response' AND timestamp = %s
@@ -167,8 +169,9 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             cursor.execute(insert_query, (new_timestamp, self.bot_id, self.bot_name, thread_id, "Tool Response", results_str,
                                           message_metadata))
             self.client.connection.commit()
-            cursor.execute(f"call {self.cortex_threads_stored_proc}()")
-            self.client.connection.commit()
+            #cursor.execute(f"call {self.cortex_threads_stored_proc}()")
+            #self.client.connection.commit()
+            #self.update_threads()
 
             self.active_runs.append({"thread_id": thread_id, "timestamp": new_timestamp})
 
@@ -191,4 +194,84 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             self._submit_tool_outputs(thread_id, timestamp, error_string, message_metadata)
       return callback_closure
 
-   
+    def update_threads(self, thread_id):
+        """
+        Executes the SQL query to update threads based on the provided SQL, incorporating self.cortex... tables.
+        """
+        context_limit = 32000
+        update_query = f"""
+        insert into {self.cortex_threads_schema_output_table}
+                        with input as 
+                        (
+                        select 
+                            i.* from {self.cortex_threads_schema_input_table} i
+                            LEFT JOIN {self.cortex_threads_schema_output_table} o ON i.thread_id = o.thread_id and i.timestamp = o.timestamp
+                            WHERE o.thread_id IS NULL
+                            AND i.thread_id = '{thread_id}'
+                        ),
+
+                        prior_in_thread as
+                        (
+                        select 
+                            i.* from {self.cortex_threads_schema_input_table} i
+                            where i.thread_id = '{thread_id}'
+                        ),
+                        threads as 
+                        (
+                        SELECT
+                        i1.thread_id,
+                        i1.timestamp,
+                        LISTAGG('<' || i2.message_type || '/> ' || i2.message_payload, ' ') WITHIN GROUP (ORDER BY i2.timestamp, i2.message_type desc) AS concatenated_payload
+                        FROM
+                        prior_in_thread i1
+                        LEFT JOIN prior_in_thread i2 ON i1.thread_id = i2.thread_id AND i2.timestamp <= i1.timestamp
+                        GROUP BY
+                        i1.thread_id,
+                        i1.timestamp
+                        ORDER BY
+                        i1.thread_id,
+                        i1.timestamp
+                        )
+
+                        select 
+                            *, 'user', '' from input
+                        union all 
+                        select 
+                            i.timestamp,
+                            i.bot_id,
+                            i.bot_name,
+                            i.thread_id,
+                            'Assistant Response',
+                            SNOWFLAKE.CORTEX.COMPLETE('{self.llm_engine}', left(concatenated_payload, {context_limit})) as message_payload,
+                            i.message_metadata, 
+                            0 as tokens_in,
+                            0 as tokens_out,
+                            '{self.llm_engine}',
+                            left(concatenated_payload, 16000)
+                        from input as i
+                        join threads  on i.thread_id = threads.thread_id and i.timestamp = threads.timestamp
+                        -- union all
+
+                        -- select 
+                        --     i.timestamp,
+                        --     i.bot_id,
+                        --     i.bot_name,
+                        --     i.thread_id,
+                        --     'Assistant Response',
+                        --     SNOWFLAKE.CORTEX.COMPLETE('snowflake-arctic', left(concatenated_payload,4000)) as message_payload,
+                        --     i.message_metadata, --concatenated_payload as metadata,
+                        --     0 as tokens_in,
+                        --     0 as tokens_out,
+                        --     'snowflake-arctic',
+                        --     left(concatenated_payload, 4000)
+                        -- from input as i
+                        -- join threads  on i.thread_id = threads.thread_id and i.timestamp = threads.timestamp
+        """
+        try:
+            cursor = self.client.connection.cursor()
+            cursor.execute(update_query)
+            self.client.connection.commit()
+            logger.info("Successfully updated threads.")
+        except Exception as e:
+            logger.error(f"Failed to update threads: {e}")
+            self.client.connection.rollback()

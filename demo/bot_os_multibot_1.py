@@ -12,6 +12,8 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from connectors.bigquery_connector import BigQueryConnector
 from connectors.snowflake_connector import SnowflakeConnector
 from core.bot_os_tools import get_tools
+from llm_cortex.bot_os_cortex import BotOsAssistantSnowflakeCortex
+from llm_openai.bot_os_openai import BotOsAssistantOpenAI
 from slack.slack_bot_os_adapter import SlackBotAdapter
 from bot_genesis.make_baby_bot import make_baby_bot, update_slack_app_level_key, set_llm_key, get_llm_key, get_available_tools, get_ngrok_auth_token, set_ngrok_auth_token, get_bot_details, update_bot_details, set_remove_pointers, list_all_bots, get_all_bots_full_details, get_slack_config_tokens, rotate_slack_token, set_slack_config_tokens, test_slack_config_token
 from auto_ngrok.auto_ngrok import launch_ngrok_and_update_bots
@@ -179,6 +181,10 @@ def make_session(bot_config):
     else:
         proactive_instructions = ""
     
+    if "bot_implementation" in bot_config and bot_config["bot_implementation"] == "cortex":
+        assistant_implementation = BotOsAssistantSnowflakeCortex
+    else:
+        assistant_implementation = BotOsAssistantOpenAI
     try:
        # print(f'tools: {tools}')
         session = BotOsSession(bot_config["bot_id"], 
@@ -188,8 +194,7 @@ def make_session(bot_config):
                             knowledgebase_implementation=BotOsKnowledgeAnnoy_Metadata(f"./kb_{bot_config['bot_id']}"),
                             file_corpus=URLListFileCorpus(json.loads(bot_config["files"])) if bot_config["files"] else None,
                             update_existing=True,
-                            # include below line for Reka
-                            # asistant_implementaion=BotOsAssistantReka,
+                            assistant_implementation=assistant_implementation,
                             log_db_connector=db_adapter, # Ensure connection_info is defined or fetched appropriately
                             # tools=slack_tools + integration_tool_descriptions + [TOOL_FUNCTION_DESCRIPTION_WEBPAGE_DOWNLOADER],
                             tools = tools,

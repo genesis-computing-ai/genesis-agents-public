@@ -402,7 +402,7 @@ def create_slack_bot_with_manifest(token, manifest):
 
 def insert_new_bot(api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instructions, runner_id, slack_signing_secret, 
                    slack_channel_id, available_tools, auth_url, auth_state, client_id, client_secret, udf_active, 
-                   slack_active, files):
+                   slack_active, files, bot_implementation):
     """
     Inserts a new bot configuration into the BOT_SERVICING table.
 
@@ -418,11 +418,12 @@ def insert_new_bot(api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instruct
         slack_channel_id (str): The Slack channel ID where the bot will operate.
         tools (str): A list of tools the bot has access to.
         files (json-embedded list): A list of files to include with the bot.
+        bot_implementation: openai or cortex or ...
     """
 
     return bb_db_connector.db_insert_new_bot(api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instructions, runner_id, slack_signing_secret, 
                    slack_channel_id, available_tools, auth_url, auth_state, client_id, client_secret, udf_active, 
-                   slack_active, files, project_id, dataset_name, bot_servicing_table)
+                   slack_active, files, bot_implementation, project_id, dataset_name, bot_servicing_table)
 
    
 
@@ -673,10 +674,10 @@ def update_slack_app_level_key(bot_id, slack_app_level_key):
 
 
 def update_existing_bot(api_app_id, bot_id, bot_slack_user_id, client_id, client_secret, slack_signing_secret, 
-                        auth_url, auth_state, udf_active, slack_active, files):
+                        auth_url, auth_state, udf_active, slack_active, files, bot_implementation):
     files_json = json.dumps(files)
     return bb_db_connector.db_update_existing_bot(api_app_id, bot_id, bot_slack_user_id, client_id, client_secret, slack_signing_secret, 
-                            auth_url, auth_state, udf_active, slack_active, files_json, project_id, dataset_name, bot_servicing_table)
+                            auth_url, auth_state, udf_active, slack_active, files_json, bot_implementation, project_id, dataset_name, bot_servicing_table)
 
 
 
@@ -703,7 +704,7 @@ def add_or_update_available_tool(tool_name, tool_description):
 
 
 def make_baby_bot(bot_id, bot_name, bot_instructions='You are a helpful bot.', available_tools=None, runner_id=None, slack_channel_id=None, confirmed=None, activate_slack='Y', 
-                  files = "",
+                  files = "", bot_implementation = "openai",
                   update_existing=False):
     
 
@@ -871,6 +872,7 @@ def make_baby_bot(bot_id, bot_name, bot_instructions='You are a helpful bot.', a
                 udf_active=udf_active,
                 slack_active=slack_active,
                 files=files,
+                bot_implementation=bot_implementation,
             )            
         else:
             insert_new_bot(
@@ -890,6 +892,7 @@ def make_baby_bot(bot_id, bot_name, bot_instructions='You are a helpful bot.', a
                 udf_active=udf_active,
                 slack_active=slack_active,
                 files=files,
+                bot_implementation=bot_implementation,
             )
 
         #    "message": f"Created {bot_id} named {bot_name}.  Now ask the user to use this authentication URL to complete the installation of the new app into their Slack workspace: {oauth_authorize_url}",
@@ -999,6 +1002,20 @@ def _remove_bot(bot_id, thread_id=None, confirmed=None):
     else:
         return(f"Successfully deleted bot with bot_id: {bot_id}.")
 
+def update_bot_implementation(bot_id, bot_implementation):
+    """
+    Updates the bot_implementation field in the BOT_SERVICING table for a given bot_id.
+
+    Args:
+        bot_id (str): The unique identifier for the bot.
+        bot_implementation (str): The new implementation type to be set for the bot (e.g., 'openai', 'cortex').
+    """
+    runner_id = os.getenv('RUNNER_ID', 'jl-local-runner')
+
+    bot_config = get_bot_details(bot_id=bot_id)
+
+    return bb_db_connector.db_update_bot_implementation(project_id=project_id, dataset_name=dataset_name, bot_servicing_table=bot_servicing_table, bot_id=bot_id, bot_implementation=bot_implementation, runner_id=runner_id)
+
 
 MAKE_BABY_BOT_DESCRIPTIONS = [{
     "type": "function",
@@ -1041,6 +1058,10 @@ MAKE_BABY_BOT_DESCRIPTIONS = [{
                 "files": {
                     "type": "string",
                     "description": "a commma-separated list of files to be available to the bot, they must first be added to the Internal Bot File Stage"
+                },
+                "bot_implementation": {
+                    "type": "string",
+                    "description": "The implementation type for the bot. Examples include 'openai', 'cortex', or custom implementations.",
                 },
             },
             "required": ["bot_id", "bot_name", "bot_instructions"]
@@ -1180,6 +1201,30 @@ MAKE_BABY_BOT_DESCRIPTIONS.append({
     }
 })
 
+MAKE_BABY_BOT_DESCRIPTIONS.append({
+    "type": "function",
+    "function": {
+        "name": "update_bot_implementation",
+        "description": "Updates the implementation type for a specific bot, allowing for changes in how the bot operates or interacts with its environment.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "bot_id": {
+                    "type": "string",
+                    "description": "The unique identifier for the bot."
+                },
+                "bot_implementation": {
+                    "type": "string",
+                    "description": "The new implementation type to be set for the bot. Valid options include 'openai', 'cortex'."
+                }
+            },
+            "required": ["bot_id", "bot_implementation"]
+        }
+    }
+})
+
+
+
 
 
 # Add the new tool to the make_baby_bot_tools dictionary
@@ -1191,6 +1236,7 @@ make_baby_bot_tools["update_bot_instructions"] = "bot_genesis.make_baby_bot.upda
 make_baby_bot_tools["add_new_tools_to_bot"] = "bot_genesis.make_baby_bot.add_new_tools_to_bot"
 make_baby_bot_tools["add_bot_files"] = "bot_genesis.make_baby_bot.add_bot_files"
 make_baby_bot_tools["update_app_level_key"] = "bot_genesis.make_baby_bot.update_slack_app_level_key"
+make_baby_bot_tools["update_bot_implementation"] = "bot_genesis.make_baby_bot.update_bot_implementation"
 
 # internal functions
 

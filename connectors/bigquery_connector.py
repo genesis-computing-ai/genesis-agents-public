@@ -572,9 +572,9 @@ class BigQueryConnector(DatabaseConnector):
         # Get the database schema from environment variables
 
         if full:
-            select_str = "api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instructions, runner_id, slack_app_token, slack_signing_secret, slack_channel_id, available_tools, udf_active, slack_active, files"
+            select_str = "api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instructions, runner_id, slack_app_token, slack_signing_secret, slack_channel_id, available_tools, udf_active, slack_active, files, bot_implementation"
         else:
-            select_str = "runner_id, bot_id, bot_name, bot_instructions, available_tools, bot_slack_user_id, api_app_id, auth_url, udf_active, slack_active"
+            select_str = "runner_id, bot_id, bot_name, bot_instructions, available_tools, bot_slack_user_id, api_app_id, auth_url, udf_active, slack_active, files, bot_implementation"
 
         # Query to select all bots from the BOT_SERVICING table
         if runner_id is None:
@@ -775,7 +775,7 @@ class BigQueryConnector(DatabaseConnector):
 
     def db_insert_new_bot(self, api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instructions, runner_id, slack_signing_secret, 
                     slack_channel_id, available_tools, auth_url, auth_state, client_id, client_secret, udf_active, 
-                    slack_active, files, project_id, dataset_name, bot_servicing_table):
+                    slack_active, files, bot_implementation, project_id, dataset_name, bot_servicing_table):
         """
         Inserts a new bot configuration into the BOT_SERVICING table.
 
@@ -791,18 +791,19 @@ class BigQueryConnector(DatabaseConnector):
             slack_channel_id (str): The Slack channel ID where the bot will operate.
             tools (str): A list of tools the bot has access to.
             files (json-embedded list): A list of files to include with the bot.
+            bot_implementation (str): openai or cortex or ...
         """
 
         insert_query = f"""
             INSERT INTO  `{project_id}.{dataset_name}.{bot_servicing_table}` (
                 api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instructions, runner_id, 
                 slack_signing_secret, slack_channel_id, available_tools, auth_url, auth_state, client_id, client_secret, udf_active, slack_active,
-                files
+                files, bot_implementation
             ) VALUES (
                 @api_app_id, @bot_slack_user_id, @bot_id, @bot_name, @bot_instructions, 
                 @runner_id, @slack_signing_secret, @slack_channel_id, 
                 @available_tools, @auth_url, @auth_state, @client_id, @client_secret, @udf_active, @slack_active,
-                @files
+                @files, @bot_implementation
             )
         """
 
@@ -825,6 +826,7 @@ class BigQueryConnector(DatabaseConnector):
             bigquery.ScalarQueryParameter("udf_active", "STRING", udf_active),
             bigquery.ScalarQueryParameter("slack_active", "STRING", slack_active),
             bigquery.ScalarQueryParameter("files", "STRING", files),
+            bigquery.ScalarQueryParameter("bot_implementation", "STRING", bot_implementation)
         ]
 
         job_config = bigquery.QueryJobConfig(query_parameters=query_params)
@@ -936,6 +938,53 @@ class BigQueryConnector(DatabaseConnector):
             logger.error(f"Failed to update bot_instructions for bot_id: {bot_id} with error: {e}")
             return {"success": False, "error": str(e)}
         
+    def db_update_bot_implementation(self, project_id, dataset_name, bot_servicing_table, bot_id, bot_implementation, runner_id):
+        """
+        Updates the bot_implementation field in the BOT_SERVICING table for a given bot_id.
+
+        Args:
+            project_id (str): The project ID where the BOT_SERVICING table resides.
+            dataset_name (str): The dataset name where the BOT_SERVICING table resides.
+            bot_servicing_table (str): The name of the table where bot details are stored.
+            bot_id (str): The unique identifier for the bot.
+            bot_implementation (str): The new implementation type to be set for the bot (e.g., 'openai', 'cortex').
+            runner_id (str): The runner ID associated with the bot.
+
+        Returns:
+            dict: A dictionary indicating the success or failure of the operation.
+        """
+
+        # Query to update the bot_implementation in the database
+        update_query = f"""
+            UPDATE `{project_id}.{dataset_name}.{bot_servicing_table}`
+            SET bot_implementation = @new_implementation
+            WHERE bot_id = @bot_id AND runner_id = @runner_id
+        """
+
+        # Set the query parameters
+        query_params = [
+            bigquery.ScalarQueryParameter("bot_id", "STRING", bot_id),
+            bigquery.ScalarQueryParameter("new_implementation", "STRING", bot_implementation),
+            bigquery.ScalarQueryParameter("runner_id", "STRING", runner_id),
+        ]
+
+        job_config = bigquery.QueryJobConfig(query_parameters=query_params)
+
+        # Execute the update query
+        try:
+            self.run_query(query=update_query, job_config=job_config)
+            logger.info(f"Successfully updated bot_implementation for bot_id: {bot_id}")
+
+            return {
+                "success": True,
+                "message": f"Successfully updated bot_implementation for bot_id: {bot_id}.",
+                "new_implementation": bot_implementation
+            }
+
+        except Exception as e:
+            logger.error(f"Failed to update bot_implementation for bot_id: {bot_id} with error: {e}")
+            return {"success": False, "error": str(e)}
+        
     def db_get_bot_details(self, project_id, dataset_name, bot_servicing_table, bot_id):
         """
         Retrieves the details of a bot based on the provided bot_id from the BOT_SERVICING table.
@@ -967,7 +1016,7 @@ class BigQueryConnector(DatabaseConnector):
             return None
 
     def db_update_existing_bot(self, api_app_id, bot_id, bot_slack_user_id, client_id, client_secret, slack_signing_secret, 
-                            auth_url, auth_state, udf_active, slack_active, files, project_id, dataset_name, bot_servicing_table):
+                            auth_url, auth_state, udf_active, slack_active, files, bot_implementation, project_id, dataset_name, bot_servicing_table):
         """
         Updates an existing bot configuration in the BOT_SERVICING table with new values for the provided parameters.
 
@@ -982,13 +1031,14 @@ class BigQueryConnector(DatabaseConnector):
             udf_active (str): Indicates if the UDF feature is active for the bot.
             slack_active (str): Indicates if the Slack feature is active for the bot.
             files (json-embedded list): A list of files to include with the bot.
+            bot_implementation: openai or cortex or ...
         """
 
         update_query = f"""
             UPDATE `{project_id}.{dataset_name}.{bot_servicing_table}`
             SET api_app_id = @api_app_id, bot_slack_user_id = @bot_slack_user_id, client_id = @client_id, client_secret = @client_secret,
                 slack_signing_secret = @slack_signing_secret, auth_url = @auth_url, auth_state = @auth_state,
-                udf_active = @udf_active, slack_active = @slack_active, files = @files
+                udf_active = @udf_active, slack_active = @slack_active, files = @files, bot_implementation = @bot_implementation
             WHERE bot_id = @bot_id
         """
 
@@ -1005,6 +1055,7 @@ class BigQueryConnector(DatabaseConnector):
             bigquery.ScalarQueryParameter("udf_active", "STRING", udf_active),
             bigquery.ScalarQueryParameter("slack_active", "STRING", slack_active),
             bigquery.ScalarQueryParameter("files", "STRING", files),
+            bigquery.ScalarQueryParameter("bot_implementation", "STRING", bot_implementation)
         ]
 
         job_config = bigquery.QueryJobConfig(query_parameters=query_params)

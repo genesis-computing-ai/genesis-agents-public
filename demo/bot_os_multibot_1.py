@@ -185,6 +185,7 @@ def make_session(bot_config):
         assistant_implementation = BotOsAssistantSnowflakeCortex
     else:
         assistant_implementation = BotOsAssistantOpenAI
+    #assistant_implementation = BotOsAssistantSnowflakeCortex
     try:
        # print(f'tools: {tools}')
         session = BotOsSession(bot_config["bot_id"], 

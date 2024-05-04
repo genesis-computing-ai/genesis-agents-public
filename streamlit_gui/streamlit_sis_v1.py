@@ -726,8 +726,17 @@ AS ''' + chr(36) + chr(36) + '''
 -- see your databases
 show databases;
 
--- to use, call with the name of the database to grant
+-- to use on a local database in your account, call with the name of the database to grant
 call GENESIS_LOCAL_DB.SETTINGS.grant_schema_usage_and_select_to_app('<your db name>',$APP_DATABASE);
+
+-- see inbound shares 
+show shares;
+
+-- to grant an inbound shared database to the Genesis application 
+grant imported privileges on database <inbound_share_db_name> to application IDENTIFIER($APP_DATABASE);
+
+-- to grant access to the SNOWFLAKE share (Account Usage, etc.) to the Genesis application 
+grant imported privileges on database SNOWFLAKE to application IDENTIFIER($APP_DATABASE);
 
 --- once granted, Genesis will automatically start to catalog this data so you can use it with Genesis bots
 '''
@@ -768,6 +777,17 @@ def bot_config():
                         st.caption("Bot ID: " + bot['bot_id'])
                         available_tools = bot['available_tools'].strip("[]").replace('"', '').replace("'", "")
                         st.caption(f"Available Tools: {available_tools}")
+                        bot_implementation = bot.get('bot_implementation', None)
+                        if bot_implementation is not None:
+                            st.caption(f"LLM Engine: {bot_implementation}")
+                        # Display the files associated with the bot
+                        bot_files = bot.get('files',None)
+                        if bot_files == 'null' or bot_files == '' or bot_files == '[]':
+                            bot_files = None
+                        if bot_files is not None:
+                            st.caption(f"Files: {bot_files}")
+                        else:
+                            st.caption("Files: None assigned")
                         user_id = bot.get('bot_slack_user_id','None')
                         if user_id is None:
                             user_id = 'None'
@@ -908,7 +928,7 @@ DROP COMPUTE POOL IF EXISTS GENESIS_POOL;
 
 -- create the compute pool and associate it to this application
 CREATE COMPUTE POOL IF NOT EXISTS GENESIS_POOL FOR APPLICATION IDENTIFIER($APP_DATABASE)
- MIN_NODES=1 MAX_NODES=1 INSTANCE_FAMILY='CPU_X64_XS' AUTO_SUSPEND_SECS=3600 INITIALLY_SUSPENDED=FALSE;
+ MIN_NODES=1 MAX_NODES=1 INSTANCE_FAMILY='CPU_X64_M' AUTO_SUSPEND_SECS=3600 INITIALLY_SUSPENDED=FALSE;
 
 -- give Genesis the right to use the compute pool
 GRANT USAGE ON COMPUTE POOL GENESIS_POOL TO APPLICATION  IDENTIFIER($APP_DATABASE);
@@ -961,10 +981,12 @@ CREATE SCHEMA IF NOT EXISTS GENESIS_LOCAL_DB.EVENTS;
 -- create an event table to capture events from the Genesis Server
 CREATE EVENT TABLE GENESIS_LOCAL_DB.EVENTS.GENESIS_APP_EVENTS;
 
--- set the event table on your account. 
+-- set the event table on your account, this is optional
+-- this requires ACCOUNTADMIN, and may already be set, skip if it doesnt work
 ALTER ACCOUNT SET EVENT_TABLE=GENESIS_LOCAL_DB.EVENTS.GENESIS_APP_EVENTS;
 
 -- allow sharing of the captured events with the Genesis Provider
+-- optional, skip if it doesn't work
 ALTER APPLICATION IDENTIFIER($APP_DATABASE) SET SHARE_EVENTS_WITH_PROVIDER = TRUE;
    
 '''
@@ -1082,7 +1104,7 @@ def start_stop():
         st.session_state.wh_name  = '<your warehouse name>'
 
     st.write('You can use the below commands in a worksheet to stop, start, and monitor the Gensis Server:')
-    start_stop_text = f'''USE DATABASE {app_name};
+    start_stop_text = f'''USE DATABASE IDENTIFIER("{app_name}");
 
 // pause service
 

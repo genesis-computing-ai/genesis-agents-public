@@ -476,6 +476,9 @@ def validate_potential_files(new_file_ids=None):
     if new_file_ids == [] or new_file_ids is None:
         return {"success": True, "message": "No files attached"}
 
+    # Remove the part before the last '/' in each file_id
+    new_file_ids = [file_id.split('/')[-1] for file_id in new_file_ids]
+
     valid_extensions = {
             '.c': 'text/x-c',
             '.cs': 'text/x-csharp',
@@ -543,6 +546,8 @@ def add_bot_files(bot_id, new_file_ids):
     if new_file_ids is None:
         new_file_ids = []
 
+    new_file_ids = [file_id.split('/')[-1] for file_id in new_file_ids]
+
    # raise('Need to fix add_bot_files for new file system')
     # Retrieve the current files for the bot
     bot_details = get_bot_details(bot_id)
@@ -555,6 +560,8 @@ def add_bot_files(bot_id, new_file_ids):
         return v
 
     current_files_str = bot_details.get('files', '[]')
+    if current_files_str == 'null':
+        current_files_str = '[]'
     if current_files_str == '""':
         current_files_str = []
     current_files = json.loads(current_files_str) if current_files_str else []
@@ -568,9 +575,7 @@ def add_bot_files(bot_id, new_file_ids):
     return bb_db_connector.db_update_bot_files(project_id=project_id, dataset_name=dataset_name, bot_servicing_table=bot_servicing_table, bot_id=bot_id, updated_files_str=updated_files_str, current_files=current_files, new_file_ids=new_file_ids)
     
 
-def update_bot_instructions(bot_id, new_instructions):
-
-    from core.bot_os_defaults import BASE_BOT_INSTRUCTIONS_ADDENDUM
+def update_bot_instructions(bot_id, new_instructions, confirmed=None, thread_id = None):
 
     """
     Updates the bot_instructions in the database for the specified bot_id for the current runner_id.
@@ -581,7 +586,22 @@ def update_bot_instructions(bot_id, new_instructions):
     """
     runner_id = os.getenv('RUNNER_ID', 'jl-local-runner')
 
-    bot_config = get_bot_details(bot_id=bot_id)
+    bot_details = get_bot_details(bot_id)
+
+    if bot_details is None:
+        return {
+            "success": False,
+            "error": f"Invalid bot_id: {bot_id}. Use list_all_bots to find the correct bot_id."
+        }
+
+    if confirmed != 'CONFIRMED':
+        current_instructions = bot_details.get('bot_instructions', '')
+        return {
+            "success": False,
+            "message": f"Please confirm the change of instructions. Call this function again with new parameter confirmed=CONFIRMED to confirm this change.",
+            "current_instructions": current_instructions,
+            "new_instructions": new_instructions
+        }
 
     return bb_db_connector.db_update_bot_instructions(project_id=project_id, dataset_name=dataset_name, bot_servicing_table=bot_servicing_table, bot_id=bot_id, instructions=new_instructions, runner_id=runner_id)
 

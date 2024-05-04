@@ -47,8 +47,7 @@ def execute_function_blocking(func_name:str, arguments:dict, available_functions
             return(f"caught exception {str(e)} trying to run {func_name}")
     else:
         return(f"Error function {func_name} does not exist")
-        
-
+    
 import tempfile
 import os
 

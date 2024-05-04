@@ -3,38 +3,39 @@
 GENESIS BOT TODOS
 =================
 
-SHORT-TERM:
-if you change slack token via streamlit, have it relaunch bots (or activate them any time they have a token even is slack is off)
-why doesn't eliza respond when youre in a thread with her if shes not tagged?
-why do bots go unresponsive when annoy indexing of data while harvester is actively running
-add instructions to data granting on how to grant from a shared database
-updating bot instructions via eve is not working
-JL- Make Eliza demo video on baseball
-JL-(test) Add error checking for missing data or grants to harvester so it doesnt crash on that 
+DESIRED DEMOS:
+Make Eliza demo video on baseball
+Make video of Snowflake janitorial work
+
+THINGS TO TEST:
+(test) Add error checking for missing data or grants to harvester so it doesnt crash on that 
 (test) Eve deploy on fresh install complained about file types for null files, make sure deploy button works
 (test) make deploy to slack button in SiS app tell you to setup slack tokens first if not yet set up
-(in progress) MR - add Spider baseball and f1 schemas as share-thru app w/pre-made harvest results for demo data on start
+(test) add Spider baseball and f1 schemas as share-thru app w/pre-made harvest results for demo data on start
+(test) Make sure harvester works ok with mixed case table and database and schema names (and system in general)
+(test) harvester dont crash if cant access schemas for a database listed in control file
+
+SHORT-TERM:
+MR-Add SNOWFLAKE harvest account usage etc to the pre-harvest feed into the app 
+JL-Why harvester slows down bots, needs bigger pool? why do bots go unresponsive when annoy indexing
 (soon) add tab to see chat logs from messages table
 (soon) Harvest semantic models and return in get_metadata dynamically
 (soon) Give semantic index modify a way to add and modify multiple things at the same time
-(test/fix) Updating bot instrucrions when wrong / invialid botid provided not sending error back to Eve 
 (soon) Try harvester with mistral or yak model to save costs 
 (soon) Add update message back to slack thread if tools are still running for more than a minute or if the run is still thinking.. (update her Thinking message)
 (soon) In install of Eliza make and grant an external workspace database and tell Eliza about it in her prompt (include grants on future objects to accountadmin)
 (soon) Give them 100 OpenAI turns a day or someting using our key, then have it switch to their own key
 (have a rough one) make a metadata backup and recovery script so we have it ready
 (soon) Add undeploy from Slack button on bot config
-(test) Make sure harvester works ok with mixed case table and database and schema names (and system in general)
-(test) harvester dont crash if cant access schemas for a database listed in control file
 (soon) make sure endpoint is not the empty message, if so wait until its provisioned before updating any callback URLS, if there are any bots that needs them
 (soon) fix wait spinner on api key page
 (soon) Make the thinking message go away when a bot decides not to respond
 (soon) Add a sevice restart button to SiS
+(later) if you change slack token via streamlit, have it relaunch bots (or activate them any time they have a token even is slack is off)
 (later) Make thread map save to local database to survive container restart 
 (later) block metadata app1 from user query 
 (later) Add a way for Eve for example to add another bot to a channel and then not process that thread anymore unless tagged again
 (later) add a place in Streamlit to see the files in stage add a file, remove a file
-(soon) add files list to bot configurations page in SiS
 (later) Make the queries in bot_os_memory.py parameterized
 (later) app deploy tokens are user specific, how to add a collaborator so another user can configure it?
 (later) Hide harvestable data if autoharvest is on 
@@ -117,6 +118,13 @@ Add a mechanism for license control based on current_account()... share a table 
     Have a trial period where you can use it in trial mode before it goes into limited mode
 
 DONE:
+x add files list to bot configurations page in SiS
+x add instructions to data granting on how to grant from a shared database
+x Bot_upgrade instructions make it work
+x why doesn't eliza respond when youre in a thread with her if shes not tagged?
+x updating bot instructions via eve is not working
+x (test/fix) Updating bot instrucrions when wrong / invialid botid provided not sending error back to Eve 
+x Add llm that its using to bot_config on streamlit
 x Add a semantic YAML steward tool... the AI feeds it piece by piece, asks it whats missing, and fills it in until its complete ...& make stuart bot and demo 
 x Make sure deploy button before slack keys activated tells you what to do (e.g. put in slack config keys first)
 x Images/docs: Add/test document retreival for documents that the AI produces (images and non images) so they show up in Slack

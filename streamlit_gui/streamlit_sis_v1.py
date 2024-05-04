@@ -334,7 +334,7 @@ def show_server_logs():
     if log_type == "Bot Service":
         # Run Snowflake SQL commands for Bot Service
         status_result = session.sql(f"SELECT SYSTEM$GET_SERVICE_STATUS('{prefix}.GENESISAPP_SERVICE_SERVICE')").collect()
-        logs_result = session.sql(f"SELECT SYSTEM$GET_SERVICE_LOGS('{prefix}.GENESISAPP_SERVICE_SERVICE',0,'chattest',1000)").collect()
+        logs_result = session.sql(f"SELECT SYSTEM$GET_SERVICE_LOGS('{prefix}.GENESISAPP_SERVICE_SERVICE',0,'genesis',1000)").collect()
 
         # Display the results in textareas
         st.markdown( status_result[0][0])
@@ -1122,7 +1122,7 @@ USE DATABASE IDENTIFIER($APP_DATABASE);
 USE SCHEMA APP1;
 
 SELECT SYSTEM$GET_SERVICE_STATUS('GENESISAPP_SERVICE_SERVICE');
-SELECT SYSTEM$GET_SERVICE_LOGS('GENESISAPP_SERVICE_SERVICE',0,'chattest',1000);
+SELECT SYSTEM$GET_SERVICE_LOGS('GENESISAPP_SERVICE_SERVICE',0,'genesis',1000);
 
 // reinitialize -- note: this wipes out the app metadata and existing harvests and bots
 

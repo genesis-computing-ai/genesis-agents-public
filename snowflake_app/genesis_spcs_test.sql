@@ -163,7 +163,7 @@ CREATE SERVICE spcs_test.app_test_schema.genesis_server
   FROM SPECIFICATION $$
     spec:
       containers:
-      - name: chattest
+      - name: genesis
         image: dshrnxx-genesis.registry.snowflakecomputing.com/spcs_test/app_test_schema/app_test_repository/genesis_app:latest
         env:
             OPENAI_API_KEY: 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
@@ -222,7 +222,7 @@ ALTER SERVICE  spcs_test.app_test_schema.genesis_server
   FROM SPECIFICATION $$
     spec:
       containers:
-      - name: chattest
+      - name: genesis
         image: dshrnxx-genesis.registry.snowflakecomputing.com/spcs_test/app_test_schema/app_test_repository/genesis_app:latest
         env:
             OPENAI_API_KEY: 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

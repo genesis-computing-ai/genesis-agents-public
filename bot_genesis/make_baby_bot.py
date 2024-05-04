@@ -548,7 +548,6 @@ def add_bot_files(bot_id, new_file_ids):
 
     new_file_ids = [file_id.split('/')[-1] for file_id in new_file_ids]
 
-   # raise('Need to fix add_bot_files for new file system')
     # Retrieve the current files for the bot
     bot_details = get_bot_details(bot_id)
     if not bot_details:

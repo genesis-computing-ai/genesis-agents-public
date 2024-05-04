@@ -135,17 +135,17 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         end_index = message_payload.find(end_tag)
         tool_call_str = message_payload[start_index:end_index].strip()
         try:
+            cb_closure = self._generate_callback_closure(thread_id, timestamp, message_metadata)
             tool_call_data = json.loads(tool_call_str)
             function_to_call = tool_call_data.get("function")
             arguments = tool_call_data.get("arguments", {})
-            cb_closure = self._generate_callback_closure(thread_id, timestamp, message_metadata)
             execute_function(function_to_call, json.dumps(arguments), self.available_functions, cb_closure, thread_id, self.bot_id)
         except json.JSONDecodeError as e:
-            logger.error(f"Failed to decode tool call JSON {function_to_call} {arguments}: {e}")
-            cb_closure(e)
+            logger.error(f"Failed to decode tool call JSON {tool_call_str}: {e}")
+            cb_closure(f"Failed to decode tool call JSON {tool_call_str}: {e}")
         except Exception as e:
             logger.error(f"Error processing tool call: {e}")
-            cb_closure(e)
+            cb_closure(f"Error processing tool call: {e}")
 
     def _submit_tool_outputs(self, thread_id, timestamp, results, message_metadata):
         """

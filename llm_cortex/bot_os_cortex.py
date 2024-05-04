@@ -4,8 +4,9 @@ from decimal import Decimal
 import html
 import json
 import os
+import time
 import uuid
-import urllib.parse
+import threading
 
 from connectors.snowflake_connector import SnowflakeConnector
 from core.bot_os_assistant_base import BotOsAssistantInterface, execute_function
@@ -53,8 +54,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                 timestamp, self.bot_id, self.bot_name, thread_id, message_type, str(self.tools), "",
             ))
             self.client.connection.commit()
-            #cursor.execute(f"call {self.cortex_threads_stored_proc}()")
-            #self.client.connection.commit()
+            threading.Thread(target=self.update_threads, args=(thread_id,)).start()
 
             logger.info(f"Successfully inserted system prompt for thread_id: {thread_id}")
         except Exception as e:
@@ -80,9 +80,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                 timestamp, self.bot_id, self.bot_name, thread_id, message_type, message_payload, message_metadata,
             ))
             self.client.connection.commit()
-            #cursor.execute(f"call {self.cortex_threads_stored_proc}()")
-            #self.client.connection.commit()
-            #self.update_threads()
+            threading.Thread(target=self.update_threads, args=(thread_id,)).start()
 
             logger.info(f"Successfully inserted message log for bot_id: {self.bot_id}")
             self.active_runs.append({"thread_id": thread_id, "timestamp": timestamp})
@@ -98,7 +96,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         thread_id = thread_to_check["thread_id"]
         timestamp = thread_to_check["timestamp"]
         if True:
-            self.update_threads(thread_id)
+            #self.update_threads(thread_id)
 
             query = f"""
             SELECT message_payload, message_metadata FROM {self.cortex_threads_schema_output_table}
@@ -143,9 +141,11 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             cb_closure = self._generate_callback_closure(thread_id, timestamp, message_metadata)
             execute_function(function_to_call, json.dumps(arguments), self.available_functions, cb_closure, thread_id, self.bot_id)
         except json.JSONDecodeError as e:
-            logger.error(f"Failed to decode tool call JSON: {e}")
+            logger.error(f"Failed to decode tool call JSON {function_to_call} {arguments}: {e}")
+            cb_closure(e)
         except Exception as e:
             logger.error(f"Error processing tool call: {e}")
+            cb_closure(e)
 
     def _submit_tool_outputs(self, thread_id, timestamp, results, message_metadata):
         """
@@ -169,10 +169,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             cursor.execute(insert_query, (new_timestamp, self.bot_id, self.bot_name, thread_id, "Tool Response", results_str,
                                           message_metadata))
             self.client.connection.commit()
-            #cursor.execute(f"call {self.cortex_threads_stored_proc}()")
-            #self.client.connection.commit()
-            #self.update_threads()
-
+            threading.Thread(target=self.update_threads, args=(thread_id,)).start()
             self.active_runs.append({"thread_id": thread_id, "timestamp": new_timestamp})
 
             logger.info(f"Successfully inserted tool call results for Thread ID {thread_id} and Tool Call ID {new_timestamp} old: {timestamp}")
@@ -221,6 +218,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                         SELECT
                         i1.thread_id,
                         i1.timestamp,
+                        -- SUBSTRING(ARRAY_TO_STRING(ARRAY_AGG(CASE WHEN i2.message_type = 'System Prompt' THEN '<' || i2.message_type || '/> ' || i2.message_payload ELSE NULL END ORDER BY i2.timestamp ASC) || ' ' || ARRAY_AGG(CASE WHEN i2.message_type <> 'System Prompt' THEN '<' || i2.message_type || '/> ' || i2.message_payload ELSE NULL END ORDER BY i2.timestamp DESC LIMIT 1), ' '), 1, {context_limit}) AS concatenated_payload
                         LISTAGG('<' || i2.message_type || '/> ' || i2.message_payload, ' ') WITHIN GROUP (ORDER BY i2.timestamp, i2.message_type desc) AS concatenated_payload
                         FROM
                         prior_in_thread i1
@@ -269,8 +267,11 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         """
         try:
             cursor = self.client.connection.cursor()
+            start_time = time.time()
             cursor.execute(update_query)
             self.client.connection.commit()
+            elapsed_time = time.time() - start_time
+            logger.warn(f"BotOsAssistantSnowflakeCortex:update_threads -- took {elapsed_time} seconds.")
             logger.info("Successfully updated threads.")
         except Exception as e:
             logger.error(f"Failed to update threads: {e}")

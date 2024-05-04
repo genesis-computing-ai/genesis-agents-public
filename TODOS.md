@@ -16,6 +16,7 @@ THINGS TO TEST:
 (test) harvester dont crash if cant access schemas for a database listed in control file
 
 SHORT-TERM:
+JL-redo vision chat analysis with new vision API and move the function
 MR-Add SNOWFLAKE harvest account usage etc to the pre-harvest feed into the app 
 JL-Why harvester slows down bots, needs bigger pool? why do bots go unresponsive when annoy indexing
 (soon) add tab to see chat logs from messages table

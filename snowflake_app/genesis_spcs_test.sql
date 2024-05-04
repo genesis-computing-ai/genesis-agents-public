@@ -167,7 +167,6 @@ CREATE SERVICE spcs_test.app_test_schema.genesis_server
         image: dshrnxx-genesis.registry.snowflakecomputing.com/spcs_test/app_test_schema/app_test_repository/genesis_app:latest
         env:
             OPENAI_API_KEY: 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
-            OPENAI_MODEL_NAME: gpt-4-1106-preview
             OPENAI_HARVESTER_EMBEDDING_MODEL: text-embedding-3-large
             OPENAI_HARVESTER_MODEL: gpt-4-1106-preview
             HARVESTER_REFRESH_SECONDS: 20

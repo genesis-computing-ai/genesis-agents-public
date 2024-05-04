@@ -1516,7 +1516,6 @@ VALUES ('GENESISAPP_SERVICE_SERVICE',
       - name: chattest
         image: /genesisapp_master/code_schema/service_repo/genesis_app:latest
         env:
-            OPENAI_MODEL_NAME: gpt-4-1106-preview
             RUNNER_ID: snowflake-1
             GENESIS_INTERNAL_DB_SCHEMA: {{app_db_sch}}
             GENESIS_SOURCE: Snowflake

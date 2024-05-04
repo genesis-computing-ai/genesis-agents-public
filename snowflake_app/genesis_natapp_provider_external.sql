@@ -1670,13 +1670,11 @@ VALUES ('GENESISAPP_SERVICE_SERVICE',
       - name: chattest
         image: /genesisapp_master/code_schema/service_repo/genesis_app:latest
         env:
-            OPENAI_MODEL_NAME: gpt-4-1106-preview
             RUNNER_ID: snowflake-1
             GENESIS_INTERNAL_DB_SCHEMA: {{app_db_sch}}
             GENESIS_SOURCE: Snowflake
             SNOWFLAKE_SECURE: FALSE
             OPENAI_HARVESTER_EMBEDDING_MODEL: text-embedding-3-large
-            OPENAI_HARVESTER_MODEL: gpt-4-1106-preview
         readinessProbe:
           port: 8080
           path: /healthcheck
@@ -1704,7 +1702,6 @@ VALUES ('GENESISAPP_HARVESTER_SERVICE',
             GENESIS_MODE: HARVESTER
             AUTO_HARVEST: TRUE
             OPENAI_HARVESTER_EMBEDDING_MODEL: text-embedding-3-large
-            OPENAI_HARVESTER_MODEL: gpt-4-1106-preview
             HARVESTER_REFRESH_SECONDS: 20
             RUNNER_ID: snowflake-1
             SNOWFLAKE_SECURE: FALSE

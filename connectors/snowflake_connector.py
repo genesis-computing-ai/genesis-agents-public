@@ -17,6 +17,9 @@ from .database_connector import DatabaseConnector
 from core.bot_os_defaults import BASE_EVE_BOT_INSTRUCTIONS, ELIZA_DATA_ANALYST_INSTRUCTIONS, STUART_DATA_STEWARD_INSTRUCTIONS
 #from database_connector import DatabaseConnector
 from threading import Lock
+import base64
+import requests
+
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.WARN, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -833,7 +836,7 @@ class SnowflakeConnector(DatabaseConnector):
                 bot_id += ''.join(random.choices(string.ascii_letters + string.digits, k=6))
                 bot_name = "Eve"
                 bot_instructions = BASE_EVE_BOT_INSTRUCTIONS
-                available_tools = '["slack_tools", "make_baby_bot", "integrate_code", "snowflake_stage_tools", "vision_chat_analysis"]'
+                available_tools = '["slack_tools", "make_baby_bot", "integrate_code", "snowflake_stage_tools", "image_tools"]'
                 udf_active = "Y"
                 slack_active = "N"
 
@@ -852,7 +855,7 @@ class SnowflakeConnector(DatabaseConnector):
                 bot_id += ''.join(random.choices(string.ascii_letters + string.digits, k=6))
                 bot_name = "Eliza"
                 bot_instructions = ELIZA_DATA_ANALYST_INSTRUCTIONS
-                available_tools = '["slack_tools", "webpage_downloader", "database_tools", "snowflake_stage_tools", "vision_chat_analysis"]'
+                available_tools = '["slack_tools", "webpage_downloader", "database_tools", "snowflake_stage_tools", "image_tools"]'
                 udf_active = "Y"
                 slack_active = "N"
 
@@ -871,7 +874,7 @@ class SnowflakeConnector(DatabaseConnector):
                 bot_id += ''.join(random.choices(string.ascii_letters + string.digits, k=6))
                 bot_name = "Stuart"
                 bot_instructions = STUART_DATA_STEWARD_INSTRUCTIONS
-                available_tools = '["slack_tools", "database_tools", "snowflake_stage_tools", "snowflake_semantic_tools", "vision_chat_analysis"]'
+                available_tools = '["slack_tools", "database_tools", "snowflake_stage_tools", "snowflake_semantic_tools", "image_tools"]'
                 udf_active = "Y"
                 slack_active = "N"
 
@@ -888,6 +891,16 @@ class SnowflakeConnector(DatabaseConnector):
 
             else:
                 # Check if the 'ddl_short' column exists in the metadata table
+
+                update_query = f"""
+                UPDATE {self.bot_servicing_table_name}
+                SET AVAILABLE_TOOLS = REPLACE(AVAILABLE_TOOLS, 'vision_chat_analysis', 'image_tools')
+                WHERE AVAILABLE_TOOLS LIKE '%vision_chat_analysis%'
+                """
+                cursor.execute(update_query)
+                self.client.commit()
+                print(f"Updated 'vision_chat_analysis' to 'image_analysis' in AVAILABLE_TOOLS where applicable in {self.bot_servicing_table_name}.")
+
                 check_query = f"DESCRIBE TABLE {self.bot_servicing_table_name};"
                 try:
                     cursor.execute(check_query)
@@ -972,7 +985,7 @@ class SnowflakeConnector(DatabaseConnector):
                     ('harvester_tools', 'Control the database harvester, add new databases to harvest, add schema inclusions and exclusions, see harvest status'),
                     ('snowflake_stage_tools', 'Read, update, write, list, and delete from Snowflake Stages including Snowflake Semantic Models.'),
                     ('snowflake_semantic_tools', 'Create and modify Snowflake Semantic Models'),
-                    ('vision_chat_analysis', 'Tools to interpret visual images and pictures'),
+                    ('image_tools', 'Tools to interpret visual images and pictures'),
                     ('autonomous_functions','Tools for bots to create and managed autonomous tasks'),
                ]
                 insert_tools_query = f"""
@@ -2368,6 +2381,88 @@ class SnowflakeConnector(DatabaseConnector):
         except Exception as e:
             logger.error(f"Error listing stage contents: {e}")
             return []
+
+
+    def image_analysis(self, query=None, openai_file_id: str=None, file_name: str=None, thread_id=None):
+        """
+        Analyzes an image using OpenAI's GPT-4 Turbo Vision.
+
+        Args:
+            query (str): The prompt or question about the image.
+            openai_file_id (str): The OpenAI file ID of the image to analyze.
+            file_name (str): The name of the image file to analyze.
+            thread_id (str): The unique identifier for the thread.
+
+        Returns:
+            dict: A dictionary with the result of the image analysis.
+        """
+        # Ensure the OpenAI API key is set in your environment variables
+        api_key = os.getenv('OPENAI_API_KEY')
+        if not api_key:
+            return {"success": False, "message": "OpenAI API key is not set in the environment variables."}
+
+        # Attempt to find the file using the provided method
+        if '/' in file_name:
+            file_name = file_name.split('/')[-1]
+        if '/' in openai_file_id:
+            openai_file_id = openai_file_id.split('/')[-1]
+
+        file_path = f'./downloaded_files/{thread_id}/' + file_name
+        existing_location = f"./downloaded_files/{thread_id}/{openai_file_id}"
+        
+        if os.path.isfile(existing_location) and (file_path != existing_location):
+            with open(existing_location, 'rb') as source_file:
+                with open(file_path, 'wb') as dest_file:
+                    dest_file.write(source_file.read())
+        
+        if not os.path.isfile(file_path):
+            logger.error(f"File not found: {file_path}")
+            return {"success": False, "error": "File not found. Please provide a valid file path."}
+
+        # Function to encode the image
+        def encode_image(image_path):
+            with open(image_path, "rb") as image_file:
+                return base64.b64encode(image_file.read()).decode('utf-8')
+
+        # Getting the base64 string
+        base64_image = encode_image(file_path)
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}"
+        }
+
+        # Use the provided query or a default one if not provided
+        prompt = query if query else "What’s in this image?"
+
+        payload = {
+            "model": "gpt-4-turbo",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": prompt
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{base64_image}"
+                            }
+                        }
+                    ]
+                }
+            ],
+            "max_tokens": 300
+        }
+
+        response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
+
+        if response.status_code == 200:
+            return {"success": True, "data": response.json()['choices'][0]['message']['content']}
+        else:
+            return {"success": False, "error": f"OpenAI API call failed with status code {response.status_code}: {response.text}"}
 
     def add_file_to_stage(self, database: str=None, schema: str=None, stage: str=None, openai_file_id: str=None, file_name: str=None, file_content: str=None, thread_id=None):
         """

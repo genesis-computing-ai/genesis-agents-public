@@ -297,6 +297,28 @@ snowflake_stage_functions = [
   
 ]
 
+image_functions = [
+{
+    "type": "function",
+    "function": {
+        "name": "_analyze_image",
+        "description": "Generate a textual desciption of an image",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "the question about the image."},
+                "openai_file_id": {"type": "string", "description": "The OpenAI file ID of the image"},
+                "file_name": {"type": "string", "description": "The name of the image file"},
+            },
+        }
+    }
+}
+]
+
+image_tools = {
+    "_analyze_image": "db_adapter.image_analysis"
+}
+
 
 snowflake_semantic_tools = {
     "_modify_semantic_model": "db_adapter.modify_and_update_semantic_model",
@@ -321,6 +343,8 @@ snowflake_stage_tools = {
 autonomous_tools = {
     "_manage_tasks": "db_adapter.manage_tasks"
 }
+
+
 
 def bind_semantic_copilot(data_connection_info):
     def _semantic_copilot(prompt:str, semantic_model:str, prod:bool = True):

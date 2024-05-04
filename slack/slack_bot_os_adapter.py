@@ -100,8 +100,9 @@ class SlackBotAdapter(BotOsInputAdapter):
                         # Open a local file with write-binary mode
                         with open(local_path, 'wb') as f:
                             # Write the content to the local file
-                            for chunk in r.iter_content(chunk_size=8192):
+                            for chunk in r.iter_content(chunk_size=32768):
                                 f.write(chunk)                            # Raise an exception for bad responses
+                      #      f.write(r.content)
                         
                         files.append(local_path)
                 except Exception as e:

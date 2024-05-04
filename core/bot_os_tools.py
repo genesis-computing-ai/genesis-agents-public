@@ -10,7 +10,7 @@ from connectors.bigquery_connector import BigQueryConnector
 from connectors.snowflake_connector import SnowflakeConnector
 from slack.slack_bot_os_adapter import SlackBotAdapter
 from slack.slack_tools import slack_tools, slack_tools_descriptions
-from connectors.database_tools import bind_run_query, bind_search_metadata, bind_semantic_copilot, autonomous_functions, autonomous_tools, database_tool_functions, database_tools, snowflake_stage_functions, snowflake_stage_tools, snowflake_semantic_functions, snowflake_semantic_tools
+from connectors.database_tools import image_functions, image_tools, bind_run_query, bind_search_metadata, bind_semantic_copilot, autonomous_functions, autonomous_tools, database_tool_functions, database_tools, snowflake_stage_functions, snowflake_stage_tools, snowflake_semantic_functions, snowflake_semantic_tools
 from schema_explorer.harvester_tools import harvester_tools_list, harvester_tools_functions
 from development.integration_tools import integration_tool_descriptions, integration_tools_new
 from bot_genesis.make_baby_bot import get_bot_details
@@ -73,6 +73,10 @@ def get_tools(which_tools, db_adapter, slack_adapter_local=None, include_slack=T
             search_metadata_f = bind_search_metadata("./kb_vector")
             semantic_copilot_f = bind_semantic_copilot([connection_info])
             function_to_tool_map[tool_name]=database_tool_functions
+        elif tool_name == 'image_tools':
+            tools.extend(image_functions)
+            available_functions_load.update(image_tools)
+            function_to_tool_map[tool_name]=image_functions
         elif tool_name == 'snowflake_semantic_tools':
             tools.extend(snowflake_semantic_functions)
             available_functions_load.update(snowflake_semantic_tools)

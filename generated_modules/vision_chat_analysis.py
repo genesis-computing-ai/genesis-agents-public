@@ -8,19 +8,26 @@ def encode_image(image_file):
         return base64.b64encode(f.read()).decode('utf-8')
 
 # Define the function to analyze the image using OpenAI's Chat API for Vision
-def vision_chat_analysis(image_data, query):#, detail='auto'):
-    if image_data.startswith('http'):
+def vision_chat_analysis(openai_file_id, query, thread_id=None):
+    
+    if openai_file_id.startswith('http'):
         raise(Exception("need to pass uploaded file_id only for now"))
     else:
         try:
-            image_payload = encode_image(image_data)
+            if '/' in openai_file_id:
+                openai_file_id = openai_file_id.split('/')[-1]
+
+            existing_location = f"./downloaded_files/{thread_id}/{openai_file_id}"
+        
+            image_payload = encode_image(existing_location)
         except Exception as e:
             a = ""
-            if not os.path.isfile(image_data):
-                a = (f"The file {image_data} does not exist.\n")
-            msg =  f"{a}Failed to encode image from file {image_data}: {e}"
+            if not os.path.isfile(existing_location):
+                a = (f"The file {existing_location} does not exist.\n")
+            msg =  f"{a}Failed to encode image from file {existing_location}: {e}"
             print(msg)
             return msg 
+
 
     headers = {
         "Content-Type": "application/json",
@@ -61,21 +68,21 @@ TOOL_FUNCTION_DESCRIPTION_VISION_CHAT_ANALYSIS = {
     "type": "function",
     "function": {
         "name": "vision_chat_analysis--vision_chat_analysis",
-        "description": "Analyzes images using OpenAI's Chat API for Vision, with the capability to set detail level if required.",
+        "description": "Analyzes images",
         "parameters": {
             "type": "object",
             "properties": {
-                "image_data": {
+                "hello_message": {
                     "type": "string",
-                    "description": "No description"
+                    "description": "a friendly note of hello"
                 },
                 "query": {
                     "type": "string",
-                    "description": "No description"
+                    "description": "what to look for in the image"
                 },
             },
             "required": [
-                "image_data",
+                "hello_message",
                 "query"
             ]
         }

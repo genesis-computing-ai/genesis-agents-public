@@ -22,8 +22,6 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                 update_existing=False, log_db_connector=None, bot_id='default_bot_id', bot_name='default_bot_name', all_tools:list[dict]={}, all_functions={},all_function_to_tool_map={}) -> None:
         super().__init__(name, instructions, tools, available_functions, files, update_existing)
         self.active_runs = deque()
-#        self.llm_engine = "mistral-large"
- #       self.llm_engine = 'mixtral-8x7b'
         self.llm_engine = 'mistral-large'
         self.instructions = instructions + '. To call a tool, return only the unescaped tool call JSON in a <TOOL_CALL></TOOL_CALL> block with no other text. DO NOT HALUCINATE RESULTS OF TOOL CALLS, actually call the tools!'
         self.tools = tools
@@ -56,7 +54,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                 timestamp, self.bot_id, self.bot_name, thread_id, message_type, str(self.tools), "",
             ))
             self.client.connection.commit()
-            threading.Thread(target=self.update_threads, args=(thread_id,)).start()
+            threading.Thread(target=self.update_threads, args=(thread_id, None)).start()
 
             logger.info(f"Successfully inserted system prompt for thread_id: {thread_id}")
         except Exception as e:
@@ -82,10 +80,10 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                 timestamp, self.bot_id, self.bot_name, thread_id, message_type, message_payload, message_metadata,
             ))
             self.client.connection.commit()
-            threading.Thread(target=self.update_threads, args=(thread_id,)).start()
+            threading.Thread(target=self.update_threads, args=(thread_id, timestamp)).start()
 
             logger.info(f"Successfully inserted message log for bot_id: {self.bot_id}")
-            self.active_runs.append({"thread_id": thread_id, "timestamp": timestamp})
+            #self.active_runs.append({"thread_id": thread_id, "timestamp": timestamp})
         except Exception as e:
             logger.error(f"Failed to insert message log for bot_id: {self.bot_id} with error: {e}")
 
@@ -98,7 +96,6 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         thread_id = thread_to_check["thread_id"]
         timestamp = thread_to_check["timestamp"]
         if True:
-            #self.update_threads(thread_id)
             logger.warn("BotOsAssistantSnowflakeCortex:check_runs - runing now")
             query = f"""
             SELECT message_payload, message_metadata FROM {self.cortex_threads_schema_output_table}
@@ -124,8 +121,8 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                                                                      messages="", 
                                                                      input_metadata=json.loads(message_metadata)))
                 else:
-                    logger.info(f"No Assistant Response found for Thread ID {thread_id} {timestamp} and model {self.llm_engine}")
-                    self.active_runs.append(thread_to_check)
+                    logger.error(f"No Assistant Response found for Thread ID {thread_id} {timestamp} and model {self.llm_engine}")
+                    #self.active_runs.append(thread_to_check)
                 logger.warn("BotOsAssistantSnowflakeCortex:check_runs - run complete")
             except Exception as e:
                 logger.error(f"Error retrieving Assistant Response for Thread ID {thread_id} and model {self.llm_engine}: {e}")
@@ -172,8 +169,8 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             cursor.execute(insert_query, (new_timestamp, self.bot_id, self.bot_name, thread_id, "Tool Response", results_str,
                                           message_metadata))
             self.client.connection.commit()
-            threading.Thread(target=self.update_threads, args=(thread_id,)).start()
-            self.active_runs.append({"thread_id": thread_id, "timestamp": new_timestamp})
+            threading.Thread(target=self.update_threads, args=(thread_id, new_timestamp)).start()
+            #self.active_runs.append({"thread_id": thread_id, "timestamp": new_timestamp})
 
             logger.info(f"Successfully inserted tool call results for Thread ID {thread_id} and Tool Call ID {new_timestamp} old: {timestamp}")
         except Exception as e:
@@ -194,7 +191,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             self._submit_tool_outputs(thread_id, timestamp, error_string, message_metadata)
       return callback_closure
 
-    def update_threads(self, thread_id):
+    def update_threads(self, thread_id, timestamp):
         """
         Executes the SQL query to update threads based on the provided SQL, incorporating self.cortex... tables.
         """
@@ -315,6 +312,8 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             self.client.connection.commit()
             elapsed_time = time.time() - start_time
             logger.warn(f"BotOsAssistantSnowflakeCortex:update_threads -- took {elapsed_time} seconds.")
+            if timestamp:
+                self.active_runs.append({"thread_id": thread_id, "timestamp": timestamp})
             logger.info("Successfully updated threads.")
         except Exception as e:
             logger.error(f"Failed to update threads: {e}")

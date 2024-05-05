@@ -25,7 +25,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
 #        self.llm_engine = "mistral-large"
  #       self.llm_engine = 'mixtral-8x7b'
         self.llm_engine = 'mistral-large'
-        self.instructions = instructions + '. To call a tool, return only the unescaped tool call JSON in a <TOOL_CALL></TOOL_CALL> block with no other text.'
+        self.instructions = instructions + '. To call a tool, return only the unescaped tool call JSON in a <TOOL_CALL></TOOL_CALL> block with no other text. DO NOT HALUCINATE RESULTS OF TOOL CALLS, actually call the tools!'
         self.tools = tools
         self.available_functions = available_functions
         self.bot_id = bot_id

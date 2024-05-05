@@ -2269,7 +2269,6 @@ class SnowflakeConnector(DatabaseConnector):
 
     def semantic_copilot(self,  prompt='What data is available?',semantic_model=None, prod=True ):
         # Parse the semantic_model into its components and validate
-
         database, schema = self.genbot_internal_project_and_schema.split('.')
         stage = "SEMANTIC_MODELS" if prod else "SEMANTIC_MODELS_DEV"
         model = semantic_model
@@ -3569,17 +3568,6 @@ def test_stage_functions():
         print("'tostage.txt' has been successfully deleted from the stage.")
     else:
         print("Error: 'tostage.txt' is still present in the stage.")
-
-
-if __name__ == "__main__":
-    #test_stage_functions()
-    # Test the function
-    for _ in range(1):
-        semantic_json = create_empty_semantic_model('Test Data')
-        semantic_json = test_modify_semantic_model(semantic_json)
-        print(convert_model_to_yaml(semantic_json))
-        print('\nSuggestions:')
-        suggestions = suggest_improvements(semantic_json)
 
 
 

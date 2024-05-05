@@ -27,6 +27,7 @@ class SlackBotAdapter(BotOsInputAdapter):
         self.bot_user_id = bot_user_id
         self.user_info_cache = {}
         self.bot_name = bot_name
+        self.last_message_id_dict = {} 
 
         if slack_app_level_token:
             self.slack_app_level_token = slack_app_level_token      
@@ -38,6 +39,8 @@ class SlackBotAdapter(BotOsInputAdapter):
             @self.slack_socket.event("message")
             def handle_message_events(event, say):
                 print(f'event type: {event.get("type","no type")}, text: {event.get("text","no text")}')
+                if self.bot_user_id == event.get("user","NO_USER"):
+                    self.last_message_id_dict[event.get("thread_ts",None)] = event.get("ts",None)
                 if event.get("text","no text") != '_thinking..._' and self.bot_user_id != event.get("user","NO_USER") and event.get("subtype","none") != 'message_changed' and event.get("subtype","none") != 'message_deleted':
                     self.events.append(event)
 
@@ -125,6 +128,20 @@ class SlackBotAdapter(BotOsInputAdapter):
 
         msg = event.get('text', '')
 
+        if msg.strip().lower() == "!delete":
+            thread_ts = event.get('thread_ts', event.get('ts', ''))
+            last_message_id = self.last_message_id_dict.get(thread_ts)
+            if last_message_id:
+                try:
+                    # Attempt to delete the last message
+                    self.slack_app.client.chat_delete(channel=event.get('channel'), ts=last_message_id)
+                    # Remove the message ID from the dictionary after deletion
+                    del self.last_message_id_dict[thread_ts]
+                except Exception as e:
+                    logger.error(f"Error deleting message with ts={last_message_id}: {e}")
+            return None  # Do not process further if it's a delete command
+
+
         if msg == '_thinking..._':
             return None
 
@@ -205,21 +222,27 @@ class SlackBotAdapter(BotOsInputAdapter):
                 self.slack_app.client.chat_delete(channel= message.input_metadata.get("channel",self.channel_id),ts = thinking_ts)
         except Exception as e:
             logger.debug("thinking already deleted") # FixMe: need to keep track when thinking is deleted
+        message.output = message.output.strip()
 
-        try:
-            thread_ts = message.input_metadata.get("thread_ts", None)
-            self._upload_files(message.files, thread_ts=thread_ts, channel=message.input_metadata.get("channel", self.channel_id))
-            result = self.slack_app.client.chat_postMessage(
-                channel=message.input_metadata.get("channel", self.channel_id),
-                #thread_ts=None if message.input_metadata.get("channel_type") == 'im' else thread_ts,
-                thread_ts = thread_ts,
-                text=message.output
-            )
-            # Utility function handles file uploads and logs errors internally
-            if thread_ts is not None:
-                self.thread_ts_dict[thread_ts]["thread_id"] = message.thread_id # store thread id so we can map responses to the same assistant thread
-        except Exception as e:
-            logger.error(f"SlackBotAdapter:handle_response - Error posting message: {e}")
+        if message.output.startswith("<Assistant>"):
+            message.output = message.output[len("<Assistant>"):].strip()
+
+        if message.output == "!NO_RESPONSE_REQUIRED":
+            print("Bot has indicated that no response will be posted to this thread.")
+        else:
+            try:
+                thread_ts = message.input_metadata.get("thread_ts", None)
+                self._upload_files(message.files, thread_ts=thread_ts, channel=message.input_metadata.get("channel", self.channel_id))
+                result = self.slack_app.client.chat_postMessage(
+                    channel=message.input_metadata.get("channel", self.channel_id),
+                    thread_ts=thread_ts,
+                    text=message.output
+                )
+                # Utility function handles file uploads and logs errors internally
+                if thread_ts is not None:
+                    self.thread_ts_dict[thread_ts]["thread_id"] = message.thread_id # store thread id so we can map responses to the same assistant thread
+            except Exception as e:
+                logger.error(f"SlackBotAdapter:handle_response - Error posting message: {e}")
 
     def send_slack_direct_message(self, slack_user_id:str, message:str, thread_id:str):
         try:

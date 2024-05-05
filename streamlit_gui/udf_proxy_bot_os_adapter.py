@@ -35,7 +35,10 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
         # or store it in a database for later retrieval.
         #print("UDF output: ",message.output, ' in_uuid ', in_uuid)
         if in_uuid is not None:
-            self.response_map[in_uuid] = message.output
+            if message.output == '!NO_RESPONSE_REQUIRED':
+                self.response_map[in_uuid] = "(no response needed)"
+            else:
+                self.response_map[in_uuid] = message.output
         pass
 
     def lookup_fn(self):

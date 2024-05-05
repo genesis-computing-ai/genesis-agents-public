@@ -23,14 +23,19 @@ from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 import threading
 
+# for Cortex testing
+#os.environ['SIMPLE_MODE'] = 'true'
+
+
+
 import logging
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.WARN, format='%(asctime)s - %(levelname)s - %(message)s')
 
 import core.global_flags as global_flags
 
-print("****** GENBOT VERSION 0.98 *******")
-logger.warning('******* GENBOT VERSION 0.98*******')
+print("****** GENBOT VERSION 0.100 *******")
+logger.warning('******* GENBOT VERSION 0.100*******')
 runner_id = os.getenv('RUNNER_ID','jl-local-runner')
 print("Runner ID: ", runner_id )
 snowflake_secure_value = os.getenv('SNOWFLAKE_SECURE')
@@ -139,6 +144,8 @@ def make_session(bot_config):
     else:
         bot_tools = []
 
+   # Check if SIMPLE_MODE environment variable is set to 'true'
+
     # remove slack tools if Slack is not enabled for this bot 
     if not slack_enabled:
         bot_tools = [tool for tool in bot_tools if tool != "slack_tools"]
@@ -146,6 +153,13 @@ def make_session(bot_config):
     tools, available_functions, function_to_tool_map = get_tools(bot_tools, slack_adapter_local=slack_adapter_local, db_adapter=db_adapter)
     all_tools, all_functions, all_function_to_tool_map = get_tools(available_tools, slack_adapter_local=slack_adapter_local, db_adapter=db_adapter)
     
+    simple_mode = os.getenv('SIMPLE_MODE', 'false').lower() == 'true'
+    if simple_mode:
+        print('SIMPLE MODE TOOLS OVERRIDE *** ')
+        # Code to execute in simple mode
+        tools = [t for t in tools if t["function"]["name"] in ['run_query', 'semantic_copilot']]
+
+ 
     instructions = bot_config["bot_instructions"] + "\n" + BASE_BOT_INSTRUCTIONS_ADDENDUM
     instructions += f'\nNote current settings:\nData source: {genesis_source}\nYour bot_id: {bot_config["bot_id"]}.\nRunner_id: {runner_id}'
     if bot_config["slack_active"]=='Y' and global_flags.slack_active:
@@ -153,6 +167,9 @@ def make_session(bot_config):
 
     if "snowflake_stage_tools" in bot_tools and 'make_baby_bot' in bot_tools:        
         instructions += f"\nYour Internal Files Stage for bots is at snowflake stage: {genbot_internal_project_and_schema}.BOT_FILES_STAGE"
+
+    if simple_mode:
+        instructions = "You are a smart data analyst named Eliza. Use emojiis to express your fun personality. You have access to 2 tools, semantic_copilot to get SQL for a natural language prompt, and run_query to execute the sql you get. Use lots of emojis to express your personality. Return data grids and sql statements in three backticks example: ``` <data> or <sql> ```. DO NOT HALUCINATE tool calls or results of tools."
 
     print(instructions, f'{bot_config["bot_name"]}, id: {bot_config["bot_id"]}' )
     
@@ -185,7 +202,9 @@ def make_session(bot_config):
         assistant_implementation = BotOsAssistantSnowflakeCortex
     else:
         assistant_implementation = BotOsAssistantOpenAI
-    #assistant_implementation = BotOsAssistantSnowflakeCortex
+    if os.getenv("SIMPLE_MODE", "false").lower() == "true":
+        assistant_implementation = BotOsAssistantSnowflakeCortex
+    #assistant_implementation = BotOsAssistantOpenAI
     try:
        # print(f'tools: {tools}')
         session = BotOsSession(bot_config["bot_id"], 

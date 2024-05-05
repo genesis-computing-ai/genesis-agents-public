@@ -129,13 +129,7 @@ def get_tools(which_tools, db_adapter, slack_adapter_local=None, include_slack=T
                 func = getattr(module, func_name)
                 #print("imported: ",func)
             available_functions[name] = func
-
-
-    #tools.extend(_BOT_OS_BUILTIN_TOOLS)
-
-    #print ( tools )
-    #print (available_functions_load )
-    #print (available_functions)
+      # Insert additional code here if needed
 
     return tools, available_functions, function_to_tool_map
         #print("imported: ",func)

@@ -37,7 +37,7 @@ database_tool_functions = [
                 "type": "object",
                 "properties": {
                     "query": {"type": "string", "description": "The SQL query to run. Be sure to fully qualify all object names with double-quoted 3-part names: \"<database>\".\"<schema>\".\"<table>\""},
-                    "connection": {"type": "string", "description": "The name of the data connection to run the query on, for example BigQuery or Snowflake."},
+                    "connection": {"type": "string", "description": "The name of the data connection, for example Snowflake."},
                     "max_rows": {"type": "integer", "description": "The maximum number of rows to return.  This can be up to 100. The default is 20.", "default":20},
                 },
                 "required": ["query", "connection", "max_rows"]
@@ -116,7 +116,7 @@ snowflake_semantic_functions = [
         "type": "function",
         "function": {
             "name": "_modify_semantic_model",
-            "description": "Modifies an existing semantic model. Call command 'help' for full instructions. Do NOT call this tool in parallel on the same model.",
+            "description": "Modifies an existing semantic model. Call command 'help' for full instructions.",
             "parameters": {
                 "type": "object",
                 "properties": {

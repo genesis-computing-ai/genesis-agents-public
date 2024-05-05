@@ -531,7 +531,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
             run = self.client.beta.threads.runs.retrieve(thread_id = thread_id, 
                                                       run_id = thread_run["run"])
             logger.info(f"run.status {run.status} Thread: {thread_id}")
-            print("run.status ",run.status," thread id: ", thread_id)
+            print("run.status ",run.status," thread id: ", thread_id, flush=True)
 
             if run.status == "in_progress":
                threads_still_pending.append(thread_id)
@@ -633,7 +633,8 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                else:
                   logger.warn(f"!!!!!!!!!! WARNING: received unexpected content type: {latest_message.content[0]}!!!!!!!")
                   output = str(latest_message.content[0])
-               if output != '!NO_RESPONSE_REQUIRED':
+               #if output != '!NO_RESPONSE_REQUIRED':
+               if True:
                   if os.getenv('SHOW_COST', 'false').lower() == 'true':
                      output += '  `'+"$"+str(round(run.usage.prompt_tokens/1000000*10+run.usage.completion_tokens/1000000*30,4))+'`'
                   event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id, 

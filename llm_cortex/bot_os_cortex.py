@@ -99,7 +99,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         timestamp = thread_to_check["timestamp"]
         if True:
             #self.update_threads(thread_id)
-
+            logger.warn("BotOsAssistantSnowflakeCortex:check_runs - runing now")
             query = f"""
             SELECT message_payload, message_metadata FROM {self.cortex_threads_schema_output_table}
             WHERE thread_id = %s AND model_name = %s AND message_type = 'Assistant Response' AND timestamp = %s
@@ -126,6 +126,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                 else:
                     logger.info(f"No Assistant Response found for Thread ID {thread_id} {timestamp} and model {self.llm_engine}")
                     self.active_runs.append(thread_to_check)
+                logger.warn("BotOsAssistantSnowflakeCortex:check_runs - run complete")
             except Exception as e:
                 logger.error(f"Error retrieving Assistant Response for Thread ID {thread_id} and model {self.llm_engine}: {e}")
 
@@ -197,7 +198,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         """
         Executes the SQL query to update threads based on the provided SQL, incorporating self.cortex... tables.
         """
-        context_limit = 32000
+        context_limit = 32000 * 4
         update_query = f"""
         insert into {self.cortex_threads_schema_output_table}
                         with input as 
@@ -215,22 +216,77 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                             i.* from {self.cortex_threads_schema_input_table} i
                             where i.thread_id = '{thread_id}'
                         ),
+
+                        system_prompts as 
+                        (
+                        SELECT
+                        i.thread_id,
+                        ARRAY_TO_STRING(ARRAY_AGG(CASE WHEN i.message_type = 'System Prompt' THEN CONCAT('<System Prompt>', i.message_payload, '</System Prompt>') ELSE NULL END) WITHIN GROUP (ORDER BY i.timestamp ASC), ' ') AS system_prompts_payload
+                        FROM
+                        prior_in_thread i
+                        GROUP BY
+                        i.thread_id
+                        ),
+
+                        latest_tool_response as 
+                        (
+                        SELECT
+                        p.thread_id,
+                        '<Tool Response>' || p.message_payload || '</Tool Response>' as latest_tool_response_payload,
+                        p.timestamp as latest_tool_response_timestamp
+                        FROM
+                        prior_in_thread p
+                        WHERE p.timestamp = (SELECT MAX(i.timestamp) FROM prior_in_thread i WHERE i.thread_id = p.thread_id AND i.message_type = 'Tool Response')
+                        AND p.message_type = 'Tool Response'
+                        ),
+
+                        latest_assistant_response as 
+                        (
+                        SELECT
+                        p.thread_id,
+                        '<Assistant Response>' || p.message_payload || '</Assistant Response>' as latest_assistant_response_payload,
+                        p.timestamp as latest_assistant_response_timestamp
+                        FROM
+                        prior_in_thread p
+                        WHERE p.timestamp = (SELECT MAX(i.timestamp) FROM prior_in_thread i WHERE i.thread_id = p.thread_id AND i.message_type = 'Assistant Response')
+                        AND p.message_type = 'Assistant Response'
+                        ),
+
+                        latest_user_prompt as 
+                        (
+                        SELECT
+                        p.thread_id,
+                        '<User Prompt>' || p.message_payload || '</User Prompt>' as latest_user_prompt_payload,
+                        p.timestamp as latest_user_prompt_timestamp
+                        FROM
+                        prior_in_thread p
+                        WHERE p.timestamp = (SELECT MAX(i.timestamp) FROM prior_in_thread i WHERE i.thread_id = p.thread_id AND i.message_type = 'User Prompt')
+                        AND p.message_type = 'User Prompt'
+                        ),
+
+                        summarized_messages as 
+                        (
+                        SELECT
+                        p.thread_id,
+                        '<Prior Prompt Summary>' || SNOWFLAKE.CORTEX.COMPLETE('{self.llm_engine}', 'Summarize this:' || ARRAY_TO_STRING(ARRAY_AGG(CASE WHEN message_type NOT IN ('System Prompt') AND timestamp < COALESCE(lup.latest_user_prompt_timestamp, '9999-12-31') THEN CONCAT('<', message_type, '>', message_payload, '</', message_type, '>') ELSE NULL END) WITHIN GROUP (ORDER BY timestamp ASC), ' ')) || '</Prior Prompt Summary>' AS summarized_payload
+                        FROM
+                        prior_in_thread p
+                        LEFT JOIN latest_user_prompt lup ON p.thread_id = lup.thread_id
+                        GROUP BY
+                        p.thread_id
+                        ),
+
                         threads as 
                         (
                         SELECT
-                        i1.thread_id,
-                        i1.timestamp,
-                        -- SUBSTRING(ARRAY_TO_STRING(ARRAY_AGG(CASE WHEN i2.message_type = 'System Prompt' THEN '<' || i2.message_type || '/> ' || i2.message_payload ELSE NULL END ORDER BY i2.timestamp ASC) || ' ' || ARRAY_AGG(CASE WHEN i2.message_type <> 'System Prompt' THEN '<' || i2.message_type || '/> ' || i2.message_payload ELSE NULL END ORDER BY i2.timestamp DESC LIMIT 1), ' '), 1, {context_limit}) AS concatenated_payload
-                        LISTAGG('<' || i2.message_type || '/> ' || i2.message_payload, ' ') WITHIN GROUP (ORDER BY i2.timestamp, i2.message_type desc) AS concatenated_payload
+                        sp.thread_id,
+                        SUBSTRING(CONCAT(sp.system_prompts_payload, ' ', COALESCE(sm.summarized_payload, ''), ' ', COALESCE(lup.latest_user_prompt_payload, ''), ' ', COALESCE(lar.latest_assistant_response_payload, ''), ' ', COALESCE(ltr.latest_tool_response_payload, '')), 1, {context_limit}) AS concatenated_payload
                         FROM
-                        prior_in_thread i1
-                        LEFT JOIN prior_in_thread i2 ON i1.thread_id = i2.thread_id AND i2.timestamp <= i1.timestamp
-                        GROUP BY
-                        i1.thread_id,
-                        i1.timestamp
-                        ORDER BY
-                        i1.thread_id,
-                        i1.timestamp
+                        system_prompts sp
+                        LEFT JOIN latest_user_prompt lup ON sp.thread_id = lup.thread_id
+                        LEFT JOIN latest_assistant_response lar ON sp.thread_id = lar.thread_id
+                        LEFT JOIN latest_tool_response ltr ON sp.thread_id = ltr.thread_id
+                        LEFT JOIN summarized_messages sm ON sp.thread_id = sm.thread_id
                         )
 
                         select 
@@ -242,30 +298,15 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                             i.bot_name,
                             i.thread_id,
                             'Assistant Response',
-                            SNOWFLAKE.CORTEX.COMPLETE('{self.llm_engine}', left(concatenated_payload, {context_limit})) as message_payload,
+                            SNOWFLAKE.CORTEX.COMPLETE('{self.llm_engine}', LEFT(concatenated_payload, {context_limit})) as message_payload,
                             i.message_metadata, 
                             0 as tokens_in,
                             0 as tokens_out,
                             '{self.llm_engine}',
-                            left(concatenated_payload, 16000)
+                            LEFT(concatenated_payload, 16000)
                         from input as i
-                        join threads  on i.thread_id = threads.thread_id and i.timestamp = threads.timestamp
-                        -- union all
-
-                        -- select 
-                        --     i.timestamp,
-                        --     i.bot_id,
-                        --     i.bot_name,
-                        --     i.thread_id,
-                        --     'Assistant Response',
-                        --     SNOWFLAKE.CORTEX.COMPLETE('snowflake-arctic', left(concatenated_payload,4000)) as message_payload,
-                        --     i.message_metadata, --concatenated_payload as metadata,
-                        --     0 as tokens_in,
-                        --     0 as tokens_out,
-                        --     'snowflake-arctic',
-                        --     left(concatenated_payload, 4000)
-                        -- from input as i
-                        -- join threads  on i.thread_id = threads.thread_id and i.timestamp = threads.timestamp
+                        join threads on i.thread_id = threads.thread_id
+        
         """
         try:
             cursor = self.client.connection.cursor()
@@ -278,3 +319,4 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         except Exception as e:
             logger.error(f"Failed to update threads: {e}")
             self.client.connection.rollback()
+

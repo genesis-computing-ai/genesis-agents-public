@@ -1,6 +1,7 @@
 import traceback, datetime
 from flask import Flask
 from core.bot_os import BotOsSession
+import threading
 from connectors.snowflake_connector import SnowflakeConnector
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.events import EVENT_JOB_ERROR, EVENT_JOB_EXECUTED
@@ -17,6 +18,8 @@ def _job_listener(event):
         logger.info(f"job executed successfully: {event.job_id}")
 
 class BotOsServer:
+
+    
     def __init__(self, flask_app:Flask, sessions:list[BotOsSession], scheduler:BackgroundScheduler, 
                  scheduler_seoconds_interval=5, slack_active=False
                  ): 

@@ -1,8 +1,4 @@
 import os
-from slack_bolt import App
-
-from slack.slack_bot_os_adapter import SlackBotAdapter
-
 
 slack_tools_descriptions = [
     {
@@ -55,7 +51,7 @@ slack_tools = {"_send_slack_direct_message": "slack_adapter_local.send_slack_dir
                "_send_slack_channel_message": "slack_adapter_local.send_slack_channel_message",
                "_lookup_slack_user_id": "slack_adapter_local.lookup_slack_user_id"}
 
-def bind_slack_available_functions(slack_adapter:SlackBotAdapter):
+def bind_slack_available_functions(slack_adapter):
     return {"_send_slack_direct_message": slack_adapter.send_slack_direct_message,
             "_send_slack_channel_message": slack_adapter.send_slack_channel_message,
             "_lookup_slack_user_id": slack_adapter.lookup_slack_user_id }

@@ -19,7 +19,7 @@ from core.bot_os_defaults import BASE_EVE_BOT_INSTRUCTIONS, ELIZA_DATA_ANALYST_I
 from threading import Lock
 import base64
 import requests
-
+import re
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.WARN, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -2490,11 +2490,17 @@ class SnowflakeConnector(DatabaseConnector):
 
             if '/' in file_name:
                 file_name = file_name.split('/')[-1]
+            file_name = re.sub(r'[^\w\s-]', '', file_name.replace(' ', '_'))
+
             if '/' in openai_file_id:
                 openai_file_id = openai_file_id.split('/')[-1]
 
             file_path = f'./downloaded_files/{thread_id}/' + file_name
             existing_location = f"./downloaded_files/{thread_id}/{openai_file_id}"
+
+            # Replace spaces with underscores and remove disallowed characters
+            file_name = re.sub(r'[^\w\s-]', '', file_name.replace(' ', '_'))
+
             
             if os.path.isfile(existing_location) and (file_path != existing_location):
                 with open(existing_location, 'rb') as source_file:

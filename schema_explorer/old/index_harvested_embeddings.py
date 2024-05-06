@@ -15,7 +15,7 @@ def load_embeddings_from_csv(csv_file_path):
     return embeddings, filenames
 
 def create_annoy_index(embeddings, n_trees=10):
-    dimension = len(embeddings[0])  # Assuming all embeddings have the same dimension
+    dimension = len(embeddings[0])  # tAssuming all embeddings have the same dimension
     index = AnnoyIndex(dimension, 'angular')  # Using angular distance
     for i, embedding in enumerate(embeddings):
         print("indexing #", i)

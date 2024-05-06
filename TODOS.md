@@ -8,6 +8,7 @@ x Make Eliza demo video on baseball
 Make video of Snowflake janitorial work
 
 THINGS TO TEST:
+(test) adding stage tools to a bot with baby_bot_tools and see if instructions are updated with internal stage location
 (test) Add error checking for missing data or grants to harvester so it doesnt crash on that 
 (test) Eve deploy on fresh install complained about file types for null files, make sure deploy button works
 (test) make deploy to slack button in SiS app tell you to setup slack tokens first if not yet set up
@@ -16,10 +17,12 @@ THINGS TO TEST:
 (test) harvester dont crash if cant access schemas for a database listed in control file
 
 SHORT-TERM:
+Consider other uses of class level variables--the snowflake session for example, the annoy index, etc.
+MR - Recreate services if they are missing during a START_APP_INSTANCE call
 JL - move annoy index 180sec check to the outer server loop vs per bot 
 x JL-redo vision chat analysis with new vision API and move the function
 MR-Add SNOWFLAKE harvest account usage etc to the pre-harvest feed into the app 
-JL-Why harvester slows down bots, needs bigger pool? why do bots go unresponsive when annoy indexing
+JL-Why harvester slows down bots, needs bigger pool? why do bots go unresponsive?
 (soon) add tab to see chat logs from messages table
 (soon) Harvest semantic models and return in get_metadata dynamically
 (soon) Give semantic index modify a way to add and modify multiple things at the same time

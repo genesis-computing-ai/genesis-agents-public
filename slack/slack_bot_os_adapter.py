@@ -10,8 +10,32 @@ from flask import jsonify, request
 from core.bot_os_input import BotOsInputAdapter, BotOsInputMessage, BotOsOutputMessage
 logger = logging.getLogger(__name__)
 import threading
+import random
+
+# module level 
+meta_lock =  threading.Lock()
+thread_ts_dict = {} 
+uniq = random.randint(100000, 999999)
+print("     *     ")
+print("    ***    ")
+print("   *****   ")
+print("  *******  ")
+print(" ********* ")
+print("***********")
+print("     *     ")
+print("     *     ")
+print("     *     ")
+print("     *     ")
+print("     *     ")
+print("     *     ")
+print("     *     ")
+print("     *     ")
+print(f"NEW INSTANCE!!!! --->    {uniq}   ")
+
+
 
 class SlackBotAdapter(BotOsInputAdapter):
+
     def __init__(self, token:str, signing_secret:str, channel_id:str, bot_user_id:str, bot_name:str='Unknown', slack_app_level_token=None) -> None:
         logger.debug("SlackBotAdapter")
         super().__init__()
@@ -20,14 +44,15 @@ class SlackBotAdapter(BotOsInputAdapter):
             signing_secret=signing_secret
         )
         self.channel_id = channel_id
-        self.slack_app.event("message")(self.handle_message_events)
+        self.slack_app.event("message")(self.handle_message_events_old)
         self.handler = SlackRequestHandler(self.slack_app)
         self.events = deque()
-        self.thread_ts_dict = {}   # not sure this is doing anything - JL 4/18/24
         self.bot_user_id = bot_user_id
         self.user_info_cache = {}
         self.bot_name = bot_name
         self.last_message_id_dict = {} 
+        
+        self.events_lock =  threading.Lock()
 
         if slack_app_level_token:
             self.slack_app_level_token = slack_app_level_token      
@@ -42,7 +67,8 @@ class SlackBotAdapter(BotOsInputAdapter):
                 if self.bot_user_id == event.get("user","NO_USER"):
                     self.last_message_id_dict[event.get("thread_ts",None)] = event.get("ts",None)
                 if event.get("text","no text") != '_thinking..._' and self.bot_user_id != event.get("user","NO_USER") and event.get("subtype","none") != 'message_changed' and event.get("subtype","none") != 'message_deleted':
-                    self.events.append(event)
+                    with self.events_lock:
+                        self.events.append(event)
 
             @self.slack_socket.event("app_mention")
             def mention_handler(event, say):
@@ -64,16 +90,19 @@ class SlackBotAdapter(BotOsInputAdapter):
     def add_event(self, event):
         self.events.append(event)
 
-    def handle_message_events(self, event, context, say, logger):
+    def handle_message_events_old(self, event, context, say, logger):
         logger.info(event)  # Log the event data (optional)
         text = event.get('text', '')
+        print('AT HANDLE MESSAGE EVENTS???')
         logger.debug(f"SlackBotAdapter:handle_message_events - {text}")
         thread_ts = event.get('thread_ts', event.get('ts', ''))
         channel_type = event.get('channel_type', '')
-        if f"<@{self.bot_user_id}>" in text or thread_ts in self.thread_ts_dict or (channel_type == 'im' and text != ''):
-            self.events.append(event)
-            if thread_ts not in self.thread_ts_dict:
-                self.thread_ts_dict[thread_ts] = {"event": event, "thread_id": None}
+        if f"<@{self.bot_user_id}>" in text or (self.bot_user_id,thread_ts) in thread_ts_dict or (channel_type == 'im' and text != ''):
+            with self.events_lock:
+                self.events.append(event)
+            if (self.bot_user_id, thread_ts) not in thread_ts_dict:
+                with meta_lock:
+                    thread_ts_dict[self.bot_user_id,thread_ts] = {"event": event, "thread_id": None}
         else:
             logger.debug(f"SlackBotAdapter:handle_message_events - no mention skipped")
 
@@ -116,15 +145,14 @@ class SlackBotAdapter(BotOsInputAdapter):
     def get_input(self) -> BotOsInputMessage|None:
         #logger.info(f"SlackBotAdapter:get_input")
         files=[]
-
-       # print("get_input bot ", self.bot_user_id, 'len events: ', len(self.events))
         
-        if len(self.events) == 0:
-            return None        
-        try:
-            event = self.events.popleft()
-        except IndexError:
-            return None
+        with self.events_lock:
+            if len(self.events) == 0:
+                return None        
+            try:
+                event = self.events.popleft()
+            except IndexError:
+                return None
 
         msg = event.get('text', '')
 
@@ -148,19 +176,30 @@ class SlackBotAdapter(BotOsInputAdapter):
         active_thread = False
         thread_ts = event.get('thread_ts', event.get('ts', ''))
         channel_type = event.get('channel_type', '')
-        if f"<@{self.bot_user_id}>" in msg or thread_ts in self.thread_ts_dict or (channel_type == 'im' and msg != ''):
+        
+        print(f"{uniq} {self.bot_name}-Looking for {(self.bot_user_id, thread_ts)}-Is in? {(self.bot_user_id, thread_ts) in thread_ts_dict}-Current keys in thread_ts_dict:", thread_ts_dict.keys())
+        tag = f"<@{self.bot_user_id}>" in msg
+        indic = (self.bot_user_id, thread_ts) in thread_ts_dict
+        dmcheck = (channel_type == 'im' and msg != '')
+        print(f"{uniq} --> get_input for {self.bot_user_id}/{self.bot_name} msg30: {msg[:30]}... {tag},{indic},{dmcheck}", flush=True)
+        if tag or indic or dmcheck:
+#        if f"<@{self.bot_user_id}>" in msg or thread_ts in self.thread_ts_dict or (channel_type == 'im' and msg != ''):
             active_thread = True
-            if thread_ts not in self.thread_ts_dict:
-                self.thread_ts_dict[thread_ts] = {"event": event, "thread_id": None}
-      
+            if (self.bot_user_id,thread_ts) not in thread_ts_dict:
+                print(f'{uniq}     --ENGAGE/ADD>  Adding {thread_ts} to dict', flush=True)
+                with meta_lock:
+                    thread_ts_dict[self.bot_user_id,thread_ts] = {"event": event, "thread_id": None}
+                print(f"{uniq} {self.bot_name}-ADDED-Now is {(self.bot_user_id,thread_ts)} in??-Is in? {(self.bot_user_id,thread_ts) in thread_ts_dict}-Current keys in thread_ts_dict:", thread_ts_dict.keys(),flush=True)
+
+            else:
+                print(f'{uniq}     --ENGAGE/EXISTING>  {thread_ts} already in dict', flush=True)
+
         if active_thread is False:
             # public channel, not flagged yet in thread
             return None
 
-       # thread_id = self.thread_ts_dict.get(thread_ts, {}).get("thread_id", thread_ts) 
         thread_id = thread_ts
-#        thread_id = self.thread_ts_dict.get(thread_ts, {}).get("thread_id", None)
-      
+#     
         channel = event.get('channel', '')
 
         if os.getenv('THINKING_TOGGLE', 'true').lower() != 'false':
@@ -173,7 +212,9 @@ class SlackBotAdapter(BotOsInputAdapter):
             thinking_ts = None
 
         if 'files' in event:
+            print(f"    --/DOWNLOAD> downloading files for ({self.bot_name}) ")
             files = self._download_slack_files(event, thread_id = thread_id)
+            print(f"    --/DOWNLOADED> downloaded files for ({self.bot_name}) ")
 
         try:
             user_id = event["user"]
@@ -182,7 +223,8 @@ class SlackBotAdapter(BotOsInputAdapter):
                 self.user_info_cache[user_id] = user_info['user']['real_name']
             user_full_name = self.user_info_cache[user_id]
             msg_with_user_and_id = f"{user_full_name} ({user_id}): {msg}"
-        except:
+        except Exception as e:
+            print(f"    --NOT A USER MESSAGE, SKIPPING {e} ")
             # not a user message
             return None
 
@@ -240,7 +282,8 @@ class SlackBotAdapter(BotOsInputAdapter):
                 )
                 # Utility function handles file uploads and logs errors internally
                 if thread_ts is not None:
-                    self.thread_ts_dict[thread_ts]["thread_id"] = message.thread_id # store thread id so we can map responses to the same assistant thread
+                    with meta_lock:
+                        thread_ts_dict[self.bot_user_id,thread_ts]["thread_id"] = message.thread_id # store thread id so we can map responses to the same assistant thread
             except Exception as e:
                 logger.error(f"SlackBotAdapter:handle_response - Error posting message: {e}")
 
@@ -254,8 +297,9 @@ class SlackBotAdapter(BotOsInputAdapter):
                 # Post a message to the new conversation
                 res = self.slack_app.client.chat_postMessage(channel=channel_id, text=message)
                 thread_ts = res["ts"]
-                if thread_ts not in self.thread_ts_dict:
-                    self.thread_ts_dict[thread_ts] = {"event": None, "thread_id": thread_id}
+                if (self.bot_user_id,thread_ts) not in thread_ts_dict:
+                    with meta_lock:
+                        thread_ts_dict[self.bot_user_id,thread_ts] = {"event": None, "thread_id": thread_id}
 
                 return f"Message sent to {slack_user_id} with result {res}"
             
@@ -267,8 +311,9 @@ class SlackBotAdapter(BotOsInputAdapter):
             res = self.slack_app.client.chat_postMessage(channel=channel_id, text=message)
             if res['ok']:
                 thread_ts = res["ts"]
-                if thread_ts not in self.thread_ts_dict:
-                    self.thread_ts_dict[thread_ts] = {"event": None, "thread_id": thread_id}
+                if (self.bot_user_id,thread_ts) not in thread_ts_dict:
+                    with meta_lock:
+                        thread_ts_dict[self.bot_user_id,thread_ts] = {"event": None, "thread_id": thread_id}
 
                 return f"Message sent to channel {channel_id} successfully."
             else:

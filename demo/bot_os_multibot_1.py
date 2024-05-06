@@ -34,8 +34,67 @@ logging.basicConfig(level=logging.WARN, format='%(asctime)s - %(levelname)s - %(
 
 import core.global_flags as global_flags
 
-print("****** GENBOT VERSION 0.100 *******")
-logger.warning('******* GENBOT VERSION 0.100*******')
+print("****** GENBOT VERSION 0.106 *******")
+logger.warning('******* GENBOT VERSION 0.106*******')
+
+import sys
+
+SecondRun = False;
+# Check for the existence of the file 'already_running.txt'
+#if os.path.isfile('already_running.txt'):
+if False:
+    # If the file exists, print a stop sign and exit the program
+    stop_sign = [
+        "                   ",
+        "         ****      ",
+        "       *******     ",
+        "      *********    ",
+        "     ***********   ",
+        "    *************  ",
+        "   *************** ",
+        "  *****************",
+        "  *******STOP******",
+        "  *****************",
+        "  *****************",
+        "   *************** ",
+        "    *************  ",
+        "     ***********   ",
+        "      *********    ",
+        "       *******     ",
+        "         ****      ",
+        "                   ",
+        "                   ",
+        "                   "
+    ]
+    print("\n".join(stop_sign))
+    print("The program is already running. This session will continue but without Slack.")
+    SecondRun = True;
+
+else:
+    # Create the 'already_running.txt' file
+    with open('already_running.txt', 'w') as file:
+        file.write('') # Write an empty string to create the file
+    print("GO! File 'already_running.txt' has been created.")
+# Check if the file 'go_file.txt' exists in the current directory
+if os.path.isfile('already_running.txt'):
+    # If the file exists, print "G O" in ASCII art
+    go_sign = [
+        "  *****    ***** ",
+        " *     *  *     *",
+        "*       * *      *",
+        "*         *      *",
+        "*         *      *",
+        "*   ****  *     *",
+        " *     *  *     *",
+        "  *****    ***** ",
+        "                ",
+
+    ]
+    print("\n".join(go_sign))
+else:
+    print("The file 'already_running.txt' does not exist.")
+
+
 runner_id = os.getenv('RUNNER_ID','jl-local-runner')
 print("Runner ID: ", runner_id )
 snowflake_secure_value = os.getenv('SNOWFLAKE_SECURE')
@@ -116,6 +175,10 @@ def make_session(bot_config):
     udf_enabled = bot_config.get('ufd_active','Y')=='Y'
     slack_enabled = bot_config.get('slack_active','Y')=='Y'
     runner_id = os.getenv('RUNNER_ID','jl-local-runner')
+    if SecondRun:
+        print('SecondRun: no slack for session')
+        slack_enabled = False
+        global_flags.slack_active = False
 
     if global_flags.slack_active is False and slack_enabled:
         global_flags.slack_active = False
@@ -313,11 +376,16 @@ if llm_api_key is not None and default_llm_engine.lower() == 'openai':
 if llm_api_key is not None and default_llm_engine.lower() == 'reka':
     os.environ["REKA_API_KEY"] = llm_api_key
 
+
 global_flags.slack_active = test_slack_config_token()
 if global_flags.slack_active == 'token_expired':
     t, r = get_slack_config_tokens()
     tp, rp = rotate_slack_token(config_token=t, refresh_token=r)
     global_flags.slack_active = test_slack_config_token()
+else: 
+    print('SECOND_RUN = NO SLACK IN THIS SESSION')
+    global_flags.slack_active = False
+
 print("...Slack Connector Active Flag: ",global_flags.slack_active)
 
 
@@ -962,7 +1030,7 @@ logging.getLogger('werkzeug').setLevel(logging.WARN)
   #  say('hi')
 
 def run_flask_app():
-    app.run(host=SERVICE_HOST, port=8080, debug=False, use_reloader=True)
+    app.run(host=SERVICE_HOST, port=8080, debug=False, use_reloader=False)
 
 #def run_slack_app():
 #    handler = SocketModeHandler(slack_app, tok)

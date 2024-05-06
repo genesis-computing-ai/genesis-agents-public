@@ -505,7 +505,7 @@ def validate_potential_files(new_file_ids=None):
     # Check if any file ID starts with 'file-' and return an error if found
     file_stage_prefix_error_ids = [file_id for file_id in new_file_ids if file_id.startswith('file-')]
     if file_stage_prefix_error_ids:
-        error_message = f"Files with IDs starting with 'file-' detected. Please use _add_file_to_stage function to upload the file to the Internal Files Stage for bots at: {genbot_internal_project_and_schema}.BOT_FILES_STAGE, and ensure to give it a human-readable file name with an allowed extension from the following list: {', '.join(valid_extensions.keys())}."
+        error_message = f"Files with IDs starting with 'file-' detected. Please use _add_file_to_stage function to upload the file to the Internal Files Stage for bots at: {genbot_internal_project_and_schema}.BOT_FILES_STAGE, and ensure to give it a human-readable valid file name with an allowed extension from the following list: {', '.join(valid_extensions.keys())}."
         logger.error(error_message)
         return {"success": False, "error": error_message}
 

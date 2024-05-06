@@ -8,7 +8,6 @@ from bot_genesis.make_baby_bot import MAKE_BABY_BOT_DESCRIPTIONS, make_baby_bot_
 from connectors import database_tools
 from connectors.bigquery_connector import BigQueryConnector
 from connectors.snowflake_connector import SnowflakeConnector
-from slack.slack_bot_os_adapter import SlackBotAdapter
 from slack.slack_tools import slack_tools, slack_tools_descriptions
 from connectors.database_tools import image_functions, image_tools, bind_run_query, bind_search_metadata, bind_semantic_copilot, autonomous_functions, autonomous_tools, database_tool_functions, database_tools, snowflake_stage_functions, snowflake_stage_tools, snowflake_semantic_functions, snowflake_semantic_tools
 from schema_explorer.harvester_tools import harvester_tools_list, harvester_tools_functions

@@ -56,6 +56,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
 
       genbot_internal_project_and_schema = os.getenv('GENESIS_INTERNAL_DB_SCHEMA','None')
+      self.genbot_internal_project_and_schema = genbot_internal_project_and_schema
       if genbot_internal_project_and_schema == 'None':
          print("ENV Variable GENESIS_INTERNAL_DB_SCHEMA is not set.")
       self.db_schema = genbot_internal_project_and_schema.split('.')
@@ -334,9 +335,13 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                         for t in self.all_function_to_tool_map[tool_name]:
                            bot_tools_array.append(t)
 
+               new_instructions = assistant.instructions 
+               if "snowflake_stage_tools" in bot_tools and 'make_baby_bot' in bot_tools:        
+                     new_instructions += f"\nYour Internal Files Stage for bots is at snowflake stage: {self.genbot_internal_project_and_schema}.BOT_FILES_STAGE"
+                     print("Instruction for target bot updated with Internal Files Stage location.")
                bot_tools_array = bot_tools_array + _BOT_OS_BUILTIN_TOOLS + [{"type": "code_interpreter"}, {"type": "file_search"}]
 
-               self.client.beta.assistants.update(assistant.id,tools=bot_tools_array)
+               self.client.beta.assistants.update(assistant.id,tools=bot_tools_array, instructions=new_instructions)
                
                # handle looking for newly created tools, import them and add on the fly, also do that in execute function if not already there 
 

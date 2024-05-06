@@ -77,11 +77,14 @@ class BotOsServer:
         print(f"     New Slack token: {tok[:8]}...{tok[-8:]}")
         print(f"     New Slack refresh token: {ref[:8]}...{ref[-8:]}")
 
-
+    # JL_TODO move annoy check to here 
     def _execute_session(self):
         for s in self.sessions:
             try:
+                import threading
+           #     print(f"Thread ID: {threading.get_ident()} - starting execute cycle...")
                 s.execute()
+           #     print(f"Thread ID: {threading.get_ident()} - ending execute cycle...")
             except Exception:
                 traceback.print_exc()
 

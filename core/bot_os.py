@@ -195,9 +195,9 @@ class BotOsSession:
         #self._health_check()
 
         #print('execute ',self.session_name)
-        if random.randint(0, 20) == 0:
-            self._check_reminders()
-            self._check_task_list()
+      #  if random.randint(0, 20) == 0:
+      #      self._check_reminders()
+      #      self._check_task_list()
 
         # Execute validating messages
         if self.next_messages:
@@ -235,7 +235,7 @@ class BotOsSession:
             self.add_message(input_message)
 
             logger.debug("execute completed")
-
+        # JL_TODO MOVE THIS TO BOT_OS_SERVER LOOP
         current_time = datetime.datetime.now()
         if (current_time - self.last_annoy_refresh).total_seconds() > 180 and not self.refresh_lock:
             self.refresh_lock = True

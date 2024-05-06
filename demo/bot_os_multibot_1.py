@@ -111,6 +111,8 @@ def make_session(bot_config):
 # add setup harvester button to streamlit
 
 
+
+
     udf_enabled = bot_config.get('ufd_active','Y')=='Y'
     slack_enabled = bot_config.get('slack_active','Y')=='Y'
     runner_id = os.getenv('RUNNER_ID','jl-local-runner')
@@ -157,7 +159,7 @@ def make_session(bot_config):
     if simple_mode:
         print('SIMPLE MODE TOOLS OVERRIDE *** ')
         # Code to execute in simple mode
-        tools = [t for t in tools if t["function"]["name"] in ['run_query', 'semantic_copilot']]
+        tools = [t for t in tools if t["function"]["name"] in ['run_query', 'semantic_copilot', '_list_semantic_models', 'search_metadata']]
 
  
     instructions = bot_config["bot_instructions"] + "\n" + BASE_BOT_INSTRUCTIONS_ADDENDUM
@@ -802,11 +804,11 @@ def configure_llm():
 
 
 
-scheduler = BackgroundScheduler({'apscheduler.job_defaults.max_instances': 20, 'apscheduler.job_defaults.coalesce': True})
+scheduler = BackgroundScheduler({'apscheduler.job_defaults.max_instances': 100, 'apscheduler.job_defaults.coalesce': True})
 
 server = None
 if llm_api_key is not None:
-    server = BotOsServer(app, sessions=sessions, scheduler=scheduler, scheduler_seoconds_interval=2) 
+    server = BotOsServer(app, sessions=sessions, scheduler=scheduler, scheduler_seoconds_interval=1) 
     set_remove_pointers(server, api_app_id_to_session_map)
 
 @app.route('/zapier',  methods=['POST'])
@@ -973,5 +975,7 @@ def run_flask_app():
 #slack_thread.start()
 
 if __name__ == "__main__":
+    #while True:
+    #    time.sleep(60)
     # Run Flask app in the main thread
     run_flask_app()

@@ -1118,7 +1118,7 @@ class SnowflakeConnector(DatabaseConnector):
                     insert_initial_metadata_query = f"""
                     INSERT INTO {metadata_table_id} (SOURCE_NAME, QUALIFIED_TABLE_NAME, DATABASE_NAME, MEMORY_UUID, SCHEMA_NAME, TABLE_NAME, COMPLETE_DESCRIPTION, DDL, DDL_SHORT, DDL_HASH, SUMMARY, SAMPLE_DATA_TEXT, LAST_CRAWLED_TIMESTAMP, CRAWL_STATUS, ROLE_USED_FOR_CRAWL, EMBEDDING)
                     SELECT SOURCE_NAME, replace(QUALIFIED_TABLE_NAME,'APP_NAME', CURRENT_DATABASE()) QUALIFIED_TABLE_NAME,  CURRENT_DATABASE() DATABASE_NAME, MEMORY_UUID, SCHEMA_NAME, TABLE_NAME, REPLACE(COMPLETE_DESCRIPTION,'APP_NAME', CURRENT_DATABASE()) COMPLETE_DESCRIPTION, REPLACE(DDL,'APP_NAME', CURRENT_DATABASE()) DDL, REPLACE(DDL_SHORT,'APP_NAME', CURRENT_DATABASE()) DDL_SHORT, 'SHARED_VIEW' DDL_HASH, REPLACE(SUMMARY,'APP_NAME', CURRENT_DATABASE()) SUMMARY, SAMPLE_DATA_TEXT, LAST_CRAWLED_TIMESTAMP, CRAWL_STATUS, ROLE_USED_FOR_CRAWL, EMBEDDING 
-    FROM SHARED_HARVEST.HARVEST_RESULTS
+                    FROM SHARED_HARVEST.HARVEST_RESULTS WHERE SCHEMA_NAME IN ('BASEBALL','FORMULA_1') AND DATABASE_NAME = 'APP_NAME'
                     """
                     cursor.execute(insert_initial_metadata_query)
                     self.client.commit()
@@ -1335,6 +1335,34 @@ class SnowflakeConnector(DatabaseConnector):
                 ddl_result = cursor.fetchone()
                 ddls[table[1]] = ddl_result[0]
             return ddls
+
+    def check_cached_metadata(self, database_name:str, schema_name:str, table_name:str):
+        if database_name and schema_name and table_name:
+            query = f"SELECT IFF(count(*)>0,TRUE,FALSE) from SHARED_HARVEST.HARVEST_RESULTS where DATABASE_NAME = '{database_name}' AND SCHEMA_NAME = '{schema_name}' AND TABLE_NAME = '{table_name}';"
+            cursor = self.client.cursor()
+            cursor.execute(query)
+            result = cursor.fetchone()
+            return result
+        else:
+            return 'a required parameter was not entered'
+
+    def insert_metadata_from_cache(self, database_name:str, schema_name:str, table_name:str):
+        metadata_table_id = self.metadata_table_name
+        try:
+            insert_cached_metadata_query = f"""
+                INSERT INTO {metadata_table_id} 
+                SELECT SOURCE_NAME, QUALIFIED_TABLE_NAME,  DATABASE_NAME, MEMORY_UUID, SCHEMA_NAME, TABLE_NAME, COMPLETE_DESCRIPTION, DDL, DDL_SHORT, DDL_HASH, SUMMARY, SAMPLE_DATA_TEXT, LAST_CRAWLED_TIMESTAMP, CRAWL_STATUS, ROLE_USED_FOR_CRAWL, EMBEDDING 
+                FROM SHARED_HARVEST.HARVEST_RESULTS h 
+                WHERE DATABASE_NAME = '{database_name}' AND SCHEMA_NAME = '{schema_name}' AND TABLE_NAME = '{table_name}'
+                AND NOT EXISTS (SELECT 1 FROM {metadata_table_id} m WHERE m.DATABASE_NAME = '{database_name}' and m.SCHEMA_NAME = '{schema_name}' and m.TABLE_NAME = '{table_name}');
+            """
+            cursor = self.client.cursor()
+            cursor.execute(insert_cached_metadata_query)
+            self.client.commit()
+            print(f"Inserted cached rows into {metadata_table_id} for {database_name}.{schema_name}.{table_name}")
+        except Exception as e:
+            print(f"Cached rows from SHARED_HARVEST.HARVEST_RESULTS NOT ADDED into {metadata_table_id} for {database_name}.{schema_name}.{table_name} due to erorr {e}") 
+
 #snowed
 
 # snowed
@@ -2491,6 +2519,7 @@ class SnowflakeConnector(DatabaseConnector):
             if '/' in file_name:
                 file_name = file_name.split('/')[-1]
             file_name = re.sub(r'[^\w\s\.-]', '', file_name.replace(' ', '_'))
+
             if '/' in openai_file_id:
                 openai_file_id = openai_file_id.split('/')[-1]
 

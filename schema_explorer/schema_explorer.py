@@ -288,21 +288,28 @@ class SchemaExplorer:
                     existing_table_info = self.db_connector.run_query(check_query)
                     if not existing_table_info:
                         # Table is not in metadata table
-                        #query_ddl = f"SELECT GET_DDL('{table_info.get('object_type','TABLE')}', '{quoted_table_name}')"
-                        #print(f'New table found, {quoted_table_name}')
-                        #ddl_result = self.db_connector.run_query(query_ddl)
-                        current_ddl = self.alt_get_ddl(table_name=quoted_table_name)
-                        #print('New table DDL: ',ddl_result)
-                        #o_type = table_info.get('object_type','TABLE')
-                        #field_name = f"GET_DDL('{o_type}', '{quoted_table_name.upper()}')"
-                        #print('looking for: ',field_name)
-                        #current_ddl = ddl_result[0][field_name]
-                        #print('current ddl: ',current_ddl)
-                        current_ddl_hash = self.db_connector.sha256_hash_hex_string(current_ddl)
-                        #print('current ddl hash: ',current_ddl_hash)
-                        new_table = {"qualified_table_name": quoted_table_name, "ddl_hash": current_ddl_hash, "ddl": current_ddl}
-                        print('Newly found object added to harvest array: ',new_table)
-                        non_indexed_tables.append(new_table)
+                        # Check to see if it exists in the shared metadata table
+                        shared_table_exists = self.db_connector.check_cached_metadata(db,sch,table_name)
+                        if shared_table_exists:
+                            # Insert the record from the shared metadata table directly to the metadata table
+                            insert_from_cache_result = self.db_connector.insert_metadata_from_cache(db,sch,table_name)
+                            print(insert_from_cache_result)
+                        else:
+                            #query_ddl = f"SELECT GET_DDL('{table_info.get('object_type','TABLE')}', '{quoted_table_name}')"
+                            #print(f'New table found, {quoted_table_name}')
+                            #ddl_result = self.db_connector.run_query(query_ddl)
+                            current_ddl = self.alt_get_ddl(table_name=quoted_table_name)
+                            #print('New table DDL: ',ddl_result)
+                            #o_type = table_info.get('object_type','TABLE')
+                            #field_name = f"GET_DDL('{o_type}', '{quoted_table_name.upper()}')"
+                            #print('looking for: ',field_name)
+                            #current_ddl = ddl_result[0][field_name]
+                            #print('current ddl: ',current_ddl)
+                            current_ddl_hash = self.db_connector.sha256_hash_hex_string(current_ddl)
+                            #print('current ddl hash: ',current_ddl_hash)
+                            new_table = {"qualified_table_name": quoted_table_name, "ddl_hash": current_ddl_hash, "ddl": current_ddl}
+                            print('Newly found object added to harvest array: ',new_table)
+                            non_indexed_tables.append(new_table)
                     else:
                         last_crawled = existing_table_info[0]['LAST_CRAWLED_TIMESTAMP']
                         existing_ddl_hash = existing_table_info[0]['DDL_HASH']

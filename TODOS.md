@@ -17,6 +17,7 @@ THINGS TO TEST:
 (test) harvester dont crash if cant access schemas for a database listed in control file
 (test) MR-Add SNOWFLAKE harvest account usage etc to the pre-harvest feed into the app 
 (test) US East 2 - is it ok ?
+(test) MR - Recreate services if they are missing during a START_APP_INSTANCE call
 
 SHORT-TERM:
 !! Share on East2, see if its working in the AM, then share to Chris 
@@ -28,7 +29,6 @@ Share bot images thru app, add instructions to apply them to the user
 Autogenerate images for new bots, add instructions to the user to apply them when getting the tokens
 Make slack active thing only apply to new bot creation, dont block activation of existing bots
 Consider other uses of class level variables--the snowflake session for example, the annoy index, etc.
-MR - Recreate services if they are missing during a START_APP_INSTANCE call
 JL - move annoy index 180sec check to the outer server loop vs per bot 
 JL-Why harvester slows down bots, needs bigger pool? why do bots go unresponsive?
 (soon) add tab to see chat logs from messages table

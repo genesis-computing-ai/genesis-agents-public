@@ -2,7 +2,7 @@ import os, csv, io
 import simplejson as json
 from openai import OpenAI
 import random 
-from concurrent.futures import ThreadPoolExecutor, as_completed
+#from concurrent.futures import ThreadPoolExecutor, as_completed
 import logging
 from datetime import datetime
 
@@ -248,9 +248,9 @@ class SchemaExplorer:
             if crawl_flag:
                 harvesting_databases.append(database)
                 schemas.extend([database["database_name"]+"."+schema for schema in self.get_active_schemas(database)])
-                print(f'Checking {self.db_connector.source_name} Database {database["database_name"]} for new or changed objects (cycle#: {self.run_number}, refresh every: {database["refresh_interval"]})')
+                print(f'Checking {self.db_connector.source_name} Database {database["database_name"]} for new or changed objects (cycle#: {self.run_number}, refresh every: {database["refresh_interval"]})', flush=True)
             else: 
-                print(f'Skipping {self.db_connector.source_name} Database {database["database_name"]}, not in current refresh cycle (cycle#: {self.run_number}, refresh every: {database["refresh_interval"]})')
+                print(f'Skipping {self.db_connector.source_name} Database {database["database_name"]}, not in current refresh cycle (cycle#: {self.run_number}, refresh every: {database["refresh_interval"]})', flush=True)
 
         summaries = {}
         total_processed = 0
@@ -267,70 +267,67 @@ class SchemaExplorer:
             # query to find new
             # tables, or those with changes to their DDL
 
-            print('Checking ',self.db_connector.source_name,' Schema ',dataset,' for new or changed objects.')
+            print('Checking ',self.db_connector.source_name,' Schema ',dataset,' for new (not changed) objects.', flush=True)
             if self.db_connector.source_name == 'Snowflake':
                 potential_tables = self.db_connector.get_tables(dataset.split('.')[0], dataset.split('.')[1])
                 #print('potential tables: ',potential_tables)
                 non_indexed_tables = []
-                for table_info in potential_tables:
+
+                # Check all potential_tables at once using a single query with an IN clause
+                table_names = [table_info['table_name'] for table_info in potential_tables]
+                db, sch = dataset.split('.')[0], dataset.split('.')[1]
+                quoted_table_names = [f'\'"{db}"."{sch}"."{table}"\'' for table in table_names]
+                in_clause = ', '.join(quoted_table_names)
+                check_query = f"""
+                SELECT qualified_table_name, ddl_hash, last_crawled_timestamp
+                FROM {self.db_connector.metadata_table_name}
+                WHERE source_name = '{self.db_connector.source_name}'
+                AND qualified_table_name IN ({in_clause})
+                """
+                existing_tables_info = self.db_connector.run_query(check_query, max_rows=1000, max_rows_override=True)
+                existing_tables_set = {info['QUALIFIED_TABLE_NAME'] for info in existing_tables_info}
+                non_existing_tables = [table for table in potential_tables if f'"{db}"."{sch}"."{table["table_name"]}"' not in existing_tables_set]
+                
+                for table_info in non_existing_tables:
                     table_name = table_info['table_name']
-                    #ddl_hash = table_info['ddl_hash']
-                    db, sch = dataset.split('.')[0], dataset.split('.')[1]
                     quoted_table_name = f'"{db}"."{sch}"."{table_name}"'
-                    # Check if the table is in the metadata table
-                    check_query = f"""
-                    SELECT qualified_table_name, ddl_hash, last_crawled_timestamp
-                    FROM {self.db_connector.metadata_table_name}
-                    WHERE source_name = '{self.db_connector.source_name}'
-                    AND qualified_table_name = '{quoted_table_name}'
-                    """
-                    #print('running check query: ',check_query)
-                    existing_table_info = self.db_connector.run_query(check_query)
-                    if not existing_table_info:
+                    if quoted_table_name not in existing_tables_set:
                         # Table is not in metadata table
                         # Check to see if it exists in the shared metadata table
-                        shared_table_exists = self.db_connector.check_cached_metadata(db,sch,table_name)
+                        shared_table_exists = self.db_connector.check_cached_metadata(db, sch, table_name)
                         if shared_table_exists:
                             # Insert the record from the shared metadata table directly to the metadata table
-                            insert_from_cache_result = self.db_connector.insert_metadata_from_cache(db,sch,table_name)
-                            print(insert_from_cache_result)
+                            insert_from_cache_result = self.db_connector.insert_metadata_from_cache(db, sch, table_name)
+                            print(insert_from_cache_result, flush=True)
                         else:
-                            #query_ddl = f"SELECT GET_DDL('{table_info.get('object_type','TABLE')}', '{quoted_table_name}')"
-                            #print(f'New table found, {quoted_table_name}')
-                            #ddl_result = self.db_connector.run_query(query_ddl)
+                            # Table is new, so get its DDL and hash
                             current_ddl = self.alt_get_ddl(table_name=quoted_table_name)
-                            #print('New table DDL: ',ddl_result)
-                            #o_type = table_info.get('object_type','TABLE')
-                            #field_name = f"GET_DDL('{o_type}', '{quoted_table_name.upper()}')"
-                            #print('looking for: ',field_name)
-                            #current_ddl = ddl_result[0][field_name]
-                            #print('current ddl: ',current_ddl)
                             current_ddl_hash = self.db_connector.sha256_hash_hex_string(current_ddl)
-                            #print('current ddl hash: ',current_ddl_hash)
                             new_table = {"qualified_table_name": quoted_table_name, "ddl_hash": current_ddl_hash, "ddl": current_ddl}
-                            print('Newly found object added to harvest array: ',new_table)
+                            print('Newly found object added to harvest array: ', new_table, flush=True)
                             non_indexed_tables.append(new_table)
-                    else:
-                        last_crawled = existing_table_info[0]['LAST_CRAWLED_TIMESTAMP']
-                        existing_ddl_hash = existing_table_info[0]['DDL_HASH']
-
-                        shared_view = existing_ddl_hash == 'SHARED_VIEW'
-                        # to not reindex things crawled before the change to the new alt_get_ddl approach 
-                        cutoff_datetime = datetime(2024, 5, 1)
-
-                        # Set check_for_updated_ddl based on the last_crawled date
-                        check_for_updated_ddl = last_crawled > cutoff_datetime
-                        if shared_view:
-                            check_for_updated_ddl = False
-                        if check_for_updated_ddl:
-                            # Fetch the DDL for the specific table and calculate its hash
-                            current_ddl = self.alt_get_ddl(table_name=quoted_table_name)
-                            if current_ddl:
-                                current_ddl_hash = self.db_connector.sha256_hash_hex_string(current_ddl)
-                                if existing_ddl_hash != current_ddl_hash:
-                                    print('DDL has changed for', quoted_table_name)
-                                    non_indexed_tables.append({"qualified_table_name": quoted_table_name, "ddl_hash": current_ddl_hash, "ddl": current_ddl})
+                   # else:
+                   #     # Table exists, so check for updates as before
+                   #     existing_table_info = next((info for info in existing_tables_info if info['qualified_table_name'] == quoted_table_name), None)
+                   #     if existing_table_info:
+                   #         last_crawled = existing_table_info['last_crawled_timestamp']
+                   #         existing_ddl_hash = existing_table_info['ddl_hash']
+                   #         shared_view = existing_ddl_hash == 'SHARED_VIEW'
+                   #         cutoff_datetime = datetime(2024, 5, 1)
+                    #        check_for_updated_ddl = last_crawled > cutoff_datetime
+                    #        if shared_view:
+                    #            check_for_updated_ddl = False                        # Override this for now to False while sorting out harvester slowness
+                    #        check_for_updated_ddl = False
+                    #        if check_for_updated_ddl:
+                                # Fetch the DDL for the specific table and calculate its hash
+                    #            current_ddl = self.alt_get_ddl(table_name=quoted_table_name)
+                    #            if current_ddl:
+                    #                current_ddl_hash = self.db_connector.sha256_hash_hex_string(current_ddl)
+                    #                if existing_ddl_hash != current_ddl_hash:
+                    #                    print('DDL has changed for', quoted_table_name, flush=True)
+                    #                    non_indexed_tables.append({"qualified_table_name": quoted_table_name, "ddl_hash": current_ddl_hash, "ddl": current_ddl})
             else:
+                # Bigquery 
                 query = f"""
                 SELECT CONCAT("{dataset}.", table_name) AS qualified_table_name
                 FROM `{dataset}.INFORMATION_SCHEMA.TABLES`
@@ -347,11 +344,11 @@ class SchemaExplorer:
 
             local_summaries = {}
             if len(non_indexed_tables) > 0:
-                print(f'starting indexing of {len(non_indexed_tables)} new or changed objects in {dataset}...')
+                print(f'starting indexing of {len(non_indexed_tables)} new or objects in {dataset}...', flush=True)
             for row in non_indexed_tables:
                 try:
                     qualified_table_name = row['qualified_table_name']
-                    print("     -> ", qualified_table_name)
+                    print("     -> ", qualified_table_name, flush=True)
                     database, schema, table = (part.strip('"') for part in qualified_table_name.split('.', 2))
 
                     # Proceed with generating the summary
@@ -362,16 +359,22 @@ class SchemaExplorer:
                     #embedding = self.get_embedding(summary)  
                     ddl = row.get('ddl',None)
                     ddl_short = self.get_ddl_short(ddl)
-                    print(f"storing: database: {database}, schema: {schema}, table: {table}, summary len: {len(summary)}, ddl: {ddl} ") 
+                    print(f"storing: database: {database}, schema: {schema}, table: {table}, summary len: {len(summary)}, ddl: {ddl}, ddl_short: {ddl_short} ", flush=True) 
                     self.store_table_memory(database, schema, table, summary, ddl=ddl, ddl_short=ddl_short)
                 except Exception as e:
                     print(f"Harvester Error for {database}.{schema}.{table}: {e}")
-                    self.store_table_memory(database, schema, table, summary="Harvester Error: {e}", ddl="Harvester Error", ddl_short="Harvester Error")
+                    self.store_table_memory(database, schema, table, summary="Harvester Error: {e}", ddl="Harvester Error", ddl_short="Harvester Error", flush=True)
                 
                 local_summaries[qualified_table_name] = summary
             return dataset, local_summaries
 
         # Using ThreadPoolExecutor to parallelize dataset processing
+   
+        for schema in schemas:
+            process_dataset(schema, max_to_process=1000)
+
+        return 'Processed'
+   
         with ThreadPoolExecutor(max_workers=5) as executor:
             future_to_dataset = {executor.submit(process_dataset, schema, max_to_process): schema for schema in schemas if total_processed < max_to_process}
 
@@ -385,5 +388,5 @@ class SchemaExplorer:
                         if total_processed >= max_to_process:
                             break
                 except Exception as exc:
-                    print(f'Dataset {dataset} generated an exception: {exc}')
+                    print(f'Dataset {dataset} generated an exception: {exc}', flush=True)
 

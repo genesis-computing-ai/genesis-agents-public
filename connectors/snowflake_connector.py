@@ -1337,14 +1337,20 @@ class SnowflakeConnector(DatabaseConnector):
             return ddls
 
     def check_cached_metadata(self, database_name:str, schema_name:str, table_name:str):
-        if database_name and schema_name and table_name:
-            query = f"SELECT IFF(count(*)>0,TRUE,FALSE) from SHARED_HARVEST.HARVEST_RESULTS where DATABASE_NAME = '{database_name}' AND SCHEMA_NAME = '{schema_name}' AND TABLE_NAME = '{table_name}';"
-            cursor = self.client.cursor()
-            cursor.execute(query)
-            result = cursor.fetchone()
-            return result[0]
-        else:
-            return 'a required parameter was not entered'
+        try:
+            if database_name and schema_name and table_name:
+                query = f"SELECT IFF(count(*)>0,TRUE,FALSE) from SHARED_HARVEST.HARVEST_RESULTS where DATABASE_NAME = '{database_name}' AND SCHEMA_NAME = '{schema_name}' AND TABLE_NAME = '{table_name}';"
+                cursor = self.client.cursor()
+                cursor.execute(query)
+                result = cursor.fetchone()
+                return result[0]
+            else:
+                return 'a required parameter was not entered'
+        except Exception as e:
+            print( f'check harvest cache error {e}')
+            return False
+
+
 
     def insert_metadata_from_cache(self, database_name:str, schema_name:str, table_name:str):
         metadata_table_id = self.metadata_table_name

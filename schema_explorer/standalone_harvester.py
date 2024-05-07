@@ -55,8 +55,8 @@ while llm_api_key == None:
             print('!!!!! Loading LLM API Key from File No longer Supported -- Please provide via ENV VAR when using BigQuery Source')
             time.sleep(3)
     
-    print('Checking database for LLM Key...')
-    logger.info('Checking database for LLM Key...')
+    print('Checking database for LLM Key...', flush=True)
+    logger.info('Checking database for LLM Key...', flush=True)
     if llm_api_key is None and genesis_source == 'Snowflake':
         llm_key, llm_type = harvester_db_connector.db_get_llm_key(project_id=None, dataset_name=None)
         logger.info('got a response')
@@ -72,7 +72,7 @@ while llm_api_key == None:
         else:
             print("===========")
             print("NOTE: LLM Key not found in Env Var nor in Database LLM_CONFIG table.. starting without LLM Key, please provide via Streamlit")
-            print("===========")
+            print("===========", flush=True)
 
     if llm_api_key is not None and default_llm_engine.lower() == 'openai':
         os.environ["OPENAI_API_KEY"] = llm_api_key
@@ -80,7 +80,7 @@ while llm_api_key == None:
         os.environ["REKA_API_KEY"] = llm_api_key
 
     if llm_api_key is None:
-        print('No LLM Key Available in ENV var or Snowflake database, sleeping 20 seconds before retry.')
+        print('No LLM Key Available in ENV var or Snowflake database, sleeping 20 seconds before retry.', flush=True)
         time.sleep(20)
 
 
@@ -124,22 +124,23 @@ def update_harvest_control_with_new_databases(connector):
             )
 # Check and update harvest control data if the source is Snowflake
 
-refresh_seconds = os.getenv("HARVESTER_REFRESH_SECONDS", 60)
+refresh_seconds = os.getenv("HARVESTER_REFRESH_SECONDS", 120)
 refresh_seconds = int(refresh_seconds)
 
 
 
 while True:
     if genesis_source == 'Snowflake' and os.getenv('AUTO_HARVEST', 'TRUE').upper() == 'TRUE':
-        logger.info('Checking for any newly granted databases to add to harvest...')
+        logger.info('Checking for any newly granted databases to add to harvest...', flush=True)
         update_harvest_control_with_new_databases(harvester_db_connector)
     
 
-    logger.info(f"Checking for new tables... (once per {refresh_seconds} seconds)")
+    print(f"Checking for new tables... (once per {refresh_seconds} seconds)", flush=True)
     #embeddings_handler.load_or_create_embeddings_index(bigquery_connector.metadata_table_name, refresh=True)
     schema_explorer.explore_and_summarize_tables_parallel()
     #print("Checking Cached Annoy Index")
   #  logger.info(f"Checking for new semantic models... (once per {refresh_seconds} seconds)")
   #  schema_explorer.explore_semantic_models()
     #embeddings_handler.make_and_save_index(bigquery_connector.metadata_table_name)
+    print(f'Pausing for {int(refresh_seconds)} seconds before next check.', flush=True)
     time.sleep(refresh_seconds)

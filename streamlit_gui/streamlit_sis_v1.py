@@ -389,23 +389,26 @@ def llm_config(): # Check if data is not empty
                 if config_response['Success'] is False:
                     resp = config_response["Message"]
                     st.error(f"Failed to set LLM token: {resp}")
+                    cur_key = ''
                 else:
                     st.session_state.disable_submit = True
                     st.success("API key validated!")
 
-                with st.spinner('Getting active bot details...'):
-                    bot_details = get_bot_details()
-                    if bot_details:
-                        st.success("Bot details validated.")
+                if config_response['Success']:
+                    with st.spinner('Getting active bot details...'):
+                        bot_details = get_bot_details()
+                        if bot_details:
+                            st.success("Bot details validated.")
 
             if cur_key == '<existing key present on server>':
                 st.write("Reload this page to chat with your apps.")
             else:
-                if st.button("Next -> Click here to chat with your bots!"):
-                    st.experimental_rerun()
-                    # This button will be used to talk to the bot directly via Streamlit interface
-                    # Placeholder for direct bot communication logic
-                    #st.session_state['radio'] = "Chat with Bots"
+                if cur_key is not None and cur_key != '':
+                    if st.button("Next -> Click here to chat with your bots!"):
+                        st.experimental_rerun()
+                        # This button will be used to talk to the bot directly via Streamlit interface
+                        # Placeholder for direct bot communication logic
+                        #st.session_state['radio'] = "Chat with Bots"
 
 def chat_page():
 

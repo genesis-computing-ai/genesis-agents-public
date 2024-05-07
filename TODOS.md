@@ -20,6 +20,9 @@ THINGS TO TEST:
 (test) MR - Recreate services if they are missing during a START_APP_INSTANCE call
 
 SHORT-TERM:
+Add bot custom welcome messages on new chats in Streamlit
+SiS app will restart service is suspended (With pool) but doesnt wake up harvester, errors in SiS log harvest screen
+If app is restarting (pools etc) have Sis give a message and spinner saying that vs a blank screen, check SELECT SYSTEM$GET_SERVICE_STATUS('GENESISAPP_SERVICE_SERVICE');
 !! Share on East2, see if its working in the AM, then share to Chris 
 !! FIGURE OUT slowdown of whole system when harvester runs.. make it single threaded, with delays?
 When you send a message to a thread that's already running, queue it up and don't submit another, then consolidate all of them when its ready and send them all at once once the run is done.

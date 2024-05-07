@@ -6,13 +6,11 @@
 SET APP_OWNER_ROLE = 'ACCOUNTADMIN';
 SET APP_WAREHOUSE = 'XSMALL';
 SET APP_COMPUTE_POOL = 'genesis_test_pool';
-SET APP_DISTRIBUTION = 'INTERNAL';
+SET APP_DISTRIBUTION = 'EXTERNAL';
 SET APP_COMPUTE_POOL_FAMILY = 'CPU_X64_XS';
- 
+
 
 -- ########## END   ENVIRONMENT  ######################################
-
-SHOW VERSIONS IN APPLICATION PACKAGE GENESISAPP_APP_PKG_EXT;
 
 
 
@@ -60,34 +58,6 @@ GRANT ROLE GENESIS_CONSUMER_ROLE to USER JUSTIN;
 USE ROLE identifier($APP_OWNER_ROLE);
 select current_role();
 
-
---use role partner_apps_owner_role;
-
-
---DROP DATABASE IF EXISTS GENESISAPP_APP_PKG ;
---drop database genesisapp_master;
-
-
-
-
-/*
-CREATE WAREHOUSE IT NOT EXISTS IDENTIFIER($APP_WAREHOUSE)
- MIN_CLUSTER_COUNT=1
- MAX_CLUSTER_COUNT=1
- WAREHOUSE_SIZE=XSMALL
- AUTO_RESUME = TRUE
- INITIALLY_SUSPENDED = FALSE
- AUTO_SUSPEND = 60;
-
-
-CREATE COMPUTE POOL IF NOT EXISTS IDENTIFIER($APP_COMPUTE_POOL)
- MIN_NODES=1
- MAX_NODES=1
- INSTANCE_FAMILY=STANDARD_1
- AUTO_RESUME = TRUE
- INITIALLY_SUSPENDED = FALSE
- AUTO_SUSPEND_SECS = 600;
-*/
 
 
 USE WAREHOUSE identifier($APP_WAREHOUSE);
@@ -228,7 +198,7 @@ $$;
 -- ########## DATA SHARING  ##############################################
 
 -- dynamically generate shared views and grants for spider_data
-CREATE OR REPLACE PROCEDURE CODE_SCHEMA.GENERATE_SHARED_VIEWS(SCHEMA_NAME VARCHAR)
+CREATE OR REPLACE PROCEDURE CODE_SCHEMA.GENERATE_SHARED_VIEWS(SCHEMA_NAME VARCHAR, APP_PKG_NAME VARCHAR)
 RETURNS STRING
 LANGUAGE SQL
 AS
@@ -241,28 +211,28 @@ DECLARE
   table_catalog STRING;
   table_schema STRING;
   new_schema_name STRING;
-  i INT DEFAULT 1;
+  app_pkg STRING;
   select_statement STRING;
 BEGIN
-  lookup_schema_name := SCHEMA_NAME;
-  new_schema_name := SCHEMA_NAME || '_SHARED';
+  new_schema_name := SCHEMA_NAME;
+  app_pkg := APP_PKG_NAME;
 
-  EXECUTE IMMEDIATE 'CREATE SCHEMA IF NOT EXISTS GENESISAPP_APP_PKG_EXT.' || new_schema_name;
-  EXECUTE IMMEDIATE 'GRANT USAGE ON SCHEMA GENESISAPP_APP_PKG_EXT.' || new_schema_name || ' TO SHARE IN APPLICATION PACKAGE GENESISAPP_APP_PKG_EXT';
+  EXECUTE IMMEDIATE 'CREATE SCHEMA IF NOT EXISTS ' || app_pkg || '.' || new_schema_name;
+  EXECUTE IMMEDIATE 'GRANT USAGE ON SCHEMA ' || app_pkg || '.' || new_schema_name || ' TO SHARE IN APPLICATION PACKAGE ' || app_pkg;
   
   LET table_cursor CURSOR FOR SELECT TABLE_NAME, TABLE_CATALOG, TABLE_SCHEMA FROM SPIDER_DATA.INFORMATION_SCHEMA.TABLES
     WHERE TABLE_SCHEMA = ?;
-  OPEN table_cursor USING(lookup_schema_name);
+  OPEN table_cursor USING(new_schema_name);
   
   FOR table_record IN table_cursor DO
     table_name := table_record.table_name;
     table_catalog := table_record.table_catalog;
     table_schema := table_record.table_schema;
-    create_view_query := 'CREATE OR REPLACE VIEW GENESISAPP_APP_PKG_EXT.' || table_schema || '.' || table_name || ' AS SELECT * FROM ' || table_catalog || '.' || table_schema || '.' || table_name || ';';
-    grant_query := 'GRANT SELECT ON VIEW GENESISAPP_APP_PKG_EXT.' || table_schema || '.' || table_name || ' TO SHARE IN APPLICATION PACKAGE GENESISAPP_APP_PKG_EXT;';
-GENESISAPP_APP_PKG_EXT    EXECUTE IMMEDIATE grant_query;
+    create_view_query := 'CREATE OR REPLACE VIEW ' || app_pkg || '.' || table_schema || '.' || table_name || ' AS SELECT * FROM ' || table_catalog || '.' || table_schema || '.' || table_name || ';';
+    grant_query := 'GRANT SELECT ON VIEW ' || app_pkg || '.' || table_schema || '.' || table_name || ' TO SHARE IN APPLICATION PACKAGE ' || app_pkg;
+    EXECUTE IMMEDIATE create_view_query;
+    EXECUTE IMMEDIATE grant_query;
     result := result || 'Executed: ' || grant_query || CHAR(10) || 'Executed: ' || create_view_query || CHAR(10);
-    i := i + 1;
   END FOR;
   RETURN result;
 END;
@@ -270,11 +240,72 @@ $$;
 
 
 GRANT REFERENCE_USAGE ON DATABASE SPIDER_DATA TO SHARE IN APPLICATION PACKAGE GENESISAPP_APP_PKG_EXT;
-
+GRANT REFERENCE_USAGE ON DATABASE GENESISAPP_MASTER TO SHARE IN APPLICATION PACKAGE GENESISAPP_APP_PKG_EXT;
+USE SCHEMA GENESISAPP_APP_PKG_EXT.CODE_SCHEMA;
 -- Call the procedure to generate shared views and grants
-CALL CODE_SCHEMA.GENERATE_SHARED_VIEWS('BASEBALL');
-CALL CODE_SCHEMA.GENERATE_SHARED_VIEWS('FORMULA_1');
+CALL CODE_SCHEMA.GENERATE_SHARED_VIEWS('BASEBALL', CURRENT_DATABASE());
+USE SCHEMA GENESISAPP_APP_PKG_EXT.CODE_SCHEMA;
+CALL CODE_SCHEMA.GENERATE_SHARED_VIEWS('FORMULA_1', CURRENT_DATABASE());
+USE SCHEMA GENESISAPP_APP_PKG_EXT.CODE_SCHEMA;
 
+CREATE OR REPLACE PROCEDURE CODE_SCHEMA.SHARE_HARVEST_RESULTS(APP_PKG_NAME STRING)
+RETURNS STRING
+LANGUAGE SQL
+AS
+$$
+BEGIN
+-- Share harvest records from provider to app package
+  EXECUTE IMMEDIATE 'CREATE OR REPLACE SCHEMA ' || APP_PKG_NAME || '.SHARED_HARVEST';
+  EXECUTE IMMEDIATE 'GRANT USAGE ON SCHEMA ' || APP_PKG_NAME || '.SHARED_HARVEST TO SHARE IN APPLICATION PACKAGE ' || APP_PKG_NAME;
+  EXECUTE IMMEDIATE 'CREATE OR REPLACE VIEW ' || APP_PKG_NAME || '.SHARED_HARVEST.HARVEST_RESULTS AS SELECT * FROM GENESISAPP_MASTER.HARVEST_SHARE.HARVEST_RESULTS_SHARED';
+  EXECUTE IMMEDIATE 'GRANT SELECT ON VIEW ' || APP_PKG_NAME || '.SHARED_HARVEST.HARVEST_RESULTS TO SHARE IN APPLICATION PACKAGE ' || APP_PKG_NAME;
+    
+  RETURN 'Created and shared harvest results view';
+END;
+$$;
+
+
+create or replace view GENESISAPP_MASTER.HARVEST_SHARE.HARVEST_RESULTS_SHARED(
+	SOURCE_NAME,
+	QUALIFIED_TABLE_NAME,
+	DATABASE_NAME,
+	MEMORY_UUID,
+	SCHEMA_NAME,
+	TABLE_NAME,
+	COMPLETE_DESCRIPTION,
+	DDL,
+	DDL_SHORT,
+	DDL_HASH,
+	SUMMARY,
+	SAMPLE_DATA_TEXT,
+	LAST_CRAWLED_TIMESTAMP,
+	CRAWL_STATUS,
+	ROLE_USED_FOR_CRAWL,
+	EMBEDDING
+) as 
+WITH shared_views AS
+(SELECT SOURCE_NAME, replace(QUALIFIED_TABLE_NAME,'SPIDER_DATA','APP_NAME') QUALIFIED_TABLE_NAME, 'APP_NAME' DATABASE_NAME, MEMORY_UUID, SCHEMA_NAME, TABLE_NAME, REPLACE(COMPLETE_DESCRIPTION,'SPIDER_DATA','APP_NAME') COMPLETE_DESCRIPTION, REPLACE(DDL,'SPIDER_DATA','APP_NAME') DDL, REPLACE(DDL_SHORT,'SPIDER_DATA','APP_NAME') DDL_SHORT, 'SHARED_VIEW' DDL_HASH, REPLACE(SUMMARY,'SPIDER_DATA','APP_NAME') SUMMARY, SAMPLE_DATA_TEXT, LAST_CRAWLED_TIMESTAMP, CRAWL_STATUS, ROLE_USED_FOR_CRAWL, EMBEDDING 
+    FROM GENESISAPP_MASTER.HARVEST_SHARE.HARVEST_RESULTS
+    WHERE SCHEMA_NAME in ('BASEBALL','FORMULA_1')),
+local_views AS
+(
+SELECT SOURCE_NAME, QUALIFIED_TABLE_NAME, DATABASE_NAME, MEMORY_UUID, SCHEMA_NAME, TABLE_NAME, COMPLETE_DESCRIPTION, DDL, DDL_SHORT, 'SHARED_VIEW' DDL_HASH, SUMMARY, SAMPLE_DATA_TEXT, LAST_CRAWLED_TIMESTAMP, CRAWL_STATUS, ROLE_USED_FOR_CRAWL, EMBEDDING 
+    FROM GENESISAPP_MASTER.HARVEST_SHARE.HARVEST_RESULTS
+    WHERE SCHEMA_NAME NOT in ('BASEBALL','FORMULA_1')
+)
+SELECT * FROM shared_views
+UNION
+SELECT * FROM local_views;
+
+-- Call procedure to create the shared view for harvest results
+CALL CODE_SCHEMA.SHARE_HARVEST_RESULTS(CURRENT_DATABASE());
+
+USE SCHEMA GENESISAPP_APP_PKG_EXT.CODE_SCHEMA;
+
+
+select * from GENESISAPP_MASTER.HARVEST_SHARE.HARVEST_RESULTS_SHARED;
+
+show tables in GENESISAPP_MASTER.HARVEST_SHARE;
 
 -- ########## END DATA SHARING  ##########################################
 
@@ -284,7 +315,7 @@ USE SCHEMA GENESISAPP_APP_PKG_EXT.CODE_SCHEMA;
 CREATE OR REPLACE TABLE SCRIPT (NAME VARCHAR, VALUE VARCHAR);
 DELETE FROM SCRIPT;
 
-use warehouse xsmall;
+
 
 
 INSERT INTO SCRIPT (NAME , VALUE)
@@ -1068,8 +1099,17 @@ AS ''' + chr(36) + chr(36) + '''
 -- see your databases
 show databases;
 
--- to use, call with the name of the database to grant
+-- to use on a local database in your account, call with the name of the database to grant
 call GENESIS_LOCAL_DB.SETTINGS.grant_schema_usage_and_select_to_app('<your db name>',$APP_DATABASE);
+
+-- see inbound shares 
+show shares;
+
+-- to grant an inbound shared database to the Genesis application 
+grant imported privileges on database <inbound_share_db_name> to application IDENTIFIER($APP_DATABASE);
+
+-- to grant access to the SNOWFLAKE share (Account Usage, etc.) to the Genesis application 
+grant imported privileges on database SNOWFLAKE to application IDENTIFIER($APP_DATABASE);
 
 --- once granted, Genesis will automatically start to catalog this data so you can use it with Genesis bots
 '''
@@ -1110,6 +1150,17 @@ def bot_config():
                         st.caption("Bot ID: " + bot['bot_id'])
                         available_tools = bot['available_tools'].strip("[]").replace('"', '').replace("'", "")
                         st.caption(f"Available Tools: {available_tools}")
+                        bot_implementation = bot.get('bot_implementation', None)
+                        if bot_implementation is not None:
+                            st.caption(f"LLM Engine: {bot_implementation}")
+                        # Display the files associated with the bot
+                        bot_files = bot.get('files',None)
+                        if bot_files == 'null' or bot_files == '' or bot_files == '[]':
+                            bot_files = None
+                        if bot_files is not None:
+                            st.caption(f"Files: {bot_files}")
+                        else:
+                            st.caption("Files: None assigned")
                         user_id = bot.get('bot_slack_user_id','None')
                         if user_id is None:
                             user_id = 'None'
@@ -1250,7 +1301,7 @@ DROP COMPUTE POOL IF EXISTS GENESIS_POOL;
 
 -- create the compute pool and associate it to this application
 CREATE COMPUTE POOL IF NOT EXISTS GENESIS_POOL FOR APPLICATION IDENTIFIER($APP_DATABASE)
- MIN_NODES=1 MAX_NODES=1 INSTANCE_FAMILY='CPU_X64_XS' AUTO_SUSPEND_SECS=3600 INITIALLY_SUSPENDED=FALSE;
+ MIN_NODES=1 MAX_NODES=1 INSTANCE_FAMILY='CPU_X64_S' AUTO_SUSPEND_SECS=3600 INITIALLY_SUSPENDED=FALSE;
 
 -- give Genesis the right to use the compute pool
 GRANT USAGE ON COMPUTE POOL GENESIS_POOL TO APPLICATION  IDENTIFIER($APP_DATABASE);
@@ -1266,8 +1317,8 @@ def config_eai():
  
     st.subheader('Step 3: Configure External Access Integration (EAI)')
 
-    st.write("Genesis Bots currently uses OpenAI GPT4-Turbo as its main LLM, as it is the only model that we've found powerful and reliable enough to power our bots. To access OpenAI from the Genesis Server, you'll need to create a Snowflake External Access Integration so that the Genesis Server can call OpenAI. Genesis can also optionally connect to Slack via Ngrok, to allow your bots to interact via Slack.")
-    st.write('The Genesis Server can also capture and output events to a Snowflake Event Table, allowing you to track what is happening inside the server. Optionally, these logs can be shared back to the Genesis Provider for enhanced supoort for your GenBots.')
+    st.write("Genesis Bots currently uses OpenAI GPT4-Turbo as its main LLM, as it is the only model that we've found powerful and reliable enough to power our bots. To access OpenAI from the Genesis Server, you'll need to create a Snowflake External Access Integration so that the Genesis Server can call OpenAI. Genesis can also optionally connect to Slack, with some additional configuration, to allow your bots to interact via Slack.")
+    st.write('The Genesis Server can also capture and output events to a Snowflake Event Table, allowing you to track what is happening inside the server. Optionally, these logs can be shared back to the Genesis Provider for enhanced support for your GenBots.')
     st.write('So please go back to the worksheet one more time, and run these commands to create a external access integration, and grant Genesis the rights to use it. Genesis will only be able to access the endpoints listed, OpenAI, and optionally Slack. The steps for adding the event logging are optional as well, but recommended.')
     
     wh_text = f'''-- select role to use, generally Accountadmin or Sysadmin
@@ -1303,10 +1354,12 @@ CREATE SCHEMA IF NOT EXISTS GENESIS_LOCAL_DB.EVENTS;
 -- create an event table to capture events from the Genesis Server
 CREATE EVENT TABLE GENESIS_LOCAL_DB.EVENTS.GENESIS_APP_EVENTS;
 
--- set the event table on your account. 
+-- set the event table on your account, this is optional
+-- this requires ACCOUNTADMIN, and may already be set, skip if it doesnt work
 ALTER ACCOUNT SET EVENT_TABLE=GENESIS_LOCAL_DB.EVENTS.GENESIS_APP_EVENTS;
 
 -- allow sharing of the captured events with the Genesis Provider
+-- optional, skip if it doesn't work
 ALTER APPLICATION IDENTIFIER($APP_DATABASE) SET SHARE_EVENTS_WITH_PROVIDER = TRUE;
    
 '''
@@ -1717,13 +1770,15 @@ VALUES ('GENESISAPP_HARVESTER_SERVICE',
 :::)
 ;
 
-CREATE OR REPLACE PROCEDURE APP.UPGRADE_SERVICE(INSTANCE_NAME VARCHAR,SERVICE_NAME VARCHAR)
+CREATE OR REPLACE PROCEDURE APP.UPGRADE_APP(INSTANCE_NAME VARCHAR, SERVICE_NAME VARCHAR, UPDATE_HARVEST_METADATA BOOLEAN, APP_NAME VARCHAR)
 RETURNS VARCHAR NOT NULL
 LANGUAGE SQL
 AS
 :::
 DECLARE
     schema_exists BOOLEAN;
+    harvest_schema_exists BOOLEAN;
+    harvest_excluded BOOLEAN;
 BEGIN
     SELECT COUNT(*) > 0 INTO :schema_exists
     FROM INFORMATION_SCHEMA.SCHEMATA
@@ -1738,14 +1793,33 @@ BEGIN
         'ALTER SERVICE IF EXISTS '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
         ' FROM SPECIFICATION  '||chr(36)||chr(36)||'\n'|| :spec ||'\n'||chr(36)||chr(36) ||
         ' ';
+
+      IF (UPDATE_HARVEST_METADATA) THEN
+        -- Check if the APP1.HARVEST_RESULTS table exists and then delete specific rows from harvest_data
+        SELECT COUNT(*) > 0 INTO :harvest_schema_exists FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = :INSTANCE_NAME AND TABLE_NAME = 'HARVEST_RESULTS';
+
+        SELECT IFF(COUNT(*)>0, 1, 0) INTO :harvest_excluded
+        FROM APP1.HARVEST_CONTROL
+        WHERE DATABASE_NAME = :APP_NAME
+            AND (ARRAY_CONTAINS('BASEBALL'::variant, SCHEMA_EXCLUSIONS) OR ARRAY_CONTAINS('FORMULA_1'::variant, SCHEMA_EXCLUSIONS)) ;
+
+        IF  (:harvest_schema_exists AND NOT :harvest_excluded) THEN
+          EXECUTE IMMEDIATE 'DELETE FROM APP1.HARVEST_RESULTS WHERE DATABASE_NAME = ''' || :APP_NAME || ''' AND SCHEMA_NAME IN (''BASEBALL'', ''FORMULA_1'')';
+          EXECUTE IMMEDIATE 'INSERT INTO APP1.HARVEST_RESULTS (SOURCE_NAME, QUALIFIED_TABLE_NAME, DATABASE_NAME, MEMORY_UUID, SCHEMA_NAME, TABLE_NAME, COMPLETE_DESCRIPTION, DDL, DDL_SHORT, DDL_HASH, SUMMARY, SAMPLE_DATA_TEXT, LAST_CRAWLED_TIMESTAMP, CRAWL_STATUS, ROLE_USED_FOR_CRAWL, EMBEDDING)
+                              SELECT SOURCE_NAME, replace(QUALIFIED_TABLE_NAME,''APP_NAME'',''' || :APP_NAME || ''') QUALIFIED_TABLE_NAME, ''' || :APP_NAME || ''' DATABASE_NAME, MEMORY_UUID, SCHEMA_NAME, TABLE_NAME, REPLACE(COMPLETE_DESCRIPTION,''APP_NAME'',''' || :APP_NAME || ''') COMPLETE_DESCRIPTION, REPLACE(DDL,''APP_NAME'',''' || :APP_NAME || ''') DDL, REPLACE(DDL_SHORT,''APP_NAME'',''' || :APP_NAME || ''') DDL_SHORT, ''SHARED_VIEW'' DDL_HASH, REPLACE(SUMMARY,''APP_NAME'',''' || :APP_NAME || ''') SUMMARY, SAMPLE_DATA_TEXT, LAST_CRAWLED_TIMESTAMP, CRAWL_STATUS, ROLE_USED_FOR_CRAWL, EMBEDDING 
+ FROM SHARED_HARVEST.HARVEST_RESULTS WHERE DATABASE_NAME = ''APP_NAME'' AND SCHEMA_NAME IN (''BASEBALL'', ''FORMULA_1'')';
+        END IF;      
+      END IF;
     END IF;
 
 END;
 :::
 ;
 
-CALL APP.UPGRADE_SERVICE('APP1','GENESISAPP_SERVICE_SERVICE');
-CALL APP.UPGRADE_SERVICE('APP1','GENESISAPP_HARVESTER_SERVICE');
+-- upgrades service service plus will update harvest_results shared metadtata
+CALL APP.UPGRADE_APP('APP1','GENESISAPP_SERVICE_SERVICE', TRUE, CURRENT_DATABASE());
+-- upgrades harvester services, but will not update harvest results again
+CALL APP.UPGRADE_APP('APP1','GENESISAPP_HARVESTER_SERVICE', FALSE, CURRENT_DATABASE());
 
 --        secrets:
 --         - snowflakeSecret: APP_LOCAL_DB.EGRESS.OPENAI_API_KEY
@@ -2182,40 +2256,6 @@ AS
 GRANT USAGE ON PROCEDURE CORE.RUN_ARBITRARY(VARCHAR) TO APPLICATION ROLE app_public;
 
 
-CREATE OR REPLACE PROCEDURE CORE.GENERATE_APP_SHARED_VIEWS(SCHEMA_NAME VARCHAR)
-RETURNS STRING
-LANGUAGE SQL
-AS
-:::
-DECLARE
-    view_name STRING;
-    new_view_name STRING;
-    create_view_query STRING;
-    grant_query STRING;
-    result STRING;
-BEGIN
-
-    EXECUTE IMMEDIATE 'CREATE SCHEMA IF NOT EXISTS ' || :SCHEMA_NAME || ';';
-    EXECUTE IMMEDIATE 'GRANT USAGE ON SCHEMA ' || :SCHEMA_NAME || ' TO APPLICATION ROLE app_public;';
-
-  LET view_cursor CURSOR FOR SELECT RTRIM(TABLE_SCHEMA,'_SHARED') || '.' || TABLE_NAME NEW_VIEW_NAME, TABLE_SCHEMA || '.' || TABLE_NAME VIEW_NAME FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE_SCHEMA = ?;
-  OPEN view_cursor USING(:SCHEMA_NAME || '_SHARED');
-  
-  FOR view_record IN view_cursor DO
-    view_name := view_record.view_name;
-    new_view_name := view_record.new_view_name;
-    create_view_query := 'CREATE OR REPLACE VIEW ' || new_view_name || ' AS SELECT * FROM ' || view_name || ';';
-    grant_query := 'GRANT SELECT ON VIEW ' || new_view_name || ' TO APPLICATION ROLE APP_PUBLIC;';
-    EXECUTE IMMEDIATE create_view_query;
-    EXECUTE IMMEDIATE grant_query;
-    result := result || 'Executed: ' || grant_query || CHAR(10) || 'Executed: ' || create_view_query || CHAR(10);
-  END FOR;
-    
-    RETURN 'Shared views created successfully.';
-END;
-::: 
-;
-
 
 
 $$,':::','$$') VALUE;
@@ -2242,6 +2282,7 @@ USE SCHEMA GENESISAPP_APP_PKG_EXT.CODE_SCHEMA;
 
 
 -- ########## BEGIN UPLOAD FILES TO APP STAGE ############################
+select * from script;
 
 
 rm @app_code_stage;
@@ -2641,7 +2682,7 @@ DROP APPLICATION IF EXISTS GENESISAPP_APP;
 SET APP_DATABASE='GENESISAPP_APP';
 
 
-CREATE APPLICATION GENESISAPP_APP FROM APPLICATION PACKAGE GENESISAPP_APP_PKG_EXT USING VERSION V0_1;
+CREATE APPLICATION GENESISAPP_APP FROM APPLICATION PACKAGE GENESISAPP_APP_PKG USING VERSION V0_1;
 
 
 create or replace database genesisapp_local_db;
@@ -2831,7 +2872,7 @@ DECLARE
  APP_LOCAL_EAI := (:APP_DATABASE||'_EAI')::VARCHAR;
 BEGIN
  BEGIN
-   CREATE APPLICATION GENESISAPP_APP FROM APPLICATION PACKAGE GENESISAPP_APP_PKG_EXT USING VERSION V0_1;
+   CREATE APPLICATION GENESISAPP_APP FROM APPLICATION PACKAGE GENESISAPP_APP_PKG USING VERSION V0_1;
  EXCEPTION
    WHEN OTHER THEN
      BEGIN
@@ -2845,7 +2886,7 @@ BEGIN
      EXCEPTION
        WHEN OTHER THEN
          DROP APPLICATION IF EXISTS GENESISAPP_APP;
-         CREATE APPLICATION GENESISAPP_APP FROM APPLICATION PACKAGE GENESISAPP_APP_PKG_EXT USING VERSION V0_1;
+         CREATE APPLICATION GENESISAPP_APP FROM APPLICATION PACKAGE GENESISAPP_APP_PKG USING VERSION V0_1;
      END;
  END;
 
@@ -2925,8 +2966,6 @@ call genesisapp_app.core.get_app_endpoint('APP1');
 
 
 -- ##### BEGIN CREATE/PATCH TEST APP (DO NOT REBUILD THE APP)  ###########
-SHOW VERSIONS IN APPLICATION PACKAGE GENESISAPP_APP_PKG_EXT;
-
 
 
 DECLARE
@@ -2956,6 +2995,8 @@ ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG_EXT
 
 select $APP_DISTRIBUTION;
   
+SHOW VERSIONS IN APPLICATION PACKAGE GENESISAPP_APP_PKG_EXT;
+
 
 DECLARE
  max_patch VARCHAR;

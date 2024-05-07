@@ -17,23 +17,24 @@ import re
 meta_lock =  threading.Lock()
 thread_ts_dict = {} 
 uniq = random.randint(100000, 999999)
-print("     *     ")
-print("    ***    ")
-print("   *****   ")
-print("  *******  ")
-print(" ********* ")
-print("***********")
-print("     *     ")
-print("     *     ")
-print("     *     ")
-print("     *     ")
-print("     *     ")
-print("     *     ")
-print("     *     ")
-print("     *     ")
-print(f"NEW INSTANCE!!!! --->    {uniq}   ")
 
-
+print("     [-------]     ")
+print("    [         ]    ")
+print("   [  0   0  ]   ")
+print("  [    ---    ]  ")
+print(" [______] ")
+print("     /     \\     ")
+print("    /|  o  |\\    ")
+print("   / |____| \\   ")
+print("      |  |       ")
+print("      |  |       ")
+print("     /    \\      ")
+print("    /      \\     ")
+print("   /        \\    ")
+print("  G E N E S I S ")
+print("    B o t O S")
+print("")
+print(f"Instantiation Code--->{uniq}")
 
 class SlackBotAdapter(BotOsInputAdapter):
 
@@ -178,7 +179,7 @@ class SlackBotAdapter(BotOsInputAdapter):
         thread_ts = event.get('thread_ts', event.get('ts', ''))
         channel_type = event.get('channel_type', '')
         
-        print(f"{uniq} {self.bot_name}-Looking for {(self.bot_user_id, thread_ts)}-Is in? {(self.bot_user_id, thread_ts) in thread_ts_dict}-Current keys in thread_ts_dict:", thread_ts_dict.keys())
+        #print(f"{uniq} {self.bot_name}-Looking for {(self.bot_user_id, thread_ts)}-Is in? {(self.bot_user_id, thread_ts) in thread_ts_dict}-Current keys in thread_ts_dict:", thread_ts_dict.keys())
         tag = f"<@{self.bot_user_id}>" in msg
         indic = (self.bot_user_id, thread_ts) in thread_ts_dict
         dmcheck = (channel_type == 'im' and msg != '')
@@ -187,13 +188,13 @@ class SlackBotAdapter(BotOsInputAdapter):
 #        if f"<@{self.bot_user_id}>" in msg or thread_ts in self.thread_ts_dict or (channel_type == 'im' and msg != ''):
             active_thread = True
             if (self.bot_user_id,thread_ts) not in thread_ts_dict:
-                print(f'{uniq}     --ENGAGE/ADD>  Adding {thread_ts} to dict', flush=True)
+           #     print(f'{uniq}     --ENGAGE/ADD>  Adding {thread_ts} to dict', flush=True)
                 with meta_lock:
                     thread_ts_dict[self.bot_user_id,thread_ts] = {"event": event, "thread_id": None}
-                print(f"{uniq} {self.bot_name}-ADDED-Now is {(self.bot_user_id,thread_ts)} in??-Is in? {(self.bot_user_id,thread_ts) in thread_ts_dict}-Current keys in thread_ts_dict:", thread_ts_dict.keys(),flush=True)
+            #    print(f"{uniq} {self.bot_name}-ADDED-Now is {(self.bot_user_id,thread_ts)} in??-Is in? {(self.bot_user_id,thread_ts) in thread_ts_dict}-Current keys in thread_ts_dict:", thread_ts_dict.keys(),flush=True)
 
-            else:
-                print(f'{uniq}     --ENGAGE/EXISTING>  {thread_ts} already in dict', flush=True)
+         #   else:
+             #   print(f'{uniq}     --ENGAGE/EXISTING>  {thread_ts} already in dict', flush=True)
 
         if active_thread is False:
             # public channel, not flagged yet in thread

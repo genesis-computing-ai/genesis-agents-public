@@ -968,7 +968,7 @@ VALUE_LIST = ('api.openai.com', 'slack.com', 'www.slack.com', 'wss-primary.slack
 CREATE OR REPLACE EXTERNAL ACCESS INTEGRATION GENESIS_EAI
    ALLOWED_NETWORK_RULES = (GENESIS_LOCAL_DB.SETTINGS.GENESIS_RULE) ENABLED = true;
 
--- TEMPORARY: This is needed until st.chat works in SiS, planned for April 18-19, then this can be removed
+-- This allows Slack to callback into the Genbots service to active new Genbots on Slack
 GRANT BIND SERVICE ENDPOINT ON ACCOUNT TO APPLICATION  IDENTIFIER($APP_DATABASE); 
 
 -- grant Genesis Server the ability to use this external access integration

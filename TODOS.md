@@ -16,8 +16,14 @@ THINGS TO TEST:
 (test) Make sure harvester works ok with mixed case table and database and schema names (and system in general)
 (test) harvester dont crash if cant access schemas for a database listed in control file
 (test) MR-Add SNOWFLAKE harvest account usage etc to the pre-harvest feed into the app 
+(test) US East 2 - is it ok ?
 
 SHORT-TERM:
+!! Share on East2, see if its working in the AM, then share to Chris 
+!! FIGURE OUT slowdown of whole system when harvester runs.. make it single threaded, with delays?
+When you send a message to a thread that's already running, queue it up and don't submit another, then consolidate all of them when its ready and send them all at once once the run is done.
+Something blocks the thinking messages or bolt app when doing image analysis and/or file generation/upload to Slack
+Check this function execute_function - _get_visible_tables - {"database":"my_data","schema":"public"}
 Share bot images thru app, add instructions to apply them to the user
 Autogenerate images for new bots, add instructions to the user to apply them when getting the tokens
 Make slack active thing only apply to new bot creation, dont block activation of existing bots
@@ -36,8 +42,8 @@ JL-Why harvester slows down bots, needs bigger pool? why do bots go unresponsive
 (soon) Add undeploy from Slack button on bot config
 (soon) make sure endpoint is not the empty message, if so wait until its provisioned before updating any callback URLS, if there are any bots that needs them
 (soon) fix wait spinner on api key page
-(soon) Make the thinking message go away when a bot decides not to respond
 (soon) Add a sevice restart button to SiS
+(soon) Add a message to the top of the SisChat page suggesting activating via slack, via a temp workspace
 (later) if you change slack token via streamlit, have it relaunch bots (or activate them any time they have a token even is slack is off)
 (later) Make thread map save to local database to survive container restart 
 (later) block metadata app1 from user query 
@@ -125,6 +131,7 @@ Add a mechanism for license control based on current_account()... share a table 
     Have a trial period where you can use it in trial mode before it goes into limited mode
 
 DONE:
+x Make the thinking message go away when a bot decides not to respond
 x Change to Slack's new approach for file uploading
 x redo vision chat analysis with new vision API and move the function
 x add files list to bot configurations page in SiS

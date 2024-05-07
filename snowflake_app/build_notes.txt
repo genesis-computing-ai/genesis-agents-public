@@ -21,3 +21,9 @@ docker push dshrnxx-genesis.registry.snowflakecomputing.com/genesisapp_master/co
 docker build --rm -t genesis_app:latest --platform linux/amd64 .
 docker tag genesis_app:latest dshrnxx-genesis-east-pro.registry.snowflakecomputing.com/genesisapp_master/code_schema/service_repo/genesis_app:latest
 docker push dshrnxx-genesis-east-pro.registry.snowflakecomputing.com/genesisapp_master/code_schema/service_repo/genesis_app:latest
+
+// natapp east2 - ohio
+
+docker build --rm -t genesis_app:latest --platform linux/amd64 .
+docker tag genesis_app:latest dshrnxx-genesiseast2-provider.registry.snowflakecomputing.com/genesisapp_master/code_schema/service_repo/genesis_app:latest
+docker push dshrnxx-genesiseast2-provider.registry.snowflakecomputing.com/genesisapp_master/code_schema/service_repo/genesis_app:latest

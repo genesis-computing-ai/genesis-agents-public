@@ -1,7 +1,7 @@
 import streamlit as st
 import os, json
 
-app_name = 'GENESIS_BOTS_ALPHA'
+app_name = 'GENESIS_BOTS'
 prefix = app_name+'.app1'
 core_prefix = app_name+'.CORE'
 
@@ -1104,7 +1104,7 @@ def start_stop():
         st.session_state.wh_name  = '<your warehouse name>'
 
     st.write('You can use the below commands in a worksheet to stop, start, and monitor the Gensis Server:')
-    start_stop_text = f'''USE DATABASE IDENTIFIER("{app_name}");
+    start_stop_text = f'''USE DATABASE IDENTIFIER('{app_name}');
 
 // pause service
 
@@ -1114,7 +1114,7 @@ alter compute pool GENESIS_POOL SUSPEND; -- to also pause the compute pool
 // resume service
 
 alter compute pool GENESIS_POOL RESUME; -- if you paused the compute pool
-call {app_name}.core.start_app_instance('APP1'); 
+call {app_name}.core.start_app_instance('APP1','GENESIS_POOL','GENESIS_EAI','{st.session_state.wh_name}'); 
 
 // check service
 

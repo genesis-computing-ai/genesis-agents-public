@@ -11,6 +11,7 @@ from core.bot_os_input import BotOsInputAdapter, BotOsInputMessage, BotOsOutputM
 logger = logging.getLogger(__name__)
 import threading
 import random
+import re
 
 # module level 
 meta_lock =  threading.Lock()
@@ -243,17 +244,29 @@ class SlackBotAdapter(BotOsInputAdapter):
     
     def _upload_files(self, files:list[str], thread_ts:str, channel:str):
         if files:
+            file_urls = []
             for file_path in files:
                 try:
-                    with open(file_path, 'rb') as file_content:
-                        self.slack_app.client.files_upload(
-                            channels=channel,
-                            thread_ts=thread_ts,
-                            file=file_content,
-                            filename=os.path.basename(file_path)
-                        )
+                 #   with open(file_path, 'rb') as file_content:
+                      #  self.slack_app.client.files_upload(
+                      #      channels=channel,
+                      #      thread_ts=thread_ts,
+                      #      file=file_content,
+                      #      filename=os.path.basename(file_path)
+                      #  )
+                    new_file = self.slack_app.client.files_upload_v2(
+                        title=os.path.basename(file_path),
+                        filename=os.path.basename(file_path),
+                        file=file_path,
+                    )
+                    file_url = new_file.get("file").get("permalink")
+                    file_urls.append(file_url)
                 except Exception as e:
-                    logger.error(f"Error uploading file {file_path} to Slack: {e}")
+                    print(f"Error uploading file {file_path} to Slack: {e}")
+            return file_urls
+        else:
+            return []
+
 
     # abstract method from BotOsInputAdapter
     def handle_response(self, session_id:str, message:BotOsOutputMessage, in_thread=None, in_uuid=None):
@@ -273,12 +286,26 @@ class SlackBotAdapter(BotOsInputAdapter):
             print("Bot has indicated that no response will be posted to this thread.")
         else:
             try:
+
                 thread_ts = message.input_metadata.get("thread_ts", None)
-                self._upload_files(message.files, thread_ts=thread_ts, channel=message.input_metadata.get("channel", self.channel_id))
+                msg_files = self._upload_files(message.files, thread_ts=thread_ts, channel=message.input_metadata.get("channel", self.channel_id))
+
+                msg = message.output
+                for msg_url in msg_files:
+                    filename = msg_url.split('/')[-1]
+                    msg_prime = msg
+                    msg = re.sub(f"(?i)\(sandbox:/mnt/data/{filename}\)", f"<{{msg_url}}>", msg)
+                    msg = msg.replace('{msg_url}',msg_url)
+                    msg = msg.replace('[Download ','[')
+                    if msg == msg_prime:
+                        msg += ' {'+msg_url+'}'
+                # Reformat the message if it contains a link in brackets followed by a URL in angle brackets
+                link_pattern = re.compile(r'\[(.*?)\]<(.+?)>')
+                msg = re.sub(link_pattern, r'<\2|\1>', msg)
                 result = self.slack_app.client.chat_postMessage(
                     channel=message.input_metadata.get("channel", self.channel_id),
                     thread_ts=thread_ts,
-                    text=message.output
+                    text=msg 
                 )
                 # Utility function handles file uploads and logs errors internally
                 if thread_ts is not None:

@@ -15,13 +15,15 @@ THINGS TO TEST:
 (test) add Spider baseball and f1 schemas as share-thru app w/pre-made harvest results for demo data on start
 (test) Make sure harvester works ok with mixed case table and database and schema names (and system in general)
 (test) harvester dont crash if cant access schemas for a database listed in control file
+(test) MR-Add SNOWFLAKE harvest account usage etc to the pre-harvest feed into the app 
 
 SHORT-TERM:
+Share bot images thru app, add instructions to apply them to the user
+Autogenerate images for new bots, add instructions to the user to apply them when getting the tokens
+Make slack active thing only apply to new bot creation, dont block activation of existing bots
 Consider other uses of class level variables--the snowflake session for example, the annoy index, etc.
 MR - Recreate services if they are missing during a START_APP_INSTANCE call
 JL - move annoy index 180sec check to the outer server loop vs per bot 
-x JL-redo vision chat analysis with new vision API and move the function
-MR-Add SNOWFLAKE harvest account usage etc to the pre-harvest feed into the app 
 JL-Why harvester slows down bots, needs bigger pool? why do bots go unresponsive?
 (soon) add tab to see chat logs from messages table
 (soon) Harvest semantic models and return in get_metadata dynamically
@@ -123,6 +125,8 @@ Add a mechanism for license control based on current_account()... share a table 
     Have a trial period where you can use it in trial mode before it goes into limited mode
 
 DONE:
+x Change to Slack's new approach for file uploading
+x redo vision chat analysis with new vision API and move the function
 x add files list to bot configurations page in SiS
 x add instructions to data granting on how to grant from a shared database
 x Bot_upgrade instructions make it work

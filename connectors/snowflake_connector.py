@@ -2490,8 +2490,7 @@ class SnowflakeConnector(DatabaseConnector):
 
             if '/' in file_name:
                 file_name = file_name.split('/')[-1]
-            file_name = re.sub(r'[^\w\s-]', '', file_name.replace(' ', '_'))
-
+            file_name = re.sub(r'[^\w\s\.-]', '', file_name.replace(' ', '_'))
             if '/' in openai_file_id:
                 openai_file_id = openai_file_id.split('/')[-1]
 

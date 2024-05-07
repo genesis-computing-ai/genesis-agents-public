@@ -3,20 +3,22 @@ import glob
 import os
 from snowflake.connector import connect
 
-
 def _create_connection():
-    account = os.getenv('SNOWFLAKE_ACCOUNT_OVERRIDE')
-    user = os.getenv('SNOWFLAKE_USER_OVERRIDE')
-    password = os.getenv('SNOWFLAKE_PASSWORD_OVERRIDE')
-    database = os.getenv('SNOWFLAKE_DATABASE_OVERRIDE', None)
-    warehouse = os.getenv('SNOWFLAKE_WAREHOUSE_OVERRIDE', None)
-    role = os.getenv('SNOWFLAKE_ROLE_OVERRIDE', None)
+    account = os.getenv('SNOWFLAKE_ACCOUNT_OVERRIDE_E')
+    user = os.getenv('SNOWFLAKE_USER_OVERRIDE_E')
+    host = 'fm01908.us-east-2.aws.snowflakecomputing.com'
+# east1-    host = 'vyb73862.us-east-1.snowflakecomputing.com'
+    password = os.getenv('SNOWFLAKE_PASSWORD_OVERRIDE_E')
+    database = os.getenv('SNOWFLAKE_DATABASE_OVERRIDE_E', None)
+    warehouse = os.getenv('SNOWFLAKE_WAREHOUSE_OVERRIDE_E', None)
+    role = os.getenv('SNOWFLAKE_ROLE_OVERRIDE_E', None)
 
     return connect(
         user=user,
         password=password,
         account=account,
         warehouse=warehouse,
+        host=host,
         database=database,
         role=role
     ) 
@@ -101,8 +103,8 @@ def sqlite_to_bigquery(sqlite_file_path, bigquery_dataset_id):
  
         create_table_sql = f"CREATE TABLE IF NOT EXISTS SPIDER_DATA.{bigquery_dataset_id}.{table_name} ({column_definitions})"
         try:
-            if table_name != 'pitstops' and table_name != 'circuits':
-                continue
+          #  if table_name != 'team' and table_name != 'all_star':
+          #      continue
 
             snowflake_client.cursor().execute(create_table_sql)
             cursor.execute(f"SELECT * FROM {table_name}")
@@ -147,7 +149,7 @@ def process_sqlite_files( folder_path):
     for sqlite_file_path in glob.glob(f"{folder_path}/**/*.sqlite", recursive=True):
         filename_without_extension = os.path.splitext(os.path.basename(sqlite_file_path))[0]
         bigquery_dataset_id = filename_without_extension.lower()
-        if bigquery_dataset_id == 'formula_1':
+        if bigquery_dataset_id == 'baseball' or bigquery_dataset_id=='formula_1':
             print(f"Processing file: {sqlite_file_path} with dataset ID: {bigquery_dataset_id}")
             sqlite_to_bigquery( sqlite_file_path, bigquery_dataset_id)
 

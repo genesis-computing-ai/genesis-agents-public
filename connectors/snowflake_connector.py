@@ -1342,7 +1342,7 @@ class SnowflakeConnector(DatabaseConnector):
             cursor = self.client.cursor()
             cursor.execute(query)
             result = cursor.fetchone()
-            return result
+            return result[0]
         else:
             return 'a required parameter was not entered'
 

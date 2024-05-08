@@ -21,6 +21,7 @@ from streamlit_gui.udf_proxy_bot_os_adapter import UDFBotOsInputAdapter
 from llm_reka.bot_os_reka import BotOsAssistantReka
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
+from apscheduler.executors.pool import ThreadPoolExecutor
 import threading
 
 # for Cortex testing
@@ -34,8 +35,8 @@ logging.basicConfig(level=logging.WARN, format='%(asctime)s - %(levelname)s - %(
 
 import core.global_flags as global_flags
 
-print("****** GENBOT VERSION 0.114 *******")
-logger.warning('******* GENBOT VERSION 0.114*******')
+print("****** GENBOT VERSION 0.115 *******")
+logger.warning('******* GENBOT VERSION 0.115*******')
 
 runner_id = os.getenv('RUNNER_ID','jl-local-runner')
 print("Runner ID: ", runner_id )
@@ -241,7 +242,7 @@ def make_session(bot_config):
                                     thread_id=session.create_thread(slack_adapter_local))
     api_app_id = bot_config['api_app_id']  # Adjust based on actual field name in bots_config
 
-    print('here: session: ',session)
+   # print('here: session: ',session)
     return session, api_app_id, udf_adapter_local, slack_adapter_local
 
 
@@ -807,9 +808,10 @@ def configure_llm():
     return response_var
 
 
-
+#scheduler = BackgroundScheduler(executors={'default': ThreadPoolExecutor(max_workers=100)})
 scheduler = BackgroundScheduler({'apscheduler.job_defaults.max_instances': 100, 'apscheduler.job_defaults.coalesce': True})
-
+# Retrieve the number of currently running jobs in the scheduler
+# Code to clear any threads that are stuck or crashed from BackgroundScheduler
 server = None
 if llm_api_key is not None:
     server = BotOsServer(app, sessions=sessions, scheduler=scheduler, scheduler_seoconds_interval=1) 

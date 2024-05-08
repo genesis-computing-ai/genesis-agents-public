@@ -159,23 +159,33 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         try:
             cursor = self.client.connection.cursor()
             new_timestamp = datetime.datetime.now()
-            def default_converter(o):
-                if isinstance(o, Decimal):
-                    return float(o)  # Convert Decimal to float for JSON serialization
-                elif isinstance(o, datetime):
-                    return o.isoformat()
-                raise TypeError(f"Object of type {o.__class__.__name__} is not JSON serializable")
-            results_str = json.dumps(results, default=default_converter, indent=2)
-            cursor.execute(insert_query, (new_timestamp, self.bot_id, self.bot_name, thread_id, "Tool Response", results_str,
-                                          message_metadata))
-            self.client.connection.commit()
+            try:
+                def default_converter(o):
+                    if isinstance(o, Decimal):
+                        return float(o)  # Convert Decimal to float for JSON serialization
+                    elif isinstance(o, datetime):
+                        return o.isoformat()
+                    raise TypeError(f"Object of type {o.__class__.__name__} is not JSON serializable")
+                results_str = json.dumps(results, default=default_converter, indent=2)
+                cursor.execute(insert_query, (new_timestamp, self.bot_id, self.bot_name, thread_id, "Tool Response", results_str, message_metadata))
+                self.client.connection.commit()
+            except Exception as e:
+                print('Cortex submit tool output, default_converter or insert error: {e}')
+                try:
+                    results_str = json.dumps(results, indent=2)
+                    cursor.execute(insert_query, (new_timestamp, self.bot_id, self.bot_name, thread_id, "Tool Response", results_str, message_metadata))
+                    self.client.connection.commit()
+                except Exception as e:
+                    print('Cortex submit tool output, simple insert error: {e}')
+ 
             threading.Thread(target=self.update_threads, args=(thread_id, new_timestamp)).start()
             #self.active_runs.append({"thread_id": thread_id, "timestamp": new_timestamp})
 
             logger.info(f"Successfully inserted tool call results for Thread ID {thread_id} and Tool Call ID {new_timestamp} old: {timestamp}")
         except Exception as e:
             logger.error(f"Failed to insert tool call results for Thread ID {thread_id} and Tool Call ID {timestamp}: {e}")
-            self.client.connection.rollback()
+           # JL - I think this may be causing thread locking issues
+           # self.client.connection.rollback()
 
     def _generate_callback_closure(self, thread_id, timestamp, message_metadata):
       def callback_closure(func_response):  # FixMe: need to break out as a generate closure so tool_call_id isn't copied

@@ -6,6 +6,12 @@ from connectors.snowflake_connector import SnowflakeConnector
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.events import EVENT_JOB_ERROR, EVENT_JOB_EXECUTED
 from bot_genesis.make_baby_bot import get_slack_config_tokens, rotate_slack_token
+from apscheduler.job import Job
+from concurrent.futures import ThreadPoolExecutor
+from apscheduler.executors.pool import ThreadPoolExecutor
+import time
+import threading
+
 
 import logging
 logger = logging.getLogger(__name__)
@@ -19,16 +25,17 @@ def _job_listener(event):
 
 class BotOsServer:
 
+    run_count=0
     
     def __init__(self, flask_app:Flask, sessions:list[BotOsSession], scheduler:BackgroundScheduler, 
-                 scheduler_seoconds_interval=5, slack_active=False
+                 scheduler_seoconds_interval=2, slack_active=False
                  ): 
         logger.debug(f"BotOsServer:__iniit__ creating server {flask_app.name}")
         self.app       = flask_app
         self.sessions   = sessions
         self.scheduler = scheduler
         
-        self.scheduler.add_job(self._execute_session, 'interval', coalesce=True, seconds=scheduler_seoconds_interval)
+        self.job = self.scheduler.add_job(self._execute_session, 'interval', coalesce=True, seconds=scheduler_seoconds_interval, id='bots')
         self.scheduler.add_listener(_job_listener, EVENT_JOB_EXECUTED | EVENT_JOB_ERROR)
         self.slack_active = slack_active
         self.last_slack_token_rotate_time = datetime.datetime.now()
@@ -80,11 +87,39 @@ class BotOsServer:
         print(f"     New Slack token: {tok[:8]}...{tok[-8:]}")
         print(f"     New Slack refresh token: {ref[:8]}...{ref[-8:]}")
 
-    # JL_TODO move annoy check to here 
+
+    def get_running_instances(self):
+        executor = self.scheduler._lookup_executor('default')
+        running_jobs = executor._instances['bots']
+        return running_jobs
+
     def _execute_session(self):
+ 
+        BotOsServer.run_count += 1
+        if (BotOsServer.run_count >= 90):
+            BotOsServer.run_count = 0
+            insts = self.get_running_instances()
+
+            print(f"-=-=- Scheduler instances: {insts} / 100")
+            #self.clear_stuck_jobs(self.scheduler)
+            if insts >= 3:
+                print("=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-")
+                print(f"-!! Scheduler worker INSTANCES >= 90 at {insts} ... Clearing All Instances")
+                print("=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-")
+                # Shut down the scheduler and terminate all jobs
+                #self.scheduler.shutdown(wait=False)
+                self.scheduler.remove_all_jobs()
+                self.job = self.scheduler.add_job(self._execute_session, 'interval', coalesce=True, seconds=1, id='bots')
+                print("Scheduler restarted the job. All existing instances have been terminated.")
+
+                # Restart the scheduler
+                #self.scheduler.start()
+                print("Scheduler has been restarted.")
+                insts = self.get_running_instances()
+                print(f"-=-=- Scheduler instances: {insts} / 100")
         for s in self.sessions:
             try:
-                import threading
+                #import threading
            #     print(f"Thread ID: {threading.get_ident()} - starting execute cycle...")
                 s.execute()
            #     print(f"Thread ID: {threading.get_ident()} - ending execute cycle...")

@@ -1140,6 +1140,22 @@ CALL {app_name}.CORE.INITIALIZE_APP_INSTANCE('APP1','GENESIS_POOL','GENESIS_EAI'
 
 if SnowMode:
     try:
+        status_query = f"select v.value:status::varchar status from (select parse_json(system$get_service_status('{prefix}.GENESISAPP_SERVICE_SERVICE'))) t, lateral flatten(input => t.$1) v"
+        service_status_result = session.sql(status_query).collect()
+        if service_status_result[0][0] != 'READY':
+            with st.spinner('Waiting on Genesis Services to start...'):
+                service_status = st.empty()
+                while True:
+                    service_status_result = session.sql(status_query).collect()
+                    service_status.text('Genesis Service status: ' + service_status_result[0][0])
+                    if service_status_result[0][0] == 'READY':
+                        service_status.text('')
+                        break 
+                    time.sleep(10)        
+
+        sql = f"select {prefix}.list_available_bots() "
+        data = session.sql(sql).collect()
+
         sql = f"select {prefix}.list_available_bots() "
         data = session.sql(sql).collect()
     except Exception as e:

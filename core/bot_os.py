@@ -194,7 +194,7 @@ class BotOsSession:
             txt = output_message.output[:50]
             if len(txt) == 50:
                 txt += '...'
-            print(f'{self.bot_name} bot_os response: {txt}')
+            print(f'{self.bot_name} bot_os response: {txt}', flush=True)
         thread.handle_response(session_id, output_message )
 
     def execute(self):

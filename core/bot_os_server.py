@@ -116,7 +116,7 @@ class BotOsServer:
                 #self.scheduler.start()
                 print("Scheduler has been restarted.")
                 insts = self.get_running_instances()
-                print(f"-=-=- Scheduler instances: {insts} / 100")
+                print(f"-=-=- Scheduler instances: {insts} / 100", flush=True)
         for s in self.sessions:
             try:
                 #import threading

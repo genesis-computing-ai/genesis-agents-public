@@ -1434,7 +1434,7 @@ class SnowflakeConnector(DatabaseConnector):
                 snowflake_token =  f.read()
             logger.info('SPCS Snowflake token found, length: %d', len(snowflake_token))
             self.token_connection = True
-            logger.warn('Snowflake token mode (SPCS)...') 
+         #   logger.warn('Snowflake token mode (SPCS)...') 
             if os.getenv('SNOWFLAKE_SECURE', 'TRUE').upper() == 'FALSE': 
                 logger.info('insecure mode')
                 return connect(
@@ -1824,7 +1824,7 @@ class SnowflakeConnector(DatabaseConnector):
             FROM {self.genbot_internal_project_and_schema}.llm_tokens
             WHERE runner_id = %s
         """
-        print('query = ',query)
+        #print('query = ',query)
         logger.info(f"query: {query}")
         try:
             cursor = self.connection.cursor()
@@ -1835,8 +1835,8 @@ class SnowflakeConnector(DatabaseConnector):
 
             if result:
                 llm_key, llm_type = result
-                logger.info(f"returning llm key and type: key: {llm_key} ' type {llm_type}")
-                print('returning llm key and type: key:',llm_key, ' type:',llm_type )
+               # logger.info(f"returning llm key and type: key: {llm_key} ' type {llm_type}")
+                print('returning llm key and type: key and type:',llm_type )
                 return llm_key, llm_type
             else:
                 # Log an error if no LLM key was found for the runner_id

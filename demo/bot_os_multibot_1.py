@@ -35,8 +35,8 @@ logging.basicConfig(level=logging.WARN, format='%(asctime)s - %(levelname)s - %(
 
 import core.global_flags as global_flags
 
-print("****** GENBOT VERSION 0.115 *******")
-logger.warning('******* GENBOT VERSION 0.115*******')
+print("****** GENBOT VERSION 0.116 *******")
+logger.warning('******* GENBOT VERSION 0.116*******')
 
 runner_id = os.getenv('RUNNER_ID','jl-local-runner')
 print("Runner ID: ", runner_id )
@@ -222,6 +222,7 @@ def make_session(bot_config):
                             log_db_connector=db_adapter, # Ensure connection_info is defined or fetched appropriately
                             # tools=slack_tools + integration_tool_descriptions + [TOOL_FUNCTION_DESCRIPTION_WEBPAGE_DOWNLOADER],
                             tools = tools,
+                            bot_name = bot_config["bot_name"],
                             available_functions=available_functions,
                             all_tools = all_tools,
                             all_functions = all_functions,

@@ -96,13 +96,13 @@ class BotOsServer:
     def _execute_session(self):
  
         BotOsServer.run_count += 1
-        if (BotOsServer.run_count >= 90):
+        if (BotOsServer.run_count >= 60):
             BotOsServer.run_count = 0
             insts = self.get_running_instances()
 
-            print(f"-=-=- Scheduler instances: {insts} / 100")
+            print(f"--- {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} bot_os_server runners: {insts} / max 100")
             #self.clear_stuck_jobs(self.scheduler)
-            if insts >= 3:
+            if insts >= 90:
                 print("=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-")
                 print(f"-!! Scheduler worker INSTANCES >= 90 at {insts} ... Clearing All Instances")
                 print("=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-")

@@ -65,7 +65,11 @@ class SlackBotAdapter(BotOsInputAdapter):
             # Define Slack event handlers
             @self.slack_socket.event("message")
             def handle_message_events(event, say):
-                print(f'event type: {event.get("type","no type")}, text: {event.get("text","no text")}')
+                txt = event.get("text","no text")[:30]
+                if len(txt) == 50:
+                    txt = txt + "..."
+                if txt != 'no text' and txt != '_thinking..._':
+                    print(f'{self.bot_name} slack_in {event.get("type","no type")[:50]}, text: {txt}, queue len {len(self.events)+1}')
                 if self.bot_user_id == event.get("user","NO_USER"):
                     self.last_message_id_dict[event.get("thread_ts",None)] = event.get("ts",None)
                 if event.get("text","no text") != '_thinking..._' and self.bot_user_id != event.get("user","NO_USER") and event.get("subtype","none") != 'message_changed' and event.get("subtype","none") != 'message_deleted':
@@ -95,7 +99,7 @@ class SlackBotAdapter(BotOsInputAdapter):
     def handle_message_events_old(self, event, context, say, logger):
         logger.info(event)  # Log the event data (optional)
         text = event.get('text', '')
-        print('AT HANDLE MESSAGE EVENTS???')
+       #print('AT HANDLE MESSAGE EVENTS???')
         logger.debug(f"SlackBotAdapter:handle_message_events - {text}")
         thread_ts = event.get('thread_ts', event.get('ts', ''))
         channel_type = event.get('channel_type', '')
@@ -183,9 +187,11 @@ class SlackBotAdapter(BotOsInputAdapter):
         tag = f"<@{self.bot_user_id}>" in msg
         indic = (self.bot_user_id, thread_ts) in thread_ts_dict
         dmcheck = (channel_type == 'im' and msg != '')
-        print(f"{uniq} --> get_input for {self.bot_user_id}/{self.bot_name} msg30: {msg[:30]}... {tag},{indic},{dmcheck}", flush=True)
+        txt = msg[:50]
+        if len(txt) == 50:
+            txt += "..."
         if tag or indic or dmcheck:
-#        if f"<@{self.bot_user_id}>" in msg or thread_ts in self.thread_ts_dict or (channel_type == 'im' and msg != ''):
+            print(f"{self.bot_name} bot_os get_input txt: {txt} for {self.bot_user_id} {tag},{indic},{dmcheck}", flush=True)
             active_thread = True
             if (self.bot_user_id,thread_ts) not in thread_ts_dict:
            #     print(f'{uniq}     --ENGAGE/ADD>  Adding {thread_ts} to dict', flush=True)

@@ -95,7 +95,7 @@ class BotOsSession:
             self.available_functions = available_functions
         self.available_functions["_add_task"] = self.add_task
         self.available_functions["_mark_task_completed"] = self._mark_task_completed
-
+        self.bot_name = bot_name
         if all_tools is None:
             all_tools = []
         all_tools = all_tools + _BOT_OS_BUILTIN_TOOLS
@@ -171,9 +171,13 @@ class BotOsSession:
             self.threads[input_message.thread_id] = thread
         else:
             thread = self.threads[input_message.thread_id]
-        print(f"add_message: {self.bot_id} - {input_message.msg} size:{len(input_message.msg)}")
+        txt = input_message.msg[:50]
+        if len(txt) == 50:
+            txt += '...'
+        print(f"{self.bot_name} bot_os add_message txt: {txt}", flush=True)
+        #print(f"add_message: {self.bot_id} - {input_message.msg} size:{len(input_message.msg)}")
         thread.add_message(input_message)
-        logger.debug(f'added message {input_message.msg}')
+        #logger.debug(f'added message {input_message.msg}')
 
     def _validate_response(self, session_id:str, output_message:BotOsOutputMessage): #thread_id:str, status:str, output:str, messages:str, attachments:list):
         logger.debug(f"_validate_response: {session_id} {output_message}")
@@ -182,12 +186,15 @@ class BotOsSession:
         thread = self.threads[output_message.thread_id]
         if self.validation_instructions is not None and output_message.output.find("!COMPLETE") == -1 and output_message.output.find("!NEED_INPUT") == -1 and \
             output_message.output != '!COMPLETE' and output_message.output != '!NEED_INPUT':
-            print('****needs review: ',output_message.output)
+            print(f'{self.bot_id} ****needs review: ',output_message.output)
             self.next_messages.append(BotOsInputMessage(thread_id=output_message.thread_id, 
                                                         msg=self.validation_instructions + self._retrieve_memories(output_message.output), 
                                                         metadata=output_message.input_metadata))
         else:
-            print('****response: ',output_message.output)
+            txt = output_message.output[:50]
+            if len(txt) == 50:
+                txt += '...'
+            print(f'{self.bot_name} bot_os response: {txt}')
         thread.handle_response(session_id, output_message )
 
     def execute(self):

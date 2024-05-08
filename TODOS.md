@@ -7,7 +7,8 @@ DESIRED DEMOS:
 x Make Eliza demo video on baseball
 Make video of Snowflake janitorial work
 
-THINGS TO TEST:
+THINGS TO TEST:chr
+
 (test) adding stage tools to a bot with baby_bot_tools and see if instructions are updated with internal stage location
 (test) Add error checking for missing data or grants to harvester so it doesnt crash on that 
 (test) Eve deploy on fresh install complained about file types for null files, make sure deploy button works
@@ -17,6 +18,7 @@ x (test) make deploy to slack button in SiS app tell you to setup slack tokens f
 (test) harvester dont crash if cant access schemas for a database listed in control file
 
 SHORT-TERM:
+test - after putting in openai key you get sent to chat screen via button?
 JL- test bots while harvester is running 
 JL- (text) FIGURE OUT slowdown of whole system when harvester runs.. make it single threaded, with delays?
 JL- (test w/new sis) Streamlit after entry of openai key doesnt show Talk to Bots button 

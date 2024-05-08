@@ -207,7 +207,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
    def create_thread(self) -> str:
       logger.debug("BotOsAssistantOpenAI:create_thread") 
       thread_id = self.client.beta.threads.create().id
-      logger.warn(f"CREATED OPENAI THREAD -- ...  -> openai thread: {thread_id}")
+      print(f"{self.bot_name} openai new_thread -> {thread_id}")
       return thread_id
 
    def _upload_files(self, files, thread_id=None):
@@ -300,7 +300,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                )
             except:
                return
-      logger.debug(f"add_message - created {thread_message}")
+      #logger.debug(f"add_message - created {thread_message}")
       self.first_message = False 
       run = self.client.beta.threads.runs.create(
          thread_id=thread.id, assistant_id=self.assistant.id, metadata=input_message.metadata)
@@ -535,8 +535,8 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
             run = self.client.beta.threads.runs.retrieve(thread_id = thread_id, 
                                                       run_id = thread_run["run"])
-            logger.info(f"run.status {run.status} Thread: {thread_id}")
-            print("run.status ",run.status," thread id: ", thread_id, flush=True)
+            #logger.info(f"run.status {run.status} Thread: {thread_id}")
+            print(f"{self.bot_name} open_ai check_runs ",run.status," thread: ", thread_id, flush=True)
 
             if run.status == "in_progress":
                threads_still_pending.append(thread_id)

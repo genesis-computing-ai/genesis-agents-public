@@ -20,6 +20,7 @@ THINGS TO TEST:
 (test) MR - Recreate services if they are missing during a START_APP_INSTANCE call
 
 SHORT-TERM:
+Ask Eve to make a line chart and it sends back ImageFileContentBlock(image_file=ImageFile(file_id='file-kfWyFfbLNRk8R2lfnMhQwPEn'), type='image_file') which we dont handle right now        
 Add bot custom welcome messages on new chats in Streamlit
 SiS app will restart service is suspended (With pool) but doesnt wake up harvester, errors in SiS log harvest screen
 If app is restarting (pools etc) have Sis give a message and spinner saying that vs a blank screen, check SELECT SYSTEM$GET_SERVICE_STATUS('GENESISAPP_SERVICE_SERVICE');

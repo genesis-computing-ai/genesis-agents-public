@@ -67,7 +67,8 @@ def _get_future_datetime(delta_string:str) -> datetime.datetime:
         return future_datetime
 
 class BotOsSession:
-
+    last_annoy_refresh = datetime.datetime.now() 
+    refresh_lock = False
     def __init__(self, session_name: str, instructions=None, 
                  validation_instructions=None,
                  tools=None, available_functions=None, 
@@ -128,8 +129,6 @@ class BotOsSession:
         self.knowledge_impl = knowledgebase_implementation
         self.available_functions["_store_memory"] = self.knowledge_impl.store_memory #type: ignore
         self.lock = threading.Lock()
-        self.last_annoy_refresh = datetime.datetime.now() 
-        self.refresh_lock = False
         self.tasks = []
         self.current_task_index = 0
         self.in_to_out_thread_map = {}
@@ -237,13 +236,13 @@ class BotOsSession:
             logger.debug("execute completed")
         # JL_TODO MOVE THIS TO BOT_OS_SERVER LOOP
         current_time = datetime.datetime.now()
-        if (current_time - self.last_annoy_refresh).total_seconds() > 180 and not self.refresh_lock:
-            self.refresh_lock = True
-            self.last_annoy_refresh = current_time 
-            if current_time == self.last_annoy_refresh:
+        if (current_time - BotOsSession.last_annoy_refresh).total_seconds() > 120 and not BotOsSession.refresh_lock:
+            BotOsSession.refresh_lock = True
+            BotOsSession.last_annoy_refresh = current_time 
+            if current_time == BotOsSession.last_annoy_refresh:
                 self._refresh_cached_annoy()
-            self.last_annoy_refresh = current_time 
-            self.refresh_lock = False
+            BotOsSession.last_annoy_refresh = current_time 
+            BotOsSession.refresh_lock = False
       
     def _refresh_cached_annoy(self):
         table = self.knowledge_impl.meta_database_connector.metadata_table_name   

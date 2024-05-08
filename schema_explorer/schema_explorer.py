@@ -276,17 +276,21 @@ class SchemaExplorer:
                 # Check all potential_tables at once using a single query with an IN clause
                 table_names = [table_info['table_name'] for table_info in potential_tables]
                 db, sch = dataset.split('.')[0], dataset.split('.')[1]
-                quoted_table_names = [f'\'"{db}"."{sch}"."{table}"\'' for table in table_names]
-                in_clause = ', '.join(quoted_table_names)
+                #quoted_table_names = [f'\'"{db}"."{sch}"."{table}"\'' for table in table_names]
+               #in_clause = ', '.join(quoted_table_names)
                 check_query = f"""
                 SELECT qualified_table_name, ddl_hash, last_crawled_timestamp
                 FROM {self.db_connector.metadata_table_name}
                 WHERE source_name = '{self.db_connector.source_name}'
-                AND qualified_table_name IN ({in_clause})
+                AND database_name= '{db}' and schema_name = '{sch}'
                 """
-                existing_tables_info = self.db_connector.run_query(check_query, max_rows=1000, max_rows_override=True)
-                existing_tables_set = {info['QUALIFIED_TABLE_NAME'] for info in existing_tables_info}
-                non_existing_tables = [table for table in potential_tables if f'"{db}"."{sch}"."{table["table_name"]}"' not in existing_tables_set]
+                try:
+                    existing_tables_info = self.db_connector.run_query(check_query, max_rows=1000, max_rows_override=True)
+                    existing_tables_set = {info['QUALIFIED_TABLE_NAME'] for info in existing_tables_info}
+                    non_existing_tables = [table for table in potential_tables if f'"{db}"."{sch}"."{table["table_name"]}"' not in existing_tables_set]
+                except:
+                    print(f'Error running check query: {check_query} Error: {e}')
+                    return None, None
                 
                 for table_info in non_existing_tables:
                     table_name = table_info['table_name']
@@ -298,13 +302,13 @@ class SchemaExplorer:
                         if shared_table_exists:
                             # Insert the record from the shared metadata table directly to the metadata table
                             insert_from_cache_result = self.db_connector.insert_metadata_from_cache(db, sch, table_name)
-                            print(insert_from_cache_result, flush=True)
+                            #print(insert_from_cache_result, flush=True)
                         else:
                             # Table is new, so get its DDL and hash
                             current_ddl = self.alt_get_ddl(table_name=quoted_table_name)
                             current_ddl_hash = self.db_connector.sha256_hash_hex_string(current_ddl)
                             new_table = {"qualified_table_name": quoted_table_name, "ddl_hash": current_ddl_hash, "ddl": current_ddl}
-                            print('Newly found object added to harvest array: ', new_table, flush=True)
+                            print('Newly found object added to harvest array: ', quoted_table_name, flush=True)
                             non_indexed_tables.append(new_table)
                    # else:
                    #     # Table exists, so check for updates as before

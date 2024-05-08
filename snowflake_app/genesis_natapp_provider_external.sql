@@ -1,4 +1,8 @@
 
+select current_region(), current_account();
+// AWS_US_EAST_1	VYB73862
+SHOW VERSIONS IN APPLICATION PACKAGE GENESISAPP_APP_PKG_EXT;
+
 
 -- ########## BEGIN ENVIRONMENT  ######################################
 
@@ -13,55 +17,6 @@ SET APP_COMPUTE_POOL_FAMILY = 'CPU_X64_XS';
 -- ########## END   ENVIRONMENT  ######################################
 
 
-
-USE ROLE ACCOUNTADMIN;
-
-
-CREATE ROLE GENESIS_PROVIDER_ROLE;
-GRANT CREATE DATABASE ON ACCOUNT TO ROLE GENESIS_PROVIDER_ROLE;
-GRANT CREATE WAREHOUSE ON ACCOUNT TO ROLE GENESIS_PROVIDER_ROLE;
-GRANT CREATE COMPUTE POOL ON ACCOUNT TO ROLE GENESIS_PROVIDER_ROLE;
-GRANT CREATE INTEGRATION ON ACCOUNT TO ROLE GENESIS_PROVIDER_ROLE;
-GRANT CREATE APPLICATION PACKAGE ON ACCOUNT TO ROLE GENESIS_PROVIDER_ROLE;
-GRANT CREATE APPLICATION  ON ACCOUNT TO ROLE GENESIS_PROVIDER_ROLE ;
-GRANT CREATE DATA EXCHANGE LISTING  ON ACCOUNT TO ROLE GENESIS_PROVIDER_ROLE;
-GRANT IMPORT SHARE ON ACCOUNT TO GENESIS_PROVIDER_ROLE;
-GRANT CREATE SHARE ON ACCOUNT TO GENESIS_PROVIDER_ROLE;
-GRANT MANAGE EVENT SHARING ON ACCOUNT TO GENESIS_PROVIDER_ROLE;
-GRANT BIND SERVICE ENDPOINT ON ACCOUNT TO ROLE GENESIS_PROVIDER_ROLE WITH GRANT OPTION;
-
-
-GRANT ROLE GENESIS_PROVIDER_ROLE to USER JUSTIN;
-
-
-CREATE ROLE GENESIS_CONSUMER_ROLE;
-GRANT CREATE DATABASE ON ACCOUNT TO ROLE GENESIS_CONSUMER_ROLE;
-GRANT CREATE WAREHOUSE ON ACCOUNT TO ROLE GENESIS_CONSUMER_ROLE;
-GRANT CREATE COMPUTE POOL ON ACCOUNT TO ROLE GENESIS_CONSUMER_ROLE;
-GRANT CREATE INTEGRATION ON ACCOUNT TO ROLE GENESIS_CONSUMER_ROLE;
-GRANT CREATE APPLICATION  ON ACCOUNT TO ROLE GENESIS_CONSUMER_ROLE ;
-GRANT IMPORT SHARE ON ACCOUNT TO GENESIS_CONSUMER_ROLE;
-GRANT CREATE SHARE ON ACCOUNT TO GENESIS_CONSUMER_ROLE;
-GRANT MANAGE EVENT SHARING ON ACCOUNT TO GENESIS_CONSUMER_ROLE;
-GRANT BIND SERVICE ENDPOINT ON ACCOUNT TO ROLE GENESIS_CONSUMER_ROLE WITH GRANT OPTION;
-
-
-GRANT ROLE GENESIS_CONSUMER_ROLE to USER JUSTIN;
-
-
--- ########## END ROLES (OPTIONAL)  ######################################
-
-
--- ########## BEGIN INITIALIZATION  ######################################
-
-
-USE ROLE identifier($APP_OWNER_ROLE);
-select current_role();
-
-
-
-USE WAREHOUSE identifier($APP_WAREHOUSE);
---drop database genesisapp_master;
 use warehouse xsmall;
 use role accountadmin;
 
@@ -89,15 +44,6 @@ CREATE STAGE IF NOT EXISTS APP_CODE_STAGE;
 --
 -- STOP HERE AND UPLOAD ALL REQUIRED CONTAINERS INTO THE IMAGE REPO
 --
-show image repositories;
-
-use schema genesisapp_master.code_schema;
-
-
-show image repositories;
-//sfengineering-ss-lprpr-test1.registry.snowflakecomputing.com/genesisapp_master/code_schema/service_repo
-
-use role accountadmin;
 
 -- ########## UTILITY FUNCTIONS  #########################################
 USE SCHEMA GENESISAPP_APP_PKG_EXT.CODE_SCHEMA;
@@ -241,12 +187,12 @@ $$;
 
 GRANT REFERENCE_USAGE ON DATABASE SPIDER_DATA TO SHARE IN APPLICATION PACKAGE GENESISAPP_APP_PKG_EXT;
 GRANT REFERENCE_USAGE ON DATABASE GENESISAPP_MASTER TO SHARE IN APPLICATION PACKAGE GENESISAPP_APP_PKG_EXT;
-USE SCHEMA GENESISAPP_APP_PKG_EXT.CODE_SCHEMA;
+
 -- Call the procedure to generate shared views and grants
 CALL CODE_SCHEMA.GENERATE_SHARED_VIEWS('BASEBALL', CURRENT_DATABASE());
 USE SCHEMA GENESISAPP_APP_PKG_EXT.CODE_SCHEMA;
 CALL CODE_SCHEMA.GENERATE_SHARED_VIEWS('FORMULA_1', CURRENT_DATABASE());
-USE SCHEMA GENESISAPP_APP_PKG_EXT.CODE_SCHEMA;
+USE SCHEMA GENESISAPP_APP_PKG.CODE_SCHEMA;
 
 CREATE OR REPLACE PROCEDURE CODE_SCHEMA.SHARE_HARVEST_RESULTS(APP_PKG_NAME STRING)
 RETURNS STRING
@@ -264,48 +210,12 @@ BEGIN
 END;
 $$;
 
-
-create or replace view GENESISAPP_MASTER.HARVEST_SHARE.HARVEST_RESULTS_SHARED(
-	SOURCE_NAME,
-	QUALIFIED_TABLE_NAME,
-	DATABASE_NAME,
-	MEMORY_UUID,
-	SCHEMA_NAME,
-	TABLE_NAME,
-	COMPLETE_DESCRIPTION,
-	DDL,
-	DDL_SHORT,
-	DDL_HASH,
-	SUMMARY,
-	SAMPLE_DATA_TEXT,
-	LAST_CRAWLED_TIMESTAMP,
-	CRAWL_STATUS,
-	ROLE_USED_FOR_CRAWL,
-	EMBEDDING
-) as 
-WITH shared_views AS
-(SELECT SOURCE_NAME, replace(QUALIFIED_TABLE_NAME,'SPIDER_DATA','APP_NAME') QUALIFIED_TABLE_NAME, 'APP_NAME' DATABASE_NAME, MEMORY_UUID, SCHEMA_NAME, TABLE_NAME, REPLACE(COMPLETE_DESCRIPTION,'SPIDER_DATA','APP_NAME') COMPLETE_DESCRIPTION, REPLACE(DDL,'SPIDER_DATA','APP_NAME') DDL, REPLACE(DDL_SHORT,'SPIDER_DATA','APP_NAME') DDL_SHORT, 'SHARED_VIEW' DDL_HASH, REPLACE(SUMMARY,'SPIDER_DATA','APP_NAME') SUMMARY, SAMPLE_DATA_TEXT, LAST_CRAWLED_TIMESTAMP, CRAWL_STATUS, ROLE_USED_FOR_CRAWL, EMBEDDING 
-    FROM GENESISAPP_MASTER.HARVEST_SHARE.HARVEST_RESULTS
-    WHERE SCHEMA_NAME in ('BASEBALL','FORMULA_1')),
-local_views AS
-(
-SELECT SOURCE_NAME, QUALIFIED_TABLE_NAME, DATABASE_NAME, MEMORY_UUID, SCHEMA_NAME, TABLE_NAME, COMPLETE_DESCRIPTION, DDL, DDL_SHORT, 'SHARED_VIEW' DDL_HASH, SUMMARY, SAMPLE_DATA_TEXT, LAST_CRAWLED_TIMESTAMP, CRAWL_STATUS, ROLE_USED_FOR_CRAWL, EMBEDDING 
-    FROM GENESISAPP_MASTER.HARVEST_SHARE.HARVEST_RESULTS
-    WHERE SCHEMA_NAME NOT in ('BASEBALL','FORMULA_1')
-)
-SELECT * FROM shared_views
-UNION
-SELECT * FROM local_views;
-
 -- Call procedure to create the shared view for harvest results
 CALL CODE_SCHEMA.SHARE_HARVEST_RESULTS(CURRENT_DATABASE());
 
 USE SCHEMA GENESISAPP_APP_PKG_EXT.CODE_SCHEMA;
 
 
-select * from GENESISAPP_MASTER.HARVEST_SHARE.HARVEST_RESULTS_SHARED;
-
-show tables in GENESISAPP_MASTER.HARVEST_SHARE;
 
 -- ########## END DATA SHARING  ##########################################
 
@@ -351,7 +261,7 @@ $$)
 
 
 
-use schema genesisapp_app_pkg_ext.code_schema;
+use schema genesisapp_app_pkg.code_schema;
 -- delete from script;
 
 INSERT INTO SCRIPT (NAME , VALUE)
@@ -762,23 +672,26 @@ def llm_config(): # Check if data is not empty
                 if config_response['Success'] is False:
                     resp = config_response["Message"]
                     st.error(f"Failed to set LLM token: {resp}")
+                    cur_key = ''
                 else:
                     st.session_state.disable_submit = True
                     st.success("API key validated!")
 
-                with st.spinner('Getting active bot details...'):
-                    bot_details = get_bot_details()
-                    if bot_details:
-                        st.success("Bot details validated.")
+                if config_response['Success']:
+                    with st.spinner('Getting active bot details...'):
+                        bot_details = get_bot_details()
+                        if bot_details:
+                            st.success("Bot details validated.")
 
             if cur_key == '<existing key present on server>':
                 st.write("Reload this page to chat with your apps.")
             else:
-                if st.button("Next -> Click here to chat with your bots!"):
-                    st.experimental_rerun()
-                    # This button will be used to talk to the bot directly via Streamlit interface
-                    # Placeholder for direct bot communication logic
-                    #st.session_state['radio'] = "Chat with Bots"
+                if cur_key is not None and cur_key != '':
+                    if st.button("Next -> Click here to chat with your bots!"):
+                        st.experimental_rerun()
+                        # This button will be used to talk to the bot directly via Streamlit interface
+                        # Placeholder for direct bot communication logic
+                        #st.session_state['radio'] = "Chat with Bots"
 
 def chat_page():
 
@@ -1341,7 +1254,7 @@ VALUE_LIST = ('api.openai.com', 'slack.com', 'www.slack.com', 'wss-primary.slack
 CREATE OR REPLACE EXTERNAL ACCESS INTEGRATION GENESIS_EAI
    ALLOWED_NETWORK_RULES = (GENESIS_LOCAL_DB.SETTINGS.GENESIS_RULE) ENABLED = true;
 
--- TEMPORARY: This is needed until st.chat works in SiS, planned for April 18-19, then this can be removed
+-- This allows Slack to callback into the Genbots service to active new Genbots on Slack
 GRANT BIND SERVICE ENDPOINT ON ACCOUNT TO APPLICATION  IDENTIFIER($APP_DATABASE); 
 
 -- grant Genesis Server the ability to use this external access integration
@@ -1477,7 +1390,7 @@ def start_stop():
         st.session_state.wh_name  = '<your warehouse name>'
 
     st.write('You can use the below commands in a worksheet to stop, start, and monitor the Gensis Server:')
-    start_stop_text = f'''USE DATABASE IDENTIFIER("{app_name}");
+    start_stop_text = f'''USE DATABASE IDENTIFIER('{app_name}');
 
 // pause service
 
@@ -1487,7 +1400,7 @@ alter compute pool GENESIS_POOL SUSPEND; -- to also pause the compute pool
 // resume service
 
 alter compute pool GENESIS_POOL RESUME; -- if you paused the compute pool
-call {app_name}.core.start_app_instance('APP1'); 
+call {app_name}.core.start_app_instance('APP1','GENESIS_POOL','GENESIS_EAI','{st.session_state.wh_name}'); 
 
 // check service
 
@@ -1755,7 +1668,7 @@ VALUES ('GENESISAPP_HARVESTER_SERVICE',
             GENESIS_MODE: HARVESTER
             AUTO_HARVEST: TRUE
             OPENAI_HARVESTER_EMBEDDING_MODEL: text-embedding-3-large
-            HARVESTER_REFRESH_SECONDS: 20
+            HARVESTER_REFRESH_SECONDS: 120
             RUNNER_ID: snowflake-1
             SNOWFLAKE_SECURE: FALSE
             GENESIS_INTERNAL_DB_SCHEMA: {{app_db_sch}}
@@ -2048,12 +1961,13 @@ END;
 GRANT USAGE ON PROCEDURE CORE.GET_APP_ENDPOINT(VARCHAR) TO  APPLICATION ROLE APP_PUBLIC;
 
 
-CREATE OR REPLACE PROCEDURE CORE.START_APP_INSTANCE(INSTANCE_NAME VARCHAR)
+CREATE OR REPLACE PROCEDURE CORE.START_APP_INSTANCE(INSTANCE_NAME VARCHAR, POOL_NAME VARCHAR, EAI_NAME VARCHAR, APP_WAREHOUSE VARCHAR)
 RETURNS TABLE(SERVICE_NAME VARCHAR,CONTAINER_NAME VARCHAR,STATUS VARCHAR, MESSAGE VARCHAR)
 LANGUAGE SQL
 AS
 :::
 BEGIN
+ LET x INTEGER := 0;
  LET stmt VARCHAR := 'SELECT "name" as SERVICE_NAME, "schema_name" AS SCHEMA_NAME FROM TABLE(RESULT_SCAN(LAST_QUERY_ID()))';
  EXECUTE IMMEDIATE 'SHOW SERVICES IN SCHEMA ' ||:INSTANCE_NAME;
  LET RS1 RESULTSET := (EXECUTE IMMEDIATE :stmt);
@@ -2061,13 +1975,19 @@ BEGIN
  FOR rec IN c1 DO
    EXECUTE IMMEDIATE 'ALTER SERVICE IF EXISTS '||rec.schema_name||'.'||rec.service_name||' resume';
    EXECUTE IMMEDIATE 'CALL APP.WAIT_FOR_STARTUP(\''||rec.schema_name||'\',\''||rec.service_name||'\',300)';
+   x := x + 1;
  END FOR;
+
+ IF (x < 2) THEN
+   CALL APP.RECREATE_APP_INSTANCE(:INSTANCE_NAME, :POOL_NAME, :EAI_NAME, :APP_WAREHOUSE);
+ END IF;
+
  LET RS3 RESULTSET := (CALL CORE.LIST_APP_INSTANCE(:INSTANCE_NAME));
  RETURN TABLE(RS3);
 END;
 :::
 ;
-GRANT USAGE ON PROCEDURE CORE.START_APP_INSTANCE(VARCHAR) TO  APPLICATION ROLE APP_PUBLIC;
+GRANT USAGE ON PROCEDURE CORE.START_APP_INSTANCE(VARCHAR,VARCHAR,VARCHAR,VARCHAR) TO  APPLICATION ROLE APP_PUBLIC;
 
 
 CREATE OR REPLACE PROCEDURE CORE.STOP_APP_INSTANCE(INSTANCE_NAME VARCHAR)
@@ -2135,6 +2055,25 @@ END;
 ;
 GRANT USAGE ON PROCEDURE CORE.RESTART_APP_INSTANCE(VARCHAR) TO APPLICATION ROLE APP_PUBLIC;
 
+CREATE OR REPLACE PROCEDURE APP.RECREATE_APP_INSTANCE( INSTANCE_NAME VARCHAR, POOL_NAME VARCHAR, EAI_NAME VARCHAR, APP_WAREHOUSE VARCHAR)
+RETURNS STRING
+LANGUAGE SQL
+AS
+:::
+DECLARE
+    v_current_database STRING;
+BEGIN
+  SELECT CURRENT_DATABASE() INTO :v_current_database;
+
+  CALL APP.CREATE_SERVER_SERVICE(:INSTANCE_NAME,'GENESISAPP_SERVICE_SERVICE',:POOL_NAME, :EAI_NAME, :APP_WAREHOUSE, :v_current_database);
+  CALL APP.CREATE_HARVESTER_SERVICE(:INSTANCE_NAME,'GENESISAPP_HARVESTER_SERVICE',:POOL_NAME, :EAI_NAME, :APP_WAREHOUSE, :v_current_database);
+  CALL APP.WAIT_FOR_STARTUP(:INSTANCE_NAME,'GENESISAPP_SERVICE_SERVICE',600);
+  
+  RETURN :v_current_database||'.'||:INSTANCE_NAME||'.GENESISAPP_SERVICE_SERVICE';
+  
+END
+:::
+;
 
 
 
@@ -2262,7 +2201,7 @@ $$,':::','$$') VALUE;
 
 
 USE SCHEMA GENESISAPP_APP_PKG_EXT.CODE_SCHEMA;
--- DELETE FROM SCRIPT;
+--DELETE FROM SCRIPT;
 INSERT INTO SCRIPT SELECT * FROM SCRIPT_TMP;
 
 --delete from script;
@@ -2282,10 +2221,9 @@ USE SCHEMA GENESISAPP_APP_PKG_EXT.CODE_SCHEMA;
 
 
 -- ########## BEGIN UPLOAD FILES TO APP STAGE ############################
-select * from script;
 
 
-rm @app_code_stage;
+--rm @app_code_stage;
 
 
 CALL CODE_SCHEMA.PUT_TO_STAGE('APP_CODE_STAGE','manifest.yml',(SELECT VALUE FROM CODE_SCHEMA.SCRIPT WHERE NAME = 'MANIFEST'));
@@ -2990,24 +2928,37 @@ call genesisapp_app.core.restart_app_instance('APP1');
 -- ########## BEGIN PUBLISH   ############################################
 
 
-ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG_EXT
+ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG
   SET DISTRIBUTION = $APP_DISTRIBUTION;
 
 select $APP_DISTRIBUTION;
-  
-SHOW VERSIONS IN APPLICATION PACKAGE GENESISAPP_APP_PKG_EXT;
 
+BEGIN
+LET rs0 RESULTSET := (EXECUTE IMMEDIATE 'ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG_EXT ADD VERSION V0_1 USING @GENESISAPP_APP_PKG_EXT.CODE_SCHEMA.APP_CODE_STAGE');
+RETURN TABLE(rs0);
+EXCEPTION
+ WHEN OTHER THEN
+   LET rs1 RESULTSET := (EXECUTE IMMEDIATE 'ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG_EXT ADD PATCH FOR VERSION V0_1 USING @GENESISAPP_APP_PKG_EXT.CODE_SCHEMA.APP_CODE_STAGE');
+   RETURN TABLE(rs1);
+END;
+;
+
+
+
+SHOW VERSIONS IN APPLICATION PACKAGE GENESISAPP_APP_PKG_EXT;
 
 DECLARE
  max_patch VARCHAR;
 BEGIN
- show versions in application package GENESISAPP_APP_PKG_EXT;
+ show versions in application package GENESISAPP_APP_PKG;
  select max("patch") INTO :max_patch FROM TABLE(RESULT_SCAN(LAST_QUERY_ID())) where "version" = 'V0_1';
- LET rs RESULTSET := (EXECUTE IMMEDIATE 'ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG_EXT SET DEFAULT RELEASE DIRECTIVE VERSION = V0_1 PATCH = '||:max_patch);
+ LET rs RESULTSET := (EXECUTE IMMEDIATE 'ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG SET DEFAULT RELEASE DIRECTIVE VERSION = V0_1 PATCH = '||:max_patch);
  RETURN TABLE(rs);
 END;
 
 
 -- ########## END PUBLISH   ##############################################
+
+
 
 

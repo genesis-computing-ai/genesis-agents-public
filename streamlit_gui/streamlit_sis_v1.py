@@ -982,7 +982,7 @@ GRANT USAGE ON INTEGRATION GENESIS_EAI TO APPLICATION   IDENTIFIER($APP_DATABASE
 CREATE SCHEMA IF NOT EXISTS GENESIS_LOCAL_DB.EVENTS;
 
 -- create an event table to capture events from the Genesis Server
-CREATE EVENT TABLE GENESIS_LOCAL_DB.EVENTS.GENESIS_APP_EVENTS;
+CREATE EVENT TABLE  IF NOT EXISTS GENESIS_LOCAL_DB.EVENTS.GENESIS_APP_EVENTS;
 
 -- set the event table on your account, this is optional
 -- this requires ACCOUNTADMIN, and may already be set, skip if it doesnt work

@@ -20,12 +20,14 @@ THINGS TO TEST:
 (test) MR - Recreate services if they are missing during a START_APP_INSTANCE call
 
 SHORT-TERM:
+! test bots while harvester is running 
+!! Streamlit after entry of openai key doesnt show Talk to Bots button 
 Ask Eve to make a line chart and it sends back ImageFileContentBlock(image_file=ImageFile(file_id='file-kfWyFfbLNRk8R2lfnMhQwPEn'), type='image_file') which we dont handle right now        
-Add bot custom welcome messages on new chats in Streamlit
+MR - Add bot custom welcome messages on new chats in Streamlit
 SiS app will restart service is suspended (With pool) but doesnt wake up harvester, errors in SiS log harvest screen
-If app is restarting (pools etc) have Sis give a message and spinner saying that vs a blank screen, check SELECT SYSTEM$GET_SERVICE_STATUS('GENESISAPP_SERVICE_SERVICE');
+MR - If app is restarting (pools etc) have Sis give a message and spinner saying that vs a blank screen, check SELECT SYSTEM$GET_SERVICE_STATUS('GENESISAPP_SERVICE_SERVICE');
 !! Share on East2, see if its working in the AM, then share to Chris 
-!! FIGURE OUT slowdown of whole system when harvester runs.. make it single threaded, with delays?
+JL-  FIGURE OUT slowdown of whole system when harvester runs.. make it single threaded, with delays?
 When you send a message to a thread that's already running, queue it up and don't submit another, then consolidate all of them when its ready and send them all at once once the run is done.
 Something blocks the thinking messages or bolt app when doing image analysis and/or file generation/upload to Slack
 Check this function execute_function - _get_visible_tables - {"database":"my_data","schema":"public"}
@@ -33,7 +35,6 @@ Share bot images thru app, add instructions to apply them to the user
 Autogenerate images for new bots, add instructions to the user to apply them when getting the tokens
 Make slack active thing only apply to new bot creation, dont block activation of existing bots
 Consider other uses of class level variables--the snowflake session for example, the annoy index, etc.
-JL - move annoy index 180sec check to the outer server loop vs per bot 
 JL-Why harvester slows down bots, needs bigger pool? why do bots go unresponsive?
 (soon) add tab to see chat logs from messages table
 (soon) Harvest semantic models and return in get_metadata dynamically
@@ -135,6 +136,7 @@ Add a mechanism for license control based on current_account()... share a table 
     Have a trial period where you can use it in trial mode before it goes into limited mode
 
 DONE:
+x  move annoy index 180sec check to the outer server loop vs per bot 
 x Make the thinking message go away when a bot decides not to respond
 x Change to Slack's new approach for file uploading
 x redo vision chat analysis with new vision API and move the function

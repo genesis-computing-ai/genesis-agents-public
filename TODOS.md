@@ -11,31 +11,27 @@ THINGS TO TEST:
 (test) adding stage tools to a bot with baby_bot_tools and see if instructions are updated with internal stage location
 (test) Add error checking for missing data or grants to harvester so it doesnt crash on that 
 (test) Eve deploy on fresh install complained about file types for null files, make sure deploy button works
-(test) make deploy to slack button in SiS app tell you to setup slack tokens first if not yet set up
+x (test) make deploy to slack button in SiS app tell you to setup slack tokens first if not yet set up
 (test) add Spider baseball and f1 schemas as share-thru app w/pre-made harvest results for demo data on start
 (test) Make sure harvester works ok with mixed case table and database and schema names (and system in general)
 (test) harvester dont crash if cant access schemas for a database listed in control file
-(test) MR-Add SNOWFLAKE harvest account usage etc to the pre-harvest feed into the app 
-(test) US East 2 - is it ok ?
-(test) MR - Recreate services if they are missing during a START_APP_INSTANCE call
 
 SHORT-TERM:
-! test bots while harvester is running 
-!! Streamlit after entry of openai key doesnt show Talk to Bots button 
+JL- test bots while harvester is running 
+JL- (text) FIGURE OUT slowdown of whole system when harvester runs.. make it single threaded, with delays?
+JL- (test w/new sis) Streamlit after entry of openai key doesnt show Talk to Bots button 
+JL -(test more on spcs) Something blocks the thinking messages or bolt app when doing image analysis and/or file generation/upload to Slack
 Ask Eve to make a line chart and it sends back ImageFileContentBlock(image_file=ImageFile(file_id='file-kfWyFfbLNRk8R2lfnMhQwPEn'), type='image_file') which we dont handle right now        
 MR - Add bot custom welcome messages on new chats in Streamlit
-SiS app will restart service is suspended (With pool) but doesnt wake up harvester, errors in SiS log harvest screen
-MR - If app is restarting (pools etc) have Sis give a message and spinner saying that vs a blank screen, check SELECT SYSTEM$GET_SERVICE_STATUS('GENESISAPP_SERVICE_SERVICE');
-!! Share on East2, see if its working in the AM, then share to Chris 
-JL-  FIGURE OUT slowdown of whole system when harvester runs.. make it single threaded, with delays?
+MR - SiS app will restart service is suspended (With pool) but doesnt wake up harvester, errors in SiS log harvest screen
+MR - If app is restarting (pools etc) have Sis give a message and spinner saying that vs a blank screen
+JL- (check for appoval) Share on East2, see if its working in the AM, then share to Chris 
 When you send a message to a thread that's already running, queue it up and don't submit another, then consolidate all of them when its ready and send them all at once once the run is done.
-Something blocks the thinking messages or bolt app when doing image analysis and/or file generation/upload to Slack
 Check this function execute_function - _get_visible_tables - {"database":"my_data","schema":"public"}
-Share bot images thru app, add instructions to apply them to the user
-Autogenerate images for new bots, add instructions to the user to apply them when getting the tokens
-Make slack active thing only apply to new bot creation, dont block activation of existing bots
-Consider other uses of class level variables--the snowflake session for example, the annoy index, etc.
-JL-Why harvester slows down bots, needs bigger pool? why do bots go unresponsive?
+MR - Share bot images thru app, add instructions to apply them to the user
+MR - Autogenerate images for new bots, add instructions to the user to apply them when getting the tokens
+(test) Make slack active thing only apply to new bot creation, dont block activation of existing bots
+(later) Consider other uses of class level variables--the snowflake session for example, the annoy index, etc.
 (soon) add tab to see chat logs from messages table
 (soon) Harvest semantic models and return in get_metadata dynamically
 (soon) Give semantic index modify a way to add and modify multiple things at the same time
@@ -47,18 +43,17 @@ JL-Why harvester slows down bots, needs bigger pool? why do bots go unresponsive
 (soon) Add undeploy from Slack button on bot config
 (soon) make sure endpoint is not the empty message, if so wait until its provisioned before updating any callback URLS, if there are any bots that needs them
 (soon) fix wait spinner on api key page
-(soon) Add a sevice restart button to SiS
-(soon) Add a message to the top of the SisChat page suggesting activating via slack, via a temp workspace
+(soon) Add a sevice start/stop/restart buttons to SiS
+MR- (soon) Add a message to the top of the SisChat page suggesting activating via slack, via a temp workspace
 (later) if you change slack token via streamlit, have it relaunch bots (or activate them any time they have a token even is slack is off)
 (later) Make thread map save to local database to survive container restart 
 (later) block metadata app1 from user query 
-(later) Add a way for Eve for example to add another bot to a channel and then not process that thread anymore unless tagged again
 (later) add a place in Streamlit to see the files in stage add a file, remove a file
 (later) Make the queries in bot_os_memory.py parameterized
 (later) app deploy tokens are user specific, how to add a collaborator so another user can configure it?
 (later) Hide harvestable data if autoharvest is on 
 (later) add refresh button to harvester_status
-(later) Add logo to streamlit GUI
+MR- (later) Add logo to streamlit GUI
 (later) remove bots vector indexes when removing a bot
 (later) Give a way for local streamlit to upload and download files from the botos server
 (later) Go back to snowflake secure mode for harvester too if it works
@@ -136,6 +131,8 @@ Add a mechanism for license control based on current_account()... share a table 
     Have a trial period where you can use it in trial mode before it goes into limited mode
 
 DONE:
+x (test) MR-Add SNOWFLAKE harvest account usage etc to the pre-harvest feed into the app 
+x (test) MR - Recreate services if they are missing during a START_APP_INSTANCE call
 x  move annoy index 180sec check to the outer server loop vs per bot 
 x Make the thinking message go away when a bot decides not to respond
 x Change to Slack's new approach for file uploading

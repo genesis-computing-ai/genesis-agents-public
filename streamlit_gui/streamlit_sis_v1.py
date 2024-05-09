@@ -920,7 +920,7 @@ def config_pool():
     st.subheader('Step 2: Configure Compute Pool')
 
     st.write('Genesis Bots has a server component that runs securely inside your Snowflake account, that coordinates the actions of your Genesis Bots, and manages their interactions with other users and bots. To run this server, you need to create and grant Genesis Server access to a Snowflake Compute Pool.')
-    st.write('Please go back to your Snowflake worksheet and run these commands to create a new compute pool and grant Genesis the rights to use it.  This uses the smallest Snowflake compute pool, which costs about 0.11 Snowflake Credits per hour, or about $5/day.  Once you start the server, you will be able to suspend it when not in use.')
+    st.write('Please go back to your Snowflake worksheet and run these commands to create a new compute pool and grant Genesis the rights to use it.  This uses the Snowflake small compute pool, which costs about 0.22 Snowflake Credits per hour, or about $10/day.  Once you start the server, you will be able to suspend it when not in use.')
     
     wh_text = f'''-- select role to use, generally Accountadmin or Sysadmin
 use role ACCOUNTADMIN;
@@ -936,7 +936,7 @@ CREATE COMPUTE POOL IF NOT EXISTS GENESIS_POOL FOR APPLICATION IDENTIFIER($APP_D
  MIN_NODES=1 MAX_NODES=1 INSTANCE_FAMILY='CPU_X64_S' AUTO_SUSPEND_SECS=3600 INITIALLY_SUSPENDED=FALSE;
 
 -- give Genesis the right to use the compute pool
-GRANT USAGE ON COMPUTE POOL GENESIS_POOL TO APPLICATION  IDENTIFIER($APP_DATABASE);
+GRANT USAGE, OPERATE ON COMPUTE POOL GENESIS_POOL TO APPLICATION  IDENTIFIER($APP_DATABASE);
 '''
 
     st.text_area("Compute Pool configuration script:", wh_text, height=420)

@@ -535,9 +535,6 @@ VALUES ('GENESISAPP_SERVICE_SERVICE',
           port: 8080
           path: /healthcheck
       endpoints:
-      - name: genesisui
-        port: 8501
-        public: true
       - name: udfendpoint
         port: 8080
         public: true
@@ -713,8 +710,8 @@ AS
  EXECUTE IMMEDIATE
    'CREATE or replace FUNCTION '|| :INSTANCE_NAME ||'.list_available_bots ()  RETURNS varchar SERVICE='|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||' ENDPOINT=udfendpoint AS '||chr(39)||'/udf_proxy/list_available_bots'||chr(39);
 
- EXECUTE IMMEDIATE
-   'CREATE or replace FUNCTION '|| :INSTANCE_NAME ||'.get_ngrok_tokens ()  RETURNS varchar SERVICE='|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||' ENDPOINT=udfendpoint AS '||chr(39)||'/udf_proxy/get_ngrok_tokens'||chr(39);
+ --EXECUTE IMMEDIATE
+ --  'CREATE or replace FUNCTION '|| :INSTANCE_NAME ||'.get_ngrok_tokens ()  RETURNS varchar SERVICE='|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||' ENDPOINT=udfendpoint AS '||chr(39)||'/udf_proxy/get_ngrok_tokens'||chr(39);
 
  EXECUTE IMMEDIATE
    'CREATE or replace FUNCTION '|| :INSTANCE_NAME ||'.get_metadata (metadata_type varchar)  RETURNS varchar SERVICE='|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||' ENDPOINT=udfendpoint AS '||chr(39)||'/udf_proxy/get_metadata'||chr(39);
@@ -735,8 +732,8 @@ EXECUTE IMMEDIATE
    'GRANT USAGE ON FUNCTION '|| :INSTANCE_NAME ||'.deploy_bot ( varchar )  TO APPLICATION ROLE APP_PUBLIC';
 
  
-EXECUTE IMMEDIATE
-   'GRANT USAGE ON FUNCTION '|| :INSTANCE_NAME ||'.configure_ngrok_token ( varchar, varchar, varchar)  TO APPLICATION ROLE APP_PUBLIC';
+--EXECUTE IMMEDIATE
+--   'GRANT USAGE ON FUNCTION '|| :INSTANCE_NAME ||'.configure_ngrok_token ( varchar, varchar, varchar)  TO APPLICATION ROLE APP_PUBLIC';
 
  EXECUTE IMMEDIATE
    'GRANT USAGE ON FUNCTION '|| :INSTANCE_NAME ||'.configure_slack_app_token ( varchar, varchar)  TO APPLICATION ROLE APP_PUBLIC';
@@ -751,8 +748,8 @@ EXECUTE IMMEDIATE
    'GRANT USAGE ON FUNCTION '|| :INSTANCE_NAME ||'.get_slack_endpoints ( )  TO APPLICATION ROLE APP_PUBLIC';
  EXECUTE IMMEDIATE
    'GRANT USAGE ON FUNCTION '|| :INSTANCE_NAME ||'.list_available_bots ( )  TO APPLICATION ROLE APP_PUBLIC';
- EXECUTE IMMEDIATE
-   'GRANT USAGE ON FUNCTION '|| :INSTANCE_NAME ||'.get_ngrok_tokens ( )  TO APPLICATION ROLE APP_PUBLIC';
+ --EXECUTE IMMEDIATE
+ --  'GRANT USAGE ON FUNCTION '|| :INSTANCE_NAME ||'.get_ngrok_tokens ( )  TO APPLICATION ROLE APP_PUBLIC';
  EXECUTE IMMEDIATE
    'GRANT USAGE ON FUNCTION '|| :INSTANCE_NAME ||'.get_metadata (varchar )  TO APPLICATION ROLE APP_PUBLIC';
 

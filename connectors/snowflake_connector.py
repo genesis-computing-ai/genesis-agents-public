@@ -836,7 +836,7 @@ class SnowflakeConnector(DatabaseConnector):
                 bot_id += ''.join(random.choices(string.ascii_letters + string.digits, k=6))
                 bot_name = "Eve"
                 bot_instructions = BASE_EVE_BOT_INSTRUCTIONS
-                available_tools = '["slack_tools", "make_baby_bot", "integrate_code", "snowflake_stage_tools", "image_tools"]'
+                available_tools = '["slack_tools", "make_baby_bot", "snowflake_stage_tools", "image_tools", "harvester_tools"]'
                 udf_active = "Y"
                 slack_active = "N"
 
@@ -979,7 +979,7 @@ class SnowflakeConnector(DatabaseConnector):
                 tools_data = [
                     ('slack_tools', 'Lookup slack users by name, and send direct messages in Slack'),
                     ('make_baby_bot', 'Create, configure, and administer other bots programatically'),
-                    ('integrate_code', 'Create, test, and deploy new tools that bots can use'),
+                   # ('integrate_code', 'Create, test, and deploy new tools that bots can use'),
                     ('webpage_downloader', 'Access web pages on the internet and return their contents'),
                     ('database_tools', 'Discover database metadata, find database tables, and run SQL queries on a database'),
                     ('harvester_tools', 'Control the database harvester, add new databases to harvest, add schema inclusions and exclusions, see harvest status'),

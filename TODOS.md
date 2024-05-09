@@ -19,6 +19,13 @@ x (test) make deploy to slack button in SiS app tell you to setup slack tokens f
 (test) harvester dont crash if cant access schemas for a database listed in control file
 
 SHORT-TERM:
+push new version 
+(test docker) Remove code generator
+Encrypt all secrete and change col names
+MR - Pre-harvest and share information schema
+Roberts jupyter issue
+x Snow Sec questionairre
+JL - fix and test API key spinner and reload button in SiS
 JL - changing openAI key via streamlit when running gives an error: (bots conflicts with existing job-- dont add scheduler job again if already running)
 JL- (test more) adding tools to new bots (image analysis for example)
 JL - test - after putting in openai key on new install, do you get sent to chat screen via button?

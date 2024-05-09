@@ -11,7 +11,7 @@ from connectors.snowflake_connector import SnowflakeConnector
 from slack.slack_tools import slack_tools, slack_tools_descriptions
 from connectors.database_tools import image_functions, image_tools, bind_run_query, bind_search_metadata, bind_semantic_copilot, autonomous_functions, autonomous_tools, database_tool_functions, database_tools, snowflake_stage_functions, snowflake_stage_tools, snowflake_semantic_functions, snowflake_semantic_tools
 from schema_explorer.harvester_tools import harvester_tools_list, harvester_tools_functions
-from development.integration_tools import integration_tool_descriptions, integration_tools_new
+#from development.integration_tools import integration_tool_descriptions, integration_tools_new
 from bot_genesis.make_baby_bot import get_bot_details
 from core.bot_os import BotOsSession
 from core.bot_os_corpus import URLListFileCorpus

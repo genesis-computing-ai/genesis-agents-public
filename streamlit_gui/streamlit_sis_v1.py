@@ -394,11 +394,12 @@ def llm_config(): # Check if data is not empty
                     st.session_state.disable_submit = True
                     st.success("API key validated!")
 
-                if config_response['Success']:
-                    with st.spinner('Getting active bot details...'):
-                        bot_details = get_bot_details()
-                        if bot_details:
-                            st.success("Bot details validated.")
+            if config_response['Success']:
+                with st.spinner('Getting active bot details...'):
+                    bot_details = get_bot_details()
+                if bot_details:
+                    st.success("Bot details validated.")
+                    st.success("Reload this page to chat with your bots!")
                     if st.button("Next -> Click here to chat with your bots!"):
                         st.rerun()
 
@@ -407,7 +408,7 @@ def llm_config(): # Check if data is not empty
             else:
                 if cur_key is not None and cur_key != '':
                     if st.button("Next -> Click here to chat with your bots!"):
-                        st.experimental_rerun()
+                        st.rerun()
                         # This button will be used to talk to the bot directly via Streamlit interface
                         # Placeholder for direct bot communication logic
                         #st.session_state['radio'] = "Chat with Bots"
@@ -1043,7 +1044,7 @@ def start_service():
 
             if wh_test:
                 try:
-                    with st.spinner('Starting Genesis Server (can take 3-5 minutes the first time)...'):
+                    with st.spinner('Starting Compute Pool & Genesis Server (can take 3-15 minutes the first time for compute pool startup, use "show compute pools;" to see status)...'):
                         start_result = session.sql(f"call {core_prefix}.INITIALIZE_APP_INSTANCE('APP1','GENESIS_POOL','GENESIS_EAI','{st.session_state.wh_name}')")
                         st.write(start_result)
                 except Exception as e:

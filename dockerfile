@@ -13,12 +13,10 @@ COPY llm_cortex ./llm_cortex
 COPY schema_explorer ./schema_explorer
 COPY slack ./slack
 COPY streamlit_gui ./streamlit_gui
-COPY auto_ngrok ./auto_ngrok
 COPY bot_genesis ./bot_genesis
 COPY connectors ./connectors
 COPY core ./core
 COPY demo ./demo
-COPY development ./development
 COPY generated_modules ./generated_modules
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh

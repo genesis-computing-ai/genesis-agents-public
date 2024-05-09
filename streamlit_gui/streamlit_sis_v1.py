@@ -399,8 +399,8 @@ def llm_config(): # Check if data is not empty
                         bot_details = get_bot_details()
                         if bot_details:
                             st.success("Bot details validated.")
-                            if st.button("Next -> Click here to chat with your bots!"):
-                                st.experimental_rerun()
+                    if st.button("Next -> Click here to chat with your bots!"):
+                        st.rerun()
 
             if cur_key == '<existing key present on server>':
                 st.write("Reload this page to chat with your apps.")

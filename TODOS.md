@@ -6,6 +6,7 @@ GENESIS BOT TODOS
 DESIRED DEMOS:
 x Make Eliza demo video on baseball
 Make video of Snowflake janitorial work
+Bots calling other bots to do things
 
 THINGS TO TEST:chr
 
@@ -18,20 +19,21 @@ x (test) make deploy to slack button in SiS app tell you to setup slack tokens f
 (test) harvester dont crash if cant access schemas for a database listed in control file
 
 SHORT-TERM:
-test - after putting in openai key you get sent to chat screen via button?
-JL- test bots while harvester is running 
-JL- (text) FIGURE OUT slowdown of whole system when harvester runs.. make it single threaded, with delays?
+JL - changing openAI key via streamlit when running gives an error: (bots conflicts with existing job-- dont add scheduler job again if already running)
+JL- (test more) adding tools to new bots (image analysis for example)
+JL - test - after putting in openai key on new install, do you get sent to chat screen via button?
 JL- (test w/new sis) Streamlit after entry of openai key doesnt show Talk to Bots button 
 JL -(test more on spcs) Something blocks the thinking messages or bolt app when doing image analysis and/or file generation/upload to Slack
-Ask Eve to make a line chart and it sends back ImageFileContentBlock(image_file=ImageFile(file_id='file-kfWyFfbLNRk8R2lfnMhQwPEn'), type='image_file') which we dont handle right now        
 MR - Add bot custom welcome messages on new chats in Streamlit
 MR - SiS app will restart service is suspended (With pool) but doesnt wake up harvester, errors in SiS log harvest screen
-MR - If app is restarting (pools etc) have Sis give a message and spinner saying that vs a blank screen
-JL- (check for appoval) Share on East2, see if its working in the AM, then share to Chris 
+MR-(soon) fix wait spinner on api key page when putting in API key on a new install
+MR-(soon) Add a sevice start/stop/restart buttons to SiS
+MR- (soon) Add a message to the top of the SisChat page suggesting activating via slack, via a temp workspace
+MR - Share default bot images thru app, add instructions to apply them to the user
+Ask Eve to make a line chart and it sends back ImageFileContentBlock(image_file=ImageFile(file_id='file-kfWyFfbLNRk8R2lfnMhQwPEn'), type='image_file') which we dont handle right now        
 When you send a message to a thread that's already running, queue it up and don't submit another, then consolidate all of them when its ready and send them all at once once the run is done.
 Check this function execute_function - _get_visible_tables - {"database":"my_data","schema":"public"}
-MR - Share bot images thru app, add instructions to apply them to the user
-MR - Autogenerate images for new bots, add instructions to the user to apply them when getting the tokens
+(later) Autogenerate images for new bots, add instructions to the user to apply them when getting the tokens
 (test) Make slack active thing only apply to new bot creation, dont block activation of existing bots
 (later) Consider other uses of class level variables--the snowflake session for example, the annoy index, etc.
 (soon) add tab to see chat logs from messages table
@@ -44,9 +46,6 @@ MR - Autogenerate images for new bots, add instructions to the user to apply the
 (have a rough one) make a metadata backup and recovery script so we have it ready
 (soon) Add undeploy from Slack button on bot config
 (soon) make sure endpoint is not the empty message, if so wait until its provisioned before updating any callback URLS, if there are any bots that needs them
-(soon) fix wait spinner on api key page
-(soon) Add a sevice start/stop/restart buttons to SiS
-MR- (soon) Add a message to the top of the SisChat page suggesting activating via slack, via a temp workspace
 (later) if you change slack token via streamlit, have it relaunch bots (or activate them any time they have a token even is slack is off)
 (later) Make thread map save to local database to survive container restart 
 (later) block metadata app1 from user query 
@@ -133,6 +132,10 @@ Add a mechanism for license control based on current_account()... share a table 
     Have a trial period where you can use it in trial mode before it goes into limited mode
 
 DONE:
+x JL- test bots while harvester is running 
+x JL- (text) FIGURE OUT slowdown of whole system when harvester runs.. make it single threaded, with delays?
+x MR - If app is restarting (pools etc) have Sis give a message and spinner saying that vs a blank screen
+x JL- (check for appoval) Share on East2, see if its working in the AM, then share to Chris 
 x (test) MR-Add SNOWFLAKE harvest account usage etc to the pre-harvest feed into the app 
 x (test) MR - Recreate services if they are missing during a START_APP_INSTANCE call
 x  move annoy index 180sec check to the outer server loop vs per bot 

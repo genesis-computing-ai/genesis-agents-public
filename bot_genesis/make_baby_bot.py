@@ -653,7 +653,7 @@ def update_slack_app_level_key(bot_id, slack_app_level_key):
     bot_details = get_bot_details(bot_id)
     
     if not bot_details:
-        return {"success": False, "error": "Bot details not found for bot_id: {}".format(bot_id)}
+        return {"success": False, "error": "Bot details not found for bot_id: {}.  Try using list_all_bots to look it up.".format(bot_id)}
     auth_url = bot_details.get('auth_url', 'No auth_url available')
     
     if not token_test_result.get("success"):
@@ -1130,7 +1130,7 @@ MAKE_BABY_BOT_DESCRIPTIONS.append({
     "type": "function",
     "function": {
         "name": "add_new_tools_to_bot",
-        "description": "Adds new tools to an existing bot's available_tools list if they are not already present. It is ok to use this on yourself if directed.",
+        "description": "Adds new tools to an existing bot's available_tools list if they are not already present. It is ok to use this to grant tools to yourself if directed.",
         "parameters": {
             "type": "object",
             "properties": {

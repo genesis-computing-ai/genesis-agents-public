@@ -35,8 +35,8 @@ logging.basicConfig(level=logging.WARN, format='%(asctime)s - %(levelname)s - %(
 
 import core.global_flags as global_flags
 
-print("****** GENBOT VERSION 0.116 *******")
-logger.warning('******* GENBOT VERSION 0.116*******')
+print("****** GENBOT VERSION 0.117 *******")
+logger.warning('******* GENBOT VERSION 0.117*******')
 
 runner_id = os.getenv('RUNNER_ID','jl-local-runner')
 print("Runner ID: ", runner_id )

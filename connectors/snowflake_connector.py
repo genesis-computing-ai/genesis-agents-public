@@ -2435,9 +2435,9 @@ class SnowflakeConnector(DatabaseConnector):
             return {"success": False, "message": "OpenAI API key is not set in the environment variables."}
 
         # Attempt to find the file using the provided method
-        if '/' in file_name:
+        if file_name is not None and '/' in file_name:
             file_name = file_name.split('/')[-1]
-        if '/' in openai_file_id:
+        if openai_file_id is not None and '/' in openai_file_id:
             openai_file_id = openai_file_id.split('/')[-1]
 
         file_path = f'./downloaded_files/{thread_id}/' + file_name

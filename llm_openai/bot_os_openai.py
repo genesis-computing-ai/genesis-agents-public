@@ -53,7 +53,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
          
       self.allowed_types_search = [".c", ".cs", ".cpp", ".doc", ".docx", ".html", ".java", ".json", ".md", ".pdf", ".php", ".pptx", ".py", ".rb", ".tex", ".txt", ".css", ".js", ".sh", ".ts"]
       self.allowed_types_code_i = [".c", ".cs", ".cpp", ".doc", ".docx", ".html", ".java", ".json", ".md", ".pdf", ".php", ".pptx", ".py", ".rb", ".tex", ".txt", ".css", ".js", ".sh", ".ts", ".csv", ".jpeg", ".jpg", ".gif", ".png", ".tar", ".xlsx", ".xml", ".zip"]
-
+      self.run_meta_map = {}
 
       genbot_internal_project_and_schema = os.getenv('GENESIS_INTERNAL_DB_SCHEMA','None')
       self.genbot_internal_project_and_schema = genbot_internal_project_and_schema
@@ -302,8 +302,11 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                return
       #logger.debug(f"add_message - created {thread_message}")
       self.first_message = False 
+      task_meta = input_message.metadata.pop('task_meta', None)
       run = self.client.beta.threads.runs.create(
          thread_id=thread.id, assistant_id=self.assistant.id, metadata=input_message.metadata)
+      if task_meta is not None:
+         self.run_meta_map[run.id]=task_meta
       self.thread_run_map[thread_id] = {"run": run.id, "completed_at": None}
       self.active_runs.append(thread_id)
 
@@ -642,13 +645,18 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                if True:
                   if os.getenv('SHOW_COST', 'false').lower() == 'true':
                      output += '  `'+"$"+str(round(run.usage.prompt_tokens/1000000*10+run.usage.completion_tokens/1000000*30,4))+'`'
+                  meta_prime = self.run_meta_map.get(run.id, None)
+                  if meta_prime is not None:
+                     meta = meta_prime
+                  else:
+                     meta = run.metadata
                   event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id, 
                                                                      status=run.status, 
                                                                      output=output, 
                                                                      messages=messages, 
                                                                      # UPDATE THIS FOR LOCAL FILE DOWNLOAD 
                                                                      files=self._store_files_locally(latest_message.attachments, thread_id),
-                                                                     input_metadata=run.metadata))
+                                                                     input_metadata=meta))
                   self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id, message_type='Assistant Response', message_payload=output, message_metadata=None, tokens_in=run.usage.prompt_tokens, tokens_out=run.usage.completion_tokens)
                threads_completed[thread_id] = run.completed_at
 

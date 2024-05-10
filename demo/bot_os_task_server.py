@@ -14,12 +14,8 @@ from connectors.snowflake_connector import SnowflakeConnector
 from core.bot_os_tools import get_tools
 from slack.slack_bot_os_adapter import SlackBotAdapter
 from bot_genesis.make_baby_bot import make_baby_bot, update_slack_app_level_key, set_llm_key, get_llm_key, get_available_tools, get_ngrok_auth_token, set_ngrok_auth_token, get_bot_details, update_bot_details, set_remove_pointers, list_all_bots, get_all_bots_full_details, get_slack_config_tokens, rotate_slack_token, set_slack_config_tokens, test_slack_config_token
-from auto_ngrok.auto_ngrok import launch_ngrok_and_update_bots
-from streamlit_gui.udf_proxy_bot_os_adapter import UDFBotOsInputAdapter
-from llm_reka.bot_os_reka import BotOsAssistantReka
-from slack_bolt import App
-from slack_bolt.adapter.socket_mode import SocketModeHandler
-import threading
+#from auto_ngrok.auto_ngrok import launch_ngrok_and_update_bots
+from core.bot_os_task_input_adapter import TaskBotOsInputAdapter
 from connectors.snowflake_connector import SnowflakeConnector
 import json
 import time, datetime
@@ -29,6 +25,12 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.WARN, format='%(asctime)s - %(levelname)s - %(message)s')
 
 import core.global_flags as global_flags
+
+##### TEST MODE FLAG
+os.environ['TEST_TASK_MODE'] = 'true'
+########################################
+
+
 
 print("****** GENBOT VERSION 0.123 *******")
 logger.warning('******* GENBOT VERSION 0.123*******')
@@ -62,7 +64,10 @@ else:    # Initialize BigQuery client
     print('Starting Snowflake connector...')
     db_adapter = SnowflakeConnector(connection_name='Snowflake')
     connection_info = { "Connection_Type": "Snowflake" }
-db_adapter.ensure_table_exists()
+
+test_task_mode = os.getenv('TEST_TASK_MODE', 'false').lower() == 'true'
+if not test_task_mode:
+    db_adapter.ensure_table_exists()
 print("---> CONNECTED TO DATABASE:: ",genesis_source)
 
 
@@ -98,6 +103,10 @@ ngrok_active = False
 
 def make_session(bot_config):
 
+    test_task_mode = os.getenv('TEST_TASK_MODE', 'false').lower() == 'true'
+
+    if test_task_mode and bot_config['bot_name'] != 'Eliza':
+        return None, None, None, None 
 # streamlit and slack launch todos:
 # add a flag for udf_enabled and slack_enabled to database
 # launch them accordingly
@@ -125,7 +134,8 @@ def make_session(bot_config):
                                             signing_secret=bot_config["slack_signing_secret"], # Assuming the signing secret is the same for all bots, adjust if needed
                                             channel_id=bot_config["slack_channel_id"], # Assuming the channel is the same for all bots, adjust if needed
                                             bot_user_id=bot_config["bot_slack_user_id"],
-                                            bot_name = bot_config["bot_name"], slack_app_level_token=app_level_token) # Adjust field name if necessary
+                                            bot_name = bot_config["bot_name"], slack_app_level_token=app_level_token,
+                                            bolt_app_active=False) # Adjust field name if necessary
             input_adapters.append(slack_adapter_local)
         except:
             print(f'Failed to create Slack adapter with the provided configuration for bot {bot_config["bot_name"]} ')
@@ -166,9 +176,9 @@ def make_session(bot_config):
         if bot_id in bot_id_to_udf_adapter_map:
             udf_adapter_local = bot_id_to_udf_adapter_map[bot_id]
         else:
-            udf_adapter_local = UDFBotOsInputAdapter()
+            udf_adapter_local = TaskBotOsInputAdapter()
             bot_id_to_udf_adapter_map[bot_id] = udf_adapter_local
-        udf_adapter_local = UDFBotOsInputAdapter()
+        udf_adapter_local = TaskBotOsInputAdapter()
         input_adapters.append(udf_adapter_local)
 
     if os.getenv("BOT_DO_PLANNING_REFLECTION"):
@@ -914,7 +924,112 @@ def slack_event_handle(bot_id=None):
 
 scheduler.start()
 
-def service_tasks_loop():
+
+def generate_task_prompt(bot_id, task):
+    # Retrieve task details from the database using bot_id and task_id
+    task_details = task
+    
+    # Construct the prompt based on the task details and the template provided
+    prompt = f"""
+    You have been woken up automatically to perform a task in unattended mode.
+
+    Task name:
+    {task_details['task_name']}
+
+    Task description:
+    {task_details['task_instructions']}
+
+    Reporting instructions:
+    {task_details['reporting_instructions']}
+
+    The user who gave you this task is: 
+    {task_details['primary_report_to_type']}: {task_details['primary_report_to_id']}
+
+    Here is the last status you noted the last time you ran this task:
+    {task_details['last_task_status']}
+
+    Here are some things you've noted that you've learned in past runs of this task about how to do it better:
+    {task_details['task_learnings']}
+
+    Here is how often this task should be run:
+    {task_details['action_trigger_type']} {task_details['action_trigger_details']}
+
+    Here is the current server time:
+    {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+    
+    Perform the task using the tools you have available if useful. When you are done with the task, return only a JSON document with these items, no other text:
+
+    {{
+        "work_done_summary": <a summary of the work you did on the task during this run, including any outbound communications you made>,
+        "task_status": "<a summary of the current status of the task, will be provided to you on your next run of this task>,
+        "updated_task_learnings": <the task_learnings text you received at the start of this task, updated or appended with anything new you learned about how to best perform this task during this run. Include anything you did that you could skip next time if you knew something in advance that isn't subject to frequent change, like tables you found or SQL you used or Slack IDs of people you communicated with.>,
+        "report_message": <include this if you are supposed to report back based on reporting_instructions based on what happened, otherwise omit for no report back.",
+        "done_flag": <true if the task is completely and should not be re-triggered again, false if the task is ongoing>,
+        "needs_help_flag": <true if the task should be paused until you are assisted by the task supervisor, false if assistance is not needed before the next task run>,
+        "task_clarity_comments": <a short statement on how clear the task is, or if any clarifications would be useful, omit this if task is clear>
+        "next_run_time": <date_timestamp for when to run this task next in %Y-%m-%d %H:%M:%S format>
+            }} 
+
+    If you respond back with anything other than a JSON document like the above, I will simply remind you of the required response format, as this thread is being supervised by an unattended runner. 
+    Reminder: do not include any other text with your response, just the JSON document.
+    """
+    
+    return prompt.strip()
+
+
+def submit_task(session=None, bot_id=None, task=None):
+    # Use a prompt similar to tmp/tmp_task_thoughts.txt to interact with the bot
+    # Perform the task and construct the response JSON
+
+    # Check if the next_check_ts is in the past
+    current_time = datetime.datetime.now()
+    next_check_ts_str = task.get('next_check_ts')
+    if next_check_ts_str:
+        next_check_ts = datetime.datetime.strptime(next_check_ts_str, '%Y-%m-%d %H:%M:%S')
+        if current_time < next_check_ts:
+            return {"task_skipped": True, "reason": "Next check timestamp is in the future."}
+
+    # Call the function to generate the LLM prompt
+    prompt = generate_task_prompt(bot_id, task)
+
+    # Insert the current timestamp into a string
+    current_timestamp_str = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+    task_meta = { "bot_id": bot_id, "task_id": task['task_id'], "submited_time": current_timestamp_str }
+
+    event = {"thread_id": None, "msg": prompt, 'task_meta': task_meta}
+    input_adapter = bot_id_to_udf_adapter_map.get(bot_id, None)
+    if input_adapter:
+        input_adapter.add_event(event)
+    
+    # add a queue of pending task runs 
+
+def task_log_and_update(self,task_id):
+
+    db_adapter.insert_task_history(
+        task_id=task['task_id'],
+        work_done_summary=task_result['work_done_summary'],
+        task_status=task_result['task_status'],
+        updated_task_learnings=task_result['updated_task_learnings'],
+        report_message=task_result.get('report_message', ''),
+        done_flag=task_result['done_flag'],
+        needs_help_flag=task_result['needs_help_flag'],
+        task_clarity_comments=task_result.get('task_clarity_comments', '')
+    )
+    # Update the task in the TASKS table
+    db_adapter.manage_tasks(
+        action='UPDATE', 
+        bot_id=bot_id, 
+        task_id=task['task_id'], 
+        task_details={
+            'next_check_ts': task_result.get('next_check_ts'),
+            'last_task_status': task_result.get('task_status'),
+            'task_learnings': task_result.get('updated_task_learnings'),
+            'task_active': task_result.get('done_flag')
+        }
+    )
+
+def tasks_loop():
 
     while True:
         # Retrieve the list of bots and their tasks
@@ -922,55 +1037,30 @@ def service_tasks_loop():
         active_sessions = sessions
         for session in active_sessions:
             bot_id = session.bot_id
-            bots = db_adapter.manage_tasks(action='LIST', bot_id=bot_id, task_id=None)
+            tasks = db_adapter.manage_tasks(action='LIST', bot_id=bot_id, task_id=None)
 
-            if bots.get("Success"):
-                for bot in bots.get("Tasks", []):
-                    for task in bot['tasks']:
-                        # Process the task using the bot
-                        task_result = process_task(bot_id, task)
-                        db_adapter.insert_task_history(
-                            task_id=task['task_id'],
-                            work_done_summary=task_result['work_done_summary'],
-                            task_status=task_result['task_status'],
-                            updated_task_learnings=task_result['updated_task_learnings'],
-                            report_message=task_result.get('report_message', ''),
-                            done_flag=task_result['done_flag'],
-                            needs_help_flag=task_result['needs_help_flag'],
-                            task_clarity_comments=task_result.get('task_clarity_comments', '')
-                        )
-                        # Update the task in the TASKS table
-                        db_adapter.manage_tasks(
-                            action='UPDATE', 
-                            bot_id=bot_id, 
-                            task_id=task['task_id'], 
-                            task_details={
-                                'next_check_ts': task_result.get('next_check_ts'),
-                                'last_task_status': task_result.get('task_status'),
-                                'task_learnings': task_result.get('updated_task_learnings'),
-                                'task_active': task_result.get('done_flag')
-                            }
-                        )
-            # Sleep for a specified interval before checking for tasks again
-        time.sleep(60)  
-            # Check for tasks every minute
-def process_task(bot_id, task):
-    # Use a prompt similar to tmp/tmp_task_thoughts.txt to interact with the bot
-    # Perform the task and construct the response JSON
-    response_json = {
-        "work_done_summary": "Task processed",
-        "task_status": "Task completed",
-        "updated_task_learnings": "No new learnings",
-        "report_message": "",
-        "done_flag": True,
-        "needs_help_flag": False,
-        "task_clarity_comments": "",
-        "next_check_ts": (datetime.now() + datetime.timedelta(minutes=5)).strftime('%Y-%m-%d %H:%M:%S')
-    }
-    return response_json
+            if tasks.get("Success"):
+                for task in tasks.get("Tasks", []):
+                    # Process the task using the bot
+                    task_result = submit_task(session=session, bot_id=bot_id, task=task)
+
+        i = input('>')  
+ 
+        # now go through the queue of pending task runs, and check input adapter maps for responses 
+        # process responses
+                # make sure properly answered if not resubmit
+                # see if task should stay active
+                # get next timestamp
+                # save task history
+                # update task definition
+
+
+        # Sleep for a specified interval before checking for tasks again
+        # Check for tasks every minute
+
 
 # Start the task servicing loop
-service_tasks_loop()
+tasks_loop()
 
 
 

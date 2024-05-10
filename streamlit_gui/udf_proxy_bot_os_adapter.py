@@ -29,7 +29,9 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
             metadata["input_uuid"]=uu
         return BotOsInputMessage(thread_id=event.get('thread_id'), msg=event.get('msg'), metadata=metadata)
 
-    def handle_response(self, session_id: str, message: BotOsOutputMessage, in_thread=None, in_uuid=None):
+
+
+    def handle_response(self, session_id: str, message: BotOsOutputMessage, in_thread=None, in_uuid=None, task_meta=None):
         # Here you would implement how the Flask app should handle the response.
         # For example, you might send the response back to the client via a WebSocket
         # or store it in a database for later retrieval.

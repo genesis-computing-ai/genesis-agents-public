@@ -148,7 +148,7 @@ class BotOsDispatchInputAdapter(BotOsInputAdapter):
         pass
 
     # allows response to be sent back with optional reply
-    def handle_response(self, session_id:str, message:BotOsOutputMessage, in_thread=None, in_uuid=None): 
+    def handle_response(self, session_id:str, message:BotOsOutputMessage, in_thread=None, in_uuid=None, task_meta=None): 
         if message.status == "completed":
             self.tasks[message.thread_id]["result"] = message.output
 

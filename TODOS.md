@@ -17,9 +17,11 @@ THINGS TO TEST:chr
 (test) harvester dont crash if cant access schemas for a database listed in control file
 
 SHORT-TERM:
+When activating a bot to pay attention to a new thread, include the original message starting the thread, and the last n messages 
+Add to the thing that checks whether to respond to a thread, see if the same bot was the original poster (from a task for example) and if so respons
 Encrypt all secrete and change col names
 MR - Pre-harvest and share information_schema
-Roberts jupyter issue
+Roberts jupyter issue followup
 JL - changing openAI key via streamlit when running gives an error: (bots conflicts with existing job-- dont add scheduler job again if already running)
 JL- (test more) adding tools to new bots (image analysis for example)
 JL -(test more on spcs) Something blocks the thinking messages or bolt app when doing image analysis and/or file generation/upload to Slack

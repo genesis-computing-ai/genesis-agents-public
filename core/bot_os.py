@@ -38,7 +38,9 @@ class BotOsThread:
         logger.debug("BotOsThread:handle_response")
         in_thread = output_message.input_metadata.get('input_thread',None)
         in_uuid = output_message.input_metadata.get('input_uuid',None)
-        self.input_adapter.handle_response(session_id, output_message, in_thread=in_thread, in_uuid=in_uuid)
+        task_meta = output_message.input_metadata.get('task_meta',None)
+        self.input_adapter.handle_response(session_id, output_message,
+         in_thread=in_thread, in_uuid=in_uuid, task_meta=task_meta)
 
 
 
@@ -85,6 +87,8 @@ class BotOsSession:
                  ):
         self.session_name = session_name
         
+        self.task_test_mode = os.getenv('TEST_TASK_MODE', 'false').lower()=='true'
+
         if tools is None:
             self.tools = _BOT_OS_BUILTIN_TOOLS
         else:
@@ -171,7 +175,10 @@ class BotOsSession:
             self.threads[input_message.thread_id] = thread
         else:
             thread = self.threads[input_message.thread_id]
-        txt = input_message.msg[:50]
+        if not self.task_test_mode:
+            txt = input_message.msg[:50]
+        else:
+            txt = input_message.msg
         if len(txt) == 50:
             txt += '...'
         print(f"{self.bot_name} bot_os add_message txt: {txt}", flush=True)
@@ -191,7 +198,10 @@ class BotOsSession:
                                                         msg=self.validation_instructions + self._retrieve_memories(output_message.output), 
                                                         metadata=output_message.input_metadata))
         else:
-            txt = output_message.output[:50]
+            if not self.task_test_mode:
+                txt = output_message.output[:50]
+            else:
+                txt = output_message.output
             if len(txt) == 50:
                 txt += '...'
             print(f'{self.bot_name} bot_os response: {txt}', flush=True)

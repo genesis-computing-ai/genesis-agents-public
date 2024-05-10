@@ -34,7 +34,7 @@ class BotOsInputAdapter:
 
     # allows response to be sent back with optional reply
     @abstractmethod
-    def handle_response(self, session_id:str, message:BotOsOutputMessage, in_thread=None, in_uuid=None): 
+    def handle_response(self, session_id:str, message:BotOsOutputMessage, in_thread=None, in_uuid=None, task_meta=None): 
         pass
         
 class BotInputAdapterCLI(BotOsInputAdapter):

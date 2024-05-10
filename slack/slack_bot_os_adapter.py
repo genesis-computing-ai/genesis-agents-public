@@ -38,7 +38,7 @@ print(f"Instantiation Code--->{uniq}")
 
 class SlackBotAdapter(BotOsInputAdapter):
 
-    def __init__(self, token:str, signing_secret:str, channel_id:str, bot_user_id:str, bot_name:str='Unknown', slack_app_level_token=None) -> None:
+    def __init__(self, token:str, signing_secret:str, channel_id:str, bot_user_id:str, bot_name:str='Unknown', slack_app_level_token=None, bolt_app_active=True) -> None:
         logger.debug("SlackBotAdapter")
         super().__init__()
         self.slack_app = App(
@@ -56,7 +56,7 @@ class SlackBotAdapter(BotOsInputAdapter):
         
         self.events_lock =  threading.Lock()
 
-        if slack_app_level_token:
+        if slack_app_level_token and bolt_app_active:
             self.slack_app_level_token = slack_app_level_token      
 
             # Initialize Slack Bolt app
@@ -276,7 +276,7 @@ class SlackBotAdapter(BotOsInputAdapter):
 
 
     # abstract method from BotOsInputAdapter
-    def handle_response(self, session_id:str, message:BotOsOutputMessage, in_thread=None, in_uuid=None):
+    def handle_response(self, session_id:str, message:BotOsOutputMessage, in_thread=None, in_uuid=None, task_meta=None):
         logger.debug(f"SlackBotAdapter:handle_response - {session_id} {message}")
         try:
             thinking_ts = message.input_metadata.get("thinking_ts", None)

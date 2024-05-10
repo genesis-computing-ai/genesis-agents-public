@@ -746,7 +746,7 @@ class SnowflakeConnector(DatabaseConnector):
                 """
                 cursor.execute(llm_config_table_ddl)
                 self.client.commit()
-                print(f"Table {self.genbot_internal_project_and_schema}.LLM_TOKENS created.")
+          #      print(f"Table {self.genbot_internal_project_and_schema}.LLM_TOKENS created.")
 
                 # Insert a row with the current runner_id and NULL values for the LLM key and type
                 runner_id = os.getenv('RUNNER_ID', 'jl-local-runner')
@@ -756,9 +756,10 @@ class SnowflakeConnector(DatabaseConnector):
                 """
                 cursor.execute(insert_initial_row_query, (runner_id,))
                 self.client.commit()
-                print(f"Inserted initial row into {self.genbot_internal_project_and_schema}.LLM_TOKENS with runner_id: {runner_id}")
+         #       print(f"Inserted initial row into {self.genbot_internal_project_and_schema}.LLM_TOKENS with runner_id: {runner_id}")
             else:
-                print(f"Table {self.schema}.LLM_TOKENS already exists.")
+                pass
+ #               print(f"Table {self.schema}.LLM_TOKENS already exists.")
         except Exception as e:
             print(f"An error occurred while checking or creating table LLM_TOKENS: {e}")
         finally:

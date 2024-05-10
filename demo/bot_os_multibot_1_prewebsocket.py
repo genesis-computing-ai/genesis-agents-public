@@ -27,8 +27,8 @@ print("****** GENBOT VERSION 0.5 *******")
 logger.warning('******* GENBOT VERSION 0.5 *******')
 snowflake_secure_value = os.getenv('SNOWFLAKE_SECURE')
 if snowflake_secure_value is not None:
-    print("SNOWFLAKE_SECURE:", snowflake_secure_value)
-    logger.warning("SNOWFLAKE_SECURE: %s", snowflake_secure_value)
+    #print("SNOWFLAKE_SECURE:", snowflake_secure_value)
+    #logger.warning("SNOWFLAKE_SECURE: %s", snowflake_secure_value)
 else:
     print("SNOWFLAKE_SECURE: not set")
     logger.warning("SNOWFLAKE_SECURE: not set")

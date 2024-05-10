@@ -23,7 +23,7 @@ from core.bot_os_memory import BotOsKnowledgeAnnoy_Metadata
 import logging
 logger = logging.getLogger(__name__)
 
-genesis_source = os.getenv('GENESIS_SOURCE',default="BigQuery")
+genesis_source = os.getenv('GENESIS_SOURCE',default="Snowflake")
 
 if genesis_source == 'BigQuery':
     credentials_path = os.getenv('GOOGLE_APPLICATION_CREDENTIALS',default=".secrets/gcp.json")
@@ -45,7 +45,7 @@ def get_tools(which_tools, db_adapter, slack_adapter_local=None, include_slack=T
         except:
             tool_name = tool    
 
-        if tool_name == 'integrate_code':
+        if False: #tool_name == 'integrate_code':
             tools.extend(integration_tool_descriptions)
             available_functions_load.update(integration_tools_new)
             function_to_tool_map[tool_name]=integration_tool_descriptions

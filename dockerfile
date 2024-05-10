@@ -15,6 +15,7 @@ COPY slack ./slack
 COPY streamlit_gui ./streamlit_gui
 COPY bot_genesis ./bot_genesis
 COPY connectors ./connectors
+COPY auto_ngrok ./auto_ngrok
 COPY core ./core
 COPY demo ./demo
 COPY generated_modules ./generated_modules

@@ -143,7 +143,7 @@ print("   /        \\    ")
 print("  G E N E S I S ")
 print("    B o t O S")
 print(" ---- HARVESTER----")
-print('Harvester Start v0.117',flush=True)
+print('Harvester Start v0.120',flush=True)
 print("")
 
 while True:

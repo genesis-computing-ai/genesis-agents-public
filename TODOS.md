@@ -12,32 +12,24 @@ THINGS TO TEST:chr
 
 (test) adding stage tools to a bot with baby_bot_tools and see if instructions are updated with internal stage location
 (test) Add error checking for missing data or grants to harvester so it doesnt crash on that 
-(test) Eve deploy on fresh install complained about file types for null files, make sure deploy button works
-x (test) make deploy to slack button in SiS app tell you to setup slack tokens first if not yet set up
 (test) add Spider baseball and f1 schemas as share-thru app w/pre-made harvest results for demo data on start
 (test) Make sure harvester works ok with mixed case table and database and schema names (and system in general)
 (test) harvester dont crash if cant access schemas for a database listed in control file
 
 SHORT-TERM:
-push new version 
-(test docker) Remove code generator
 Encrypt all secrete and change col names
-MR - Pre-harvest and share information schema
+MR - Pre-harvest and share information_schema
 Roberts jupyter issue
-x Snow Sec questionairre
-JL - fix and test API key spinner and reload button in SiS
 JL - changing openAI key via streamlit when running gives an error: (bots conflicts with existing job-- dont add scheduler job again if already running)
 JL- (test more) adding tools to new bots (image analysis for example)
-JL - test - after putting in openai key on new install, do you get sent to chat screen via button?
-JL- (test w/new sis) Streamlit after entry of openai key doesnt show Talk to Bots button 
 JL -(test more on spcs) Something blocks the thinking messages or bolt app when doing image analysis and/or file generation/upload to Slack
 MR - Add bot custom welcome messages on new chats in Streamlit
 MR - SiS app will restart service is suspended (With pool) but doesnt wake up harvester, errors in SiS log harvest screen
-MR-(soon) fix wait spinner on api key page when putting in API key on a new install
+JL-(soon) fix wait spinner on api key page when putting in API key on a new install
 MR-(soon) Add a sevice start/stop/restart buttons to SiS
 MR- (soon) Add a message to the top of the SisChat page suggesting activating via slack, via a temp workspace
 MR - Share default bot images thru app, add instructions to apply them to the user
-Ask Eve to make a line chart and it sends back ImageFileContentBlock(image_file=ImageFile(file_id='file-kfWyFfbLNRk8R2lfnMhQwPEn'), type='image_file') which we dont handle right now        
+JL - Ask Eve to make a line chart and it sends back ImageFileContentBlock(image_file=ImageFile(file_id='file-kfWyFfbLNRk8R2lfnMhQwPEn'), type='image_file') which we dont handle right now        
 When you send a message to a thread that's already running, queue it up and don't submit another, then consolidate all of them when its ready and send them all at once once the run is done.
 Check this function execute_function - _get_visible_tables - {"database":"my_data","schema":"public"}
 (later) Autogenerate images for new bots, add instructions to the user to apply them when getting the tokens
@@ -139,6 +131,14 @@ Add a mechanism for license control based on current_account()... share a table 
     Have a trial period where you can use it in trial mode before it goes into limited mode
 
 DONE:
+x JL - test - after putting in openai key on new install, do you get sent to chat screen via button?
+x JL- (test w/new sis) Streamlit after entry of openai key doesnt show Talk to Bots button 
+x Snow Sec questionairre
+x JL - fix and test API key spinner and reload button in SiS
+x push new version 
+x (test docker) Remove code generator
+x (test) Eve deploy on fresh install complained about file types for null files, make sure deploy button works
+x (test) make deploy to slack button in SiS app tell you to setup slack tokens first if not yet set up
 x JL- test bots while harvester is running 
 x JL- (text) FIGURE OUT slowdown of whole system when harvester runs.. make it single threaded, with delays?
 x MR - If app is restarting (pools etc) have Sis give a message and spinner saying that vs a blank screen

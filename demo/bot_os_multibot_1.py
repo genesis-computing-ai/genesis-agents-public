@@ -35,19 +35,11 @@ logging.basicConfig(level=logging.WARN, format='%(asctime)s - %(levelname)s - %(
 
 import core.global_flags as global_flags
 
-print("****** GENBOT VERSION 0.117 *******")
-logger.warning('******* GENBOT VERSION 0.117*******')
+print("****** GENBOT VERSION 0.121 *******")
+logger.warning('******* GENBOT VERSION 0.121*******')
 
 runner_id = os.getenv('RUNNER_ID','jl-local-runner')
 print("Runner ID: ", runner_id )
-snowflake_secure_value = os.getenv('SNOWFLAKE_SECURE')
-if snowflake_secure_value is not None:
-    print("SNOWFLAKE_SECURE:", snowflake_secure_value)
-    logger.warning("SNOWFLAKE_SECURE: %s", snowflake_secure_value)
-else:
-    print("SNOWFLAKE_SECURE: not set")
-    logger.warning("SNOWFLAKE_SECURE: not set")
-
 
 genbot_internal_project_and_schema = os.getenv('GENESIS_INTERNAL_DB_SCHEMA','None')
 if genbot_internal_project_and_schema == 'None':
@@ -290,7 +282,7 @@ elif default_llm_engine.lower() == "reka":
 
 if genesis_source == 'BigQuery' and api_key_from_env == False:
     while True:
-        print('!!!!! Loading LLM API Key from File No longer Supported -- Please provide via ENV VAR when using BigQuery Source')
+        print('!!!!! Loading LLM config from File No longer Supported -- Please provide via ENV VAR when using BigQuery Source')
         time.sleep(3)
     
 
@@ -304,12 +296,12 @@ if llm_api_key is None and genesis_source == 'Snowflake':
         default_llm_engine = llm_type
         llm_api_key = llm_key
         api_key_from_env = False
-        print("LLM Key loaded from Database")
+      #  print("LLM Key loaded from Database")
     else:
         print("===========")
-        print("NOTE: LLM Key not found in Env Var nor in Database LLM_CONFIG table.. starting without LLM Key, please provide via Streamlit")
+        print("NOTE: Config via Streamlit to continue")
         print("===========")
-        logger.warn('LLM Key not found in Env Var nor in Database LLM_CONFIG table.. starting without LLM Key, please provide via Streamlit')
+#        logger.warn('LLM config not found in Env Var nor in Database LLM_CONFIG table.. starting without LLM Key, please provide via Streamlit')
 
 if llm_api_key is not None and default_llm_engine.lower() == 'openai':
     os.environ["OPENAI_API_KEY"] = llm_api_key

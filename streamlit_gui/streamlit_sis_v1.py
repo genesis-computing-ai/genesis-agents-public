@@ -461,11 +461,15 @@ def chat_page():
             #st.write(bot_names)
         
             bot_ids = [bot["bot_id"] for bot in bot_details]
+            bot_intros = [bot["bot_intro"] for bot in bot_details]
             if len(bot_names) > 0:
                 selected_bot_name = st.selectbox("Active Bots", bot_names)
                 selected_bot_index = bot_names.index(selected_bot_name)
             selected_bot_id = bot_ids[selected_bot_index]
-    
+            selected_bot_intro = bot_intros[selected_bot_index]
+            if not selected_bot_intro:
+                selected_bot_intro = "Hello, how can I help you?"
+            
             if st.button("New Chat", key="new_chat_button"):
             # Reset the chat history and thread ID for the selected bot
                 st.session_state[f"messages_{selected_bot_id}"] = [{"role": "assistant", "content": f"Hi, I'm {selected_bot_name}! How can I help you today?"}]
@@ -482,7 +486,7 @@ def chat_page():
             # Initialize chat history
             if f"messages_{selected_bot_id}" not in st.session_state:
                 st.session_state[f"messages_{selected_bot_id}"] = []
-                st.session_state[f"messages_{selected_bot_id}"].append({"role": "assistant", "content": f"Hi, I'm {selected_bot_name}! How can I help you today?"})
+                st.session_state[f"messages_{selected_bot_id}"].append({"role": "assistant", "content": selected_bot_intro})
     
             # Display chat messages from history on app rerun
             for message in st.session_state[f"messages_{selected_bot_id}"]:
@@ -1147,15 +1151,28 @@ if SnowMode:
             with st.spinner('Waiting on Genesis Services to start...'):
                 service_status = st.empty()
                 while True:
+                    service_status.text('Genesis Service status: ' + service_status_result[0][0])
+                    if service_status_result[0][0] == 'SUSPENDED':
+                        # show button to start service
+                        if st.button('Click to start Genesis Service'):
+                            with st.spinner('Genesis Services is starting...'):
+                                try:
+                                    # Execute the command and collect the results
+                                    time.sleep(15)
+                                    service_start_result = session.sql(f"call {app_name}.core.start_app_instance('APP1','GENESIS_POOL','GENESIS_EAI','{st.session_state.wh_name}')").collect()
+                                    if service_start_result:
+                                        service_status.text('Genesis Service status: ' + service_status_result[0][0])
+                                    else:
+                                        time.sleep(10)
+                                except Exception as e:
+                                    st.error(f'Error connecting to Snowflake: {e}')
                     service_status_result = session.sql(status_query).collect()
                     service_status.text('Genesis Service status: ' + service_status_result[0][0])
                     if service_status_result[0][0] == 'READY':
                         service_status.text('')
-                        break 
-                    time.sleep(10)        
-
-        sql = f"select {prefix}.list_available_bots() "
-        data = session.sql(sql).collect()
+                        st.rerun()
+                        
+                    time.sleep(10)         
 
         sql = f"select {prefix}.list_available_bots() "
         data = session.sql(sql).collect()

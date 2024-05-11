@@ -14,7 +14,7 @@ import snowflake.connector
 import random, string
 import requests
 from .database_connector import DatabaseConnector
-from core.bot_os_defaults import BASE_EVE_BOT_INSTRUCTIONS, ELIZA_DATA_ANALYST_INSTRUCTIONS, STUART_DATA_STEWARD_INSTRUCTIONS
+from core.bot_os_defaults import BASE_EVE_BOT_INSTRUCTIONS, ELIZA_DATA_ANALYST_INSTRUCTIONS, STUART_DATA_STEWARD_INSTRUCTIONS, EVE_INTRO, ELIZA_INTRO, STUART_INTRO
 #from database_connector import DatabaseConnector
 from threading import Lock
 import base64
@@ -824,7 +824,8 @@ class SnowflakeConnector(DatabaseConnector):
                     UDF_ACTIVE VARCHAR(16777216),
                     SLACK_ACTIVE VARCHAR(16777216),
                     FILES VARCHAR(16777216),
-                    BOT_IMPLEMENTATION VARCHAR(16777216)
+                    BOT_IMPLEMENTATION VARCHAR(16777216),
+                    BOT_INTRO VARCHAR(16777216)
                 );
                 """
                 cursor.execute(bot_servicing_table_ddl)
@@ -843,11 +844,11 @@ class SnowflakeConnector(DatabaseConnector):
 
                 insert_initial_row_query = f"""
                 INSERT INTO {self.bot_servicing_table_name} (
-                    RUNNER_ID, BOT_ID, BOT_NAME, BOT_INSTRUCTIONS, AVAILABLE_TOOLS, UDF_ACTIVE, SLACK_ACTIVE
+                    RUNNER_ID, BOT_ID, BOT_NAME, BOT_INSTRUCTIONS, AVAILABLE_TOOLS, UDF_ACTIVE, SLACK_ACTIVE, BOT_INTRO
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s);
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
                 """
-                cursor.execute(insert_initial_row_query, (runner_id, bot_id, bot_name, bot_instructions, available_tools, udf_active, slack_active))
+                cursor.execute(insert_initial_row_query, (runner_id, bot_id, bot_name, bot_instructions, available_tools, udf_active, slack_active, bot_intro))
                 self.client.commit()
                 print(f"Inserted initial Eve row into {self.bot_servicing_table_name} with runner_id: {runner_id}")
 
@@ -859,14 +860,15 @@ class SnowflakeConnector(DatabaseConnector):
                 available_tools = '["slack_tools", "webpage_downloader", "database_tools", "snowflake_stage_tools", "image_tools"]'
                 udf_active = "Y"
                 slack_active = "N"
+                bot_intro = ELIZA_INTRO
 
                 insert_initial_row_query = f"""
                 INSERT INTO {self.bot_servicing_table_name} (
-                    RUNNER_ID, BOT_ID, BOT_NAME, BOT_INSTRUCTIONS, AVAILABLE_TOOLS, UDF_ACTIVE, SLACK_ACTIVE
+                    RUNNER_ID, BOT_ID, BOT_NAME, BOT_INSTRUCTIONS, AVAILABLE_TOOLS, UDF_ACTIVE, SLACK_ACTIVE, BOT_INTRO
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s);
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
                 """
-                cursor.execute(insert_initial_row_query, (runner_id, bot_id, bot_name, bot_instructions, available_tools, udf_active, slack_active))
+                cursor.execute(insert_initial_row_query, (runner_id, bot_id, bot_name, bot_instructions, available_tools, udf_active, slack_active, bot_intro))
                 self.client.commit()
                 print(f"Inserted initial Eliza row into {self.bot_servicing_table_name} with runner_id: {runner_id}")
 
@@ -878,14 +880,15 @@ class SnowflakeConnector(DatabaseConnector):
                 available_tools = '["slack_tools", "database_tools", "snowflake_stage_tools", "snowflake_semantic_tools", "image_tools"]'
                 udf_active = "Y"
                 slack_active = "N"
+                bot_intro = STUART_INTRO
 
                 insert_initial_row_query = f"""
                 INSERT INTO {self.bot_servicing_table_name} (
-                    RUNNER_ID, BOT_ID, BOT_NAME, BOT_INSTRUCTIONS, AVAILABLE_TOOLS, UDF_ACTIVE, SLACK_ACTIVE
+                    RUNNER_ID, BOT_ID, BOT_NAME, BOT_INSTRUCTIONS, AVAILABLE_TOOLS, UDF_ACTIVE, SLACK_ACTIVE, BOT_INTRO
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s);
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
                 """
-                cursor.execute(insert_initial_row_query, (runner_id, bot_id, bot_name, bot_instructions, available_tools, udf_active, slack_active))
+                cursor.execute(insert_initial_row_query, (runner_id, bot_id, bot_name, bot_instructions, available_tools, udf_active, slack_active, bot_intro))
                 self.client.commit()
                 print(f"Inserted initial Eliza row into {self.bot_servicing_table_name} with runner_id: {runner_id}")
 
@@ -916,6 +919,25 @@ class SnowflakeConnector(DatabaseConnector):
                         cursor.execute(alter_table_query)
                         self.client.commit()
                         logger.info(f"Column 'BOT_IMPLEMENTATION' added to table {self.bot_servicing_table_name}.")
+                    if 'BOT_INTRO' not in columns:
+                        alter_table_query = f"ALTER TABLE {self.bot_servicing_table_name} ADD COLUMN BOT_INTRO STRING;"
+                        cursor.execute(alter_table_query)
+                        self.client.commit()
+                        logger.info(f"Column 'BOT_INTRO' added to table {self.bot_servicing_table_name}.")
+                        insert_initial_intros_query = f"""UPDATE {self.bot_servicing_table_name} b SET BOT_INTRO = a.BOT_INTRO
+                        FROM (
+                            SELECT BOT_NAME, BOT_INTRO
+                            FROM (
+                                SELECT 'EVE' BOT_NAME, $${EVE_INTRO}$$ BOT_INTRO
+                                UNION
+                                SELECT 'ELIZA' BOT_NAME, $${ELIZA_INTRO}$$ BOT_INTRO
+                                UNION
+                                SELECT 'STUART' BOT_NAME, $${STUART_INTRO}$$ BOT_INTRO
+                            ) ) a 
+                        WHERE upper(a.BOT_NAME) = upper(b.BOT_NAME)"""
+                        cursor.execute(insert_initial_intros_query)
+                        self.client.commit()
+                        logger.info(f"Initial 'BOT_INTRO' data inserted into table {self.bot_servicing_table_name}.")
                 except Exception as e:
                     print(f"An error occurred while checking or altering table {self.bot_servicing_table_name} to add BOT_IMPLEMENTATION column: {e}")
                 except Exception as e:
@@ -1629,9 +1651,9 @@ class SnowflakeConnector(DatabaseConnector):
         # Get the database schema from environment variables
 
         if full:
-            select_str = "api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instructions, runner_id, slack_app_token, slack_app_level_key, slack_signing_secret, slack_channel_id, available_tools, udf_active, slack_active, files, bot_implementation"
+            select_str = "api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instructions, runner_id, slack_app_token, slack_app_level_key, slack_signing_secret, slack_channel_id, available_tools, udf_active, slack_active, files, bot_implementation, bot_intro"
         else:
-            select_str = "runner_id, bot_id, bot_name, bot_instructions, available_tools, bot_slack_user_id, api_app_id, auth_url, udf_active, slack_active, files, bot_implementation"
+            select_str = "runner_id, bot_id, bot_name, bot_instructions, available_tools, bot_slack_user_id, api_app_id, auth_url, udf_active, slack_active, files, bot_implementation, bot_intro"
 
         # Query to select all bots from the BOT_SERVICING table
         if runner_id is None:
@@ -1888,7 +1910,7 @@ class SnowflakeConnector(DatabaseConnector):
 
     def db_insert_new_bot(self, api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instructions, runner_id, slack_signing_secret, 
                     slack_channel_id, available_tools, auth_url, auth_state, client_id, client_secret, udf_active, 
-                    slack_active, files, bot_implementation, project_id, dataset_name, bot_servicing_table):
+                    slack_active, files, bot_implementation, bot_intro, project_id, dataset_name, bot_servicing_table):
         """
         Inserts a new bot configuration into the BOT_SERVICING table.
 
@@ -1904,15 +1926,16 @@ class SnowflakeConnector(DatabaseConnector):
             available_tools (json): A JSON of tools the bot has access to.
             files (json): A JSON of files to include with the bot.
             bot_implementation (str): cortex or openai or ...
+            bot_intro: Default bot greeting.
         """
 
         insert_query = f"""
             INSERT INTO {project_id}.{dataset_name}.{bot_servicing_table} (
                 api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instructions, runner_id, 
                 slack_signing_secret, slack_channel_id, available_tools, auth_url, auth_state, client_id, client_secret, udf_active, slack_active,
-                files
+                files, bot_implementation, bot_intro
             ) VALUES (
-                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
             )
         """
 
@@ -1924,7 +1947,7 @@ class SnowflakeConnector(DatabaseConnector):
             cursor.execute(insert_query, (
                 api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instructions, runner_id, 
                 slack_signing_secret, slack_channel_id, available_tools_string, auth_url, auth_state, client_id, client_secret, udf_active, slack_active,
-                files_string
+                files_string, bot_implementation, bot_intro
             ))
             self.connection.commit()
             print(f"Successfully inserted new bot configuration for bot_id: {bot_id}")

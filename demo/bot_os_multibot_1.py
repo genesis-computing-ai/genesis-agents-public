@@ -29,14 +29,15 @@ import threading
 
 
 
+
 import logging
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.WARN, format='%(asctime)s - %(levelname)s - %(message)s')
 
 import core.global_flags as global_flags
 
-print("****** GENBOT VERSION 0.121 *******")
-logger.warning('******* GENBOT VERSION 0.121*******')
+print("****** GENBOT VERSION 0.122 *******")
+logger.warning('******* GENBOT VERSION 0.122*******')
 
 runner_id = os.getenv('RUNNER_ID','jl-local-runner')
 print("Runner ID: ", runner_id )
@@ -758,7 +759,7 @@ def configure_llm():
                     client = OpenAI(api_key=llm_api_key_candidate)
 
                     completion = client.chat.completions.create(
-                    model="gpt-3.5-turbo",
+                    model="gpt-4o",
                     messages=[
                         {"role": "user", "content": "What is 1+1?"}
                     ]

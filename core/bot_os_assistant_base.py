@@ -43,7 +43,8 @@ def execute_function_blocking(func_name:str, arguments:dict, available_functions
         try:
             results = function(**arguments)
   #          thread = Thread(target=wrapper, args=(s_arguments,)) # comma matters to prevent args getting converted into tuple
-            return(str(results))
+         #   return(str(results))
+            return results
         except Exception as e:
             return(f"caught exception {str(e)} trying to run {func_name}")
     else:

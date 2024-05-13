@@ -2417,6 +2417,76 @@ class SnowflakeConnector(DatabaseConnector):
             return []
 
 
+    def image_generation(self,prompt, thread_id=None):
+
+        import openai, requests, os
+        """
+        Generates an image using OpenAI's DALL-E 3 based on the given prompt and saves it to the local downloaded_files folder.
+
+        Args:
+            prompt (str): The prompt to generate the image from.
+            thread_id (str): The unique identifier for the thread to save the image in the correct location.
+
+        Returns:
+            str: The file path of the saved image.
+        """
+
+        if thread_id is None:
+            import random
+            import string
+            thread_id = ''.join(random.choices(string.ascii_letters + string.digits, k=10))
+
+        # Ensure the OpenAI API key is set in your environment variables
+        api_key = os.getenv('OPENAI_API_KEY')
+        if not api_key:
+            print("imagegen OpenAI API key is not set in the environment variables.")
+            return None
+
+        openai.api_key = os.getenv('OPENAI_API_KEY')
+        client = openai.OpenAI(api_key=openai.api_key)
+
+        # Generate the image using DALL-E 3
+        try:
+            response = client.images.generate(
+                model="dall-e-3",
+                prompt=prompt,
+                size="1024x1024",
+                quality="standard",
+                n=1,
+            )
+            image_url = response.data[0].url
+            if not image_url:
+                print("imagegen Failed to generate image with DALL-E 3.")
+                return None
+
+            # Download the image from the URL
+            image_response = requests.get(image_url)
+            print('imagegen getting image from ',image_url)
+            image_response.raise_for_status()
+            image_bytes = image_response.content
+
+            # Create a sanitized filename from the first 50 characters of the prompt
+            sanitized_prompt = ''.join(e if e.isalnum() else '_' for e in prompt[:50])
+            file_path = f"./downloaded_files/{thread_id}/{sanitized_prompt}.png"
+            # Save the image to the local downloaded_files folder
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            with open(file_path, 'wb') as image_file:
+                image_file.write(image_bytes)
+
+            print(f"imagegen Image generated and saved to {file_path}")
+
+
+            result = {
+                "success": True,
+                "local_file_name": file_path,
+                "prompt": prompt,
+            }
+
+            return result
+        except Exception as e:
+            print(f"imagegen Error generating image with DALL-E 3: {e}")
+            return None
+
     def image_analysis(self, query=None, openai_file_id: str=None, file_name: str=None, thread_id=None):
         """
         Analyzes an image using OpenAI's GPT-4 Turbo Vision.
@@ -2469,8 +2539,11 @@ class SnowflakeConnector(DatabaseConnector):
         # Use the provided query or a default one if not provided
         prompt = query if query else "What’s in this image?"
 
+        openai_model_name = os.getenv('OPENAI_MODEL_NAME', 'gpt-4o')
+
+
         payload = {
-            "model": "gpt-4-turbo",
+            "model": openai_model_name,
             "messages": [
                 {
                     "role": "user",
@@ -3609,7 +3682,5 @@ def test_stage_functions():
         print("'tostage.txt' has been successfully deleted from the stage.")
     else:
         print("Error: 'tostage.txt' is still present in the stage.")
-
-
 
 

@@ -1668,7 +1668,7 @@ show compute pools;
 
 
 SELECT CYBERSYN_AI_UTILITIES.cybersyn.evaluate_openai_prompt(
-   'gpt-3.5-turbo',
+   'gpt-4o',
    'You are financial market expert',
    'What is the name of the company with symbol SNOW. Just the name in json format.'
 );

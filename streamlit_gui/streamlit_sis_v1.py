@@ -964,11 +964,12 @@ set APP_DATABASE = '{app_name}';
 CREATE DATABASE IF NOT EXISTS GENESIS_LOCAL_DB; 
 CREATE SCHEMA IF NOT EXISTS GENESIS_LOCAL_DB.SETTINGS;
 
--- create a network rule that allows Genesis Server to access OpenAI's API, and optionally Slack 
+-- create a network rule that allows Genesis Server to access OpenAI's API, and optionally Slack API and Azure Blob (for image generation) 
 CREATE OR REPLACE NETWORK RULE GENESIS_LOCAL_DB.SETTINGS.GENESIS_RULE
  MODE = EGRESS TYPE = HOST_PORT
 VALUE_LIST = ('api.openai.com', 'slack.com', 'www.slack.com', 'wss-primary.slack.com',
-'wss-backup.slack.com',  'wss-primary.slack.com:443','wss-backup.slack.com:443');
+'wss-backup.slack.com',  'wss-primary.slack.com:443','wss-backup.slack.com:443',
+'oaidalleapiprodscus.blob.core.windows.net:443');
 
 -- create an external access integration that surfaces the above network rule
 CREATE OR REPLACE EXTERNAL ACCESS INTEGRATION GENESIS_EAI

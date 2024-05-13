@@ -29,7 +29,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                 update_existing=False, log_db_connector=None, bot_id='default_bot_id', bot_name='default_bot_name', all_tools:list[dict]={}, all_functions={},all_function_to_tool_map={}) -> None:
       logger.debug("BotOsAssistantOpenAI:__init__") 
       self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-      model_name = os.getenv("OPENAI_MODEL_NAME", default="gpt-4-turbo")
+      model_name = os.getenv("OPENAI_MODEL_NAME", default="gpt-4o")
     
       name = bot_id
       print("-> OpenAI Model == ",model_name)
@@ -314,86 +314,90 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
 
    def _submit_tool_outputs(self, run_id, thread_id, tool_call_id, function_call_details, func_response):
+     
       logger.debug(f"_submit_tool_outputs - {thread_id} {run_id} {tool_call_id} - {function_call_details} - {func_response}")
 
       new_response = func_response
-      if function_call_details[0][0] == 'add_new_tools_to_bot' and func_response.get('success',False)==True:
-         target_bot = json.loads(function_call_details[0][1]).get('bot_id',None)
-         if target_bot is not None:
-            my_assistants = self.client.beta.assistants.list(order="desc")
-            my_assistants = [a for a in my_assistants if a.name == target_bot]
-            for assistant in my_assistants:
-               bot_tools = None
-               #print(self.all_tools)
-               all_tools_for_bot = func_response.get('all_bot_tools', None)
-               if all_tools_for_bot is not None:
-                  #print(all_tools_for_bot)
-                  #print(self.all_function_to_tool_map)
-                  bot_tools_array = []
-                  for tool in all_tools_for_bot:
-                     logger.warn(f'--> Calling validate_or_add_function on {tool} <---- ')
-                     self.validate_or_add_function(tool)
-                     tool_name = tool
-                     if tool_name in self.all_function_to_tool_map:
-                        for t in self.all_function_to_tool_map[tool_name]:
-                           bot_tools_array.append(t)
-
-               new_instructions = assistant.instructions 
-               if "snowflake_stage_tools" in bot_tools and 'make_baby_bot' in bot_tools:        
-                     new_instructions += f"\nYour Internal Files Stage for bots is at snowflake stage: {self.genbot_internal_project_and_schema}.BOT_FILES_STAGE"
-                     print("Instruction for target bot updated with Internal Files Stage location.")
-               bot_tools_array = bot_tools_array + _BOT_OS_BUILTIN_TOOLS + [{"type": "code_interpreter"}, {"type": "file_search"}]
-
-               self.client.beta.assistants.update(assistant.id,tools=bot_tools_array, instructions=new_instructions)
-               
-               # handle looking for newly created tools, import them and add on the fly, also do that in execute function if not already there 
-
-               ### PLAN HERE: TODO ##
-               ## have available_functions be in multibot main, and have all available functions pre-mapped, and make sure new ones somehow are added to it, or add them here somehow
-               ## have a function here that assembles the tools object (but no links to the actual functions)
-               #self.client.beta.assistants.update(assistant.id,tools=bot_tools)
-               
-            logger.info(f"Bot tools for {target_bot} updated.")
-      if function_call_details[0][0] == 'update_bot_instructions':
-         new_instructions = func_response.get("new_instructions",None)
-         if new_instructions:
+ 
+      try:
+         if function_call_details[0][0] == 'add_new_tools_to_bot' and func_response.get('success',False)==True:
             target_bot = json.loads(function_call_details[0][1]).get('bot_id',None)
             if target_bot is not None:
                my_assistants = self.client.beta.assistants.list(order="desc")
                my_assistants = [a for a in my_assistants if a.name == target_bot]
                for assistant in my_assistants:
-                  self.client.beta.assistants.update(assistant.id,instructions=new_instructions)
-               logger.info(f"Bot instructions for {target_bot} updated: {new_instructions}")
-               new_response.pop("new_instructions", None)
+                  bot_tools = None
+                  #print(self.all_tools)
+                  all_tools_for_bot = func_response.get('all_bot_tools', None)
+                  if all_tools_for_bot is not None:
+                     #print(all_tools_for_bot)
+                     #print(self.all_function_to_tool_map)
+                     bot_tools_array = []
+                     for tool in all_tools_for_bot:
+                        logger.warn(f'--> Calling validate_or_add_function on {tool} <---- ')
+                        self.validate_or_add_function(tool)
+                        tool_name = tool
+                        if tool_name in self.all_function_to_tool_map:
+                           for t in self.all_function_to_tool_map[tool_name]:
+                              bot_tools_array.append(t)
 
-      if function_call_details[0][0] == 'add_bot_files':
-       #  raise ('need to update bot_os_openai.py line 215 for new files structure with v2')
-         try:
-            updated_files_list = func_response.get("current_files_list",None)
-         except:
-            updated_files_list = None
-         if updated_files_list:
-            target_bot = json.loads(function_call_details[0][1]).get('bot_id',None)
-            if target_bot is not None:
-               my_assistants = self.client.beta.assistants.list(order="desc")
-               my_assistants = [a for a in my_assistants if a.name == target_bot]
-               assistant_zero = my_assistants[0]
+                  new_instructions = assistant.instructions 
+                  if "snowflake_stage_tools" in all_tools_for_bot and 'make_baby_bot' in all_tools_for_bot:        
+                        new_instructions += f"\nYour Internal Files Stage for bots is at snowflake stage: {self.genbot_internal_project_and_schema}.BOT_FILES_STAGE"
+                        print("Instruction for target bot updated with Internal Files Stage location.")
+                  bot_tools_array = bot_tools_array + _BOT_OS_BUILTIN_TOOLS + [{"type": "code_interpreter"}, {"type": "file_search"}]
 
-               try:
-                  vector_store_id = assistant_zero.tool_resources.file_search.vector_store_ids[0]
-               except:
-                  vector_store_id = None
-               if vector_store_id is not None:
-                  self.update_vector_store(vector_store_id=vector_store_id, files=None, plain_files=updated_files_list)
-                  tool_resources = assistant_zero.tool_resources
-               else:
-                  vector_store_name = json.loads(function_call_details[0][1]).get('bot_name',None) + '_vectorstore'
-                  vector_store = self.create_vector_store(vector_store_name=vector_store_name, files=None, plain_files=updated_files_list)
-                  tool_resources = {"file_search": {"vector_store_ids": [vector_store.id]}}
-               self.client.beta.assistants.update(assistant_zero.id, tool_resources=tool_resources)
+                  self.client.beta.assistants.update(assistant.id,tools=bot_tools_array, instructions=new_instructions)
+                  
+                  # handle looking for newly created tools, import them and add on the fly, also do that in execute function if not already there 
 
-               logger.info(f"Bot files for {target_bot} updated.")
-               
+                  ### PLAN HERE: TODO ##
+                  ## have available_functions be in multibot main, and have all available functions pre-mapped, and make sure new ones somehow are added to it, or add them here somehow
+                  ## have a function here that assembles the tools object (but no links to the actual functions)
+                  #self.client.beta.assistants.update(assistant.id,tools=bot_tools)
+                  
+               logger.info(f"Bot tools for {target_bot} updated.")
+         if function_call_details[0][0] == 'update_bot_instructions':
+            new_instructions = func_response.get("new_instructions",None)
+            if new_instructions:
+               target_bot = json.loads(function_call_details[0][1]).get('bot_id',None)
+               if target_bot is not None:
+                  my_assistants = self.client.beta.assistants.list(order="desc")
+                  my_assistants = [a for a in my_assistants if a.name == target_bot]
+                  for assistant in my_assistants:
+                     self.client.beta.assistants.update(assistant.id,instructions=new_instructions)
+                  logger.info(f"Bot instructions for {target_bot} updated: {new_instructions}")
+                  new_response.pop("new_instructions", None)
+
+         if function_call_details[0][0] == 'add_bot_files':
+         #  raise ('need to update bot_os_openai.py line 215 for new files structure with v2')
+            try:
+               updated_files_list = func_response.get("current_files_list",None)
+            except:
+               updated_files_list = None
+            if updated_files_list:
+               target_bot = json.loads(function_call_details[0][1]).get('bot_id',None)
+               if target_bot is not None:
+                  my_assistants = self.client.beta.assistants.list(order="desc")
+                  my_assistants = [a for a in my_assistants if a.name == target_bot]
+                  assistant_zero = my_assistants[0]
+
+                  try:
+                     vector_store_id = assistant_zero.tool_resources.file_search.vector_store_ids[0]
+                  except:
+                     vector_store_id = None
+                  if vector_store_id is not None:
+                     self.update_vector_store(vector_store_id=vector_store_id, files=None, plain_files=updated_files_list)
+                     tool_resources = assistant_zero.tool_resources
+                  else:
+                     vector_store_name = json.loads(function_call_details[0][1]).get('bot_name',None) + '_vectorstore'
+                     vector_store = self.create_vector_store(vector_store_name=vector_store_name, files=None, plain_files=updated_files_list)
+                     tool_resources = {"file_search": {"vector_store_ids": [vector_store.id]}}
+                  self.client.beta.assistants.update(assistant_zero.id, tool_resources=tool_resources)
+
+                  logger.info(f"Bot files for {target_bot} updated.")
+      except Exception as e:
+         print('openai submit_tool_outputs error to tool checking: ', e)    
 
       if tool_call_id is not None: # in case this is a resubmit
          self.tool_completion_status[run_id][tool_call_id] = new_response
@@ -435,29 +439,47 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
    def _download_openai_file(self, file_id, thread_id):
       logger.debug(f"BotOsAssistantOpenAI:download_openai_file - {file_id}")
       # Use the retrieve file contents API to get the file directly
-      file_info = self.client.files.retrieve(file_id=file_id.file_id)
-      file_contents = self.client.files.content(file_id=file_id.file_id)
- 
-      local_file_path = os.path.join(f"./downloaded_files/{thread_id}/", os.path.basename(file_info.filename))
-      
-      # Ensure the directory exists
-      os.makedirs(os.path.dirname(local_file_path), exist_ok=True)
-      
-      
-      # Save the file contents locally
-      file_contents.write_to_file(local_file_path)
 
-      # Save a copy of the file with the file_id as the file name
       try:
-         file_id_based_path = f"./downloaded_files/{thread_id}/{file_id.file_id}"
-         file_contents.write_to_file(file_id_based_path)
-      except:
-         pass
+         print(f"{self.bot_name} open_ai download_file file_id: {file_id}", flush=True)
+
+         file_info = self.client.files.retrieve(file_id=file_id.file_id)
+         print(f"{self.bot_name} open_ai download_file id: {file_info.id} name: {file_info.filename}", flush=True)
+         file_contents = self.client.files.content(file_id=file_id.file_id)
+
+         try:         
+            print(f"{self.bot_name} open_ai download_file file_id: {file_id} contents_len: {len(file_contents.content)}", flush=True)
+         except Exception as e:
+             print(f"{self.bot_name} open_ai download_file file_id: {file_id} ERROR couldn't get file length: {e}", flush=True)
+  
+         local_file_path = os.path.join(f"./downloaded_files/{thread_id}/", os.path.basename(file_info.filename))
+         print(f"{self.bot_name} open_ai download_file file_id: {file_id} localpath: {local_file_path}", flush=True)
+         
+         # Ensure the directory exists
+         os.makedirs(os.path.dirname(local_file_path), exist_ok=True)
+         
+         
+         # Save the file contents locally
+         file_contents.write_to_file(local_file_path)
+       
+         print(f"{self.bot_name} open_ai download_file wrote file: {file_id} to localpath: {local_file_path}", flush=True)
+       
+         # Save a copy of the file with the file_id as the file name
+         try:
+            file_id_based_path = f"./downloaded_files/{thread_id}/{file_id.file_id}"
+            file_contents.write_to_file(file_id_based_path)
+         except Exception as e:
+            print(f"{self.bot_name} open_ai download_file - error - couldnt write to {file_id_based_path} err: {e}", flush=True)
+            pass
+      except Exception as e:
+         print(f"{self.bot_name} open_ai download_file ERROR: {e}", flush=True)
+ 
 
       logger.debug(f"File downloaded: {local_file_path}")
       return local_file_path
 
    def _store_files_locally(self, file_ids, thread_id):
+      print(f"{self.bot_name} open_ai store_files_locally, file_ids: {file_ids}", flush=True)
       return [self._download_openai_file(file_id, thread_id) for file_id in file_ids]
    
    def validate_or_add_function(self, function_name):
@@ -634,14 +656,13 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
             elif run.status == "completed" and run.completed_at != thread_run["completed_at"]:
                messages = self.client.beta.threads.messages.list(thread_id=thread_id)
                latest_message = messages.data[0]
-               if latest_message == "image_file":
-                  output = latest_message.content[0].image_file #type: ignore
-               elif latest_message.content[0].type == 'text':
-                  output = latest_message.content[0].text.value #type: ignore
-               else:
-                  logger.warn(f"!!!!!!!!!! WARNING: received unexpected content type: {latest_message.content[0]}!!!!!!!")
-                  output = str(latest_message.content[0])
-               #if output != '!NO_RESPONSE_REQUIRED':
+               print(f"{self.bot_name} open_ai response attachment info: {latest_message.attachments}", flush=True)
+               output = ""
+               for content in latest_message.content:
+                   if content.type == 'text':
+                       output += (content.text.value + "\n") if output else content.text.value
+               output = output.strip()  # Remove the trailing newline if it exists
+                #if output != '!NO_RESPONSE_REQUIRED':
                if True:
                   if os.getenv('SHOW_COST', 'false').lower() == 'true':
                      output += '  `'+"$"+str(round(run.usage.prompt_tokens/1000000*10+run.usage.completion_tokens/1000000*30,4))+'`'
@@ -650,6 +671,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                      meta = meta_prime
                   else:
                      meta = run.metadata
+                  #print(f"{self.bot_name} open_ai attachment info: {latest_message.attachments}", flush=True)
                   event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id, 
                                                                      status=run.status, 
                                                                      output=output, 

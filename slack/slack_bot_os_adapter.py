@@ -176,6 +176,15 @@ class SlackBotAdapter(BotOsInputAdapter):
             return None  # Do not process further if it's a delete command
 
 
+        if msg.strip().lower() == 'stop':
+            # Remove the thread from the followed thread map if it exists
+            thread_ts = event.get('thread_ts', event.get('ts', ''))
+            if (self.bot_user_id, thread_ts) in thread_ts_dict:
+                with meta_lock:
+                    del thread_ts_dict[(self.bot_user_id, thread_ts)]
+            return None  # Ignore the message and do not process further
+
+
         if msg == '_thinking..._':
             return None
 
@@ -294,16 +303,53 @@ class SlackBotAdapter(BotOsInputAdapter):
         else:
             try:
 
-                thread_ts = message.input_metadata.get("thread_ts", None)
-                msg_files = self._upload_files(message.files, thread_ts=thread_ts, channel=message.input_metadata.get("channel", self.channel_id))
-
                 msg = message.output
+
+                thread_ts = message.input_metadata.get("thread_ts", None)
+
+                files_in = message.files
+
+                # Extract file paths from the message and add them to files_in array
+                image_pattern = re.compile(r'!\[.*?\]\((sandbox:/mnt/data/downloaded_files/.*?)\)')
+                matches = image_pattern.findall(msg)
+                for match in matches:
+                    local_path = match.replace('sandbox:/mnt/data', '.')
+                    if local_path not in files_in:
+                        files_in.append(local_path)
+
+                # Parse the message for the provided pattern and add to files_in
+                file_pattern = re.compile(r'!\[.*?\]\(attachment://\.(.*?)\)')
+                file_matches = file_pattern.findall(msg)
+                for file_match in file_matches:
+                    local_file_path = file_match
+                    if local_file_path not in files_in:
+                        files_in.append(local_file_path)
+
+                local_pattern = re.compile(r'!\[.*?\]\(\./downloaded_files/thread_(.*?)/(.+?)\)')
+                local_pattern_matches = local_pattern.findall(msg)
+                for local_match in local_pattern_matches:
+                    local_path = f"./downloaded_files/thread_{local_match[0]}/{local_match[1]}"
+                    if local_path not in files_in:
+                        files_in.append(local_path)
+
+                msg_files = self._upload_files(files_in, thread_ts=thread_ts, channel=message.input_metadata.get("channel", self.channel_id))
+
                 for msg_url in msg_files:
                     filename = msg_url.split('/')[-1]
                     msg_prime = msg
+                    
                     msg = re.sub(f"(?i)\(sandbox:/mnt/data/{filename}\)", f"<{{msg_url}}>", msg)
+                    alt_pattern = re.compile(r'\[(.*?)\]\(\./downloaded_files/thread_(.*?)/(.+?)\)')
+                    msg = re.sub(alt_pattern, f'<{{msg_url}}|\\1>', msg)
+                    # Catch the pattern with thread ID and replace it with the correct URL
+                    thread_file_pattern = re.compile(r'\[(.*?)\]\(sandbox:/mnt/data/downloaded_files/thread_(.*?)/(.+?)\)')
+                    msg = re.sub(thread_file_pattern, f'<{{msg_url}}|\\1>', msg)
+                    # Catch the external URL pattern and replace it with the correct URL
+                    external_url_pattern = re.compile(r'\[(.*?)\]\((https?://.*?)\)')
+                    msg = re.sub(external_url_pattern, f'<{{msg_url}}|\\1>', msg)
                     msg = msg.replace('{msg_url}',msg_url)
                     msg = msg.replace('[Download ','[')
+                    msg = re.sub(r'!\s*<', '<', msg)
                     if msg == msg_prime:
                         msg += ' {'+msg_url+'}'
                 # Reformat the message if it contains a link in brackets followed by a URL in angle brackets
@@ -314,6 +360,10 @@ class SlackBotAdapter(BotOsInputAdapter):
                     thread_ts=thread_ts,
                     text=msg 
                 )
+                # Replace patterns in msg with the appropriate format
+                pattern = re.compile(r'\[(.*?)\]\(sandbox:/mnt/data/downloaded_files/(.*?)/(.+?)\)')
+                msg = re.sub(pattern, r'<\2|\1>', msg)
+
                 # Utility function handles file uploads and logs errors internally
                 if thread_ts is not None:
                     with meta_lock:

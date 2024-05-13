@@ -518,7 +518,10 @@ def validate_potential_files(new_file_ids=None):
     internal_stage =  f"{genbot_internal_project_and_schema}.BOT_FILES_STAGE"
     database, schema, stage_name = internal_stage.split('.')
 
-    stage_contents = bb_db_connector.list_stage_contents(database=database, schema=schema, stage=stage_name)
+    try:
+        stage_contents = bb_db_connector.list_stage_contents(database=database, schema=schema, stage=stage_name)
+    except Exception as e: 
+        return {"success": False, "error": e}
     # Check if the file is in stage_contents
     stage_file_names = [file_info['name'].split('/')[-1] if '/' in file_info['name'] else file_info['name'] for file_info in stage_contents]
     missing_files = [file_id.split('/')[-1] for file_id in new_file_ids if file_id not in stage_file_names]

@@ -7,6 +7,9 @@ def encode_image(image_file):
     with open(image_file, "rb") as f:
         return base64.b64encode(f.read()).decode('utf-8')
 
+
+
+
 # Define the function to analyze the image using OpenAI's Chat API for Vision
 def vision_chat_analysis(openai_file_id, query, thread_id=None):
     

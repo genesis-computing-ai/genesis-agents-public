@@ -841,6 +841,7 @@ class SnowflakeConnector(DatabaseConnector):
                 available_tools = '["slack_tools", "make_baby_bot", "snowflake_stage_tools", "image_tools", "harvester_tools"]'
                 udf_active = "Y"
                 slack_active = "N"
+                bot_intro = EVE_INTRO
 
                 insert_initial_row_query = f"""
                 INSERT INTO {self.bot_servicing_table_name} (

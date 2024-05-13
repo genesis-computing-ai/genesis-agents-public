@@ -402,7 +402,7 @@ def create_slack_bot_with_manifest(token, manifest):
 
 def insert_new_bot(api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instructions, runner_id, slack_signing_secret, 
                    slack_channel_id, available_tools, auth_url, auth_state, client_id, client_secret, udf_active, 
-                   slack_active, files, bot_implementation):
+                   slack_active, files, bot_implementation, bot_intro="Hello, how can I help you?"):
     """
     Inserts a new bot configuration into the BOT_SERVICING table.
 
@@ -419,11 +419,12 @@ def insert_new_bot(api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instruct
         tools (str): A list of tools the bot has access to.
         files (json-embedded list): A list of files to include with the bot.
         bot_implementation: openai or cortex or ...
+        bot_intro: Default bot greeting.
     """
 
     return bb_db_connector.db_insert_new_bot(api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instructions, runner_id, slack_signing_secret, 
                    slack_channel_id, available_tools, auth_url, auth_state, client_id, client_secret, udf_active, 
-                   slack_active, files, bot_implementation, project_id, dataset_name, bot_servicing_table)
+                   slack_active, files, bot_implementation, bot_intro, project_id, dataset_name, bot_servicing_table)
 
    
 

@@ -308,14 +308,25 @@ class SlackBotAdapter(BotOsInputAdapter):
                 thread_ts = message.input_metadata.get("thread_ts", None)
 
                 files_in = message.files
+                # Remove duplicates from the files_in array
+                files_in = list(set(files_in))
 
                 # Extract file paths from the message and add them to files_in array
-                image_pattern = re.compile(r'!\[.*?\]\((sandbox:/mnt/data/downloaded_files/.*?)\)')
+                image_pattern = re.compile(r'\[.*?\]\((sandbox:/mnt/data/downloaded_files/.*?)\)')
                 matches = image_pattern.findall(msg)
                 for match in matches:
                     local_path = match.replace('sandbox:/mnt/data', '.')
                     if local_path not in files_in:
                         files_in.append(local_path)
+
+                # Extract file paths from the message and add them to files_in array
+                chart_pattern = re.compile(r'\(sandbox:/mnt/data/(.*?)\)\n2\. \[(.*?)\]')
+                chart_matches = chart_pattern.findall(msg)
+                for chart_match in chart_matches:
+                    local_chart_path = f"./downloaded_files/{chart_match}"
+                    if local_chart_path not in files_in:
+                        files_in.append(local_chart_path)
+
 
                 # Parse the message for the provided pattern and add to files_in
                 file_pattern = re.compile(r'!\[.*?\]\(attachment://\.(.*?)\)')
@@ -342,6 +353,7 @@ class SlackBotAdapter(BotOsInputAdapter):
                     alt_pattern = re.compile(r'\[(.*?)\]\(\./downloaded_files/thread_(.*?)/(.+?)\)')
                     msg = re.sub(alt_pattern, f'<{{msg_url}}|\\1>', msg)
                     # Catch the pattern with thread ID and replace it with the correct URL
+
                     thread_file_pattern = re.compile(r'\[(.*?)\]\(sandbox:/mnt/data/downloaded_files/thread_(.*?)/(.+?)\)')
                     msg = re.sub(thread_file_pattern, f'<{{msg_url}}|\\1>', msg)
                     # Catch the external URL pattern and replace it with the correct URL

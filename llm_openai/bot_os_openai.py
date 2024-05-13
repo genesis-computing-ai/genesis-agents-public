@@ -443,9 +443,17 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       try:
          print(f"{self.bot_name} open_ai download_file file_id: {file_id}", flush=True)
 
-         file_info = self.client.files.retrieve(file_id=file_id.file_id)
+         try:
+            file_id = file_id.get('file_id',None)
+         except:
+            try:
+               file_id = file_id.file_id
+            except: 
+               pass
+
+         file_info = self.client.files.retrieve(file_id=file_id)
          print(f"{self.bot_name} open_ai download_file id: {file_info.id} name: {file_info.filename}", flush=True)
-         file_contents = self.client.files.content(file_id=file_id.file_id)
+         file_contents = self.client.files.content(file_id=file_id)
 
          try:         
             print(f"{self.bot_name} open_ai download_file file_id: {file_id} contents_len: {len(file_contents.content)}", flush=True)
@@ -466,7 +474,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
        
          # Save a copy of the file with the file_id as the file name
          try:
-            file_id_based_path = f"./downloaded_files/{thread_id}/{file_id.file_id}"
+            file_id_based_path = f"./downloaded_files/{thread_id}/{file_id}"
             file_contents.write_to_file(file_id_based_path)
          except Exception as e:
             print(f"{self.bot_name} open_ai download_file - error - couldnt write to {file_id_based_path} err: {e}", flush=True)
@@ -656,9 +664,18 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
             elif run.status == "completed" and run.completed_at != thread_run["completed_at"]:
                messages = self.client.beta.threads.messages.list(thread_id=thread_id)
                latest_message = messages.data[0]
+               latest_attachments = latest_message.attachments
+
                print(f"{self.bot_name} open_ai response attachment info: {latest_message.attachments}", flush=True)
                output = ""
                for content in latest_message.content:
+                   if content.type == 'image_file':
+                     try:
+                        file_id = content.image_file.file_id if hasattr(content.image_file, 'file_id') else None
+                        if file_id is not None and file_id not in latest_attachments:
+                           latest_attachments.append({"file_id": file_id})
+                     except Exception as e:
+                        print('openai error parsing image attachment ',e)
                    if content.type == 'text':
                        output += (content.text.value + "\n") if output else content.text.value
                output = output.strip()  # Remove the trailing newline if it exists
@@ -677,7 +694,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                                                                      output=output, 
                                                                      messages=messages, 
                                                                      # UPDATE THIS FOR LOCAL FILE DOWNLOAD 
-                                                                     files=self._store_files_locally(latest_message.attachments, thread_id),
+                                                                     files=self._store_files_locally(latest_attachments, thread_id),
                                                                      input_metadata=meta))
                   self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id, message_type='Assistant Response', message_payload=output, message_metadata=None, tokens_in=run.usage.prompt_tokens, tokens_out=run.usage.completion_tokens)
                threads_completed[thread_id] = run.completed_at

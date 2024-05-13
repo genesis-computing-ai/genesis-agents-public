@@ -394,14 +394,14 @@ def llm_config(): # Check if data is not empty
                     st.session_state.disable_submit = True
                     st.success("API key validated!")
 
-            if config_response['Success']:
-                with st.spinner('Getting active bot details...'):
-                    bot_details = get_bot_details()
-                if bot_details:
-                    st.success("Bot details validated.")
-                    st.success("Reload this page to chat with your bots!")
-                    if st.button("Next -> Click here to chat with your bots!"):
-                        st.rerun()
+                if config_response['Success']:
+                    with st.spinner('Getting active bot details...'):
+                        bot_details = get_bot_details()
+                    if bot_details:
+                        st.success("Bot details validated.")
+                        st.success("Reload this page to chat with your bots!")
+                        if st.button("Next -> Click here to chat with your bots!"):
+                            st.rerun()
 
             if cur_key == '<existing key present on server>':
                 st.write("Reload this page to chat with your apps.")

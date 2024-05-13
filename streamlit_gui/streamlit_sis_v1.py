@@ -954,7 +954,7 @@ def config_eai():
  
     st.subheader('Step 3: Configure External Access Integration (EAI)')
 
-    st.write("Genesis Bots currently uses OpenAI GPT4-Turbo as its main LLM, as it is the only model that we've found powerful and reliable enough to power our bots. To access OpenAI from the Genesis Server, you'll need to create a Snowflake External Access Integration so that the Genesis Server can call OpenAI. Genesis can also optionally connect to Slack, with some additional configuration, to allow your bots to interact via Slack.")
+    st.write("Genesis Bots currently uses OpenAI GPT4 as its main LLM, as it is the only model that we've found powerful and reliable enough to power our bots. To access OpenAI from the Genesis Server, you'll need to create a Snowflake External Access Integration so that the Genesis Server can call OpenAI. Genesis can also optionally connect to Slack, with some additional configuration, to allow your bots to interact via Slack.")
     st.write('The Genesis Server can also capture and output events to a Snowflake Event Table, allowing you to track what is happening inside the server. Optionally, these logs can be shared back to the Genesis Provider for enhanced support for your GenBots.')
     st.write('So please go back to the worksheet one more time, and run these commands to create a external access integration, and grant Genesis the rights to use it. Genesis will only be able to access the endpoints listed, OpenAI, and optionally Slack. The steps for adding the event logging are optional as well, but recommended.')
     

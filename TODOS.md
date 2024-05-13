@@ -17,6 +17,7 @@ THINGS TO TEST:chr
 (test) harvester dont crash if cant access schemas for a database listed in control file
 
 SHORT-TERM:
+stop bot back and forth with other bots after a few turns
 check error handling for stage tools (added to list, check others)
 !! fix add_new_tools_to_bots, 2024-05-10 23:32:09,104 - ERROR - callback_closure - _submit_tool_outputs - caught exception: argument of type 'NoneType' is not iterable
 Do our services / pools suspend after 3600 sec, and auto restart?  Is restart clean? 

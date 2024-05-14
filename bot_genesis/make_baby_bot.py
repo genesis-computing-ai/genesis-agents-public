@@ -1063,7 +1063,7 @@ MAKE_BABY_BOT_DESCRIPTIONS = [{
                 },
                 "available_tools": {
                     "type": "string",
-                    "description": "A comma-separated list of tools the new bot shoulf have access to, if any.  Example of a valid string for this field: 'slack_tools,database_tools,webpage_downloader'.  Use the get_available_tools tool to get a list of the tools that can be referenced here. ",
+                    "description": "A comma-separated list of tools the new bot shoulf have access to, if any.  Example of a valid string for this field: 'slack_tools,database_tools,image_tools'. Suggest those 3 tools for most bots you make. Use the get_available_tools tool to get a list of the tools that can be referenced here. ",
                     "default": ""
                 },
                 "runner_id": {

@@ -399,7 +399,7 @@ def llm_config(): # Check if data is not empty
                         bot_details = get_bot_details()
                     if bot_details:
                         st.success("Bot details validated.")
-                        st.success("Reload this page to chat with your bots!")
+                       # st.success("Reload this page to chat with your bots!")
                         if st.button("Next -> Click here to chat with your bots!"):
                             st.rerun()
 

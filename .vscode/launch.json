@@ -21,6 +21,25 @@
             ],
             "jinja": true,
             "justMyCode": true
+        },
+        {
+            "name": "Python: TaskServer",
+            "type": "python",
+            "request": "launch",
+            "module": "flask",
+            "env": {
+                "FLASK_APP": "./demo/bot_os_task_server.py",
+                "FLASK_DEBUG": "1"
+            },
+            "args": [
+                "run",
+                "--no-debugger",
+                "--no-reload",
+                "--port", "8080"
+            ],
+            "jinja": true,
+            "justMyCode": true
         }
+
     ]
 }

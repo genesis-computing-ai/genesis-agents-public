@@ -401,14 +401,14 @@ def llm_config(): # Check if data is not empty
                         st.success("Bot details validated.")
                        # st.success("Reload this page to chat with your bots!")
                         if st.button("Next -> Click here to chat with your bots!"):
-                            st.rerun()
+                            st.experimental_rerun()
 
             if cur_key == '<existing key present on server>':
                 st.write("Reload this page to chat with your apps.")
             else:
                 if cur_key is not None and cur_key != '':
                     if st.button("Next -> Click here to chat with your bots!"):
-                        st.rerun()
+                        st.experimental_rerun()
                         # This button will be used to talk to the bot directly via Streamlit interface
                         # Placeholder for direct bot communication logic
                         #st.session_state['radio'] = "Chat with Bots"
@@ -454,7 +454,7 @@ def chat_page():
         #time.sleep(.3)
         #st.session_state['radio'] = "Setup LLM Model & Key"
         llm_config()
-        #st.rerun()
+        #st.experimental_rerun()
     else: 
 
         try:
@@ -481,7 +481,7 @@ def chat_page():
                 # Clear the chat input
                 #st.session_state[f"chat_input_{selected_bot_id}"] = ""
                 # Rerun the app to reflect the changes
-                st.rerun()
+                st.experimental_rerun()
             
     
             if f"thread_id_{selected_bot_id}" not in st.session_state:
@@ -492,7 +492,7 @@ def chat_page():
                 st.session_state[f"messages_{selected_bot_id}"] = []
                 # st.session_state[f"messages_{selected_bot_id}"].append({"role": "assistant", "content": selected_bot_intro})
                 submit_button(selected_bot_intro_prompt, st.chat_message("user"), True)
-                st.rerun()
+                st.experimental_rerun()
     
             # Display chat messages from history on app rerun
             for message in st.session_state[f"messages_{selected_bot_id}"]:
@@ -765,7 +765,7 @@ def bot_config():
         #time.sleep(.3)
         #st.session_state['radio'] = "Setup LLM Model & Key"
         llm_config()
-        #st.rerun()
+        #st.experimental_rerun()
 
     else: 
         st.title('Bot Configuration')
@@ -842,7 +842,7 @@ def bot_config():
                                         st.success(f"The first of 3 steps to deploy {bot.get('bot_name')} to Slack is complete.  Refresh this page to see the next 2 steps to complete deployment to Slack. ")
                                        # st.write(deploy_response)
                                         if st.button("Press to Refresh Page for Next Steps", key=f"refresh_{bot['bot_id']}"):
-                                            st.rerun()
+                                            st.experimental_rerun()
                                     else:
                                         st.error(f"Failed to deploy {bot['bot_name']} to Slack: {deploy_response.get('Message')}")
                                     pass
@@ -851,7 +851,7 @@ def bot_config():
                                     if st.button("Activate Slack Keys Here",  key=f"activate_{bot['bot_id']}"):
                                         # Code to change the page based on a button click
                                         st.session_state['radio'] = "Setup Slack Connection"
-                                        st.rerun()
+                                        st.experimental_rerun()
 
                     with col2:
                         st.caption("UDF Active: " + ('Yes' if bot['udf_active'] == 'Y' else 'No'))
@@ -1068,7 +1068,7 @@ def start_service():
                 st.write("**Now push the button below, you're one step away from making and chatting with your bots!**")
                 if st.button('Continue Setup!'):
                     # When the button is clicked, rerun the app from the top
-                    st.rerun()
+                    st.experimental_rerun()
             else:
                 st.error('Server not started.')
         except Exception as e:
@@ -1172,7 +1172,7 @@ if SnowMode:
                     service_status.text('Genesis Service status: ' + service_status_result[0][0])
                     if service_status_result[0][0] == 'READY':
                         service_status.text('')
-                        st.rerun()
+                        st.experimental_rerun()
                         
                     time.sleep(10)         
 

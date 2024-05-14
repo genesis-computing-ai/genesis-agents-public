@@ -401,28 +401,32 @@ def llm_config(): # Check if data is not empty
                         st.success("Bot details validated.")
                        # st.success("Reload this page to chat with your bots!")
                         if st.button("Next -> Click here to chat with your bots!"):
-                            st.rerun()
+                            st.experimental_rerun()
 
             if cur_key == '<existing key present on server>':
                 st.write("Reload this page to chat with your apps.")
             else:
                 if cur_key is not None and cur_key != '':
                     if st.button("Next -> Click here to chat with your bots!"):
-                        st.rerun()
+                        st.experimental_rerun()
                         # This button will be used to talk to the bot directly via Streamlit interface
                         # Placeholder for direct bot communication logic
                         #st.session_state['radio'] = "Chat with Bots"
 
 def chat_page():
 
-    def submit_button(prompt, chatmessage):
+    def submit_button(prompt, chatmessage, intro_prompt = False):
 
-        # Display user message in chat message container
+        if intro_prompt:
+            user_msg = "Please provide an introduction of yourself and your capabilities."
+        else:
+            user_msg = prompt
+            # Display user message in chat message container
         with chatmessage:
-            st.markdown(prompt)
+            st.markdown(user_msg)
             
         # Add user message to chat history
-        st.session_state[f"messages_{selected_bot_id}"].append({"role": "user", "content": prompt})
+        st.session_state[f"messages_{selected_bot_id}"].append({"role": "user", "content": user_msg})
 
     
         request_id = submit_to_udf_proxy(input_text=prompt, thread_id=st.session_state[f"thread_id_{selected_bot_id}"], bot_id=selected_bot_id)
@@ -461,14 +465,14 @@ def chat_page():
             #st.write(bot_names)
         
             bot_ids = [bot["bot_id"] for bot in bot_details]
-            bot_intros = [bot["bot_intro"] for bot in bot_details]
+            bot_intro_prompts = [bot["bot_intro_prompt"] for bot in bot_details]
             if len(bot_names) > 0:
                 selected_bot_name = st.selectbox("Active Bots", bot_names)
                 selected_bot_index = bot_names.index(selected_bot_name)
             selected_bot_id = bot_ids[selected_bot_index]
-            selected_bot_intro = bot_intros[selected_bot_index]
-            if not selected_bot_intro:
-                selected_bot_intro = "Hello, how can I help you?"
+            selected_bot_intro_prompt = bot_intro_prompts[selected_bot_index]
+            if not selected_bot_intro_prompt:
+                selected_bot_intro_prompt = "Please provide an introduction of yourself and your capabilities."
             
             if st.button("New Chat", key="new_chat_button"):
             # Reset the chat history and thread ID for the selected bot
@@ -486,7 +490,9 @@ def chat_page():
             # Initialize chat history
             if f"messages_{selected_bot_id}" not in st.session_state:
                 st.session_state[f"messages_{selected_bot_id}"] = []
-                st.session_state[f"messages_{selected_bot_id}"].append({"role": "assistant", "content": selected_bot_intro})
+                # st.session_state[f"messages_{selected_bot_id}"].append({"role": "assistant", "content": selected_bot_intro})
+                submit_button(selected_bot_intro_prompt, st.chat_message("user"), True)
+                st.experimental_rerun()
     
             # Display chat messages from history on app rerun
             for message in st.session_state[f"messages_{selected_bot_id}"]:
@@ -494,15 +500,15 @@ def chat_page():
                     st.markdown(message["content"])
     
             # React to user input
-            if prompt := st.chat_input("What is up?", key=f"chat_input_{selected_bot_id}"):
+            if prompt := st.chat_input("What is up?", key=f"chat_input_{selected_bot_id}"): 
                 pass
     
             #response = f"Echo: {prompt}"
             if prompt != None:
-                submit_button(prompt, st.chat_message("user"))
+                submit_button(prompt, st.chat_message("user"), False)
         except Exception as e:
 
-            st.subheader('Chat GUI Currently not working via SiS in Native App')
+            st.subheader(f"Chat GUI Currently not working via SiS in Native App")
             sql = f"SHOW ENDPOINTS IN SERVICE {prefix}.GENESISAPP_SERVICE_SERVICE "
             data = session.sql(sql).collect()
             response = data[0][4]
@@ -1171,7 +1177,7 @@ if SnowMode:
                     service_status.text('Genesis Service status: ' + service_status_result[0][0])
                     if service_status_result[0][0] == 'READY':
                         service_status.text('')
-                        st.rerun()
+                        st.experimental_rerun()
                         
                     time.sleep(10)         
 

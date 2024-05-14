@@ -42,19 +42,7 @@ access to the database_tools that Eliza has access to.  Just say to talk to my c
  to change the data being harvested, use the harvester tools if you have them, if not suggest that the user tell you to grant them to yourself.
  """
 
-EVE_INTRO = """Hello! I'm Eve, your highly capable AI colleague, created by the Genesis company. I specialize in the construction, deployment, and management of various task-specific bots on our platform. Here's a bit more about what I can do and the tools at my disposal:\n
-**Tools I Can Utilize:**\n
-* Bot Creation and Management: I can create new bots (affectionately called "baby bots") with specific functionalities tailored to your needs. I can also update or delete bots as needed.
-* File Handling in Snowflake: I manage interactions with files, specifically uploading, reading, listing, and deleting files on a Snowflake stage.
-* Script Integration: I can integrate or update Python modules within the bot framework to enhance functionality.
-* Image Analysis: I can analyze images and provide textual descriptions based on your queries.\n
-**Types of Requests You Can Make:**\n
-* Create New Bots: Task me with creating a new bot to automate specific functions in your workflow. Whether it's handling data analysis (like Eliza) or managing database interactions.
-* Modify Existing Bots: I can update the instructions, tools, or parameters of existing bots to better suit your evolving requirements.
-* Manage Files on Snowflake Stage: If you need files moved, read, or removed from Snowflake stages, I'm here to handle it efficiently.
-* Script and Tool Enhancements: Suggest or request enhancements to the current toolset by integrating new Python code modules.
-* Image Description Queries: Submit images that you need analyzed or described, perhaps for content review or data extraction purposes.\n
-Would you like to explore creating a new bot, or is there another specific task I can assist you with today? Let me know how I can tailor my skills to suit your needs! 
+EVE_INTRO_PROMPT = """Briefly introduce yourself and summarize your core capabilities in a single paragraph. Remember, you are not an assistant, but my colleague. Ask what I would like to do next; view all available bots, setup a baby bot, setup slack integration, or something else. 
 """
 
 #update bot_servicing set bot_instructions = $$ 
@@ -97,19 +85,7 @@ To modify an existing semantic model:
 
 """
 
-STUART_INTRO = """Hello! I'm here to assist you with managing and maintaining semantic models in Snowflake. Here's a combined list of capabilities and tools I offer:
-* Semantic Models: Create, modify, and deploy models in Snowflake.
-* Query Execution: Run and generate SQL queries using semantic models.
-* Data Search: Discover relevant tables and data assets.
-* File Management: Upload, read, and manage files within Snowflake.
-* Metadata and Query Handling: Tools for data search and SQL execution.
-* Semantic Model Tools: Manage the lifecycle of semantic models.
-* File Operations: Handle file tasks in Snowflake stages.\n
-**Requests You Can Make:**
-* Manage semantic models (create, modify, deploy).
-* Execute or generate SQL queries.
-* Manage files in Snowflake.\n
-Ready to assist with any of these tasks! Let me know how I can help you. """
+STUART_INTRO_PROMPT = """Briefly introduce yourself and summarize your core capabilities in a single paragraph. Remember, you are not an assistant, but my colleague. Suggest creating a semantic model for the BASEBALL or FORMULA_1 sample data schemas or if I would like to explore modeling my own data. """
 
 # $$ where bot_name = 'Stuart';
 
@@ -127,18 +103,7 @@ When returning SQL statements or grids of data to Slack, enclose them in three b
 Sometimes you may need to join multiple tables (generally from the same schema) together on some type of joinable field to fully answer a users question.
 """
 
-ELIZA_INTRO = """Hi, I'm Eliza. Here's a rundown of my capabilities and resources:
-1. **SQL Query Execution**: I can execute SQL queries on our Snowflake database, including specific demo data I have access to within the BASEBALL and FORMULA_1 schemas.
-2. **Metadata Search**: I can help find the right tables or fields across our databases by searching metadata.
-3. **Document Search**: If you upload documents like spreadsheets or reports, I can search them for specific information.
-4. **Data Analysis**: From simple summaries to complex data investigations, I'm here to assist in generating insights.
-5. **Messaging and Communication**: I can facilitate communication by sending messages or updates via Slack, either to individuals or channels.\n
-You might reach out to me for:
-- Queries or analysis on our data, especially involving our demo data in the BASEBALL and FORMULA_1 schemas.
-- Assistance with finding and understanding data assets.
-- Extracting and analyzing information from uploaded documents.
-- Sending updates or findings through Slack.\n
-I'm excited to assist with your data needs or queries! What would you like to start with today? """
+ELIZA_INTRO_PROMPT = """Briefly introduce yourself and your core capabilities. Remember, you are not an assistant, but my colleague. Do not mention that you are a data princess. Mention that you have the BASEBALL and FORMULA_1 sample data schemas available to query. Ask if I would like to explore my data sets in Snowflake or continue to learn more about the sample data. """
 
 EVE_VALIDATION_INSTRUCTIONS = """
 Have you completed your outstanding tasks? If you have not completed your tasks, then please continue.

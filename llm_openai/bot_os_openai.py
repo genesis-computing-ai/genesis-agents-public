@@ -571,11 +571,26 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
             #logger.info(f"run.status {run.status} Thread: {thread_id}")
             print(f"{self.bot_name} open_ai check_runs ",run.status," thread: ", thread_id, flush=True)
 
+            current_time = datetime.datetime.now()
+            run_duration = (current_time - datetime.datetime.fromtimestamp(run.created_at)).total_seconds()
             if run.status == "in_progress":
                threads_still_pending.append(thread_id)
+               # Corrected to ensure it only calls after each minute beyond the first 60 seconds
+               if run_duration > 60 and run_duration % 60 < 2:  # Check if run duration is beyond 60 seconds and within the first 5 seconds of each subsequent minute
+                  event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id, 
+                                                                        status=run.status, 
+                                                                        output=f"Run {run.id} has been active for more than {int(run_duration // 60)} minute(s).", 
+                                                                        messages=None, 
+                                                                        input_metadata=run.metadata))
 
             if run.status == "queued":
                threads_still_pending.append(thread_id)
+               if run_duration > 60 and run_duration % 60 < 2:  # Check if run duration is beyond 60 seconds and within the first 5 seconds of each subsequent minute
+                  event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id, 
+                                                                        status=run.status, 
+                                                                        output=f"Run {run.id} has been queued for more than {int(run_duration // 60)} minute(s).", 
+                                                                        messages=None, 
+                                                                        input_metadata=run.metadata))
 
 
             if run.status == "failed":
@@ -598,6 +613,12 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
             if run.status == "expired":
                logger.error(f"!!!!!!!!!! EXPIRED JOB, run.lasterror {run.last_error} !!!!!!!")
+               output = "!!! OpenAI run expired !!!"
+               event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id, 
+                                                                     status=run.status, 
+                                                                     output=output, 
+                                                                     messages=None, 
+                                                                     input_metadata=run.metadata))
                #del threads_completed[thread_id] 
                # Todo add more handling here to tell the user the thread failed
 

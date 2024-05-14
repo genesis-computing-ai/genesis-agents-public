@@ -183,6 +183,8 @@ class BotOsSession:
             txt += '...'
         print(f"{self.bot_name} bot_os add_message txt: {txt}", flush=True)
         #print(f"add_message: {self.bot_id} - {input_message.msg} size:{len(input_message.msg)}")
+        if '!reflect' in input_message.msg.lower():
+            input_message.metadata["genesis_reflect"] = "True"
         thread.add_message(input_message)
         #logger.debug(f'added message {input_message.msg}')
 
@@ -191,7 +193,7 @@ class BotOsSession:
         if output_message.status != "completed":
             pass
         thread = self.threads[output_message.thread_id]
-        if self.validation_instructions is not None and output_message.output.find("!COMPLETE") == -1 and output_message.output.find("!NEED_INPUT") == -1 and \
+        if "genesis_reflect" in output_message.input_metadata and output_message.output.find("!COMPLETE") == -1 and output_message.output.find("!NEED_INPUT") == -1 and \
             output_message.output != '!COMPLETE' and output_message.output != '!NEED_INPUT':
             print(f'{self.bot_id} ****needs review: ',output_message.output)
             self.next_messages.append(BotOsInputMessage(thread_id=output_message.thread_id, 

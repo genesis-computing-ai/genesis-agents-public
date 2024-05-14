@@ -184,7 +184,7 @@ def make_session(bot_config):
         udf_adapter_local = UDFBotOsInputAdapter()
         input_adapters.append(udf_adapter_local)
 
-    if os.getenv("BOT_DO_PLANNING_REFLECTION"):
+    if True: #os.getenv("BOT_DO_PLANNING_REFLECTION"):
         pre_validation = BASE_BOT_PRE_VALIDATION_INSTRUCTIONS
         post_validation= BASE_BOT_VALIDATION_INSTRUCTIONS
     else:

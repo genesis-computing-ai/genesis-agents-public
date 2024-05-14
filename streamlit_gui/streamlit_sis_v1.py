@@ -417,16 +417,12 @@ def chat_page():
 
     def submit_button(prompt, chatmessage, intro_prompt = False):
 
-        if intro_prompt:
-            user_msg = "Please provide an introduction of yourself and your capabilities."
-        else:
-            user_msg = prompt
+        if not intro_prompt:
             # Display user message in chat message container
-        with chatmessage:
-            st.markdown(user_msg)
-            
-        # Add user message to chat history
-        st.session_state[f"messages_{selected_bot_id}"].append({"role": "user", "content": user_msg})
+            with chatmessage:
+                st.markdown(prompt)
+            # Add user message to chat history
+            st.session_state[f"messages_{selected_bot_id}"].append({"role": "user", "content": prompt})
 
     
         request_id = submit_to_udf_proxy(input_text=prompt, thread_id=st.session_state[f"thread_id_{selected_bot_id}"], bot_id=selected_bot_id)

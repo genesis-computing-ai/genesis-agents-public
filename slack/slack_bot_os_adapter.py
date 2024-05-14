@@ -415,7 +415,7 @@ class SlackBotAdapter(BotOsInputAdapter):
             else:
                 return f"Failed to send message to channel {channel_id}."
         except Exception as e:
-            return f"Error sending message to channel {channel_id}: {str(e)}"
+            return f"Error sending message to channel {channel_id}: {str(e)}.  Call this tool again but provide channel name e.g. #channel instead of channel code."
 
 
     def lookup_slack_user_id_real(self, user_name:str, thread_id:str):

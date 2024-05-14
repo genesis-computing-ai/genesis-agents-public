@@ -19,6 +19,7 @@ from core.bot_os_task_input_adapter import TaskBotOsInputAdapter
 from connectors.snowflake_connector import SnowflakeConnector
 import json
 import time, datetime
+import sys 
 
 import logging
 logger = logging.getLogger(__name__)
@@ -962,7 +963,7 @@ def generate_task_prompt(bot_id, task):
     {{
         "work_done_summary": <a summary of the work you did on the task during this run, including any outbound communications you made>,
         "task_status": "<a summary of the current status of the task, will be provided to you on your next run of this task>,
-        "updated_task_learnings": <the task_learnings text you received at the start of this task, updated or appended with anything new you learned about how to best perform this task during this run. Include anything you did that you could skip next time if you knew something in advance that isn't subject to frequent change, like tables you found or SQL you used or Slack IDs of people you communicated with.>,
+        "updated_task_learnings": <the task_learnings text you received at the start of this task, updated or appended with anything new you learned about how to perform this task during this run. Include anything you had to figure out (channel name, user name, which tool to use, etc) that you could skip next time if you knew something in advance that isn't subject to frequent change, like tables you found or SQL you used or Slack IDs of people you communicated with, or slack channel names you looked up.>,
         "report_message": <include this if you are supposed to report back based on reporting_instructions based on what happened, otherwise omit for no report back.",
         "done_flag": <true if the task is completely and should not be re-triggered again, false if the task is ongoing>,
         "needs_help_flag": <true if the task should be paused until you are assisted by the task supervisor, false if assistance is not needed before the next task run>,
@@ -1001,13 +1002,17 @@ def submit_task(session=None, bot_id=None, task=None):
     input_adapter = bot_id_to_udf_adapter_map.get(bot_id, None)
     if input_adapter:
         input_adapter.add_event(event)
+
+        return task_meta
+    else:
+        return {"error": "No input adapter available for bot_id: {}".format(bot_id)}
     
     # add a queue of pending task runs 
 
-def task_log_and_update(self,task_id):
+def task_log_and_update(bot_id, task_id, task_result):
 
     db_adapter.insert_task_history(
-        task_id=task['task_id'],
+        task_id=task_id,
         work_done_summary=task_result['work_done_summary'],
         task_status=task_result['task_status'],
         updated_task_learnings=task_result['updated_task_learnings'],
@@ -1020,7 +1025,7 @@ def task_log_and_update(self,task_id):
     db_adapter.manage_tasks(
         action='UPDATE', 
         bot_id=bot_id, 
-        task_id=task['task_id'], 
+        task_id=task_id, 
         task_details={
             'next_check_ts': task_result.get('next_check_ts'),
             'last_task_status': task_result.get('task_status'),
@@ -1031,8 +1036,25 @@ def task_log_and_update(self,task_id):
 
 def tasks_loop():
 
+    from collections import deque
+
+    # Initialize a deque for pending tasks
+    pending_tasks = deque()
+    # Keep a map of task_ids to retry attempts
+    task_retry_attempts = {}
+
     while True:
+
+        iteration_start_time = datetime.datetime.now()
         # Retrieve the list of bots and their tasks
+        
+        # Check for tasks submitted more than 10 minutes ago
+        ten_minutes_ago = datetime.datetime.now() - datetime.timedelta(minutes=10)
+        overdue_tasks = [task for task in pending_tasks if datetime.datetime.strptime(task['submited_time'], '%Y-%m-%d %H:%M:%S') < ten_minutes_ago]
+        for task in overdue_tasks:
+            print(f"Task {task['task_id']} from bot {task['bot_id']} is overdue, removing from queue. Can we cancel the run?.")
+            pending_tasks.remove(task)
+            # set to failed status
         
         active_sessions = sessions
         for session in active_sessions:
@@ -1041,11 +1063,99 @@ def tasks_loop():
 
             if tasks.get("Success"):
                 for task in tasks.get("Tasks", []):
-                    # Process the task using the bot
-                    task_result = submit_task(session=session, bot_id=bot_id, task=task)
-
-        i = input('>')  
+                    # If an instance of the task is not alreday running, Process the task using the bot
+                    if not any(pending_task['task_id'] == task['task_id'] for pending_task in pending_tasks):
+                        task_result = submit_task(session=session, bot_id=bot_id, task=task)
+                        if 'bot_id' in task_result:
+                            pending_tasks.append(task_result)
+                            print(f"Task {task['task_id']} has been started.")
+                    else:
+                        submitted_time = next((pt['submited_time'] for pt in pending_tasks if pt['task_id'] == task['task_id']), None)
+                        if submitted_time:
+                            print(f"Task {task['task_id']} from bot {bot_id} is already running. It has been running for {(datetime.datetime.now() - datetime.datetime.strptime(submitted_time, '%Y-%m-%d %H:%M:%S')).total_seconds() / 60:.2f} minutes.")
+      #  i = input('Check for done? >')  
  
+        for session in active_sessions:
+            # Find the input adapter that is an instance of BotOsInputAdapter
+            input_adapter = next((adapter for adapter in session.input_adapters if isinstance(adapter, TaskBotOsInputAdapter)), None)
+            response_map = input_adapter.response_map
+            processed_tasks = []
+            for task_id, response in response_map.items():
+                print(f"Processing response for task {task_id}: {response.output}")
+                # Process the response for each task
+                # This could involve updating task status, logging the response, etc.
+                # The exact processing will depend on the application's requirements
+                error_msg = ""
+                response_valid = True
+                try:
+                    if response.output.startswith("```json") and response.output.endswith("```"):
+                        response.output = response.output[6:-3].strip()
+                    task_response_data = json.loads(response.output)
+                except Exception as e:
+                    response_valid = False
+                    error_msg += f'The JSON response you provided couldnt be parsed with error {e}\n'
+                    task_response_data = None
+
+                if response_valid and task_response_data:
+                    required_fields = ['work_done_summary', 'task_status', 'updated_task_learnings', 'done_flag', 'needs_help_flag', 'task_clarity_comments', 'next_run_time']
+                    missing_fields = [field for field in required_fields if field not in task_response_data]
+                    invalid_fields = []
+                    if not missing_fields:
+                        # Validate boolean fields
+                        if not isinstance(task_response_data['done_flag'], bool):
+                            invalid_fields.append('done_flag must be a boolean')
+                        if not isinstance(task_response_data['needs_help_flag'], bool):
+                            invalid_fields.append('needs_help_flag must be a boolean')
+                        # Validate timestamp
+                        try:
+                            datetime.datetime.strptime(task_response_data['next_run_time'], '%Y-%m-%d %H:%M:%S')
+                        except ValueError:
+                            invalid_fields.append('next_run_time must be a valid timestamp in the format YYYY-MM-DD HH:MM:SS')
+                    if missing_fields or invalid_fields:
+                        response_valid = False
+                        error_msg += f'Missing or invalid fields: {", ".join(missing_fields + invalid_fields)}'
+                
+                if response_valid and task_response_data:
+                    # Ensure next_run_time is at least 5 minutes from now
+                    next_run_time = datetime.datetime.strptime(task_response_data['next_run_time'], '%Y-%m-%d %H:%M:%S')
+                    if (next_run_time - datetime.datetime.now()).total_seconds() < 300:
+                        task_response_data['next_run_time'] = (datetime.datetime.now() + datetime.timedelta(minutes=5)).strftime('%Y-%m-%d %H:%M:%S')
+                        print(f"Changed next_run_time for task {task_id} from bot {bot_id} to ensure it's at least 5 minutes from now.")
+                if not response_valid:
+                    # count retries stop after 3
+                    print(error_msg)
+                    thread = response.messages.data[0].thread_id
+                    current_timestamp_str = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    task_meta = { "bot_id": bot_id, "task_id": task['task_id'], "submited_time": current_timestamp_str }
+                    event = {"thread_id": thread, "msg": f'Your response generated an error, please try to fix it. Error: {error_msg}', 'task_meta': task_meta}
+                    input_adapter.add_event(event=event)
+                    # add the error back to the thread as an input, count the number of retrys, stop it and make task inactive after 3 retries
+                else: 
+                    task_log_and_update(bot_id, task_id, task_response_data)
+
+                # Here you would include the logic to handle the response
+                # For example, updating the task status in the database
+                # This is a placeholder for the response processing logic
+                # ...
+
+                processed_tasks.append(task_id)
+                
+            for task_id in processed_tasks:
+                pending_tasks = deque([task for task in pending_tasks if task['task_id'] != task_id])
+                response_map.pop(task_id, None)
+            
+
+     #   i = input('Next round? >')  
+
+        time_to_sleep = 30 - (datetime.datetime.now() - iteration_start_time).seconds
+        if time_to_sleep > 0:
+            for remaining in range(time_to_sleep, 0, -5):
+                sys.stdout.write("\r")
+                sys.stdout.write("Waiting for {:2d} seconds before next check of tasks".format(remaining)) 
+                sys.stdout.flush()
+                time.sleep(5)
+            sys.stdout.write("\rComplete! Waiting over.          \n")
+
         # now go through the queue of pending task runs, and check input adapter maps for responses 
         # process responses
                 # make sure properly answered if not resubmit

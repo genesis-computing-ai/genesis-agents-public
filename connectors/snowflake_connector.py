@@ -553,7 +553,7 @@ class SnowflakeConnector(DatabaseConnector):
         finally:
             cursor.close()      
 
-    def insert_task_history(self, task_id, work_done_summary, task_status, updated_task_learnings, report_message, done_flag, needs_help_flag, task_clarity_comments):
+    def insert_task_history(self, task_id, work_done_summary, task_status, updated_task_learnings, report_message="", done_flag=False, needs_help_flag='N', task_clarity_comments=''):
         """
         Inserts a row into the TASK_HISTORY table.
 

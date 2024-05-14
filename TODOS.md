@@ -18,7 +18,7 @@ THINGS TO TEST:chr
 
 SHORT-TERM:
 cache bot responses for some time and pre-run the intro prompts
-
+add the ability for send_direct and _channel messages to have files in them
 stop bot back and forth with other bots after a few turns
 check error handling for stage tools (added to list, check others)
 !! fix add_new_tools_to_bots, 2024-05-10 23:32:09,104 - ERROR - callback_closure - _submit_tool_outputs - caught exception: argument of type 'NoneType' is not iterable

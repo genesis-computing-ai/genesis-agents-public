@@ -24,7 +24,7 @@ slack_tools_descriptions = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "channel_id": {"type": "string", "description": "The ID of the channel to send the message to."},
+                    "channel_id": {"type": "string", "description": "The NAME of the channel to send the message to, e.g. #channel"},
                     "message": {"type": "string", "description": "The text of the message to be sent to the channel."},
                 },
                 "required": ["channel_id", "message"]

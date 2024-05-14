@@ -427,6 +427,8 @@ class SnowflakeConnector(DatabaseConnector):
 
 
     def manage_tasks(self, action, bot_id, task_id, task_details=None, thread_id = None):
+        import random
+        import string
         """
         Manages tasks in the TASKS table with actions to create, delete, or update a task.
 
@@ -439,11 +441,13 @@ class SnowflakeConnector(DatabaseConnector):
         Returns:
             dict: A dictionary with the result of the operation.
         """
-        required_fields = ['task_name', 'primary_report_to_type', 'primary_report_to_id',
+        required_fields_create = ['task_name', 'primary_report_to_type', 'primary_report_to_id',
                            'next_check_ts', 'action_trigger_type', 'action_trigger_details',
                            'task_instructions', 'reporting_instructions', 'last_task_status',
                            'task_learnings', 'task_active' ]
-        
+
+        required_fields_update = [  'last_task_status', 'task_learnings', 'task_active' ] 
+
         if action == 'TIME':
             return {"current_system_time": datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 
@@ -492,25 +496,34 @@ class SnowflakeConnector(DatabaseConnector):
         if action in ['CREATE', 'UPDATE'] and not task_details:
             return {"Success": False, "Error": "Task details must be provided for CREATE or UPDATE action."}
 
-        if action in ['CREATE', 'UPDATE'] and any(field not in task_details for field in required_fields):
-            missing_fields = [field for field in required_fields if field not in task_details]
+        if action in ['CREATE'] and any(field not in task_details for field in required_fields_create):
+            missing_fields = [field for field in required_fields_create if field not in task_details]
             return {"Success": False, "Error": f"Missing required task details: {', '.join(missing_fields)}"}
 
+        if action in ['UPDATE'] and any(field not in task_details for field in required_fields_update):
+            missing_fields = [field for field in required_fields_update if field not in task_details]
+            return {"Success": False, "Error": f"Missing required task details: {', '.join(missing_fields)}"}
+
+        if action == 'UPDATE' and task_details.get('task_active', False):
+            if 'next_check_ts' not in task_details:
+                return {"Success": False, "Error": "The 'next_check_ts' field is required when updating an active task."}
+
         # Convert timestamp from string in format 'YYYY-MM-DD HH:MM:SS' to a Snowflake-compatible timestamp
-        try:
-            formatted_next_check_ts = datetime.strptime(task_details['next_check_ts'], '%Y-%m-%d %H:%M:%S')
-        except ValueError as ve:
-            return {
-                "Success": False, 
-                "Error": f"Invalid timestamp format for 'next_check_ts'. Required format: 'YYYY-MM-DD HH:MM:SS'. Error details: {ve}",
-                "Info": f"Current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-            }
-        if formatted_next_check_ts < datetime.now():
-            return {
-                "Success": False,
-                "Error": "The 'next_check_ts' is in the past.",
-                "Info": f"Current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-            }
+        if task_details.get('task_active', False):
+            try:
+                formatted_next_check_ts = datetime.strptime(task_details['next_check_ts'], '%Y-%m-%d %H:%M:%S')
+            except ValueError as ve:
+                return {
+                    "Success": False, 
+                    "Error": f"Invalid timestamp format for 'next_check_ts'. Required format: 'YYYY-MM-DD HH:MM:SS'. Error details: {ve}",
+                    "Info": f"Current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                }
+            if formatted_next_check_ts < datetime.now():
+                return {
+                    "Success": False,
+                    "Error": "The 'next_check_ts' is in the past.",
+                    "Info": f"Current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                }
 
         try:
             if action == 'CREATE':
@@ -525,7 +538,10 @@ class SnowflakeConnector(DatabaseConnector):
                         %(reporting_instructions)s, %(last_task_status)s, %(task_learnings)s, %(task_active)s
                     )
                 """
-                cursor.execute(insert_query, {**task_details, "task_id": task_id, "bot_id": bot_id})
+                # Generate 6 random alphanumeric characters
+                random_suffix = '_'.join(random.choices(string.ascii_letters + string.digits, k=6))
+                task_id_with_suffix = task_id + random_suffix
+                cursor.execute(insert_query, {**task_details, "task_id": task_id_with_suffix, "bot_id": bot_id})
                 self.client.commit()
 
             elif action == 'DELETE':

@@ -508,12 +508,7 @@ def chat_page():
                 submit_button(prompt, st.chat_message("user"), False)
         except Exception as e:
 
-            st.subheader(f"Chat GUI Currently not working via SiS in Native App")
-            sql = f"SHOW ENDPOINTS IN SERVICE {prefix}.GENESISAPP_SERVICE_SERVICE "
-            data = session.sql(sql).collect()
-            response = data[0][4]
-            st.write(f'Paste this into your browser to use via external Streamlit:')
-            st.write(response)
+            st.subheader(f"Error running Genesis GUI {e}")
 
 
 def setup_slack():

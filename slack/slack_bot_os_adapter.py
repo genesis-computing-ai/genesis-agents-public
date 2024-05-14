@@ -343,6 +343,9 @@ class SlackBotAdapter(BotOsInputAdapter):
                     if local_path not in files_in:
                         files_in.append(local_path)
 
+
+
+
                 msg_files = self._upload_files(files_in, thread_ts=thread_ts, channel=message.input_metadata.get("channel", self.channel_id))
 
                 for msg_url in msg_files:

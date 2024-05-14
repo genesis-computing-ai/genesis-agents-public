@@ -961,8 +961,8 @@ def generate_task_prompt(bot_id, task):
     Perform the task using the tools you have available if useful. When you are done with the task, return only a JSON document with these items, no other text:
 
     {{
-        "work_done_summary": <a summary of the work you did on the task during this run, including any outbound communications you made>,
-        "task_status": "<a summary of the current status of the task, will be provided to you on your next run of this task>,
+        "work_done_summary": <a summary of the work you did on the task during this run, including any tools you called and outbound communications you made>,
+        "task_status": <write a summary of the current status of the task, if its working fine and ongoing just say OK, if a specific next step is needed, state what should happen next>,
         "updated_task_learnings": <the task_learnings text you received at the start of this task, updated or appended with anything new you learned about how to perform this task during this run. Include anything you had to figure out (channel name, user name, which tool to use, etc) that you could skip next time if you knew something in advance that isn't subject to frequent change, like tables you found or SQL you used or Slack IDs of people you communicated with, or slack channel names you looked up.>,
         "report_message": <include this if you are supposed to report back based on reporting_instructions based on what happened, otherwise omit for no report back.",
         "done_flag": <true if the task is completely and should not be re-triggered again, false if the task is ongoing>,
@@ -982,13 +982,15 @@ def submit_task(session=None, bot_id=None, task=None):
     # Use a prompt similar to tmp/tmp_task_thoughts.txt to interact with the bot
     # Perform the task and construct the response JSON
 
-    # Check if the next_check_ts is in the past
-    current_time = datetime.datetime.now()
+    # Check if the next_check_ts is in the past    current_time = datetime.datetime.now()
     next_check_ts_str = task.get('next_check_ts')
     if next_check_ts_str:
         next_check_ts = datetime.datetime.strptime(next_check_ts_str, '%Y-%m-%d %H:%M:%S')
-        if current_time < next_check_ts:
+        if datetime.datetime.now() < next_check_ts:
             return {"task_skipped": True, "reason": "Next check timestamp is in the future."}
+
+    if not task.get('task_active', False):
+        return {"task_skipped": True, "reason": "Task is not active."}
 
     # Call the function to generate the LLM prompt
     prompt = generate_task_prompt(bot_id, task)
@@ -999,6 +1001,8 @@ def submit_task(session=None, bot_id=None, task=None):
     task_meta = { "bot_id": bot_id, "task_id": task['task_id'], "submited_time": current_timestamp_str }
 
     event = {"thread_id": None, "msg": prompt, 'task_meta': task_meta}
+
+
     input_adapter = bot_id_to_udf_adapter_map.get(bot_id, None)
     if input_adapter:
         input_adapter.add_event(event)
@@ -1027,10 +1031,10 @@ def task_log_and_update(bot_id, task_id, task_result):
         bot_id=bot_id, 
         task_id=task_id, 
         task_details={
-            'next_check_ts': task_result.get('next_check_ts'),
+            'next_check_ts': task_result.get('next_run_time'),
             'last_task_status': task_result.get('task_status'),
             'task_learnings': task_result.get('updated_task_learnings'),
-            'task_active': task_result.get('done_flag')
+            'task_active': not task_result.get('done_flag', False)
         }
     )
 
@@ -1040,8 +1044,7 @@ def tasks_loop():
 
     # Initialize a deque for pending tasks
     pending_tasks = deque()
-    # Keep a map of task_ids to retry attempts
-    task_retry_attempts = {}
+    task_retry_attempts_map = {}
 
     while True:
 
@@ -1062,7 +1065,7 @@ def tasks_loop():
             tasks = db_adapter.manage_tasks(action='LIST', bot_id=bot_id, task_id=None)
 
             if tasks.get("Success"):
-                for task in tasks.get("Tasks", []):
+                for task in [t for t in tasks.get("Tasks", []) if t.get('task_active',False)]:
                     # If an instance of the task is not alreday running, Process the task using the bot
                     if not any(pending_task['task_id'] == task['task_id'] for pending_task in pending_tasks):
                         task_result = submit_task(session=session, bot_id=bot_id, task=task)
@@ -1079,8 +1082,10 @@ def tasks_loop():
             # Find the input adapter that is an instance of BotOsInputAdapter
             input_adapter = next((adapter for adapter in session.input_adapters if isinstance(adapter, TaskBotOsInputAdapter)), None)
             response_map = input_adapter.response_map
+            bot_id = session.bot_id
             processed_tasks = []
             for task_id, response in response_map.items():
+
                 print(f"Processing response for task {task_id}: {response.output}")
                 # Process the response for each task
                 # This could involve updating task status, logging the response, etc.
@@ -1090,6 +1095,11 @@ def tasks_loop():
                 try:
                     if response.output.startswith("```json") and response.output.endswith("```"):
                         response.output = response.output[6:-3].strip()
+                    if '{' in response.output:
+                        first_brace_position = response.output.find('{')
+                        if first_brace_position != 0:
+                            response.output = response.output[first_brace_position:]
+                    
                     task_response_data = json.loads(response.output)
                 except Exception as e:
                     response_valid = False
@@ -1108,7 +1118,8 @@ def tasks_loop():
                             invalid_fields.append('needs_help_flag must be a boolean')
                         # Validate timestamp
                         try:
-                            datetime.datetime.strptime(task_response_data['next_run_time'], '%Y-%m-%d %H:%M:%S')
+                            if not task_response_data['done_flag']:
+                                datetime.datetime.strptime(task_response_data['next_run_time'], '%Y-%m-%d %H:%M:%S')
                         except ValueError:
                             invalid_fields.append('next_run_time must be a valid timestamp in the format YYYY-MM-DD HH:MM:SS')
                     if missing_fields or invalid_fields:

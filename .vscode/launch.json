@@ -22,6 +22,25 @@
             "jinja": true,
             "justMyCode": true
         },
+
+            {
+                "name": "Python: Harvester",
+                "type": "python",
+                "request": "launch",
+                "module": "flask",
+                "env": {
+                    "FLASK_APP": "./schema_explorer/standalone_harvester.py",
+                    "FLASK_DEBUG": "1"
+                },
+                "args": [
+                    "run",
+                    "--no-debugger",
+                    "--no-reload",
+                    "--port", "8080"
+                ],
+                "jinja": true,
+                "justMyCode": true
+            },
         {
             "name": "Python: TaskServer",
             "type": "python",

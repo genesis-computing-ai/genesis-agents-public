@@ -17,8 +17,16 @@ THINGS TO TEST:chr
 (test) harvester dont crash if cant access schemas for a database listed in control file
 
 SHORT-TERM:
+Give the bots info on the harvest status, in case they cant find something (a list of tables being harvested, etc.)
+-> On first DM (if task is there and not inactive, and add some extra notes to the first message)
+-> Add a regular checkin task to check in with the person who DMs them, talk back to able (make sure you can stop it)
+x Tell Eliza about how access works , GRANT TO APPLICATION instead GRANT TO PUBLIC
+(test, GENESIS_LOCAL_DB.ELIZA_WORKSPACE) Create sample workspace by default for Eliza for Eliza
+x Chris Jones information schema and data access 
+x Tell Eliza to convey specific error messages to users instead of not 
+x When a bot can't access something from run_query, have her suggest that you need to grant access to it (grant all)
 cache bot responses for some time and pre-run the intro prompts
-add the ability for send_direct and _channel messages to have files in them
+add the ability for send_direct and _channel messages to have created files in them (works for images, not for graphs/pdfs - maybe a tool to save file locally and retrigger thread...?) 
 stop bot back and forth with other bots after a few turns
 check error handling for stage tools (added to list, check others)
 !! fix add_new_tools_to_bots, 2024-05-10 23:32:09,104 - ERROR - callback_closure - _submit_tool_outputs - caught exception: argument of type 'NoneType' is not iterable

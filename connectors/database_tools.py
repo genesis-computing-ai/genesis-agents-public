@@ -21,8 +21,8 @@ database_tool_functions = [
                 "properties": {
                     "query": {"type": "string", "description": "The search query to find relevant metadata about data assets."},
                     "top_n": {"type": "integer", "description": "How many of the top results to return, max 50, default 8", "default": 8},
-                    "database": {"type": "string", "description": "Use when you want to constrain the search to a specific database."},
-                    "schema": {"type": "string", "description": "Use to constrain the search to a specific schema."},
+ #                   "database": {"type": "string", "description": "Use when you want to constrain the search to a specific database, only use this when you already know for sure the name of the database."},
+#                    "schema": {"type": "string", "description": "Use to constrain the search to a specific schema."},
                 },
                 "required": ["query"]
             }

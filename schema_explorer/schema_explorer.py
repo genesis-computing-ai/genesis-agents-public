@@ -58,7 +58,7 @@ class SchemaExplorer:
             j = ""        
         return j
 
-    def store_table_memory(self, database, schema, table, summary, ddl=None, ddl_short=None,  ):
+    def store_table_memory(self, database, schema, table, summary=None, ddl=None, ddl_short=None ):
         """
         Generates a document including the DDL statement and a natural language description for a table.
         :param schema: The schema name.
@@ -83,7 +83,7 @@ class SchemaExplorer:
             self.store_table_summary(database, schema, table, summary="Harvester Error: {e}", ddl="Harvester Error", ddl_short="Harvester Error", sample_data="Harvester Error")
    
 
-    def store_table_summary(self, database, schema, table, ddl, ddl_short, summary, sample_data):
+    def store_table_summary(self, database, schema, table, ddl, ddl_short="", summary="", sample_data=""):
         """
         Stores a document including the DDL and summary for a table in the memory system.
         :param schema: The schema name.
@@ -91,28 +91,37 @@ class SchemaExplorer:
         :param ddl: The DDL statement of the table.
         :param summary: A natural language summary of the table.
         """
-        memory_id = f"schema_information:table_ddl_summary:{database}.{schema}.{table}"
-        memory_content = f"<OBJECT>{database}.{schema}.{table}</OBJECT><DDL>\n{ddl}\n</DDL>\n<SUMMARY>\n{summary}\n</SUMMARY>"
-        if sample_data != "":
-            memory_content += f"\n\n<SAMPLE CSV DATA>\n{sample_data}\n</SAMPLE CSV DATA>"
 
-        complete_description = memory_content
-        embedding = self.get_embedding(complete_description[:8000])  
-        #sample_data_text = json.dumps(sample_data)  # Assuming sample_data needs to be a JSON text.
+        try:
+            if ddl is None:
+                ddl = self.alt_get_ddl(table_name='"'+database+'"."'+schema+'"."'+table+'"')
 
-        # Now using the modified method to insert the data into BigQuery
-        self.db_connector.insert_table_summary(schema_name=schema, 
-                                               database_name=database,
-                                               table_name=table, 
-                                               ddl=ddl, 
-                                               ddl_short=ddl_short,
-                                               summary=summary, 
-                                               sample_data_text=sample_data, 
-                                               complete_description=complete_description,
-                                               embedding=embedding)
-        
-        print(f"Stored summary for {schema}.{table} in Harvest Results.")
+            memory_content = f"<OBJECT>{database}.{schema}.{table}</OBJECT><DDL>\n{ddl}\n</DDL>\n<SUMMARY>\n{summary}\n</SUMMARY><DDL_SHORT>{ddl_short}</DDL_SHORT>"
 
+            if sample_data != "":
+                memory_content += f"\n\n<SAMPLE CSV DATA>\n{sample_data}\n</SAMPLE CSV DATA>"
+
+            complete_description = memory_content
+            embedding = self.get_embedding(complete_description[:8000])  
+            #sample_data_text = json.dumps(sample_data)  # Assuming sample_data needs to be a JSON text.
+
+            # Now using the modified method to insert the data into BigQuery
+            self.db_connector.insert_table_summary(schema_name=schema, 
+                                                database_name=database,
+                                                table_name=table, 
+                                                ddl=ddl, 
+                                                ddl_short=ddl_short,
+                                                summary=summary, 
+                                                sample_data_text=sample_data, 
+                                                complete_description=complete_description,
+                                                embedding=embedding)
+            
+            print(f"Stored summary for {schema}.{table} in Harvest Results.")
+   
+        except Exception as e:
+            print(f"Harvester Error for {database}.{schema}.{table}: {e}")
+            self.store_table_summary(database, schema, table, summary="Harvester Error: {e}", ddl="Harvester Error", ddl_short="Harvester Error", sample_data="Harvester Error")
+   
         ## Assuming an instance of BotOsKnowledgeLocal named memory_system exists
         #self.memory_system.store_memory(memory_content, scope='database_metadata')
 
@@ -255,13 +264,12 @@ class SchemaExplorer:
         summaries = {}
         total_processed = 0
 
-        random.shuffle(schemas)
 
         #print('checking schemas: ',schemas)
 
         # todo, first build list of objects to harvest, then harvest them
 
-        def process_dataset(dataset, max_to_process = 1000):
+        def process_dataset_step1(dataset, max_to_process = 1000):
 
             #print("  Process_dataset: ",dataset)
             # query to find new
@@ -279,7 +287,7 @@ class SchemaExplorer:
                 #quoted_table_names = [f'\'"{db}"."{sch}"."{table}"\'' for table in table_names]
                #in_clause = ', '.join(quoted_table_names)
                 check_query = f"""
-                SELECT qualified_table_name, ddl_hash, last_crawled_timestamp
+                SELECT qualified_table_name, ddl_hash, last_crawled_timestamp, (SUMMARY = '{{!placeholder}}') as needs_full
                 FROM {self.db_connector.metadata_table_name}
                 WHERE source_name = '{self.db_connector.source_name}'
                 AND database_name= '{db}' and schema_name = '{sch}'
@@ -288,17 +296,22 @@ class SchemaExplorer:
                     existing_tables_info = self.db_connector.run_query(check_query, max_rows=1000, max_rows_override=True)
                     existing_tables_set = {info['QUALIFIED_TABLE_NAME'] for info in existing_tables_info}
                     non_existing_tables = [table for table in potential_tables if f'"{db}"."{sch}"."{table["table_name"]}"' not in existing_tables_set]
-                except:
+                    needs_updating = [table['QUALIFIED_TABLE_NAME']  for table in existing_tables_info if table["NEEDS_FULL"]]
+                    refresh_tables = [table for table in potential_tables if f'"{db}"."{sch}"."{table["table_name"]}"' in needs_updating]
+                except Exception as e:
                     print(f'Error running check query: {check_query} Error: {e}')
                     return None, None
                 
+                non_existing_tables.extend(refresh_tables)
                 for table_info in non_existing_tables:
                     table_name = table_info['table_name']
                     quoted_table_name = f'"{db}"."{sch}"."{table_name}"'
-                    if quoted_table_name not in existing_tables_set:
+                    if quoted_table_name not in existing_tables_set or quoted_table_name in needs_updating:
                         # Table is not in metadata table
                         # Check to see if it exists in the shared metadata table
+                       #print ("!!!! CACHING DIsABLED !!!! ", flush=True)
                         shared_table_exists = self.db_connector.check_cached_metadata(db, sch, table_name)
+                        #shared_table_exists = False 
                         if shared_table_exists:
                             # Insert the record from the shared metadata table directly to the metadata table
                             insert_from_cache_result = self.db_connector.insert_metadata_from_cache(db, sch, table_name)
@@ -310,6 +323,11 @@ class SchemaExplorer:
                             new_table = {"qualified_table_name": quoted_table_name, "ddl_hash": current_ddl_hash, "ddl": current_ddl}
                             print('Newly found object added to harvest array: ', quoted_table_name, flush=True)
                             non_indexed_tables.append(new_table)
+
+                            # store quick summary
+                            if quoted_table_name not in existing_tables_set:
+                                self.store_table_summary(database=db, schema=sch, table=table_name, ddl=current_ddl, ddl_short=current_ddl, summary="{!placeholder}", sample_data="")
+                
                    # else:
                    #     # Table exists, so check for updates as before
                    #     existing_table_info = next((info for info in existing_tables_info if info['qualified_table_name'] == quoted_table_name), None)
@@ -346,36 +364,46 @@ class SchemaExplorer:
                 """
                 non_indexed_tables = self.db_connector.run_query(query, max_rows = max_to_process, max_rows_override = True)
 
-            local_summaries = {}
-            if len(non_indexed_tables) > 0:
-                print(f'starting indexing of {len(non_indexed_tables)} new or objects in {dataset}...', flush=True)
-            for row in non_indexed_tables:
-                try:
-                    qualified_table_name = row['qualified_table_name']
-                    print("     -> ", qualified_table_name, flush=True)
-                    database, schema, table = (part.strip('"') for part in qualified_table_name.split('.', 2))
+            return non_indexed_tables
+        
+        def process_dataset_step2(dataset, non_indexed_tables, max_to_process = 1000):
 
-                    # Proceed with generating the summary
-                    columns = self.db_connector.get_columns(database, schema, table)
-                    prompt = self.generate_table_summary_prompt(database, schema, table, columns)
-                    summary = self.generate_summary(prompt)
-                    #print(summary)
-                    #embedding = self.get_embedding(summary)  
-                    ddl = row.get('ddl',None)
-                    ddl_short = self.get_ddl_short(ddl)
-                    print(f"storing: database: {database}, schema: {schema}, table: {table}, summary len: {len(summary)}, ddl: {ddl}, ddl_short: {ddl_short} ", flush=True) 
-                    self.store_table_memory(database, schema, table, summary, ddl=ddl, ddl_short=ddl_short)
-                except Exception as e:
-                    print(f"Harvester Error for {database}.{schema}.{table}: {e}")
-                    self.store_table_memory(database, schema, table, summary="Harvester Error: {e}", ddl="Harvester Error", ddl_short="Harvester Error", flush=True)
-                
-                local_summaries[qualified_table_name] = summary
-            return dataset, local_summaries
+                local_summaries = {}
+                if len(non_indexed_tables) > 0:
+                    print(f'starting indexing of {len(non_indexed_tables)} new or objects in {dataset}...', flush=True)
+                for row in non_indexed_tables:
+                    try:
+                        qualified_table_name = row.get('qualified_table_name',row)
+                        print("     -> ", qualified_table_name, flush=True)
+                        database, schema, table = (part.strip('"') for part in qualified_table_name.split('.', 2))
+
+                        # Proceed with generating the summary
+                        columns = self.db_connector.get_columns(database, schema, table)
+                        prompt = self.generate_table_summary_prompt(database, schema, table, columns)
+                        summary = self.generate_summary(prompt)
+                        #print(summary)
+                        #embedding = self.get_embedding(summary)  
+                        ddl = row.get('ddl',None)
+                        ddl_short = self.get_ddl_short(ddl)
+                        print(f"storing: database: {database}, schema: {schema}, table: {table}, summary len: {len(summary)}, ddl: {ddl}, ddl_short: {ddl_short} ", flush=True) 
+                        self.store_table_memory(database, schema, table, summary, ddl=ddl, ddl_short=ddl_short)
+                    except Exception as e:
+                        print(f"Harvester Error on {qualified_table_name}: {e}")
+                        self.store_table_memory(database, schema, table, summary="Harvester Error: {e}", ddl="Harvester Error", ddl_short="Harvester Error", flush=True)
+                    
+                    local_summaries[qualified_table_name] = summary
+                return dataset, local_summaries
 
         # Using ThreadPoolExecutor to parallelize dataset processing
    
+        # MAIN LOOP
+
+        tables_for_full_processing = []
+        random.shuffle(schemas)
         for schema in schemas:
-            process_dataset(schema, max_to_process=1000)
+            tables_for_full_processing.extend(process_dataset_step1(schema))
+        random.shuffle(tables_for_full_processing)
+        process_dataset_step2(schema,tables_for_full_processing)
 
         return 'Processed'
    

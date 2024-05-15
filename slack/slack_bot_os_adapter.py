@@ -258,7 +258,7 @@ class SlackBotAdapter(BotOsInputAdapter):
         return BotOsInputMessage(thread_id=thread_id, msg=msg_with_user_and_id, files=files, 
                                 metadata=metadata) 
     
-    def _upload_files(self, files:list[str], thread_ts:str, channel:str):
+    def _upload_files(self, files:list[str], thread_ts:str, channel:str=None):
         if files:
             file_urls = []
             for file_path in files:
@@ -386,15 +386,104 @@ class SlackBotAdapter(BotOsInputAdapter):
             except Exception as e:
                 logger.error(f"SlackBotAdapter:handle_response - Error posting message: {e}")
 
-    def send_slack_direct_message(self, slack_user_id:str, message:str, thread_id:str):
+
+    def process_attachments(self, msg, attachments):
+        files_to_attach = []
+        for attachment in attachments:
+            if 'image_url' in attachment:
+                image_path = attachment['image_url']
+                if image_path.startswith('./downloaded_files/'):
+                    files_to_attach.append(image_path)
+
+        # Extract file paths from the message and add them to files_in array
+        image_pattern = re.compile(r'\[.*?\]\((sandbox:/mnt/data/downloaded_files/.*?)\)')
+        matches = image_pattern.findall(msg)
+        for match in matches:
+            local_path = match.replace('sandbox:/mnt/data', '.')
+            if local_path not in files_to_attach:
+                files_to_attach.append(local_path)
+
+        # Extract file paths from the message and add them to files_in array
+        chart_pattern = re.compile(r'\(sandbox:/mnt/data/(.*?)\)\n2\. \[(.*?)\]')
+        chart_matches = chart_pattern.findall(msg)
+        for chart_match in chart_matches:
+            local_chart_path = f"./downloaded_files/{chart_match}"
+            if local_chart_path not in files_to_attach:
+                files_to_attach.append(local_chart_path)
+
+
+        # Parse the message for the provided pattern and add to files_in
+        file_pattern = re.compile(r'!\[.*?\]\(attachment://\.(.*?)\)')
+        file_matches = file_pattern.findall(msg)
+        for file_match in file_matches:
+            local_file_path = file_match
+            if local_file_path not in files_to_attach:
+                files_to_attach.append(local_file_path)
+
+        local_pattern = re.compile(r'!\[.*?\]\(\./downloaded_files/thread_(.*?)/(.+?)\)')
+        local_pattern_matches = local_pattern.findall(msg)
+        for local_match in local_pattern_matches:
+            local_path = f"./downloaded_files/thread_{local_match[0]}/{local_match[1]}"
+            if local_path not in files_to_attach:
+                files_to_attach.append(local_path)
+
+        if files_to_attach:
+            uploaded_files = self._upload_files(files_to_attach, thread_ts=None, channel=self.channel_id)
+            return uploaded_files
+        else:
+            return []
+
+
+    def replace_urls(self, msg=None, msg_files=[]):
+        """
+        Replaces URLs in the message with the correct format for Slack.
+
+        Args:
+            msg (str): The message containing URLs to be replaced.
+
+        Returns:
+            str: The message with URLs replaced.
+        """
+        for msg_url in msg_files:
+            filename = msg_url.split('/')[-1]
+            msg_prime = msg
+            
+            msg = re.sub(f"(?i)\(sandbox:/mnt/data/{filename}\)", f"<{{msg_url}}>", msg)
+            alt_pattern = re.compile(r'\[(.*?)\]\(\./downloaded_files/thread_(.*?)/(.+?)\)')
+            msg = re.sub(alt_pattern, f'<{{msg_url}}|\\1>', msg)
+            # Catch the pattern with thread ID and replace it with the correct URL
+
+            thread_file_pattern = re.compile(r'\[(.*?)\]\(sandbox:/mnt/data/downloaded_files/thread_(.*?)/(.+?)\)')
+            msg = re.sub(thread_file_pattern, f'<{{msg_url}}|\\1>', msg)
+            # Catch the external URL pattern and replace it with the correct URL
+            external_url_pattern = re.compile(r'\[(.*?)\]\((https?://.*?)\)')
+            msg = re.sub(external_url_pattern, f'<{{msg_url}}|\\1>', msg)
+            msg = msg.replace('{msg_url}',msg_url)
+            msg = msg.replace('[Download ','[')
+            msg = re.sub(r'!\s*<', '<', msg)
+            if msg == msg_prime:
+                msg += ' {'+msg_url+'}'
+        # Reformat the message if it contains a link in brackets followed by a URL in angle brackets
+        link_pattern = re.compile(r'\[(.*?)\]<(.+?)>')
+        msg = re.sub(link_pattern, r'<\2|\1>', msg)
+        return msg
+
+
+    def send_slack_direct_message(self, slack_user_id:str, message:str, attachments=[], thread_id:str=None):
         try:
             # Start a conversation with the user
             response = self.slack_app.client.conversations_open(users=slack_user_id)
+            file_list = self.process_attachments(message, attachments)
 
+            message = self.replace_urls(msg=message, msg_files=file_list)
             if response['ok']:
                 channel_id = response['channel']['id']
                 # Post a message to the new conversation
-                res = self.slack_app.client.chat_postMessage(channel=channel_id, text=message)
+                res = self.slack_app.client.chat_postMessage(
+                    channel=channel_id, 
+                    text=message, 
+                    attachments=file_list if file_list else None
+                )
                 thread_ts = res["ts"]
                 if (self.bot_user_id,thread_ts) not in thread_ts_dict:
                     with meta_lock:
@@ -405,9 +494,11 @@ class SlackBotAdapter(BotOsInputAdapter):
         except Exception as e:
             return f"Error sending message: {str(e)}"
         
-    def send_slack_channel_message(self, channel_id:str, message:str, thread_id:str):
+    def send_slack_channel_message(self, channel_id:str, message:str, attachments=[], thread_id:str=None):
         try:
-            res = self.slack_app.client.chat_postMessage(channel=channel_id, text=message)
+            file_list = self.process_attachments(message, attachments)
+            message = self.replace_urls(msg=message, msg_files=file_list)
+            res = self.slack_app.client.chat_postMessage(channel=channel_id, text=message,  attachments=file_list if file_list else None)
             if res['ok']:
                 thread_ts = res["ts"]
                 if (self.bot_user_id,thread_ts) not in thread_ts_dict:

@@ -10,7 +10,7 @@ slack_tools_descriptions = [
                 "type": "object",
                 "properties": {
                     "slack_user_id": {"type": "string", "description": "The slack user id to send a message to. Use _lookup_slack_user_id first to confirm the Slack ID of the user. ONLY USE THIS TO REACH OUT TO USERS YOU'RE NOT CURRENTLY TALKING TO, NOT TO RESPOND TO GENERAL CHAT THREADS"},
-                    "message": {"type": "string", "description": "The text of the message to send directly to the user that you are not already talking to in the conversation thread."},
+                    "message": {"type": "string", "description": "The text of the message to send directly to the user that you are not already talking to in the conversation thread.  Include any links to local documents referencing ./downloaded_files or the openAI file id. Use this format to reference files: ![file description](./downloaded_files/thread_<threadid>/<file name>)"},
                 },
                 "required": ["slack_user_id", "message"]
             }
@@ -25,7 +25,7 @@ slack_tools_descriptions = [
                 "type": "object",
                 "properties": {
                     "channel_id": {"type": "string", "description": "The NAME of the channel to send the message to, e.g. #channel"},
-                    "message": {"type": "string", "description": "The text of the message to be sent to the channel."},
+                    "message": {"type": "string", "description": "The text of the message to be sent to the channel.  Include any links to local documents referencing ./downloaded_files or the openAI file id. Use this format to reference files: ![file description](./downloaded_files/thread_<threadid>/<file name>)"},
                 },
                 "required": ["channel_id", "message"]
             }

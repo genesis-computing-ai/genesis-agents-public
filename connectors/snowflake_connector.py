@@ -426,7 +426,7 @@ class SnowflakeConnector(DatabaseConnector):
     
 
 
-    def manage_tasks(self, action, bot_id, task_id, task_details=None, thread_id = None):
+    def manage_tasks(self, action, bot_id, task_id=None, task_details=None, thread_id = None):
         import random
         import string
         """
@@ -509,7 +509,7 @@ class SnowflakeConnector(DatabaseConnector):
                 return {"Success": False, "Error": "The 'next_check_ts' field is required when updating an active task."}
 
         # Convert timestamp from string in format 'YYYY-MM-DD HH:MM:SS' to a Snowflake-compatible timestamp
-        if task_details.get('task_active', False):
+        if task_details is not None and task_details.get('task_active', False):
             try:
                 formatted_next_check_ts = datetime.strptime(task_details['next_check_ts'], '%Y-%m-%d %H:%M:%S')
             except ValueError as ve:
@@ -543,6 +543,8 @@ class SnowflakeConnector(DatabaseConnector):
                 task_id_with_suffix = task_id + random_suffix
                 cursor.execute(insert_query, {**task_details, "task_id": task_id_with_suffix, "bot_id": bot_id})
                 self.client.commit()
+                return {"Success": True, "Message": f"Task successfully created, next check scheduled for {task_details['next_check_ts']}"}
+
 
             elif action == 'DELETE':
                 delete_query = f"""
@@ -561,8 +563,7 @@ class SnowflakeConnector(DatabaseConnector):
                 cursor.execute(update_query, {**task_details, "task_id": task_id, "bot_id": bot_id})
                 self.client.commit()
 
-            affected_rows = cursor.rowcount
-            return {"Success": True, "Message": f"Task successfully created, next check scheduled for {task_details['next_check_ts']}"}
+            return {"Success": True, "Message": f"Task update or delete confirmed."}
         except Exception as e:
             return {"Success": False, "Error": str(e)}
 
@@ -1644,10 +1645,27 @@ class SnowflakeConnector(DatabaseConnector):
          #   else:
             cursor.execute(query)
         except Exception as e:
+            if "does not exist or not authorized" in str(e):
+                print('run query: ', query, '\ncaused object or access rights error: ', e, ' Provided suggestions.')
+                cursor.close()
+                return {
+                "Success": False,
+                "Error": str(e),    
+                "Suggestion": """You have tried to query an object with an incorrect name of one that is not granted to APPLICATION GENESIS_BOTS.
+            To fix this: 
+            1. Validate that the object name is correct, and is an object you know about from using search_metadata. "
+            2. Explain the problem to the user and show them the SQL you used and the error, they may be able to fix it.  Suggest that they try to run the SQL themselves in a worksheet to make sure the object names are right.
+            3. If you have not been granted access to this object, ask the user to run this in a Snowflake worksheet:
+              "CALL GENESIS_LOCAL_DB.SETTINGS.grant_schema_usage_and_select_to_app('[DATABASE_NAME]','GENESIS_BOTS');"
+              Note that you do NOT have the PUBLIC role, and the user can not grant any Roles to you, data can only be granted by using this procedure 
+              or by granting all needed rights to the object and the associated database and schema "TO APPLICATION GENESIS_BOTS". 
+              This is different from how Snowflake normally handles data rights because you are running as a native application.
+"""
+            }
             print('run query: ', query, '\ncaused error: ', e)
             cursor.close()
-            raise e
-
+            return {"Success": False, "Error": str(e)}
+            
     #    print('getting results:')
         try:
             results = cursor.fetchmany(max_rows)
@@ -1660,6 +1678,7 @@ class SnowflakeConnector(DatabaseConnector):
 
         #print('returning result: ', sample_data)
         cursor.close()
+
         return sample_data
     
 
@@ -2458,8 +2477,7 @@ class SnowflakeConnector(DatabaseConnector):
             query = f"LIST @{database}.{schema}.{stage}"
             return self.run_query(query)
         except Exception as e:
-            logger.error(f"Error listing stage contents: {e}")
-            return []
+            return {"success": False, "error": str(e)}
 
 
     def image_generation(self,prompt, thread_id=None):
@@ -2631,54 +2649,57 @@ class SnowflakeConnector(DatabaseConnector):
             dict: A dictionary with the result of the operation.
         """
 
-        if file_content is None:
-            file_name  = file_name.replace('serverlocal:', '') 
-            openai_file_id  = openai_file_id.replace('serverlocal:', '') 
+        try:
+            if file_content is None:
+                file_name  = file_name.replace('serverlocal:', '') 
+                openai_file_id  = openai_file_id.replace('serverlocal:', '') 
 
-            if file_name.startswith("file-"):
-                return {
-                    "success": False,
-                    "error": "Please provide a human-readable file name in the file_name parameter, with a supported extension, not the OpenAI file ID. If unsure, ask the user what the file should be called."
-                }
+                if file_name.startswith("file-"):
+                    return {
+                        "success": False,
+                        "error": "Please provide a human-readable file name in the file_name parameter, with a supported extension, not the OpenAI file ID. If unsure, ask the user what the file should be called."
+                    }
 
-            if '/' in file_name:
-                file_name = file_name.split('/')[-1]
-            file_name = re.sub(r'[^\w\s\.-]', '', file_name.replace(' ', '_'))
+                if '/' in file_name:
+                    file_name = file_name.split('/')[-1]
+                file_name = re.sub(r'[^\w\s\.-]', '', file_name.replace(' ', '_'))
 
-            if '/' in openai_file_id:
-                openai_file_id = openai_file_id.split('/')[-1]
+                if '/' in openai_file_id:
+                    openai_file_id = openai_file_id.split('/')[-1]
 
-            file_path = f'./downloaded_files/{thread_id}/' + file_name
-            existing_location = f"./downloaded_files/{thread_id}/{openai_file_id}"
+                file_path = f'./downloaded_files/{thread_id}/' + file_name
+                existing_location = f"./downloaded_files/{thread_id}/{openai_file_id}"
 
-            # Replace spaces with underscores and remove disallowed characters
-            file_name = re.sub(r'[^\w\s-]', '', file_name.replace(' ', '_'))
+                # Replace spaces with underscores and remove disallowed characters
+                file_name = re.sub(r'[^\w\s-]', '', file_name.replace(' ', '_'))
 
-            
-            if os.path.isfile(existing_location) and (file_path != existing_location):
-                with open(existing_location, 'rb') as source_file:
-                    with open(file_path, 'wb') as dest_file:
-                        dest_file.write(source_file.read())
-            
-            if not os.path.isfile(file_path):
+                
+                if os.path.isfile(existing_location) and (file_path != existing_location):
+                    with open(existing_location, 'rb') as source_file:
+                        with open(file_path, 'wb') as dest_file:
+                            dest_file.write(source_file.read())
+                
+                if not os.path.isfile(file_path):
 
-                logger.error(f"File not found: {file_path}")
-                return {"success": False, "error": f"Needs user review: Please first save and RETURN THE FILE *AS A FILE* to the user for their review, and once confirmed by the user, call this function again referencing the SAME OPENAI_FILE_ID THAT YOU RETURNED TO THE USER to save it to stage."}
- 
-        else:
-            if thread_id is None:
-                thread_id = ''.join(random.choices(string.ascii_letters + string.digits, k=6))
-            
-        if file_content is not None:
-            # Ensure the directory exists
-            directory = f'./downloaded_files/{thread_id}'
-            if not os.path.exists(directory):
-                os.makedirs(directory)
-            
-            # Write the content to the file
-            file_path = os.path.join(directory, file_name)
-            with open(file_path, 'w') as file:
-                file.write(file_content)
+                    logger.error(f"File not found: {file_path}")
+                    return {"success": False, "error": f"Needs user review: Please first save and RETURN THE FILE *AS A FILE* to the user for their review, and once confirmed by the user, call this function again referencing the SAME OPENAI_FILE_ID THAT YOU RETURNED TO THE USER to save it to stage."}
+    
+            else:
+                if thread_id is None:
+                    thread_id = ''.join(random.choices(string.ascii_letters + string.digits, k=6))
+                
+            if file_content is not None:
+                # Ensure the directory exists
+                directory = f'./downloaded_files/{thread_id}'
+                if not os.path.exists(directory):
+                    os.makedirs(directory)
+                
+                # Write the content to the file
+                file_path = os.path.join(directory, file_name)
+                with open(file_path, 'w') as file:
+                    file.write(file_content)
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
         try:
             query = f"PUT file://{file_path} @{database}.{schema}.{stage} AUTO_COMPRESS=FALSE"
@@ -2724,8 +2745,7 @@ class SnowflakeConnector(DatabaseConnector):
             else:
                 return f"The file {file_name} does not exist at stage path @{database}.{schema}.{stage}/{file_name}."
         except Exception as e:
-            logger.error(f"Error reading file from stage: {e}")
-            return ""
+            return {"success": False, "error": str(e)}          
 
     def update_file_in_stage(self, database: str = None, schema: str = None, stage: str = None, file_name: str = None, thread_id=None):
         """

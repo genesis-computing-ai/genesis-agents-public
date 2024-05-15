@@ -17,7 +17,11 @@ THINGS TO TEST:chr
 (test) harvester dont crash if cant access schemas for a database listed in control file
 
 SHORT-TERM:
-Give the bots info on the harvest status, in case they cant find something (a list of tables being harvested, etc.)
+task server log to sis app, add log calls for it to the start/stop info
+have Eliza more proactively suggest analyzing baseball data if there is no other data, once there is change her prompt to suggest analyzing data that is added first 
+make sure express harvest embeddings get replaced with real ones in runner once available
+add task server as a server to native app and deploy for testing
+x (did express harvest instead) Give the bots info on the harvest status, in case they cant find something (a list of tables being harvested, etc.)
 -> On first DM (if task is there and not inactive, and add some extra notes to the first message)
 -> Add a regular checkin task to check in with the person who DMs them, talk back to able (make sure you can stop it)
 x Tell Eliza about how access works , GRANT TO APPLICATION instead GRANT TO PUBLIC
@@ -25,11 +29,11 @@ x Tell Eliza about how access works , GRANT TO APPLICATION instead GRANT TO PUBL
 x Chris Jones information schema and data access 
 x Tell Eliza to convey specific error messages to users instead of not 
 x When a bot can't access something from run_query, have her suggest that you need to grant access to it (grant all)
-cache bot responses for some time and pre-run the intro prompts
+n cache bot responses for some time and pre-run the intro prompts
 add the ability for send_direct and _channel messages to have created files in them (works for images, not for graphs/pdfs - maybe a tool to save file locally and retrigger thread...?) 
 stop bot back and forth with other bots after a few turns
-check error handling for stage tools (added to list, check others)
-!! fix add_new_tools_to_bots, 2024-05-10 23:32:09,104 - ERROR - callback_closure - _submit_tool_outputs - caught exception: argument of type 'NoneType' is not iterable
+(test) check error handling for stage tools (added to list, check others)
+(test) fix add_new_tools_to_bots, 2024-05-10 23:32:09,104 - ERROR - callback_closure - _submit_tool_outputs - caught exception: argument of type 'NoneType' is not iterable
 Do our services / pools suspend after 3600 sec, and auto restart?  Is restart clean? 
 (later) When activating a bot to pay attention to a new thread, include the original message starting the thread, and the last n messages 
 (soon) Add to the thing that checks whether to respond to a thread, see if the same bot was the original poster (from a task for example) and if so respons

@@ -270,13 +270,13 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
             source_name_escaped = self.source_name.replace("'", "''")
 
             where_clauses = [f"source_name='{source_name_escaped}'"]
-            
-            if database:
-                database_escaped = database.replace("'", "''")
-                where_clauses.append(f"database_name='{database_escaped}'")
-            if schema:
-                schema_escaped = schema.replace("'", "''")
-                where_clauses.append(f"schema_name='{schema_escaped}'")
+            # this isnt good as it post filters improperly
+#            if database:
+#                database_escaped = database.replace("'", "''")
+#                where_clauses.append(f"database_name='{database_escaped}'")
+#            if schema:
+#                schema_escaped = schema.replace("'", "''")
+#                where_clauses.append(f"schema_name='{schema_escaped}'")
             
             where_statement = " AND ".join(where_clauses) + f" AND qualified_table_name IN ({file_names_str})"
             

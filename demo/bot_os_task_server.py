@@ -28,13 +28,14 @@ logging.basicConfig(level=logging.WARN, format='%(asctime)s - %(levelname)s - %(
 import core.global_flags as global_flags
 
 ##### TEST MODE FLAG
-os.environ['TEST_TASK_MODE'] = 'true'
+#os.environ['TEST_TASK_MODE'] = 'true'
 ########################################
 
 
 
-print("****** GENBOT VERSION 0.123 *******")
-logger.warning('******* GENBOT VERSION 0.123*******')
+print("****** GENBOT VERSION 0.125 *******")
+print("****** TASK AUTOMATION SERVER *******")
+logger.warning('******* GENBOT VERSION 0.125*******')
 runner_id = os.getenv('RUNNER_ID','jl-local-runner')
 print("Runner ID: ", runner_id )
 snowflake_secure_value = os.getenv('SNOWFLAKE_SECURE')

@@ -263,6 +263,26 @@ class SlackBotAdapter(BotOsInputAdapter):
                         "channel": channel,
                         "channel_type": event.get('channel_type', '')}
  
+
+        if dmcheck:
+        # Check if this was the first message in the DM channel with the user
+            conversation_history = self.slack_app.client.conversations_history(
+                channel=channel,
+                limit=1
+            ).data
+            
+            # If the conversation history is empty or the first message's user is not the current user, it's the first message
+            if not conversation_history.get('messages') or conversation_history['messages'][0]['user'] != user_id:
+                first_dm_message = True
+            else:
+                first_dm_message = False
+            
+            # If it's the first DM, add an introductory message
+            if first_dm_message:
+                system_message = "\nSYSTEM MESSAGE: This is your first message with this user.  Please answer their message, if any, but also by the way introduce yourself and explain your role and capabilities, then suggest something you can do for the user.\n"
+                msg_with_user_and_id = f"{msg_with_user_and_id}\n{system_message}"
+
+
         if not indic and tag and not dmcheck:
         # Retrieve the first and the last up to 20 messages from the thread
             conversation_history = self.slack_app.client.conversations_replies(
@@ -272,52 +292,41 @@ class SlackBotAdapter(BotOsInputAdapter):
             
             # Check if the conversation history retrieval was successful
             if not conversation_history.get('ok', False):
-                print("Failed to retrieve conversation history.")
-                return None
-            
-            messages = conversation_history.get('messages', [])
-            
-            # If there are more than 40 messages, slice the list to get the last 50 messages
-            if len(messages) > 50:
-                messages = messages[-50:]
-            
-            # Always include the first message if it's not already in the last 50 messages
-            first_message = conversation_history['messages'][0]
-            if first_message not in messages:
-                messages.insert(0, first_message)
-            
-            # Construct the object with messages including who said what
-            thread_messages = []
-            for message in messages:
-                user_id = message.get('user')
-                user_name = self.user_info_cache.get(user_id, "Unknown User")
-                text = message.get('text', '')
-                thread_messages.append({'user': user_name, 'message': text})
+                print("Failed to retrieve conversation history.")    
+            else:
+                original_user = conversation_history['messages'][0]['user'] if conversation_history['messages'] else None
+                from_you = original_user == self.bot_user_id if original_user else False
+                if from_you:
+                    system_message = "\nSYSTEM MESSAGE: You were the initiator of this thread, likely from an automated task that caused you to post the first message.\n"
+                    msg_with_user_and_id = f"{system_message}\n{msg_with_user_and_id}"
 
-            # Construct the thread history message
-            thread_history_msg = "YOU WERE JUST ADDED TO THIS SLACK THREAD IN PROGRESS, HERE IS THE HISTORY:\n"
-            for message in thread_messages:
-                thread_history_msg += f"{message['user']}: {message['message']}\n"
-            
-            thread_history_msg+= "\nTHE MESSAGE THAT YOU WERE JUST TAGGED ON AND SHOULD RESPOND TO IS:\n"
-            # Add the thread history to the msg_with_user_and_id
-            msg_with_user_and_id = f"{thread_history_msg}{msg_with_user_and_id}"
+                messages = conversation_history.get('messages', [])
+                
+                # If there are more than 40 messages, slice the list to get the last 50 messages
+                if len(messages) > 50:
+                    messages = messages[-50:]
+                
+                # Always include the first message if it's not already in the last 50 messages
+                first_message = conversation_history['messages'][0]
+                if first_message not in messages:
+                    messages.insert(0, first_message)
+                
+                # Construct the object with messages including who said what
+                thread_messages = []
+                for message in messages:
+                    user_id = message.get('user')
+                    user_name = self.user_info_cache.get(user_id, "Unknown User")
+                    text = message.get('text', '')
+                    thread_messages.append({'user': user_name, 'message': text})
 
-
-        if not indic and tag:
-            # bot was just added by someone by tagging them on this thread
-            original_message_response = self.slack_app.client.conversations_history(
-                channel=channel,
-                latest=thread_ts,
-                limit=1,
-                inclusive=True
-            )
-            original_message = original_message_response['messages'][0]['text'] if original_message_response['messages'] else None
-            original_user = original_message_response['messages'][0]['user'] if original_message_response['messages'] else None
-            from_you = original_user == self.bot_user_id if original_user else False
-            if from_you:
-                system_message = "\nSYSTEM MESSAGE: You were the initiator of this thread, likely from an automated task that caused you to post the first message. The message you posted to start this thread is: '{}'".format(original_message)
-                msg_with_user_and_id = f"{msg_with_user_and_id}\n{system_message}"
+                # Construct the thread history message
+                thread_history_msg = "YOU WERE JUST ADDED TO THIS SLACK THREAD IN PROGRESS, HERE IS THE HISTORY:\n"
+                for message in thread_messages:
+                    thread_history_msg += f"{message['user']}: {message['message']}\n"
+                
+                thread_history_msg+= "\nTHE MESSAGE THAT YOU WERE JUST TAGGED ON AND SHOULD RESPOND TO IS:\n"
+                # Add the thread history to the msg_with_user_and_id
+                msg_with_user_and_id = f"{thread_history_msg}{msg_with_user_and_id}"
     
         return BotOsInputMessage(thread_id=thread_id, msg=msg_with_user_and_id, files=files, 
                                 metadata=metadata) 

@@ -9,70 +9,55 @@ Make video of Snowflake janitorial work
 Bots calling other bots to do things
 
 THINGS TO TEST:
-
 (test) adding stage tools to a bot with baby_bot_tools and see if instructions are updated with internal stage location
 (test) Add error checking for missing data or grants to harvester so it doesnt crash on that 
 (test) add Spider baseball and f1 schemas as share-thru app w/pre-made harvest results for demo data on start
 (test) Make sure harvester works ok with mixed case table and database and schema names (and system in general)
 (test) harvester dont crash if cant access schemas for a database listed in control file
-
-SHORT-TERM:
-MR-add the bot images table and view to the copy program to other regions
-(later) eventually remove full message metadata save on input and output openai 
 (test) added new message when no access to data, e.g. when a customer recrates their data daily
-x (now debug) more logging for the slack not showing files thing for chris and robert
+(test) more logging for the slack not showing files thing for chris and robert
 (test) eve coudlnt update eliza's full instruction string The error occurred due to an unexpected keyword argument bot_instructions in the update_bot_instructions function. It appears that the function does not expect this parameter as provided.
-... add a line to the todo list for what we're doing b4 summit
-on first message in a thread, briefly say what you can do
-on first DM with a user, add some introduction of yourself
-threads adds- have past context messages
-when added to a thread that was started based on a task trigger, mention that when the app rejoins
-have the thread adds know that they are the trigger that
-test adding tools again, adding autonomouss tasks via eve didn't seem to work without restarts
-task server log to sis app, add log calls for it to the start/stop info tab examples
-have Eliza more proactively suggest analyzing baseball data if there is no other data, once there is change her prompt to suggest analyzing data that is added first 
--> Add a regular checkin task to check in with the person who DMs them, talk back to able (make sure you can stop it)
-x make sure express harvest embeddings get replaced with real ones in runner once available
-x add task server as a server to native app and deploy for testing
-x (did express harvest instead) Give the bots info on the harvest status, in case they cant find something (a list of tables being harvested, etc.)
-x Tell Eliza about how access works , GRANT TO APPLICATION instead GRANT TO PUBLIC
-(test, GENESIS_LOCAL_DB.ELIZA_WORKSPACE) Create sample workspace by default for Eliza for Eliza
-x Chris Jones information schema and data access 
-x Tell Eliza to convey specific error messages to users instead of not 
-x When a bot can't access something from run_query, have her suggest that you need to grant access to it (grant all)
-n cache bot responses for some time and pre-run the intro prompts
-add the ability for send_direct and _channel messages to have created files in them (works for images, not for graphs/pdfs - maybe a tool to save file locally and retrigger thread...?) 
-stop bot back and forth with other bots after a few turns
+(test) on first DM with a user, add some introduction of yourself
+(test) adding tools again, adding autonomouss tasks via eve didn't seem to work without restarts
+(test) GENESIS_LOCAL_DB.ELIZA_WORKSPACE Create sample workspace by default for Eliza for Eliza
+(test) Check this function execute_function - _get_visible_tables - {"database":"my_data","schema":"public"}
 (test) check error handling for stage tools (added to list, check others)
 (test) fix add_new_tools_to_bots, 2024-05-10 23:32:09,104 - ERROR - callback_closure - _submit_tool_outputs - caught exception: argument of type 'NoneType' is not iterable
-Do our services / pools suspend after 3600 sec, and auto restart?  Is restart clean? 
-(later) When activating a bot to pay attention to a new thread, include the original message starting the thread, and the last n messages 
-(soon) Add to the thing that checks whether to respond to a thread, see if the same bot was the original poster (from a task for example) and if so respons
-Encrypt all secrete and change col names
-MR - Pre-harvest and share information_schema
-JL - file issue on Roberts -- add logging of files back from OpenAI
-JL - changing openAI key via streamlit when running gives an error: (bots conflicts with existing job-- dont add scheduler job again if already running)
-JL -(test more on spcs) Something blocks the thinking messages or bolt app when doing image analysis and/or file generation/upload to Slack
-MR - SiS app will restart service is suspended (With pool) but doesnt wake up harvester, errors in SiS log harvest screen
-JL-(soon) fix wait spinner on api key page when putting in API key on a new install
-MR-(soon) Add a sevice start/stop/restart buttons to SiS
-MR- (soon) Add a message to the top of the SisChat page suggesting activating via slack, via a temp workspace
-(test) MR - Share default bot images thru app, add instructions to apply them to the user
-When you send a message to a thread that's already running, queue it up and don't submit another, then consolidate all of them when its ready and send them all at once once the run is done.
-Check this function execute_function - _get_visible_tables - {"database":"my_data","schema":"public"}
-(later) Autogenerate images for new bots, add instructions to the user to apply them when getting the tokens
 (test) Make slack active thing only apply to new bot creation, dont block activation of existing bots
-(later) Consider other uses of class level variables--the snowflake session for example, the annoy index, etc.
-(soon) add tab to see chat logs from messages table
-(soon) Harvest semantic models and return in get_metadata dynamically
-(soon) Give semantic index modify a way to add and modify multiple things at the same time
-(soon) Try harvester with mistral or yak model to save costs 
+(test) In install of Eliza make and grant an external workspace database and tell Eliza about it in her prompt (include grants on future objects to accountadmin)
+(test) MR - Share default bot images thru app
+
+SHORT-TERM (BEFORE SUMMIT):
+MR-add the bot images table and view to the copy program to other regions
+MR-Pre-harvest and share information_schema
+MR-task server log to sis app, add log calls for it to the start/stop info tab examples
+JL-files issue Chris and Robery are seeing -- use new logging to debug
+JL-changing openAI key via streamlit when running gives an error: (bots conflicts with existing job-- dont add scheduler job again if already running)
+JL-(test more on spcs) Something blocks the thinking messages or bolt app when doing image analysis and/or file generation/upload to Slack
+MR-SiS app will restart service is suspended (With pool) but doesnt wake up harvester, errors in SiS log harvest screen
+MR-Add a sevice start/stop/restart buttons to SiS
+MR-Add a message to the top of the SisChat page suggesting activating via slack, via a temp workspace
+(soon) have Eliza more proactively suggest analyzing baseball data if there is no other data, once there is change her prompt to suggest analyzing data that is added first 
+(soon) Add a regular checkin task to check in with the person who DMs them, talk back to able (make sure you can stop it)
+(soon) add the ability for send_direct and _channel messages to have created files in them (works for images, not for graphs/pdfs - maybe a tool to save file locally and retrigger thread...?) 
+(soon) stop bot back and forth with other bots after a few turns
+(soon) When you send a message to a thread that's already running, queue it up and don't submit another, then consolidate all of them when its ready and send them all at once once the run is done.
 (soon) Add update message back to slack thread if tools are still running for more than a minute or if the run is still thinking.. (update her Thinking message)
-(soon) In install of Eliza make and grant an external workspace database and tell Eliza about it in her prompt (include grants on future objects to accountadmin)
-(soon) Give them 100 OpenAI turns a day or someting using our key, then have it switch to their own key
-(have a rough one) make a metadata backup and recovery script so we have it ready
 (soon) Add undeploy from Slack button on bot config
 (soon) make sure endpoint is not the empty message, if so wait until its provisioned before updating any callback URLS, if there are any bots that needs them
+
+POST-SUMMIT:
+(later) Try harvester with mistral or yak model to save costs 
+(later) add tab to see chat logs from messages table in SiS 
+(soon) Harvest semantic models and return in get_metadata dynamically
+(soon) Give semantic index modify a way to add and modify multiple things at the same time
+(later) add instructions to when you get bot key on how to add the images too and provide the images
+(later) Encrypt all secrete and change col names
+(later) Autogenerate images for new bots, add instructions to the user to apply them when getting the tokens
+(later) Consider other uses of class level variables--the snowflake session for example, the annoy index, etc.
+(later) eventually remove full message metadata save on input and output openai 
+(later) Give them 100 OpenAI turns a day or someting using our key, then have it switch to their own key
+(later) make a metadata backup and recovery script so we have it ready
 (later) if you change slack token via streamlit, have it relaunch bots (or activate them any time they have a token even is slack is off)
 (later) Make thread map save to local database to survive container restart 
 (later) block metadata app1 from user query 
@@ -89,16 +74,16 @@ MR- (later) Add logo to streamlit GUI
 
 ! Persistancey:
 1. have it proactively suggest tasks to do if it doesn't have enough, and recurring ones, and bootstrap ones
-2. have it do those automatically (give it the system time)
-3. give it a tool to find stuff its working on and the status
+x 2. have it do those automatically (give it the system time)
+x 3. give it a tool to find stuff its working on and the status
 4. give it a tool to see what else its been talking about with that person and with other people
-Tasks to database, json describing the task (let it decide its own structure for this json, give ideas like todo, current status, etc.).. let it decide the structure
-Have next check time in the database, and prompt it to work on it more at that time
+x Tasks to database, json describing the task (let it decide its own structure for this json, give ideas like todo, current status, etc.).. let it decide the structure
+x Have next check time in the database, and prompt it to work on it more at that time
 Example task, monitor the harvester for a new database and let me know when its done or if there are any issues (with related discussion context)
-Add some knowledge of past or parallel tasks
+x Add some knowledge of past or parallel tasks
 Add knowledged of past and parallel conversations, and a tool to get past transcriptips
 Have it proactively suggest future tasks
-Have Eve suggest making tools 
+n Have Eve suggest making tools 
 Haves bots reach out to you to see if you need help
 
 CLEANUPS AND NEEDED TESTS:
@@ -160,6 +145,22 @@ Add a mechanism for license control based on current_account()... share a table 
     Have a trial period where you can use it in trial mode before it goes into limited mode
 
 DONE:
+x When activating a bot to pay attention to a new thread, include the original message starting the thread, and the last n messages 
+x Add to the thing that checks whether to respond to a thread, see if the same bot was the original poster (from a task for example) and if so respons
+x (havent seen) Do our services / pools suspend after 3600 sec, and auto restart?  Is restart clean? 
+x good enough - JL-(soon) fix wait spinner on api key page when putting in API key on a new install
+x on first message in a thread, briefly say what you can do
+x threads adds- have past context messages
+x when added to a thread that was started based on a task trigger, mention that when the app rejoins
+x have the thread adds know that they are the trigger that
+x make sure express harvest embeddings get replaced with real ones in runner once available
+x add task server as a server to native app and deploy for testing
+x (did express harvest instead) Give the bots info on the harvest status, in case they cant find something (a list of tables being harvested, etc.)
+x Tell Eliza about how access works , GRANT TO APPLICATION instead GRANT TO PUBLIC
+x Chris Jones information schema and data access 
+x Tell Eliza to convey specific error messages to users instead of not 
+x When a bot can't access something from run_query, have her suggest that you need to grant access to it (grant all)
+n cache bot responses for some time and pre-run the intro prompts
 x MR - Add bot custom welcome messages on new chats in Streamlit
 x Added image generation
 x Ask Eve to make a line chart and it sends back ImageFileContentBlock(image_file=ImageFile(file_id='file-kfWyFfbLNRk8R2lfnMhQwPEn'), type='image_file') which we dont handle right now        

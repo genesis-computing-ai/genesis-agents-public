@@ -7,18 +7,17 @@ import base64
 
 # simple script to upload image files to a table
 
-# TODO add region as env variable
+# NOTE ensure region included in SNOWFLAKE_ACCOUNT_OVERRIDE env variable
 conn = snowflake.connector.connect(
     user=os.getenv('SNOWFLAKE_USER_OVERRIDE',None),
     password=os.getenv('SNOWFLAKE_PASSWORD_OVERRIDE', None),
-    account=os.getenv('SNOWFLAKE_ACCOUNT_OVERRIDE',None) + '.us-east-2.aws', # NOTE - hardcoded region
+    account=os.getenv('SNOWFLAKE_ACCOUNT_OVERRIDE',None), 
     database=os.getenv('SNOWFLAKE_DATABASE_OVERRIDE', None),
     schema=os.getenv('SNOWFLAKE_SCHEMA_OVERRIDE', 'PUBLIC'),
     warehouse=os.getenv('SNOWFLAKE_WAREHOUSE_OVERRIDE', None)
 )
 
 
-#TODO do we remove ID column?
 def create_schema_and_table(conn):
     try:
         cursor = conn.cursor()
@@ -26,7 +25,6 @@ def create_schema_and_table(conn):
             CREATE SCHEMA IF NOT EXISTS GENESISAPP_MASTER.APP_SHARE;""")
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS GENESISAPP_MASTER.APP_SHARE.IMAGES (
-                id INTEGER AUTOINCREMENT,
                 image_name STRING,
                 bot_name STRING,
                 image_data BINARY,

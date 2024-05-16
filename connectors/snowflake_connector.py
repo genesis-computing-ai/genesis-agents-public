@@ -937,7 +937,7 @@ class SnowflakeConnector(DatabaseConnector):
                 """
                 cursor.execute(insert_initial_row_query, (runner_id, bot_id, bot_name, bot_instructions, available_tools, udf_active, slack_active, bot_intro_prompt))
                 self.client.commit()
-                print(f"Inserted initial Eliza row into {self.bot_servicing_table_name} with runner_id: {runner_id}")
+                print(f"Inserted initial Stuart row into {self.bot_servicing_table_name} with runner_id: {runner_id}")
 
 
             else:

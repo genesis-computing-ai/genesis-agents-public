@@ -28,10 +28,15 @@ THINGS TO TEST:
 (test) MR - Share default bot images thru app
 
 SHORT-TERM (BEFORE SUMMIT):
+add a 60 second delay on task server startup
+add another last tep to bot deploy that tells you what to do once you have done the link 
+list index out of range on bot config when you refresh directly to it.. add more retrys
+reword button page on refresh to press this button after first step of bot config
+add a few doublechecks before going to the initiall install screen in Sis
 MR-add the bot images table and view to the copy program to other regions
 MR-Pre-harvest and share information_schema
 MR-task server log to sis app, add log calls for it to the start/stop info tab examples
-JL-files issue Chris and Robery are seeing -- use new logging to debug
+JL-files issue Chris and Robert are seeing -- use new logging to debug
 JL-changing openAI key via streamlit when running gives an error: (bots conflicts with existing job-- dont add scheduler job again if already running)
 JL-(test more on spcs) Something blocks the thinking messages or bolt app when doing image analysis and/or file generation/upload to Slack
 MR-SiS app will restart service is suspended (With pool) but doesnt wake up harvester, errors in SiS log harvest screen

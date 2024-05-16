@@ -46,6 +46,10 @@ else:
     print("SNOWFLAKE_SECURE: not set")
     logger.warning("SNOWFLAKE_SECURE: not set")
 
+# Check if TEST_TASK_MODE is false or not existent, then wait and print a message
+if not os.getenv('TEST_TASK_MODE', 'false').lower() == 'true':
+    print("waiting 60 seconds for other services to start first...")
+    time.sleep(60)
 
 genbot_internal_project_and_schema = os.getenv('GENESIS_INTERNAL_DB_SCHEMA','None')
 if genbot_internal_project_and_schema == 'None':

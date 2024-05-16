@@ -891,7 +891,7 @@ def config_wh():
 
     st.subheader('Step 1: Configure Warehouse')
 
-    st.write('Genesis Bots needs rights to use a Snowflake compute engine, known as a Virtual Warehouse, to run queries on Snowflake. Please open a new Snowflake worksheet and run these commands to grant Genesis access to an existing Warehouse, or to make a new one for its use. This step does not provide Genesis Bots with access to any of your data, just the ability to run SQL on Snowflake in general.')
+    st.write('Genesis Bots needs rights to use a Snowflake compute engine, known as a Virtual Warehouse, to run queries on Snowflake. Please open another Snowflake window, go to Projects, and make a new Snowflake worksheet and run these commands to grant Genesis access to an existing Warehouse, or to make a new one for its use. This step does not provide Genesis Bots with access to any of your data, just the ability to run SQL on Snowflake in general.')
     
     wh_text = f'''-- select role to use, generally Accountadmin or Sysadmin
 use role ACCOUNTADMIN;

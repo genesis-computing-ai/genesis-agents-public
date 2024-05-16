@@ -16,6 +16,9 @@ logging.basicConfig(level=logging.WARN, format='%(asctime)s - %(levelname)s - %(
 
 genesis_source = os.getenv('GENESIS_SOURCE',default="BigQuery")
 
+print("waiting 60 seconds for other services to start first...")
+time.sleep(60)
+
 ### LLM KEY STUFF
 print('Starting harvester... ')
 logger.info('Starting harvester... ')

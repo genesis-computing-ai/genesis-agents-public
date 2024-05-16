@@ -335,6 +335,7 @@ class SlackBotAdapter(BotOsInputAdapter):
         if files:
             file_urls = []
             for file_path in files:
+                print(f"Uploading file: {file_path}")
                 try:
                  #   with open(file_path, 'rb') as file_content:
                       #  self.slack_app.client.files_upload(
@@ -348,6 +349,7 @@ class SlackBotAdapter(BotOsInputAdapter):
                         filename=os.path.basename(file_path),
                         file=file_path,
                     )
+                    print(f"Result of files_upload_v2: {new_file}")
                     file_url = new_file.get("file").get("permalink")
                     file_urls.append(file_url)
                 except Exception as e:
@@ -385,11 +387,22 @@ class SlackBotAdapter(BotOsInputAdapter):
                 files_in = list(set(files_in))
 
                 # Extract file paths from the message and add them to files_in array
+                image_pattern = re.compile(r'\[.*?\]\((sandbox:/mnt/data/downloads/.*?)\)')
+                matches = image_pattern.findall(msg)
+                for match in matches:
+                    local_path = match.replace('sandbox:/mnt/data/downloads', '.downloaded_files')
+                    if local_path not in files_in:
+                        print(f"Pattern 0 found, attaching {local_path}")
+                        files_in.append(local_path)
+
+
+                # Extract file paths from the message and add them to files_in array
                 image_pattern = re.compile(r'\[.*?\]\((sandbox:/mnt/data/downloaded_files/.*?)\)')
                 matches = image_pattern.findall(msg)
                 for match in matches:
                     local_path = match.replace('sandbox:/mnt/data', '.')
                     if local_path not in files_in:
+                        print(f"Pattern 1 found, attaching {local_path}")
                         files_in.append(local_path)
 
                 # Extract file paths from the message and add them to files_in array
@@ -398,6 +411,7 @@ class SlackBotAdapter(BotOsInputAdapter):
                 for chart_match in chart_matches:
                     local_chart_path = f"./downloaded_files/{chart_match}"
                     if local_chart_path not in files_in:
+                        print(f"Pattern 2 found, attaching {local_chart_path}")
                         files_in.append(local_chart_path)
 
 
@@ -408,18 +422,23 @@ class SlackBotAdapter(BotOsInputAdapter):
                     local_file_path = file_match
                     if local_file_path not in files_in:
                         files_in.append(local_file_path)
+                        print(f"Pattern 3 found, attaching {local_file_path}")
 
                 local_pattern = re.compile(r'!\[.*?\]\(\./downloaded_files/thread_(.*?)/(.+?)\)')
                 local_pattern_matches = local_pattern.findall(msg)
                 for local_match in local_pattern_matches:
                     local_path = f"./downloaded_files/thread_{local_match[0]}/{local_match[1]}"
                     if local_path not in files_in:
+                        print(f"Pattern 4 found, attaching {local_path}")
                         files_in.append(local_path)
 
-
-
+                print("Uploading files:", files_in)
 
                 msg_files = self._upload_files(files_in, thread_ts=thread_ts, channel=message.input_metadata.get("channel", self.channel_id))
+
+                print("Result of files upload:", msg_files)
+
+                print("about to send to slack pre url fixes:", msg)
 
                 for msg_url in msg_files:
                     filename = msg_url.split('/')[-1]
@@ -443,11 +462,13 @@ class SlackBotAdapter(BotOsInputAdapter):
                 # Reformat the message if it contains a link in brackets followed by a URL in angle brackets
                 link_pattern = re.compile(r'\[(.*?)\]<(.+?)>')
                 msg = re.sub(link_pattern, r'<\2|\1>', msg)
+                print("sending message to slack post url fixes:", msg)
                 result = self.slack_app.client.chat_postMessage(
                     channel=message.input_metadata.get("channel", self.channel_id),
                     thread_ts=thread_ts,
                     text=msg 
                 )
+                print("Result of sending message to Slack:", result)
                 # Replace patterns in msg with the appropriate format
                 pattern = re.compile(r'\[(.*?)\]\(sandbox:/mnt/data/downloaded_files/(.*?)/(.+?)\)')
                 msg = re.sub(pattern, r'<\2|\1>', msg)

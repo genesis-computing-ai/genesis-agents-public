@@ -579,7 +579,7 @@ def add_bot_files(bot_id, new_file_ids):
     return bb_db_connector.db_update_bot_files(project_id=project_id, dataset_name=dataset_name, bot_servicing_table=bot_servicing_table, bot_id=bot_id, updated_files_str=updated_files_str, current_files=current_files, new_file_ids=new_file_ids)
     
 
-def update_bot_instructions(bot_id, new_instructions, confirmed=None, thread_id = None):
+def update_bot_instructions(bot_id, new_instructions=None, confirmed=None, thread_id = None):
 
     """
     Updates the bot_instructions in the database for the specified bot_id for the current runner_id.
@@ -597,6 +597,13 @@ def update_bot_instructions(bot_id, new_instructions, confirmed=None, thread_id 
             "success": False,
             "error": f"Invalid bot_id: {bot_id}. Use list_all_bots to find the correct bot_id."
         }
+
+    if new_instructions is None:
+        return {
+            "success": False,
+            "error": f"New instructions not provided in new_instructions parameter."
+        }
+
 
     if confirmed != 'CONFIRMED':
         current_instructions = bot_details.get('bot_instructions', '')

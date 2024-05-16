@@ -8,7 +8,7 @@ x Make Eliza demo video on baseball
 Make video of Snowflake janitorial work
 Bots calling other bots to do things
 
-THINGS TO TEST:chr
+THINGS TO TEST:
 
 (test) adding stage tools to a bot with baby_bot_tools and see if instructions are updated with internal stage location
 (test) Add error checking for missing data or grants to harvester so it doesnt crash on that 
@@ -17,11 +17,12 @@ THINGS TO TEST:chr
 (test) harvester dont crash if cant access schemas for a database listed in control file
 
 SHORT-TERM:
-eventually remove full message metadata save on input and output openai 
-when a customer recrates their data daily
-more logging for the slack not showing files thing for chris and robert
-eve coudlnt update eliza's full instruction string The error occurred due to an unexpected keyword argument bot_instructions in the update_bot_instructions function. It appears that the function does not expect this parameter as provided.
-add a line to the todo list for what we're doing b4 summit
+MR-add the bot images table and view to the copy program to other regions
+(later) eventually remove full message metadata save on input and output openai 
+(test) added new message when no access to data, e.g. when a customer recrates their data daily
+x (now debug) more logging for the slack not showing files thing for chris and robert
+(test) eve coudlnt update eliza's full instruction string The error occurred due to an unexpected keyword argument bot_instructions in the update_bot_instructions function. It appears that the function does not expect this parameter as provided.
+... add a line to the todo list for what we're doing b4 summit
 on first message in a thread, briefly say what you can do
 on first DM with a user, add some introduction of yourself
 threads adds- have past context messages

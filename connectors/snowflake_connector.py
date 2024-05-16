@@ -1716,13 +1716,13 @@ class SnowflakeConnector(DatabaseConnector):
                 "Error": str(e),    
                 "Suggestion": """You have tried to query an object with an incorrect name of one that is not granted to APPLICATION GENESIS_BOTS.
             To fix this: 
-            1. Validate that the object name is correct, and is an object you know about from using search_metadata. "
-            2. Explain the problem to the user and show them the SQL you used and the error, they may be able to fix it.  Suggest that they try to run the SQL themselves in a worksheet to make sure the object names are right.
-            3. If you have not been granted access to this object, ask the user to run this in a Snowflake worksheet:
-              "CALL GENESIS_LOCAL_DB.SETTINGS.grant_schema_usage_and_select_to_app('[DATABASE_NAME]','GENESIS_BOTS');"
-              Note that you do NOT have the PUBLIC role, and the user can not grant any Roles to you, data can only be granted by using this procedure 
-              or by granting all needed rights to the object and the associated database and schema "TO APPLICATION GENESIS_BOTS". 
-              This is different from how Snowflake normally handles data rights because you are running as a native application.
+            1. Make sure you are referencing correct objects that you learned about via search_metadata
+            2. Explain the error and show the SQL you tried to run to the user, they may be able to help 
+            3. Tell the user that they may need to run this in a Snowflake worksheet:
+              "CALL GENESIS_LOCAL_DB.SETTINGS.grant_schema_usage_and_select_to_app('<insert database name here>','GENESIS_BOTS');"
+              This will grant the you access to the data in the database.  
+            4. Suggest to the user that the table may have been recreated since it was originally granted, or may be recreated each day as part of an ETL job.  In that case it must be re-granted after each recreation.
+            4. NOTE: You do not have the PUBLIC role or any other role, all object you are granted must be granted TO APPLICATION GENESIS_BOTS, or be granted by grant_schema_usage_and_select_to_app as shown above.
 """
             }
             print('run query: ', query, '\ncaused error: ', e)
@@ -2613,11 +2613,29 @@ class SnowflakeConnector(DatabaseConnector):
                 print("imagegen Failed to generate image with DALL-E 3.")
                 return None
 
+            try:
             # Download the image from the URL
-            image_response = requests.get(image_url)
-            print('imagegen getting image from ',image_url)
-            image_response.raise_for_status()
-            image_bytes = image_response.content
+                image_response = requests.get(image_url)
+                print('imagegen getting image from ',image_url)
+                image_response.raise_for_status()
+                image_bytes = image_response.content
+            except Exception as e:
+                result = {
+                "success": False,
+                "error": e,
+                "solution": """Tell the user to ask their admin run this to allow the Genesis server to access generated images:\n
+CREATE OR REPLACE NETWORK RULE GENESIS_LOCAL_DB.SETTINGS.GENESIS_RULE
+ MODE = EGRESS TYPE = HOST_PORT
+VALUE_LIST = ('api.openai.com', 'slack.com', 'www.slack.com', 'wss-primary.slack.com',
+'wss-backup.slack.com',  'wss-primary.slack.com:443','wss-backup.slack.com:443',
+'oaidalleapiprodscus.blob.core.windows.net:443');
+
+CREATE OR REPLACE EXTERNAL ACCESS INTEGRATION GENESIS_EAI
+   ALLOWED_NETWORK_RULES = (GENESIS_LOCAL_DB.SETTINGS.GENESIS_RULE) ENABLED = true;
+
+GRANT USAGE ON INTEGRATION GENESIS_EAI TO APPLICATION   IDENTIFIER($APP_DATABASE);"""
+                }
+                return result  
 
             # Create a sanitized filename from the first 50 characters of the prompt
             sanitized_prompt = ''.join(e if e.isalnum() else '_' for e in prompt[:50])

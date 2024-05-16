@@ -17,13 +17,23 @@ THINGS TO TEST:chr
 (test) harvester dont crash if cant access schemas for a database listed in control file
 
 SHORT-TERM:
-task server log to sis app, add log calls for it to the start/stop info
+eventually remove full message metadata save on input and output openai 
+when a customer recrates their data daily
+more logging for the slack not showing files thing for chris and robert
+eve coudlnt update eliza's full instruction string The error occurred due to an unexpected keyword argument bot_instructions in the update_bot_instructions function. It appears that the function does not expect this parameter as provided.
+add a line to the todo list for what we're doing b4 summit
+on first message in a thread, briefly say what you can do
+on first DM with a user, add some introduction of yourself
+threads adds- have past context messages
+when added to a thread that was started based on a task trigger, mention that when the app rejoins
+have the thread adds know that they are the trigger that
+test adding tools again, adding autonomouss tasks via eve didn't seem to work without restarts
+task server log to sis app, add log calls for it to the start/stop info tab examples
 have Eliza more proactively suggest analyzing baseball data if there is no other data, once there is change her prompt to suggest analyzing data that is added first 
-make sure express harvest embeddings get replaced with real ones in runner once available
-add task server as a server to native app and deploy for testing
-x (did express harvest instead) Give the bots info on the harvest status, in case they cant find something (a list of tables being harvested, etc.)
--> On first DM (if task is there and not inactive, and add some extra notes to the first message)
 -> Add a regular checkin task to check in with the person who DMs them, talk back to able (make sure you can stop it)
+x make sure express harvest embeddings get replaced with real ones in runner once available
+x add task server as a server to native app and deploy for testing
+x (did express harvest instead) Give the bots info on the harvest status, in case they cant find something (a list of tables being harvested, etc.)
 x Tell Eliza about how access works , GRANT TO APPLICATION instead GRANT TO PUBLIC
 (test, GENESIS_LOCAL_DB.ELIZA_WORKSPACE) Create sample workspace by default for Eliza for Eliza
 x Chris Jones information schema and data access 

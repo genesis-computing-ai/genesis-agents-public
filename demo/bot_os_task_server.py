@@ -33,9 +33,9 @@ import core.global_flags as global_flags
 
 
 
-print("****** GENBOT VERSION 0.125 *******")
+print("****** GENBOT VERSION 0.126 *******")
 print("****** TASK AUTOMATION SERVER *******")
-logger.warning('******* GENBOT VERSION 0.125*******')
+logger.warning('******* GENBOT VERSION 0.126*******')
 runner_id = os.getenv('RUNNER_ID','jl-local-runner')
 print("Runner ID: ", runner_id )
 snowflake_secure_value = os.getenv('SNOWFLAKE_SECURE')

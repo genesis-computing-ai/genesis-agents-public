@@ -252,7 +252,9 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       #logger.warn(f"ADDING MESSAGE -- input thread_id: {thread_id} -> openai thread: {thread}")
       try:
          #logger.error("REMINDER: Update for message new files line 117 on botosopenai.py")
+         print('... openai add_message before upload_files, input_message.files = ', input_message.files)
          file_ids, file_map = self._upload_files(input_message.files, thread_id=thread_id)
+         print('... openai add_message file_id, file_map: ', file_ids, file_map)
          attachments = []
          for file_id in file_ids:
              tools = []
@@ -270,6 +272,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
              content += "\n\nFile Name to Id Mappings:\n"
              for mapping in file_map:
                  content += f"- {mapping['file_name']}: {mapping['file_id']}\n"
+         print('... openai add_message attachments: ', attachments)
          thread_message = self.client.beta.threads.messages.create(
             thread_id=thread_id, attachments=attachments, content=content, 
             role="user", 
@@ -310,7 +313,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       self.thread_run_map[thread_id] = {"run": run.id, "completed_at": None}
       self.active_runs.append(thread_id)
 
-      self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id, message_type='User Prompt', message_payload=input_message.msg, message_metadata=None)
+      self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id, message_type='User Prompt', message_payload=input_message.msg, message_metadata=None, files=attachments)
 
 
    def _submit_tool_outputs(self, run_id, thread_id, tool_call_id, function_call_details, func_response):
@@ -575,22 +578,28 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
             run_duration = (current_time - datetime.datetime.fromtimestamp(run.created_at)).total_seconds()
             if run.status == "in_progress":
                threads_still_pending.append(thread_id)
-               # Corrected to ensure it only calls after each minute beyond the first 60 seconds
-               if run_duration > 60 and run_duration % 60 < 2:  # Check if run duration is beyond 60 seconds and within the first 5 seconds of each subsequent minute
-                  event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id, 
-                                                                        status=run.status, 
-                                                                        output=f"Run {run.id} has been active for more than {int(run_duration // 60)} minute(s).", 
-                                                                        messages=None, 
-                                                                        input_metadata=run.metadata))
+               try:
+                  # Corrected to ensure it only calls after each minute beyond the first 60 seconds
+                  if run_duration > 60 and run_duration % 60 < 2:  # Check if run duration is beyond 60 seconds and within the first 5 seconds of each subsequent minute
+                     event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id, 
+                                                                           status=run.status, 
+                                                                           output=f"_still running..._ {run.id} has been active for {int(run_duration // 60)} minute(s)...", 
+                                                                           messages=None, 
+                                                                           input_metadata=run.metadata))
+               except:
+                  pass
 
             if run.status == "queued":
                threads_still_pending.append(thread_id)
-               if run_duration > 60 and run_duration % 60 < 2:  # Check if run duration is beyond 60 seconds and within the first 5 seconds of each subsequent minute
-                  event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id, 
-                                                                        status=run.status, 
-                                                                        output=f"Run {run.id} has been queued for more than {int(run_duration // 60)} minute(s).", 
-                                                                        messages=None, 
-                                                                        input_metadata=run.metadata))
+               try:
+                  if run_duration > 60 and run_duration % 60 < 2:  # Check if run duration is beyond 60 seconds and within the first 5 seconds of each subsequent minute
+                     event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id, 
+                                                                           status=run.status, 
+                                                                           output=f"_still running..._ {run.id} has been active for {int(run_duration // 60)} minute(s)...", 
+                                                                           messages=None, 
+                                                                           input_metadata=run.metadata))
+               except:
+                  pass
 
 
             if run.status == "failed":
@@ -601,7 +610,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                #self._submit_tool_outputs(run.id, thread_id, tool_call_id=None, function_call_details=self.tool_completion_status[run.id],
                #                          func_response=None)
                # Todo add more handling here to tell the user the thread failed
-               output = "!!! Error from OpenAI, run.lasterror {run.last_error} !!!"
+               output = f"!!! Error from OpenAI, run.lasterror {run.last_error} !!!"
                event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id, 
                                                                      status=run.status, 
                                                                      output=output, 
@@ -687,12 +696,15 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                latest_message = messages.data[0]
                latest_attachments = latest_message.attachments
 
+               print(f"{self.bot_name} open_ai response full content: {latest_message.content}", flush=True)
+
                print(f"{self.bot_name} open_ai response attachment info: {latest_message.attachments}", flush=True)
                output = ""
                for content in latest_message.content:
                    if content.type == 'image_file':
                      try:
                         file_id = content.image_file.file_id if hasattr(content.image_file, 'file_id') else None
+                        print('openai image_file tag present, fileid: ',file_id)
                         if file_id is not None and file_id not in latest_attachments:
                            latest_attachments.append({"file_id": file_id})
                      except Exception as e:
@@ -709,15 +721,21 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                      meta = meta_prime
                   else:
                      meta = run.metadata
-                  #print(f"{self.bot_name} open_ai attachment info: {latest_message.attachments}", flush=True)
+                  print(f"{self.bot_name} open_ai attachment info going into store files locally: {latest_attachments}", flush=True)
+                  files_in = self._store_files_locally(latest_attachments, thread_id)
+                  print(f"{self.bot_name} open_ai output of store files locally {files_in}")
                   event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id, 
                                                                      status=run.status, 
                                                                      output=output, 
                                                                      messages=messages, 
                                                                      # UPDATE THIS FOR LOCAL FILE DOWNLOAD 
-                                                                     files=self._store_files_locally(latest_attachments, thread_id),
+                                                                     files=files_in,
                                                                      input_metadata=meta))
-                  self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id, message_type='Assistant Response', message_payload=output, message_metadata=None, tokens_in=run.usage.prompt_tokens, tokens_out=run.usage.completion_tokens)
+                  try:
+                     message_metadata = str(latest_message.content)
+                  except:
+                     message_metadata = "!error converting content to string"
+                  self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id, message_type='Assistant Response', message_payload=output, message_metadata=message_metadata, tokens_in=run.usage.prompt_tokens, tokens_out=run.usage.completion_tokens, files=files_in)
                threads_completed[thread_id] = run.completed_at
 
             else:

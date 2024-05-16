@@ -96,13 +96,7 @@ class SchemaExplorer:
             if ddl is None:
                 ddl = self.alt_get_ddl(table_name='"'+database+'"."'+schema+'"."'+table+'"')
 
-            memory_content = f"<OBJECT>{database}.{schema}.{table}</OBJECT><DDL>\n{ddl}\n</DDL>\n<SUMMARY>\n{summary}\n</SUMMARY><DDL_SHORT>{ddl_short}</DDL_SHORT>"
-
-            if sample_data != "":
-                memory_content += f"\n\n<SAMPLE CSV DATA>\n{sample_data}\n</SAMPLE CSV DATA>"
-
-            complete_description = memory_content
-            embedding = self.get_embedding(complete_description[:8000])  
+ 
             #sample_data_text = json.dumps(sample_data)  # Assuming sample_data needs to be a JSON text.
 
             # Now using the modified method to insert the data into BigQuery

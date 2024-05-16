@@ -390,7 +390,7 @@ class SnowflakeConnector(DatabaseConnector):
             print(f"An error occurred while checking if the table summary exists: {e}")
             return False
 
-    def insert_chat_history_row(self, timestamp, bot_id=None, bot_name=None, thread_id=None, message_type=None, message_payload=None, message_metadata=None, tokens_in=None, tokens_out=None):
+    def insert_chat_history_row(self, timestamp, bot_id=None, bot_name=None, thread_id=None, message_type=None, message_payload=None, message_metadata=None, tokens_in=None, tokens_out=None, files=None):
         """
         Inserts a single row into the chat history table using Snowflake's streaming insert.
 
@@ -405,6 +405,11 @@ class SnowflakeConnector(DatabaseConnector):
         :param tokens_out: INTEGER field representing the number of tokens out, can be NULL.
         """
         cursor = None
+        if files is None:
+            files = []
+        files_str = str(files)
+        if files_str == '':
+            files_str = '<no files>'
         try:
             # Ensure the timestamp is in the correct format for Snowflake
             formatted_timestamp = timestamp.strftime('%Y-%m-%d %H:%M:%S') if isinstance(timestamp, datetime) else timestamp
@@ -412,11 +417,11 @@ class SnowflakeConnector(DatabaseConnector):
                 message_metadata = json.dumps(message_metadata)
 
             insert_query = f"""
-            INSERT INTO {self.message_log_table_name} (timestamp, bot_id, bot_name, thread_id, message_type, message_payload, message_metadata, tokens_in, tokens_out)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO {self.message_log_table_name} (timestamp, bot_id, bot_name, thread_id, message_type, message_payload, message_metadata, tokens_in, tokens_out, files)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """
             cursor = self.client.cursor()
-            cursor.execute(insert_query, (formatted_timestamp, bot_id, bot_name, thread_id, message_type, message_payload, message_metadata, tokens_in, tokens_out))
+            cursor.execute(insert_query, (formatted_timestamp, bot_id, bot_name, thread_id, message_type, message_payload, message_metadata, tokens_in, tokens_out, files_str))
             self.client.commit()
         except Exception as e:
             print(f"Encountered errors while inserting into chat history table row: {e}")
@@ -450,7 +455,6 @@ class SnowflakeConnector(DatabaseConnector):
 
         if action == 'TIME':
             return {"current_system_time": datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-
 
         action = action.upper()
 
@@ -492,6 +496,8 @@ class SnowflakeConnector(DatabaseConnector):
             except Exception as e:
                 return {"Success": False, "Error": f"Failed to list tasks for bot {bot_id}: {e}"}
 
+        if task_id is None:
+            return {"Success": False, "Error": f"Missing task_id field"}
 
         if action in ['CREATE', 'UPDATE'] and not task_details:
             return {"Success": False, "Error": "Task details must be provided for CREATE or UPDATE action."}
@@ -1095,6 +1101,17 @@ class SnowflakeConnector(DatabaseConnector):
                 self.client.commit()
                 print(f"Table {self.message_log_table_name} created.")
             else:
+                check_query = f"DESCRIBE TABLE {chat_history_table_id};"
+                try:
+                    cursor.execute(check_query)
+                    columns = [col[0] for col in cursor.fetchall()]
+                    if 'FILES' not in columns:
+                        alter_table_query = f"ALTER TABLE {chat_history_table_id} ADD COLUMN FILES STRING;"
+                        cursor.execute(alter_table_query)
+                        self.client.commit()
+                        logger.info(f"Column 'FILES' added to table {chat_history_table_id}.")
+                except Exception as e:
+                    print('Error adding column FILES to MESSAGE_LOG: ',e)
                 print(f"Table {self.message_log_table_name} already exists.")
         except Exception as e:
             print(f"An error occurred while checking or creating table {self.message_log_table_name}: {e}")

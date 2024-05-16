@@ -189,7 +189,7 @@ autonomous_functions = [
         "type": "function",
         "function": {
             "name": "_manage_tasks",
-            "description": "Manages tasks for bots, including creating, updating, and deleting tasks.",
+            "description": "Manages autonomous tasks for bots, including creating, updating, and deleting autonomous tasks allowing bots to take scheduled autonomous actions.",
             "parameters": {
                 "type": "object",
                 "properties": {

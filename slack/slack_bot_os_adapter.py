@@ -125,17 +125,19 @@ class SlackBotAdapter(BotOsInputAdapter):
     def _download_slack_files(self, event, thread_id='no_thread') -> list:
         files = []
         for file_info in event['files']:
+            print('... download_slack_files ',file_info,flush=True)
             url_private = file_info.get('url_private')
             file_name = file_info.get('name')
             if url_private and file_name:
                 local_path = f"./downloaded_files/{thread_id}/{file_name}"
+                print('... downloading slack file ',file_name,' from ',url_private,' to ',local_path,flush=True)
                 os.makedirs(os.path.dirname(local_path), exist_ok=True)
-
                 try:
                     with requests.get(url_private, headers={'Authorization': 'Bearer %s' % self.slack_app._token}, stream=True) as r:
                         # Raise an exception for bad responses
                         r.raise_for_status()
                         # Open a local file with write-binary mode
+                        print('... saving locally to ',local_path)
                         with open(local_path, 'wb') as f:
                             # Write the content to the local file
                             for chunk in r.iter_content(chunk_size=32768):
@@ -143,8 +145,9 @@ class SlackBotAdapter(BotOsInputAdapter):
                       #      f.write(r.content)
                         
                         files.append(local_path)
+                        print('... download_slack_files downloaded ',local_path)
                 except Exception as e:
-                    logger.error(f"Error downloading file from {url_private}: {e}")
+                    print(f"Error downloading file from {url_private}: {e}")
         return files
 
     # abstract method from BotOsInputAdapter
@@ -186,6 +189,9 @@ class SlackBotAdapter(BotOsInputAdapter):
 
 
         if msg == '_thinking..._':
+            return None
+
+        if msg.startswith('_still running..._'):
             return None
 
         active_thread = False
@@ -231,7 +237,9 @@ class SlackBotAdapter(BotOsInputAdapter):
         if 'files' in event:
             print(f"    --/DOWNLOAD> downloading files for ({self.bot_name}) ")
             files = self._download_slack_files(event, thread_id = thread_id)
-            print(f"    --/DOWNLOADED> downloaded files for ({self.bot_name}) ")
+            print(f"    --/DOWNLOADED> downloaded files for ({self.bot_name}), files={files} ")
+        else:
+            print('...*-*-*-* Files not in event', flush=True)
 
         try:
             user_id = event["user"]

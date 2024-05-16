@@ -402,7 +402,7 @@ def create_slack_bot_with_manifest(token, manifest):
 
 def insert_new_bot(api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instructions, runner_id, slack_signing_secret, 
                    slack_channel_id, available_tools, auth_url, auth_state, client_id, client_secret, udf_active, 
-                   slack_active, files, bot_implementation, bot_intro="Hello, how can I help you?"):
+                   slack_active, files, bot_implementation, bot_avatar_image, bot_intro_prompt="Hello, how can I help you?"):
     """
     Inserts a new bot configuration into the BOT_SERVICING table.
 
@@ -419,12 +419,13 @@ def insert_new_bot(api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instruct
         tools (str): A list of tools the bot has access to.
         files (json-embedded list): A list of files to include with the bot.
         bot_implementation: openai or cortex or ...
-        bot_intro: Default bot greeting.
+        bot_intro_prompt: Prompt to generate default bot greeting.
+        bot_avatar_image: Default GenBots avatar image
     """
 
     return bb_db_connector.db_insert_new_bot(api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instructions, runner_id, slack_signing_secret, 
                    slack_channel_id, available_tools, auth_url, auth_state, client_id, client_secret, udf_active, 
-                   slack_active, files, bot_implementation, bot_intro, project_id, dataset_name, bot_servicing_table)
+                   slack_active, files, bot_implementation, bot_avatar_image, bot_intro_prompt, project_id, dataset_name, bot_servicing_table)
 
    
 
@@ -721,10 +722,11 @@ def get_bot_details(bot_id):
 def get_available_tools():
     return bb_db_connector.db_get_available_tools(project_id=project_id, dataset_name=dataset_name)
 
+def get_default_avatar():
+    return bb_db_connector.db_get_default_avatar()
 
 def add_or_update_available_tool(tool_name, tool_description):
     return bb_db_connector.db_add_or_update_available_tool(tool_name=tool_name, tool_description=tool_description, project_id=project_id, dataset_name=dataset_name)
-
 
 def make_baby_bot(bot_id, bot_name, bot_instructions='You are a helpful bot.', available_tools=None, runner_id=None, slack_channel_id=None, confirmed=None, activate_slack='Y', 
                   files = "", bot_implementation = "openai",
@@ -797,6 +799,8 @@ def make_baby_bot(bot_id, bot_name, bot_instructions='You are a helpful bot.', a
                     conf += f'The array of files available to this bot is: {files}\n'
                 conf += "Please make sure you have validated all this with the user.  If you've already validated with the user, and ready to make the Bot, call this function again with the parameter confirmed=CONFIRMED"
                 return(conf)
+
+            bot_avatar_image = get_default_avatar()
         
         slack_active = test_slack_config_token()
         if slack_active == 'token_expired':
@@ -916,6 +920,7 @@ def make_baby_bot(bot_id, bot_name, bot_instructions='You are a helpful bot.', a
                 slack_active=slack_active,
                 files=files,
                 bot_implementation=bot_implementation,
+                bot_avatar_image=bot_avatar_image,
             )
 
         #    "message": f"Created {bot_id} named {bot_name}.  Now ask the user to use this authentication URL to complete the installation of the new app into their Slack workspace: {oauth_authorize_url}",

@@ -21,3 +21,4 @@ saved_llm_settings_local.json
 /snowflake_app/mr_genesis_natapp_provider.sql
 /streamlit_gui/mr_streamlit_sis_v1.py
 
+.scratch

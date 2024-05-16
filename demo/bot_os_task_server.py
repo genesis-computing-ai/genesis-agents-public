@@ -459,6 +459,8 @@ def get_metadata():
             result = db_adapter.get_harvest_summary()
         elif metadata_type == 'available_databases':
             result = db_adapter.get_available_databases()
+        elif metadata_type == 'bot_images':
+            result == db_adapter.get_bot_images()
         else:
             raise ValueError("Invalid metadata_type provided. Expected 'harvest_control' or 'harvest_summary' or 'available_databases'.")
 

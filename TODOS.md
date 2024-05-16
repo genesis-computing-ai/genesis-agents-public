@@ -52,12 +52,11 @@ MR - Pre-harvest and share information_schema
 JL - file issue on Roberts -- add logging of files back from OpenAI
 JL - changing openAI key via streamlit when running gives an error: (bots conflicts with existing job-- dont add scheduler job again if already running)
 JL -(test more on spcs) Something blocks the thinking messages or bolt app when doing image analysis and/or file generation/upload to Slack
-MR - Add bot custom welcome messages on new chats in Streamlit
 MR - SiS app will restart service is suspended (With pool) but doesnt wake up harvester, errors in SiS log harvest screen
 JL-(soon) fix wait spinner on api key page when putting in API key on a new install
 MR-(soon) Add a sevice start/stop/restart buttons to SiS
 MR- (soon) Add a message to the top of the SisChat page suggesting activating via slack, via a temp workspace
-MR - Share default bot images thru app, add instructions to apply them to the user
+(test) MR - Share default bot images thru app, add instructions to apply them to the user
 When you send a message to a thread that's already running, queue it up and don't submit another, then consolidate all of them when its ready and send them all at once once the run is done.
 Check this function execute_function - _get_visible_tables - {"database":"my_data","schema":"public"}
 (later) Autogenerate images for new bots, add instructions to the user to apply them when getting the tokens
@@ -139,6 +138,7 @@ Have the bot authorization redirect provide a pretty webpage confirming the bot 
 Add remove tool tool
 Make available_tools table rows runner-dependent
 allow for a mode without slack API keys where users get a manifest and they create the bots themselves
+Add links to docs in setup/config steps (e.g. Setup Slack Connection)
 
 NICE TO HAVES:
 Use openai and/or database-hosted vector search (snow when fast, bq)
@@ -159,6 +159,7 @@ Add a mechanism for license control based on current_account()... share a table 
     Have a trial period where you can use it in trial mode before it goes into limited mode
 
 DONE:
+x MR - Add bot custom welcome messages on new chats in Streamlit
 x Added image generation
 x Ask Eve to make a line chart and it sends back ImageFileContentBlock(image_file=ImageFile(file_id='file-kfWyFfbLNRk8R2lfnMhQwPEn'), type='image_file') which we dont handle right now        
 x JL - test - after putting in openai key on new install, do you get sent to chat screen via button?

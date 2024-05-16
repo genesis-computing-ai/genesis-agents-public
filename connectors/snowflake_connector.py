@@ -66,7 +66,8 @@ class SnowflakeConnector(DatabaseConnector):
         self.genbot_internal_harvest_table = os.getenv('GENESIS_INTERNAL_HARVEST_RESULTS_TABLE','harvest_results')
         self.genbot_internal_harvest_control_table = os.getenv('GENESIS_INTERNAL_HARVEST_CONTROL_TABLE','harvest_control')
         self.genbot_internal_message_log = os.getenv('GENESIS_INTERNAL_MESSAGE_LOG_TABLE','MESSAGE_LOG')
-        
+        self.app_share_schema = 'APP_SHARE'
+
        # print("genbot_internal_project_and_schema: ", self.genbot_internal_project_and_schema)
         self.metadata_table_name = self.genbot_internal_project_and_schema+'.'+self.genbot_internal_harvest_table
         self.harvest_control_table_name = self.genbot_internal_project_and_schema+'.'+self.genbot_internal_harvest_control_table
@@ -75,6 +76,7 @@ class SnowflakeConnector(DatabaseConnector):
         self.available_tools_table_name = self.genbot_internal_project_and_schema + '.' + 'AVAILABLE_TOOLS'
         self.bot_servicing_table_name = self.genbot_internal_project_and_schema + '.' + 'BOT_SERVICING'
         self.ngrok_tokens_table_name = self.genbot_internal_project_and_schema + '.' + 'NGROK_TOKENS'
+        self.images_table_name = self.app_share_schema + '.' + 'IMAGES'
         
      #   print("harvest_control_table_name: ", self.harvest_control_table_name)
      #   print("metadata_table_name: ", self.metadata_table_name)
@@ -340,7 +342,27 @@ class SnowflakeConnector(DatabaseConnector):
             err = f"An error occurred while retrieving schemas from database {database_name}: {e}"
             return {"Success": False, "Error": err}
 
+    def get_bot_images(self, thread_id=None):
+        """
+        Retrieves a list of all bot avatar images.
 
+        Returns:
+            list: A list of bot names and bot avatar images.
+        """
+        try:
+            query = f"SELECT BOT_NAME, BOT_AVATAR_IMAGE FROM {self.bot_servicing_table_name} "
+            cursor = self.client.cursor()
+            cursor.execute(query)
+            bots = cursor.fetchall()
+            columns = [col[0].lower() for col in cursor.description]
+            bot_list = [dict(zip(columns, bot)) for bot in bots]
+            json_data = json.dumps(bot_list, default=str)  # default=str to handle datetime and other non-serializable types
+
+            return {"Success": True, "Data": json_data}
+        
+        except Exception as e:
+            err = f"An error occurred while retrieving bot images: {e}"
+            return {"Success": False, "Error": err}
 
     def get_harvest_summary(self, thread_id=None):
         """
@@ -848,7 +870,8 @@ class SnowflakeConnector(DatabaseConnector):
                     SLACK_ACTIVE VARCHAR(16777216),
                     FILES VARCHAR(16777216),
                     BOT_IMPLEMENTATION VARCHAR(16777216),
-                    BOT_INTRO_PROMPT VARCHAR(16777216)
+                    BOT_INTRO_PROMPT VARCHAR(16777216),
+                    BOT_AVATAR_IMAGE VARCHAR(16777216)
                 );
                 """
                 cursor.execute(bot_servicing_table_ddl)
@@ -967,11 +990,34 @@ class SnowflakeConnector(DatabaseConnector):
                         cursor.execute(insert_initial_intros_query)
                         self.client.commit()
                         logger.info(f"Initial 'BOT_INTRO_PROMPT' data inserted into table {self.bot_servicing_table_name}.")
+                    if 'BOT_AVATAR_IMAGE' not in columns:
+                        alter_table_query = f"ALTER TABLE {self.bot_servicing_table_name} ADD COLUMN BOT_AVATAR_IMAGE VARCHAR(16777216);"
+                        cursor.execute(alter_table_query)
+                        self.client.commit()
+                        logger.info(f"Column 'BOT_AVATAR_IMAGE' added to table {self.bot_servicing_table_name}.")
                 except Exception as e:
                     print(f"An error occurred while checking or altering table {self.bot_servicing_table_name} to add BOT_IMPLEMENTATION column: {e}")
                 except Exception as e:
                     print(f"An error occurred while checking or altering table {metadata_table_id}: {e}")
                 print(f"Table {self.bot_servicing_table_name} already exists.")
+            # update bot servicing table bot avatars from shared images table
+            insert_images_query = f"""UPDATE {self.bot_servicing_table_name} b SET BOT_AVATAR_IMAGE = a.ENCODED_IMAGE_DATA
+            FROM (
+                SELECT BOT_NAME, ENCODED_IMAGE_DATA FROM (
+                    SELECT S.ENCODED_IMAGE_DATA, R.BOT_NAME
+                    FROM {self.images_table_name} S, {self.bot_servicing_table_name} R
+                    WHERE UPPER(S.BOT_NAME) = UPPER(R.BOT_NAME)
+                    UNION
+                    SELECT P.ENCODED_IMAGE_DATA, Q.BOT_NAME
+                    FROM {self.images_table_name} P, {self.bot_servicing_table_name} Q
+                    WHERE UPPER(P.BOT_NAME) = 'DEFAULT' AND
+                        Q.BOT_NAME NOT IN (SELECT BOT_NAME FROM {self.images_table_name})
+                    )
+                ) a 
+            WHERE upper(a.BOT_NAME) = upper(b.BOT_NAME)"""
+            cursor.execute(insert_images_query)
+            self.client.commit()
+            logger.info(f"Initial 'BOT_AVATAR_IMAGE' data inserted into table {self.bot_servicing_table_name}.")
         except Exception as e:
             print(f"An error occurred while checking or creating table {self.bot_servicing_table_name}: {e}")
         finally:
@@ -1181,13 +1227,13 @@ class SnowflakeConnector(DatabaseConnector):
                     insert_initial_metadata_query = f"""
                     INSERT INTO {metadata_table_id} (SOURCE_NAME, QUALIFIED_TABLE_NAME, DATABASE_NAME, MEMORY_UUID, SCHEMA_NAME, TABLE_NAME, COMPLETE_DESCRIPTION, DDL, DDL_SHORT, DDL_HASH, SUMMARY, SAMPLE_DATA_TEXT, LAST_CRAWLED_TIMESTAMP, CRAWL_STATUS, ROLE_USED_FOR_CRAWL, EMBEDDING)
                     SELECT SOURCE_NAME, replace(QUALIFIED_TABLE_NAME,'APP_NAME', CURRENT_DATABASE()) QUALIFIED_TABLE_NAME,  CURRENT_DATABASE() DATABASE_NAME, MEMORY_UUID, SCHEMA_NAME, TABLE_NAME, REPLACE(COMPLETE_DESCRIPTION,'APP_NAME', CURRENT_DATABASE()) COMPLETE_DESCRIPTION, REPLACE(DDL,'APP_NAME', CURRENT_DATABASE()) DDL, REPLACE(DDL_SHORT,'APP_NAME', CURRENT_DATABASE()) DDL_SHORT, 'SHARED_VIEW' DDL_HASH, REPLACE(SUMMARY,'APP_NAME', CURRENT_DATABASE()) SUMMARY, SAMPLE_DATA_TEXT, LAST_CRAWLED_TIMESTAMP, CRAWL_STATUS, ROLE_USED_FOR_CRAWL, EMBEDDING 
-                    FROM SHARED_HARVEST.HARVEST_RESULTS WHERE SCHEMA_NAME IN ('BASEBALL','FORMULA_1') AND DATABASE_NAME = 'APP_NAME'
+                    FROM APP_SHARE.HARVEST_RESULTS WHERE SCHEMA_NAME IN ('BASEBALL','FORMULA_1') AND DATABASE_NAME = 'APP_NAME'
                     """
                     cursor.execute(insert_initial_metadata_query)
                     self.client.commit()
                     print(f"Inserted initial rows into {metadata_table_id}")
                 except Exception as e:
-                    print(f"Initial rows from SHARED_HARVEST.HARVEST_RESULTS NOT ADDED into {metadata_table_id} due to erorr {e}") 
+                    print(f"Initial rows from APP_SHARE.HARVEST_RESULTS NOT ADDED into {metadata_table_id} due to erorr {e}") 
 
             else:
                 # Check if the 'ddl_short' column exists in the metadata table
@@ -1402,7 +1448,7 @@ class SnowflakeConnector(DatabaseConnector):
     def check_cached_metadata(self, database_name:str, schema_name:str, table_name:str):
         try:
             if database_name and schema_name and table_name:
-                query = f"SELECT IFF(count(*)>0,TRUE,FALSE) from SHARED_HARVEST.HARVEST_RESULTS where DATABASE_NAME = '{database_name}' AND SCHEMA_NAME = '{schema_name}' AND TABLE_NAME = '{table_name}';"
+                query = f"SELECT IFF(count(*)>0,TRUE,FALSE) from APP_SHARE.HARVEST_RESULTS where DATABASE_NAME = '{database_name}' AND SCHEMA_NAME = '{schema_name}' AND TABLE_NAME = '{table_name}';"
                 cursor = self.client.cursor()
                 cursor.execute(query)
                 result = cursor.fetchone()
@@ -1421,7 +1467,7 @@ class SnowflakeConnector(DatabaseConnector):
             insert_cached_metadata_query = f"""
                 INSERT INTO {metadata_table_id} 
                 SELECT SOURCE_NAME, QUALIFIED_TABLE_NAME,  DATABASE_NAME, MEMORY_UUID, SCHEMA_NAME, TABLE_NAME, COMPLETE_DESCRIPTION, DDL, DDL_SHORT, DDL_HASH, SUMMARY, SAMPLE_DATA_TEXT, LAST_CRAWLED_TIMESTAMP, CRAWL_STATUS, ROLE_USED_FOR_CRAWL, EMBEDDING 
-                FROM SHARED_HARVEST.HARVEST_RESULTS h 
+                FROM APP_SHARE.HARVEST_RESULTS h 
                 WHERE DATABASE_NAME = '{database_name}' AND SCHEMA_NAME = '{schema_name}' AND TABLE_NAME = '{table_name}'
                 AND NOT EXISTS (SELECT 1 FROM {metadata_table_id} m WHERE m.DATABASE_NAME = '{database_name}' and m.SCHEMA_NAME = '{schema_name}' and m.TABLE_NAME = '{table_name}');
             """
@@ -1430,7 +1476,7 @@ class SnowflakeConnector(DatabaseConnector):
             self.client.commit()
             print(f"Inserted cached rows into {metadata_table_id} for {database_name}.{schema_name}.{table_name}")
         except Exception as e:
-            print(f"Cached rows from SHARED_HARVEST.HARVEST_RESULTS NOT ADDED into {metadata_table_id} for {database_name}.{schema_name}.{table_name} due to erorr {e}") 
+            print(f"Cached rows from APP_SHARE.HARVEST_RESULTS NOT ADDED into {metadata_table_id} for {database_name}.{schema_name}.{table_name} due to erorr {e}") 
 
 #snowed
 
@@ -1709,7 +1755,7 @@ class SnowflakeConnector(DatabaseConnector):
         # Get the database schema from environment variables
 
         if full:
-            select_str = "api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instructions, runner_id, slack_app_token, slack_app_level_key, slack_signing_secret, slack_channel_id, available_tools, udf_active, slack_active, files, bot_implementation, bot_intro_prompt"
+            select_str = "api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instructions, runner_id, slack_app_token, slack_app_level_key, slack_signing_secret, slack_channel_id, available_tools, udf_active, slack_active, files, bot_implementation, bot_intro_prompt, bot_avatar_image"
         else:
             select_str = "runner_id, bot_id, bot_name, bot_instructions, available_tools, bot_slack_user_id, api_app_id, auth_url, udf_active, slack_active, files, bot_implementation, bot_intro_prompt"
 
@@ -1968,7 +2014,7 @@ class SnowflakeConnector(DatabaseConnector):
 
     def db_insert_new_bot(self, api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instructions, runner_id, slack_signing_secret, 
                     slack_channel_id, available_tools, auth_url, auth_state, client_id, client_secret, udf_active, 
-                    slack_active, files, bot_implementation, bot_intro_prompt, project_id, dataset_name, bot_servicing_table):
+                    slack_active, files, bot_implementation, bot_avatar_image, bot_intro_prompt, project_id, dataset_name, bot_servicing_table):
         """
         Inserts a new bot configuration into the BOT_SERVICING table.
 
@@ -1985,15 +2031,16 @@ class SnowflakeConnector(DatabaseConnector):
             files (json): A JSON of files to include with the bot.
             bot_implementation (str): cortex or openai or ...
             bot_intro_prompt: Default prompt for a bot introductory greeting
+            bot_avatar_image: Default GenBots avatar image
         """
 
         insert_query = f"""
             INSERT INTO {project_id}.{dataset_name}.{bot_servicing_table} (
                 api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instructions, runner_id, 
                 slack_signing_secret, slack_channel_id, available_tools, auth_url, auth_state, client_id, client_secret, udf_active, slack_active,
-                files, bot_implementation, bot_intro_prompt
+                files, bot_implementation, bot_intro_prompt, bot_avatar_image
             ) VALUES (
-                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
             )
         """
 
@@ -2005,7 +2052,7 @@ class SnowflakeConnector(DatabaseConnector):
             cursor.execute(insert_query, (
                 api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instructions, runner_id, 
                 slack_signing_secret, slack_channel_id, available_tools_string, auth_url, auth_state, client_id, client_secret, udf_active, slack_active,
-                files_string, bot_implementation, bot_intro_prompt
+                files_string, bot_implementation, bot_intro_prompt, bot_avatar_image
             ))
             self.connection.commit()
             print(f"Successfully inserted new bot configuration for bot_id: {bot_id}")
@@ -2380,6 +2427,33 @@ class SnowflakeConnector(DatabaseConnector):
             return bot_list
         except Exception as e:
             logger.error(f"Failed to get list of bots active on slack for a runner {e}")
+            raise e
+    
+    def db_get_default_avatar(self):
+        """
+        Returns the default GenBots avatar image from the shared images view.
+
+        Args:
+            None
+        """
+
+        # Query to select the default bot image data from the database table
+        select_query = f"""
+            SELECT encoded_image_data
+            FROM {self.images_table_name}
+            WHERE UPPER(bot_name) = UPPER('Default')
+        """
+
+        # Execute the select query
+        try:
+            cursor = self.client.cursor()
+            cursor.execute(select_query)
+            result = cursor.fetchone()
+
+            return result[0]
+            logger.info(f"Successfully selected default image data from the shared schema.")
+        except Exception as e:
+            logger.error(f"Failed to select default image data from the shared with error: {e}")
             raise e
 
 

@@ -1140,7 +1140,8 @@ class SnowflakeConnector(DatabaseConnector):
                     message_payload STRING,
                     message_metadata STRING,
                     tokens_in INTEGER,
-                    tokens_out INTEGER
+                    tokens_out INTEGER,
+                    files STRING
                 );
                 """
                 cursor.execute(chat_history_table_ddl)

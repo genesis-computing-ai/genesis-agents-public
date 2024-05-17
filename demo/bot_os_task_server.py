@@ -31,11 +31,9 @@ import core.global_flags as global_flags
 #os.environ['TEST_TASK_MODE'] = 'true'
 ########################################
 
-
-
-print("****** GENBOT VERSION 0.126 *******")
+print("****** GENBOT VERSION 0.128 *******")
 print("****** TASK AUTOMATION SERVER *******")
-logger.warning('******* GENBOT VERSION 0.126*******')
+logger.warning('******* GENBOT VERSION 0.128*******')
 runner_id = os.getenv('RUNNER_ID','jl-local-runner')
 print("Runner ID: ", runner_id )
 snowflake_secure_value = os.getenv('SNOWFLAKE_SECURE')
@@ -48,7 +46,7 @@ else:
 
 # Check if TEST_TASK_MODE is false or not existent, then wait and print a message
 if not os.getenv('TEST_TASK_MODE', 'false').lower() == 'true':
-    print("waiting 60 seconds for other services to start first...")
+    print("waiting 60 seconds for other services to start first...", flush=True)
     time.sleep(60)
 
 genbot_internal_project_and_schema = os.getenv('GENESIS_INTERNAL_DB_SCHEMA','None')
@@ -287,18 +285,62 @@ if genesis_source == 'BigQuery' and api_key_from_env == False:
 #llm_api_key = None
 #api_key_from_env = False
 
-if llm_api_key is None and genesis_source == 'Snowflake':
-    llm_key, llm_type = get_llm_key()
-    if llm_key and llm_type:
-        default_llm_engine = llm_type
-        llm_api_key = llm_key
-        api_key_from_env = False
-        print("LLM Key loaded from Database")
-    else:
-        print("===========")
-        print("NOTE: LLM Key not found in Env Var nor in Database LLM_CONFIG table.. starting without LLM Key, please provide via Streamlit")
-        print("===========")
-        logger.warn('LLM Key not found in Env Var nor in Database LLM_CONFIG table.. starting without LLM Key, please provide via Streamlit')
+
+logger.info('Getting LLM API Key...')
+api_key_from_env = False
+default_llm_engine = os.getenv("BOT_OS_DEFAULT_LLM_ENGINE", "openai")
+llm_api_key = None
+
+while llm_api_key == None:
+    logger.info('top of while loop')
+
+    if default_llm_engine.lower() == "openai":
+        llm_api_key = os.getenv("OPENAI_API_KEY", None)
+        if llm_api_key == '':
+            llm_api_key = None
+        if llm_api_key:
+            api_key_from_env = True
+    elif default_llm_engine.lower() == "reka":
+        llm_api_key = os.getenv("REKA_API_KEY", None)
+        if llm_api_key: 
+            api_key_from_env = True
+
+    if genesis_source == 'BigQuery' and api_key_from_env == False:
+        while True:
+            print('!!!!! Loading LLM API Key from File No longer Supported -- Please provide via ENV VAR when using BigQuery Source')
+            time.sleep(3)
+    
+    print('Checking database for LLM Key...', flush=True)
+    logger.info('Checking database for LLM Key...', flush=True)
+    if llm_api_key is None and genesis_source == 'Snowflake':
+        llm_key, llm_type = db_adapter.db_get_llm_key(project_id=None, dataset_name=None)
+        logger.info('got a response')
+        if llm_key == None or llm_key == '' or llm_key == 'NULL' or len(llm_key)<10:
+            logger.info('Llm key is None')
+            llm_key = None
+            llm_type = None
+        if llm_key and llm_type:
+            default_llm_engine = llm_type
+            llm_api_key = llm_key
+            api_key_from_env = False
+            logger.info("LLM Key loaded from Database")
+        else:
+            print("===========")
+            print("NOTE: LLM Key not found in Env Var nor in Database LLM_CONFIG table.. starting without LLM Key, please provide via Streamlit")
+            print("===========", flush=True)
+
+    if llm_api_key is not None and default_llm_engine.lower() == 'openai':
+        os.environ["OPENAI_API_KEY"] = llm_api_key
+    if llm_api_key is not None and default_llm_engine.lower() == 'reka':
+        os.environ["REKA_API_KEY"] = llm_api_key
+
+    if llm_api_key is None:
+        print('No LLM Key Available in ENV var or Snowflake database, sleeping 20 seconds before retry.', flush=True)
+        time.sleep(20)
+
+
+
+
 
 if llm_api_key is not None and default_llm_engine.lower() == 'openai':
     os.environ["OPENAI_API_KEY"] = llm_api_key
@@ -972,9 +1014,9 @@ def generate_task_prompt(bot_id, task):
         "task_status": <write a summary of the current status of the task, if its working fine and ongoing just say OK, if a specific next step is needed, state what should happen next>,
         "updated_task_learnings": <the task_learnings text you received at the start of this task, updated or appended with anything new you learned about how to perform this task during this run. Include anything you had to figure out (channel name, user name, which tool to use, etc) that you could skip next time if you knew something in advance that isn't subject to frequent change, like tables you found or SQL you used or Slack IDs of people you communicated with, or slack channel names you looked up.>,
         "report_message": <include this if you are supposed to report back based on reporting_instructions based on what happened, otherwise omit for no report back.",
-        "done_flag": <true if the task is completely and should not be re-triggered again, false if the task is ongoing>,
-        "needs_help_flag": <true if the task should be paused until you are assisted by the task supervisor, false if assistance is not needed before the next task run>,
-        "task_clarity_comments": <a short statement on how clear the task is, or if any clarifications would be useful, omit this if task is clear>
+        "done_flag": <true if the task is complete and should not be re-triggered again, or if youre getting unrecoverable and likely long-lasting errors, false if the task is ongoing and should continue to be triggered>,
+        "needs_help_flag": <true if you need help from the administrator, are encountering errors, etc., false if assistance is not needed before the next task run>,
+        "task_clarity_comments": <state any problems you are having running the task, or any help you need, errors youre getting. omit this if task is clear and working properly>
         "next_run_time": <date_timestamp for when to run this task next in %Y-%m-%d %H:%M:%S format>
             }} 
 
@@ -1090,6 +1132,7 @@ def tasks_loop():
             input_adapter = next((adapter for adapter in session.input_adapters if isinstance(adapter, TaskBotOsInputAdapter)), None)
             response_map = input_adapter.response_map
             bot_id = session.bot_id
+            tasks = db_adapter.manage_tasks(action='LIST', bot_id=bot_id, task_id=None)
             processed_tasks = []
             for task_id, response in response_map.items():
 
@@ -1114,7 +1157,7 @@ def tasks_loop():
                     task_response_data = None
 
                 if response_valid and task_response_data:
-                    required_fields = ['work_done_summary', 'task_status', 'updated_task_learnings', 'done_flag', 'needs_help_flag', 'task_clarity_comments', 'next_run_time']
+                    required_fields = ['work_done_summary', 'task_status', 'updated_task_learnings', 'done_flag', 'needs_help_flag', 'next_run_time']
                     missing_fields = [field for field in required_fields if field not in task_response_data]
                     invalid_fields = []
                     if not missing_fields:
@@ -1133,21 +1176,77 @@ def tasks_loop():
                         response_valid = False
                         error_msg += f'Missing or invalid fields: {", ".join(missing_fields + invalid_fields)}'
                 
+
+                if response_valid and task_response_data and task_response_data['needs_help_flag']:
+                    # Retrieve the creator of the task
+                    task = next((t for t in tasks["Tasks"] if t['task_id'] == task_id), None)
+                    task_creator_id = task.get('primary_report_to_id',None)
+                    task_name = task.get('task_name',None)
+                    slack_adapter = next((adapter for adapter in session.input_adapters if isinstance(adapter, SlackBotAdapter)), None)
+                    # Send a direct message to the creator of the task
+                    if (slack_adapter is not None) and task_creator_id:
+                        help_message = f":exclamation: Task needs your help -- Task: {task_name} ({task_id}) for bot {bot_id} requires your attention.\n\nClarity suggestions: {task_response_data.get('task_clarity_comments', 'No suggestions provided.')}\nPlease discuss this with {bot_id}."
+                        task_json_pretty = json.dumps(task, indent=4)
+                        help_message += f"\n\nTask details:\n```{task_json_pretty}```"
+                        help_message += f"\n\nWhat happened this run:```{response.output}```"
+                        if task.get('done_flag', False):
+                            help_message += "\n_Note: The task has been set to inactive pending your review._"
+                        else:
+                            help_message += "\n_Note: The task will stay active, but you may want to adjust its instructions to make it more clear._"
+                        slack_adapter.send_slack_direct_message(slack_user_id=task_creator_id, message=help_message)
+                        print(f"Sent help message to task creator {task_creator_id} for task {task_id}.")
+                    else:
+                        print(f"Slack adapter not available to send help message for task {task_id}.")
+
+                
                 if response_valid and task_response_data:
                     # Ensure next_run_time is at least 5 minutes from now
                     next_run_time = datetime.datetime.strptime(task_response_data['next_run_time'], '%Y-%m-%d %H:%M:%S')
                     if (next_run_time - datetime.datetime.now()).total_seconds() < 300:
                         task_response_data['next_run_time'] = (datetime.datetime.now() + datetime.timedelta(minutes=5)).strftime('%Y-%m-%d %H:%M:%S')
                         print(f"Changed next_run_time for task {task_id} from bot {bot_id} to ensure it's at least 5 minutes from now.")
+
                 if not response_valid:
                     # count retries stop after 3
                     print(error_msg)
-                    thread = response.messages.data[0].thread_id
-                    current_timestamp_str = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                    task_meta = { "bot_id": bot_id, "task_id": task['task_id'], "submited_time": current_timestamp_str }
-                    event = {"thread_id": thread, "msg": f'Your response generated an error, please try to fix it. Error: {error_msg}', 'task_meta': task_meta}
-                    input_adapter.add_event(event=event)
-                    # add the error back to the thread as an input, count the number of retrys, stop it and make task inactive after 3 retries
+
+                    task_retry_attempts_map = task_retry_attempts_map or {}
+                    if task_id not in task_retry_attempts_map:
+                        task_retry_attempts_map[task_id] = 1
+                    else:
+                        task_retry_attempts_map[task_id] += 1
+
+                    if task_retry_attempts_map[task_id] > 3:
+                        # Make the task inactive after 3 retries
+                        print(f"Task {task_id} has exceeded the maximum number of retries. Marking as inactive.")
+                        db_adapter.manage_tasks(
+                            action='UPDATE', 
+                            bot_id=bot_id, 
+                            task_id=task_id, 
+                            task_details={
+                                'next_check_ts': (datetime.datetime.now() - datetime.timedelta(minutes=5)).strftime('%Y-%m-%d %H:%M:%S'),
+                                'last_task_status': 'Task failed to respond with a proper JSON after 3 tries.',
+                                'task_learnings': task_response_data.get('updated_task_learnings', ''),
+                                'task_active': False
+                            }
+                        )
+                        db_adapter.insert_task_history(
+                            task_id=task_id,
+                            work_done_summary='Task failed to respond with a proper JSON after 3 tries.',
+                            task_status='Inactive after retries',
+                            updated_task_learnings=task_response_data.get('updated_task_learnings', ''),
+                            report_message='Task marked as inactive due to invalid responses.',
+                            done_flag=True,
+                            needs_help_flag=False,
+                            task_clarity_comments='Unknon; issue was with response content.'
+                        )
+                    else:
+                        thread = response.messages.data[0].thread_id
+                        current_timestamp_str = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                        task_meta = { "bot_id": bot_id, "task_id": task['task_id'], "submited_time": current_timestamp_str }
+                        event = {"thread_id": thread, "msg": f'Your response generated an error, please try to fix it. Error: {error_msg}', 'task_meta': task_meta}
+                        input_adapter.add_event(event=event)
+
                 else: 
                     task_log_and_update(bot_id, task_id, task_response_data)
 

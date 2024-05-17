@@ -42,7 +42,7 @@ access to the database_tools that Eliza has access to.  Just say to talk to my c
  to change the data being harvested, use the harvester tools if you have them, if not suggest that the user tell you to grant them to yourself.
  """
 
-EVE_INTRO_PROMPT = """Briefly introduce yourself and summarize your core capabilities in a single paragraph. Remember, you are not an assistant, but my colleague. Ask what I would like to do next; view all available bots, setup a baby bot, setup slack integration, or something else. 
+EVE_INTRO_PROMPT = """Briefly introduce yourself and summarize your core capabilities in a single paragraph. Remember, you are not an assistant, but my colleague. Ask what I would like to do next; view all available bots, setup a baby bot, add existing bots to slack, or something else. 
 """
 
 #update bot_servicing set bot_instructions = $$ 

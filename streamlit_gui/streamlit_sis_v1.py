@@ -353,7 +353,7 @@ def show_server_logs():
     elif log_type == "Task Service":
         # Run Snowflake SQL commands for Harvester
         status_result = session.sql(f"SELECT SYSTEM$GET_SERVICE_STATUS('{prefix}.GENESISAPP_TASK_SERVICE')").collect()
-        logs_result = session.sql(f"SELECT SYSTEM$GET_SERVICE_LOGS('{prefix}.GENESISAPP_TASK_SERVICE',0,'genesis-harvester',1000)").collect()
+        logs_result = session.sql(f"SELECT SYSTEM$GET_SERVICE_LOGS('{prefix}.GENESISAPP_TASK_SERVICE',0,'genesis-task-server',1000)").collect()
 
         # Display the results in textareas
         st.markdown(status_result[0][0])

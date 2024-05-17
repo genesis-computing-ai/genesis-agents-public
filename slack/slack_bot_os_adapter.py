@@ -386,6 +386,7 @@ class SlackBotAdapter(BotOsInputAdapter):
                 # Remove duplicates from the files_in array
                 files_in = list(set(files_in))
 
+
                 # Extract file paths from the message and add them to files_in array
                 image_pattern = re.compile(r'\[.*?\]\((sandbox:/mnt/data/downloads/.*?)\)')
                 matches = image_pattern.findall(msg)

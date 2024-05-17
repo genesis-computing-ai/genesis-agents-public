@@ -1007,8 +1007,9 @@ CREATE SCHEMA IF NOT EXISTS GENESIS_LOCAL_DB.SETTINGS;
 CREATE OR REPLACE NETWORK RULE GENESIS_LOCAL_DB.SETTINGS.GENESIS_RULE
  MODE = EGRESS TYPE = HOST_PORT
 VALUE_LIST = ('api.openai.com', 'slack.com', 'www.slack.com', 'wss-primary.slack.com',
-'wss-backup.slack.com',  'wss-primary.slack.com:443','wss-backup.slack.com:443',
-'oaidalleapiprodscus.blob.core.windows.net:443');
+'wss-backup.slack.com',  'wss-primary.slack.com:443','wss-backup.slack.com:443','www.genesiscomputing.ai',
+'oaidalleapiprodscus.blob.core.windows.net:443', 'downloads.slack-edge.com', 'files-edge.slack.com',
+'files-origin.slack.com', 'files.slack.com', 'global-upload-edge.slack.com','universal-upload-edge.slack.com');
 
 -- create an external access integration that surfaces the above network rule
 CREATE OR REPLACE EXTERNAL ACCESS INTEGRATION GENESIS_EAI
@@ -1171,9 +1172,6 @@ call {app_name}.core.start_app_instance('APP1','GENESIS_POOL','GENESIS_EAI','{st
 
 USE DATABASE IDENTIFIER($APP_DATABASE);
 USE SCHEMA APP1;
-
-SELECT SYSTEM$GET_SERVICE_STATUS('GENESISAPP_SERVICE_SERVICE');
-SELECT SYSTEM$GET_SERVICE_LOGS('GENESISAPP_SERVICE_SERVICE',0,'genesis',1000);
 
 // reinitialize -- note: this wipes out the app metadata and existing harvests and bots
 

@@ -11,11 +11,8 @@ Bots calling other bots to do things
 THINGS TO TEST:
 (test) adding stage tools to a bot with baby_bot_tools and see if instructions are updated with internal stage location
 (test) Add error checking for missing data or grants to harvester so it doesnt crash on that 
-(test) add Spider baseball and f1 schemas as share-thru app w/pre-made harvest results for demo data on start
 (test) Make sure harvester works ok with mixed case table and database and schema names (and system in general)
 (test) harvester dont crash if cant access schemas for a database listed in control file
-(test) added new message when no access to data, e.g. when a customer recrates their data daily
-(test) more logging for the slack not showing files thing for chris and robert
 (test) eve coudlnt update eliza's full instruction string The error occurred due to an unexpected keyword argument bot_instructions in the update_bot_instructions function. It appears that the function does not expect this parameter as provided.
 (test) on first DM with a user, add some introduction of yourself
 (test) adding tools again, adding autonomouss tasks via eve didn't seem to work without restarts
@@ -23,23 +20,27 @@ THINGS TO TEST:
 (test) Check this function execute_function - _get_visible_tables - {"database":"my_data","schema":"public"}
 (test) check error handling for stage tools (added to list, check others)
 (test) fix add_new_tools_to_bots, 2024-05-10 23:32:09,104 - ERROR - callback_closure - _submit_tool_outputs - caught exception: argument of type 'NoneType' is not iterable
-(test) Make slack active thing only apply to new bot creation, dont block activation of existing bots
 (test) In install of Eliza make and grant an external workspace database and tell Eliza about it in her prompt (include grants on future objects to accountadmin)
 (test) deploy bot flow, make sure new message shows up
-
+(test) JL-files issue Chris and Robert are seeing -- use new logging to debug
+x (test) Make slack active thing only apply to new bot creation, dont block activation of existing bots
 x (test) MR - Share default bot images thru app
+x (test) add Spider baseball and f1 schemas as share-thru app w/pre-made harvest results for demo data on start
+x (test) added new message when no access to data, e.g. when a customer recrates their data daily
+x (test) more logging for the slack not showing files thing for chris and robert
 
 SHORT-TERM (BEFORE SUMMIT):
-Have DMs also get history if they are not threadded, give the past n DMs too 
+JL!-Fix update bot instructions, and test add tools and add files for the str get nonetype error
+Initial memory system using vector search on message history?
+JL-Have DMs also get history if they are not threadded, give the past n DMs too 
 JL-Task system - when needs help, send clarity comments to the user who made the task in a DM
 RV-Add USERS field to messages log table to keep track of the users involved in a thread or dm
-MT- list index out of range on bot config when you refresh directly to it.. add more retrys
-reword button page on refresh to press this button after first step of bot config
-add a few doublechecks before going to the initiall install screen in Sis
+MR-list index out of range on bot config when you refresh directly to it.. add more retrys
+MR-add a few doublechecks before going to the initiall install screen in Sis
+x task server log to sis app, add log calls for it to the start/stop info tab examples
+x reword button page on refresh to press this button after first step of bot config
 MR-add the bot images table and view to the copy program to other regions
 MR-Pre-harvest and share information_schema
-MR-task server log to sis app, add log calls for it to the start/stop info tab examples
-JL-files issue Chris and Robert are seeing -- use new logging to debug
 JL-changing openAI key via streamlit when running gives an error: (bots conflicts with existing job-- dont add scheduler job again if already running)
 JL-(test more on spcs) Something blocks the thinking messages or bolt app when doing image analysis and/or file generation/upload to Slack
 MR-SiS app will restart service is suspended (With pool) but doesnt wake up harvester, errors in SiS log harvest screen
@@ -52,10 +53,10 @@ MR-Add a message to the top of the SisChat page suggesting activating via slack,
 (soon) When you send a message to a thread that's already running, queue it up and don't submit another, then consolidate all of them when its ready and send them all at once once the run is done.
 (soon) Add update message back to slack thread if tools are still running for more than a minute or if the run is still thinking.. (update her Thinking message)
 (soon) Add undeploy from Slack button on bot config
-(soon) make sure endpoint is not the empty message, if so wait until its provisioned before updating any callback URLS, if there are any bots that needs them
 
 POST-SUMMIT:
-(later) figure out cortex runner why its costs are nuts
+(later) make sure endpoint is not the empty message, if so wait until its provisioned before updating any callback URLS, if there are any bots that needs them
+x (later) figure out cortex runner why its costs are nuts
 (later) Try harvester with mistral or yak model to save costs 
 (later) add tab to see chat logs from messages table in SiS 
 (soon) Harvest semantic models and return in get_metadata dynamically

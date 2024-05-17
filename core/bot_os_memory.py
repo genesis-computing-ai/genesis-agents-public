@@ -226,7 +226,7 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
             return None
 
     
-    def find_memory(self, query, scope="database_metadata", top_n=8, verbosity="low", database=None, schema=None, table=None) -> list[str]:
+    def find_memory(self, query, scope="database_metadata", top_n=15, verbosity="low", database=None, schema=None, table=None) -> list[str]:
         
         if scope == "database_metadata":
 

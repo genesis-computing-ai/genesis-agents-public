@@ -30,6 +30,7 @@ THINGS TO TEST:
 x (test) MR - Share default bot images thru app
 
 SHORT-TERM (BEFORE SUMMIT):
+Have DMs also get history if they are not threadded, give the past n DMs too 
 JL-Task system - when needs help, send clarity comments to the user who made the task in a DM
 RV-Add USERS field to messages log table to keep track of the users involved in a thread or dm
 MT- list index out of range on bot config when you refresh directly to it.. add more retrys

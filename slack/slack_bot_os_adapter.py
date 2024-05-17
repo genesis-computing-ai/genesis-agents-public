@@ -283,7 +283,7 @@ class SlackBotAdapter(BotOsInputAdapter):
                 msg_with_user_and_id = f"{msg_with_user_and_id}\n{system_message}"
 
 
-        if not indic and tag and not dmcheck:
+        if (not indic and tag and not dmcheck) or (dmcheck and not indic):
         # Retrieve the first and the last up to 20 messages from the thread
             conversation_history = self.slack_app.client.conversations_replies(
                 channel=channel,

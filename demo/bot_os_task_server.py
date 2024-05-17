@@ -1185,7 +1185,7 @@ def tasks_loop():
                     slack_adapter = next((adapter for adapter in session.input_adapters if isinstance(adapter, SlackBotAdapter)), None)
                     # Send a direct message to the creator of the task
                     if (slack_adapter is not None) and task_creator_id:
-                        help_message = f":exclamation: Task needs your help -- Task: {task_name} ({task_id}) for bot {bot_id} requires your attention.\n\nClarity suggestions: {task_response_data.get('task_clarity_comments', 'No suggestions provided.')}\nPlease discuss this with {bot_id}."
+                        help_message = f":exclamation: Task needs your help -- Task: {task_name} ({task_id}) for bot {bot_id} requires your attention.\n\Issues/Suggestions: {task_response_data.get('task_clarity_comments', 'No suggestions provided.')}\nPlease discuss this with {bot_id}."
                         task_json_pretty = json.dumps(task, indent=4)
                         help_message += f"\n\nTask details:\n```{task_json_pretty}```"
                         help_message += f"\n\nWhat happened this run:```{response.output}```"

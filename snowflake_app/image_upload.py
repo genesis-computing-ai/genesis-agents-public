@@ -51,7 +51,17 @@ def insert_image(image_name, image_path, bot_name, conn):
         with open(image_path, 'rb') as file:
             binary_data = file.read()
             encoded_data = base64.b64encode(binary_data).decode('utf-8')
-        cursor.execute("INSERT INTO GENESISAPP_MASTER.APP_SHARE.IMAGES (image_name, bot_name, image_data, encoded_image_data, image_desc) VALUES (%s, %s, %s, %s, %s)", (image_name, bot_name, binary_data, encoded_data, image_desc))
+        cursor.execute("""
+            MERGE INTO GENESISAPP_MASTER.APP_SHARE.IMAGES USING (
+                SELECT %s AS image_name, %s AS bot_name, %s AS image_data, %s AS encoded_image_data, %s AS image_desc
+            ) AS new_data
+            ON IMAGES.image_name = new_data.image_name AND IMAGES.bot_name = new_data.bot_name
+            WHEN MATCHED THEN
+                UPDATE SET image_data = new_data.image_data, encoded_image_data = new_data.encoded_image_data, image_desc = new_data.image_desc
+            WHEN NOT MATCHED THEN
+                INSERT (image_name, bot_name, image_data, encoded_image_data, image_desc)
+                VALUES (new_data.image_name, new_data.bot_name, new_data.image_data, new_data.encoded_image_data, new_data.image_desc)
+        """, (image_name, bot_name, binary_data, encoded_data, image_desc))
         conn.commit()
 
         print(f"inserted {image_name}")
@@ -83,9 +93,7 @@ insert_images_from_directory(sys.argv[1], conn)
 # create_schema_and_table(conn)
 
 # Example usage:
-# insert_images_from_directory('/Users/mrainey/Pictures', 'jeff', conn)
-
-# insert_image('thedude.png', '/Users/mrainey/Pictures/thedude.png', 'jeff', conn)
+# insert_images_from_directory('/Users/mrainey/Pictures', conn)
 
 conn.close()
 

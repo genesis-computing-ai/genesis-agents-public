@@ -438,11 +438,18 @@ def chat_page():
             while response == 'not found':
                 response = get_response_from_udf_proxy(uu=request_id, bot_id=selected_bot_id)
                 time.sleep(0.5)
-        # Display assistant response in chat message container
-        with st.chat_message("assistant", avatar=bot_avatar_image_url):
-            st.markdown(response)
-        # Add assistant response to chat history
-        st.session_state[f"messages_{selected_bot_id}"].append({"role": "assistant", "content": response, "avatar": bot_avatar_image_url})
+        
+        if bot_avatar_image_url:
+            # Display assistant response in chat message container
+            with st.chat_message("assistant", avatar=bot_avatar_image_url):
+                st.markdown(response)
+            # Add assistant response to chat history
+            st.session_state[f"messages_{selected_bot_id}"].append({"role": "assistant", "content": response, "avatar": bot_avatar_image_url})
+        else:
+            with st.chat_message("assistant"):
+                st.markdown(response)
+            # Add assistant response to chat history
+            st.session_state[f"messages_{selected_bot_id}"].append({"role": "assistant", "content": response})
 
 
     try:
@@ -460,12 +467,9 @@ def chat_page():
     else: 
 
         try:
-    
+            # get bot details
             bot_details.sort(key=lambda x: (not "Eve" in x["bot_name"], x["bot_name"]))
             bot_names = [bot["bot_name"] for bot in bot_details]
-    
-            #st.write(bot_names)
-        
             bot_ids = [bot["bot_id"] for bot in bot_details]
             bot_intro_prompts = [bot["bot_intro_prompt"] for bot in bot_details]
 
@@ -475,34 +479,37 @@ def chat_page():
             selected_bot_id = bot_ids[selected_bot_index]
             selected_bot_intro_prompt = bot_intro_prompts[selected_bot_index]
             if not selected_bot_intro_prompt:
-                selected_bot_intro_prompt = "Please provide an introduction of yourself and your capabilities."
+                selected_bot_intro_prompt = "Please provide a brief introduction of yourself and your capabilities."
 
             # get avatar images
-            try:
-                bot_images = get_metadata('bot_images')
-            except Exception as e:
-                bot_avatar_image_url = "" 
-                st.subheader(f"failed to get bot avatar images {e}" )
-
-            bot_avatar_images = [bot["bot_avatar_image"] for bot in bot_images]
-            bot_names = [bot["bot_name"] for bot in bot_images]
-            selected_bot_image_index = bot_names.index(selected_bot_name)
-            encoded_bot_avatar_image = bot_avatar_images[selected_bot_image_index]
-            if not encoded_bot_avatar_image:
-                bot_avatar_image_url = "" 
-            else:
-                # Create data URL for the image
-                bot_avatar_image_url = f"data:image/png;base64,{encoded_bot_avatar_image}"
-
+            bot_images = get_metadata('bot_images')
+            bot_avatar_image_url = ""
+            if len(bot_images) > 0:
+                bot_avatar_images = [bot["bot_avatar_image"] for bot in bot_images]
+                bot_names = [bot["bot_name"] for bot in bot_images]
+                selected_bot_image_index = bot_names.index(selected_bot_name)
+                if selected_bot_image_index < 0:
+                    bot_avatar_image_url = ""
+                else:
+                    encoded_bot_avatar_image = bot_avatar_images[selected_bot_image_index]
+                    if not encoded_bot_avatar_image:
+                        bot_avatar_image_url = "" 
+                    else:
+                        # Create data URL for the avatar image
+                        bot_avatar_image_url = f"data:image/png;base64,{encoded_bot_avatar_image}"
+                
                 
             if st.button("New Chat", key="new_chat_button"):
             # Reset the chat history and thread ID for the selected bot
-                st.session_state[f"messages_{selected_bot_id}"] = [{"role": "assistant", "content": f"Hi, I'm {selected_bot_name}! How can I help you today?",  "avatar": bot_avatar_image_url}]
+                if bot_avatar_image_url:
+                    st.session_state[f"messages_{selected_bot_id}"] = [{"role": "assistant", "content": f"Hi, I'm {selected_bot_name}! How can I help you today?",  "avatar": bot_avatar_image_url}]
+                else:
+                    st.session_state[f"messages_{selected_bot_id}"] = [{"role": "assistant", "content": f"Hi, I'm {selected_bot_name}! How can I help you today?"}]
                 st.session_state[f"thread_id_{selected_bot_id}"] = str(uuid.uuid4())
                 # Clear the chat input
                 #st.session_state[f"chat_input_{selected_bot_id}"] = ""
                 # Rerun the app to reflect the changes
-                st.experimental_rerun()
+                # st.experimental_rerun()
             
     
             if f"thread_id_{selected_bot_id}" not in st.session_state:
@@ -517,7 +524,7 @@ def chat_page():
     
             # Display chat messages from history on app rerun
             for message in st.session_state[f"messages_{selected_bot_id}"]:
-                if message["role"] == "assistant":
+                if message["role"] == "assistant" and bot_avatar_image_url:
                     with st.chat_message(message["role"], avatar=bot_avatar_image_url):
                         st.markdown(message["content"])
                 else:

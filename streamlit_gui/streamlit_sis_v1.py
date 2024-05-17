@@ -351,8 +351,13 @@ def show_server_logs():
         st.text_area("Harvester Logs", logs_result[0][0], height=600)
 
     elif log_type == "Task Service":
-        # Placeholder for Task Service logs
-        st.write("Coming soon")
+        # Run Snowflake SQL commands for Harvester
+        status_result = session.sql(f"SELECT SYSTEM$GET_SERVICE_STATUS('{prefix}.GENESISAPP_TASK_SERVICE')").collect()
+        logs_result = session.sql(f"SELECT SYSTEM$GET_SERVICE_LOGS('{prefix}.GENESISAPP_TASK_SERVICE',0,'genesis-harvester',1000)").collect()
+
+        # Display the results in textareas
+        st.markdown(status_result[0][0])
+        st.text_area("Harvester Logs", logs_result[0][0], height=600)
 
 
 def llm_config(): # Check if data is not empty
@@ -849,6 +854,8 @@ def bot_config():
                             st.markdown(f"**To complete setup on Slack, there is one more step.  Cut and paste this link in a new browser window (appologies that it can't be clickable here).  You may need to log into both Slack and Snowflake to complete this process:**")
                             #st.text(f"{bot['auth_url']}")
                             st.text_area("Link to use to authorize:", value=bot['auth_url'], height=200, disabled=True)
+                            st.markdown(f"**Once you do that, you should see a Successfully Deployed message.  Then go to Slack's Apps area at the bottom of the left-hand channel list panel, and press Add App, and search for the new bot by name. **")
+                        
                  #st.caption("Runner ID: " + bot['runner_id'], unsafe_allow_html=True)
                         if bot['slack_active'] == 'N' or bot['slack_deployed'] == False:
                             if slack_ready and (bot['auth_url'] is None or bot['auth_url']==''):

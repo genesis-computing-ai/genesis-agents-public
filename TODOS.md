@@ -25,12 +25,14 @@ THINGS TO TEST:
 (test) fix add_new_tools_to_bots, 2024-05-10 23:32:09,104 - ERROR - callback_closure - _submit_tool_outputs - caught exception: argument of type 'NoneType' is not iterable
 (test) Make slack active thing only apply to new bot creation, dont block activation of existing bots
 (test) In install of Eliza make and grant an external workspace database and tell Eliza about it in her prompt (include grants on future objects to accountadmin)
-(test) MR - Share default bot images thru app
+(test) deploy bot flow, make sure new message shows up
+
+x (test) MR - Share default bot images thru app
 
 SHORT-TERM (BEFORE SUMMIT):
-add a 60 second delay on task server startup
-add another last tep to bot deploy that tells you what to do once you have done the link 
-list index out of range on bot config when you refresh directly to it.. add more retrys
+JL-Task system - when needs help, send clarity comments to the user who made the task in a DM
+RV-Add USERS field to messages log table to keep track of the users involved in a thread or dm
+MT- list index out of range on bot config when you refresh directly to it.. add more retrys
 reword button page on refresh to press this button after first step of bot config
 add a few doublechecks before going to the initiall install screen in Sis
 MR-add the bot images table and view to the copy program to other regions
@@ -52,6 +54,7 @@ MR-Add a message to the top of the SisChat page suggesting activating via slack,
 (soon) make sure endpoint is not the empty message, if so wait until its provisioned before updating any callback URLS, if there are any bots that needs them
 
 POST-SUMMIT:
+(later) figure out cortex runner why its costs are nuts
 (later) Try harvester with mistral or yak model to save costs 
 (later) add tab to see chat logs from messages table in SiS 
 (soon) Harvest semantic models and return in get_metadata dynamically
@@ -150,6 +153,8 @@ Add a mechanism for license control based on current_account()... share a table 
     Have a trial period where you can use it in trial mode before it goes into limited mode
 
 DONE:
+x add a 60 second delay on task server startup
+x (added message) add another last step to bot deploy that tells you what to do once you have done the link 
 x When activating a bot to pay attention to a new thread, include the original message starting the thread, and the last n messages 
 x Add to the thing that checks whether to respond to a thread, see if the same bot was the original poster (from a task for example) and if so respons
 x (havent seen) Do our services / pools suspend after 3600 sec, and auto restart?  Is restart clean? 

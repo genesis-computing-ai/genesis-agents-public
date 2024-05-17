@@ -16,7 +16,7 @@ logging.basicConfig(level=logging.WARN, format='%(asctime)s - %(levelname)s - %(
 
 genesis_source = os.getenv('GENESIS_SOURCE',default="BigQuery")
 
-print("waiting 60 seconds for other services to start first...")
+print("waiting 60 seconds for other services to start first...", flush=True)
 time.sleep(60)
 
 ### LLM KEY STUFF
@@ -146,7 +146,7 @@ print("   /        \\    ")
 print("  G E N E S I S ")
 print("    B o t O S")
 print(" ---- HARVESTER----")
-print('Harvester Start Version 0.126',flush=True)
+print('Harvester Start Version 0.128',flush=True)
 print("")
 
 while True:

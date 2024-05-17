@@ -13,16 +13,17 @@ logging.basicConfig(level=logging.WARN, format='%(asctime)s - %(levelname)s - %(
 
 
 
-genesis_source = os.getenv('GENESIS_SOURCE',default="BigQuery")
+genesis_source = os.getenv('GENESIS_SOURCE',default="Snowflake")
 
-if genesis_source == 'BigQuery':
-    credentials_path = os.getenv('GOOGLE_APPLICATION_CREDENTIALS',default=".secrets/gcp.json")
-    with open(credentials_path) as f:
-        connection_info = json.load(f)
-    # Initialize BigQuery client
-    bb_db_connector = BigQueryConnector(connection_info,'BigQuery')
-else:    # Initialize BigQuery client
-    bb_db_connector = SnowflakeConnector(connection_name='Snowflake')
+#if genesis_source == 'BigQuery':
+#    credentials_path = os.getenv('GOOGLE_APPLICATION_CREDENTIALS',default=".secrets/gcp.json")
+#    with open(credentials_path) as f:
+#        connection_info = json.load(f)
+#    # Initialize BigQuery client
+#    bb_db_connector = BigQueryConnector(connection_info,'BigQuery')
+#else:    # Initialize BigQuery client
+
+bb_db_connector = SnowflakeConnector(connection_name='Snowflake')
 
 
 genbot_internal_project_and_schema = os.getenv('GENESIS_INTERNAL_DB_SCHEMA','None')

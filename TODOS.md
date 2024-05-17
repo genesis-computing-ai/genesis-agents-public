@@ -11,34 +11,27 @@ Bots calling other bots to do things
 THINGS TO TEST:
 (test) adding stage tools to a bot with baby_bot_tools and see if instructions are updated with internal stage location
 (test) Add error checking for missing data or grants to harvester so it doesnt crash on that 
-(test) Make sure harvester works ok with mixed case table and database and schema names (and system in general)
-(test) harvester dont crash if cant access schemas for a database listed in control file
-(test) eve coudlnt update eliza's full instruction string The error occurred due to an unexpected keyword argument bot_instructions in the update_bot_instructions function. It appears that the function does not expect this parameter as provided.
+MR-(test) Make sure harvester works ok with mixed case table and database and schema names (and system in general)
+MR-(test) harvester dont crash if cant access schemas for a database listed in control file
 (test) on first DM with a user, add some introduction of yourself
 (test) adding tools again, adding autonomouss tasks via eve didn't seem to work without restarts
-(test) GENESIS_LOCAL_DB.ELIZA_WORKSPACE Create sample workspace by default for Eliza for Eliza
+(test) GENESIS_LOCAL_DB.ELIZA_WORKSPACE Create sample workspace by default for Eliza for Eliza.. update her prompt
 (test) Check this function execute_function - _get_visible_tables - {"database":"my_data","schema":"public"}
 (test) check error handling for stage tools (added to list, check others)
 (test) fix add_new_tools_to_bots, 2024-05-10 23:32:09,104 - ERROR - callback_closure - _submit_tool_outputs - caught exception: argument of type 'NoneType' is not iterable
-(test) In install of Eliza make and grant an external workspace database and tell Eliza about it in her prompt (include grants on future objects to accountadmin)
+(include grants on future objects to accountadmin)
 (test) deploy bot flow, make sure new message shows up
 (test) JL-files issue Chris and Robert are seeing -- use new logging to debug
-x (test) Make slack active thing only apply to new bot creation, dont block activation of existing bots
-x (test) MR - Share default bot images thru app
-x (test) add Spider baseball and f1 schemas as share-thru app w/pre-made harvest results for demo data on start
-x (test) added new message when no access to data, e.g. when a customer recrates their data daily
-x (test) more logging for the slack not showing files thing for chris and robert
 
 SHORT-TERM (BEFORE SUMMIT):
-JL!-Fix update bot instructions, and test add tools and add files for the str get nonetype error
+JL-Give Kevin's docs to Jenny and see if she can answer q's based on them
+add a way to remove tools from bot
+User understanding system of what bot has done with the user recently (with summaries?)
 Initial memory system using vector search on message history?
 JL-Have DMs also get history if they are not threadded, give the past n DMs too 
-JL-Task system - when needs help, send clarity comments to the user who made the task in a DM
 RV-Add USERS field to messages log table to keep track of the users involved in a thread or dm
 MR-list index out of range on bot config when you refresh directly to it.. add more retrys
 MR-add a few doublechecks before going to the initiall install screen in Sis
-x task server log to sis app, add log calls for it to the start/stop info tab examples
-x reword button page on refresh to press this button after first step of bot config
 MR-add the bot images table and view to the copy program to other regions
 MR-Pre-harvest and share information_schema
 JL-changing openAI key via streamlit when running gives an error: (bots conflicts with existing job-- dont add scheduler job again if already running)
@@ -51,7 +44,6 @@ MR-Add a message to the top of the SisChat page suggesting activating via slack,
 (soon) add the ability for send_direct and _channel messages to have created files in them (works for images, not for graphs/pdfs - maybe a tool to save file locally and retrigger thread...?) 
 (soon) stop bot back and forth with other bots after a few turns
 (soon) When you send a message to a thread that's already running, queue it up and don't submit another, then consolidate all of them when its ready and send them all at once once the run is done.
-(soon) Add update message back to slack thread if tools are still running for more than a minute or if the run is still thinking.. (update her Thinking message)
 (soon) Add undeploy from Slack button on bot config
 
 POST-SUMMIT:
@@ -155,6 +147,19 @@ Add a mechanism for license control based on current_account()... share a table 
     Have a trial period where you can use it in trial mode before it goes into limited mode
 
 DONE:
+x (test) eve coudlnt update eliza's full instruction string The error occurred due to an unexpected keyword argument bot_instructions in the update_bot_instructions function. It appears that the function does not expect this parameter as provided.
+x (test) Make slack active thing only apply to new bot creation, dont block activation of existing bots
+x (test) MR - Share default bot images thru app
+x (test) add Spider baseball and f1 schemas as share-thru app w/pre-made harvest results for demo data on start
+x (test) added new message when no access to data, e.g. when a customer recrates their data daily
+x (test) more logging for the slack not showing files thing for chris and robert
+x test task update and delete with the new confirmation steps
+x test the new thread message notice change in dm and not dm (from breakpoint)
+x Fix update bot instructions, and test add tools and add files for the str get nonetype error
+x Task system - when needs help, send clarity comments to the user who made the task in a DM
+x task server log to sis app, add log calls for it to the start/stop info tab examples
+x reword button page on refresh to press this button after first step of bot config
+x Add update message back to slack thread if tools are still running for more than a minute or if the run is still thinking.. (update her Thinking message)
 x add a 60 second delay on task server startup
 x (added message) add another last step to bot deploy that tells you what to do once you have done the link 
 x When activating a bot to pay attention to a new thread, include the original message starting the thread, and the last n messages 

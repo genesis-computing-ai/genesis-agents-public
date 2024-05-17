@@ -33,7 +33,7 @@ logging.basicConfig(level=logging.WARN, format='%(asctime)s - %(levelname)s - %(
 
 import core.global_flags as global_flags
 
-print("****** GENBOT VERSION 0.129 *******")
+print("****** GENBOT VERSION 0.129a *******")
 logger.warning('******* GENBOT VERSION 0.129*******')
 
 runner_id = os.getenv('RUNNER_ID','jl-local-runner')
@@ -201,7 +201,7 @@ def make_session(bot_config):
     #assistant_implementation = BotOsAssistantOpenAI
     try:
        # print(f'tools: {tools}')
-        session = BotOsSession(bot_config["bot_id"], 
+        session = BotOsSession(bot_config["bot_id"],
                             instructions=instructions + proactive_instructions + pre_validation,
                             validation_instructions=post_validation,
                             input_adapters=input_adapters,

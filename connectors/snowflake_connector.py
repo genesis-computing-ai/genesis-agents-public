@@ -481,10 +481,23 @@ class SnowflakeConnector(DatabaseConnector):
         action = action.upper()
 
         if action == 'CREATE':
-            return {"Success": False, "Error": "Please reconfirm all the task details with the user, then call this function again with the action CREATE_CONFIRMED to actually create the task.", "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"} 
+            return {"Success": False, "Confirmation_Needed": "Please reconfirm all the task details with the user, then call this function again with the action CREATE_CONFIRMED to actually create the task.", "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"} 
  
         if action == 'CREATE_CONFIRMED':
             action = 'CREATE'
+
+        if action == 'UPDATE':
+            return {"Success": False, "Confirmation_Needed": "Please reconfirm all the task details with the user, especially that you're altering the correct TASK_ID, then call this function again with the action UPDATE_CONFIRMED to actually update the task.  Call with LIST to double-check the task_id if you aren't sure.", "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"} 
+ 
+        if action == 'UPDATE_CONFIRMED':
+            action = 'UPDATE'
+
+        if action == 'DELETE':
+            return {"Success": False, "Confirmation_Needed": "Please reconfirm that you are deleting the correct TASK_ID, and double check with the user they want to delete this task, then call this function again with the action DELETE_CONFIRMED to actually delete the task.  Call with LIST to double-check the task_id if you aren't sure that its right." }
+ 
+        if action == 'DELETE_CONFIRMED':
+            action = 'DELETE'
+
 
         if action not in ['CREATE', 'DELETE', 'UPDATE', 'LIST']:
             return {"Success": False, "Error": "Invalid action specified."}
@@ -566,9 +579,10 @@ class SnowflakeConnector(DatabaseConnector):
                         %(reporting_instructions)s, %(last_task_status)s, %(task_learnings)s, %(task_active)s
                     )
                 """
+                
                 # Generate 6 random alphanumeric characters
-                random_suffix = '_'.join(random.choices(string.ascii_letters + string.digits, k=6))
-                task_id_with_suffix = task_id + random_suffix
+                random_suffix = ''.join(random.choices(string.ascii_letters + string.digits, k=6))
+                task_id_with_suffix = task_id + '_' + random_suffix
                 cursor.execute(insert_query, {**task_details, "task_id": task_id_with_suffix, "bot_id": bot_id})
                 self.client.commit()
                 return {"Success": True, "Message": f"Task successfully created, next check scheduled for {task_details['next_check_ts']}"}
@@ -2166,7 +2180,7 @@ class SnowflakeConnector(DatabaseConnector):
             logger.info(f"Successfully updated bot_instructions for bot_id: {bot_id}")
 
             return {
-                "Success": True,
+                "success": True,
                 "Message": f"Successfully updated bot_instructions for bot_id: {bot_id}.",
                 "new_instructions": instructions
             }

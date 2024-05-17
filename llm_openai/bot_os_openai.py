@@ -323,7 +323,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       new_response = func_response
  
       try:
-         if function_call_details[0][0] == 'add_new_tools_to_bot' and func_response.get('success',False)==True:
+         if function_call_details[0][0] == 'add_new_tools_to_bot' and (func_response.get('success',False)==True or func_response.get('Success',False)==True):
             target_bot = json.loads(function_call_details[0][1]).get('bot_id',None)
             if target_bot is not None:
                my_assistants = self.client.beta.assistants.list(order="desc")
@@ -360,19 +360,19 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                   #self.client.beta.assistants.update(assistant.id,tools=bot_tools)
                   
                logger.info(f"Bot tools for {target_bot} updated.")
-         if function_call_details[0][0] == 'update_bot_instructions':
+         if function_call_details[0][0] == 'update_bot_instructions' and (func_response.get('success',False)==True or func_response.get('Success',False)==True):
             new_instructions = func_response.get("new_instructions",None)
             if new_instructions:
                target_bot = json.loads(function_call_details[0][1]).get('bot_id',None)
                if target_bot is not None:
-                  my_assistants = self.client.beta.assistants.list(order="desc")
+                  my_assistants = self.client.beta.assistants.list(order="desc",limit=100)
                   my_assistants = [a for a in my_assistants if a.name == target_bot]
                   for assistant in my_assistants:
                      self.client.beta.assistants.update(assistant.id,instructions=new_instructions)
                   logger.info(f"Bot instructions for {target_bot} updated: {new_instructions}")
-                  new_response.pop("new_instructions", None)
+                  #new_response.pop("new_instructions", None)
 
-         if function_call_details[0][0] == 'add_bot_files':
+         if function_call_details[0][0] == 'add_bot_files' and (func_response.get('success',False)==True or func_response.get('Success',False)==True):
          #  raise ('need to update bot_os_openai.py line 215 for new files structure with v2')
             try:
                updated_files_list = func_response.get("current_files_list",None)
@@ -583,7 +583,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                   if run_duration > 60 and run_duration % 60 < 2:  # Check if run duration is beyond 60 seconds and within the first 5 seconds of each subsequent minute
                      event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id, 
                                                                            status=run.status, 
-                                                                           output=f"_still running..._ {run.id} has been active for {int(run_duration // 60)} minute(s)...", 
+                                                                           output=f"_still running..._ {run.id} has been waiting on OpenAI for {int(run_duration // 60)} minute(s)...", 
                                                                            messages=None, 
                                                                            input_metadata=run.metadata))
                except:
@@ -595,7 +595,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                   if run_duration > 60 and run_duration % 60 < 2:  # Check if run duration is beyond 60 seconds and within the first 5 seconds of each subsequent minute
                      event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id, 
                                                                            status=run.status, 
-                                                                           output=f"_still running..._ {run.id} has been active for {int(run_duration // 60)} minute(s)...", 
+                                                                           output=f"_still running..._ {run.id} has been queued by OpenAI for {int(run_duration // 60)} minute(s)...", 
                                                                            messages=None, 
                                                                            input_metadata=run.metadata))
                except:

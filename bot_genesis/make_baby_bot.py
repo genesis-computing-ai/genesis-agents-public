@@ -580,7 +580,7 @@ def add_bot_files(bot_id, new_file_ids):
     return bb_db_connector.db_update_bot_files(project_id=project_id, dataset_name=dataset_name, bot_servicing_table=bot_servicing_table, bot_id=bot_id, updated_files_str=updated_files_str, current_files=current_files, new_file_ids=new_file_ids)
     
 
-def update_bot_instructions(bot_id, new_instructions=None, confirmed=None, thread_id = None):
+def update_bot_instructions(bot_id, new_instructions=None, bot_instructions=None, confirmed=None, thread_id = None):
 
     """
     Updates the bot_instructions in the database for the specified bot_id for the current runner_id.
@@ -592,6 +592,8 @@ def update_bot_instructions(bot_id, new_instructions=None, confirmed=None, threa
     runner_id = os.getenv('RUNNER_ID', 'jl-local-runner')
 
     bot_details = get_bot_details(bot_id)
+    if new_instructions is None and bot_instructions is not None:
+        new_instructions = bot_instructions
 
     if bot_details is None:
         return {

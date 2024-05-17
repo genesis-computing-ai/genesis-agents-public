@@ -210,6 +210,7 @@ def make_session(bot_config):
                             log_db_connector=db_adapter, # Ensure connection_info is defined or fetched appropriately
                             # tools=slack_tools + integration_tool_descriptions + [TOOL_FUNCTION_DESCRIPTION_WEBPAGE_DOWNLOADER],
                             tools = tools,
+                            bot_name = bot_config["bot_name"],
                             available_functions=available_functions,
                             all_tools = all_tools,
                             all_functions = all_functions,
@@ -1014,7 +1015,7 @@ def generate_task_prompt(bot_id, task):
         "task_status": <write a summary of the current status of the task, if its working fine and ongoing just say OK, if a specific next step is needed, state what should happen next>,
         "updated_task_learnings": <the task_learnings text you received at the start of this task, updated or appended with anything new you learned about how to perform this task during this run. Include anything you had to figure out (channel name, user name, which tool to use, etc) that you could skip next time if you knew something in advance that isn't subject to frequent change, like tables you found or SQL you used or Slack IDs of people you communicated with, or slack channel names you looked up.>,
         "report_message": <include this if you are supposed to report back based on reporting_instructions based on what happened, otherwise omit for no report back.",
-        "done_flag": <true if the task is complete and should not be re-triggered again, or if youre getting unrecoverable and likely long-lasting errors, false if the task is ongoing and should continue to be triggered>,
+        "done_flag": <true if the task is complete and should not be re-triggered again, or if youre getting errors and need help, false if the task is ongoing and being successful and should continue to be triggered>,
         "needs_help_flag": <true if you need help from the administrator, are encountering errors, etc., false if assistance is not needed before the next task run>,
         "task_clarity_comments": <state any problems you are having running the task, or any help you need, errors youre getting. omit this if task is clear and working properly>
         "next_run_time": <date_timestamp for when to run this task next in %Y-%m-%d %H:%M:%S format>
@@ -1075,15 +1076,19 @@ def task_log_and_update(bot_id, task_id, task_result):
         task_clarity_comments=task_result.get('task_clarity_comments', '')
     )
     # Update the task in the TASKS table
+    if task_result.get('done_flag', False) == True:
+        task_active = False
+    else:
+        task_active = True 
     db_adapter.manage_tasks(
-        action='UPDATE', 
+        action='UPDATE_CONFIRMED', 
         bot_id=bot_id, 
         task_id=task_id, 
         task_details={
             'next_check_ts': task_result.get('next_run_time'),
             'last_task_status': task_result.get('task_status'),
             'task_learnings': task_result.get('updated_task_learnings'),
-            'task_active': not task_result.get('done_flag', False)
+            'task_active': task_active
         }
     )
 
@@ -1176,28 +1181,32 @@ def tasks_loop():
                         response_valid = False
                         error_msg += f'Missing or invalid fields: {", ".join(missing_fields + invalid_fields)}'
                 
-
+                
                 if response_valid and task_response_data and task_response_data['needs_help_flag']:
                     # Retrieve the creator of the task
-                    task = next((t for t in tasks["Tasks"] if t['task_id'] == task_id), None)
-                    task_creator_id = task.get('primary_report_to_id',None)
-                    task_name = task.get('task_name',None)
-                    slack_adapter = next((adapter for adapter in session.input_adapters if isinstance(adapter, SlackBotAdapter)), None)
-                    # Send a direct message to the creator of the task
-                    if (slack_adapter is not None) and task_creator_id:
-                        help_message = f":exclamation: Task needs your help -- Task: {task_name} ({task_id}) for bot {bot_id} requires your attention.\n\Issues/Suggestions: {task_response_data.get('task_clarity_comments', 'No suggestions provided.')}\nPlease discuss this with {bot_id}."
-                        task_json_pretty = json.dumps(task, indent=4)
-                        help_message += f"\n\nTask details:\n```{task_json_pretty}```"
-                        help_message += f"\n\nWhat happened this run:```{response.output}```"
-                        if task.get('done_flag', False):
-                            help_message += "\n_Note: The task has been set to inactive pending your review._"
+                    # for now, have it suspend any task that needs help
+                    task_response_data['done_flag'] = True
+                    try:
+                        task = next((t for t in tasks["Tasks"] if t['task_id'] == task_id), None)
+                        task_creator_id = task.get('primary_report_to_id',None)
+                        task_name = task.get('task_name',None)
+                        slack_adapter = next((adapter for adapter in session.input_adapters if isinstance(adapter, SlackBotAdapter)), None)
+                        # Send a direct message to the creator of the task
+                        if (slack_adapter is not None) and task_creator_id:
+                            help_message = f":exclamation: Task needs your help -- Task: {task_name} ({task_id}) for bot {bot_id} requires your attention.\n\Issues/Suggestions: {task_response_data.get('task_clarity_comments', 'No suggestions provided.')}\nPlease discuss this with {bot_id}."
+                            task_json_pretty = json.dumps(task, indent=4)
+                            help_message += f"\n\nTask details:\n```{task_json_pretty}```"
+                            help_message += f"\n\nWhat happened this run:```{response.output}```"
+                            if task_response_data.get('done_flag', True):
+                                help_message += "\n_Note: The task has been set to inactive pending your review._"
+                            else:
+                                help_message += "\n_Note: The task will stay active, but you may want to adjust its instructions to make it more clear._"
+                            slack_adapter.send_slack_direct_message(slack_user_id=task_creator_id, message=help_message)
+                            print(f"Sent help message to task creator {task_creator_id} for task {task_id}.")
                         else:
-                            help_message += "\n_Note: The task will stay active, but you may want to adjust its instructions to make it more clear._"
-                        slack_adapter.send_slack_direct_message(slack_user_id=task_creator_id, message=help_message)
-                        print(f"Sent help message to task creator {task_creator_id} for task {task_id}.")
-                    else:
-                        print(f"Slack adapter not available to send help message for task {task_id}.")
-
+                            print(f"Slack adapter not available to send help message for task {task_id}.")
+                    except Exception as e:
+                        print(f"Error seeking help for task {task_id} - {e}")
                 
                 if response_valid and task_response_data:
                     # Ensure next_run_time is at least 5 minutes from now

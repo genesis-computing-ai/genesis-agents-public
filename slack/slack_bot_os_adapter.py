@@ -268,11 +268,11 @@ class SlackBotAdapter(BotOsInputAdapter):
         # Check if this was the first message in the DM channel with the user
             conversation_history = self.slack_app.client.conversations_history(
                 channel=channel,
-                limit=1
+                limit=2
             ).data
             
             # If the conversation history is empty or the first message's user is not the current user, it's the first message
-            if not conversation_history.get('messages') or conversation_history['messages'][0]['user'] != user_id:
+            if conversation_history and len(conversation_history.get('messages')) < 2:
                 first_dm_message = True
             else:
                 first_dm_message = False
@@ -282,6 +282,7 @@ class SlackBotAdapter(BotOsInputAdapter):
                 system_message = "\nSYSTEM MESSAGE: This is your first message with this user.  Please answer their message, if any, but also by the way introduce yourself and explain your role and capabilities, then suggest something you can do for the user.\n"
                 msg_with_user_and_id = f"{msg_with_user_and_id}\n{system_message}"
 
+            # add here the summary of whats been going on recenly 
 
         if (not indic and tag and not dmcheck) or (dmcheck and not indic):
         # Retrieve the first and the last up to 20 messages from the thread
@@ -320,13 +321,12 @@ class SlackBotAdapter(BotOsInputAdapter):
                     thread_messages.append({'user': user_name, 'message': text})
 
                 # Construct the thread history message
-                thread_history_msg = "YOU WERE JUST ADDED TO THIS SLACK THREAD IN PROGRESS, HERE IS THE HISTORY:\n"
-                for message in thread_messages:
-                    thread_history_msg += f"{message['user']}: {message['message']}\n"
-                
-                thread_history_msg+= "\nTHE MESSAGE THAT YOU WERE JUST TAGGED ON AND SHOULD RESPOND TO IS:\n"
-                # Add the thread history to the msg_with_user_and_id
-                msg_with_user_and_id = f"{thread_history_msg}{msg_with_user_and_id}"
+                if len(thread_messages) > 2:
+                    thread_history_msg = "YOU WERE JUST ADDED TO THIS SLACK THREAD IN PROGRESS, HERE IS THE HISTORY:\n"
+                    for message in thread_messages:
+                        thread_history_msg += f"{message['user']}: {message['message']}\n"
+                    thread_history_msg+= "\nTHE MESSAGE THAT YOU WERE JUST TAGGED ON AND SHOULD RESPOND TO IS:\n"
+                    msg_with_user_and_id = f"{thread_history_msg}{msg_with_user_and_id}"
     
         return BotOsInputMessage(thread_id=thread_id, msg=msg_with_user_and_id, files=files, 
                                 metadata=metadata) 

@@ -195,21 +195,21 @@ autonomous_functions = [
                 "properties": {
                     "action": {"type": "string", "description": "The action to perform on the task: CREATE, UPDATE, or DELETE.  Or LIST to get details on all tasks for a bot, or TIME to get current system time."},
                     "bot_id": {"type": "string", "description": "The identifier of the bot for which to manage tasks."},
-                    "task_id": {"type": "string", "description": "The unique identifier of the task, create as bot_id_<random 6 character string>."},
+                    "task_id": {"type": "string", "description": "The unique identifier of the task, create as bot_id_<random 6 character string>. MAKE SURE TO DOUBLE-CHECK THAT YOU ARE USING THE CORRECT task_id ON UPDATES AND DELETES!"},
                     "task_details": {
                         "type": "object",
                         "description": "The details of the task, required for create and update actions.",
                         "properties": {
                             "task_name": {"type": "string", "description": "The name of the task."},
-                            "primary_report_to_type": {"type": "string", "description": "SLACK_USER if a human set up the task, or SLACK_BOT if another bot did"},
-                            "primary_report_to_id": {"type": "string", "description": "The Slack User ID the person or bot to report status to."},
+                            "primary_report_to_type": {"type": "string", "description": "Set to SLACK_USER"},
+                            "primary_report_to_id": {"type": "string", "description": "The Slack USER ID of the person who told you to create the task."},
                             "next_check_ts": {"type": "string", "description": "The timestamp for the next check of the task in format 'YYYY-MM-DD HH:MM:SS'. Call action TIME to get current time. Make sure this time is in the future."},
                             "action_trigger_type": {"type": "string", "description": "TIMER or QUERY_ROWS"},
                             "action_trigger_details": {"type": "string", "description": "For TIMER, a description of when to call the task, eg every hour, Tuesdays at 9am, every morning. For QUERY_ROWS the query for when any rows are returned the task should be triggered."},
                             "task_instructions": {"type": "string", "description": "Detailed instructions for completing the task."},
                             "reporting_instructions": {"type": "string", "description": "What information to report back on and how (post to channel, DM a user, etc.)"},
                             "last_task_status": {"type": "string", "description": "The current status of the task."},
-                            "task_learnings": {"type": "string", "description": "Learnings or notes associated with the task from any prior runs."},
+                            "task_learnings": {"type": "string", "description": "Leave blank on creation, don't change on update unless instructed to."},
                             "task_active": {"type": "boolean", "description": "Is task active"}
                         },
                         "required": ["task_name", "action_trigger_details", "task_instructions", "reporting_instructions", "last_task_status", "task_learnings", "task_active"]

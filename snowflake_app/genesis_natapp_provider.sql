@@ -417,6 +417,7 @@ CREATE SCHEMA IF NOT EXISTS GENESIS_LOCAL_DB.SETTINGS;
 
 -- create a network rule that allows Genesis Server to access OpenAI's API, and optionally Slack 
 
+-- create a network rule that allows Genesis Server to access OpenAI's API, and optionally Slack API and Azure Blob (for image generation) 
 CREATE OR REPLACE NETWORK RULE GENESIS_LOCAL_DB.SETTINGS.GENESIS_RULE
  MODE = EGRESS TYPE = HOST_PORT
 VALUE_LIST = ('api.openai.com', 'slack.com', 'www.slack.com', 'wss-primary.slack.com',
@@ -565,9 +566,9 @@ BEGIN
         ' FROM SPECIFICATION  '||chr(36)||chr(36)||'\n'|| :spec ||'\n'||chr(36)||chr(36) ||
         ' ';
 
-      EXECUTE IMMEDIATE 'grant select on all tables in schema '||:INSTANCE_NAME||' TO APPLICATION ROLE APP_PUBLIC';
+--      EXECUTE IMMEDIATE 'grant select on all tables in schema '||:INSTANCE_NAME||' TO APPLICATION ROLE APP_PUBLIC';
 
-      EXECUTE IMMEDIATE 'grant select on future tables in schema '||:INSTANCE_NAME||' TO APPLICATION ROLE APP_PUBLIC';
+--      EXECUTE IMMEDIATE 'grant select on future tables in schema '||:INSTANCE_NAME||' TO APPLICATION ROLE APP_PUBLIC';
 
 
       if (WAREHOUSE_NAME is not NULL)
@@ -1791,6 +1792,7 @@ BEGIN
  LET rs1 RESULTSET := (CALL GENESISAPP_APP.CORE.GET_APP_ENDPOINT(:APP_INSTANCE));
  RETURN TABLE(rs1);
 END;
+
 
 
 ALTER APPLICATION GENESISAPP_APP UPGRADE USING VERSION V0_1;

@@ -24,6 +24,7 @@ MR-(test) harvester dont crash if cant access schemas for a database listed in c
 (test) JL-files issue Chris and Robert are seeing -- use new logging to debug
 
 SHORT-TERM (BEFORE SUMMIT):
+Harvester log make it less explicit on data 
 Do stripe setup for monitized listing
 Ability to load whole stage folder to files for a bot
 Learnings service, learns from each thread once its done about data, schema, tables, general stuff, people, etc. Stores and updates background knowledge. 

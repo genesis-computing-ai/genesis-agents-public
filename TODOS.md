@@ -24,6 +24,11 @@ MR-(test) harvester dont crash if cant access schemas for a database listed in c
 (test) JL-files issue Chris and Robert are seeing -- use new logging to debug
 
 SHORT-TERM (BEFORE SUMMIT):
+Do stripe setup for monitized listing
+Ability to load whole stage folder to files for a bot
+Learnings service, learns from each thread once its done about data, schema, tables, general stuff, people, etc. Stores and updates background knowledge. 
+Injector to inject the right kind of knowledge into thread on these topics
+Clean up logs
 JL-Give Kevin's docs to Jenny and see if she can answer q's based on them
 add a way to remove tools from bot
 User understanding system of what bot has done with the user recently (with summaries?)

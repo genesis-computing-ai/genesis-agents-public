@@ -368,11 +368,11 @@ class SchemaExplorer:
 
             return non_indexed_tables
         
-        def process_dataset_step2(dataset, non_indexed_tables, max_to_process = 1000):
+        def process_dataset_step2( non_indexed_tables, max_to_process = 1000):
 
                 local_summaries = {}
                 if len(non_indexed_tables) > 0:
-                    print(f'starting indexing of {len(non_indexed_tables)} new or objects in {dataset}...', flush=True)
+                    print(f'starting indexing of {len(non_indexed_tables)} objects...', flush=True)
                 for row in non_indexed_tables:
                     try:
                         qualified_table_name = row.get('qualified_table_name',row)
@@ -394,7 +394,7 @@ class SchemaExplorer:
                         self.store_table_memory(database, schema, table, summary="Harvester Error: {e}", ddl="Harvester Error", ddl_short="Harvester Error", flush=True)
                     
                     local_summaries[qualified_table_name] = summary
-                return dataset, local_summaries
+                return local_summaries
 
         # Using ThreadPoolExecutor to parallelize dataset processing
    
@@ -405,7 +405,7 @@ class SchemaExplorer:
         for schema in schemas:
             tables_for_full_processing.extend(process_dataset_step1(schema))
         random.shuffle(tables_for_full_processing)
-        process_dataset_step2(schema,tables_for_full_processing)
+        process_dataset_step2(tables_for_full_processing)
 
         return 'Processed'
    

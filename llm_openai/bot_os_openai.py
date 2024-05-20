@@ -509,10 +509,10 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       else:
 
          # make sure this works when adding tools
-         logger.warning(f'validate_or_add_function, fn name={function_name}')
+         print(f'validate_or_add_function, fn name={function_name}')
          try:
             available_functions_load = {}
-            logger.warn(f"validate_or_add_function - function_name: {function_name}")
+         #   logger.warn(f"validate_or_add_function - function_name: {function_name}")
             fn_name = function_name.split('.')[-1] if '.' in function_name else function_name
             #logger.warn(f"validate_or_add_function - fn_name: {fn_name}")
             module_path = "generated_modules."+fn_name
@@ -524,33 +524,33 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
             try:
                module = __import__(module_path, fromlist=[desc_func, functs_func])
             except:
-               logger.warn(f"validate_or_add_function - module {module_path} does not need to be imported, proceeding...")
+            #   logger.warn(f"validate_or_add_function - module {module_path} does not need to be imported, proceeding...")
                return True
-            logger.warn(f"validate_or_add_function - module: {module}")
+           # logger.warn(f"validate_or_add_function - module: {module}")
             # here's how to get the function for generated things even new ones... 
             func = [getattr(module, desc_func)]
-            logger.warn(f"validate_or_add_function - func: {func}")
+    #        logger.warn(f"validate_or_add_function - func: {func}")
             self.all_tools.extend(func)
             self.all_function_to_tool_map[fn_name]=func
-            logger.warn(f"validate_or_add_function - all_function_to_tool_map[{fn_name}]: {func}")
+           # logger.warn(f"validate_or_add_function - all_function_to_tool_map[{fn_name}]: {func}")
             #self.function_to_tool_map[function_name]=func
             func_af = getattr(module, functs_func)
-            logger.warn(f"validate_or_add_function - func_af: {func_af}")
+         #   logger.warn(f"validate_or_add_function - func_af: {func_af}")
             available_functions_load.update(func_af)
-            logger.warn(f"validate_or_add_function - available_functions_load: {available_functions_load}")
+        #    logger.warn(f"validate_or_add_function - available_functions_load: {available_functions_load}")
 
             for name, full_func_name in available_functions_load.items():
-               logger.warn(f"validate_or_add_function - Looping through available_functions_load - name: {name}, full_func_name: {full_func_name}")
+            #   logger.warn(f"validate_or_add_function - Looping through available_functions_load - name: {name}, full_func_name: {full_func_name}")
                module2 = __import__(module_path, fromlist=[fn_name])
-               logger.warn(f"validate_or_add_function - module2: {module2}")
+             #  logger.warn(f"validate_or_add_function - module2: {module2}")
                func = getattr(module2, fn_name)
-               logger.warn(f"validate_or_add_function - Imported function: {func}")
+            #   logger.warn(f"validate_or_add_function - Imported function: {func}")
                self.all_functions[name] = func
-               logger.warn(f"validate_or_add_function - all_functions[{name}]: {func}")
+            #   logger.warn(f"validate_or_add_function - all_functions[{name}]: {func}")
          except:
             logger.warning(f"Function '{function_name}' is not in all_functions. Please add it before proceeding.")
 
-         logger.info(f"Likely newly generated function '{function_name}' added all_functions.")
+         print(f"Likely newly generated function '{function_name}' added all_functions.")
          return False
 
    

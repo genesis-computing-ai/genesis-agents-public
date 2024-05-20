@@ -22,39 +22,38 @@ MR-(test) harvester dont crash if cant access schemas for a database listed in c
 x (test) JL-files issue Chris and Robert are seeing -- use new logging to debug
 n (include grants on future objects to accountadmin)
 (test) deploy bot flow, make sure new message shows up
+(test) Clean up logs
+(test) Harvester log make it less explicit on data 
 
 SHORT-TERM (BEFORE SUMMIT):
-Harvester log make it less explicit on data 
 MG-Do stripe setup for monitized listing
-Ability to load whole stage folder to files for a bot
-Learnings service, learns from each thread once its done about data, schema, tables, general stuff, people, etc. Stores and updates background knowledge. 
-Injector to inject the right kind of knowledge into thread on these topics
-Clean up logs
-JL-Give Kevin's docs to Jenny and see if she can answer q's based on them
-add a way to remove tools from bot
-User understanding system of what bot has done with the user recently (with summaries?)
-Initial memory system using vector search on message history?
-JL-Have DMs also get history if they are not threadded, give the past n DMs too 
 RV-Add USERS field to messages log table to keep track of the users involved in a thread or dm
 MR-list index out of range on bot config when you refresh directly to it.. add more retrys
 MR-add a few doublechecks before going to the initiall install screen in Sis
-MR-add the bot images table and view to the copy program to other regions
 MR-Pre-harvest and share information_schema
 JL-changing openAI key via streamlit when running gives an error: (bots conflicts with existing job-- dont add scheduler job again if already running)
-JL-(test more on spcs) Something blocks the thinking messages or bolt app when doing image analysis and/or file generation/upload to Slack
 MR-SiS app will restart service is suspended (With pool) but doesnt wake up harvester, errors in SiS log harvest screen
 MR-Add a sevice start/stop/restart buttons to SiS
 MR-Add a message to the top of the SisChat page suggesting activating via slack, via a temp workspace
-(soon) have Eliza more proactively suggest analyzing baseball data if there is no other data, once there is change her prompt to suggest analyzing data that is added first 
-(soon) Add a regular checkin task to check in with the person who DMs them, talk back to able (make sure you can stop it)
-(soon) add the ability for send_direct and _channel messages to have created files in them (works for images, not for graphs/pdfs - maybe a tool to save file locally and retrigger thread...?) 
-(soon) stop bot back and forth with other bots after a few turns
-(soon) When you send a message to a thread that's already running, queue it up and don't submit another, then consolidate all of them when its ready and send them all at once once the run is done.
-(soon) Add undeploy from Slack button on bot config
 MR-harvester - change the include flag column to exclude and use that field instead of deleting a row to stop auto harvesting
-MR-add link to support Slack workspace on SiS
+MR-add link to support Slack workspace inviter page on SiS
 
 POST-SUMMIT:
+JL-Have DMs also get history if they are not threadded, give the past n DMs too 
+JL-Give Kevin's docs to Jenny and see if she can answer q's based on them
+MR-add the bot images table and view to the copy program to other regions
+(soon) have Eliza more proactively suggest analyzing baseball data if there is no other data, once there is change her prompt to suggest analyzing data that is added first 
+(soon) add the ability for send_direct and _channel messages to have created files in them (works for images, not for graphs/pdfs - maybe a tool to save file locally and retrigger thread...?) 
+(soon) Add undeploy from Slack button on bot configJL-(test more on spcs) Something blocks the thinking messages or bolt app when doing image analysis and/or file generation/upload to Slack
+(soon) stop bot back and forth with other bots after a few turns
+(soon) When you send a message to a thread that's already running, queue it up and don't submit another, then consolidate all of them when its ready and send them all at once once the run is done.
+(soon) Add a regular checkin task to check in with the person who DMs them, talk back to able (make sure you can stop it)
+Learnings service, learns from each thread once its done about data, schema, tables, general stuff, people, etc. Stores and updates background knowledge. 
+Injector to inject the right kind of knowledge into thread on these topics
+add a way to remove tools from bot
+User understanding system of what bot has done with the user recently (with summaries?)
+Initial memory system using vector search on message history?
+Ability to load whole stage folder to files for a bot
 (later) make sure endpoint is not the empty message, if so wait until its provisioned before updating any callback URLS, if there are any bots that needs them
 x (later) figure out cortex runner why its costs are nuts
 (later) Try harvester with mistral or yak model to save costs 

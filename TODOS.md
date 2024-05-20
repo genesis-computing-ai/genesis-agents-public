@@ -51,6 +51,8 @@ MR-Add a message to the top of the SisChat page suggesting activating via slack,
 (soon) stop bot back and forth with other bots after a few turns
 (soon) When you send a message to a thread that's already running, queue it up and don't submit another, then consolidate all of them when its ready and send them all at once once the run is done.
 (soon) Add undeploy from Slack button on bot config
+MR-harvester - change the include flag column to exclude and use that field instead of deleting a row to stop auto harvesting
+MR-add link to support Slack workspace on SiS
 
 POST-SUMMIT:
 (later) make sure endpoint is not the empty message, if so wait until its provisioned before updating any callback URLS, if there are any bots that needs them

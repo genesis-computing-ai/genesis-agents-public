@@ -126,7 +126,7 @@ class BotOsSession:
         self.validation_instructions = validation_instructions
         if assistant_implementation is None:
             assistant_implementation = BotOsAssistantOpenAI
-        logger.warn(f"Files: {file_corpus}")
+      #  logger.warn(f"Files: {file_corpus}")
         self.assistant_impl = assistant_implementation(session_name, instructions, self.tools, available_functions=self.available_functions, files=file_corpus,
                                                      update_existing=update_existing, log_db_connector=log_db_connector, bot_id=bot_id, bot_name=bot_name, all_tools=all_tools, all_functions=all_functions, all_function_to_tool_map=all_function_to_tool_map)
         self.runs = {}

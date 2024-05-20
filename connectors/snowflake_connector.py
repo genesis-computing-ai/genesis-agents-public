@@ -1560,7 +1560,7 @@ class SnowflakeConnector(DatabaseConnector):
             self.token_connection = True
          #   logger.warn('Snowflake token mode (SPCS)...') 
             if os.getenv('SNOWFLAKE_SECURE', 'TRUE').upper() == 'FALSE': 
-                logger.info('insecure mode')
+        #        logger.info('insecure mode')
                 return connect(
                 host = os.getenv('SNOWFLAKE_HOST'),
         #        port = os.getenv('SNOWFLAKE_PORT'),
@@ -1576,7 +1576,7 @@ class SnowflakeConnector(DatabaseConnector):
                 )
             
             else:
-                logger.info('secure mode') 
+        #        logger.info('secure mode') 
                 return connect(
                 host = os.getenv('SNOWFLAKE_HOST'),
        #         port = os.getenv('SNOWFLAKE_PORT'),
@@ -1590,7 +1590,7 @@ class SnowflakeConnector(DatabaseConnector):
                 client_session_keep_alive = True,
                 )
 
-        logger.warn('Snowflake regular connection...') 
+        print('Creating Snowflake regular connection...') 
         self.token_connection = False 
 
         if os.getenv('SNOWFLAKE_SECURE', 'TRUE').upper() == 'FALSE': 
@@ -2500,12 +2500,12 @@ class SnowflakeConnector(DatabaseConnector):
         num_retry, max_retries = 0, 3
         while num_retry <= 10:
             num_retry += 1
-            logger.warning('Checking REST token...')
+        #    logger.warning('Checking REST token...')
             rest_token = self.connection.rest.token
             if rest_token:
-                logger.warning('REST token length: %d', len(rest_token))
+                print('REST token length: %d', len(rest_token))
             else:
-                logger.warning('REST token is not available')
+                print('REST token is not available')
             try:
                 resp = requests.post(
                         (

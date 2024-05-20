@@ -92,7 +92,7 @@ def create_func_wrapper(function, func_name):
 
 def execute_function(func_name:str, arguments, available_functions, completion_callback, thread_id:str,
                      bot_id:str):
-    print(f"fn execute_function - {func_name} - {arguments}")
+    print(f"fn execute_function - {func_name}")
     function = available_functions.get(func_name)
     if function:
         s_arguments = json.loads(arguments)

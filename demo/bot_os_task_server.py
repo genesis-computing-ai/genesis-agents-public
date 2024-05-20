@@ -31,18 +31,17 @@ import core.global_flags as global_flags
 #os.environ['TEST_TASK_MODE'] = 'true'
 ########################################
 
-print("****** GENBOT VERSION 0.130 *******")
+print("****** GENBOT VERSION 0.131 *******")
 print("****** TASK AUTOMATION SERVER *******")
-logger.warning('******* GENBOT VERSION 0.130*******')
 runner_id = os.getenv('RUNNER_ID','jl-local-runner')
 print("Runner ID: ", runner_id )
 snowflake_secure_value = os.getenv('SNOWFLAKE_SECURE')
-if snowflake_secure_value is not None:
-    print("SNOWFLAKE_SECURE:", snowflake_secure_value)
-    logger.warning("SNOWFLAKE_SECURE: %s", snowflake_secure_value)
-else:
-    print("SNOWFLAKE_SECURE: not set")
-    logger.warning("SNOWFLAKE_SECURE: not set")
+#if snowflake_secure_value is not None:
+#    print("SNOWFLAKE_SECURE:", snowflake_secure_value)
+#    logger.warning("SNOWFLAKE_SECURE: %s", snowflake_secure_value)
+#else:
+ #   print("SNOWFLAKE_SECURE: not set")
+#    logger.warning("SNOWFLAKE_SECURE: not set")
 
 # Check if TEST_TASK_MODE is false or not existent, then wait and print a message
 if not os.getenv('TEST_TASK_MODE', 'false').lower() == 'true':
@@ -169,7 +168,7 @@ def make_session(bot_config):
     if "snowflake_stage_tools" in bot_tools and 'make_baby_bot' in bot_tools:        
         instructions += f"\nYour Internal Files Stage for bots is at snowflake stage: {genbot_internal_project_and_schema}.BOT_FILES_STAGE"
 
-    print(instructions, f'{bot_config["bot_name"]}, id: {bot_config["bot_id"]}' )
+    #print(instructions, f'{bot_config["bot_name"]}, id: {bot_config["bot_id"]}' )
     
     # TESTING UDF ADAPTER W/EVE and ELSA
     # add a map here to track botid to adapter mapping
@@ -231,7 +230,7 @@ def make_session(bot_config):
                                     thread_id=session.create_thread(slack_adapter_local))
     api_app_id = bot_config['api_app_id']  # Adjust based on actual field name in bots_config
 
-    print('here: session: ',session)
+  #  print('here: session: ',session)
     return session, api_app_id, udf_adapter_local, slack_adapter_local
 
 
@@ -246,6 +245,7 @@ def create_sessions(default_llm_engine, llm_api_key):
     bot_id_to_slack_adapter_map = {}
 
     for bot_config in bots_config:
+        print(f'Making session for bot {bot_config["bot_id"]}')
         new_session, api_app_id, udf_adapter_local, slack_adapter_local  = make_session(bot_config=bot_config)
         if new_session is not None:
             sessions.append(new_session)
@@ -855,7 +855,7 @@ def zaiper_handler():
     except:
         return('Missing API Key')
     
-    print("Zapier: ", api_key)
+ #   print("Zapier: ", api_key)
     return({"Success": True, "Message": "Success"})
 
 
@@ -931,7 +931,7 @@ def bot_install_followup(bot_id=None, no_slack=False):
         if udf_local_adapter is not None:
             bot_id_to_udf_adapter_map[bot_config["bot_id"]]= udf_local_adapter
         api_app_id_to_session_map[api_app_id] = new_session
-        print("about to add session ",new_session)
+     #   print("about to add session ",new_session)
         server.add_session(new_session, replace_existing=True)
 
         if no_slack:
@@ -1100,8 +1100,12 @@ def tasks_loop():
     pending_tasks = deque()
     task_retry_attempts_map = {}
 
+    i = 10
     while True:
-
+        i = i + 1
+        if i >= 10:
+            print('Checking tasks...')
+            i = 0
         iteration_start_time = datetime.datetime.now()
         # Retrieve the list of bots and their tasks
         
@@ -1141,7 +1145,7 @@ def tasks_loop():
             processed_tasks = []
             for task_id, response in response_map.items():
 
-                print(f"Processing response for task {task_id}: {response.output}")
+                print(f"Processing response for task {task_id}: output len: {len(response.output)}")
                 # Process the response for each task
                 # This could involve updating task status, logging the response, etc.
                 # The exact processing will depend on the application's requirements
@@ -1277,10 +1281,10 @@ def tasks_loop():
         if time_to_sleep > 0:
             for remaining in range(time_to_sleep, 0, -5):
                 sys.stdout.write("\r")
-                sys.stdout.write("Waiting for {:2d} seconds before next check of tasks".format(remaining)) 
+     #           sys.stdout.write("Waiting for {:2d} seconds before next check of tasks".format(remaining)) 
                 sys.stdout.flush()
                 time.sleep(5)
-            sys.stdout.write("\rComplete! Waiting over.          \n")
+      #      sys.stdout.write("\rComplete! Waiting over.          \n")
 
         # now go through the queue of pending task runs, and check input adapter maps for responses 
         # process responses

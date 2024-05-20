@@ -33,8 +33,8 @@ logging.basicConfig(level=logging.WARN, format='%(asctime)s - %(levelname)s - %(
 
 import core.global_flags as global_flags
 
-print("****** GENBOT VERSION 0.130 *******")
-logger.warning('******* GENBOT VERSION 0.130*******')
+print("****** GENBOT VERSION 0.131 *******")
+logger.warning('******* GENBOT VERSION 0.131*******')
 
 runner_id = os.getenv('RUNNER_ID','jl-local-runner')
 print("Runner ID: ", runner_id )
@@ -165,7 +165,7 @@ def make_session(bot_config):
     if simple_mode:
         instructions = "You are a smart data analyst named Eliza. Use emojiis to express your fun personality. You have access to 2 tools, semantic_copilot to get SQL for a natural language prompt, and run_query to execute the sql you get. Use lots of emojis to express your personality. Return data grids and sql statements in three backticks example: ``` <data> or <sql> ```. DO NOT HALUCINATE tool calls or results of tools."
 
-    print(instructions, f'{bot_config["bot_name"]}, id: {bot_config["bot_id"]}' )
+    #print(instructions, f'{bot_config["bot_name"]}, id: {bot_config["bot_id"]}' )
     
     # TESTING UDF ADAPTER W/EVE and ELSA
     # add a map here to track botid to adapter mapping
@@ -248,6 +248,7 @@ def create_sessions(default_llm_engine, llm_api_key):
     bot_id_to_slack_adapter_map = {}
 
     for bot_config in bots_config:
+        print(f'Making session for bot {bot_config["bot_id"]}')
         new_session, api_app_id, udf_adapter_local, slack_adapter_local  = make_session(bot_config=bot_config)
         if new_session is not None:
             sessions.append(new_session)
@@ -817,7 +818,7 @@ def zaiper_handler():
     except:
         return('Missing API Key')
     
-    print("Zapier: ", api_key)
+  #  print("Zapier: ", api_key)
     return({"Success": True, "Message": "Success"})
 
 
@@ -893,7 +894,7 @@ def bot_install_followup(bot_id=None, no_slack=False):
         if udf_local_adapter is not None:
             bot_id_to_udf_adapter_map[bot_config["bot_id"]]= udf_local_adapter
         api_app_id_to_session_map[api_app_id] = new_session
-        print("about to add session ",new_session)
+    #    print("about to add session ",new_session)
         server.add_session(new_session, replace_existing=True)
 
         if no_slack:

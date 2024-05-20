@@ -223,7 +223,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
              with open(f"./downloaded_files/{thread_id}/{file_name}", 'wb') as dest_file:
                  dest_file.write(source_file.read())
    
-         print("loading files")
+    #     print("loading files")
          fo = open(new_file_location,"rb")
          file = self.client.files.create(file=(file_name, fo), purpose="assistants")
 
@@ -252,9 +252,9 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       #logger.warn(f"ADDING MESSAGE -- input thread_id: {thread_id} -> openai thread: {thread}")
       try:
          #logger.error("REMINDER: Update for message new files line 117 on botosopenai.py")
-         print('... openai add_message before upload_files, input_message.files = ', input_message.files)
+         #print('... openai add_message before upload_files, input_message.files = ', input_message.files)
          file_ids, file_map = self._upload_files(input_message.files, thread_id=thread_id)
-         print('... openai add_message file_id, file_map: ', file_ids, file_map)
+         #print('... openai add_message file_id, file_map: ', file_ids, file_map)
          attachments = []
          for file_id in file_ids:
              tools = []
@@ -272,7 +272,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
              content += "\n\nFile Name to Id Mappings:\n"
              for mapping in file_map:
                  content += f"- {mapping['file_name']}: {mapping['file_id']}\n"
-         print('... openai add_message attachments: ', attachments)
+        # print('... openai add_message attachments: ', attachments)
          thread_message = self.client.beta.threads.messages.create(
             thread_id=thread_id, attachments=attachments, content=content, 
             role="user", 
@@ -444,7 +444,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       # Use the retrieve file contents API to get the file directly
 
       try:
-         print(f"{self.bot_name} open_ai download_file file_id: {file_id}", flush=True)
+        # print(f"{self.bot_name} open_ai download_file file_id: {file_id}", flush=True)
 
          try:
             file_id = file_id.get('file_id',None)
@@ -455,16 +455,16 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                pass
 
          file_info = self.client.files.retrieve(file_id=file_id)
-         print(f"{self.bot_name} open_ai download_file id: {file_info.id} name: {file_info.filename}", flush=True)
+      #   print(f"{self.bot_name} open_ai download_file id: {file_info.id} name: {file_info.filename}", flush=True)
          file_contents = self.client.files.content(file_id=file_id)
 
-         try:         
-            print(f"{self.bot_name} open_ai download_file file_id: {file_id} contents_len: {len(file_contents.content)}", flush=True)
-         except Exception as e:
-             print(f"{self.bot_name} open_ai download_file file_id: {file_id} ERROR couldn't get file length: {e}", flush=True)
+     #    try:         
+     #       print(f"{self.bot_name} open_ai download_file file_id: {file_id} contents_len: {len(file_contents.content)}", flush=True)
+     #    except Exception as e:
+     #        print(f"{self.bot_name} open_ai download_file file_id: {file_id} ERROR couldn't get file length: {e}", flush=True)
   
          local_file_path = os.path.join(f"./downloaded_files/{thread_id}/", os.path.basename(file_info.filename))
-         print(f"{self.bot_name} open_ai download_file file_id: {file_id} localpath: {local_file_path}", flush=True)
+      #   print(f"{self.bot_name} open_ai download_file file_id: {file_id} localpath: {local_file_path}", flush=True)
          
          # Ensure the directory exists
          os.makedirs(os.path.dirname(local_file_path), exist_ok=True)
@@ -473,7 +473,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
          # Save the file contents locally
          file_contents.write_to_file(local_file_path)
        
-         print(f"{self.bot_name} open_ai download_file wrote file: {file_id} to localpath: {local_file_path}", flush=True)
+  #       print(f"{self.bot_name} open_ai download_file wrote file: {file_id} to localpath: {local_file_path}", flush=True)
        
          # Save a copy of the file with the file_id as the file name
          try:
@@ -490,7 +490,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       return local_file_path
 
    def _store_files_locally(self, file_ids, thread_id):
-      print(f"{self.bot_name} open_ai store_files_locally, file_ids: {file_ids}", flush=True)
+    #  print(f"{self.bot_name} open_ai store_files_locally, file_ids: {file_ids}", flush=True)
       return [self._download_openai_file(file_id, thread_id) for file_id in file_ids]
    
    def validate_or_add_function(self, function_name):
@@ -696,15 +696,15 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                latest_message = messages.data[0]
                latest_attachments = latest_message.attachments
 
-               print(f"{self.bot_name} open_ai response full content: {latest_message.content}", flush=True)
+            #   print(f"{self.bot_name} open_ai response full content: {latest_message.content}", flush=True)
 
-               print(f"{self.bot_name} open_ai response attachment info: {latest_message.attachments}", flush=True)
+            #   print(f"{self.bot_name} open_ai response attachment info: {latest_message.attachments}", flush=True)
                output = ""
                for content in latest_message.content:
                    if content.type == 'image_file':
                      try:
                         file_id = content.image_file.file_id if hasattr(content.image_file, 'file_id') else None
-                        print('openai image_file tag present, fileid: ',file_id)
+                     #   print('openai image_file tag present, fileid: ',file_id)
                         if file_id is not None and file_id not in latest_attachments:
                            latest_attachments.append({"file_id": file_id})
                      except Exception as e:
@@ -721,9 +721,9 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                      meta = meta_prime
                   else:
                      meta = run.metadata
-                  print(f"{self.bot_name} open_ai attachment info going into store files locally: {latest_attachments}", flush=True)
+                #  print(f"{self.bot_name} open_ai attachment info going into store files locally: {latest_attachments}", flush=True)
                   files_in = self._store_files_locally(latest_attachments, thread_id)
-                  print(f"{self.bot_name} open_ai output of store files locally {files_in}")
+                #  print(f"{self.bot_name} open_ai output of store files locally {files_in}")
                   event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id, 
                                                                      status=run.status, 
                                                                      output=output, 

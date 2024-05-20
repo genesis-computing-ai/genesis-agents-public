@@ -69,7 +69,7 @@ class SlackBotAdapter(BotOsInputAdapter):
                 if len(txt) == 50:
                     txt = txt + "..."
                 if txt != 'no text' and txt != '_thinking..._':
-                    print(f'{self.bot_name} slack_in {event.get("type","no type")[:50]}, text: {txt}, queue len {len(self.events)+1}')
+                    print(f'{self.bot_name} slack_in {event.get("type","no type")[:50]}, queue len {len(self.events)+1}')
                 if self.bot_user_id == event.get("user","NO_USER"):
                     self.last_message_id_dict[event.get("thread_ts",None)] = event.get("ts",None)
                 if event.get("text","no text") != '_thinking..._' and self.bot_user_id != event.get("user","NO_USER") and event.get("subtype","none") != 'message_changed' and event.get("subtype","none") != 'message_deleted':
@@ -130,14 +130,14 @@ class SlackBotAdapter(BotOsInputAdapter):
             file_name = file_info.get('name')
             if url_private and file_name:
                 local_path = f"./downloaded_files/{thread_id}/{file_name}"
-                print('... downloading slack file ',file_name,' from ',url_private,' to ',local_path,flush=True)
+              #  print('... downloading slack file ',file_name,' from ',url_private,' to ',local_path,flush=True)
                 os.makedirs(os.path.dirname(local_path), exist_ok=True)
                 try:
                     with requests.get(url_private, headers={'Authorization': 'Bearer %s' % self.slack_app._token}, stream=True) as r:
                         # Raise an exception for bad responses
                         r.raise_for_status()
                         # Open a local file with write-binary mode
-                        print('... saving locally to ',local_path)
+                  #      print('... saving locally to ',local_path)
                         with open(local_path, 'wb') as f:
                             # Write the content to the local file
                             for chunk in r.iter_content(chunk_size=32768):
@@ -145,7 +145,7 @@ class SlackBotAdapter(BotOsInputAdapter):
                       #      f.write(r.content)
                         
                         files.append(local_path)
-                        print('... download_slack_files downloaded ',local_path)
+                #        print('... download_slack_files downloaded ',local_path)
                 except Exception as e:
                     print(f"Error downloading file from {url_private}: {e}")
         return files
@@ -206,7 +206,7 @@ class SlackBotAdapter(BotOsInputAdapter):
         if len(txt) == 50:
             txt += "..."
         if tag or indic or dmcheck:
-            print(f"{self.bot_name} bot_os get_input txt: {txt} for {self.bot_user_id} {tag},{indic},{dmcheck}", flush=True)
+            print(f"{self.bot_name} bot_os get_input for {self.bot_user_id} {tag},{indic},{dmcheck}", flush=True)
             active_thread = True
             if (self.bot_user_id,thread_ts) not in thread_ts_dict:
            #     print(f'{uniq}     --ENGAGE/ADD>  Adding {thread_ts} to dict', flush=True)
@@ -235,11 +235,12 @@ class SlackBotAdapter(BotOsInputAdapter):
             thinking_ts = None
 
         if 'files' in event:
-            print(f"    --/DOWNLOAD> downloading files for ({self.bot_name}) ")
+        #    print(f"    --/DOWNLOAD> downloading files for ({self.bot_name}) ")
             files = self._download_slack_files(event, thread_id = thread_id)
-            print(f"    --/DOWNLOADED> downloaded files for ({self.bot_name}), files={files} ")
+        #    print(f"    --/DOWNLOADED> downloaded files for ({self.bot_name}), files={files} ")
         else:
-            print('...*-*-*-* Files not in event', flush=True)
+            pass
+         #   print('...*-*-*-* Files not in event', flush=True)
 
         try:
             user_id = event["user"]
@@ -293,7 +294,8 @@ class SlackBotAdapter(BotOsInputAdapter):
             
             # Check if the conversation history retrieval was successful
             if not conversation_history.get('ok', False):
-                print("Failed to retrieve conversation history.")    
+                pass
+         #       print("Failed to retrieve conversation history.")    
             else:
                 original_user = conversation_history['messages'][0]['user'] if conversation_history['messages'] else None
                 from_you = original_user == self.bot_user_id if original_user else False
@@ -335,7 +337,7 @@ class SlackBotAdapter(BotOsInputAdapter):
         if files:
             file_urls = []
             for file_path in files:
-                print(f"Uploading file: {file_path}")
+            #    print(f"Uploading file: {file_path}")
                 try:
                  #   with open(file_path, 'rb') as file_content:
                       #  self.slack_app.client.files_upload(
@@ -349,7 +351,7 @@ class SlackBotAdapter(BotOsInputAdapter):
                         filename=os.path.basename(file_path),
                         file=file_path,
                     )
-                    print(f"Result of files_upload_v2: {new_file}")
+                #    print(f"Result of files_upload_v2: {new_file}")
                     file_url = new_file.get("file").get("permalink")
                     file_urls.append(file_url)
                 except Exception as e:
@@ -393,7 +395,7 @@ class SlackBotAdapter(BotOsInputAdapter):
                 for match in matches:
                     local_path = match.replace('sandbox:/mnt/data/downloads', '.downloaded_files')
                     if local_path not in files_in:
-                        print(f"Pattern 0 found, attaching {local_path}")
+                  #      print(f"Pattern 0 found, attaching {local_path}")
                         files_in.append(local_path)
 
 
@@ -403,7 +405,7 @@ class SlackBotAdapter(BotOsInputAdapter):
                 for match in matches:
                     local_path = match.replace('sandbox:/mnt/data', '.')
                     if local_path not in files_in:
-                        print(f"Pattern 1 found, attaching {local_path}")
+                  #      print(f"Pattern 1 found, attaching {local_path}")
                         files_in.append(local_path)
 
                 # Extract file paths from the message and add them to files_in array
@@ -412,7 +414,7 @@ class SlackBotAdapter(BotOsInputAdapter):
                 for chart_match in chart_matches:
                     local_chart_path = f"./downloaded_files/{chart_match}"
                     if local_chart_path not in files_in:
-                        print(f"Pattern 2 found, attaching {local_chart_path}")
+                   #     print(f"Pattern 2 found, attaching {local_chart_path}")
                         files_in.append(local_chart_path)
 
 
@@ -423,23 +425,23 @@ class SlackBotAdapter(BotOsInputAdapter):
                     local_file_path = file_match
                     if local_file_path not in files_in:
                         files_in.append(local_file_path)
-                        print(f"Pattern 3 found, attaching {local_file_path}")
+           #             print(f"Pattern 3 found, attaching {local_file_path}")
 
                 local_pattern = re.compile(r'!\[.*?\]\(\./downloaded_files/thread_(.*?)/(.+?)\)')
                 local_pattern_matches = local_pattern.findall(msg)
                 for local_match in local_pattern_matches:
                     local_path = f"./downloaded_files/thread_{local_match[0]}/{local_match[1]}"
                     if local_path not in files_in:
-                        print(f"Pattern 4 found, attaching {local_path}")
+              #         print(f"Pattern 4 found, attaching {local_path}")
                         files_in.append(local_path)
 
-                print("Uploading files:", files_in)
+          #      print("Uploading files:", files_in)
 
                 msg_files = self._upload_files(files_in, thread_ts=thread_ts, channel=message.input_metadata.get("channel", self.channel_id))
 
-                print("Result of files upload:", msg_files)
+      #          print("Result of files upload:", msg_files)
 
-                print("about to send to slack pre url fixes:", msg)
+      #          print("about to send to slack pre url fixes:", msg)
 
                 for msg_url in msg_files:
                     filename = msg_url.split('/')[-1]
@@ -463,13 +465,13 @@ class SlackBotAdapter(BotOsInputAdapter):
                 # Reformat the message if it contains a link in brackets followed by a URL in angle brackets
                 link_pattern = re.compile(r'\[(.*?)\]<(.+?)>')
                 msg = re.sub(link_pattern, r'<\2|\1>', msg)
-                print("sending message to slack post url fixes:", msg)
+          #      print("sending message to slack post url fixes:", msg)
                 result = self.slack_app.client.chat_postMessage(
                     channel=message.input_metadata.get("channel", self.channel_id),
                     thread_ts=thread_ts,
                     text=msg 
                 )
-                print("Result of sending message to Slack:", result)
+            #    print("Result of sending message to Slack:", result)
                 # Replace patterns in msg with the appropriate format
                 pattern = re.compile(r'\[(.*?)\]\(sandbox:/mnt/data/downloaded_files/(.*?)/(.+?)\)')
                 msg = re.sub(pattern, r'<\2|\1>', msg)

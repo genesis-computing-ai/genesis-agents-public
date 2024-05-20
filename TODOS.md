@@ -19,13 +19,13 @@ MR-(test) harvester dont crash if cant access schemas for a database listed in c
 (test) Check this function execute_function - _get_visible_tables - {"database":"my_data","schema":"public"}
 (test) check error handling for stage tools (added to list, check others)
 (test) fix add_new_tools_to_bots, 2024-05-10 23:32:09,104 - ERROR - callback_closure - _submit_tool_outputs - caught exception: argument of type 'NoneType' is not iterable
-(include grants on future objects to accountadmin)
+x (test) JL-files issue Chris and Robert are seeing -- use new logging to debug
+n (include grants on future objects to accountadmin)
 (test) deploy bot flow, make sure new message shows up
-(test) JL-files issue Chris and Robert are seeing -- use new logging to debug
 
 SHORT-TERM (BEFORE SUMMIT):
 Harvester log make it less explicit on data 
-Do stripe setup for monitized listing
+MG-Do stripe setup for monitized listing
 Ability to load whole stage folder to files for a bot
 Learnings service, learns from each thread once its done about data, schema, tables, general stuff, people, etc. Stores and updates background knowledge. 
 Injector to inject the right kind of knowledge into thread on these topics

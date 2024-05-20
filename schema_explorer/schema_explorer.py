@@ -79,7 +79,7 @@ class SchemaExplorer:
             self.store_table_summary(database, schema, table, ddl=ddl, ddl_short=ddl_short,summary=summary, sample_data=sample_data_str)
   
         except Exception as e:
-            print(f"Harvester Error for {database}.{schema}.{table}: {e}")
+            print(f"Harvester Error for an object: {e}")
             self.store_table_summary(database, schema, table, summary="Harvester Error: {e}", ddl="Harvester Error", ddl_short="Harvester Error", sample_data="Harvester Error")
    
 
@@ -118,10 +118,10 @@ class SchemaExplorer:
                                                 complete_description=complete_description,
                                                 embedding=embedding)
             
-            print(f"Stored summary for {schema}.{table} in Harvest Results.")
+            print(f"Stored summary for an object in Harvest Results.")
    
         except Exception as e:
-            print(f"Harvester Error for {database}.{schema}.{table}: {e}")
+            print(f"Harvester Error for an object: {e}")
             self.store_table_summary(database, schema, table, summary="Harvester Error: {e}", ddl="Harvester Error", ddl_short="Harvester Error", sample_data="Harvester Error")
    
         ## Assuming an instance of BotOsKnowledgeLocal named memory_system exists
@@ -174,13 +174,14 @@ class SchemaExplorer:
 
     def explore_schemas(self):
         for schema in self.db_connector.get_schemas():
-            print(f"Schema: {schema}")
+        #    print(f"Schema: {schema}")
             tables = self.db_connector.get_tables(schema)
             for table in tables:
-                print(f"  Table: {table}")
+     #           print(f"  Table: {table}")
                 columns = self.db_connector.get_columns(schema, table)
                 for column in columns:
-                    print(f"    Column: {column}")
+                    pass
+              #      print(f"    Column: {column}")
 
     def generate_table_summary_prompt(self, database, schema, table, columns):
         prompt = f"Please provide a brief summary of a database table in the '{database}.{schema}' schema named '{table}'. This table includes the following columns: {', '.join(columns)}."
@@ -259,9 +260,9 @@ class SchemaExplorer:
             if crawl_flag:
                 harvesting_databases.append(database)
                 schemas.extend([database["database_name"]+"."+schema for schema in self.get_active_schemas(database)])
-                print(f'Checking {self.db_connector.source_name} Database {database["database_name"]} for new or changed objects (cycle#: {self.run_number}, refresh every: {database["refresh_interval"]})', flush=True)
+                print(f'Checking a Database for new or changed objects (cycle#: {self.run_number}, refresh every: {database["refresh_interval"]})', flush=True)
             else: 
-                print(f'Skipping {self.db_connector.source_name} Database {database["database_name"]}, not in current refresh cycle (cycle#: {self.run_number}, refresh every: {database["refresh_interval"]})', flush=True)
+                print(f'Skipping a Database, not in current refresh cycle (cycle#: {self.run_number}, refresh every: {database["refresh_interval"]})', flush=True)
 
         summaries = {}
         total_processed = 0
@@ -277,7 +278,7 @@ class SchemaExplorer:
             # query to find new
             # tables, or those with changes to their DDL
 
-            print('Checking ',self.db_connector.source_name,' Schema ',dataset,' for new (not changed) objects.', flush=True)
+            print('Checking a schema for new (not changed) objects.', flush=True)
             if self.db_connector.source_name == 'Snowflake':
                 potential_tables = self.db_connector.get_tables(dataset.split('.')[0], dataset.split('.')[1])
                 #print('potential tables: ',potential_tables)
@@ -301,7 +302,7 @@ class SchemaExplorer:
                     needs_updating = [table['QUALIFIED_TABLE_NAME']  for table in existing_tables_info if table["NEEDS_FULL"]]
                     refresh_tables = [table for table in potential_tables if f'"{db}"."{sch}"."{table["table_name"]}"' in needs_updating]
                 except Exception as e:
-                    print(f'Error running check query: {check_query} Error: {e}')
+                    print(f'Error running check query Error: {e}')
                     return None, None
                 
                 non_existing_tables.extend(refresh_tables)
@@ -376,7 +377,7 @@ class SchemaExplorer:
                 for row in non_indexed_tables:
                     try:
                         qualified_table_name = row.get('qualified_table_name',row)
-                        print("     -> ", qualified_table_name, flush=True)
+                        print("     -> An object", flush=True)
                         database, schema, table = (part.strip('"') for part in qualified_table_name.split('.', 2))
 
                         # Proceed with generating the summary
@@ -387,10 +388,11 @@ class SchemaExplorer:
                         #embedding = self.get_embedding(summary)  
                         ddl = row.get('ddl',None)
                         ddl_short = self.get_ddl_short(ddl)
-                        print(f"storing: database: {database}, schema: {schema}, table: {table}, summary len: {len(summary)}, ddl: {ddl}, ddl_short: {ddl_short} ", flush=True) 
+                        #print(f"storing: database: {database}, schema: {schema}, table: {table}, summary len: {len(summary)}, ddl: {ddl}, ddl_short: {ddl_short} ", flush=True) 
+                        print('Storing summary for new object')
                         self.store_table_memory(database, schema, table, summary, ddl=ddl, ddl_short=ddl_short)
                     except Exception as e:
-                        print(f"Harvester Error on {qualified_table_name}: {e}")
+                        print(f"Harvester Error on Object: {e}")
                         self.store_table_memory(database, schema, table, summary="Harvester Error: {e}", ddl="Harvester Error", ddl_short="Harvester Error", flush=True)
                     
                     local_summaries[qualified_table_name] = summary

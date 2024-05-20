@@ -181,7 +181,7 @@ class BotOsSession:
             txt = input_message.msg
         if len(txt) == 50:
             txt += '...'
-        print(f"{self.bot_name} bot_os add_message txt: {txt}", flush=True)
+        print(f"{self.bot_name} bot_os add_message", flush=True)
         #print(f"add_message: {self.bot_id} - {input_message.msg} size:{len(input_message.msg)}")
         if '!reflect' in input_message.msg.lower():
             input_message.metadata["genesis_reflect"] = "True"
@@ -195,7 +195,7 @@ class BotOsSession:
         thread = self.threads[output_message.thread_id]
         if "genesis_reflect" in output_message.input_metadata and output_message.output.find("!COMPLETE") == -1 and output_message.output.find("!NEED_INPUT") == -1 and \
             output_message.output != '!COMPLETE' and output_message.output != '!NEED_INPUT':
-            print(f'{self.bot_id} ****needs review: ',output_message.output)
+          #  print(f'{self.bot_id} ****needs review: ',output_message.output)
             self.next_messages.append(BotOsInputMessage(thread_id=output_message.thread_id, 
                                                         msg=self.validation_instructions + self._retrieve_memories(output_message.output), 
                                                         metadata=output_message.input_metadata))
@@ -206,7 +206,7 @@ class BotOsSession:
                 txt = output_message.output
             if len(txt) == 50:
                 txt += '...'
-            print(f'{self.bot_name} bot_os response: {txt}', flush=True)
+            print(f'{self.bot_name} bot_os response', flush=True)
         thread.handle_response(session_id, output_message )
 
     def execute(self):

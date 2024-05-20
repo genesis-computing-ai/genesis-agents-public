@@ -9,34 +9,30 @@ Make video of Snowflake janitorial work
 Bots calling other bots to do things
 
 THINGS TO TEST:
-(test) adding stage tools to a bot with baby_bot_tools and see if instructions are updated with internal stage location
+x (test) adding stage tools to a bot with baby_bot_tools and see if instructions are updated with internal stage location
 (test) Add error checking for missing data or grants to harvester so it doesnt crash on that 
 MR-(test) Make sure harvester works ok with mixed case table and database and schema names (and system in general)
 MR-(test) harvester dont crash if cant access schemas for a database listed in control file
-(test) on first DM with a user, add some introduction of yourself
-(test) adding tools again, adding autonomouss tasks via eve didn't seem to work without restarts
-(test) GENESIS_LOCAL_DB.ELIZA_WORKSPACE Create sample workspace by default for Eliza for Eliza.. update her prompt
-(test) Check this function execute_function - _get_visible_tables - {"database":"my_data","schema":"public"}
+new install - (test) on first DM with a user, add some introduction of yourself
+new install - (test) GENESIS_LOCAL_DB.ELIZA_WORKSPACE Create sample workspace by default for Eliza for Eliza.. update her prompt
 (test) check error handling for stage tools (added to list, check others)
-(test) fix add_new_tools_to_bots, 2024-05-10 23:32:09,104 - ERROR - callback_closure - _submit_tool_outputs - caught exception: argument of type 'NoneType' is not iterable
-x (test) JL-files issue Chris and Robert are seeing -- use new logging to debug
-n (include grants on future objects to accountadmin)
-(test) deploy bot flow, make sure new message shows up
-(test) Clean up logs
-(test) Harvester log make it less explicit on data 
+(test) Clean up logs (check queries )
+(test Eliza new message is she proactive on baseball and knows its only till 2015?)
 
 SHORT-TERM (BEFORE SUMMIT):
+JL- sander feedback on doc 
+JL- add note to baseball harvest that its till 2015 , in select * from genesisapp_master.harvest_share.harvest_results;
 MG-Do stripe setup for monitized listing
 RV-Add USERS field to messages log table to keep track of the users involved in a thread or dm
 MR-list index out of range on bot config when you refresh directly to it.. add more retrys
 MR-add a few doublechecks before going to the initiall install screen in Sis
 MR-Pre-harvest and share information_schema
-JL-changing openAI key via streamlit when running gives an error: (bots conflicts with existing job-- dont add scheduler job again if already running)
 MR-SiS app will restart service is suspended (With pool) but doesnt wake up harvester, errors in SiS log harvest screen
 MR-Add a sevice start/stop/restart buttons to SiS
 MR-Add a message to the top of the SisChat page suggesting activating via slack, via a temp workspace
 MR-harvester - change the include flag column to exclude and use that field instead of deleting a row to stop auto harvesting
 MR-add link to support Slack workspace inviter page on SiS
+JL-changing openAI key via streamlit when running gives an error: (bots conflicts with existing job-- dont add scheduler job again if already running)
 
 POST-SUMMIT:
 JL-Have DMs also get history if they are not threadded, give the past n DMs too 
@@ -154,6 +150,13 @@ Add a mechanism for license control based on current_account()... share a table 
     Have a trial period where you can use it in trial mode before it goes into limited mode
 
 DONE:
+x (test) Check this function execute_function - _get_visible_tables - {"database":"my_data","schema":"public"}
+x (test) fix add_new_tools_to_bots, 2024-05-10 23:32:09,104 - ERROR - callback_closure - _submit_tool_outputs - caught exception: argument of type 
+x (test) JL-files issue Chris and Robert are seeing -- use new logging to debug
+n (include grants on future objects to accountadmin)
+x (test) Harvester log make it less explicit on data 
+x (test) deploy bot flow, make sure new message shows up
+x (test) adding tools again, adding autonomouss tasks via eve didn't seem to work without restarts
 x (test) eve coudlnt update eliza's full instruction string The error occurred due to an unexpected keyword argument bot_instructions in the update_bot_instructions function. It appears that the function does not expect this parameter as provided.
 x (test) Make slack active thing only apply to new bot creation, dont block activation of existing bots
 x (test) MR - Share default bot images thru app

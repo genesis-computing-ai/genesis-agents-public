@@ -324,7 +324,7 @@ class SchemaExplorer:
                             current_ddl = self.alt_get_ddl(table_name=quoted_table_name)
                             current_ddl_hash = self.db_connector.sha256_hash_hex_string(current_ddl)
                             new_table = {"qualified_table_name": quoted_table_name, "ddl_hash": current_ddl_hash, "ddl": current_ddl}
-                            print('Newly found object added to harvest array: ', quoted_table_name, flush=True)
+                            print('Newly found object added to harvest array', flush=True)
                             non_indexed_tables.append(new_table)
 
                             # store quick summary
@@ -405,7 +405,7 @@ class SchemaExplorer:
         tables_for_full_processing = []
         random.shuffle(schemas)
         try:
-            print(f'Checking {len(schemas)} for new (not changed) objects.', flush=True)
+            print(f'Checking {len(schemas)} schemas for new (not changed) objects.', flush=True)
         except Exception as e:
             print(f'Error printing schema count log line. {e}', flush=True)
 

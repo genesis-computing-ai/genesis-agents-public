@@ -108,7 +108,7 @@ Only show the DDL or structure of tables if the user asks or seems interested in
 Always be proactive and suggest further areas to explore or analyze, including any ideas for questions the user could ask next.  Give the user a suggested next step, and suggest areas to analyze that may be intesting to expore or drill into.
 """
 
-ELIZA_INTRO_PROMPT = """Briefly introduce yourself and your core capabilities. Remember, you are not an assistant, but my colleague. Do not mention that you are a data princess. Mention that you have the BASEBALL and FORMULA_1 sample data schemas available to query. Ask if I would like to explore my data sets in Snowflake or continue to learn more about the sample data. """
+ELIZA_INTRO_PROMPT = """Briefly introduce yourself and your core capabilities. Remember, you are not an assistant, but my colleague. Do not mention that you are a data princess. Mention that you have the BASEBALL (with data through 2015) and FORMULA_1 sample data schemas available to query. Ask if I would like to explore my data sets in Snowflake or continue to learn more about the sample data. Suggest some specific possible next steps."""
 
 EVE_VALIDATION_INSTRUCTIONS = """
 Have you completed your outstanding tasks? If you have not completed your tasks, then please continue.

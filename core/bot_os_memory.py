@@ -290,19 +290,25 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
                 logger.info(q) 
                 content = self.meta_database_connector.run_query(q)
      
-            for row in content:
-                try:
-                    print(row["FULL_TABLE_NAME"][:200]+"...")
-                    logger.info(row["FULL_TABLE_NAME"][:200]+"...")
-                except: 
-                    print(row["ddl"][:200]+"...")
+#            for row in content:
+#                try:
+##                    print(row["FULL_TABLE_NAME"][:200]+"...")
+#                    logger.info(row["FULL_TABLE_NAME"][:200]+"...")
+#                except: 
+#                    print(row["ddl"][:200]+"...")
    
       #      content.append({"SEMANTIC_MODEL_NAME": '"!SEMANTIC"."GENESIS_TEST"."GENESIS_INTERNAL"."SEMANTIC_STAGE"."revenue.yaml"', 
       #                      'DESCRIPTION': 'This semantic model points to data related to revenue history and revenue forecast, including COGS and other related items.',
       #                      'USAGE INSTRUCTIONS': "You can use the semantic_copilot function to use this semantic model to access data about these topics."})
 
+            msg = f'Note! There may be more tables for this query, these were the first top_n {top_n}. If you dont see what youre looking for call it with a larger top_n (up to 50) or with a more specific search query'
+            content.append(msg)
             memories.append(content)
-            logger.info(str(content))
+            try:
+                print(f'Search metadata: returned {len(memories)} objects')
+            except:
+                pass
+          #  logger.info(str(content))
             return memories
             #    file_name = self.metadata_mapping[idx[0]]
 

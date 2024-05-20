@@ -389,7 +389,7 @@ def bind_run_query(data_connection_info:list):
 
         for a in my_dc:
             print(a.connection_name) #FixMe: check the connection_name matches
-            print("Query: ",query, " Connection: ", connection, " Max rows: ", max_rows)
+            print("Query: len=",len(query), " Connection: ", connection, " Max rows: ", max_rows)
             logger.info(f"_run_query - {a.connection_name}: {query}")
             results = a.run_query(query, max_rows)
             return results
@@ -410,9 +410,9 @@ def bind_search_metadata(knowledge_base_path):
         logger = logging.getLogger(__name__)
         logging.basicConfig(level=logging.WARN, format='%(asctime)s - %(levelname)s - %(message)s')
 
-        logger.info(f"Search metadata called with query: {query}, scope: {scope}, top_n: {top_n}, verbosity: {verbosity}")
+       # logger.info(f"Search metadata called with query: {query}, scope: {scope}, top_n: {top_n}, verbosity: {verbosity}")
         try:
-            print("Search metadata: ",query," Scope: ",scope," Top_n: ",top_n," Verbosity: ", verbosity)
+            print("Search metadata: query len=",len(query)," Top_n: ",top_n," Verbosity: ", verbosity)
             # Adjusted to include scope in the call to find_memory
            # logger.info(f"GETTING NEW ANNOY - Refresh True - --- Search metadata called with query: {query}, scope: {scope}, top_n: {top_n}, verbosity: {verbosity}")
             my_kb = BotOsKnowledgeAnnoy_Metadata(knowledge_base_path, refresh=True)

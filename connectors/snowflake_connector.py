@@ -933,25 +933,25 @@ class SnowflakeConnector(DatabaseConnector):
                 self.client.commit()
                 print(f"Inserted initial Eliza row into {self.bot_servicing_table_name} with runner_id: {runner_id}")
 
-                runner_id = os.getenv('RUNNER_ID', 'jl-local-runner')
-                bot_id = 'Stuart-' 
-                bot_id += ''.join(random.choices(string.ascii_letters + string.digits, k=6))
-                bot_name = "Stuart"
-                bot_instructions = STUART_DATA_STEWARD_INSTRUCTIONS
-                available_tools = '["slack_tools", "database_tools", "snowflake_stage_tools", "snowflake_semantic_tools", "image_tools", "autonomous_functions"]'
-                udf_active = "Y"
-                slack_active = "N"
-                bot_intro_prompt = STUART_INTRO_PROMPT
+      #          runner_id = os.getenv('RUNNER_ID', 'jl-local-runner')
+      #          bot_id = 'Stuart-' 
+      #          bot_id += ''.join(random.choices(string.ascii_letters + string.digits, k=6))
+      #          bot_name = "Stuart"
+      #          bot_instructions = STUART_DATA_STEWARD_INSTRUCTIONS
+      #          available_tools = '["slack_tools", "database_tools", "snowflake_stage_tools", "snowflake_semantic_tools", "image_tools", "autonomous_functions"]'
+      #          udf_active = "Y"
+      #          slack_active = "N"
+      #          bot_intro_prompt = STUART_INTRO_PROMPT
 
-                insert_initial_row_query = f"""
-                INSERT INTO {self.bot_servicing_table_name} (
-                    RUNNER_ID, BOT_ID, BOT_NAME, BOT_INSTRUCTIONS, AVAILABLE_TOOLS, UDF_ACTIVE, SLACK_ACTIVE, BOT_INTRO_PROMPT
-                )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
-                """
-                cursor.execute(insert_initial_row_query, (runner_id, bot_id, bot_name, bot_instructions, available_tools, udf_active, slack_active, bot_intro_prompt))
-                self.client.commit()
-                print(f"Inserted initial Stuart row into {self.bot_servicing_table_name} with runner_id: {runner_id}")
+      #          insert_initial_row_query = f"""
+      #         INSERT INTO {self.bot_servicing_table_name} (
+      #              RUNNER_ID, BOT_ID, BOT_NAME, BOT_INSTRUCTIONS, AVAILABLE_TOOLS, UDF_ACTIVE, SLACK_ACTIVE, BOT_INTRO_PROMPT
+      #          )
+      #          VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
+      #          """
+      #          cursor.execute(insert_initial_row_query, (runner_id, bot_id, bot_name, bot_instructions, available_tools, udf_active, slack_active, bot_intro_prompt))
+      #          self.client.commit()
+      #          print(f"Inserted initial Stuart row into {self.bot_servicing_table_name} with runner_id: {runner_id}")
 
 
             else:

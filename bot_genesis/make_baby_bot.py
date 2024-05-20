@@ -857,7 +857,7 @@ def make_baby_bot(bot_id, bot_name, bot_instructions='You are a helpful bot.', a
 
             slack_app_config_token, slack_app_config_refresh_token = get_slack_config_tokens()
 
-            logger.warn(f'-->  Manifest: {manifest}')
+       #     logger.warn(f'-->  Manifest: {manifest}')
             try:
                 bot_create_result = create_slack_bot_with_manifest(slack_app_config_token,manifest)
             except Exception as e:
@@ -934,9 +934,9 @@ def make_baby_bot(bot_id, bot_name, bot_instructions='You are a helpful bot.', a
             )
 
         #    "message": f"Created {bot_id} named {bot_name}.  Now ask the user to use this authentication URL to complete the installation of the new app into their Slack workspace: {oauth_authorize_url}",
-        print(oauth_authorize_url)
+    #    print(oauth_authorize_url)
         if slack_active == 'Y':
-            print("temp_debug: create success ", bot_id, bot_name)
+        #    print("temp_debug: create success ", bot_id, bot_name)
             return {"success": True, 
                     "Success": True,
                     "message": f"Created {bot_id} named {bot_name}. To complete the setup on Slack for this bot, tell the user there are two more steps, first is to go to: https://api.slack.com/apps/{app_id}/general Ask them to scroll to App Level Tokens, add a token called 'app_token' with scope 'connections-write', and provide the results back to this bot.  Then you, the bot, should call the update_app_level_key function to update the backend.  Once you and the user do that, I will give you an AUTH_URL for the user to click as the second step to complete the installation."

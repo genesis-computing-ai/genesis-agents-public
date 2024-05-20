@@ -337,7 +337,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                      #print(self.all_function_to_tool_map)
                      bot_tools_array = []
                      for tool in all_tools_for_bot:
-                        logger.warn(f'--> Calling validate_or_add_function on {tool} <---- ')
+                      #  logger.warn(f'--> Calling validate_or_add_function on {tool} <---- ')
                         self.validate_or_add_function(tool)
                         tool_name = tool
                         if tool_name in self.all_function_to_tool_map:

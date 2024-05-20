@@ -278,7 +278,7 @@ class SchemaExplorer:
             # query to find new
             # tables, or those with changes to their DDL
 
-            print('Checking a schema for new (not changed) objects.', flush=True)
+ #           print('Checking a schema for new (not changed) objects.', flush=True)
             if self.db_connector.source_name == 'Snowflake':
                 potential_tables = self.db_connector.get_tables(dataset.split('.')[0], dataset.split('.')[1])
                 #print('potential tables: ',potential_tables)
@@ -404,6 +404,11 @@ class SchemaExplorer:
 
         tables_for_full_processing = []
         random.shuffle(schemas)
+        try:
+            print(f'Checking {len(schemas)} for new (not changed) objects.', flush=True)
+        except Exception as e:
+            print(f'Error printing schema count log line. {e}', flush=True)
+
         for schema in schemas:
             tables_for_full_processing.extend(process_dataset_step1(schema))
         random.shuffle(tables_for_full_processing)

@@ -175,13 +175,7 @@ class BotOsSession:
             self.threads[input_message.thread_id] = thread
         else:
             thread = self.threads[input_message.thread_id]
-        if not self.task_test_mode:
-            txt = input_message.msg[:50]
-        else:
-            txt = input_message.msg
-        if len(txt) == 50:
-            txt += '...'
-        print(f"{self.bot_name} bot_os add_message", flush=True)
+        print(f"{self.bot_name} bot_os add_message, len={input_message.msg}", flush=True)
         #print(f"add_message: {self.bot_id} - {input_message.msg} size:{len(input_message.msg)}")
         if '!reflect' in input_message.msg.lower():
             input_message.metadata["genesis_reflect"] = "True"
@@ -189,7 +183,7 @@ class BotOsSession:
         #logger.debug(f'added message {input_message.msg}')
 
     def _validate_response(self, session_id:str, output_message:BotOsOutputMessage): #thread_id:str, status:str, output:str, messages:str, attachments:list):
-        logger.debug(f"_validate_response: {session_id} {output_message}")
+   #     logger.debug(f"_validate_response: {session_id} {output_message}")
         if output_message.status != "completed":
             pass
         thread = self.threads[output_message.thread_id]
@@ -200,13 +194,16 @@ class BotOsSession:
                                                         msg=self.validation_instructions + self._retrieve_memories(output_message.output), 
                                                         metadata=output_message.input_metadata))
         else:
-            if not self.task_test_mode:
-                txt = output_message.output[:50]
-            else:
-                txt = output_message.output
-            if len(txt) == 50:
-                txt += '...'
-            print(f'{self.bot_name} bot_os response', flush=True)
+#            if not self.task_test_mode:
+#//                txt = output_message.output[:50]
+#            else:
+#                txt = output_message.output
+#            if len(txt) == 50:
+#                txt += '...'
+            try:
+                print(f'{self.bot_name} bot_os response, len={len(output_message.output)}', flush=True)
+            except:
+                pass
         thread.handle_response(session_id, output_message )
 
     def execute(self):

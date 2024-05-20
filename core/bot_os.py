@@ -175,7 +175,7 @@ class BotOsSession:
             self.threads[input_message.thread_id] = thread
         else:
             thread = self.threads[input_message.thread_id]
-        print(f"{self.bot_name} bot_os add_message, len={input_message.msg}", flush=True)
+        print(f"{self.bot_name} bot_os add_message, len={len(input_message.msg)}", flush=True)
         #print(f"add_message: {self.bot_id} - {input_message.msg} size:{len(input_message.msg)}")
         if '!reflect' in input_message.msg.lower():
             input_message.metadata["genesis_reflect"] = "True"

@@ -1476,22 +1476,38 @@ class SnowflakeConnector(DatabaseConnector):
 
 
 
-    def insert_metadata_from_cache(self, database_name:str, schema_name:str, table_name:str):
+    def get_metadata_from_cache(self, database_name:str, schema_name:str, table_name:str):
         metadata_table_id = self.metadata_table_name
         try:
-            insert_cached_metadata_query = f"""
-                INSERT INTO {metadata_table_id} 
-                SELECT SOURCE_NAME, QUALIFIED_TABLE_NAME,  DATABASE_NAME, MEMORY_UUID, SCHEMA_NAME, TABLE_NAME, COMPLETE_DESCRIPTION, DDL, DDL_SHORT, DDL_HASH, SUMMARY, SAMPLE_DATA_TEXT, LAST_CRAWLED_TIMESTAMP, CRAWL_STATUS, ROLE_USED_FOR_CRAWL, EMBEDDING 
-                FROM APP_SHARE.HARVEST_RESULTS h 
-                WHERE DATABASE_NAME = '{database_name}' AND SCHEMA_NAME = '{schema_name}' AND TABLE_NAME = '{table_name}'
-                AND NOT EXISTS (SELECT 1 FROM {metadata_table_id} m WHERE m.DATABASE_NAME = '{database_name}' and m.SCHEMA_NAME = '{schema_name}' and m.TABLE_NAME = '{table_name}');
-            """
+            if schema_name == 'INFORMATION_SCHEMA':
+                db_name_filter = 'PLACEHOLDER_DB_NAME'
+            else:
+                db_name_filter = database_name
+
+            query = f"""SELECT SOURCE_NAME, replace(QUALIFIED_TABLE_NAME,'PLACEHOLDER_DB_NAME','{database_name}') QUALIFIED_TABLE_NAME, '{database_name}' DATABASE_NAME, MEMORY_UUID, SCHEMA_NAME, TABLE_NAME, REPLACE(COMPLETE_DESCRIPTION,'PLACEHOLDER_DB_NAME','{database_name}') COMPLETE_DESCRIPTION, REPLACE(DDL,'PLACEHOLDER_DB_NAME','{database_name}') DDL, REPLACE(DDL_SHORT,'PLACEHOLDER_DB_NAME','{database_name}') DDL_SHORT, 'SHARED_VIEW' DDL_HASH, REPLACE(SUMMARY,'PLACEHOLDER_DB_NAME','{database_name}') SUMMARY, SAMPLE_DATA_TEXT, LAST_CRAWLED_TIMESTAMP, CRAWL_STATUS, ROLE_USED_FOR_CRAWL, EMBEDDING 
+                from APP_SHARE.HARVEST_RESULTS 
+                where DATABASE_NAME = '{db_name_filter}' AND SCHEMA_NAME = '{schema_name}' AND TABLE_NAME = '{table_name}';"""
+
+
+            # insert_cached_metadata_query = f"""
+            #     INSERT INTO {metadata_table_id} 
+            #     SELECT SOURCE_NAME, QUALIFIED_TABLE_NAME,  DATABASE_NAME, MEMORY_UUID, SCHEMA_NAME, TABLE_NAME, COMPLETE_DESCRIPTION, DDL, DDL_SHORT, DDL_HASH, SUMMARY, SAMPLE_DATA_TEXT, LAST_CRAWLED_TIMESTAMP, CRAWL_STATUS, ROLE_USED_FOR_CRAWL, EMBEDDING 
+            #     FROM APP_SHARE.HARVEST_RESULTS h 
+            #     WHERE DATABASE_NAME = '{database_name}' AND SCHEMA_NAME = '{schema_name}' AND TABLE_NAME = '{table_name}'
+            #     AND NOT EXISTS (SELECT 1 FROM {metadata_table_id} m WHERE m.DATABASE_NAME = '{database_name}' and m.SCHEMA_NAME = '{schema_name}' and m.TABLE_NAME = '{table_name}');
+            # """
             cursor = self.client.cursor()
-            cursor.execute(insert_cached_metadata_query)
-            self.client.commit()
-            print(f"Inserted cached rows into {metadata_table_id} for {database_name}.{schema_name}.{table_name}")
+            cursor.execute(query)
+            results = cursor.fetchall()
+            columns = [col[0].lower() for col in cursor.description]
+            cached_metadata = [dict(zip(columns, row)) for row in results]
+            cursor.close()
+            return cached_metadata
+
+
+            print(f"Retrieved cached rows from {metadata_table_id} for {database_name}.{schema_name}.{table_name}")
         except Exception as e:
-            print(f"Cached rows from APP_SHARE.HARVEST_RESULTS NOT ADDED into {metadata_table_id} for {database_name}.{schema_name}.{table_name} due to erorr {e}") 
+            print(f"Cached rows from APP_SHARE.HARVEST_RESULTS NOT retrieved from {metadata_table_id} for {database_name}.{schema_name}.{table_name} due to erorr {e}") 
 
 #snowed
 

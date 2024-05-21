@@ -58,7 +58,7 @@ class SchemaExplorer:
             j = ""        
         return j
 
-    def store_table_memory(self, database, schema, table, summary=None, ddl=None, ddl_short=None ):
+    def store_table_memory(self, database, schema, table, summary=None, ddl=None, ddl_short=None, sample_data=None):
         """
         Generates a document including the DDL statement and a natural language description for a table.
         :param schema: The schema name.
@@ -69,8 +69,9 @@ class SchemaExplorer:
                 ddl = self.alt_get_ddl(table_name='"'+database+'"."'+schema+'"."'+table+'"')
                 #ddl = self.db_connector.get_table_ddl(database_name=database, schema_name=schema, table_name=table)
 
-            sample_data = self.db_connector.get_sample_data(database, schema, table)
-            sample_data_str = ""
+            if not sample_data:
+                sample_data = self.db_connector.get_sample_data(database, schema, table)
+                sample_data_str = ""
             if sample_data:
                 sample_data_str = self.format_sample_data(sample_data)
                 #sample_data_str = sample_data_str.replace("\n", " ")  # Replace newlines with spaces
@@ -312,12 +313,33 @@ class SchemaExplorer:
                     if quoted_table_name not in existing_tables_set or quoted_table_name in needs_updating:
                         # Table is not in metadata table
                         # Check to see if it exists in the shared metadata table
-                       #print ("!!!! CACHING DIsABLED !!!! ", flush=True)
-                        shared_table_exists = self.db_connector.check_cached_metadata(db, sch, table_name)
+                        #print ("!!!! CACHING DIsABLED !!!! ", flush=True)
+                        if sch == 'INFORMATION_SCHEMA':
+                            shared_table_exists = self.db_connector.check_cached_metadata('PLACEHOLDER_DB_NAME', sch, table_name)
+                        else:
+                            shared_table_exists = self.db_connector.check_cached_metadata(db, sch, table_name)
                         #shared_table_exists = False 
                         if shared_table_exists:
-                            # Insert the record from the shared metadata table directly to the metadata table
-                            insert_from_cache_result = self.db_connector.insert_metadata_from_cache(db, sch, table_name)
+                            # print ("!!!! CACHING Working !!!! ", flush=True)
+                            # Get the record from the shared metadata table with database name modified from placeholder
+                            get_from_cache_result = self.db_connector.get_metadata_from_cache(db, sch, table_name)
+                            for record in get_from_cache_result:
+                                database = record['database_name']
+                                schema = record['schema_name']
+                                table = record['table_name']
+                                summary = record['summary']
+                                ddl = record['ddl']
+                                ddl_short = record['ddl_short']
+                                sample_data = record['sample_data_text']
+
+                                # call store memory
+                                self.store_table_memory(database, schema, table, summary, ddl=ddl, ddl_short=ddl_short, sample_data=sample_data)
+
+
+                        # #shared_table_exists = False 
+                        # if shared_table_exists:
+                        #     # Insert the record from the shared metadata table directly to the metadata table
+                        #     insert_from_cache_result = self.db_connector.insert_metadata_from_cache(db, sch, table_name)
                             #print(insert_from_cache_result, flush=True)
                         else:
                             # Table is new, so get its DDL and hash

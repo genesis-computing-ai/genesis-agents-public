@@ -170,7 +170,7 @@ class BotOsSession:
     def add_message(self, input_message:BotOsInputMessage):# thread_id:str, message:str, files=[]):
  
         if input_message.thread_id not in self.threads:
-            print(f"{self.bot_name} bot_os add_message new_thread for {input_message.thread_id}")
+            print(f"{self.bot_name} bot_os add_message new_thread for {input_message.thread_id} not found in existing threads.")
             thread = BotOsThread(self.assistant_impl, self.input_adapters[0], thread_id=input_message.thread_id)
             self.threads[input_message.thread_id] = thread
         else:

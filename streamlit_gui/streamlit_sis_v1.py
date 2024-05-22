@@ -177,10 +177,17 @@ def get_bot_details():
 
     if SnowMode:
 
-       sql = f"select {prefix}.list_available_bots() "
-       data = session.sql(sql).collect()
-       response = json.loads(data[0][0])
-       return response
+        for _ in range(5):
+            sql = f"select {prefix}.list_available_bots() "
+            st.session_state['data'] = session.sql(sql).collect()
+            if 'data' in st.session_state:
+                data = st.session_state['data']
+                if data:
+                    break
+                time.sleep(2)
+
+        response = json.loads(data[0][0])
+        return response
 
     else:
         url = "http://127.0.0.1:8080/udf_proxy/list_available_bots"
@@ -359,6 +366,9 @@ def show_server_logs():
         st.markdown(status_result[0][0])
         st.text_area("Harvester Logs", logs_result[0][0], height=600)
 
+def support():
+    st.markdown("## [Genesis Documentation](https://genesiscomputing.ai/docs/)")
+    st.markdown("## [Join our Slack Community](https://communityinviter.com/apps/genesisbotscommunity/genesis-bots-community)")
 
 def llm_config(): # Check if data is not empty
 
@@ -1182,16 +1192,22 @@ CALL {app_name}.CORE.INITIALIZE_APP_INSTANCE('APP1','GENESIS_POOL','GENESIS_EAI'
     '''
     st.text_area("", start_stop_text, height=620)
 
+def check_status():
+    status_query = f"select v.value:status::varchar status from (select parse_json(system$get_service_status('{prefix}.GENESISAPP_SERVICE_SERVICE'))) t, lateral flatten(input => t.$1) v"
+    service_status_result = session.sql(status_query).collect()
+    return service_status_result[0][0]
+
 if SnowMode:
     try:
-        status_query = f"select v.value:status::varchar status from (select parse_json(system$get_service_status('{prefix}.GENESISAPP_SERVICE_SERVICE'))) t, lateral flatten(input => t.$1) v"
-        service_status_result = session.sql(status_query).collect()
-        if service_status_result[0][0] != 'READY':
+        # status_query = f"select v.value:status::varchar status from (select parse_json(system$get_service_status('{prefix}.GENESISAPP_SERVICE_SERVICE'))) t, lateral flatten(input => t.$1) v"
+        # service_status_result = session.sql(status_query).collect()
+        service_status_result = check_status()
+        if service_status_result != 'READY':
             with st.spinner('Waiting on Genesis Services to start...'):
                 service_status = st.empty()
                 while True:
-                    service_status.text('Genesis Service status: ' + service_status_result[0][0])
-                    if service_status_result[0][0] == 'SUSPENDED':
+                    service_status.text('Genesis Service status: ' + service_status_result)
+                    if service_status_result == 'SUSPENDED':
                         # show button to start service
                         if st.button('Click to start Genesis Service'):
                             with st.spinner('Genesis Services is starting...'):
@@ -1200,40 +1216,44 @@ if SnowMode:
                                     time.sleep(15)
                                     service_start_result = session.sql(f"call {app_name}.core.start_app_instance('APP1','GENESIS_POOL','GENESIS_EAI','{st.session_state.wh_name}')").collect()
                                     if service_start_result:
-                                        service_status.text('Genesis Service status: ' + service_status_result[0][0])
+                                        service_status.text('Genesis Service status: ' + service_status_result)
                                     else:
                                         time.sleep(10)
                                 except Exception as e:
                                     st.error(f'Error connecting to Snowflake: {e}')
-                    service_status_result = session.sql(status_query).collect()
-                    service_status.text('Genesis Service status: ' + service_status_result[0][0])
-                    if service_status_result[0][0] == 'READY':
+                    service_status_result = check_status()
+                    service_status.text('Genesis Service status: ' + service_status_result)
+                    if service_status_result == 'READY':
                         service_status.text('')
                         st.experimental_rerun()
                         
-                    time.sleep(10)         
+                    time.sleep(10)      
 
         sql = f"select {prefix}.list_available_bots() "
-        data = session.sql(sql).collect()
-    except Exception as e:
-        data = None
-else:
-    data = 'Local Mode'
+        st.session_state['data'] = session.sql(sql).collect()
 
+    except Exception as e:
+        st.session_state['data'] = None
+else:
+    st.session_state['data'] = 'Local Mode'
+
+if 'data' in st.session_state:
+    data = st.session_state['data']
 if data:
     
     pages = {
     #    "Talk to Your Bots": "/",
         "Chat with Bots": chat_page,
         "LLM Model & Key": llm_config,
-      #  "Setup Ngrok": setup_ngrok, 
+    #  "Setup Ngrok": setup_ngrok, 
         "Setup Slack Connection": setup_slack,
         "Grant Data Access": grant_data,
-        "Harvestable Data": db_add_to_harvester,
+        # "Harvestable Data": db_add_to_harvester,
         "Harvester Status": db_harvester,
         "Bot Configuration": bot_config,
         "Server Stop/Start": start_stop,
         "Server Logs": show_server_logs,
+        "Support and Community": support,
     }
     
     if st.session_state.get('needs_keys', False):
@@ -1243,7 +1263,6 @@ if data:
 #        del pages["Setup Ngrok"]
     
     st.sidebar.title("Genesis Bots Configuration")
-      
     selection = st.sidebar.radio("Go to:", list(pages.keys()), index=list(pages.keys()).index(st.session_state.get('radio', list(pages.keys())[0])))
     if selection in pages: 
         pages[selection]()
@@ -1256,11 +1275,11 @@ else:
         "1: Configure Warehouse": config_wh,
         "2: Configure Compute Pool": config_pool,
         "3: Configure EAI": config_eai,
-        "4: Start Genesis Server": start_service
+        "4: Start Genesis Server": start_service,
+        "Support and Community": support
     }
     
     st.sidebar.title("Genesis Bots Installation")
-      
     selection = st.sidebar.radio("Go to:", list(pages.keys()), index=list(pages.keys()).index(st.session_state.get('radio', list(pages.keys())[0])))
     if selection in pages: 
         pages[selection]()

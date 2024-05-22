@@ -208,10 +208,16 @@ class SnowflakeConnector(DatabaseConnector):
         """
         try:
             # Construct the query to delete the row
+            # query = f"""
+            # DELETE FROM {self.harvest_control_table_name}
+            # WHERE UPPER(source_name) = UPPER(%s) AND UPPER(database_name) = UPPER(%s)
+            # """
+            # TODO test!! Construct the query to exclude the row
             query = f"""
-            DELETE FROM {self.harvest_control_table_name}
-            WHERE UPPER(source_name) = UPPER(%s) AND UPPER(database_name) = UPPER(%s)
-            """
+            UPDATE {self.harvest_control_table_name}
+            SET STATUS = 'Exclude'
+            WHERE UPPER(source_name) = UPPER(%s) AND UPPER(database_name) = UPPER(%s) AND STATUS = 'Include'
+            """            
             # Execute the query
             cursor = self.client.cursor()
             cursor.execute(query, (source_name, database_name))

@@ -483,6 +483,23 @@ def chat_page():
             bot_ids = [bot["bot_id"] for bot in bot_details]
             bot_intro_prompts = [bot["bot_intro_prompt"] for bot in bot_details]
 
+            tokens = get_slack_tokens()
+            slack_active = tokens.get("SlackActiveFlag",False)
+            if not slack_active:
+                col1, col2 = st.columns([3,4])
+                with col1:
+                    st.markdown("##### Genesis is best used on Slack!")
+                with col2:
+
+                    if 'radio' in st.session_state:
+                        if st.session_state['radio'] != "Setup Slack Connection":
+                            if st.button("Activate Slack Keys Here"):
+                                st.session_state['radio'] = "Setup Slack Connection" 
+                                st.experimental_rerun()
+                    else:
+                        if st.button("Activate Slack Keys Here"):
+                            st.session_state['radio'] = "Setup Slack Connection" 
+                            st.experimental_rerun()
             if len(bot_names) > 0:
                 selected_bot_name = st.selectbox("Active Bots", bot_names)
                 selected_bot_index = bot_names.index(selected_bot_name)
@@ -895,10 +912,19 @@ def bot_config():
                                     pass
                             else:
                                 if slack_ready is False:
-                                    if st.button("Activate Slack Keys Here",  key=f"activate_{bot['bot_id']}"):
-                                        # Code to change the page based on a button click
-                                        st.session_state['radio'] = "Setup Slack Connection"
-                                        st.experimental_rerun()
+                                    if 'radio' in st.session_state:
+                                        if st.session_state['radio'] != "Setup Slack Connection":
+                                            if st.button("Activate Slack Keys Here",  key=f"activate_{bot['bot_id']}"):
+                                                # Code to change the page based on a button click
+                                                st.session_state['radio'] = "Setup Slack Connection"
+                                                st.experimental_rerun()
+                                        else:
+                                            st.markdown("###### Activate on Slack by clicking the Setup Slack Connection radio button")
+                                    else:
+                                        if st.button("Activate Slack Keys Here",  key=f"activate_{bot['bot_id']}"):
+                                            # Code to change the page based on a button click
+                                            st.session_state['radio'] = "Setup Slack Connection"
+                                            st.experimental_rerun()
 
                     with col2:
                         st.caption("UDF Active: " + ('Yes' if bot['udf_active'] == 'Y' else 'No'))

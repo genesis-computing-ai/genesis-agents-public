@@ -433,7 +433,7 @@ def list_available_bots_fn():
         output_rows = [[row[0],{'Success': False, 'Message': 'Needs LLM Type and Key'}]]
     else:
         runner = os.getenv('RUNNER_ID','jl-local-runner')
-        bots = list_all_bots(runner_id=runner)
+        bots = list_all_bots(runner_id=runner, slack_details=True)
 
         for bot in bots:
             bot_id = bot.get('bot_id')

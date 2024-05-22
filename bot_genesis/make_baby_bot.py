@@ -4,6 +4,7 @@ import os, json, requests, uuid
 from connectors.bigquery_connector import BigQueryConnector
 from connectors.snowflake_connector import SnowflakeConnector
 from google.cloud import bigquery
+import threading
 
 from core.bot_os_corpus import URLListFileCorpus
 
@@ -35,8 +36,8 @@ project_id = db_schema[0]
 dataset_name = db_schema[1]
 bot_servicing_table = os.getenv('BOT_SERVICING_TABLE', 'BOT_SERVICING')
 
-def list_all_bots(runner_id=None):
-    return bb_db_connector.db_list_all_bots(project_id=project_id, dataset_name=dataset_name, bot_servicing_table=bot_servicing_table, runner_id=runner_id, full=False)
+def list_all_bots(runner_id=None, slack_details=False):
+    return bb_db_connector.db_list_all_bots(project_id=project_id, dataset_name=dataset_name, bot_servicing_table=bot_servicing_table, runner_id=runner_id, full=False, slack_details=slack_details)
  
 def get_all_bots_full_details(runner_id):
     return bb_db_connector.db_list_all_bots(project_id=project_id, dataset_name=dataset_name, bot_servicing_table=bot_servicing_table, runner_id=runner_id, full=True)
@@ -427,6 +428,8 @@ def insert_new_bot(api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instruct
                    slack_active, files, bot_implementation, bot_avatar_image, bot_intro_prompt, project_id, dataset_name, bot_servicing_table)
 
    
+
+modify_lock = threading.Lock()
 def modify_slack_allow_list(bot_id, action, user_name=None, user_identifier=None, thread_id=None, confirmed=None):
 
     """
@@ -441,140 +444,154 @@ def modify_slack_allow_list(bot_id, action, user_name=None, user_identifier=None
         dict: A JSON object with the success status and details of the operation.
     """
     # Retrieve the current SLACK_USER_ALLOW list
-
-    from core.system_variables import SystemVariables
-
-    bot_details = get_bot_details(bot_id)
-    if bot_details is None:
-        return {'success': False, 'error': 'Invalid bot_id. Please use list_all_bots to get the correct bot_id.'}
-
-    bot_slack_adapter = SystemVariables.bot_id_to_slack_adapter_map.get(bot_id, None)
-    if not bot_slack_adapter:
-        for adapter in SystemVariables.bot_id_to_slack_adapter_map.values():
-            if adapter is not None:
-                bot_slack_adapter = adapter
-                break
-
-    if not bot_slack_adapter:
-        return {'success': False, 'error': 'No bots are yet deployed to Slack. Please try again once at least one bot is deployed.'}
-    
-    slack_user_allow_list = bot_details.get('slack_user_allow', '[]')
-    slack_user_allow_list = json.loads(slack_user_allow_list)
- 
-    if action == 'GRANT' and slack_user_allow_list == []:
-        return {
-            'success': False,
-            'message': 'Currently, all users have access to this bot. Granting access to a specific user will remove all other users\' access. If this is your intention, please confirm with the user and call this method again with the action "GRANT CONFIRMED".'
-        }
-    if action == 'GRANT CONFIRMED':
-        action = 'GRANT'
-
-    if action == 'REVOKE ALL':
-        return {
-            'success': False,
-            'confirmation_needed': 'This action will revoke access to all users (including yourself) from interacting with the bot via Slack. The bot will only be accessible via Streamlit. If this is your intention, please call this method again with the action "REVOKE ALL CONFIRMED".'
-        }
-    elif action == 'REVOKE ALL CONFIRMED':
-        action = 'REVOKE ALL'
-
-    if action == 'GRANT ALL':
-        return {
-            'success': False,
-            'confirmation_needed': 'This action will grant access to all users in Slack, including the ability for any Slack user to access the databases, if any, that this bot has access to in the database. Please double check that this is the users intention. Once they confirm,  please call this method again with the action "GRANT ALL CONFIRMED".'
-        }
-    elif action == 'GRANT ALL CONFIRMED':
-        action = 'GRANT ALL'
+    with modify_lock:
+        # Your code to modify the SLACK_USER_ALLOW list goes here
+        # This ensures that only one thread can modify the list at a time
 
 
+        from core.system_variables import SystemVariables
 
-    if action == 'LIST':
-        # List the current users in the SLACK_USER_ALLOW list with their full names
-        user_details = []
+        bot_details = get_bot_details(bot_id)
+        if bot_details is None:
+            return {'success': False, 'error': 'Invalid bot_id. Please use list_all_bots to get the correct bot_id.'}
+
+        bot_slack_adapter = SystemVariables.bot_id_to_slack_adapter_map.get(bot_id, None)
+        if not bot_slack_adapter:
+            for adapter in SystemVariables.bot_id_to_slack_adapter_map.values():
+                if adapter is not None:
+                    bot_slack_adapter = adapter
+                    break
+
+        if not bot_slack_adapter:
+            return {'success': False, 'error': 'No bots are yet deployed to Slack. Please try again once at least one bot is deployed.'}
         
-        for user_id in slack_user_allow_list:
-            user_info = bot_slack_adapter.slack_app.client.users_info(user=user_id)
-            if user_info.get('ok'):
-                user_details.append({
-                    'id': user_id,
-                    'name': user_info['user']['real_name']
-                })
-        if user_details == []:
-            return {'success': True, 'result': 'All Slack Users currently have access to this bot via Slack'}
-        if len(user_details) == 1 and user_details[0] == '!BLOCK_ALL':
-            return {'success': True, 'result': 'No users have access, all are blocked.  Grant access to individual users, or call with GRANT ALL to grant to all users.'}
-        return {'success': True, 'users': user_details}
+        slack_user_allow_list = bot_details.get('slack_user_allow', None)
+        if slack_user_allow_list is None:
+            slack_user_allow_list = []
+        else:
+            slack_user_allow_list = json.loads(slack_user_allow_list)
+        slack_user_allow_list = [user_id.strip('["]') for user_id in slack_user_allow_list]
+    
+        if action == 'GRANT' and slack_user_allow_list == []:
+            return {
+                'success': False,
+                'message': 'Currently, all users have access to this bot. Granting access to a specific user will remove all other users\' access. If this is your intention, please confirm with the user and call this method again with the action "GRANT CONFIRMED".'
+            }
+        if action == 'GRANT CONFIRMED':
+            action = 'GRANT'
 
-    if user_identifier and user_name:
-        return {'success': False, 'error': 'Both user_identifier and user_name cannot be non-null simultaneously'}
+        if action == 'REVOKE ALL' and slack_user_allow_list == []:
+            return {
+                'success': False,
+                'confirmation_needed': 'To limit this bot to access by only specified users, just call GRANT with the first user who can use it, doing so will put the bot in limited access mode, and auto-revoke everyone else. If you want No One to be able to access it, call again with action "REVOKE ALL CONFIRMED"'
+            }
+        if action == 'REVOKE ALL':
+            return {
+                'success': False,
+                'confirmation_needed': 'This action will revoke access to all users (including yourself) from interacting with the bot via Slack. The bot will only be accessible via Streamlit. If this is your intention, please call this method again with the action "REVOKE ALL CONFIRMED".'
+            }
+        elif action == 'REVOKE ALL CONFIRMED':
+            action = 'REVOKE ALL'
 
-    elif action == 'GRANT ALL':
-        # Grant access to the user
-        slack_user_allow_list = []
+        if action == 'GRANT ALL':
+            return {
+                'success': False,
+                'confirmation_needed': 'This action will grant access to all users in Slack, including the ability for any Slack user to access the databases, if any, that this bot has access to in the database. Please double check that this is the users intention. Once they confirm,  please call this method again with the action "GRANT ALL CONFIRMED".'
+            }
+        elif action == 'GRANT ALL CONFIRMED':
+            action = 'GRANT ALL'
 
-
-    elif action == 'GRANT':
-        # Grant access to the user
-        if user_identifier or user_name:
-            if user_identifier is not None:  # Assuming it's a Slack user ID
-                # Verify the user ID is valid
-                user_info = bot_slack_adapter.slack_app.client.users_info(user=user_identifier)
+        if action == 'LIST':
+            # List the current users in the SLACK_USER_ALLOW list with their full names
+            user_details = []
+            
+            for user_id in slack_user_allow_list:
+                user_info = bot_slack_adapter.slack_app.client.users_info(user=user_id)
                 if user_info.get('ok'):
+                    user_details.append({
+                        'id': user_id,
+                        'name': user_info['user']['real_name']
+                    })
+            if user_details == []:
+                return {'success': True, 'result': 'All Slack Users currently have access to this bot via Slack'}
+            if len(user_details) == 1 and user_details[0] == '!BLOCK_ALL':
+                return {'success': True, 'result': 'No users have access, all are blocked.  Grant access to individual users, or call with GRANT ALL to grant to all users.'}
+            return {'success': True, 'users': user_details}
+
+        if user_identifier and user_name:
+            return {'success': False, 'error': 'Both user_identifier and user_name cannot be non-null simultaneously'}
+
+        elif action == 'GRANT ALL':
+            # Grant access to the user
+            slack_user_allow_list = []
+
+
+        elif action == 'GRANT':
+            # Grant access to the user
+            if user_identifier or user_name:
+                if user_identifier is not None:  # Assuming it's a Slack user ID
+                    # Verify the user ID is valid
+                    user_info = bot_slack_adapter.slack_app.client.users_info(user=user_identifier)
+                    if user_info.get('ok'):
+                        if user_identifier in slack_user_allow_list:
+                            return {'success': False, 'error': 'User already has access'}
+                        slack_user_allow_list.append(user_identifier)
+                    else:
+                        return {'success': False, 'error': 'Invalid Slack user ID'}
+                else:
+                    # Look up the user by full name
+                    users = bot_slack_adapter.slack_app.client.users_list().data
+                    matching_users = [user for user in users['members'] if user.get('real_name', '').lower() == user_name.lower() or user.get('profile', {}).get('real_name', '').lower() == user_name.lower()]
+                    if len(matching_users) == 1:
+                        if slack_user_allow_list == []:
+                            slack_user_allow_list.append(matching_users[0]['id'])
+                        else:
+                            new_user_list = []
+                            new_user_list.append(matching_users[0]['id'])
+                            slack_user_allow_list.extend(new_user_list)
+                    elif len(matching_users) > 1:
+                        return {'success': False, 'error': 'Multiple users found, please specify by Slack user ID. Tell the user to go to the Slack profile of that user, choose the ... three dots option, and choose "Copy Member ID" to get the exact Slack User ID for that user.'}
+                    else:
+                        return {'success': False, 'error': 'User not found. Please specify by Slack user ID. Tell the user to go to the Slack profile of that user, choose the ... three dots option, and choose "Copy Member ID" to get the exact Slack User ID for that user.'}
+            else:
+                return {'success': False, 'error': 'User_identifier or user_name is required for GRANT action'}
+
+        elif action == 'REVOKE':
+            # Revoke access to the user
+            if user_identifier or user_name:
+                if user_identifier:
+                    # Revoke by user identifier
                     if user_identifier in slack_user_allow_list:
-                        return {'success': False, 'error': 'User already has access'}
-                    slack_user_allow_list.append(user_identifier)
+                        slack_user_allow_list.remove(user_identifier)
+                    else:
+                        return {'success': False, 'error': 'User identifier not found in allow list'}
                 else:
-                    return {'success': False, 'error': 'Invalid Slack user ID'}
+                    # Revoke by user name
+                    users = bot_slack_adapter.slack_app.client.users_list().data
+                    matching_users = [user for user in users['members'] if user.get('real_name', '').lower() == user_name.lower() or user.get('profile', {}).get('real_name', '').lower() == user_name.lower()]
+                    if len(matching_users) == 1 and matching_users[0]['id'] in slack_user_allow_list:
+                        slack_user_allow_list.remove(matching_users[0]['id'])
+                    elif len(matching_users) > 1:
+                        return {'success': False, 'error': 'Multiple users found with that name, please specify by Slack user ID.'}
+                    else:
+                        return {'success': False, 'error': 'User name not found in allow list. Use LIST to see currently granted users.'}
             else:
-                # Look up the user by full name
-                users = bot_slack_adapter.slack_app.client.users_list().data
-                matching_users = [user for user in users['members'] if user.get('real_name', '').lower() == user_name.lower() or user.get('profile', {}).get('real_name', '').lower() == user_name.lower()]
-                if len(matching_users) == 1:
-                    slack_user_allow_list.append(matching_users[0]['id'])
-                elif len(matching_users) > 1:
-                    return {'success': False, 'error': 'Multiple users found, please specify by Slack user ID. Tell the user to go to the Slack profile of that user, choose the ... three dots option, and choose "Copy Member ID" to get the exact Slack User ID for that user.'}
-                else:
-                    return {'success': False, 'error': 'User not found. Please specify by Slack user ID. Tell the user to go to the Slack profile of that user, choose the ... three dots option, and choose "Copy Member ID" to get the exact Slack User ID for that user.'}
+                return {'success': False, 'error': 'User_identifier or user_name is required for REVOKE action'}
+
+        elif action == 'REVOKE ALL':
+            slack_user_allow_list =  []
+            slack_user_allow_list.append('!BLOCK_ALL')
+
         else:
-            return {'success': False, 'error': 'User_identifier or user_name is required for GRANT action'}
+            return {'success': False, 'error': 'Invalid action'}
 
-    elif action == 'REVOKE':
-        # Revoke access to the user
-        if user_identifier or user_name:
-            if user_identifier:
-                # Revoke by user identifier
-                if user_identifier in slack_user_allow_list:
-                    slack_user_allow_list.remove(user_identifier)
-                else:
-                    return {'success': False, 'error': 'User identifier not found in allow list'}
-            else:
-                # Revoke by user name
-                users = bot_slack_adapter.slack_app.client.users_list()
-                matching_users = [user for user in users['members'] if user['real_name'].lower() == user_name.lower()]
-                if len(matching_users) == 1 and matching_users[0]['id'] in slack_user_allow_list:
-                    slack_user_allow_list.remove(matching_users[0]['id'])
-                elif len(matching_users) > 1:
-                    return {'success': False, 'error': 'Multiple users found with that name, please specify by Slack user ID.'}
-                else:
-                    return {'success': False, 'error': 'User name not found in allow list. Use LIST to see currently granted users.'}
-        else:
-            return {'success': False, 'error': 'User_identifier or user_name is required for REVOKE action'}
-
-    elif action == 'REVOKE ALL':
-        slack_user_allow_list =  []
-        slack_user_allow_list.append('!BLOCK_ALL')
-
-    else:
-        return {'success': False, 'error': 'Invalid action'}
-
-
-
-    # Update the SLACK_USER_ALLOW list in the database
-    bb_db_connector.db_update_slack_allow_list( project_id=project_id, dataset_name=dataset_name, bot_servicing_table=bot_servicing_table, bot_id=bot_id, slack_user_allow_list=slack_user_allow_list)
-    if slack_user_allow_list == []:
-        return {'success': True, 'action': action, 'all_allowed': 'All Slack users currently have access to this bot.'}
-    if len(slack_user_allow_list) == 1 and slack_user_allow_list[0] == '!BLOCK_ALL':
-        return {'success': True, 'action': action, 'all_blocked': 'All Slack users currently blocked, no users have access.  Call with GRANT or GRANT ALL action to grant users access to this bot via Slack.'}
-    return {'success': True, 'action': action, 'updated_user_list': slack_user_allow_list}
+        # Update the SLACK_USER_ALLOW list in the database
+        bb_db_connector.db_update_slack_allow_list( project_id=project_id, dataset_name=dataset_name, bot_servicing_table=bot_servicing_table, bot_id=bot_id, slack_user_allow_list=slack_user_allow_list)
+        if slack_user_allow_list == []:
+            return {'success': True, 'action': action, 'all_allowed': 'All Slack users currently have access to this bot.'}
+        if len(slack_user_allow_list) == 1 and slack_user_allow_list[0] == '!BLOCK_ALL':
+            return {'success': True, 'action': action, 'all_blocked': 'All Slack users currently blocked, no users have access.  Call with GRANT or GRANT ALL action to grant users access to this bot via Slack.'}
+        return {'success': True, 'action': action, 'updated_user_list': slack_user_allow_list}
 
 
 
@@ -1422,7 +1439,7 @@ MAKE_BABY_BOT_DESCRIPTIONS.append({
                 },
                 "action": {
                     "type": "string",
-                    "description": "The action to perform - LIST current users that have access, GRANT to a user, or REVOKE from a user. Or GRANT ALL to allow any Slack user to use the bot, or REVOKE ALL to allow no users to use the bot."
+                    "description": "The action to perform - LIST current users that have access, GRANT to a user, or REVOKE from a user. Or GRANT ALL to allow any Slack user to use the bot, or REVOKE ALL to allow no users to use the bot.  If all users have access currently simply call GRANT to a single user to revoke everyone else, no need to also call REVOKE ALL."
                 },
                 "user_identifier": {
                     "type": "string",

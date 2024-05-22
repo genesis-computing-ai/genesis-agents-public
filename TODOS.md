@@ -13,22 +13,14 @@ THINGS TO TEST:
 MR-(test) Make sure harvester works ok with mixed case table and database and schema names (and system in general)
 MR-(test) harvester dont crash if cant access schemas for a database listed in control file
 (test) check error handling for stage tools (added to list, check others)
-(test) Clean up logs (check queries )
 (test Eliza new message is she proactive on baseball and knows its only till 2015?)
 (test) MR-list index out of range on bot config when you refresh directly to it.. did add more retrys fix it?
 
 SHORT-TERM (BEFORE SUMMIT):
-ADD LOCKS TO THE BOT ACCESS MODIFIER
-TEST BOT RBAC
 ADD CHECKING FOR ACCESS IN SLACK
-ADD A NEW ALL BOT DETAILS MODE THAT RETURNS SOME OF THIS WHOLE LIST OF USERS  FOR BOT CONFIG PAGE AND REMOVE FROM GENERAL ALL BOT DETAILS CALL 
+Add slack allow list handling info on make baby bot (add ask for make it open or closed?)
 Add a way for user to provider new refresh key when making new bot
-Add a way to limit which users on Slack can talk to the bot (in dm, and that they will respond to in channels)
-    .. admin allow list: which users 
-    .. user allow list, optional: if exists, only responds to that user
-    .. channel allow list, optional: channel, all users/allowed users
-    Bots with same name dont allow
-Add a note to Eliza to not just dump data in non-DMs
+Dont allow Bots with same name to be created
 Give the bots the PDFs on the docs to Eve so she can answer stuff on them, with multipdf uploader to stage and grant of folder to bot  
 JL-Does Task Service update its Annoy index when needed?
 JL- sander feedback on doc 
@@ -37,6 +29,8 @@ MG-Do stripe setup for monitized listing
 RV-Add USERS field to messages log table to keep track of the users involved in a thread or dm
 MR-SiS app will restart service is suspended (With pool) but doesnt wake up harvester, errors in SiS log harvest screen
 MR-Add a sevice start/stop/restart buttons to SiS
+MR-Add a message to the top of the SisChat page suggesting activating via slack, via a temp workspace
+MR-harvester - change the include flag column to exclude and use that field instead of deleting a row to stop auto harvesting
 JL-changing openAI key via streamlit when running gives an error: (bots conflicts with existing job-- dont add scheduler job again if already running)
 
 POST-SUMMIT:
@@ -159,6 +153,8 @@ Add a mechanism for license control based on current_account()... share a table 
     Have a trial period where you can use it in trial mode before it goes into limited mode
 
 DONE:
+x (test) Clean up logs (check queries )
+n Add a note to Eliza to not just dump data in non-DMs
 x (test) adding stage tools to a bot with baby_bot_tools and see if instructions are updated with internal stage location
 x new install - (test) on first DM with a user, add some introduction of yourself
 x (test Eliza new message is she proactive on baseball and knows its only till 2015?)

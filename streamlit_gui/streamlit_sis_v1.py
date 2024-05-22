@@ -932,14 +932,14 @@ def bot_config():
                         if slack_user_allow is not None:
                             allowed_users = slack_user_allow.strip("[]").replace('"', '').replace("'", "")
                             if allowed_users is not None:
-                                if allowed_users == '!BLOCK_ALL':
+                                if '!BLOCK_ALL' in allowed_users:
                                     st.caption(f"Allowed Slack Users: None - All Blocked")
                                 else:
                                     st.caption(f"Allowed Slack Users IDs: {allowed_users} (Eve can tell you who these are)")
                             else:
-                                st.caption("Allowed Slack Users: All")
+                                st.caption("Allowed Slack Users: All Users Allowed")
                         elif bot['slack_active'] == 'Y':
-                            st.caption("Allowed Slack Users: All")
+                            st.caption("Allowed Slack Users: All Users Allowed")
                         else:
                             st.caption("Allowed Slack Users: N/A")
                         st.caption("Slack Active: " + ('Yes' if bot['slack_active'] == 'Y' else 'No'))

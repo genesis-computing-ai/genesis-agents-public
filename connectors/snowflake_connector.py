@@ -1795,7 +1795,7 @@ class SnowflakeConnector(DatabaseConnector):
         return sample_data
     
 
-    def db_list_all_bots(self, project_id, dataset_name, bot_servicing_table, runner_id=None, full=False):
+    def db_list_all_bots(self, project_id, dataset_name, bot_servicing_table, runner_id=None, full=False, slack_details=False):
         """
         Returns a list of all the bots being served by the system, including their runner IDs, names, instructions, tools, etc.
 
@@ -1807,7 +1807,10 @@ class SnowflakeConnector(DatabaseConnector):
         if full:
             select_str = "api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instructions, runner_id, slack_app_token, slack_app_level_key, slack_signing_secret, slack_channel_id, available_tools, udf_active, slack_active, files, bot_implementation, bot_intro_prompt, bot_avatar_image, slack_user_allow"
         else:
-            select_str = "runner_id, bot_id, bot_name, bot_instructions, available_tools, bot_slack_user_id, api_app_id, auth_url, udf_active, slack_active, files, bot_implementation, bot_intro_prompt, slack_user_allow"
+            if slack_details:
+                select_str = "runner_id, bot_id, bot_name, bot_instructions, available_tools, bot_slack_user_id, api_app_id, auth_url, udf_active, slack_active, files, bot_implementation, bot_intro_prompt, slack_user_allow"
+            else: 
+                select_str = "runner_id, bot_id, bot_name, bot_instructions, available_tools, bot_slack_user_id, api_app_id, auth_url, udf_active, slack_active, files, bot_implementation, bot_intro_prompt"
 
         # Query to select all bots from the BOT_SERVICING table
         if runner_id is None:
@@ -2278,17 +2281,26 @@ class SnowflakeConnector(DatabaseConnector):
         # Query to update the SLACK_USER_ALLOW list in the database
         update_query = f"""
             UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
-            SET SLACK_USER_ALLOW = array_construct(%s)
+            SET SLACK_USER_ALLOW = parse_json(%s)
             WHERE bot_id = %s
         """
 
         # Convert the list to a format suitable for database storage (e.g., JSON string)
         slack_user_allow_list_str = json.dumps(slack_user_allow_list)
+        if slack_user_allow_list == []:
+            update_query = f"""
+            UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
+            SET SLACK_USER_ALLOW = null
+            WHERE bot_id = %s
+               """
 
         # Execute the update query
         try:
             cursor = self.connection.cursor()
-            cursor.execute(update_query, (slack_user_allow_list_str, bot_id))
+            if slack_user_allow_list != []:
+                cursor.execute(update_query, (slack_user_allow_list_str, bot_id))
+            else:
+               cursor.execute(update_query, (bot_id))
             self.connection.commit()
             logger.info(f"Successfully updated SLACK_USER_ALLOW list for bot_id: {bot_id}")
 

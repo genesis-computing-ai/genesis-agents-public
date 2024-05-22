@@ -9,18 +9,28 @@ Make video of Snowflake janitorial work
 Bots calling other bots to do things
 
 THINGS TO TEST:
-x (test) adding stage tools to a bot with baby_bot_tools and see if instructions are updated with internal stage location
 (test) Add error checking for missing data or grants to harvester so it doesnt crash on that 
 MR-(test) Make sure harvester works ok with mixed case table and database and schema names (and system in general)
 MR-(test) harvester dont crash if cant access schemas for a database listed in control file
-new install - (test) on first DM with a user, add some introduction of yourself
-new install - (test) GENESIS_LOCAL_DB.ELIZA_WORKSPACE Create sample workspace by default for Eliza for Eliza.. update her prompt
 (test) check error handling for stage tools (added to list, check others)
 (test) Clean up logs (check queries )
 (test Eliza new message is she proactive on baseball and knows its only till 2015?)
 (test) MR-list index out of range on bot config when you refresh directly to it.. did add more retrys fix it?
 
 SHORT-TERM (BEFORE SUMMIT):
+ADD LOCKS TO THE BOT ACCESS MODIFIER
+TEST BOT RBAC
+ADD CHECKING FOR ACCESS IN SLACK
+ADD A NEW ALL BOT DETAILS MODE THAT RETURNS SOME OF THIS WHOLE LIST OF USERS  FOR BOT CONFIG PAGE AND REMOVE FROM GENERAL ALL BOT DETAILS CALL 
+Add a way for user to provider new refresh key when making new bot
+Add a way to limit which users on Slack can talk to the bot (in dm, and that they will respond to in channels)
+    .. admin allow list: which users 
+    .. user allow list, optional: if exists, only responds to that user
+    .. channel allow list, optional: channel, all users/allowed users
+    Bots with same name dont allow
+Add a note to Eliza to not just dump data in non-DMs
+Give the bots the PDFs on the docs to Eve so she can answer stuff on them, with multipdf uploader to stage and grant of folder to bot  
+JL-Does Task Service update its Annoy index when needed?
 JL- sander feedback on doc 
 JL- add note to baseball harvest that its till 2015 , in select * from genesisapp_master.harvest_share.harvest_results;
 MG-Do stripe setup for monitized listing
@@ -32,6 +42,10 @@ MR-harvester - change the include flag column to exclude and use that field inst
 JL-changing openAI key via streamlit when running gives an error: (bots conflicts with existing job-- dont add scheduler job again if already running)
 
 POST-SUMMIT:
+Have ability to control who a bot is willing to talk to and take direction from to do things on Slack & via SiS
+Have ability to give a bot its own oauth token or uid/pwd so it has its own RBAC
+Have baby bot check to make sure same name bot doesnt already exist in genesis
+When deploying to Slack, check for existing active bot names of the same name and if its there, review it 
 JL-Have DMs also get history if they are not threadded, give the past n DMs too 
 JL-Give Kevin's docs to Jenny and see if she can answer q's based on them
 MR-add the bot images table and view to the copy program to other regions
@@ -147,6 +161,10 @@ Add a mechanism for license control based on current_account()... share a table 
     Have a trial period where you can use it in trial mode before it goes into limited mode
 
 DONE:
+x (test) adding stage tools to a bot with baby_bot_tools and see if instructions are updated with internal stage location
+x new install - (test) on first DM with a user, add some introduction of yourself
+x (test Eliza new message is she proactive on baseball and knows its only till 2015?)
+x new install - (test) GENESIS_LOCAL_DB.ELIZA_WORKSPACE Create sample workspace by default for Eliza for Eliza.. update her prompt
 x (test) Check this function execute_function - _get_visible_tables - {"database":"my_data","schema":"public"}
 x (test) fix add_new_tools_to_bots, 2024-05-10 23:32:09,104 - ERROR - callback_closure - _submit_tool_outputs - caught exception: argument of type 
 x (test) JL-files issue Chris and Robert are seeing -- use new logging to debug

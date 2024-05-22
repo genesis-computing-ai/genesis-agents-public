@@ -313,7 +313,10 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       self.thread_run_map[thread_id] = {"run": run.id, "completed_at": None}
       self.active_runs.append(thread_id)
 
-      self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id, message_type='User Prompt', message_payload=input_message.msg, message_metadata=None, files=attachments)
+      self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id, 
+                                                    message_type='User Prompt', message_payload=input_message.msg, message_metadata=None, files=attachments,
+                                                    channel_type=input_message.metadata.get("channel_type", None), channel_name=input_message.metadata.get("channel", None),
+                                                    primary_user=input_message.metadata.get("primary_user", None))
 
 
    def _submit_tool_outputs(self, run_id, thread_id, tool_call_id, function_call_details, func_response):
@@ -420,7 +423,9 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
          )
          logger.debug(f"_submit_tool_outputs - {updated_run}")
          for tool_output in tool_outputs:
-            self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id, message_type='Tool Output', message_payload=tool_output['output'], message_metadata={'tool_call_id':tool_output['tool_call_id']})
+            self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id, 
+                                                          message_type='Tool Output', message_payload=tool_output['output'], 
+                                                          message_metadata={'tool_call_id':tool_output['tool_call_id']})
 
       except Exception as e:
          logger.error(f"submit_tool_outputs - caught exception: {e}")
@@ -616,7 +621,9 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                                                                      output=output, 
                                                                      messages=None, 
                                                                      input_metadata=run.metadata))
-               self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id, message_type='Assistant Response', message_payload=output, message_metadata=None, tokens_in=0, tokens_out=0)
+               self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id,
+                                                              message_type='Assistant Response', message_payload=output, message_metadata=None, 
+                                                              tokens_in=0, tokens_out=0)
                threads_completed[thread_id] = run.completed_at
 
 
@@ -643,7 +650,9 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                      log_readable_payload = func_name+"("+func_args+")"
                      callback_closure = self._generate_callback_closure(run, thread, tool_call_id, function_details)
                      self.running_tools[tool_call_id] = {"run_id": run.id, "thread_id": thread.id }
-                     self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id, message_type='Tool Call', message_payload=log_readable_payload, message_metadata={'tool_call_id':tool_call_id, 'func_name':func_name, 'func_args':func_args})
+                     self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id,
+                                                                    message_type='Tool Call', message_payload=log_readable_payload, 
+                                                                    message_metadata={'tool_call_id':tool_call_id, 'func_name':func_name, 'func_args':func_args})
                      func_args_dict = json.loads(func_args)
                      if "image_data" in func_args_dict: # FixMe: find a better way to convert file_id back to stored file
                         func_args_dict["image_data"] = self.file_storage.get(func_args_dict["image_data"].removeprefix('/mnt/data/'))
@@ -735,7 +744,11 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                      message_metadata = str(latest_message.content)
                   except:
                      message_metadata = "!error converting content to string"
-                  self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id, message_type='Assistant Response', message_payload=output, message_metadata=message_metadata, tokens_in=run.usage.prompt_tokens, tokens_out=run.usage.completion_tokens, files=files_in)
+                  self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id, 
+                                                                message_type='Assistant Response', message_payload=output, message_metadata=message_metadata,
+                                                                  tokens_in=run.usage.prompt_tokens, tokens_out=run.usage.completion_tokens, files=files_in,
+                                                                  channel_type=meta.get("channel_type", None), channel_name=meta.get("channel", None),
+                                                                  primary_user=meta.get("primary_user", None))
                threads_completed[thread_id] = run.completed_at
 
             else:

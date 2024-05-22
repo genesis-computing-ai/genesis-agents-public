@@ -412,7 +412,9 @@ class SnowflakeConnector(DatabaseConnector):
             print(f"An error occurred while checking if the table summary exists: {e}")
             return False
 
-    def insert_chat_history_row(self, timestamp, bot_id=None, bot_name=None, thread_id=None, message_type=None, message_payload=None, message_metadata=None, tokens_in=None, tokens_out=None, files=None):
+    def insert_chat_history_row(self, timestamp, bot_id=None, bot_name=None, thread_id=None, message_type=None, 
+                                message_payload=None, message_metadata=None, tokens_in=None, tokens_out=None, files=None,
+                                channel_type=None, channel_name=None, primary_user=None, task_id=None):
         """
         Inserts a single row into the chat history table using Snowflake's streaming insert.
 
@@ -425,6 +427,11 @@ class SnowflakeConnector(DatabaseConnector):
         :param message_metadata: STRING field representing the message metadata, can be NULL.
         :param tokens_in: INTEGER field representing the number of tokens in, can be NULL.
         :param tokens_out: INTEGER field representing the number of tokens out, can be NULL.
+        :param files: STRING field representing the list of files, can be NULL.
+        :param channel_type: STRING field representing Slack_channel, Slack_DM, Streamlit, can be NULL.
+        :param channel_name: STRING field representing Slack channel name, or the name of the user the DM, can be NULL.
+        :param primary_user: STRING field representing the who sent the original message, can be NULL.
+        :param task_id: STRING field representing the task, can be NULL.
         """
         cursor = None
         if files is None:
@@ -439,11 +446,13 @@ class SnowflakeConnector(DatabaseConnector):
                 message_metadata = json.dumps(message_metadata)
 
             insert_query = f"""
-            INSERT INTO {self.message_log_table_name} (timestamp, bot_id, bot_name, thread_id, message_type, message_payload, message_metadata, tokens_in, tokens_out, files)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO {self.message_log_table_name} 
+                (timestamp, bot_id, bot_name, thread_id, message_type, message_payload, message_metadata, tokens_in, tokens_out, files, channel_type, channel_name, primary_user, task_id)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """
             cursor = self.client.cursor()
-            cursor.execute(insert_query, (formatted_timestamp, bot_id, bot_name, thread_id, message_type, message_payload, message_metadata, tokens_in, tokens_out, files_str))
+            cursor.execute(insert_query, (formatted_timestamp, bot_id, bot_name, thread_id, message_type, message_payload, message_metadata, tokens_in, tokens_out,
+                                           files_str, channel_type, channel_name, primary_user, task_id))
             self.client.commit()
         except Exception as e:
             print(f"Encountered errors while inserting into chat history table row: {e}")
@@ -1166,11 +1175,12 @@ class SnowflakeConnector(DatabaseConnector):
                 try:
                     cursor.execute(check_query)
                     columns = [col[0] for col in cursor.fetchall()]
-                    if 'FILES' not in columns:
-                        alter_table_query = f"ALTER TABLE {chat_history_table_id} ADD COLUMN FILES STRING;"
-                        cursor.execute(alter_table_query)
-                        self.client.commit()
-                        logger.info(f"Column 'FILES' added to table {chat_history_table_id}.")
+                    for col in ['FILES', 'CHANNEL_TYPE', 'CHANNEL_NAME', 'PRIMARY_USER', 'TASK_ID']:
+                        if col not in columns:
+                            alter_table_query = f"ALTER TABLE {chat_history_table_id} ADD COLUMN {col} STRING;"
+                            cursor.execute(alter_table_query)
+                            self.client.commit()
+                            logger.info(f"Column '{col}' added to table {chat_history_table_id}.")
                 except Exception as e:
                     print('Error adding column FILES to MESSAGE_LOG: ',e)
                 print(f"Table {self.message_log_table_name} already exists.")

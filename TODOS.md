@@ -18,13 +18,13 @@ new install - (test) GENESIS_LOCAL_DB.ELIZA_WORKSPACE Create sample workspace by
 (test) check error handling for stage tools (added to list, check others)
 (test) Clean up logs (check queries )
 (test Eliza new message is she proactive on baseball and knows its only till 2015?)
+(test) MR-list index out of range on bot config when you refresh directly to it.. did add more retrys fix it?
 
 SHORT-TERM (BEFORE SUMMIT):
 JL- sander feedback on doc 
 JL- add note to baseball harvest that its till 2015 , in select * from genesisapp_master.harvest_share.harvest_results;
 MG-Do stripe setup for monitized listing
 RV-Add USERS field to messages log table to keep track of the users involved in a thread or dm
-MR-list index out of range on bot config when you refresh directly to it.. add more retrys
 MR-SiS app will restart service is suspended (With pool) but doesnt wake up harvester, errors in SiS log harvest screen
 MR-Add a sevice start/stop/restart buttons to SiS
 MR-Add a message to the top of the SisChat page suggesting activating via slack, via a temp workspace

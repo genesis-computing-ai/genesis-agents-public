@@ -38,7 +38,6 @@ def create_schema_and_table(conn):
         print("Error creating schema and table: ", e)
 
 
-#TODO modify to use merge statement
 # Function to insert image into Snowflake
 def insert_image(image_name, image_path, bot_name, conn):
     try:

@@ -885,7 +885,9 @@ class SnowflakeConnector(DatabaseConnector):
                     FILES VARCHAR(16777216),
                     BOT_IMPLEMENTATION VARCHAR(16777216),
                     BOT_INTRO_PROMPT VARCHAR(16777216),
-                    BOT_AVATAR_IMAGE VARCHAR(16777216)
+                    BOT_AVATAR_IMAGE VARCHAR(16777216),
+                    SLACK_USER_ALLOW  ARRAY,
+                    DATABASE_CREDENTIALS VARIANT,
                 );
                 """
                 cursor.execute(bot_servicing_table_ddl)
@@ -1009,6 +1011,17 @@ class SnowflakeConnector(DatabaseConnector):
                         cursor.execute(alter_table_query)
                         self.client.commit()
                         logger.info(f"Column 'BOT_AVATAR_IMAGE' added to table {self.bot_servicing_table_name}.")
+                    if 'SLACK_USER_ALLOW' not in columns:
+                        alter_table_query = f"ALTER TABLE {self.bot_servicing_table_name} ADD COLUMN SLACK_USER_ALLOW ARRAY;"
+                        cursor.execute(alter_table_query)
+                        self.client.commit()
+                        logger.info(f"Column 'SLACK_USER_ALLOW' added to table {self.bot_servicing_table_name}.")
+                    if 'DATABASE_CREDENTIALS' not in columns:
+                        alter_table_query = f"ALTER TABLE {self.bot_servicing_table_name} ADD COLUMN DATABASE_CREDENTIALS VARIANT;"
+                        cursor.execute(alter_table_query)
+                        self.client.commit()
+                        logger.info(f"Column 'DATABASE_CREDENTIALS' added to table {self.bot_servicing_table_name}.")
+                        
                 except Exception as e:
                     print(f"An error occurred while checking or altering table {self.bot_servicing_table_name} to add BOT_IMPLEMENTATION column: {e}")
                 except Exception as e:
@@ -1786,9 +1799,9 @@ class SnowflakeConnector(DatabaseConnector):
         # Get the database schema from environment variables
 
         if full:
-            select_str = "api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instructions, runner_id, slack_app_token, slack_app_level_key, slack_signing_secret, slack_channel_id, available_tools, udf_active, slack_active, files, bot_implementation, bot_intro_prompt, bot_avatar_image"
+            select_str = "api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instructions, runner_id, slack_app_token, slack_app_level_key, slack_signing_secret, slack_channel_id, available_tools, udf_active, slack_active, files, bot_implementation, bot_intro_prompt, bot_avatar_image, slack_user_allow"
         else:
-            select_str = "runner_id, bot_id, bot_name, bot_instructions, available_tools, bot_slack_user_id, api_app_id, auth_url, udf_active, slack_active, files, bot_implementation, bot_intro_prompt"
+            select_str = "runner_id, bot_id, bot_name, bot_instructions, available_tools, bot_slack_user_id, api_app_id, auth_url, udf_active, slack_active, files, bot_implementation, bot_intro_prompt, slack_user_allow"
 
         # Query to select all bots from the BOT_SERVICING table
         if runner_id is None:
@@ -2243,6 +2256,45 @@ class SnowflakeConnector(DatabaseConnector):
         except Exception as e:
             logger.error(f"Failed to update bot_implementation for bot_id: {bot_id} with error: {e}")
             return {"success": False, "error": str(e)}
+
+    def db_update_slack_allow_list(self,  project_id, dataset_name, bot_servicing_table, bot_id, slack_user_allow_list, thread_id=None):
+        """
+        Updates the SLACK_USER_ALLOW list for a bot in the database.
+
+        Args:
+            bot_id (str): The unique identifier for the bot.
+            slack_user_allow_list (list): The updated list of Slack user IDs allowed for the bot.
+
+        Returns:
+            dict: A dictionary with the result of the operation, indicating success or failure.
+        """
+
+        # Query to update the SLACK_USER_ALLOW list in the database
+        update_query = f"""
+            UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
+            SET SLACK_USER_ALLOW = array_construct(%s)
+            WHERE bot_id = %s
+        """
+
+        # Convert the list to a format suitable for database storage (e.g., JSON string)
+        slack_user_allow_list_str = json.dumps(slack_user_allow_list)
+
+        # Execute the update query
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute(update_query, (slack_user_allow_list_str, bot_id))
+            self.connection.commit()
+            logger.info(f"Successfully updated SLACK_USER_ALLOW list for bot_id: {bot_id}")
+
+            return {
+                "success": True,
+                "message": f"SLACK_USER_ALLOW list updated for bot_id: {bot_id}."
+            }
+
+        except Exception as e:
+            logger.error(f"Failed to update SLACK_USER_ALLOW list for bot_id: {bot_id} with error: {e}")
+            return {"success": False, "error": str(e)}
+
 
     def db_get_bot_details(self, project_id, dataset_name, bot_servicing_table, bot_id):
         """

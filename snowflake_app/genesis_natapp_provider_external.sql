@@ -29,7 +29,7 @@ CREATE SCHEMA IF NOT EXISTS CODE_SCHEMA;
 USE SCHEMA CODE_SCHEMA;
 CREATE IMAGE REPOSITORY IF NOT EXISTS SERVICE_REPO;
 
-CREATE APPLICATION PACKAGE IF NOT EXISTS GENESISAPP_APP_PKG_EXT;
+
 
 
 USE DATABASE GENESISAPP_APP_PKG_EXT;
@@ -269,7 +269,6 @@ privileges:
       description: "to use of CORTEX LLM functions"
 $$)
 ;
-
 --privileges:
 --  - IMPORTED PRIVILEGES ON SNOWFLAKE DB:
 --      description: "to see table metadata of granted tables"
@@ -301,7 +300,7 @@ $$)
 INSERT INTO SCRIPT (NAME , VALUE)
 VALUES ('SIS_APP',
 $$
-
+#Get from Cursor
 $$)
 ;
 
@@ -558,6 +557,27 @@ BEGIN
     WHERE SCHEMA_NAME = :INSTANCE_NAME;
 
     IF (:schema_exists) then
+
+    REVOKE USAGE ON FUNCTION APP1.deploy_bot(varchar) FROM APPLICATION ROLE APP_PUBLIC;
+    
+    DROP FUNCTION IF EXISTS APP1.configure_ngrok_token(varchar, varchar, varchar);
+    
+    REVOKE USAGE ON FUNCTION APP1.configure_slack_app_token(varchar, varchar) FROM APPLICATION ROLE APP_PUBLIC;
+    
+    REVOKE USAGE ON FUNCTION APP1.configure_llm(varchar, varchar) FROM APPLICATION ROLE APP_PUBLIC;
+    
+    REVOKE USAGE ON FUNCTION APP1.submit_udf(varchar, varchar, varchar) FROM APPLICATION ROLE APP_PUBLIC;
+    
+    REVOKE USAGE ON FUNCTION APP1.lookup_udf(varchar, varchar) FROM APPLICATION ROLE APP_PUBLIC;
+    
+    REVOKE USAGE ON FUNCTION APP1.get_slack_endpoints() FROM APPLICATION ROLE APP_PUBLIC;
+    
+    REVOKE USAGE ON FUNCTION APP1.list_available_bots() FROM APPLICATION ROLE APP_PUBLIC;
+    
+    DROP FUNCTION IF EXISTS APP1.get_ngrok_tokens();
+    
+    REVOKE USAGE ON FUNCTION APP1.get_metadata(varchar) FROM APPLICATION ROLE APP_PUBLIC;
+    
       LET spec VARCHAR := (
             SELECT REGEXP_REPLACE(VALUE
               ,'{{app_db_sch}}',lower(current_database())||'.'||lower(:INSTANCE_NAME)) AS VALUE
@@ -566,11 +586,6 @@ BEGIN
         'ALTER SERVICE IF EXISTS '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
         ' FROM SPECIFICATION  '||chr(36)||chr(36)||'\n'|| :spec ||'\n'||chr(36)||chr(36) ||
         ' ';
-
---      EXECUTE IMMEDIATE 'grant select on all tables in schema '||:INSTANCE_NAME||' TO APPLICATION ROLE APP_PUBLIC';
-
---      EXECUTE IMMEDIATE 'grant select on future tables in schema '||:INSTANCE_NAME||' TO APPLICATION ROLE APP_PUBLIC';
-
 
       if (WAREHOUSE_NAME is not NULL)
       THEN
@@ -708,36 +723,37 @@ AS
      EXECUTE IMMEDIATE
    'CREATE or replace FUNCTION '|| :INSTANCE_NAME ||'.deploy_bot (bot_id varchar)  RETURNS varchar SERVICE='|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||' ENDPOINT=udfendpoint AS '||chr(39)||'/udf_proxy/deploy_bot'||chr(39);
   
-EXECUTE IMMEDIATE
-   'GRANT USAGE ON FUNCTION '|| :INSTANCE_NAME ||'.deploy_bot ( varchar )  TO APPLICATION ROLE APP_PUBLIC';
+-- EXECUTE IMMEDIATE
+--   'GRANT USAGE ON FUNCTION '|| :INSTANCE_NAME ||'.deploy_bot ( varchar )  TO APPLICATION ROLE APP_PUBLIC';
 
  
 --EXECUTE IMMEDIATE
 --   'GRANT USAGE ON FUNCTION '|| :INSTANCE_NAME ||'.configure_ngrok_token ( varchar, varchar, varchar)  TO APPLICATION ROLE APP_PUBLIC';
 
- EXECUTE IMMEDIATE
-   'GRANT USAGE ON FUNCTION '|| :INSTANCE_NAME ||'.configure_slack_app_token ( varchar, varchar)  TO APPLICATION ROLE APP_PUBLIC';
+ -- EXECUTE IMMEDIATE
+ --  'GRANT USAGE ON FUNCTION '|| :INSTANCE_NAME ||'.configure_slack_app_token ( varchar, varchar)  TO APPLICATION ROLE APP_PUBLIC';
 
- EXECUTE IMMEDIATE
-   'GRANT USAGE ON FUNCTION '|| :INSTANCE_NAME ||'.configure_llm ( varchar, varchar)  TO APPLICATION ROLE APP_PUBLIC';
- EXECUTE IMMEDIATE
-   'GRANT USAGE ON FUNCTION '|| :INSTANCE_NAME ||'.submit_udf ( varchar, varchar, varchar)  TO APPLICATION ROLE APP_PUBLIC';
- EXECUTE IMMEDIATE
-   'GRANT USAGE ON FUNCTION '|| :INSTANCE_NAME ||'.lookup_udf ( varchar, varchar)  TO APPLICATION ROLE APP_PUBLIC';
- EXECUTE IMMEDIATE
-   'GRANT USAGE ON FUNCTION '|| :INSTANCE_NAME ||'.get_slack_endpoints ( )  TO APPLICATION ROLE APP_PUBLIC';
- EXECUTE IMMEDIATE
-   'GRANT USAGE ON FUNCTION '|| :INSTANCE_NAME ||'.list_available_bots ( )  TO APPLICATION ROLE APP_PUBLIC';
+ --EXECUTE IMMEDIATE
+--   'GRANT USAGE ON FUNCTION '|| :INSTANCE_NAME ||'.configure_llm ( varchar, varchar)  TO APPLICATION ROLE APP_PUBLIC';
+-- EXECUTE IMMEDIATE
+--   'GRANT USAGE ON FUNCTION '|| :INSTANCE_NAME ||'.submit_udf ( varchar, varchar, varchar)  TO APPLICATION ROLE APP_PUBLIC';
+-- EXECUTE IMMEDIATE
+--   'GRANT USAGE ON FUNCTION '|| :INSTANCE_NAME ||'.lookup_udf ( varchar, varchar)  TO APPLICATION ROLE APP_PUBLIC';
+-- EXECUTE IMMEDIATE
+--   'GRANT USAGE ON FUNCTION '|| :INSTANCE_NAME ||'.get_slack_endpoints ( )  TO APPLICATION ROLE APP_PUBLIC';
+-- EXECUTE IMMEDIATE
+--   'GRANT USAGE ON FUNCTION '|| :INSTANCE_NAME ||'.list_available_bots ( )  TO APPLICATION ROLE APP_PUBLIC';
  --EXECUTE IMMEDIATE
  --  'GRANT USAGE ON FUNCTION '|| :INSTANCE_NAME ||'.get_ngrok_tokens ( )  TO APPLICATION ROLE APP_PUBLIC';
- EXECUTE IMMEDIATE
-   'GRANT USAGE ON FUNCTION '|| :INSTANCE_NAME ||'.get_metadata (varchar )  TO APPLICATION ROLE APP_PUBLIC';
+ --EXECUTE IMMEDIATE
+ --  'GRANT USAGE ON FUNCTION '|| :INSTANCE_NAME ||'.get_metadata (varchar )  TO APPLICATION ROLE APP_PUBLIC';
 
 
  RETURN 'service created';
 END
 :::
 ;
+
 
 
 
@@ -809,15 +825,10 @@ BEGIN
   SELECT CURRENT_DATABASE() INTO :v_current_database;
 
   EXECUTE IMMEDIATE 'CREATE SCHEMA '||:INSTANCE_NAME;
-
---  EXECUTE IMMEDIATE 'grant select on future tables in schema '||:INSTANCE_NAME||' TO APPLICATION ROLE APP_PUBLIC';
-
   EXECUTE IMMEDIATE 'GRANT USAGE ON SCHEMA '||:INSTANCE_NAME||' TO APPLICATION ROLE APP_PUBLIC';
-
 
   EXECUTE IMMEDIATE 'CREATE STAGE IF NOT EXISTS '||:INSTANCE_NAME||'.'||'WORKSPACE DIRECTORY = ( ENABLE = true ) ENCRYPTION = (TYPE = '||CHR(39)||'SNOWFLAKE_SSE'||chr(39)||')';
   EXECUTE IMMEDIATE 'GRANT READ ON STAGE '||:INSTANCE_NAME||'.'||'WORKSPACE TO APPLICATION ROLE APP_PUBLIC';
-
 
   CALL APP.CREATE_SERVER_SERVICE(:INSTANCE_NAME,'GENESISAPP_SERVICE_SERVICE',:POOL_NAME, :EAI_NAME, :APP_WAREHOUSE, :v_current_database);
   CALL APP.CREATE_HARVESTER_SERVICE(:INSTANCE_NAME,'GENESISAPP_HARVESTER_SERVICE',:POOL_NAME, :EAI_NAME, :APP_WAREHOUSE, :v_current_database);
@@ -995,7 +1006,7 @@ END;
 ;
 
 
-GRANT USAGE ON PROCEDURE CORE.TEST_BILLING_EVENT() TO  APPLICATION ROLE APP_PUBLIC;
+-- GRANT USAGE ON PROCEDURE CORE.TEST_BILLING_EVENT() TO  APPLICATION ROLE APP_PUBLIC;
 
 
 
@@ -1173,7 +1184,7 @@ show applications;
 
 SET APP_DATABASE='GENESIS_BOTS_ALPHA';
 
-CREATE APPLICATION GENESIS_BOTS FROM APPLICATION PACKAGE GENESISAPP_APP_PKG_EXT USING VERSION V0_1;
+CREATE APPLICATION GENESIS_BOTS_ALPHA FROM APPLICATION PACKAGE GENESISAPP_APP_PKG_EXT USING VERSION V0_1;
 
 call GENESISAPP_APP.core.get_eai();
 // to get streamlit up and running
@@ -1204,13 +1215,11 @@ show compute pools;
 
 // network egress for openai, ngrok, slack
  
--- create a network rule that allows Genesis Server to access OpenAI's API, and optionally Slack API and Azure Blob (for image generation) 
-CREATE OR REPLACE NETWORK RULE GENESIS_LOCAL_DB.SETTINGS.GENESIS_RULE
- MODE = EGRESS TYPE = HOST_PORT
+CREATE OR REPLACE NETWORK RULE IDENTIFIER($APP_LOCAL_EGRESS_RULE)
+ MODE = EGRESS
+ TYPE = HOST_PORT
 VALUE_LIST = ('api.openai.com', 'slack.com', 'www.slack.com', 'wss-primary.slack.com',
-'wss-backup.slack.com',  'wss-primary.slack.com:443','wss-backup.slack.com:443','www.genesiscomputing.ai',
-'oaidalleapiprodscus.blob.core.windows.net:443', 'downloads.slack-edge.com', 'files-edge.slack.com',
-'files-origin.slack.com', 'files.slack.com', 'global-upload-edge.slack.com','universal-upload-edge.slack.com');
+'wss-backup.slack.com',  'wss-primary.slack.com:443','wss-backup.slack.com:443');
 
 CREATE OR REPLACE EXTERNAL ACCESS INTEGRATION IDENTIFIER($APP_LOCAL_EAI)
    ALLOWED_NETWORK_RULES = (APP_LOCAL_DB.EGRESS.APP_RULE)  -- update from above if necessary
@@ -1797,6 +1806,7 @@ BEGIN
 END;
 
 
+
 ALTER APPLICATION GENESISAPP_APP UPGRADE USING VERSION V0_1;
 call genesisapp_app.core.restart_app_instance('APP1');
 
@@ -1804,17 +1814,20 @@ call genesisapp_app.core.restart_app_instance('APP1');
 -- ########## END CREATE TEST APP   ######################################
 
 
-show versions in application package GENESISAPP_APP_PKG_EXT;
-
-
-show applications;
-drop application genesis_bots;
-
-create application genesis_bots from application package GENESISAPP_APP_PKG_EXT using version v0_1 patch 28;
 
 
 -- ########## BEGIN PUBLISH   ############################################
 
+
+show versions in application package GENESISAPP_APP_PKG_EXT;
+
+CREATE APPLICATION GENESIS_BOTS FROM APPLICATION PACKAGE GENESISAPP_APP_PKG_EXT USING version V0_1 patch 32;
+
+call GENESIS_BOTS.CORE.DROP_APP_INSTANCE('APP1');
+
+call GENESIS_BOTS.CORE.INITIALIZE_APP_INSTANCE('APP1','GENESIS_POOL','GENESIS_EAI','XSMALL');
+
+// v132 -> .32
 
 ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG_EXT
   SET DISTRIBUTION = $APP_DISTRIBUTION;
@@ -1831,12 +1844,7 @@ BEGIN
  RETURN TABLE(rs);
 END;
 
-// .28 -> 129 with harvester fix and latest stuff w/new network rule 
-// 129a files fix -> 29
-// 130 harvester fix -> 31
 
 -- ########## END PUBLISH   ##############################################
-
-select * from GENESISAPP_MASTER.APP_SHARE.IMAGES_SHARED;
 
 

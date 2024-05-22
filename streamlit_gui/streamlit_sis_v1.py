@@ -732,7 +732,8 @@ def db_add_to_harvester():
 def grant_data():
 
     st.subheader('Grant Data Access')
-    st.write('The Genesis application can help you with your data in Snowflake. To do so, you need to grant this application access to your data. The helper procedure below can help you grant access to everything in a database to this application. This application runs securely inside your Snowflake account.')
+    st.write('The Genesis bots can help you analyze your data in Snowflake. To do so, you need to grant this application access to your data. The helper procedure below can help you grant access to read all tables and views in a database to this application.')
+    st.write('Note that any bot with the Database Tools will be able to access this data, and when such a bot is deployed to Slack, any user of Slack will be able to run analyses of this data using the bot. So grant data in this manner only to non-sensitive data that is ok for any Slack user to view.')
     wh_text = f'''-- select role to use, generally ACCOUNTADMIN.  See documentation for required permissions if not using ACCOUNTADMIN.
 use role ACCOUNTADMIN;
 
@@ -780,6 +781,8 @@ AS ''' + chr(36) + chr(36) + '''
 show databases;
 
 -- to use on a local database in your account, call with the name of the database to grant
+-- only use this on non-sensitive data, as any bot with Database Tools will be able to read it, and when deployed 
+-- to Slack any user will be able to discuss this data with the bot
 call GENESIS_LOCAL_DB.SETTINGS.grant_schema_usage_and_select_to_app('<your db name>',$APP_DATABASE);
 
 -- see inbound shares 
@@ -899,6 +902,20 @@ def bot_config():
 
                     with col2:
                         st.caption("UDF Active: " + ('Yes' if bot['udf_active'] == 'Y' else 'No'))
+                        slack_user_allow = bot.get('slack_user_allow', None)
+                        if slack_user_allow is not None:
+                            allowed_users = slack_user_allow.strip("[]").replace('"', '').replace("'", "")
+                            if allowed_users is not None:
+                                if allowed_users == '!BLOCK_ALL':
+                                    st.caption(f"Allowed Slack Users: None - All Blocked")
+                                else:
+                                    st.caption(f"Allowed Slack Users IDs: {allowed_users} (Eve can tell you who these are)")
+                            else:
+                                st.caption("Allowed Slack Users: All")
+                        elif bot['slack_active'] == 'Y':
+                            st.caption("Allowed Slack Users: All")
+                        else:
+                            st.caption("Allowed Slack Users: N/A")
                         st.caption("Slack Active: " + ('Yes' if bot['slack_active'] == 'Y' else 'No'))
                         st.caption("Slack Deployed: " + ('Yes' if bot['slack_deployed'] else 'No'))
                         st.text_area(label="Instructions", value=bot['bot_instructions'], height=100)
@@ -1035,6 +1052,7 @@ GRANT USAGE ON INTEGRATION GENESIS_EAI TO APPLICATION   IDENTIFIER($APP_DATABASE
 CREATE SCHEMA IF NOT EXISTS GENESIS_LOCAL_DB.ELIZA_WORKSPACE;
 GRANT USAGE ON DATABASE GENESIS_LOCAL_DB TO APPLICATION IDENTIFIER($APP_DATABASE);
 GRANT ALL ON SCHEMA GENESIS_LOCAL_DB.ELIZA_WORKSPACE TO APPLICATION IDENTIFIER($APP_DATABASE);
+GRANT ALL ON FUTURE TABLES IN SCHEMA GENESIS_LOCAL_DB.ELIZA_WORKSPACE TO ROLE ACCOUNTADMIN;
 
 -- (optional steps for event logging) 
 -- create a schema to hold the event table

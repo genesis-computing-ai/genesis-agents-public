@@ -25,13 +25,10 @@ JL- add note to baseball harvest that its till 2015 , in select * from genesisap
 MG-Do stripe setup for monitized listing
 RV-Add USERS field to messages log table to keep track of the users involved in a thread or dm
 MR-list index out of range on bot config when you refresh directly to it.. add more retrys
-MR-add a few doublechecks before going to the initiall install screen in Sis
-MR-Pre-harvest and share information_schema
 MR-SiS app will restart service is suspended (With pool) but doesnt wake up harvester, errors in SiS log harvest screen
 MR-Add a sevice start/stop/restart buttons to SiS
 MR-Add a message to the top of the SisChat page suggesting activating via slack, via a temp workspace
 MR-harvester - change the include flag column to exclude and use that field instead of deleting a row to stop auto harvesting
-MR-add link to support Slack workspace inviter page on SiS
 JL-changing openAI key via streamlit when running gives an error: (bots conflicts with existing job-- dont add scheduler job again if already running)
 
 POST-SUMMIT:
@@ -351,3 +348,6 @@ x    .. and have the slack activator not start sessions and udf adapters for bot
 x STREAMLIT - ADD A BOTS PAGE WITH A NEW BUTTON THAT GOES TO EVE, ADD AN API KEYS PAGE for llm, ngrok, and slack, 
 x Add a new chat button on streamlit GUI
 x Add add file to bot tool
+x MR-add a few doublechecks before going to the initiall install screen in Sis
+x MR-Pre-harvest and share information_schema
+x MR-add link to support Slack workspace inviter page on SiS

@@ -37,8 +37,6 @@ MG-Do stripe setup for monitized listing
 RV-Add USERS field to messages log table to keep track of the users involved in a thread or dm
 MR-SiS app will restart service is suspended (With pool) but doesnt wake up harvester, errors in SiS log harvest screen
 MR-Add a sevice start/stop/restart buttons to SiS
-MR-Add a message to the top of the SisChat page suggesting activating via slack, via a temp workspace
-MR-harvester - change the include flag column to exclude and use that field instead of deleting a row to stop auto harvesting
 JL-changing openAI key via streamlit when running gives an error: (bots conflicts with existing job-- dont add scheduler job again if already running)
 
 POST-SUMMIT:
@@ -369,3 +367,5 @@ x Add add file to bot tool
 x MR-add a few doublechecks before going to the initiall install screen in Sis
 x MR-Pre-harvest and share information_schema
 x MR-add link to support Slack workspace inviter page on SiS
+x MR-Add a message to the top of the SisChat page suggesting activating via slack, via a temp workspace
+x MR-harvester - change the include flag column to exclude and use that field instead of deleting a row to stop auto harvesting

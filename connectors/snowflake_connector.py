@@ -512,7 +512,7 @@ class SnowflakeConnector(DatabaseConnector):
     
         if action == 'LIST':
             try:
-                list_query = f"SELECT * FROM {self.schema}.TASKS WHERE bot_id = %s"
+                list_query = f"SELECT * FROM {self.schema}.TASKS WHERE upper(bot_id) = upper(%s)"
                 cursor.execute(list_query, (bot_id,))
                 tasks = cursor.fetchall()
                 task_list = []
@@ -893,7 +893,7 @@ class SnowflakeConnector(DatabaseConnector):
                     BOT_INTRO_PROMPT VARCHAR(16777216),
                     BOT_AVATAR_IMAGE VARCHAR(16777216),
                     SLACK_USER_ALLOW  ARRAY,
-                    DATABASE_CREDENTIALS VARIANT,
+                    DATABASE_CREDENTIALS VARIANT
                 );
                 """
                 cursor.execute(bot_servicing_table_ddl)
@@ -2114,7 +2114,7 @@ class SnowflakeConnector(DatabaseConnector):
                 slack_user_allow_update_query = f"""
                     UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
                     SET slack_user_allow = parse_json(%s)
-                    WHERE bot_id = %s
+                    WHERE upper(bot_id) = upper(%s)
                     """
                 slack_user_allow_value = '["!BLOCK_ALL"]'
                 try:
@@ -2135,7 +2135,7 @@ class SnowflakeConnector(DatabaseConnector):
         update_query = f"""
             UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
             SET available_tools = %s
-            WHERE bot_id = %s
+            WHERE upper(bot_id) = upper(%s)
         """
 
         # Execute the update query
@@ -2162,7 +2162,7 @@ class SnowflakeConnector(DatabaseConnector):
         update_query = f"""
             UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
             SET files = %s
-            WHERE bot_id = %s
+            WHERE upper(bot_id) = upper(%s)
         """
         # Execute the update query
         try:
@@ -2198,7 +2198,7 @@ class SnowflakeConnector(DatabaseConnector):
         update_query = f"""
             UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
             SET SLACK_APP_LEVEL_KEY = %s
-            WHERE bot_id = %s
+            WHERE upper(bot_id) = upper(%s)
         """
 
         # Execute the update query
@@ -2223,7 +2223,7 @@ class SnowflakeConnector(DatabaseConnector):
         update_query = f"""
             UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
             SET bot_instructions = %s
-            WHERE bot_id = %s AND runner_id = %s
+            WHERE upper(bot_id) = upper(%s) AND runner_id = %s
         """
 
         # Execute the update query
@@ -2263,7 +2263,7 @@ class SnowflakeConnector(DatabaseConnector):
         update_query = f"""
             UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
             SET bot_implementation = %s
-            WHERE bot_id = %s AND runner_id = %s
+            WHERE upper(bot_id) = upper(%s) AND runner_id = %s
         """
 
         # Execute the update query
@@ -2298,7 +2298,7 @@ class SnowflakeConnector(DatabaseConnector):
         update_query = f"""
             UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
             SET SLACK_USER_ALLOW = parse_json(%s)
-            WHERE bot_id = %s
+            WHERE upper(bot_id) = upper(%s)
         """
 
         # Convert the list to a format suitable for database storage (e.g., JSON string)
@@ -2307,7 +2307,7 @@ class SnowflakeConnector(DatabaseConnector):
             update_query = f"""
             UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
             SET SLACK_USER_ALLOW = null
-            WHERE bot_id = %s
+            WHERE upper(bot_id) = upper(%s)
                """
 
         # Execute the update query
@@ -2335,7 +2335,7 @@ class SnowflakeConnector(DatabaseConnector):
         select_query = f"""
             SELECT slack_user_allow
             FROM {self.bot_servicing_table_name}
-            WHERE bot_id = %s
+            WHERE upper(bot_id) = upper(%s)
         """
 
         try:
@@ -2370,7 +2370,7 @@ class SnowflakeConnector(DatabaseConnector):
         select_query = f"""
             SELECT *
             FROM {project_id}.{dataset_name}.{bot_servicing_table}
-            WHERE bot_id = %s
+            WHERE upper(bot_id) = upper(%s)
         """
 
         try:
@@ -2414,7 +2414,7 @@ class SnowflakeConnector(DatabaseConnector):
             SET API_APP_ID = %s, BOT_SLACK_USER_ID = %s, CLIENT_ID = %s, CLIENT_SECRET = %s,
                 SLACK_SIGNING_SECRET = %s, AUTH_URL = %s, AUTH_STATE = %s,
                 UDF_ACTIVE = %s, SLACK_ACTIVE = %s, FILES = %s, BOT_IMPLEMENTATION = %s
-            WHERE BOT_ID = %s
+            WHERE upper(BOT_ID) = upper(%s)
         """
 
         try:
@@ -2442,7 +2442,7 @@ class SnowflakeConnector(DatabaseConnector):
         update_query = f"""
             UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
             SET BOT_SLACK_USER_ID = %s, SLACK_APP_TOKEN = %s
-            WHERE BOT_ID = %s
+            WHERE upper(BOT_ID) = upper(%s)
         """
 
         try:
@@ -2524,7 +2524,7 @@ class SnowflakeConnector(DatabaseConnector):
         # Query to delete the bot from the database table
         delete_query = f"""
             DELETE FROM {project_id}.{dataset_name}.{bot_servicing_table}
-            WHERE bot_id = %s
+            WHERE upper(bot_id) = upper(%s)
         """
 
         # Execute the delete query

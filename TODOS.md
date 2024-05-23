@@ -22,6 +22,12 @@ SHORT-TERM (BEFORE SUMMIT):
 SELECT * FROM "genesis_bots"."app1"."harvest_results";
 after granting snowflake to it
 
+This table cant be found once harvested: .. why?
+CREATE TABLE "RAW_WIKIPEDIA"."EVENTS"."WIKICHANGES" (
+    RECORD_METADATA VARIANT,
+    RECORD_CONTENT VARIANT
+);
+
 
 Why does "NEURALIFT_DEMO"."DATA"."ACTIVATION_TABLE" not show as available after harvesting?
 a lot of snowflake objects are getting harvester_error

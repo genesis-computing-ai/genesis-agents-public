@@ -418,9 +418,16 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       # Limit the output of each tool to length 800000
       tool_outputs_limited = []
       for tool_output in tool_outputs:
-          output_limited = tool_output['output'][:900000]  # Truncate the output if it exceeds 900000 characters
-          tool_outputs_limited.append({'tool_call_id': tool_output['tool_call_id'], 'output': output_limited})
+         output_limited = tool_output['output'][:400000]
+         if len(output_limited) == 400000:
+            output_limited = output_limited + '\n!!WARNING!! LONG TOOL OUTPUT TRUNCATED.  CONSIDER CALLING WITH TOOL PARAMATERS THAT PRODUCE LESS RAW DATA.' # Truncate the output if it exceeds 400000 characters
+         tool_outputs_limited.append({'tool_call_id': tool_output['tool_call_id'], 'output': output_limited})
       tool_outputs = tool_outputs_limited
+      # Check if the total size of tool_outputs exceeds the limit
+      total_size = sum(len(output['output']) for output in tool_outputs)
+      if total_size > 510000:
+          # If it does, alter all the tool_outputs to the error message
+          tool_outputs = [{'tool_call_id': output['tool_call_id'], 'output': 'Error! Total size of tool outputs too large to return to OpenAI, consider using tool paramaters that produce less raw data.'} for output in tool_outputs]
       try:
          updated_run = self.client.beta.threads.runs.submit_tool_outputs(
             thread_id=thread_id,

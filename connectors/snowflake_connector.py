@@ -1759,7 +1759,7 @@ class SnowflakeConnector(DatabaseConnector):
             cursor.execute(query)
         except Exception as e:
             if "does not exist or not authorized" in str(e):
-                print('run query: ', query, '\ncaused object or access rights error: ', e, ' Provided suggestions.')
+                print('run query: len:', len(query), '\ncaused object or access rights error: ', e, ' Provided suggestions.')
                 cursor.close()
                 return {
                 "Success": False,
@@ -1775,7 +1775,7 @@ class SnowflakeConnector(DatabaseConnector):
             4. NOTE: You do not have the PUBLIC role or any other role, all object you are granted must be granted TO APPLICATION GENESIS_BOTS, or be granted by grant_schema_usage_and_select_to_app as shown above.
 """
             }
-            print('run query: ', query, '\ncaused error: ', e)
+            print('run query: len=', len(query), '\ncaused error: ', e)
             cursor.close()
             return {"Success": False, "Error": str(e)}
             

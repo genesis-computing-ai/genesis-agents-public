@@ -697,6 +697,8 @@ def db_harvester():
         st.metric(label="Most Recent Change", value=most_recent_change_str)
 
     st.subheader("Sources and Databases being Harvested")
+    st.markdown("Note: It may take 2-5 minutes for newly-granted data to appear here, and 5-10 minutes to be available to the bots")
+
     #st.dataframe(harvest_control_df.astype(str))
     # Convert JSON strings in 'schema_inclusions' to Python lists, handling nulls and non-list values
     if not harvest_control_df.empty:
@@ -750,7 +752,8 @@ def grant_data():
 
     st.subheader('Grant Data Access')
     st.write('The Genesis bots can help you analyze your data in Snowflake. To do so, you need to grant this application access to your data. The helper procedure below can help you grant access to read all tables and views in a database to this application.')
-    st.write('Note that any bot with the Database Tools will be able to access this data, and when such a bot is deployed to Slack, any user of Slack will be able to run analyses of this data using the bot. So grant data in this manner only to non-sensitive data that is ok for any Slack user to view.')
+    st.write('Note! Any bot with the Database Tools will be able to access this data, and when such a bot is deployed to Slack, some bots may be accessible by all Slack users, unless they are configured by Eve to only be usable by select Slack users.')
+    st.write('So grant data in this manner only to non-sensitive data that is ok for any Slack user to view, or first have Eve limit the access to the Database Tools-enabled bots to only select users on Slack.')
     wh_text = f'''-- select role to use, generally ACCOUNTADMIN.  See documentation for required permissions if not using ACCOUNTADMIN.
 use role ACCOUNTADMIN;
 
@@ -797,19 +800,30 @@ AS ''' + chr(36) + chr(36) + '''
 -- see your databases
 show databases;
 
--- to use on a local database in your account, call with the name of the database to grant
--- only use this on non-sensitive data, as any bot with Database Tools will be able to read it, and when deployed 
--- to Slack any user will be able to discuss this data with the bot
+-- To use on a local database in your account, call with the name of the database to grant
+-- 
+-- Note! any bot with the Database Tools will be able to access this data, and when such a bot is deployed to Slack, 
+-- some bots may be accessible by all Slack users, unless they are configured by Eve to only be usable by select Slack
+-- users. So grant data in this manner only to non-sensitive data that is ok for any Slack user to view, or first have 
+-- Eve limit the access to the Database Tools-enabled bots to only select users on Slack.
+
+-- Replace <your app name> with the name of your database you want to grant
 call GENESIS_LOCAL_DB.SETTINGS.grant_schema_usage_and_select_to_app('<your db name>',$APP_DATABASE);
+
+-- If you want to grant data that has been shared to you via Snowflake data sharing, use this process below instead
+-- the above:
 
 -- see inbound shares 
 show shares;
 
 -- to grant an inbound shared database to the Genesis application 
-grant imported privileges on database <inbound_share_db_name> to application IDENTIFIER($APP_DATABASE);
+-- (uncomment this by removing the // and put the right shared DB name in first)
+// grant imported privileges on database <inbound_share_db_name> to application IDENTIFIER($APP_DATABASE);
 
--- to grant access to the SNOWFLAKE share (Account Usage, etc.) to the Genesis application 
-grant imported privileges on database SNOWFLAKE to application IDENTIFIER($APP_DATABASE);
+
+-- If you want to to grant access to the SNOWFLAKE share (Account Usage, etc.) to the Genesis application 
+-- uncomment this by removing the // and run it:
+// grant imported privileges on database SNOWFLAKE to application IDENTIFIER($APP_DATABASE);
 
 --- once granted, Genesis will automatically start to catalog this data so you can use it with Genesis bots
 '''
@@ -883,7 +897,7 @@ def bot_config():
                                     st.markdown(f"**To complete setup on Slack, there is one more step.  Cut and paste this link in a new browser window (appologies that it can't be clickable here):**")
                                     #st.text(f"{bot['auth_url']}")
                                     a = st.text_area("Link to use to authorize:", value=bot['auth_url'], height=200, disabled=True)
-                                    st.markdown(f"**You may need to log into both Slack and Snowflake to complete this process.**")
+                                    st.markdown(f"**You may need to log into both Slack and Snowflake to complete this process.  NOTE: Once the bot is deploted, all users on Slack will be able to access it. To limit access to certain users, tell Eve you'd like to do that once the bot is deployed to Slack and she will walk you through the process.**")
                                 else:
                                     st.error(f"Failed to provide Slack App Level Key: {provide_slack_level_key_response.get('error')}")
 

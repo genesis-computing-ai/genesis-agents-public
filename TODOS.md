@@ -17,6 +17,14 @@ MR-(test) harvester dont crash if cant access schemas for a database listed in c
 (test) MR-list index out of range on bot config when you refresh directly to it.. did add more retrys fix it?
 
 SHORT-TERM (BEFORE SUMMIT):
+!! 2024-05-23 18:20:42,976 - ERROR - submit_tool_outputs - caught exception: Error code: 400 - {'error': {'message': "Invalid 'tool_outputs[0].output': string too long. Expected a string with maximum length 1048576, but got a string with length 1570394 instead.", 'type': 'invalid_request_error', 'param': 'tool_outputs[0].output', 'code': 
+...'string_above_max_length'}} -- loops forever .. was on select * from sql
+SELECT * FROM "genesis_bots"."app1"."harvest_results";
+after granting snowflake to it
+
+
+Why does "NEURALIFT_DEMO"."DATA"."ACTIVATION_TABLE" not show as available after harvesting?
+a lot of snowflake objects are getting harvester_error
 Files in and out of streamlit
 JL-test infoschema cache in harvest
 JL-deploy new Alpha demo

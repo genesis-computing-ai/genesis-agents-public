@@ -415,7 +415,7 @@ class SchemaExplorer:
                         self.store_table_memory(database, schema, table, summary, ddl=ddl, ddl_short=ddl_short)
                     except Exception as e:
                         print(f"Harvester Error on Object: {e}")
-                        self.store_table_memory(database, schema, table, summary="Harvester Error: {e}", ddl="Harvester Error", ddl_short="Harvester Error", flush=True)
+                        self.store_table_memory(database, schema, table, summary=f"Harvester Error: {e}", ddl="Harvester Error", ddl_short="Harvester Error", flush=True)
                     
                     local_summaries[qualified_table_name] = summary
                 return local_summaries

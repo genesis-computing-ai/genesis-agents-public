@@ -36,7 +36,7 @@ database_tool_functions = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "query": {"type": "string", "description": "The SQL query to run. Be sure to fully qualify all object names with double-quoted 3-part names: \"<database>\".\"<schema>\".\"<table>\""},
+                    "query": {"type": "string", "description": "The SQL query to run. Be sure to fully qualify all object names with double-quoted 3-part names: \"<database>\".\"<schema>\".\"<table>\".  If the user gives you a query to run without quoted names, use upper case for database, schema, and table names."},
                     "connection": {"type": "string", "description": "The name of the data connection, for example Snowflake."},
                     "max_rows": {"type": "integer", "description": "The maximum number of rows to return.  This can be up to 100. The default is 20.", "default":20},
                 },

@@ -415,6 +415,12 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       
       # now pacakge up the responses together
       tool_outputs = [{'tool_call_id': k, 'output': str(v)} for k, v in self.tool_completion_status[run_id].items()]
+      # Limit the output of each tool to length 800000
+      tool_outputs_limited = []
+      for tool_output in tool_outputs:
+          output_limited = tool_output['output'][:900000]  # Truncate the output if it exceeds 900000 characters
+          tool_outputs_limited.append({'tool_call_id': tool_output['tool_call_id'], 'output': output_limited})
+      tool_outputs = tool_outputs_limited
       try:
          updated_run = self.client.beta.threads.runs.submit_tool_outputs(
             thread_id=thread_id,
@@ -433,13 +439,18 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
          try:                     
             del self.running_tools[tool_call_id]
          except Exception as e:
-            logger.error(f"callback_closure - tool call already deleted - caught exception: {e}")
+            print(f"callback_closure - tool call already deleted - caught exception: {e}")
          try:
             self._submit_tool_outputs(run.id, thread.id, tool_call_id, function_details, func_response)
          except Exception as e:
             error_string = f"callback_closure - _submit_tool_outputs - caught exception: {e}"
-            logger.error(error_string)
-            self._submit_tool_outputs(run.id, thread.id, tool_call_id, function_details, error_string)
+            print(error_string)
+            try:
+               self._submit_tool_outputs(run.id, thread.id, tool_call_id, function_details, error_string)
+            except Exception as e:
+               error_string = f"callback_closure - _submit_tool_outputs - caught exception: {e} submitting error_string {error_string}"
+               print(error_string)
+ 
       return callback_closure
 
    def _download_openai_file(self, file_id, thread_id):
@@ -644,7 +655,10 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                      if tool_call_id in self.running_tools: # already running in a parallel thread
                         continue
                      log_readable_payload = func_name+"("+func_args+")"
-                     callback_closure = self._generate_callback_closure(run, thread, tool_call_id, function_details)
+                     try:
+                        callback_closure = self._generate_callback_closure(run, thread, tool_call_id, function_details)
+                     except Exception as e:
+                        print(f"Failed to generate callback closure for run {run.id}, thread {thread.id}, tool_call_id {tool_call_id} with error: {e}")
                      self.running_tools[tool_call_id] = {"run_id": run.id, "thread_id": thread.id }
                      self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id, message_type='Tool Call', message_payload=log_readable_payload, message_metadata={'tool_call_id':tool_call_id, 'func_name':func_name, 'func_args':func_args})
                      func_args_dict = json.loads(func_args)

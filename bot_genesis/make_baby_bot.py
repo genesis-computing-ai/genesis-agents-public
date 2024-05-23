@@ -537,7 +537,9 @@ def modify_slack_allow_list(bot_id, action, user_name=None, user_identifier=None
                             return {'success': False, 'error': 'User already has access'}
                         if '!BLOCK_ALL' in slack_user_allow_list:
                             slack_user_allow_list.remove('!BLOCK_ALL')
-                        slack_user_allow_list.append(user_identifier)
+                        new_user_list = []
+                        new_user_list.append(user_identifier)
+                        slack_user_allow_list.extent(new_user_list)
                     else:
                         return {'success': False, 'error': 'Invalid Slack user ID'}
                 else:
@@ -550,6 +552,8 @@ def modify_slack_allow_list(bot_id, action, user_name=None, user_identifier=None
                         else:
                             new_user_list = []
                             new_user_list.append(matching_users[0]['id'])
+                            if '!BLOCK_ALL' in slack_user_allow_list:
+                                slack_user_allow_list.remove('!BLOCK_ALL')
                             slack_user_allow_list.extend(new_user_list)
                     elif len(matching_users) > 1:
                         return {'success': False, 'error': 'Multiple users found, please specify by Slack user ID. Tell the user to go to the Slack profile of that user, choose the ... three dots option, and choose "Copy Member ID" to get the exact Slack User ID for that user.'}

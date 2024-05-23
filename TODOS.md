@@ -17,14 +17,12 @@ MR-(test) harvester dont crash if cant access schemas for a database listed in c
 (test) MR-list index out of range on bot config when you refresh directly to it.. did add more retrys fix it?
 
 SHORT-TERM (BEFORE SUMMIT):
-ADD CHECKING FOR ACCESS IN SLACK
-Add to baby bot selection of all access or no access on slack
-Add slack allow list handling info on make baby bot (add ask for make it open or closed?)
-Add a way for user to provider new refresh key when making new bot
+JL-test infoschema cache in harvest
+JL-deploy new Alpha demo
+Add a way for user to provide new refresh key when making new bot
 Dont allow Bots with same name to be created
 Give the bots the PDFs on the docs to Eve so she can answer stuff on them, with multipdf uploader to stage and grant of folder to bot  
 JL-Does Task Service update its Annoy index when needed?
-JL- sander feedback on doc 
 JL- add note to baseball harvest that its till 2015 , in select * from genesisapp_master.harvest_share.harvest_results;
 MG-Do stripe setup for monitized listing
 RV-Add USERS field to messages log table to keep track of the users involved in a thread or dm
@@ -154,6 +152,10 @@ Add a mechanism for license control based on current_account()... share a table 
     Have a trial period where you can use it in trial mode before it goes into limited mode
 
 DONE:
+x ADD CHECKING FOR ACCESS IN SLACK
+x Add to baby bot selection of all access or no access on slack
+x Add slack allow list handling info on make baby bot (add ask for make it open or closed?)
+x JL- sander feedback on doc 
 x (test) Clean up logs (check queries )
 n Add a note to Eliza to not just dump data in non-DMs
 x (test) adding stage tools to a bot with baby_bot_tools and see if instructions are updated with internal stage location

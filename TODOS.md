@@ -17,6 +17,7 @@ MR-(test) harvester dont crash if cant access schemas for a database listed in c
 (test) MR-list index out of range on bot config when you refresh directly to it.. did add more retrys fix it?
 
 SHORT-TERM (BEFORE SUMMIT):
+Files in and out of streamlit
 JL-test infoschema cache in harvest
 JL-deploy new Alpha demo
 Add a way for user to provide new refresh key when making new bot

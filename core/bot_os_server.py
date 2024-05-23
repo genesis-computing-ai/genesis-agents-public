@@ -126,7 +126,7 @@ class BotOsServer:
            #     print(f"Thread ID: {threading.get_ident()} - starting execute cycle...")
                 s.execute()
            #     print(f"Thread ID: {threading.get_ident()} - ending execute cycle...")
-            except Exception:
+            except Exception as e:
                 traceback.print_exc()
 
         # Check if its time for Slack token totation

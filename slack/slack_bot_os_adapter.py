@@ -265,17 +265,32 @@ class SlackBotAdapter(BotOsInputAdapter):
             # not a user message
             return None
 
+        if tag:
+            tagged_flag = 'TRUE'
+        else:
+            tagged_flag = 'FALSE'
+        if dmcheck:
+            dmcheck_flag = 'TRUE'
+        else:
+            dmcheck_flag = 'FALSE'
         if thinking_ts:
             metadata={"thread_ts": thread_ts,
                         "channel": channel,
                         "thinking_ts": thinking_ts,
-                        "channel_type": event.get('channel_type', '')}
+                        "channel_type": event.get('channel_type', ''),
+                        "user_id": user_id , 
+                        "user_name": user_full_name,
+                        "tagged_flag": tagged_flag,
+                        "dm_flag": dmcheck_flag}
         else:
             metadata={"thread_ts": thread_ts,
                         "channel": channel,
-                        "channel_type": event.get('channel_type', '')}
+                        "channel_type": event.get('channel_type', ''),
+                        "user_id": user_id,
+                        "user_name": user_full_name,
+                        "tagged_flag": tagged_flag,
+                        "dm_flag": dmcheck_flag}
  
-
         if dmcheck:
         # Check if this was the first message in the DM channel with the user
             conversation_history = self.slack_app.client.conversations_history(
@@ -385,6 +400,9 @@ class SlackBotAdapter(BotOsInputAdapter):
 
         if message.output.startswith("<Assistant>"):
             message.output = message.output[len("<Assistant>"):].strip()
+
+        if message.input_metadata.get("response_authorized", 'TRUE') == 'FALSE':
+            message.output = "!NO_RESPONSE_REQUIRED"
 
         if message.output == "!NO_RESPONSE_REQUIRED":
             print("Bot has indicated that no response will be posted to this thread.")

@@ -31,7 +31,7 @@ class BotOsThread:
         self.validated      = False
 
     def add_message(self, message:BotOsInputMessage):
-        logger.debug("BotOsThread:add message")
+        #logger.debug("BotOsThread:add message")
         self.assistant_impl.add_message(message)
 
     def handle_response(self, session_id:str, output_message:BotOsOutputMessage):
@@ -130,6 +130,7 @@ class BotOsSession:
         self.assistant_impl = assistant_implementation(session_name, instructions, self.tools, available_functions=self.available_functions, files=file_corpus,
                                                      update_existing=update_existing, log_db_connector=log_db_connector, bot_id=bot_id, bot_name=bot_name, all_tools=all_tools, all_functions=all_functions, all_function_to_tool_map=all_function_to_tool_map)
         self.runs = {}
+        self.log_db_connector = log_db_connector
         self.knowledge_impl = knowledgebase_implementation
         self.available_functions["_store_memory"] = self.knowledge_impl.store_memory #type: ignore
         self.lock = threading.Lock()
@@ -179,6 +180,30 @@ class BotOsSession:
         #print(f"add_message: {self.bot_id} - {input_message.msg} size:{len(input_message.msg)}")
         if '!reflect' in input_message.msg.lower():
             input_message.metadata["genesis_reflect"] = "True"
+
+        # input_message - get slack User id
+        # self.log_db_connector - snowflake access?
+        # add 1 minute cycle to check 
+        user_id = input_message.metadata.get('user_id',None)
+        if user_id is not None: 
+            print(f"{self.bot_name} bot_os add_message access check for {self.bot_name} slack user: {user_id}", flush=True)
+            input_message.metadata["user_authorized"] = 'TRUE'
+            input_message.metadata["response_authorized"] = 'TRUE'
+            slack_user_access = self.log_db_connector.db_get_bot_access(self.bot_id).get('slack_user_allow')
+            if slack_user_access is not None:
+                allow_list = json.loads(slack_user_access)
+                if user_id not in allow_list:
+                    input_message.metadata["user_authorized"] = 'FALSE'
+                    if input_message.metadata.get("dm_flag",'FALSE')=='TRUE' or input_message.metadata.get("tagged_flag",'FALSE')=='TRUE':
+                        # add check for tagged or DMed otherwise process the message but tell it not to respond, and set input metadata to not respond and check that later at response time
+                        user_name = input_message.metadata.get('user_name',None)
+                        if len(allow_list) == 1 and allow_list[0] == "!BLOCK_ALL":
+                            input_message.msg = f'ERROR -- Access to this bot denied. User {user_name} can not interact with this bot because it is set to not allow ANY users on Slack to interact with it. Please politely tell the user to contact their Genesis Bots Administrator and ask them to ask the Eve bot to add their slack ID which is {user_id} added to the list of users this bot, bot_id {self.bot_id} can talk to.'    
+                        else:
+                            input_message.msg = f'ERROR -- Access to this bot denied. User {user_name} is not on the list of users allowed to interact with this bot.  Please politely tell the user to contact their Genesis Bots Administrator and ask them to ask the Eve bot to add their slack ID which is {user_id} added to the list of users this bot, bot_id {self.bot_id} can talk to.'
+                    else:
+                        input_message.metadata["response_authorized"] = 'FALSE'
+
         thread.add_message(input_message)
         #logger.debug(f'added message {input_message.msg}')
 

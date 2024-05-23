@@ -18,6 +18,7 @@ MR-(test) harvester dont crash if cant access schemas for a database listed in c
 
 SHORT-TERM (BEFORE SUMMIT):
 ADD CHECKING FOR ACCESS IN SLACK
+Add to baby bot selection of all access or no access on slack
 Add slack allow list handling info on make baby bot (add ask for make it open or closed?)
 Add a way for user to provider new refresh key when making new bot
 Dont allow Bots with same name to be created

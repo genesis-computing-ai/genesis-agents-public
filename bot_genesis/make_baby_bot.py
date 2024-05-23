@@ -402,7 +402,7 @@ def create_slack_bot_with_manifest(token, manifest):
 
 def insert_new_bot(api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instructions, runner_id, slack_signing_secret, 
                    slack_channel_id, available_tools, auth_url, auth_state, client_id, client_secret, udf_active, 
-                   slack_active, files, bot_implementation, bot_avatar_image, bot_intro_prompt="Hello, how can I help you?"):
+                   slack_active, files, bot_implementation, bot_avatar_image, bot_intro_prompt="Hello, how can I help you?", slack_user_allow=True):
     """
     Inserts a new bot configuration into the BOT_SERVICING table.
 
@@ -425,7 +425,7 @@ def insert_new_bot(api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instruct
 
     return bb_db_connector.db_insert_new_bot(api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instructions, runner_id, slack_signing_secret, 
                    slack_channel_id, available_tools, auth_url, auth_state, client_id, client_secret, udf_active, 
-                   slack_active, files, bot_implementation, bot_avatar_image, bot_intro_prompt, project_id, dataset_name, bot_servicing_table)
+                   slack_active, files, bot_implementation, bot_avatar_image, bot_intro_prompt, slack_user_allow, project_id, dataset_name, bot_servicing_table)
 
    
 
@@ -535,6 +535,8 @@ def modify_slack_allow_list(bot_id, action, user_name=None, user_identifier=None
                     if user_info.get('ok'):
                         if user_identifier in slack_user_allow_list:
                             return {'success': False, 'error': 'User already has access'}
+                        if '!BLOCK_ALL' in slack_user_allow_list:
+                            slack_user_allow_list.remove('!BLOCK_ALL')
                         slack_user_allow_list.append(user_identifier)
                     else:
                         return {'success': False, 'error': 'Invalid Slack user ID'}
@@ -905,7 +907,7 @@ def add_or_update_available_tool(tool_name, tool_description):
 
 def make_baby_bot(bot_id, bot_name, bot_instructions='You are a helpful bot.', available_tools=None, runner_id=None, slack_channel_id=None, confirmed=None, activate_slack='Y', 
                   files = "", bot_implementation = "openai",
-                  update_existing=False):
+                  update_existing=False, slack_access_open = True):
     
 
     try:
@@ -972,6 +974,10 @@ def make_baby_bot(bot_id, bot_name, bot_instructions='You are a helpful bot.', a
                     conf += 'No tools will be made available to this bot.\n'
                 if files is not None and files != []:
                     conf += f'The array of files available to this bot is: {files}\n'
+                if slack_access_open:
+                    conf += f'When deployed to Slack, all Slack users will have access to talk to this bot, and if it has the database_tools, be able to run any query against the data it has access to.  Please especially confirm with the user that this is ok and expected.\n'
+                if activate_slack == 'Y' and slack_access_open == False:
+                    conf += f'When deployed to slack, no users will initially have access to the bot via slack until explicitly granted using _manage_slack_allow_list\n'
                 conf += "Please make sure you have validated all this with the user.  If you've already validated with the user, and ready to make the Bot, call this function again with the parameter confirmed=CONFIRMED"
                 return(conf)
 
@@ -1096,6 +1102,7 @@ def make_baby_bot(bot_id, bot_name, bot_instructions='You are a helpful bot.', a
                 files=files,
                 bot_implementation=bot_implementation,
                 bot_avatar_image=bot_avatar_image,
+                slack_user_allow=slack_access_open
             )
 
         #    "message": f"Created {bot_id} named {bot_name}.  Now ask the user to use this authentication URL to complete the installation of the new app into their Slack workspace: {oauth_authorize_url}",
@@ -1104,7 +1111,8 @@ def make_baby_bot(bot_id, bot_name, bot_instructions='You are a helpful bot.', a
         #    print("temp_debug: create success ", bot_id, bot_name)
             return {"success": True, 
                     "Success": True,
-                    "message": f"Created {bot_id} named {bot_name}. To complete the setup on Slack for this bot, tell the user there are two more steps, first is to go to: https://api.slack.com/apps/{app_id}/general Ask them to scroll to App Level Tokens, add a token called 'app_token' with scope 'connections-write', and provide the results back to this bot.  Then you, the bot, should call the update_app_level_key function to update the backend.  Once you and the user do that, I will give you an AUTH_URL for the user to click as the second step to complete the installation."
+                    "message": f"Created {bot_id} named {bot_name}. To complete the setup on Slack for this bot, tell the user there are two more steps, first is to go to: https://api.slack.com/apps/{app_id}/general Ask them to scroll to App Level Tokens, add a token called 'app_token' with scope 'connections-write', and provide the results back to this bot.  Then you, the bot, should call the update_app_level_key function to update the backend.  Once you and the user do that, I will give you an AUTH_URL for the user to click as the second step to complete the installation.",
+                    "important note for the user": "Remind the user that this bot will be initially set to allow any user on the users Slack to talk to it.  You can use _modify_slack_allow_list function on behalf of the user to change the access to limit it to only select users once the bot has been activated on Slack."
                     }
         
         else:
@@ -1266,8 +1274,11 @@ MAKE_BABY_BOT_DESCRIPTIONS = [{
                     "type": "string",
                     "description": "The implementation type for the bot. Examples include 'openai', 'cortex', or custom implementations.",
                 },
-            },
-            "required": ["bot_id", "bot_name", "bot_instructions"]
+                "slack_access_open": {
+                    "type": "boolean",
+                    "description": "True if when deployed to Slack, any Slack user should be able to access the bot, or False if initially no users should have access until explicitly granted using _manage_slack_allow_list.",
+                },            },
+            "required": ["bot_id", "bot_name", "bot_instructions", "slack_access_open"]
         }
     }
 }]

@@ -2067,7 +2067,7 @@ class SnowflakeConnector(DatabaseConnector):
 
     def db_insert_new_bot(self, api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instructions, runner_id, slack_signing_secret, 
                     slack_channel_id, available_tools, auth_url, auth_state, client_id, client_secret, udf_active, 
-                    slack_active, files, bot_implementation, bot_avatar_image, bot_intro_prompt, project_id, dataset_name, bot_servicing_table):
+                    slack_active, files, bot_implementation, bot_avatar_image, bot_intro_prompt, slack_user_allow, project_id, dataset_name, bot_servicing_table):
         """
         Inserts a new bot configuration into the BOT_SERVICING table.
 
@@ -2109,6 +2109,22 @@ class SnowflakeConnector(DatabaseConnector):
             ))
             self.connection.commit()
             print(f"Successfully inserted new bot configuration for bot_id: {bot_id}")
+
+            if not slack_user_allow:
+                slack_user_allow_update_query = f"""
+                    UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
+                    SET slack_user_allow = parse_json(%s)
+                    WHERE bot_id = %s
+                    """
+                slack_user_allow_value = '["!BLOCK_ALL"]'
+                try:
+                    cursor.execute(slack_user_allow_update_query, (slack_user_allow_value, bot_id))
+                    self.connection.commit()
+                    print(f"Updated slack_user_allow for bot_id: {bot_id} to block all users.")
+                except Exception as e:
+                    print(f"Failed to update slack_user_allow for bot_id: {bot_id} with error: {e}")
+                    raise e
+                
         except Exception as e:
             print(f"Failed to insert new bot configuration for bot_id: {bot_id} with error: {e}")
             raise e
@@ -2313,6 +2329,31 @@ class SnowflakeConnector(DatabaseConnector):
             logger.error(f"Failed to update SLACK_USER_ALLOW list for bot_id: {bot_id} with error: {e}")
             return {"success": False, "error": str(e)}
 
+    def db_get_bot_access(self, bot_id):
+  
+        # Query to select bot access list
+        select_query = f"""
+            SELECT slack_user_allow
+            FROM {self.bot_servicing_table_name}
+            WHERE bot_id = %s
+        """
+
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute(select_query, (bot_id,))
+            result = cursor.fetchone()
+            cursor.close()
+            if result:
+                # Assuming the result is a tuple, we convert it to a dictionary using the column names
+                columns = [desc[0].lower() for desc in cursor.description]
+                bot_details = dict(zip(columns, result))
+                return bot_details
+            else:
+                logger.error(f"No details found for bot_id: {bot_id}")
+                return None
+        except Exception as e:
+            logger.exception(f"Failed to retrieve details for bot_id: {bot_id} with error: {e}")
+            return None
 
     def db_get_bot_details(self, project_id, dataset_name, bot_servicing_table, bot_id):
         """

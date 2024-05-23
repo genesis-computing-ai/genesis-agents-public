@@ -243,7 +243,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       return file_ids, file_map
 
    def add_message(self, input_message:BotOsInputMessage):#thread_id:str, message:str, files):
-      logger.debug("BotOsAssistantOpenAI:add_message") 
+      #logger.debug("BotOsAssistantOpenAI:add_message") 
       
       thread_id = input_message.thread_id
       if thread_id is None:
@@ -266,7 +266,9 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
              if file_name and any(file_name.lower().endswith(ext) for ext in self.allowed_types_code_i):
                  tools.append({"type": "code_interpreter"})
              attachments.append({"file_id": file_id, "tools": tools})
-
+         if input_message.metadata and input_message.metadata.get("response_authorized", 'TRUE') == 'FALSE':
+               input_message.msg = "THIS IS AN INFORMATIONAL MESSAGE ONLY ABOUT ACTIVITY IN THIS THREAD BETWEEN OTHER USERS.  RESPOND ONLY WITH '!NO_RESPONSE_REQUIRED'\nHere is the rest of the message so you know whats going on: \n\n"+ input_message.msg  + "\n REMINDER: RESPOND ONLY WITH '!NO_RESPONSE_REQUIRED'."
+               # don't add a run if there is no response needed do to an unauthorized user, but do make the bot aware of the thread message
          content = input_message.msg
          if file_map:
              content += "\n\nFile Name to Id Mappings:\n"
@@ -306,6 +308,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       #logger.debug(f"add_message - created {thread_message}")
       self.first_message = False 
       task_meta = input_message.metadata.pop('task_meta', None)
+
       run = self.client.beta.threads.runs.create(
          thread_id=thread.id, assistant_id=self.assistant.id, metadata=input_message.metadata)
       if task_meta is not None:
@@ -313,7 +316,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       self.thread_run_map[thread_id] = {"run": run.id, "completed_at": None}
       self.active_runs.append(thread_id)
 
-      self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id, message_type='User Prompt', message_payload=input_message.msg, message_metadata=None, files=attachments)
+      self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id, message_type='User Prompt', message_payload=input_message.msg, message_metadata=input_message.metadata, files=attachments)
 
 
    def _submit_tool_outputs(self, run_id, thread_id, tool_call_id, function_call_details, func_response):

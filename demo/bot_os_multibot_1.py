@@ -107,7 +107,7 @@ def make_session(bot_config):
 
 
 
-    udf_enabled = bot_config.get('ufd_active','Y')=='Y'
+    udf_enabled = bot_config.get('udf_active','Y')=='Y'
     slack_enabled = bot_config.get('slack_active','Y')=='Y'
     runner_id = os.getenv('RUNNER_ID','jl-local-runner')
 

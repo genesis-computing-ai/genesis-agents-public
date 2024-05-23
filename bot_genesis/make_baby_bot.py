@@ -539,7 +539,7 @@ def modify_slack_allow_list(bot_id, action, user_name=None, user_identifier=None
                             slack_user_allow_list.remove('!BLOCK_ALL')
                         new_user_list = []
                         new_user_list.append(user_identifier)
-                        slack_user_allow_list.extent(new_user_list)
+                        slack_user_allow_list.extend(new_user_list)
                     else:
                         return {'success': False, 'error': 'Invalid Slack user ID'}
                 else:

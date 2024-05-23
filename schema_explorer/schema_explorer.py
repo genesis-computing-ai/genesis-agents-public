@@ -54,6 +54,7 @@ class SchemaExplorer:
             writer.writerows(sample_data)
             j = output.getvalue()
             output.close()
+            j = j[:1000]
         except TypeError:
             j = ""        
         return j
@@ -73,7 +74,10 @@ class SchemaExplorer:
                 sample_data = self.db_connector.get_sample_data(database, schema, table)
                 sample_data_str = ""
             if sample_data:
-                sample_data_str = self.format_sample_data(sample_data)
+                try:
+                    sample_data_str = self.format_sample_data(sample_data)
+                except Exception as e:
+                    sample_data_str = ""
                 #sample_data_str = sample_data_str.replace("\n", " ")  # Replace newlines with spaces
    
             #print('sample data string: ',sample_data_str)
@@ -318,7 +322,7 @@ class SchemaExplorer:
                             shared_table_exists = self.db_connector.check_cached_metadata('PLACEHOLDER_DB_NAME', sch, table_name)
                         else:
                             shared_table_exists = self.db_connector.check_cached_metadata(db, sch, table_name)
-                        #shared_table_exists = False 
+                        # shared_table_exists = False 
                         if shared_table_exists:
                             # print ("!!!! CACHING Working !!!! ", flush=True)
                             # Get the record from the shared metadata table with database name modified from placeholder

@@ -71,7 +71,7 @@ NGROK_AUTH_TOKEN
 ```
 python demo/bot_os_multibot_1.py
 ```
-9. Run Frontned: once #8 completed, run in another terminal window. This step will bring up 'Genesis Bots Configuration' page in Browser.
+9. Run Frontend: once #8 completed, run in another terminal window. This step will bring up 'Genesis Bots Configuration' page in Browser.
 ```
 streamlit run ./streamlit_gui/streamlit_sis_v1.py
 ```

@@ -265,8 +265,6 @@ configuration:
 privileges:
   - BIND SERVICE ENDPOINT:
       description: "Allow access to application endpoints"
-  - IMPORTED PRIVILEGES ON SNOWFLAKE DB:
-      description: "to use of CORTEX LLM functions"
 $$)
 ;
 --privileges:
@@ -328,9 +326,6 @@ in your Snowflake account to grant the application access to the following resou
 `BIND SERVICE ENDPOINT` on **ACCOUNT**
 To allow Genesis to open two endpoints, one for Slack to authorize new Apps via OAuth, and one for inbound
 access to the Streamlit Genesis GUI
-
-`IMPORTED PRIVILEGES` ON **SNOWFLAKE DB**
-To allow use of Snowflake CORTEX LLM functions
 
 ### Privileges to objects
 `USAGE` on **COMPUTE POOL**
@@ -1204,16 +1199,29 @@ select $APP_DISTRIBUTION;
 // 134 -> v.40
 // 135 -> v.46
 
+// east 1 - 135->.22
+// upgrading from 21 -> 22
 
+
+ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG_EXT SET RELEASE DIRECTIVE geneast
+  ACCOUNTS = ( EURNPXA.GENESISEAST )
+  VERSION = V0_1
+  PATCH = 23;
+
+
+ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG_EXT unset RELEASE DIRECTIVE geneast;
   
 DECLARE
  max_patch VARCHAR;
+ 
 BEGIN
  show versions in application package GENESISAPP_APP_PKG_EXT;
  select max("patch") INTO :max_patch FROM TABLE(RESULT_SCAN(LAST_QUERY_ID())) where "version" = 'V0_1';
  LET rs RESULTSET := (EXECUTE IMMEDIATE 'ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG_EXT SET DEFAULT RELEASE DIRECTIVE VERSION = V0_1 PATCH = '||:max_patch);
  RETURN TABLE(rs);
 END;
+
+
 
 
 -- ########## END PUBLISH   ##############################################

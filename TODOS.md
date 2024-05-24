@@ -9,18 +9,13 @@ Make video of Snowflake janitorial work
 Bots calling other bots to do things
 
 THINGS TO TEST:
-x (test) Add error checking for missing data or grants to harvester so it doesnt crash on that 
-x MR-(test) harvester dont crash if cant access schemas for a database listed in control file
-MR-(test) Make sure harvester works ok with mixed case table and database and schema names (and system in general)
 (test) check error handling for stage tools (added to list, check others)
-(test Eliza new message is she proactive on baseball and knows its only till 2015?)
-(test) MR-list index out of range on bot config when you refresh directly to it.. did add more retrys fix it?
-(test) This table cant be found once harvested: .. why? CREATE TABLE "RAW_WIKIPEDIA"."EVENTS"."WIKICHANGES" (
 (test) Why does "NEURALIFT_DEMO"."DATA"."ACTIVATION_TABLE" not show as available after harvesting?
 (test) JL-test infoschema cache in harvest
 (test) JL-Does Task Service update its Annoy index when needed?
 
 SHORT-TERM (BEFORE SUMMIT):
+JL- Add terms of service to website and link from SiS app, and to listing details
 MR - make this work on multicase call GENESIS_LOCAL_DB.SETTINGS.grant_schema_usage_and_select_to_app('MY_DATA',$APP_DATABASE); (fix in SiS script)
 JL- Dont allow Bots with same name to be created
 JL- add note to baseball harvest that its till 2015 , in select * from genesisapp_master.harvest_share.harvest_results;
@@ -31,7 +26,6 @@ JL-changing openAI key via streamlit when running gives an error: (bots conflict
 
 POST-SUMMIT:
 MG-Do stripe setup for monitized listing
-
 JL- Add a way for user to provide new refresh key when making new bot
 MR - harvest - formula1 doesnt come back if you delete the harvest rows
 MR-Add a sevice start/stop/restart buttons to SiS
@@ -157,6 +151,12 @@ Add a mechanism for license control based on current_account()... share a table 
     Have a trial period where you can use it in trial mode before it goes into limited mode
 
 DONE:
+x (test) Add error checking for missing data or grants to harvester so it doesnt crash on that 
+x MR-(test) harvester dont crash if cant access schemas for a database listed in control file
+x MR-(test) Make sure harvester works ok with mixed case table and database and schema names (and system in general)
+x (test Eliza new message is she proactive on baseball and knows its only till 2015?)
+x (test) MR-list index out of range on bot config when you refresh directly to it.. did add more retrys fix it?
+x (test) This table cant be found once harvested: .. why? CREATE TABLE "RAW_WIKIPEDIA"."EVENTS"."WIKICHANGES" (
 x MR-Add a message to the top of the SisChat page suggesting activating via slack, via a temp workspace
 x ADD CHECKING FOR ACCESS IN SLACK
 x Add to baby bot selection of all access or no access on slack

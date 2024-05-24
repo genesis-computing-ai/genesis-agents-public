@@ -267,7 +267,7 @@ class SnowflakeConnector(DatabaseConnector):
         """
         try:
             # Get the list of visible databases
-            visible_databases_result = self.get_visible_databases()
+            visible_databases_result = self.get_visible_databases_json()
             if not visible_databases_result:
                 return {"Success": False, "Message": "An error occurred while retrieving visible databases"}
 
@@ -303,7 +303,7 @@ class SnowflakeConnector(DatabaseConnector):
             err = f"An error occurred while retrieving available databases: {e}"
             return {"Success": False, "Error": err}
         
-    def get_visible_databases(self, thread_id=None):
+    def get_visible_databases_json(self, thread_id=None):
         """
         Retrieves a list of all visible databases.
 

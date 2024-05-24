@@ -27,6 +27,8 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
         metadata = {}
         if uu:
             metadata["input_uuid"]=uu
+        metadata["channel_type"]="Streamlit"
+        metadata["channel_name"]=""
         return BotOsInputMessage(thread_id=event.get('thread_id'), msg=event.get('msg'), metadata=metadata)
 
 

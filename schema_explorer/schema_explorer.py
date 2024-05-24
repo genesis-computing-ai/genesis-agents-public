@@ -365,9 +365,9 @@ class SchemaExplorer:
                                 print('Newly found object added to harvest array (no cache hit)', flush=True)
                                 non_indexed_tables.append(new_table)
 
-                            # store quick summary
-                            if quoted_table_name not in existing_tables_set:
-                                self.store_table_summary(database=db, schema=sch, table=table_name, ddl=current_ddl, ddl_short=current_ddl, summary="{!placeholder}", sample_data="")
+                                # store quick summary
+                                if quoted_table_name not in existing_tables_set:
+                                    self.store_table_summary(database=db, schema=sch, table=table_name, ddl=current_ddl, ddl_short=current_ddl, summary="{!placeholder}", sample_data="")
 
                     except Exception as e:
                         print(f'Error processing table in step1: {e}', flush=True)

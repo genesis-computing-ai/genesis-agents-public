@@ -18,6 +18,10 @@ MR-(test) harvester dont crash if cant access schemas for a database listed in c
 
 SHORT-TERM (BEFORE SUMMIT):
 
+harvest - formula1 doesnt come back if you delete the harvest rows
+
+catch missing files from stage at startup, and let the bot know they are missing 
+
 !! if you add stuff to harvest control after harvester starts, not picking it up?  should check control each time..
 
 !! make this work on multicase call GENESIS_LOCAL_DB.SETTINGS.grant_schema_usage_and_select_to_app('MY_DATA',$APP_DATABASE);

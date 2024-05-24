@@ -1764,7 +1764,7 @@ class SnowflakeConnector(DatabaseConnector):
         if max_rows > 100 and not max_rows_override:
             max_rows = 100
 
-    #    print('running query ... ', query)
+     #   print('running query ... ', query)
         cursor = self.connection.cursor()
         try:
          #   if query_params:

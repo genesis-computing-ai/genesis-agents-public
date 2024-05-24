@@ -43,12 +43,29 @@ NGROK_AUTH_TOKEN
 
 - Step 7-11, you can run either in Cursor terminal or native Mac terminal.
 
-7. check and install modules/packages listed in requirements.txt file. 
-   - open a terminal window in cursor:
+7. Check and install modules/packages listed in requirements.txt file. 
+   - Create a virtual environment:
+      - Conda:
+      ```
+      conda create -n genesis_env python=3.11
+      conda activate genesis_env
+      ```
+      - Pip:
+      ```
+      python3 -m venv genesis_env
+      source genesis_env/bin/activate
+      ```
+
+   - Install libraries - open terminal:
    ``` 
    pip install -r requirements.txt
    ```
-   - check the log to see if any missing modules/packages. you can output the log to a file to help you 
+   - For local deployment, you need to install additional libraries:
+   ```
+   pip install ngrok
+   pip install aiohttp 
+   ```
+   - Check the log to see if any missing modules/packages. you can output the log to a file to help you 
 
 8. Run backend: open a terminal window:
 ```

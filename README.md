@@ -26,9 +26,10 @@ export GENESIS_INTERNAL_DB_SCHEMA=GENESIS_TEST.<your schema>   #make sure change
 export AUTO_HARVEST=FALSE
 export GENESIS_LOCAL_RUNNER=TRUE
 export RUNNER_ID=snowflake-1
-export NGROK_AUTH_TOKEN=<Ngrok Auth token>  #<2gqB9uPsT5bntp5wHslyK0eh5Dn_48DAg6jQimfWoh3SaNboH>  
+export NGROK_AUTH_TOKEN=<Ngrok Auth token> 
+export NGROK_BASE_URL=http://localhost:8080
 export AUTO_HARVEST=false
-export OPENAI_API_KEY=<OpenAI api key>      #<sk-proj-6gCIKLsHM3FVh3ioB60dT3BlbkFJIh7ot6cpiwZbBQMKLcE9>
+export OPENAI_API_KEY=<OpenAI api key>
 export PYTHONPATH=$PYTHONPATH:"$PWD"
 ```
 ** Make sure you have following variables set to correct values
@@ -60,3 +61,10 @@ streamlit run ./streamlit_gui/streamlit_sis_v1.py
 10. You can go to http://localhost:8501/ in a browser and this will bring you to 'Genesis Bots Configuration' page.
 
 11. Select 'Chat with Bots' to talk to the app.
+
+
+### Notes:
+In Windows an extra application is needed for ngrok:
+- Download ngrok.exe from https://ngrok-downloads.ngrok.com/ngrok.exe
+- Open terminal and run `ngrok config add-authtoken <ngrok_token>`
+- In terminal run `ngrok http http://localhost:8080`

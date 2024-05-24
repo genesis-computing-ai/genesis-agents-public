@@ -17,6 +17,11 @@ MR-(test) harvester dont crash if cant access schemas for a database listed in c
 (test) MR-list index out of range on bot config when you refresh directly to it.. did add more retrys fix it?
 
 SHORT-TERM (BEFORE SUMMIT):
+
+!! if you add stuff to harvest control after harvester starts, not picking it up?  should check control each time..
+
+!! make this work on multicase call GENESIS_LOCAL_DB.SETTINGS.grant_schema_usage_and_select_to_app('MY_DATA',$APP_DATABASE);
+
 !! 2024-05-23 18:20:42,976 - ERROR - submit_tool_outputs - caught exception: Error code: 400 - {'error': {'message': "Invalid 'tool_outputs[0].output': string too long. Expected a string with maximum length 1048576, but got a string with length 1570394 instead.", 'type': 'invalid_request_error', 'param': 'tool_outputs[0].output', 'code': 
 ...'string_above_max_length'}} -- loops forever .. was on select * from sql
 SELECT * FROM "genesis_bots"."app1"."harvest_results";

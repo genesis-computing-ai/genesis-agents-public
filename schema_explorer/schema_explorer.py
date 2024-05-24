@@ -318,52 +318,51 @@ class SchemaExplorer:
                 
                 non_existing_tables.extend(refresh_tables)
                 for table_info in non_existing_tables:
-                    table_name = table_info['table_name']
-                    quoted_table_name = f'"{db}"."{sch}"."{table_name}"'
-                    if quoted_table_name not in existing_tables_set or quoted_table_name in needs_updating:
-                        # Table is not in metadata table
-                        # Check to see if it exists in the shared metadata table
-                        #print ("!!!! CACHING DIsABLED !!!! ", flush=True)
-                        if sch == 'INFORMATION_SCHEMA':
-                            shared_table_exists = self.db_connector.check_cached_metadata('PLACEHOLDER_DB_NAME', sch, table_name)
-                        else:
-                            shared_table_exists = self.db_connector.check_cached_metadata(db, sch, table_name)
-                        # shared_table_exists = False 
-                        if shared_table_exists:
-                            # print ("!!!! CACHING Working !!!! ", flush=True)
-                            # Get the record from the shared metadata table with database name modified from placeholder
-                            print('Object cache hit',flush=True)
-                            get_from_cache_result = self.db_connector.get_metadata_from_cache(db, sch, table_name)
-                            for record in get_from_cache_result:
-                                database = record['database_name']
-                                schema = record['schema_name']
-                                table = record['table_name']
-                                summary = record['summary']
-                                ddl = record['ddl']
-                                ddl_short = record['ddl_short']
-                                sample_data = record['sample_data_text']
+                    try:
+                        table_name = table_info['table_name']
+                        quoted_table_name = f'"{db}"."{sch}"."{table_name}"'
+                        if quoted_table_name not in existing_tables_set or quoted_table_name in needs_updating:
+                            # Table is not in metadata table
+                            # Check to see if it exists in the shared metadata table
+                            #print ("!!!! CACHING DIsABLED !!!! ", flush=True)
+                            if sch == 'INFORMATION_SCHEMA':
+                                shared_table_exists = self.db_connector.check_cached_metadata('PLACEHOLDER_DB_NAME', sch, table_name)
+                            else:
+                                shared_table_exists = self.db_connector.check_cached_metadata(db, sch, table_name)
+                            # shared_table_exists = False 
+                            if shared_table_exists:
+                                # print ("!!!! CACHING Working !!!! ", flush=True)
+                                # Get the record from the shared metadata table with database name modified from placeholder
+                                print('Object cache hit',flush=True)
+                                get_from_cache_result = self.db_connector.get_metadata_from_cache(db, sch, table_name)
+                                for record in get_from_cache_result:
+                                    database = record['database_name']
+                                    schema = record['schema_name']
+                                    table = record['table_name']
+                                    summary = record['summary']
+                                    ddl = record['ddl']
+                                    ddl_short = record['ddl_short']
+                                    sample_data = record['sample_data_text']
 
-                                # call store memory
-                                self.store_table_memory(database, schema, table, summary, ddl=ddl, ddl_short=ddl_short, sample_data=sample_data)
+                                    # call store memory
+                                    self.store_table_memory(database, schema, table, summary, ddl=ddl, ddl_short=ddl_short, sample_data=sample_data)
 
-
-                        # #shared_table_exists = False 
-                        # if shared_table_exists:
-                        #     # Insert the record from the shared metadata table directly to the metadata table
-                        #     insert_from_cache_result = self.db_connector.insert_metadata_from_cache(db, sch, table_name)
-                            #print(insert_from_cache_result, flush=True)
-                        else:
-                            # Table is new, so get its DDL and hash
-                            current_ddl = self.alt_get_ddl(table_name=quoted_table_name)
-                            current_ddl_hash = self.db_connector.sha256_hash_hex_string(current_ddl)
-                            new_table = {"qualified_table_name": quoted_table_name, "ddl_hash": current_ddl_hash, "ddl": current_ddl}
-                            print('Newly found object added to harvest array (no cache hit)', flush=True)
-                            non_indexed_tables.append(new_table)
+                            else:
+                                # Table is new, so get its DDL and hash
+                                current_ddl = self.alt_get_ddl(table_name=quoted_table_name)
+                                current_ddl_hash = self.db_connector.sha256_hash_hex_string(current_ddl)
+                                new_table = {"qualified_table_name": quoted_table_name, "ddl_hash": current_ddl_hash, "ddl": current_ddl}
+                                print('Newly found object added to harvest array (no cache hit)', flush=True)
+                                non_indexed_tables.append(new_table)
 
                             # store quick summary
                             if quoted_table_name not in existing_tables_set:
                                 self.store_table_summary(database=db, schema=sch, table=table_name, ddl=current_ddl, ddl_short=current_ddl, summary="{!placeholder}", sample_data="")
-                
+
+                    except Exception as e:
+                        print(f'Error processing table in step1: {e}', flush=True)
+
+
                    # else:
                    #     # Table exists, so check for updates as before
                    #     existing_table_info = next((info for info in existing_tables_info if info['qualified_table_name'] == quoted_table_name), None)

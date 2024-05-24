@@ -70,9 +70,15 @@ class SchemaExplorer:
                 ddl = self.alt_get_ddl(table_name='"'+database+'"."'+schema+'"."'+table+'"')
                 #ddl = self.db_connector.get_table_ddl(database_name=database, schema_name=schema, table_name=table)
 
+            sample_data_str = ""
             if not sample_data:
-                sample_data = self.db_connector.get_sample_data(database, schema, table)
-                sample_data_str = ""
+                try:
+                    sample_data = self.db_connector.get_sample_data(database, schema, table)
+                    sample_data_str = ""
+                except Exception as e:
+                    print(f"Error getting sample data: {e}", flush=True)
+                    sample_data = None
+                    sample_data_str = ""
             if sample_data:
                 try:
                     sample_data_str = self.format_sample_data(sample_data)
@@ -126,7 +132,7 @@ class SchemaExplorer:
             print(f"Stored summary for an object in Harvest Results.")
    
         except Exception as e:
-            print(f"Harvester Error for an object: {e}")
+            print(f"Harvester Error for an object: {e}", flush=True)
             self.store_table_summary(database, schema, table, summary="Harvester Error: {e}", ddl="Harvester Error", ddl_short="Harvester Error", sample_data="Harvester Error")
    
         ## Assuming an instance of BotOsKnowledgeLocal named memory_system exists
@@ -307,7 +313,7 @@ class SchemaExplorer:
                     needs_updating = [table['QUALIFIED_TABLE_NAME']  for table in existing_tables_info if table["NEEDS_FULL"]]
                     refresh_tables = [table for table in potential_tables if f'"{db}"."{sch}"."{table["table_name"]}"' in needs_updating]
                 except Exception as e:
-                    print(f'Error running check query Error: {e}')
+                    print(f'Error running check query Error: {e}',flush=True)
                     return None, None
                 
                 non_existing_tables.extend(refresh_tables)
@@ -326,6 +332,7 @@ class SchemaExplorer:
                         if shared_table_exists:
                             # print ("!!!! CACHING Working !!!! ", flush=True)
                             # Get the record from the shared metadata table with database name modified from placeholder
+                            print('Object cache hit',flush=True)
                             get_from_cache_result = self.db_connector.get_metadata_from_cache(db, sch, table_name)
                             for record in get_from_cache_result:
                                 database = record['database_name']
@@ -350,7 +357,7 @@ class SchemaExplorer:
                             current_ddl = self.alt_get_ddl(table_name=quoted_table_name)
                             current_ddl_hash = self.db_connector.sha256_hash_hex_string(current_ddl)
                             new_table = {"qualified_table_name": quoted_table_name, "ddl_hash": current_ddl_hash, "ddl": current_ddl}
-                            print('Newly found object added to harvest array', flush=True)
+                            print('Newly found object added to harvest array (no cache hit)', flush=True)
                             non_indexed_tables.append(new_table)
 
                             # store quick summary
@@ -415,10 +422,10 @@ class SchemaExplorer:
                         ddl = row.get('ddl',None)
                         ddl_short = self.get_ddl_short(ddl)
                         #print(f"storing: database: {database}, schema: {schema}, table: {table}, summary len: {len(summary)}, ddl: {ddl}, ddl_short: {ddl_short} ", flush=True) 
-                        print('Storing summary for new object')
+                        print('Storing summary for new object',flush=True)
                         self.store_table_memory(database, schema, table, summary, ddl=ddl, ddl_short=ddl_short)
                     except Exception as e:
-                        print(f"Harvester Error on Object: {e}")
+                        print(f"Harvester Error on Object: {e}",flush=True)
                         self.store_table_memory(database, schema, table, summary=f"Harvester Error: {e}", ddl="Harvester Error", ddl_short="Harvester Error", flush=True)
                     
                     local_summaries[qualified_table_name] = summary

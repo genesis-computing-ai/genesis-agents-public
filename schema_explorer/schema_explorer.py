@@ -184,15 +184,18 @@ class SchemaExplorer:
 
 
     def explore_schemas(self):
-        for schema in self.db_connector.get_schemas():
-        #    print(f"Schema: {schema}")
-            tables = self.db_connector.get_tables(schema)
-            for table in tables:
-     #           print(f"  Table: {table}")
-                columns = self.db_connector.get_columns(schema, table)
-                for column in columns:
-                    pass
-              #      print(f"    Column: {column}")
+        try:
+            for schema in self.db_connector.get_schemas():
+            #    print(f"Schema: {schema}")
+                tables = self.db_connector.get_tables(schema)
+                for table in tables:
+        #           print(f"  Table: {table}")
+                    columns = self.db_connector.get_columns(schema, table)
+                    for column in columns:
+                        pass
+                #      print(f"    Column: {column}")
+        except Exception as e:
+            print(f'Error running explore schemas Error: {e}',flush=True)
 
     def generate_table_summary_prompt(self, database, schema, table, columns):
         prompt = f"Please provide a brief summary of a database table in the '{database}.{schema}' schema named '{table}'. This table includes the following columns: {', '.join(columns)}."
@@ -203,8 +206,11 @@ class SchemaExplorer:
         return prompt
 
     def get_datasets(self, database):
-        datasets = self.db_connector.get_schemas(database)  # Assume this method exists and returns a list of dataset IDs
-        return datasets
+        try:
+            datasets = self.db_connector.get_schemas(database)  # Assume this method exists and returns a list of dataset IDs
+            return datasets
+        except Exception as e:
+            print(f'Error running get schemas Error: {e}',flush=True)
 
 
     def get_active_databases(self):
@@ -252,32 +258,33 @@ class SchemaExplorer:
         update_query = self.db_connector.run_query(query)
 
     def explore_and_summarize_tables_parallel(self, max_to_process=1000):
-     
-        self.run_number += 1
-        databases = self.get_active_databases()
-        schemas = []
-        harvesting_databases = []
+        try:
+            self.run_number += 1
+            databases = self.get_active_databases()
+            schemas = []
+            harvesting_databases = []
 
-        for database in databases:
-            crawl_flag = False
-            if (database["initial_crawl_complete"] == False):
-                crawl_flag = True
-                self.update_initial_crawl_flag(database["database_name"],True)
-            else: 
-                if (database["refresh_interval"] > 0):
-                    if (self.run_number % database["refresh_interval"] == 0):
-                        crawl_flag = True
+            for database in databases:
+                crawl_flag = False
+                if (database["initial_crawl_complete"] == False):
+                    crawl_flag = True
+                    self.update_initial_crawl_flag(database["database_name"],True)
+                else: 
+                    if (database["refresh_interval"] > 0):
+                        if (self.run_number % database["refresh_interval"] == 0):
+                            crawl_flag = True
 
-            if crawl_flag:
-                harvesting_databases.append(database)
-                schemas.extend([database["database_name"]+"."+schema for schema in self.get_active_schemas(database)])
-                print(f'Checking a Database for new or changed objects (cycle#: {self.run_number}, refresh every: {database["refresh_interval"]})', flush=True)
-            else: 
-                print(f'Skipping a Database, not in current refresh cycle (cycle#: {self.run_number}, refresh every: {database["refresh_interval"]})', flush=True)
+                if crawl_flag:
+                    harvesting_databases.append(database)
+                    schemas.extend([database["database_name"]+"."+schema for schema in self.get_active_schemas(database)])
+                    print(f'Checking a Database for new or changed objects (cycle#: {self.run_number}, refresh every: {database["refresh_interval"]})', flush=True)
+                else: 
+                    print(f'Skipping a Database, not in current refresh cycle (cycle#: {self.run_number}, refresh every: {database["refresh_interval"]})', flush=True)
 
-        summaries = {}
-        total_processed = 0
-
+            summaries = {}
+            total_processed = 0
+        except Exception as e:
+            print(f'Error explore and summarize tables parallel Error: {e}',flush=True)
 
         #print('checking schemas: ',schemas)
 
@@ -291,7 +298,10 @@ class SchemaExplorer:
 
  #           print('Checking a schema for new (not changed) objects.', flush=True)
             if self.db_connector.source_name == 'Snowflake':
-                potential_tables = self.db_connector.get_tables(dataset.split('.')[0], dataset.split('.')[1])
+                try:
+                    potential_tables = self.db_connector.get_tables(dataset.split('.')[0], dataset.split('.')[1])
+                except Exception as e:
+                    print(f'Error running get potential tables Error: {e}',flush=True)
                 #print('potential tables: ',potential_tables)
                 non_indexed_tables = []
 
@@ -397,8 +407,10 @@ class SchemaExplorer:
                 JOIN `{self.db_connector.metadata_table_name}` hr ON qualified_table_name = 
                     CONCAT("{dataset}.", ist.table_name) where TO_HEX(SHA256(ist.ddl)) <> hr.ddl_hash and hr.source_name = '{self.db_connector.source_name}'
                 """
-                non_indexed_tables = self.db_connector.run_query(query, max_rows = max_to_process, max_rows_override = True)
-
+                try:
+                    non_indexed_tables = self.db_connector.run_query(query, max_rows = max_to_process, max_rows_override = True)
+                except Exception as e:
+                    print(f'Error running query  Error: {e}',flush=True)
             return non_indexed_tables
         
         def process_dataset_step2( non_indexed_tables, max_to_process = 1000):

@@ -31,7 +31,7 @@ import core.global_flags as global_flags
 #os.environ['TEST_TASK_MODE'] = 'true'
 ########################################
 
-print("****** GENBOT VERSION 0.132 *******")
+print("****** GENBOT VERSION 0.133 *******")
 print("****** TASK AUTOMATION SERVER *******")
 runner_id = os.getenv('RUNNER_ID','jl-local-runner')
 print("Runner ID: ", runner_id )
@@ -119,7 +119,7 @@ def make_session(bot_config):
 # add setup harvester button to streamlit
 
 
-    udf_enabled = bot_config.get('ufd_active','Y')=='Y'
+    udf_enabled = bot_config.get('udf_active','Y')=='Y'
     slack_enabled = bot_config.get('slack_active','Y')=='Y'
     runner_id = os.getenv('RUNNER_ID','jl-local-runner')
 

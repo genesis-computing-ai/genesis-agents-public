@@ -9,32 +9,49 @@ Make video of Snowflake janitorial work
 Bots calling other bots to do things
 
 THINGS TO TEST:
-x (test) adding stage tools to a bot with baby_bot_tools and see if instructions are updated with internal stage location
 (test) Add error checking for missing data or grants to harvester so it doesnt crash on that 
 MR-(test) Make sure harvester works ok with mixed case table and database and schema names (and system in general)
 MR-(test) harvester dont crash if cant access schemas for a database listed in control file
-new install - (test) on first DM with a user, add some introduction of yourself
-new install - (test) GENESIS_LOCAL_DB.ELIZA_WORKSPACE Create sample workspace by default for Eliza for Eliza.. update her prompt
 (test) check error handling for stage tools (added to list, check others)
-(test) Clean up logs (check queries )
 (test Eliza new message is she proactive on baseball and knows its only till 2015?)
+(test) MR-list index out of range on bot config when you refresh directly to it.. did add more retrys fix it?
 
 SHORT-TERM (BEFORE SUMMIT):
-JL- sander feedback on doc 
+!! 2024-05-23 18:20:42,976 - ERROR - submit_tool_outputs - caught exception: Error code: 400 - {'error': {'message': "Invalid 'tool_outputs[0].output': string too long. Expected a string with maximum length 1048576, but got a string with length 1570394 instead.", 'type': 'invalid_request_error', 'param': 'tool_outputs[0].output', 'code': 
+...'string_above_max_length'}} -- loops forever .. was on select * from sql
+SELECT * FROM "genesis_bots"."app1"."harvest_results";
+after granting snowflake to it
+
+This table cant be found once harvested: .. why?
+CREATE TABLE "RAW_WIKIPEDIA"."EVENTS"."WIKICHANGES" (
+    RECORD_METADATA VARIANT,
+    RECORD_CONTENT VARIANT
+);
+
+
+Why does "NEURALIFT_DEMO"."DATA"."ACTIVATION_TABLE" not show as available after harvesting?
+a lot of snowflake objects are getting harvester_error
+Files in and out of streamlit
+JL-test infoschema cache in harvest
+JL-deploy new Alpha demo
+Add a way for user to provide new refresh key when making new bot
+Dont allow Bots with same name to be created
+Give the bots the PDFs on the docs to Eve so she can answer stuff on them, with multipdf uploader to stage and grant of folder to bot  
+JL-Does Task Service update its Annoy index when needed?
 JL- add note to baseball harvest that its till 2015 , in select * from genesisapp_master.harvest_share.harvest_results;
 MG-Do stripe setup for monitized listing
 RV-Add USERS field to messages log table to keep track of the users involved in a thread or dm
-MR-list index out of range on bot config when you refresh directly to it.. add more retrys
-MR-add a few doublechecks before going to the initiall install screen in Sis
-MR-Pre-harvest and share information_schema
 MR-SiS app will restart service is suspended (With pool) but doesnt wake up harvester, errors in SiS log harvest screen
 MR-Add a sevice start/stop/restart buttons to SiS
 MR-Add a message to the top of the SisChat page suggesting activating via slack, via a temp workspace
 MR-harvester - change the include flag column to exclude and use that field instead of deleting a row to stop auto harvesting
-MR-add link to support Slack workspace inviter page on SiS
 JL-changing openAI key via streamlit when running gives an error: (bots conflicts with existing job-- dont add scheduler job again if already running)
 
 POST-SUMMIT:
+Have ability to control who a bot is willing to talk to and take direction from to do things on Slack & via SiS
+Have ability to give a bot its own oauth token or uid/pwd so it has its own RBAC
+Have baby bot check to make sure same name bot doesnt already exist in genesis
+When deploying to Slack, check for existing active bot names of the same name and if its there, review it 
 JL-Have DMs also get history if they are not threadded, give the past n DMs too 
 JL-Give Kevin's docs to Jenny and see if she can answer q's based on them
 MR-add the bot images table and view to the copy program to other regions
@@ -150,6 +167,16 @@ Add a mechanism for license control based on current_account()... share a table 
     Have a trial period where you can use it in trial mode before it goes into limited mode
 
 DONE:
+x ADD CHECKING FOR ACCESS IN SLACK
+x Add to baby bot selection of all access or no access on slack
+x Add slack allow list handling info on make baby bot (add ask for make it open or closed?)
+x JL- sander feedback on doc 
+x (test) Clean up logs (check queries )
+n Add a note to Eliza to not just dump data in non-DMs
+x (test) adding stage tools to a bot with baby_bot_tools and see if instructions are updated with internal stage location
+x new install - (test) on first DM with a user, add some introduction of yourself
+x (test Eliza new message is she proactive on baseball and knows its only till 2015?)
+x new install - (test) GENESIS_LOCAL_DB.ELIZA_WORKSPACE Create sample workspace by default for Eliza for Eliza.. update her prompt
 x (test) Check this function execute_function - _get_visible_tables - {"database":"my_data","schema":"public"}
 x (test) fix add_new_tools_to_bots, 2024-05-10 23:32:09,104 - ERROR - callback_closure - _submit_tool_outputs - caught exception: argument of type 
 x (test) JL-files issue Chris and Robert are seeing -- use new logging to debug
@@ -351,3 +378,8 @@ x    .. and have the slack activator not start sessions and udf adapters for bot
 x STREAMLIT - ADD A BOTS PAGE WITH A NEW BUTTON THAT GOES TO EVE, ADD AN API KEYS PAGE for llm, ngrok, and slack, 
 x Add a new chat button on streamlit GUI
 x Add add file to bot tool
+x MR-add a few doublechecks before going to the initiall install screen in Sis
+x MR-Pre-harvest and share information_schema
+x MR-add link to support Slack workspace inviter page on SiS
+x MR-Add a message to the top of the SisChat page suggesting activating via slack, via a temp workspace
+x MR-harvester - change the include flag column to exclude and use that field instead of deleting a row to stop auto harvesting

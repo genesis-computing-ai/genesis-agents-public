@@ -245,29 +245,55 @@ class SlackBotAdapter(BotOsInputAdapter):
         user_full_name = 'unknown'
         try:
             user_id = event["user"]
+            user_full_name = 'Unknown User'
             if user_id not in self.user_info_cache:
-                user_info = self.slack_app.client.users_info(user=user_id)
-                self.user_info_cache[user_id] = user_info['user']['real_name']
-            user_full_name = self.user_info_cache[user_id]
+                try:
+                    user_info = self.slack_app.client.users_info(user=user_id)
+                    self.user_info_cache[user_id] = user_info['user']['real_name']
+                    user_full_name = self.user_info_cache[user_id]
+                except:
+                    try:
+                        self.user_info_cache[user_id] = user_info['user']['profile']['real_name']
+                        user_full_name = self.user_info_cache[user_id]
+                    except:
+                        user_full_name = user_id
+            else:
+                user_full_name = self.user_info_cache[user_id]
+            
             msg_with_user_and_id = f"{user_full_name} ({user_id}): {msg}"
         except Exception as e:
             print(f"    --NOT A USER MESSAGE, SKIPPING {e} ")
             # not a user message
             return None
 
+        if tag:
+            tagged_flag = 'TRUE'
+        else:
+            tagged_flag = 'FALSE'
+        if dmcheck:
+            dmcheck_flag = 'TRUE'
+        else:
+            dmcheck_flag = 'FALSE'
         if thinking_ts:
             metadata={"thread_ts": thread_ts,
                         "channel": channel,
                         "thinking_ts": thinking_ts,
                         "channel_type": event.get('channel_type', ''),
-                        'primary_user': user_full_name}
+                        'primary_user': user_full_name,
+                        "user_id": user_id , 
+                        "user_name": user_full_name,
+                        "tagged_flag": tagged_flag,
+                        "dm_flag": dmcheck_flag}
         else:
             metadata={"thread_ts": thread_ts,
                         "channel": channel,
                         "channel_type": event.get('channel_type', ''),
-                        'primary_user': user_full_name}
+                        'primary_user': user_full_name,
+                        "user_id": user_id,
+                        "user_name": user_full_name,
+                        "tagged_flag": tagged_flag,
+                        "dm_flag": dmcheck_flag}
  
-
         if dmcheck:
         # Check if this was the first message in the DM channel with the user
             conversation_history = self.slack_app.client.conversations_history(
@@ -377,6 +403,9 @@ class SlackBotAdapter(BotOsInputAdapter):
 
         if message.output.startswith("<Assistant>"):
             message.output = message.output[len("<Assistant>"):].strip()
+
+        if message.input_metadata.get("response_authorized", 'TRUE') == 'FALSE':
+            message.output = "!NO_RESPONSE_REQUIRED"
 
         if message.output == "!NO_RESPONSE_REQUIRED":
             print("Bot has indicated that no response will be posted to this thread.")

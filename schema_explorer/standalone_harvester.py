@@ -113,7 +113,7 @@ def update_harvest_control_with_new_databases(connector):
 
     for db in available_databases:
         if db not in controlled_databases and db not in {'GENESISAPP_APP_PKG_EXT', 'GENESISAPP_APP_PKG'}:
-            print(f"Adding new database to harvest control: {db}, the system db is {internal_db}", flush=True)
+            print(f"Adding new database to harvest control -- the system db is {internal_db}", flush=True)
             schema_exclusions = ['INFORMATION_SCHEMA']
             if db.upper() == internal_db.upper():
                 schema_exclusions.append(internal_sch)
@@ -127,7 +127,7 @@ def update_harvest_control_with_new_databases(connector):
             )
 # Check and update harvest control data if the source is Snowflake
 
-refresh_seconds = os.getenv("HARVESTER_REFRESH_SECONDS", 120)
+refresh_seconds = os.getenv("HARVESTER_REFRESH_SECONDS", 60)
 refresh_seconds = int(refresh_seconds)
 
 print("     [-------]     ")
@@ -146,7 +146,7 @@ print("   /        \\    ")
 print("  G E N E S I S ")
 print("    B o t O S")
 print(" ---- HARVESTER----")
-print('Harvester Start Version 0.132',flush=True)
+print('Harvester Start Version 0.134b',flush=True)
 
 
 while True:

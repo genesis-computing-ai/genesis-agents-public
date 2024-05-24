@@ -177,10 +177,17 @@ def get_bot_details():
 
     if SnowMode:
 
-       sql = f"select {prefix}.list_available_bots() "
-       data = session.sql(sql).collect()
-       response = json.loads(data[0][0])
-       return response
+        for _ in range(5):
+            sql = f"select {prefix}.list_available_bots() "
+            st.session_state['data'] = session.sql(sql).collect()
+            if 'data' in st.session_state:
+                data = st.session_state['data']
+                if data:
+                    break
+                time.sleep(2)
+
+        response = json.loads(data[0][0])
+        return response
 
     else:
         url = "http://127.0.0.1:8080/udf_proxy/list_available_bots"
@@ -359,6 +366,9 @@ def show_server_logs():
         st.markdown(status_result[0][0])
         st.text_area("Harvester Logs", logs_result[0][0], height=600)
 
+def support():
+    st.markdown("## [Genesis Documentation](https://genesiscomputing.ai/docs/)")
+    st.markdown("## [Join our Slack Community](https://communityinviter.com/apps/genesisbotscommunity/genesis-bots-community)")
 
 def llm_config(): # Check if data is not empty
 
@@ -473,6 +483,23 @@ def chat_page():
             bot_ids = [bot["bot_id"] for bot in bot_details]
             bot_intro_prompts = [bot["bot_intro_prompt"] for bot in bot_details]
 
+            tokens = get_slack_tokens()
+            slack_active = tokens.get("SlackActiveFlag",False)
+            if not slack_active:
+                col1, col2 = st.columns([3,4])
+                with col1:
+                    st.markdown("##### Genesis is best used on Slack!")
+                with col2:
+
+                    if 'radio' in st.session_state:
+                        if st.session_state['radio'] != "Setup Slack Connection":
+                            if st.button("Activate Slack Keys Here"):
+                                st.session_state['radio'] = "Setup Slack Connection" 
+                                st.experimental_rerun()
+                    else:
+                        if st.button("Activate Slack Keys Here"):
+                            st.session_state['radio'] = "Setup Slack Connection" 
+                            st.experimental_rerun()
             if len(bot_names) > 0:
                 selected_bot_name = st.selectbox("Active Bots", bot_names)
                 selected_bot_index = bot_names.index(selected_bot_name)
@@ -670,6 +697,8 @@ def db_harvester():
         st.metric(label="Most Recent Change", value=most_recent_change_str)
 
     st.subheader("Sources and Databases being Harvested")
+    st.markdown("Note: It may take 2-5 minutes for newly-granted data to appear here, and 5-10 minutes to be available to the bots")
+
     #st.dataframe(harvest_control_df.astype(str))
     # Convert JSON strings in 'schema_inclusions' to Python lists, handling nulls and non-list values
     if not harvest_control_df.empty:
@@ -722,7 +751,9 @@ def db_add_to_harvester():
 def grant_data():
 
     st.subheader('Grant Data Access')
-    st.write('The Genesis application can help you with your data in Snowflake. To do so, you need to grant this application access to your data. The helper procedure below can help you grant access to everything in a database to this application. This application runs securely inside your Snowflake account.')
+    st.write('The Genesis bots can help you analyze your data in Snowflake. To do so, you need to grant this application access to your data. The helper procedure below can help you grant access to read all tables and views in a database to this application.')
+    st.write('Note! Any bot with the Database Tools will be able to access this data, and when such a bot is deployed to Slack, some bots may be accessible by all Slack users, unless they are configured by Eve to only be usable by select Slack users.')
+    st.write('So grant data in this manner only to non-sensitive data that is ok for any Slack user to view, or first have Eve limit the access to the Database Tools-enabled bots to only select users on Slack.')
     wh_text = f'''-- select role to use, generally ACCOUNTADMIN.  See documentation for required permissions if not using ACCOUNTADMIN.
 use role ACCOUNTADMIN;
 
@@ -769,17 +800,30 @@ AS ''' + chr(36) + chr(36) + '''
 -- see your databases
 show databases;
 
--- to use on a local database in your account, call with the name of the database to grant
+-- To use on a local database in your account, call with the name of the database to grant
+-- 
+-- Note! any bot with the Database Tools will be able to access this data, and when such a bot is deployed to Slack, 
+-- some bots may be accessible by all Slack users, unless they are configured by Eve to only be usable by select Slack
+-- users. So grant data in this manner only to non-sensitive data that is ok for any Slack user to view, or first have 
+-- Eve limit the access to the Database Tools-enabled bots to only select users on Slack.
+
+-- Replace <your app name> with the name of your database you want to grant
 call GENESIS_LOCAL_DB.SETTINGS.grant_schema_usage_and_select_to_app('<your db name>',$APP_DATABASE);
+
+-- If you want to grant data that has been shared to you via Snowflake data sharing, use this process below instead
+-- the above:
 
 -- see inbound shares 
 show shares;
 
 -- to grant an inbound shared database to the Genesis application 
-grant imported privileges on database <inbound_share_db_name> to application IDENTIFIER($APP_DATABASE);
+-- (uncomment this by removing the // and put the right shared DB name in first)
+// grant imported privileges on database <inbound_share_db_name> to application IDENTIFIER($APP_DATABASE);
 
--- to grant access to the SNOWFLAKE share (Account Usage, etc.) to the Genesis application 
-grant imported privileges on database SNOWFLAKE to application IDENTIFIER($APP_DATABASE);
+
+-- If you want to to grant access to the SNOWFLAKE share (Account Usage, etc.) to the Genesis application 
+-- uncomment this by removing the // and run it:
+// grant imported privileges on database SNOWFLAKE to application IDENTIFIER($APP_DATABASE);
 
 --- once granted, Genesis will automatically start to catalog this data so you can use it with Genesis bots
 '''
@@ -853,7 +897,7 @@ def bot_config():
                                     st.markdown(f"**To complete setup on Slack, there is one more step.  Cut and paste this link in a new browser window (appologies that it can't be clickable here):**")
                                     #st.text(f"{bot['auth_url']}")
                                     a = st.text_area("Link to use to authorize:", value=bot['auth_url'], height=200, disabled=True)
-                                    st.markdown(f"**You may need to log into both Slack and Snowflake to complete this process.**")
+                                    st.markdown(f"**You may need to log into both Slack and Snowflake to complete this process.  NOTE: Once the bot is deploted, all users on Slack will be able to access it. To limit access to certain users, tell Eve you'd like to do that once the bot is deployed to Slack and she will walk you through the process.**")
                                 else:
                                     st.error(f"Failed to provide Slack App Level Key: {provide_slack_level_key_response.get('error')}")
 
@@ -882,13 +926,36 @@ def bot_config():
                                     pass
                             else:
                                 if slack_ready is False:
-                                    if st.button("Activate Slack Keys Here",  key=f"activate_{bot['bot_id']}"):
-                                        # Code to change the page based on a button click
-                                        st.session_state['radio'] = "Setup Slack Connection"
-                                        st.experimental_rerun()
+                                    if 'radio' in st.session_state:
+                                        if st.session_state['radio'] != "Setup Slack Connection":
+                                            if st.button("Activate Slack Keys Here",  key=f"activate_{bot['bot_id']}"):
+                                                # Code to change the page based on a button click
+                                                st.session_state['radio'] = "Setup Slack Connection"
+                                                st.experimental_rerun()
+                                        else:
+                                            st.markdown("###### Activate on Slack by clicking the Setup Slack Connection radio button")
+                                    else:
+                                        if st.button("Activate Slack Keys Here",  key=f"activate_{bot['bot_id']}"):
+                                            # Code to change the page based on a button click
+                                            st.session_state['radio'] = "Setup Slack Connection"
+                                            st.experimental_rerun()
 
                     with col2:
                         st.caption("UDF Active: " + ('Yes' if bot['udf_active'] == 'Y' else 'No'))
+                        slack_user_allow = bot.get('slack_user_allow', None)
+                        if slack_user_allow is not None:
+                            allowed_users = slack_user_allow.strip("[]").replace('"', '').replace("'", "")
+                            if allowed_users is not None:
+                                if '!BLOCK_ALL' in allowed_users:
+                                    st.caption(f"Allowed Slack Users: None - All Blocked")
+                                else:
+                                    st.caption(f"Allowed Slack Users IDs: {allowed_users} (Eve can tell you who these are)")
+                            else:
+                                st.caption("Allowed Slack Users: All Users Allowed")
+                        elif bot['slack_active'] == 'Y':
+                            st.caption("Allowed Slack Users: All Users Allowed")
+                        else:
+                            st.caption("Allowed Slack Users: N/A")
                         st.caption("Slack Active: " + ('Yes' if bot['slack_active'] == 'Y' else 'No'))
                         st.caption("Slack Deployed: " + ('Yes' if bot['slack_deployed'] else 'No'))
                         st.text_area(label="Instructions", value=bot['bot_instructions'], height=100)
@@ -1003,11 +1070,11 @@ set APP_DATABASE = '{app_name}';
 CREATE DATABASE IF NOT EXISTS GENESIS_LOCAL_DB; 
 CREATE SCHEMA IF NOT EXISTS GENESIS_LOCAL_DB.SETTINGS;
 
--- create a network rule that allows Genesis Server to access OpenAI's API, and optionally Slack API and Azure Blob (for image generation) 
+-- create a network rule that allows Genesis Server to access OpenAI's API, and optionally Slack API and Azure Blob (for DALL-E image generation) 
 CREATE OR REPLACE NETWORK RULE GENESIS_LOCAL_DB.SETTINGS.GENESIS_RULE
  MODE = EGRESS TYPE = HOST_PORT
 VALUE_LIST = ('api.openai.com', 'slack.com', 'www.slack.com', 'wss-primary.slack.com',
-'wss-backup.slack.com',  'wss-primary.slack.com:443','wss-backup.slack.com:443','www.genesiscomputing.ai',
+'wss-backup.slack.com',  'wss-primary.slack.com:443','wss-backup.slack.com:443',
 'oaidalleapiprodscus.blob.core.windows.net:443', 'downloads.slack-edge.com', 'files-edge.slack.com',
 'files-origin.slack.com', 'files.slack.com', 'global-upload-edge.slack.com','universal-upload-edge.slack.com');
 
@@ -1025,6 +1092,7 @@ GRANT USAGE ON INTEGRATION GENESIS_EAI TO APPLICATION   IDENTIFIER($APP_DATABASE
 CREATE SCHEMA IF NOT EXISTS GENESIS_LOCAL_DB.ELIZA_WORKSPACE;
 GRANT USAGE ON DATABASE GENESIS_LOCAL_DB TO APPLICATION IDENTIFIER($APP_DATABASE);
 GRANT ALL ON SCHEMA GENESIS_LOCAL_DB.ELIZA_WORKSPACE TO APPLICATION IDENTIFIER($APP_DATABASE);
+GRANT ALL ON FUTURE TABLES IN SCHEMA GENESIS_LOCAL_DB.ELIZA_WORKSPACE TO ROLE ACCOUNTADMIN;
 
 -- (optional steps for event logging) 
 -- create a schema to hold the event table
@@ -1182,16 +1250,22 @@ CALL {app_name}.CORE.INITIALIZE_APP_INSTANCE('APP1','GENESIS_POOL','GENESIS_EAI'
     '''
     st.text_area("", start_stop_text, height=620)
 
+def check_status():
+    status_query = f"select v.value:status::varchar status from (select parse_json(system$get_service_status('{prefix}.GENESISAPP_SERVICE_SERVICE'))) t, lateral flatten(input => t.$1) v"
+    service_status_result = session.sql(status_query).collect()
+    return service_status_result[0][0]
+
 if SnowMode:
     try:
-        status_query = f"select v.value:status::varchar status from (select parse_json(system$get_service_status('{prefix}.GENESISAPP_SERVICE_SERVICE'))) t, lateral flatten(input => t.$1) v"
-        service_status_result = session.sql(status_query).collect()
-        if service_status_result[0][0] != 'READY':
+        # status_query = f"select v.value:status::varchar status from (select parse_json(system$get_service_status('{prefix}.GENESISAPP_SERVICE_SERVICE'))) t, lateral flatten(input => t.$1) v"
+        # service_status_result = session.sql(status_query).collect()
+        service_status_result = check_status()
+        if service_status_result != 'READY':
             with st.spinner('Waiting on Genesis Services to start...'):
                 service_status = st.empty()
                 while True:
-                    service_status.text('Genesis Service status: ' + service_status_result[0][0])
-                    if service_status_result[0][0] == 'SUSPENDED':
+                    service_status.text('Genesis Service status: ' + service_status_result)
+                    if service_status_result == 'SUSPENDED':
                         # show button to start service
                         if st.button('Click to start Genesis Service'):
                             with st.spinner('Genesis Services is starting...'):
@@ -1200,40 +1274,44 @@ if SnowMode:
                                     time.sleep(15)
                                     service_start_result = session.sql(f"call {app_name}.core.start_app_instance('APP1','GENESIS_POOL','GENESIS_EAI','{st.session_state.wh_name}')").collect()
                                     if service_start_result:
-                                        service_status.text('Genesis Service status: ' + service_status_result[0][0])
+                                        service_status.text('Genesis Service status: ' + service_status_result)
                                     else:
                                         time.sleep(10)
                                 except Exception as e:
                                     st.error(f'Error connecting to Snowflake: {e}')
-                    service_status_result = session.sql(status_query).collect()
-                    service_status.text('Genesis Service status: ' + service_status_result[0][0])
-                    if service_status_result[0][0] == 'READY':
+                    service_status_result = check_status()
+                    service_status.text('Genesis Service status: ' + service_status_result)
+                    if service_status_result == 'READY':
                         service_status.text('')
                         st.experimental_rerun()
                         
-                    time.sleep(10)         
+                    time.sleep(10)      
 
         sql = f"select {prefix}.list_available_bots() "
-        data = session.sql(sql).collect()
-    except Exception as e:
-        data = None
-else:
-    data = 'Local Mode'
+        st.session_state['data'] = session.sql(sql).collect()
 
+    except Exception as e:
+        st.session_state['data'] = None
+else:
+    st.session_state['data'] = 'Local Mode'
+
+if 'data' in st.session_state:
+    data = st.session_state['data']
 if data:
     
     pages = {
     #    "Talk to Your Bots": "/",
         "Chat with Bots": chat_page,
         "LLM Model & Key": llm_config,
-      #  "Setup Ngrok": setup_ngrok, 
+    #  "Setup Ngrok": setup_ngrok, 
         "Setup Slack Connection": setup_slack,
         "Grant Data Access": grant_data,
-        "Harvestable Data": db_add_to_harvester,
+        # "Harvestable Data": db_add_to_harvester,
         "Harvester Status": db_harvester,
         "Bot Configuration": bot_config,
         "Server Stop/Start": start_stop,
         "Server Logs": show_server_logs,
+        "Support and Community": support,
     }
     
     if st.session_state.get('needs_keys', False):
@@ -1243,7 +1321,6 @@ if data:
 #        del pages["Setup Ngrok"]
     
     st.sidebar.title("Genesis Bots Configuration")
-      
     selection = st.sidebar.radio("Go to:", list(pages.keys()), index=list(pages.keys()).index(st.session_state.get('radio', list(pages.keys())[0])))
     if selection in pages: 
         pages[selection]()
@@ -1256,11 +1333,11 @@ else:
         "1: Configure Warehouse": config_wh,
         "2: Configure Compute Pool": config_pool,
         "3: Configure EAI": config_eai,
-        "4: Start Genesis Server": start_service
+        "4: Start Genesis Server": start_service,
+        "Support and Community": support
     }
     
     st.sidebar.title("Genesis Bots Installation")
-      
     selection = st.sidebar.radio("Go to:", list(pages.keys()), index=list(pages.keys()).index(st.session_state.get('radio', list(pages.keys())[0])))
     if selection in pages: 
         pages[selection]()

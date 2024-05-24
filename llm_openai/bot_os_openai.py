@@ -243,7 +243,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       return file_ids, file_map
 
    def add_message(self, input_message:BotOsInputMessage):#thread_id:str, message:str, files):
-      logger.debug("BotOsAssistantOpenAI:add_message") 
+      #logger.debug("BotOsAssistantOpenAI:add_message") 
       
       thread_id = input_message.thread_id
       if thread_id is None:
@@ -266,7 +266,9 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
              if file_name and any(file_name.lower().endswith(ext) for ext in self.allowed_types_code_i):
                  tools.append({"type": "code_interpreter"})
              attachments.append({"file_id": file_id, "tools": tools})
-
+         if input_message.metadata and input_message.metadata.get("response_authorized", 'TRUE') == 'FALSE':
+               input_message.msg = "THIS IS AN INFORMATIONAL MESSAGE ONLY ABOUT ACTIVITY IN THIS THREAD BETWEEN OTHER USERS.  RESPOND ONLY WITH '!NO_RESPONSE_REQUIRED'\nHere is the rest of the message so you know whats going on: \n\n"+ input_message.msg  + "\n REMINDER: RESPOND ONLY WITH '!NO_RESPONSE_REQUIRED'."
+               # don't add a run if there is no response needed do to an unauthorized user, but do make the bot aware of the thread message
          content = input_message.msg
          if file_map:
              content += "\n\nFile Name to Id Mappings:\n"
@@ -306,6 +308,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       #logger.debug(f"add_message - created {thread_message}")
       self.first_message = False 
       task_meta = input_message.metadata.pop('task_meta', None)
+
       run = self.client.beta.threads.runs.create(
          thread_id=thread.id, assistant_id=self.assistant.id, metadata=input_message.metadata)
       if task_meta is not None:
@@ -314,7 +317,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       self.active_runs.append(thread_id)
 
       self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id, 
-                                                    message_type='User Prompt', message_payload=input_message.msg, message_metadata=None, files=attachments,
+                                                    message_type='User Prompt', message_payload=input_message.msg, message_metadata=input_message.metadata, files=attachments,
                                                     channel_type=input_message.metadata.get("channel_type", None), channel_name=input_message.metadata.get("channel", None),
                                                     primary_user=input_message.metadata.get("primary_user", None))
 
@@ -415,6 +418,19 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       
       # now pacakge up the responses together
       tool_outputs = [{'tool_call_id': k, 'output': str(v)} for k, v in self.tool_completion_status[run_id].items()]
+      # Limit the output of each tool to length 800000
+      tool_outputs_limited = []
+      for tool_output in tool_outputs:
+         output_limited = tool_output['output'][:400000]
+         if len(output_limited) == 400000:
+            output_limited = output_limited + '\n!!WARNING!! LONG TOOL OUTPUT TRUNCATED.  CONSIDER CALLING WITH TOOL PARAMATERS THAT PRODUCE LESS RAW DATA.' # Truncate the output if it exceeds 400000 characters
+         tool_outputs_limited.append({'tool_call_id': tool_output['tool_call_id'], 'output': output_limited})
+      tool_outputs = tool_outputs_limited
+      # Check if the total size of tool_outputs exceeds the limit
+      total_size = sum(len(output['output']) for output in tool_outputs)
+      if total_size > 510000:
+          # If it does, alter all the tool_outputs to the error message
+          tool_outputs = [{'tool_call_id': output['tool_call_id'], 'output': 'Error! Total size of tool outputs too large to return to OpenAI, consider using tool paramaters that produce less raw data.'} for output in tool_outputs]
       try:
          updated_run = self.client.beta.threads.runs.submit_tool_outputs(
             thread_id=thread_id,
@@ -435,13 +451,18 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
          try:                     
             del self.running_tools[tool_call_id]
          except Exception as e:
-            logger.error(f"callback_closure - tool call already deleted - caught exception: {e}")
+            print(f"callback_closure - tool call already deleted - caught exception: {e}")
          try:
             self._submit_tool_outputs(run.id, thread.id, tool_call_id, function_details, func_response)
          except Exception as e:
             error_string = f"callback_closure - _submit_tool_outputs - caught exception: {e}"
-            logger.error(error_string)
-            self._submit_tool_outputs(run.id, thread.id, tool_call_id, function_details, error_string)
+            print(error_string)
+            try:
+               self._submit_tool_outputs(run.id, thread.id, tool_call_id, function_details, error_string)
+            except Exception as e:
+               error_string = f"callback_closure - _submit_tool_outputs - caught exception: {e} submitting error_string {error_string}"
+               print(error_string)
+ 
       return callback_closure
 
    def _download_openai_file(self, file_id, thread_id):
@@ -648,7 +669,10 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                      if tool_call_id in self.running_tools: # already running in a parallel thread
                         continue
                      log_readable_payload = func_name+"("+func_args+")"
-                     callback_closure = self._generate_callback_closure(run, thread, tool_call_id, function_details)
+                     try:
+                        callback_closure = self._generate_callback_closure(run, thread, tool_call_id, function_details)
+                     except Exception as e:
+                        print(f"Failed to generate callback closure for run {run.id}, thread {thread.id}, tool_call_id {tool_call_id} with error: {e}")
                      self.running_tools[tool_call_id] = {"run_id": run.id, "thread_id": thread.id }
                      self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id,
                                                                     message_type='Tool Call', message_payload=log_readable_payload, 

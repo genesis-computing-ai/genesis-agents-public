@@ -23,6 +23,7 @@ from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 from apscheduler.executors.pool import ThreadPoolExecutor
 import threading
+from core.system_variables import SystemVariables
 
 # for Cortex testing
 #os.environ['SIMPLE_MODE'] = 'true'
@@ -33,7 +34,9 @@ logging.basicConfig(level=logging.WARN, format='%(asctime)s - %(levelname)s - %(
 
 import core.global_flags as global_flags
 
-print("****** GENBOT VERSION 0.132 *******")
+
+
+print("****** GENBOT VERSION 0.134B *******")
 
 runner_id = os.getenv('RUNNER_ID','jl-local-runner')
 print("Runner ID: ", runner_id )
@@ -104,7 +107,7 @@ def make_session(bot_config):
 
 
 
-    udf_enabled = bot_config.get('ufd_active','Y')=='Y'
+    udf_enabled = bot_config.get('udf_active','Y')=='Y'
     slack_enabled = bot_config.get('slack_active','Y')=='Y'
     runner_id = os.getenv('RUNNER_ID','jl-local-runner')
 
@@ -317,10 +320,10 @@ else:
 print("...Slack Connector Active Flag: ",global_flags.slack_active)
 
 
-bot_id_to_slack_adapter_map = {}
+SystemVariables.bot_id_to_slack_adapter_map = {}
 
 if llm_api_key is not None:
-    sessions, api_app_id_to_session_map, bot_id_to_udf_adapter_map, bot_id_to_slack_adapter_map = create_sessions(default_llm_engine, llm_api_key)
+    sessions, api_app_id_to_session_map, bot_id_to_udf_adapter_map, SystemVariables.bot_id_to_slack_adapter_map = create_sessions(default_llm_engine, llm_api_key)
 else:
     # wait to collect API key from Streamlit user, then make sessions later
     pass
@@ -430,13 +433,13 @@ def list_available_bots_fn():
         output_rows = [[row[0],{'Success': False, 'Message': 'Needs LLM Type and Key'}]]
     else:
         runner = os.getenv('RUNNER_ID','jl-local-runner')
-        bots = list_all_bots(runner_id=runner)
+        bots = list_all_bots(runner_id=runner, slack_details=True)
 
         for bot in bots:
             bot_id = bot.get('bot_id')
 
         # Retrieve the session for the bot using the bot_id
-            bot_slack_adapter = bot_id_to_slack_adapter_map.get(bot_id, None)
+            bot_slack_adapter = SystemVariables.bot_id_to_slack_adapter_map.get(bot_id, None)
             bot_slack_deployed = False
             if bot_slack_adapter:
                 bot_slack_deployed = True
@@ -779,7 +782,7 @@ def configure_llm():
                 os.environ["OPENAI_API_KEY"] = llm_api_key_candidate
             if llm_api_key_candidate is not None and default_llm_engine.lower() == 'reka':
                 os.environ["REKA_API_KEY"] = llm_api_key_candidate
-            sessions, api_app_id_to_session_map, bot_id_to_udf_adapter_map, bot_id_to_slack_adapter_map = create_sessions(llm_api_key, default_llm_engine)
+            sessions, api_app_id_to_session_map, bot_id_to_udf_adapter_map, SystemVariables.bot_id_to_slack_adapter_map = create_sessions(llm_api_key, default_llm_engine)
             server = BotOsServer(app, sessions=sessions, scheduler=scheduler, scheduler_seoconds_interval=2, slack_active = global_flags.slack_active) 
             set_remove_pointers(server, api_app_id_to_session_map)
 
@@ -889,7 +892,7 @@ def bot_install_followup(bot_id=None, no_slack=False):
             print('new_session is none')
             return('Error: Not Installed new session is none')
         if slack_adapter_local is not None:
-            bot_id_to_slack_adapter_map[bot_config["bot_id"]] = slack_adapter_local
+            SystemVariables.bot_id_to_slack_adapter_map[bot_config["bot_id"]] = slack_adapter_local
         if udf_local_adapter is not None:
             bot_id_to_udf_adapter_map[bot_config["bot_id"]]= udf_local_adapter
         api_app_id_to_session_map[api_app_id] = new_session

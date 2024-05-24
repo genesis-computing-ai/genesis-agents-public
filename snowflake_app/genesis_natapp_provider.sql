@@ -186,11 +186,6 @@ END;
 $$;
 
 
--- Call the procedure to generate shared views and grants
-CALL CODE_SCHEMA.GENERATE_SHARED_VIEWS('BASEBALL', CURRENT_DATABASE());
-USE SCHEMA GENESISAPP_APP_PKG.CODE_SCHEMA;
-CALL CODE_SCHEMA.GENERATE_SHARED_VIEWS('FORMULA_1', CURRENT_DATABASE());
-USE SCHEMA GENESISAPP_APP_PKG.CODE_SCHEMA;
 
 CREATE OR REPLACE PROCEDURE CODE_SCHEMA.SHARE_TO_APP_PKG(APP_PKG_NAME STRING)
 RETURNS STRING
@@ -233,6 +228,11 @@ USE SCHEMA GENESISAPP_APP_PKG.CODE_SCHEMA;
 CALL CODE_SCHEMA.GENERATE_SHARED_VIEWS('FORMULA_1', CURRENT_DATABASE());
 USE SCHEMA GENESISAPP_APP_PKG.CODE_SCHEMA;
 
+-- Call the procedure to generate shared views and grants
+CALL CODE_SCHEMA.GENERATE_SHARED_VIEWS('BASEBALL', CURRENT_DATABASE());
+USE SCHEMA GENESISAPP_APP_PKG.CODE_SCHEMA;
+CALL CODE_SCHEMA.GENERATE_SHARED_VIEWS('FORMULA_1', CURRENT_DATABASE());
+USE SCHEMA GENESISAPP_APP_PKG.CODE_SCHEMA;
 
 
 -- ########## END DATA SHARING  ##########################################
@@ -421,7 +421,7 @@ CREATE SCHEMA IF NOT EXISTS GENESIS_LOCAL_DB.SETTINGS;
 CREATE OR REPLACE NETWORK RULE GENESIS_LOCAL_DB.SETTINGS.GENESIS_RULE
  MODE = EGRESS TYPE = HOST_PORT
 VALUE_LIST = ('api.openai.com', 'slack.com', 'www.slack.com', 'wss-primary.slack.com',
-'wss-backup.slack.com',  'wss-primary.slack.com:443','wss-backup.slack.com:443','www.genesiscomputing.ai',
+'wss-backup.slack.com',  'wss-primary.slack.com:443','wss-backup.slack.com:443',
 'oaidalleapiprodscus.blob.core.windows.net:443', 'downloads.slack-edge.com', 'files-edge.slack.com',
 'files-origin.slack.com', 'files.slack.com', 'global-upload-edge.slack.com','universal-upload-edge.slack.com');
 
@@ -557,6 +557,27 @@ BEGIN
     WHERE SCHEMA_NAME = :INSTANCE_NAME;
 
     IF (:schema_exists) then
+
+    REVOKE USAGE ON FUNCTION APP1.deploy_bot(varchar) FROM APPLICATION ROLE APP_PUBLIC;
+    
+    DROP FUNCTION IF EXISTS APP1.configure_ngrok_token(varchar, varchar, varchar);
+    
+    REVOKE USAGE ON FUNCTION APP1.configure_slack_app_token(varchar, varchar) FROM APPLICATION ROLE APP_PUBLIC;
+    
+    REVOKE USAGE ON FUNCTION APP1.configure_llm(varchar, varchar) FROM APPLICATION ROLE APP_PUBLIC;
+    
+    REVOKE USAGE ON FUNCTION APP1.submit_udf(varchar, varchar, varchar) FROM APPLICATION ROLE APP_PUBLIC;
+    
+    REVOKE USAGE ON FUNCTION APP1.lookup_udf(varchar, varchar) FROM APPLICATION ROLE APP_PUBLIC;
+    
+    REVOKE USAGE ON FUNCTION APP1.get_slack_endpoints() FROM APPLICATION ROLE APP_PUBLIC;
+    
+    REVOKE USAGE ON FUNCTION APP1.list_available_bots() FROM APPLICATION ROLE APP_PUBLIC;
+    
+    DROP FUNCTION IF EXISTS APP1.get_ngrok_tokens();
+    
+    REVOKE USAGE ON FUNCTION APP1.get_metadata(varchar) FROM APPLICATION ROLE APP_PUBLIC;
+    
       LET spec VARCHAR := (
             SELECT REGEXP_REPLACE(VALUE
               ,'{{app_db_sch}}',lower(current_database())||'.'||lower(:INSTANCE_NAME)) AS VALUE
@@ -565,11 +586,6 @@ BEGIN
         'ALTER SERVICE IF EXISTS '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
         ' FROM SPECIFICATION  '||chr(36)||chr(36)||'\n'|| :spec ||'\n'||chr(36)||chr(36) ||
         ' ';
-
---      EXECUTE IMMEDIATE 'grant select on all tables in schema '||:INSTANCE_NAME||' TO APPLICATION ROLE APP_PUBLIC';
-
---      EXECUTE IMMEDIATE 'grant select on future tables in schema '||:INSTANCE_NAME||' TO APPLICATION ROLE APP_PUBLIC';
-
 
       if (WAREHOUSE_NAME is not NULL)
       THEN
@@ -740,6 +756,7 @@ END
 
 
 
+
 CREATE OR REPLACE PROCEDURE APP.CREATE_HARVESTER_SERVICE(INSTANCE_NAME VARCHAR,SERVICE_NAME VARCHAR, POOL_NAME VARCHAR, EAI_NAME VARCHAR , WAREHOUSE_NAME VARCHAR, APP_DATABASE VARCHAR)
 RETURNS VARCHAR NOT NULL
 LANGUAGE SQL
@@ -809,11 +826,7 @@ BEGIN
 
   EXECUTE IMMEDIATE 'CREATE SCHEMA '||:INSTANCE_NAME;
   EXECUTE IMMEDIATE 'GRANT USAGE ON SCHEMA '||:INSTANCE_NAME||' TO APPLICATION ROLE APP_PUBLIC';
-  EXECUTE IMMEDIATE 'grant select on future tables in schema '||:INSTANCE_NAME||' TO APPLICATION ROLE APP_PUBLIC';
-
-  EXECUTE IMMEDIATE 'GRANT USAGE ON SCHEMA '||:INSTANCE_NAME||' TO APPLICATION ROLE APP_PUBLIC';
-
-
+ 
   EXECUTE IMMEDIATE 'CREATE STAGE IF NOT EXISTS '||:INSTANCE_NAME||'.'||'WORKSPACE DIRECTORY = ( ENABLE = true ) ENCRYPTION = (TYPE = '||CHR(39)||'SNOWFLAKE_SSE'||chr(39)||')';
   EXECUTE IMMEDIATE 'GRANT READ ON STAGE '||:INSTANCE_NAME||'.'||'WORKSPACE TO APPLICATION ROLE APP_PUBLIC';
 
@@ -1092,7 +1105,7 @@ AS
 
 
  
-GRANT USAGE ON PROCEDURE CORE.RUN_ARBITRARY(VARCHAR) TO APPLICATION ROLE app_public;
+-- GRANT USAGE ON PROCEDURE CORE.RUN_ARBITRARY(VARCHAR) TO APPLICATION ROLE app_public;
 
 
 
@@ -1165,643 +1178,14 @@ END;
 
 // provider test
 
-select current_role();
+// select current_role();
 
-DROP APPLICATION IF EXISTS GENESIS_BOTS_ALPHA;
-show applications;
+// DROP APPLICATION IF EXISTS GENESIS_BOTS_ALPHA;
+// show applications;
 
-SET APP_DATABASE='GENESIS_BOTS_ALPHA';
+// SET APP_DATABASE='GENESIS_BOTS_ALPHA';
 
-CREATE APPLICATION GENESIS_BOTS_ALPHA FROM APPLICATION PACKAGE GENESISAPP_APP_PKG USING VERSION V0_2;
-
-call GENESISAPP_APP.core.get_eai();
-// to get streamlit up and running
-
-// none?
-
-// settings
-
-set APP_DATABASE = 'GENESIS_BOTS_ALPHA';
-use database IDENTIFIER($APP_DATABASE);
-set APP_INSTANCE='APP1'; -- Do not change
-set APP_COMPUTE_POOL='APP_COMPUTE_POOL'||$APP_INSTANCE;
-set APP_INSTANCE_FAMILY='CPU_X64_XS';
-set APP_LOCAL_DB='APP_LOCAL_DB'; -- For now, do not change, Secrets are hard-wired to this Database in YAML
-set APP_LOCAL_SCHEMA=$APP_LOCAL_DB||'.'||'EGRESS'; -- For now, do not change, Secrets are hard-wired to this Schema in YAML
-set APP_LOCAL_EGRESS_RULE=$APP_LOCAL_SCHEMA||'.'||'APP_RULE';
-set APP_LOCAL_EAI = $APP_DATABASE||'_EAI';
-set APP_WAREHOUSE = 'XSMALL'; -- change to an existing Warehouse if desired
-
-// compute pool
-
-DROP COMPUTE POOL IF EXISTS IDENTIFIER($APP_COMPUTE_POOL);
-CREATE COMPUTE POOL IF NOT EXISTS IDENTIFIER($APP_COMPUTE_POOL) FOR APPLICATION IDENTIFIER($APP_DATABASE)
- MIN_NODES=1
- MAX_NODES=1
- INSTANCE_FAMILY='CPU_X64_XS';
-show compute pools;
-
-// network egress for openai, ngrok, slack
- 
-CREATE OR REPLACE NETWORK RULE IDENTIFIER($APP_LOCAL_EGRESS_RULE)
- MODE = EGRESS
- TYPE = HOST_PORT
-VALUE_LIST = ('api.openai.com', 'slack.com', 'www.slack.com', 'wss-primary.slack.com',
-'wss-backup.slack.com',  'wss-primary.slack.com:443','wss-backup.slack.com:443');
-
-CREATE OR REPLACE EXTERNAL ACCESS INTEGRATION IDENTIFIER($APP_LOCAL_EAI)
-   ALLOWED_NETWORK_RULES = (APP_LOCAL_DB.EGRESS.APP_RULE)  -- update from above if necessary
-   ENABLED = true;
-
-// grants
-
-GRANT USAGE ON DATABASE IDENTIFIER($APP_LOCAL_DB) TO APPLICATION IDENTIFIER($APP_DATABASE);
-GRANT USAGE ON SCHEMA IDENTIFIER($APP_LOCAL_SCHEMA) TO APPLICATION IDENTIFIER($APP_DATABASE);
-GRANT USAGE ON INTEGRATION IDENTIFIER($APP_LOCAL_EAI) TO APPLICATION   IDENTIFIER($APP_DATABASE);
-GRANT USAGE ON COMPUTE POOL  GENESIS_TEST_POOL TO APPLICATION  IDENTIFIER($APP_DATABASE);
-GRANT BIND SERVICE ENDPOINT ON ACCOUNT TO APPLICATION  IDENTIFIER($APP_DATABASE);
-GRANT USAGE ON WAREHOUSE  IDENTIFIER($APP_WAREHOUSE) TO APPLICATION  IDENTIFIER($APP_DATABASE);
-
-// start
-
-USE DATABASE IDENTIFIER($APP_DATABASE);
-CALL CORE.INITIALIZE_APP_INSTANCE($APP_INSTANCE,'GENESIS_TEST_POOL',$APP_LOCAL_EAI,$APP_WAREHOUSE);
-CALL CORE.DROP_APP_INSTANCE($APP_INSTANCE);
-
-// check service
-
-USE DATABASE IDENTIFIER($APP_DATABASE);
-SELECT SYSTEM$GET_SERVICE_STATUS('GENESISAPP_SERVICE_SERVICE');
-SELECT SYSTEM$GET_SERVICE_LOGS('GENESISAPP_SERVICE_SERVICE',0,'genesis',1000);
-
-
-
-/////////////
-
-   
-/// consumer instructions
-
-d
-SELECT CURRENT_ROLE(); -- Use the same role that installed the Application
--- USE ROLE ACCOUNTADMIN; -- Use the same role that installed the Application
--- USE DATABASE CEB_TEST;
-
-
-set OPENAI_API_KEY = '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';
-set NGROK_AUTHTOKEN = '2ce4bWGvzt5lBCDn6c2WsymnVSr_3m7QssHXhUHLi1BVCguRN';
-
-set APP_DATABASE = 'GENESISAPP_APP';
-use database IDENTIFIER($APP_DATABASE);
-set APP_INSTANCE='APP1'; -- Do not change
-set APP_COMPUTE_POOL='APP_COMPUTE_POOL'||$APP_INSTANCE;
-set APP_INSTANCE_FAMILY='CPU_X64_XS';
-set APP_LOCAL_DB='APP_LOCAL_DB'; -- For now, do not change, Secrets are hard-wired to this Database in YAML
-set APP_LOCAL_SCHEMA=$APP_LOCAL_DB||'.'||'EGRESS'; -- For now, do not change, Secrets are hard-wired to this Schema in YAML
-set APP_LOCAL_EGRESS_RULE=$APP_LOCAL_SCHEMA||'.'||'APP_RULE';
-set OPENAI_SECRET_NAME=$APP_LOCAL_SCHEMA||'.'||'OPENAI_API_KEY';  -- Do not change
-set NGROK_SECRET_NAME=$APP_LOCAL_SCHEMA||'.'||'NGROK_AUTHTOKEN';  -- Do not change
-set APP_LOCAL_EAI = $APP_DATABASE||'_EAI';
-set EXAMPLE_DATA_DB = 'MY_DATA';
-set EXAMPLE_DATA_SCHEMA=$EXAMPLE_DATA_DB||'.'||'EXAMPLE';
-set EXAMPLE_DATA_TABLE=$EXAMPLE_DATA_SCHEMA||'.'||'CUSTOMERS';
-set APP_WAREHOUSE = 'XSMALL'; -- change to an existing Warehouse if desired
-
-
-CREATE WAREHOUSE IF NOT EXISTS IDENTIFIER($APP_WAREHOUSE)
- WITH WAREHOUSE_SIZE = 'XSMALL'
- AUTO_SUSPEND = 60
- AUTO_RESUME = TRUE
- INITIALLY_SUSPENDED = TRUE;
-
-
-USE WAREHOUSE IDENTIFIER($APP_WAREHOUSE);
-
-
-
-
-DROP COMPUTE POOL IF EXISTS IDENTIFIER($APP_COMPUTE_POOL);
-CREATE COMPUTE POOL IF NOT EXISTS IDENTIFIER($APP_COMPUTE_POOL) FOR APPLICATION IDENTIFIER($APP_DATABASE)
- MIN_NODES=1
- MAX_NODES=1
- INSTANCE_FAMILY='CPU_X64_XS';
-
-describe compute pool IDENTIFIER($APP_COMPUTE_POOL);
-
-CREATE DATABASE IF NOT EXISTS IDENTIFIER($APP_LOCAL_DB);
-CREATE SCHEMA IF NOT EXISTS IDENTIFIER($APP_LOCAL_SCHEMA);
-
-CREATE OR REPLACE NETWORK RULE IDENTIFIER($APP_LOCAL_EGRESS_RULE)
- MODE = EGRESS
- TYPE = HOST_PORT
-  VALUE_LIST = ('api.openai.com', 'connect.ngrok-agent.com:443', 'slack.com', 'api.slack.com')
-  
-//('0.0.0.0:443','0.0.0.0:80');
-
-  
-CREATE OR REPLACE SECRET IDENTIFIER($OPENAI_SECRET_NAME)
- TYPE = GENERIC_STRING
- SECRET_STRING = $OPENAI_API_KEY;
-
-
-CREATE OR REPLACE SECRET IDENTIFIER($NGROK_SECRET_NAME)
- TYPE = GENERIC_STRING
- SECRET_STRING = $NGROK_AUTHTOKEN;
-
-
-SELECT $APP_LOCAL_EGRESS_RULE, $OPENAI_SECRET_NAME, $NGROK_SECRET_NAME; -- update below CREATE statement if necessary
- CREATE OR REPLACE EXTERNAL ACCESS INTEGRATION IDENTIFIER($APP_LOCAL_EAI)
-   ALLOWED_NETWORK_RULES = (APP_LOCAL_DB.EGRESS.APP_RULE, APP_LOCAL_DB.EGRESS.APP_INGRES_RULE)  -- update from above if necessary
-   ALLOWED_AUTHENTICATION_SECRETS = (APP_LOCAL_DB.EGRESS.OPENAI_API_KEY, APP_LOCAL_DB.EGRESS.NGROK_AUTHTOKEN) -- update from above if necessary
-   ENABLED = true;
-
-
-
-CREATE DATABASE IF NOT EXISTS IDENTIFIER($EXAMPLE_DATA_DB);
-CREATE SCHEMA IF NOT EXISTS IDENTIFIER($EXAMPLE_DATA_SCHEMA);
-
-
-
-CREATE OR REPLACE TABLE IDENTIFIER($EXAMPLE_DATA_TABLE) (
-   customer_id INTEGER,
-   first_name VARCHAR,
-   last_name VARCHAR,
-   email VARCHAR,
-   signup_date DATE,
-   is_active BOOLEAN,
-   city VARCHAR,
-   state VARCHAR,
-   customer_segment VARCHAR
-);
-
-
-SELECT $APP_WAREHOUSE;
-USE WAREHOUSE IDENTIFIER($APP_WAREHOUSE);
-
-
-INSERT INTO IDENTIFIER($EXAMPLE_DATA_TABLE) (customer_id, first_name, last_name, email, signup_date, is_active, city, state, customer_segment) VALUES
-(1, 'John', 'Doe', 'john.doe@example.com', '2023-01-01', TRUE, 'New York', 'NY', 'Premium'),
-(2, 'Jane', 'Doe', 'jane.doe@example.com', '2023-02-01', TRUE, 'Los Angeles', 'CA', 'Standard'),
-(3, 'Jim', 'Beam', 'jim.beam@example.com', '2023-03-01', FALSE, 'Chicago', 'IL', 'Standard'),
-(4, 'Jack', 'Daniels', 'jack.daniels@example.com', '2023-01-15', TRUE, 'Houston', 'TX', 'Premium'),
-(5, 'Jill', 'Hill', 'jill.hill@example.com', '2023-02-15', FALSE, 'Phoenix', 'AZ', 'Standard');
-
-
-GRANT USAGE ON DATABASE IDENTIFIER($EXAMPLE_DATA_DB) TO APPLICATION IDENTIFIER($APP_DATABASE);
-GRANT USAGE ON SCHEMA IDENTIFIER($EXAMPLE_DATA_SCHEMA) TO APPLICATION IDENTIFIER($APP_DATABASE);
-GRANT SELECT ON ALL TABLES IN SCHEMA IDENTIFIER($EXAMPLE_DATA_SCHEMA) TO APPLICATION IDENTIFIER($APP_DATABASE);
-GRANT SELECT ON ALL VIEWS IN SCHEMA IDENTIFIER($EXAMPLE_DATA_SCHEMA) TO APPLICATION IDENTIFIER($APP_DATABASE);
-GRANT USAGE ON DATABASE IDENTIFIER($APP_LOCAL_DB) TO APPLICATION IDENTIFIER($APP_DATABASE);
-GRANT USAGE ON SCHEMA IDENTIFIER($APP_LOCAL_SCHEMA) TO APPLICATION IDENTIFIER($APP_DATABASE);
-GRANT USAGE ON INTEGRATION IDENTIFIER($APP_LOCAL_EAI) TO APPLICATION   IDENTIFIER($APP_DATABASE);
-GRANT READ ON SECRET  IDENTIFIER($OPENAI_SECRET_NAME) TO APPLICATION  IDENTIFIER($APP_DATABASE);
-GRANT READ ON SECRET IDENTIFIER($NGROK_SECRET_NAME) TO APPLICATION   IDENTIFIER($APP_DATABASE);
-GRANT USAGE ON COMPUTE POOL  IDENTIFIER($APP_COMPUTE_POOL) TO APPLICATION  IDENTIFIER($APP_DATABASE);
-GRANT BIND SERVICE ENDPOINT ON ACCOUNT TO ROLE ACCOUNTADMIN WITH GRANT OPTION;
-GRANT BIND SERVICE ENDPOINT ON ACCOUNT TO APPLICATION  IDENTIFIER($APP_DATABASE);
-GRANT USAGE ON WAREHOUSE  IDENTIFIER($APP_WAREHOUSE) TO APPLICATION  IDENTIFIER($APP_DATABASE);
-
---set TMP_INTERNAL_DB = 'GENESIS_TEST';
---set TMP_INTERNAL_SCH = 'GENESIS_TEST.GENESIS_INTERNAL';
---GRANT USAGE ON DATABASE IDENTIFIER($TMP_INTERNAL_DB) TO APPLICATION IDENTIFIER($APP_DATABASE);
---GRANT USAGE ON SCHEMA IDENTIFIER($TMP_INTERNAL_SCH) TO APPLICATION IDENTIFIER($APP_DATABASE);
---GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA IDENTIFIER($TMP_INTERNAL_SCH) TO APPLICATION IDENTIFIER($APP_DATABASE);
---GRANT SELECT, INSERT, UPDATE, DELETE ON ALL VIEWS IN SCHEMA IDENTIFIER($TMP_INTERNAL_SCH) TO APPLICATION IDENTIFIER($APP_DATABASE);
-set TMP_SPIDER_DB = 'SPIDER_DATA';
-set TMP_INTERNAL_SCH = 'SPIDER_DATA.GENESIS_INTERNAL';
-GRANT USAGE ON DATABASE IDENTIFIER($TMP_INTERNAL_DB) TO APPLICATION IDENTIFIER($APP_DATABASE);
-GRANT USAGE ON SCHEMA IDENTIFIER($TMP_INTERNAL_SCH) TO APPLICATION IDENTIFIER($APP_DATABASE);
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA IDENTIFIER($TMP_INTERNAL_SCH) TO APPLICATION IDENTIFIER($APP_DATABASE);
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL VIEWS IN SCHEMA IDENTIFIER($TMP_INTERNAL_SCH) TO APPLICATION IDENTIFIER($APP_DATABASE);
-
-use schema IDENTIFIER($APP_LOCAL_SCHEMA);
-
-
-CREATE OR REPLACE PROCEDURE grant_select_on_database_to_app(database_name STRING, APP_NAME STRING)
-RETURNS STRING
-LANGUAGE JAVASCRIPT
-EXECUTE AS CALLER
-AS
-$$
-    var connection = snowflake.createStatement({
-        sqlText: `SELECT SCHEMA_NAME FROM ${DATABASE_NAME}.INFORMATION_SCHEMA.SCHEMATA`
-    });
-    var result = connection.execute();
-    
-    while (result.next()) {
-        var schemaName = result.getColumnValue(1);
-        if (schemaName === 'INFORMATION_SCHEMA') {
-            continue;
-        }
-        var sqlCommands = [
-            `GRANT USAGE ON DATABASE ${DATABASE_NAME} TO APPLICATION ${APP_NAME}`,
-            `GRANT USAGE ON SCHEMA ${DATABASE_NAME}.${schemaName} TO APPLICATION ${APP_NAME}`,
-            `GRANT SELECT ON ALL TABLES IN SCHEMA ${DATABASE_NAME}.${schemaName} TO APPLICATION ${APP_NAME}`,
-            `GRANT SELECT ON ALL VIEWS IN SCHEMA ${DATABASE_NAME}.${schemaName} TO APPLICATION ${APP_NAME}`,
-        ];
-        
-        for (var i = 0; i < sqlCommands.length; i++) {
-            try {
-                var stmt = snowflake.createStatement({sqlText: sqlCommands[i]});
-                stmt.execute();
-            } catch(err) {
-                // Return error message if any command fails
-                return `Error executing command: ${sqlCommands[i]} - ${err.message}`;
-            }
-        }
-    }
-    
-    return "Successfully granted USAGE and SELECT on all schemas, tables, and views in database " + DATABASE_NAME + " to application " + APP_NAME;
-$$;
-
- 
-call grant  _select_on_database_to_app('SPIDER_DATA',$APP_DATABASE);
-
-revoke usage on database spider_data from application identifier($APP_DATABASE);
-
-
-select current_role();
-
-
-
-USE DATABASE IDENTIFIER($APP_DATABASE);
-
-
-CALL CORE.INITIALIZE_APP_INSTANCE($APP_INSTANCE,$APP_COMPUTE_POOL,$APP_LOCAL_EAI,$APP_WAREHOUSE);
---CALL CORE.INITIALIZE_APP_INSTANCE_TEST($APP_INSTANCE,$APP_COMPUTE_POOL,$APP_LOCAL_EAI,$APP_WAREHOUSE);
-
--- call core.start_app_instance($APP_INSTANCE);
--- call core.stop_app_instance($APP_INSTANCE);
--- call core.drop_app_instance($APP_INSTANCE);
--- call core.list_app_instance($APP_INSTANCE);
--- call core.restart_app_instance($APP_INSTANCE);
--- call core.get_app_endpoint($APP_INSTANCE);
-
-show services;
-show compute pools;
-drop compute pool GENESIS_TEST_POOL;
-
-use role accountadmin;
-show compute pools;
-
-select current_version();
-
-
-DROP COMPUTE POOL IDENTIFIER($APP_COMPUTE_POOL);
-ALTER COMPUTE POOL GENESIS_TEST_POOL STOP ALL;
-
-drop compute pool APP_COMPUTE_POOLAPP1;
-
-select app1.get_slack_endpoints();
-
-select current_schema();
-
-CREATE or replace FUNCTION app_local_db.public.get_slack_endpoints ()
-  RETURNS varchar
-  SERVICE=genesisapp_app.app1.GENESISAPP_SERVICE_SERVICE
-  ENDPOINT=udfendpoint
-  AS '/udf_proxy/get_slack_tokens';
-
-CREATE or replace FUNCTION app_test_schema.get_slack_endpoints ()
-  RETURNS varchar
-  SERVICE=genesis_server
-  ENDPOINT=udfendpoint
-  AS '/udf_proxy/get_slack_tokens';
-
-CREATE or replace FUNCTION app_test_schema.list_available_bots()
-  RETURNS varchar
-  SERVICE=genesis_server
-  ENDPOINT=udfendpoint
-  AS '/udf_proxy/list_available_bots';
-
-select submit_udf('hi how are you?','111','jl-local-eve-test-1');
-select lookup_udf('6c04a3b6-ccc3-417a-b9c1-cb9c6b6dff40','jl-local-eve-test-1');
-
-
-CREATE or replace FUNCTION app_test_schema.get_ngrok_tokens()
-  RETURNS varchar
-  SERVICE=genesis_server
-  ENDPOINT=udfendpoint
-  AS '/udf_proxy/get_ngrok_tokens';
-
-
-CREATE or replace FUNCTION app_test_schema.get_metadata(metadata_type varchar)
-  RETURNS varchar
-  SERVICE=genesis_server
-  ENDPOINT=udfendpoint
-  AS '/udf_proxy/get_metadata';
-  
-CREATE or replace FUNCTION g_healthcheck ()
-  RETURNS varchar
-  SERVICE=genesis_server
-  ENDPOINT=udfendpoint
-  AS '/healthcheck';
-
-select get_slack_endpoints();
-
-
-select SYSTEM$ALLOWLIST();
-
-use schema app1;
-show tables;
-
-describe service GENESISAPP_SERVICE_SERVICE;
-SELECT SYSTEM$GET_SERVICE_STATUS('GENESISAPP_SERVICE_SERVICE');
-SELECT SYSTEM$GET_SERVICE_LOGS('GENESISAPP_SERVICE_SERVICE',0,'genesis',1000);
-
-
-
-////
-// manual install (like cybersyn ai utilities)
-////
-
-
-DROP APPLICATION IF EXISTS GENESIS_BOTS;
-
-
-SET APP_DATABASE='GENESISAPP_APP';
-
-
-CREATE APPLICATION GENESIS_BOTS FROM APPLICATION PACKAGE GENESISAPP_APP_PKG;
-
-
-create or replace database genesisapp_local_db;
-
-
-CREATE OR REPLACE NETWORK RULE genesisapp_local_db.public.GENESISAPP_RULE
- MODE = EGRESS
- TYPE = HOST_PORT
-   VALUE_LIST = ('0.0.0.0:443','0.0.0.0:80');
-// VALUE_LIST = ('api.openai.com', 'connect.ngrok-agent.com:443');
-
-
-CREATE OR REPLACE SECRET genesisapp_local_db.public.OPENAI_API_KEY
- TYPE = GENERIC_STRING
- SECRET_STRING = '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';
-
-
-CREATE OR REPLACE SECRET genesisapp_local_db.public.NGROK_AUTHTOKEN
- TYPE = GENERIC_STRING
- SECRET_STRING = '2ce4bWGvzt5lBCDn6c2WsymnVSr_3m7QssHXhUHLi1BVCguRN';
-
-
-CREATE OR REPLACE EXTERNAL ACCESS INTEGRATION GENESISAPP_EAI
-   ALLOWED_NETWORK_RULES = (genesisapp_local_db.public.GENESISAPP_RULE)
-   ALLOWED_AUTHENTICATION_SECRETS = (genesisapp_local_db.public.OPENAI_API_KEY, genesisapp_local_db.public.NGROK_AUTHTOKEN)
-   ENABLED = true;
-
-
-GRANT USAGE ON DATABASE genesisapp_local_db TO APPLICATION GENESISAPP_APP;
-GRANT USAGE ON SCHEMA genesisapp_local_db.public TO APPLICATION GENESISAPP_APP;
-GRANT USAGE ON INTEGRATION GENESISAPP_EAI TO APPLICATION GENESISAPP_APP;
-GRANT READ ON SECRET genesisapp_local_db.public.OPENAI_API_KEY TO APPLICATION GENESISAPP_APP;
-GRANT READ ON SECRET genesisapp_local_db.public.NGROK_AUTHTOKEN TO APPLICATION GENESISAPP_APP;
---GRANT IMPORTED PRIVILEGES ON DATABASE SNOWFLAKE TO APPLICATION GENESISAPP_APP;
-
-
-GRANT SELECT ON ALL TABLES IN SCHEMA genesisapp_local_db.public TO APPLICATION GENESISAPP_APP;
-GRANT SELECT ON ALL VIEWS IN SCHEMA genesisapp_local_db.public TO APPLICATION GENESISAPP_APP;
-
-GRANT USAGE ON WAREHOUSE APP_WH TO APPLICATION GENESISAPP_APP;
---GRANT BIND SERVICE ENDPOINT ON ACCOUNT TO APPLICATION GENESISAPP_APP;
-
-
-create table genesisapp_local_db.public.tables_t as select * from information_schema.tables;
-create table genesisapp_local_db.public.test as select 'hi' as hello;
-create view genesisapp_local_db.public.tables_v as select * from genesisapp_local_db.information_schema.tables;
-select table_catalog, table_schema, table_name from genesisapp_local_db.public.tables_v;
-GRANT SELECT ON ALL TABLES IN SCHEMA genesisapp_local_db.public TO APPLICATION GENESISAPP_APP;
-GRANT SELECT ON ALL VIEWS IN SCHEMA genesisapp_local_db.public TO APPLICATION GENESISAPP_APP;
-
-
-grant usage on database JUSTIN to application genesisapp_app;
-grant usage on schema JUSTIN.public to application genesisapp_app;
-GRANT SELECT ON ALL TABLES IN SCHEMA JUSTIN.public TO APPLICATION GENESISAPP_APP;
-GRANT SELECT ON ALL VIEWS IN SCHEMA JUSTIN.public TO APPLICATION GENESISAPP_APP;
-
-
-
-
-show databases;
-use role accountadmin;
-
-
-// grant another DB, see if it sees it
-
-
-
-
-
-
-use role test_role_2;
-grant role test_role_2 to user justin;
-select * from genesisapp_local_db.tables_v;
-use database genesisapp_local_db;
-use schema public;
-show views;
-select * from tables_v;
-use role accountadmin;
-GRANT IMPORTED PRIVILEGES ON DATABASE SNOWFLAKE TO APPLICATION GENESISAPP_APP;
-
-
-grant usage on warehouse app_wh to role test_role_2;
-use role accountadmin;
-grant role test_role_2 to application genesisapp_app;
-
-
-select table_name from genesisapp_local_db.information_schema.tables;
-
-
-
-
-create materialized view genesisapp_local_db.public.tables_mv as
-select 1 as one;
-
-
-create secure view genesisapp_local_db.public.tables_sv as select * from information_schema.tables;
-create table genesisapp_local_db.public.tables_t as select * from information_schema.tables;
-
-
-create table genesisapp_local_db.public.test as select 'hi' as hello;
-
-
-select * from genesisapp_local_db.public.test;
-
-
-select get_ddl('table','genesisapp_local_db.public.test');
-describe table genesisapp_local_db.public.tables_t;
-
-
-// SQL show databases;
-// SQL select get_ddl(\'table\',\'genesisapp_local_db.public.test\');
-// SQL describe table genesisapp_local_db.public.tables_t;
-
-
-
-
-select table_schema, table_name from genesisapp_local_db.public.tables_t;
-create secure view genesisapp_local_db.public.tables_sv as select * from information_schema.tables;
-show databases;
-
-
-
-
-select count(*) from genesisapp_local_db.public.tables_t;
-select count(*) from genesisapp_local_db.information_schema.tables;
-
-
-
-
-
-
-select table_name from genesisapp_local_db.information_schema.tables;
-
-
-select 'hello' HI;
-
-
-
-
-use database genesisapp_app;
-use role accountadmin;
-show compute pools;
-
-
-
-call genesisapp_app.core.drop_app_instance('APP1');
-show compute pools;
-
-
-// next read secret inside app setup for the container start
-
-
-
--- ########## BEGIN CREATE/PATCH TEST APP   ##############################
-DECLARE
- APP_DATABASE := 'GENESISAPP_APP';
- APP_COMPUTE_POOL VARCHAR DEFAULT $APP_COMPUTE_POOL;
- APP_INSTANCE VARCHAR DEFAULT 'APP1';
-
-
- APP_LOCAL_DB := (:APP_DATABASE||'_LOCAL_DB')::VARCHAR;
- APP_LOCAL_SCHEMA := (:APP_LOCAL_DB||'.'||'EGRESS')::VARCHAR;
- APP_LOCAL_EGRESS_RULE := (:APP_LOCAL_SCHEMA||'.'||'APP_RULE')::VARCHAR;
- APP_LOCAL_EAI := (:APP_DATABASE||'_EAI')::VARCHAR;
-BEGIN
- BEGIN
-   CREATE APPLICATION GENESISAPP_APP FROM APPLICATION PACKAGE GENESISAPP_APP_PKG USING VERSION V0_1;
- EXCEPTION
-   WHEN OTHER THEN
-     BEGIN
-       ALTER APPLICATION GENESISAPP_APP UPGRADE USING VERSION V0_1;
-       BEGIN
-         CALL GENESISAPP_APP.CORE.DROP_APP_INSTANCE(:APP_INSTANCE);
-       EXCEPTION
-         WHEN OTHER THEN
-           NULL;
-       END;
-     EXCEPTION
-       WHEN OTHER THEN
-         DROP APPLICATION IF EXISTS GENESISAPP_APP;
-         CREATE APPLICATION GENESISAPP_APP FROM APPLICATION PACKAGE GENESISAPP_APP_PKG USING VERSION V0_1;
-     END;
- END;
-
-
- CREATE DATABASE IF NOT EXISTS IDENTIFIER(:APP_LOCAL_DB);
- CREATE SCHEMA IF NOT EXISTS IDENTIFIER(:APP_LOCAL_SCHEMA);
-    
- CREATE NETWORK RULE IF NOT EXISTS IDENTIFIER(:APP_LOCAL_EGRESS_RULE)
-   TYPE = 'HOST_PORT'
-   MODE= 'EGRESS'
-   VALUE_LIST = ('0.0.0.0:443','0.0.0.0:80');
-  
- CREATE OR REPLACE EXTERNAL ACCESS INTEGRATION IDENTIFIER(:APP_LOCAL_EAI)
-   ALLOWED_NETWORK_RULES = (GENESISAPP_APP_LOCAL_DB.EGRESS.APP_RULE)
-   ENABLED = true;
-
-
- GRANT USAGE ON DATABASE IDENTIFIER(:APP_LOCAL_DB) TO APPLICATION IDENTIFIER(:APP_DATABASE);
- GRANT USAGE ON SCHEMA IDENTIFIER(:APP_LOCAL_SCHEMA) TO APPLICATION IDENTIFIER(:APP_DATABASE);
- GRANT USAGE ON NETWORK RULE IDENTIFIER(:APP_LOCAL_EGRESS_RULE) TO APPLICATION IDENTIFIER(:APP_DATABASE);
-
-
- GRANT USAGE ON INTEGRATION IDENTIFIER(:APP_LOCAL_EAI) TO APPLICATION IDENTIFIER(:APP_DATABASE);
- GRANT USAGE ON COMPUTE POOL IDENTIFIER(:APP_COMPUTE_POOL) TO APPLICATION IDENTIFIER(:APP_DATABASE);
- GRANT BIND SERVICE ENDPOINT ON ACCOUNT TO APPLICATION IDENTIFIER(:APP_DATABASE);
-
-
- GRANT USAGE ON COMPUTE POOL IDENTIFIER(:APP_COMPUTE_POOL) TO APPLICATION IDENTIFIER(:APP_DATABASE);
-
-
- USE DATABASE IDENTIFIER(:APP_DATABASE);
- LET RS1 RESULTSET := (CALL GENESISAPP_APP.CORE.INITIALIZE_APP_INSTANCE(:APP_INSTANCE,:APP_COMPUTE_POOL, :APP_LOCAL_EAI)); 
- RETURN TABLE(rs1);
-END;
-
-
-use database genesisapp_app;
-
-
-drop application genesisapp_app;
-
-
-
-
-select genesisapp_app.app1.submit_udf('hi', '123');
-select genesisapp_app.app1.response_udf('10d12f42-fa6c-4807-9948-91a6ae8b9986');
-
-
-call genesisapp_app.CORE.TEST_BILLING_EVENT();
-
-
-
-
-call genesisapp_app.core.start_app_instance('APP1');
-
-
-DESCRIBE SERVICE GENESISAPP_APP.APP1.GENESISAPP_SERVICE_SERVICE;
-SELECT SYSTEM$GET_SERVICE_LOGS('GENESISAPP_APP.APP1.GENESISAPP_SERVICE_SERVICE',0,'echo',100);
-SHOW ENDPOINTS IN SERVICE GENESISAPP_APP.APP1.GENESISAPP_SERVICE_SERVICE;
-
-
-show streamlits;
-desc streamlit genesisapp_app.core.SIS_LAUNCH;
-
-
-// edcyofwr-sfengineering-ss-lprpr-test1.snowflakecomputing.app
-
-
-call genesisapp_app.core.stop_app_instance('APP1');
-call genesisapp_app.core.drop_app_instance('APP1');
-call genesisapp_app.core.restart_app_instance('APP1');
--- call core.list_app_instance('APP1');
-call genesisapp_app.core.get_app_endpoint('APP1');
-
-
--- ########## END CREATE TEST APP   ######################################
-
-
--- ##### BEGIN CREATE/PATCH TEST APP (DO NOT REBUILD THE APP)  ###########
-
-
-DECLARE
- APP_INSTANCE VARCHAR DEFAULT 'APP1';
-BEGIN
- ALTER APPLICATION GENESISAPP_APP UPGRADE USING VERSION V0_1;
- CALL GENESISAPP_APP.CORE.RESTART_APP_INSTANCE(:APP_INSTANCE);
- LET rs1 RESULTSET := (CALL GENESISAPP_APP.CORE.GET_APP_ENDPOINT(:APP_INSTANCE));
- RETURN TABLE(rs1);
-END;
-
-
-
-ALTER APPLICATION GENESISAPP_APP UPGRADE USING VERSION V0_1;
-call genesisapp_app.core.restart_app_instance('APP1');
-
-
--- ########## END CREATE TEST APP   ######################################
-
-
+// CREATE APPLICATION GENESIS_BOTS_ALPHA FROM APPLICATION PACKAGE GENESISAPP_APP_PKG USING VERSION V0_2;
 
 
 -- ########## BEGIN PUBLISH   ############################################

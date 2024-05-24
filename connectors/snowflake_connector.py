@@ -1183,7 +1183,11 @@ class SnowflakeConnector(DatabaseConnector):
                     message_metadata STRING,
                     tokens_in INTEGER,
                     tokens_out INTEGER,
-                    files STRING
+                    files STRING,
+                    channel_type STRING,
+                    channel_name STRING,
+                    primary_user STRING,
+                    task_id STRING
                 );
                 """
                 cursor.execute(chat_history_table_ddl)

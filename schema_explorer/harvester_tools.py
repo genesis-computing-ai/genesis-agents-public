@@ -54,7 +54,7 @@ harvester_tools_functions = [
         "type": "function",
         "function": {
             "name": "_remove_harvest_control_data",
-            "description": "Removes a row from the harvest control table based on the provided identifiers. Removing this row will stop crawling data for this database.",
+            "description": "Removes a row from the harvest control table based on the provided identifiers. Removing this row will stop crawling data for this database.  If the user also wants to remove previously-crawled data for this source, also call _remove_metadata_for_database",
             "parameters": {
                 "type": "object",
                 "properties": {

@@ -750,10 +750,10 @@ def configure_llm():
             llm_api_key_candidate = None
             default_llm_engine_candidate = None
 
-        if api_key_from_env:
-            response = {"Success": False, "Message": "LLM type and API key are set in an environment variable and can not be set or changed using this method."}
-            llm_api_key_candidate = None
-            default_llm_engine_candidate = None        
+      #  if api_key_from_env:
+      #      response = {"Success": False, "Message": "LLM type and API key are set in an environment variable and can not be set or changed using this method."}
+      #      llm_api_key_candidate = None
+      #      default_llm_engine_candidate = None        
 
         if default_llm_engine_candidate is not None:
             if default_llm_engine_candidate.lower() == 'openai':

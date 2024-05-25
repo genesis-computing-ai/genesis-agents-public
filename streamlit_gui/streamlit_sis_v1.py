@@ -364,7 +364,7 @@ def show_server_logs():
 
         # Display the results in textareas
         st.markdown(status_result[0][0])
-        st.text_area("Harvester Logs", logs_result[0][0], height=600)
+        st.text_area("Task Server Logs", logs_result[0][0], height=600)
 
 def support():
     st.markdown("## [Genesis Documentation](https://genesiscomputing.ai/docs/)")

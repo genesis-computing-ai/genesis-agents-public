@@ -36,6 +36,9 @@ class BotOsServer:
         self.sessions   = sessions
         self.scheduler = scheduler
         
+        existing_job = self.scheduler.get_job('bots')
+        if existing_job:
+            self.scheduler.remove_job('bots')
         self.job = self.scheduler.add_job(self._execute_session, 'interval', coalesce=True, seconds=scheduler_seoconds_interval, id='bots')
         self.scheduler.add_listener(_job_listener, EVENT_JOB_EXECUTED | EVENT_JOB_ERROR)
         self.slack_active = slack_active

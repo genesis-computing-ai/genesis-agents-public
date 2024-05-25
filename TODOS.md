@@ -9,21 +9,18 @@ Make video of Snowflake janitorial work
 Bots calling other bots to do things
 
 THINGS TO TEST:
-(test) Why does "NEURALIFT_DEMO"."DATA"."ACTIVATION_TABLE" not show as available after harvesting?
-(test) JL-test infoschema cache in harvest
-(test) JL-Does Task Service update its Annoy index when needed?
+None at the moment
 
 SHORT-TERM (BEFORE SUMMIT):
 JL- Add terms of service to website and link from SiS app, and to listing details
 MR - make this work on multicase call GENESIS_LOCAL_DB.SETTINGS.grant_schema_usage_and_select_to_app('MY_DATA',$APP_DATABASE); (fix in SiS script)
-JL- Dont allow Bots with same name to be created
 JL- add note to baseball harvest that its till 2015 , in select * from genesisapp_master.harvest_share.harvest_results;
 RV-(couple fixes) Add USERS field to messages log table to keep track of the users involved in a thread or dm
 MR-SiS app will restart service is suspended (With pool) but doesnt wake up harvester, errors in SiS log harvest screen
 (sone?) MR-harvester - change the include flag column to exclude and use that field instead of deleting a row to stop auto harvesting
-JL-changing openAI key via streamlit when running gives an error: (bots conflicts with existing job-- dont add scheduler job again if already running)
 
 POST-SUMMIT:
+Task sever logs emiting a lot of whitespace when annoy index updates
 Make a bot Testy that tests the other bots (excercises and validates all their tools)
 MG-Do stripe setup for monitized listing
 JL- Add a way for user to provide new refresh key when making new bot
@@ -151,6 +148,11 @@ Add a mechanism for license control based on current_account()... share a table 
     Have a trial period where you can use it in trial mode before it goes into limited mode
 
 DONE:
+x (test) JL-Does Task Service update its Annoy index when needed?
+x (test) Why does "NEURALIFT_DEMO"."DATA"."ACTIVATION_TABLE" not show as available after harvesting?
+x (test) JL-test infoschema cache in harvest
+x changing openAI key via streamlit when running gives an error: (bots conflicts with existing job--
+x Dont allow Bots with same name to be created
 x (test) check error handling for stage tools (added to list, check others)
 x (test) Add error checking for missing data or grants to harvester so it doesnt crash on that 
 x MR-(test) harvester dont crash if cant access schemas for a database listed in control file

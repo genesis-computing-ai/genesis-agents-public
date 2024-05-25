@@ -1,5 +1,4 @@
 
-
 GENESIS BOT TODOS
 =================
 
@@ -12,7 +11,7 @@ THINGS TO TEST:
 None at the moment
 
 SHORT-TERM (BEFORE SUMMIT):
-Update DDL harvest on other regions for baseball 2015 note, and check if Eliza sees it on a fresh install 
+JL- Update DDL harvest on other regions for baseball 2015 note, and check if Eliza sees it on a fresh install 
 JL- Add terms of service to website and link from SiS app, and to listing details
 MR - make this work on multicase call GENESIS_LOCAL_DB.SETTINGS.grant_schema_usage_and_select_to_app('MY_DATA',$APP_DATABASE); (fix in SiS script)
 RV-(couple fixes) Add USERS field to messages log table to keep track of the users involved in a thread or dm
@@ -20,19 +19,16 @@ MR-SiS app will restart service is suspended (With pool) but doesnt wake up harv
 (sone?) MR-harvester - change the include flag column to exclude and use that field instead of deleting a row to stop auto harvesting
 
 POST-SUMMIT:
+Have ability to give a bot its own oauth token or uid/pwd so it has its own RBAC
 Task sever logs emiting a lot of whitespace when annoy index updates
 Make a bot Testy that tests the other bots (excercises and validates all their tools)
 MG-Do stripe setup for monitized listing
 JL- Add a way for user to provide new refresh key when making new bot
 MR - harvest - formula1 doesnt come back if you delete the harvest rows
-MR-Add a sevice start/stop/restart buttons to SiS
+MR-Add a service start/stop/restart buttons to SiS
 Give the bots the PDFs on the docs to Eve so she can answer stuff on them, with multipdf uploader to stage and grant of folder to bot  
 Files in and out of streamlit
 catch missing files from stage at startup, and let the bot know they are missing 
-Have ability to control who a bot is willing to talk to and take direction from to do things on Slack & via SiS
-Have ability to give a bot its own oauth token or uid/pwd so it has its own RBAC
-Have baby bot check to make sure same name bot doesnt already exist in genesis
-When deploying to Slack, check for existing active bot names of the same name and if its there, review it 
 JL-Have DMs also get history if they are not threadded, give the past n DMs too 
 JL-Give Kevin's docs to Jenny and see if she can answer q's based on them
 MR-add the bot images table and view to the copy program to other regions
@@ -46,10 +42,8 @@ Learnings service, learns from each thread once its done about data, schema, tab
 Injector to inject the right kind of knowledge into thread on these topics
 add a way to remove tools from bot
 User understanding system of what bot has done with the user recently (with summaries?)
-Initial memory system using vector search on message history?
 Ability to load whole stage folder to files for a bot
 (later) make sure endpoint is not the empty message, if so wait until its provisioned before updating any callback URLS, if there are any bots that needs them
-x (later) figure out cortex runner why its costs are nuts
 (later) Try harvester with mistral or yak model to save costs 
 (later) add tab to see chat logs from messages table in SiS 
 (soon) Harvest semantic models and return in get_metadata dynamically
@@ -61,13 +55,12 @@ x (later) figure out cortex runner why its costs are nuts
 (later) eventually remove full message metadata save on input and output openai 
 (later) Give them 100 OpenAI turns a day or someting using our key, then have it switch to their own key
 (later) make a metadata backup and recovery script so we have it ready
-(later) if you change slack token via streamlit, have it relaunch bots (or activate them any time they have a token even is slack is off)
 (later) Make thread map save to local database to survive container restart 
 (later) block metadata app1 from user query 
 (later) add a place in Streamlit to see the files in stage add a file, remove a file
 (later) Make the queries in bot_os_memory.py parameterized
 (later) app deploy tokens are user specific, how to add a collaborator so another user can configure it?
-(later) Hide harvestable data if autoharvest is on 
+(later) Hide harvestable data if autoharvest is on  (now its always hidden)
 (later) add refresh button to harvester_status
 MR- (later) Add logo to streamlit GUI
 (later) remove bots vector indexes when removing a bot
@@ -75,53 +68,38 @@ MR- (later) Add logo to streamlit GUI
 (later) Go back to snowflake secure mode for harvester too if it works
 (later) Allow user to turn off sample data
 
-! Persistancey:
+PERSISTANCY TOPIC:
 1. have it proactively suggest tasks to do if it doesn't have enough, and recurring ones, and bootstrap ones
-x 2. have it do those automatically (give it the system time)
-x 3. give it a tool to find stuff its working on and the status
 4. give it a tool to see what else its been talking about with that person and with other people
-x Tasks to database, json describing the task (let it decide its own structure for this json, give ideas like todo, current status, etc.).. let it decide the structure
-x Have next check time in the database, and prompt it to work on it more at that time
-Example task, monitor the harvester for a new database and let me know when its done or if there are any issues (with related discussion context)
-x Add some knowledge of past or parallel tasks
 Add knowledged of past and parallel conversations, and a tool to get past transcriptips
 Have it proactively suggest future tasks
-n Have Eve suggest making tools 
 Haves bots reach out to you to see if you need help
-
-CLEANUPS AND NEEDED TESTS:
-(later) Make the file downloader more indepenent of the Slackbot, right now it assumes files come from Slackbot, but they could come from Email as well, for example
-(test) Test Asynch tool calling: for long tunning database queries for example
-Make all queries use bind variables to prevent SQL injection
 
 BIG THINGS:
 (in progress) Semantic CoPilot tools, Semantic model creation and maintenance, related demos, add to Elsa flows and to metadata search results
-Harvester: robustness and improvements
 Memory system: revamp and improve (go beyond simple RAG, back to KB?, post-chat capture, ongoing refinement, local indexing)
 More advanced tool generation and testing system, and with Zapier hooks via Zapier API 
 Data engineering use case: define it and make it really work and be robust, with Iceberg migration as a core real-world-needed example
 Reflect/Validation: revamp and rework to allow bots to review/revise/critique their work autonomously before presenting to the user (maybe spawn critique threads)
-Planning: tasks/reminders allowing bots to have long running projects
 Allow a bot session to reason over all of its threads (e.g., should be able to ask Eve on Streamlit about what she is doing in one of her Slack threads)
 Wrap snow_udf as a sdk to be integrated within python apps like State Street Alpha
-Bot health monitoring (is this )
+Bot health monitoring
 Bot cost management, reporting, optimization
-Add initial message, tasks and reminders to make genbots proactive
 Parallel sub-bot runs (take a task, divide it by x dimension, trigger sub-bots in parallel)
 
 MEDIUM THINGS:
-(test) -> Harvester: Have harvester only get sample data for known simple data types (data_harvest table tripps it up for example), and add error handling on sample data not available, and on any other issues
+error handling on sample data not available, and on any other issues
 (try reka-core 128k in april) Model backends: Test & figure out when we can use Cortex-native models (Mistral, Reka, etc)
 Azure OpenAI support
-(test)  SiS - don't crash sis app if you submit another line while its thinking
-(test) Harvester add error handling and logging
-(test) Harvester test it in various ways 
 (asked) SiS how to get "open in worksheet" button for setup scripts
 Prevent bots from deleting themselves
 Have Harvester use Mistral for descriptions and embeddings
 Make an example of another native app embedding Genesis via UDF calls
 
 SMALL THINGS:
+(later) Make the file downloader more indepenent of the Slackbot, right now it assumes files come from Slackbot, but they could come from Email as well, for example
+(test) Test Asynch tool calling: for long tunning database queries for example
+Make all queries use bind variables to prevent SQL injection
 Streamlit: move the bot selector somewhere easier to find after it scrolls off (left nav for example when on the chat tab) 
 Have the bot authorization redirect provide a pretty webpage confirming the bot has been installed, and telling you how to 
 Add remove tool tool
@@ -148,6 +126,23 @@ Add a mechanism for license control based on current_account()... share a table 
     Have a trial period where you can use it in trial mode before it goes into limited mode
 
 DONE:
+x 2. have it do those automatically (give it the system time)
+x 3. give it a tool to find stuff its working on and the status
+x Tasks to database, json describing the task (let it decide its own structure for this json, give ideas like todo, current status, etc.).. let it decide the structure
+x Have next check time in the database, and prompt it to work on it more at that time
+x Add some knowledge of past or parallel tasks
+n Have Eve suggest making tools 
+x Planning: tasks/reminders allowing bots to have long running projects
+x Harvester: robustness and improvements
+x Add initial message, tasks and reminders to make genbots proactive
+x (later) figure out cortex runner why its costs are nuts
+x Have ability to control who a bot is willing to talk to and take direction from to do things on Slack & via SiS
+x Have baby bot check to make sure same name bot doesnt already exist in genesis
+n When deploying to Slack, check for existing active bot names of the same name and if its there, review it 
+n Initial memory system using vector search on message history?
+x (test) -> Harvester: Have harvester only get sample data for known simple data types (data_harvest table tripps it up for example), and add x (test)  SiS - don't crash sis app if you submit another line while its thinking
+x (test) Harvester add error handling and logging
+x (test) Harvester test it in various ways 
 x JL- add note to baseball harvest that its till 2015 , in select * from genesisapp_master.harvest_share.harvest_results;
 x (test) JL-Does Task Service update its Annoy index when needed?
 x (test) Why does "NEURALIFT_DEMO"."DATA"."ACTIVATION_TABLE" not show as available after harvesting?

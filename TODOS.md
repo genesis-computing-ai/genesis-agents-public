@@ -12,9 +12,9 @@ THINGS TO TEST:
 None at the moment
 
 SHORT-TERM (BEFORE SUMMIT):
+Update DDL harvest on other regions for baseball 2015 note, and check if Eliza sees it on a fresh install 
 JL- Add terms of service to website and link from SiS app, and to listing details
 MR - make this work on multicase call GENESIS_LOCAL_DB.SETTINGS.grant_schema_usage_and_select_to_app('MY_DATA',$APP_DATABASE); (fix in SiS script)
-JL- add note to baseball harvest that its till 2015 , in select * from genesisapp_master.harvest_share.harvest_results;
 RV-(couple fixes) Add USERS field to messages log table to keep track of the users involved in a thread or dm
 MR-SiS app will restart service is suspended (With pool) but doesnt wake up harvester, errors in SiS log harvest screen
 (sone?) MR-harvester - change the include flag column to exclude and use that field instead of deleting a row to stop auto harvesting
@@ -148,6 +148,7 @@ Add a mechanism for license control based on current_account()... share a table 
     Have a trial period where you can use it in trial mode before it goes into limited mode
 
 DONE:
+x JL- add note to baseball harvest that its till 2015 , in select * from genesisapp_master.harvest_share.harvest_results;
 x (test) JL-Does Task Service update its Annoy index when needed?
 x (test) Why does "NEURALIFT_DEMO"."DATA"."ACTIVATION_TABLE" not show as available after harvesting?
 x (test) JL-test infoschema cache in harvest

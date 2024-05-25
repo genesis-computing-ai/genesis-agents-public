@@ -15,7 +15,7 @@ database_tool_functions = [
         "type": "function",
         "function": {
             "name": "search_metadata",
-            "description": "Searches metadata to find the top relevant tables or views. (This does not search stages).",
+            "description": "Searches metadata to find the top relevant tables or views. (This does not search sta.",
             "parameters": {
                 "type": "object",
                 "properties": {

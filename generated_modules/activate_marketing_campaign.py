@@ -9,7 +9,7 @@ def activate_marketing_campaign(channel, segment_description, when_to_launch, bu
     
     # Define segment validation requirements per channel
     segment_requirements = {
-        'meta': ['demographics', 'interests_behaviors'],
+        'meta': ['email_list'], #['demographics', 'interests_behaviors'],
         'snap': ['audience_filters', 'custom_audiences'],
         'tradedesk': ['demographic_targeting', 'behavioral_targeting'],
     }
@@ -72,7 +72,7 @@ TOOL_FUNCTION_DESCRIPTION_ACTIVATE_MARKETING_CAMPAIGN = {
                 },
                 "segment_description": {
                     "type": "string",
-                    "description": "json-encoded dict describing the segment relevant to the channel being used for the campaign. for meta, specify demographics and interests_behaviors"
+                    "description": "json-encoded dict describing the segment relevant to the channel being used for the campaign. for meta, specify email_list as a list of email addresses for the segment"
                 },
                 "when_to_launch": {
                     "type": "string",

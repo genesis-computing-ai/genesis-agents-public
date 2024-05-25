@@ -31,7 +31,7 @@ import core.global_flags as global_flags
 #os.environ['TEST_TASK_MODE'] = 'true'
 ########################################
 
-print("****** GENBOT VERSION 0.135 *******")
+print("****** GENBOT VERSION 0.136 *******")
 print("****** TASK AUTOMATION SERVER *******")
 runner_id = os.getenv('RUNNER_ID','jl-local-runner')
 print("Runner ID: ", runner_id )
@@ -166,7 +166,7 @@ def make_session(bot_config):
         instructions += "\nYour slack user_id: "+bot_config["bot_slack_user_id"]
 
     if "snowflake_stage_tools" in bot_tools and 'make_baby_bot' in bot_tools:        
-        instructions += f"\nYour Internal Files Stage for bots is at snowflake stage: {genbot_internal_project_and_schema}.BOT_FILES_STAGE"
+        instructions += f"\nYour Internal Files Stage for bots is at snowflake stage: {genbot_internal_project_and_schema}.BOT_FILES_STAGE.  This BOT_FILES_STAGE stage is ONLY in this particular database & schema."
 
     #print(instructions, f'{bot_config["bot_name"]}, id: {bot_config["bot_id"]}' )
     

@@ -629,7 +629,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
 
             if run.status == "failed":
-               logger.error(f"!!!!!!!!!! FAILED JOB, run.lasterror {run.last_error} !!!!!!!")
+               print(f"!!!!!!!!!! FAILED JOB, run.lasterror {run.last_error} !!!!!!!")
                # resubmit tool output if throttled
                #tools_to_rerun = {k: v for k, v in self.tool_completion_status[run.id].items() if v is not None}
                #self._run_tools(thread_id, run, tools_to_rerun) # type: ignore
@@ -722,8 +722,21 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
                   continue
                except Exception as e:
-                  logger.error(f"check_runs - exception:{str(e)}")
-
+                  print(f"check_runs - requires action - exception:{str(e)}")
+                  try:
+                     output = f"!!! Error making tool call, exception:{str(e)}"
+                     event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id, 
+                                                                        status=run.status, 
+                                                                        output=output, 
+                                                                        messages=None, 
+                                                                        input_metadata=run.metadata))
+                  except:
+                     pass
+                  try:
+                     self.client.beta.threads.runs.cancel(run_id=run.id, thread_id=thread_id)
+                  except:
+                     pass
+           
             elif run.status == "completed" and run.completed_at != thread_run["completed_at"]:
                messages = self.client.beta.threads.messages.list(thread_id=thread_id)
                latest_message = messages.data[0]

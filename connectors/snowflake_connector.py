@@ -1780,13 +1780,13 @@ class SnowflakeConnector(DatabaseConnector):
                 "Error": str(e),    
                 "Suggestion": """You have tried to query an object with an incorrect name of one that is not granted to APPLICATION GENESIS_BOTS.
             To fix this: 
-            1. Make sure you are referencing correct objects that you learned about via search_metadata
+            1. Make sure you are referencing correct objects that you learned about via search_metadata, or otherwise are sure actually exists
             2. Explain the error and show the SQL you tried to run to the user, they may be able to help 
-            3. Tell the user that they may need to run this in a Snowflake worksheet:
+            3. Tell the user that IF they know for sure that this is a valid object, that they may need to run this in a Snowflake worksheet:
               "CALL GENESIS_LOCAL_DB.SETTINGS.grant_schema_usage_and_select_to_app('<insert database name here>','GENESIS_BOTS');"
               This will grant the you access to the data in the database.  
             4. Suggest to the user that the table may have been recreated since it was originally granted, or may be recreated each day as part of an ETL job.  In that case it must be re-granted after each recreation.
-            4. NOTE: You do not have the PUBLIC role or any other role, all object you are granted must be granted TO APPLICATION GENESIS_BOTS, or be granted by grant_schema_usage_and_select_to_app as shown above.
+            5. NOTE: You do not have the PUBLIC role or any other role, all object you are granted must be granted TO APPLICATION GENESIS_BOTS, or be granted by grant_schema_usage_and_select_to_app as shown above.
 """
             }
             print('run query: len=', len(query), '\ncaused error: ', e)
@@ -2721,8 +2721,13 @@ class SnowflakeConnector(DatabaseConnector):
             list: A list of files in the stage.
         """
         try:
-            query = f"LIST @{database}.{schema}.{stage}"
-            return self.run_query(query)
+            query = f'LIST @"{database}"."{schema}"."{stage}"'
+            ret = self.run_query(query)
+            if isinstance(ret, dict) and "does not exist or not authorized" in ret.get('Error', ''):
+                query = query.upper()
+                ret = self.run_query(query)
+            return(ret)
+
         except Exception as e:
             return {"success": False, "error": str(e)}
 
@@ -2967,7 +2972,7 @@ GRANT USAGE ON INTEGRATION GENESIS_EAI TO APPLICATION   IDENTIFIER($APP_DATABASE
             return {"success": False, "error": str(e)}
 
         try:
-            query = f"PUT file://{file_path} @{database}.{schema}.{stage} AUTO_COMPRESS=FALSE"
+            query = f'PUT file://{file_path} @"{database}"."{schema}"."{stage}" AUTO_COMPRESS=FALSE'
             return self.run_query(query)
         except Exception as e:
             logger.error(f"Error adding file to stage: {e}")
@@ -2988,7 +2993,7 @@ GRANT USAGE ON INTEGRATION GENESIS_EAI TO APPLICATION   IDENTIFIER($APP_DATABASE
         """
         try:
             # Define the local directory to save the file
-            local_dir = os.path.join(".", "downloaded_files", ".", thread_id)
+            local_dir = os.path.join(".", "downloaded_files", thread_id)
                    
             if '/' in file_name:
                 file_name = file_name.split('/')[-1]
@@ -2998,8 +3003,14 @@ GRANT USAGE ON INTEGRATION GENESIS_EAI TO APPLICATION   IDENTIFIER($APP_DATABASE
             local_file_path = os.path.join(local_dir, file_name)
 
             # Modify the GET command to include the local file path
-            query = f"GET @{database}.{schema}.{stage}/{file_name} file://{local_dir}"
-            self.run_query(query)
+            query = f'GET @"{database}"."{schema}"."{stage}"/{file_name} file://{local_dir}'
+            ret = self.run_query(query)
+            if isinstance(ret, dict) and "does not exist or not authorized" in ret.get('Error', ''):
+                database = database.upper()
+                schema = schema.upper()
+                stage = stage.upper()
+                query = f'GET @"{database}"."{schema}"."{stage}"/{file_name} file://{local_dir}'
+                ret = self.run_query(query)
 
             if os.path.isfile(local_file_path):
                 if return_contents:
@@ -3068,7 +3079,15 @@ GRANT USAGE ON INTEGRATION GENESIS_EAI TO APPLICATION   IDENTIFIER($APP_DATABASE
 
         try:
             query = f"REMOVE @{database}.{schema}.{stage}/{file_name}"
-            return self.run_query(query)
+            ret =  self.run_query(query)
+            if isinstance(ret, dict) and "does not exist or not authorized" in ret.get('Error', ''):
+                database = database.upper()
+                schema = schema.upper()
+                stage = stage.upper()
+                query = f'REMOVE @"{database}"."{schema}"."{stage}"/{file_name}'
+                ret = self.run_query(query)
+
+            return(ret)
         except Exception as e:
             logger.error(f"Error deleting file from stage: {e}")
             return {"success": False, "error": str(e)}

@@ -26,6 +26,7 @@ def _job_listener(event):
 class BotOsServer:
 
     run_count=0
+    cycle_count=0
     
     def __init__(self, flask_app:Flask, sessions:list[BotOsSession], scheduler:BackgroundScheduler, 
                  scheduler_seoconds_interval=2, slack_active=False
@@ -99,25 +100,26 @@ class BotOsServer:
         i = 0 
         if (BotOsServer.run_count >= 60):
             BotOsServer.run_count = 0
+            BotOsServer.cycle_count += 1
             insts = self.get_running_instances()
             i = i + 1
             if i >= 10 or insts > 1:
-                print(f"--- {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} bot_os_server runners: {insts} / max 100")
+                print(f"--- {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} bot_os_server runners: {insts} / max 100 (cycle = {BotOsServer.cycle_count})", flush=True)
                 i = 0
             #self.clear_stuck_jobs(self.scheduler)
             if insts >= 90:
-                print("=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-")
-                print(f"-!! Scheduler worker INSTANCES >= 90 at {insts} ... Clearing All Instances")
-                print("=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-")
+                print("=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-", flush=True)
+                print(f"-!! Scheduler worker INSTANCES >= 90 at {insts} ... Clearing All Instances", flush=True)
+                print("=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-", flush=True)
                 # Shut down the scheduler and terminate all jobs
                 #self.scheduler.shutdown(wait=False)
                 self.scheduler.remove_all_jobs()
                 self.job = self.scheduler.add_job(self._execute_session, 'interval', coalesce=True, seconds=1, id='bots')
-                print("Scheduler restarted the job. All existing instances have been terminated.")
+                print("Scheduler restarted the job. All existing instances have been terminated.", flush=True)
 
                 # Restart the scheduler
                 #self.scheduler.start()
-                print("Scheduler has been restarted.")
+                print("Scheduler has been restarted.", flush=True)
                 insts = self.get_running_instances()
                 print(f"-=-=- Scheduler instances: {insts} / 100", flush=True)
         for s in self.sessions:

@@ -25,6 +25,7 @@ MR-SiS app will restart service is suspended (With pool) but doesnt wake up harv
 JL-changing openAI key via streamlit when running gives an error: (bots conflicts with existing job-- dont add scheduler job again if already running)
 
 POST-SUMMIT:
+Make a bot Testy that tests the other bots (excercises and validates all their tools)
 MG-Do stripe setup for monitized listing
 JL- Add a way for user to provide new refresh key when making new bot
 MR - harvest - formula1 doesnt come back if you delete the harvest rows

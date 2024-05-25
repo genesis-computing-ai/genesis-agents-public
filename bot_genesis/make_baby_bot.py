@@ -957,7 +957,14 @@ def make_baby_bot(bot_id, bot_name, bot_instructions='You are a helpful bot.', a
                     invalid_tools = [tool for tool in available_tools_array if tool not in db_tool_names]
                     error_message = f"Tool call error: The following tools you included in available_tools are not available or invalid: {', '.join(invalid_tools)}.  The tools you can include in available_tools are: {db_available_tools}.  The available_tools parameter should be either a single tool like 'tool1' or a simple list of tools like 'tool1,tool2' (with no single quotes in the actual paramater string you send)"
                     return(error_message)
-        
+
+            # Check if a bot with the same name already exists
+            existing_bots = list_all_bots()
+            for existing_bot in existing_bots:
+                if existing_bot['bot_name'].lower() == bot_name.lower():
+                    error_message = f"A bot with the name '{bot_name}' already exists with bot_id '{existing_bot['bot_id']}'. Please choose a different name to avoid confusion."
+                    return {"success": False, "error": error_message}
+
             confirm=False
             if confirmed is not None:
                 if confirmed.upper() == 'CONFIRMED':

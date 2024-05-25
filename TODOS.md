@@ -9,7 +9,6 @@ Make video of Snowflake janitorial work
 Bots calling other bots to do things
 
 THINGS TO TEST:
-(test) check error handling for stage tools (added to list, check others)
 (test) Why does "NEURALIFT_DEMO"."DATA"."ACTIVATION_TABLE" not show as available after harvesting?
 (test) JL-test infoschema cache in harvest
 (test) JL-Does Task Service update its Annoy index when needed?
@@ -152,6 +151,7 @@ Add a mechanism for license control based on current_account()... share a table 
     Have a trial period where you can use it in trial mode before it goes into limited mode
 
 DONE:
+x (test) check error handling for stage tools (added to list, check others)
 x (test) Add error checking for missing data or grants to harvester so it doesnt crash on that 
 x MR-(test) harvester dont crash if cant access schemas for a database listed in control file
 x MR-(test) Make sure harvester works ok with mixed case table and database and schema names (and system in general)

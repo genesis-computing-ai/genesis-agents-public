@@ -9,7 +9,7 @@ from bot_genesis.make_baby_bot import get_slack_config_tokens, rotate_slack_toke
 from apscheduler.job import Job
 from concurrent.futures import ThreadPoolExecutor
 from apscheduler.executors.pool import ThreadPoolExecutor
-import time
+import time, sys
 import threading
 
 
@@ -107,7 +107,8 @@ class BotOsServer:
             insts = self.get_running_instances()
             i = i + 1
             if i >= 10 or insts > 1:
-                print(f"--- {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} bot_os_server runners: {insts} / max 100 (cycle = {BotOsServer.cycle_count})", flush=True)
+                sys.stdout.write(f"--- {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} bot_os_server runners: {insts} / max 100 (cycle = {BotOsServer.cycle_count})")
+                sys.stdout.flush()
                 i = 0
             #self.clear_stuck_jobs(self.scheduler)
             if insts >= 90:

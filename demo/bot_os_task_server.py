@@ -31,7 +31,7 @@ import core.global_flags as global_flags
 #os.environ['TEST_TASK_MODE'] = 'true'
 ########################################
 
-print("****** GENBOT VERSION 0.136 *******")
+print("****** GENBOT VERSION 0.137 *******")
 print("****** TASK AUTOMATION SERVER *******")
 runner_id = os.getenv('RUNNER_ID','jl-local-runner')
 print("Runner ID: ", runner_id )
@@ -1101,12 +1101,15 @@ def tasks_loop():
     task_retry_attempts_map = {}
 
     i = 10
+    cycle = 0
     while True:
         i = i + 1
-        if i >= 10:
-            print('Checking tasks...')
-            i = 0
+        cycle += 1
         iteration_start_time = datetime.datetime.now()
+        if i >= 10:
+            print(f'Checking tasks... cycle={cycle}, {iteration_start_time}', flush=True)
+            i = 0
+        
         # Retrieve the list of bots and their tasks
         
         # Check for tasks submitted more than 10 minutes ago
@@ -1277,12 +1280,12 @@ def tasks_loop():
 
      #   i = input('Next round? >')  
 
-        time_to_sleep = 30 - (datetime.datetime.now() - iteration_start_time).seconds
+        time_to_sleep = 60 - (datetime.datetime.now() - iteration_start_time).seconds
         if time_to_sleep > 0:
             for remaining in range(time_to_sleep, 0, -5):
-                sys.stdout.write("\r")
+                #sys.stdout.write("\r")
      #           sys.stdout.write("Waiting for {:2d} seconds before next check of tasks".format(remaining)) 
-                sys.stdout.flush()
+                #sys.stdout.flush()
                 time.sleep(5)
       #      sys.stdout.write("\rComplete! Waiting over.          \n")
 

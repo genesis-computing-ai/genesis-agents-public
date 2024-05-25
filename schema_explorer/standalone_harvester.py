@@ -146,7 +146,7 @@ print("   /        \\    ")
 print("  G E N E S I S ")
 print("    B o t O S")
 print(" ---- HARVESTER----")
-print('Harvester Start Version 0.136',flush=True)
+print('Harvester Start Version 0.137',flush=True)
 
 
 while True:
@@ -155,12 +155,14 @@ while True:
         update_harvest_control_with_new_databases(harvester_db_connector)
     
 
-    print(f"Checking for new tables... (once per {refresh_seconds} seconds)", flush=True)
+    sys.stdout.write(f"Checking for new tables... (once per {refresh_seconds} seconds)")
+    sys.stdout.flush()
     #embeddings_handler.load_or_create_embeddings_index(bigquery_connector.metadata_table_name, refresh=True)
     schema_explorer.explore_and_summarize_tables_parallel()
     #print("Checking Cached Annoy Index")
   #  logger.info(f"Checking for new semantic models... (once per {refresh_seconds} seconds)")
   #  schema_explorer.explore_semantic_models()
     #embeddings_handler.make_and_save_index(bigquery_connector.metadata_table_name)
-    print(f'Pausing for {int(refresh_seconds)} seconds before next check.', flush=True)
+    sys.stdout.write(f'Pausing for {int(refresh_seconds)} seconds before next check.')
+    sys.stdout.flush()
     time.sleep(refresh_seconds)

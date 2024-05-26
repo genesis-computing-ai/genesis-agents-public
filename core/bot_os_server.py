@@ -100,14 +100,13 @@ class BotOsServer:
     def _execute_session(self):
  
         BotOsServer.run_count += 1
-        i = 0 
         if (BotOsServer.run_count >= 60):
             BotOsServer.run_count = 0
             BotOsServer.cycle_count += 1
             insts = self.get_running_instances()
-            i = i + 1
-            if i >= 10 or insts > 1:
-                sys.stdout.write(f"--- {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} bot_os_server runners: {insts} / max 100 (cycle = {BotOsServer.cycle_count})")
+            if True or insts > 1:
+               # print(f"--- {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} bot_os_server runners: {insts} / max 100 (cycle = {BotOsServer.cycle_count})",flush=True)
+                sys.stdout.write(f"--- {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} bot_os_server runners: {insts} / max 100 (cycle = {BotOsServer.cycle_count})\n")
                 sys.stdout.flush()
                 i = 0
             #self.clear_stuck_jobs(self.scheduler)

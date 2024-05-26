@@ -31,7 +31,7 @@ import core.global_flags as global_flags
 #os.environ['TEST_TASK_MODE'] = 'true'
 ########################################
 
-print("****** GENBOT VERSION 0.137 *******")
+print("****** GENBOT VERSION 0.138a *******")
 print("****** TASK AUTOMATION SERVER *******")
 runner_id = os.getenv('RUNNER_ID','jl-local-runner')
 print("Runner ID: ", runner_id )
@@ -1107,7 +1107,9 @@ def tasks_loop():
         cycle += 1
         iteration_start_time = datetime.datetime.now()
         if i >= 10:
-            print(f'Checking tasks... cycle={cycle}, {iteration_start_time}', flush=True)
+         #   print(f'Checking tasks... cycle={cycle}, {iteration_start_time}', flush=True)
+            sys.stdout.write(f'Checking tasks... cycle={cycle}, {iteration_start_time}\n')
+            sys.stdout.flush()
             i = 0
         
         # Retrieve the list of bots and their tasks

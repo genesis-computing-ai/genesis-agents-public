@@ -146,7 +146,7 @@ print("   /        \\    ")
 print("  G E N E S I S ")
 print("    B o t O S")
 print(" ---- HARVESTER----")
-print('Harvester Start Version 0.137',flush=True)
+print('Harvester Start Version 0.138a',flush=True)
 
 
 while True:
@@ -154,8 +154,8 @@ while True:
         print('Checking for any newly granted databases to add to harvest...', flush=True)
         update_harvest_control_with_new_databases(harvester_db_connector)
     
-
-    sys.stdout.write(f"Checking for new tables... (once per {refresh_seconds} seconds)")
+    print(f"Checking for new tables... (once per {refresh_seconds} seconds)",flush=True)
+    sys.stdout.write(f"Checking for new tables... (once per {refresh_seconds} seconds)...\n")
     sys.stdout.flush()
     #embeddings_handler.load_or_create_embeddings_index(bigquery_connector.metadata_table_name, refresh=True)
     schema_explorer.explore_and_summarize_tables_parallel()

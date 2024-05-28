@@ -242,10 +242,10 @@ class SlackBotAdapter(BotOsInputAdapter):
             pass
          #   print('...*-*-*-* Files not in event', flush=True)
 
-        user_full_name = 'unknown'
+        user_full_name = 'Unknown User'
+        user_id = 'Unknown User ID'
         try:
             user_id = event["user"]
-            user_full_name = 'Unknown User'
             if user_id not in self.user_info_cache:
                 try:
                     user_info = self.slack_app.client.users_info(user=user_id)
@@ -279,8 +279,7 @@ class SlackBotAdapter(BotOsInputAdapter):
                         "channel": channel,
                         "thinking_ts": thinking_ts,
                         "channel_type": event.get('channel_type', ''),
-                        'primary_user': user_full_name,
-                        "user_id": user_id , 
+                        "user_id": user_id, 
                         "user_name": user_full_name,
                         "tagged_flag": tagged_flag,
                         "dm_flag": dmcheck_flag}
@@ -288,7 +287,6 @@ class SlackBotAdapter(BotOsInputAdapter):
             metadata={"thread_ts": thread_ts,
                         "channel": channel,
                         "channel_type": event.get('channel_type', ''),
-                        'primary_user': user_full_name,
                         "user_id": user_id,
                         "user_name": user_full_name,
                         "tagged_flag": tagged_flag,

@@ -56,9 +56,12 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       self.run_meta_map = {}
 
       genbot_internal_project_and_schema = os.getenv('GENESIS_INTERNAL_DB_SCHEMA','None')
+      if genbot_internal_project_and_schema is not None:
+         genbot_internal_project_and_schema = genbot_internal_project_and_schema.upper()
       self.genbot_internal_project_and_schema = genbot_internal_project_and_schema
       if genbot_internal_project_and_schema == 'None':
          print("ENV Variable GENESIS_INTERNAL_DB_SCHEMA is not set.")
+
       self.db_schema = genbot_internal_project_and_schema.split('.')
       self.internal_db_name = self.db_schema[0]
       self.internal_schema_name = self.db_schema[1]
@@ -328,6 +331,14 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
       new_response = func_response
  
+      if isinstance(func_response, str):
+         try:
+            new_response = {"success": False, "message": func_response}
+            func_response = new_response
+            print(f'openai submit_tool_outputs string response converted call: {function_call_details}, response: {func_response}')
+         except:
+            print(f'openai submit_tool_outputs string response converted call to JSON.')
+
       try:
          if function_call_details[0][0] == 'add_new_tools_to_bot' and (func_response.get('success',False)==True or func_response.get('Success',False)==True):
             target_bot = json.loads(function_call_details[0][1]).get('bot_id',None)
@@ -406,7 +417,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
                   logger.info(f"Bot files for {target_bot} updated.")
       except Exception as e:
-         print('openai submit_tool_outputs error to tool checking: ', e)    
+         print(f'openai submit_tool_outputs error to tool checking, func_response: {func_response} e: {e}')    
 
       if tool_call_id is not None: # in case this is a resubmit
          self.tool_completion_status[run_id][tool_call_id] = new_response

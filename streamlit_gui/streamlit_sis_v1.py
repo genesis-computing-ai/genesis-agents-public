@@ -1074,7 +1074,7 @@ CREATE SCHEMA IF NOT EXISTS GENESIS_LOCAL_DB.SETTINGS;
 CREATE OR REPLACE NETWORK RULE GENESIS_LOCAL_DB.SETTINGS.GENESIS_RULE
  MODE = EGRESS TYPE = HOST_PORT
 VALUE_LIST = ('api.openai.com', 'slack.com', 'www.slack.com', 'wss-primary.slack.com',
-'wss-backup.slack.com',  'wss-primary.slack.com:443','wss-backup.slack.com:443',
+'wss-backup.slack.com',  'wss-primary.slack.com:443','wss-backup.slack.com:443', 'slack-files.com',
 'oaidalleapiprodscus.blob.core.windows.net:443', 'downloads.slack-edge.com', 'files-edge.slack.com',
 'files-origin.slack.com', 'files.slack.com', 'global-upload-edge.slack.com','universal-upload-edge.slack.com');
 

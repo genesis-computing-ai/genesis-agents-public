@@ -109,6 +109,8 @@ def update_harvest_control_with_new_databases(connector):
     controlled_databases = [db['database_name'] for db in connector.get_databases()]
 
     internal_schema = os.getenv('GENESIS_INTERNAL_DB_SCHEMA', None)
+    if internal_schema is not None:
+         internal_schema = internal_schema.upper()
     internal_db, internal_sch = internal_schema.split('.') if '.' in internal_schema else None
 
     for db in available_databases:
@@ -146,7 +148,7 @@ print("   /        \\    ")
 print("  G E N E S I S ")
 print("    B o t O S")
 print(" ---- HARVESTER----")
-print('Harvester Start Version 0.138a',flush=True)
+print('Harvester Start Version 0.139',flush=True)
 
 
 while True:

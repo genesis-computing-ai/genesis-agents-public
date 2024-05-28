@@ -24,6 +24,8 @@ class BigQueryConnector(DatabaseConnector):
         if self.genbot_internal_project_and_schema == 'None':
             # Todo remove, internal note 
             print("ENV Variable GENBOT_INTERNAL_DB_SCHEMA is not set.")
+        if self.genbot_internal_project_and_schema is not None:
+           self.genbot_internal_project_and_schema = self.genbot_internal_project_and_schema.upper()
         self.genbot_internal_harvest_table = os.getenv('GENESIS_INTERNAL_HARVEST_RESULTS_TABLE','harvest_results')
         self.genbot_internal_harvest_control_table = os.getenv('GENESIS_INTERNAL_HARVEST_CONTROL_TABLE','harvest_control')
         self.genbot_internal_message_log = os.getenv('GENESIS_INTERNAL_MESSAGE_LOG_TABLE','message_log')

@@ -8,17 +8,16 @@ Make video of Snowflake janitorial work
 Bots calling other bots to do things
 
 THINGS TO TEST:
-None at the moment
+JL- Update DDL harvest on other regions for baseball 2015 note, and check if Eliza sees it on a fresh install 
 
 SHORT-TERM (BEFORE SUMMIT):
-JL- Update DDL harvest on other regions for baseball 2015 note, and check if Eliza sees it on a fresh install 
 JL- Add terms of service to website and link from SiS app, and to listing details
 MR - make this work on multicase call GENESIS_LOCAL_DB.SETTINGS.grant_schema_usage_and_select_to_app('MY_DATA',$APP_DATABASE); (fix in SiS script)
-RV-(couple fixes) Add USERS field to messages log table to keep track of the users involved in a thread or dm
 MR-SiS app will restart service is suspended (With pool) but doesnt wake up harvester, errors in SiS log harvest screen
-(sone?) MR-harvester - change the include flag column to exclude and use that field instead of deleting a row to stop auto harvesting
 
 POST-SUMMIT:
+RV-(couple fixes) Add USERS field to messages log table to keep track of the users involved in a thread or dm
+Turn on MFA on accounts
 Have ability to give a bot its own oauth token or uid/pwd so it has its own RBAC
 Task sever logs emiting a lot of whitespace when annoy index updates
 Make a bot Testy that tests the other bots (excercises and validates all their tools)
@@ -126,6 +125,9 @@ Add a mechanism for license control based on current_account()... share a table 
     Have a trial period where you can use it in trial mode before it goes into limited mode
 
 DONE:
+x JL - Check bot file upload
+x JL - Add error logging to submit tool results for db errors, retry connections too ?
+x (sone?) MR-harvester - change the include flag column to exclude and use that field instead of deleting a row to stop auto harvesting
 x 2. have it do those automatically (give it the system time)
 x 3. give it a tool to find stuff its working on and the status
 x Tasks to database, json describing the task (let it decide its own structure for this json, give ideas like todo, current status, etc.).. let it decide the structure

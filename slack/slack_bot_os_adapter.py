@@ -125,7 +125,7 @@ class SlackBotAdapter(BotOsInputAdapter):
     def _download_slack_files(self, event, thread_id='no_thread') -> list:
         files = []
         for file_info in event['files']:
-            print('... download_slack_files ',file_info,flush=True)
+            #print('... download_slack_files ',file_info,flush=True)
             url_private = file_info.get('url_private')
             file_name = file_info.get('name')
             if url_private and file_name:

@@ -63,6 +63,8 @@ class SnowflakeConnector(DatabaseConnector):
         if self.genbot_internal_project_and_schema == 'None':
             # Todo remove, internal note 
             print("ENV Variable GENESIS_INTERNAL_DB_SCHEMA is not set.")
+        if self.genbot_internal_project_and_schema is not None:
+            self.genbot_internal_project_and_schema = self.genbot_internal_project_and_schema.upper()
         self.genbot_internal_harvest_table = os.getenv('GENESIS_INTERNAL_HARVEST_RESULTS_TABLE','harvest_results')
         self.genbot_internal_harvest_control_table = os.getenv('GENESIS_INTERNAL_HARVEST_CONTROL_TABLE','harvest_control')
         self.genbot_internal_message_log = os.getenv('GENESIS_INTERNAL_MESSAGE_LOG_TABLE','MESSAGE_LOG')
@@ -1847,7 +1849,7 @@ class SnowflakeConnector(DatabaseConnector):
             columns = [col[0].lower() for col in cursor.description]
             bot_list = [dict(zip(columns, bot)) for bot in bots]
             cursor.close()
-            logger.info(f"Retrieved list of all bots being served by the system.")
+            #logger.info(f"Retrieved list of all bots being served by the system.")
             return bot_list
         except Exception as e:
             logger.error(f"Failed to retrieve list of all bots with error: {e}")
@@ -2788,8 +2790,10 @@ class SnowflakeConnector(DatabaseConnector):
 CREATE OR REPLACE NETWORK RULE GENESIS_LOCAL_DB.SETTINGS.GENESIS_RULE
  MODE = EGRESS TYPE = HOST_PORT
 VALUE_LIST = ('api.openai.com', 'slack.com', 'www.slack.com', 'wss-primary.slack.com',
-'wss-backup.slack.com',  'wss-primary.slack.com:443','wss-backup.slack.com:443',
-'oaidalleapiprodscus.blob.core.windows.net:443');
+'wss-backup.slack.com',  'wss-primary.slack.com:443','wss-backup.slack.com:443', 'slack-files.com',
+'oaidalleapiprodscus.blob.core.windows.net:443', 'downloads.slack-edge.com', 'files-edge.slack.com',
+'files-origin.slack.com', 'files.slack.com', 'global-upload-edge.slack.com','universal-upload-edge.slack.com');
+
 
 CREATE OR REPLACE EXTERNAL ACCESS INTEGRATION GENESIS_EAI
    ALLOWED_NETWORK_RULES = (GENESIS_LOCAL_DB.SETTINGS.GENESIS_RULE) ENABLED = true;

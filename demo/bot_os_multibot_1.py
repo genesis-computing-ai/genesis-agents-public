@@ -36,7 +36,7 @@ import core.global_flags as global_flags
 
 
 
-print("****** GENBOT VERSION 0.138a *******")
+print("****** GENBOT VERSION 0.139 *******")
 
 runner_id = os.getenv('RUNNER_ID','jl-local-runner')
 print("Runner ID: ", runner_id )
@@ -44,6 +44,8 @@ print("Runner ID: ", runner_id )
 genbot_internal_project_and_schema = os.getenv('GENESIS_INTERNAL_DB_SCHEMA','None')
 if genbot_internal_project_and_schema == 'None':
     print("ENV Variable GENESIS_INTERNAL_DB_SCHEMA is not set.")
+if genbot_internal_project_and_schema is not None:
+    genbot_internal_project_and_schema = genbot_internal_project_and_schema.upper()
 db_schema = genbot_internal_project_and_schema.split('.')
 project_id = db_schema[0]
 dataset_name = db_schema[1]

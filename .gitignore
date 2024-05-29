@@ -2,6 +2,7 @@
 kb/*
 demo/kb*/*
 .jay
+.justin
 .secrets/*
 .DS_Store
 bot_os_env.sh
@@ -20,5 +21,4 @@ saved_llm_settings_local.json
 *.pickle
 /snowflake_app/mr_genesis_natapp_provider.sql
 /streamlit_gui/mr_streamlit_sis_v1.py
-
 .scratch

@@ -12,9 +12,8 @@ JL- Update DDL harvest on other regions for baseball 2015 note, and check if Eli
 
 SHORT-TERM (BEFORE SUMMIT):
 Do a full test run on east and west from scratch
-Make no llm key logging less agressive
-Make default bots have autonomous tools
-Tell eliza not to hallunicinate tables
+(test) Make no llm key logging less agressive
+(test) Tell eliza not to hallunicinate tables
 JL- Add terms of service to website and link from SiS app, and to listing details
 MR - make this work on multicase call GENESIS_LOCAL_DB.SETTINGS.grant_schema_usage_and_select_to_app('MY_DATA',$APP_DATABASE); (fix in SiS script)
 MR-SiS app will restart service is suspended (With pool) but doesnt wake up harvester, errors in SiS log harvest screen
@@ -23,7 +22,7 @@ POST-SUMMIT:
 RV-(couple fixes) Add USERS field to messages log table to keep track of the users involved in a thread or dm
 Turn on MFA on accounts
 Have ability to give a bot its own oauth token or uid/pwd so it has its own RBAC
-Task sever logs emiting a lot of whitespace when annoy index updates
+x Task server logs emiting a lot of whitespace when annoy index updates
 Make a bot Testy that tests the other bots (excercises and validates all their tools)
 MG-Do stripe setup for monitized listing
 JL- Add a way for user to provide new refresh key when making new bot

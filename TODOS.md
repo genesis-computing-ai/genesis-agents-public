@@ -11,6 +11,10 @@ THINGS TO TEST:
 JL- Update DDL harvest on other regions for baseball 2015 note, and check if Eliza sees it on a fresh install 
 
 SHORT-TERM (BEFORE SUMMIT):
+Do a full test run on east and west from scratch
+Make no llm key logging less agressive
+Make default bots have autonomous tools
+Tell eliza not to hallunicinate tables
 JL- Add terms of service to website and link from SiS app, and to listing details
 MR - make this work on multicase call GENESIS_LOCAL_DB.SETTINGS.grant_schema_usage_and_select_to_app('MY_DATA',$APP_DATABASE); (fix in SiS script)
 MR-SiS app will restart service is suspended (With pool) but doesnt wake up harvester, errors in SiS log harvest screen

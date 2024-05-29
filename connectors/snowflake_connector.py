@@ -937,7 +937,7 @@ class SnowflakeConnector(DatabaseConnector):
                 bot_id += ''.join(random.choices(string.ascii_letters + string.digits, k=6))
                 bot_name = "Eliza"
                 bot_instructions = ELIZA_DATA_ANALYST_INSTRUCTIONS
-                available_tools = '["slack_tools", "webpage_downloader", "database_tools", "snowflake_stage_tools", "image_tools", "autonomous_functions"]'
+                available_tools = '["slack_tools", "database_tools", "snowflake_stage_tools", "image_tools", "autonomous_functions"]'
                 udf_active = "Y"
                 slack_active = "N"
                 bot_intro_prompt = ELIZA_INTRO_PROMPT
@@ -2032,11 +2032,11 @@ class SnowflakeConnector(DatabaseConnector):
             if result:
                 llm_key, llm_type = result
                # logger.info(f"returning llm key and type: key: {llm_key} ' type {llm_type}")
-                print('returning llm key and type: key and type:',llm_type )
+            #    print('returning llm key and type: key and type:',llm_type )
                 return llm_key, llm_type
             else:
                 # Log an error if no LLM key was found for the runner_id
-                logger.error(f"No LLM key found in database for runner_id: {runner_id}")
+             #  logger.error(f"No LLM key found in database for runner_id: {runner_id}")
                 return None, None
         except Exception as e:
             #logger.error(f"LLM_TOKENS table not yet created,  try again later. hi!!!! ")

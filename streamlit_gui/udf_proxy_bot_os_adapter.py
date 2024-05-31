@@ -24,11 +24,14 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
         except IndexError:
             return None
         uu = event.get('uuid',None)
+        bot_id = event.get('bot_id', {})
         metadata = {}
         if uu:
-            metadata["input_uuid"]=uu
-        metadata["channel_type"]="Streamlit"
-        metadata["channel_name"]=""
+            metadata["input_uuid"] = uu
+        metadata["channel_type"] = "Streamlit"
+        metadata["channel_name"] = ""
+        metadata["user_id"] = bot_id.get('user_id', 'Unknown User ID')
+        metadata["user_name"] = bot_id.get('user_name', 'Unknown User')
         return BotOsInputMessage(thread_id=event.get('thread_id'), msg=event.get('msg'), metadata=metadata)
 
 
@@ -82,12 +85,12 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
 
 
 
-    def submit(self, input, thread_id):
+    def submit(self, input, thread_id, bot_id):
         
         uu = str(uuid.uuid4())
-        self.proxy_messages_in.append({"msg": input, "uuid": uu, "thread_id": thread_id})
+        self.proxy_messages_in.append({"msg": input, "uuid": uu, "thread_id": thread_id, "bot_id": bot_id})
        
-        self.add_event({"msg": input, "thread_id": thread_id, "uuid": uu})
+        self.add_event({"msg": input, "thread_id": thread_id, "uuid": uu, "bot_id": bot_id})
         return uu
 
 
@@ -119,7 +122,7 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
         #     [row_index, column_1_value, column_2_value, ...}],
         #     ...
         #   ]}
-        output_rows = [[row[0], self.submit(row[1],row[2])] for row in input_rows]
+        output_rows = [[row[0], self.submit(*row[1:])] for row in input_rows]
         logger.info(f'Produced {len(output_rows)} rows')
 
         response = make_response({"data": output_rows})

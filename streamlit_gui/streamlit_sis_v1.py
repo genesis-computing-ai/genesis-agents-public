@@ -262,16 +262,20 @@ def submit_to_udf_proxy(input_text, thread_id, bot_id):
     import requests
     import json
 
-    if SnowMode:
+    user_info = st.experimental_user.to_dict()
+    primary_user = {'user_id': user_info.get('email', 'Unknown User ID'), 
+                    'user_name': user_info.get('user_name', 'Unknown User'),
+                    'bot_id': bot_id}
 
+    if SnowMode:
         sql = "select {}.submit_udf(?, ?, ?)".format(prefix)
-        data = session.sql(sql, (input_text, thread_id, bot_id)).collect()
+        data = session.sql(sql, (input_text, thread_id, primary_user)).collect()
         response = data[0][0]
         return response
     
     url = f"http://127.0.0.1:8080/udf_proxy/submit_udf"
     headers = {"Content-Type": "application/json"}
-    data = json.dumps({"data": [[1, input_text, thread_id, bot_id]]})
+    data = json.dumps({"data": [[1, input_text, thread_id, primary_user]]})
 
     response = requests.post(url, headers=headers, data=data)
     if response.status_code == 200:

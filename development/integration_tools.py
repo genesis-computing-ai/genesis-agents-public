@@ -241,9 +241,9 @@ def lookup_bot_framework_directory(module_name):
     return "generated_modules"
 
 
-integration_tool_descriptions = [];
+#integration_tool_descriptions = [];
 
-integration_tool_descriptions_OLD = [
+integration_tool_descriptions = [
     {
         "type": "function",
         "function": {
@@ -301,12 +301,14 @@ integration_tool_descriptions_OLD = [
     }
 ]
 
-integration_tools_HOLD = {"integrate_code": integrate_code, "access_tool_code": access_tool_code}
 
-integration_tools_new_HOLD = {"integrate_code": "development.integration_tools.integrate_code", "access_tool_code":"development.integration_tools.access_tool_code"}
+#integration_tools_old = {"integrate_code": integrate_code, "access_tool_code": access_tool_code}
 
-integration_tools = {}
-integration_tools_new = {}
+#integration_tools = {"integrate_code": "integration_tool_adapter.integrate_code", "access_tool_code":"integration_tool_adapter.access_tool_code"}
+integration_tools = {"integrate_code": "development.integration_tools.integrate_code", "access_tool_code":"development.integration_tools.access_tool_code"}
+
+#integration_tools = {}
+#integration_tools_new = {}
 
 
 def test_code_tools(module_name, function_name):

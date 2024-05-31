@@ -137,8 +137,15 @@ def make_session(bot_config):
 
     # tools
     available_tools = get_available_tools()
+    #available_tools.append({'tool_name': "integration_tools", 'tool_description': 'integration tools'})
+    #available_tools.append({'tool_name': "activate_marketing_campaign", 'tool_description': 'activate_marketing_campaign'})
+    #available_tools.append({'tool_name': "send_email_via_webhook", 'tool_description': 'send_email_via_webhook'})
+
     if bot_config.get("available_tools",None) is not None:
         bot_tools = json.loads(bot_config["available_tools"])
+        #bot_tools.append({'tool_name': "integration_tools", 'tool_description': 'integration tools'})
+        #bot_tools.append({'tool_name': "activate_marketing_campaign", 'tool_description': 'activate_marketing_campaign'})
+        #bot_tools.append({'tool_name': "send_email_via_webhook", 'tool_description': 'send_email_via_webhook'})
     else:
         bot_tools = []
 

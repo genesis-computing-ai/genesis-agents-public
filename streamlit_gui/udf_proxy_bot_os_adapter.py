@@ -3,6 +3,7 @@ import uuid
 import logging
 from core.bot_os_input import BotOsInputAdapter, BotOsInputMessage, BotOsOutputMessage
 from collections import deque
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -86,6 +87,8 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
 
 
     def submit(self, input, thread_id, bot_id):
+        if type(bot_id) == str:
+            bot_id = json.loads(bot_id)
         
         uu = str(uuid.uuid4())
         self.proxy_messages_in.append({"msg": input, "uuid": uu, "thread_id": thread_id, "bot_id": bot_id})

@@ -390,7 +390,10 @@ def submit_udf():
 
     message = request.json
     input_rows = message['data']
-    bot_id = input_rows[0][3]['bot_id']
+    if type(input_rows[0][3]) == str:
+        bot_id = json.loads(input_rows[0][3])['bot_id']
+    else:
+        bot_id = input_rows[0][3]['bot_id']
     row = input_rows[0]
 
     bots_udf_adapter = bot_id_to_udf_adapter_map.get(bot_id,None)

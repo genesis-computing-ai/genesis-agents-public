@@ -15,9 +15,9 @@ cd genesis
 ```
 5. Setup env variables. you can export these env variables in Terminal when you run. But I added in .zprofile file
 ```
-export SNOWFLAKE_ACCOUNT_OVERRIDE=mmb84124
-export SNOWFLAKE_USER_OVERRIDE=GENESIS_RUNNER_JL
-export SNOWFLAKE_PASSWORD_OVERRIDE=Gen12349esisBotTest3837
+export SNOWFLAKE_ACCOUNT_OVERRIDE=eqb52188
+export SNOWFLAKE_USER_OVERRIDE=GENESIS_RUNNER_**
+export SNOWFLAKE_PASSWORD_OVERRIDE=<your runner password>
 export SNOWFLAKE_DATABASE_OVERRIDE=GENESIS_TEST
 export SNOWFLAKE_WAREHOUSE_OVERRIDE=XSMALL
 export SNOWFLAKE_ROLE_OVERRIDE=ACCOUNTADMIN
@@ -85,3 +85,8 @@ In Windows an extra application is needed for ngrok:
 - Download ngrok.exe from https://ngrok-downloads.ngrok.com/ngrok.exe
 - Open terminal and run `ngrok config add-authtoken <ngrok_token>`
 - In terminal run `ngrok http http://localhost:8080`
+
+Another possible issue when deploying the native app in Snowflake using Windows
+- if you get an error in native app sayinh entrypoint file not found
+   - Open entrypoint.sh in Notepad++ -> Edit -> EOL Conversion -> Unix (LF) -> Save
+   - Recreate image using new entrypoint.sh file

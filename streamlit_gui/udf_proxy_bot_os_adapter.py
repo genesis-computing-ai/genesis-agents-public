@@ -180,3 +180,8 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
         logger.debug(f'Sending response: {response.json}')
         return response
 
+    def lookup_udf(self, input_text:str):
+        if input_text in self.response_map.keys():
+            return self.response_map[input_text]
+        else:
+            return None

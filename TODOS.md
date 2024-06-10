@@ -2,23 +2,22 @@
 GENESIS BOT TODOS
 =================
 
-DESIRED DEMOS:
-x Make Eliza demo video on baseball
-Make video of Snowflake janitorial work
-Bots calling other bots to do things
-
 THINGS TO TEST:
 JL- Update DDL harvest on other regions for baseball 2015 note, and check if Eliza sees it on a fresh install 
 
-SHORT-TERM (BEFORE SUMMIT):
-Do a full test run on east and west from scratch
-(test) Make no llm key logging less agressive
-(test) Tell eliza not to hallunicinate tables
-JL- Add terms of service to website and link from SiS app, and to listing details
+POST-SUMMIT:
+LAF support and test (June 19)
+Task to re-grant all things that have been previously granted and a table to track if needed
+Workspace for each bot with database tools, granted to app_public
 MR - make this work on multicase call GENESIS_LOCAL_DB.SETTINGS.grant_schema_usage_and_select_to_app('MY_DATA',$APP_DATABASE); (fix in SiS script)
 MR-SiS app will restart service is suspended (With pool) but doesnt wake up harvester, errors in SiS log harvest screen
-
-POST-SUMMIT:
+!!JL-Have on the fly bot instruction updates append the extra stuff:  
+    instructions = bot_config["bot_instructions"] + "\n" + BASE_BOT_INSTRUCTIONS_ADDENDUM
+    instructions += f'\nNote current settings:\nData source: {genesis_source}\nYour bot_id: {bot_config["bot_id"]}.\nRunner_id: {runner_id}'
+    if bot_config["slack_active"]=='Y' and global_flags.slack_active:
+        instructions += "\nYour slack user_id: "+bot_config["bot_slack_user_id"]
+    if "snowflake_stage_tools" in bot_tools and 'make_baby_bot' in bot_tools:        
+        instructions += f"\nYour Internal Files Stage for bots is at snowflake stage: {genbot_internal_project_and_schema}.BOT_FILES_STAGE"
 RV-(couple fixes) Add USERS field to messages log table to keep track of the users involved in a thread or dm
 Turn on MFA on accounts
 Have ability to give a bot its own oauth token or uid/pwd so it has its own RBAC

@@ -381,6 +381,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
          if function_call_details[0][0] == 'update_bot_instructions' and (func_response.get('success',False)==True or func_response.get('Success',False)==True):
             new_instructions = func_response.get("new_instructions",None)
             if new_instructions:
+               
                target_bot = json.loads(function_call_details[0][1]).get('bot_id',None)
                if target_bot is not None:
                   my_assistants = self.client.beta.assistants.list(order="desc",limit=100)

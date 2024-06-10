@@ -31,8 +31,8 @@ def openbb_query(bot_id_to_udf_adapter_map: Dict[str, Any], default_bot_id: str)
             description="Additional widget metadata (e.g., the selected ticker, etc)",
         )
         content: str = Field(..., description="The data content of the widget")
-        thread_id: str = Field(description="Context thread for the conversation",
-                               default_factory=lambda: f"thread_{self.name}_{self.uuid}")
+        thread_id: str = Field(description="Context thread for the conversation")
+                               #default_factory=lambda: f"thread_{self.name}_{self.uuid}")
         bot_id: str = Field(..., description="Genesis Bot to route to")
 
     class AgentQueryRequest(BaseModel):

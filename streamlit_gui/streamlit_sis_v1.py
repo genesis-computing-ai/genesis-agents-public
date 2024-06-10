@@ -269,7 +269,7 @@ def submit_to_udf_proxy(input_text, thread_id, bot_id):
 
     if SnowMode:
         sql = "select {}.submit_udf(?, ?, ?)".format(prefix)
-        data = session.sql(sql, (input_text, thread_id, primary_user)).collect()
+        data = session.sql(sql, (input_text, thread_id, json.dumps(primary_user))).collect()
         response = data[0][0]
         return response
     

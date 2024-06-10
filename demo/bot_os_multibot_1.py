@@ -12,6 +12,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from connectors.bigquery_connector import BigQueryConnector
 from connectors.snowflake_connector import SnowflakeConnector
 from core.bot_os_tools import get_tools
+from embed.embed_openbb import openbb_query
 from llm_cortex.bot_os_cortex import BotOsAssistantSnowflakeCortex
 from llm_openai.bot_os_openai import BotOsAssistantOpenAI
 from slack.slack_bot_os_adapter import SlackBotAdapter
@@ -137,8 +138,15 @@ def make_session(bot_config):
 
     # tools
     available_tools = get_available_tools()
+    #available_tools.append({'tool_name': "integration_tools", 'tool_description': 'integration tools'})
+    #available_tools.append({'tool_name': "activate_marketing_campaign", 'tool_description': 'activate_marketing_campaign'})
+    #available_tools.append({'tool_name': "send_email_via_webhook", 'tool_description': 'send_email_via_webhook'})
+
     if bot_config.get("available_tools",None) is not None:
         bot_tools = json.loads(bot_config["available_tools"])
+        #bot_tools.append({'tool_name': "integration_tools", 'tool_description': 'integration tools'})
+        #bot_tools.append({'tool_name': "activate_marketing_campaign", 'tool_description': 'activate_marketing_campaign'})
+        #bot_tools.append({'tool_name': "send_email_via_webhook", 'tool_description': 'send_email_via_webhook'})
     else:
         bot_tools = []
 
@@ -942,6 +950,10 @@ def slack_event_handle(bot_id=None):
         # If no matching session, return an error
         return jsonify({'error': 'No matching session found'}), 404
 
+# first of many embedding integrations that use udfs under the covers
+@app.route('/udf_proxy/openbb/v1/query', methods=['POST'])
+def embed_openbb():
+    return openbb_query(bot_id_to_udf_adapter_map, default_bot_id=list(bot_id_to_udf_adapter_map.keys())[0])
 
 scheduler.start()
 

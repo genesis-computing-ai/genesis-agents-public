@@ -473,6 +473,9 @@ VALUES ('GENESISAPP_SERVICE_SERVICE',
       - name: udfendpoint
         port: 8080
         public: true
+      - name: streamlit
+        port: 8501
+        public: true
       logExporters:
         eventTableConfig:
           logLevel: INFO

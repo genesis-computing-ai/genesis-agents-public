@@ -11,7 +11,7 @@ from connectors.snowflake_connector import SnowflakeConnector
 from slack.slack_tools import slack_tools, slack_tools_descriptions
 from connectors.database_tools import image_functions, image_tools, bind_run_query, bind_search_metadata, bind_semantic_copilot, autonomous_functions, autonomous_tools, database_tool_functions, database_tools, snowflake_stage_functions, snowflake_stage_tools, snowflake_semantic_functions, snowflake_semantic_tools
 from schema_explorer.harvester_tools import harvester_tools_list, harvester_tools_functions
-#from development.integration_tools import integration_tool_descriptions, integration_tools_new
+from development.integration_tools import integration_tool_descriptions, integration_tools
 from bot_genesis.make_baby_bot import get_bot_details
 from core.bot_os import BotOsSession
 from core.bot_os_corpus import URLListFileCorpus
@@ -45,9 +45,9 @@ def get_tools(which_tools, db_adapter, slack_adapter_local=None, include_slack=T
         except:
             tool_name = tool    
 
-        if False: #tool_name == 'integrate_code':
+        if False: #tool_name == 'integration_tools':
             tools.extend(integration_tool_descriptions)
-            available_functions_load.update(integration_tools_new)
+            available_functions_load.update(integration_tools)
             function_to_tool_map[tool_name]=integration_tool_descriptions
         elif include_slack and tool_name == 'slack_tools':
             tools.extend(slack_tools_descriptions)
@@ -246,7 +246,6 @@ def make_session_for_dispatch(bot_config):
         connection_info = { "Connection_Type": "Snowflake" }
 
     print("---> CONNECTED TO DATABASE: ",genesis_source)
-    
     tools, available_functions, function_to_tool_map = get_tools(bot_tools, db_adapter, include_slack=False) #FixMe remove slack adapter if 
     
     instructions = bot_config["bot_instructions"] + "\n" + BASE_BOT_INSTRUCTIONS_ADDENDUM

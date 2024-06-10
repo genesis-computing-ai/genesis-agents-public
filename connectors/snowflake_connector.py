@@ -2968,7 +2968,7 @@ GRANT USAGE ON INTEGRATION GENESIS_EAI TO APPLICATION   IDENTIFIER($APP_DATABASE
                 if not os.path.exists(directory):
                     os.makedirs(directory)
                 
-                # Write the content to the file
+               # Write the content to the file
                 file_path = os.path.join(directory, file_name)
                 with open(file_path, 'w') as file:
                     file.write(file_content)

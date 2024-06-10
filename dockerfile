@@ -18,6 +18,8 @@ COPY connectors ./connectors
 COPY auto_ngrok ./auto_ngrok
 COPY core ./core
 COPY demo ./demo
+COPY development ./development
+COPY embed ./embed
 COPY generated_modules ./generated_modules
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh

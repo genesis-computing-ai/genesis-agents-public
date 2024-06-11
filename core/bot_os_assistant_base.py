@@ -106,6 +106,11 @@ def execute_function(func_name:str, arguments, available_functions, completion_c
             completion_callback(execute_function_blocking(func_name, s_arguments, available_functions))
             return
         try:
+            if func_name.upper() == "RUN_QUERY":
+                s_arguments["bot_id"] = bot_id
+        except:
+            pass
+        try:
             wrapper = create_func_wrapper(function, func_name)
             completion_callback(wrapper(s_arguments))
         except Exception as e:

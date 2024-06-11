@@ -368,6 +368,10 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                         print("Instruction for target bot updated with Internal Files Stage location.")
                   bot_tools_array = bot_tools_array + _BOT_OS_BUILTIN_TOOLS + [{"type": "code_interpreter"}, {"type": "file_search"}]
 
+                  if "database_tools" in all_tools_for_bot:
+                     workspace_schema_name = f"{target_bot}_WORKSPACE".replace('-','_').upper()
+                     new_instructions += f"\nYou have a workspace schema created specifically for you named {workspace_schema_name} that the user can also access. You may use this schema for creating tables, views, and stages that are required when generating answers to data analysis questions. Only use this schema if asked to create an object. Always return the full location of the object."
+
                   self.client.beta.assistants.update(assistant.id,tools=bot_tools_array, instructions=new_instructions)
                   
                   # handle looking for newly created tools, import them and add on the fly, also do that in execute function if not already there 

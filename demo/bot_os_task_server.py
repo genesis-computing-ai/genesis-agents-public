@@ -176,6 +176,14 @@ def make_session(bot_config):
     # add a map here to track botid to adapter mapping
 
     bot_id = bot_config["bot_id"]
+
+    # check if database_tools are in bot_tools
+    if "database_tools" in bot_tools:
+        #if so, create workspace schema
+        workspace_schema_name = f"{project_id}.{bot_id}_WORKSPACE".replace('-', '_').upper()
+        instructions += f"\nYou have a workspace schema created specifically for you named {workspace_schema_name} that the user can also access. You may use this schema for creating tables, views, and stages that are required when generating answers to data analysis questions. Only use this schema if asked to create an object. Always return the full location of the object."
+
+
     udf_adapter_local = None
     if udf_enabled:
         if bot_id in bot_id_to_udf_adapter_map:

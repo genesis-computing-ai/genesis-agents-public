@@ -1745,9 +1745,41 @@ class SnowflakeConnector(DatabaseConnector):
         cursor.close()
         return sample_data
 
+    def create_bot_workspace(self, workspace_schema_name):
+        try:
+            
+            query = f"CREATE SCHEMA IF NOT EXISTS {workspace_schema_name}"
+            cursor = self.client.cursor()
+            cursor.execute(query)
+            self.client.commit()
+            logger.info(f"Workspace schema {workspace_schema_name} created")            
+        except Exception as e:
+            logger.error(f"Failed to create bot workspace {workspace_schema_name}: {e}")
+
+    def grant_all_bot_workspace(self, workspace_schema_name):
+        try:
+            
+            query = f"GRANT ALL PRIVILEGES ON SCHEMA {workspace_schema_name} TO APPLICATION ROLE APP_PUBLIC; "
+            cursor = self.client.cursor()
+            cursor.execute(query)
+            self.client.commit()
+
+            query = f"GRANT SELECT ON ALL TABLES IN SCHEMA {workspace_schema_name} TO APPLICATION ROLE APP_PUBLIC; "
+            cursor = self.client.cursor()
+            cursor.execute(query)
+            self.client.commit()   
+
+            query = f"GRANT SELECT ON ALL VIEWS IN SCHEMA {workspace_schema_name} TO APPLICATION ROLE APP_PUBLIC; "
+            cursor = self.client.cursor()
+            cursor.execute(query)
+            self.client.commit()  
+
+            logger.info(f"Workspace {workspace_schema_name} objects granted to APP_PUBLIC")            
+        except Exception as e:
+            logger.error(f"Failed to grant all bot workspace objects for {workspace_schema_name} (expected in local mode): {e}")
 
 # handle the job_config stuff ... 
-    def run_query(self, query=None, max_rows=20, max_rows_override=False, job_config=None):
+    def run_query(self, query=None, max_rows=20, max_rows_override=False, job_config=None, bot_id=None):
         """
         Runs a query on Snowflake, supporting parameterized queries.
 
@@ -1773,6 +1805,13 @@ class SnowflakeConnector(DatabaseConnector):
          #       cursor.execute(query, query_params)
          #   else:
             cursor.execute(query)
+
+            workspace_schema_name = f"{bot_id}_WORKSPACE".replace('-','_').upper()
+            # call grant_all_bot_workspace()
+            if "CREATE" in query.upper() and workspace_schema_name.upper() in query.upper():
+                self.grant_all_bot_workspace(workspace_schema_name)
+
+
         except Exception as e:
             if "does not exist or not authorized" in str(e):
                 print('run query: len:', len(query), '\ncaused object or access rights error: ', e, ' Provided suggestions.')
@@ -2160,6 +2199,12 @@ class SnowflakeConnector(DatabaseConnector):
             cursor.execute(update_query, (updated_tools_str, bot_id))
             self.connection.commit()
             logger.info(f"Successfully updated available_tools for bot_id: {bot_id}")
+
+            if 'DATABASE_TOOLS' in updated_tools_str.upper():
+                workspace_schema_name = f"{bot_id}_WORKSPACE".replace('-','_').upper()
+                self.create_bot_workspace(workspace_schema_name)
+                self.grant_all_bot_workspace(workspace_schema_name)
+                #TODO add instructions?
 
             return {
                 "success": True,
@@ -2612,7 +2657,6 @@ class SnowflakeConnector(DatabaseConnector):
             logger.info(f"Successfully selected default image data from the shared schema.")
         except Exception as e:
             logger.error(f"Failed to select default image data from the shared with error: {e}")
-            raise e
 
 
     def semantic_copilot(self,  prompt='What data is available?',semantic_model=None, prod=True ):

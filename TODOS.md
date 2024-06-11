@@ -8,7 +8,7 @@ JL- Update DDL harvest on other regions for baseball 2015 note, and check if Eli
 POST-SUMMIT:
 LAF support and test (June 19)
 Task to re-grant all things that have been previously granted and a table to track if needed
-Workspace for each bot with database tools, granted to app_public
+MR - Workspace for each bot with database tools, granted to app_public
 MR - make this work on multicase call GENESIS_LOCAL_DB.SETTINGS.grant_schema_usage_and_select_to_app('MY_DATA',$APP_DATABASE); (fix in SiS script)
 MR-SiS app will restart service is suspended (With pool) but doesnt wake up harvester, errors in SiS log harvest screen
 !!JL-Have on the fly bot instruction updates append the extra stuff:  
@@ -33,6 +33,7 @@ catch missing files from stage at startup, and let the bot know they are missing
 JL-Have DMs also get history if they are not threadded, give the past n DMs too 
 JL-Give Kevin's docs to Jenny and see if she can answer q's based on them
 MR-add the bot images table and view to the copy program to other regions
+Combine bot instructions logic from multibot and task services into a common script
 (soon) have Eliza more proactively suggest analyzing baseball data if there is no other data, once there is change her prompt to suggest analyzing data that is added first 
 (soon) add the ability for send_direct and _channel messages to have created files in them (works for images, not for graphs/pdfs - maybe a tool to save file locally and retrigger thread...?) 
 (soon) Add undeploy from Slack button on bot configJL-(test more on spcs) Something blocks the thinking messages or bolt app when doing image analysis and/or file generation/upload to Slack

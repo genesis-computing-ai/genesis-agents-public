@@ -901,7 +901,7 @@ def bot_config():
                                     st.markdown(f"**To complete setup on Slack, there is one more step.  Cut and paste this link in a new browser window (appologies that it can't be clickable here):**")
                                     #st.text(f"{bot['auth_url']}")
                                     a = st.text_area("Link to use to authorize:", value=bot['auth_url'], height=200, disabled=True)
-                                    st.markdown(f"**You may need to log into both Slack and Snowflake to complete this process.  NOTE: Once the bot is deploted, all users on Slack will be able to access it. To limit access to certain users, tell Eve you'd like to do that once the bot is deployed to Slack and she will walk you through the process.**")
+                                    st.markdown(f"**You may need to log into both Slack and Snowflake to complete this process.  NOTE: Once the bot is deployed, all users on Slack will be able to access it. To limit access to certain users, tell Eve you'd like to do that once the bot is deployed to Slack and she will walk you through the process.**")
                                 else:
                                     st.error(f"Failed to provide Slack App Level Key: {provide_slack_level_key_response.get('error')}")
 
@@ -1091,12 +1091,6 @@ GRANT BIND SERVICE ENDPOINT ON ACCOUNT TO APPLICATION  IDENTIFIER($APP_DATABASE)
 
 -- grant Genesis Server the ability to use this external access integration
 GRANT USAGE ON INTEGRATION GENESIS_EAI TO APPLICATION   IDENTIFIER($APP_DATABASE);
-
--- create a workspace schema for the data analysis bot Eliza to create object in when directed by a user
-CREATE SCHEMA IF NOT EXISTS GENESIS_LOCAL_DB.ELIZA_WORKSPACE;
-GRANT USAGE ON DATABASE GENESIS_LOCAL_DB TO APPLICATION IDENTIFIER($APP_DATABASE);
-GRANT ALL ON SCHEMA GENESIS_LOCAL_DB.ELIZA_WORKSPACE TO APPLICATION IDENTIFIER($APP_DATABASE);
-GRANT ALL ON FUTURE TABLES IN SCHEMA GENESIS_LOCAL_DB.ELIZA_WORKSPACE TO ROLE ACCOUNTADMIN;
 
 -- (optional steps for event logging) 
 -- create a schema to hold the event table

@@ -164,12 +164,9 @@ def generate_manifest_template(bot_id, bot_name, request_url, redirect_url):
                     "im:history",
                     "im:read",
                     "im:write",
-                    "im:write.invites",
-                    "im:write.topic",
                     "mpim:history",
                     "mpim:read",
                     "mpim:write",
-                    "mpim:write.invites",
                     "mpim:write.topic",
                     "users:read",
                     "users:read.email"
@@ -232,12 +229,9 @@ def generate_manifest_template_socket(bot_id, bot_name, request_url, redirect_ur
                     "im:history",
                     "im:read",
                     "im:write",
-                    "im:write.invites",
-                    "im:write.topic",
                     "mpim:history",
                     "mpim:read",
                     "mpim:write",
-                    "mpim:write.invites",
                     "mpim:write.topic",
                     "users:read",
                     "users:read.email",
@@ -882,6 +876,8 @@ def update_slack_app_level_key(bot_id, slack_app_level_key):
 def update_existing_bot(api_app_id, bot_id, bot_slack_user_id, client_id, client_secret, slack_signing_secret, 
                         auth_url, auth_state, udf_active, slack_active, files, bot_implementation):
     files_json = json.dumps(files)
+    if files_json == 'null':
+        files_json = None
     return bb_db_connector.db_update_existing_bot(api_app_id, bot_id, bot_slack_user_id, client_id, client_secret, slack_signing_secret, 
                             auth_url, auth_state, udf_active, slack_active, files_json, bot_implementation, project_id, dataset_name, bot_servicing_table)
 

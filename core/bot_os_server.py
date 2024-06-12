@@ -27,6 +27,7 @@ class BotOsServer:
 
     run_count=0
     cycle_count=0
+    stream_mode = False
     
     def __init__(self, flask_app:Flask, sessions:list[BotOsSession], scheduler:BackgroundScheduler, 
                  scheduler_seoconds_interval=2, slack_active=False

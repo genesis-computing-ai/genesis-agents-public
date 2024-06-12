@@ -6,6 +6,14 @@ THINGS TO TEST:
 JL- Update DDL harvest on other regions for baseball 2015 note, and check if Eliza sees it on a fresh install 
 
 POST-SUMMIT:
+x for streaming get files out to work
+x test read file from stage with streaming (error about empty run_id)
+make streamlit work with streaming mode, and show tool calls
+make streaming mode not happen when using task system to run jobs, set a global for interactive mode or something at the assistant level 
+add a spinner or other indicator generation is still in progress on a message and have other bots ignore it until its done
+make sure other bots respond ok to messages that are via Edits vs net new posts from other bots that are streaming
+on task creation clarify if the task is recurring or one-time, asked to send a joke in 5 min and it started sending every 5 min
+cache access check results for some amount of time, flush if changed
 LAF support and test (June 19)
 Task to re-grant all things that have been previously granted and a table to track if needed
 MR - Workspace for each bot with database tools, granted to app_public

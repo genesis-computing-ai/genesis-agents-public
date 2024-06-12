@@ -243,6 +243,7 @@ def make_session(bot_config):
                             all_functions = all_functions,
                             all_function_to_tool_map=all_function_to_tool_map,
                             bot_id=bot_config["bot_id"],
+                            stream_mode=True
                             )
     except Exception as e:
         print('Session creation exception: ', e)
@@ -810,6 +811,7 @@ def configure_llm():
                 os.environ["REKA_API_KEY"] = llm_api_key_candidate
             sessions, api_app_id_to_session_map, bot_id_to_udf_adapter_map, SystemVariables.bot_id_to_slack_adapter_map = create_sessions(llm_api_key, default_llm_engine)
             server = BotOsServer(app, sessions=sessions, scheduler=scheduler, scheduler_seoconds_interval=2, slack_active = global_flags.slack_active) 
+            BotOsServer.stream_mode = True
             set_remove_pointers(server, api_app_id_to_session_map)
 
             # Assuming 'babybot' is an instance of a class that has the 'set_llm_key' method
@@ -836,6 +838,7 @@ scheduler = BackgroundScheduler({'apscheduler.job_defaults.max_instances': 100, 
 # Code to clear any threads that are stuck or crashed from BackgroundScheduler
 server = None
 if llm_api_key is not None:
+    BotOsServer.stream_mode = True
     server = BotOsServer(app, sessions=sessions, scheduler=scheduler, scheduler_seoconds_interval=1) 
     set_remove_pointers(server, api_app_id_to_session_map)
 
@@ -968,6 +971,7 @@ def slack_event_handle(bot_id=None):
 def embed_openbb():
     return openbb_query(bot_id_to_udf_adapter_map, default_bot_id=list(bot_id_to_udf_adapter_map.keys())[0])
 
+BotOsServer.stream_mode = True
 scheduler.start()
 
 ngrok_active = launch_ngrok_and_update_bots(update_endpoints=global_flags.slack_active)

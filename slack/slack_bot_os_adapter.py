@@ -68,11 +68,11 @@ class SlackBotAdapter(BotOsInputAdapter):
                 txt = event.get("text","no text")[:30]
                 if len(txt) == 50:
                     txt = txt + "..."
-                if txt != 'no text' and txt != '_thinking..._':
+                if txt != 'no text' and txt != '_thinking..._' and txt[:10] != ':toolbox: ':
                     print(f'{self.bot_name} slack_in {event.get("type","no type")[:50]}, queue len {len(self.events)+1}')
                 if self.bot_user_id == event.get("user","NO_USER"):
                     self.last_message_id_dict[event.get("thread_ts",None)] = event.get("ts",None)
-                if event.get("text","no text") != '_thinking..._' and self.bot_user_id != event.get("user","NO_USER") and event.get("subtype","none") != 'message_changed' and event.get("subtype","none") != 'message_deleted':
+                if event.get("text","no text") != '_thinking..._' and event.get("text","no text")[:10] != ':toolbox: ' and self.bot_user_id != event.get("user","NO_USER") and event.get("subtype","none") != 'message_changed' and event.get("subtype","none") != 'message_deleted':
                     with self.events_lock:
                         self.events.append(event)
 
@@ -188,7 +188,7 @@ class SlackBotAdapter(BotOsInputAdapter):
             return None  # Ignore the message and do not process further
 
 
-        if msg == '_thinking..._':
+        if msg == '_thinking..._' or msg[:10] == ':toolbox: ':
             return None
 
         if msg.startswith('_still running..._'):
@@ -394,7 +394,15 @@ class SlackBotAdapter(BotOsInputAdapter):
         try:
             thinking_ts = message.input_metadata.get("thinking_ts", None)
             if thinking_ts:
-                self.slack_app.client.chat_delete(channel= message.input_metadata.get("channel",self.channel_id),ts = thinking_ts)
+
+                if message.status == 'in_progress' or message.status == 'requires_action':
+                    print(message.status, ' updating ',thinking_ts,' len ', len(message.output))
+                    msg = message.output.replace('!STREAM_START!', '').replace('!STREAM_DONE!', '')
+                    self.slack_app.client.chat_update(channel= message.input_metadata.get("channel",self.channel_id),ts = thinking_ts, text = msg )
+                    return
+                else:
+                    pass
+                    #self.slack_app.client.chat_delete(channel= message.input_metadata.get("channel",self.channel_id),ts = thinking_ts)
         except Exception as e:
             logger.debug("thinking already deleted") # FixMe: need to keep track when thinking is deleted
         message.output = message.output.strip()
@@ -495,16 +503,24 @@ class SlackBotAdapter(BotOsInputAdapter):
                 # Reformat the message if it contains a link in brackets followed by a URL in angle brackets
                 link_pattern = re.compile(r'\[(.*?)\]<(.+?)>')
                 msg = re.sub(link_pattern, r'<\2|\1>', msg)
-          #      print("sending message to slack post url fixes:", msg)
-                result = self.slack_app.client.chat_postMessage(
-                    channel=message.input_metadata.get("channel", self.channel_id),
-                    thread_ts=thread_ts,
-                    text=msg 
-                )
-            #    print("Result of sending message to Slack:", result)
-                # Replace patterns in msg with the appropriate format
+
+                # just moved this back up here before the chat_update
                 pattern = re.compile(r'\[(.*?)\]\(sandbox:/mnt/data/downloaded_files/(.*?)/(.+?)\)')
                 msg = re.sub(pattern, r'<\2|\1>', msg)
+
+
+          #      print("sending message to slack post url fixes:", msg)
+                if message.output == msg:
+                    self.slack_app.client.chat_update(channel= message.input_metadata.get("channel",self.channel_id),ts = thinking_ts, text = msg )
+                else:
+                    self.slack_app.client.chat_delete(channel= message.input_metadata.get("channel",self.channel_id),ts = thinking_ts)
+                    result = self.slack_app.client.chat_postMessage(
+                     channel=message.input_metadata.get("channel", self.channel_id),
+                     thread_ts=thread_ts,
+                     text=msg 
+                 )
+            #    print("Result of sending message to Slack:", result)
+                # Replace patterns in msg with the appropriate format
 
                 # Utility function handles file uploads and logs errors internally
                 if thread_ts is not None:
@@ -529,6 +545,14 @@ class SlackBotAdapter(BotOsInputAdapter):
             local_path = match.replace('sandbox:/mnt/data', '.')
             if local_path not in files_to_attach:
                 files_to_attach.append(local_path)
+
+        pineapple_pattern = re.compile(r'\[(.*?)\]\(sandbox:/mnt/data/thread_(.*?)/(.+?)\)')
+        pineapple_matches = pineapple_pattern.findall(msg)
+        for pineapple_match in pineapple_matches:
+            local_pineapple_path = f"./downloaded_files/thread_{pineapple_match[1]}/{pineapple_match[2]}"
+            if local_pineapple_path not in files_to_attach:
+                files_to_attach.append(local_pineapple_path)
+
 
         # Extract file paths from the message and add them to files_in array
         chart_pattern = re.compile(r'\(sandbox:/mnt/data/(.*?)\)\n2\. \[(.*?)\]')

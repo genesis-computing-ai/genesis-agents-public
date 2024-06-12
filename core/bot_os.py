@@ -83,8 +83,11 @@ class BotOsSession:
                  update_existing=False,
                  bot_id="default_bot_id",
                  bot_name="default_bot_name",
-                 all_tools=None, all_functions=None, all_function_to_tool_map=None
+                 all_tools=None, all_functions=None, all_function_to_tool_map=None,
+                 stream_mode=False
                  ):
+        
+        BotOsAssistantOpenAI.stream_mode = stream_mode
         self.session_name = session_name
         
         self.task_test_mode = os.getenv('TEST_TASK_MODE', 'false').lower()=='true'

@@ -451,20 +451,44 @@ def chat_page():
         with st.spinner('Thinking...'):
             while response == 'not found':
                 response = get_response_from_udf_proxy(uu=request_id, bot_id=selected_bot_id)
-                time.sleep(0.5)
-        
+                if (response == 'not found'):
+                    time.sleep(0.5)
+    # Display assistant response in chat message container
+        def response_generator():
+            previous_response = ""
+            start_time = time.time()
+            while True:
+               # if "!STREAM_DONE!" in previous_response:
+               #     break
+                response = get_response_from_udf_proxy(uu=request_id, bot_id=selected_bot_id)
+               # st.write(response)
+                if response != previous_response:
+                    if response != 'not found':
+                        if len(previous_response) > 10 and previous_response[:10] == ':toolbox: ' and (len(response)<len(previous_response) or response[len(previous_response)] != previous_response):
+                            new_increment = '\n\n'+response
+                        else:
+                            new_increment = response[len(previous_response):]
+                        previous_response = response
+                        start_time = time.time()
+                        yield new_increment.replace('!STREAM_START!','').replace('!STREAM_DONE!','')
+                if "!STREAM_DONE!" in response:
+                    break               
+                if "!STREAM_DONE!" not in previous_response:
+                    time.sleep(0.5)
+              #  if len(response) > 10 and response[:10] != ':toolbox: ' and time.time() - start_time > 5:
+              #      break
+
         if bot_avatar_image_url:
-            # Display assistant response in chat message container
-            with st.chat_message("assistant", avatar=bot_avatar_image_url):
-                st.markdown(response)
-            # Add assistant response to chat history
-            st.session_state[f"messages_{selected_bot_id}"].append({"role": "assistant", "content": response, "avatar": bot_avatar_image_url})
+            with st.chat_message("assistant",avatar=bot_avatar_image_url):
+                response = st.write_stream(response_generator())
         else:
             with st.chat_message("assistant"):
-                st.markdown(response)
-            # Add assistant response to chat history
+                response = st.write_stream(response_generator())  
+                
+        if bot_avatar_image_url:
+            st.session_state[f"messages_{selected_bot_id}"].append({"role": "assistant", "content": response, "avatar": bot_avatar_image_url})
+        else:
             st.session_state[f"messages_{selected_bot_id}"].append({"role": "assistant", "content": response})
-
 
     try:
         bot_details = get_bot_details()
@@ -550,7 +574,7 @@ def chat_page():
             if f"messages_{selected_bot_id}" not in st.session_state:
                 st.session_state[f"messages_{selected_bot_id}"] = []
                 # st.session_state[f"messages_{selected_bot_id}"].append({"role": "assistant", "content": selected_bot_intro})
-                submit_button(selected_bot_intro_prompt, st.chat_message("user"), True)
+                submit_button(selected_bot_intro_prompt, st.empty, True)
                 st.experimental_rerun()
     
             # Display chat messages from history on app rerun

@@ -6,8 +6,18 @@ from openai import OpenAI
 from collections import deque
 import datetime
 import logging
+import threading
 from core.bot_os_input import BotOsInputMessage, BotOsOutputMessage
 from core.bot_os_defaults import _BOT_OS_BUILTIN_TOOLS
+# For Streaming
+from typing_extensions import override
+from openai import AssistantEventHandler
+from openai.types.beta.threads import Text, TextDelta
+from openai.types.beta.threads.runs import ToolCall, ToolCallDelta
+from openai.types.beta.threads import Message, MessageDelta
+from openai.types.beta.threads.runs import ToolCall, RunStep
+from openai.types.beta import AssistantStreamEvent
+
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.WARN, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -20,10 +30,187 @@ def _get_function_details(run):
       return function_details
 
 
+class StreamingEventHandler(AssistantEventHandler):
 
+   run_id_to_output_stream = {}
+   run_id_to_metadata = {}
+   run_id_to_bot_assist = {}
+
+   def __init__(self, client, thread_id, assistant_id, metadata, bot_assist):
+       super().__init__()
+       self.output = None
+       self.tool_id = None
+       self.thread_id = thread_id
+       self.assistant_id = assistant_id
+       self.run_id = None
+       self.run_step = None
+       self.function_name = ""
+       self.arguments = ""
+       self.client = client
+       self.metadata = metadata
+       self.bot_assist = bot_assist
+      
+   @override
+   def on_text_created(self, text) -> None:
+       pass
+   
+   @override
+   def on_text_delta(self, delta, snapshot):
+       # print(f"\nassistant on_text_delta > {delta.value}", end="", flush=True)
+#       print(f"{delta.value}")
+      if self.run_id not in StreamingEventHandler.run_id_to_output_stream:
+          StreamingEventHandler.run_id_to_output_stream[self.run_id] = "!STREAM_START!"
+      StreamingEventHandler.run_id_to_output_stream[self.run_id] += delta.value
+       #BotOsOutputMessage(thread_id=self.thread_id,  status='streaming',  output=delta.value,   messages=None,   input_metadata=self.metadata)
+
+   @override
+   def on_end(self, ):
+       pass
+
+   @override
+   def on_exception(self, exception: Exception) -> None:
+       """Fired whenever an exception happens during streaming"""
+       pass
+
+   @override
+   def on_message_created(self, message: Message) -> None:
+       self.run_id = message.run_id
+       print(f"\nassistant on_message_created > {message}\n", end="", flush=True)
+       self.bot_assist.active_runs.append(self.thread_id)
+
+   @override
+   def on_message_done(self, message: Message) -> None:
+       if self.run_id  in StreamingEventHandler.run_id_to_output_stream:
+          StreamingEventHandler.run_id_to_output_stream[self.run_id] += "!STREAM_DONE!"
+       pass
+
+   @override
+   def on_message_delta(self, delta: MessageDelta, snapshot: Message) -> None:
+       # print(f"\nassistant on_message_delta > {delta}\n", end="", flush=True)
+       pass
+
+   def on_tool_call_created(self, tool_call):
+       # 4
+       print(f"\nassistant tool_call > {tool_call}\n", end="", flush=True)
+       self.bot_assist.active_runs.append(self.thread_id)
+       return
+       print(f"\nassistant on_tool_call_created > {tool_call}")
+       self.function_name = tool_call.function.name       
+       self.tool_id = tool_call.id
+       print(f"\on_tool_call_created > run_step.status > {self.run_step.status}")
+      
+       print(f"\nassistant > {tool_call.type} {self.function_name}\n", flush=True)
+
+       keep_retrieving_run = self.client.beta.threads.runs.retrieve(
+           thread_id=self.thread_id,
+           run_id=self.run_id
+       )
+
+       while keep_retrieving_run.status in ["queued", "in_progress"]: 
+           keep_retrieving_run = self.client.beta.threads.runs.retrieve(
+               thread_id=self.thread_id,
+               run_id=self.run_id
+           )
+          
+           print(f"\nSTATUS: {keep_retrieving_run.status}")      
+      
+   @override
+   def on_tool_call_done(self, tool_call: ToolCall) -> None: 
+       return      
+       keep_retrieving_run = self.client.beta.threads.runs.retrieve(
+           thread_id=self.thread_id,
+           run_id=self.run_id
+       )
+      
+       print(f"\nDONE STATUS: {keep_retrieving_run.status}")
+      
+       if keep_retrieving_run.status == "completed":
+           all_messages = self.client.beta.threads.messages.list(
+               thread_id=self.thread_id
+           )
+
+           print(all_messages.data[0].content[0].text.value, "", "")
+           return
+      
+       elif keep_retrieving_run.status == "requires_action":
+           print("here you would call your function")
+
+           if self.function_name == "example_blog_post_function":
+               function_data = my_example_funtion()
+  
+               self.output=function_data
+              
+               with self.client.beta.threads.runs.submit_tool_outputs_stream(
+                   thread_id=self.thread_id,
+                   run_id=self.run_id,
+                   tool_outputs=[{
+                       "tool_call_id": self.tool_id,
+                       "output": self.output,
+                   }],
+                   event_handler=StreamingEventHandler(self.client, self.thread_id, self.assistant_id)
+               ) as stream:
+                 stream.until_done()                       
+           else:
+               print("unknown function")
+               return
+      
+   @override
+   def on_run_step_created(self, run_step: RunStep) -> None:
+       # 2       
+       return
+       print(f"on_run_step_created")
+       self.run_id = run_step.run_id
+       self.run_step = run_step
+       print("The type ofrun_step run step is ", type(run_step), flush=True)
+       print(f"\n run step created assistant > {run_step}\n", flush=True)
+
+   @override
+   def on_run_step_done(self, run_step: RunStep) -> None:
+       return
+       print(f"\n run step done assistant > {run_step}\n", flush=True)
+
+   def on_tool_call_delta(self, delta, snapshot): 
+       return
+       if delta.type == 'function':
+           # the arguments stream through here and then you get the requires action event
+           print(delta.function.arguments, end="", flush=True)
+           self.arguments += delta.function.arguments
+       elif delta.type == 'code_interpreter':
+           print(f"on_tool_call_delta > code_interpreter")
+           if delta.code_interpreter.input:
+               print(delta.code_interpreter.input, end="", flush=True)
+           if delta.code_interpreter.outputs:
+               print(f"\n\noutput >", flush=True)
+               for output in delta.code_interpreter.outputs:
+                   if output.type == "logs":
+                       print(f"\n{output.logs}", flush=True)
+       else:
+           print("ELSE")
+           print(delta, end="", flush=True)
+
+   @override
+   def on_event(self, event: AssistantStreamEvent) -> None:
+       # print("In on_event of event is ", event.event, flush=True)
+       #event.data.id
+       try:
+          if event.event == 'thread.run.created':
+            self.run_id = event.data.id
+            StreamingEventHandler.run_id_to_metadata[self.run_id] = self.metadata
+            StreamingEventHandler.run_id_to_bot_assist[self.run_id] = self.bot_assist
+            self.bot_assist.thread_run_map[self.thread_id] = {"run": self.run_id, "completed_at": None}
+            #print(f"run is {self.run_id}")
+       except:
+          pass
+       return 
+       if event.event == "thread.run.requires_action":
+           print("\nthread.run.requires_action > submit tool call")
+           print(f"ARGS: {self.arguments}")
 
 
 class BotOsAssistantOpenAI(BotOsAssistantInterface):
+
+   stream_mode = False
+
    def __init__(self, name:str, instructions:str, 
                 tools:list[dict] = {}, available_functions={}, files=[], 
                 update_existing=False, log_db_connector=None, bot_id='default_bot_id', bot_name='default_bot_name', all_tools:list[dict]={}, all_functions={},all_function_to_tool_map={}) -> None:
@@ -207,6 +394,8 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       
       return self.update_vector_store(vector_store.id, files, plain_files)
 
+
+
    def create_thread(self) -> str:
       logger.debug("BotOsAssistantOpenAI:create_thread") 
       thread_id = self.client.beta.threads.create().id
@@ -312,12 +501,22 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       self.first_message = False 
       task_meta = input_message.metadata.pop('task_meta', None)
 
-      run = self.client.beta.threads.runs.create(
-         thread_id=thread.id, assistant_id=self.assistant.id, metadata=input_message.metadata)
-      if task_meta is not None:
-         self.run_meta_map[run.id]=task_meta
-      self.thread_run_map[thread_id] = {"run": run.id, "completed_at": None}
-      self.active_runs.append(thread_id)
+      if BotOsAssistantOpenAI.stream_mode == True:
+         with self.client.beta.threads.runs.stream(
+            thread_id=thread.id,
+            assistant_id=self.assistant.id,
+            event_handler=StreamingEventHandler(self.client, thread.id, self.assistant.id, input_message.metadata, self),
+            metadata=input_message.metadata
+         ) as stream:
+            stream.until_done()
+      else:
+         run = self.client.beta.threads.runs.create(
+            thread_id=thread.id, assistant_id=self.assistant.id, metadata=input_message.metadata)
+         if task_meta is not None:
+            self.run_meta_map[run.id]=task_meta
+         self.thread_run_map[thread_id] = {"run": run.id, "completed_at": None}
+         self.active_runs.append(thread_id)
+
       primary_user = json.dumps({'user_id': input_message.metadata.get('user_id', 'Unknown User ID'), 
                                  'user_name': input_message.metadata.get('user_name', 'Unknown User')})
       self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id, 
@@ -449,14 +648,24 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
           # If it does, alter all the tool_outputs to the error message
           tool_outputs = [{'tool_call_id': output['tool_call_id'], 'output': 'Error! Total size of tool outputs too large to return to OpenAI, consider using tool paramaters that produce less raw data.'} for output in tool_outputs]
       try:
-         updated_run = self.client.beta.threads.runs.submit_tool_outputs(
-            thread_id=thread_id,
-            run_id=run_id,
-            tool_outputs=tool_outputs # type: ignore
-         )
-         logger.debug(f"_submit_tool_outputs - {updated_run}")
+         if BotOsAssistantOpenAI.stream_mode == True:
 
-         meta = updated_run.metadata
+            meta =  StreamingEventHandler.run_id_to_metadata[run_id]
+            with self.client.beta.threads.runs.submit_tool_outputs_stream(
+                   thread_id=thread_id,
+                   run_id=run_id,
+                   tool_outputs=tool_outputs,
+                   event_handler=StreamingEventHandler(self.client, thread_id,   StreamingEventHandler.run_id_to_bot_assist[run_id],  meta, self)
+               ) as stream:
+                 stream.until_done()   
+         else:
+            updated_run = self.client.beta.threads.runs.submit_tool_outputs(
+               thread_id=thread_id,
+               run_id=run_id,
+               tool_outputs=tool_outputs # type: ignore
+            )
+            logger.debug(f"_submit_tool_outputs - {updated_run}")
+            meta = updated_run.metadata
          primary_user = json.dumps({'user_id': meta.get('user_id', 'Unknown User ID'), 
                      'user_name': meta.get('user_name', 'Unknown User')})
          for tool_output in tool_outputs:
@@ -618,8 +827,15 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
          thread_run = self.thread_run_map[thread_id]
          if thread_run["completed_at"] is None:
 
-            run = self.client.beta.threads.runs.retrieve(thread_id = thread_id, 
-                                                      run_id = thread_run["run"])
+            run = self.client.beta.threads.runs.retrieve(thread_id = thread_id, run_id = thread_run["run"])
+           # print(run.status)
+            if BotOsAssistantOpenAI.stream_mode == True and run.id in StreamingEventHandler.run_id_to_output_stream:
+                #print(StreamingEventHandler.run_id_to_output_stream[run.id])
+                event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id, 
+                                                                           status=run.status, 
+                                                                           output=StreamingEventHandler.run_id_to_output_stream[run.id], 
+                                                                           messages=None, 
+                                                                           input_metadata=run.metadata))
             #logger.info(f"run.status {run.status} Thread: {thread_id}")
             print(f"{self.bot_name} open_ai check_runs ",run.status," thread: ", thread_id, flush=True)
 
@@ -745,6 +961,14 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                            pass
 
                      self.validate_or_add_function(func_name)
+
+                     if BotOsAssistantOpenAI.stream_mode == True and run.id in StreamingEventHandler.run_id_to_bot_assist:
+                        msg = f':toolbox: _Calling tool {func_name}_...'
+                        event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id, 
+                                                                           status=run.status, 
+                                                                           output=msg,
+                                                                           messages=None, 
+                                                                           input_metadata=run.metadata))
 
                      execute_function(func_name, func_args, self.all_functions, callback_closure,
                                       thread_id = thread_id, bot_id=self.bot_id)#, dispatch_task_callback=dispatch_task_callback)

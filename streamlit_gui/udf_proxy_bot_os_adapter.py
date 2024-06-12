@@ -1,5 +1,7 @@
 from flask import Blueprint, request, render_template, make_response
 import uuid
+import os
+from connectors.snowflake_connector import SnowflakeConnector
 import logging
 from core.bot_os_input import BotOsInputAdapter, BotOsInputMessage, BotOsOutputMessage
 from collections import deque
@@ -8,11 +10,16 @@ import json
 logger = logging.getLogger(__name__)
 
 class UDFBotOsInputAdapter(BotOsInputAdapter):
+
+    udf_snow_connector = SnowflakeConnector(connection_name='Snowflake')
+
     def __init__(self):
         super().__init__()
         self.response_map = {}
         self.proxy_messages_in = []
         self.events = deque()
+        self.genbot_internal_project_and_schema = os.getenv('GENESIS_INTERNAL_DB_SCHEMA','None')
+
 
     def add_event(self, event):
         self.events.append(event)
@@ -47,6 +54,8 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
                 self.response_map[in_uuid] = "(no response needed)"
             else:
                 self.response_map[in_uuid] = message.output
+        # write the value to the hybrid table
+        UDFBotOsInputAdapter.udf_snow_connector.db_update_llm_results(in_uuid, message.output)
         pass
 
     def lookup_fn(self):
@@ -94,6 +103,8 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
         self.proxy_messages_in.append({"msg": input, "uuid": uu, "thread_id": thread_id, "bot_id": bot_id})
        
         self.add_event({"msg": input, "thread_id": thread_id, "uuid": uu, "bot_id": bot_id})
+      
+        UDFBotOsInputAdapter.udf_snow_connector.db_insert_llm_results(uu, "")
         return uu
 
 

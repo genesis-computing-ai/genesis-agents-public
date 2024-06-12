@@ -24,7 +24,6 @@ genesis_source = os.getenv('GENESIS_SOURCE',default="Snowflake")
 
 bb_db_connector = SnowflakeConnector(connection_name='Snowflake')
 
-
 genbot_internal_project_and_schema = os.getenv('GENESIS_INTERNAL_DB_SCHEMA','None')
 if  genbot_internal_project_and_schema is None:       
     genbot_internal_project_and_schema = os.getenv('ELSA_INTERNAL_DB_SCHEMA','None')

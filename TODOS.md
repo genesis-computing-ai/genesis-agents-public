@@ -6,6 +6,10 @@ THINGS TO TEST:
 JL- Update DDL harvest on other regions for baseball 2015 note, and check if Eliza sees it on a fresh install 
 
 POST-SUMMIT:
+task to grant the workspaces to app_public periodically
+task to capture what is granted and then re-grant later if needed
+
+change to hybrid table for SiS streaming retrieval
 x for streaming get files out to work
 x test read file from stage with streaming (error about empty run_id)
 make streamlit work with streaming mode, and show tool calls

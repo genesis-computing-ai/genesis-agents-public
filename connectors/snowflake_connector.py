@@ -665,7 +665,125 @@ class SnowflakeConnector(DatabaseConnector):
             if cursor is not None:
                 cursor.close()
 
+    def db_insert_llm_results(self, uu, message):
+        """
+        Inserts a row into the LLM_RESULTS table.
+
+        Args:
+            uu (str): The unique identifier for the result.
+            message (str): The message to store.
+        """
+        insert_query = f"""
+            INSERT INTO {self.schema}.LLM_RESULTS (uu, message, created)
+            VALUES (%s, %s, CURRENT_TIMESTAMP)
+        """
+        try:
+            cursor = self.client.cursor()
+            cursor.execute(insert_query, (uu, message))
+            self.client.commit()
+            cursor.close()
+            print(f"LLM result row inserted successfully for uu: {uu}")
+        except Exception as e:
+            print(f"An error occurred while inserting the LLM result row: {e}")
+            if cursor is not None:
+                cursor.close()
+
+
+    def db_update_llm_results(self, uu, message):
+        """
+        Inserts a row into the LLM_RESULTS table.
+
+        Args:
+            uu (str): The unique identifier for the result.
+            message (str): The message to store.
+        """
+        update_query = f"""
+            UPDATE {self.schema}.LLM_RESULTS
+            SET message = %s
+            WHERE uu = %s
+        """
+        try:
+            cursor = self.client.cursor()
+            cursor.execute(update_query, (message, uu))
+            self.client.commit()
+            cursor.close()
+            print(f"LLM result row inserted successfully for uu: {uu}")
+        except Exception as e:
+            print(f"An error occurred while inserting the LLM result row: {e}")
+            if cursor is not None:
+                cursor.close()
+
+    def db_get_llm_results(self, uu):
+        """
+        Retrieves a row from the LLM_RESULTS table using the uu.
+
+        Args:
+            uu (str): The unique identifier for the result.
+        """
+        select_query = f"""
+            SELECT message
+            FROM {self.schema}.LLM_RESULTS
+            WHERE uu = %s
+        """
+        try:
+            cursor = self.client.cursor()
+            cursor.execute(select_query, (uu,))
+            result = cursor.fetchone()
+            cursor.close()
+            if result is not None:
+                return result[0]
+            else:
+                print(f"No LLM result found for uu: {uu}")
+        except Exception as e:
+            print(f"An error occurred while retrieving the LLM result: {e}")
+            if cursor is not None:
+                cursor.close()
+
+    def db_clean_llm_results(self):
+        """
+        Removes rows from the LLM_RESULTS table that are over 10 minutes old.
+        """
+        delete_query = f"""
+            DELETE FROM {self.schema}.LLM_RESULTS
+            WHERE CURRENT_TIMESTAMP - created > INTERVAL '10 MINUTES'
+        """
+        try:
+            cursor = self.client.cursor()
+            cursor.execute(delete_query)
+            self.client.commit()
+            cursor.close()
+            print("LLM result rows older than 10 minutes have been successfully deleted.")
+        except Exception as e:
+            print(f"An error occurred while deleting old LLM result rows: {e}")
+            if cursor is not None:
+                cursor.close()
+
     def ensure_table_exists(self):
+ 
+        llm_results_table_check_query = f"SHOW TABLES LIKE 'LLM_RESULTS' IN SCHEMA {self.schema};"
+        try:
+            cursor = self.client.cursor()
+            cursor.execute(llm_results_table_check_query)
+            if not cursor.fetchone():
+                create_llm_results_table_ddl = f"""
+                CREATE OR REPLACE HYBRID TABLE {self.schema}.LLM_RESULTS (
+                    uu VARCHAR(40) PRIMARY KEY,
+                    message VARCHAR NOT NULL,
+                    created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    INDEX uu_idx (uu)
+                );
+                """
+                cursor.execute(create_llm_results_table_ddl)
+                self.client.commit()
+                print(f"Table {self.schema}.LLM_RESULTS created successfully.")
+            else:
+                print(f"Table {self.schema}.LLM_RESULTS already exists.")
+        except Exception as e:
+            print(f"An error occurred while checking or creating the LLM_RESULTS table: {e}")
+        finally:
+            if cursor is not None:
+                cursor.close()
+
  
         tasks_table_check_query = f"SHOW TABLES LIKE 'TASKS' IN SCHEMA {self.schema};"
         try:

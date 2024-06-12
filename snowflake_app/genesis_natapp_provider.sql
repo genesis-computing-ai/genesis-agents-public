@@ -43,6 +43,7 @@ CREATE STAGE IF NOT EXISTS APP_CODE_STAGE;
 --
 -- STOP HERE AND UPLOAD ALL REQUIRED CONTAINERS INTO THE IMAGE REPO
 --
+USE SCHEMA GENESISAPP_MASTER.CODE_SCHEMA;
 show image repositories;
 
 -- ########## UTILITY FUNCTIONS  #########################################
@@ -285,7 +286,7 @@ name: sis_launch
 channels:
  - snowflake
 dependencies:
- - streamlit=1.26.0
+ - streamlit=1.31.1
  - pandas
  - snowflake-snowpark-python
 $$)

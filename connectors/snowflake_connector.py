@@ -68,12 +68,14 @@ class SnowflakeConnector(DatabaseConnector):
         self.genbot_internal_harvest_table = os.getenv('GENESIS_INTERNAL_HARVEST_RESULTS_TABLE','harvest_results')
         self.genbot_internal_harvest_control_table = os.getenv('GENESIS_INTERNAL_HARVEST_CONTROL_TABLE','harvest_control')
         self.genbot_internal_message_log = os.getenv('GENESIS_INTERNAL_MESSAGE_LOG_TABLE','MESSAGE_LOG')
+        self.genbot_internal_knowledge_table = os.getenv('GENESIS_INTERNAL_KNOWLEDGE_TABLE','KNOWLEDGE')
         self.app_share_schema = 'APP_SHARE'
 
        # print("genbot_internal_project_and_schema: ", self.genbot_internal_project_and_schema)
         self.metadata_table_name = self.genbot_internal_project_and_schema+'.'+self.genbot_internal_harvest_table
         self.harvest_control_table_name = self.genbot_internal_project_and_schema+'.'+self.genbot_internal_harvest_control_table
         self.message_log_table_name = self.genbot_internal_project_and_schema+'.'+self.genbot_internal_message_log
+        self.knowledge_table_name = self.genbot_internal_project_and_schema+'.'+self.genbot_internal_knowledge_table
         self.slack_tokens_table_name = self.genbot_internal_project_and_schema+'.'+'SLACK_APP_CONFIG_TOKENS'
         self.available_tools_table_name = self.genbot_internal_project_and_schema + '.' + 'AVAILABLE_TOOLS'
         self.bot_servicing_table_name = self.genbot_internal_project_and_schema + '.' + 'BOT_SERVICING'
@@ -1329,6 +1331,40 @@ class SnowflakeConnector(DatabaseConnector):
                 print(f"Table {self.message_log_table_name} already exists.")
         except Exception as e:
             print(f"An error occurred while checking or creating table {self.message_log_table_name}: {e}")
+
+
+        # KNOWLEDGE TABLE        
+        knowledge_table_check_query = f"SHOW TABLES LIKE 'KNOWLEDGE' IN SCHEMA {self.schema};"
+
+        # Check if the chat knowledge table exists
+        try:
+            cursor = self.client.cursor()
+            cursor.execute(knowledge_table_check_query)
+            if not cursor.fetchone():
+                knowledge_table_ddl = f"""
+                CREATE TABLE {self.knowledge_table_name} (
+                    timestamp TIMESTAMP NOT NULL,
+                    thread_id STRING NOT NULL,
+                    knowledge_thread_id STRING NOT NULL,
+                    primary_user STRING,
+                    bot_id STRING,
+                    last_timestamp TIMESTAMP NOT NULL,
+                    thread_summary STRING,
+                    user_learning STRING,
+                    tool_learning STRING,
+                    data_learning STRING
+                );
+                """
+                cursor.execute(knowledge_table_ddl)
+                self.client.commit()
+                print(f"Table {self.knowledge_table_name} created.")
+            else:
+                check_query = f"DESCRIBE TABLE {self.knowledge_table_name};"
+                print(f"Table {self.knowledge_table_name} already exists.")
+        except Exception as e:
+            print(f"An error occurred while checking or creating table {self.knowledge_table_name}: {e}")
+
+        
 
         # HARVEST CONTROL TABLE
         hc_table_id = self.genbot_internal_harvest_control_table

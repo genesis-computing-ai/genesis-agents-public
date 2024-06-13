@@ -901,11 +901,16 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
             if run.status == "requires_action":
                function_details = _get_function_details(run)
                parallel_tool_call_ids = [f[2] for f in function_details]
-               self.tool_completion_status[run.id] = {key: None for key in parallel_tool_call_ids} # need to submit completed parallel calls together
+           #    if self.tool_completion_status.get(run.id,None) is not None:
+           #       function_details = [f for f in function_details if f[2] not in self.tool_completion_status[run.id]]
+               if run.id not in self.tool_completion_status:
+                   self.tool_completion_status[run.id] = {key: None for key in parallel_tool_call_ids} # need to submit completed parallel calls together
                thread = self.client.beta.threads.retrieve(thread_id)
                try:
                   for func_name, func_args, tool_call_id in function_details:
                      if tool_call_id in self.running_tools: # already running in a parallel thread
+                        continue
+                     if self.tool_completion_status[run.id].get(tool_call_id,None) is not None:
                         continue
                      log_readable_payload = func_name+"("+func_args+")"
                      try:

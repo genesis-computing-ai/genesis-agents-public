@@ -167,13 +167,13 @@ def set_slack_tokens(slack_app_token, slack_app_refresh_token):
         else:
             return "Error", f"Failed to set Slack Tokens: {response.text}"
 
-
 def get_bot_details():
 
     import requests
     import json
 
     # add SnowMode
+#    st.write('get bot details start')
 
     if SnowMode:
 
@@ -185,6 +185,7 @@ def get_bot_details():
                 if data:
                     break
                 time.sleep(2)
+    #    st.write('get bot details end')
 
         response = json.loads(data[0][0])
         return response
@@ -458,14 +459,20 @@ def chat_page():
                 response = get_response_from_udf_proxy(uu=request_id, bot_id=selected_bot_id)
                 if (response == '' or response == 'not found'):
                     time.sleep(0.5)
+
+        in_resp = response
     # Display assistant response in chat message container
-        def response_generator():
+        def response_generator(in_resp = None):
             previous_response = ""
           #  start_time = time.time()
             while True:
                # if "!STREAM_DONE!" in previous_response:
                #     break
-                response = get_response_from_udf_proxy(uu=request_id, bot_id=selected_bot_id)
+                if in_resp is None:
+                    response = get_response_from_udf_proxy(uu=request_id, bot_id=selected_bot_id)
+                else:
+                    response = in_resp
+                    in_resp = None
                # st.write(response)
                 if response != previous_response:
                     if response != 'not found':
@@ -487,10 +494,10 @@ def chat_page():
 
         if bot_avatar_image_url:
             with st.chat_message("assistant",avatar=bot_avatar_image_url):
-                response = st.write_stream(response_generator())
+                response = st.write_stream(response_generator(in_resp))
         else:
             with st.chat_message("assistant"):
-                response = st.write_stream(response_generator())  
+                response = st.write_stream(response_generator(in_resp))  
 
         if st.session_state['last_response'] == "":
             st.session_state['last_response'] = response
@@ -599,13 +606,15 @@ def chat_page():
                             st.markdown(message["content"])
                 else:
                     st.session_state['last_response'] = '!pass!'
-    
+
+
+            
             # React to user input
             if prompt := st.chat_input("What is up?", key=f"chat_input_{selected_bot_id}"): 
-                pass
+        #        pass
     
             #response = f"Echo: {prompt}"
-            if prompt != None:
+   #         if prompt != None:
                 submit_button(prompt, st.chat_message("user"), False)
         except Exception as e:
 

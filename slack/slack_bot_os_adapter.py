@@ -511,9 +511,11 @@ class SlackBotAdapter(BotOsInputAdapter):
 
           #      print("sending message to slack post url fixes:", msg)
                 if message.output == msg:
+                    msg = msg.replace('!STREAM_START!', '').replace('!STREAM_DONE!', '')
                     self.slack_app.client.chat_update(channel= message.input_metadata.get("channel",self.channel_id),ts = thinking_ts, text = msg )
                 else:
                     self.slack_app.client.chat_delete(channel= message.input_metadata.get("channel",self.channel_id),ts = thinking_ts)
+                    msg = msg.replace('!STREAM_START!', '').replace('!STREAM_DONE!', '')
                     result = self.slack_app.client.chat_postMessage(
                      channel=message.input_metadata.get("channel", self.channel_id),
                      thread_ts=thread_ts,

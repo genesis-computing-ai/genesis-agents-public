@@ -963,7 +963,10 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                      self.validate_or_add_function(func_name)
 
                      if BotOsAssistantOpenAI.stream_mode == True and run.id in StreamingEventHandler.run_id_to_bot_assist:
-                        msg = f':toolbox: _Calling tool {func_name}_...'
+                        msg = f':toolbox: _Calling tool {func_name}_...\n'
+                        if  StreamingEventHandler.run_id_to_output_stream.get(run.id,None) is not None:
+                            StreamingEventHandler.run_id_to_output_stream[run.id] += "\n\n"+msg
+                            msg = StreamingEventHandler.run_id_to_output_stream[run.id]
                         event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id, 
                                                                            status=run.status, 
                                                                            output=msg,
@@ -1012,6 +1015,8 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                        output += (content.text.value + "\n") if output else content.text.value
                output = output.strip()  # Remove the trailing newline if it exists
                 #if output != '!NO_RESPONSE_REQUIRED':
+               if  StreamingEventHandler.run_id_to_output_stream.get(run.id,None) is not None:
+                  output = StreamingEventHandler.run_id_to_output_stream.get(run.id)
                if True:
                   if os.getenv('SHOW_COST', 'false').lower() == 'true':
                      output += '  `'+"$"+str(round(run.usage.prompt_tokens/1000000*10+run.usage.completion_tokens/1000000*30,4))+'`'

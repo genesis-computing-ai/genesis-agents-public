@@ -2,7 +2,7 @@ import streamlit as st
 import os, json
 import base64
 
-app_name = 'GENESIS_DEV_BOTS'
+app_name = 'GENESIS_BOTS_ALPHA'
 prefix = app_name+'.app1'
 core_prefix = app_name+'.CORE'
 

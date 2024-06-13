@@ -2,7 +2,7 @@ import streamlit as st
 import os, json
 import base64
 
-app_name = 'GENESIS_BOTS'
+app_name = 'GENESIS_DEV_BOTS'
 prefix = app_name+'.app1'
 core_prefix = app_name+'.CORE'
 
@@ -294,7 +294,12 @@ def get_response_from_udf_proxy(uu, bot_id):
 
     if SnowMode:
 
-        sql = f"select {prefix}.lookup_udf('{uu}', '{bot_id}') "
+        #sql = f"select {prefix}.lookup_udf('{uu}', '{bot_id}') "
+
+        sql = f"""
+            SELECT message from {prefix}.LLM_RESULTS
+            WHERE uu = '{uu}'"""
+     
         data = session.sql(sql).collect()
         response = data[0][0]
         return response
@@ -446,17 +451,17 @@ def chat_page():
 
     
         request_id = submit_to_udf_proxy(input_text=prompt, thread_id=st.session_state[f"thread_id_{selected_bot_id}"], bot_id=selected_bot_id)
-        response = 'not found'
+        response = ''
 
         with st.spinner('Thinking...'):
-            while response == 'not found':
+            while response == '' or response == 'not found':
                 response = get_response_from_udf_proxy(uu=request_id, bot_id=selected_bot_id)
-                if (response == 'not found'):
+                if (response == '' or response == 'not found'):
                     time.sleep(0.5)
     # Display assistant response in chat message container
         def response_generator():
             previous_response = ""
-            start_time = time.time()
+          #  start_time = time.time()
             while True:
                # if "!STREAM_DONE!" in previous_response:
                #     break
@@ -469,14 +474,16 @@ def chat_page():
                         else:
                             new_increment = response[len(previous_response):]
                         previous_response = response
-                        start_time = time.time()
+                    #    start_time = time.time()
                         yield new_increment.replace('!STREAM_START!','').replace('!STREAM_DONE!','')
                 if "!STREAM_DONE!" in response:
                     break               
+                if len(response) > 1 and not response.startswith('!STREAM_START!') and not response.startswith(':toolbox: '):
+                    break
                 if "!STREAM_DONE!" not in previous_response:
                     time.sleep(0.5)
-              #  if len(response) > 10 and response[:10] != ':toolbox: ' and time.time() - start_time > 5:
-              #      break
+                #if len(response) > 1 and response[:10] != ':toolbox: ' and time.time() - start_time > 3:
+                #    break
 
         if bot_avatar_image_url:
             with st.chat_message("assistant",avatar=bot_avatar_image_url):
@@ -484,6 +491,9 @@ def chat_page():
         else:
             with st.chat_message("assistant"):
                 response = st.write_stream(response_generator())  
+
+        if st.session_state['last_response'] == "":
+            st.session_state['last_response'] = response
                 
         if bot_avatar_image_url:
             st.session_state[f"messages_{selected_bot_id}"].append({"role": "assistant", "content": response, "avatar": bot_avatar_image_url})
@@ -535,6 +545,7 @@ def chat_page():
             selected_bot_intro_prompt = bot_intro_prompts[selected_bot_index]
             if not selected_bot_intro_prompt:
                 selected_bot_intro_prompt = "Please provide a brief introduction of yourself and your capabilities."
+            st.session_state['last_response'] = ""
 
             # get avatar images
             bot_images = get_metadata('bot_images')
@@ -575,16 +586,19 @@ def chat_page():
                 st.session_state[f"messages_{selected_bot_id}"] = []
                 # st.session_state[f"messages_{selected_bot_id}"].append({"role": "assistant", "content": selected_bot_intro})
                 submit_button(selected_bot_intro_prompt, st.empty, True)
-                st.experimental_rerun()
+                #st.experimental_rerun()
     
             # Display chat messages from history on app rerun
             for message in st.session_state[f"messages_{selected_bot_id}"]:
-                if message["role"] == "assistant" and bot_avatar_image_url:
-                    with st.chat_message(message["role"], avatar=bot_avatar_image_url):
-                        st.markdown(message["content"])
+                if st.session_state['last_response'] != message["content"]:
+                    if message["role"] == "assistant" and bot_avatar_image_url:
+                        with st.chat_message(message["role"], avatar=bot_avatar_image_url):
+                            st.markdown(message["content"])
+                    else:
+                        with st.chat_message(message["role"]):
+                            st.markdown(message["content"])
                 else:
-                    with st.chat_message(message["role"]):
-                        st.markdown(message["content"])
+                    st.session_state['last_response'] = '!pass!'
     
             # React to user input
             if prompt := st.chat_input("What is up?", key=f"chat_input_{selected_bot_id}"): 
@@ -1319,6 +1333,10 @@ else:
 
 if 'data' in st.session_state:
     data = st.session_state['data']
+
+if 'last_response' not in st.session_state:
+    st.session_state['last_response'] = ""
+
 if data:
     
     pages = {

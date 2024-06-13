@@ -707,7 +707,7 @@ class SnowflakeConnector(DatabaseConnector):
             cursor.execute(update_query, (message, uu))
             self.client.commit()
             cursor.close()
-            print(f"LLM result row inserted successfully for uu: {uu}")
+       #     print(f"LLM result row inserted successfully for uu: {uu}")
         except Exception as e:
             print(f"An error occurred while inserting the LLM result row: {e}")
             if cursor is not None:

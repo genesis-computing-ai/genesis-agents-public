@@ -77,8 +77,6 @@ class StreamingEventHandler(AssistantEventHandler):
    def on_message_created(self, message: Message) -> None:
        self.run_id = message.run_id
        print(f"\nassistant on_message_created > {message}\n", end="", flush=True)
-       self.bot_assist.active_runs.append(self.thread_id)
-
    @override
    def on_message_done(self, message: Message) -> None:
        if self.run_id  in StreamingEventHandler.run_id_to_output_stream:
@@ -93,7 +91,6 @@ class StreamingEventHandler(AssistantEventHandler):
    def on_tool_call_created(self, tool_call):
        # 4
        print(f"\nassistant tool_call > {tool_call}\n", end="", flush=True)
-       self.bot_assist.active_runs.append(self.thread_id)
        return
        print(f"\nassistant on_tool_call_created > {tool_call}")
        self.function_name = tool_call.function.name       
@@ -200,6 +197,8 @@ class StreamingEventHandler(AssistantEventHandler):
             StreamingEventHandler.run_id_to_bot_assist[self.run_id] = self.bot_assist
             self.bot_assist.thread_run_map[self.thread_id] = {"run": self.run_id, "completed_at": None}
             #print(f"run is {self.run_id}")
+            if self.thread_id not in self.bot_assist.active_runs:
+               self.bot_assist.active_runs.append(self.thread_id)
        except:
           pass
        return 
@@ -490,16 +489,8 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                fixed = True
          except Exception as e:
             pass
-         if not fixed:
-            logger.error(f"Thread message for {thread_id} creation failed or already running: {e}")
-            try:
-               thread_message = self.client.beta.threads.messages.create(
-                  thread_id=thread_id, content="Error on input submission: "+str(e), 
-                  role="user", 
-               )
-            except:
-               return
-      #logger.debug(f"add_message - created {thread_message}")
+       # removed some stuff here 6/15/24
+       #logger.debug(f"add_message - created {thread_message}")
       self.first_message = False 
       task_meta = input_message.metadata.pop('task_meta', None)
 
@@ -685,7 +676,8 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
          try:                     
             del self.running_tools[tool_call_id]
          except Exception as e:
-            print(f"callback_closure - tool call already deleted - caught exception: {e}")
+            error_string = f"callback_closure - tool call already deleted - caught exception: {e}"
+            print(error_string)
          try:
             self._submit_tool_outputs(run.id, thread.id, tool_call_id, function_details, func_response)
          except Exception as e:
@@ -822,7 +814,11 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
 #      for thread_id in self.thread_run_map:
       try:
+         if len(self.active_runs) > 0:
+            print('Active: ', self.active_runs)
          thread_id = self.active_runs.popleft()
+         print('popped: ', thread_id)
+
       except IndexError:
          thread_id = None
       while thread_id is not None:
@@ -831,7 +827,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
             run = self.client.beta.threads.runs.retrieve(thread_id = thread_id, run_id = thread_run["run"])
            # print(run.status)
-            if BotOsAssistantOpenAI.stream_mode == True and run.id in StreamingEventHandler.run_id_to_output_stream:
+            if (run.status == "in_progress" or run.status == 'requires_action') and BotOsAssistantOpenAI.stream_mode == True and run.id in StreamingEventHandler.run_id_to_output_stream:
                 #print(StreamingEventHandler.run_id_to_output_stream[run.id])
                 event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id, 
                                                                            status=run.status, 
@@ -905,14 +901,19 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                parallel_tool_call_ids = [f[2] for f in function_details]
            #    if self.tool_completion_status.get(run.id,None) is not None:
            #       function_details = [f for f in function_details if f[2] not in self.tool_completion_status[run.id]]
-               if run.id not in self.tool_completion_status:
-                   self.tool_completion_status[run.id] = {key: None for key in parallel_tool_call_ids} # need to submit completed parallel calls together
+               try:
+                  if not all(key in self.tool_completion_status[run.id] for key in parallel_tool_call_ids):
+                     self.tool_completion_status[run.id] = {key: None for key in parallel_tool_call_ids} 
+               except:
+                  self.tool_completion_status[run.id] = {key: None for key in parallel_tool_call_ids} # need to submit completed parallel calls together
                thread = self.client.beta.threads.retrieve(thread_id)
                try:
                   for func_name, func_args, tool_call_id in function_details:
                      if tool_call_id in self.running_tools: # already running in a parallel thread
                         continue
                      if self.tool_completion_status[run.id].get(tool_call_id,None) is not None:
+                        continue
+                     if False and self.tool_completion_status[run.id].get(tool_call_id,None) is not None:
                         try:
                            if tool_call_id in self.callback_closures:
                               callback = self.callback_closures[tool_call_id]
@@ -1080,12 +1081,13 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                self.thread_run_map[thread_id]["completed_at"] = threads_completed[thread_id]
 
          # get next run to check       
-         try:
-            thread_id = self.active_runs.popleft()
-         except IndexError:
-            thread_id = None
+       #  try:
+       #     thread_id = self.active_runs.popleft()
+       #  except IndexError:
+         thread_id = None
             
       # put pending threads back on queue
       for thread_id in threads_still_pending:
-         self.active_runs.append(thread_id)
+         if thread_id not in self.active_runs:
+             self.active_runs.append(thread_id)
             

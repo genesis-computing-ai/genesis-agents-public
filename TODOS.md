@@ -6,9 +6,10 @@ THINGS TO TEST:
 JL- Update DDL harvest on other regions for baseball 2015 note, and check if Eliza sees it on a fresh install 
 
 POST-SUMMIT:
+add resources needed to app spec 
 task to grant the workspaces to app_public periodically
 task to capture what is granted and then re-grant later if needed
-
+make tool call re-submission stop when it gets "call already submitted" or "tool call deleted"
 change to hybrid table for SiS streaming retrieval
 x for streaming get files out to work
 x test read file from stage with streaming (error about empty run_id)

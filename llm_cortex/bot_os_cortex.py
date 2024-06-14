@@ -198,7 +198,8 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
          except Exception as e:
             error_string = f"callback_closure - _submit_tool_outputs - caught exception: {e}"
             logger.error(error_string)
-            self._submit_tool_outputs(thread_id, timestamp, error_string, message_metadata)
+            return error_string
+            #self._submit_tool_outputs(thread_id, timestamp, error_string, message_metadata)
       return callback_closure
 
     def update_threads(self, thread_id, timestamp):

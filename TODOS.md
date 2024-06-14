@@ -12,6 +12,7 @@ task to capture what is granted and then re-grant later if needed
 change to hybrid table for SiS streaming retrieval
 x for streaming get files out to work
 x test read file from stage with streaming (error about empty run_id)
+generating 3 images in parallel only 2 displayed
 make streamlit work with streaming mode, and show tool calls
 make streaming mode not happen when using task system to run jobs, set a global for interactive mode or something at the assistant level 
 add a spinner or other indicator generation is still in progress on a message and have other bots ignore it until its done

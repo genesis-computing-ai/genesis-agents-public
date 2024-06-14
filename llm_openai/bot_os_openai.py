@@ -5,6 +5,7 @@ from core.bot_os_assistant_base import BotOsAssistantInterface, execute_function
 from openai import OpenAI
 from collections import deque
 import datetime
+import time 
 import logging
 import threading
 from core.bot_os_input import BotOsInputMessage, BotOsOutputMessage
@@ -237,6 +238,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       #print(f'yoyo mytools {my_tools}')
       #logger.warn(f'yoyo mytools {my_tools}')
       self.my_tools = my_tools
+      self.callback_closures = {}
          
       self.allowed_types_search = [".c", ".cs", ".cpp", ".doc", ".docx", ".html", ".java", ".json", ".md", ".pdf", ".php", ".pptx", ".py", ".rb", ".tex", ".txt", ".css", ".js", ".sh", ".ts"]
       self.allowed_types_code_i = [".c", ".cs", ".cpp", ".doc", ".docx", ".html", ".java", ".json", ".md", ".pdf", ".php", ".pptx", ".py", ".rb", ".tex", ".txt", ".css", ".js", ".sh", ".ts", ".csv", ".jpeg", ".jpg", ".gif", ".png", ".tar", ".xlsx", ".xml", ".zip"]
@@ -911,10 +913,26 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                      if tool_call_id in self.running_tools: # already running in a parallel thread
                         continue
                      if self.tool_completion_status[run.id].get(tool_call_id,None) is not None:
-                        continue
+                        try:
+                           if tool_call_id in self.callback_closures:
+                              callback = self.callback_closures[tool_call_id]
+                              result = self.tool_completion_status[run.id][tool_call_id]
+                              print("Tool is done but results not submitted. Calling back again.")
+                              try:
+                                 callback(result)
+                                 print('callback result|',result,'|end_result')
+                              except Exception as e:
+                                 print('callback exception: ',e)
+                                 pass
+                              #time.sleep(1)
+                              continue
+                        except:
+                           print("Tool completed but callback failed. Running tool again.")
+                           pass
                      log_readable_payload = func_name+"("+func_args+")"
                      try:
                         callback_closure = self._generate_callback_closure(run, thread, tool_call_id, function_details)
+                        self.callback_closures[tool_call_id] = callback_closure
                      except Exception as e:
                         print(f"Failed to generate callback closure for run {run.id}, thread {thread.id}, tool_call_id {tool_call_id} with error: {e}")
                      self.running_tools[tool_call_id] = {"run_id": run.id, "thread_id": thread.id }

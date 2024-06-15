@@ -1,5 +1,6 @@
 from __future__ import annotations  # for python 9 support of | type operator
 from collections import deque
+import json
 import logging
 import requests
 from slack_bolt import App
@@ -83,6 +84,20 @@ class SlackBotAdapter(BotOsInputAdapter):
         #        if event.get("text","no text") != '_thinking..._' and self.bot_user_id != event.get("user","NO_USER") and event.get("subtype","none") != 'message_changed':
         #            self.events.append(event)
 
+            @self.slack_socket.action({"action_id": re.compile(".*")})
+            def handle_all_block_actions(ack, body, client):
+                ack()
+                logger.info(f"Block action received: {body}")
+                event = {}
+                event["text"] = f"Block action received: {body['actions']}"
+                event["user"] = body["user"]["id"]
+                event["thread_ts"] = body["message"]["thread_ts"]
+                event["ts"] = body["message"]["ts"]
+                event["channel_type"] = body["channel"]["name"]
+                event["channel"] = body["channel"]["id"]
+                with self.events_lock:
+                    self.events.append(event)
+            
             def run_slack_app():
                 handler = SocketModeHandler(self.slack_socket, slack_app_level_token)
                 handler.start()
@@ -387,6 +402,20 @@ class SlackBotAdapter(BotOsInputAdapter):
         else:
             return []
 
+    def _extract_slack_blocks(self, msg:str) -> list | None:
+        extract_pattern = re.compile(r'```(?:json|slack)(.*?)```', re.DOTALL)
+        json_matches = extract_pattern.findall(msg)
+        blocks = []
+        for json_match in json_matches:
+            try:
+                # Ensure to strip any leading/trailing whitespace or newlines that may affect json loading
+                msg_json = json.loads(json_match.strip())
+                if "blocks" in msg_json:
+                    blocks += msg_json["blocks"]
+            #except json.JSONDecodeError as e:
+            except Exception as e:
+                print("Failed to decode JSON:", e)
+        return blocks if blocks else None
 
     # abstract method from BotOsInputAdapter
     def handle_response(self, session_id:str, message:BotOsOutputMessage, in_thread=None, in_uuid=None, task_meta=None):
@@ -520,9 +549,10 @@ class SlackBotAdapter(BotOsInputAdapter):
 
 
           #      print("sending message to slack post url fixes:", msg)
+                blocks = self._extract_slack_blocks(msg)
                 if message.output == msg:
                     msg = msg.replace('!STREAM_START!', '').replace('!STREAM_DONE!', '')
-                    self.slack_app.client.chat_update(channel= message.input_metadata.get("channel",self.channel_id),ts = thinking_ts, text = msg )
+                    self.slack_app.client.chat_update(channel= message.input_metadata.get("channel",self.channel_id),ts = thinking_ts, text = msg, blocks = blocks )
                 else:
                     self.slack_app.client.chat_delete(channel= message.input_metadata.get("channel",self.channel_id),ts = thinking_ts)
                     msg = msg.replace('!STREAM_START!', '').replace('!STREAM_DONE!', '')
@@ -533,6 +563,7 @@ class SlackBotAdapter(BotOsInputAdapter):
                  )
             #    print("Result of sending message to Slack:", result)
                 # Replace patterns in msg with the appropriate format
+
 
                 # Utility function handles file uploads and logs errors internally
                 if thread_ts is not None:

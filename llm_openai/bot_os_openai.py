@@ -62,8 +62,8 @@ class StreamingEventHandler(AssistantEventHandler):
 #       print(f"{delta.value}")
       if self.run_id not in StreamingEventHandler.run_id_to_output_stream:
           StreamingEventHandler.run_id_to_output_stream[self.run_id] = "!STREAM_START!"
-      StreamingEventHandler.run_id_to_output_stream[self.run_id] += delta.value
-       #BotOsOutputMessage(thread_id=self.thread_id,  status='streaming',  output=delta.value,   messages=None,   input_metadata=self.metadata)
+      if delta is not None and isinstance(delta.value, str):
+         StreamingEventHandler.run_id_to_output_stream[self.run_id] += delta.value
 
    @override
    def on_end(self, ):
@@ -1017,13 +1017,14 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
                      if BotOsAssistantOpenAI.stream_mode == True and run.id in StreamingEventHandler.run_id_to_bot_assist:
                         msg = f':toolbox: _Using {func_name}_...\n'
-                        if StreamingEventHandler.run_id_to_output_stream[run.id].endswith('\n'):
-                            StreamingEventHandler.run_id_to_output_stream[run.id] += "\n"
-                        else:
-                            StreamingEventHandler.run_id_to_output_stream[run.id] += "\n\n"
+
                         if  StreamingEventHandler.run_id_to_output_stream.get(run.id,None) is not None:
-                            StreamingEventHandler.run_id_to_output_stream[run.id] += msg
-                            msg = StreamingEventHandler.run_id_to_output_stream[run.id]
+                           if StreamingEventHandler.run_id_to_output_stream.get(run.id,"").endswith('\n'):
+                              StreamingEventHandler.run_id_to_output_stream[run.id] += "\n"
+                           else:
+                              StreamingEventHandler.run_id_to_output_stream[run.id] += "\n\n"
+                           StreamingEventHandler.run_id_to_output_stream[run.id] += msg
+                           msg = StreamingEventHandler.run_id_to_output_stream[run.id]
                         event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id, 
                                                                            status=run.status, 
                                                                            output=msg,
@@ -1035,7 +1036,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
                   continue
                except Exception as e:
-                  print(f"check_runs - requires action - exception:{str(e)}")
+                  print(f"check_runs - requires action - exception:{e}")
                   try:
                      output = f"!!! Error making tool call, exception:{str(e)}"
                      event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id, 
@@ -1052,61 +1053,68 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
            
             elif run.status == "completed" and run.completed_at != thread_run["completed_at"]:
                messages = self.client.beta.threads.messages.list(thread_id=thread_id)
-               latest_message = messages.data[0]
-               latest_attachments = latest_message.attachments
 
-            #   print(f"{self.bot_name} open_ai response full content: {latest_message.content}", flush=True)
+               output_array = []
+               latest_attachments = []
 
-            #   print(f"{self.bot_name} open_ai response attachment info: {latest_message.attachments}", flush=True)
-               output = ""
-               for content in latest_message.content:
-                   if content.type == 'image_file':
-                     try:
-                        file_id = content.image_file.file_id if hasattr(content.image_file, 'file_id') else None
-                     #   print('openai image_file tag present, fileid: ',file_id)
-                        if file_id is not None and file_id not in latest_attachments:
-                           latest_attachments.append({"file_id": file_id})
-                     except Exception as e:
-                        print('openai error parsing image attachment ',e)
-                   if content.type == 'text':
-                       output += (content.text.value + "\n") if output else content.text.value
-               output = output.strip()  # Remove the trailing newline if it exists
-                #if output != '!NO_RESPONSE_REQUIRED':
-               if  StreamingEventHandler.run_id_to_output_stream.get(run.id,None) is not None:
-                  output = StreamingEventHandler.run_id_to_output_stream.get(run.id)
-               if True:
-                  if os.getenv('SHOW_COST', 'false').lower() == 'true':
-                     output += '  `'+"$"+str(round(run.usage.prompt_tokens/1000000*10+run.usage.completion_tokens/1000000*30,4))+'`'
-                  meta_prime = self.run_meta_map.get(run.id, None)
-                  if meta_prime is not None:
-                     meta = meta_prime
-                  else:
-                     meta = run.metadata
-                #  print(f"{self.bot_name} open_ai attachment info going into store files locally: {latest_attachments}", flush=True)
-                  files_in = self._store_files_locally(latest_attachments, thread_id)
+               for message in messages.data:
+
+                  output = ""
+                  if message.run_id is None or message.run_id != run.id:
+                     break
+
+                  latest_attachments.extend( message.attachments)
+
+                  for content in message.content:
+                     if content.type == 'image_file':
+                        try:
+                           file_id = content.image_file.file_id if hasattr(content.image_file, 'file_id') else None
+                        #   print('openai image_file tag present, fileid: ',file_id)
+                           if file_id is not None and file_id not in latest_attachments:
+                              latest_attachments.append({"file_id": file_id})
+                        except Exception as e:
+                           print('openai error parsing image attachment ',e)
+                     if content.type == 'text':
+                        output += (content.text.value + "\n") if output else content.text.value
+                  output = output.strip()  # Remove the trailing newline if it exists
+                  #if output != '!NO_RESPONSE_REQUIRED':
+            #      if  StreamingEventHandler.run_id_to_output_stream.get(run.id,None) is not None:
+            #         output = StreamingEventHandler.run_id_to_output_stream.get(run.id)
+                  if True:
+                     if os.getenv('SHOW_COST', 'false').lower() == 'true':
+                        output += '  `'+"$"+str(round(run.usage.prompt_tokens/1000000*10+run.usage.completion_tokens/1000000*30,4))+'`'
+                     meta_prime = self.run_meta_map.get(run.id, None)
+                     if meta_prime is not None:
+                        meta = meta_prime
+                     else:
+                        meta = run.metadata
+                  output_array.append(output)
+                  #  print(f"{self.bot_name} open_ai attachment info going into store files locally: {latest_attachments}", flush=True)
+               files_in = self._store_files_locally(latest_attachments, thread_id)
+               output = '\n'.join(reversed(output_array))
                 #  print(f"{self.bot_name} open_ai output of store files locally {files_in}")
-                  event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id, 
+               event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id, 
                                                                      status=run.status, 
                                                                      output=output, 
                                                                      messages=messages, 
                                                                      # UPDATE THIS FOR LOCAL FILE DOWNLOAD 
                                                                      files=files_in,
                                                                      input_metadata=meta))
-                  try:
-                     message_metadata = str(latest_message.content)
-                  except:
-                     message_metadata = "!error converting content to string"
-                  primary_user = json.dumps({'user_id': meta.get('user_id', 'Unknown User ID'), 
-                                 'user_name': meta.get('user_name', 'Unknown User')})
-                  self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id, 
-                                                                message_type='Assistant Response', message_payload=output, message_metadata=message_metadata,
-                                                                  tokens_in=run.usage.prompt_tokens, tokens_out=run.usage.completion_tokens, files=files_in,
-                                                                  channel_type=meta.get("channel_type", None), channel_name=meta.get("channel", None),
-                                                                  primary_user=primary_user)
-               threads_completed[thread_id] = run.completed_at
+               try:
+                  message_metadata = str(message.content)
+               except:
+                  message_metadata = "!error converting content to string"
+               primary_user = json.dumps({'user_id': meta.get('user_id', 'Unknown User ID'), 
+                              'user_name': meta.get('user_name', 'Unknown User')})
+               self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id, 
+                                                               message_type='Assistant Response', message_payload=output, message_metadata=message_metadata,
+                                                               tokens_in=run.usage.prompt_tokens, tokens_out=run.usage.completion_tokens, files=files_in,
+                                                               channel_type=meta.get("channel_type", None), channel_name=meta.get("channel", None),
+                                                               primary_user=primary_user)
+            threads_completed[thread_id] = run.completed_at
 
-            else:
-               logger.debug(f"check_runs - {thread_id} - {run.status} - {run.completed_at} - {thread_run['completed_at']}")
+         else:
+            logger.debug(f"check_runs - {thread_id} - {run.status} - {run.completed_at} - {thread_run['completed_at']}")
 
 
             # record completed runs.  FixMe: maybe we should rmeove from the map at some point?

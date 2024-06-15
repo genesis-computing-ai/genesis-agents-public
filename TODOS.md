@@ -6,11 +6,11 @@ THINGS TO TEST:
 JL- Update DDL harvest on other regions for baseball 2015 note, and check if Eliza sees it on a fresh install 
 
 POST-SUMMIT:
-fix the files output of this prompt: @Eve
+fix the files output of this prompt (image still doesnt show up): @Eve
  get the list of all bots and then make up a short 10 line poem using their names, make an illustration picture of the poem, and then save the poem and the illustration to bot files stage
 add resources needed to app spec 
-task to grant the workspaces to app_public periodically
-task to capture what is granted and then re-grant later if needed
+MR-task to grant the workspaces to app_public periodically
+MR-task to capture what is granted and then re-grant later if needed
 x make tool call re-submission stop when it gets "call already submitted" or "tool call deleted"
 x change to hybrid table for SiS streaming retrieval
 x for streaming get files out to work
@@ -21,19 +21,12 @@ make streaming mode not happen when using task system to run jobs, set a global 
 add a spinner or other indicator generation is still in progress on a message and have other bots ignore it until its done
 make sure other bots respond ok to messages that are via Edits vs net new posts from other bots that are streaming
 on task creation clarify if the task is recurring or one-time, asked to send a joke in 5 min and it started sending every 5 min
-cache access check results for some amount of time, flush if changed
+x cache access check results for some amount of time, flush if changed
 LAF support and test (June 19)
-Task to re-grant all things that have been previously granted and a table to track if needed
-MR - Workspace for each bot with database tools, granted to app_public
+x MR - Workspace for each bot with database tools, granted to app_public
 MR - make this work on multicase call GENESIS_LOCAL_DB.SETTINGS.grant_schema_usage_and_select_to_app('MY_DATA',$APP_DATABASE); (fix in SiS script)
 MR-SiS app will restart service is suspended (With pool) but doesnt wake up harvester, errors in SiS log harvest screen
-!!JL-Have on the fly bot instruction updates append the extra stuff:  
-    instructions = bot_config["bot_instructions"] + "\n" + BASE_BOT_INSTRUCTIONS_ADDENDUM
-    instructions += f'\nNote current settings:\nData source: {genesis_source}\nYour bot_id: {bot_config["bot_id"]}.\nRunner_id: {runner_id}'
-    if bot_config["slack_active"]=='Y' and global_flags.slack_active:
-        instructions += "\nYour slack user_id: "+bot_config["bot_slack_user_id"]
-    if "snowflake_stage_tools" in bot_tools and 'make_baby_bot' in bot_tools:        
-        instructions += f"\nYour Internal Files Stage for bots is at snowflake stage: {genbot_internal_project_and_schema}.BOT_FILES_STAGE"
+x JL-Have on the fly bot instruction updates append the extra stuff:  
 RV-(couple fixes) Add USERS field to messages log table to keep track of the users involved in a thread or dm
 Turn on MFA on accounts
 Have ability to give a bot its own oauth token or uid/pwd so it has its own RBAC

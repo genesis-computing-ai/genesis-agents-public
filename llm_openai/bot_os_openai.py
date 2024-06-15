@@ -8,8 +8,9 @@ import datetime
 import time 
 import logging
 import threading
+import core.global_flags as global_flags
 from core.bot_os_input import BotOsInputMessage, BotOsOutputMessage
-from core.bot_os_defaults import _BOT_OS_BUILTIN_TOOLS
+from core.bot_os_defaults import _BOT_OS_BUILTIN_TOOLS, BASE_BOT_INSTRUCTIONS_ADDENDUM
 # For Streaming
 from typing_extensions import override
 from openai import AssistantEventHandler
@@ -76,7 +77,7 @@ class StreamingEventHandler(AssistantEventHandler):
    @override
    def on_message_created(self, message: Message) -> None:
        self.run_id = message.run_id
-       print(f"\nassistant on_message_created > {message}\n", end="", flush=True)
+    #   print(f"\nassistant on_message_created > {message}\n", end="", flush=True)
    @override
    def on_message_done(self, message: Message) -> None:
        if self.run_id  in StreamingEventHandler.run_id_to_output_stream:
@@ -579,12 +580,33 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
             if new_instructions:
                
                target_bot = json.loads(function_call_details[0][1]).get('bot_id',None)
+               bot_details = func_response.get('new_bot_details',None)
+               if bot_details is not None:
+                   func_response.pop("new_bot_details", None)
+               
                if target_bot is not None:
                   my_assistants = self.client.beta.assistants.list(order="desc",limit=100)
                   my_assistants = [a for a in my_assistants if a.name == target_bot]
+
+                  instructions = new_instructions + "\n" + BASE_BOT_INSTRUCTIONS_ADDENDUM
+                  instructions += f'\nNote current settings:\nData source: {global_flags.source}\nYour bot_id: {bot_details["bot_id"]}.\n'
+                  if global_flags.runner_id is not None:
+                     instructions += f'Runner_id: {global_flags.runner_id}\n'
+                  if bot_details["slack_active"]=='Y' and global_flags.slack_active:
+                     instructions += "\nYour slack user_id: "+bot_details["bot_slack_user_id"]
+
+                  if "snowflake_stage_tools" in bot_details["available_tools"] and 'make_baby_bot' in bot_details["available_tools"]:        
+                     instructions += f"\nYour Internal Files Stage for bots is at snowflake stage: {global_flags.genbot_internal_project_and_schema}.BOT_FILES_STAGE"
+
+                  if "database_tools" in bot_details["available_tools"]:
+                     workspace_schema_name = f"{global_flags.project_id}.{target_bot}_WORKSPACE".replace('-', '_').upper()
+                     instructions += f"\nYou have a workspace schema created specifically for you named {workspace_schema_name} that the user can also access. You may use this schema for creating tables, views, and stages that are required when generating answers to data analysis questions. Only use this schema if asked to create an object. Always return the full location of the object."
+
                   for assistant in my_assistants:
-                     self.client.beta.assistants.update(assistant.id,instructions=new_instructions)
-                  logger.info(f"Bot instructions for {target_bot} updated: {new_instructions}")
+                     self.client.beta.assistants.update(assistant.id,instructions=instructions)
+                     
+                  print(f"Bot instructions for {target_bot} updated: {instructions}")
+                        
                   #new_response.pop("new_instructions", None)
 
          if function_call_details[0][0] == 'add_bot_files' and (func_response.get('success',False)==True or func_response.get('Success',False)==True):
@@ -814,10 +836,10 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
 #      for thread_id in self.thread_run_map:
       try:
-         if len(self.active_runs) > 0:
-            print('Active: ', self.active_runs)
+   #      if len(self.active_runs) > 0:
+   #         print('Active: ', self.active_runs)
          thread_id = self.active_runs.popleft()
-         print('popped: ', thread_id)
+   #      print('popped: ', thread_id)
 
       except IndexError:
          thread_id = None

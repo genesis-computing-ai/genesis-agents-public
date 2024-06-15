@@ -2447,11 +2447,13 @@ class SnowflakeConnector(DatabaseConnector):
             cursor.execute(update_query, (instructions, bot_id, runner_id))
             self.connection.commit()
             logger.info(f"Successfully updated bot_instructions for bot_id: {bot_id}")
+            bot_details = self.db_get_bot_details( project_id, dataset_name, bot_servicing_table, bot_id)
 
             return {
                 "success": True,
                 "Message": f"Successfully updated bot_instructions for bot_id: {bot_id}.",
-                "new_instructions": instructions
+                "new_instructions": instructions,
+                "new_bot_details": bot_details
             }
 
         except Exception as e:

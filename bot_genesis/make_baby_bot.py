@@ -773,14 +773,13 @@ def update_bot_instructions(bot_id, new_instructions=None, bot_instructions=None
             "error": f"New instructions not provided in new_instructions parameter."
         }
 
-
     if confirmed != 'CONFIRMED':
         current_instructions = bot_details.get('bot_instructions', '')
         return {
             "success": False,
             "message": f"Please confirm the change of instructions. Call this function again with new parameter confirmed=CONFIRMED to confirm this change.",
             "current_instructions": current_instructions,
-            "new_instructions": new_instructions
+            "new_instructions": new_instructions,
         }
 
     return bb_db_connector.db_update_bot_instructions(project_id=project_id, dataset_name=dataset_name, bot_servicing_table=bot_servicing_table, bot_id=bot_id, instructions=new_instructions, runner_id=runner_id)

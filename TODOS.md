@@ -6,15 +6,17 @@ THINGS TO TEST:
 JL- Update DDL harvest on other regions for baseball 2015 note, and check if Eliza sees it on a fresh install 
 
 POST-SUMMIT:
+fix the files output of this prompt: @Eve
+ get the list of all bots and then make up a short 10 line poem using their names, make an illustration picture of the poem, and then save the poem and the illustration to bot files stage
 add resources needed to app spec 
 task to grant the workspaces to app_public periodically
 task to capture what is granted and then re-grant later if needed
-make tool call re-submission stop when it gets "call already submitted" or "tool call deleted"
-change to hybrid table for SiS streaming retrieval
+x make tool call re-submission stop when it gets "call already submitted" or "tool call deleted"
+x change to hybrid table for SiS streaming retrieval
 x for streaming get files out to work
 x test read file from stage with streaming (error about empty run_id)
 generating 3 images in parallel only 2 displayed
-make streamlit work with streaming mode, and show tool calls
+x make streamlit work with streaming mode, and show tool calls
 make streaming mode not happen when using task system to run jobs, set a global for interactive mode or something at the assistant level 
 add a spinner or other indicator generation is still in progress on a message and have other bots ignore it until its done
 make sure other bots respond ok to messages that are via Edits vs net new posts from other bots that are streaming

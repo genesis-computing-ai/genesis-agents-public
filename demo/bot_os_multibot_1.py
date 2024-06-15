@@ -40,6 +40,7 @@ import core.global_flags as global_flags
 print("****** GENBOT VERSION 0.139a *******")
 
 runner_id = os.getenv('RUNNER_ID','jl-local-runner')
+global_flags.runner_id = runner_id
 print("Runner ID: ", runner_id )
 
 genbot_internal_project_and_schema = os.getenv('GENESIS_INTERNAL_DB_SCHEMA','None')
@@ -49,7 +50,9 @@ if genbot_internal_project_and_schema is not None:
     genbot_internal_project_and_schema = genbot_internal_project_and_schema.upper()
 db_schema = genbot_internal_project_and_schema.split('.')
 project_id = db_schema[0]
+global_flags.project_id = project_id
 dataset_name = db_schema[1]
+global_flags.genbot_internal_project_and_schema = genbot_internal_project_and_schema
 
 genesis_source = os.getenv('GENESIS_SOURCE',default="Snowflake")
 
@@ -65,8 +68,7 @@ else:    # Initialize BigQuery client
     connection_info = { "Connection_Type": "Snowflake" }
 db_adapter.ensure_table_exists()
 print("---> CONNECTED TO DATABASE:: ",genesis_source)
-
-
+global_flags.source = genesis_source
 #while True:
 #    prompt = input('> ')
 #    db_adapter.semantic_copilot(prompt, semantic_model='"!SEMANTIC"."GENESIS_TEST"."GENESIS_INTERNAL"."SEMANTIC_STAGE"."revenue.yaml"')

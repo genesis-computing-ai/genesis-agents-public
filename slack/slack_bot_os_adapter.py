@@ -436,6 +436,14 @@ class SlackBotAdapter(BotOsInputAdapter):
                   #      print(f"Pattern 0 found, attaching {local_path}")
                         files_in.append(local_path)
 
+                # Extract file paths from the message and add them to files_in array
+                task_pattern = re.compile(r'\[(.*?)\]\(./downloaded_files/thread_(.*?)/(.*?)\)')
+                task_matches = task_pattern.findall(msg)
+                for task_match in task_matches:
+                    local_task_path = f"./downloaded_files/thread_{task_match[1]}/{task_match[2]}"
+                    if local_task_path not in files_in:
+                        files_in.append(local_task_path)
+
 
                 # Extract file paths from the message and add them to files_in array
                 image_pattern = re.compile(r'\[.*?\]\((sandbox:/mnt/data/downloaded_files/.*?)\)')
@@ -464,7 +472,6 @@ class SlackBotAdapter(BotOsInputAdapter):
                     if local_file_path not in files_in:
                         files_in.append(local_file_path)
            #             print(f"Pattern 3 found, attaching {local_file_path}")
-
                 local_pattern = re.compile(r'!\[.*?\]\(\./downloaded_files/thread_(.*?)/(.+?)\)')
                 local_pattern_matches = local_pattern.findall(msg)
                 for local_match in local_pattern_matches:
@@ -507,6 +514,9 @@ class SlackBotAdapter(BotOsInputAdapter):
                 # just moved this back up here before the chat_update
                 pattern = re.compile(r'\[(.*?)\]\(sandbox:/mnt/data/downloaded_files/(.*?)/(.+?)\)')
                 msg = re.sub(pattern, r'<\2|\1>', msg)
+
+
+
 
 
           #      print("sending message to slack post url fixes:", msg)

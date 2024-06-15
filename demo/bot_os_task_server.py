@@ -35,6 +35,7 @@ print("****** GENBOT VERSION 0.139a *******")
 print("****** TASK AUTOMATION SERVER *******")
 runner_id = os.getenv('RUNNER_ID','jl-local-runner')
 print("Runner ID: ", runner_id )
+global_flags.runner_id = runner_id
 snowflake_secure_value = os.getenv('SNOWFLAKE_SECURE')
 #if snowflake_secure_value is not None:
 #    print("SNOWFLAKE_SECURE:", snowflake_secure_value)
@@ -56,6 +57,9 @@ if genbot_internal_project_and_schema is not None:
 db_schema = genbot_internal_project_and_schema.split('.')
 project_id = db_schema[0]
 dataset_name = db_schema[1]
+global_flags.project_id = project_id
+global_flags.genbot_internal_project_and_schema = genbot_internal_project_and_schema
+
 
 genesis_source = os.getenv('GENESIS_SOURCE',default="Snowflake")
 

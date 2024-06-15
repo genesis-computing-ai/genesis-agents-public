@@ -71,6 +71,7 @@ def _get_future_datetime(delta_string:str) -> datetime.datetime:
 class BotOsSession:
     last_annoy_refresh = datetime.datetime.now() 
     refresh_lock = False
+    clear_access_cache = False 
     def __init__(self, session_name: str, instructions=None, 
                  validation_instructions=None,
                  tools=None, available_functions=None, 
@@ -192,31 +193,31 @@ class BotOsSession:
             print(f"{self.bot_name} bot_os add_message access check for {self.bot_name} slack user: {user_id}", flush=True)
             input_message.metadata["user_authorized"] = 'TRUE'
             input_message.metadata["response_authorized"] = 'TRUE'
-            slack_user_access = self.log_db_connector.db_get_bot_access(self.bot_id).get('slack_user_allow')
-            if slack_user_access is not None:
-                allow_list = json.loads(slack_user_access)
-                if user_id not in allow_list:
-                    input_message.metadata["user_authorized"] = 'FALSE'
-                    if input_message.metadata.get("dm_flag",'FALSE')=='TRUE' or input_message.metadata.get("tagged_flag",'FALSE')=='TRUE':
-                        # add check for tagged or DMed otherwise process the message but tell it not to respond, and set input metadata to not respond and check that later at response time
-                        user_name = input_message.metadata.get('user_name',None)
-                        if len(allow_list) == 1 and allow_list[0] == "!BLOCK_ALL":
-                            input_message.msg = f'ERROR -- Access to this bot denied. User {user_name} can not interact with this bot because it is set to not allow ANY users on Slack to interact with it. Please politely tell the user to contact their Genesis Bots Administrator and ask them to ask the Eve bot to add their slack ID which is {user_id} added to the list of users this bot, bot_id {self.bot_id} can talk to.'    
+            if self.assistant_impl.user_allow_cache.get(user_id,False)==False:
+                slack_user_access = self.log_db_connector.db_get_bot_access(self.bot_id).get('slack_user_allow')
+                if slack_user_access is not None:
+                    allow_list = json.loads(slack_user_access)
+                    if user_id not in allow_list:
+                        input_message.metadata["user_authorized"] = 'FALSE'
+                        if input_message.metadata.get("dm_flag",'FALSE')=='TRUE' or input_message.metadata.get("tagged_flag",'FALSE')=='TRUE':
+                            # add check for tagged or DMed otherwise process the message but tell it not to respond, and set input metadata to not respond and check that later at response time
+                            user_name = input_message.metadata.get('user_name',None)
+                            if len(allow_list) == 1 and allow_list[0] == "!BLOCK_ALL":
+                                input_message.msg = f'ERROR -- Access to this bot denied. User {user_name} can not interact with this bot because it is set to not allow ANY users on Slack to interact with it. Please politely tell the user to contact their Genesis Bots Administrator and ask them to ask the Eve bot to add their slack ID which is {user_id} added to the list of users this bot, bot_id {self.bot_id} can talk to.'    
+                            else:
+                                input_message.msg = f'ERROR -- Access to this bot denied. User {user_name} is not on the list of users allowed to interact with this bot.  Please politely tell the user to contact their Genesis Bots Administrator and ask them to ask the Eve bot to add their slack ID which is {user_id} added to the list of users this bot, bot_id {self.bot_id} can talk to.'
                         else:
-                            input_message.msg = f'ERROR -- Access to this bot denied. User {user_name} is not on the list of users allowed to interact with this bot.  Please politely tell the user to contact their Genesis Bots Administrator and ask them to ask the Eve bot to add their slack ID which is {user_id} added to the list of users this bot, bot_id {self.bot_id} can talk to.'
-                    else:
-                        input_message.metadata["response_authorized"] = 'FALSE'
+                            input_message.metadata["response_authorized"] = 'FALSE'
+                if input_message.metadata["user_authorized"] == 'TRUE':
+                    self.assistant_impl.user_allow_cache[user_id] = True
 
         thread.add_message(input_message)
         #logger.debug(f'added message {input_message.msg}')
 
     def _validate_response(self, session_id:str, output_message:BotOsOutputMessage): #thread_id:str, status:str, output:str, messages:str, attachments:list):
-   #     logger.debug(f"_validate_response: {session_id} {output_message}")
-        if output_message.status != "completed":
-            pass
         thread = self.threads[output_message.thread_id]
-        if "genesis_reflect" in output_message.input_metadata and output_message.output.find("!COMPLETE") == -1 and output_message.output.find("!NEED_INPUT") == -1 and \
-            output_message.output != '!COMPLETE' and output_message.output != '!NEED_INPUT':
+        if output_message.status == "completed" and "genesis_reflect" in output_message.input_metadata and output_message.output.find("!COMPLETE") == -1 and output_message.output.find("!NEED_INPUT") == -1 and \
+            output_message.output != '!COMPLETE' and output_message.output != '!NEED_INPUT' :
           #  print(f'{self.bot_id} ****needs review: ',output_message.output)
             self.next_messages.append(BotOsInputMessage(thread_id=output_message.thread_id, 
                                                         msg=self.validation_instructions + self._retrieve_memories(output_message.output), 
@@ -243,9 +244,14 @@ class BotOsSession:
       #      self._check_task_list()
 
         # Execute validating messages
+
+        if self.assistant_impl.clear_access_cache:
+            BotOsSession.clear_access_cache = True
+            self.assistant_impl.clear_access_cache = False
+
         if self.next_messages:
             for message in self.next_messages:
-                self.add_message(message)
+                ret = self.add_message(message)
             self.next_messages.clear()
 
         self.assistant_impl.check_runs(self._validate_response)

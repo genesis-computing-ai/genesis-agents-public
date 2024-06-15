@@ -126,6 +126,10 @@ class BotOsServer:
                 print("Scheduler has been restarted.", flush=True)
                 insts = self.get_running_instances()
                 print(f"-=-=- Scheduler instances: {insts} / 100", flush=True)
+        if BotOsSession.clear_access_cache == True:
+            for s in self.sessions:
+                s.assistant_impl.user_allow_cache = {}
+            BotOsSession.clear_access_cache = False
         for s in self.sessions:
             try:
                 #import threading

@@ -51,7 +51,7 @@ class StreamingEventHandler(AssistantEventHandler):
        self.client = client
        self.metadata = metadata
        self.bot_assist = bot_assist
-      
+  
    @override
    def on_text_created(self, text) -> None:
        pass
@@ -223,6 +223,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       print("-> OpenAI Model == ",model_name)
       self.thread_run_map = {}
       self.active_runs = deque()
+      self.processing_runs = deque()
       self.bot_id = bot_id
       self.bot_name = bot_name
       self.file_storage = {}
@@ -239,7 +240,9 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       #logger.warn(f'yoyo mytools {my_tools}')
       self.my_tools = my_tools
       self.callback_closures = {}
-         
+      self.user_allow_cache = {}
+      self.clear_access_cache = False 
+    
       self.allowed_types_search = [".c", ".cs", ".cpp", ".doc", ".docx", ".html", ".java", ".json", ".md", ".pdf", ".php", ".pptx", ".py", ".rb", ".tex", ".txt", ".css", ".js", ".sh", ".ts"]
       self.allowed_types_code_i = [".c", ".cs", ".cpp", ".doc", ".docx", ".html", ".java", ".json", ".md", ".pdf", ".php", ".pptx", ".py", ".rb", ".tex", ".txt", ".css", ".js", ".sh", ".ts", ".csv", ".jpeg", ".jpg", ".gif", ".png", ".tar", ".xlsx", ".xml", ".zip"]
       self.run_meta_map = {}
@@ -440,6 +443,8 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       #logger.debug("BotOsAssistantOpenAI:add_message") 
       
       thread_id = input_message.thread_id
+      if thread_id in self.active_runs or thread_id in self.processing_runs:
+         return False
       if thread_id is None:
          raise(Exception("thread_id is None"))
       thread = self.client.beta.threads.retrieve(thread_id)
@@ -517,6 +522,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                                                     message_type='User Prompt', message_payload=input_message.msg, message_metadata=input_message.metadata, files=attachments,
                                                     channel_type=input_message.metadata.get("channel_type", None), channel_name=input_message.metadata.get("channel", None),
                                                     primary_user=primary_user)
+      return True
 
 
    def _submit_tool_outputs(self, run_id, thread_id, tool_call_id, function_call_details, func_response):
@@ -534,6 +540,8 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
             print(f'openai submit_tool_outputs string response converted call to JSON.')
 
       try:
+         if function_call_details[0][0] == '_modify_slack_allow_list' and (func_response.get('success',False)==True or func_response.get('Success',False)==True):
+            self.clear_access_cache = True
          if function_call_details[0][0] == 'add_new_tools_to_bot' and (func_response.get('success',False)==True or func_response.get('Success',False)==True):
             target_bot = json.loads(function_call_details[0][1]).get('bot_id',None)
             if target_bot is not None:
@@ -833,13 +841,12 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
       threads_completed = {}
       threads_still_pending = []
-
 #      for thread_id in self.thread_run_map:
       try:
-   #      if len(self.active_runs) > 0:
-   #         print('Active: ', self.active_runs)
          thread_id = self.active_runs.popleft()
-   #      print('popped: ', thread_id)
+         if thread_id in self.processing_runs:
+            return
+         self.processing_runs.append(thread_id)
 
       except IndexError:
          thread_id = None
@@ -1009,9 +1016,13 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                      self.validate_or_add_function(func_name)
 
                      if BotOsAssistantOpenAI.stream_mode == True and run.id in StreamingEventHandler.run_id_to_bot_assist:
-                        msg = f':toolbox: _Calling tool {func_name}_...\n'
+                        msg = f':toolbox: _Using {func_name}_...\n'
+                        if StreamingEventHandler.run_id_to_output_stream[run.id].endswith('\n'):
+                            StreamingEventHandler.run_id_to_output_stream[run.id] += "\n"
+                        else:
+                            StreamingEventHandler.run_id_to_output_stream[run.id] += "\n\n"
                         if  StreamingEventHandler.run_id_to_output_stream.get(run.id,None) is not None:
-                            StreamingEventHandler.run_id_to_output_stream[run.id] += "\n\n"+msg
+                            StreamingEventHandler.run_id_to_output_stream[run.id] += msg
                             msg = StreamingEventHandler.run_id_to_output_stream[run.id]
                         event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id, 
                                                                            status=run.status, 
@@ -1106,10 +1117,14 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
        #  try:
        #     thread_id = self.active_runs.popleft()
        #  except IndexError:
+         self.processing_runs.remove(thread_id)
          thread_id = None
             
       # put pending threads back on queue
       for thread_id in threads_still_pending:
          if thread_id not in self.active_runs:
              self.active_runs.append(thread_id)
+
+
+
             

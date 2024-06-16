@@ -267,14 +267,25 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
          vector_store_name = name + '_vectorstore'
          self.vector_store = self.create_vector_store(vector_store_name=vector_store_name, files=files)
          self.tool_resources = {"file_search": {"vector_store_ids": [self.vector_store]}}
-         self.assistant = self.client.beta.assistants.create(
-            name=name,
-            instructions=instructions,
-            tools=my_tools, # type: ignore
-            model=model_name,
-           # file_ids=self._upload_files(files) #FixMe: what if the file contents change?
-            tool_resources=self.tool_resources
-         )
+         if hasattr(files, 'urls') and files.urls is not None:
+            self.assistant = self.client.beta.assistants.create(
+               name=name,
+               instructions=instructions,
+               tools=my_tools, # type: ignore
+               model=model_name,
+            # file_ids=self._upload_files(files) #FixMe: what if the file contents change?
+               tool_resources=self.tool_resources
+            )
+         else:
+            my_tools = [tool for tool in my_tools if tool.get('type') != 'file_search']
+            self.assistant = self.client.beta.assistants.create(
+               name=name,
+               instructions=instructions,
+               tools=my_tools, # type: ignore
+               model=model_name,
+            # file_ids=self._upload_files(files) #FixMe: what if the file contents change?
+            )            
+
       elif len(my_assistants) > 0:
          self.assistant = my_assistants[0]
          try:
@@ -289,12 +300,20 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
             self.vector_store = self.create_vector_store(vector_store_name=vector_store_name, files=files)
             self.tool_resources = {"file_search": {"vector_store_ids": [self.vector_store.id]}}
 
-         self.client.beta.assistants.update(self.assistant.id,
+         if hasattr(files, 'urls') and files.urls is not None:
+            self.client.beta.assistants.update(self.assistant.id,
                                           instructions=instructions,
                                           tools=my_tools, # type: ignore
                                           model=model_name,
                                           tool_resources=self.tool_resources
                 )
+         else:
+            my_tools = [tool for tool in my_tools if tool.get('type') != 'file_search']
+            self.client.beta.assistants.update(self.assistant.id,
+                                          instructions=instructions,
+                                          tools=my_tools, # type: ignore
+                                          model=model_name,
+                )            
          self.first_message = True
          
       logger.debug(f"BotOsAssistantOpenAI:__init__: assistant.id={self.assistant.id}")
@@ -531,6 +550,10 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
       new_response = func_response
  
+  #    if function_call_details[0][0] == '_lookup_slack_user_id' and isinstance(func_response, str):
+  #          new_response = {"response": func_response}
+  #          func_response = new_response
+
       if isinstance(func_response, str):
          try:
             new_response = {"success": False, "message": func_response}

@@ -1,5 +1,7 @@
-from dotenv import load_dotenv
-load_dotenv()
+
+# JL commented out, doesnt work on Mac
+#from dotenv import load_dotenv
+#load_dotenv()
 
 import json
 import os

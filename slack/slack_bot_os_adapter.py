@@ -742,7 +742,7 @@ class SlackBotAdapter(BotOsInputAdapter):
    
         user_id = self.lookup_slack_user_id_real(user_name, thread_id)
         if not user_id.startswith("Error:"):
-            return user_id
+            return { "success": True, "User_id:": user_id }
         else:
             return "Error: unknown slack user.  Maybe use the list_all_bots function to see if its a bot?"
    

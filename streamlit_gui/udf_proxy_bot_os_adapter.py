@@ -24,7 +24,7 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
     def add_event(self, event):
         self.events.append(event)
 
-    def get_input(self):
+    def get_input(self, active=None, processing=None):
         if len(self.events) == 0:
             return None        
         try:

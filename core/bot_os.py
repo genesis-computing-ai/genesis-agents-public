@@ -32,7 +32,10 @@ class BotOsThread:
 
     def add_message(self, message:BotOsInputMessage):
         #logger.debug("BotOsThread:add message")
-        self.assistant_impl.add_message(message)
+        ret = self.assistant_impl.add_message(message)
+        if ret == False:
+            print('thread add_message: false return, run already going')
+            return ret
 
     def handle_response(self, session_id:str, output_message:BotOsOutputMessage):
         logger.debug("BotOsThread:handle_response")
@@ -211,7 +214,10 @@ class BotOsSession:
                 if input_message.metadata["user_authorized"] == 'TRUE':
                     self.assistant_impl.user_allow_cache[user_id] = True
 
-        thread.add_message(input_message)
+        ret = thread.add_message(input_message)
+        if ret == False:
+            print('bot os session add false - thread already running')
+            return False
         #logger.debug(f'added message {input_message.msg}')
 
     def _validate_response(self, session_id:str, output_message:BotOsOutputMessage): #thread_id:str, status:str, output:str, messages:str, attachments:list):
@@ -257,7 +263,8 @@ class BotOsSession:
         self.assistant_impl.check_runs(self._validate_response)
 
         for a in self.input_adapters:
-            input_message = a.get_input()
+            input_message = a.get_input(active=self.assistant_impl.active_runs, processing= self.assistant_impl.processing_runs)
+
             if input_message is None or input_message.msg == "":
                 continue
             # populate map
@@ -281,10 +288,18 @@ class BotOsSession:
            # input_message.metadata["input_uuid"] = input_message.input_uuid
             input_message.thread_id = out_thread
             
-            self.add_message(input_message)
+            if input_message is None or input_message.msg == "":
+                continue
+            ret = self.add_message(input_message)
+            if ret == False and input_message is not None:
+                is_bot = input_message.metadata.get('is_bot','TRUE')
+                if is_bot == 'FALSE':
+                    print('bot os message from human - thread already running - put back on queue..')
+                    print(input_message.metadata['event_ts'])
+                    a.add_back_event(input_message.metadata['event_ts'])
 
             logger.debug("execute completed")
-        # JL_TODO MOVE THIS TO BOT_OS_SERVER LOOP
+
         current_time = datetime.datetime.now()
         if (current_time - BotOsSession.last_annoy_refresh).total_seconds() > 120 and not BotOsSession.refresh_lock:
             BotOsSession.refresh_lock = True

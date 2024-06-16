@@ -3,6 +3,7 @@ from collections import deque
 import json
 import logging
 import requests
+import datetime
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 import os, time
@@ -47,13 +48,15 @@ class SlackBotAdapter(BotOsInputAdapter):
             signing_secret=signing_secret
         )
         self.channel_id = channel_id
-        self.slack_app.event("message")(self.handle_message_events_old)
+       # self.slack_app.event("message")(self.handle_message_events_old)
         self.handler = SlackRequestHandler(self.slack_app)
         self.events = deque()
         self.bot_user_id = bot_user_id
         self.user_info_cache = {}
         self.bot_name = bot_name
         self.last_message_id_dict = {} 
+        self.thinking_map = {}
+        self.events_map = {}
         
         self.events_lock =  threading.Lock()
 
@@ -66,16 +69,40 @@ class SlackBotAdapter(BotOsInputAdapter):
             # Define Slack event handlers
             @self.slack_socket.event("message")
             def handle_message_events(event, say):
-                txt = event.get("text","no text")[:30]
+                
+                if event.get('subtype',None) == 'message_changed':
+                    msg = event['message']['text']
+                    thread_ts = event['message']['thread_ts']
+                    user_id = event['message'].get("user","NO_USER")
+                    txt = msg[:30]
+                else:
+                    msg = event.get('text', '')
+                    thread_ts = event.get('thread_ts', event.get('ts', ''))
+                    user_id = event.get("user","NO_USER")
+                    txt = event.get("text","no text")[:30]
                 if len(txt) == 50:
                     txt = txt + "..."
-                if txt != 'no text' and txt != '_thinking..._' and txt[:10] != ':toolbox: ':
+                if msg != 'no text' and msg != '_thinking..._' and msg[:10] != ':toolbox: ':
                     print(f'{self.bot_name} slack_in {event.get("type","no type")[:50]}, queue len {len(self.events)+1}')
-                if self.bot_user_id == event.get("user","NO_USER"):
+                if self.bot_user_id == user_id:
                     self.last_message_id_dict[event.get("thread_ts",None)] = event.get("ts",None)
-                if event.get("text","no text") != '_thinking..._' and event.get("text","no text")[:10] != ':toolbox: ' and self.bot_user_id != event.get("user","NO_USER") and event.get("subtype","none") != 'message_changed' and event.get("subtype","none") != 'message_deleted':
+                # removed  event.get("subtype","none") != 'message_changed' to allow other bots to see streams from other bots
+                # may want to ignore messages that changed but have original timestamps more than 1 few minutes ago 
+                if not msg.endswith('💬') and not msg.endswith(':speech_balloon:') and msg != '_thinking..._' and msg[:10] != ':toolbox: ' and self.bot_user_id != user_id and event.get("subtype","none") != 'message_deleted':
                     with self.events_lock:
                         self.events.append(event)
+                        self.events_map[event.get("ts", None)] = {"event": event, "datetime": datetime.datetime.now().isoformat()}
+                        if random.randint(1, 100) == 1:
+                            current_time = datetime.datetime.now()
+                            thirty_minutes_ago = current_time - datetime.timedelta(minutes=30)
+                            for event_ts, event_info in list(self.events_map.items()):
+                                event_time = datetime.datetime.fromisoformat(event_info["datetime"])
+                                if event_time < thirty_minutes_ago:
+                                    del self.events_map[event_ts]
+                            for thinking_ts, thinking_info in list(self.thinking_map.items()):
+                                thinking_time = datetime.datetime.fromisoformat(thinking_info["datetime"])
+                                if thinking_time < thirty_minutes_ago:
+                                    del self.thinking_map[thinking_ts]
 
             @self.slack_socket.event("app_mention")
             def mention_handler(event, say):
@@ -110,6 +137,11 @@ class SlackBotAdapter(BotOsInputAdapter):
 
     def add_event(self, event):
         self.events.append(event)
+
+    def add_back_event(self, event_ts):
+        event = self.events_map.get(event_ts, {}).get("event", None)
+        if event is not None:
+            self.events.append(event)
 
     def handle_message_events_old(self, event, context, say, logger):
         logger.info(event)  # Log the event data (optional)
@@ -166,7 +198,7 @@ class SlackBotAdapter(BotOsInputAdapter):
         return files
 
     # abstract method from BotOsInputAdapter
-    def get_input(self) -> BotOsInputMessage|None:
+    def get_input(self, active=None, processing=None) -> BotOsInputMessage|None:
         #logger.info(f"SlackBotAdapter:get_input")
         files=[]
         
@@ -177,11 +209,20 @@ class SlackBotAdapter(BotOsInputAdapter):
                 event = self.events.popleft()
             except IndexError:
                 return None
+            
+        if event.get('subtype',None) == 'message_changed':
+            msg = event['message']['text']
+            thread_ts = event['message']['thread_ts']
+        else:
+            msg = event.get('text', '')
+            thread_ts = event.get('thread_ts', event.get('ts', ''))
 
-        msg = event.get('text', '')
+   #     if active is not None and processing is not None:
+   #         if thread_ts in active or thread_ts in processing:
+   #             self.events.append(event)
+   #             return None
 
         if msg.strip().lower() == "!delete":
-            thread_ts = event.get('thread_ts', event.get('ts', ''))
             last_message_id = self.last_message_id_dict.get(thread_ts)
             if last_message_id:
                 try:
@@ -196,7 +237,6 @@ class SlackBotAdapter(BotOsInputAdapter):
 
         if msg.strip().lower() == 'stop':
             # Remove the thread from the followed thread map if it exists
-            thread_ts = event.get('thread_ts', event.get('ts', ''))
             if (self.bot_user_id, thread_ts) in thread_ts_dict:
                 with meta_lock:
                     del thread_ts_dict[(self.bot_user_id, thread_ts)]
@@ -205,12 +245,14 @@ class SlackBotAdapter(BotOsInputAdapter):
 
         if msg == '_thinking..._' or msg[:10] == ':toolbox: ':
             return None
+        
+        if msg.endswith('💬') or msg.endswith(':speech_balloon:'):
+            return None
 
         if msg.startswith('_still running..._'):
             return None
 
         active_thread = False
-        thread_ts = event.get('thread_ts', event.get('ts', ''))
         channel_type = event.get('channel_type', '')
         
         #print(f"{uniq} {self.bot_name}-Looking for {(self.bot_user_id, thread_ts)}-Is in? {(self.bot_user_id, thread_ts) in thread_ts_dict}-Current keys in thread_ts_dict:", thread_ts_dict.keys())
@@ -240,14 +282,25 @@ class SlackBotAdapter(BotOsInputAdapter):
 #     
         channel = event.get('channel', '')
 
-        if os.getenv('THINKING_TOGGLE', 'true').lower() != 'false':
-            thinking_message = self.slack_app.client.chat_postMessage(
-                    channel   = channel, 
-                    thread_ts = thread_ts,
-                    text      = "_thinking..._")
-            thinking_ts = thinking_message["ts"]
+        # I dont think this works, perhaps remove it (its trying to map openai to slack thread ids thats why..)
+#        if active is not None and processing is not None:
+#            if thread_ts in active or thread_ts in processing:
+#                self.events.append(event)
+#                return None
+
+        if event['ts'] in self.thinking_map:
+            thinking_ts = self.thinking_map[event['ts']]['thinking_ts']
         else:
-            thinking_ts = None
+            if os.getenv('THINKING_TOGGLE', 'true').lower() != 'false':
+                print('***** MESSAGE=',msg)
+                thinking_message = self.slack_app.client.chat_postMessage(
+                        channel   = channel, 
+                        thread_ts = thread_ts,
+                        text      = "_thinking..._")
+                thinking_ts = thinking_message["ts"]
+                self.thinking_map[event.get("ts", None)] = {"thinking_ts": thinking_ts, "datetime": datetime.datetime.now().isoformat()}
+            else:
+                thinking_ts = None
 
         if 'files' in event:
         #    print(f"    --/DOWNLOAD> downloading files for ({self.bot_name}) ")
@@ -260,7 +313,10 @@ class SlackBotAdapter(BotOsInputAdapter):
         user_full_name = 'Unknown User'
         user_id = 'Unknown User ID'
         try:
-            user_id = event["user"]
+            if event.get('subtype',None) == 'message_changed':
+                user_id = event['message']['user']
+            else:
+                user_id = event["user"]
             if user_id not in self.user_info_cache:
                 try:
                     user_info = self.slack_app.client.users_info(user=user_id)
@@ -289,6 +345,10 @@ class SlackBotAdapter(BotOsInputAdapter):
             dmcheck_flag = 'TRUE'
         else:
             dmcheck_flag = 'FALSE'
+        if event.get('message',{}).get('bot_id',None) is not None:
+            is_bot = 'TRUE'
+        else:
+            is_bot = 'FALSE'
         if thinking_ts:
             metadata={"thread_ts": thread_ts,
                         "channel": channel,
@@ -297,7 +357,9 @@ class SlackBotAdapter(BotOsInputAdapter):
                         "user_id": user_id, 
                         "user_name": user_full_name,
                         "tagged_flag": tagged_flag,
-                        "dm_flag": dmcheck_flag}
+                        "dm_flag": dmcheck_flag,
+                        "is_bot": is_bot,
+                        "event_ts": event['ts']}
         else:
             metadata={"thread_ts": thread_ts,
                         "channel": channel,
@@ -305,7 +367,9 @@ class SlackBotAdapter(BotOsInputAdapter):
                         "user_id": user_id,
                         "user_name": user_full_name,
                         "tagged_flag": tagged_flag,
-                        "dm_flag": dmcheck_flag}
+                        "dm_flag": dmcheck_flag,
+                        "is_bot": is_bot,
+                        "event_ts": event['ts']}
  
         if dmcheck:
         # Check if this was the first message in the DM channel with the user
@@ -372,6 +436,14 @@ class SlackBotAdapter(BotOsInputAdapter):
                     thread_history_msg+= "\nTHE MESSAGE THAT YOU WERE JUST TAGGED ON AND SHOULD RESPOND TO IS:\n"
                     msg_with_user_and_id = f"{thread_history_msg}{msg_with_user_and_id}"
     
+      #  if active is not None and processing is not None:
+      #      if thread_ts in active or thread_ts in processing:
+      #          self.events.append(event)
+      #          return None
+
+        if is_bot == 'TRUE':
+            msg_with_user_and_id += '\n\nRESPONSE GUIDANCE: WARNING! THIS MESSAGE IS FROM ANOTHER BOT, YOU SHOULD PROBABLY NOT RESPOND. ONLY RESPOND TO IT IF IT IS SPECIFICALLY DIRECTED TO YOU, AND IF YOU HAVE NOT ALREADY PROVIDED A RESPONSE TO A SIMILAR MESSAGE IN THIS THREAD, AND IF THE THREAD DOES NOT SEEM TO BE IN A LOOP. RESPOND ONLY WITH !NO_RESPONSE_REQUIRED UNLESS 1) the message is directed to you, 2) you have not already answered a similar message, and 3) the thread does not seem to be in a loop.  Do NOT proactively suggest other things for the bot to do like you would with a human user.'
+
         return BotOsInputMessage(thread_id=thread_id, msg=msg_with_user_and_id, files=files, 
                                 metadata=metadata) 
     
@@ -420,6 +492,7 @@ class SlackBotAdapter(BotOsInputAdapter):
     # abstract method from BotOsInputAdapter
     def handle_response(self, session_id:str, message:BotOsOutputMessage, in_thread=None, in_uuid=None, task_meta=None):
         logger.debug(f"SlackBotAdapter:handle_response - {session_id} {message}")
+        thinking_ts = None
         try:
             thinking_ts = message.input_metadata.get("thinking_ts", None)
             if thinking_ts:
@@ -442,8 +515,11 @@ class SlackBotAdapter(BotOsInputAdapter):
         if message.input_metadata.get("response_authorized", 'TRUE') == 'FALSE':
             message.output = "!NO_RESPONSE_REQUIRED"
 
-        if message.output == "!NO_RESPONSE_REQUIRED":
+        if message.output.startswith("!NO_RESPONSE_REQUIRED"):
             print("Bot has indicated that no response will be posted to this thread.")
+            if thinking_ts is not None:
+                self.slack_app.client.chat_delete(channel= message.input_metadata.get("channel",self.channel_id),ts = thinking_ts)
+  
         else:
             try:
 
@@ -544,23 +620,23 @@ class SlackBotAdapter(BotOsInputAdapter):
                 pattern = re.compile(r'\[(.*?)\]\(sandbox:/mnt/data/downloaded_files/(.*?)/(.+?)\)')
                 msg = re.sub(pattern, r'<\2|\1>', msg)
 
-
-
-
-
           #      print("sending message to slack post url fixes:", msg)
                 blocks = self._extract_slack_blocks(msg)
-                if message.output == msg:
+                if message.output == msg and thinking_ts is not None:
                     msg = msg.replace('!STREAM_START!', '').replace('!STREAM_DONE!', '')
                     self.slack_app.client.chat_update(channel= message.input_metadata.get("channel",self.channel_id),ts = thinking_ts, text = msg, blocks = blocks )
                 else:
-                    self.slack_app.client.chat_delete(channel= message.input_metadata.get("channel",self.channel_id),ts = thinking_ts)
+                    if thinking_ts is not None:
+                        self.slack_app.client.chat_delete(channel= message.input_metadata.get("channel",self.channel_id),ts = thinking_ts)
                     msg = msg.replace('!STREAM_START!', '').replace('!STREAM_DONE!', '')
                     result = self.slack_app.client.chat_postMessage(
                      channel=message.input_metadata.get("channel", self.channel_id),
                      thread_ts=thread_ts,
                      text=msg 
-                 )
+                    )
+                    if message.input_metadata.get("thinking_ts", None) is None:
+                        message.input_metadata.thinking_ts = result.ts
+    
             #    print("Result of sending message to Slack:", result)
                 # Replace patterns in msg with the appropriate format
 

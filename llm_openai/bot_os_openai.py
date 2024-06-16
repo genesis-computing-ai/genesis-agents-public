@@ -519,14 +519,18 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       self.first_message = False 
       task_meta = input_message.metadata.pop('task_meta', None)
 
-      if BotOsAssistantOpenAI.stream_mode == True:
-         with self.client.beta.threads.runs.stream(
-            thread_id=thread.id,
-            assistant_id=self.assistant.id,
-            event_handler=StreamingEventHandler(self.client, thread.id, self.assistant.id, input_message.metadata, self),
-            metadata=input_message.metadata
-         ) as stream:
-            stream.until_done()
+      try:
+         if BotOsAssistantOpenAI.stream_mode == True:
+            with self.client.beta.threads.runs.stream(
+               thread_id=thread.id,
+               assistant_id=self.assistant.id,
+               event_handler=StreamingEventHandler(self.client, thread.id, self.assistant.id, input_message.metadata, self),
+               metadata=input_message.metadata
+            ) as stream:
+               stream.until_done()
+      except Exception as e:
+         print('... stream run exception: ',e)
+         return False
       else:
          run = self.client.beta.threads.runs.create(
             thread_id=thread.id, assistant_id=self.assistant.id, metadata=input_message.metadata)
@@ -883,7 +887,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                 #print(StreamingEventHandler.run_id_to_output_stream[run.id])
                 event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id, 
                                                                            status=run.status, 
-                                                                           output=StreamingEventHandler.run_id_to_output_stream[run.id], 
+                                                                           output=StreamingEventHandler.run_id_to_output_stream[run.id]+" 💬", 
                                                                            messages=None, 
                                                                            input_metadata=run.metadata))
             #logger.info(f"run.status {run.status} Thread: {thread_id}")
@@ -1103,15 +1107,15 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                   #if output != '!NO_RESPONSE_REQUIRED':
             #      if  StreamingEventHandler.run_id_to_output_stream.get(run.id,None) is not None:
             #         output = StreamingEventHandler.run_id_to_output_stream.get(run.id)
-                  if True:
-                     if os.getenv('SHOW_COST', 'false').lower() == 'true':
-                        output += '  `'+"$"+str(round(run.usage.prompt_tokens/1000000*10+run.usage.completion_tokens/1000000*30,4))+'`'
-                     meta_prime = self.run_meta_map.get(run.id, None)
-                     if meta_prime is not None:
-                        meta = meta_prime
-                     else:
-                        meta = run.metadata
+                  if os.getenv('SHOW_COST', 'false').lower() == 'true':
+                     output += '  `'+"$"+str(round(run.usage.prompt_tokens/1000000*10+run.usage.completion_tokens/1000000*30,4))+'`'
                   output_array.append(output)
+               meta_prime = self.run_meta_map.get(run.id, None)
+               if meta_prime is not None:
+                  meta = meta_prime
+               else:
+                  meta = run.metadata
+                  
                   #  print(f"{self.bot_name} open_ai attachment info going into store files locally: {latest_attachments}", flush=True)
                files_in = self._store_files_locally(latest_attachments, thread_id)
                output = '\n'.join(reversed(output_array))

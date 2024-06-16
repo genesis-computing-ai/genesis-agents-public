@@ -8,7 +8,7 @@ import queue
 import os
 import sys
 from openai import OpenAI
-from datetime import datetime
+from datetime import datetime, timedelta
 
 refresh_seconds = os.getenv("KNOWLEDGE_REFRESH_SECONDS", 60)
 refresh_seconds = int(refresh_seconds)
@@ -33,6 +33,7 @@ class KnowledgeServer:
     def producer(self):
         while True:
             # join inside snowflake
+            cutoff = (datetime.now() - timedelta(minutes=10)).strftime('%Y-%m-%d %H:%M:%S')
             query = f'''
                 WITH K AS (SELECT thread_id, max(last_timestamp) as last_timestamp FROM {self.db_connector.knowledge_table_name}
                     GROUP BY thread_id),
@@ -41,7 +42,7 @@ class KnowledgeServer:
                     HAVING count > 3)
                 SELECT M.thread_id, timestamp as timestamp, COALESCE(K.last_timestamp, DATE('2000-1-1')) as last_timestamp FROM M
                 LEFT JOIN K on M.thread_id = K.thread_id
-                WHERE timestamp > COALESCE(K.last_timestamp, DATE('2000-1-1'))'''
+                WHERE timestamp > COALESCE(K.last_timestamp, DATE('2000-1-1')) AND timestamp < TO_TIMESTAMP('{cutoff}')'''
             threads = self.db_connector.run_query(query)   
             for thread in threads:
                 thread_id = thread['THREAD_ID']
@@ -74,10 +75,10 @@ class KnowledgeServer:
             
             thread_id = thread['THREAD_ID']
             timestamp = thread['TIMESTAMP']
-            last_timestamp = thread['LAST_TIMESTAMP']
+            last_timestamp = thread['LAST_TIMESTAMP'].strftime('%Y-%m-%d %H:%M:%S')
 
             query = f"""SELECT * FROM {self.db_connector.message_log_table_name} 
-                        WHERE timestamp > TO_TIMESTAMP('{last_timestamp.strftime('%Y-%m-%d %H:%M:%S')}') AND
+                        WHERE timestamp > TO_TIMESTAMP('{last_timestamp}') AND
                         thread_id = '{thread_id}'
                         ORDER BY TIMESTAMP;""" 
             msg_log = self.db_connector.run_query(query)

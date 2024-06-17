@@ -76,7 +76,7 @@ def insert_images_from_directory(directory_path, conn):
     for filename in os.listdir(directory_path):
         if filename.endswith(".png") or filename.endswith(".jpg"):
             bot_name = os.path.splitext(filename)[0]
-            if bot_name in ['eve', 'eliza', 'stuart']:
+            if bot_name in ['eve', 'eliza', 'stuart', 'janice', 'sandy']:
                 bot_name = bot_name.capitalize()
             elif bot_name == 'G-g':
                 bot_name = 'Default'

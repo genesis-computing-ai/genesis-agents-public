@@ -237,6 +237,8 @@ class BotOsSession:
 #                txt += '...'
             try:
                 print(f'{self.bot_name} bot_os response, len={len(output_message.output)}', flush=True)
+                if len(output_message.output) == 0:
+                    pass
             except:
                 pass
         thread.handle_response(session_id, output_message )
@@ -263,8 +265,8 @@ class BotOsSession:
         self.assistant_impl.check_runs(self._validate_response)
 
         for a in self.input_adapters:
-            input_message = a.get_input(active=self.assistant_impl.active_runs, processing= self.assistant_impl.processing_runs)
 
+            input_message = a.get_input(thread_map=self.in_to_out_thread_map,active=self.assistant_impl.active_runs, processing= self.assistant_impl.processing_runs,done_map=self.assistant_impl.done_map)
             if input_message is None or input_message.msg == "":
                 continue
             # populate map

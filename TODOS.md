@@ -3,6 +3,7 @@ GENESIS BOT TODOS
 =================
 
 SOON:
+add check to only add an event message to a thread once, once its been successfully accepted
 Work more on bots talking to eachother cleanly in streaming mode
 x allow bots using streaming mode to talk to eachother
 x make sure other bots respond ok to messages that are via Edits vs net new posts from other bots that are streaming

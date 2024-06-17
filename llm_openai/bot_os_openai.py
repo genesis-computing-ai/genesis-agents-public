@@ -224,6 +224,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       self.thread_run_map = {}
       self.active_runs = deque()
       self.processing_runs = deque()
+      self.done_map = {}
       self.bot_id = bot_id
       self.bot_name = bot_name
       self.file_storage = {}
@@ -699,8 +700,8 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
           tool_outputs = [{'tool_call_id': output['tool_call_id'], 'output': 'Error! Total size of tool outputs too large to return to OpenAI, consider using tool paramaters that produce less raw data.'} for output in tool_outputs]
       try:
          if BotOsAssistantOpenAI.stream_mode == True:
-
-            meta =  StreamingEventHandler.run_id_to_metadata[run_id]
+ 
+            meta = StreamingEventHandler.run_id_to_metadata.get(run_id,None)
             with self.client.beta.threads.runs.submit_tool_outputs_stream(
                    thread_id=thread_id,
                    run_id=run_id,
@@ -716,6 +717,12 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
             )
             logger.debug(f"_submit_tool_outputs - {updated_run}")
             meta = updated_run.metadata
+         if thread_id not in self.active_runs:
+            self.active_runs.append(thread_id)
+         if thread_id in self.processing_runs:
+            self.processing_runs.remove(thread_id)
+       #  if thread_id in self.processing_runs:
+       #     self.processing_runs.remove(thread_id)
          primary_user = json.dumps({'user_id': meta.get('user_id', 'Unknown User ID'), 
                      'user_name': meta.get('user_name', 'Unknown User')})
          for tool_output in tool_outputs:
@@ -873,7 +880,8 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
          thread_id = self.active_runs.popleft()
          if thread_id in self.processing_runs:
             return
-         self.processing_runs.append(thread_id)
+         if thread_id not in self.processing_runs:
+            self.processing_runs.append(thread_id)
 
       except IndexError:
          thread_id = None
@@ -1079,6 +1087,9 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                      pass
            
             elif run.status == "completed" and run.completed_at != thread_run["completed_at"]:
+
+               self.done_map[run.metadata['event_ts']] = True
+
                messages = self.client.beta.threads.messages.list(thread_id=thread_id)
 
                output_array = []
@@ -1152,7 +1163,11 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
        #  try:
        #     thread_id = self.active_runs.popleft()
        #  except IndexError:
-         self.processing_runs.remove(thread_id)
+         if run.status != "requires_action":
+            if thread_id in self.processing_runs:
+               self.processing_runs.remove(thread_id)
+         else:
+            self.active_runs.append(thread_id)
          thread_id = None
             
       # put pending threads back on queue

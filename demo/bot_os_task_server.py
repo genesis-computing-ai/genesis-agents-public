@@ -204,7 +204,7 @@ def make_session(bot_config):
     else:
         pre_validation = ""
         post_validation= None
-    if os.getenv("BOT_BE_PROACTIVE", "True").lower() == "true":
+    if os.getenv("BOT_BE_PROACTIVE", "False").lower() == "true":
         proactive_instructions = BASE_BOT_PROACTIVE_INSTRUCTIONS
     else:
         proactive_instructions = ""

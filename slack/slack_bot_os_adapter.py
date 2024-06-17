@@ -57,6 +57,7 @@ class SlackBotAdapter(BotOsInputAdapter):
         self.last_message_id_dict = {} 
         self.thinking_map = {}
         self.events_map = {}
+        self.handled_events = {}
         
         self.events_lock =  threading.Lock()
 
@@ -68,18 +69,22 @@ class SlackBotAdapter(BotOsInputAdapter):
 
             # Define Slack event handlers
             @self.slack_socket.event("message")
-            def handle_message_events(event, say):
-                
+            def handle_message_events(ack, event, say):
+                ack()
+                # TODO, clear this after 30 min 
                 if event.get('subtype',None) == 'message_changed':
                     msg = event['message']['text']
                     thread_ts = event['message']['thread_ts']
                     user_id = event['message'].get("user","NO_USER")
                     txt = msg[:30]
                 else:
+      #              if self.handled_events.get(event['ts'],False) == True:
+      #                  return
                     msg = event.get('text', '')
                     thread_ts = event.get('thread_ts', event.get('ts', ''))
                     user_id = event.get("user","NO_USER")
                     txt = event.get("text","no text")[:30]
+       #             self.handled_events[event['ts']]=True
                 if len(txt) == 50:
                     txt = txt + "..."
                 if msg != 'no text' and msg != '_thinking..._' and msg[:10] != ':toolbox: ':
@@ -198,7 +203,7 @@ class SlackBotAdapter(BotOsInputAdapter):
         return files
 
     # abstract method from BotOsInputAdapter
-    def get_input(self, active=None, processing=None) -> BotOsInputMessage|None:
+    def get_input(self, thread_map=None, active=None, processing=None, done_map=None) -> BotOsInputMessage|None:
         #logger.info(f"SlackBotAdapter:get_input")
         files=[]
         
@@ -209,13 +214,33 @@ class SlackBotAdapter(BotOsInputAdapter):
                 event = self.events.popleft()
             except IndexError:
                 return None
-            
+
         if event.get('subtype',None) == 'message_changed':
             msg = event['message']['text']
             thread_ts = event['message']['thread_ts']
+            if event['previous_message']['text'] == msg:
+                done_map[event['ts']]=True
+                return None
         else:
             msg = event.get('text', '')
             thread_ts = event.get('thread_ts', event.get('ts', ''))
+
+        if thread_map is not None:
+            openai_thread = thread_map.get(thread_ts,None)
+
+        if done_map.get(event.get('ts', '')) == True:
+            print(f'*****!!! Resubmission zapped')
+            return
+
+        if thread_map is not None and processing is not None and active is not None:
+            if openai_thread in active or openai_thread in processing:
+                self.events.append(event)
+                return None
+
+        if event['ts'] in self.thinking_map:
+            input_message  = self.thinking_map[event['ts']]['input_message']
+            print(f'***** Resubmission {input_message.msg}')
+            return input_message
 
    #     if active is not None and processing is not None:
    #         if thread_ts in active or thread_ts in processing:
@@ -287,18 +312,16 @@ class SlackBotAdapter(BotOsInputAdapter):
 #            if thread_ts in active or thread_ts in processing:
 #                self.events.append(event)
 #                return None
-
-        if event['ts'] in self.thinking_map:
-            thinking_ts = self.thinking_map[event['ts']]['thinking_ts']
+        if False:
+            pass
         else:
             if os.getenv('THINKING_TOGGLE', 'true').lower() != 'false':
-                print('***** MESSAGE=',msg)
+                print(f'**** Thinking {self.bot_name} {thread_ts} msg={msg}')
                 thinking_message = self.slack_app.client.chat_postMessage(
                         channel   = channel, 
                         thread_ts = thread_ts,
                         text      = "_thinking..._")
                 thinking_ts = thinking_message["ts"]
-                self.thinking_map[event.get("ts", None)] = {"thinking_ts": thinking_ts, "datetime": datetime.datetime.now().isoformat()}
             else:
                 thinking_ts = None
 
@@ -391,7 +414,7 @@ class SlackBotAdapter(BotOsInputAdapter):
 
             # add here the summary of whats been going on recenly 
 
-        if (not indic and tag and not dmcheck) or (dmcheck and not indic):
+        if (event['ts'] != thread_ts) and (not indic and tag and not dmcheck) or (dmcheck and not indic):
         # Retrieve the first and the last up to 20 messages from the thread
             conversation_history = self.slack_app.client.conversations_replies(
                 channel=channel,
@@ -444,8 +467,12 @@ class SlackBotAdapter(BotOsInputAdapter):
         if is_bot == 'TRUE':
             msg_with_user_and_id += '\n\nRESPONSE GUIDANCE: WARNING! THIS MESSAGE IS FROM ANOTHER BOT, YOU SHOULD PROBABLY NOT RESPOND. ONLY RESPOND TO IT IF IT IS SPECIFICALLY DIRECTED TO YOU, AND IF YOU HAVE NOT ALREADY PROVIDED A RESPONSE TO A SIMILAR MESSAGE IN THIS THREAD, AND IF THE THREAD DOES NOT SEEM TO BE IN A LOOP. RESPOND ONLY WITH !NO_RESPONSE_REQUIRED UNLESS 1) the message is directed to you, 2) you have not already answered a similar message, and 3) the thread does not seem to be in a loop.  Do NOT proactively suggest other things for the bot to do like you would with a human user.'
 
-        return BotOsInputMessage(thread_id=thread_id, msg=msg_with_user_and_id, files=files, 
-                                metadata=metadata) 
+
+        bot_input_message =  BotOsInputMessage(thread_id=thread_id, msg=msg_with_user_and_id, files=files, metadata=metadata) 
+        
+        self.thinking_map[event.get("ts", None)] = {"input_message": bot_input_message, "datetime": datetime.datetime.now().isoformat()}
+
+        return bot_input_message
     
     def _upload_files(self, files:list[str], thread_ts:str, channel:str=None):
         if files:
@@ -515,7 +542,7 @@ class SlackBotAdapter(BotOsInputAdapter):
         if message.input_metadata.get("response_authorized", 'TRUE') == 'FALSE':
             message.output = "!NO_RESPONSE_REQUIRED"
 
-        if message.output.startswith("!NO_RESPONSE_REQUIRED"):
+        if "!NO_RESPONSE_REQUIRED" in message.output:
             print("Bot has indicated that no response will be posted to this thread.")
             if thinking_ts is not None:
                 self.slack_app.client.chat_delete(channel= message.input_metadata.get("channel",self.channel_id),ts = thinking_ts)

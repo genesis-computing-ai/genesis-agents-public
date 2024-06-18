@@ -641,13 +641,13 @@ class SlackBotAdapter(BotOsInputAdapter):
             message.output = "!NO_RESPONSE_REQUIRED"
 
         if "!NO_RESPONSE_REQUIRED" in message.output:
-            print("Bot has indicated that no response will be posted to this thread.")
-            if thinking_ts is not None:
-                self.slack_app.client.chat_delete(
-                    channel=message.input_metadata.get("channel", self.channel_id),
-                    ts=thinking_ts,
-                )
-
+            if not message.output.startswith('!NO_RESPONSE_REQUIRED'):
+                message.output = message.output.replace("!NO_RESPONSE_REQUIRED", "").strip()
+            else:
+                print("Bot has indicated that no response will be posted to this thread.")
+                if thinking_ts is not None:
+                    self.slack_app.client.chat_delete(channel= message.input_metadata.get("channel",self.channel_id),ts = thinking_ts)
+  
         else:
             try:
 

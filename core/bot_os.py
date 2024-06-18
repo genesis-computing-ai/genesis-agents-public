@@ -297,8 +297,11 @@ class BotOsSession:
                 is_bot = input_message.metadata.get('is_bot','TRUE')
                 if is_bot == 'FALSE':
                     print('bot os message from human - thread already running - put back on queue..')
-                    print(input_message.metadata['event_ts'])
-                    a.add_back_event(input_message.metadata['event_ts'])
+                    try:
+                        print(input_message.metadata['event_ts'])
+                        a.add_back_event(input_message.metadata['event_ts'])
+                    except:
+                        pass
 
             logger.debug("execute completed")
 

@@ -520,8 +520,9 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       self.first_message = False 
       task_meta = input_message.metadata.pop('task_meta', None)
 
-      try:
-         if BotOsAssistantOpenAI.stream_mode == True:
+      if BotOsAssistantOpenAI.stream_mode == True:
+         try:
+         
             with self.client.beta.threads.runs.stream(
                thread_id=thread.id,
                assistant_id=self.assistant.id,
@@ -529,9 +530,9 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                metadata=input_message.metadata
             ) as stream:
                stream.until_done()
-      except Exception as e:
-         print('... stream run exception: ',e)
-         return False
+         except Exception as e:
+            print('... Thread already running, putting event back on queue...')
+            return False
       else:
          run = self.client.beta.threads.runs.create(
             thread_id=thread.id, assistant_id=self.assistant.id, metadata=input_message.metadata)
@@ -1088,7 +1089,10 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
            
             elif run.status == "completed" and run.completed_at != thread_run["completed_at"]:
 
-               self.done_map[run.metadata['event_ts']] = True
+               try:
+                  self.done_map[run.metadata['event_ts']] = True
+               except:
+                  pass
 
                messages = self.client.beta.threads.messages.list(thread_id=thread_id)
 

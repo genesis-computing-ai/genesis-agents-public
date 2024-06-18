@@ -24,7 +24,7 @@ testing_functions = [
                     },
                     "test_scripts": {
                         "type": "object",
-                        "description": "A collection of  used to test one specific bot",
+                        "description": "A collection of scripts used to test bots",
                         "properties": {
                             "test_id": {
                                 "type": "string",

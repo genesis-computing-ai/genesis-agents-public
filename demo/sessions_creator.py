@@ -48,7 +48,7 @@ dataset_name = db_schema[1]
 genesis_source = os.getenv("GENESIS_SOURCE", default="Snowflake")
 
 
-def make_session(bot_config, db_adapter, bot_id_to_udf_adapter_map={}):
+def make_session(bot_config, db_adapter, bot_id_to_udf_adapter_map={}, stream_mode=False):
 
     # streamlit and slack launch todos:
     # add a flag for udf_enabled and slack_enabled to database
@@ -215,6 +215,7 @@ def make_session(bot_config, db_adapter, bot_id_to_udf_adapter_map={}):
             all_functions=all_functions,
             all_function_to_tool_map=all_function_to_tool_map,
             bot_id=bot_config["bot_id"],
+            stream_mode=stream_mode
         )
     except Exception as e:
         print("Session creation exception: ", e)
@@ -243,7 +244,7 @@ def make_session(bot_config, db_adapter, bot_id_to_udf_adapter_map={}):
 
 
 def create_sessions(
-    default_llm_engine, llm_api_key, db_adapter, bot_id_to_udf_adapter_map
+    default_llm_engine, llm_api_key, db_adapter, bot_id_to_udf_adapter_map, stream_mode=False
 ):
     # Fetch bot configurations for the given runner_id from BigQuery
     runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
@@ -259,7 +260,7 @@ def create_sessions(
         new_session, api_app_id, udf_adapter_local, slack_adapter_local = make_session(
             bot_config=bot_config,
             db_adapter=db_adapter,
-            bot_id_to_udf_adapter_map=bot_id_to_udf_adapter_map,
+            bot_id_to_udf_adapter_map=bot_id_to_udf_adapter_map,stream_mode=stream_mode
         )
         if new_session is not None:
             sessions.append(new_session)

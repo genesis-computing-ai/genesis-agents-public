@@ -1,6 +1,10 @@
 import json
 import os
-import requests, time
+import requests
+import time, datetime
+import sys
+import logging
+
 from flask import Flask, request, jsonify, make_response
 from core.bot_os import BotOsSession
 from core.bot_os_corpus import URLListFileCorpus
@@ -40,11 +44,9 @@ from bot_genesis.make_baby_bot import (
 # from auto_ngrok.auto_ngrok import launch_ngrok_and_update_bots
 from core.bot_os_task_input_adapter import TaskBotOsInputAdapter
 from connectors.snowflake_connector import SnowflakeConnector
-import json
-import time, datetime
-import sys
 
-import logging
+from demo.sessions_creator import create_sessions, make_session
+from auto_ngrok.auto_ngrok import launch_ngrok_and_update_bots
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -145,208 +147,6 @@ except Exception as e:
 
 
 ngrok_active = False
-
-
-def make_session(bot_config):
-
-    test_task_mode = os.getenv("TEST_TASK_MODE", "false").lower() == "true"
-
-    if test_task_mode and bot_config["bot_name"] != "Eliza":
-        return None, None, None, None
-    # streamlit and slack launch todos:
-    # add a flag for udf_enabled and slack_enabled to database
-    # launch them accordingly
-    # add a tool to deploy and un-deploy an existing to slack but keep it in the DB
-    # add multi-bot display to streamlit (tabs)
-    # add launch to slack button to streamlit
-    # add setup harvester button to streamlit
-
-    udf_enabled = bot_config.get("udf_active", "Y") == "Y"
-    slack_enabled = bot_config.get("slack_active", "Y") == "Y"
-    runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
-
-    if global_flags.slack_active is False and slack_enabled:
-        global_flags.slack_active = False
-
-    input_adapters = []
-
-    slack_adapter_local = None
-    if slack_enabled:
-        try:
-            app_level_token = bot_config.get("slack_app_level_key", None)
-
-            slack_adapter_local = SlackBotAdapter(
-                token=bot_config[
-                    "slack_app_token"
-                ],  # This should be the Slack App Token, adjust field name accordingly
-                signing_secret=bot_config[
-                    "slack_signing_secret"
-                ],  # Assuming the signing secret is the same for all bots, adjust if needed
-                channel_id=bot_config[
-                    "slack_channel_id"
-                ],  # Assuming the channel is the same for all bots, adjust if needed
-                bot_user_id=bot_config["bot_slack_user_id"],
-                bot_name=bot_config["bot_name"],
-                slack_app_level_token=app_level_token,
-                bolt_app_active=False,
-            )  # Adjust field name if necessary
-            input_adapters.append(slack_adapter_local)
-        except:
-            print(
-                f'Failed to create Slack adapter with the provided configuration for bot {bot_config["bot_name"]} '
-            )
-            logger.error(
-                f'Failed to create Slack adapter with the provided configuration for bot {bot_config["bot_name"]} '
-            )
-            return None, None, None, None
-
-    # tools
-    available_tools = get_available_tools()
-    if bot_config.get("available_tools", None) is not None:
-        bot_tools = json.loads(bot_config["available_tools"])
-    else:
-        bot_tools = []
-
-    # remove slack tools if Slack is not enabled for this bot
-    if not slack_enabled:
-        bot_tools = [tool for tool in bot_tools if tool != "slack_tools"]
-
-    tools, available_functions, function_to_tool_map = get_tools(
-        bot_tools, slack_adapter_local=slack_adapter_local, db_adapter=db_adapter
-    )
-    all_tools, all_functions, all_function_to_tool_map = get_tools(
-        available_tools, slack_adapter_local=slack_adapter_local, db_adapter=db_adapter
-    )
-
-    instructions = (
-        bot_config["bot_instructions"] + "\n" + BASE_BOT_INSTRUCTIONS_ADDENDUM
-    )
-    instructions += f'\nNote current settings:\nData source: {genesis_source}\nYour bot_id: {bot_config["bot_id"]}.\nRunner_id: {runner_id}'
-    if bot_config["slack_active"] == "Y" and global_flags.slack_active:
-        instructions += "\nYour slack user_id: " + bot_config["bot_slack_user_id"]
-
-    if "snowflake_stage_tools" in bot_tools and "make_baby_bot" in bot_tools:
-        instructions += f"\nYour Internal Files Stage for bots is at snowflake stage: {genbot_internal_project_and_schema}.BOT_FILES_STAGE.  This BOT_FILES_STAGE stage is ONLY in this particular database & schema."
-
-    # print(instructions, f'{bot_config["bot_name"]}, id: {bot_config["bot_id"]}' )
-
-    # TESTING UDF ADAPTER W/EVE and ELSA
-    # add a map here to track botid to adapter mapping
-
-    bot_id = bot_config["bot_id"]
-
-    # check if database_tools are in bot_tools
-    if "database_tools" in bot_tools:
-        # if so, create workspace schema
-        workspace_schema_name = f"{project_id}.{bot_id}_WORKSPACE".replace(
-            "-", "_"
-        ).upper()
-        instructions += f"\nYou have a workspace schema created specifically for you named {workspace_schema_name} that the user can also access. You may use this schema for creating tables, views, and stages that are required when generating answers to data analysis questions. Only use this schema if asked to create an object. Always return the full location of the object."
-
-    udf_adapter_local = None
-    if udf_enabled:
-        if bot_id in bot_id_to_udf_adapter_map:
-            udf_adapter_local = bot_id_to_udf_adapter_map[bot_id]
-        else:
-            udf_adapter_local = TaskBotOsInputAdapter()
-            bot_id_to_udf_adapter_map[bot_id] = udf_adapter_local
-        udf_adapter_local = TaskBotOsInputAdapter()
-        input_adapters.append(udf_adapter_local)
-
-    if os.getenv("BOT_DO_PLANNING_REFLECTION"):
-        pre_validation = BASE_BOT_PRE_VALIDATION_INSTRUCTIONS
-        post_validation = BASE_BOT_VALIDATION_INSTRUCTIONS
-    else:
-        pre_validation = ""
-        post_validation = None
-    if os.getenv("BOT_BE_PROACTIVE", "False").lower() == "true":
-        proactive_instructions = BASE_BOT_PROACTIVE_INSTRUCTIONS
-    else:
-        proactive_instructions = ""
-
-    try:
-        # print(f'tools: {tools}')
-        session = BotOsSession(
-            bot_config["bot_id"],
-            instructions=instructions + proactive_instructions + pre_validation,
-            validation_instructions=post_validation,
-            input_adapters=input_adapters,
-            knowledgebase_implementation=BotOsKnowledgeAnnoy_Metadata(
-                f"./kb_{bot_config['bot_id']}"
-            ),
-            file_corpus=(
-                URLListFileCorpus(json.loads(bot_config["files"]))
-                if bot_config["files"]
-                else None
-            ),
-            update_existing=True,
-            # include below line for Reka
-            # asistant_implementaion=BotOsAssistantReka,
-            log_db_connector=db_adapter,  # Ensure connection_info is defined or fetched appropriately
-            # tools=slack_tools + integration_tool_descriptions + [TOOL_FUNCTION_DESCRIPTION_WEBPAGE_DOWNLOADER],
-            tools=tools,
-            bot_name=bot_config["bot_name"],
-            available_functions=available_functions,
-            all_tools=all_tools,
-            all_functions=all_functions,
-            all_function_to_tool_map=all_function_to_tool_map,
-            bot_id=bot_config["bot_id"],
-        )
-    except Exception as e:
-        print("Session creation exception: ", e)
-        raise (e)
-    if os.getenv("BOT_BE_PROACTIVE", "FALSE").lower() == "true" and slack_adapter_local:
-        if not slack_adapter_local.channel_id:
-            logger.warn(
-                "not adding initial task - slack_adapter_local channel_id is null"
-            )
-        if not os.getenv("BOT_OS_MANAGER_NAME"):
-            logger.warn("not adding initial task - BOT_OS_MANAGER_NAME not set.")
-        else:
-            session._add_reminder(
-                f"Send a daily DM on slack to {os.getenv('BOT_OS_MANAGER_NAME')}, to see if there are any tasks for you to work on. Make some suggestions based on your role, tools and expertise. Respond to this only with !NO_RESPONSE and then mark the task complete.",
-                due_date_delta="1 minute",
-                is_recurring=True,
-                frequency="daily",
-                thread_id=session.create_thread(slack_adapter_local),
-            )
-    api_app_id = bot_config[
-        "api_app_id"
-    ]  # Adjust based on actual field name in bots_config
-
-    #  print('here: session: ',session)
-    return session, api_app_id, udf_adapter_local, slack_adapter_local
-
-
-def create_sessions(default_llm_engine, llm_api_key):
-    # Fetch bot configurations for the given runner_id from BigQuery
-    runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
-
-    bots_config = get_all_bots_full_details(runner_id=runner_id)
-    sessions = []
-    api_app_id_to_session_map = {}
-    bot_id_to_udf_adapter_map = {}
-    bot_id_to_slack_adapter_map = {}
-
-    for bot_config in bots_config:
-        print(f'Making session for bot {bot_config["bot_id"]}')
-        new_session, api_app_id, udf_adapter_local, slack_adapter_local = make_session(
-            bot_config=bot_config
-        )
-        if new_session is not None:
-            sessions.append(new_session)
-            api_app_id_to_session_map[api_app_id] = new_session
-            if slack_adapter_local is not None:
-                bot_id_to_slack_adapter_map[bot_config["bot_id"]] = slack_adapter_local
-            if udf_adapter_local is not None:
-                bot_id_to_udf_adapter_map[bot_config["bot_id"]] = udf_adapter_local
-
-    return (
-        sessions,
-        api_app_id_to_session_map,
-        bot_id_to_udf_adapter_map,
-        bot_id_to_slack_adapter_map,
-    )
 
 
 ##########################
@@ -467,7 +267,13 @@ if llm_api_key is not None:
         api_app_id_to_session_map,
         bot_id_to_udf_adapter_map,
         bot_id_to_slack_adapter_map,
-    ) = create_sessions(default_llm_engine, llm_api_key)
+    ) = create_sessions(
+        default_llm_engine,
+        llm_api_key,
+        db_adapter,
+        bot_id_to_udf_adapter_map,
+        stream_mode=False,
+    )
 else:
     # wait to collect API key from Streamlit user, then make sessions later
     pass
@@ -980,7 +786,13 @@ def configure_llm():
                 api_app_id_to_session_map,
                 bot_id_to_udf_adapter_map,
                 bot_id_to_slack_adapter_map,
-            ) = create_sessions(llm_api_key, default_llm_engine)
+            ) = create_sessions(
+                default_llm_engine,
+                llm_api_key,
+                db_adapter,
+                bot_id_to_udf_adapter_map,
+                stream_mode=False,
+            )
             server = BotOsServer(
                 app,
                 sessions=sessions,
@@ -1110,7 +922,10 @@ def bot_install_followup(bot_id=None, no_slack=False):
         if no_slack:
             bot_config["slack_active"] = "N"
         new_session, api_app_id, udf_local_adapter, slack_adapter_local = make_session(
-            bot_config=bot_config
+            bot_config=bot_config,
+            db_adapter=db_adapter,
+            bot_id_to_udf_adapter_map={},
+            stream_mode=False,
         )
         # check new_session
         if new_session is None:

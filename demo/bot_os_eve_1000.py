@@ -42,7 +42,7 @@ session.add_task("Check in with your manager to see if they have tasks for you t
 app = Flask(__name__)
 
 scheduler = BackgroundScheduler({'apscheduler.job_defaults.max_instances': 20, 'apscheduler.job_defaults.coalesce': True}) # wish we could move this inside BotOsServer
-server = BotOsServer(app, sessions=[session], scheduler=scheduler, scheduler_seoconds_interval=1)
+server = BotOsServer(app, sessions=[session], scheduler=scheduler, scheduler_seconds_interval=1)
 
 @app.route('/slack/events',  methods=['POST'])
 @app.route('/',              methods=['POST'])

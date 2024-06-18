@@ -3,8 +3,9 @@ GENESIS BOT TODOS
 =================
 
 SOON:
-add check to only add an event message to a thread once, once its been successfully accepted
-Work more on bots talking to eachother cleanly in streaming mode
+x put use and bot names in messages next to tags, so the bots know who is who 
+x add check to only add an event message to a thread once, once its been successfully accepted
+x Work more on bots talking to eachother cleanly in streaming mode
 x allow bots using streaming mode to talk to eachother
 x make sure other bots respond ok to messages that are via Edits vs net new posts from other bots that are streaming
 fix the files output of this prompt (image still doesnt show up, or stage save doesnt work): @Eve

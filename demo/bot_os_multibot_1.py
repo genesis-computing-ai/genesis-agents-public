@@ -213,9 +213,6 @@ if llm_api_key is not None:
         llm_api_key,
         db_adapter,
         bot_id_to_udf_adapter_map,
-        default_llm_engine,
-        llm_api_key,
-        db_adapter,
         bot_id_to_udf_adapter_map,
         stream_mode=True,
     )
@@ -734,10 +731,6 @@ def configure_llm():
                 bot_id_to_udf_adapter_map,
                 SystemVariables.bot_id_to_slack_adapter_map,
             ) = create_sessions(
-                llm_api_key,
-                default_llm_engine,
-                db_adapter,
-                bot_id_to_udf_adapter_map,
                 llm_api_key,
                 default_llm_engine,
                 db_adapter,

@@ -213,7 +213,6 @@ if llm_api_key is not None:
         llm_api_key,
         db_adapter,
         bot_id_to_udf_adapter_map,
-        bot_id_to_udf_adapter_map,
         stream_mode=True,
     )
 else:

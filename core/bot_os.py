@@ -302,6 +302,13 @@ class BotOsSession:
                         a.add_back_event(input_message.metadata['event_ts'])
                     except:
                         pass
+                else:
+                    print('bot os message from bot - thread already running - put back on queue..')
+                    try:
+                        print(input_message.metadata['event_ts'])
+                        a.add_back_event(input_message.metadata['event_ts'])
+                    except:
+                        pass                   
 
             logger.debug("execute completed")
 

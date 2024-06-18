@@ -53,6 +53,7 @@ import threading
 from core.system_variables import SystemVariables
 
 from demo.sessions_creator import create_sessions, make_session
+from demo.sessions_creator import create_sessions, make_session
 
 # for Cortex testing
 # os.environ['SIMPLE_MODE'] = 'true'
@@ -208,6 +209,11 @@ if llm_api_key is not None:
         bot_id_to_udf_adapter_map,
         SystemVariables.bot_id_to_slack_adapter_map,
     ) = create_sessions(
+        default_llm_engine,
+        llm_api_key,
+        db_adapter,
+        bot_id_to_udf_adapter_map,
+        stream_mode=True,
         default_llm_engine,
         llm_api_key,
         db_adapter,
@@ -734,6 +740,11 @@ def configure_llm():
                 db_adapter,
                 bot_id_to_udf_adapter_map,
                 stream_mode=True,
+                llm_api_key,
+                default_llm_engine,
+                db_adapter,
+                bot_id_to_udf_adapter_map,
+                stream_mode=True,
             )
             server = BotOsServer(
                 app,
@@ -870,7 +881,7 @@ def bot_install_followup(bot_id=None, no_slack=False):
         new_session, api_app_id, udf_local_adapter, slack_adapter_local = make_session(
             bot_config=bot_config,
             db_adapter=db_adapter,
-            bot_id_to_udf_adapter_map={},
+            bot_id_to_udf_adapter_map=bot_id_to_udf_adapter_map,
             stream_mode=True,
         )
         # check new_session

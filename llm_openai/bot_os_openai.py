@@ -319,6 +319,18 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
          
       logger.debug(f"BotOsAssistantOpenAI:__init__: assistant.id={self.assistant.id}")
 
+   @override
+   def is_active(self) -> bool:
+      return self.active_runs
+   
+   @override
+   def is_processing_runs(self) -> bool:
+      return self.processing_runs
+
+   @override
+   def get_done_map(self) -> dict:
+      return self.done_map
+
    @staticmethod
    def load_by_name(name: str):
       return BotOsAssistantOpenAI(name, update_existing=False)

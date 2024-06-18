@@ -253,7 +253,7 @@ class BotOsSession:
 
         # Execute validating messages
 
-        if self.assistant_impl.clear_access_cache:
+        if hasattr(self.assistant_impl, 'clear_access_cache') and self.assistant_impl.clear_access_cache:
             BotOsSession.clear_access_cache = True
             self.assistant_impl.clear_access_cache = False
 
@@ -266,11 +266,12 @@ class BotOsSession:
 
         for a in self.input_adapters:
 
-            input_message = a.get_input(thread_map=self.in_to_out_thread_map,active=self.assistant_impl.active_runs, processing= self.assistant_impl.processing_runs,done_map=self.assistant_impl.done_map)
+            input_message = a.get_input(thread_map=self.in_to_out_thread_map,active=self.assistant_impl.is_active(), processing= self.assistant_impl.is_processing_runs(),done_map=self.assistant_impl.get_done_map())
             if input_message is None or input_message.msg == "":
                 continue
             # populate map
             #out_thread = self.in_to_out_thread_map.get(input_message.thread_id,None)
+            
             out_thread = self.in_to_out_thread_map.get(input_message.thread_id,None)
          
             if out_thread is None:

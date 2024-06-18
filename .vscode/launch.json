@@ -59,6 +59,23 @@
             ],
             "jinja": true,
             "justMyCode": true
+        },
+        {
+            "name": "Streamlit: GENESIS_BOTS_ALPHA",
+            "type": "python",
+            "request": "launch",
+            "module": "streamlit",
+            "args": [
+                "run",
+                "streamlit_gui/streamlit_sis_v1.py",
+                "--server.port",
+                "8501"
+            ],
+            // "env": {
+            //     "GENESIS_INTERNAL_DB_SCHEMA": "YOUR_DB_SCHEMA_HERE"
+            // },
+            "jinja": true,
+            "justMyCode": true
         }
 
     ]

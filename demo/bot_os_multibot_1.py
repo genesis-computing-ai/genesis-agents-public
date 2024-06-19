@@ -871,7 +871,7 @@ def bot_install_followup(bot_id=None, no_slack=False):
             bot_config=bot_config,
             db_adapter=db_adapter,
             bot_id_to_udf_adapter_map=bot_id_to_udf_adapter_map,
-            stream_mode=False,
+            stream_mode=True,
         )
         # check new_session
         if new_session is None:

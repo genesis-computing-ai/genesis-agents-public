@@ -314,11 +314,12 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                             LEFT(concatenated_payload, 16000)
                         from input as i
                         join threads on i.thread_id = threads.thread_id
-        
+                        where i.message_type = 'User Prompt'
         """
         try:
             cursor = self.client.connection.cursor()
             start_time = time.time()
+            logger.info(f"BotOsAssistantSnowflakeCortex:update_threads -- update_query = {update_query}")
             cursor.execute(update_query)
             self.client.connection.commit()
             elapsed_time = time.time() - start_time

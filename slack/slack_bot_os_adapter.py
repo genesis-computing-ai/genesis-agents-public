@@ -409,7 +409,20 @@ class SlackBotAdapter(BotOsInputAdapter):
             else:
                 user_full_name = self.user_info_cache[user_id]
 
-            msg_with_user_and_id = f"{user_full_name} ({user_id}): {msg}"
+            user_ids_in_message = re.findall(r"<@(\w+)>", msg)
+            for uid in user_ids_in_message:
+                if uid not in self.user_info_cache:
+                    try:
+                        user_info = self.slack_app.client.users_info(user=uid)
+                        self.user_info_cache[uid] = user_info["user"]["real_name"]
+                    except:
+                        try:
+                            self.user_info_cache[uid] = user_info["user"]["profile"]["real_name"]
+                        except:
+                            self.user_info_cache[uid] = uid
+                msg = msg.replace(f"<@{uid}>", f"<@{uid}({self.user_info_cache[uid]})>")
+
+            msg_with_user_and_id = f"<@{user_id}({user_full_name})> says: {msg}"
         except Exception as e:
             print(f"    --NOT A USER MESSAGE, SKIPPING {e} ")
             # not a user message

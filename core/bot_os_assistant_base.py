@@ -32,6 +32,19 @@ class BotOsAssistantInterface:
     def check_runs(self, event_callback):
         pass
 
+    @abstractmethod
+    def is_active(self) -> bool:
+        pass
+
+    @abstractmethod
+    def is_processing_runs(self) -> bool:
+        pass
+
+    @abstractmethod
+    def get_done_map(self) -> dict:
+        pass
+
+
 def execute_function_blocking(func_name:str, arguments:dict, available_functions:dict):
     """
     run a specified function in the foreground

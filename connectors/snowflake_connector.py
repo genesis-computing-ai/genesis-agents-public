@@ -20,6 +20,7 @@ from threading import Lock
 import base64
 import requests
 import re
+from schema_explorer.semantic_tools import modify_semantic_model
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.WARN, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -1037,7 +1038,7 @@ class SnowflakeConnector(DatabaseConnector):
                 bot_id += ''.join(random.choices(string.ascii_letters + string.digits, k=6))
                 bot_name = "Eve"
                 bot_instructions = BASE_EVE_BOT_INSTRUCTIONS
-                available_tools = '["slack_tools", "make_baby_bot", "snowflake_stage_tools", "image_tools", "harvester_tools", "autonomous_functions"]'
+                available_tools = '["slack_tools", "make_baby_bot", "snowflake_stage_tools", "image_tools", "harvester_tools", "autonomous_tools"]'
                 udf_active = "Y"
                 slack_active = "N"
                 bot_intro_prompt = EVE_INTRO_PROMPT
@@ -1057,7 +1058,7 @@ class SnowflakeConnector(DatabaseConnector):
                 bot_id += ''.join(random.choices(string.ascii_letters + string.digits, k=6))
                 bot_name = "Eliza"
                 bot_instructions = ELIZA_DATA_ANALYST_INSTRUCTIONS
-                available_tools = '["slack_tools", "database_tools", "snowflake_stage_tools", "image_tools", "autonomous_functions"]'
+                available_tools = '["slack_tools", "database_tools", "snowflake_stage_tools", "image_tools", "autonomous_tools"]'
                 udf_active = "Y"
                 slack_active = "N"
                 bot_intro_prompt = ELIZA_INTRO_PROMPT
@@ -1077,7 +1078,7 @@ class SnowflakeConnector(DatabaseConnector):
       #          bot_id += ''.join(random.choices(string.ascii_letters + string.digits, k=6))
       #          bot_name = "Stuart"
       #          bot_instructions = STUART_DATA_STEWARD_INSTRUCTIONS
-      #          available_tools = '["slack_tools", "database_tools", "snowflake_stage_tools", "snowflake_semantic_tools", "image_tools", "autonomous_functions"]'
+      #          available_tools = '["slack_tools", "database_tools", "snowflake_stage_tools", "snowflake_semantic_tools", "image_tools", "autonomous_tools"]'
       #          udf_active = "Y"
       #          slack_active = "N"
       #          bot_intro_prompt = STUART_INTRO_PROMPT
@@ -1248,7 +1249,7 @@ class SnowflakeConnector(DatabaseConnector):
                     ('snowflake_stage_tools', 'Read, update, write, list, and delete from Snowflake Stages including Snowflake Semantic Models.'),
                     ('snowflake_semantic_tools', 'Create and modify Snowflake Semantic Models'),
                     ('image_tools', 'Tools to interpret visual images and pictures'),
-                    ('autonomous_functions','Tools for bots to create and managed autonomous tasks'),
+                    ('autonomous_tools','Tools for bots to create and managed autonomous tasks'),
                ]
                 insert_tools_query = f"""
                 INSERT INTO {self.available_tools_table_name} (TOOL_NAME, TOOL_DESCRIPTION)
@@ -4236,4 +4237,30 @@ def test_stage_functions():
     else:
         print("Error: 'tostage.txt' is still present in the stage.")
 
+def db_remove_bot_tools(self, project_id=None, dataset_name=None, bot_servicing_table=None, bot_id=None, updated_tools_str=None, tools_to_be_removed=None, invalid_tools=None, updated_tools=None):
 
+        # Query to update the available_tools in the database
+        update_query = f"""
+            UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
+            SET available_tools = %s
+            WHERE upper(bot_id) = upper(%s)
+        """
+
+        # Execute the update query
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute(update_query, (updated_tools_str, bot_id))
+            self.connection.commit()
+            logger.info(f"Successfully updated available_tools for bot_id: {bot_id}")
+
+            return {
+                "success": True,
+                "removed": tools_to_be_removed,
+                "invalid tools": invalid_tools,
+                "all_bot_tools": updated_tools
+            }
+
+        except Exception as e:
+            logger.error(f"Failed to remove tools from bot_id: {bot_id} with error: {e}")
+            return {"success": False, "error": str(e)}
+     

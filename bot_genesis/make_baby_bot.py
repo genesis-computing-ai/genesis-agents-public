@@ -1352,6 +1352,30 @@ MAKE_BABY_BOT_DESCRIPTIONS.append({
         }
     }
 })
+MAKE_BABY_BOT_DESCRIPTIONS.append({
+    "type": "function",
+    "function": {
+        "name": "remove_tools_from_bot",
+        "description": "Removes tools from an existing bot's available_tools list if they are not already present. It is ok to use this to grant tools to yourself if directed.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "bot_id": {
+                    "type": "string",
+                    "description": "The unique identifier for the bot.  Use list_all_bots function if you are unsure of the bot_id."
+                },
+                "remove_tools": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "description": "A list of new tool names to add to the bot.  Use get_available_tools function to know whats available."
+                }
+            },
+            "required": ["bot_id", "remove_tools"]
+        }
+    }
+})
 
 MAKE_BABY_BOT_DESCRIPTIONS.append({
     "type": "function",
@@ -1487,6 +1511,7 @@ make_baby_bot_tools["add_bot_files"] = "bot_genesis.make_baby_bot.add_bot_files"
 make_baby_bot_tools["update_app_level_key"] = "bot_genesis.make_baby_bot.update_slack_app_level_key"
 make_baby_bot_tools["update_bot_implementation"] = "bot_genesis.make_baby_bot.update_bot_implementation"
 make_baby_bot_tools["_modify_slack_allow_list"] = "bot_genesis.make_baby_bot.modify_slack_allow_list"
+make_baby_bot_tools["remove_tools_from_bot"] = "bot_genesis.make_baby_bot.remove_tools_from_bot"
 
 # internal functions
 
@@ -1601,4 +1626,42 @@ def update_slack_bot_endpoint(bot_id, api_app_id, request_url, redirect_url, sla
 
 
 #update_bot_endpoints(new_base_url='https://9942-141-239-172-58.ngrok-free.app',runner_id='jl-local-runner')
+
+def remove_tools_from_bot(bot_id, remove_tools):
+    """
+    Remove existing tools from an existing bot's available_tools list if they are present.
+
+    Args:
+        bot_id (str): The unique identifier for the bot.
+        remove_tools (list): A list of tool names to remove from the bot.
+
+    Returns:
+        dict: A dictionary containing the current tool list.
+    """
+    # Retrieve the current available tools for the bot
+    available_tools_list = bb_db_connector.db_get_available_tools(project_id=project_id, dataset_name=dataset_name)
+    available_tool_names = [tool['tool_name'] for tool in available_tools_list]
+    print(bot_id, remove_tools)
+    
+    # Check if all tools are in the list of available tools
+    invalid_tools = [tool for tool in remove_tools if tool not in available_tool_names]
+    if invalid_tools:
+        return {"success": False, "error": f"The following tools are not available: {', '.join(invalid_tools)}. The available tools are {available_tool_names}."}
+    
+    bot_details = get_bot_details(bot_id)
+    if not bot_details:
+        logger.error(f"Bot with ID {bot_id} not found.")
+        return {"success": False, "error": "Bot not found."}
+
+    current_tools_str = bot_details.get('available_tools', '[]')
+    current_tools = json.loads(current_tools_str) if current_tools_str else []
+
+    # Determine which tools are present and can be removed
+    updated_tools_list = [tool for tool in current_tools if tool not in remove_tools]
+    invalid_tools = [tool for tool in remove_tools if tool not in current_tools]
+
+    # Update the available_tools in the database
+    updated_tools_str = json.dumps(updated_tools_list)
+
+    return bb_db_connector.db_remove_bot_tools(project_id=project_id,dataset_name=dataset_name,bot_servicing_table=bot_servicing_table, bot_id=bot_id, updated_tools_str=updated_tools_str, tools_to_be_removed=remove_tools, invalid_tools=invalid_tools, updated_tools=updated_tools_list)
 

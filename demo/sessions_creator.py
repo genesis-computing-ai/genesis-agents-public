@@ -24,6 +24,7 @@ from bot_genesis.make_baby_bot import (
 )
 
 from streamlit_gui.udf_proxy_bot_os_adapter import UDFBotOsInputAdapter
+from core.bot_os_task_input_adapter import TaskBotOsInputAdapter
 
 import logging
 
@@ -48,7 +49,14 @@ dataset_name = db_schema[1]
 genesis_source = os.getenv("GENESIS_SOURCE", default="Snowflake")
 
 
-def make_session(bot_config, db_adapter, bot_id_to_udf_adapter_map={}, stream_mode=False):
+def make_session(
+    bot_config, db_adapter, bot_id_to_udf_adapter_map={}, stream_mode=False
+):
+
+    if not stream_mode:
+        test_task_mode = os.getenv("TEST_TASK_MODE", "false").lower() == "true"
+        if test_task_mode and bot_config["bot_name"] != "Eliza":
+            return None, None, None, None
 
     # streamlit and slack launch todos:
     # add a flag for udf_enabled and slack_enabled to database
@@ -72,20 +80,37 @@ def make_session(bot_config, db_adapter, bot_id_to_udf_adapter_map={}, stream_mo
         try:
             app_level_token = bot_config.get("slack_app_level_key", None)
 
-            slack_adapter_local = SlackBotAdapter(
-                token=bot_config[
-                    "slack_app_token"
-                ],  # This should be the Slack App Token, adjust field name accordingly
-                signing_secret=bot_config[
-                    "slack_signing_secret"
-                ],  # Assuming the signing secret is the same for all bots, adjust if needed
-                channel_id=bot_config[
-                    "slack_channel_id"
-                ],  # Assuming the channel is the same for all bots, adjust if needed
-                bot_user_id=bot_config["bot_slack_user_id"],
-                bot_name=bot_config["bot_name"],
-                slack_app_level_token=app_level_token,
-            )  # Adjust field name if necessary
+            if stream_mode:
+                slack_adapter_local = SlackBotAdapter(
+                    token=bot_config[
+                        "slack_app_token"
+                    ],  # This should be the Slack App Token, adjust field name accordingly
+                    signing_secret=bot_config[
+                        "slack_signing_secret"
+                    ],  # Assuming the signing secret is the same for all bots, adjust if needed
+                    channel_id=bot_config[
+                        "slack_channel_id"
+                    ],  # Assuming the channel is the same for all bots, adjust if needed
+                    bot_user_id=bot_config["bot_slack_user_id"],
+                    bot_name=bot_config["bot_name"],
+                    slack_app_level_token=app_level_token,
+                )  # Adjust field name if necessary
+            else:
+                slack_adapter_local = SlackBotAdapter(
+                    token=bot_config[
+                        "slack_app_token"
+                    ],  # This should be the Slack App Token, adjust field name accordingly
+                    signing_secret=bot_config[
+                        "slack_signing_secret"
+                    ],  # Assuming the signing secret is the same for all bots, adjust if needed
+                    channel_id=bot_config[
+                        "slack_channel_id"
+                    ],  # Assuming the channel is the same for all bots, adjust if needed
+                    bot_user_id=bot_config["bot_slack_user_id"],
+                    bot_name=bot_config["bot_name"],
+                    slack_app_level_token=app_level_token,
+                    bolt_app_active=False,  # This line added for task_server i.e. not stream mode!
+                )  # Adjust field name if necessary
             input_adapters.append(slack_adapter_local)
         except:
             print(
@@ -124,7 +149,7 @@ def make_session(bot_config, db_adapter, bot_id_to_udf_adapter_map={}, stream_mo
     )
 
     simple_mode = os.getenv("SIMPLE_MODE", "false").lower() == "true"
-    if simple_mode:
+    if simple_mode and stream_mode:  # stream mode is for multibot, not task mode
         print("SIMPLE MODE TOOLS OVERRIDE *** ")
         # Code to execute in simple mode
         tools = [
@@ -148,8 +173,10 @@ def make_session(bot_config, db_adapter, bot_id_to_udf_adapter_map={}, stream_mo
 
     if "snowflake_stage_tools" in bot_tools and "make_baby_bot" in bot_tools:
         instructions += f"\nYour Internal Files Stage for bots is at snowflake stage: {genbot_internal_project_and_schema}.BOT_FILES_STAGE"
+        if not stream_mode:
+            instructions += ". This BOT_FILES_STAGE stage is ONLY in this particular database & schema."
 
-    if simple_mode:
+    if simple_mode and stream_mode:
         instructions = "You are a smart data analyst named Eliza. Use emojiis to express your fun personality. You have access to 2 tools, semantic_copilot to get SQL for a natural language prompt, and run_query to execute the sql you get. Use lots of emojis to express your personality. Return data grids and sql statements in three backticks example: ``` <data> or <sql> ```. DO NOT HALUCINATE tool calls or results of tools."
 
     # print(instructions, f'{bot_config["bot_name"]}, id: {bot_config["bot_id"]}' )
@@ -163,12 +190,16 @@ def make_session(bot_config, db_adapter, bot_id_to_udf_adapter_map={}, stream_mo
         if bot_id in bot_id_to_udf_adapter_map:
             udf_adapter_local = bot_id_to_udf_adapter_map[bot_id]
         else:
-            udf_adapter_local = UDFBotOsInputAdapter()
+            udf_adapter_local = (
+                UDFBotOsInputAdapter() if stream_mode else TaskBotOsInputAdapter()
+            )
             bot_id_to_udf_adapter_map[bot_id] = udf_adapter_local
-        udf_adapter_local = UDFBotOsInputAdapter()
+        udf_adapter_local = (
+            UDFBotOsInputAdapter() if stream_mode else TaskBotOsInputAdapter()
+        )
         input_adapters.append(udf_adapter_local)
 
-    if True:  # os.getenv("BOT_DO_PLANNING_REFLECTION"):
+    if stream_mode or os.getenv("BOT_DO_PLANNING_REFLECTION"):
         pre_validation = BASE_BOT_PRE_VALIDATION_INSTRUCTIONS
         post_validation = BASE_BOT_VALIDATION_INSTRUCTIONS
     else:
@@ -179,18 +210,24 @@ def make_session(bot_config, db_adapter, bot_id_to_udf_adapter_map={}, stream_mo
     else:
         proactive_instructions = ""
 
-    if (
-        "bot_implementation" in bot_config
-        and bot_config["bot_implementation"] == "cortex"
-    ):
-        assistant_implementation = BotOsAssistantSnowflakeCortex
-    else:
-        assistant_implementation = BotOsAssistantOpenAI
-    if os.getenv("SIMPLE_MODE", "false").lower() == "true":
-        assistant_implementation = BotOsAssistantSnowflakeCortex
-    # assistant_implementation = BotOsAssistantOpenAI
+    if stream_mode:
+        if (
+            "bot_implementation" in bot_config
+            and bot_config["bot_implementation"] == "cortex"
+        ):
+            assistant_implementation = BotOsAssistantSnowflakeCortex
+        else:
+            assistant_implementation = BotOsAssistantOpenAI
+
+        if os.getenv("SIMPLE_MODE", "false").lower() == "true":
+            assistant_implementation = BotOsAssistantSnowflakeCortex
+        # assistant_implementation = BotOsAssistantOpenAI
+
     try:
         # print(f'tools: {tools}')
+        asst_impl = (
+            assistant_implementation if stream_mode else None
+        )  # test this - may need separate BotOsSession call for stream mode
         session = BotOsSession(
             bot_config["bot_id"],
             instructions=instructions + proactive_instructions + pre_validation,
@@ -205,7 +242,7 @@ def make_session(bot_config, db_adapter, bot_id_to_udf_adapter_map={}, stream_mo
                 else None
             ),
             update_existing=True,
-            assistant_implementation=assistant_implementation,
+            assistant_implementation=asst_impl,
             log_db_connector=db_adapter,  # Ensure connection_info is defined or fetched appropriately
             # tools=slack_tools + integration_tool_descriptions + [TOOL_FUNCTION_DESCRIPTION_WEBPAGE_DOWNLOADER],
             tools=tools,
@@ -215,7 +252,7 @@ def make_session(bot_config, db_adapter, bot_id_to_udf_adapter_map={}, stream_mo
             all_functions=all_functions,
             all_function_to_tool_map=all_function_to_tool_map,
             bot_id=bot_config["bot_id"],
-            stream_mode=stream_mode
+            stream_mode=stream_mode,
         )
     except Exception as e:
         print("Session creation exception: ", e)
@@ -244,7 +281,11 @@ def make_session(bot_config, db_adapter, bot_id_to_udf_adapter_map={}, stream_mo
 
 
 def create_sessions(
-    default_llm_engine, llm_api_key, db_adapter, bot_id_to_udf_adapter_map, stream_mode=False
+    default_llm_engine,
+    llm_api_key,
+    db_adapter,
+    bot_id_to_udf_adapter_map,
+    stream_mode=False,
 ):
     # Fetch bot configurations for the given runner_id from BigQuery
     runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
@@ -260,7 +301,8 @@ def create_sessions(
         new_session, api_app_id, udf_adapter_local, slack_adapter_local = make_session(
             bot_config=bot_config,
             db_adapter=db_adapter,
-            bot_id_to_udf_adapter_map=bot_id_to_udf_adapter_map,stream_mode=stream_mode
+            bot_id_to_udf_adapter_map=bot_id_to_udf_adapter_map,
+            stream_mode=stream_mode,
         )
         if new_session is not None:
             sessions.append(new_session)

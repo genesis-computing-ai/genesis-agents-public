@@ -12,8 +12,6 @@ def create_empty_semantic_model(model_name="", model_description=""):
 
 # Usage of the function
 
-
-
 def convert_model_to_yaml(json_model):
     """
     Convert the JSON representation of the semantic model to YAML format.
@@ -566,12 +564,12 @@ def suggest_improvements(semantic_model):
 
 
 # Test the function
-for _ in range(1):
-    semantic_json = create_empty_semantic_model('Test Data')
-    semantic_json = test_modify_semantic_model(semantic_json)
-    print(convert_model_to_yaml(semantic_json))
-    print('\nSuggestions:')
-    suggestions = suggest_improvements(semantic_json)
+#for _ in range(1):
+#    semantic_json = create_empty_semantic_model('Test Data')
+#    semantic_json = test_modify_semantic_model(semantic_json)
+#    print(convert_model_to_yaml(semantic_json))
+#    print('\nSuggestions:')
+#    suggestions = suggest_improvements(semantic_json)
 
 
 
@@ -651,7 +649,7 @@ def get_semantic_model(model_name, thread_id):
 
 
 
-print("Test completed successfully.")
+#print("Test completed successfully.")
 
 #yaml_model = convert_model_to_yaml(semantic_json)
 #print(yaml_model)

@@ -247,6 +247,7 @@ class SlackBotAdapter(BotOsInputAdapter):
         return files
 
     # abstract method from BotOsInputAdapter
+    
     def get_input(
         self, thread_map=None, active=None, processing=None, done_map=None
     ) -> BotOsInputMessage | None:

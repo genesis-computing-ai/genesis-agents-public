@@ -106,8 +106,8 @@ def create_func_wrapper(function, func_name):
 def execute_function(func_name:str, arguments, available_functions, completion_callback, thread_id:str,
                      bot_id:str):
     print(f"fn execute_function - {func_name}")
-    function = available_functions.get(func_name)
-    if function:
+    function = available_functions.get(func_name,None)
+    if function is not None:
         s_arguments = json.loads(arguments)
         try:
             if "dispatch_bot_id" in function.__code__.co_varnames: # FixMe: expose this as a tool arg that can be set by the AI
@@ -129,7 +129,8 @@ def execute_function(func_name:str, arguments, available_functions, completion_c
         except Exception as e:
             completion_callback(f"caught exception {str(e)} trying to run {func_name}")
     else:
-        completion_callback(f"Error function {func_name} does not exist")
+        completion_callback(f"!FN_MISSING - Error function {func_name} does not exist for bot {bot_id}.\nAvailable functions, len:\n{len(available_functions)}")
+
 
 class BotOsAssistantTester(BotOsAssistantInterface):
     def __init__(self, name:str, instructions:str, tools:list[dict], available_functions:dict, 

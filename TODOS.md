@@ -3,6 +3,10 @@ GENESIS BOT TODOS
 =================
 
 SOON:
+x Move available_functions (all_functions) to a central object and log it and monitor it
+(added logging on output submission) when calling a single tool like search metadata they dont respond
+JL-Folder of files upload 
+JL-Mistral harvester
 MR-task to grant the workspaces to app_public periodically
 MR-task to capture what is granted and then re-grant later if needed
 MR - make this work on multicase call GENESIS_LOCAL_DB.SETTINGS.grant_schema_usage_and_select_to_app('MY_DATA',$APP_DATABASE); (fix in SiS script)
@@ -56,19 +60,19 @@ n (later) Make thread map save to local database to survive container restart
 n (later) Encrypt all secrete and change col names
 
 PERSISTANCY TOPIC:
-1. have it proactively suggest tasks to do if it doesn't have enough, and recurring ones, and bootstrap ones
-4. give it a tool to see what else its been talking about with that person and with other people
-Add knowledged of past and parallel conversations, and a tool to get past transcriptips
+x 1. have it proactively suggest tasks to do if it doesn't have enough, and recurring ones, and bootstrap ones
+RV-4. give it a tool to see what else its been talking about with that person and with other people
+TV-Add knowledged of past and parallel conversations, and a tool to get past transcriptips
 Have it proactively suggest future tasks
 Haves bots reach out to you to see if you need help
 
 BIG THINGS:
-(in progress) Semantic CoPilot tools, Semantic model creation and maintenance, related demos, add to Elsa flows and to metadata search results
-Memory system: revamp and improve (go beyond simple RAG, back to KB?, post-chat capture, ongoing refinement, local indexing)
+x Semantic CoPilot tools, Semantic model creation and maintenance, related demos, add to Elsa flows and to metadata search results
+TRV-Memory system: revamp and improve (go beyond simple RAG, back to KB?, post-chat capture, ongoing refinement, local indexing)
 More advanced tool generation and testing system, and with Zapier hooks via Zapier API 
 Data engineering use case: define it and make it really work and be robust, with Iceberg migration as a core real-world-needed example
 Reflect/Validation: revamp and rework to allow bots to review/revise/critique their work autonomously before presenting to the user (maybe spawn critique threads)
-Allow a bot session to reason over all of its threads (e.g., should be able to ask Eve on Streamlit about what she is doing in one of her Slack threads)
+RV-Allow a bot session to reason over all of its threads (e.g., should be able to ask Eve on Streamlit about what she is doing in one of her Slack threads)
 Wrap snow_udf as a sdk to be integrated within python apps like State Street Alpha
 Bot health monitoring
 Bot cost management, reporting, optimization

@@ -501,7 +501,7 @@ class SnowflakeConnector(DatabaseConnector):
         action = action.upper()
 
         if action == 'CREATE':
-            return {"Success": False, "Confirmation_Needed": "Please reconfirm all the task details with the user, then call this function again with the action CREATE_CONFIRMED to actually create the task.", "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"} 
+            return {"Success": False, "Confirmation_Needed": "Please reconfirm all the task details with the user, then call this function again with the action CREATE_CONFIRMED to actually create the task.   Make sure to be clear in the action_trigger_details field whether the task is to be triggered one time, or if it is ongoing and recurring.", "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"} 
  
         if action == 'CREATE_CONFIRMED':
             action = 'CREATE'

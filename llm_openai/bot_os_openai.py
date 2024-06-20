@@ -211,6 +211,7 @@ class StreamingEventHandler(AssistantEventHandler):
 class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
    stream_mode = False
+   all_functions_backup = None
 
    def __init__(self, name:str, instructions:str, 
                 tools:list[dict] = {}, available_functions={}, files=[], 
@@ -231,6 +232,8 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       self.available_functions = available_functions
       self.all_tools = all_tools
       self.all_functions = all_functions
+      if BotOsAssistantOpenAI.all_functions_backup == None and all_functions is not None:
+         BotOsAssistantOpenAI.all_functions_backup = all_functions
       self.all_function_to_tool_map = all_function_to_tool_map
       self.running_tools = {}
       self.tool_completion_status = {}
@@ -715,6 +718,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
          if BotOsAssistantOpenAI.stream_mode == True:
  
             meta = StreamingEventHandler.run_id_to_metadata.get(run_id,None)
+            print(f'{self.bot_name} openai submit_tool_outputs submitting tool outputs len={len(tool_outputs)} ')
             with self.client.beta.threads.runs.submit_tool_outputs_stream(
                    thread_id=thread_id,
                    run_id=run_id,
@@ -1079,6 +1083,13 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                                                                            messages=None, 
                                                                            input_metadata=run.metadata))
 
+                     if func_name not in self.all_functions:
+                        self.all_functions = BotOsAssistantOpenAI.all_functions_backup
+                        if func_name in self.all_functions:
+                           print('!! function was missing from self.all_functions, restored from backup, now its ok')
+                        else:
+                           print(f'!! function was missing from self.all_functions, restored from backup, still missing func: {func_name}, len of backup={len(BotOsAssistantOpenAI.all_functions_backup)}')
+      
                      execute_function(func_name, func_args, self.all_functions, callback_closure,
                                       thread_id = thread_id, bot_id=self.bot_id)#, dispatch_task_callback=dispatch_task_callback)
 

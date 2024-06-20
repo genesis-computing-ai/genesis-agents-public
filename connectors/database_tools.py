@@ -205,7 +205,7 @@ autonomous_functions = [
                             "primary_report_to_id": {"type": "string", "description": "The Slack USER ID of the person who told you to create the task."},
                             "next_check_ts": {"type": "string", "description": "The timestamp for the next check of the task in format 'YYYY-MM-DD HH:MM:SS'. Call action TIME to get current time. Make sure this time is in the future."},
                             "action_trigger_type": {"type": "string", "description": "TIMER or QUERY_ROWS"},
-                            "action_trigger_details": {"type": "string", "description": "For TIMER, a description of when to call the task, eg every hour, Tuesdays at 9am, every morning. For QUERY_ROWS the query for when any rows are returned the task should be triggered."},
+                            "action_trigger_details": {"type": "string", "description": "For TIMER, a description of when to call the task, eg every hour, Tuesdays at 9am, every morning.  Also be clear about whether the task should be called one time, or is recurring, and if recurring if it should recur forever or stop at some point. For QUERY_ROWS the query for when any rows are returned the task should be triggered."},
                             "task_instructions": {"type": "string", "description": "Detailed instructions for completing the task."},
                             "reporting_instructions": {"type": "string", "description": "What information to report back on and how (post to channel, DM a user, etc.)"},
                             "last_task_status": {"type": "string", "description": "The current status of the task."},

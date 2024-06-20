@@ -302,7 +302,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
          else:
             vector_store_name = name + '_vectorstore'
             self.vector_store = self.create_vector_store(vector_store_name=vector_store_name, files=files)
-            self.tool_resources = {"file_search": {"vector_store_ids": [self.vector_store.id]}}
+            self.tool_resources = {"file_search": {"vector_store_ids": [self.vector_store]}}
 
          if hasattr(files, 'urls') and files.urls is not None:
             self.client.beta.assistants.update(self.assistant.id,

@@ -482,10 +482,11 @@ def chat_page():
                         previous_response = response
                     #    start_time = time.time()
                         yield new_increment
-                if not response.endswith('💬'):
-                    break               
 
-                if response.endswith('💬'):
+                if ord(response[-1]) != 128172:
+                    break
+
+                if ord(response[-1]) == 128172:
                     time.sleep(0.5)            
                 #if len(response) > 1 and response[:10] != ':toolbox: ' and time.time() - start_time > 3:
                 #    break

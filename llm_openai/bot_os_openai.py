@@ -96,7 +96,7 @@ class StreamingEventHandler(AssistantEventHandler):
        print(f"\nassistant on_tool_call_created > {tool_call}")
        self.function_name = tool_call.function.name       
        self.tool_id = tool_call.id
-       print(f"\on_tool_call_created > run_step.status > {self.run_step.status}")
+       print(f"\n_tool_call_created > run_step.status > {self.run_step.status}")
       
        print(f"\nassistant > {tool_call.type} {self.function_name}\n", flush=True)
 

@@ -478,7 +478,8 @@ def chat_page():
                         if len(previous_response) > 10 and previous_response[:10] == ':toolbox: ' and (len(response)<len(previous_response) or response[len(previous_response)] != previous_response):
                             new_increment = '\n\n'+response
                         else:
-                            new_increment = response[len(previous_response):]
+                            new_increment = response[max(len(previous_response)-2,0):len(response)-2]
+
                         previous_response = response
                     #    start_time = time.time()
                         yield new_increment
@@ -486,8 +487,9 @@ def chat_page():
                     break               
 
                 if response.endswith('💬'):
-                    time.sleep(0.5)
-
+                    time.sleep(0.5)            
+                #if len(response) > 1 and response[:10] != ':toolbox: ' and time.time() - start_time > 3:
+                #    break
 
         if bot_avatar_image_url:
             with st.chat_message("assistant",avatar=bot_avatar_image_url):

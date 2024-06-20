@@ -630,9 +630,6 @@ class SlackBotAdapter(BotOsInputAdapter):
                         " len ",
                         len(message.output),
                     )
-                    msg = message.output.replace("!STREAM_START!", "").replace(
-                        "!STREAM_DONE!", ""
-                    )
                     self.slack_app.client.chat_update(
                         channel=message.input_metadata.get("channel", self.channel_id),
                         ts=thinking_ts,
@@ -790,7 +787,6 @@ class SlackBotAdapter(BotOsInputAdapter):
                 #      print("sending message to slack post url fixes:", msg)
                 blocks = self._extract_slack_blocks(msg)
                 if message.output == msg and thinking_ts is not None:
-                    msg = msg.replace("!STREAM_START!", "").replace("!STREAM_DONE!", "")
                     self.slack_app.client.chat_update(
                         channel=message.input_metadata.get("channel", self.channel_id),
                         ts=thinking_ts,
@@ -805,7 +801,6 @@ class SlackBotAdapter(BotOsInputAdapter):
                             ),
                             ts=thinking_ts,
                         )
-                    msg = msg.replace("!STREAM_START!", "").replace("!STREAM_DONE!", "")
                     result = self.slack_app.client.chat_postMessage(
                         channel=message.input_metadata.get("channel", self.channel_id),
                         thread_ts=thread_ts,

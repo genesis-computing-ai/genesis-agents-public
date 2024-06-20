@@ -466,8 +466,7 @@ def chat_page():
             previous_response = ""
           #  start_time = time.time()
             while True:
-               # if "!STREAM_DONE!" in previous_response:
-               #     break
+
                 if in_resp is None:
                     response = get_response_from_udf_proxy(uu=request_id, bot_id=selected_bot_id)
                 else:
@@ -482,15 +481,13 @@ def chat_page():
                             new_increment = response[len(previous_response):]
                         previous_response = response
                     #    start_time = time.time()
-                        yield new_increment.replace('!STREAM_START!','').replace('!STREAM_DONE!','')
-                if "!STREAM_DONE!" in response:
+                        yield new_increment
+                if not response.endswith('💬'):
                     break               
-                if len(response) > 1 and not response.startswith('!STREAM_START!') and not response.startswith(':toolbox: '):
-                    break
-                if "!STREAM_DONE!" not in previous_response:
+
+                if response.endswith('💬'):
                     time.sleep(0.5)
-                #if len(response) > 1 and response[:10] != ':toolbox: ' and time.time() - start_time > 3:
-                #    break
+
 
         if bot_avatar_image_url:
             with st.chat_message("assistant",avatar=bot_avatar_image_url):

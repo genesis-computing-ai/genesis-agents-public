@@ -61,7 +61,7 @@ class StreamingEventHandler(AssistantEventHandler):
        # print(f"\nassistant on_text_delta > {delta.value}", end="", flush=True)
 #       print(f"{delta.value}")
       if self.run_id not in StreamingEventHandler.run_id_to_output_stream:
-          StreamingEventHandler.run_id_to_output_stream[self.run_id] = "!STREAM_START!"
+          StreamingEventHandler.run_id_to_output_stream[self.run_id] = ""
       if delta is not None and isinstance(delta.value, str):
          StreamingEventHandler.run_id_to_output_stream[self.run_id] += delta.value
 
@@ -81,7 +81,7 @@ class StreamingEventHandler(AssistantEventHandler):
    @override
    def on_message_done(self, message: Message) -> None:
        if self.run_id  in StreamingEventHandler.run_id_to_output_stream:
-          StreamingEventHandler.run_id_to_output_stream[self.run_id] += "!STREAM_DONE!"
+          StreamingEventHandler.run_id_to_output_stream[self.run_id] = message.text
        pass
 
    @override
@@ -1079,7 +1079,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                            msg = StreamingEventHandler.run_id_to_output_stream[run.id]
                         event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id, 
                                                                            status=run.status, 
-                                                                           output=msg,
+                                                                           output=msg+" 💬",
                                                                            messages=None, 
                                                                            input_metadata=run.metadata))
 

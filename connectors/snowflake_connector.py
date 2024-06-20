@@ -2728,6 +2728,34 @@ class SnowflakeConnector(DatabaseConnector):
             logger.error(f"Failed to add or update tool: {tool_name} with error: {e}")
             return {"success": False, "error": str(e)}
 
+    def db_remove_bot_tools(self, project_id=None, dataset_name=None, bot_servicing_table=None, bot_id=None, updated_tools_str=None, tools_to_be_removed=None, invalid_tools=None, updated_tools=None):
+
+        # Query to update the available_tools in the database
+        update_query = f"""
+            UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
+            SET available_tools = %s
+            WHERE upper(bot_id) = upper(%s)
+        """
+
+        # Execute the update query
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute(update_query, (updated_tools_str, bot_id))
+            self.connection.commit()
+            logger.info(f"Successfully updated available_tools for bot_id: {bot_id}")
+
+            return {
+                "success": True,
+                "removed": tools_to_be_removed,
+                "invalid tools": invalid_tools,
+                "all_bot_tools": updated_tools
+            }
+
+        except Exception as e:
+            logger.error(f"Failed to remove tools from bot_id: {bot_id} with error: {e}")
+            return {"success": False, "error": str(e)}
+     
+
     def db_delete_bot(self, project_id, dataset_name, bot_servicing_table, bot_id):
         """
         Deletes a bot from the bot_servicing table in Snowflake based on the bot_id.
@@ -4237,30 +4265,3 @@ def test_stage_functions():
     else:
         print("Error: 'tostage.txt' is still present in the stage.")
 
-def db_remove_bot_tools(self, project_id=None, dataset_name=None, bot_servicing_table=None, bot_id=None, updated_tools_str=None, tools_to_be_removed=None, invalid_tools=None, updated_tools=None):
-
-        # Query to update the available_tools in the database
-        update_query = f"""
-            UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
-            SET available_tools = %s
-            WHERE upper(bot_id) = upper(%s)
-        """
-
-        # Execute the update query
-        try:
-            cursor = self.connection.cursor()
-            cursor.execute(update_query, (updated_tools_str, bot_id))
-            self.connection.commit()
-            logger.info(f"Successfully updated available_tools for bot_id: {bot_id}")
-
-            return {
-                "success": True,
-                "removed": tools_to_be_removed,
-                "invalid tools": invalid_tools,
-                "all_bot_tools": updated_tools
-            }
-
-        except Exception as e:
-            logger.error(f"Failed to remove tools from bot_id: {bot_id} with error: {e}")
-            return {"success": False, "error": str(e)}
-     

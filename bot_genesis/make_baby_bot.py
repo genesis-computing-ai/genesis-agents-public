@@ -639,7 +639,7 @@ def add_new_tools_to_bot(bot_id, new_tools):
 def validate_potential_files(new_file_ids=None):
 
    
-    if isinstance(new_file_ids, str) and new_file_ids.lower() == 'null' or isinstance(new_file_ids, str) and new_file_ids.lower() == '[null]':
+    if isinstance(new_file_ids, str) and new_file_ids.lower() == 'null' or isinstance(new_file_ids, str) and new_file_ids.lower() == '[null]' or isinstance(new_file_ids, list) and new_file_ids == ['null']:
         new_file_ids = []
 
     if new_file_ids == [] or new_file_ids is None:

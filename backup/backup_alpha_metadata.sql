@@ -3,6 +3,7 @@
 
 // grant objects just in case...
 call core.run_arbitrary('grant select on all tables in schema app1 to application role app_public');
+call core.run_arbitrary('grant read,write on stage app1.bot_files_stage to application role app_public');
 
 // create backup of the backup
 create or replace schema genesis_backup_demo.alpha2days clone genesis_backup_demo.alpha;
@@ -21,6 +22,8 @@ create or replace table genesis_backup_demo.alpha.NGROK_TOKENS as select * from 
 create or replace table genesis_backup_demo.alpha.KNOWLEDGE as select * from genesis_bots_alpha.app1.KNOWLEDGE;
 
 create or replace stage genesis_backup_demo.alpha.bot_files_stage;
+grant usage on database GENESIS_BACKUP to application GENESIS_BOTS;
+grant usage on schema GENESIS_BACKUP.alpha to application GENESIS_BOTS;
 grant read,write on stage genesis_backup_demo.alpha.bot_files_stage to application genesis_bots_alpha;
 
 call core.run_arbitrary($$copy files into @genesis_backup_demo.alpha.bot_files_stage from @genesis_bots_alpha.app1.bot_files_stage;$$);
@@ -43,6 +46,7 @@ BEGIN
 
     -- create backup of alpha
     EXECUTE IMMEDIATE 'CREATE OR REPLACE TABLE GENESIS_BACKUP_DEMO.ALPHA.HARVEST_RESULTS AS SELECT * FROM GENESIS_BOTS_ALPHA.APP1.HARVEST_RESULTS';
+    EXECUTE IMMEDIATE 'CREATE OR REPLACE TABLE GENESIS_BACKUP_DEMO.ALPHA.HARVEST_CONTROL AS SELECT * FROM GENESIS_BOTS_ALPHA.APP1.HARVEST_CONTROL';
     EXECUTE IMMEDIATE 'CREATE OR REPLACE TABLE GENESIS_BACKUP_DEMO.ALPHA.BOT_SERVICING AS SELECT * FROM GENESIS_BOTS_ALPHA.APP1.BOT_SERVICING';
     EXECUTE IMMEDIATE 'CREATE OR REPLACE TABLE GENESIS_BACKUP_DEMO.ALPHA.SLACK_APP_CONFIG_TOKENS AS SELECT * FROM GENESIS_BOTS_ALPHA.APP1.SLACK_APP_CONFIG_TOKENS';
     EXECUTE IMMEDIATE 'CREATE OR REPLACE TABLE GENESIS_BACKUP_DEMO.ALPHA.LLM_TOKENS AS SELECT * FROM GENESIS_BOTS_ALPHA.APP1.LLM_TOKENS';

@@ -80,9 +80,17 @@ class StreamingEventHandler(AssistantEventHandler):
     #   print(f"\nassistant on_message_created > {message}\n", end="", flush=True)
    @override
    def on_message_done(self, message: Message) -> None:
-       if self.run_id  in StreamingEventHandler.run_id_to_output_stream:
-          StreamingEventHandler.run_id_to_output_stream[self.run_id] = message.text
-       pass
+      try:
+         txt = message.text
+      except:
+         try:
+            txt = message.content[0].text.value
+         except:
+            txt = None
+            pass
+      if self.run_id  in StreamingEventHandler.run_id_to_output_stream and txt != None:
+         StreamingEventHandler.run_id_to_output_stream[self.run_id] = txt
+
 
    @override
    def on_message_delta(self, delta: MessageDelta, snapshot: Message) -> None:
@@ -268,7 +276,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       my_assistants = [a for a in my_assistants if a.name == name]
 
       if len(my_assistants) == 0 and update_existing:
-         vector_store_name = name + '_vectorstore'
+         vector_store_name = self.bot_id + '_vectorstore'
          self.vector_store = self.create_vector_store(vector_store_name=vector_store_name, files=files)
          self.tool_resources = {"file_search": {"vector_store_ids": [self.vector_store]}}
          if hasattr(files, 'urls') and files.urls is not None:
@@ -297,12 +305,13 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
          except:
             vector_store_id = None
          if vector_store_id is not None:
-            self.update_vector_store(vector_store_id=vector_store_id, files=files)
-            self.tool_resources = self.assistant.tool_resources
-         else:
-            vector_store_name = name + '_vectorstore'
-            self.vector_store = self.create_vector_store(vector_store_name=vector_store_name, files=files)
-            self.tool_resources = {"file_search": {"vector_store_ids": [self.vector_store]}}
+            try:
+               self.client.beta.vector_stores.delete( vector_store_id=vector_store_id )
+            except:
+               pass
+         vector_store_name = self.bot_id + '_vectorstore'
+         self.vector_store = self.create_vector_store(vector_store_name=vector_store_name, files=files)
+         self.tool_resources = {"file_search": {"vector_store_ids": [self.vector_store]}}
 
          if hasattr(files, 'urls') and files.urls is not None:
             self.client.beta.assistants.update(self.assistant.id,
@@ -338,10 +347,12 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
    def load_by_name(name: str):
       return BotOsAssistantOpenAI(name, update_existing=False)
 
-   def update_vector_store(self, vector_store_id: str, files: list=None, plain_files: list=None):
+   def update_vector_store(self, vector_store_id: str, files: list=None, plain_files: list=None, for_bot = None):
 
       #internal_stage =  f"{self.internal_db_name}.{self.internal_schema_name}.BOT_FILES_STAGE"
 
+      if for_bot == None:
+         for_bot = self.bot_id
       file_path = "./uploads/"
       # Ready the files for upload to OpenAI
       if files is None and plain_files is None:
@@ -364,26 +375,76 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       stage_files = [file for file in files if not file.startswith('serverlocal:')]
       files_from_stage = []
 
+      # Expand wildcard expressions in stage_files
+      expanded_stage_files = []
+      for file in stage_files:
+          if '*' in file:
+              # Assuming 'self' has an attribute 'snowflake_connector' which is an instance of the SnowflakeConnector class
+              matching_files = self.log_db_connector.list_stage_contents(
+                  database=self.internal_db_name,
+                  schema=self.internal_schema_name,
+                  stage='BOT_FILES_STAGE',
+                  pattern=file
+              )
+              matching_files_names = [file_info['name'] for file_info in matching_files]
+              matching_files_names = [file_info['name'].split('/', 1)[-1] for file_info in matching_files]
+              expanded_stage_files.extend(matching_files_names)
+          else:
+              expanded_stage_files.append(file)
+      stage_files = expanded_stage_files
+      # Deduplicate stage_files
+      stage_files = list(set(stage_files))
+
+      valid_extensions = {
+               '.c': 'text/x-c',
+               '.cs': 'text/x-csharp',
+               '.cpp': 'text/x-c++',
+               '.doc': 'application/msword',
+               '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+               '.html': 'text/html',
+               '.java': 'text/x-java',
+               '.json': 'application/json',
+               '.md': 'text/markdown',
+               '.pdf': 'application/pdf',
+               '.php': 'text/x-php',
+               '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+               '.py': 'text/x-python',
+               '.rb': 'text/x-ruby',
+               '.tex': 'text/x-tex',
+               '.txt': 'text/plain',
+               '.css': 'text/css',
+               '.js': 'text/javascript',
+               '.sh': 'application/x-sh',
+               '.ts': 'application/typescript',
+         }
+
+      # Filter out files from stage_files that don't have a valid extension
+      excluded_files = [file for file in stage_files if not any(file.endswith(ext) for ext in valid_extensions)]
+      stage_files = [file for file in stage_files if any(file.endswith(ext) for ext in valid_extensions)]
+
+      if excluded_files:
+          print(f"{self.bot_name} for bot {for_bot} update_vector_store excluded files with invalid extensions: {', '.join(excluded_files)}")
       for file in stage_files:
           # Read each file from the stage and save it to a local location
           try:
               # Assuming 'self' has an attribute 'snowflake_connector' which is an instance of the SnowflakeConnector class
-            new_file_location = f"./downloaded_files/{self.bot_id}_BOT_DOCS/{file}"
-            os.makedirs(f"./downloaded_files/{self.bot_id}_BOT_DOCS", exist_ok=True)
+            new_file_location = f"./downloaded_files/{for_bot}_BOT_DOCS/{file}"
+            os.makedirs(f"./downloaded_files/{for_bot}_BOT_DOCS", exist_ok=True)
             contents = self.log_db_connector.read_file_from_stage(
                   database=self.internal_db_name,
                   schema=self.internal_schema_name,
                   stage='BOT_FILES_STAGE',
                   file_name=file,
-                  thread_id=f'{self.bot_id}_BOT_DOCS',
+                  for_bot=f'{for_bot}_BOT_DOCS',
+                  thread_id=f'{for_bot}_BOT_DOCS',
                   return_contents=False
                   )
             if contents==file:
                local_file_path = new_file_location
                files_from_stage.append(local_file_path)
-               logger.info(f"Successfully retrieved {file} from stage and saved to {new_file_location}")
+               print(f"{self.bot_name} for bot {for_bot} update_vector_store successfully retrieved {file} from stage and saved to {new_file_location}")
           except Exception as e:
-              logger.error(f"Failed to retrieve {file} from stage: {e}")
+               print(f"{self.bot_name} for bot {for_bot} update_vector_store failed to retrieve {file} from stage: {e}")
           
       local_files = [file.replace('serverlocal:', '') for file in local_files]
 
@@ -428,11 +489,11 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
          return vector_store_id
 
 
-   def create_vector_store(self, vector_store_name: str, files: list=None, plain_files: list=None):
+   def create_vector_store(self, vector_store_name: str, files: list=None, plain_files: list=None, for_bot= None):
       # Create a vector store with the given name
       vector_store = self.client.beta.vector_stores.create(name=vector_store_name)
       
-      return self.update_vector_store(vector_store.id, files, plain_files)
+      return self.update_vector_store(vector_store.id, files, plain_files, for_bot=for_bot)
 
 
 
@@ -586,7 +647,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       try:
          if function_call_details[0][0] == '_modify_slack_allow_list' and (func_response.get('success',False)==True or func_response.get('Success',False)==True):
             self.clear_access_cache = True
-         if function_call_details[0][0] == 'add_new_tools_to_bot' and (func_response.get('success',False)==True or func_response.get('Success',False)==True):
+         if (function_call_details[0][0] == 'remove_tools_from_bot' or function_call_details[0][0] == 'add_new_tools_to_bot') and (func_response.get('success',False)==True or func_response.get('Success',False)==True):
             target_bot = json.loads(function_call_details[0][1]).get('bot_id',None)
             if target_bot is not None:
                my_assistants = self.client.beta.assistants.list(order="desc")
@@ -661,7 +722,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                         
                   #new_response.pop("new_instructions", None)
 
-         if function_call_details[0][0] == 'add_bot_files' and (func_response.get('success',False)==True or func_response.get('Success',False)==True):
+         if (function_call_details[0][0] == 'add_bot_files' or function_call_details[0][0] == 'remove_bot_files' ) and (func_response.get('success',False)==True or func_response.get('Success',False)==True):
          #  raise ('need to update bot_os_openai.py line 215 for new files structure with v2')
             try:
                updated_files_list = func_response.get("current_files_list",None)
@@ -679,15 +740,19 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                   except:
                      vector_store_id = None
                   if vector_store_id is not None:
-                     self.update_vector_store(vector_store_id=vector_store_id, files=None, plain_files=updated_files_list)
-                     tool_resources = assistant_zero.tool_resources
-                  else:
-                     vector_store_name = json.loads(function_call_details[0][1]).get('bot_name',None) + '_vectorstore'
-                     vector_store = self.create_vector_store(vector_store_name=vector_store_name, files=None, plain_files=updated_files_list)
-                     tool_resources = {"file_search": {"vector_store_ids": [vector_store.id]}}
+                        try:
+                           self.client.beta.vector_stores.delete( vector_store_id=vector_store_id )
+                        except:
+                           pass
+                     #  self.update_vector_store(vector_store_id=vector_store_id, files=None, plain_files=updated_files_list)
+                     #  tool_resources = assistant_zero.tool_resources
+                  
+                  vector_store_name = json.loads(function_call_details[0][1]).get('bot_id',None) + '_vectorstore'
+                  vector_store = self.create_vector_store(vector_store_name=vector_store_name, files=None, plain_files=updated_files_list, for_bot = target_bot)
+                  tool_resources = {"file_search": {"vector_store_ids": [vector_store]}}
                   self.client.beta.assistants.update(assistant_zero.id, tool_resources=tool_resources)
 
-                  logger.info(f"Bot files for {target_bot} updated.")
+                  print(f"{self.bot_name} open_ai submit_tool_outputs Bot files for {target_bot} updated.")
       except Exception as e:
          print(f'openai submit_tool_outputs error to tool checking, func_response: {func_response} e: {e}')    
 
@@ -1140,7 +1205,10 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                         except Exception as e:
                            print('openai error parsing image attachment ',e)
                      if content.type == 'text':
-                        output += (content.text.value + "\n") if output else content.text.value
+                        try:
+                           output += (content.text.value + "\n") if output else content.text.value
+                        except:
+                           pass
                   output = output.strip()  # Remove the trailing newline if it exists
                   #if output != '!NO_RESPONSE_REQUIRED':
             #      if  StreamingEventHandler.run_id_to_output_stream.get(run.id,None) is not None:

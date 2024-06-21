@@ -81,8 +81,8 @@ class SlackBotAdapter(BotOsInputAdapter):
                 ack()
                 # TODO, clear this after 30 min
                 if event.get("subtype", None) == "message_changed":
-                    msg = event["message"]["text"]
-                    thread_ts = event["message"]["thread_ts"]
+                    msg = event["message"].get("text",None)
+                    thread_ts = event["message"].get("thread_ts",None)
                     user_id = event["message"].get("user", "NO_USER")
                     txt = msg[:30]
                 else:
@@ -264,8 +264,8 @@ class SlackBotAdapter(BotOsInputAdapter):
 
         if event.get("subtype", None) == "message_changed":
             msg = event["message"]["text"]
-            thread_ts = event["message"]["thread_ts"]
-            if event["previous_message"]["text"] == msg:
+            thread_ts = event["message"].get("thread_ts",None)
+            if event["previous_message"].get("text",None) == msg:
                 done_map[event["ts"]] = True
                 return None
         else:
@@ -630,6 +630,7 @@ class SlackBotAdapter(BotOsInputAdapter):
                         " len ",
                         len(message.output),
                     )
+                    msg = message.output.replace('\n 💬',' 💬')
                     self.slack_app.client.chat_update(
                         channel=message.input_metadata.get("channel", self.channel_id),
                         ts=thinking_ts,

@@ -646,7 +646,7 @@ def validate_potential_files(new_file_ids=None):
         return {"success": True, "message": "No files attached"}
 
     # Remove the part before the last '/' in each file_id
-    new_file_ids = [file_id.split('/')[-1] for file_id in new_file_ids]
+    #new_file_ids = [file_id.split('/')[-1] for file_id in new_file_ids]
 
     valid_extensions = {
             '.c': 'text/x-c',
@@ -678,22 +678,35 @@ def validate_potential_files(new_file_ids=None):
         logger.error(error_message)
         return {"success": False, "error": error_message}
 
-    invalid_file_ids = [file_id for file_id in new_file_ids if not any(file_id.endswith(ext) for ext in valid_extensions)]
+
+    invalid_file_ids = [file_id for file_id in new_file_ids if not file_id.endswith('/*') and not any(file_id.endswith(ext) for ext in valid_extensions)]
     if invalid_file_ids:
         error_message = f"Invalid file extension(s) for file ID(s): {', '.join(invalid_file_ids)}. Allowed extensions are: {', '.join(valid_extensions.keys())}."
         logger.error(error_message)
         return {"success": False, "error": error_message}
-
     internal_stage =  f"{genbot_internal_project_and_schema}.BOT_FILES_STAGE"
     database, schema, stage_name = internal_stage.split('.')
-
+# if wildcard include it as pattern... 
     try:
         stage_contents = bb_db_connector.list_stage_contents(database=database, schema=schema, stage=stage_name)
     except Exception as e: 
         return {"success": False, "error": e}
     # Check if the file is in stage_contents
-    stage_file_names = [file_info['name'].split('/')[-1] if '/' in file_info['name'] else file_info['name'] for file_info in stage_contents]
-    missing_files = [file_id.split('/')[-1] for file_id in new_file_ids if file_id not in stage_file_names]
+    stage_file_names = [file_info['name'].split('/', 1)[-1] for file_info in stage_contents]
+    # Separate wildcard file_ids and normal file_ids
+    wildcard_file_ids = [file_id for file_id in new_file_ids if file_id.endswith('/*')]
+    normal_file_ids = [file_id for file_id in new_file_ids if not file_id.endswith('/*')]
+    
+    # Check for missing normal files
+    missing_files = [file_id.split('/')[-1] for file_id in normal_file_ids if file_id not in stage_file_names]
+    
+    # Check for missing wildcard files
+    for wildcard_file_id in wildcard_file_ids:
+        stage_contents = bb_db_connector.list_stage_contents(database=database, schema=schema, stage=stage_name, pattern=wildcard_file_id)
+        stage_file_names = [file_info['name'].split('/', 1)[-1] for file_info in stage_contents]
+        matching_files = [file_name for file_name in stage_file_names if file_name.startswith(wildcard_file_id.rstrip('/*'))]
+        if not matching_files:
+            missing_files.append(wildcard_file_id)
     if missing_files:
         #limited_stage_contents = stage_file_names[:50]
         #more_files_exist = len(stage_file_names) > 50
@@ -703,7 +716,7 @@ def validate_potential_files(new_file_ids=None):
     # Proceed if all files are present in the stage
     return {"success": True, "message": "All files are valid"}
 
-def add_bot_files(bot_id, new_file_ids):
+def add_bot_files(bot_id, new_file_names=None, new_file_ids=None):
     """
     Adds a new file ID to the existing files list for the bot and saves it to the database.
 
@@ -712,13 +725,15 @@ def add_bot_files(bot_id, new_file_ids):
         new_file_ids (array): The new file ID to add to the bot's files list.
     """
 
+    if new_file_ids is None:
+        new_file_ids = new_file_names
     if isinstance(new_file_ids, str) and new_file_ids.lower() == 'null':
         new_file_ids = []
 
     if new_file_ids is None:
         new_file_ids = []
 
-    new_file_ids = [file_id.split('/')[-1] for file_id in new_file_ids]
+    #new_file_ids = [file_id.split('/')[-1] for file_id in new_file_ids]
 
     # Retrieve the current files for the bot
     bot_details = get_bot_details(bot_id)
@@ -745,6 +760,44 @@ def add_bot_files(bot_id, new_file_ids):
 
     return bb_db_connector.db_update_bot_files(project_id=project_id, dataset_name=dataset_name, bot_servicing_table=bot_servicing_table, bot_id=bot_id, updated_files_str=updated_files_str, current_files=current_files, new_file_ids=new_file_ids)
     
+def remove_bot_files(bot_id, file_ids_to_remove):
+    """
+    Removes a file ID from the existing files list for the bot and saves it to the database.
+
+    Args:
+        bot_id (str): The unique identifier for the bot.
+        file_ids_to_remove (array): The file ID to remove from the bot's files list.
+    """
+
+    if isinstance(file_ids_to_remove, str) and file_ids_to_remove.lower() == 'null':
+        file_ids_to_remove = []
+
+    if file_ids_to_remove is None:
+        file_ids_to_remove = []
+
+   # file_ids_to_remove = [file_id.split('/')[-1] for file_id in file_ids_to_remove]
+
+    # Retrieve the current files for the bot
+    bot_details = get_bot_details(bot_id)
+    if not bot_details:
+        logger.error(f"Bot with ID {bot_id} not found.")
+        return {"success": False, "error": "Bot not found.  Check for the bot_id using the list_all_bots function."}
+
+    current_files_str = bot_details.get('files', '[]')
+    if current_files_str == 'null':
+        current_files_str = '[]'
+    if current_files_str == '""':
+        current_files_str = []
+    current_files = json.loads(current_files_str) if current_files_str else []
+
+    # Remove the file IDs if they're present
+    for file_id_to_remove in file_ids_to_remove:
+        if file_id_to_remove in current_files:
+            current_files.remove(file_id_to_remove)
+    updated_files_str = json.dumps(current_files)
+
+    return bb_db_connector.db_update_bot_files(project_id=project_id, dataset_name=dataset_name, bot_servicing_table=bot_servicing_table, bot_id=bot_id, updated_files_str=updated_files_str, current_files=current_files, new_file_ids=file_ids_to_remove)
+
 
 def update_bot_instructions(bot_id, new_instructions=None, bot_instructions=None, confirmed=None, thread_id = None):
 
@@ -1411,18 +1464,44 @@ MAKE_BABY_BOT_DESCRIPTIONS.append({
                     "type": "string",
                     "description": "The unique identifier for the bot."
                 },
-                "new_file_ids": {
+                "new_file_names": {
                     "type": "array",
                     "items": {
                         "type": "string"
                     },
-                    "description": "A list of the filenames from the Internal File Stage for Bots to assign to the bot."
+                    "description": "A list of the filenames from the Internal File Stage for Bots to assign to the bot. A file_name can optionally be a wildcard representing a whole folder of files within the stage, such as bot_1_files/*. When adding with wildcards, do NOT add each file separately."
                 }
             },
-            "required": ["bot_id", "file_names"]
+            "required": ["bot_id", "new_file_names"]
         }
     }
 })
+
+MAKE_BABY_BOT_DESCRIPTIONS.append({
+    "type": "function",
+    "function": {
+        "name": "remove_bot_files",
+        "description": "Removes files from the files list for the specified bot_id if they are present.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "bot_id": {
+                    "type": "string",
+                    "description": "The unique identifier for the bot."
+                },
+                "file_ids_to_remove": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "description": "A list of the filenames from the Internal File Stage for Bots to remove from the bot. A file_id can optionally be a wildcard representing a whole folder of files within the stage, such as bot_1_files/*"
+                }
+            },
+            "required": ["bot_id", "file_ids_to_remove"]
+        }
+    }
+})
+
 
 MAKE_BABY_BOT_DESCRIPTIONS.append({
     "type": "function",
@@ -1508,6 +1587,7 @@ make_baby_bot_tools["list_all_bots"] = "bot_genesis.make_baby_bot.list_all_bots"
 make_baby_bot_tools["update_bot_instructions"] = "bot_genesis.make_baby_bot.update_bot_instructions"
 make_baby_bot_tools["add_new_tools_to_bot"] = "bot_genesis.make_baby_bot.add_new_tools_to_bot"
 make_baby_bot_tools["add_bot_files"] = "bot_genesis.make_baby_bot.add_bot_files"
+make_baby_bot_tools["remove_bot_files"] = "bot_genesis.make_baby_bot.remove_bot_files"
 make_baby_bot_tools["update_app_level_key"] = "bot_genesis.make_baby_bot.update_slack_app_level_key"
 make_baby_bot_tools["update_bot_implementation"] = "bot_genesis.make_baby_bot.update_bot_implementation"
 make_baby_bot_tools["_modify_slack_allow_list"] = "bot_genesis.make_baby_bot.modify_slack_allow_list"

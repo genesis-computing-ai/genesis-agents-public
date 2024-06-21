@@ -20,7 +20,6 @@ from threading import Lock
 import base64
 import requests
 import re
-from schema_explorer.semantic_tools import modify_semantic_model
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.WARN, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -496,19 +495,16 @@ class SnowflakeConnector(DatabaseConnector):
         required_fields_update = [  'last_task_status', 'task_learnings', 'task_active' ] 
 
         if action == 'TIME':
-            return {"current_system_time": datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-
+            return {"current_system_time": datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}
         action = action.upper()
 
         if action == 'CREATE':
-            return {"Success": False, "Confirmation_Needed": "Please reconfirm all the task details with the user, then call this function again with the action CREATE_CONFIRMED to actually create the task.   Make sure to be clear in the action_trigger_details field whether the task is to be triggered one time, or if it is ongoing and recurring.", "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"} 
- 
+            return {"Success": False, "Confirmation_Needed": "Please reconfirm all the task details with the user, then call this function again with the action CREATE_CONFIRMED to actually create the task.   Make sure to be clear in the action_trigger_details field whether the task is to be triggered one time, or if it is ongoing and recurring.", "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}"} 
         if action == 'CREATE_CONFIRMED':
             action = 'CREATE'
 
         if action == 'UPDATE':
-            return {"Success": False, "Confirmation_Needed": "Please reconfirm all the task details with the user, especially that you're altering the correct TASK_ID, then call this function again with the action UPDATE_CONFIRMED to actually update the task.  Call with LIST to double-check the task_id if you aren't sure.", "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"} 
- 
+            return {"Success": False, "Confirmation_Needed": "Please reconfirm all the task details with the user, especially that you're altering the correct TASK_ID, then call this function again with the action UPDATE_CONFIRMED to actually update the task.  Call with LIST to double-check the task_id if you aren't sure.", "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}"} 
         if action == 'UPDATE_CONFIRMED':
             action = 'UPDATE'
 
@@ -576,14 +572,14 @@ class SnowflakeConnector(DatabaseConnector):
             except ValueError as ve:
                 return {
                     "Success": False, 
-                    "Error": f"Invalid timestamp format for 'next_check_ts'. Required format: 'YYYY-MM-DD HH:MM:SS'. Error details: {ve}",
-                    "Info": f"Current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                    "Error": f"Invalid timestamp format for 'next_check_ts'. Required format: 'YYYY-MM-DD HH:MM:SS' in system timezone. Error details: {ve}",
+                    "Info": f"Current system time in system timezone is {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}. The system timezone is {datetime.now().strftime('%Z')}. Please note that the timezone should not be included in the submitted timestamp."
                 }
             if formatted_next_check_ts < datetime.now():
                 return {
                     "Success": False,
                     "Error": "The 'next_check_ts' is in the past.",
-                    "Info": f"Current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                    "Info": f"Current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}"
                 }
 
         try:
@@ -2728,34 +2724,6 @@ class SnowflakeConnector(DatabaseConnector):
             logger.error(f"Failed to add or update tool: {tool_name} with error: {e}")
             return {"success": False, "error": str(e)}
 
-    def db_remove_bot_tools(self, project_id=None, dataset_name=None, bot_servicing_table=None, bot_id=None, updated_tools_str=None, tools_to_be_removed=None, invalid_tools=None, updated_tools=None):
-
-        # Query to update the available_tools in the database
-        update_query = f"""
-            UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
-            SET available_tools = %s
-            WHERE upper(bot_id) = upper(%s)
-        """
-
-        # Execute the update query
-        try:
-            cursor = self.connection.cursor()
-            cursor.execute(update_query, (updated_tools_str, bot_id))
-            self.connection.commit()
-            logger.info(f"Successfully updated available_tools for bot_id: {bot_id}")
-
-            return {
-                "success": True,
-                "removed": tools_to_be_removed,
-                "invalid tools": invalid_tools,
-                "all_bot_tools": updated_tools
-            }
-
-        except Exception as e:
-            logger.error(f"Failed to remove tools from bot_id: {bot_id} with error: {e}")
-            return {"success": False, "error": str(e)}
-     
-
     def db_delete_bot(self, project_id, dataset_name, bot_servicing_table, bot_id):
         """
         Deletes a bot from the bot_servicing table in Snowflake based on the bot_id.
@@ -2939,7 +2907,7 @@ class SnowflakeConnector(DatabaseConnector):
 #snow = SnowflakeConnector(connection_name='Snowflake')
 #snow.ensure_table_exists()
 #snow.get_databases()
-    def list_stage_contents(self, database: str=None, schema: str=None, stage: str=None, thread_id=None):
+    def list_stage_contents(self, database: str=None, schema: str=None, stage: str=None, pattern: str=None, thread_id=None):
         """
         List the contents of a given Snowflake stage.
 
@@ -2947,21 +2915,32 @@ class SnowflakeConnector(DatabaseConnector):
             database (str): The name of the database.
             schema (str): The name of the schema.
             stage (str): The name of the stage.
+            pattern (str): Optional pattern to match file names.
 
         Returns:
             list: A list of files in the stage.
         """
+        
+        if pattern:
+            # Convert wildcard pattern to regex pattern
+            pattern = pattern.replace(".*", "*")
+            pattern = pattern.replace("*", ".*")
+            
+            if pattern.startswith("/"):
+                pattern = pattern[1:]
+            pattern = f"'{pattern}'"
         try:
             query = f'LIST @"{database}"."{schema}"."{stage}"'
-            ret = self.run_query(query)
+            if pattern:
+                query += f' PATTERN = {pattern}'
+            ret = self.run_query(query, max_rows=50, max_rows_override=True)
             if isinstance(ret, dict) and "does not exist or not authorized" in ret.get('Error', ''):
                 query = query.upper()
-                ret = self.run_query(query)
+                ret = self.run_query(query, max_rows=50, max_rows_override=True)
             return(ret)
 
         except Exception as e:
             return {"success": False, "error": str(e)}
-
 
     def image_generation(self,prompt, thread_id=None):
 
@@ -3163,20 +3142,24 @@ GRANT USAGE ON INTEGRATION GENESIS_EAI TO APPLICATION   IDENTIFIER($APP_DATABASE
                         "error": "Please provide a human-readable file name in the file_name parameter, with a supported extension, not the OpenAI file ID. If unsure, ask the user what the file should be called."
                     }
 
-                if '/' in file_name:
-                    file_name = file_name.split('/')[-1]
-                file_name = re.sub(r'[^\w\s\.-]', '', file_name.replace(' ', '_'))
+           # allow files to have relative paths
+           #     if '/' in file_name:
+           #         file_name = file_name.split('/')[-1]
+                if file_name.startswith("/"):
+                    file_name = file_name[1:]
 
+                file_name = re.sub(r'[^\w\s\/\.-]', '', file_name.replace(' ', '_'))
                 if '/' in openai_file_id:
                     openai_file_id = openai_file_id.split('/')[-1]
 
                 file_path = f'./downloaded_files/{thread_id}/' + file_name
                 existing_location = f"./downloaded_files/{thread_id}/{openai_file_id}"
 
-                # Replace spaces with underscores and remove disallowed characters
-                file_name = re.sub(r'[^\w\s-]', '', file_name.replace(' ', '_'))
+                if not os.path.exists(os.path.dirname(file_path)):
+                    os.makedirs(os.path.dirname(file_path))
 
-                
+                # Replace spaces with underscores and remove disallowed characters
+              #  file_name = re.sub(r'[^\w\s-]', '', file_name.replace(' ', '_'))
                 if os.path.isfile(existing_location) and (file_path != existing_location):
                     with open(existing_location, 'rb') as source_file:
                         with open(file_path, 'wb') as dest_file:
@@ -3205,13 +3188,17 @@ GRANT USAGE ON INTEGRATION GENESIS_EAI TO APPLICATION   IDENTIFIER($APP_DATABASE
             return {"success": False, "error": str(e)}
 
         try:
-            query = f'PUT file://{file_path} @"{database}"."{schema}"."{stage}" AUTO_COMPRESS=FALSE'
+            p = os.path.dirname(file_name) if '/' in file_name else None
+            if p is not None:
+                query = f'PUT file://{file_path} @"{database}"."{schema}"."{stage}"/{p} AUTO_COMPRESS=FALSE'
+            else:
+                query = f'PUT file://{file_path} @"{database}"."{schema}"."{stage}" AUTO_COMPRESS=FALSE'
             return self.run_query(query)
         except Exception as e:
             logger.error(f"Error adding file to stage: {e}")
             return {"success": False, "error": str(e)}
 
-    def read_file_from_stage(self, database: str, schema: str, stage: str, file_name: str, return_contents: bool, thread_id=None):
+    def read_file_from_stage(self, database: str, schema: str, stage: str, file_name: str, return_contents: bool, for_bot=None, thread_id=None):
         """
         Read a file from a Snowflake stage.
 
@@ -3226,17 +3213,23 @@ GRANT USAGE ON INTEGRATION GENESIS_EAI TO APPLICATION   IDENTIFIER($APP_DATABASE
         """
         try:
             # Define the local directory to save the file
-            local_dir = os.path.join(".", "downloaded_files", thread_id)
+            if for_bot == None:
+                for_bot = thread_id
+            local_dir = os.path.join(".", "downloaded_files", for_bot)
                    
-            if '/' in file_name:
-                file_name = file_name.split('/')[-1]
+    #        if '/' in file_name:
+    #            file_name = file_name.split('/')[-1]
 
             if not os.path.isdir(local_dir):
                 os.makedirs(local_dir)
             local_file_path = os.path.join(local_dir, file_name)
+            target_dir = os.path.dirname(local_file_path)
+            if not os.path.exists(target_dir):
+                os.makedirs(target_dir)
 
             # Modify the GET command to include the local file path
-            query = f'GET @"{database}"."{schema}"."{stage}"/{file_name} file://{local_dir}'
+
+            query = f'GET @"{database}"."{schema}"."{stage}"/{file_name} file://{target_dir}'
             ret = self.run_query(query)
             if isinstance(ret, dict) and "does not exist or not authorized" in ret.get('Error', ''):
                 database = database.upper()
@@ -3625,6 +3618,8 @@ GRANT USAGE ON INTEGRATION GENESIS_EAI TO APPLICATION   IDENTIFIER($APP_DATABASE
 
 
     def test_modify_semantic_model(self,semantic_model):
+        from schema_explorer.semantic_tools import modify_semantic_model
+
         def random_string(prefix, length=5):
             return prefix + '_' + ''.join(random.choices(string.ascii_lowercase, k=length))
 
@@ -4146,6 +4141,34 @@ GRANT USAGE ON INTEGRATION GENESIS_EAI TO APPLICATION   IDENTIFIER($APP_DATABASE
                 "Success": False,
                 "Error": str(e)
             }
+
+    def db_remove_bot_tools(self, project_id=None, dataset_name=None, bot_servicing_table=None, bot_id=None, updated_tools_str=None, tools_to_be_removed=None, invalid_tools=None, updated_tools=None):
+
+            # Query to update the available_tools in the database
+            update_query = f"""
+                UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
+                SET available_tools = %s
+                WHERE upper(bot_id) = upper(%s)
+            """
+
+            # Execute the update query
+            try:
+                cursor = self.connection.cursor()
+                cursor.execute(update_query, (updated_tools_str, bot_id))
+                self.connection.commit()
+                logger.info(f"Successfully updated available_tools for bot_id: {bot_id}")
+
+                return {
+                    "success": True,
+                    "removed": tools_to_be_removed,
+                    "invalid tools": invalid_tools,
+                    "all_bot_tools": updated_tools
+                }
+
+            except Exception as e:
+                logger.error(f"Failed to remove tools from bot_id: {bot_id} with error: {e}")
+                return {"success": False, "error": str(e)}
+        
 
 
 def test_stage_functions():

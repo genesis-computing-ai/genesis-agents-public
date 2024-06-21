@@ -3,6 +3,8 @@ GENESIS BOT TODOS
 =================
 
 SOON:
+Allow files to be uploaded to stage without downloading them to slack
+Only upload a file to vector store if its not already there (and is the same.. using md5, track last md5 submitted) 
 x Move available_functions (all_functions) to a central object and log it and monitor it
 (added logging on output submission) when calling a single tool like search metadata they dont respond
 JL-Folder of files upload 

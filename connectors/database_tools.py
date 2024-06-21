@@ -203,7 +203,7 @@ autonomous_functions = [
                             "task_name": {"type": "string", "description": "The name of the task."},
                             "primary_report_to_type": {"type": "string", "description": "Set to SLACK_USER"},
                             "primary_report_to_id": {"type": "string", "description": "The Slack USER ID of the person who told you to create the task."},
-                            "next_check_ts": {"type": "string", "description": "The timestamp for the next check of the task in format 'YYYY-MM-DD HH:MM:SS'. Call action TIME to get current time. Make sure this time is in the future."},
+                            "next_check_ts": {"type": "string", "description": "The timestamp for the next check of the task in format 'YYYY-MM-DD HH:MM:SS'. Call action TIME to get current time and timezone. Make sure this time is in the future."},
                             "action_trigger_type": {"type": "string", "description": "TIMER or QUERY_ROWS"},
                             "action_trigger_details": {"type": "string", "description": "For TIMER, a description of when to call the task, eg every hour, Tuesdays at 9am, every morning.  Also be clear about whether the task should be called one time, or is recurring, and if recurring if it should recur forever or stop at some point. For QUERY_ROWS the query for when any rows are returned the task should be triggered."},
                             "task_instructions": {"type": "string", "description": "Detailed instructions for completing the task."},
@@ -228,13 +228,14 @@ snowflake_stage_functions = [
         "type": "function",
         "function": {
             "name": "_list_stage_contents",
-            "description": "Lists the contents of a given Snowflake stage. Run SHOW STAGES IN SCHEMA <database>.<schema> to find stages.",
+            "description": "Lists the contents of a given Snowflake stage, up to 50 results (use pattern param if more than that). Run SHOW STAGES IN SCHEMA <database>.<schema> to find stages.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "database": {"type": "string", "description": "The name of the database."},
                     "schema": {"type": "string", "description": "The name of the schema."},
                     "stage": {"type": "string", "description": "The name of the stage to list contents for."},
+                    "pattern": {"type": "string", "description": "An optional regex pattern to limit the search for example /bot1_files/.* or document_.*"},
                 },
                 "required": ["database", "schema", "stage"]
             }
@@ -252,7 +253,7 @@ snowflake_stage_functions = [
                     "schema": {"type": "string", "description": "The name of the schema."},
                     "stage": {"type": "string", "description": "The name of the stage to add the file to."},
                     "openai_file_id": {"type": "string", "description": "A valid OpenAI FileID referencing the file to be loaded to stage."},
-                    "file_name": {"type": "string", "description": "The original filename of the file, human-readable, NOT file-xxxx."}
+                    "file_name": {"type": "string", "description": "The original filename of the file, human-readable, NOT file-xxxx. Can optionally include a relative path, such as bot_1_files/file_name.txt"}
                 },
                 "required": ["database", "schema", "stage", "openai_file_id", "file_name"]
             }

@@ -3,11 +3,13 @@ GENESIS BOT TODOS
 =================
 
 SOON:
-Allow files to be uploaded to stage without downloading them to slack
+x Fix sis streaming on Dev
+Test uploading lots of files to a folder (botos docs)
+n Allow files to be uploaded to stage without downloading them to slack
 Only upload a file to vector store if its not already there (and is the same.. using md5, track last md5 submitted) 
 x Move available_functions (all_functions) to a central object and log it and monitor it
-(added logging on output submission) when calling a single tool like search metadata they dont respond
-JL-Folder of files upload 
+x (added logging on output submission) when calling a single tool like search metadata they dont respond
+x JL-Folder of files upload 
 JL-Mistral harvester
 MR-task to grant the workspaces to app_public periodically
 MR-task to capture what is granted and then re-grant later if needed

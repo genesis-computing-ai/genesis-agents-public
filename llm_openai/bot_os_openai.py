@@ -790,6 +790,10 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                    tool_outputs=tool_outputs,
                    event_handler=StreamingEventHandler(self.client, thread_id,   StreamingEventHandler.run_id_to_bot_assist[run_id],  meta, self)
                ) as stream:
+                 if thread_id not in self.active_runs:
+                   self.active_runs.append(thread_id)
+                 if thread_id in self.processing_runs:
+                   self.processing_runs.remove(thread_id)
                  stream.until_done()   
          else:
             updated_run = self.client.beta.threads.runs.submit_tool_outputs(
@@ -799,10 +803,10 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
             )
             logger.debug(f"_submit_tool_outputs - {updated_run}")
             meta = updated_run.metadata
-         if thread_id not in self.active_runs:
-            self.active_runs.append(thread_id)
-         if thread_id in self.processing_runs:
-            self.processing_runs.remove(thread_id)
+            if thread_id not in self.active_runs:
+               self.active_runs.append(thread_id)
+            if thread_id in self.processing_runs:
+               self.processing_runs.remove(thread_id)
        #  if thread_id in self.processing_runs:
        #     self.processing_runs.remove(thread_id)
          primary_user = json.dumps({'user_id': meta.get('user_id', 'Unknown User ID'), 

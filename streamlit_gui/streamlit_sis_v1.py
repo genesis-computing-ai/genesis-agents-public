@@ -2,7 +2,7 @@ import streamlit as st
 import os, json
 import base64
 
-app_name = 'GENESIS_BOTS_ALPHA'
+app_name = 'GENESIS_BOTS'
 prefix = app_name+'.app1'
 core_prefix = app_name+'.CORE'
 
@@ -269,10 +269,13 @@ def submit_to_udf_proxy(input_text, thread_id, bot_id):
                     'bot_id': bot_id}
 
     if SnowMode:
-        sql = "select {}.submit_udf(?, ?, ?)".format(prefix)
-        data = session.sql(sql, (input_text, thread_id, json.dumps(primary_user))).collect()
-        response = data[0][0]
-        return response
+        try:
+            sql = "select {}.submit_udf(?, ?, ?)".format(prefix)
+            data = session.sql(sql, (input_text, thread_id, json.dumps(primary_user))).collect()
+            response = data[0][0]
+            return response
+        except Exception as e:
+            st.write('error on submit: ',e)
     
     url = f"http://127.0.0.1:8080/udf_proxy/submit_udf"
     headers = {"Content-Type": "application/json"}
@@ -295,16 +298,20 @@ def get_response_from_udf_proxy(uu, bot_id):
 
     if SnowMode:
 
-        #sql = f"select {prefix}.lookup_udf('{uu}', '{bot_id}') "
-
-        sql = f"""
-            SELECT message from {prefix}.LLM_RESULTS
-            WHERE uu = '{uu}'"""
-     
-        data = session.sql(sql).collect()
-        response = data[0][0]
-        return response
-
+        try:
+            #sql = f"select {prefix}.lookup_udf('{uu}', '{bot_id}') "
+    
+            sql = f"""
+                SELECT message from {prefix}.LLM_RESULTS
+                WHERE uu = '{uu}'"""
+         
+            data = session.sql(sql).collect()
+            response = data[0][0]
+            return response
+        except Exception as e:
+            st.write('Exception on get_response_from_udf_proxy: ',e)
+            return None
+    
 
     url = f"http://127.0.0.1:8080/udf_proxy/lookup_udf"
     headers = {"Content-Type": "application/json"}
@@ -424,7 +431,8 @@ def llm_config(): # Check if data is not empty
                     with st.spinner('Getting active bot details...'):
                         bot_details = get_bot_details()
                     if bot_details:
-                        st.success("Bot details validated.")
+                        st.success("Bot details validated.  Waiting 30 seconds for sever to be ready...")
+                        time.sleep(30)
                        # st.success("Reload this page to chat with your bots!")
                         if st.button("Next -> Click here to chat with your bots!"):
                             st.experimental_rerun()
@@ -450,16 +458,22 @@ def chat_page():
             # Add user message to chat history
             st.session_state[f"messages_{selected_bot_id}"].append({"role": "user", "content": prompt})
 
-    
+        
+        
         request_id = submit_to_udf_proxy(input_text=prompt, thread_id=st.session_state[f"thread_id_{selected_bot_id}"], bot_id=selected_bot_id)
+        #st.write('uu=',request_id,' thread_id=',st.session_state[f"thread_id_{selected_bot_id}"],' botid=',selected_bot_id, ' prompt=',prompt) 
         response = ''
 
         with st.spinner('Thinking...'):
             while response == '' or response == 'not found':
                 response = get_response_from_udf_proxy(uu=request_id, bot_id=selected_bot_id)
+           #     st.write('response for uu ',request_id,' |',response,'|')
                 if (response == '' or response == 'not found'):
                     time.sleep(0.5)
 
+        print('out of thinking...')
+       # st.write('oot - response for uu ',request_id,' |',response,'|')
+        
         in_resp = response
     # Display assistant response in chat message container
         def response_generator(in_resp = None):
@@ -1202,7 +1216,8 @@ def start_service():
 
             if wh_test:
                 try:
-                    with st.spinner('Starting Compute Pool & Genesis Server (can take 3-15 minutes the first time for compute pool startup, use "show compute pools;" to see status)...'):
+                    st.write('Starting Compute Pool & Genesis Server (can take 3-15 minutes the first time for compute pool startup, use "show compute pools;" to see status)...')
+                    with st.spinner('...'):
                         start_result = session.sql(f"call {core_prefix}.INITIALIZE_APP_INSTANCE('APP1','GENESIS_POOL','GENESIS_EAI','{st.session_state.wh_name}')")
                         st.write(start_result)
                 except Exception as e:

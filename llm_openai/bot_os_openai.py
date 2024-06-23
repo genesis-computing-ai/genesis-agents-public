@@ -279,7 +279,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
          vector_store_name = self.bot_id + '_vectorstore'
          self.vector_store = self.create_vector_store(vector_store_name=vector_store_name, files=files)
          self.tool_resources = {"file_search": {"vector_store_ids": [self.vector_store]}}
-         if hasattr(files, 'urls') and files.urls is not None:
+         if True or hasattr(files, 'urls') and files.urls is not None:
             self.assistant = self.client.beta.assistants.create(
                name=name,
                instructions=instructions,
@@ -313,7 +313,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
          self.vector_store = self.create_vector_store(vector_store_name=vector_store_name, files=files)
          self.tool_resources = {"file_search": {"vector_store_ids": [self.vector_store]}}
 
-         if hasattr(files, 'urls') and files.urls is not None:
+         if True or hasattr(files, 'urls') and files.urls is not None:
             self.client.beta.assistants.update(self.assistant.id,
                                           instructions=instructions,
                                           tools=my_tools, # type: ignore
@@ -728,31 +728,38 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                updated_files_list = func_response.get("current_files_list",None)
             except:
                updated_files_list = None
-            if updated_files_list:
-               target_bot = json.loads(function_call_details[0][1]).get('bot_id',None)
-               if target_bot is not None:
-                  my_assistants = self.client.beta.assistants.list(order="desc")
-                  my_assistants = [a for a in my_assistants if a.name == target_bot]
-                  assistant_zero = my_assistants[0]
 
-                  try:
-                     vector_store_id = assistant_zero.tool_resources.file_search.vector_store_ids[0]
-                  except:
-                     vector_store_id = None
-                  if vector_store_id is not None:
-                        try:
-                           self.client.beta.vector_stores.delete( vector_store_id=vector_store_id )
-                        except:
-                           pass
-                     #  self.update_vector_store(vector_store_id=vector_store_id, files=None, plain_files=updated_files_list)
-                     #  tool_resources = assistant_zero.tool_resources
-                  
+            target_bot = json.loads(function_call_details[0][1]).get('bot_id',None)
+            if target_bot is not None:
+               my_assistants = self.client.beta.assistants.list(order="desc")
+               my_assistants = [a for a in my_assistants if a.name == target_bot]
+               assistant_zero = my_assistants[0]
+
+               try:
+                  vector_store_id = assistant_zero.tool_resources.file_search.vector_store_ids[0]
+               except:
+                  vector_store_id = None
+               if vector_store_id is not None:
+                     try:
+                        self.client.beta.vector_stores.delete( vector_store_id=vector_store_id )
+                     except:
+                        pass
+                  #  self.update_vector_store(vector_store_id=vector_store_id, files=None, plain_files=updated_files_list)
+                  #  tool_resources = assistant_zero.tool_resources
+               bot_tools = assistant_zero.tools
+               if updated_files_list:
+             #     file_search_exists = any(tool['type'] == 'file_search' for tool in bot_tools)
+   #               if not file_search_exists:
+   #                  bot_tools.insert(0, {"type": "file_search"})
                   vector_store_name = json.loads(function_call_details[0][1]).get('bot_id',None) + '_vectorstore'
                   vector_store = self.create_vector_store(vector_store_name=vector_store_name, files=None, plain_files=updated_files_list, for_bot = target_bot)
                   tool_resources = {"file_search": {"vector_store_ids": [vector_store]}}
-                  self.client.beta.assistants.update(assistant_zero.id, tool_resources=tool_resources)
+               else:
+                #  bot_tools = [tool for tool in bot_tools if tool.get('type') != 'file_search']
+                  tool_resources = {}
+               self.client.beta.assistants.update(assistant_zero.id, tool_resources=tool_resources)
 
-                  print(f"{self.bot_name} open_ai submit_tool_outputs Bot files for {target_bot} updated.")
+               print(f"{self.bot_name} open_ai submit_tool_outputs Bot files for {target_bot} updated.")
       except Exception as e:
          print(f'openai submit_tool_outputs error to tool checking, func_response: {func_response} e: {e}')    
 

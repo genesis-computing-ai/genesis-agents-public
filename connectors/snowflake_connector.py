@@ -2385,12 +2385,12 @@ class SnowflakeConnector(DatabaseConnector):
 
             return {
                 "success": True,
-                "message": f"File IDs {json.dumps(new_file_ids)} added to bot_id: {bot_id}.",
+                "message": f"File IDs {json.dumps(new_file_ids)} added to or removed from bot_id: {bot_id}.",
                 "current_files_list": current_files
             }
 
         except Exception as e:
-            logger.error(f"Failed to add new file to bot_id: {bot_id} with error: {e}")
+            logger.error(f"Failed to add or remove new file to bot_id: {bot_id} with error: {e}")
             return {"success": False, "error": str(e)}
     
     def db_update_slack_app_level_key(self, project_id, dataset_name, bot_servicing_table, bot_id, slack_app_level_key):

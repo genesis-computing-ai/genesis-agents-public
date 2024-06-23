@@ -309,8 +309,8 @@ def get_response_from_udf_proxy(uu, bot_id):
             response = data[0][0]
             return response
         except Exception as e:
-            st.write('Exception on get_response_from_udf_proxy: ',e)
-            return None
+            st.write('!! Exception on get_response_from_udf_proxy: ',e)
+            return '!!EXCEPTION_NEEDS_RETRY!!'
     
 
     url = f"http://127.0.0.1:8080/udf_proxy/lookup_udf"
@@ -431,11 +431,10 @@ def llm_config(): # Check if data is not empty
                     with st.spinner('Getting active bot details...'):
                         bot_details = get_bot_details()
                     if bot_details:
-                        st.success("Bot details validated.  Waiting 30 seconds for sever to be ready...")
-                        time.sleep(30)
-                       # st.success("Reload this page to chat with your bots!")
-                        if st.button("Next -> Click here to chat with your bots!"):
-                            st.experimental_rerun()
+                        st.success("Bot details validated.")
+                        time.sleep(0.5)
+                        st.success("-> Please refresh this browser page to chat with your bots!")
+                        st.session_state.clear()
 
             if cur_key == '<existing key present on server>':
                 st.write("Reload this page to chat with your apps.")
@@ -465,11 +464,21 @@ def chat_page():
         response = ''
 
         with st.spinner('Thinking...'):
-            while response == '' or response == 'not found':
+            i = 0
+            while response == '' or response == 'not found' or (response == '!!EXCEPTION_NEEDS_RETRY!!' and i < 6):
                 response = get_response_from_udf_proxy(uu=request_id, bot_id=selected_bot_id)
            #     st.write('response for uu ',request_id,' |',response,'|')
                 if (response == '' or response == 'not found'):
                     time.sleep(0.5)
+                if response == '!!EXCEPTION_NEEDS_RETRY!!':
+                    i = i + 1
+                    st.write(f'waiting 2 seconds after exception for retry #{i} of 5')
+                    time.sleep(2)
+            
+        if i >= 5:
+            st.error('Error reading the UDF response... reloading in 2 seconds...')
+            time.sleep(2)
+            st.experimental_rerun()
 
         print('out of thinking...')
        # st.write('oot - response for uu ',request_id,' |',response,'|')

@@ -789,6 +789,7 @@ def remove_bot_files(bot_id, file_ids_to_remove):
     if current_files_str == '""':
         current_files_str = []
     current_files = json.loads(current_files_str) if current_files_str else []
+    orig_files = current_files.copy()
 
     # Remove the file IDs if they're present
     for file_id_to_remove in file_ids_to_remove:
@@ -796,6 +797,13 @@ def remove_bot_files(bot_id, file_ids_to_remove):
             current_files.remove(file_id_to_remove)
     updated_files_str = json.dumps(current_files)
 
+    if orig_files == current_files:
+        return {
+                "success": False,
+                "error": f"Files to remove {file_ids_to_remove} not found in current files list for bot",
+                "current_files_list": orig_files
+            }
+    
     return bb_db_connector.db_update_bot_files(project_id=project_id, dataset_name=dataset_name, bot_servicing_table=bot_servicing_table, bot_id=bot_id, updated_files_str=updated_files_str, current_files=current_files, new_file_ids=file_ids_to_remove)
 
 

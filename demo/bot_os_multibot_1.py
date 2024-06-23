@@ -54,9 +54,6 @@ from core.system_variables import SystemVariables
 
 from demo.sessions_creator import create_sessions
 
-# for Cortex testing
-# os.environ['SIMPLE_MODE'] = 'true'
-
 import logging
 
 logger = logging.getLogger(__name__)
@@ -94,16 +91,13 @@ if genesis_source == "BigQuery":
         connection_info = json.load(f)
     # Initialize BigQuery client
     db_adapter = BigQueryConnector(connection_info, "BigQuery")
-else:  # Initialize BigQuery client
+else:  # Initialize Snowflake client
     print("Starting Snowflake connector...")
     db_adapter = SnowflakeConnector(connection_name="Snowflake")
     connection_info = {"Connection_Type": "Snowflake"}
 db_adapter.ensure_table_exists()
 print("---> CONNECTED TO DATABASE:: ", genesis_source)
 global_flags.source = genesis_source
-# while True:
-#    prompt = input('> ')
-#    db_adapter.semantic_copilot(prompt, semantic_model='"!SEMANTIC"."GENESIS_TEST"."GENESIS_INTERNAL"."SEMANTIC_STAGE"."revenue.yaml"')
 
 
 def get_udf_endpoint_url():
@@ -165,11 +159,6 @@ if genesis_source == "BigQuery" and api_key_from_env == False:
         )
         time.sleep(3)
 
-
-# to test streamlit first time key capture page
-# llm_api_key = None
-# api_key_from_env = False
-
 if llm_api_key is None and genesis_source == "Snowflake":
     llm_key, llm_type = get_llm_key()
     if llm_key and llm_type:
@@ -185,6 +174,7 @@ if llm_api_key is None and genesis_source == "Snowflake":
 
 if llm_api_key is not None and default_llm_engine.lower() == "openai":
     os.environ["OPENAI_API_KEY"] = llm_api_key
+
 if llm_api_key is not None and default_llm_engine.lower() == "reka":
     os.environ["REKA_API_KEY"] = llm_api_key
 
@@ -196,6 +186,7 @@ if global_flags.slack_active == "token_expired":
     global_flags.slack_active = test_slack_config_token()
 else:
     t, r = get_slack_config_tokens()
+
 print("...Slack Connector Active Flag: ", global_flags.slack_active)
 
 
@@ -208,7 +199,11 @@ if llm_api_key is not None:
         bot_id_to_udf_adapter_map,
         SystemVariables.bot_id_to_slack_adapter_map,
     ) = create_sessions(
-        default_llm_engine, llm_api_key, db_adapter, bot_id_to_udf_adapter_map, stream_mode=True
+        default_llm_engine,
+        llm_api_key,
+        db_adapter,
+        bot_id_to_udf_adapter_map,
+        stream_mode=True,
     )
 else:
     # wait to collect API key from Streamlit user, then make sessions later
@@ -216,24 +211,43 @@ else:
 
 app = Flask(__name__)
 
-# add routers to a map of bot_ids if we allow multiple bots to talk this way via one UDF
+# scheduler = BackgroundScheduler(executors={'default': ThreadPoolExecutor(max_workers=100)})
+scheduler = BackgroundScheduler(
+    {
+        "apscheduler.job_defaults.max_instances": 100,
+        "apscheduler.job_defaults.coalesce": True,
+    }
+)
+# Retrieve the number of currently running jobs in the scheduler
+# Code to clear any threads that are stuck or crashed from BackgroundScheduler
+server = None
+if llm_api_key is not None:
+    BotOsServer.stream_mode = True
+    server = BotOsServer(
+        app, sessions=sessions, scheduler=scheduler, scheduler_seconds_interval=1
+    )
+    set_remove_pointers(server, api_app_id_to_session_map)
 
-# @app.route("/udf_proxy/lookup_ui", methods=["GET", "POST"])
-# def lookup_fn():
-#    return udf_adapter.lookup_fn()
 
-# @app.route("/udf_proxy/submit_ui", methods=["GET", "POST"])
-# def submit_fn():
-#    return udf_adapter.submit_fn()
+BotOsServer.stream_mode = True
+scheduler.start()
+
+ngrok_active = launch_ngrok_and_update_bots(update_endpoints=global_flags.slack_active)
+
+SERVICE_HOST = os.getenv("SERVER_HOST", "0.0.0.0")
+
+logging.getLogger("werkzeug").setLevel(logging.WARN)
 
 
 @app.get("/healthcheck")
 def readiness_probe():
+    print("READINESS PROBE ENDPOINT")
     return "I'm ready!"
 
 
 @app.post("/echo")
 def echo():
+    print(f"ECHO ENDPOINT")
     """
     Main handler for input data sent by Snowflake.
     """
@@ -265,12 +279,6 @@ def echo():
     response.headers["Content-type"] = "application/json"
     logger.debug(f"Sending response: {response.json}")
     return response
-
-
-# @app.route("/healthcheck", methods=["GET", "POST"])
-# def healthcheck():
-#    #return udf_adapter.healthcheck()
-#    pass
 
 
 @app.route("/udf_proxy/submit_udf", methods=["POST"])
@@ -725,7 +733,11 @@ def configure_llm():
                 bot_id_to_udf_adapter_map,
                 SystemVariables.bot_id_to_slack_adapter_map,
             ) = create_sessions(
-                llm_api_key, default_llm_engine, db_adapter, bot_id_to_udf_adapter_map, stream_mode=True
+                llm_api_key,
+                default_llm_engine,
+                db_adapter,
+                bot_id_to_udf_adapter_map,
+                stream_mode=True,
             )
             server = BotOsServer(
                 app,
@@ -762,24 +774,6 @@ def configure_llm():
     response_var.headers["Content-type"] = "application/json"
     logger.debug(f"Sending response: {response_var.json}")
     return response_var
-
-
-# scheduler = BackgroundScheduler(executors={'default': ThreadPoolExecutor(max_workers=100)})
-scheduler = BackgroundScheduler(
-    {
-        "apscheduler.job_defaults.max_instances": 100,
-        "apscheduler.job_defaults.coalesce": True,
-    }
-)
-# Retrieve the number of currently running jobs in the scheduler
-# Code to clear any threads that are stuck or crashed from BackgroundScheduler
-server = None
-if llm_api_key is not None:
-    BotOsServer.stream_mode = True
-    server = BotOsServer(
-        app, sessions=sessions, scheduler=scheduler, scheduler_seconds_interval=1
-    )
-    set_remove_pointers(server, api_app_id_to_session_map)
 
 
 @app.route("/zapier", methods=["POST"])
@@ -935,46 +929,9 @@ def embed_openbb():
     )
 
 
-BotOsServer.stream_mode = True
-scheduler.start()
-
-ngrok_active = launch_ngrok_and_update_bots(update_endpoints=global_flags.slack_active)
-
-SERVICE_HOST = os.getenv("SERVER_HOST", "0.0.0.0")
-
-logging.getLogger("werkzeug").setLevel(logging.WARN)
-
-# Initialize Slack Bolt app
-# tok = 'xapp-1-A06VCAXMAKA-6988391388305-458da01d3a1d9ea609d7727424db689eb402bc9e43d8aa8174a11e0ed02719e6'
-# @slack_app = App(token=tok)
-# bot_tok = 'xoxb-6550650260448-6961055350487-vf1D28VBQzemQHJr3fgNIaGL'
-
-
-# Define Slack event handlers
-# @slack_app.event("message")
-# def handle_message_events(event, say):
-#   say("Hello, I'm here to assist you!")
-#    pass
-
-# @slack_app.event("app_mention")
-# def mention_handler(event, say):
-#    print(event)
-#  say('hi')
-
-
 def run_flask_app():
     app.run(host=SERVICE_HOST, port=8080, debug=False, use_reloader=False)
 
-
-# def run_slack_app():
-#    handler = SocketModeHandler(slack_app, tok)
-#    handler.start()
-#    print('hi')
-
-
-# Run Slack app in a separate thread
-# slack_thread = threading.Thread(target=run_slack_app)
-# slack_thread.start()
 
 if __name__ == "__main__":
     # while True:

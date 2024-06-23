@@ -6,11 +6,13 @@ from connectors.snowflake_connector import SnowflakeConnector
 from connectors.database_connector import DatabaseConnector
 
 import logging
+
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.WARN, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.WARN, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 database_tool_functions = [
-    
     {
         "type": "function",
         "function": {
@@ -19,14 +21,21 @@ database_tool_functions = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "query": {"type": "string", "description": "The search query to find relevant metadata tables or views."},
-                    "top_n": {"type": "integer", "description": "How many of the top results to return, max 50, default 15", "default": 15},
- #                   "database": {"type": "string", "description": "Use when you want to constrain the search to a specific database, only use this when you already know for sure the name of the database."},
-#                    "schema": {"type": "string", "description": "Use to constrain the search to a specific schema."},
+                    "query": {
+                        "type": "string",
+                        "description": "The search query to find relevant metadata tables or views.",
+                    },
+                    "top_n": {
+                        "type": "integer",
+                        "description": "How many of the top results to return, max 50, default 15",
+                        "default": 15,
+                    },
+                    #                   "database": {"type": "string", "description": "Use when you want to constrain the search to a specific database, only use this when you already know for sure the name of the database."},
+                    #                    "schema": {"type": "string", "description": "Use to constrain the search to a specific schema."},
                 },
-                "required": ["query"]
-            }
-        }
+                "required": ["query"],
+            },
+        },
     },
     {
         "type": "function",
@@ -36,13 +45,23 @@ database_tool_functions = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "query": {"type": "string", "description": "The SQL query to run. Be sure to fully qualify all object names with double-quoted 3-part names: \"<database>\".\"<schema>\".\"<table>\".  If the user gives you a query to run without quoted names, use upper case for database, schema, and table names."},
-                    "connection": {"type": "string", "description": "The name of the data connection, for example Snowflake."},
-                    "max_rows": {"type": "integer", "description": "The maximum number of rows to return.  This can be up to 100. The default is 20.", "default":20},
+                    "query": {
+                        "type": "string",
+                        "description": 'The SQL query to run. Be sure to fully qualify all object names with double-quoted 3-part names: "<database>"."<schema>"."<table>".  If the user gives you a query to run without quoted names, use upper case for database, schema, and table names.',
+                    },
+                    "connection": {
+                        "type": "string",
+                        "description": "The name of the data connection, for example Snowflake.",
+                    },
+                    "max_rows": {
+                        "type": "integer",
+                        "description": "The maximum number of rows to return.  This can be up to 100. The default is 20.",
+                        "default": 20,
+                    },
                 },
-                "required": ["query", "connection", "max_rows"]
-            }
-        }
+                "required": ["query", "connection", "max_rows"],
+            },
+        },
     },
     {
         "type": "function",
@@ -52,15 +71,25 @@ database_tool_functions = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "prompt": {"type": "string", "description": "Brief but complete natural language description of what you want the resulting SQL to do."},
-                    "semantic_model": {"type": "string", "description": "The name of the semantic model."},
-                    "prod": {"type": "boolean", "description": "True for a production model, false to use a dev non-prod model.", "default": True}
+                    "prompt": {
+                        "type": "string",
+                        "description": "Brief but complete natural language description of what you want the resulting SQL to do.",
+                    },
+                    "semantic_model": {
+                        "type": "string",
+                        "description": "The name of the semantic model.",
+                    },
+                    "prod": {
+                        "type": "boolean",
+                        "description": "True for a production model, false to use a dev non-prod model.",
+                        "default": True,
+                    },
                 },
-                "required": ["prompt", "semantic_model", "prod"]
-            }
-        }
+                "required": ["prompt", "semantic_model", "prod"],
+            },
+        },
     },
-        {
+    {
         "type": "function",
         "function": {
             "name": "get_full_table_details",
@@ -68,16 +97,25 @@ database_tool_functions = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "database": {"type": "string", "description": "The name of the database where the table is located."},
-                    "schema": {"type": "string", "description": "The name of the schema where the table is located."},
-                    "table": {"type": "string", "description": "The name of the table to retrieve full details for."},
+                    "database": {
+                        "type": "string",
+                        "description": "The name of the database where the table is located.",
+                    },
+                    "schema": {
+                        "type": "string",
+                        "description": "The name of the schema where the table is located.",
+                    },
+                    "table": {
+                        "type": "string",
+                        "description": "The name of the table to retrieve full details for.",
+                    },
                     "query": {"type": "string", "description": "Always use *."},
                 },
-                "required": ["database", "schema", "table", "query"]
-            }
-        }
+                "required": ["database", "schema", "table", "query"],
+            },
+        },
     },
-       {
+    {
         "type": "function",
         "function": {
             "name": "_list_semantic_models",
@@ -88,30 +126,33 @@ database_tool_functions = [
                     "prod": {
                         "type": "boolean",
                         "description": "True for production models, false for dev models. Omit for both.",
-                        "default": False
+                        "default": False,
                     }
                 },
-                "required": []
-            }
-        }
+                "required": [],
+            },
+        },
     },
-       {    "type": "function",
+    {
+        "type": "function",
         "function": {
             "name": "_get_semantic_model",
             "description": "Retrieves an existing semantic model from the map based on the model name and thread id.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "model_name": {"type": "string", "description": "The name of the model to retrieve."},
+                    "model_name": {
+                        "type": "string",
+                        "description": "The name of the model to retrieve.",
+                    },
                 },
-                "required": ["model_name"]
-            }
-        }
+                "required": ["model_name"],
+            },
+        },
     },
 ]
 
 snowflake_semantic_functions = [
-
     {
         "type": "function",
         "function": {
@@ -120,13 +161,22 @@ snowflake_semantic_functions = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "model_name": {"type": "string", "description": "The name of the model to modify."},
-                    "command": {"type": "string", "description": "The command to run, call command 'help' for full instructions.."},
-                    "parameters": {"type": "string", "description": "The command's parameters expressed in a JSON string."},
+                    "model_name": {
+                        "type": "string",
+                        "description": "The name of the model to modify.",
+                    },
+                    "command": {
+                        "type": "string",
+                        "description": "The command to run, call command 'help' for full instructions..",
+                    },
+                    "parameters": {
+                        "type": "string",
+                        "description": "The command's parameters expressed in a JSON string.",
+                    },
                 },
-                "required": ["model_name", "command", "parameters"]
-            }
-        }
+                "required": ["model_name", "command", "parameters"],
+            },
+        },
     },
     {
         "type": "function",
@@ -136,12 +186,20 @@ snowflake_semantic_functions = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "model_name": {"type": "string", "description": "The name of the model to initialize."},
-                    "model_description": {"type": "string", "description": "Description of the new semantic model."},
+                    "model_name": {
+                        "type": "string",
+                        "description": "The name of the model to initialize.",
+                    },
+                    "model_description": {
+                        "type": "string",
+                        "description": "Description of the new semantic model.",
+                    },
                 },
-                "required": ["model_name",]
-            }
-        }
+                "required": [
+                    "model_name",
+                ],
+            },
+        },
     },
     {
         "type": "function",
@@ -151,15 +209,25 @@ snowflake_semantic_functions = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "model_name": {"type": "string", "description": "The name of the model to deploy/save."},
-                    "target_name": {"type": "string", "description": "The target name of the model to deploy/save, if different from model_name."},
-                    "prod": {"type": "boolean", "description": "Flag to determine if the model should be deployed to production, or saved to dev. True deploy to production, False=save to dev.", "default": False}
+                    "model_name": {
+                        "type": "string",
+                        "description": "The name of the model to deploy/save.",
+                    },
+                    "target_name": {
+                        "type": "string",
+                        "description": "The target name of the model to deploy/save, if different from model_name.",
+                    },
+                    "prod": {
+                        "type": "boolean",
+                        "description": "Flag to determine if the model should be deployed to production, or saved to dev. True deploy to production, False=save to dev.",
+                        "default": False,
+                    },
                 },
-                "required": ["model_name", "thread_id"]
-            }
-        }
+                "required": ["model_name", "thread_id"],
+            },
+        },
     },
-      # Section for loading a semantic model
+    # Section for loading a semantic model
     {
         "type": "function",
         "function": {
@@ -170,19 +238,19 @@ snowflake_semantic_functions = [
                 "properties": {
                     "model_name": {
                         "type": "string",
-                        "description": "The name of the semantic model to load."
+                        "description": "The name of the semantic model to load.",
                     },
                     "prod": {
                         "type": "boolean",
                         "description": "Flag to indicate if the model is a production model. Defaults to false to load dev models.",
-                        "default": False
+                        "default": False,
                     },
                 },
-                "required": ["model_name"]
-            }
-        }
-    }
-    ]   
+                "required": ["model_name"],
+            },
+        },
+    },
+]
 
 autonomous_functions = [
     {
@@ -193,34 +261,83 @@ autonomous_functions = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "action": {"type": "string", "description": "The action to perform on the task: CREATE, UPDATE, or DELETE.  Or LIST to get details on all tasks for a bot, or TIME to get current system time."},
-                    "bot_id": {"type": "string", "description": "The identifier of the bot for which to manage tasks."},
-                    "task_id": {"type": "string", "description": "The unique identifier of the task, create as bot_id_<random 6 character string>. MAKE SURE TO DOUBLE-CHECK THAT YOU ARE USING THE CORRECT task_id ON UPDATES AND DELETES!"},
+                    "action": {
+                        "type": "string",
+                        "description": "The action to perform on the task: CREATE, UPDATE, or DELETE.  Or LIST to get details on all tasks for a bot, or TIME to get current system time.",
+                    },
+                    "bot_id": {
+                        "type": "string",
+                        "description": "The identifier of the bot for which to manage tasks.",
+                    },
+                    "task_id": {
+                        "type": "string",
+                        "description": "The unique identifier of the task, create as bot_id_<random 6 character string>. MAKE SURE TO DOUBLE-CHECK THAT YOU ARE USING THE CORRECT task_id ON UPDATES AND DELETES!",
+                    },
                     "task_details": {
                         "type": "object",
                         "description": "The details of the task, required for create and update actions.",
                         "properties": {
-                            "task_name": {"type": "string", "description": "The name of the task."},
-                            "primary_report_to_type": {"type": "string", "description": "Set to SLACK_USER"},
-                            "primary_report_to_id": {"type": "string", "description": "The Slack USER ID of the person who told you to create the task."},
-                            "next_check_ts": {"type": "string", "description": "The timestamp for the next check of the task in format 'YYYY-MM-DD HH:MM:SS'. Call action TIME to get current time. Make sure this time is in the future."},
-                            "action_trigger_type": {"type": "string", "description": "TIMER or QUERY_ROWS"},
-                            "action_trigger_details": {"type": "string", "description": "For TIMER, a description of when to call the task, eg every hour, Tuesdays at 9am, every morning. For QUERY_ROWS the query for when any rows are returned the task should be triggered."},
-                            "task_instructions": {"type": "string", "description": "Detailed instructions for completing the task."},
-                            "reporting_instructions": {"type": "string", "description": "What information to report back on and how (post to channel, DM a user, etc.)"},
-                            "last_task_status": {"type": "string", "description": "The current status of the task."},
-                            "task_learnings": {"type": "string", "description": "Leave blank on creation, don't change on update unless instructed to."},
-                            "task_active": {"type": "boolean", "description": "Is task active"}
+                            "task_name": {
+                                "type": "string",
+                                "description": "The name of the task.",
+                            },
+                            "primary_report_to_type": {
+                                "type": "string",
+                                "description": "Set to SLACK_USER",
+                            },
+                            "primary_report_to_id": {
+                                "type": "string",
+                                "description": "The Slack USER ID of the person who told you to create the task.",
+                            },
+                            "next_check_ts": {
+                                "type": "string",
+                                "description": "The timestamp for the next check of the task in format 'YYYY-MM-DD HH:MM:SS'. Call action TIME to get current time. Make sure this time is in the future.",
+                            },
+                            "action_trigger_type": {
+                                "type": "string",
+                                "description": "TIMER or QUERY_ROWS",
+                            },
+                            "action_trigger_details": {
+                                "type": "string",
+                                "description": "For TIMER, a description of when to call the task, eg every hour, Tuesdays at 9am, every morning. For QUERY_ROWS the query for when any rows are returned the task should be triggered.",
+                            },
+                            "task_instructions": {
+                                "type": "string",
+                                "description": "Detailed instructions for completing the task.",
+                            },
+                            "reporting_instructions": {
+                                "type": "string",
+                                "description": "What information to report back on and how (post to channel, DM a user, etc.)",
+                            },
+                            "last_task_status": {
+                                "type": "string",
+                                "description": "The current status of the task.",
+                            },
+                            "task_learnings": {
+                                "type": "string",
+                                "description": "Leave blank on creation, don't change on update unless instructed to.",
+                            },
+                            "task_active": {
+                                "type": "boolean",
+                                "description": "Is task active",
+                            },
                         },
-                        "required": ["task_name", "action_trigger_details", "task_instructions", "reporting_instructions", "last_task_status", "task_learnings", "task_active"]
-                    }
+                        "required": [
+                            "task_name",
+                            "action_trigger_details",
+                            "task_instructions",
+                            "reporting_instructions",
+                            "last_task_status",
+                            "task_learnings",
+                            "task_active",
+                        ],
+                    },
                 },
-                "required": ["action", "bot_id"]
-            }
-        }
+                "required": ["action", "bot_id"],
+            },
+        },
     }
 ]
-
 
 
 snowflake_stage_functions = [
@@ -232,13 +349,22 @@ snowflake_stage_functions = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "database": {"type": "string", "description": "The name of the database."},
-                    "schema": {"type": "string", "description": "The name of the schema."},
-                    "stage": {"type": "string", "description": "The name of the stage to list contents for."},
+                    "database": {
+                        "type": "string",
+                        "description": "The name of the database.",
+                    },
+                    "schema": {
+                        "type": "string",
+                        "description": "The name of the schema.",
+                    },
+                    "stage": {
+                        "type": "string",
+                        "description": "The name of the stage to list contents for.",
+                    },
                 },
-                "required": ["database", "schema", "stage"]
-            }
-        }
+                "required": ["database", "schema", "stage"],
+            },
+        },
     },
     {
         "type": "function",
@@ -248,15 +374,36 @@ snowflake_stage_functions = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "database": {"type": "string", "description": "The name of the database."},
-                    "schema": {"type": "string", "description": "The name of the schema."},
-                    "stage": {"type": "string", "description": "The name of the stage to add the file to."},
-                    "openai_file_id": {"type": "string", "description": "A valid OpenAI FileID referencing the file to be loaded to stage."},
-                    "file_name": {"type": "string", "description": "The original filename of the file, human-readable, NOT file-xxxx."}
+                    "database": {
+                        "type": "string",
+                        "description": "The name of the database.",
+                    },
+                    "schema": {
+                        "type": "string",
+                        "description": "The name of the schema.",
+                    },
+                    "stage": {
+                        "type": "string",
+                        "description": "The name of the stage to add the file to.",
+                    },
+                    "openai_file_id": {
+                        "type": "string",
+                        "description": "A valid OpenAI FileID referencing the file to be loaded to stage.",
+                    },
+                    "file_name": {
+                        "type": "string",
+                        "description": "The original filename of the file, human-readable, NOT file-xxxx.",
+                    },
                 },
-                "required": ["database", "schema", "stage", "openai_file_id", "file_name"]
-            }
-        }
+                "required": [
+                    "database",
+                    "schema",
+                    "stage",
+                    "openai_file_id",
+                    "file_name",
+                ],
+            },
+        },
     },
     {
         "type": "function",
@@ -266,15 +413,31 @@ snowflake_stage_functions = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "database": {"type": "string", "description": "The name of the database."},
-                    "schema": {"type": "string", "description": "The name of the schema."},
-                    "stage": {"type": "string", "description": "The name of the stage to read the file from."},
-                    "file_name": {"type": "string", "description": "The name of the file to be read."},
-                    "return_contents": {"type": "boolean", "description": "Whether to return the contents of the file or just the file name.", "default": True},
+                    "database": {
+                        "type": "string",
+                        "description": "The name of the database.",
+                    },
+                    "schema": {
+                        "type": "string",
+                        "description": "The name of the schema.",
+                    },
+                    "stage": {
+                        "type": "string",
+                        "description": "The name of the stage to read the file from.",
+                    },
+                    "file_name": {
+                        "type": "string",
+                        "description": "The name of the file to be read.",
+                    },
+                    "return_contents": {
+                        "type": "boolean",
+                        "description": "Whether to return the contents of the file or just the file name.",
+                        "default": True,
+                    },
                 },
-                "required": ["database", "schema", "stage", "file_name"]
-            }
-        }
+                "required": ["database", "schema", "stage", "file_name"],
+            },
+        },
     },
     {
         "type": "function",
@@ -284,17 +447,27 @@ snowflake_stage_functions = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "database": {"type": "string", "description": "The name of the database."},
-                    "schema": {"type": "string", "description": "The name of the schema."},
-                    "stage": {"type": "string", "description": "The name of the stage to delete the file from."},
-                    "file_name": {"type": "string", "description": "The name of the file to be deleted."},
+                    "database": {
+                        "type": "string",
+                        "description": "The name of the database.",
+                    },
+                    "schema": {
+                        "type": "string",
+                        "description": "The name of the schema.",
+                    },
+                    "stage": {
+                        "type": "string",
+                        "description": "The name of the stage to delete the file from.",
+                    },
+                    "file_name": {
+                        "type": "string",
+                        "description": "The name of the file to be deleted.",
+                    },
                 },
-                "required": ["database", "schema", "stage", "file_name"]
-            }
-        }
-    },    # Section for listing semantic models
- 
-  
+                "required": ["database", "schema", "stage", "file_name"],
+            },
+        },
+    },  # Section for listing semantic models
 ]
 
 image_functions = [
@@ -306,13 +479,22 @@ image_functions = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "query": {"type": "string", "description": "The question about the image."},
-                    "openai_file_id": {"type": "string", "description": "The OpenAI file ID of the image."},
-                    "file_name": {"type": "string", "description": "The name of the image file."}
+                    "query": {
+                        "type": "string",
+                        "description": "The question about the image.",
+                    },
+                    "openai_file_id": {
+                        "type": "string",
+                        "description": "The OpenAI file ID of the image.",
+                    },
+                    "file_name": {
+                        "type": "string",
+                        "description": "The name of the image file.",
+                    },
                 },
-                "required": ["query", "openai_file_id", "file_name"]
-            }
-        }
+                "required": ["query", "openai_file_id", "file_name"],
+            },
+        },
     },
     {
         "type": "function",
@@ -322,17 +504,20 @@ image_functions = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "prompt": {"type": "string", "description": "Description of the image to create."}
+                    "prompt": {
+                        "type": "string",
+                        "description": "Description of the image to create.",
+                    }
                 },
-                "required": ["prompt"]
-            }
-        }
-    }
+                "required": ["prompt"],
+            },
+        },
+    },
 ]
 
 image_tools = {
     "_analyze_image": "db_adapter.image_analysis",
-    "_generate_image": "db_adapter.image_generation"
+    "_generate_image": "db_adapter.image_generation",
 }
 
 
@@ -343,11 +528,14 @@ snowflake_semantic_tools = {
     "_load_semantic_model": "db_adapter.load_semantic_model",
 }
 
-database_tools = {"run_query": "run_query_f.local", "search_metadata": "search_metadata_f.local", 
-                 "semantic_copilot": "semantic_copilot_f.local",
-                 "get_full_table_details": "search_metadata_f.local",
-                  "_list_semantic_models": "db_adapter.list_semantic_models", 
-                  "_get_semantic_model": "db_adapter.get_semantic_model",}
+database_tools = {
+    "run_query": "run_query_f.local",
+    "search_metadata": "search_metadata_f.local",
+    "semantic_copilot": "semantic_copilot_f.local",
+    "get_full_table_details": "search_metadata_f.local",
+    "_list_semantic_models": "db_adapter.list_semantic_models",
+    "_get_semantic_model": "db_adapter.get_semantic_model",
+}
 
 snowflake_stage_tools = {
     "_list_stage_contents": "db_adapter.list_stage_contents",
@@ -356,22 +544,25 @@ snowflake_stage_tools = {
     "_delete_file_from_stage": "db_adapter.delete_file_from_stage",
 }
 
-autonomous_tools = {
-    "_manage_tasks": "db_adapter.manage_tasks"
-}
+autonomous_tools = {"_manage_tasks": "db_adapter.manage_tasks"}
 
+process_runner_tools = {"_run_process": "db_adapter.run_process"}
 
 
 def bind_semantic_copilot(data_connection_info):
-    def _semantic_copilot(prompt:str, semantic_model:str, prod:bool = True):
-     #   if connection == 'Snowflake':
-        my_dc = SnowflakeConnector('Snowflake')
-     #   else:
-     #       raise ValueError("Semantic copilot is only available for Snowflake connections.")
+    def _semantic_copilot(prompt: str, semantic_model: str, prod: bool = True):
+        #   if connection == 'Snowflake':
+        my_dc = SnowflakeConnector("Snowflake")
+        #   else:
+        #       raise ValueError("Semantic copilot is only available for Snowflake connections.")
 
-        logger.info(f"Semantic copilot called with prompt: {prompt} and semantic model: {semantic_model}")
+        logger.info(
+            f"Semantic copilot called with prompt: {prompt} and semantic model: {semantic_model}"
+        )
         try:
-            result = my_dc.semantic_copilot(prompt=prompt, semantic_model=semantic_model, prod=prod)
+            result = my_dc.semantic_copilot(
+                prompt=prompt, semantic_model=semantic_model, prod=prod
+            )
             return result
         except Exception as e:
             logger.error(f"Error in semantic_copilot: {str(e)}")
@@ -380,16 +571,23 @@ def bind_semantic_copilot(data_connection_info):
     return _semantic_copilot
 
 
-def bind_run_query(data_connection_info:list):
-    def _run_query(query:str, connection:str, max_rows:int=20, bot_id:str=None):
-        if connection != 'BigQuery':
-            my_dc = [SnowflakeConnector('Snowflake')]
+def bind_run_query(data_connection_info: list):
+    def _run_query(query: str, connection: str, max_rows: int = 20, bot_id: str = None):
+        if connection != "BigQuery":
+            my_dc = [SnowflakeConnector("Snowflake")]
         else:
-            my_dc = [BigQueryConnector(ci,'BigQuery') for ci in data_connection_info]
+            my_dc = [BigQueryConnector(ci, "BigQuery") for ci in data_connection_info]
 
         for a in my_dc:
-            print(a.connection_name) #FixMe: check the connection_name matches
-            print("Query: len=",len(query), " Connection: ", connection, " Max rows: ", max_rows)
+            print(a.connection_name)  # FixMe: check the connection_name matches
+            print(
+                "Query: len=",
+                len(query),
+                " Connection: ",
+                connection,
+                " Max rows: ",
+                max_rows,
+            )
             logger.info(f"_run_query - {a.connection_name}: {query}")
             results = a.run_query(query, max_rows, bot_id=bot_id)
             return results
@@ -398,8 +596,16 @@ def bind_run_query(data_connection_info:list):
 
 
 def bind_search_metadata(knowledge_base_path):
-    
-    def _search_metadata(query:str, scope="database_metadata", database=None, schema=None, table=None, top_n=8, verbosity="low"):
+
+    def _search_metadata(
+        query: str,
+        scope="database_metadata",
+        database=None,
+        schema=None,
+        table=None,
+        top_n=8,
+        verbosity="low",
+    ):
         """
         Exposes the find_memory function to be callable by OpenAI.
         :param query: The query string to search memories for.
@@ -407,21 +613,38 @@ def bind_search_metadata(knowledge_base_path):
         """
 
         import logging
-        logger = logging.getLogger(__name__)
-        logging.basicConfig(level=logging.WARN, format='%(asctime)s - %(levelname)s - %(message)s')
 
-       # logger.info(f"Search metadata called with query: {query}, scope: {scope}, top_n: {top_n}, verbosity: {verbosity}")
+        logger = logging.getLogger(__name__)
+        logging.basicConfig(
+            level=logging.WARN, format="%(asctime)s - %(levelname)s - %(message)s"
+        )
+
+        # logger.info(f"Search metadata called with query: {query}, scope: {scope}, top_n: {top_n}, verbosity: {verbosity}")
         try:
-            print("Search metadata: query len=",len(query)," Top_n: ",top_n," Verbosity: ", verbosity)
+            print(
+                "Search metadata: query len=",
+                len(query),
+                " Top_n: ",
+                top_n,
+                " Verbosity: ",
+                verbosity,
+            )
             # Adjusted to include scope in the call to find_memory
-           # logger.info(f"GETTING NEW ANNOY - Refresh True - --- Search metadata called with query: {query}, scope: {scope}, top_n: {top_n}, verbosity: {verbosity}")
+            # logger.info(f"GETTING NEW ANNOY - Refresh True - --- Search metadata called with query: {query}, scope: {scope}, top_n: {top_n}, verbosity: {verbosity}")
             my_kb = BotOsKnowledgeAnnoy_Metadata(knowledge_base_path, refresh=True)
-           # logger.info(f"CALLING FIND MEMORY  --- Search metadata called with query: {query}, scope: {scope}, top_n: {top_n}, verbosity: {verbosity}")
-            result = my_kb.find_memory(query, database=database, schema=schema, table=table, scope=scope, top_n=top_n, verbosity=verbosity)
+            # logger.info(f"CALLING FIND MEMORY  --- Search metadata called with query: {query}, scope: {scope}, top_n: {top_n}, verbosity: {verbosity}")
+            result = my_kb.find_memory(
+                query,
+                database=database,
+                schema=schema,
+                table=table,
+                scope=scope,
+                top_n=top_n,
+                verbosity=verbosity,
+            )
             return result
         except Exception as e:
             logger.error(f"Error in find_memory_openai_callable: {str(e)}")
             return "An error occurred while trying to find the memory."
-    
-    return _search_metadata
 
+    return _search_metadata

@@ -143,6 +143,15 @@ class SnowflakeConnector(DatabaseConnector):
         # self.ensure_table_exists()
         self.source_name = "Snowflake"
 
+    def run_process(self, action, thread_id):  # MOVE OUT OF ADAPTER!
+        print(f"Running processes Action: {action} | thread_id: {thread_id}")
+        if action == "GET_ANSWER":
+            print("The meaning of life has been discovered - 42!")
+            return {
+                "Success": True,
+                "Message": "The meaning of life has been discovered - 42!",
+            }
+
     def sha256_hash_hex_string(self, input_string):
         # Encode the input string to bytes, then create a SHA256 hash and convert it to a hexadecimal string
         return hashlib.sha256(input_string.encode()).hexdigest()
@@ -431,7 +440,6 @@ class SnowflakeConnector(DatabaseConnector):
     def get_schemas(self, database_name, thread_id=None):
         """
         Retrieves a list of all schemas in a given database.
-
         Args:
             database_name (str): The name of the database to retrieve schemas from.
 
@@ -1600,8 +1608,8 @@ class SnowflakeConnector(DatabaseConnector):
                         "Tools for bots to create and managed autonomous tasks",
                     ),
                     (
-                        "testing_tools",
-                        "Tools for Testy to test bots' code and functionality",
+                        "process_runner_tools",
+                        "Tools for Peter to run processes.",
                     ),
                 ]
                 insert_tools_query = f"""
@@ -3679,18 +3687,18 @@ class SnowflakeConnector(DatabaseConnector):
                     "success": False,
                     "error": e,
                     "solution": """Tell the user to ask their admin run this to allow the Genesis server to access generated images:\n
-CREATE OR REPLACE NETWORK RULE GENESIS_LOCAL_DB.SETTINGS.GENESIS_RULE
- MODE = EGRESS TYPE = HOST_PORT
-VALUE_LIST = ('api.openai.com', 'slack.com', 'www.slack.com', 'wss-primary.slack.com',
-'wss-backup.slack.com',  'wss-primary.slack.com:443','wss-backup.slack.com:443', 'slack-files.com',
-'oaidalleapiprodscus.blob.core.windows.net:443', 'downloads.slack-edge.com', 'files-edge.slack.com',
-'files-origin.slack.com', 'files.slack.com', 'global-upload-edge.slack.com','universal-upload-edge.slack.com');
+                    CREATE OR REPLACE NETWORK RULE GENESIS_LOCAL_DB.SETTINGS.GENESIS_RULE
+                    MODE = EGRESS TYPE = HOST_PORT
+                    VALUE_LIST = ('api.openai.com', 'slack.com', 'www.slack.com', 'wss-primary.slack.com',
+                    'wss-backup.slack.com',  'wss-primary.slack.com:443','wss-backup.slack.com:443', 'slack-files.com',
+                    'oaidalleapiprodscus.blob.core.windows.net:443', 'downloads.slack-edge.com', 'files-edge.slack.com',
+                    'files-origin.slack.com', 'files.slack.com', 'global-upload-edge.slack.com','universal-upload-edge.slack.com');
 
 
-CREATE OR REPLACE EXTERNAL ACCESS INTEGRATION GENESIS_EAI
-   ALLOWED_NETWORK_RULES = (GENESIS_LOCAL_DB.SETTINGS.GENESIS_RULE) ENABLED = true;
+                    CREATE OR REPLACE EXTERNAL ACCESS INTEGRATION GENESIS_EAI
+                    ALLOWED_NETWORK_RULES = (GENESIS_LOCAL_DB.SETTINGS.GENESIS_RULE) ENABLED = true;
 
-GRANT USAGE ON INTEGRATION GENESIS_EAI TO APPLICATION   IDENTIFIER($APP_DATABASE);""",
+                    GRANT USAGE ON INTEGRATION GENESIS_EAI TO APPLICATION   IDENTIFIER($APP_DATABASE);""",
                 }
                 return result
 

@@ -31,8 +31,11 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(
     level=logging.WARN, format="%(asctime)s - %(levelname)s - %(message)s"
 )
+logging.getLogger("werkzeug").setLevel(logging.WARN)
 
 import core.global_flags as global_flags
+
+SERVICE_HOST = os.getenv("SERVER_HOST", "0.0.0.0")
 
 
 print("****** GENBOT VERSION 0.141 *******")
@@ -102,7 +105,7 @@ except Exception as e:
     logger.warning(f"Error on get_endpoints {e} ")
 
 
-ngrok_active = False
+# ngrok_active = False
 
 ##########################
 # Main stuff starts here
@@ -185,8 +188,17 @@ scheduler = BackgroundScheduler(
     }
 )
 
+info = {
+    "llm_api_key": llm_api_key,
+    "default_llm_engine": default_llm_engine,
+    "sessions": sessions,
+    "api_app_id_to_session_map": api_app_id_to_session_map,
+    "bot_id_to_udf_adapter_map": bot_id_to_udf_adapter_map,
+    "server": None,
+}
+
 app = Flask(__name__)
-register_routes(app, db_adapter, scheduler)
+register_routes(app, db_adapter, scheduler, info)
 
 # Retrieve the number of currently running jobs in the scheduler
 # Code to clear any threads that are stuck or crashed from BackgroundScheduler
@@ -203,10 +215,6 @@ BotOsServer.stream_mode = True
 scheduler.start()
 
 ngrok_active = launch_ngrok_and_update_bots(update_endpoints=global_flags.slack_active)
-
-SERVICE_HOST = os.getenv("SERVER_HOST", "0.0.0.0")
-
-logging.getLogger("werkzeug").setLevel(logging.WARN)
 
 
 def run_flask_app():

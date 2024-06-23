@@ -31,7 +31,14 @@ logging.basicConfig(
 import core.global_flags as global_flags
 
 
-def register_routes(app: Flask, db_adapter, scheduler):
+def register_routes(app: Flask, db_adapter, scheduler, info):
+    llm_api_key = info["llm_api_key"]
+    default_llm_engine = info["default_llm_engine"]
+    sessions = info["sessions"]
+    api_app_id_to_session_map = info["api_app_id_to_session_map"]
+    bot_id_to_udf_adapter_map = info["bot_id_to_udf_adapter_map"]
+    server = info["server"]
+
     @app.get("/healthcheck")
     def readiness_probe():
         return "I'm ready!"

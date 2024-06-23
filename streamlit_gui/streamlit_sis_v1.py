@@ -213,7 +213,6 @@ def configure_llm(llm_model_name, llm_api_key):
     import json
 
     if SnowMode:
-
         sql = f"select {prefix}.configure_llm('{llm_model_name}', '{llm_api_key}') "
         data = session.sql(sql).collect()
         response = data[0][0]
@@ -448,6 +447,7 @@ def llm_config():  # Check if data is not empty
 
             st.write("One moment while I validate the key and launch the bots...")
             with st.spinner("Validating API key and launching bots..."):
+                print(llm_model, llm_api_key)
                 config_response = configure_llm(llm_model, llm_api_key)
 
                 if config_response["Success"] is False:
@@ -1603,25 +1603,25 @@ def start_stop():
     )
     start_stop_text = f"""USE DATABASE IDENTIFIER('{app_name}');
 
-// pause service
+    // pause service
 
-call {app_name}.core.stop_app_instance('APP1');
-alter compute pool GENESIS_POOL SUSPEND; -- to also pause the compute pool
+    call {app_name}.core.stop_app_instance('APP1');
+    alter compute pool GENESIS_POOL SUSPEND; -- to also pause the compute pool
 
-// resume service
+    // resume service
 
-alter compute pool GENESIS_POOL RESUME; -- if you paused the compute pool
-call {app_name}.core.start_app_instance('APP1','GENESIS_POOL','GENESIS_EAI','{st.session_state.wh_name}'); 
+    alter compute pool GENESIS_POOL RESUME; -- if you paused the compute pool
+    call {app_name}.core.start_app_instance('APP1','GENESIS_POOL','GENESIS_EAI','{st.session_state.wh_name}'); 
 
-// check service
+    // check service
 
-USE DATABASE IDENTIFIER($APP_DATABASE);
-USE SCHEMA APP1;
+    USE DATABASE IDENTIFIER($APP_DATABASE);
+    USE SCHEMA APP1;
 
-// reinitialize -- note: this wipes out the app metadata and existing harvests and bots
+    // reinitialize -- note: this wipes out the app metadata and existing harvests and bots
 
-call {app_name}.core.drop_app_instance('APP1');
-CALL {app_name}.CORE.INITIALIZE_APP_INSTANCE('APP1','GENESIS_POOL','GENESIS_EAI','{st.session_state.wh_name}');
+    call {app_name}.core.drop_app_instance('APP1');
+    CALL {app_name}.CORE.INITIALIZE_APP_INSTANCE('APP1','GENESIS_POOL','GENESIS_EAI','{st.session_state.wh_name}');
 
 
     """

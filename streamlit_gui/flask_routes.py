@@ -32,6 +32,7 @@ import core.global_flags as global_flags
 
 
 def register_routes(app: Flask, db_adapter, scheduler, info):
+    global llm_api_key, default_llm_engine, sessions, api_app_id_to_session_map, bot_id_to_udf_adapter_map, server
     llm_api_key = info["llm_api_key"]
     default_llm_engine = info["default_llm_engine"]
     sessions = info["sessions"]

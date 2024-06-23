@@ -3,14 +3,14 @@ import os, json
 
 st.set_page_config(layout="wide")
 
-SnowMode = False
+NativeMode = False
 
 import time
 import uuid
 import datetime
 import pandas as pd
 
-if SnowMode:
+if NativeMode:
     from snowflake.snowpark.context import get_active_session
 
     session = get_active_session()
@@ -21,7 +21,7 @@ def get_slack_tokens():
     import requests
     import json
 
-    # add SnowMode
+    # add NativeMode
     url = "http://127.0.0.1:8080/udf_proxy/get_slack_tokens"
     headers = {"Content-Type": "application/json"}
 
@@ -40,7 +40,7 @@ def get_ngrok_tokens():
     import requests
     import json
 
-    # add SnowMode
+    # add NativeMode
     url = "http://127.0.0.1:8080/udf_proxy/get_ngrok_tokens"
     headers = {"Content-Type": "application/json"}
 
@@ -66,7 +66,7 @@ def set_ngrok_token(ngrok_auth_token, ngrok_use_domain, ngrok_domain):
     import requests
     import json
 
-    # add SnowMode
+    # add NativeMode
     url = "http://127.0.0.1:8080/udf_proxy/configure_ngrok_token"
     headers = {"Content-Type": "application/json"}
 
@@ -90,7 +90,7 @@ def set_slack_tokens(slack_app_token, slack_app_refresh_token):
     import requests
     import json
 
-    # add SnowMode
+    # add NativeMode
     url = "http://127.0.0.1:8080/udf_proxy/configure_slack_app_token"
     headers = {"Content-Type": "application/json"}
 
@@ -108,7 +108,7 @@ def get_bot_details():
     import requests
     import json
 
-    # add SnowMode
+    # add NativeMode
     url = "http://127.0.0.1:8080/udf_proxy/list_available_bots"
     headers = {"Content-Type": "application/json"}
 
@@ -216,7 +216,7 @@ def deploy_bot(bot_id):
         raise Exception(f"Failed to deploy bot: {response.text}")
 
 
-if SnowMode:
+if NativeMode:
     try:
         sql = f"select app1.response_udf('test') "
         data = session.sql(sql).collect()
@@ -295,7 +295,7 @@ def chat_page():
             {"role": "user", "content": prompt}
         )
 
-        if SnowMode:
+        if NativeMode:
             sql = f"select chattest_app.app1.submit_udf('{prompt}', '{st.session_state[f'thread_id_{selected_bot_id}']}', '{selected_bot_id}')"
             data = session.sql(sql).collect()
             # TODO ^^ make this a bind query
@@ -310,7 +310,7 @@ def chat_page():
 
         with st.spinner("Thinking..."):
             while response == "not found":
-                if SnowMode:
+                if NativeMode:
                     sql = f"select chattest_app.app1.response_udf('{request_id}', '{selected_bot_id}') "
                     data = session.sql(sql).collect()
                     # st.write(data)

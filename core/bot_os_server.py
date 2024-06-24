@@ -163,9 +163,9 @@ class BotOsServer:
         for s in self.sessions:
             try:
                 # import threading
-                #     print(f"Thread ID: {threading.get_ident()} - starting execute cycle...")
+                # print(f"Thread ID: {threading.get_ident()} - starting execute cycle...")
                 s.execute()
-            #     print(f"Thread ID: {threading.get_ident()} - ending execute cycle...")
+                # print(f"Thread ID: {threading.get_ident()} - ending execute cycle...")
             except Exception as e:
                 traceback.print_exc()
 

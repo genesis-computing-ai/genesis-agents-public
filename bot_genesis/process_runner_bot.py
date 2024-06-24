@@ -16,7 +16,7 @@ process_runner_functions = [
     {
         "type": "function",
         "function": {
-            "name": "_run_process",
+            "name": "run_process",
             "description": "Manages processes run on other bots",
             "parameters": {
                 "type": "object",
@@ -24,7 +24,7 @@ process_runner_functions = [
                     "action": {
                         "type": "string",
                         "description": """
-                        The action to perform: GET_ANSWER
+                        The action to perform: GET_ANSWER, GET_FIRST_STEP, GET_NEXT_STEP
                         """,
                     },
                     "bot_id": {
@@ -35,9 +35,9 @@ process_runner_functions = [
                         "type": "string",
                         "description": "The name of the test bot.",
                     },
-                    "bot_description": {
+                    "process_to_run": {
                         "type": "string",
-                        "description": "The description of the test bot.",
+                        "description": "The name the process to run a step on.",
                     },
                 },
             },
@@ -45,14 +45,14 @@ process_runner_functions = [
     }
 ]
 
-process_runner_tools = {"_run_process": "db_adapter.run_process"}
+process_runner_tools = {"run_process": "db_adapter.run_process"}
 
 
-def run_process(self, action, thread_id):  # MOVE OUT OF ADAPTER!
-    print(f"Running processes Action: {action} | thread_id: {thread_id}")
-    if action == "GET_ANSWER":
-        print("The meaning of life has been discovered - 24!")
-        return {
-            "Success": True,
-            "Message": "The meaning of life has been discovered - 24!",
-        }
+# def run_process(self, action, thread_id):  # MOVE OUT OF ADAPTER
+#     print(f"Running processes Action: {action} | thread_id: {thread_id}")
+#     if action == "GET_ANSWER":
+#         print("The meaning of life has been discovered - 24!")
+#         return {
+#             "Success": True,
+#             "Message": "The meaning of life has been discovered - 24!",
+#         }

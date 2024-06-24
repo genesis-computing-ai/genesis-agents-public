@@ -30,7 +30,7 @@ class BotInputStreamlit(BotOsInputAdapter):
         print("appended ",prompt, " ", len(self.events) )
     
 
-    def get_input(self) -> BotOsInputMessage|None:
+    def get_input(self, thread_map=None,  active=None, processing=None, done_map=None) -> BotOsInputMessage|None:
 
         print("len input=",len(self.events)," len responsese=",len(self.responses) )
         

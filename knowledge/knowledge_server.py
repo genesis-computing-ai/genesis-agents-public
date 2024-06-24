@@ -79,7 +79,7 @@ class KnowledgeServer:
                         WHERE timestamp > TO_TIMESTAMP('{last_timestamp}') AND
                         thread_id = '{thread_id}'
                         ORDER BY TIMESTAMP;""" 
-            msg_log = self.db_connector.run_query(query)
+            msg_log = self.db_connector.run_query(query, max_rows=100)
 
             messages = [f"{msg['MESSAGE_TYPE']}: {msg['MESSAGE_PAYLOAD']}:" for msg in msg_log]
             messages = '\n'.join(messages)            

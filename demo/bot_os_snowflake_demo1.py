@@ -26,7 +26,7 @@ tool2, function_description2 = snow_adapter.create_udf_tool(
 session = BotOsSession(
     "Elsa_Test",
     instructions=ELSA_DATA_ANALYST_INSTRUCTIONS,
-    asistant_implementaion=BotOsAssistantTester,
+    assistant_implementaion=BotOsAssistantTester,
     input_adapters=[snow_adapter],
     available_functions={"my_favorite_udf_1": tool1, "my_favorite_udf_2": tool2},
     tools=[function_description1, function_description2],

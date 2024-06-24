@@ -121,7 +121,7 @@ def get_tools(which_tools, db_adapter, slack_adapter_local=None, include_slack=T
             tools.extend(snowflake_stage_functions)
             available_functions_load.update(snowflake_stage_tools)
             function_to_tool_map[tool_name] = snowflake_stage_functions
-        elif tool_name == "autonomous_functions":
+        elif tool_name == "autonomous_tools" or tool_name == "autonomous_functions":
             tools.extend(autonomous_functions)
             available_functions_load.update(autonomous_tools)
             function_to_tool_map[tool_name] = autonomous_functions
@@ -186,7 +186,7 @@ class BotOsDispatchInputAdapter(BotOsInputAdapter):
         pass
 
     # allows for polling from source
-    def get_input(self):
+    def get_input(self, thread_map=None, active=None, processing=None, done_map=None):
         pass
 
     # allows response to be sent back with optional reply

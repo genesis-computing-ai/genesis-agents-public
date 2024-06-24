@@ -42,34 +42,32 @@ class StreamingEventHandler(AssistantEventHandler):
     run_id_to_metadata = {}
     run_id_to_bot_assist = {}
 
-    def __init__(self, client, thread_id, assistant_id, metadata, bot_assist):
-        super().__init__()
-        self.output = None
-        self.tool_id = None
-        self.thread_id = thread_id
-        self.assistant_id = assistant_id
-        self.run_id = None
-        self.run_step = None
-        self.function_name = ""
-        self.arguments = ""
-        self.client = client
-        self.metadata = metadata
-        self.bot_assist = bot_assist
-
-    @override
-    def on_text_created(self, text) -> None:
-        pass
-
-    @override
-    def on_text_delta(self, delta, snapshot):
-        # print(f"\nassistant on_text_delta > {delta.value}", end="", flush=True)
-        #       print(f"{delta.value}")
-        if self.run_id not in StreamingEventHandler.run_id_to_output_stream:
-            StreamingEventHandler.run_id_to_output_stream[self.run_id] = (
-                "!STREAM_START!"
-            )
-        if delta is not None and isinstance(delta.value, str):
-            StreamingEventHandler.run_id_to_output_stream[self.run_id] += delta.value
+   def __init__(self, client, thread_id, assistant_id, metadata, bot_assist):
+       super().__init__()
+       self.output = None
+       self.tool_id = None
+       self.thread_id = thread_id
+       self.assistant_id = assistant_id
+       self.run_id = None
+       self.run_step = None
+       self.function_name = ""
+       self.arguments = ""
+       self.client = client
+       self.metadata = metadata
+       self.bot_assist = bot_assist
+  
+   @override
+   def on_text_created(self, text) -> None:
+       pass
+   
+   @override
+   def on_text_delta(self, delta, snapshot):
+       # print(f"\nassistant on_text_delta > {delta.value}", end="", flush=True)
+#       print(f"{delta.value}")
+      if self.run_id not in StreamingEventHandler.run_id_to_output_stream:
+          StreamingEventHandler.run_id_to_output_stream[self.run_id] = ""
+      if delta is not None and isinstance(delta.value, str):
+         StreamingEventHandler.run_id_to_output_stream[self.run_id] += delta.value
 
     @override
     def on_end(
@@ -87,29 +85,27 @@ class StreamingEventHandler(AssistantEventHandler):
         self.run_id = message.run_id
 
     #   print(f"\nassistant on_message_created > {message}\n", end="", flush=True)
-    @override
-    def on_message_done(self, message: Message) -> None:
-        if self.run_id in StreamingEventHandler.run_id_to_output_stream:
-            StreamingEventHandler.run_id_to_output_stream[
-                self.run_id
-            ] += "!STREAM_DONE!"
-        pass
+   @override
+   def on_message_done(self, message: Message) -> None:
+       if self.run_id  in StreamingEventHandler.run_id_to_output_stream:
+          StreamingEventHandler.run_id_to_output_stream[self.run_id] += "!STREAM_DONE!"
+       pass
 
     @override
     def on_message_delta(self, delta: MessageDelta, snapshot: Message) -> None:
         # print(f"\nassistant on_message_delta > {delta}\n", end="", flush=True)
         pass
 
-    def on_tool_call_created(self, tool_call):
-        # 4
-        print(f"\nassistant tool_call > {tool_call}\n", end="", flush=True)
-        return
-        print(f"\nassistant on_tool_call_created > {tool_call}")
-        self.function_name = tool_call.function.name
-        self.tool_id = tool_call.id
-        print(f"\on_tool_call_created > run_step.status > {self.run_step.status}")
-
-        print(f"\nassistant > {tool_call.type} {self.function_name}\n", flush=True)
+   def on_tool_call_created(self, tool_call):
+       # 4
+       print(f"\nassistant tool_call > {tool_call}\n", end="", flush=True)
+       return
+       print(f"\nassistant on_tool_call_created > {tool_call}")
+       self.function_name = tool_call.function.name       
+       self.tool_id = tool_call.id
+       print(f"\on_tool_call_created > run_step.status > {self.run_step.status}")
+      
+       print(f"\nassistant > {tool_call.type} {self.function_name}\n", flush=True)
 
         keep_retrieving_run = self.client.beta.threads.runs.retrieve(
             thread_id=self.thread_id, run_id=self.run_id
@@ -227,106 +223,43 @@ class StreamingEventHandler(AssistantEventHandler):
 
 class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
-    stream_mode = False
+   stream_mode = False
 
-    def __init__(
-        self,
-        name: str,
-        instructions: str,
-        tools: list[dict] = {},
-        available_functions={},
-        files=[],
-        update_existing=False,
-        log_db_connector=None,
-        bot_id="default_bot_id",
-        bot_name="default_bot_name",
-        all_tools: list[dict] = {},
-        all_functions={},
-        all_function_to_tool_map={},
-    ) -> None:
-        logger.debug("BotOsAssistantOpenAI:__init__")
-        self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-        model_name = os.getenv("OPENAI_MODEL_NAME", default="gpt-4o")
-
-        name = bot_id
-        print("-> OpenAI Model == ", model_name)
-        self.thread_run_map = {}
-        self.active_runs = deque()
-        self.processing_runs = deque()
-        self.done_map = {}
-        self.bot_id = bot_id
-        self.bot_name = bot_name
-        self.file_storage = {}
-        self.available_functions = available_functions
-        self.all_tools = all_tools
-        self.all_functions = all_functions
-        self.all_function_to_tool_map = all_function_to_tool_map
-        self.running_tools = {}
-        self.tool_completion_status = {}
-        self.log_db_connector = log_db_connector
-        my_tools = tools + [{"type": "code_interpreter"}, {"type": "file_search"}]
-        # my_tools = tools
-        # print(f'yoyo mytools {my_tools}')
-        # logger.warn(f'yoyo mytools {my_tools}')
-        self.my_tools = my_tools
-        self.callback_closures = {}
-        self.user_allow_cache = {}
-        self.clear_access_cache = False
-
-        self.allowed_types_search = [
-            ".c",
-            ".cs",
-            ".cpp",
-            ".doc",
-            ".docx",
-            ".html",
-            ".java",
-            ".json",
-            ".md",
-            ".pdf",
-            ".php",
-            ".pptx",
-            ".py",
-            ".rb",
-            ".tex",
-            ".txt",
-            ".css",
-            ".js",
-            ".sh",
-            ".ts",
-        ]
-        self.allowed_types_code_i = [
-            ".c",
-            ".cs",
-            ".cpp",
-            ".doc",
-            ".docx",
-            ".html",
-            ".java",
-            ".json",
-            ".md",
-            ".pdf",
-            ".php",
-            ".pptx",
-            ".py",
-            ".rb",
-            ".tex",
-            ".txt",
-            ".css",
-            ".js",
-            ".sh",
-            ".ts",
-            ".csv",
-            ".jpeg",
-            ".jpg",
-            ".gif",
-            ".png",
-            ".tar",
-            ".xlsx",
-            ".xml",
-            ".zip",
-        ]
-        self.run_meta_map = {}
+   def __init__(self, name:str, instructions:str, 
+                tools:list[dict] = {}, available_functions={}, files=[], 
+                update_existing=False, log_db_connector=None, bot_id='default_bot_id', bot_name='default_bot_name', all_tools:list[dict]={}, all_functions={},all_function_to_tool_map={}) -> None:
+      logger.debug("BotOsAssistantOpenAI:__init__") 
+      self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+      model_name = os.getenv("OPENAI_MODEL_NAME", default="gpt-4o")
+    
+      name = bot_id
+      print("-> OpenAI Model == ",model_name)
+      self.thread_run_map = {}
+      self.active_runs = deque()
+      self.processing_runs = deque()
+      self.done_map = {}
+      self.bot_id = bot_id
+      self.bot_name = bot_name
+      self.file_storage = {}
+      self.available_functions = available_functions
+      self.all_tools = all_tools
+      self.all_functions = all_functions
+      self.all_function_to_tool_map = all_function_to_tool_map
+      self.running_tools = {}
+      self.tool_completion_status = {}
+      self.log_db_connector = log_db_connector
+      my_tools = tools + [{"type": "code_interpreter"}, {"type": "file_search"}]
+      #my_tools = tools 
+      #print(f'yoyo mytools {my_tools}')
+      #logger.warn(f'yoyo mytools {my_tools}')
+      self.my_tools = my_tools
+      self.callback_closures = {}
+      self.user_allow_cache = {}
+      self.clear_access_cache = False 
+    
+      self.allowed_types_search = [".c", ".cs", ".cpp", ".doc", ".docx", ".html", ".java", ".json", ".md", ".pdf", ".php", ".pptx", ".py", ".rb", ".tex", ".txt", ".css", ".js", ".sh", ".ts"]
+      self.allowed_types_code_i = [".c", ".cs", ".cpp", ".doc", ".docx", ".html", ".java", ".json", ".md", ".pdf", ".php", ".pptx", ".py", ".rb", ".tex", ".txt", ".css", ".js", ".sh", ".ts", ".csv", ".jpeg", ".jpg", ".gif", ".png", ".tar", ".xlsx", ".xml", ".zip"]
+      self.run_meta_map = {}
 
         genbot_internal_project_and_schema = os.getenv(
             "GENESIS_INTERNAL_DB_SCHEMA", "None"
@@ -346,62 +279,49 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
         my_assistants = self.client.beta.assistants.list(order="desc")
         my_assistants = [a for a in my_assistants if a.name == name]
 
-        if len(my_assistants) == 0 and update_existing:
-            vector_store_name = name + "_vectorstore"
-            self.vector_store = self.create_vector_store(
-                vector_store_name=vector_store_name, files=files
+      if len(my_assistants) == 0 and update_existing:
+         vector_store_name = name + '_vectorstore'
+         self.vector_store = self.create_vector_store(vector_store_name=vector_store_name, files=files)
+         self.tool_resources = {"file_search": {"vector_store_ids": [self.vector_store]}}
+         if hasattr(files, 'urls') and files.urls is not None:
+            self.assistant = self.client.beta.assistants.create(
+               name=name,
+               instructions=instructions,
+               tools=my_tools, # type: ignore
+               model=model_name,
+            # file_ids=self._upload_files(files) #FixMe: what if the file contents change?
+               tool_resources=self.tool_resources
             )
-            self.tool_resources = {
-                "file_search": {"vector_store_ids": [self.vector_store]}
-            }
-            if hasattr(files, "urls") and files.urls is not None:
-                self.assistant = self.client.beta.assistants.create(
-                    name=name,
-                    instructions=instructions,
-                    tools=my_tools,  # type: ignore
-                    model=model_name,
-                    # file_ids=self._upload_files(files) #FixMe: what if the file contents change?
-                    tool_resources=self.tool_resources,
-                )
-            else:
-                my_tools = [
-                    tool for tool in my_tools if tool.get("type") != "file_search"
-                ]
-                self.assistant = self.client.beta.assistants.create(
-                    name=name,
-                    instructions=instructions,
-                    tools=my_tools,  # type: ignore
-                    model=model_name,
-                    # file_ids=self._upload_files(files) #FixMe: what if the file contents change?
-                )
+         else:
+            my_tools = [tool for tool in my_tools if tool.get('type') != 'file_search']
+            self.assistant = self.client.beta.assistants.create(
+               name=name,
+               instructions=instructions,
+               tools=my_tools, # type: ignore
+               model=model_name,
+            # file_ids=self._upload_files(files) #FixMe: what if the file contents change?
+            )            
 
-        elif len(my_assistants) > 0:
-            self.assistant = my_assistants[0]
-            try:
-                vector_store_id = (
-                    self.assistant.tool_resources.file_search.vector_store_ids[0]
-                )
-            except:
-                vector_store_id = None
-            if vector_store_id is not None:
-                self.update_vector_store(vector_store_id=vector_store_id, files=files)
-                self.tool_resources = self.assistant.tool_resources
-            else:
-                vector_store_name = name + "_vectorstore"
-                self.vector_store = self.create_vector_store(
-                    vector_store_name=vector_store_name, files=files
-                )
-                self.tool_resources = {
-                    "file_search": {"vector_store_ids": [self.vector_store.id]}
-                }
+      elif len(my_assistants) > 0:
+         self.assistant = my_assistants[0]
+         try:
+            vector_store_id = self.assistant.tool_resources.file_search.vector_store_ids[0]
+         except:
+            vector_store_id = None
+         if vector_store_id is not None:
+            self.update_vector_store(vector_store_id=vector_store_id, files=files)
+            self.tool_resources = self.assistant.tool_resources
+         else:
+            vector_store_name = name + '_vectorstore'
+            self.vector_store = self.create_vector_store(vector_store_name=vector_store_name, files=files)
+            self.tool_resources = {"file_search": {"vector_store_ids": [self.vector_store.id]}}
 
-            if hasattr(files, "urls") and files.urls is not None:
-                self.client.beta.assistants.update(
-                    self.assistant.id,
-                    instructions=instructions,
-                    tools=my_tools,  # type: ignore
-                    model=model_name,
-                    tool_resources=self.tool_resources,
+         if hasattr(files, 'urls') and files.urls is not None:
+            self.client.beta.assistants.update(self.assistant.id,
+                                          instructions=instructions,
+                                          tools=my_tools, # type: ignore
+                                          model=model_name,
+                                          tool_resources=self.tool_resources
                 )
             else:
                 my_tools = [
@@ -417,30 +337,28 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
         logger.debug(f"BotOsAssistantOpenAI:__init__: assistant.id={self.assistant.id}")
 
-    @staticmethod
-    def load_by_name(name: str):
-        return BotOsAssistantOpenAI(name, update_existing=False)
+   @staticmethod
+   def load_by_name(name: str):
+      return BotOsAssistantOpenAI(name, update_existing=False)
 
-    def update_vector_store(
-        self, vector_store_id: str, files: list = None, plain_files: list = None
-    ):
+   def update_vector_store(self, vector_store_id: str, files: list=None, plain_files: list=None):
 
         # internal_stage =  f"{self.internal_db_name}.{self.internal_schema_name}.BOT_FILES_STAGE"
 
-        file_path = "./uploads/"
-        # Ready the files for upload to OpenAI
-        if files is None and plain_files is None:
-            return vector_store_id
-
-        if files is not None:
-            files = files.urls
-        if plain_files is not None:
-            files = plain_files
-
-        try:
-            files = files.urls
-        except:
-            files = files
+      file_path = "./uploads/"
+      # Ready the files for upload to OpenAI
+      if files is None and plain_files is None:
+         return vector_store_id
+      
+      if files is not None:
+         files = files.urls
+      if plain_files is not None:
+         files = plain_files
+   
+      try:
+         files = files.urls
+      except:
+         files = files
 
         if files is None:
             files = []
@@ -449,30 +367,28 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
         stage_files = [file for file in files if not file.startswith("serverlocal:")]
         files_from_stage = []
 
-        for file in stage_files:
-            # Read each file from the stage and save it to a local location
-            try:
-                # Assuming 'self' has an attribute 'snowflake_connector' which is an instance of the SnowflakeConnector class
-                new_file_location = f"./downloaded_files/{self.bot_id}_BOT_DOCS/{file}"
-                os.makedirs(f"./downloaded_files/{self.bot_id}_BOT_DOCS", exist_ok=True)
-                contents = self.log_db_connector.read_file_from_stage(
-                    database=self.internal_db_name,
-                    schema=self.internal_schema_name,
-                    stage="BOT_FILES_STAGE",
-                    file_name=file,
-                    thread_id=f"{self.bot_id}_BOT_DOCS",
-                    return_contents=False,
-                )
-                if contents == file:
-                    local_file_path = new_file_location
-                    files_from_stage.append(local_file_path)
-                    logger.info(
-                        f"Successfully retrieved {file} from stage and saved to {new_file_location}"
-                    )
-            except Exception as e:
-                logger.error(f"Failed to retrieve {file} from stage: {e}")
-
-        local_files = [file.replace("serverlocal:", "") for file in local_files]
+      for file in stage_files:
+          # Read each file from the stage and save it to a local location
+          try:
+              # Assuming 'self' has an attribute 'snowflake_connector' which is an instance of the SnowflakeConnector class
+            new_file_location = f"./downloaded_files/{self.bot_id}_BOT_DOCS/{file}"
+            os.makedirs(f"./downloaded_files/{self.bot_id}_BOT_DOCS", exist_ok=True)
+            contents = self.log_db_connector.read_file_from_stage(
+                  database=self.internal_db_name,
+                  schema=self.internal_schema_name,
+                  stage='BOT_FILES_STAGE',
+                  file_name=file,
+                  thread_id=f'{self.bot_id}_BOT_DOCS',
+                  return_contents=False
+                  )
+            if contents==file:
+               local_file_path = new_file_location
+               files_from_stage.append(local_file_path)
+               logger.info(f"Successfully retrieved {file} from stage and saved to {new_file_location}")
+          except Exception as e:
+              logger.error(f"Failed to retrieve {file} from stage: {e}")
+          
+      local_files = [file.replace('serverlocal:', '') for file in local_files]
 
         for file in local_files:
             if not os.path.isfile(file_path + file):
@@ -528,13 +444,12 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
             logger.info(f"No files provided to add to '{vector_store_id}'")
             return vector_store_id
 
-    def create_vector_store(
-        self, vector_store_name: str, files: list = None, plain_files: list = None
-    ):
-        # Create a vector store with the given name
-        vector_store = self.client.beta.vector_stores.create(name=vector_store_name)
 
-        return self.update_vector_store(vector_store.id, files, plain_files)
+   def create_vector_store(self, vector_store_name: str, files: list=None, plain_files: list=None):
+      # Create a vector store with the given name
+      vector_store = self.client.beta.vector_stores.create(name=vector_store_name)
+      
+      return self.update_vector_store(vector_store.id, files, plain_files)
 
     def create_thread(self) -> str:
         logger.debug("BotOsAssistantOpenAI:create_thread")
@@ -748,35 +663,29 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                     f"openai submit_tool_outputs string response converted call to JSON."
                 )
 
-        try:
-            if function_call_details[0][0] == "_modify_slack_allow_list" and (
-                func_response.get("success", False) == True
-                or func_response.get("Success", False) == True
-            ):
-                self.clear_access_cache = True
-            if function_call_details[0][0] == "add_new_tools_to_bot" and (
-                func_response.get("success", False) == True
-                or func_response.get("Success", False) == True
-            ):
-                target_bot = json.loads(function_call_details[0][1]).get("bot_id", None)
-                if target_bot is not None:
-                    my_assistants = self.client.beta.assistants.list(order="desc")
-                    my_assistants = [a for a in my_assistants if a.name == target_bot]
-                    for assistant in my_assistants:
-                        bot_tools = None
-                        # print(self.all_tools)
-                        all_tools_for_bot = func_response.get("all_bot_tools", None)
-                        if all_tools_for_bot is not None:
-                            # print(all_tools_for_bot)
-                            # print(self.all_function_to_tool_map)
-                            bot_tools_array = []
-                            for tool in all_tools_for_bot:
-                                #  logger.warn(f'--> Calling validate_or_add_function on {tool} <---- ')
-                                self.validate_or_add_function(tool)
-                                tool_name = tool
-                                if tool_name in self.all_function_to_tool_map:
-                                    for t in self.all_function_to_tool_map[tool_name]:
-                                        bot_tools_array.append(t)
+      try:
+         if function_call_details[0][0] == '_modify_slack_allow_list' and (func_response.get('success',False)==True or func_response.get('Success',False)==True):
+            self.clear_access_cache = True
+         if function_call_details[0][0] == 'add_new_tools_to_bot' and (func_response.get('success',False)==True or func_response.get('Success',False)==True):
+            target_bot = json.loads(function_call_details[0][1]).get('bot_id',None)
+            if target_bot is not None:
+               my_assistants = self.client.beta.assistants.list(order="desc")
+               my_assistants = [a for a in my_assistants if a.name == target_bot]
+               for assistant in my_assistants:
+                  bot_tools = None
+                  #print(self.all_tools)
+                  all_tools_for_bot = func_response.get('all_bot_tools', None)
+                  if all_tools_for_bot is not None:
+                     #print(all_tools_for_bot)
+                     #print(self.all_function_to_tool_map)
+                     bot_tools_array = []
+                     for tool in all_tools_for_bot:
+                      #  logger.warn(f'--> Calling validate_or_add_function on {tool} <---- ')
+                        self.validate_or_add_function(tool)
+                        tool_name = tool
+                        if tool_name in self.all_function_to_tool_map:
+                           for t in self.all_function_to_tool_map[tool_name]:
+                              bot_tools_array.append(t)
 
                         new_instructions = assistant.instructions
                         if (
@@ -873,153 +782,92 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
                         # new_response.pop("new_instructions", None)
 
-            if function_call_details[0][0] == "add_bot_files" and (
-                func_response.get("success", False) == True
-                or func_response.get("Success", False) == True
-            ):
-                #  raise ('need to update bot_os_openai.py line 215 for new files structure with v2')
-                try:
-                    updated_files_list = func_response.get("current_files_list", None)
-                except:
-                    updated_files_list = None
-                if updated_files_list:
-                    target_bot = json.loads(function_call_details[0][1]).get(
-                        "bot_id", None
-                    )
-                    if target_bot is not None:
-                        my_assistants = self.client.beta.assistants.list(order="desc")
-                        my_assistants = [
-                            a for a in my_assistants if a.name == target_bot
-                        ]
-                        assistant_zero = my_assistants[0]
+         if function_call_details[0][0] == 'add_bot_files' and (func_response.get('success',False)==True or func_response.get('Success',False)==True):
+         #  raise ('need to update bot_os_openai.py line 215 for new files structure with v2')
+            try:
+               updated_files_list = func_response.get("current_files_list",None)
+            except:
+               updated_files_list = None
+            if updated_files_list:
+               target_bot = json.loads(function_call_details[0][1]).get('bot_id',None)
+               if target_bot is not None:
+                  my_assistants = self.client.beta.assistants.list(order="desc")
+                  my_assistants = [a for a in my_assistants if a.name == target_bot]
+                  assistant_zero = my_assistants[0]
 
-                        try:
-                            vector_store_id = assistant_zero.tool_resources.file_search.vector_store_ids[
-                                0
-                            ]
-                        except:
-                            vector_store_id = None
-                        if vector_store_id is not None:
-                            self.update_vector_store(
-                                vector_store_id=vector_store_id,
-                                files=None,
-                                plain_files=updated_files_list,
-                            )
-                            tool_resources = assistant_zero.tool_resources
-                        else:
-                            vector_store_name = (
-                                json.loads(function_call_details[0][1]).get(
-                                    "bot_name", None
-                                )
-                                + "_vectorstore"
-                            )
-                            vector_store = self.create_vector_store(
-                                vector_store_name=vector_store_name,
-                                files=None,
-                                plain_files=updated_files_list,
-                            )
-                            tool_resources = {
-                                "file_search": {"vector_store_ids": [vector_store.id]}
-                            }
-                        self.client.beta.assistants.update(
-                            assistant_zero.id, tool_resources=tool_resources
-                        )
+                  try:
+                     vector_store_id = assistant_zero.tool_resources.file_search.vector_store_ids[0]
+                  except:
+                     vector_store_id = None
+                  if vector_store_id is not None:
+                     self.update_vector_store(vector_store_id=vector_store_id, files=None, plain_files=updated_files_list)
+                     tool_resources = assistant_zero.tool_resources
+                  else:
+                     vector_store_name = json.loads(function_call_details[0][1]).get('bot_name',None) + '_vectorstore'
+                     vector_store = self.create_vector_store(vector_store_name=vector_store_name, files=None, plain_files=updated_files_list)
+                     tool_resources = {"file_search": {"vector_store_ids": [vector_store.id]}}
+                  self.client.beta.assistants.update(assistant_zero.id, tool_resources=tool_resources)
 
-                        logger.info(f"Bot files for {target_bot} updated.")
-        except Exception as e:
-            print(
-                f"openai submit_tool_outputs error to tool checking, func_response: {func_response} e: {e}"
-            )
+                  logger.info(f"Bot files for {target_bot} updated.")
+      except Exception as e:
+         print(f'openai submit_tool_outputs error to tool checking, func_response: {func_response} e: {e}')    
 
         if tool_call_id is not None:  # in case this is a resubmit
             self.tool_completion_status[run_id][tool_call_id] = new_response
 
-        # check if all parallel tool calls are complete
-        if any(value is None for value in self.tool_completion_status[run_id].values()):
-            logger.info(
-                f"_submit_tool_outputs - {thread_id} {run_id} {tool_call_id} complete. waiting for {sum(value is None for value in self.tool_completion_status[run_id].values())}"
+      # check if all parallel tool calls are complete
+      if any(value is None for value in self.tool_completion_status[run_id].values()):
+         logger.info(f"_submit_tool_outputs - {thread_id} {run_id} {tool_call_id} complete. waiting for {sum(value is None for value in self.tool_completion_status[run_id].values())}")
+         return
+      
+      # now pacakge up the responses together
+      tool_outputs = [{'tool_call_id': k, 'output': str(v)} for k, v in self.tool_completion_status[run_id].items()]
+      # Limit the output of each tool to length 800000
+      tool_outputs_limited = []
+      for tool_output in tool_outputs:
+         output_limited = tool_output['output'][:400000]
+         if len(output_limited) == 400000:
+            output_limited = output_limited + '\n!!WARNING!! LONG TOOL OUTPUT TRUNCATED.  CONSIDER CALLING WITH TOOL PARAMATERS THAT PRODUCE LESS RAW DATA.' # Truncate the output if it exceeds 400000 characters
+         tool_outputs_limited.append({'tool_call_id': tool_output['tool_call_id'], 'output': output_limited})
+      tool_outputs = tool_outputs_limited
+      # Check if the total size of tool_outputs exceeds the limit
+      total_size = sum(len(output['output']) for output in tool_outputs)
+      if total_size > 510000:
+          # If it does, alter all the tool_outputs to the error message
+          tool_outputs = [{'tool_call_id': output['tool_call_id'], 'output': 'Error! Total size of tool outputs too large to return to OpenAI, consider using tool paramaters that produce less raw data.'} for output in tool_outputs]
+      try:
+         if BotOsAssistantOpenAI.stream_mode == True:
+ 
+            meta = StreamingEventHandler.run_id_to_metadata.get(run_id,None)
+            with self.client.beta.threads.runs.submit_tool_outputs_stream(
+                   thread_id=thread_id,
+                   run_id=run_id,
+                   tool_outputs=tool_outputs,
+                   event_handler=StreamingEventHandler(self.client, thread_id,   StreamingEventHandler.run_id_to_bot_assist[run_id],  meta, self)
+               ) as stream:
+                 stream.until_done()   
+         else:
+            updated_run = self.client.beta.threads.runs.submit_tool_outputs(
+               thread_id=thread_id,
+               run_id=run_id,
+               tool_outputs=tool_outputs # type: ignore
             )
-            return
-
-        # now pacakge up the responses together
-        tool_outputs = [
-            {"tool_call_id": k, "output": str(v)}
-            for k, v in self.tool_completion_status[run_id].items()
-        ]
-        # Limit the output of each tool to length 800000
-        tool_outputs_limited = []
-        for tool_output in tool_outputs:
-            output_limited = tool_output["output"][:400000]
-            if len(output_limited) == 400000:
-                output_limited = (
-                    output_limited
-                    + "\n!!WARNING!! LONG TOOL OUTPUT TRUNCATED.  CONSIDER CALLING WITH TOOL PARAMATERS THAT PRODUCE LESS RAW DATA."
-                )  # Truncate the output if it exceeds 400000 characters
-            tool_outputs_limited.append(
-                {"tool_call_id": tool_output["tool_call_id"], "output": output_limited}
-            )
-        tool_outputs = tool_outputs_limited
-        # Check if the total size of tool_outputs exceeds the limit
-        total_size = sum(len(output["output"]) for output in tool_outputs)
-        if total_size > 510000:
-            # If it does, alter all the tool_outputs to the error message
-            tool_outputs = [
-                {
-                    "tool_call_id": output["tool_call_id"],
-                    "output": "Error! Total size of tool outputs too large to return to OpenAI, consider using tool paramaters that produce less raw data.",
-                }
-                for output in tool_outputs
-            ]
-        try:
-            if BotOsAssistantOpenAI.stream_mode == True:
-
-                meta = StreamingEventHandler.run_id_to_metadata.get(run_id, None)
-                with self.client.beta.threads.runs.submit_tool_outputs_stream(
-                    thread_id=thread_id,
-                    run_id=run_id,
-                    tool_outputs=tool_outputs,
-                    event_handler=StreamingEventHandler(
-                        self.client,
-                        thread_id,
-                        StreamingEventHandler.run_id_to_bot_assist[run_id],
-                        meta,
-                        self,
-                    ),
-                ) as stream:
-                    stream.until_done()
-            else:
-                updated_run = self.client.beta.threads.runs.submit_tool_outputs(
-                    thread_id=thread_id,
-                    run_id=run_id,
-                    tool_outputs=tool_outputs,  # type: ignore
-                )
-                logger.debug(f"_submit_tool_outputs - {updated_run}")
-                meta = updated_run.metadata
-            if thread_id not in self.active_runs:
-                self.active_runs.append(thread_id)
-            if thread_id in self.processing_runs:
-                self.processing_runs.remove(thread_id)
-            #  if thread_id in self.processing_runs:
-            #     self.processing_runs.remove(thread_id)
-            primary_user = json.dumps(
-                {
-                    "user_id": meta.get("user_id", "Unknown User ID"),
-                    "user_name": meta.get("user_name", "Unknown User"),
-                }
-            )
-            for tool_output in tool_outputs:
-                self.log_db_connector.insert_chat_history_row(
-                    datetime.datetime.now(),
-                    bot_id=self.bot_id,
-                    bot_name=self.bot_name,
-                    thread_id=thread_id,
-                    message_type="Tool Output",
-                    message_payload=tool_output["output"],
-                    message_metadata={"tool_call_id": tool_output["tool_call_id"]},
-                    channel_type=meta.get("channel_type", None),
-                    channel_name=meta.get("channel", None),
-                    primary_user=primary_user,
-                )
+            logger.debug(f"_submit_tool_outputs - {updated_run}")
+            meta = updated_run.metadata
+         if thread_id not in self.active_runs:
+            self.active_runs.append(thread_id)
+         if thread_id in self.processing_runs:
+            self.processing_runs.remove(thread_id)
+       #  if thread_id in self.processing_runs:
+       #     self.processing_runs.remove(thread_id)
+         primary_user = json.dumps({'user_id': meta.get('user_id', 'Unknown User ID'), 
+                     'user_name': meta.get('user_name', 'Unknown User')})
+         for tool_output in tool_outputs:
+            self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id, 
+                                                          message_type='Tool Output', message_payload=tool_output['output'], 
+                                                          message_metadata={'tool_call_id':tool_output['tool_call_id']},
+                                                          channel_type=meta.get("channel_type", None), channel_name=meta.get("channel", None),
+                                                          primary_user=primary_user)
 
         except Exception as e:
             logger.error(f"submit_tool_outputs - caught exception: {e}")
@@ -1488,55 +1336,24 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
                             self.validate_or_add_function(func_name)
 
-                            if (
-                                BotOsAssistantOpenAI.stream_mode == True
-                                and run.id in StreamingEventHandler.run_id_to_bot_assist
-                            ):
-                                msg = f":toolbox: _Using {func_name}_...\n"
+                     if BotOsAssistantOpenAI.stream_mode == True and run.id in StreamingEventHandler.run_id_to_bot_assist:
+                        msg = f':toolbox: _Using {func_name}_...\n'
 
-                                if (
-                                    StreamingEventHandler.run_id_to_output_stream.get(
-                                        run.id, None
-                                    )
-                                    is not None
-                                ):
-                                    if StreamingEventHandler.run_id_to_output_stream.get(
-                                        run.id, ""
-                                    ).endswith(
-                                        "\n"
-                                    ):
-                                        StreamingEventHandler.run_id_to_output_stream[
-                                            run.id
-                                        ] += "\n"
-                                    else:
-                                        StreamingEventHandler.run_id_to_output_stream[
-                                            run.id
-                                        ] += "\n\n"
-                                    StreamingEventHandler.run_id_to_output_stream[
-                                        run.id
-                                    ] += msg
-                                    msg = StreamingEventHandler.run_id_to_output_stream[
-                                        run.id
-                                    ]
-                                event_callback(
-                                    self.assistant.id,
-                                    BotOsOutputMessage(
-                                        thread_id=thread_id,
-                                        status=run.status,
-                                        output=msg,
-                                        messages=None,
-                                        input_metadata=run.metadata,
-                                    ),
-                                )
+                        if  StreamingEventHandler.run_id_to_output_stream.get(run.id,None) is not None:
+                           if StreamingEventHandler.run_id_to_output_stream.get(run.id,"").endswith('\n'):
+                              StreamingEventHandler.run_id_to_output_stream[run.id] += "\n"
+                           else:
+                              StreamingEventHandler.run_id_to_output_stream[run.id] += "\n\n"
+                           StreamingEventHandler.run_id_to_output_stream[run.id] += msg
+                           msg = StreamingEventHandler.run_id_to_output_stream[run.id]
+                        event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id, 
+                                                                           status=run.status, 
+                                                                           output=msg,
+                                                                           messages=None, 
+                                                                           input_metadata=run.metadata))
 
-                            execute_function(
-                                func_name,
-                                func_args,
-                                self.all_functions,
-                                callback_closure,
-                                thread_id=thread_id,
-                                bot_id=self.bot_id,
-                            )  # , dispatch_task_callback=dispatch_task_callback)
+                     execute_function(func_name, func_args, self.all_functions, callback_closure,
+                                      thread_id = thread_id, bot_id=self.bot_id)#, dispatch_task_callback=dispatch_task_callback)
 
                         continue
                     except Exception as e:
@@ -1587,96 +1404,53 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
                         latest_attachments.extend(message.attachments)
 
-                        for content in message.content:
-                            if content.type == "image_file":
-                                try:
-                                    file_id = (
-                                        content.image_file.file_id
-                                        if hasattr(content.image_file, "file_id")
-                                        else None
-                                    )
-                                    #   print('openai image_file tag present, fileid: ',file_id)
-                                    if (
-                                        file_id is not None
-                                        and file_id not in latest_attachments
-                                    ):
-                                        latest_attachments.append({"file_id": file_id})
-                                except Exception as e:
-                                    print("openai error parsing image attachment ", e)
-                            if content.type == "text":
-                                output += (
-                                    (content.text.value + "\n")
-                                    if output
-                                    else content.text.value
-                                )
-                        output = (
-                            output.strip()
-                        )  # Remove the trailing newline if it exists
-                        # if output != '!NO_RESPONSE_REQUIRED':
-                        #      if  StreamingEventHandler.run_id_to_output_stream.get(run.id,None) is not None:
-                        #         output = StreamingEventHandler.run_id_to_output_stream.get(run.id)
-                        if os.getenv("SHOW_COST", "false").lower() == "true":
-                            output += (
-                                "  `"
-                                + "$"
-                                + str(
-                                    round(
-                                        run.usage.prompt_tokens / 1000000 * 10
-                                        + run.usage.completion_tokens / 1000000 * 30,
-                                        4,
-                                    )
-                                )
-                                + "`"
-                            )
-                        output_array.append(output)
-                    meta_prime = self.run_meta_map.get(run.id, None)
-                    if meta_prime is not None:
-                        meta = meta_prime
-                    else:
-                        meta = run.metadata
-
-                        #  print(f"{self.bot_name} open_ai attachment info going into store files locally: {latest_attachments}", flush=True)
-                    files_in = self._store_files_locally(latest_attachments, thread_id)
-                    output = "\n".join(reversed(output_array))
-                    #  print(f"{self.bot_name} open_ai output of store files locally {files_in}")
-                    event_callback(
-                        self.assistant.id,
-                        BotOsOutputMessage(
-                            thread_id=thread_id,
-                            status=run.status,
-                            output=output,
-                            messages=messages,
-                            # UPDATE THIS FOR LOCAL FILE DOWNLOAD
-                            files=files_in,
-                            input_metadata=meta,
-                        ),
-                    )
-                    try:
-                        message_metadata = str(message.content)
-                    except:
-                        message_metadata = "!error converting content to string"
-                    primary_user = json.dumps(
-                        {
-                            "user_id": meta.get("user_id", "Unknown User ID"),
-                            "user_name": meta.get("user_name", "Unknown User"),
-                        }
-                    )
-                    self.log_db_connector.insert_chat_history_row(
-                        datetime.datetime.now(),
-                        bot_id=self.bot_id,
-                        bot_name=self.bot_name,
-                        thread_id=thread_id,
-                        message_type="Assistant Response",
-                        message_payload=output,
-                        message_metadata=message_metadata,
-                        tokens_in=run.usage.prompt_tokens,
-                        tokens_out=run.usage.completion_tokens,
-                        files=files_in,
-                        channel_type=meta.get("channel_type", None),
-                        channel_name=meta.get("channel", None),
-                        primary_user=primary_user,
-                    )
-                threads_completed[thread_id] = run.completed_at
+                  for content in message.content:
+                     if content.type == 'image_file':
+                        try:
+                           file_id = content.image_file.file_id if hasattr(content.image_file, 'file_id') else None
+                        #   print('openai image_file tag present, fileid: ',file_id)
+                           if file_id is not None and file_id not in latest_attachments:
+                              latest_attachments.append({"file_id": file_id})
+                        except Exception as e:
+                           print('openai error parsing image attachment ',e)
+                     if content.type == 'text':
+                        output += (content.text.value + "\n") if output else content.text.value
+                  output = output.strip()  # Remove the trailing newline if it exists
+                  #if output != '!NO_RESPONSE_REQUIRED':
+            #      if  StreamingEventHandler.run_id_to_output_stream.get(run.id,None) is not None:
+            #         output = StreamingEventHandler.run_id_to_output_stream.get(run.id)
+                  if os.getenv('SHOW_COST', 'false').lower() == 'true':
+                     output += '  `'+"$"+str(round(run.usage.prompt_tokens/1000000*10+run.usage.completion_tokens/1000000*30,4))+'`'
+                  output_array.append(output)
+               meta_prime = self.run_meta_map.get(run.id, None)
+               if meta_prime is not None:
+                  meta = meta_prime
+               else:
+                  meta = run.metadata
+                  
+                  #  print(f"{self.bot_name} open_ai attachment info going into store files locally: {latest_attachments}", flush=True)
+               files_in = self._store_files_locally(latest_attachments, thread_id)
+               output = '\n'.join(reversed(output_array))
+                #  print(f"{self.bot_name} open_ai output of store files locally {files_in}")
+               event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id, 
+                                                                     status=run.status, 
+                                                                     output=output, 
+                                                                     messages=messages, 
+                                                                     # UPDATE THIS FOR LOCAL FILE DOWNLOAD 
+                                                                     files=files_in,
+                                                                     input_metadata=meta))
+               try:
+                  message_metadata = str(message.content)
+               except:
+                  message_metadata = "!error converting content to string"
+               primary_user = json.dumps({'user_id': meta.get('user_id', 'Unknown User ID'), 
+                              'user_name': meta.get('user_name', 'Unknown User')})
+               self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id, 
+                                                               message_type='Assistant Response', message_payload=output, message_metadata=message_metadata,
+                                                               tokens_in=run.usage.prompt_tokens, tokens_out=run.usage.completion_tokens, files=files_in,
+                                                               channel_type=meta.get("channel_type", None), channel_name=meta.get("channel", None),
+                                                               primary_user=primary_user)
+            threads_completed[thread_id] = run.completed_at
 
             else:
                 logger.debug(

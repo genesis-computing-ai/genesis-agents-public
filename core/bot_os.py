@@ -23,10 +23,10 @@ logging.basicConfig(
 
 
 class BotOsThread:
-    def __init__(self, asistant_implementaion, input_adapter, thread_id=None) -> None:
-        self.assistant_impl = asistant_implementaion
+    def __init__(self, assistant_implementaion, input_adapter, thread_id=None) -> None:
+        self.assistant_impl = assistant_implementaion
         if thread_id == None:
-            self.thread_id = asistant_implementaion.create_thread()
+            self.thread_id = assistant_implementaion.create_thread()
         else:
             self.thread_id = thread_id
         self.input_adapter = input_adapter
@@ -35,7 +35,7 @@ class BotOsThread:
 
     def add_message(self, message: BotOsInputMessage):
         # logger.debug("BotOsThread:add message")
-        ret = self.assistant_impl.add_message_to_llm(message)
+        ret = self.assistant_impl.add_message(message)
         if ret == False:
             print("thread add_message: false return, run already going")
             return ret
@@ -318,7 +318,10 @@ class BotOsSession:
 
         # Execute validating messages
 
-        if self.assistant_impl.clear_access_cache:
+        if (
+            hasattr(self.assistant_impl, "clear_access_cache")
+            and self.assistant_impl.clear_access_cache
+        ):
             BotOsSession.clear_access_cache = True
             self.assistant_impl.clear_access_cache = False
 
@@ -334,9 +337,9 @@ class BotOsSession:
 
             input_message = a.get_input(
                 thread_map=self.in_to_out_thread_map,
-                active=self.assistant_impl.active_runs,
-                processing=self.assistant_impl.processing_runs,
-                done_map=self.assistant_impl.done_map,
+                active=self.assistant_impl.is_active(),
+                processing=self.assistant_impl.is_processing_runs(),
+                done_map=self.assistant_impl.get_done_map(),
             )
             if input_message is None or input_message.msg == "":
                 continue
@@ -468,7 +471,6 @@ class BotOsSession:
 
     # FixMe: breakout to a pluggable, persistent task module
     def add_task(self, task: str, input_adapter: BotOsInputAdapter):  # thread_id=None):
-        print("add_task")
         thread_id = self.create_thread(input_adapter)
         logger.warn(f"add_task - {thread_id} - {task}")
         with self.lock:

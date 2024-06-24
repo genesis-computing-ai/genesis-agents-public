@@ -3,39 +3,25 @@ GENESIS BOT TODOS
 =================
 
 SOON:
-x put use and bot names in messages next to tags, so the bots know who is who 
-x add check to only add an event message to a thread once, once its been successfully accepted
-x Work more on bots talking to eachother cleanly in streaming mode
-x allow bots using streaming mode to talk to eachother
-x make sure other bots respond ok to messages that are via Edits vs net new posts from other bots that are streaming
-fix the files output of this prompt (image still doesnt show up, or stage save doesnt work): @Eve
- get the list of all bots and then make up a short 10 line poem using their names, make an illustration picture of the poem, and then save the poem and the illustration to bot files stage
-add resources needed to app spec 
+x Fix sis streaming on Dev
+Test uploading lots of files to a folder (botos docs)
+n Allow files to be uploaded to stage without downloading them to slack
+Only upload a file to vector store if its not already there (and is the same.. using md5, track last md5 submitted) 
+x Move available_functions (all_functions) to a central object and log it and monitor it
+x (added logging on output submission) when calling a single tool like search metadata they dont respond
+x JL-Folder of files upload 
+JL-Mistral harvester
 MR-task to grant the workspaces to app_public periodically
 MR-task to capture what is granted and then re-grant later if needed
-x make tool call re-submission stop when it gets "call already submitted" or "tool call deleted"
-x change to hybrid table for SiS streaming retrieval
-x for streaming get files out to work
-x test read file from stage with streaming (error about empty run_id)
-x generating 3 images in parallel only 2 displayed
-x make streamlit work with streaming mode, and show tool calls
-x make streaming mode not happen when using task system to run jobs, set a global for interactive mode or something 
-x add a spinner or other indicator generation is still in progress on a message and have other bots ignore it until 
-on task creation clarify if the task is recurring or one-time, asked to send a joke in 5 min and it started sending every 5 min
-x cache access check results for some amount of time, flush if changed
-LAF support and test (June 19)
-x MR - Workspace for each bot with database tools, granted to app_public
 MR - make this work on multicase call GENESIS_LOCAL_DB.SETTINGS.grant_schema_usage_and_select_to_app('MY_DATA',$APP_DATABASE); (fix in SiS script)
 MR-SiS app will restart service is suspended (With pool) but doesnt wake up harvester, errors in SiS log harvest screen
-x JL-Have on the fly bot instruction updates append the extra stuff:  
-RV-(couple fixes) Add USERS field to messages log table to keep track of the users involved in a thread or dm
+x RV-(couple fixes) Add USERS field to messages log table to keep track of the users involved in a thread or dm
 Turn on MFA on accounts
-Have ability to give a bot its own oauth token or uid/pwd so it has its own RBAC
-x Task server logs emiting a lot of whitespace when annoy index updates
-Make a bot Testy that tests the other bots (excercises and validates all their tools)
+MR - Have ability to give a bot its own oauth token or uid/pwd so it has its own RBAC
+JD- Make a bot Testy that tests the other bots (excercises and validates all their tools)
 MG-Do stripe setup for monitized listing
 JL- Add a way for user to provide new refresh key when making new bot
-MR - harvest - formula1 doesnt come back if you delete the harvest rows
+(later) MR - harvest - formula1 doesnt come back if you delete the harvest rows
 MR-Add a service start/stop/restart buttons to SiS
 Give the bots the PDFs on the docs to Eve so she can answer stuff on them, with multipdf uploader to stage and grant of folder to bot  
 Files in and out of streamlit
@@ -43,31 +29,26 @@ catch missing files from stage at startup, and let the bot know they are missing
 JL-Have DMs also get history if they are not threadded, give the past n DMs too 
 JL-Give Kevin's docs to Jenny and see if she can answer q's based on them
 MR-add the bot images table and view to the copy program to other regions
-Combine bot instructions logic from multibot and task services into a common script
-(soon) have Eliza more proactively suggest analyzing baseball data if there is no other data, once there is change her prompt to suggest analyzing data that is added first 
+analyzing data that is added first 
 (soon) add the ability for send_direct and _channel messages to have created files in them (works for images, not for graphs/pdfs - maybe a tool to save file locally and retrigger thread...?) 
-(soon) Add undeploy from Slack button on bot configJL-(test more on spcs) Something blocks the thinking messages or bolt app when doing image analysis and/or file generation/upload to Slack
-(soon) stop bot back and forth with other bots after a few turns
-(soon) When you send a message to a thread that's already running, queue it up and don't submit another, then consolidate all of them when its ready and send them all at once once the run is done.
-(soon) Add a regular checkin task to check in with the person who DMs them, talk back to able (make sure you can stop it)
-Learnings service, learns from each thread once its done about data, schema, tables, general stuff, people, etc. Stores and updates background knowledge. 
-Injector to inject the right kind of knowledge into thread on these topics
+(soon) Add undeploy from Slack button on bot config
+JL-(test more on spcs) Something blocks the thinking messages or bolt app when doing image analysis and/or file generation/upload to Slack
+RV-Learnings service, learns from each thread once its done about data, schema, tables, general stuff, people, etc. Stores and updates background knowledge. 
+RV-Injector to inject the right kind of knowledge into thread on these topics
 JF-add a way to remove tools from bot
-User understanding system of what bot has done with the user recently (with summaries?)
+RV-User understanding system of what bot has done with the user recently (with summaries?)
 Ability to load whole stage folder to files for a bot
-(later) make sure endpoint is not the empty message, if so wait until its provisioned before updating any callback URLS, if there are any bots that needs them
+bots that needs them
 (later) Try harvester with mistral or yak model to save costs 
 (later) add tab to see chat logs from messages table in SiS 
 (soon) Harvest semantic models and return in get_metadata dynamically
 (soon) Give semantic index modify a way to add and modify multiple things at the same time
 (later) add instructions to when you get bot key on how to add the images too and provide the images
-(later) Encrypt all secrete and change col names
 (later) Autogenerate images for new bots, add instructions to the user to apply them when getting the tokens
 (later) Consider other uses of class level variables--the snowflake session for example, the annoy index, etc.
 (later) eventually remove full message metadata save on input and output openai 
 (later) Give them 100 OpenAI turns a day or someting using our key, then have it switch to their own key
 (later) make a metadata backup and recovery script so we have it ready
-(later) Make thread map save to local database to survive container restart 
 (later) block metadata app1 from user query 
 (later) add a place in Streamlit to see the files in stage add a file, remove a file
 (later) Make the queries in bot_os_memory.py parameterized
@@ -77,23 +58,25 @@ Ability to load whole stage folder to files for a bot
 MR- (later) Add logo to streamlit GUI
 (later) remove bots vector indexes when removing a bot
 (later) Give a way for local streamlit to upload and download files from the botos server
-(later) Go back to snowflake secure mode for harvester too if it works
-(later) Allow user to turn off sample data
+n (later) Go back to snowflake secure mode for harvester too if it works
+n (later) Allow user to turn off sample data
+n (later) Make thread map save to local database to survive container restart 
+n (later) Encrypt all secrete and change col names
 
 PERSISTANCY TOPIC:
-1. have it proactively suggest tasks to do if it doesn't have enough, and recurring ones, and bootstrap ones
-4. give it a tool to see what else its been talking about with that person and with other people
-Add knowledged of past and parallel conversations, and a tool to get past transcriptips
+x 1. have it proactively suggest tasks to do if it doesn't have enough, and recurring ones, and bootstrap ones
+RV-4. give it a tool to see what else its been talking about with that person and with other people
+TV-Add knowledged of past and parallel conversations, and a tool to get past transcriptips
 Have it proactively suggest future tasks
 Haves bots reach out to you to see if you need help
 
 BIG THINGS:
-(in progress) Semantic CoPilot tools, Semantic model creation and maintenance, related demos, add to Elsa flows and to metadata search results
-Memory system: revamp and improve (go beyond simple RAG, back to KB?, post-chat capture, ongoing refinement, local indexing)
+x Semantic CoPilot tools, Semantic model creation and maintenance, related demos, add to Elsa flows and to metadata search results
+TRV-Memory system: revamp and improve (go beyond simple RAG, back to KB?, post-chat capture, ongoing refinement, local indexing)
 More advanced tool generation and testing system, and with Zapier hooks via Zapier API 
 Data engineering use case: define it and make it really work and be robust, with Iceberg migration as a core real-world-needed example
 Reflect/Validation: revamp and rework to allow bots to review/revise/critique their work autonomously before presenting to the user (maybe spawn critique threads)
-Allow a bot session to reason over all of its threads (e.g., should be able to ask Eve on Streamlit about what she is doing in one of her Slack threads)
+RV-Allow a bot session to reason over all of its threads (e.g., should be able to ask Eve on Streamlit about what she is doing in one of her Slack threads)
 Wrap snow_udf as a sdk to be integrated within python apps like State Street Alpha
 Bot health monitoring
 Bot cost management, reporting, optimization
@@ -138,6 +121,32 @@ Add a mechanism for license control based on current_account()... share a table 
     Have a trial period where you can use it in trial mode before it goes into limited mode
 
 DONE:
+x (soon) When you send a message to a thread that's already running, queue it up and don't submit another, then consolidate all of them when its ready and send them all at once once the run is done.
+x (soon) stop bot back and forth with other bots after a few turns
+n (soon) have Eliza more proactively suggest analyzing baseball data if there is no other data, once there is change her prompt to suggest 
+x (soon) Add a regular checkin task to check in with the person who DMs them, talk back to able (make sure you can stop it)
+n (later) make sure endpoint is not the empty message, if so wait until its provisioned before updating any callback URLS, if there are any 
+x JD-Combine bot instructions logic from multibot and task services into a common script
+x Task server logs emiting a lot of whitespace when annoy index updates
+x JL-Have on the fly bot instruction updates append the extra stuff:  
+x put use and bot names in messages next to tags, so the bots know who is who 
+x add check to only add an event message to a thread once, once its been successfully accepted
+x Work more on bots talking to eachother cleanly in streaming mode
+x allow bots using streaming mode to talk to eachother
+x make sure other bots respond ok to messages that are via Edits vs net new posts from other bots that are streaming
+x fix the files output of this prompt (image still doesnt show up, or stage save doesnt work): @
+x make tool call re-submission stop when it gets "call already submitted" or "tool call deleted"
+x change to hybrid table for SiS streaming retrieval
+x for streaming get files out to work
+x test read file from stage with streaming (error about empty run_id)
+x generating 3 images in parallel only 2 displayed
+x make streamlit work with streaming mode, and show tool calls
+x make streaming mode not happen when using task system to run jobs, set a global for interactive mode or something 
+x add a spinner or other indicator generation is still in progress on a message and have other bots ignore it until 
+on task creation clarify if the task is recurring or one-time, asked to send a joke in 5 min and it started sending every 5 min
+x cache access check results for some amount of time, flush if changed
+LAF support and test (June 19)
+x MR - Workspace for each bot with database tools, granted to app_public
 x JL - Check bot file upload
 x JL - Add error logging to submit tool results for db errors, retry connections too ?
 x (sone?) MR-harvester - change the include flag column to exclude and use that field instead of deleting a row to stop auto harvesting

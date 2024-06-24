@@ -48,6 +48,18 @@ class BotOsAssistantInterface:
     def check_runs(self, event_callback):
         pass
 
+    @abstractmethod
+    def is_active(self) -> bool:
+        pass
+
+    @abstractmethod
+    def is_processing_runs(self) -> bool:
+        pass
+
+    @abstractmethod
+    def get_done_map(self) -> dict:
+        pass
+
 
 def execute_function_blocking(
     func_name: str, arguments: dict, available_functions: dict
@@ -128,8 +140,8 @@ def execute_function(
     bot_id: str,
 ):
     print(f"fn execute_function - {func_name}")
-    function = available_functions.get(func_name)
-    if function:
+    function = available_functions.get(func_name, None)
+    if function is not None:
         s_arguments = json.loads(arguments)
         try:
             if (
@@ -155,7 +167,9 @@ def execute_function(
         except Exception as e:
             completion_callback(f"caught exception {str(e)} trying to run {func_name}")
     else:
-        completion_callback(f"Error function {func_name} does not exist")
+        completion_callback(
+            f"!FN_MISSING - Error function {func_name} does not exist for bot {bot_id}.\nAvailable functions, len:\n{len(available_functions)}"
+        )
 
 
 class BotOsAssistantTester(BotOsAssistantInterface):
@@ -168,7 +182,7 @@ class BotOsAssistantTester(BotOsAssistantInterface):
         files,
         update_existing: bool,
     ) -> None:
-        logger.debug(f"BotOsAsistantTester:__iniit__ - name={name}")
+        logger.debug(f"BotOsAssistantTester:__iniit__ - name={name}")
 
     thread_counter = 0
 
@@ -178,10 +192,10 @@ class BotOsAssistantTester(BotOsAssistantInterface):
         return f"thread_{BotOsAssistantTester.thread_counter}"
 
     def add_message(self, input_message: BotOsInputMessage):
-        logger.debug(f"BotOsAsistantTester:add_message - message={input_message}")
+        logger.debug(f"BotOsAssistantTester:add_message - message={input_message}")
 
     def check_runs(self, event_callback):
-        logger.debug("BotOsAsistantTester:check_runs")
+        logger.debug("BotOsAssistantTester:check_runs")
         event_callback(
             "session_1",
             BotOsOutputMessage(

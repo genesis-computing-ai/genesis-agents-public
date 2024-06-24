@@ -29,7 +29,7 @@ class BotOsInputAdapter:
 
     # allows for polling from source
     @abstractmethod
-    def get_input(self) -> BotOsInputMessage|None:
+    def get_input(self, thread_map=None,  active=None, processing=None, done_map=None) -> BotOsInputMessage|None:
         pass
 
     # allows response to be sent back with optional reply
@@ -43,7 +43,7 @@ class BotInputAdapterCLI(BotOsInputAdapter):
         self.next_message = initial_message
         self.prompt_on_response = prompt_on_response
 
-    def get_input(self) -> BotOsInputMessage|None:
+    def get_input(self, thread_map=None,  active=None, processing=None, done_map=None) -> BotOsInputMessage|None:
         if self.next_message is None or self.thread_id is None:
             return None
         

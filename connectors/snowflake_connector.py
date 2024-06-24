@@ -29,6 +29,8 @@ import base64
 import requests
 import re
 
+import bot_genesis.tools_descriptions
+
 logger = logging.getLogger(__name__)
 logging.basicConfig(
     level=logging.WARN, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -991,6 +993,7 @@ class SnowflakeConnector(DatabaseConnector):
                 cursor.close()
 
     def ensure_table_exists(self):
+        import bot_genesis.tools_descriptions
 
         llm_results_table_check_query = (
             f"SHOW TABLES LIKE 'LLM_RESULTS' IN SCHEMA {self.schema};"
@@ -1571,47 +1574,8 @@ class SnowflakeConnector(DatabaseConnector):
                     f"Table {self.available_tools_table_name} (re)created, this is expected on every run."
                 )
 
-                # Insert rows with tool names and descriptions
-                tools_data = [
-                    (
-                        "slack_tools",
-                        "Lookup slack users by name, and send direct messages in Slack",
-                    ),
-                    (
-                        "make_baby_bot",
-                        "Create, configure, and administer other bots programatically",
-                    ),
-                    # ('integrate_code', 'Create, test, and deploy new tools that bots can use'),
-                    (
-                        "webpage_downloader",
-                        "Access web pages on the internet and return their contents",
-                    ),
-                    (
-                        "database_tools",
-                        "Discover database metadata, find database tables, and run SQL queries on a database",
-                    ),
-                    (
-                        "harvester_tools",
-                        "Control the database harvester, add new databases to harvest, add schema inclusions and exclusions, see harvest status",
-                    ),
-                    (
-                        "snowflake_stage_tools",
-                        "Read, update, write, list, and delete from Snowflake Stages including Snowflake Semantic Models.",
-                    ),
-                    (
-                        "snowflake_semantic_tools",
-                        "Create and modify Snowflake Semantic Models",
-                    ),
-                    ("image_tools", "Tools to interpret visual images and pictures"),
-                    (
-                        "autonomous_functions",
-                        "Tools for bots to create and managed autonomous tasks",
-                    ),
-                    (
-                        "process_runner_tools",
-                        "Tools for Peter the Process Runner to run processes.",
-                    ),
-                ]
+                tools_data = bot_genesis.tools_descriptions.tools_data
+
                 insert_tools_query = f"""
                 INSERT INTO {self.available_tools_table_name} (TOOL_NAME, TOOL_DESCRIPTION)
                 VALUES (%s, %s);
@@ -2432,7 +2396,7 @@ class SnowflakeConnector(DatabaseConnector):
               This will grant the you access to the data in the database.  
             4. Suggest to the user that the table may have been recreated since it was originally granted, or may be recreated each day as part of an ETL job.  In that case it must be re-granted after each recreation.
             5. NOTE: You do not have the PUBLIC role or any other role, all object you are granted must be granted TO APPLICATION GENESIS_BOTS, or be granted by grant_schema_usage_and_select_to_app as shown above.
-""",
+            """,
                 }
             print("run query: len=", len(query), "\ncaused error: ", e)
             cursor.close()

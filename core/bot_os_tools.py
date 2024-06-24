@@ -1,8 +1,10 @@
 import json
 import os
-import threading
 import time
-import uuid
+import requests
+from bs4 import BeautifulSoup
+from urllib.parse import urljoin
+
 from jinja2 import Template
 from bot_genesis.make_baby_bot import MAKE_BABY_BOT_DESCRIPTIONS, make_baby_bot_tools
 from connectors import database_tools
@@ -44,16 +46,18 @@ from core.bot_os_defaults import (
 from core.bot_os_input import BotOsInputAdapter, BotOsInputMessage, BotOsOutputMessage
 from core.bot_os_memory import BotOsKnowledgeAnnoy_Metadata
 
-from bot_genesis.process_runner_bot import process_runner_tools
+from bot_genesis.tools_descriptions import process_runner_tools
 
 
 # import sys
 # sys.path.append('/Users/mglickman/helloworld/bot_os')  # Adjust the path as necessary
 import logging
 
-from bot_genesis.process_runner_bot import (
+from bot_genesis.tools_descriptions import (
     process_runner_functions,
     process_runner_tools,
+    webpage_downloader_functions,
+    webpage_downloader_tools,
 )
 
 logger = logging.getLogger(__name__)
@@ -64,6 +68,53 @@ from pydantic import BaseModel
 
 
 class ToolBelt(BaseModel):
+
+    # Function to make HTTP request and get the entire content
+    def get_webpage_content(self, url):
+        response = requests.get(url)
+        response.raise_for_status()
+        return response.content  # Return the entire content
+
+    # Function for parsing HTML content, extracting links, and then chunking the beautified content
+    def parse_and_chunk_content(self, content, base_url, chunk_size=256 * 1024):
+        soup = BeautifulSoup(content, "html.parser")
+        links = [urljoin(base_url, a["href"]) for a in soup.find_all("a", href=True)]
+        pretty_content = soup.prettify()
+        encoded_content = pretty_content.encode("utf-8")
+        encoded_links = json.dumps(links).encode("utf-8")
+
+        # Combine the content and links
+        combined_content = encoded_content + encoded_links
+
+        # Chunk the combined content
+        chunks = []
+        for i in range(0, len(combined_content), chunk_size):
+            chunks.append({"content": combined_content[i : i + chunk_size]})
+
+        if not chunks:
+            raise ValueError("No content available within the size limit.")
+
+        return chunks, len(chunks)  # Return chunks and total number of chunks
+
+    # Main function to download webpage, extract links, and ensure each part is within the size limit
+    def download_webpage(self, url, chunk_index=0):
+        try:
+            content = self.get_webpage_content(url)
+            chunks, total_chunks = self.parse_and_chunk_content(content, url)
+            if chunk_index >= total_chunks:
+                return {"error": "Requested chunk index exceeds available chunks."}
+
+            response = {
+                "chunk": chunks[chunk_index],
+                "next_chunk_index": (
+                    chunk_index + 1 if chunk_index + 1 < total_chunks else None
+                ),
+                "total_chunks": total_chunks,
+            }
+            return response
+        except Exception as e:
+            return {"error": str(e)}
+
     def run_process(self, action, thread_id):
         print(f"Running processes Action: {action} | thread_id: {thread_id}")
         if action == "GET_ANSWER":
@@ -160,6 +211,10 @@ def get_tools(which_tools, db_adapter, slack_adapter_local=None, include_slack=T
             tools.extend(process_runner_functions)
             available_functions_load.update(process_runner_tools)
             function_to_tool_map[tool_name] = process_runner_functions
+        elif tool_name == "webpage_downloader":
+            tools.extend(webpage_downloader_functions)
+            available_functions_load.update(webpage_downloader_tools)
+            function_to_tool_map[tool_name] = webpage_downloader_functions
         else:
             try:
                 module_path = "generated_modules." + tool_name

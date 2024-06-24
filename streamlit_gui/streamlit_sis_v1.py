@@ -1055,10 +1055,122 @@ def grant_data():
     --- once granted, Genesis will automatically start to catalog this data so you can use it with Genesis bots
     """
     )
+    st.text_area("Commands to allow this application to see your data:", wh_text, height=800)
+    st.write("In some cases, an object granted to the application may be recreated. If so, the following procedures and task will ensure the object that was originally granted to Genesis remains accessible by the application.")
 
-    st.text_area(
-        "Commands to allow this application to see your data:", wh_text, height=800
-    )
+    grant_text = f"""-- run the following to create a procedure that will ensure the objects granted to the Genesis Bots application remain accessible by the application
+    -- first, create a schema to store the procedures 
+    USE ROLE ACCOUNTADMIN;
+    USE WAREHOUSE XSMALL;
+
+    set APP_DATABASE = '{app_name}';
+
+    CREATE SCHEMA IF NOT EXISTS GENESIS_LOCAL_DB.GRANTS;
+
+    -- allow the application to access the schema
+    GRANT USAGE ON DATABASE GENESIS_LOCAL_DB TO APPLICATION identifier($APP_DATABASE);
+    GRANT USAGE ON SCHEMA GENESIS_LOCAL_DB.GRANTS TO APPLICATION identifier($APP_DATABASE);
+
+    -- next create the procedure that will execute grant statements on any object that has been added to the harvester service, but no longer is granted to the application
+    -- this will ensure the GenBots access to the data remains intact until the object is removed from harvesting        
+    CREATE OR REPLACE PROCEDURE GENESIS_LOCAL_DB.GRANTS.execute_grant_statements(INSTANCE_NAME VARCHAR,APP_NAME VARCHAR)
+    RETURNS STRING
+    LANGUAGE SQL
+    EXECUTE AS CALLER
+    AS
+    """ + chr(36) + chr(36) + """
+        DECLARE
+            grant_statement STRING;
+            cursor_sql STRING DEFAULT '            
+                select distinct ''grant USAGE on DATABASE '' || database_name || '' to APPLICATION ' || APP_NAME || ';'' grant_statement
+                from ' || APP_NAME || '.CORE.MISSING_DATABASE_GRANTS
+                union
+                select ''grant USAGE on SCHEMA '' || database_schema_name || '' to APPLICATION ' || APP_NAME || ';'' grant_statement
+                from ' || APP_NAME || '.CORE.MISSING_SCHEMA_GRANTS
+                union
+                select ''grant SELECT on TABLE '' || qualified_table_name || '' to APPLICATION ' || APP_NAME || ';'' grant_statement
+                from ' || APP_NAME || '.CORE.MISSING_OBJECT_GRANTS';
+            cur RESULTSET;
+            
+        BEGIN
+
+            EXECUTE IMMEDIATE 'show grants to application ' || APP_NAME;
+            EXECUTE IMMEDIATE 'create or replace table GENESIS_LOCAL_DB.GRANTS.GRANTS_TO_APP as select "name" name, "granted_on" granted_on from table(result_scan(-1))';
+            EXECUTE IMMEDIATE 'GRANT SELECT ON TABLE GENESIS_LOCAL_DB.GRANTS.GRANTS_TO_APP TO APPLICATION ' || APP_NAME;
+            EXECUTE IMMEDIATE 'CALL ' || APP_NAME || '.CORE.CREATE_MISSING_GRANT_VIEWS(''' || INSTANCE_NAME || ''', ''' || APP_NAME || ''')';
+            cur := (EXECUTE IMMEDIATE :cursor_sql);
+            LET table_cursor CURSOR for cur;
+            
+            FOR gstmt IN table_cursor DO
+                EXECUTE IMMEDIATE gstmt.grant_statement;
+            END FOR;
+            RETURN 'Grant statements executed successfully.';
+        END;
+    """ + chr(36) + chr(36) + """;
+
+    -- create a task to run the regrant procedure every 10 minutes. If needed, the timing of the task can be adjusted
+    CREATE OR REPLACE PROCEDURE GENESIS_LOCAL_DB.GRANTS.create_regrant_task(INSTANCE_NAME VARCHAR, APP_NAME VARCHAR, APP_WAREHOUSE VARCHAR)
+    RETURNS STRING
+    LANGUAGE SQL
+    AS
+    """ + chr(36) + chr(36) + """
+        DECLARE
+            task_name STRING;
+            warehouse_name STRING;
+        BEGIN
+            task_name := 'regrant_objects_to_genesis_app_task';
+            warehouse_name := :APP_WAREHOUSE;
+            EXECUTE IMMEDIATE 'CREATE TASK ' || task_name || ' WAREHOUSE = ' || warehouse_name || ' SCHEDULE = ''10 minute'' AS CALL execute_grant_statements(''' || INSTANCE_NAME || ''',''' || APP_NAME || ''');';
+
+            RETURN 'Task regrant_objects_to_genesis_app_task created successfully.';
+        END;
+    """ + chr(36) + chr(36) + """;
+
+    -- this procedure will suspend the regrant task
+    CREATE OR REPLACE PROCEDURE GENESIS_LOCAL_DB.GRANTS.suspend_regrant_task()
+    RETURNS STRING
+    LANGUAGE SQL
+    AS
+    """ + chr(36) + chr(36) + """
+        DECLARE
+            task_name STRING;
+        BEGIN
+            task_name := 'regrant_objects_to_genesis_app_task';
+            EXECUTE IMMEDIATE 'ALTER TASK ' || task_name || ' SUSPEND';
+            RETURN 'Task regrant_objects_to_genesis_app_task suspended successfully.';
+        END;
+    """ + chr(36) + chr(36) + """;
+
+    -- this procedure will resume the regrant task
+    CREATE OR REPLACE PROCEDURE GENESIS_LOCAL_DB.GRANTS.resume_regrant_task()
+    RETURNS STRING
+    LANGUAGE SQL
+    AS
+    """ + chr(36) + chr(36) + """
+        DECLARE
+            task_name STRING;
+        BEGIN
+            task_name := 'regrant_objects_to_genesis_app_task';
+            EXECUTE IMMEDIATE 'ALTER TASK ' || task_name || ' RESUME';
+            RETURN 'Task regrant_objects_to_genesis_app_task resumed successfully.';
+        END;
+    """ + chr(36) + chr(36) + """;
+
+    // create the procedure to regrant objects to the application
+    CALL GENESIS_LOCAL_DB.GRANTS.execute_grant_statements('APP1', $APP_DATABASE);
+
+    // create the task
+    CALL GENESIS_LOCAL_DB.GRANTS.create_regrant_task('APP1',$APP_DATABASE, 'XSMALL');
+
+    // resume the task
+    CALL GENESIS_LOCAL_DB.GRANTS.resume_regrant_task();
+
+    // suspend the task
+    // CALL GENESIS_LOCAL_DB.GRANTS.suspend_regrant_task();
+
+    -- once all objects have been created and the task started, the harvester metadata and grants to the application will remain in sync.
+    """
+    st.text_area("Commands to ensure this application has access your data:", grant_text, height=800)
 
 
 def bot_config():
@@ -1609,19 +1721,8 @@ def start_stop():
 
     // resume service
 
-    alter compute pool GENESIS_POOL RESUME; -- if you paused the compute pool
-    call {app_name}.core.start_app_instance('APP1','GENESIS_POOL','GENESIS_EAI','{st.session_state.wh_name}'); 
-
-    // check service
-
-    USE DATABASE IDENTIFIER($APP_DATABASE);
-    USE SCHEMA APP1;
-
-    // reinitialize -- note: this wipes out the app metadata and existing harvests and bots
-
-    call {app_name}.core.drop_app_instance('APP1');
-    CALL {app_name}.CORE.INITIALIZE_APP_INSTANCE('APP1','GENESIS_POOL','GENESIS_EAI','{st.session_state.wh_name}');
-
+alter compute pool GENESIS_POOL RESUME; -- if you paused the compute pool
+call {app_name}.core.start_app_instance('APP1','GENESIS_POOL','GENESIS_EAI','{st.session_state.wh_name}'); 
 
         """
     st.text_area("", start_stop_text, height=620)

@@ -16,7 +16,7 @@ process_runner_functions = [
     {
         "type": "function",
         "function": {
-            "name": "run_process",
+            "name": "_run_process",
             "description": "Manages processes run on other bots",
             "parameters": {
                 "type": "object",
@@ -24,20 +24,12 @@ process_runner_functions = [
                     "action": {
                         "type": "string",
                         "description": """
-                        The action to perform: GET_ANSWER, GET_FIRST_STEP, GET_NEXT_STEP
+                        The action to perform on the task can be one of these: GET_ANSWER, GET_FIRST_STEP, GET_NEXT_STEP
                         """,
-                    },
-                    "bot_id": {
-                        "type": "string",
-                        "description": "The identifier of the test bot.",
-                    },
-                    "bot_name": {
-                        "type": "string",
-                        "description": "The name of the test bot.",
                     },
                     "process_to_run": {
                         "type": "string",
-                        "description": "The name the process to run a step on.",
+                        "description": "The name the process to run",
                     },
                 },
             },
@@ -45,14 +37,29 @@ process_runner_functions = [
     }
 ]
 
-process_runner_tools = {"run_process": "db_adapter.run_process"}
+process_runner_tools = {"_run_process": "db_adapter.run_process"}
 
 
-# def run_process(self, action, thread_id):  # MOVE OUT OF ADAPTER
-#     print(f"Running processes Action: {action} | thread_id: {thread_id}")
-#     if action == "GET_ANSWER":
-#         print("The meaning of life has been discovered - 24!")
-#         return {
-#             "Success": True,
-#             "Message": "The meaning of life has been discovered - 24!",
-#         }
+def run_process(self, action, thread_id):  # MOVE OUT OF ADAPTER!
+    print(f"Running processes Action: {action} | thread_id: {thread_id}")
+    if action == "GET_ANSWER":
+        print("The meaning of life has been discovered - 42!")
+        return {
+            "Success": True,
+            "Message": "The meaning of life has been discovered - 42!",
+        }
+    elif action == "GET_FIRST_STEP":
+        print("The first step is to run the test process.")
+        return {
+            "Success": True,
+            "Message": "The first step is to run the test process.",
+        }
+    elif action == "GET_NEXT_STEP":
+        print("The next step is to run the next step of the test process.")
+        return {
+            "Success": True,
+            "Message": "The next step is to run the test process.",
+        }
+    else:
+        print("No action specified.")
+        return {"Success": False, "Message": "No action specified."}

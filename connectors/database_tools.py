@@ -550,7 +550,7 @@ snowflake_stage_tools = {
 
 autonomous_tools = {"_manage_tasks": "db_adapter.manage_tasks"}
 
-process_runner_tools = {"run_process": "db_adapter.run_process"}
+process_runner_tools = {"_run_process": "db_adapter.run_process"}
 
 
 def bind_semantic_copilot(data_connection_info):

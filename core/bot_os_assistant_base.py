@@ -5,15 +5,29 @@ import sys
 from multiprocessing import Process
 from core.bot_os_input import BotOsInputMessage, BotOsOutputMessage
 import dill
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARN)
 
+
 class BotOsAssistantInterface:
     @abstractmethod
-    def __init__(self, name:str, instructions:str, 
-                tools:list[dict] = {}, available_functions={}, files=[], 
-                update_existing=False, log_db_connector=None, bot_id='default_bot_id', bot_name='default_bot_name', all_tools:list[dict]={}, all_functions={},all_function_to_tool_map={}) -> None:
-       pass
+    def __init__(
+        self,
+        name: str,
+        instructions: str,
+        tools: list[dict] = {},
+        available_functions={},
+        files=[],
+        update_existing=False,
+        log_db_connector=None,
+        bot_id="default_bot_id",
+        bot_name="default_bot_name",
+        all_tools: list[dict] = {},
+        all_functions={},
+        all_function_to_tool_map={},
+    ) -> None:
+        pass
 
     @staticmethod
     @abstractmethod
@@ -25,7 +39,7 @@ class BotOsAssistantInterface:
         pass
 
     @abstractmethod
-    def add_message(self, input_message:BotOsInputMessage):
+    def add_message(self, input_message: BotOsInputMessage):
         pass
 
     @abstractmethod
@@ -45,7 +59,9 @@ class BotOsAssistantInterface:
         pass
 
 
-def execute_function_blocking(func_name:str, arguments:dict, available_functions:dict):
+def execute_function_blocking(
+    func_name: str, arguments: dict, available_functions: dict
+):
     """
     run a specified function in the foreground
     """
@@ -55,28 +71,33 @@ def execute_function_blocking(func_name:str, arguments:dict, available_functions
     if function:
         try:
             results = function(**arguments)
-  #          thread = Thread(target=wrapper, args=(s_arguments,)) # comma matters to prevent args getting converted into tuple
-         #   return(str(results))
+            #          thread = Thread(target=wrapper, args=(s_arguments,)) # comma matters to prevent args getting converted into tuple
+            #   return(str(results))
             return results
         except Exception as e:
-            return(f"caught exception {str(e)} trying to run {func_name}")
+            return f"caught exception {str(e)} trying to run {func_name}"
     else:
-        return(f"Error function {func_name} does not exist")
-    
+        return f"Error function {func_name} does not exist"
+
+
 import tempfile
 import os
+
 
 def fork_function_call(function_serialized, func_name, temp_file_path, args):
     try:
         function = dill.loads(function_serialized)
         results = function(**args)
-        with open(temp_file_path, 'wb') as temp_file:
+        with open(temp_file_path, "wb") as temp_file:
             dill.dump(results, temp_file)
     except Exception as e:
-        with open(temp_file_path, 'wb') as temp_file:
-            dill.dump(str(f'caught exception {str(e)} trying to run {func_name}'), temp_file)
+        with open(temp_file_path, "wb") as temp_file:
+            dill.dump(
+                str(f"caught exception {str(e)} trying to run {func_name}"), temp_file
+            )
     finally:
         sys.exit(0)
+
 
 def create_func_wrapper(function, func_name):
     temp_file_descriptor, temp_file_path = tempfile.mkstemp()
@@ -84,13 +105,16 @@ def create_func_wrapper(function, func_name):
     def run_task_with_exception_handling(args):
         try:
             function_serialized = dill.dumps(function)
-            p = Process(target=fork_function_call, args=(function_serialized, func_name, temp_file_path, args))
+            p = Process(
+                target=fork_function_call,
+                args=(function_serialized, func_name, temp_file_path, args),
+            )
             p.start()
             p.join(timeout=180)
             if p.is_alive():
                 p.terminate()
                 raise Exception("Process timeout")
-            with open(temp_file_path, 'rb') as temp_file:
+            with open(temp_file_path, "rb") as temp_file:
                 results = dill.load(temp_file)
             logger.debug(f"_execute_function - {func_name} produced results: {results}")
             return results
@@ -103,20 +127,31 @@ def create_func_wrapper(function, func_name):
 
     return run_task_with_exception_handling
 
-def execute_function(func_name:str, arguments, available_functions, completion_callback, thread_id:str,
-                     bot_id:str):
+
+def execute_function(
+    func_name: str,
+    arguments,
+    available_functions,
+    completion_callback,
+    thread_id: str,
+    bot_id: str,
+):
     print(f"fn execute_function - {func_name}")
-    function = available_functions.get(func_name,None)
+    function = available_functions.get(func_name, None)
     if function is not None:
         s_arguments = json.loads(arguments)
         try:
-            if "dispatch_bot_id" in function.__code__.co_varnames: # FixMe: expose this as a tool arg that can be set by the AI
+            if (
+                "dispatch_bot_id" in function.__code__.co_varnames
+            ):  # FixMe: expose this as a tool arg that can be set by the AI
                 s_arguments["dispatch_bot_id"] = bot_id
         except:
             pass
-        if func_name.startswith("_"): # run internal BotOS functions in process
+        if func_name.startswith("_"):  # run internal BotOS functions in process
             s_arguments["thread_id"] = thread_id
-            completion_callback(execute_function_blocking(func_name, s_arguments, available_functions))
+            completion_callback(
+                execute_function_blocking(func_name, s_arguments, available_functions)
+            )
             return
         try:
             if func_name.upper() == "RUN_QUERY":
@@ -129,27 +164,41 @@ def execute_function(func_name:str, arguments, available_functions, completion_c
         except Exception as e:
             completion_callback(f"caught exception {str(e)} trying to run {func_name}")
     else:
-        completion_callback(f"!FN_MISSING - Error function {func_name} does not exist for bot {bot_id}.\nAvailable functions, len:\n{len(available_functions)}")
+        completion_callback(
+            f"!FN_MISSING - Error function {func_name} does not exist for bot {bot_id}.\nAvailable functions, len:\n{len(available_functions)}"
+        )
 
 
 class BotOsAssistantTester(BotOsAssistantInterface):
-    def __init__(self, name:str, instructions:str, tools:list[dict], available_functions:dict, 
-                 files, update_existing:bool) -> None:
-       logger.debug(f"BotOsAsistantTester:__iniit__ - name={name}") 
+    def __init__(
+        self,
+        name: str,
+        instructions: str,
+        tools: list[dict],
+        available_functions: dict,
+        files,
+        update_existing: bool,
+    ) -> None:
+        logger.debug(f"BotOsassistantTester:__iniit__ - name={name}")
 
-    thread_counter=0
+    thread_counter = 0
 
     def create_thread(self) -> str:
         logger.debug("BotOsAssistantTester:create_thread")
-        BotOsAssistantTester.thread_counter=BotOsAssistantTester.thread_counter+1
+        BotOsAssistantTester.thread_counter = BotOsAssistantTester.thread_counter + 1
         return f"thread_{BotOsAssistantTester.thread_counter}"
-    
-    def add_message(self, input_message:BotOsInputMessage):
-       logger.debug(f"BotOsAsistantTester:add_message - message={input_message}") 
+
+    def add_message(self, input_message: BotOsInputMessage):
+        logger.debug(f"BotOsassistantTester:add_message - message={input_message}")
 
     def check_runs(self, event_callback):
-        logger.debug("BotOsAsistantTester:check_runs")
-        event_callback("session_1", BotOsOutputMessage(thread_id=f"thread_{BotOsAssistantTester.thread_counter}", 
-                                                       status="completed",
-                                                       output="Hello!", 
-                                                       messages="Message 1"))
+        logger.debug("BotOsassistantTester:check_runs")
+        event_callback(
+            "session_1",
+            BotOsOutputMessage(
+                thread_id=f"thread_{BotOsAssistantTester.thread_counter}",
+                status="completed",
+                output="Hello!",
+                messages="Message 1",
+            ),
+        )

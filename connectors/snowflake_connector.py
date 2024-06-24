@@ -4169,6 +4169,16 @@ GRANT USAGE ON INTEGRATION GENESIS_EAI TO APPLICATION   IDENTIFIER($APP_DATABASE
                 logger.error(f"Failed to remove tools from bot_id: {bot_id} with error: {e}")
                 return {"success": False, "error": str(e)}
         
+    def extract_knowledge(self, primary_user, bot_id):
+        bot_name, bot_serial = bot_id.split('-')
+        query = f"""SELECT THREAD_SUMMARY, USER_LEARNING, TOOL_LEARNING, DATA_LEARNING FROM {self.knowledge_table_name} 
+                    WHERE primary_user = '{primary_user}' AND BOT_ID LIKE '{bot_name}%'
+                    ORDER BY TIMESTAMP DESC
+                    LIMIT 1;""" 
+        knowledge = self.run_query(query)
+        if knowledge:
+            return knowledge[0]
+        return []
 
 
 def test_stage_functions():

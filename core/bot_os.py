@@ -285,6 +285,15 @@ class BotOsSession:
                 sanitized_bot_id = re.sub(r'[^a-zA-Z0-9]', '', self.bot_id)
                 with open(f'./thread_maps_{sanitized_bot_id}.pickle', 'wb') as handle:
                     pickle.dump({'out_to_in': self.out_to_in_thread_map, 'in_to_out': self.in_to_out_thread_map}, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+                if os.getenv("USE_KNOWLEDGE", "false").lower() == 'true':
+                    primary_user = json.dumps({'user_id': input_message.metadata.get('user_id', 'Unknown User ID'), 
+                                               'user_name': input_message.metadata.get('user_name', 'Unknown User')})
+                    knowledge = self.log_db_connector.extract_knowledge(primary_user, self.bot_id)
+                    if knowledge:
+                        input_message.msg = f'''NOTE--Here are some things you know about this user from previous interactions, that may be helpful to this conversation:
+                                           {knowledge['THREAD_SUMMARY']}\n\n''' + input_message.msg
+
            # logger.error(f"Out Thread {out_thread} ->> In Thead {input_message.thread_id}")
            
            # input_message.metadata["input_thread"] = input_message.thread_id

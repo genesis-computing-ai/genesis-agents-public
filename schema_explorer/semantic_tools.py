@@ -250,6 +250,7 @@ def modify_semantic_model(semantic_model, command, parameters):
 
 
 def test_modify_semantic_model(semantic_model):
+    from schema_explorer.semantic_tools import modify_semantic_model
     def random_string(prefix, length=5):
         return prefix + '_' + ''.join(random.choices(string.ascii_lowercase, k=length))
 

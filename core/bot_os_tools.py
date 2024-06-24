@@ -46,6 +46,7 @@ from core.bot_os_memory import BotOsKnowledgeAnnoy_Metadata
 
 from bot_genesis.process_runner_bot import process_runner_tools
 
+
 # import sys
 # sys.path.append('/Users/mglickman/helloworld/bot_os')  # Adjust the path as necessary
 import logging
@@ -59,6 +60,35 @@ logger = logging.getLogger(__name__)
 
 genesis_source = os.getenv("GENESIS_SOURCE", default="Snowflake")
 
+from pydantic import BaseModel
+
+
+class ToolBelt(BaseModel):
+    def run_process(self, action, thread_id):
+        print(f"Running processes Action: {action} | thread_id: {thread_id}")
+        if action == "GET_ANSWER":
+            print("The meaning of life has been discovered - 42!")
+            return {
+                "Success": True,
+                "Message": "The meaning of life has been discovered - 42!",
+            }
+        elif action == "GET_FIRST_STEP":
+            print("The first step is to run the test process.")
+            return {
+                "Success": True,
+                "Message": "The first step is to run the test process.",
+            }
+        elif action == "GET_NEXT_STEP":
+            print("The next step is to run the next step of the test process.")
+            return {
+                "Success": True,
+                "Message": "The next step is to run the test process.",
+            }
+        else:
+            print("No action specified.")
+            return {"Success": False, "Message": "No action specified."}
+
+
 if genesis_source == "BigQuery":
     credentials_path = os.getenv(
         "GOOGLE_APPLICATION_CREDENTIALS", default=".secrets/gcp.json"
@@ -70,6 +100,7 @@ if genesis_source == "BigQuery":
 else:  # Initialize Snowflake client
     db_adapter = SnowflakeConnector(connection_name="Snowflake")
     connection_info = {"Connection_Type": "Snowflake"}
+    tool_belt = ToolBelt()
 
 
 def get_tools(which_tools, db_adapter, slack_adapter_local=None, include_slack=True):

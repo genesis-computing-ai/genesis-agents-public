@@ -6,8 +6,6 @@ from multiprocessing import Process
 from core.bot_os_input import BotOsInputMessage, BotOsOutputMessage
 import dill
 
-from bot_genesis.process_runner_bot import run_process
-
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARN)
 

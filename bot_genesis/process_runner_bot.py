@@ -37,29 +37,4 @@ process_runner_functions = [
     }
 ]
 
-process_runner_tools = {"_run_process": "db_adapter.run_process"}
-
-
-def run_process(self, action, thread_id):  # MOVE OUT OF ADAPTER!
-    print(f"Running processes Action: {action} | thread_id: {thread_id}")
-    if action == "GET_ANSWER":
-        print("The meaning of life has been discovered - 42!")
-        return {
-            "Success": True,
-            "Message": "The meaning of life has been discovered - 42!",
-        }
-    elif action == "GET_FIRST_STEP":
-        print("The first step is to run the test process.")
-        return {
-            "Success": True,
-            "Message": "The first step is to run the test process.",
-        }
-    elif action == "GET_NEXT_STEP":
-        print("The next step is to run the next step of the test process.")
-        return {
-            "Success": True,
-            "Message": "The next step is to run the test process.",
-        }
-    else:
-        print("No action specified.")
-        return {"Success": False, "Message": "No action specified."}
+process_runner_tools = {"_run_process": "tool_belt.run_process"}

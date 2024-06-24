@@ -143,30 +143,6 @@ class SnowflakeConnector(DatabaseConnector):
         # self.ensure_table_exists()
         self.source_name = "Snowflake"
 
-    def run_process(self, action, thread_id):  # MOVE OUT OF ADAPTER!
-        print(f"Running processes Action: {action} | thread_id: {thread_id}")
-        if action == "GET_ANSWER":
-            print("The meaning of life has been discovered - 42!")
-            return {
-                "Success": True,
-                "Message": "The meaning of life has been discovered - 42!",
-            }
-        elif action == "GET_FIRST_STEP":
-            print("The first step is to run the test process.")
-            return {
-                "Success": True,
-                "Message": "The first step is to run the test process.",
-            }
-        elif action == "GET_NEXT_STEP":
-            print("The next step is to run the test process.")
-            return {
-                "Success": True,
-                "Message": "The next step is to run the test process.",
-            }
-        else:
-            print("No action specified.")
-            return {"Success": False, "Message": "No action specified."}
-
     def sha256_hash_hex_string(self, input_string):
         # Encode the input string to bytes, then create a SHA256 hash and convert it to a hexadecimal string
         return hashlib.sha256(input_string.encode()).hexdigest()

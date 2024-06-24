@@ -104,6 +104,7 @@ class BotOsSession:
         all_functions=None,
         all_function_to_tool_map=None,
         stream_mode=False,
+        tool_belt=None,
     ):
 
         BotOsAssistantOpenAI.stream_mode = stream_mode
@@ -175,6 +176,7 @@ class BotOsSession:
 
         self.next_messages = []
         self.bot_id = bot_id
+        self.tool_belt = tool_belt
 
         sanitized_bot_id = re.sub(r"[^a-zA-Z0-9]", "", self.bot_id)
         thread_maps_filename = f"./thread_maps_{sanitized_bot_id}.pickle"

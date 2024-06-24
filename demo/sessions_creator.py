@@ -14,7 +14,7 @@ from core.bot_os_defaults import (
 
 from core.bot_os_memory import BotOsKnowledgeAnnoy_Metadata
 
-from core.bot_os_tools import get_tools
+from core.bot_os_tools import get_tools, ToolBelt
 from llm_cortex.bot_os_cortex import BotOsAssistantSnowflakeCortex
 from llm_openai.bot_os_openai import BotOsAssistantOpenAI
 from slack.slack_bot_os_adapter import SlackBotAdapter
@@ -253,6 +253,7 @@ def make_session(
             all_function_to_tool_map=all_function_to_tool_map,
             bot_id=bot_config["bot_id"],
             stream_mode=stream_mode,
+            tool_belt=ToolBelt(),
         )
     except Exception as e:
         print("Session creation exception: ", e)

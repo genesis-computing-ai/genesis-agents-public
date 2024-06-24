@@ -43,6 +43,7 @@ CREATE STAGE IF NOT EXISTS APP_CODE_STAGE;
 --
 -- STOP HERE AND UPLOAD ALL REQUIRED CONTAINERS INTO THE IMAGE REPO
 --
+USE SCHEMA GENESISAPP_MASTER.CODE_SCHEMA;
 show image repositories;
 
 -- ########## UTILITY FUNCTIONS  #########################################
@@ -220,19 +221,14 @@ $$;
 
 
 -- Call procedure to create the shared view for harvest results
+USE SCHEMA GENESISAPP_APP_PKG_EXT.CODE_SCHEMA;
 CALL CODE_SCHEMA.SHARE_TO_APP_PKG(CURRENT_DATABASE());
 USE SCHEMA GENESISAPP_APP_PKG_EXT.CODE_SCHEMA;
 -- Call the procedure to generate shared views and grants
 CALL CODE_SCHEMA.GENERATE_SHARED_VIEWS('BASEBALL', CURRENT_DATABASE());
 USE SCHEMA GENESISAPP_APP_PKG_EXT.CODE_SCHEMA;
 CALL CODE_SCHEMA.GENERATE_SHARED_VIEWS('FORMULA_1', CURRENT_DATABASE());
-USE SCHEMA GENESISAPP_APP_PKG_EXT.CODE_SCHEMA;
-
--- Call the procedure to generate shared views and grants
-CALL CODE_SCHEMA.GENERATE_SHARED_VIEWS('BASEBALL', CURRENT_DATABASE());
-USE SCHEMA GENESISAPP_APP_PKG_EXT.CODE_SCHEMA;
-CALL CODE_SCHEMA.GENERATE_SHARED_VIEWS('FORMULA_1', CURRENT_DATABASE());
-USE SCHEMA GENESISAPP_APP_PKG_EXT.CODE_SCHEMA;
+USE SCHEMA GENESISAPP_APP_PKG.CODE_SCHEMA;
 
 
 -- ########## END DATA SHARING  ##########################################
@@ -288,7 +284,7 @@ name: sis_launch
 channels:
  - snowflake
 dependencies:
- - streamlit=1.26.0
+ - streamlit=1.31.1
  - pandas
  - snowflake-snowpark-python
 $$)
@@ -379,7 +375,7 @@ use role ACCOUNTADMIN;
 
 -- set the name of the installed application and warehouse to use
 
-set APP_DATABASE = 'GENESIS_BOTS_ALPHA';
+set APP_DATABASE = 'GENESIS_BOTS';
 set APP_WAREHOUSE = 'XSMALL';  -- ok to use an existing warehouse
 
 -- create the warehouse if needed
@@ -399,7 +395,7 @@ DROP COMPUTE POOL IF EXISTS GENESIS_POOL;
 -- create the compute pool and associate it to this application
 
 CREATE COMPUTE POOL IF NOT EXISTS GENESIS_POOL FOR APPLICATION IDENTIFIER($APP_DATABASE)
- MIN_NODES=1 MAX_NODES=1 INSTANCE_FAMILY='CPU_X64_XS' AUTO_SUSPEND_SECS=3600 INITIALLY_SUSPENDED=FALSE;
+ MIN_NODES=1 MAX_NODES=1 INSTANCE_FAMILY='CPU_X64_S' AUTO_SUSPEND_SECS=3600 INITIALLY_SUSPENDED=FALSE;
 
 -- give Genesis the right to use the compute pool
 

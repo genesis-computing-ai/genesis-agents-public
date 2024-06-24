@@ -14,88 +14,140 @@ import snowflake.connector
 import random, string
 import requests
 from .database_connector import DatabaseConnector
-from core.bot_os_defaults import BASE_EVE_BOT_INSTRUCTIONS, ELIZA_DATA_ANALYST_INSTRUCTIONS, STUART_DATA_STEWARD_INSTRUCTIONS, EVE_INTRO_PROMPT, ELIZA_INTRO_PROMPT, STUART_INTRO_PROMPT
-#from database_connector import DatabaseConnector
+from core.bot_os_defaults import (
+    BASE_EVE_BOT_INSTRUCTIONS,
+    ELIZA_DATA_ANALYST_INSTRUCTIONS,
+    STUART_DATA_STEWARD_INSTRUCTIONS,
+    EVE_INTRO_PROMPT,
+    ELIZA_INTRO_PROMPT,
+    STUART_INTRO_PROMPT,
+)
+
+# from database_connector import DatabaseConnector
 from threading import Lock
 import base64
 import requests
 import re
 
+import bot_genesis.tools_descriptions
+
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.WARN, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.WARN, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 _semantic_lock = Lock()
 
+
 class SnowflakeConnector(DatabaseConnector):
-    def __init__(self,  connection_name):
-        super().__init__( connection_name)
-        #print('Snowflake connector entry...')
-        self.account = os.getenv('SNOWFLAKE_ACCOUNT_OVERRIDE',None)
-        self.user = os.getenv('SNOWFLAKE_USER_OVERRIDE',None)
-        self.password = os.getenv('SNOWFLAKE_PASSWORD_OVERRIDE', None)
-        self.database = os.getenv('SNOWFLAKE_DATABASE_OVERRIDE', None)
-        self.warehouse = os.getenv('SNOWFLAKE_WAREHOUSE_OVERRIDE', None)
-        self.role = os.getenv('SNOWFLAKE_ROLE_OVERRIDE', None)
+    def __init__(self, connection_name):
+        super().__init__(connection_name)
+        # print('Snowflake connector entry...')
+        self.account = os.getenv("SNOWFLAKE_ACCOUNT_OVERRIDE", None)
+        self.user = os.getenv("SNOWFLAKE_USER_OVERRIDE", None)
+        self.password = os.getenv("SNOWFLAKE_PASSWORD_OVERRIDE", None)
+        self.database = os.getenv("SNOWFLAKE_DATABASE_OVERRIDE", None)
+        self.warehouse = os.getenv("SNOWFLAKE_WAREHOUSE_OVERRIDE", None)
+        self.role = os.getenv("SNOWFLAKE_ROLE_OVERRIDE", None)
         if self.database:
             self.project_id = self.database
         else:
             self.project_id = None
-        #print('Calling _create_connection...')
+        # print('Calling _create_connection...')
         self.token_connection = False
         self.connection = self._create_connection()
         self.semantic_models_map = {}
 
         try:
             pass
-       #     print('REST TOKEN: ',self.connection.rest.token)
+        #     print('REST TOKEN: ',self.connection.rest.token)
         except Exception as e:
-            print("Could not get REST Token: ",e)
+            print("Could not get REST Token: ", e)
 
         self.client = self.connection
 
-        self.schema = os.getenv('GENESIS_INTERNAL_DB_SCHEMA', 'GENESIS_INTERNAL')
-        
-        #self.client = self._create_client()
-        self.genbot_internal_project_and_schema = os.getenv('GENESIS_INTERNAL_DB_SCHEMA','None')
-        if  self.genbot_internal_project_and_schema is None:       
-            self.genbot_internal_project_and_schema = os.getenv('ELSA_INTERNAL_DB_SCHEMA','None')
-            print("!! Please switch from using ELSA_INTERNAL_DB_SCHEMA ENV VAR to GENESIS_INTERNAL_DB_SCHEMA !!")
-        if self.genbot_internal_project_and_schema == 'None':
-            # Todo remove, internal note 
+        self.schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "GENESIS_INTERNAL")
+
+        # self.client = self._create_client()
+        self.genbot_internal_project_and_schema = os.getenv(
+            "GENESIS_INTERNAL_DB_SCHEMA", "None"
+        )
+        if self.genbot_internal_project_and_schema is None:
+            self.genbot_internal_project_and_schema = os.getenv(
+                "ELSA_INTERNAL_DB_SCHEMA", "None"
+            )
+            print(
+                "!! Please switch from using ELSA_INTERNAL_DB_SCHEMA ENV VAR to GENESIS_INTERNAL_DB_SCHEMA !!"
+            )
+        if self.genbot_internal_project_and_schema == "None":
+            # Todo remove, internal note
             print("ENV Variable GENESIS_INTERNAL_DB_SCHEMA is not set.")
         if self.genbot_internal_project_and_schema is not None:
-            self.genbot_internal_project_and_schema = self.genbot_internal_project_and_schema.upper()
-        self.genbot_internal_harvest_table = os.getenv('GENESIS_INTERNAL_HARVEST_RESULTS_TABLE','harvest_results')
-        self.genbot_internal_harvest_control_table = os.getenv('GENESIS_INTERNAL_HARVEST_CONTROL_TABLE','harvest_control')
-        self.genbot_internal_message_log = os.getenv('GENESIS_INTERNAL_MESSAGE_LOG_TABLE','MESSAGE_LOG')
-        self.genbot_internal_knowledge_table = os.getenv('GENESIS_INTERNAL_KNOWLEDGE_TABLE','KNOWLEDGE')
-        self.app_share_schema = 'APP_SHARE'
+            self.genbot_internal_project_and_schema = (
+                self.genbot_internal_project_and_schema.upper()
+            )
+        self.genbot_internal_harvest_table = os.getenv(
+            "GENESIS_INTERNAL_HARVEST_RESULTS_TABLE", "harvest_results"
+        )
+        self.genbot_internal_harvest_control_table = os.getenv(
+            "GENESIS_INTERNAL_HARVEST_CONTROL_TABLE", "harvest_control"
+        )
+        self.genbot_internal_message_log = os.getenv(
+            "GENESIS_INTERNAL_MESSAGE_LOG_TABLE", "MESSAGE_LOG"
+        )
+        self.genbot_internal_knowledge_table = os.getenv(
+            "GENESIS_INTERNAL_KNOWLEDGE_TABLE", "KNOWLEDGE"
+        )
+        self.app_share_schema = "APP_SHARE"
 
-       # print("genbot_internal_project_and_schema: ", self.genbot_internal_project_and_schema)
-        self.metadata_table_name = self.genbot_internal_project_and_schema+'.'+self.genbot_internal_harvest_table
-        self.harvest_control_table_name = self.genbot_internal_project_and_schema+'.'+self.genbot_internal_harvest_control_table
-        self.message_log_table_name = self.genbot_internal_project_and_schema+'.'+self.genbot_internal_message_log
-        self.knowledge_table_name = self.genbot_internal_project_and_schema+'.'+self.genbot_internal_knowledge_table
-        self.slack_tokens_table_name = self.genbot_internal_project_and_schema+'.'+'SLACK_APP_CONFIG_TOKENS'
-        self.available_tools_table_name = self.genbot_internal_project_and_schema + '.' + 'AVAILABLE_TOOLS'
-        self.bot_servicing_table_name = self.genbot_internal_project_and_schema + '.' + 'BOT_SERVICING'
-        self.ngrok_tokens_table_name = self.genbot_internal_project_and_schema + '.' + 'NGROK_TOKENS'
-        self.images_table_name = self.app_share_schema + '.' + 'IMAGES'
-        
-     #   print("harvest_control_table_name: ", self.harvest_control_table_name)
-     #   print("metadata_table_name: ", self.metadata_table_name)
-     #   print("message_log_table_name: ", self.genbot_internal_message_log)
+        # print("genbot_internal_project_and_schema: ", self.genbot_internal_project_and_schema)
+        self.metadata_table_name = (
+            self.genbot_internal_project_and_schema
+            + "."
+            + self.genbot_internal_harvest_table
+        )
+        self.harvest_control_table_name = (
+            self.genbot_internal_project_and_schema
+            + "."
+            + self.genbot_internal_harvest_control_table
+        )
+        self.message_log_table_name = (
+            self.genbot_internal_project_and_schema
+            + "."
+            + self.genbot_internal_message_log
+        )
+        self.knowledge_table_name = (
+            self.genbot_internal_project_and_schema
+            + "."
+            + self.genbot_internal_knowledge_table
+        )
+        self.slack_tokens_table_name = (
+            self.genbot_internal_project_and_schema + "." + "SLACK_APP_CONFIG_TOKENS"
+        )
+        self.available_tools_table_name = (
+            self.genbot_internal_project_and_schema + "." + "AVAILABLE_TOOLS"
+        )
+        self.bot_servicing_table_name = (
+            self.genbot_internal_project_and_schema + "." + "BOT_SERVICING"
+        )
+        self.ngrok_tokens_table_name = (
+            self.genbot_internal_project_and_schema + "." + "NGROK_TOKENS"
+        )
+        self.images_table_name = self.app_share_schema + "." + "IMAGES"
 
-        #self.ensure_table_exists()
+        #   print("harvest_control_table_name: ", self.harvest_control_table_name)
+        #   print("metadata_table_name: ", self.metadata_table_name)
+        #   print("message_log_table_name: ", self.genbot_internal_message_log)
+
+        # self.ensure_table_exists()
 
         # make sure harvester control and results tables are available, if not create them
-        #self.ensure_table_exists()
-        self.source_name = 'Snowflake'
+        # self.ensure_table_exists()
+        self.source_name = "Snowflake"
 
     def sha256_hash_hex_string(self, input_string):
         # Encode the input string to bytes, then create a SHA256 hash and convert it to a hexadecimal string
         return hashlib.sha256(input_string.encode()).hexdigest()
-
 
     def get_harvest_control_data_as_json(self, thread_id=None):
         """
@@ -118,18 +170,30 @@ class SnowflakeConnector(DatabaseConnector):
             rows = [dict(zip(columns, row)) for row in data]
 
             # Convert the list of dictionaries to a JSON object
-            json_data = json.dumps(rows, default=str)  # default=str to handle datetime and other non-serializable types
+            json_data = json.dumps(
+                rows, default=str
+            )  # default=str to handle datetime and other non-serializable types
 
             cursor.close()
             return {"Success": True, "Data": json_data}
-        
+
         except Exception as e:
             err = f"An error occurred while retrieving the harvest control data: {e}"
             return {"Success": False, "Error": err}
 
-# snowed
-# SEE IF THIS WAY OF DOING BIND VARS WORKS, if so do it everywhere
-    def set_harvest_control_data(self, source_name, database_name, initial_crawl_complete=False, refresh_interval=1, schema_exclusions=None, schema_inclusions=None, status='Include', thread_id=None):
+    # snowed
+    # SEE IF THIS WAY OF DOING BIND VARS WORKS, if so do it everywhere
+    def set_harvest_control_data(
+        self,
+        source_name,
+        database_name,
+        initial_crawl_complete=False,
+        refresh_interval=1,
+        schema_exclusions=None,
+        schema_inclusions=None,
+        status="Include",
+        thread_id=None,
+    ):
         """
         Inserts or updates a row in the harvest control table using MERGE statement with explicit parameters for Snowflake.
 
@@ -152,21 +216,39 @@ class SnowflakeConnector(DatabaseConnector):
             # First, get the list of databases and check the case
             databases = self.get_visible_databases()
             if database_name not in databases:
-                return {"Success": False, "Error": f"Database {database_name} does not exist."}
+                return {
+                    "Success": False,
+                    "Error": f"Database {database_name} does not exist.",
+                }
             # Now, get the list of schemas in the database and check the case
             schemas = self.get_schemas(database_name)
             if schema_exclusions:
                 for schema in schema_exclusions:
                     if schema.upper() not in (s.upper() for s in schemas):
-                        return {"Success": False, "Error": f"Schema exclusion {schema} does not exist in database {database_name}."}
+                        return {
+                            "Success": False,
+                            "Error": f"Schema exclusion {schema} does not exist in database {database_name}.",
+                        }
             if schema_inclusions:
                 for schema in schema_inclusions:
                     if schema.upper() not in (s.upper() for s in schemas):
-                        return {"Success": False, "Error": f"Schema inclusion {schema} does not exist in database {database_name}."}
+                        return {
+                            "Success": False,
+                            "Error": f"Schema inclusion {schema} does not exist in database {database_name}.",
+                        }
             # Ensure the case of the database and schema names matches that returned by the get_databases and get_schemas functions
-            database_name = next((db for db in databases if db.upper() == database_name.upper()), database_name)
-            schema_exclusions = [next((sch for sch in schemas if sch.upper() == schema.upper()), schema) for schema in schema_exclusions]
-            schema_inclusions = [next((sch for sch in schemas if sch.upper() == schema.upper()), schema) for schema in schema_inclusions]
+            database_name = next(
+                (db for db in databases if db.upper() == database_name.upper()),
+                database_name,
+            )
+            schema_exclusions = [
+                next((sch for sch in schemas if sch.upper() == schema.upper()), schema)
+                for schema in schema_exclusions
+            ]
+            schema_inclusions = [
+                next((sch for sch in schemas if sch.upper() == schema.upper()), schema)
+                for schema in schema_inclusions
+            ]
 
             # Prepare the MERGE statement for Snowflake
             merge_statement = f"""
@@ -186,22 +268,28 @@ class SnowflakeConnector(DatabaseConnector):
             """
 
             # Execute the MERGE statement
-            self.client.cursor().execute(merge_statement, {
-                'source_name': source_name,
-                'database_name': database_name,
-                'initial_crawl_complete': initial_crawl_complete,
-                'refresh_interval': refresh_interval,
-                'schema_exclusions': str(schema_exclusions),
-                'schema_inclusions': str(schema_inclusions),
-                'status': status
-            })
+            self.client.cursor().execute(
+                merge_statement,
+                {
+                    "source_name": source_name,
+                    "database_name": database_name,
+                    "initial_crawl_complete": initial_crawl_complete,
+                    "refresh_interval": refresh_interval,
+                    "schema_exclusions": str(schema_exclusions),
+                    "schema_inclusions": str(schema_inclusions),
+                    "status": status,
+                },
+            )
 
-            return {"Success": True, "Message": "Harvest control data set successfully."}
-        
+            return {
+                "Success": True,
+                "Message": "Harvest control data set successfully.",
+            }
+
         except Exception as e:
             err = f"An error occurred while setting the harvest control data: {e}"
             return {"Success": False, "Error": err}
-        
+
     def remove_harvest_control_data(self, source_name, database_name, thread_id=None):
         """
         Removes a row from the harvest control table based on the source_name and database_name.
@@ -221,17 +309,23 @@ class SnowflakeConnector(DatabaseConnector):
             UPDATE {self.harvest_control_table_name}
             SET STATUS = 'Exclude'
             WHERE UPPER(source_name) = UPPER(%s) AND UPPER(database_name) = UPPER(%s) AND STATUS = 'Include'
-            """            
+            """
             # Execute the query
             cursor = self.client.cursor()
             cursor.execute(query, (source_name, database_name))
             affected_rows = cursor.rowcount
 
             if affected_rows == 0:
-                return {"Success": False, "Message": "No harvest records were found for that source and database. You should check the source_name and database_name with the get_harvest_control_data tool ?"}
+                return {
+                    "Success": False,
+                    "Message": "No harvest records were found for that source and database. You should check the source_name and database_name with the get_harvest_control_data tool ?",
+                }
             else:
-                return {"Success": True, "Message": f"Harvest control data removed successfully. {affected_rows} rows affected."}
-            
+                return {
+                    "Success": True,
+                    "Message": f"Harvest control data removed successfully. {affected_rows} rows affected.",
+                }
+
         except Exception as e:
             err = f"An error occurred while removing the harvest control data: {e}"
             return {"Success": False, "Error": err}
@@ -255,12 +349,14 @@ class SnowflakeConnector(DatabaseConnector):
             cursor.execute(delete_query, (source_name, database_name))
             affected_rows = cursor.rowcount
 
-            return {"Success": True, "Message": f"Metadata rows removed successfully. {affected_rows} rows affected."}
-        
+            return {
+                "Success": True,
+                "Message": f"Metadata rows removed successfully. {affected_rows} rows affected.",
+            }
+
         except Exception as e:
             err = f"An error occurred while removing the metadata rows: {e}"
             return {"Success": False, "Error": err}
-
 
     def get_available_databases(self, thread_id=None):
         """
@@ -273,7 +369,10 @@ class SnowflakeConnector(DatabaseConnector):
             # Get the list of visible databases
             visible_databases_result = self.get_visible_databases_json()
             if not visible_databases_result:
-                return {"Success": False, "Message": "An error occurred while retrieving visible databases"}
+                return {
+                    "Success": False,
+                    "Message": "An error occurred while retrieving visible databases",
+                }
 
             visible_databases = visible_databases_result
             # Filter out databases that are currently being harvested
@@ -292,21 +391,22 @@ class SnowflakeConnector(DatabaseConnector):
                     # Get the list of schemas for the database
                     schemas_result = self.get_schemas(database)
                     if schemas_result:
-                        available_databases.append({
-                            'DatabaseName': database,
-                            'Schemas': schemas_result
-                        })
+                        available_databases.append(
+                            {"DatabaseName": database, "Schemas": schemas_result}
+                        )
 
             if not available_databases:
-                return {"Success": False, "Message": "No available databases to display."}
-
+                return {
+                    "Success": False,
+                    "Message": "No available databases to display.",
+                }
 
             return {"Success": True, "Data": json.dumps(available_databases)}
-        
+
         except Exception as e:
             err = f"An error occurred while retrieving available databases: {e}"
             return {"Success": False, "Error": err}
-        
+
     def get_visible_databases_json(self, thread_id=None):
         """
         Retrieves a list of all visible databases.
@@ -320,10 +420,12 @@ class SnowflakeConnector(DatabaseConnector):
             cursor.execute(query)
             results = cursor.fetchall()
 
-            databases = [row[1] for row in results]  # Assuming the database name is in the second column
+            databases = [
+                row[1] for row in results
+            ]  # Assuming the database name is in the second column
 
             return {"Success": True, "Databases": databases}
-        
+
         except Exception as e:
             err = f"An error occurred while retrieving visible databases: {e}"
             return {"Success": False, "Error": err}
@@ -331,7 +433,6 @@ class SnowflakeConnector(DatabaseConnector):
     def get_schemas(self, database_name, thread_id=None):
         """
         Retrieves a list of all schemas in a given database.
-
         Args:
             database_name (str): The name of the database to retrieve schemas from.
 
@@ -344,10 +445,12 @@ class SnowflakeConnector(DatabaseConnector):
             cursor.execute(query)
             results = cursor.fetchall()
 
-            schemas = [row[1] for row in results]  # Assuming the schema name is in the second column
+            schemas = [
+                row[1] for row in results
+            ]  # Assuming the schema name is in the second column
 
             return {"Success": True, "Schemas": schemas}
-        
+
         except Exception as e:
             err = f"An error occurred while retrieving schemas from database {database_name}: {e}"
             return {"Success": False, "Error": err}
@@ -366,10 +469,12 @@ class SnowflakeConnector(DatabaseConnector):
             bots = cursor.fetchall()
             columns = [col[0].lower() for col in cursor.description]
             bot_list = [dict(zip(columns, bot)) for bot in bots]
-            json_data = json.dumps(bot_list, default=str)  # default=str to handle datetime and other non-serializable types
+            json_data = json.dumps(
+                bot_list, default=str
+            )  # default=str to handle datetime and other non-serializable types
 
             return {"Success": True, "Data": json_data}
-        
+
         except Exception as e:
             err = f"An error occurred while retrieving bot images: {e}"
             return {"Success": False, "Error": err}
@@ -396,12 +501,17 @@ class SnowflakeConnector(DatabaseConnector):
             results = cursor.fetchall()
 
             # Convert the query results to a list of dictionaries
-            summary = [dict(zip([column[0] for column in cursor.description], row)) for row in results]
+            summary = [
+                dict(zip([column[0] for column in cursor.description], row))
+                for row in results
+            ]
 
-            json_data = json.dumps(summary, default=str)  # default=str to handle datetime and other non-serializable types
+            json_data = json.dumps(
+                summary, default=str
+            )  # default=str to handle datetime and other non-serializable types
 
             return {"Success": True, "Data": json_data}
-        
+
         except Exception as e:
             err = f"An error occurred while retrieving the harvest summary: {e}"
             return {"Success": False, "Error": err}
@@ -422,9 +532,23 @@ class SnowflakeConnector(DatabaseConnector):
             print(f"An error occurred while checking if the table summary exists: {e}")
             return False
 
-    def insert_chat_history_row(self, timestamp, bot_id=None, bot_name=None, thread_id=None, message_type=None, 
-                                message_payload=None, message_metadata=None, tokens_in=None, tokens_out=None, files=None,
-                                channel_type=None, channel_name=None, primary_user=None, task_id=None):
+    def insert_chat_history_row(
+        self,
+        timestamp,
+        bot_id=None,
+        bot_name=None,
+        thread_id=None,
+        message_type=None,
+        message_payload=None,
+        message_metadata=None,
+        tokens_in=None,
+        tokens_out=None,
+        files=None,
+        channel_type=None,
+        channel_name=None,
+        primary_user=None,
+        task_id=None,
+    ):
         """
         Inserts a single row into the chat history table using Snowflake's streaming insert.
 
@@ -447,11 +571,15 @@ class SnowflakeConnector(DatabaseConnector):
         if files is None:
             files = []
         files_str = str(files)
-        if files_str == '':
-            files_str = '<no files>'
+        if files_str == "":
+            files_str = "<no files>"
         try:
             # Ensure the timestamp is in the correct format for Snowflake
-            formatted_timestamp = timestamp.strftime('%Y-%m-%d %H:%M:%S') if isinstance(timestamp, datetime) else timestamp
+            formatted_timestamp = (
+                timestamp.strftime("%Y-%m-%d %H:%M:%S")
+                if isinstance(timestamp, datetime)
+                else timestamp
+            )
             if isinstance(message_metadata, dict):
                 message_metadata = json.dumps(message_metadata)
 
@@ -461,20 +589,40 @@ class SnowflakeConnector(DatabaseConnector):
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """
             cursor = self.client.cursor()
-            cursor.execute(insert_query, (formatted_timestamp, bot_id, bot_name, thread_id, message_type, message_payload, message_metadata, tokens_in, tokens_out,
-                                           files_str, channel_type, channel_name, primary_user, task_id))
+            cursor.execute(
+                insert_query,
+                (
+                    formatted_timestamp,
+                    bot_id,
+                    bot_name,
+                    thread_id,
+                    message_type,
+                    message_payload,
+                    message_metadata,
+                    tokens_in,
+                    tokens_out,
+                    files_str,
+                    channel_type,
+                    channel_name,
+                    primary_user,
+                    task_id,
+                ),
+            )
             self.client.commit()
         except Exception as e:
-            print(f"Encountered errors while inserting into chat history table row: {e}")
+            print(
+                f"Encountered errors while inserting into chat history table row: {e}"
+            )
         finally:
             if cursor is not None:
                 cursor.close()
-    
 
-
-    def manage_tasks(self, action, bot_id, task_id=None, task_details=None, thread_id = None):
+    def manage_tasks(
+        self, action, bot_id, task_id=None, task_details=None, thread_id=None
+    ):
         import random
         import string
+
         """
         Manages tasks in the TASKS table with actions to create, delete, or update a task.
 
@@ -487,103 +635,161 @@ class SnowflakeConnector(DatabaseConnector):
         Returns:
             dict: A dictionary with the result of the operation.
         """
-        required_fields_create = ['task_name', 'primary_report_to_type', 'primary_report_to_id',
-                           'next_check_ts', 'action_trigger_type', 'action_trigger_details',
-                           'task_instructions', 'reporting_instructions', 'last_task_status',
-                           'task_learnings', 'task_active' ]
+        required_fields_create = [
+            "task_name",
+            "primary_report_to_type",
+            "primary_report_to_id",
+            "next_check_ts",
+            "action_trigger_type",
+            "action_trigger_details",
+            "task_instructions",
+            "reporting_instructions",
+            "last_task_status",
+            "task_learnings",
+            "task_active",
+        ]
 
-        required_fields_update = [  'last_task_status', 'task_learnings', 'task_active' ] 
+        required_fields_update = ["last_task_status", "task_learnings", "task_active"]
 
-        if action == 'TIME':
-            return {"current_system_time": datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}
+        if action == "TIME":
+            return {
+                "current_system_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S %Z")
+            }
         action = action.upper()
 
-        if action == 'CREATE':
-            return {"Success": False, "Confirmation_Needed": "Please reconfirm all the task details with the user, then call this function again with the action CREATE_CONFIRMED to actually create the task.   Make sure to be clear in the action_trigger_details field whether the task is to be triggered one time, or if it is ongoing and recurring.", "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}"} 
-        if action == 'CREATE_CONFIRMED':
-            action = 'CREATE'
+        if action == "CREATE":
+            return {
+                "Success": False,
+                "Confirmation_Needed": "Please reconfirm all the task details with the user, then call this function again with the action CREATE_CONFIRMED to actually create the task.   Make sure to be clear in the action_trigger_details field whether the task is to be triggered one time, or if it is ongoing and recurring.",
+                "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}",
+            }
+        if action == "CREATE_CONFIRMED":
+            action = "CREATE"
 
-        if action == 'UPDATE':
-            return {"Success": False, "Confirmation_Needed": "Please reconfirm all the task details with the user, especially that you're altering the correct TASK_ID, then call this function again with the action UPDATE_CONFIRMED to actually update the task.  Call with LIST to double-check the task_id if you aren't sure.", "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}"} 
-        if action == 'UPDATE_CONFIRMED':
-            action = 'UPDATE'
+        if action == "UPDATE":
+            return {
+                "Success": False,
+                "Confirmation_Needed": "Please reconfirm all the task details with the user, especially that you're altering the correct TASK_ID, then call this function again with the action UPDATE_CONFIRMED to actually update the task.  Call with LIST to double-check the task_id if you aren't sure.",
+                "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}",
+            }
+        if action == "UPDATE_CONFIRMED":
+            action = "UPDATE"
 
-        if action == 'DELETE':
-            return {"Success": False, "Confirmation_Needed": "Please reconfirm that you are deleting the correct TASK_ID, and double check with the user they want to delete this task, then call this function again with the action DELETE_CONFIRMED to actually delete the task.  Call with LIST to double-check the task_id if you aren't sure that its right." }
- 
-        if action == 'DELETE_CONFIRMED':
-            action = 'DELETE'
+        if action == "UPDATE":
+            return {
+                "Success": False,
+                "Confirmation_Needed": "Please reconfirm all the task details with the user, especially that you're altering the correct TASK_ID, then call this function again with the action UPDATE_CONFIRMED to actually update the task.  Call with LIST to double-check the task_id if you aren't sure.",
+                "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+            }
 
+        if action == "UPDATE_CONFIRMED":
+            action = "UPDATE"
 
-        if action not in ['CREATE', 'DELETE', 'UPDATE', 'LIST']:
+        if action == "DELETE":
+            return {
+                "Success": False,
+                "Confirmation_Needed": "Please reconfirm that you are deleting the correct TASK_ID, and double check with the user they want to delete this task, then call this function again with the action DELETE_CONFIRMED to actually delete the task.  Call with LIST to double-check the task_id if you aren't sure that its right.",
+            }
+
+        if action == "DELETE_CONFIRMED":
+            action = "DELETE"
+
+        if action not in ["CREATE", "DELETE", "UPDATE", "LIST"]:
             return {"Success": False, "Error": "Invalid action specified."}
-        
+
         cursor = self.client.cursor()
-    
-        if action == 'LIST':
+
+        if action == "LIST":
             try:
-                list_query = f"SELECT * FROM {self.schema}.TASKS WHERE upper(bot_id) = upper(%s)"
+                list_query = (
+                    f"SELECT * FROM {self.schema}.TASKS WHERE upper(bot_id) = upper(%s)"
+                )
                 cursor.execute(list_query, (bot_id,))
                 tasks = cursor.fetchall()
                 task_list = []
                 for task in tasks:
                     task_dict = {
-                        'task_id': task[0],
-                        'bot_id': task[1],
-                        'task_name': task[2],
-                        'primary_report_to_type': task[3],
-                        'primary_report_to_id': task[4],
-                        'next_check_ts': task[5].strftime('%Y-%m-%d %H:%M:%S'),
-                        'action_trigger_type': task[6],
-                        'action_trigger_details': task[7],
-                        'task_instructions': task[8],
-                        'reporting_instructions': task[9],
-                        'last_task_status': task[10],
-                        'task_learnings': task[11],
-                        'task_active': task[12]
+                        "task_id": task[0],
+                        "bot_id": task[1],
+                        "task_name": task[2],
+                        "primary_report_to_type": task[3],
+                        "primary_report_to_id": task[4],
+                        "next_check_ts": task[5].strftime("%Y-%m-%d %H:%M:%S"),
+                        "action_trigger_type": task[6],
+                        "action_trigger_details": task[7],
+                        "task_instructions": task[8],
+                        "reporting_instructions": task[9],
+                        "last_task_status": task[10],
+                        "task_learnings": task[11],
+                        "task_active": task[12],
                     }
                     task_list.append(task_dict)
                 return {"Success": True, "Tasks": task_list}
             except Exception as e:
-                return {"Success": False, "Error": f"Failed to list tasks for bot {bot_id}: {e}"}
+                return {
+                    "Success": False,
+                    "Error": f"Failed to list tasks for bot {bot_id}: {e}",
+                }
 
         if task_id is None:
             return {"Success": False, "Error": f"Missing task_id field"}
 
-        if action in ['CREATE', 'UPDATE'] and not task_details:
-            return {"Success": False, "Error": "Task details must be provided for CREATE or UPDATE action."}
+        if action in ["CREATE", "UPDATE"] and not task_details:
+            return {
+                "Success": False,
+                "Error": "Task details must be provided for CREATE or UPDATE action.",
+            }
 
-        if action in ['CREATE'] and any(field not in task_details for field in required_fields_create):
-            missing_fields = [field for field in required_fields_create if field not in task_details]
-            return {"Success": False, "Error": f"Missing required task details: {', '.join(missing_fields)}"}
+        if action in ["CREATE"] and any(
+            field not in task_details for field in required_fields_create
+        ):
+            missing_fields = [
+                field for field in required_fields_create if field not in task_details
+            ]
+            return {
+                "Success": False,
+                "Error": f"Missing required task details: {', '.join(missing_fields)}",
+            }
 
-        if action in ['UPDATE'] and any(field not in task_details for field in required_fields_update):
-            missing_fields = [field for field in required_fields_update if field not in task_details]
-            return {"Success": False, "Error": f"Missing required task details: {', '.join(missing_fields)}"}
+        if action in ["UPDATE"] and any(
+            field not in task_details for field in required_fields_update
+        ):
+            missing_fields = [
+                field for field in required_fields_update if field not in task_details
+            ]
+            return {
+                "Success": False,
+                "Error": f"Missing required task details: {', '.join(missing_fields)}",
+            }
 
-        if action == 'UPDATE' and task_details.get('task_active', False):
-            if 'next_check_ts' not in task_details:
-                return {"Success": False, "Error": "The 'next_check_ts' field is required when updating an active task."}
+        if action == "UPDATE" and task_details.get("task_active", False):
+            if "next_check_ts" not in task_details:
+                return {
+                    "Success": False,
+                    "Error": "The 'next_check_ts' field is required when updating an active task.",
+                }
 
         # Convert timestamp from string in format 'YYYY-MM-DD HH:MM:SS' to a Snowflake-compatible timestamp
-        if task_details is not None and task_details.get('task_active', False):
+        if task_details is not None and task_details.get("task_active", False):
             try:
-                formatted_next_check_ts = datetime.strptime(task_details['next_check_ts'], '%Y-%m-%d %H:%M:%S')
+                formatted_next_check_ts = datetime.strptime(
+                    task_details["next_check_ts"], "%Y-%m-%d %H:%M:%S"
+                )
             except ValueError as ve:
                 return {
-                    "Success": False, 
+                    "Success": False,
                     "Error": f"Invalid timestamp format for 'next_check_ts'. Required format: 'YYYY-MM-DD HH:MM:SS' in system timezone. Error details: {ve}",
-                    "Info": f"Current system time in system timezone is {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}. The system timezone is {datetime.now().strftime('%Z')}. Please note that the timezone should not be included in the submitted timestamp."
+                    "Info": f"Current system time in system timezone is {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}. The system timezone is {datetime.now().strftime('%Z')}. Please note that the timezone should not be included in the submitted timestamp.",
                 }
             if formatted_next_check_ts < datetime.now():
                 return {
                     "Success": False,
                     "Error": "The 'next_check_ts' is in the past.",
-                    "Info": f"Current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}"
+                    "Info": f"Current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}",
                 }
 
         try:
-            if action == 'CREATE':
+            if action == "CREATE":
                 insert_query = f"""
                     INSERT INTO {self.schema}.TASKS (
                         task_id, bot_id, task_name, primary_report_to_type, primary_report_to_id,
@@ -595,16 +801,23 @@ class SnowflakeConnector(DatabaseConnector):
                         %(reporting_instructions)s, %(last_task_status)s, %(task_learnings)s, %(task_active)s
                     )
                 """
-                
+
                 # Generate 6 random alphanumeric characters
-                random_suffix = ''.join(random.choices(string.ascii_letters + string.digits, k=6))
-                task_id_with_suffix = task_id + '_' + random_suffix
-                cursor.execute(insert_query, {**task_details, "task_id": task_id_with_suffix, "bot_id": bot_id})
+                random_suffix = "".join(
+                    random.choices(string.ascii_letters + string.digits, k=6)
+                )
+                task_id_with_suffix = task_id + "_" + random_suffix
+                cursor.execute(
+                    insert_query,
+                    {**task_details, "task_id": task_id_with_suffix, "bot_id": bot_id},
+                )
                 self.client.commit()
-                return {"Success": True, "Message": f"Task successfully created, next check scheduled for {task_details['next_check_ts']}"}
+                return {
+                    "Success": True,
+                    "Message": f"Task successfully created, next check scheduled for {task_details['next_check_ts']}",
+                }
 
-
-            elif action == 'DELETE':
+            elif action == "DELETE":
                 delete_query = f"""
                     DELETE FROM {self.schema}.TASKS
                     WHERE task_id = %s AND bot_id = %s
@@ -612,13 +825,15 @@ class SnowflakeConnector(DatabaseConnector):
                 cursor.execute(delete_query, (task_id, bot_id))
                 self.client.commit()
 
-            elif action == 'UPDATE':
+            elif action == "UPDATE":
                 update_query = f"""
                     UPDATE {self.schema}.TASKS
                     SET {', '.join([f"{key} = %({key})s" for key in task_details.keys()])}
                     WHERE task_id = %(task_id)s AND bot_id = %(bot_id)s
                 """
-                cursor.execute(update_query, {**task_details, "task_id": task_id, "bot_id": bot_id})
+                cursor.execute(
+                    update_query, {**task_details, "task_id": task_id, "bot_id": bot_id}
+                )
                 self.client.commit()
 
             return {"Success": True, "Message": f"Task update or delete confirmed."}
@@ -626,9 +841,19 @@ class SnowflakeConnector(DatabaseConnector):
             return {"Success": False, "Error": str(e)}
 
         finally:
-            cursor.close()      
+            cursor.close()
 
-    def insert_task_history(self, task_id, work_done_summary, task_status, updated_task_learnings, report_message="", done_flag=False, needs_help_flag='N', task_clarity_comments=''):
+    def insert_task_history(
+        self,
+        task_id,
+        work_done_summary,
+        task_status,
+        updated_task_learnings,
+        report_message="",
+        done_flag=False,
+        needs_help_flag="N",
+        task_clarity_comments="",
+    ):
         """
         Inserts a row into the TASK_HISTORY table.
 
@@ -652,10 +877,19 @@ class SnowflakeConnector(DatabaseConnector):
         """
         try:
             cursor = self.client.cursor()
-            cursor.execute(insert_query, (
-                task_id, work_done_summary, task_status, updated_task_learnings, 
-                report_message, done_flag, needs_help_flag, task_clarity_comments
-            ))
+            cursor.execute(
+                insert_query,
+                (
+                    task_id,
+                    work_done_summary,
+                    task_status,
+                    updated_task_learnings,
+                    report_message,
+                    done_flag,
+                    needs_help_flag,
+                    task_clarity_comments,
+                ),
+            )
             self.client.commit()
             cursor.close()
             print(f"Task history row inserted successfully for task_id: {task_id}")
@@ -687,7 +921,6 @@ class SnowflakeConnector(DatabaseConnector):
             if cursor is not None:
                 cursor.close()
 
-
     def db_update_llm_results(self, uu, message):
         """
         Inserts a row into the LLM_RESULTS table.
@@ -706,7 +939,7 @@ class SnowflakeConnector(DatabaseConnector):
             cursor.execute(update_query, (message, uu))
             self.client.commit()
             cursor.close()
-       #     print(f"LLM result row inserted successfully for uu: {uu}")
+        #     print(f"LLM result row inserted successfully for uu: {uu}")
         except Exception as e:
             print(f"An error occurred while inserting the LLM result row: {e}")
             if cursor is not None:
@@ -751,15 +984,20 @@ class SnowflakeConnector(DatabaseConnector):
             cursor.execute(delete_query)
             self.client.commit()
             cursor.close()
-            print("LLM result rows older than 10 minutes have been successfully deleted.")
+            print(
+                "LLM result rows older than 10 minutes have been successfully deleted."
+            )
         except Exception as e:
             print(f"An error occurred while deleting old LLM result rows: {e}")
             if cursor is not None:
                 cursor.close()
 
     def ensure_table_exists(self):
- 
-        llm_results_table_check_query = f"SHOW TABLES LIKE 'LLM_RESULTS' IN SCHEMA {self.schema};"
+        import bot_genesis.tools_descriptions
+
+        llm_results_table_check_query = (
+            f"SHOW TABLES LIKE 'LLM_RESULTS' IN SCHEMA {self.schema};"
+        )
         try:
             cursor = self.client.cursor()
             cursor.execute(llm_results_table_check_query)
@@ -778,12 +1016,13 @@ class SnowflakeConnector(DatabaseConnector):
             else:
                 print(f"Table {self.schema}.LLM_RESULTS already exists.")
         except Exception as e:
-            print(f"An error occurred while checking or creating the LLM_RESULTS table: {e}")
+            print(
+                f"An error occurred while checking or creating the LLM_RESULTS table: {e}"
+            )
         finally:
             if cursor is not None:
                 cursor.close()
 
- 
         tasks_table_check_query = f"SHOW TABLES LIKE 'TASKS' IN SCHEMA {self.schema};"
         try:
             cursor = self.client.cursor()
@@ -817,7 +1056,9 @@ class SnowflakeConnector(DatabaseConnector):
             if cursor is not None:
                 cursor.close()
 
-        task_history_check_query = f"SHOW TABLES LIKE 'TASK_HISTORY' IN SCHEMA {self.schema};"
+        task_history_check_query = (
+            f"SHOW TABLES LIKE 'TASK_HISTORY' IN SCHEMA {self.schema};"
+        )
         try:
             cursor = self.client.cursor()
             cursor.execute(task_history_check_query)
@@ -841,12 +1082,16 @@ class SnowflakeConnector(DatabaseConnector):
             else:
                 print(f"Table {self.schema}.TASK_HISTORY already exists.")
         except Exception as e:
-            print(f"An error occurred while checking or creating the TASK_HISTORY table: {e}")
+            print(
+                f"An error occurred while checking or creating the TASK_HISTORY table: {e}"
+            )
         finally:
             if cursor is not None:
                 cursor.close()
 
-        semantic_stage_check_query = f"SHOW STAGES LIKE 'SEMANTIC_MODELS_DEV' IN SCHEMA {self.schema};"
+        semantic_stage_check_query = (
+            f"SHOW STAGES LIKE 'SEMANTIC_MODELS_DEV' IN SCHEMA {self.schema};"
+        )
         try:
             cursor = self.client.cursor()
             cursor.execute(semantic_stage_check_query)
@@ -861,12 +1106,16 @@ class SnowflakeConnector(DatabaseConnector):
             else:
                 print(f"Stage {self.schema}.SEMANTIC_MODELS_DEV already exists.")
         except Exception as e:
-            print(f"An error occurred while checking or creating stage SEMANTIC_MODELS_DEV: {e}")
+            print(
+                f"An error occurred while checking or creating stage SEMANTIC_MODELS_DEV: {e}"
+            )
         finally:
             if cursor is not None:
                 cursor.close()
 
-        semantic_stage_check_query = f"SHOW STAGES LIKE 'SEMANTIC_MODELS' IN SCHEMA {self.schema};"
+        semantic_stage_check_query = (
+            f"SHOW STAGES LIKE 'SEMANTIC_MODELS' IN SCHEMA {self.schema};"
+        )
         try:
             cursor = self.client.cursor()
             cursor.execute(semantic_stage_check_query)
@@ -881,29 +1130,37 @@ class SnowflakeConnector(DatabaseConnector):
             else:
                 print(f"Stage {self.schema}.SEMANTIC_MODELS already exists.")
         except Exception as e:
-            print(f"An error occurred while checking or creating stage SEMANTIC_MODELS: {e}")
+            print(
+                f"An error occurred while checking or creating stage SEMANTIC_MODELS: {e}"
+            )
         finally:
             if cursor is not None:
                 cursor.close()
- 
-        udf_check_query = f"SHOW USER FUNCTIONS LIKE 'SET_BOT_APP_LEVEL_KEY' IN SCHEMA {self.schema};"
+
+        udf_check_query = (
+            f"SHOW USER FUNCTIONS LIKE 'SET_BOT_APP_LEVEL_KEY' IN SCHEMA {self.schema};"
+        )
         try:
             cursor = self.client.cursor()
             cursor.execute(udf_check_query)
             if not cursor.fetchone():
-                udf_creation_ddl = f'''
+                udf_creation_ddl = f"""
                 CREATE OR REPLACE FUNCTION {self.schema}.set_bot_app_level_key (bot_id VARCHAR, slack_app_level_key VARCHAR)
                 RETURNS VARCHAR
                 SERVICE={self.schema}.GENESISAPP_SERVICE_SERVICE
                 ENDPOINT=udfendpoint AS '/udf_proxy/set_bot_app_level_key';
-                '''
+                """
                 cursor.execute(udf_creation_ddl)
                 self.client.commit()
                 print(f"UDF set_bot_app_level_key created in schema {self.schema}.")
             else:
-                print(f"UDF set_bot_app_level_key already exists in schema {self.schema}.")
+                print(
+                    f"UDF set_bot_app_level_key already exists in schema {self.schema}."
+                )
         except Exception as e:
-            print(f"UDF not created in {self.schema} {e}.  This is expected in Local mode.")
+            print(
+                f"UDF not created in {self.schema} {e}.  This is expected in Local mode."
+            )
 
         bot_files_stage_check_query = f"SHOW STAGES LIKE 'BOT_FILES_STAGE' IN SCHEMA {self.genbot_internal_project_and_schema};"
         try:
@@ -916,16 +1173,24 @@ class SnowflakeConnector(DatabaseConnector):
                 """
                 cursor.execute(bot_files_stage_ddl)
                 self.client.commit()
-                print(f"Stage {self.genbot_internal_project_and_schema}.BOT_FILES_STAGE created.")
+                print(
+                    f"Stage {self.genbot_internal_project_and_schema}.BOT_FILES_STAGE created."
+                )
             else:
-                print(f"Stage {self.genbot_internal_project_and_schema}.BOT_FILES_STAGE already exists.")
+                print(
+                    f"Stage {self.genbot_internal_project_and_schema}.BOT_FILES_STAGE already exists."
+                )
         except Exception as e:
-            print(f"An error occurred while checking or creating stage BOT_FILES_STAGE: {e}")
+            print(
+                f"An error occurred while checking or creating stage BOT_FILES_STAGE: {e}"
+            )
         finally:
             if cursor is not None:
                 cursor.close()
- 
-        llm_config_table_check_query = f"SHOW TABLES LIKE 'LLM_TOKENS' IN SCHEMA {self.schema};"
+
+        llm_config_table_check_query = (
+            f"SHOW TABLES LIKE 'LLM_TOKENS' IN SCHEMA {self.schema};"
+        )
         try:
             cursor = self.client.cursor()
             cursor.execute(llm_config_table_check_query)
@@ -939,27 +1204,29 @@ class SnowflakeConnector(DatabaseConnector):
                 """
                 cursor.execute(llm_config_table_ddl)
                 self.client.commit()
-          #      print(f"Table {self.genbot_internal_project_and_schema}.LLM_TOKENS created.")
+                #      print(f"Table {self.genbot_internal_project_and_schema}.LLM_TOKENS created.")
 
                 # Insert a row with the current runner_id and NULL values for the LLM key and type
-                runner_id = os.getenv('RUNNER_ID', 'jl-local-runner')
+                runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
                 insert_initial_row_query = f"""
                 INSERT INTO {self.genbot_internal_project_and_schema}.LLM_TOKENS (RUNNER_ID, LLM_KEY, LLM_TYPE)
                 VALUES (%s, NULL, NULL);
                 """
                 cursor.execute(insert_initial_row_query, (runner_id,))
                 self.client.commit()
-         #       print(f"Inserted initial row into {self.genbot_internal_project_and_schema}.LLM_TOKENS with runner_id: {runner_id}")
+            #       print(f"Inserted initial row into {self.genbot_internal_project_and_schema}.LLM_TOKENS with runner_id: {runner_id}")
             else:
                 pass
- #               print(f"Table {self.schema}.LLM_TOKENS already exists.")
+        #               print(f"Table {self.schema}.LLM_TOKENS already exists.")
         except Exception as e:
             print(f"An error occurred while checking or creating table LLM_TOKENS: {e}")
         finally:
             if cursor is not None:
                 cursor.close()
 
-        slack_tokens_table_check_query = f"SHOW TABLES LIKE 'SLACK_APP_CONFIG_TOKENS' IN SCHEMA {self.schema};"
+        slack_tokens_table_check_query = (
+            f"SHOW TABLES LIKE 'SLACK_APP_CONFIG_TOKENS' IN SCHEMA {self.schema};"
+        )
         try:
             cursor = self.client.cursor()
             cursor.execute(slack_tokens_table_check_query)
@@ -976,23 +1243,29 @@ class SnowflakeConnector(DatabaseConnector):
                 print(f"Table {self.slack_tokens_table_name} created.")
 
                 # Insert a row with the current runner_id and NULL values for the tokens
-                runner_id = os.getenv('RUNNER_ID', 'jl-local-runner')
+                runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
                 insert_initial_row_query = f"""
                 INSERT INTO {self.slack_tokens_table_name} (RUNNER_ID, SLACK_APP_CONFIG_TOKEN, SLACK_APP_CONFIG_REFRESH_TOKEN)
                 VALUES (%s, NULL, NULL);
                 """
                 cursor.execute(insert_initial_row_query, (runner_id,))
                 self.client.commit()
-                print(f"Inserted initial row into {self.slack_tokens_table_name} with runner_id: {runner_id}")
+                print(
+                    f"Inserted initial row into {self.slack_tokens_table_name} with runner_id: {runner_id}"
+                )
             else:
                 print(f"Table {self.slack_tokens_table_name} already exists.")
         except Exception as e:
-            print(f"An error occurred while checking or creating table {self.slack_tokens_table_name}: {e}")
+            print(
+                f"An error occurred while checking or creating table {self.slack_tokens_table_name}: {e}"
+            )
         finally:
             if cursor is not None:
                 cursor.close()
 
-        bot_servicing_table_check_query = f"SHOW TABLES LIKE 'BOT_SERVICING' IN SCHEMA {self.schema};"
+        bot_servicing_table_check_query = (
+            f"SHOW TABLES LIKE 'BOT_SERVICING' IN SCHEMA {self.schema};"
+        )
         try:
             cursor = self.client.cursor()
             cursor.execute(bot_servicing_table_check_query)
@@ -1029,9 +1302,11 @@ class SnowflakeConnector(DatabaseConnector):
                 print(f"Table {self.bot_servicing_table_name} created.")
 
                 # Insert a row with specified values and NULL for the rest
-                runner_id = os.getenv('RUNNER_ID', 'jl-local-runner')
-                bot_id = 'Eve-' 
-                bot_id += ''.join(random.choices(string.ascii_letters + string.digits, k=6))
+                runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
+                bot_id = "Eve-"
+                bot_id += "".join(
+                    random.choices(string.ascii_letters + string.digits, k=6)
+                )
                 bot_name = "Eve"
                 bot_instructions = BASE_EVE_BOT_INSTRUCTIONS
                 available_tools = '["slack_tools", "make_baby_bot", "snowflake_stage_tools", "image_tools", "harvester_tools", "autonomous_tools"]'
@@ -1045,13 +1320,29 @@ class SnowflakeConnector(DatabaseConnector):
                 )
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
                 """
-                cursor.execute(insert_initial_row_query, (runner_id, bot_id, bot_name, bot_instructions, available_tools, udf_active, slack_active, bot_intro_prompt))
+                cursor.execute(
+                    insert_initial_row_query,
+                    (
+                        runner_id,
+                        bot_id,
+                        bot_name,
+                        bot_instructions,
+                        available_tools,
+                        udf_active,
+                        slack_active,
+                        bot_intro_prompt,
+                    ),
+                )
                 self.client.commit()
-                print(f"Inserted initial Eve row into {self.bot_servicing_table_name} with runner_id: {runner_id}")
+                print(
+                    f"Inserted initial Eve row into {self.bot_servicing_table_name} with runner_id: {runner_id}"
+                )
 
-                runner_id = os.getenv('RUNNER_ID', 'jl-local-runner')
-                bot_id = 'Eliza-' 
-                bot_id += ''.join(random.choices(string.ascii_letters + string.digits, k=6))
+                runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
+                bot_id = "Eliza-"
+                bot_id += "".join(
+                    random.choices(string.ascii_letters + string.digits, k=6)
+                )
                 bot_name = "Eliza"
                 bot_instructions = ELIZA_DATA_ANALYST_INSTRUCTIONS
                 available_tools = '["slack_tools", "database_tools", "snowflake_stage_tools", "image_tools", "autonomous_tools"]'
@@ -1065,30 +1356,43 @@ class SnowflakeConnector(DatabaseConnector):
                 )
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
                 """
-                cursor.execute(insert_initial_row_query, (runner_id, bot_id, bot_name, bot_instructions, available_tools, udf_active, slack_active, bot_intro_prompt))
+                cursor.execute(
+                    insert_initial_row_query,
+                    (
+                        runner_id,
+                        bot_id,
+                        bot_name,
+                        bot_instructions,
+                        available_tools,
+                        udf_active,
+                        slack_active,
+                        bot_intro_prompt,
+                    ),
+                )
                 self.client.commit()
-                print(f"Inserted initial Eliza row into {self.bot_servicing_table_name} with runner_id: {runner_id}")
+                print(
+                    f"Inserted initial Eliza row into {self.bot_servicing_table_name} with runner_id: {runner_id}"
+                )
 
-      #          runner_id = os.getenv('RUNNER_ID', 'jl-local-runner')
-      #          bot_id = 'Stuart-' 
-      #          bot_id += ''.join(random.choices(string.ascii_letters + string.digits, k=6))
-      #          bot_name = "Stuart"
-      #          bot_instructions = STUART_DATA_STEWARD_INSTRUCTIONS
-      #          available_tools = '["slack_tools", "database_tools", "snowflake_stage_tools", "snowflake_semantic_tools", "image_tools", "autonomous_tools"]'
-      #          udf_active = "Y"
-      #          slack_active = "N"
-      #          bot_intro_prompt = STUART_INTRO_PROMPT
+            #          runner_id = os.getenv('RUNNER_ID', 'jl-local-runner')
+            #          bot_id = 'Stuart-'
+            #          bot_id += ''.join(random.choices(string.ascii_letters + string.digits, k=6))
+            #          bot_name = "Stuart"
+            #          bot_instructions = STUART_DATA_STEWARD_INSTRUCTIONS
+            #          available_tools = '["slack_tools", "database_tools", "snowflake_stage_tools", "snowflake_semantic_tools", "image_tools", "autonomous_functions"]'
+            #          udf_active = "Y"
+            #          slack_active = "N"
+            #          bot_intro_prompt = STUART_INTRO_PROMPT
 
-      #          insert_initial_row_query = f"""
-      #         INSERT INTO {self.bot_servicing_table_name} (
-      #              RUNNER_ID, BOT_ID, BOT_NAME, BOT_INSTRUCTIONS, AVAILABLE_TOOLS, UDF_ACTIVE, SLACK_ACTIVE, BOT_INTRO_PROMPT
-      #          )
-      #          VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
-      #          """
-      #          cursor.execute(insert_initial_row_query, (runner_id, bot_id, bot_name, bot_instructions, available_tools, udf_active, slack_active, bot_intro_prompt))
-      #          self.client.commit()
-      #          print(f"Inserted initial Stuart row into {self.bot_servicing_table_name} with runner_id: {runner_id}")
-
+            #          insert_initial_row_query = f"""
+            #         INSERT INTO {self.bot_servicing_table_name} (
+            #              RUNNER_ID, BOT_ID, BOT_NAME, BOT_INSTRUCTIONS, AVAILABLE_TOOLS, UDF_ACTIVE, SLACK_ACTIVE, BOT_INTRO_PROMPT
+            #          )
+            #          VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
+            #          """
+            #          cursor.execute(insert_initial_row_query, (runner_id, bot_id, bot_name, bot_instructions, available_tools, udf_active, slack_active, bot_intro_prompt))
+            #          self.client.commit()
+            #          print(f"Inserted initial Stuart row into {self.bot_servicing_table_name} with runner_id: {runner_id}")
 
             else:
                 # Check if the 'ddl_short' column exists in the metadata table
@@ -1100,32 +1404,42 @@ class SnowflakeConnector(DatabaseConnector):
                 """
                 cursor.execute(update_query)
                 self.client.commit()
-                print(f"Updated 'vision_chat_analysis' to 'image_analysis' in AVAILABLE_TOOLS where applicable in {self.bot_servicing_table_name}.")
+                print(
+                    f"Updated 'vision_chat_analysis' to 'image_analysis' in AVAILABLE_TOOLS where applicable in {self.bot_servicing_table_name}."
+                )
 
                 check_query = f"DESCRIBE TABLE {self.bot_servicing_table_name};"
                 try:
                     cursor.execute(check_query)
                     columns = [col[0] for col in cursor.fetchall()]
-                    if 'SLACK_APP_LEVEL_KEY' not in columns:
+                    if "SLACK_APP_LEVEL_KEY" not in columns:
                         alter_table_query = f"ALTER TABLE {self.bot_servicing_table_name} ADD COLUMN SLACK_APP_LEVEL_KEY STRING;"
                         cursor.execute(alter_table_query)
                         self.client.commit()
-                        logger.info(f"Column 'SLACK_APP_LEVEL_KEY' added to table {self.bot_servicing_table_name}.")
-                    if 'BOT_IMPLEMENTATION' not in columns:
+                        logger.info(
+                            f"Column 'SLACK_APP_LEVEL_KEY' added to table {self.bot_servicing_table_name}."
+                        )
+                    if "BOT_IMPLEMENTATION" not in columns:
                         alter_table_query = f"ALTER TABLE {self.bot_servicing_table_name} ADD COLUMN BOT_IMPLEMENTATION STRING;"
                         cursor.execute(alter_table_query)
                         self.client.commit()
-                        logger.info(f"Column 'BOT_IMPLEMENTATION' added to table {self.bot_servicing_table_name}.")
-                    if 'BOT_INTRO' in columns:
+                        logger.info(
+                            f"Column 'BOT_IMPLEMENTATION' added to table {self.bot_servicing_table_name}."
+                        )
+                    if "BOT_INTRO" in columns:
                         alter_table_query = f"ALTER TABLE {self.bot_servicing_table_name} DROP COLUMN BOT_INTRO;"
                         cursor.execute(alter_table_query)
                         self.client.commit()
-                        logger.info(f"Column 'BOT_INTRO' dropped from table {self.bot_servicing_table_name}.")
-                    if 'BOT_INTRO_PROMPT' not in columns:
+                        logger.info(
+                            f"Column 'BOT_INTRO' dropped from table {self.bot_servicing_table_name}."
+                        )
+                    if "BOT_INTRO_PROMPT" not in columns:
                         alter_table_query = f"ALTER TABLE {self.bot_servicing_table_name} ADD COLUMN BOT_INTRO_PROMPT STRING;"
                         cursor.execute(alter_table_query)
                         self.client.commit()
-                        logger.info(f"Column 'BOT_INTRO_PROMPT' added to table {self.bot_servicing_table_name}.")
+                        logger.info(
+                            f"Column 'BOT_INTRO_PROMPT' added to table {self.bot_servicing_table_name}."
+                        )
                         insert_initial_intros_query = f"""UPDATE {self.bot_servicing_table_name} b SET BOT_INTRO_PROMPT = a.BOT_INTRO_PROMPT
                         FROM (
                             SELECT BOT_NAME, BOT_INTRO_PROMPT
@@ -1139,27 +1453,39 @@ class SnowflakeConnector(DatabaseConnector):
                         WHERE upper(a.BOT_NAME) = upper(b.BOT_NAME)"""
                         cursor.execute(insert_initial_intros_query)
                         self.client.commit()
-                        logger.info(f"Initial 'BOT_INTRO_PROMPT' data inserted into table {self.bot_servicing_table_name}.")
-                    if 'BOT_AVATAR_IMAGE' not in columns:
+                        logger.info(
+                            f"Initial 'BOT_INTRO_PROMPT' data inserted into table {self.bot_servicing_table_name}."
+                        )
+                    if "BOT_AVATAR_IMAGE" not in columns:
                         alter_table_query = f"ALTER TABLE {self.bot_servicing_table_name} ADD COLUMN BOT_AVATAR_IMAGE VARCHAR(16777216);"
                         cursor.execute(alter_table_query)
                         self.client.commit()
-                        logger.info(f"Column 'BOT_AVATAR_IMAGE' added to table {self.bot_servicing_table_name}.")
-                    if 'SLACK_USER_ALLOW' not in columns:
+                        logger.info(
+                            f"Column 'BOT_AVATAR_IMAGE' added to table {self.bot_servicing_table_name}."
+                        )
+                    if "SLACK_USER_ALLOW" not in columns:
                         alter_table_query = f"ALTER TABLE {self.bot_servicing_table_name} ADD COLUMN SLACK_USER_ALLOW ARRAY;"
                         cursor.execute(alter_table_query)
                         self.client.commit()
-                        logger.info(f"Column 'SLACK_USER_ALLOW' added to table {self.bot_servicing_table_name}.")
-                    if 'DATABASE_CREDENTIALS' not in columns:
+                        logger.info(
+                            f"Column 'SLACK_USER_ALLOW' added to table {self.bot_servicing_table_name}."
+                        )
+                    if "DATABASE_CREDENTIALS" not in columns:
                         alter_table_query = f"ALTER TABLE {self.bot_servicing_table_name} ADD COLUMN DATABASE_CREDENTIALS VARIANT;"
                         cursor.execute(alter_table_query)
                         self.client.commit()
-                        logger.info(f"Column 'DATABASE_CREDENTIALS' added to table {self.bot_servicing_table_name}.")
-                        
+                        logger.info(
+                            f"Column 'DATABASE_CREDENTIALS' added to table {self.bot_servicing_table_name}."
+                        )
+
                 except Exception as e:
-                    print(f"An error occurred while checking or altering table {self.bot_servicing_table_name} to add BOT_IMPLEMENTATION column: {e}")
+                    print(
+                        f"An error occurred while checking or altering table {self.bot_servicing_table_name} to add BOT_IMPLEMENTATION column: {e}"
+                    )
                 except Exception as e:
-                    print(f"An error occurred while checking or altering table {metadata_table_id}: {e}")
+                    print(
+                        f"An error occurred while checking or altering table {metadata_table_id}: {e}"
+                    )
                 print(f"Table {self.bot_servicing_table_name} already exists.")
             # update bot servicing table bot avatars from shared images table
             insert_images_query = f"""UPDATE {self.bot_servicing_table_name} b SET BOT_AVATAR_IMAGE = a.ENCODED_IMAGE_DATA
@@ -1178,14 +1504,20 @@ class SnowflakeConnector(DatabaseConnector):
             WHERE upper(a.BOT_NAME) = upper(b.BOT_NAME)"""
             cursor.execute(insert_images_query)
             self.client.commit()
-            logger.info(f"Initial 'BOT_AVATAR_IMAGE' data inserted into table {self.bot_servicing_table_name}.")
+            logger.info(
+                f"Initial 'BOT_AVATAR_IMAGE' data inserted into table {self.bot_servicing_table_name}."
+            )
         except Exception as e:
-            print(f"An error occurred while checking or creating table {self.bot_servicing_table_name}: {e}")
+            print(
+                f"An error occurred while checking or creating table {self.bot_servicing_table_name}: {e}"
+            )
         finally:
             if cursor is not None:
                 cursor.close()
 
-        ngrok_tokens_table_check_query = f"SHOW TABLES LIKE 'NGROK_TOKENS' IN SCHEMA {self.schema};"
+        ngrok_tokens_table_check_query = (
+            f"SHOW TABLES LIKE 'NGROK_TOKENS' IN SCHEMA {self.schema};"
+        )
         try:
             cursor = self.client.cursor()
             cursor.execute(ngrok_tokens_table_check_query)
@@ -1203,26 +1535,32 @@ class SnowflakeConnector(DatabaseConnector):
                 print(f"Table {self.ngrok_tokens_table_name} created.")
 
                 # Insert a row with the current runner_id and NULL values for the tokens and domain, 'N' for use_domain
-                runner_id = os.getenv('RUNNER_ID', 'jl-local-runner')
+                runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
                 insert_initial_row_query = f"""
                 INSERT INTO {self.ngrok_tokens_table_name} (RUNNER_ID, NGROK_AUTH_TOKEN, NGROK_USE_DOMAIN, NGROK_DOMAIN)
                 VALUES (%s, NULL, 'N', NULL);
                 """
                 cursor.execute(insert_initial_row_query, (runner_id,))
                 self.client.commit()
-                print(f"Inserted initial row into {self.ngrok_tokens_table_name} with runner_id: {runner_id}")
+                print(
+                    f"Inserted initial row into {self.ngrok_tokens_table_name} with runner_id: {runner_id}"
+                )
             else:
                 print(f"Table {self.ngrok_tokens_table_name} already exists.")
         except Exception as e:
-            print(f"An error occurred while checking or creating table {self.ngrok_tokens_table_name}: {e}")
+            print(
+                f"An error occurred while checking or creating table {self.ngrok_tokens_table_name}: {e}"
+            )
         finally:
             if cursor is not None:
                 cursor.close()
 
-        available_tools_table_check_query = f"SHOW TABLES LIKE 'AVAILABLE_TOOLS' IN SCHEMA {self.schema};"
+        available_tools_table_check_query = (
+            f"SHOW TABLES LIKE 'AVAILABLE_TOOLS' IN SCHEMA {self.schema};"
+        )
         try:
             cursor = self.client.cursor()
-            #cursor.execute(available_tools_table_check_query)
+            # cursor.execute(available_tools_table_check_query)
             if True:
                 available_tools_table_ddl = f"""
                 CREATE OR REPLACE TABLE {self.available_tools_table_name} (
@@ -1232,21 +1570,12 @@ class SnowflakeConnector(DatabaseConnector):
                 """
                 cursor.execute(available_tools_table_ddl)
                 self.client.commit()
-                print(f"Table {self.available_tools_table_name} (re)created, this is expected on every run.")
+                print(
+                    f"Table {self.available_tools_table_name} (re)created, this is expected on every run."
+                )
 
-                # Insert rows with tool names and descriptions
-                tools_data = [
-                    ('slack_tools', 'Lookup slack users by name, and send direct messages in Slack'),
-                    ('make_baby_bot', 'Create, configure, and administer other bots programatically'),
-                   # ('integrate_code', 'Create, test, and deploy new tools that bots can use'),
-                    ('webpage_downloader', 'Access web pages on the internet and return their contents'),
-                    ('database_tools', 'Discover database metadata, find database tables, and run SQL queries on a database'),
-                    ('harvester_tools', 'Control the database harvester, add new databases to harvest, add schema inclusions and exclusions, see harvest status'),
-                    ('snowflake_stage_tools', 'Read, update, write, list, and delete from Snowflake Stages including Snowflake Semantic Models.'),
-                    ('snowflake_semantic_tools', 'Create and modify Snowflake Semantic Models'),
-                    ('image_tools', 'Tools to interpret visual images and pictures'),
-                    ('autonomous_tools','Tools for bots to create and managed autonomous tasks'),
-               ]
+                tools_data = bot_genesis.tools_descriptions.tools_data
+
                 insert_tools_query = f"""
                 INSERT INTO {self.available_tools_table_name} (TOOL_NAME, TOOL_DESCRIPTION)
                 VALUES (%s, %s);
@@ -1258,7 +1587,9 @@ class SnowflakeConnector(DatabaseConnector):
             else:
                 print(f"Table {self.available_tools_table_name} already exists.")
         except Exception as e:
-            print(f"An error occurred while checking or creating table {self.available_tools_table_name}: {e}")
+            print(
+                f"An error occurred while checking or creating table {self.available_tools_table_name}: {e}"
+            )
         finally:
             if cursor is not None:
                 cursor.close()
@@ -1277,14 +1608,18 @@ class SnowflakeConnector(DatabaseConnector):
                 self.client.commit()
                 print("Inserted 'snowflake_semantic_tools' into available_tools table.")
         except Exception as e:
-            print(f"An error occurred while inserting 'snowflake_semantic_tools' into available_tools table: {e}")
+            print(
+                f"An error occurred while inserting 'snowflake_semantic_tools' into available_tools table: {e}"
+            )
         finally:
             if cursor is not None:
                 cursor.close()
 
         # CHAT HISTORY TABLE
         chat_history_table_id = self.message_log_table_name
-        chat_history_table_check_query = f"SHOW TABLES LIKE 'MESSAGE_LOG' IN SCHEMA {self.schema};"
+        chat_history_table_check_query = (
+            f"SHOW TABLES LIKE 'MESSAGE_LOG' IN SCHEMA {self.schema};"
+        )
 
         # Check if the chat history table exists
         try:
@@ -1317,21 +1652,32 @@ class SnowflakeConnector(DatabaseConnector):
                 try:
                     cursor.execute(check_query)
                     columns = [col[0] for col in cursor.fetchall()]
-                    for col in ['FILES', 'CHANNEL_TYPE', 'CHANNEL_NAME', 'PRIMARY_USER', 'TASK_ID']:
+                    for col in [
+                        "FILES",
+                        "CHANNEL_TYPE",
+                        "CHANNEL_NAME",
+                        "PRIMARY_USER",
+                        "TASK_ID",
+                    ]:
                         if col not in columns:
                             alter_table_query = f"ALTER TABLE {chat_history_table_id} ADD COLUMN {col} STRING;"
                             cursor.execute(alter_table_query)
                             self.client.commit()
-                            logger.info(f"Column '{col}' added to table {chat_history_table_id}.")
+                            logger.info(
+                                f"Column '{col}' added to table {chat_history_table_id}."
+                            )
                 except Exception as e:
-                    print('Error adding column FILES to MESSAGE_LOG: ',e)
+                    print("Error adding column FILES to MESSAGE_LOG: ", e)
                 print(f"Table {self.message_log_table_name} already exists.")
         except Exception as e:
-            print(f"An error occurred while checking or creating table {self.message_log_table_name}: {e}")
+            print(
+                f"An error occurred while checking or creating table {self.message_log_table_name}: {e}"
+            )
 
-
-        # KNOWLEDGE TABLE        
-        knowledge_table_check_query = f"SHOW TABLES LIKE 'KNOWLEDGE' IN SCHEMA {self.schema};"
+        # KNOWLEDGE TABLE
+        knowledge_table_check_query = (
+            f"SHOW TABLES LIKE 'KNOWLEDGE' IN SCHEMA {self.schema};"
+        )
 
         # Check if the chat knowledge table exists
         try:
@@ -1359,13 +1705,15 @@ class SnowflakeConnector(DatabaseConnector):
                 check_query = f"DESCRIBE TABLE {self.knowledge_table_name};"
                 print(f"Table {self.knowledge_table_name} already exists.")
         except Exception as e:
-            print(f"An error occurred while checking or creating table {self.knowledge_table_name}: {e}")
-
-        
+            print(
+                f"An error occurred while checking or creating table {self.knowledge_table_name}: {e}"
+            )
 
         # HARVEST CONTROL TABLE
         hc_table_id = self.genbot_internal_harvest_control_table
-        hc_table_check_query = f"SHOW TABLES LIKE '{hc_table_id.upper()}' IN SCHEMA {self.schema};"
+        hc_table_check_query = (
+            f"SHOW TABLES LIKE '{hc_table_id.upper()}' IN SCHEMA {self.schema};"
+        )
 
         # Check if the harvest control table exists
         try:
@@ -1389,11 +1737,15 @@ class SnowflakeConnector(DatabaseConnector):
             else:
                 print(f"Table {hc_table_id} already exists.")
         except Exception as e:
-            print(f"An error occurred while checking or creating table {hc_table_id}: {e}")
+            print(
+                f"An error occurred while checking or creating table {hc_table_id}: {e}"
+            )
 
         # METADATA TABLE FOR HARVESTER RESULTS
         metadata_table_id = self.genbot_internal_harvest_table
-        metadata_table_check_query = f"SHOW TABLES LIKE '{metadata_table_id.upper()}' IN SCHEMA {self.schema};"
+        metadata_table_check_query = (
+            f"SHOW TABLES LIKE '{metadata_table_id.upper()}' IN SCHEMA {self.schema};"
+        )
 
         # Check if the metadata table exists
         try:
@@ -1434,7 +1786,9 @@ class SnowflakeConnector(DatabaseConnector):
                     self.client.commit()
                     print(f"Inserted initial rows into {metadata_table_id}")
                 except Exception as e:
-                    print(f"Initial rows from APP_SHARE.HARVEST_RESULTS NOT ADDED into {metadata_table_id} due to erorr {e}") 
+                    print(
+                        f"Initial rows from APP_SHARE.HARVEST_RESULTS NOT ADDED into {metadata_table_id} due to erorr {e}"
+                    )
 
             else:
                 # Check if the 'ddl_short' column exists in the metadata table
@@ -1442,20 +1796,26 @@ class SnowflakeConnector(DatabaseConnector):
                 try:
                     cursor.execute(ddl_short_check_query)
                     columns = [col[0] for col in cursor.fetchall()]
-                    if 'DDL_SHORT' not in columns:
+                    if "DDL_SHORT" not in columns:
                         alter_table_query = f"ALTER TABLE {self.metadata_table_name} ADD COLUMN ddl_short STRING;"
                         cursor.execute(alter_table_query)
                         self.client.commit()
                         print(f"Column 'ddl_short' added to table {metadata_table_id}.")
                 except Exception as e:
-                    print(f"An error occurred while checking or altering table {metadata_table_id}: {e}")
+                    print(
+                        f"An error occurred while checking or altering table {metadata_table_id}: {e}"
+                    )
                 print(f"Table {metadata_table_id} already exists.")
         except Exception as e:
-            print(f"An error occurred while checking or creating table {metadata_table_id}: {e}")
+            print(
+                f"An error occurred while checking or creating table {metadata_table_id}: {e}"
+            )
 
         cursor = self.client.cursor()
 
-        cortex_threads_input_table_check_query = f"SHOW TABLES LIKE 'CORTEX_THREADS_INPUT' IN SCHEMA {self.schema};"
+        cortex_threads_input_table_check_query = (
+            f"SHOW TABLES LIKE 'CORTEX_THREADS_INPUT' IN SCHEMA {self.schema};"
+        )
         try:
             cursor.execute(cortex_threads_input_table_check_query)
             if not cursor.fetchone():
@@ -1478,9 +1838,13 @@ class SnowflakeConnector(DatabaseConnector):
             else:
                 print(f"Table {self.schema}.CORTEX_THREADS_INPUT already exists.")
         except Exception as e:
-            print(f"An error occurred while checking or creating table CORTEX_THREADS_INPUT: {e}")
+            print(
+                f"An error occurred while checking or creating table CORTEX_THREADS_INPUT: {e}"
+            )
 
-        cortex_threads_output_table_check_query = f"SHOW TABLES LIKE 'CORTEX_THREADS_OUTPUT' IN SCHEMA {self.schema};"
+        cortex_threads_output_table_check_query = (
+            f"SHOW TABLES LIKE 'CORTEX_THREADS_OUTPUT' IN SCHEMA {self.schema};"
+        )
         try:
             cursor.execute(cortex_threads_output_table_check_query)
             if not cursor.fetchone():
@@ -1505,9 +1869,24 @@ class SnowflakeConnector(DatabaseConnector):
             else:
                 print(f"Table {self.schema}.CORTEX_THREADS_OUTPUT already exists.")
         except Exception as e:
-            print(f"An error occurred while checking or creating table CORTEX_THREADS_OUTPUT: {e}")
+            print(
+                f"An error occurred while checking or creating table CORTEX_THREADS_OUTPUT: {e}"
+            )
 
-    def insert_table_summary(self, database_name, schema_name, table_name, ddl, ddl_short, summary, sample_data_text, complete_description="", crawl_status="Completed", role_used_for_crawl="Default", embedding=None):
+    def insert_table_summary(
+        self,
+        database_name,
+        schema_name,
+        table_name,
+        ddl,
+        ddl_short,
+        summary,
+        sample_data_text,
+        complete_description="",
+        crawl_status="Completed",
+        role_used_for_crawl="Default",
+        embedding=None,
+    ):
 
         qualified_table_name = f'"{database_name}"."{schema_name}"."{table_name}"'
         memory_uuid = str(uuid.uuid4())
@@ -1518,7 +1897,9 @@ class SnowflakeConnector(DatabaseConnector):
         role_used_for_crawl = self.role
 
         # Convert embedding list to string format if not None
-        embedding_str = ','.join(str(e) for e in embedding) if embedding is not None else None
+        embedding_str = (
+            ",".join(str(e) for e in embedding) if embedding is not None else None
+        )
 
         # Construct the MERGE SQL statement with placeholders for parameters
         merge_sql = f"""
@@ -1572,33 +1953,33 @@ class SnowflakeConnector(DatabaseConnector):
 
         # Set up the query parameters
         query_params = {
-            'source_name': self.source_name,
-            'qualified_table_name': qualified_table_name,
-            'memory_uuid': memory_uuid,
-            'database_name': database_name,
-            'schema_name': schema_name,
-            'table_name': table_name,
-            'complete_description': complete_description,
-            'ddl': ddl,
-            'ddl_short': ddl_short,
-            'ddl_hash': ddl_hash,
-            'summary': summary,
-            'sample_data_text': sample_data_text,
-            'last_crawled_timestamp': last_crawled_timestamp,
-            'crawl_status': crawl_status,
-            'role_used_for_crawl': role_used_for_crawl,
-            'embedding': embedding_str
+            "source_name": self.source_name,
+            "qualified_table_name": qualified_table_name,
+            "memory_uuid": memory_uuid,
+            "database_name": database_name,
+            "schema_name": schema_name,
+            "table_name": table_name,
+            "complete_description": complete_description,
+            "ddl": ddl,
+            "ddl_short": ddl_short,
+            "ddl_hash": ddl_hash,
+            "summary": summary,
+            "sample_data_text": sample_data_text,
+            "last_crawled_timestamp": last_crawled_timestamp,
+            "crawl_status": crawl_status,
+            "role_used_for_crawl": role_used_for_crawl,
+            "embedding": embedding_str,
         }
 
         for param, value in query_params.items():
-            #print(f'{param}: {value}')
+            # print(f'{param}: {value}')
             if value is None:
-               # print(f'{param} is null')
-                query_params[param] = 'NULL'
+                # print(f'{param} is null')
+                query_params[param] = "NULL"
 
         # Execute the MERGE statement with parameters
         try:
-            #print("merge sql: ",merge_sql)
+            # print("merge sql: ",merge_sql)
             cursor = self.client.cursor()
             cursor.execute(merge_sql, query_params)
             self.client.commit()
@@ -1607,9 +1988,9 @@ class SnowflakeConnector(DatabaseConnector):
         finally:
             if cursor is not None:
                 cursor.close()
-                
-# make sure this is returning whats expected (array vs string)
-    def get_table_ddl(self, database_name:str, schema_name:str, table_name=None):
+
+    # make sure this is returning whats expected (array vs string)
+    def get_table_ddl(self, database_name: str, schema_name: str, table_name=None):
         """
         Fetches the DDL statements for tables within a specific schema in Snowflake.
         Optionally, fetches the DDL for a specific table if table_name is provided.
@@ -1646,7 +2027,9 @@ class SnowflakeConnector(DatabaseConnector):
                 ddls[table[1]] = ddl_result[0]
             return ddls
 
-    def check_cached_metadata(self, database_name:str, schema_name:str, table_name:str):
+    def check_cached_metadata(
+        self, database_name: str, schema_name: str, table_name: str
+    ):
         try:
             if database_name and schema_name and table_name:
                 query = f"SELECT IFF(count(*)>0,TRUE,FALSE) from APP_SHARE.HARVEST_RESULTS where DATABASE_NAME = '{database_name}' AND SCHEMA_NAME = '{schema_name}' AND TABLE_NAME = '{table_name}';"
@@ -1655,18 +2038,18 @@ class SnowflakeConnector(DatabaseConnector):
                 result = cursor.fetchone()
                 return result[0]
             else:
-                return 'a required parameter was not entered'
+                return "a required parameter was not entered"
         except Exception as e:
-            print( f'check harvest cache error {e}')
+            print(f"check harvest cache error {e}")
             return False
 
-
-
-    def get_metadata_from_cache(self, database_name:str, schema_name:str, table_name:str):
+    def get_metadata_from_cache(
+        self, database_name: str, schema_name: str, table_name: str
+    ):
         metadata_table_id = self.metadata_table_name
         try:
-            if schema_name == 'INFORMATION_SCHEMA':
-                db_name_filter = 'PLACEHOLDER_DB_NAME'
+            if schema_name == "INFORMATION_SCHEMA":
+                db_name_filter = "PLACEHOLDER_DB_NAME"
             else:
                 db_name_filter = database_name
 
@@ -1674,11 +2057,10 @@ class SnowflakeConnector(DatabaseConnector):
                 from APP_SHARE.HARVEST_RESULTS 
                 where DATABASE_NAME = '{db_name_filter}' AND SCHEMA_NAME = '{schema_name}' AND TABLE_NAME = '{table_name}';"""
 
-
             # insert_cached_metadata_query = f"""
-            #     INSERT INTO {metadata_table_id} 
-            #     SELECT SOURCE_NAME, QUALIFIED_TABLE_NAME,  DATABASE_NAME, MEMORY_UUID, SCHEMA_NAME, TABLE_NAME, COMPLETE_DESCRIPTION, DDL, DDL_SHORT, DDL_HASH, SUMMARY, SAMPLE_DATA_TEXT, LAST_CRAWLED_TIMESTAMP, CRAWL_STATUS, ROLE_USED_FOR_CRAWL, EMBEDDING 
-            #     FROM APP_SHARE.HARVEST_RESULTS h 
+            #     INSERT INTO {metadata_table_id}
+            #     SELECT SOURCE_NAME, QUALIFIED_TABLE_NAME,  DATABASE_NAME, MEMORY_UUID, SCHEMA_NAME, TABLE_NAME, COMPLETE_DESCRIPTION, DDL, DDL_SHORT, DDL_HASH, SUMMARY, SAMPLE_DATA_TEXT, LAST_CRAWLED_TIMESTAMP, CRAWL_STATUS, ROLE_USED_FOR_CRAWL, EMBEDDING
+            #     FROM APP_SHARE.HARVEST_RESULTS h
             #     WHERE DATABASE_NAME = '{database_name}' AND SCHEMA_NAME = '{schema_name}' AND TABLE_NAME = '{table_name}'
             #     AND NOT EXISTS (SELECT 1 FROM {metadata_table_id} m WHERE m.DATABASE_NAME = '{database_name}' and m.SCHEMA_NAME = '{schema_name}' and m.TABLE_NAME = '{table_name}');
             # """
@@ -1690,51 +2072,53 @@ class SnowflakeConnector(DatabaseConnector):
             cursor.close()
             return cached_metadata
 
-
-            print(f"Retrieved cached rows from {metadata_table_id} for {database_name}.{schema_name}.{table_name}")
+            print(
+                f"Retrieved cached rows from {metadata_table_id} for {database_name}.{schema_name}.{table_name}"
+            )
         except Exception as e:
-            print(f"Cached rows from APP_SHARE.HARVEST_RESULTS NOT retrieved from {metadata_table_id} for {database_name}.{schema_name}.{table_name} due to erorr {e}") 
+            print(
+                f"Cached rows from APP_SHARE.HARVEST_RESULTS NOT retrieved from {metadata_table_id} for {database_name}.{schema_name}.{table_name} due to erorr {e}"
+            )
 
-#snowed
+    # snowed
 
-# snowed
+    # snowed
     def refresh_connection(self):
         if self.token_connection:
             self.connection = self._create_connection()
 
-
     def connection(self) -> snowflake.connector.SnowflakeConnection:
-        
+
         if os.path.isfile("/snowflake/session/token"):
             creds = {
-                'host': os.getenv('SNOWFLAKE_HOST'),
-                'port': os.getenv('SNOWFLAKE_PORT'),
-                'protocol': "https",
-                'account': os.getenv('SNOWFLAKE_ACCOUNT'),
-                'authenticator': "oauth",
-                'token': open('/snowflake/session/token', 'r').read(),
-                'warehouse': os.getenv('SNOWFLAKE_WAREHOUSE'),
-                'database': os.getenv('SNOWFLAKE_DATABASE'),
-                'schema': os.getenv('SNOWFLAKE_SCHEMA'),
-                'client_session_keep_alive': True
+                "host": os.getenv("SNOWFLAKE_HOST"),
+                "port": os.getenv("SNOWFLAKE_PORT"),
+                "protocol": "https",
+                "account": os.getenv("SNOWFLAKE_ACCOUNT"),
+                "authenticator": "oauth",
+                "token": open("/snowflake/session/token", "r").read(),
+                "warehouse": os.getenv("SNOWFLAKE_WAREHOUSE"),
+                "database": os.getenv("SNOWFLAKE_DATABASE"),
+                "schema": os.getenv("SNOWFLAKE_SCHEMA"),
+                "client_session_keep_alive": True,
             }
         else:
             creds = {
-                'account': os.getenv('SNOWFLAKE_ACCOUNT'),
-                'user': os.getenv('SNOWFLAKE_USER'),
-                'password': os.getenv('SNOWFLAKE_PASSWORD'),
-                'warehouse': os.getenv('SNOWFLAKE_WAREHOUSE'),
-                'database': os.getenv('SNOWFLAKE_DATABASE'),
-                'schema': os.getenv('SNOWFLAKE_SCHEMA'),
-                'client_session_keep_alive': True
+                "account": os.getenv("SNOWFLAKE_ACCOUNT"),
+                "user": os.getenv("SNOWFLAKE_USER"),
+                "password": os.getenv("SNOWFLAKE_PASSWORD"),
+                "warehouse": os.getenv("SNOWFLAKE_WAREHOUSE"),
+                "database": os.getenv("SNOWFLAKE_DATABASE"),
+                "schema": os.getenv("SNOWFLAKE_SCHEMA"),
+                "client_session_keep_alive": True,
             }
 
         connection = snowflake.connector.connect(**creds)
         return connection
 
-    #def _create_connection(self):
+    # def _create_connection(self):
 
-        # Connector connection
+    # Connector connection
     #    conn = self.connection()
     #    return conn
 
@@ -1742,60 +2126,67 @@ class SnowflakeConnector(DatabaseConnector):
 
         # Snowflake token testing
 
-      #  logger.warn('Creating connection..')
-        SNOWFLAKE_ACCOUNT = os.getenv('SNOWFLAKE_ACCOUNT',None)
-        SNOWFLAKE_HOST = os.getenv('SNOWFLAKE_HOST', None)
-        logger.info('Checking possible SPCS ENV vars -- Account, Host: %s, %s', SNOWFLAKE_ACCOUNT, SNOWFLAKE_HOST)
+        #  logger.warn('Creating connection..')
+        SNOWFLAKE_ACCOUNT = os.getenv("SNOWFLAKE_ACCOUNT", None)
+        SNOWFLAKE_HOST = os.getenv("SNOWFLAKE_HOST", None)
+        logger.info(
+            "Checking possible SPCS ENV vars -- Account, Host: %s, %s",
+            SNOWFLAKE_ACCOUNT,
+            SNOWFLAKE_HOST,
+        )
 
+        logger.info("SNOWFLAKE_HOST: %s", os.getenv("SNOWFLAKE_HOST"))
+        logger.info("SNOWFLAKE_ACCOUNT: %s", os.getenv("SNOWFLAKE_ACCOUNT"))
+        logger.info("SNOWFLAKE_PORT: %s", os.getenv("SNOWFLAKE_PORT"))
+        #  logger.warn('SNOWFLAKE_WAREHOUSE: %s', os.getenv('SNOWFLAKE_WAREHOUSE'))
+        logger.info("SNOWFLAKE_DATABASE: %s", os.getenv("SNOWFLAKE_DATABASE"))
+        logger.info("SNOWFLAKE_SCHEMA: %s", os.getenv("SNOWFLAKE_SCHEMA"))
 
-        logger.info('SNOWFLAKE_HOST: %s', os.getenv('SNOWFLAKE_HOST'))
-        logger.info('SNOWFLAKE_ACCOUNT: %s', os.getenv('SNOWFLAKE_ACCOUNT'))
-        logger.info('SNOWFLAKE_PORT: %s', os.getenv('SNOWFLAKE_PORT'))
-      #  logger.warn('SNOWFLAKE_WAREHOUSE: %s', os.getenv('SNOWFLAKE_WAREHOUSE'))
-        logger.info('SNOWFLAKE_DATABASE: %s', os.getenv('SNOWFLAKE_DATABASE'))
-        logger.info('SNOWFLAKE_SCHEMA: %s', os.getenv('SNOWFLAKE_SCHEMA'))
-
-        if SNOWFLAKE_ACCOUNT and SNOWFLAKE_HOST and os.getenv('SNOWFLAKE_PASSWORD_OVERRIDE', None)==None :
-            with open('/snowflake/session/token', 'r') as f:
-                snowflake_token =  f.read()
-            logger.info('SPCS Snowflake token found, length: %d', len(snowflake_token))
+        if (
+            SNOWFLAKE_ACCOUNT
+            and SNOWFLAKE_HOST
+            and os.getenv("SNOWFLAKE_PASSWORD_OVERRIDE", None) == None
+        ):
+            with open("/snowflake/session/token", "r") as f:
+                snowflake_token = f.read()
+            logger.info("SPCS Snowflake token found, length: %d", len(snowflake_token))
             self.token_connection = True
-         #   logger.warn('Snowflake token mode (SPCS)...') 
-            if os.getenv('SNOWFLAKE_SECURE', 'TRUE').upper() == 'FALSE': 
-        #        logger.info('insecure mode')
+            #   logger.warn('Snowflake token mode (SPCS)...')
+            if os.getenv("SNOWFLAKE_SECURE", "TRUE").upper() == "FALSE":
+                #        logger.info('insecure mode')
                 return connect(
-                host = os.getenv('SNOWFLAKE_HOST'),
-        #        port = os.getenv('SNOWFLAKE_PORT'),
-                protocol = 'https',
-           #     warehouse = os.getenv('SNOWFLAKE_WAREHOUSE'),
-                database = os.getenv('SNOWFLAKE_DATABASE'),
-                schema = os.getenv('SNOWFLAKE_SCHEMA'),
-                account = os.getenv('SNOWFLAKE_ACCOUNT'),
-                token = snowflake_token,
-                authenticator = 'oauth' ,
-                insecure_mode=True,
-                client_session_keep_alive = True,
+                    host=os.getenv("SNOWFLAKE_HOST"),
+                    #        port = os.getenv('SNOWFLAKE_PORT'),
+                    protocol="https",
+                    #     warehouse = os.getenv('SNOWFLAKE_WAREHOUSE'),
+                    database=os.getenv("SNOWFLAKE_DATABASE"),
+                    schema=os.getenv("SNOWFLAKE_SCHEMA"),
+                    account=os.getenv("SNOWFLAKE_ACCOUNT"),
+                    token=snowflake_token,
+                    authenticator="oauth",
+                    insecure_mode=True,
+                    client_session_keep_alive=True,
                 )
-            
+
             else:
-        #        logger.info('secure mode') 
+                #        logger.info('secure mode')
                 return connect(
-                host = os.getenv('SNOWFLAKE_HOST'),
-       #         port = os.getenv('SNOWFLAKE_PORT'),
-       #         protocol = 'https',
-       #         warehouse = os.getenv('SNOWFLAKE_WAREHOUSE'),
-                database = os.getenv('SNOWFLAKE_DATABASE'),
-                schema = os.getenv('SNOWFLAKE_SCHEMA'),
-                account = os.getenv('SNOWFLAKE_ACCOUNT'),
-                token = snowflake_token,
-                authenticator = 'oauth' ,
-                client_session_keep_alive = True,
+                    host=os.getenv("SNOWFLAKE_HOST"),
+                    #         port = os.getenv('SNOWFLAKE_PORT'),
+                    #         protocol = 'https',
+                    #         warehouse = os.getenv('SNOWFLAKE_WAREHOUSE'),
+                    database=os.getenv("SNOWFLAKE_DATABASE"),
+                    schema=os.getenv("SNOWFLAKE_SCHEMA"),
+                    account=os.getenv("SNOWFLAKE_ACCOUNT"),
+                    token=snowflake_token,
+                    authenticator="oauth",
+                    client_session_keep_alive=True,
                 )
 
-        print('Creating Snowflake regular connection...') 
-        self.token_connection = False 
+        print("Creating Snowflake regular connection...")
+        self.token_connection = False
 
-        if os.getenv('SNOWFLAKE_SECURE', 'TRUE').upper() == 'FALSE': 
+        if os.getenv("SNOWFLAKE_SECURE", "TRUE").upper() == "FALSE":
             return connect(
                 user=self.user,
                 password=self.password,
@@ -1804,7 +2195,7 @@ class SnowflakeConnector(DatabaseConnector):
                 database=self.database,
                 role=self.role,
                 insecure_mode=True,
-                client_session_keep_alive = True,
+                client_session_keep_alive=True,
             )
         else:
             return connect(
@@ -1814,23 +2205,26 @@ class SnowflakeConnector(DatabaseConnector):
                 warehouse=self.warehouse,
                 database=self.database,
                 role=self.role,
-                client_session_keep_alive = True,
+                client_session_keep_alive=True,
             )
 
-#snowed
+    # snowed
     def connector_type(self):
-        return 'snowflake'
+        return "snowflake"
 
-    def get_databases(self,  thread_id=None):
+    def get_databases(self, thread_id=None):
         databases = []
-        query = "SELECT source_name, database_name, schema_inclusions, schema_exclusions, status, refresh_interval, initial_crawl_complete FROM "+self.harvest_control_table_name
+        query = (
+            "SELECT source_name, database_name, schema_inclusions, schema_exclusions, status, refresh_interval, initial_crawl_complete FROM "
+            + self.harvest_control_table_name
+        )
         cursor = self.connection.cursor()
         cursor.execute(query)
         results = cursor.fetchall()
         columns = [col[0].lower() for col in cursor.description]
         databases = [dict(zip(columns, row)) for row in results]
         cursor.close()
- 
+
         return databases
 
     def get_visible_databases(self, thread_id=None):
@@ -1843,7 +2237,7 @@ class SnowflakeConnector(DatabaseConnector):
         cursor.close()
         return schemas
 
-    def get_schemas(self, database,  thread_id=None):
+    def get_schemas(self, database, thread_id=None):
         schemas = []
         query = f'SHOW SCHEMAS IN DATABASE "{database}"'
         cursor = self.connection.cursor()
@@ -1853,22 +2247,26 @@ class SnowflakeConnector(DatabaseConnector):
         cursor.close()
         return schemas
 
-    def get_tables(self, database, schema,  thread_id=None):
+    def get_tables(self, database, schema, thread_id=None):
         tables = []
         query = f'SHOW TABLES IN "{database}"."{schema}"'
         cursor = self.connection.cursor()
         cursor.execute(query)
         for row in cursor:
-            tables.append({"table_name": row[1], "object_type": "TABLE"})  # Assuming the table name is in the second column and DDL in the third
+            tables.append(
+                {"table_name": row[1], "object_type": "TABLE"}
+            )  # Assuming the table name is in the second column and DDL in the third
         cursor.close()
         query = f'SHOW VIEWS IN "{database}"."{schema}"'
         cursor = self.connection.cursor()
         cursor.execute(query)
         for row in cursor:
-            tables.append({"table_name": row[1], "object_type": "VIEW"})  # Assuming the table name is in the second column and DDL in the third
+            tables.append(
+                {"table_name": row[1], "object_type": "VIEW"}
+            )  # Assuming the table name is in the second column and DDL in the third
         cursor.close()
         return tables
-    
+
     def get_columns(self, database, schema, table):
         columns = []
         query = f'SHOW COLUMNS IN "{database}"."{schema}"."{table}"'
@@ -1879,7 +2277,7 @@ class SnowflakeConnector(DatabaseConnector):
         cursor.close()
         return columns
 
-    def get_sample_data(self, database, schema_name:str, table_name:str):
+    def get_sample_data(self, database, schema_name: str, table_name: str):
         """
         Fetches 10 rows of sample data from a specific table in Snowflake.
 
@@ -1898,18 +2296,18 @@ class SnowflakeConnector(DatabaseConnector):
 
     def create_bot_workspace(self, workspace_schema_name):
         try:
-            
+
             query = f"CREATE SCHEMA IF NOT EXISTS {workspace_schema_name}"
             cursor = self.client.cursor()
             cursor.execute(query)
             self.client.commit()
-            logger.info(f"Workspace schema {workspace_schema_name} created")            
+            logger.info(f"Workspace schema {workspace_schema_name} created")
         except Exception as e:
             logger.error(f"Failed to create bot workspace {workspace_schema_name}: {e}")
 
     def grant_all_bot_workspace(self, workspace_schema_name):
         try:
-            
+
             query = f"GRANT ALL PRIVILEGES ON SCHEMA {workspace_schema_name} TO APPLICATION ROLE APP_PUBLIC; "
             cursor = self.client.cursor()
             cursor.execute(query)
@@ -1918,19 +2316,30 @@ class SnowflakeConnector(DatabaseConnector):
             query = f"GRANT SELECT ON ALL TABLES IN SCHEMA {workspace_schema_name} TO APPLICATION ROLE APP_PUBLIC; "
             cursor = self.client.cursor()
             cursor.execute(query)
-            self.client.commit()   
+            self.client.commit()
 
             query = f"GRANT SELECT ON ALL VIEWS IN SCHEMA {workspace_schema_name} TO APPLICATION ROLE APP_PUBLIC; "
             cursor = self.client.cursor()
             cursor.execute(query)
-            self.client.commit()  
+            self.client.commit()
 
-            logger.info(f"Workspace {workspace_schema_name} objects granted to APP_PUBLIC")            
+            logger.info(
+                f"Workspace {workspace_schema_name} objects granted to APP_PUBLIC"
+            )
         except Exception as e:
-            logger.error(f"Failed to grant all bot workspace objects for {workspace_schema_name} (expected in local mode): {e}")
+            logger.error(
+                f"Failed to grant all bot workspace objects for {workspace_schema_name} (expected in local mode): {e}"
+            )
 
-# handle the job_config stuff ... 
-    def run_query(self, query=None, max_rows=20, max_rows_override=False, job_config=None, bot_id=None):
+    # handle the job_config stuff ...
+    def run_query(
+        self,
+        query=None,
+        max_rows=20,
+        max_rows_override=False,
+        job_config=None,
+        bot_id=None,
+    ):
         """
         Runs a query on Snowflake, supporting parameterized queries.
 
@@ -1949,28 +2358,36 @@ class SnowflakeConnector(DatabaseConnector):
         if max_rows > 100 and not max_rows_override:
             max_rows = 100
 
-     #   print('running query ... ', query)
+        #   print('running query ... ', query)
         cursor = self.connection.cursor()
         try:
-         #   if query_params:
-         #       cursor.execute(query, query_params)
-         #   else:
+            #   if query_params:
+            #       cursor.execute(query, query_params)
+            #   else:
             cursor.execute(query)
 
-            workspace_schema_name = f"{bot_id}_WORKSPACE".replace('-','_').upper()
+            workspace_schema_name = f"{bot_id}_WORKSPACE".replace("-", "_").upper()
             # call grant_all_bot_workspace()
-            if "CREATE" in query.upper() and workspace_schema_name.upper() in query.upper():
+            if (
+                "CREATE" in query.upper()
+                and workspace_schema_name.upper() in query.upper()
+            ):
                 self.grant_all_bot_workspace(workspace_schema_name)
-
 
         except Exception as e:
             if "does not exist or not authorized" in str(e):
-                print('run query: len:', len(query), '\ncaused object or access rights error: ', e, ' Provided suggestions.')
+                print(
+                    "run query: len:",
+                    len(query),
+                    "\ncaused object or access rights error: ",
+                    e,
+                    " Provided suggestions.",
+                )
                 cursor.close()
                 return {
-                "Success": False,
-                "Error": str(e),    
-                "Suggestion": """You have tried to query an object with an incorrect name of one that is not granted to APPLICATION GENESIS_BOTS.
+                    "Success": False,
+                    "Error": str(e),
+                    "Suggestion": """You have tried to query an object with an incorrect name of one that is not granted to APPLICATION GENESIS_BOTS.
             To fix this: 
             1. Make sure you are referencing correct objects that you learned about via search_metadata, or otherwise are sure actually exists
             2. Explain the error and show the SQL you tried to run to the user, they may be able to help 
@@ -1979,29 +2396,36 @@ class SnowflakeConnector(DatabaseConnector):
               This will grant the you access to the data in the database.  
             4. Suggest to the user that the table may have been recreated since it was originally granted, or may be recreated each day as part of an ETL job.  In that case it must be re-granted after each recreation.
             5. NOTE: You do not have the PUBLIC role or any other role, all object you are granted must be granted TO APPLICATION GENESIS_BOTS, or be granted by grant_schema_usage_and_select_to_app as shown above.
-"""
-            }
-            print('run query: len=', len(query), '\ncaused error: ', e)
+            """,
+                }
+            print("run query: len=", len(query), "\ncaused error: ", e)
             cursor.close()
             return {"Success": False, "Error": str(e)}
-            
-    #    print('getting results:')
+
+        #    print('getting results:')
         try:
             results = cursor.fetchmany(max_rows)
             columns = [col[0] for col in cursor.description]
             sample_data = [dict(zip(columns, row)) for row in results]
         except Exception as e:
-            print('run query: ', query, '\ncaused error: ', e)
+            print("run query: ", query, "\ncaused error: ", e)
             cursor.close()
             raise e
 
-        #print('returning result: ', sample_data)
+        # print('returning result: ', sample_data)
         cursor.close()
 
         return sample_data
-    
 
-    def db_list_all_bots(self, project_id, dataset_name, bot_servicing_table, runner_id=None, full=False, slack_details=False):
+    def db_list_all_bots(
+        self,
+        project_id,
+        dataset_name,
+        bot_servicing_table,
+        runner_id=None,
+        full=False,
+        slack_details=False,
+    ):
         """
         Returns a list of all the bots being served by the system, including their runner IDs, names, instructions, tools, etc.
 
@@ -2015,7 +2439,7 @@ class SnowflakeConnector(DatabaseConnector):
         else:
             if slack_details:
                 select_str = "runner_id, bot_id, bot_name, bot_instructions, available_tools, bot_slack_user_id, api_app_id, auth_url, udf_active, slack_active, files, bot_implementation, bot_intro_prompt, slack_user_allow"
-            else: 
+            else:
                 select_str = "runner_id, bot_id, bot_name, bot_instructions, available_tools, bot_slack_user_id, api_app_id, auth_url, udf_active, slack_active, files, bot_implementation, bot_intro_prompt"
 
         # Query to select all bots from the BOT_SERVICING table
@@ -2039,13 +2463,19 @@ class SnowflakeConnector(DatabaseConnector):
             columns = [col[0].lower() for col in cursor.description]
             bot_list = [dict(zip(columns, bot)) for bot in bots]
             cursor.close()
-            #logger.info(f"Retrieved list of all bots being served by the system.")
+            # logger.info(f"Retrieved list of all bots being served by the system.")
             return bot_list
         except Exception as e:
             logger.error(f"Failed to retrieve list of all bots with error: {e}")
             raise e
 
-    def db_save_slack_config_tokens(self, slack_app_config_token, slack_app_config_refresh_token, project_id, dataset_name):
+    def db_save_slack_config_tokens(
+        self,
+        slack_app_config_token,
+        slack_app_config_refresh_token,
+        project_id,
+        dataset_name,
+    ):
         """
         Saves the slack app config token and refresh token for the given runner_id to Snowflake.
 
@@ -2055,7 +2485,7 @@ class SnowflakeConnector(DatabaseConnector):
             slack_app_config_refresh_token (str): The slack app config refresh token to be saved.
         """
 
-        runner_id = os.getenv('RUNNER_ID','jl-local-runner')
+        runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
 
         # Query to insert or update the slack app config tokens
         query = f"""
@@ -2073,13 +2503,24 @@ class SnowflakeConnector(DatabaseConnector):
         # Execute the query
         try:
             cursor = self.client.cursor()
-            cursor.execute(query, (runner_id, slack_app_config_token, slack_app_config_refresh_token, slack_app_config_token, slack_app_config_refresh_token))
+            cursor.execute(
+                query,
+                (
+                    runner_id,
+                    slack_app_config_token,
+                    slack_app_config_refresh_token,
+                    slack_app_config_token,
+                    slack_app_config_refresh_token,
+                ),
+            )
             self.client.commit()
             logger.info(f"Slack config tokens updated for runner_id: {runner_id}")
         except Exception as e:
-            logger.error(f"Failed to update Slack config tokens for runner_id: {runner_id} with error: {e}")
+            logger.error(
+                f"Failed to update Slack config tokens for runner_id: {runner_id} with error: {e}"
+            )
             raise e
-        
+
     def db_get_slack_config_tokens(self, project_id, dataset_name):
         """
         Retrieves the current slack access keys for the given runner_id from Snowflake.
@@ -2091,7 +2532,7 @@ class SnowflakeConnector(DatabaseConnector):
             tuple: A tuple containing the slack app config token and the slack app config refresh token.
         """
 
-        runner_id = os.getenv('RUNNER_ID','jl-local-runner')
+        runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
 
         # Query to retrieve the slack app config tokens
         query = f"""
@@ -2127,7 +2568,7 @@ class SnowflakeConnector(DatabaseConnector):
             tuple: A tuple containing the ngrok authentication token, use domain flag, and domain.
         """
 
-        runner_id = os.getenv('RUNNER_ID','jl-local-runner')
+        runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
 
         # Query to retrieve the ngrok auth token and related information
         query = f"""
@@ -2149,13 +2590,22 @@ class SnowflakeConnector(DatabaseConnector):
                 return ngrok_token, ngrok_use_domain, ngrok_domain
             else:
                 # Log an error if no tokens were found for the runner_id
-                logger.error(f"No Ngrok config token found in database for runner_id: {runner_id}")
+                logger.error(
+                    f"No Ngrok config token found in database for runner_id: {runner_id}"
+                )
                 return None, None, None
         except Exception as e:
             logger.error(f"Failed to retrieve Ngrok config token with error: {e}")
             raise
-    
-    def db_set_ngrok_auth_token(self, ngrok_auth_token, ngrok_use_domain='N', ngrok_domain='', project_id=None, dataset_name=None):
+
+    def db_set_ngrok_auth_token(
+        self,
+        ngrok_auth_token,
+        ngrok_use_domain="N",
+        ngrok_domain="",
+        project_id=None,
+        dataset_name=None,
+    ):
         """
         Updates the ngrok_tokens table with the provided ngrok authentication token, use domain flag, and domain.
 
@@ -2164,7 +2614,7 @@ class SnowflakeConnector(DatabaseConnector):
             ngrok_use_domain (str): Flag indicating whether to use a custom domain.
             ngrok_domain (str): The custom domain to use if ngrok_use_domain is 'Y'.
         """
-        runner_id = os.getenv('RUNNER_ID', 'jl-local-runner')
+        runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
 
         # Query to merge the ngrok tokens, inserting if the row doesn't exist
         query = f"""
@@ -2180,7 +2630,19 @@ class SnowflakeConnector(DatabaseConnector):
 
         try:
             cursor = self.connection.cursor()
-            cursor.execute(query, ( runner_id, ngrok_auth_token, ngrok_use_domain, ngrok_domain, runner_id, ngrok_auth_token, ngrok_use_domain, ngrok_domain))
+            cursor.execute(
+                query,
+                (
+                    runner_id,
+                    ngrok_auth_token,
+                    ngrok_use_domain,
+                    ngrok_domain,
+                    runner_id,
+                    ngrok_auth_token,
+                    ngrok_use_domain,
+                    ngrok_domain,
+                ),
+            )
             self.connection.commit()
             affected_rows = cursor.rowcount
             cursor.close()
@@ -2192,7 +2654,9 @@ class SnowflakeConnector(DatabaseConnector):
                 logger.error(f"No rows updated for runner_id: {runner_id}")
                 return False
         except Exception as e:
-            logger.error(f"Failed to update ngrok tokens for runner_id: {runner_id} with error: {e}")
+            logger.error(
+                f"Failed to update ngrok tokens for runner_id: {runner_id} with error: {e}"
+            )
             return False
 
     def db_get_llm_key(self, project_id=None, dataset_name=None):
@@ -2202,15 +2666,15 @@ class SnowflakeConnector(DatabaseConnector):
         Returns:
             tuple: A tuple containing the LLM key and LLM type.
         """
-        runner_id = os.getenv('RUNNER_ID', 'jl-local-runner')
-        logger.info('in getllmkey')
+        runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
+        logger.info("in getllmkey")
         # Query to select the LLM key and type from the llm_tokens table
         query = f"""
             SELECT llm_key, llm_type
             FROM {self.genbot_internal_project_and_schema}.llm_tokens
             WHERE runner_id = %s
         """
-        #print('query = ',query)
+        # print('query = ',query)
         logger.info(f"query: {query}")
         try:
             cursor = self.connection.cursor()
@@ -2221,17 +2685,19 @@ class SnowflakeConnector(DatabaseConnector):
 
             if result:
                 llm_key, llm_type = result
-               # logger.info(f"returning llm key and type: key: {llm_key} ' type {llm_type}")
-            #    print('returning llm key and type: key and type:',llm_type )
+                # logger.info(f"returning llm key and type: key: {llm_key} ' type {llm_type}")
+                #    print('returning llm key and type: key and type:',llm_type )
                 return llm_key, llm_type
             else:
                 # Log an error if no LLM key was found for the runner_id
-             #  logger.error(f"No LLM key found in database for runner_id: {runner_id}")
+                #  logger.error(f"No LLM key found in database for runner_id: {runner_id}")
                 return None, None
         except Exception as e:
-            #logger.error(f"LLM_TOKENS table not yet created,  try again later. hi!!!! ")
-            logger.info('LLM_TOKENS table not yet created, returning None, try again later. hi!')
-            return None, None 
+            # logger.error(f"LLM_TOKENS table not yet created,  try again later. hi!!!! ")
+            logger.info(
+                "LLM_TOKENS table not yet created, returning None, try again later. hi!"
+            )
+            return None, None
 
     def db_set_llm_key(self, llm_key, llm_type, project_id=None, dataset_name=None):
         """
@@ -2241,7 +2707,7 @@ class SnowflakeConnector(DatabaseConnector):
             llm_key (str): The LLM key.
             llm_type (str): The type of LLM (e.g., 'openai', 'reka').
         """
-        runner_id = os.getenv('RUNNER_ID', 'jl-local-runner')
+        runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
 
         # Query to merge the LLM tokens, inserting if the row doesn't exist
         query = f"""
@@ -2255,7 +2721,9 @@ class SnowflakeConnector(DatabaseConnector):
 
         try:
             cursor = self.connection.cursor()
-            cursor.execute(query, (runner_id, llm_key, llm_type, runner_id, llm_key, llm_type))
+            cursor.execute(
+                query, (runner_id, llm_key, llm_type, runner_id, llm_key, llm_type)
+            )
             self.connection.commit()
             affected_rows = cursor.rowcount
             cursor.close()
@@ -2267,13 +2735,37 @@ class SnowflakeConnector(DatabaseConnector):
                 logger.error(f"No rows updated for runner_id: {runner_id}")
                 return False
         except Exception as e:
-            logger.error(f"Failed to update LLM key for runner_id: {runner_id} with error: {e}")
+            logger.error(
+                f"Failed to update LLM key for runner_id: {runner_id} with error: {e}"
+            )
             return False
 
-
-    def db_insert_new_bot(self, api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instructions, runner_id, slack_signing_secret, 
-                    slack_channel_id, available_tools, auth_url, auth_state, client_id, client_secret, udf_active, 
-                    slack_active, files, bot_implementation, bot_avatar_image, bot_intro_prompt, slack_user_allow, project_id, dataset_name, bot_servicing_table):
+    def db_insert_new_bot(
+        self,
+        api_app_id,
+        bot_slack_user_id,
+        bot_id,
+        bot_name,
+        bot_instructions,
+        runner_id,
+        slack_signing_secret,
+        slack_channel_id,
+        available_tools,
+        auth_url,
+        auth_state,
+        client_id,
+        client_secret,
+        udf_active,
+        slack_active,
+        files,
+        bot_implementation,
+        bot_avatar_image,
+        bot_intro_prompt,
+        slack_user_allow,
+        project_id,
+        dataset_name,
+        bot_servicing_table,
+    ):
         """
         Inserts a new bot configuration into the BOT_SERVICING table.
 
@@ -2308,11 +2800,30 @@ class SnowflakeConnector(DatabaseConnector):
 
         try:
             cursor = self.connection.cursor()
-            cursor.execute(insert_query, (
-                api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instructions, runner_id, 
-                slack_signing_secret, slack_channel_id, available_tools_string, auth_url, auth_state, client_id, client_secret, udf_active, slack_active,
-                files_string, bot_implementation, bot_intro_prompt, bot_avatar_image
-            ))
+            cursor.execute(
+                insert_query,
+                (
+                    api_app_id,
+                    bot_slack_user_id,
+                    bot_id,
+                    bot_name,
+                    bot_instructions,
+                    runner_id,
+                    slack_signing_secret,
+                    slack_channel_id,
+                    available_tools_string,
+                    auth_url,
+                    auth_state,
+                    client_id,
+                    client_secret,
+                    udf_active,
+                    slack_active,
+                    files_string,
+                    bot_implementation,
+                    bot_intro_prompt,
+                    bot_avatar_image,
+                ),
+            )
             self.connection.commit()
             print(f"Successfully inserted new bot configuration for bot_id: {bot_id}")
 
@@ -2324,18 +2835,36 @@ class SnowflakeConnector(DatabaseConnector):
                     """
                 slack_user_allow_value = '["!BLOCK_ALL"]'
                 try:
-                    cursor.execute(slack_user_allow_update_query, (slack_user_allow_value, bot_id))
+                    cursor.execute(
+                        slack_user_allow_update_query, (slack_user_allow_value, bot_id)
+                    )
                     self.connection.commit()
-                    print(f"Updated slack_user_allow for bot_id: {bot_id} to block all users.")
+                    print(
+                        f"Updated slack_user_allow for bot_id: {bot_id} to block all users."
+                    )
                 except Exception as e:
-                    print(f"Failed to update slack_user_allow for bot_id: {bot_id} with error: {e}")
+                    print(
+                        f"Failed to update slack_user_allow for bot_id: {bot_id} with error: {e}"
+                    )
                     raise e
-                
+
         except Exception as e:
-            print(f"Failed to insert new bot configuration for bot_id: {bot_id} with error: {e}")
+            print(
+                f"Failed to insert new bot configuration for bot_id: {bot_id} with error: {e}"
+            )
             raise e
 
-    def db_update_bot_tools(self, project_id=None, dataset_name=None, bot_servicing_table=None, bot_id=None, updated_tools_str=None, new_tools_to_add=None, already_present=None, updated_tools=None):
+    def db_update_bot_tools(
+        self,
+        project_id=None,
+        dataset_name=None,
+        bot_servicing_table=None,
+        bot_id=None,
+        updated_tools_str=None,
+        new_tools_to_add=None,
+        already_present=None,
+        updated_tools=None,
+    ):
 
         # Query to update the available_tools in the database
         update_query = f"""
@@ -2351,25 +2880,33 @@ class SnowflakeConnector(DatabaseConnector):
             self.connection.commit()
             logger.info(f"Successfully updated available_tools for bot_id: {bot_id}")
 
-            if 'DATABASE_TOOLS' in updated_tools_str.upper():
-                workspace_schema_name = f"{bot_id}_WORKSPACE".replace('-','_').upper()
+            if "DATABASE_TOOLS" in updated_tools_str.upper():
+                workspace_schema_name = f"{bot_id}_WORKSPACE".replace("-", "_").upper()
                 self.create_bot_workspace(workspace_schema_name)
                 self.grant_all_bot_workspace(workspace_schema_name)
-                #TODO add instructions?
+                # TODO add instructions?
 
             return {
                 "success": True,
                 "added": new_tools_to_add,
                 "already_present": already_present,
-                "all_bot_tools": updated_tools
+                "all_bot_tools": updated_tools,
             }
 
         except Exception as e:
             logger.error(f"Failed to add new tools to bot_id: {bot_id} with error: {e}")
             return {"success": False, "error": str(e)}
-        
 
-    def db_update_bot_files(self, project_id=None, dataset_name=None, bot_servicing_table=None, bot_id=None, updated_files_str=None, current_files=None, new_file_ids=None):
+    def db_update_bot_files(
+        self,
+        project_id=None,
+        dataset_name=None,
+        bot_servicing_table=None,
+        bot_id=None,
+        updated_files_str=None,
+        current_files=None,
+        new_file_ids=None,
+    ):
         # Query to update the files in the database
         update_query = f"""
             UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
@@ -2386,14 +2923,18 @@ class SnowflakeConnector(DatabaseConnector):
             return {
                 "success": True,
                 "message": f"File IDs {json.dumps(new_file_ids)} added to or removed from bot_id: {bot_id}.",
-                "current_files_list": current_files
+                "current_files_list": current_files,
             }
 
         except Exception as e:
-            logger.error(f"Failed to add or remove new file to bot_id: {bot_id} with error: {e}")
+            logger.error(
+                f"Failed to add or remove new file to bot_id: {bot_id} with error: {e}"
+            )
             return {"success": False, "error": str(e)}
-    
-    def db_update_slack_app_level_key(self, project_id, dataset_name, bot_servicing_table, bot_id, slack_app_level_key):
+
+    def db_update_slack_app_level_key(
+        self, project_id, dataset_name, bot_servicing_table, bot_id, slack_app_level_key
+    ):
         """
         Updates the SLACK_APP_LEVEL_KEY field in the BOT_SERVICING table for a given bot_id.
 
@@ -2418,18 +2959,30 @@ class SnowflakeConnector(DatabaseConnector):
             cursor = self.connection.cursor()
             cursor.execute(update_query, (slack_app_level_key, bot_id))
             self.connection.commit()
-            logger.info(f"Successfully updated SLACK_APP_LEVEL_KEY for bot_id: {bot_id}")
+            logger.info(
+                f"Successfully updated SLACK_APP_LEVEL_KEY for bot_id: {bot_id}"
+            )
 
             return {
                 "success": True,
-                "message": f"SLACK_APP_LEVEL_KEY updated for bot_id: {bot_id}."
+                "message": f"SLACK_APP_LEVEL_KEY updated for bot_id: {bot_id}.",
             }
 
         except Exception as e:
-            logger.error(f"Failed to update SLACK_APP_LEVEL_KEY for bot_id: {bot_id} with error: {e}")
+            logger.error(
+                f"Failed to update SLACK_APP_LEVEL_KEY for bot_id: {bot_id} with error: {e}"
+            )
             return {"success": False, "error": str(e)}
 
-    def db_update_bot_instructions(self, project_id, dataset_name, bot_servicing_table, bot_id, instructions, runner_id):
+    def db_update_bot_instructions(
+        self,
+        project_id,
+        dataset_name,
+        bot_servicing_table,
+        bot_id,
+        instructions,
+        runner_id,
+    ):
 
         # Query to update the bot instructions in the database
         update_query = f"""
@@ -2444,20 +2997,32 @@ class SnowflakeConnector(DatabaseConnector):
             cursor.execute(update_query, (instructions, bot_id, runner_id))
             self.connection.commit()
             logger.info(f"Successfully updated bot_instructions for bot_id: {bot_id}")
-            bot_details = self.db_get_bot_details( project_id, dataset_name, bot_servicing_table, bot_id)
+            bot_details = self.db_get_bot_details(
+                project_id, dataset_name, bot_servicing_table, bot_id
+            )
 
             return {
                 "success": True,
                 "Message": f"Successfully updated bot_instructions for bot_id: {bot_id}.",
                 "new_instructions": instructions,
-                "new_bot_details": bot_details
+                "new_bot_details": bot_details,
             }
 
         except Exception as e:
-            logger.error(f"Failed to update bot_instructions for bot_id: {bot_id} with error: {e}")
+            logger.error(
+                f"Failed to update bot_instructions for bot_id: {bot_id} with error: {e}"
+            )
             return {"success": False, "error": str(e)}
-        
-    def db_update_bot_implementation(self, project_id, dataset_name, bot_servicing_table, bot_id, bot_implementation, runner_id):
+
+    def db_update_bot_implementation(
+        self,
+        project_id,
+        dataset_name,
+        bot_servicing_table,
+        bot_id,
+        bot_implementation,
+        runner_id,
+    ):
         """
         Updates the implementation type for a specific bot in the database.
 
@@ -2489,14 +3054,24 @@ class SnowflakeConnector(DatabaseConnector):
 
             return {
                 "success": True,
-                "message": f"bot_implementation updated for bot_id: {bot_id}."
+                "message": f"bot_implementation updated for bot_id: {bot_id}.",
             }
 
         except Exception as e:
-            logger.error(f"Failed to update bot_implementation for bot_id: {bot_id} with error: {e}")
+            logger.error(
+                f"Failed to update bot_implementation for bot_id: {bot_id} with error: {e}"
+            )
             return {"success": False, "error": str(e)}
 
-    def db_update_slack_allow_list(self,  project_id, dataset_name, bot_servicing_table, bot_id, slack_user_allow_list, thread_id=None):
+    def db_update_slack_allow_list(
+        self,
+        project_id,
+        dataset_name,
+        bot_servicing_table,
+        bot_id,
+        slack_user_allow_list,
+        thread_id=None,
+    ):
         """
         Updates the SLACK_USER_ALLOW list for a bot in the database.
 
@@ -2530,21 +3105,25 @@ class SnowflakeConnector(DatabaseConnector):
             if slack_user_allow_list != []:
                 cursor.execute(update_query, (slack_user_allow_list_str, bot_id))
             else:
-               cursor.execute(update_query, (bot_id))
+                cursor.execute(update_query, (bot_id))
             self.connection.commit()
-            logger.info(f"Successfully updated SLACK_USER_ALLOW list for bot_id: {bot_id}")
+            logger.info(
+                f"Successfully updated SLACK_USER_ALLOW list for bot_id: {bot_id}"
+            )
 
             return {
                 "success": True,
-                "message": f"SLACK_USER_ALLOW list updated for bot_id: {bot_id}."
+                "message": f"SLACK_USER_ALLOW list updated for bot_id: {bot_id}.",
             }
 
         except Exception as e:
-            logger.error(f"Failed to update SLACK_USER_ALLOW list for bot_id: {bot_id} with error: {e}")
+            logger.error(
+                f"Failed to update SLACK_USER_ALLOW list for bot_id: {bot_id} with error: {e}"
+            )
             return {"success": False, "error": str(e)}
 
     def db_get_bot_access(self, bot_id):
-  
+
         # Query to select bot access list
         select_query = f"""
             SELECT slack_user_allow
@@ -2566,7 +3145,9 @@ class SnowflakeConnector(DatabaseConnector):
                 logger.error(f"No details found for bot_id: {bot_id}")
                 return None
         except Exception as e:
-            logger.exception(f"Failed to retrieve details for bot_id: {bot_id} with error: {e}")
+            logger.exception(
+                f"Failed to retrieve details for bot_id: {bot_id} with error: {e}"
+            )
             return None
 
     def db_get_bot_details(self, project_id, dataset_name, bot_servicing_table, bot_id):
@@ -2601,11 +3182,29 @@ class SnowflakeConnector(DatabaseConnector):
                 logger.error(f"No details found for bot_id: {bot_id}")
                 return None
         except Exception as e:
-            logger.exception(f"Failed to retrieve details for bot_id: {bot_id} with error: {e}")
+            logger.exception(
+                f"Failed to retrieve details for bot_id: {bot_id} with error: {e}"
+            )
             return None
 
-    def db_update_existing_bot(self, api_app_id, bot_id, bot_slack_user_id, client_id, client_secret, slack_signing_secret, 
-                            auth_url, auth_state, udf_active, slack_active, files, bot_implementation, project_id, dataset_name, bot_servicing_table):
+    def db_update_existing_bot(
+        self,
+        api_app_id,
+        bot_id,
+        bot_slack_user_id,
+        client_id,
+        client_secret,
+        slack_signing_secret,
+        auth_url,
+        auth_state,
+        udf_active,
+        slack_active,
+        files,
+        bot_implementation,
+        project_id,
+        dataset_name,
+        bot_servicing_table,
+    ):
         """
         Updates an existing bot configuration in the BOT_SERVICING table with new values for the provided parameters.
 
@@ -2632,18 +3231,42 @@ class SnowflakeConnector(DatabaseConnector):
         """
 
         try:
-            self.client.cursor().execute(update_query, (
-                api_app_id, bot_slack_user_id, client_id, client_secret,
-                slack_signing_secret, auth_url, auth_state, udf_active,
-                slack_active, files, bot_implementation, bot_id
-            ))
+            self.client.cursor().execute(
+                update_query,
+                (
+                    api_app_id,
+                    bot_slack_user_id,
+                    client_id,
+                    client_secret,
+                    slack_signing_secret,
+                    auth_url,
+                    auth_state,
+                    udf_active,
+                    slack_active,
+                    files,
+                    bot_implementation,
+                    bot_id,
+                ),
+            )
             self.client.commit()
-            print(f"Successfully updated existing bot configuration for bot_id: {bot_id}")
+            print(
+                f"Successfully updated existing bot configuration for bot_id: {bot_id}"
+            )
         except Exception as e:
-            print(f"Failed to update existing bot configuration for bot_id: {bot_id} with error: {e}")
+            print(
+                f"Failed to update existing bot configuration for bot_id: {bot_id} with error: {e}"
+            )
             raise e
 
-    def db_update_bot_details(self, bot_id, bot_slack_user_id, slack_app_token, project_id, dataset_name, bot_servicing_table):
+    def db_update_bot_details(
+        self,
+        bot_id,
+        bot_slack_user_id,
+        slack_app_token,
+        project_id,
+        dataset_name,
+        bot_servicing_table,
+    ):
         """
         Updates the BOT_SERVICING table with the new bot_slack_user_id and slack_app_token for the given bot_id.
 
@@ -2660,11 +3283,17 @@ class SnowflakeConnector(DatabaseConnector):
         """
 
         try:
-            self.client.cursor().execute(update_query, (bot_slack_user_id, slack_app_token, bot_id))
+            self.client.cursor().execute(
+                update_query, (bot_slack_user_id, slack_app_token, bot_id)
+            )
             self.client.commit()
-            logger.info(f"Successfully updated bot servicing details for bot_id: {bot_id}")
+            logger.info(
+                f"Successfully updated bot servicing details for bot_id: {bot_id}"
+            )
         except Exception as e:
-            logger.error(f"Failed to update bot servicing details for bot_id: {bot_id} with error: {e}")
+            logger.error(
+                f"Failed to update bot servicing details for bot_id: {bot_id} with error: {e}"
+            )
             raise e
 
     def db_get_available_tools(self, project_id, dataset_name):
@@ -2685,13 +3314,18 @@ class SnowflakeConnector(DatabaseConnector):
             cursor = self.client.cursor()
             cursor.execute(select_query)
             results = cursor.fetchall()
-            tools_list = [{'tool_name': result[0], 'tool_description': result[1]} for result in results]
+            tools_list = [
+                {"tool_name": result[0], "tool_description": result[1]}
+                for result in results
+            ]
             return tools_list
         except Exception as e:
             logger.exception(f"Failed to retrieve available tools with error: {e}")
             return []
 
-    def db_add_or_update_available_tool(self, tool_name, tool_description, project_id, dataset_name):
+    def db_add_or_update_available_tool(
+        self, tool_name, tool_description, project_id, dataset_name
+    ):
         """
         Adds a new tool or updates an existing tool in the available_tools table with the provided name and description.
 
@@ -2719,7 +3353,10 @@ class SnowflakeConnector(DatabaseConnector):
             cursor.execute(merge_query, (tool_name, tool_description))
             self.client.commit()
             logger.info(f"Successfully added or updated tool: {tool_name}")
-            return {"success": True, "message": f"Tool '{tool_name}' added or updated successfully."}
+            return {
+                "success": True,
+                "message": f"Tool '{tool_name}' added or updated successfully.",
+            }
         except Exception as e:
             logger.error(f"Failed to add or update tool: {tool_name} with error: {e}")
             return {"success": False, "error": str(e)}
@@ -2746,12 +3383,18 @@ class SnowflakeConnector(DatabaseConnector):
             cursor = self.client.cursor()
             cursor.execute(delete_query, (bot_id,))
             self.client.commit()
-            logger.info(f"Successfully deleted bot with bot_id: {bot_id} from the database.")
+            logger.info(
+                f"Successfully deleted bot with bot_id: {bot_id} from the database."
+            )
         except Exception as e:
-            logger.error(f"Failed to delete bot with bot_id: {bot_id} from the database with error: {e}")
+            logger.error(
+                f"Failed to delete bot with bot_id: {bot_id} from the database with error: {e}"
+            )
             raise e
 
-    def db_get_slack_active_bots(self, runner_id, project_id, dataset_name, bot_servicing_table):
+    def db_get_slack_active_bots(
+        self, runner_id, project_id, dataset_name, bot_servicing_table
+    ):
         """
         Retrieves a list of active bots on Slack for a given runner from the bot_servicing table in Snowflake.
 
@@ -2784,7 +3427,7 @@ class SnowflakeConnector(DatabaseConnector):
         except Exception as e:
             logger.error(f"Failed to get list of bots active on slack for a runner {e}")
             raise e
-    
+
     def db_get_default_avatar(self):
         """
         Returns the default GenBots avatar image from the shared images view.
@@ -2807,29 +3450,39 @@ class SnowflakeConnector(DatabaseConnector):
             result = cursor.fetchone()
 
             return result[0]
-            logger.info(f"Successfully selected default image data from the shared schema.")
+            logger.info(
+                f"Successfully selected default image data from the shared schema."
+            )
         except Exception as e:
-            logger.error(f"Failed to select default image data from the shared with error: {e}")
+            logger.error(
+                f"Failed to select default image data from the shared with error: {e}"
+            )
 
-
-    def semantic_copilot(self,  prompt='What data is available?',semantic_model=None, prod=True ):
+    def semantic_copilot(
+        self, prompt="What data is available?", semantic_model=None, prod=True
+    ):
         # Parse the semantic_model into its components and validate
-        database, schema = self.genbot_internal_project_and_schema.split('.')
+        database, schema = self.genbot_internal_project_and_schema.split(".")
         stage = "SEMANTIC_MODELS" if prod else "SEMANTIC_MODELS_DEV"
         model = semantic_model
-        database, schema, stage, model = [f'"{part}"' if not part.startswith('"') else part for part in [database, schema, stage, model]]
-        if not all(part.startswith('"') and part.endswith('"') for part in [database, schema, stage, model]):
-            error_message = 'All five components of semantic_model must be enclosed in double quotes. For example "!SEMANTIC"."DB"."SCH"."STAGE"."model.yaml'            
+        database, schema, stage, model = [
+            f'"{part}"' if not part.startswith('"') else part
+            for part in [database, schema, stage, model]
+        ]
+        if not all(
+            part.startswith('"') and part.endswith('"')
+            for part in [database, schema, stage, model]
+        ):
+            error_message = 'All five components of semantic_model must be enclosed in double quotes. For example "!SEMANTIC"."DB"."SCH"."STAGE"."model.yaml'
             logger.error(error_message)
-            return {
-                "success": False,
-                "error": error_message
-            }
+            return {"success": False, "error": error_message}
 
-        #model = model_parts[4]
-        database_v, schema_v, stage_v, model_v = [part.strip('"') for part in [database, schema, stage, model]]
-        if '.' not in model_v:
-            model_v += '.yaml'
+        # model = model_parts[4]
+        database_v, schema_v, stage_v, model_v = [
+            part.strip('"') for part in [database, schema, stage, model]
+        ]
+        if "." not in model_v:
+            model_v += ".yaml"
 
         request_body = {
             "role": "user",
@@ -2840,74 +3493,86 @@ class SnowflakeConnector(DatabaseConnector):
         num_retry, max_retries = 0, 3
         while num_retry <= 10:
             num_retry += 1
-        #    logger.warning('Checking REST token...')
+            #    logger.warning('Checking REST token...')
             rest_token = self.connection.rest.token
             if rest_token:
-                print('REST token length: %d', len(rest_token))
+                print("REST token length: %d", len(rest_token))
             else:
-                print('REST token is not available')
+                print("REST token is not available")
             try:
                 resp = requests.post(
-                        (
-                            f"https://{HOST}/api/v2/databases/{database_v}/"
-                            f"schemas/{schema_v}/copilots/{stage_v}/chats/-/messages"
-                        ),
-                        json=request_body,
-                        headers={
-                            "Authorization": f'Snowflake Token="{rest_token}"',
-                            "Content-Type": "application/json",
-                        },
-                    )
+                    (
+                        f"https://{HOST}/api/v2/databases/{database_v}/"
+                        f"schemas/{schema_v}/copilots/{stage_v}/chats/-/messages"
+                    ),
+                    json=request_body,
+                    headers={
+                        "Authorization": f'Snowflake Token="{rest_token}"',
+                        "Content-Type": "application/json",
+                    },
+                )
             except Exception as e:
-                logger.warning(f'Response status exception: {e}')
-            logger.info('Response status code: %d', resp.status_code)
-            logger.info('Request URL: %s', resp.url)
+                logger.warning(f"Response status exception: {e}")
+            logger.info("Response status code: %d", resp.status_code)
+            logger.info("Request URL: %s", resp.url)
             if resp.status_code == 500:
-                logger.warning('Semantic Copilot Server error (500), retrying...')
+                logger.warning("Semantic Copilot Server error (500), retrying...")
                 continue  # This will cause the loop to start from the beginning
             if resp.status_code == 404:
-                logger.error(f"Semantic API 404 Not Found: The requested resource does not exist. Called URL={resp.url} Semantic model={database}.{schema}.{stage}.{model}")
+                logger.error(
+                    f"Semantic API 404 Not Found: The requested resource does not exist. Called URL={resp.url} Semantic model={database}.{schema}.{stage}.{model}"
+                )
                 return {
                     "success": False,
-                    "error": f"Either the semantic API is not enabled, or no semantic model was found at {database}.{schema}.{stage}.{model}"
+                    "error": f"Either the semantic API is not enabled, or no semantic model was found at {database}.{schema}.{stage}.{model}",
                 }
             if resp.status_code < 400:
                 response_payload = resp.json()
 
                 logger.info(f"Response payload: {response_payload}")
                 # Parse out the final message from copilot
-                final_copilot_message = 'No response'
+                final_copilot_message = "No response"
                 # Extract the content of the last copilot response and format it as JSON
-                if 'messages' in response_payload:
-                    copilot_messages = response_payload['messages']
+                if "messages" in response_payload:
+                    copilot_messages = response_payload["messages"]
                     if copilot_messages and isinstance(copilot_messages, list):
-                        final_message = copilot_messages[-1]  # Get the last message in the list
-                        if final_message['role'] == 'copilot':
-                            copilot_content = final_message.get('content', [])
+                        final_message = copilot_messages[
+                            -1
+                        ]  # Get the last message in the list
+                        if final_message["role"] == "copilot":
+                            copilot_content = final_message.get("content", [])
                             if copilot_content and isinstance(copilot_content, list):
                                 # Construct a JSON object with the copilot's last response
                                 final_copilot_message = {
                                     "messages": [
                                         {
-                                            "role": final_message['role'],
-                                            "content": copilot_content
+                                            "role": final_message["role"],
+                                            "content": copilot_content,
                                         }
                                     ]
                                 }
-                                logger.info(f"Final copilot message as JSON: {final_copilot_message}")
+                                logger.info(
+                                    f"Final copilot message as JSON: {final_copilot_message}"
+                                )
                 return {"success": True, "data": final_copilot_message}
             else:
-                logger.warning('Response content: %s', resp.content)
+                logger.warning("Response content: %s", resp.content)
                 return {
                     "success": False,
-                    "error": f"Request failed with status {resp.status_code}: {resp.content}, URL: {resp.url}, Payload: {request_body}"
+                    "error": f"Request failed with status {resp.status_code}: {resp.content}, URL: {resp.url}, Payload: {request_body}",
                 }
 
-
-#snow = SnowflakeConnector(connection_name='Snowflake')
-#snow.ensure_table_exists()
-#snow.get_databases()
-    def list_stage_contents(self, database: str=None, schema: str=None, stage: str=None, pattern: str=None, thread_id=None):
+    # snow = SnowflakeConnector(connection_name='Snowflake')
+    # snow.ensure_table_exists()
+    # snow.get_databases()
+    def list_stage_contents(
+        self,
+        database: str = None,
+        schema: str = None,
+        stage: str = None,
+        pattern: str = None,
+        thread_id=None,
+    ):
         """
         List the contents of a given Snowflake stage.
 
@@ -2920,31 +3585,34 @@ class SnowflakeConnector(DatabaseConnector):
         Returns:
             list: A list of files in the stage.
         """
-        
+
         if pattern:
             # Convert wildcard pattern to regex pattern
             pattern = pattern.replace(".*", "*")
             pattern = pattern.replace("*", ".*")
-            
+
             if pattern.startswith("/"):
                 pattern = pattern[1:]
             pattern = f"'{pattern}'"
         try:
             query = f'LIST @"{database}"."{schema}"."{stage}"'
             if pattern:
-                query += f' PATTERN = {pattern}'
+                query += f" PATTERN = {pattern}"
             ret = self.run_query(query, max_rows=50, max_rows_override=True)
-            if isinstance(ret, dict) and "does not exist or not authorized" in ret.get('Error', ''):
+            if isinstance(ret, dict) and "does not exist or not authorized" in ret.get(
+                "Error", ""
+            ):
                 query = query.upper()
                 ret = self.run_query(query, max_rows=50, max_rows_override=True)
-            return(ret)
+            return ret
 
         except Exception as e:
             return {"success": False, "error": str(e)}
 
-    def image_generation(self,prompt, thread_id=None):
+    def image_generation(self, prompt, thread_id=None):
 
         import openai, requests, os
+
         """
         Generates an image using OpenAI's DALL-E 3 based on the given prompt and saves it to the local downloaded_files folder.
 
@@ -2959,15 +3627,18 @@ class SnowflakeConnector(DatabaseConnector):
         if thread_id is None:
             import random
             import string
-            thread_id = ''.join(random.choices(string.ascii_letters + string.digits, k=10))
+
+            thread_id = "".join(
+                random.choices(string.ascii_letters + string.digits, k=10)
+            )
 
         # Ensure the OpenAI API key is set in your environment variables
-        api_key = os.getenv('OPENAI_API_KEY')
+        api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
             print("imagegen OpenAI API key is not set in the environment variables.")
             return None
 
-        openai.api_key = os.getenv('OPENAI_API_KEY')
+        openai.api_key = os.getenv("OPENAI_API_KEY")
         client = openai.OpenAI(api_key=openai.api_key)
 
         # Generate the image using DALL-E 3
@@ -2985,41 +3656,40 @@ class SnowflakeConnector(DatabaseConnector):
                 return None
 
             try:
-            # Download the image from the URL
+                # Download the image from the URL
                 image_response = requests.get(image_url)
-                print('imagegen getting image from ',image_url)
+                print("imagegen getting image from ", image_url)
                 image_response.raise_for_status()
                 image_bytes = image_response.content
             except Exception as e:
                 result = {
-                "success": False,
-                "error": e,
-                "solution": """Tell the user to ask their admin run this to allow the Genesis server to access generated images:\n
-CREATE OR REPLACE NETWORK RULE GENESIS_LOCAL_DB.SETTINGS.GENESIS_RULE
- MODE = EGRESS TYPE = HOST_PORT
-VALUE_LIST = ('api.openai.com', 'slack.com', 'www.slack.com', 'wss-primary.slack.com',
-'wss-backup.slack.com',  'wss-primary.slack.com:443','wss-backup.slack.com:443', 'slack-files.com',
-'oaidalleapiprodscus.blob.core.windows.net:443', 'downloads.slack-edge.com', 'files-edge.slack.com',
-'files-origin.slack.com', 'files.slack.com', 'global-upload-edge.slack.com','universal-upload-edge.slack.com');
+                    "success": False,
+                    "error": e,
+                    "solution": """Tell the user to ask their admin run this to allow the Genesis server to access generated images:\n
+                    CREATE OR REPLACE NETWORK RULE GENESIS_LOCAL_DB.SETTINGS.GENESIS_RULE
+                    MODE = EGRESS TYPE = HOST_PORT
+                    VALUE_LIST = ('api.openai.com', 'slack.com', 'www.slack.com', 'wss-primary.slack.com',
+                    'wss-backup.slack.com',  'wss-primary.slack.com:443','wss-backup.slack.com:443', 'slack-files.com',
+                    'oaidalleapiprodscus.blob.core.windows.net:443', 'downloads.slack-edge.com', 'files-edge.slack.com',
+                    'files-origin.slack.com', 'files.slack.com', 'global-upload-edge.slack.com','universal-upload-edge.slack.com');
 
 
-CREATE OR REPLACE EXTERNAL ACCESS INTEGRATION GENESIS_EAI
-   ALLOWED_NETWORK_RULES = (GENESIS_LOCAL_DB.SETTINGS.GENESIS_RULE) ENABLED = true;
+                    CREATE OR REPLACE EXTERNAL ACCESS INTEGRATION GENESIS_EAI
+                    ALLOWED_NETWORK_RULES = (GENESIS_LOCAL_DB.SETTINGS.GENESIS_RULE) ENABLED = true;
 
-GRANT USAGE ON INTEGRATION GENESIS_EAI TO APPLICATION   IDENTIFIER($APP_DATABASE);"""
+                    GRANT USAGE ON INTEGRATION GENESIS_EAI TO APPLICATION   IDENTIFIER($APP_DATABASE);""",
                 }
-                return result  
+                return result
 
             # Create a sanitized filename from the first 50 characters of the prompt
-            sanitized_prompt = ''.join(e if e.isalnum() else '_' for e in prompt[:50])
+            sanitized_prompt = "".join(e if e.isalnum() else "_" for e in prompt[:50])
             file_path = f"./downloaded_files/{thread_id}/{sanitized_prompt}.png"
             # Save the image to the local downloaded_files folder
             os.makedirs(os.path.dirname(file_path), exist_ok=True)
-            with open(file_path, 'wb') as image_file:
+            with open(file_path, "wb") as image_file:
                 image_file.write(image_bytes)
 
             print(f"imagegen Image generated and saved to {file_path}")
-
 
             result = {
                 "success": True,
@@ -3032,7 +3702,13 @@ GRANT USAGE ON INTEGRATION GENESIS_EAI TO APPLICATION   IDENTIFIER($APP_DATABASE
             print(f"imagegen Error generating image with DALL-E 3: {e}")
             return None
 
-    def image_analysis(self, query=None, openai_file_id: str=None, file_name: str=None, thread_id=None):
+    def image_analysis(
+        self,
+        query=None,
+        openai_file_id: str = None,
+        file_name: str = None,
+        thread_id=None,
+    ):
         """
         Analyzes an image using OpenAI's GPT-4 Turbo Vision.
 
@@ -3046,46 +3722,51 @@ GRANT USAGE ON INTEGRATION GENESIS_EAI TO APPLICATION   IDENTIFIER($APP_DATABASE
             dict: A dictionary with the result of the image analysis.
         """
         # Ensure the OpenAI API key is set in your environment variables
-        api_key = os.getenv('OPENAI_API_KEY')
+        api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
-            return {"success": False, "message": "OpenAI API key is not set in the environment variables."}
+            return {
+                "success": False,
+                "message": "OpenAI API key is not set in the environment variables.",
+            }
 
         # Attempt to find the file using the provided method
-        if file_name is not None and '/' in file_name:
-            file_name = file_name.split('/')[-1]
-        if openai_file_id is not None and '/' in openai_file_id:
-            openai_file_id = openai_file_id.split('/')[-1]
+        if file_name is not None and "/" in file_name:
+            file_name = file_name.split("/")[-1]
+        if openai_file_id is not None and "/" in openai_file_id:
+            openai_file_id = openai_file_id.split("/")[-1]
 
-        file_path = f'./downloaded_files/{thread_id}/' + file_name
+        file_path = f"./downloaded_files/{thread_id}/" + file_name
         existing_location = f"./downloaded_files/{thread_id}/{openai_file_id}"
-        
+
         if os.path.isfile(existing_location) and (file_path != existing_location):
-            with open(existing_location, 'rb') as source_file:
-                with open(file_path, 'wb') as dest_file:
+            with open(existing_location, "rb") as source_file:
+                with open(file_path, "wb") as dest_file:
                     dest_file.write(source_file.read())
-        
+
         if not os.path.isfile(file_path):
             logger.error(f"File not found: {file_path}")
-            return {"success": False, "error": "File not found. Please provide a valid file path."}
+            return {
+                "success": False,
+                "error": "File not found. Please provide a valid file path.",
+            }
 
         # Function to encode the image
         def encode_image(image_path):
             with open(image_path, "rb") as image_file:
-                return base64.b64encode(image_file.read()).decode('utf-8')
+                return base64.b64encode(image_file.read()).decode("utf-8")
 
         # Getting the base64 string
         base64_image = encode_image(file_path)
 
         headers = {
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {api_key}"
+            "Authorization": f"Bearer {api_key}",
         }
 
         # Use the provided query or a default one if not provided
         prompt = query if query else "What’s in this image?"
 
-        openai_model_name = os.getenv('OPENAI_MODEL_NAME', 'gpt-4o')
-
+        openai_model_name = os.getenv("OPENAI_MODEL_NAME", "gpt-4o")
 
         payload = {
             "model": openai_model_name,
@@ -3093,30 +3774,44 @@ GRANT USAGE ON INTEGRATION GENESIS_EAI TO APPLICATION   IDENTIFIER($APP_DATABASE
                 {
                     "role": "user",
                     "content": [
-                        {
-                            "type": "text",
-                            "text": prompt
-                        },
+                        {"type": "text", "text": prompt},
                         {
                             "type": "image_url",
                             "image_url": {
                                 "url": f"data:image/jpeg;base64,{base64_image}"
-                            }
-                        }
-                    ]
+                            },
+                        },
+                    ],
                 }
             ],
-            "max_tokens": 300
+            "max_tokens": 300,
         }
 
-        response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
+        response = requests.post(
+            "https://api.openai.com/v1/chat/completions", headers=headers, json=payload
+        )
 
         if response.status_code == 200:
-            return {"success": True, "data": response.json()['choices'][0]['message']['content']}
+            return {
+                "success": True,
+                "data": response.json()["choices"][0]["message"]["content"],
+            }
         else:
-            return {"success": False, "error": f"OpenAI API call failed with status code {response.status_code}: {response.text}"}
+            return {
+                "success": False,
+                "error": f"OpenAI API call failed with status code {response.status_code}: {response.text}",
+            }
 
-    def add_file_to_stage(self, database: str=None, schema: str=None, stage: str=None, openai_file_id: str=None, file_name: str=None, file_content: str=None, thread_id=None):
+    def add_file_to_stage(
+        self,
+        database: str = None,
+        schema: str = None,
+        stage: str = None,
+        openai_file_id: str = None,
+        file_name: str = None,
+        file_content: str = None,
+        thread_id=None,
+    ):
         """
         Add a file to a Snowflake stage.
 
@@ -3133,62 +3828,69 @@ GRANT USAGE ON INTEGRATION GENESIS_EAI TO APPLICATION   IDENTIFIER($APP_DATABASE
 
         try:
             if file_content is None:
-                file_name  = file_name.replace('serverlocal:', '') 
-                openai_file_id  = openai_file_id.replace('serverlocal:', '') 
+                file_name = file_name.replace("serverlocal:", "")
+                openai_file_id = openai_file_id.replace("serverlocal:", "")
 
                 if file_name.startswith("file-"):
                     return {
                         "success": False,
-                        "error": "Please provide a human-readable file name in the file_name parameter, with a supported extension, not the OpenAI file ID. If unsure, ask the user what the file should be called."
+                        "error": "Please provide a human-readable file name in the file_name parameter, with a supported extension, not the OpenAI file ID. If unsure, ask the user what the file should be called.",
                     }
 
-           # allow files to have relative paths
-           #     if '/' in file_name:
-           #         file_name = file_name.split('/')[-1]
+                # allow files to have relative paths
+                #     if '/' in file_name:
+                #         file_name = file_name.split('/')[-1]
                 if file_name.startswith("/"):
                     file_name = file_name[1:]
 
-                file_name = re.sub(r'[^\w\s\/\.-]', '', file_name.replace(' ', '_'))
-                if '/' in openai_file_id:
-                    openai_file_id = openai_file_id.split('/')[-1]
+                file_name = re.sub(r"[^\w\s\/\.-]", "", file_name.replace(" ", "_"))
+                if "/" in openai_file_id:
+                    openai_file_id = openai_file_id.split("/")[-1]
 
-                file_path = f'./downloaded_files/{thread_id}/' + file_name
+                file_path = f"./downloaded_files/{thread_id}/" + file_name
                 existing_location = f"./downloaded_files/{thread_id}/{openai_file_id}"
 
                 if not os.path.exists(os.path.dirname(file_path)):
                     os.makedirs(os.path.dirname(file_path))
 
                 # Replace spaces with underscores and remove disallowed characters
-              #  file_name = re.sub(r'[^\w\s-]', '', file_name.replace(' ', '_'))
-                if os.path.isfile(existing_location) and (file_path != existing_location):
-                    with open(existing_location, 'rb') as source_file:
-                        with open(file_path, 'wb') as dest_file:
+                #  file_name = re.sub(r'[^\w\s-]', '', file_name.replace(' ', '_'))
+                if os.path.isfile(existing_location) and (
+                    file_path != existing_location
+                ):
+                    with open(existing_location, "rb") as source_file:
+                        with open(file_path, "wb") as dest_file:
                             dest_file.write(source_file.read())
-                
+
                 if not os.path.isfile(file_path):
 
                     logger.error(f"File not found: {file_path}")
-                    return {"success": False, "error": f"Needs user review: Please first save and RETURN THE FILE *AS A FILE* to the user for their review, and once confirmed by the user, call this function again referencing the SAME OPENAI_FILE_ID THAT YOU RETURNED TO THE USER to save it to stage."}
-    
+                    return {
+                        "success": False,
+                        "error": f"Needs user review: Please first save and RETURN THE FILE *AS A FILE* to the user for their review, and once confirmed by the user, call this function again referencing the SAME OPENAI_FILE_ID THAT YOU RETURNED TO THE USER to save it to stage.",
+                    }
+
             else:
                 if thread_id is None:
-                    thread_id = ''.join(random.choices(string.ascii_letters + string.digits, k=6))
-                
+                    thread_id = "".join(
+                        random.choices(string.ascii_letters + string.digits, k=6)
+                    )
+
             if file_content is not None:
                 # Ensure the directory exists
-                directory = f'./downloaded_files/{thread_id}'
+                directory = f"./downloaded_files/{thread_id}"
                 if not os.path.exists(directory):
                     os.makedirs(directory)
-                
-               # Write the content to the file
+
+                # Write the content to the file
                 file_path = os.path.join(directory, file_name)
-                with open(file_path, 'w') as file:
+                with open(file_path, "w") as file:
                     file.write(file_content)
         except Exception as e:
             return {"success": False, "error": str(e)}
 
         try:
-            p = os.path.dirname(file_name) if '/' in file_name else None
+            p = os.path.dirname(file_name) if "/" in file_name else None
             if p is not None:
                 query = f'PUT file://{file_path} @"{database}"."{schema}"."{stage}"/{p} AUTO_COMPRESS=FALSE'
             else:
@@ -3198,7 +3900,16 @@ GRANT USAGE ON INTEGRATION GENESIS_EAI TO APPLICATION   IDENTIFIER($APP_DATABASE
             logger.error(f"Error adding file to stage: {e}")
             return {"success": False, "error": str(e)}
 
-    def read_file_from_stage(self, database: str, schema: str, stage: str, file_name: str, return_contents: bool, for_bot=None, thread_id=None):
+    def read_file_from_stage(
+        self,
+        database: str,
+        schema: str,
+        stage: str,
+        file_name: str,
+        return_contents: bool,
+        for_bot=None,
+        thread_id=None,
+    ):
         """
         Read a file from a Snowflake stage.
 
@@ -3216,9 +3927,9 @@ GRANT USAGE ON INTEGRATION GENESIS_EAI TO APPLICATION   IDENTIFIER($APP_DATABASE
             if for_bot == None:
                 for_bot = thread_id
             local_dir = os.path.join(".", "downloaded_files", for_bot)
-                   
-    #        if '/' in file_name:
-    #            file_name = file_name.split('/')[-1]
+
+            #        if '/' in file_name:
+            #            file_name = file_name.split('/')[-1]
 
             if not os.path.isdir(local_dir):
                 os.makedirs(local_dir)
@@ -3231,7 +3942,9 @@ GRANT USAGE ON INTEGRATION GENESIS_EAI TO APPLICATION   IDENTIFIER($APP_DATABASE
 
             query = f'GET @"{database}"."{schema}"."{stage}"/{file_name} file://{target_dir}'
             ret = self.run_query(query)
-            if isinstance(ret, dict) and "does not exist or not authorized" in ret.get('Error', ''):
+            if isinstance(ret, dict) and "does not exist or not authorized" in ret.get(
+                "Error", ""
+            ):
                 database = database.upper()
                 schema = schema.upper()
                 stage = stage.upper()
@@ -3240,16 +3953,23 @@ GRANT USAGE ON INTEGRATION GENESIS_EAI TO APPLICATION   IDENTIFIER($APP_DATABASE
 
             if os.path.isfile(local_file_path):
                 if return_contents:
-                    with open(local_file_path, 'r') as file:
+                    with open(local_file_path, "r") as file:
                         return file.read()
                 else:
                     return file_name
             else:
                 return f"The file {file_name} does not exist at stage path @{database}.{schema}.{stage}/{file_name}."
         except Exception as e:
-            return {"success": False, "error": str(e)}          
+            return {"success": False, "error": str(e)}
 
-    def update_file_in_stage(self, database: str = None, schema: str = None, stage: str = None, file_name: str = None, thread_id=None):
+    def update_file_in_stage(
+        self,
+        database: str = None,
+        schema: str = None,
+        stage: str = None,
+        file_name: str = None,
+        thread_id=None,
+    ):
         """
         Update (replace) a file in a Snowflake stage.
 
@@ -3266,28 +3986,38 @@ GRANT USAGE ON INTEGRATION GENESIS_EAI TO APPLICATION   IDENTIFIER($APP_DATABASE
         """
         try:
 
-            if '/' in file_name:
-                file_name = file_name.split('/')[-1]
+            if "/" in file_name:
+                file_name = file_name.split("/")[-1]
 
-            file_path = f'./downloaded_files/{thread_id}/' + file_name
+            file_path = f"./downloaded_files/{thread_id}/" + file_name
 
             if not os.path.isfile(file_path):
 
                 logger.error(f"File not found: {file_path}")
-                return {"success": False, "error": f"Local new version of file not found: {file_path}"}
+                return {
+                    "success": False,
+                    "error": f"Local new version of file not found: {file_path}",
+                }
 
             # First, remove the existing file
             remove_query = f"REMOVE @{database}.{schema}.{stage}/{file_name}"
             self.run_query(remove_query)
             # Then, add the new file
-        
+
             add_query = f"PUT file://{file_path} @{database}.{schema}.{stage} AUTO_COMPRESS=FALSE"
             return self.run_query(add_query)
         except Exception as e:
             logger.error(f"Error updating file in stage: {e}")
             return {"success": False, "error": str(e)}
 
-    def delete_file_from_stage(self, database: str = None, schema: str = None, stage: str = None, file_name: str = None, thread_id=None):
+    def delete_file_from_stage(
+        self,
+        database: str = None,
+        schema: str = None,
+        stage: str = None,
+        file_name: str = None,
+        thread_id=None,
+    ):
         """
         Delete a file from a Snowflake stage.
 
@@ -3300,20 +4030,22 @@ GRANT USAGE ON INTEGRATION GENESIS_EAI TO APPLICATION   IDENTIFIER($APP_DATABASE
         Returns:
             dict: A dictionary with the result of the operation.
         """
-        if '/' in file_name:
-            file_name = file_name.split('/')[-1]
+        if "/" in file_name:
+            file_name = file_name.split("/")[-1]
 
         try:
             query = f"REMOVE @{database}.{schema}.{stage}/{file_name}"
-            ret =  self.run_query(query)
-            if isinstance(ret, dict) and "does not exist or not authorized" in ret.get('Error', ''):
+            ret = self.run_query(query)
+            if isinstance(ret, dict) and "does not exist or not authorized" in ret.get(
+                "Error", ""
+            ):
                 database = database.upper()
                 schema = schema.upper()
                 stage = stage.upper()
                 query = f'REMOVE @"{database}"."{schema}"."{stage}"/{file_name}'
                 ret = self.run_query(query)
 
-            return(ret)
+            return ret
         except Exception as e:
             logger.error(f"Error deleting file from stage: {e}")
             return {"success": False, "error": str(e)}
@@ -3322,20 +4054,20 @@ GRANT USAGE ON INTEGRATION GENESIS_EAI TO APPLICATION   IDENTIFIER($APP_DATABASE
     # with methods run_query() for executing queries and logger is a logging instance.
     # Test instance creation and calling list_stage method
 
-    def create_empty_semantic_model(self, model_name="", model_description="", thread_id=None):
+    def create_empty_semantic_model(
+        self, model_name="", model_description="", thread_id=None
+    ):
         # Define the basic structure of the semantic model with an empty tables list
         semantic_model = {
-            'name': model_name,
-            'description': model_description,  # Description is left empty to be filled later
-            'tables': []  # Initialize with an empty list of tables
+            "name": model_name,
+            "description": model_description,  # Description is left empty to be filled later
+            "tables": [],  # Initialize with an empty list of tables
         }
         return semantic_model
 
     # Usage of the function
 
-
-
-    def convert_model_to_yaml(self,json_model, thread_id=None):
+    def convert_model_to_yaml(self, json_model, thread_id=None):
         """
         Convert the JSON representation of the semantic model to YAML format.
 
@@ -3347,14 +4079,20 @@ GRANT USAGE ON INTEGRATION GENESIS_EAI TO APPLICATION   IDENTIFIER($APP_DATABASE
         """
         try:
 
-            sanitized_model = {k: v for k, v in json_model.items() if isinstance(v, (str, int, float, bool, list, dict, type(None)))}
-            yaml_model = yaml.dump(sanitized_model, default_flow_style=False, sort_keys=False)
+            sanitized_model = {
+                k: v
+                for k, v in json_model.items()
+                if isinstance(v, (str, int, float, bool, list, dict, type(None)))
+            }
+            yaml_model = yaml.dump(
+                sanitized_model, default_flow_style=False, sort_keys=False
+            )
             return yaml_model
         except Exception as exc:
             print(f"Error converting JSON to YAML: {exc}")
             return None
 
-    def convert_yaml_to_json(self,yaml_model, thread_id=None):
+    def convert_yaml_to_json(self, yaml_model, thread_id=None):
         """
         Convert the YAML representation of the semantic model to JSON format.
 
@@ -3371,25 +4109,41 @@ GRANT USAGE ON INTEGRATION GENESIS_EAI TO APPLICATION   IDENTIFIER($APP_DATABASE
             print(f"Error converting YAML to JSON: {exc}")
             return None
 
-
-    def modify_semantic_model(self,semantic_model, command, parameters, thread_id=None):
+    def modify_semantic_model(
+        self, semantic_model, command, parameters, thread_id=None
+    ):
         # Validate the command
         valid_commands = [
-            'add_table', 'remove_table', 'update_table', 'add_dimension', 'update_dimension', 'remove_dimension',
-            'add_time_dimension', 'remove_time_dimension', 'update_time_dimension',
-            'add_measure', 'remove_measure', 'update_measure', 'add_filter', 'remove_filter', 'update_filter',
-            'set_model_name', 'set_model_description', 'help'
+            "add_table",
+            "remove_table",
+            "update_table",
+            "add_dimension",
+            "update_dimension",
+            "remove_dimension",
+            "add_time_dimension",
+            "remove_time_dimension",
+            "update_time_dimension",
+            "add_measure",
+            "remove_measure",
+            "update_measure",
+            "add_filter",
+            "remove_filter",
+            "update_filter",
+            "set_model_name",
+            "set_model_description",
+            "help",
         ]
-
 
         base_message = ""
 
-        if command.startswith('update_') and 'new_values' not in parameters:
+        if command.startswith("update_") and "new_values" not in parameters:
             base_message = "Error: The 'new_values' parameter must be provided as a dictionary object for update_* commands.\n\n"
 
-        if command == 'help' or command not in valid_commands:
+        if command == "help" or command not in valid_commands:
 
-            help_message = base_message + """
+            help_message = (
+                base_message
+                + """
             The following commands are available to modify the semantic model:
 
             - 'add_table': Adds a new table to the semantic model. 
@@ -3428,299 +4182,513 @@ GRANT USAGE ON INTEGRATION GENESIS_EAI TO APPLICATION   IDENTIFIER($APP_DATABASE
                 Parameters: 'model_description'.
             Note that all "expr" must be SQL-executable expressions that could work as part of a SELECT clause (for dimension and measures, often just the base column name) or WHERE clause (for filters).
             """
+            )
             if command not in valid_commands:
                 return {"success": False, "function_instructions": help_message}
             else:
                 return {"success": True, "message": help_message}
 
-
         try:
-            if command == 'set_model_name':
-                semantic_model['model_name'] = parameters.get('model_name', '')
-                return {"success": True, "message": f"Model name set to '{semantic_model['model_name']}'.", "semantic_yaml": semantic_model}
+            if command == "set_model_name":
+                semantic_model["model_name"] = parameters.get("model_name", "")
+                return {
+                    "success": True,
+                    "message": f"Model name set to '{semantic_model['model_name']}'.",
+                    "semantic_yaml": semantic_model,
+                }
 
-            if command == 'set_model_description':
-                semantic_model['description'] = parameters.get('model_description', '')
-                return {"success": True, "message": f"Model description set to '{semantic_model['description']}'.", "semantic_yaml": semantic_model}
-    
-            if 'table_name' not in parameters:
-                return {"success": False, "message": "Missing parameter 'table_name'.", "semantic_yaml": semantic_model}
-            table_name = parameters['table_name']
-            table = next((table for table in semantic_model.get('tables', []) if table['name'] == table_name), None)
+            if command == "set_model_description":
+                semantic_model["description"] = parameters.get("model_description", "")
+                return {
+                    "success": True,
+                    "message": f"Model description set to '{semantic_model['description']}'.",
+                    "semantic_yaml": semantic_model,
+                }
 
-            if command in ['remove_table', 'add_table', 'update_table'] and not table and command != 'add_table':
+            if "table_name" not in parameters:
+                return {
+                    "success": False,
+                    "message": "Missing parameter 'table_name'.",
+                    "semantic_yaml": semantic_model,
+                }
+            table_name = parameters["table_name"]
+            table = next(
+                (
+                    table
+                    for table in semantic_model.get("tables", [])
+                    if table["name"] == table_name
+                ),
+                None,
+            )
+
+            if (
+                command in ["remove_table", "add_table", "update_table"]
+                and not table
+                and command != "add_table"
+            ):
                 return {"success": False, "message": f"Table '{table_name}' not found."}
             valid_data_types = [
-                "NUMBER", "DECIMAL", "NUMERIC", "INT", "INTEGER", "BIGINT", "SMALLINT", "TINYINT", "BYTEINT",
-                "FLOAT", "FLOAT4", "FLOAT8", "DOUBLE", "DOUBLE PRECISION", "REAL",
-                "VARCHAR", "CHAR", "CHARACTER", "STRING", "TEXT", "BINARY", "VARBINARY",
+                "NUMBER",
+                "DECIMAL",
+                "NUMERIC",
+                "INT",
+                "INTEGER",
+                "BIGINT",
+                "SMALLINT",
+                "TINYINT",
+                "BYTEINT",
+                "FLOAT",
+                "FLOAT4",
+                "FLOAT8",
+                "DOUBLE",
+                "DOUBLE PRECISION",
+                "REAL",
+                "VARCHAR",
+                "CHAR",
+                "CHARACTER",
+                "STRING",
+                "TEXT",
+                "BINARY",
+                "VARBINARY",
                 "BOOLEAN",
-                "DATE", "DATETIME", "TIME", "TIMESTAMP", "TIMESTAMP_LTZ", "TIMESTAMP_NTZ", "TIMESTAMP_TZ",
-                "VARIANT", "OBJECT", "ARRAY",
-                "GEOGRAPHY", "GEOMETRY"
-                ]
+                "DATE",
+                "DATETIME",
+                "TIME",
+                "TIMESTAMP",
+                "TIMESTAMP_LTZ",
+                "TIMESTAMP_NTZ",
+                "TIMESTAMP_TZ",
+                "VARIANT",
+                "OBJECT",
+                "ARRAY",
+                "GEOGRAPHY",
+                "GEOMETRY",
+            ]
 
-###TODO ADD CHECK FOR NEW_VALUES ON UPDATE
+            ###TODO ADD CHECK FOR NEW_VALUES ON UPDATE
 
-            if command in ['add_dimension', 'add_time_dimension', 'add_measure', 'update_dimension', 'update_time_dimension', 'update_measure']:
-                data_type = parameters.get('data_type')
+            if command in [
+                "add_dimension",
+                "add_time_dimension",
+                "add_measure",
+                "update_dimension",
+                "update_time_dimension",
+                "update_measure",
+            ]:
+                data_type = parameters.get("data_type")
                 if data_type is not None:
                     data_type = data_type.upper()
-                new_values = parameters.get('new_values', {})
+                new_values = parameters.get("new_values", {})
                 if data_type is None:
-                    data_type = new_values.get('data_type',None)
+                    data_type = new_values.get("data_type", None)
                 if data_type is not None:
                     data_type = data_type.upper()
-                if data_type is None and command.startswith('add_'):
-                    return {"success": False, "message": "data_type is required for adding new elements."}
+                if data_type is None and command.startswith("add_"):
+                    return {
+                        "success": False,
+                        "message": "data_type is required for adding new elements.",
+                    }
                 if data_type is not None and data_type not in valid_data_types:
-                    return {"success": False, "message": "data_type is required, try using TEXT, DATE, or NUMBER."}
+                    return {
+                        "success": False,
+                        "message": "data_type is required, try using TEXT, DATE, or NUMBER.",
+                    }
 
-
-            if command == 'add_table':
-                required_base_table_keys = ['database', 'schema', 'table']
+            if command == "add_table":
+                required_base_table_keys = ["database", "schema", "table"]
                 if not all(key in parameters for key in required_base_table_keys):
-                    missing_keys = [key for key in required_base_table_keys if key not in parameters]
-                    return {"success": False, "message": f"Missing base table parameters: {', '.join(missing_keys)}."}
-                
-                if table:
-                    return {"success": False, "message": f"Table '{table_name}' already exists.", "semantic_yaml": semantic_model}
-                
-                new_table = {
-                    'name': table_name,
-                    'description': parameters.get('description', ''),
-                    'base_table': {
-                        'database': parameters['database'],
-                        'schema': parameters['schema'],
-                        'table': parameters['table']
-                    },
-                    'dimensions': [],
-                    'time_dimensions': [],
-                    'measures': [],
-                    'filters': []
-                }
-                semantic_model.setdefault('tables', []).append(new_table)
-                return {"success": True, "message": f"Table '{table_name}' added.", "semantic_yaml": semantic_model}
+                    missing_keys = [
+                        key for key in required_base_table_keys if key not in parameters
+                    ]
+                    return {
+                        "success": False,
+                        "message": f"Missing base table parameters: {', '.join(missing_keys)}.",
+                    }
 
-            elif command == 'remove_table':
-                semantic_model['tables'] = [t for t in semantic_model['tables'] if t['name'] != table_name]
+                if table:
+                    return {
+                        "success": False,
+                        "message": f"Table '{table_name}' already exists.",
+                        "semantic_yaml": semantic_model,
+                    }
+
+                new_table = {
+                    "name": table_name,
+                    "description": parameters.get("description", ""),
+                    "base_table": {
+                        "database": parameters["database"],
+                        "schema": parameters["schema"],
+                        "table": parameters["table"],
+                    },
+                    "dimensions": [],
+                    "time_dimensions": [],
+                    "measures": [],
+                    "filters": [],
+                }
+                semantic_model.setdefault("tables", []).append(new_table)
+                return {
+                    "success": True,
+                    "message": f"Table '{table_name}' added.",
+                    "semantic_yaml": semantic_model,
+                }
+
+            elif command == "remove_table":
+                semantic_model["tables"] = [
+                    t for t in semantic_model["tables"] if t["name"] != table_name
+                ]
                 return {"success": True, "message": f"Table '{table_name}' removed."}
 
-            elif command == 'update_table':
+            elif command == "update_table":
                 if not table:
-                    return {"success": False, "message": f"Table '{table_name}' not found."}
-                new_values = parameters.get('new_values', {})
+                    return {
+                        "success": False,
+                        "message": f"Table '{table_name}' not found.",
+                    }
+                new_values = parameters.get("new_values", {})
                 for key, value in new_values.items():
                     if key in table:
                         table[key] = value
-                if 'database' in parameters or 'schema' in parameters or 'table' in parameters:
-                    table['base_table'] = {
-                        'database': parameters.get('database', table['base_table']['database']),
-                        'schema': parameters.get('schema', table['base_table']['schema']),
-                        'table': parameters.get('table', table['base_table']['table'])
+                if (
+                    "database" in parameters
+                    or "schema" in parameters
+                    or "table" in parameters
+                ):
+                    table["base_table"] = {
+                        "database": parameters.get(
+                            "database", table["base_table"]["database"]
+                        ),
+                        "schema": parameters.get(
+                            "schema", table["base_table"]["schema"]
+                        ),
+                        "table": parameters.get("table", table["base_table"]["table"]),
                     }
-                description = parameters.get('description')
+                description = parameters.get("description")
                 if description:
-                    table['description'] = description
-                return {"success": True, "message": f"Table '{table_name}' updated.", "semantic_yaml": semantic_model}
+                    table["description"] = description
+                return {
+                    "success": True,
+                    "message": f"Table '{table_name}' updated.",
+                    "semantic_yaml": semantic_model,
+                }
 
-            elif 'dimension_name' in parameters or 'measure_name' in parameters or 'filter_name' in parameters or 'time_dimension_name' in parameters:
+            elif (
+                "dimension_name" in parameters
+                or "measure_name" in parameters
+                or "filter_name" in parameters
+                or "time_dimension_name" in parameters
+            ):
                 if not table:
-                    return {"success": False, "message": f"Table '{table_name}' not found."}
+                    return {
+                        "success": False,
+                        "message": f"Table '{table_name}' not found.",
+                    }
 
-                item_key = ('time_dimension_name' if 'time_dimension_name' in parameters else
-                            'dimension_name' if 'dimension_name' in parameters else
-                            'measure_name' if 'measure_name' in parameters else
-                            'filter_name' if 'filter_name' in parameters else
-                            None)
+                item_key = (
+                    "time_dimension_name"
+                    if "time_dimension_name" in parameters
+                    else (
+                        "dimension_name"
+                        if "dimension_name" in parameters
+                        else (
+                            "measure_name"
+                            if "measure_name" in parameters
+                            else "filter_name" if "filter_name" in parameters else None
+                        )
+                    )
+                )
                 item_name = parameters[item_key]
-                item_list = table.get('time_dimensions' if 'time_dimension' in command else 'dimensions' if 'dimension' in command else
-                                    'measures' if 'measure' in command else
-                                    'filters', [])
-                item = next((i for i in item_list if i['name'] == item_name), None)
-                if command.startswith('remove') and not item:
-                    return {"success": False, "message": f"{item_key[:-5].capitalize()} '{item_name}' not found in table '{table_name}'."}
+                item_list = table.get(
+                    (
+                        "time_dimensions"
+                        if "time_dimension" in command
+                        else (
+                            "dimensions"
+                            if "dimension" in command
+                            else "measures" if "measure" in command else "filters"
+                        )
+                    ),
+                    [],
+                )
+                item = next((i for i in item_list if i["name"] == item_name), None)
+                if command.startswith("remove") and not item:
+                    return {
+                        "success": False,
+                        "message": f"{item_key[:-5].capitalize()} '{item_name}' not found in table '{table_name}'.",
+                    }
 
-                if command.startswith('add'):
+                if command.startswith("add"):
                     if item:
-                        return {"success": False, "message": f"{item_key[:-5].capitalize()} '{item_name}' already exists in table '{table_name}'.", "semantic_yaml": semantic_model}
-                    expr = parameters.get('expr')
+                        return {
+                            "success": False,
+                            "message": f"{item_key[:-5].capitalize()} '{item_name}' already exists in table '{table_name}'.",
+                            "semantic_yaml": semantic_model,
+                        }
+                    expr = parameters.get("expr")
                     if expr is None:
-                        return {"success": False, "message": f"Expression parameter 'expr' for {item_key[:-5].capitalize()} '{item_name}' is required.", "semantic_yaml": semantic_model}
-                    new_item = {'name': item_name, 'expr': expr}
-                    description = parameters.get('description')
+                        return {
+                            "success": False,
+                            "message": f"Expression parameter 'expr' for {item_key[:-5].capitalize()} '{item_name}' is required.",
+                            "semantic_yaml": semantic_model,
+                        }
+                    new_item = {"name": item_name, "expr": expr}
+                    description = parameters.get("description")
                     if description:
-                        new_item['description'] = description
-                    synonyms = parameters.get('synonyms', [])
+                        new_item["description"] = description
+                    synonyms = parameters.get("synonyms", [])
                     if synonyms:
-                        new_item['synonyms'] = synonyms
-                    data_type = parameters.get('data_type', None)
+                        new_item["synonyms"] = synonyms
+                    data_type = parameters.get("data_type", None)
                     if data_type is not None:
-                        new_item['data_type'] = data_type
-                    unique = parameters.get('unique', None)
+                        new_item["data_type"] = data_type
+                    unique = parameters.get("unique", None)
                     if unique is not None:
-                        new_item['unique'] = unique
-                    if 'measure' in command:
-                        default_aggregation = parameters.get('default_aggregation')
+                        new_item["unique"] = unique
+                    if "measure" in command:
+                        default_aggregation = parameters.get("default_aggregation")
                         if default_aggregation:
-                            new_item['default_aggregation'] = default_aggregation.lower()
-                    if 'filter' not in command:
-                        sample_values = parameters.get('sample_values', [])
+                            new_item["default_aggregation"] = (
+                                default_aggregation.lower()
+                            )
+                    if "filter" not in command:
+                        sample_values = parameters.get("sample_values", [])
                         if sample_values:
-                            new_item['sample_values'] = [str(value) for value in sample_values if isinstance(value, (int, float, str, datetime.date))]
-                           # new_item['sample_values'] = sample_values
+                            new_item["sample_values"] = [
+                                str(value)
+                                for value in sample_values
+                                if isinstance(value, (int, float, str, datetime.date))
+                            ]
+                        # new_item['sample_values'] = sample_values
                     item_list.append(new_item)
-                    return {"success": True, "message": f"{item_key[:-5].capitalize()} '{item_name}' added to table '{table_name}'.", "semantic_yaml": semantic_model}
+                    return {
+                        "success": True,
+                        "message": f"{item_key[:-5].capitalize()} '{item_name}' added to table '{table_name}'.",
+                        "semantic_yaml": semantic_model,
+                    }
 
-                elif command.startswith('update'):
+                elif command.startswith("update"):
                     if not item:
-                        return {"success": False, "message": f"{item_key[:-5].capitalize()} '{item_name}' not found in table '{table_name}'.", "semantic_yaml": semantic_model}
-                    new_values = parameters.get('new_values', {})
-                    if 'expr' in new_values:
-                        expr = new_values.pop('expr')
+                        return {
+                            "success": False,
+                            "message": f"{item_key[:-5].capitalize()} '{item_name}' not found in table '{table_name}'.",
+                            "semantic_yaml": semantic_model,
+                        }
+                    new_values = parameters.get("new_values", {})
+                    if "expr" in new_values:
+                        expr = new_values.pop("expr")
                         if expr is not None:
-                            item['expr'] = expr
+                            item["expr"] = expr
 
-                    if 'data_type' in parameters['new_values']:
-                        item['data_type'] = parameters['new_values']['data_type']  # Update the DATA_TYPE
+                    if "data_type" in parameters["new_values"]:
+                        item["data_type"] = parameters["new_values"][
+                            "data_type"
+                        ]  # Update the DATA_TYPE
 
-                    if 'default_aggregation' in parameters['new_values']:
-                        item['default_aggregation'] = parameters['new_values']['default_aggregation'].lower()  # Update the DATA_TYPE
+                    if "default_aggregation" in parameters["new_values"]:
+                        item["default_aggregation"] = parameters["new_values"][
+                            "default_aggregation"
+                        ].lower()  # Update the DATA_TYPE
 
-                    if 'unique' in new_values:
-                        unique = new_values.pop('unique')
+                    if "unique" in new_values:
+                        unique = new_values.pop("unique")
                         if isinstance(unique, bool):
-                            item['unique'] = unique
-                    if 'measure' in command:
-                        default_aggregation = new_values.pop('default_aggregation', None)
+                            item["unique"] = unique
+                    if "measure" in command:
+                        default_aggregation = new_values.pop(
+                            "default_aggregation", None
+                        )
                         if default_aggregation is not None:
-                            item['default_aggregation'] = default_aggregation.lower()
-                    if 'filter' not in command:
-                        sample_values = new_values.pop('sample_values', None)
+                            item["default_aggregation"] = default_aggregation.lower()
+                    if "filter" not in command:
+                        sample_values = new_values.pop("sample_values", None)
                         if sample_values is not None:
-                            item['sample_values'] = sample_values
+                            item["sample_values"] = sample_values
                     item.update(new_values)
-                    description = parameters.get('description')
+                    description = parameters.get("description")
                     if description:
-                        item['description'] = description
-                    synonyms = parameters.get('synonyms')
+                        item["description"] = description
+                    synonyms = parameters.get("synonyms")
                     if synonyms is not None:
-                        item['synonyms'] = synonyms
-                    return {"success": True, "message": f"{item_key[:-5].capitalize()} '{item_name}' updated in table '{table_name}'.", "semantic_yaml": semantic_model}
-                elif command.startswith('remove'):
-                    table[item_key[:-6] + 's'] = [i for i in item_list if i['name'] != item_name]
-                    return {"success": True, "message": f"{item_key[:-5].capitalize()} '{item_name}' removed from table '{table_name}'.", "semantic_yaml": semantic_model}
+                        item["synonyms"] = synonyms
+                    return {
+                        "success": True,
+                        "message": f"{item_key[:-5].capitalize()} '{item_name}' updated in table '{table_name}'.",
+                        "semantic_yaml": semantic_model,
+                    }
+                elif command.startswith("remove"):
+                    table[item_key[:-6] + "s"] = [
+                        i for i in item_list if i["name"] != item_name
+                    ]
+                    return {
+                        "success": True,
+                        "message": f"{item_key[:-5].capitalize()} '{item_name}' removed from table '{table_name}'.",
+                        "semantic_yaml": semantic_model,
+                    }
         except KeyError as e:
-            return {"success": False, "message": f"Missing necessary parameter '{e.args[0]}'."}
+            return {
+                "success": False,
+                "message": f"Missing necessary parameter '{e.args[0]}'.",
+            }
         except Exception as e:
             return {"success": False, "message": f"An unexpected error occurred: {e}"}
-        
 
-
-    def test_modify_semantic_model(self,semantic_model):
+    def test_modify_semantic_model(self, semantic_model):
         from schema_explorer.semantic_tools import modify_semantic_model
 
         def random_string(prefix, length=5):
-            return prefix + '_' + ''.join(random.choices(string.ascii_lowercase, k=length))
+            return (
+                prefix + "_" + "".join(random.choices(string.ascii_lowercase, k=length))
+            )
 
         num_tables = random.randint(2, 5)
-        tables = [random_string('table') for _ in range(num_tables)]
-    
-        model_name = random_string('model')
-        model_description = random_string('description', 10)
-        semantic_model = modify_semantic_model(semantic_model, 'set_model_name', {'model_name': model_name})
-        semantic_model = semantic_model.get('semantic_yaml')
-        semantic_model = modify_semantic_model(semantic_model, 'set_model_description', {'model_description': model_description})
-        semantic_model = semantic_model.get('semantic_yaml')
+        tables = [random_string("table") for _ in range(num_tables)]
 
-    
+        model_name = random_string("model")
+        model_description = random_string("description", 10)
+        semantic_model = modify_semantic_model(
+            semantic_model, "set_model_name", {"model_name": model_name}
+        )
+        semantic_model = semantic_model.get("semantic_yaml")
+        semantic_model = modify_semantic_model(
+            semantic_model,
+            "set_model_description",
+            {"model_description": model_description},
+        )
+        semantic_model = semantic_model.get("semantic_yaml")
+
         for table_name in tables:
-            database_name = random_string('database')
-            schema_name = random_string('schema')
-            base_table = random_string('base_table')
-            semantic_model = modify_semantic_model(semantic_model, 'add_table', {
-                'table_name': table_name,
-                'database': database_name,
-                'schema': schema_name,
-                'table': base_table
-            })
-            semantic_model = semantic_model.get('semantic_yaml')
+            database_name = random_string("database")
+            schema_name = random_string("schema")
+            base_table = random_string("base_table")
+            semantic_model = modify_semantic_model(
+                semantic_model,
+                "add_table",
+                {
+                    "table_name": table_name,
+                    "database": database_name,
+                    "schema": schema_name,
+                    "table": base_table,
+                },
+            )
+            semantic_model = semantic_model.get("semantic_yaml")
 
         # Add 2-5 random dimensions, measures, and filters to each table
         for table_name in tables:
             for _ in range(random.randint(2, 5)):
-                dimension_name = random_string('dimension')
+                dimension_name = random_string("dimension")
                 dimension_description = f"Description for {dimension_name}"
-                dimension_expr = random_string('expr', 5)
+                dimension_expr = random_string("expr", 5)
                 synonyms_count = random.randint(0, 3)
-                dimension_synonyms = [random_string('synonym') for _ in range(synonyms_count)]
+                dimension_synonyms = [
+                    random_string("synonym") for _ in range(synonyms_count)
+                ]
                 sample_values_count = random.randint(0, 5)
-                dimension_sample_values = [random_string('', random.randint(7, 12)) for _ in range(sample_values_count)]
-                semantic_model = modify_semantic_model(semantic_model, 'add_dimension', {
-                    'table_name': table_name, 
-                    'dimension_name': dimension_name, 
-                    'description': dimension_description,
-                    'synonyms': dimension_synonyms,
-                    'unique': False,
-                    'expr': dimension_expr,
-                    'sample_values': dimension_sample_values
-                })
-                semantic_model = semantic_model.get('semantic_yaml')
+                dimension_sample_values = [
+                    random_string("", random.randint(7, 12))
+                    for _ in range(sample_values_count)
+                ]
+                semantic_model = modify_semantic_model(
+                    semantic_model,
+                    "add_dimension",
+                    {
+                        "table_name": table_name,
+                        "dimension_name": dimension_name,
+                        "description": dimension_description,
+                        "synonyms": dimension_synonyms,
+                        "unique": False,
+                        "expr": dimension_expr,
+                        "sample_values": dimension_sample_values,
+                    },
+                )
+                semantic_model = semantic_model.get("semantic_yaml")
 
-                
-                time_dimension_name = random_string('time_dimension')
+                time_dimension_name = random_string("time_dimension")
                 time_dimension_description = f"Description for {time_dimension_name}"
-                time_dimension_expr = random_string('expr', 5)
+                time_dimension_expr = random_string("expr", 5)
                 time_dimension_synonyms_count = random.randint(0, 3)
-                time_dimension_synonyms = [random_string('synonym') for _ in range(time_dimension_synonyms_count)]
+                time_dimension_synonyms = [
+                    random_string("synonym")
+                    for _ in range(time_dimension_synonyms_count)
+                ]
                 time_dimension_sample_values_count = random.randint(0, 5)
-                time_dimension_sample_values = [random_string('', random.randint(7, 12)) for _ in range(time_dimension_sample_values_count)]
-                semantic_model = modify_semantic_model(semantic_model, 'add_time_dimension', {
-                    'table_name': table_name, 
-                    'time_dimension_name': time_dimension_name, 
-                    'description': time_dimension_description,
-                    'synonyms': time_dimension_synonyms,
-                    'unique': False,
-                    'expr': time_dimension_expr,
-                    'sample_values': time_dimension_sample_values
-                })
-                semantic_model = semantic_model.get('semantic_yaml')
-            
-                measure_name = random_string('measure')
+                time_dimension_sample_values = [
+                    random_string("", random.randint(7, 12))
+                    for _ in range(time_dimension_sample_values_count)
+                ]
+                semantic_model = modify_semantic_model(
+                    semantic_model,
+                    "add_time_dimension",
+                    {
+                        "table_name": table_name,
+                        "time_dimension_name": time_dimension_name,
+                        "description": time_dimension_description,
+                        "synonyms": time_dimension_synonyms,
+                        "unique": False,
+                        "expr": time_dimension_expr,
+                        "sample_values": time_dimension_sample_values,
+                    },
+                )
+                semantic_model = semantic_model.get("semantic_yaml")
+
+                measure_name = random_string("measure")
                 measure_description = f"Description for {measure_name}"
-                measure_expr = random_string('expr', 5)
+                measure_expr = random_string("expr", 5)
                 measure_synonyms_count = random.randint(0, 2)
-                measure_synonyms = [random_string('synonym') for _ in range(measure_synonyms_count)]
+                measure_synonyms = [
+                    random_string("synonym") for _ in range(measure_synonyms_count)
+                ]
                 measure_sample_values_count = random.randint(0, 5)
-                measure_sample_values = [random_string('', random.randint(7, 12)) for _ in range(measure_sample_values_count)]
-                default_aggregations = ['sum', 'avg', 'min', 'max', 'median', 'count', 'count_distinct']
+                measure_sample_values = [
+                    random_string("", random.randint(7, 12))
+                    for _ in range(measure_sample_values_count)
+                ]
+                default_aggregations = [
+                    "sum",
+                    "avg",
+                    "min",
+                    "max",
+                    "median",
+                    "count",
+                    "count_distinct",
+                ]
                 default_aggregation = random.choice(default_aggregations)
-                semantic_model = modify_semantic_model(semantic_model, 'add_measure', {
-                    'table_name': table_name, 
-                    'measure_name': measure_name, 
-                    'description': measure_description,
-                    'synonyms': measure_synonyms,
-                    'unique': False,
-                    'expr': measure_expr,
-                    'sample_values': measure_sample_values,
-                    'default_aggregation': default_aggregation
-                })
-                semantic_model = semantic_model.get('semantic_yaml')
-                filter_name = random_string('filter')
+                semantic_model = modify_semantic_model(
+                    semantic_model,
+                    "add_measure",
+                    {
+                        "table_name": table_name,
+                        "measure_name": measure_name,
+                        "description": measure_description,
+                        "synonyms": measure_synonyms,
+                        "unique": False,
+                        "expr": measure_expr,
+                        "sample_values": measure_sample_values,
+                        "default_aggregation": default_aggregation,
+                    },
+                )
+                semantic_model = semantic_model.get("semantic_yaml")
+                filter_name = random_string("filter")
                 filter_description = f"Description for {filter_name}"
-                filter_expr = random_string('expr', 5)
+                filter_expr = random_string("expr", 5)
                 filter_synonyms_count = random.randint(0, 2)
-                filter_synonyms = [random_string('synonym') for _ in range(filter_synonyms_count)]
-                semantic_model = modify_semantic_model(semantic_model, 'add_filter', {
-                    'table_name': table_name, 
-                    'filter_name': filter_name, 
-                    'description': filter_description,
-                    'synonyms': filter_synonyms,
-                    'expr': filter_expr
-                })
-                semantic_model = semantic_model.get('semantic_yaml')
+                filter_synonyms = [
+                    random_string("synonym") for _ in range(filter_synonyms_count)
+                ]
+                semantic_model = modify_semantic_model(
+                    semantic_model,
+                    "add_filter",
+                    {
+                        "table_name": table_name,
+                        "filter_name": filter_name,
+                        "description": filter_description,
+                        "synonyms": filter_synonyms,
+                        "expr": filter_expr,
+                    },
+                )
+                semantic_model = semantic_model.get("semantic_yaml")
         if semantic_model is None:
-            raise ValueError("Semantic model is None, cannot proceed with modifications.")
+            raise ValueError(
+                "Semantic model is None, cannot proceed with modifications."
+            )
 
         # Update some of the tables, dimensions, measures, and filters
         # TODO: Add update tests for more of the parameters beside these listed below
@@ -3728,130 +4696,230 @@ GRANT USAGE ON INTEGRATION GENESIS_EAI TO APPLICATION   IDENTIFIER($APP_DATABASE
         updated_table_names = {}
         for table_name in tables:
             if random.choice([True, False]):
-                new_table_name = random_string('updated_table')
-                result = modify_semantic_model(semantic_model, 'update_table', {'table_name': table_name, 'new_values': {'name': new_table_name}})
-                if result.get('success'):
-                    semantic_model = result.get('semantic_yaml')
+                new_table_name = random_string("updated_table")
+                result = modify_semantic_model(
+                    semantic_model,
+                    "update_table",
+                    {"table_name": table_name, "new_values": {"name": new_table_name}},
+                )
+                if result.get("success"):
+                    semantic_model = result.get("semantic_yaml")
                     updated_table_names[table_name] = new_table_name
                 else:
                     raise Exception(f"Error updating table: {result.get('message')}")
 
         for original_table_name in tables:
-            current_table_name = updated_table_names.get(original_table_name, original_table_name)
-            if semantic_model and 'tables' in semantic_model:
-                table = next((t for t in semantic_model['tables'] if t['name'] == current_table_name), None)
+            current_table_name = updated_table_names.get(
+                original_table_name, original_table_name
+            )
+            if semantic_model and "tables" in semantic_model:
+                table = next(
+                    (
+                        t
+                        for t in semantic_model["tables"]
+                        if t["name"] == current_table_name
+                    ),
+                    None,
+                )
                 if table:
-                    for dimension in table.get('dimensions', []):
+                    for dimension in table.get("dimensions", []):
                         if random.choice([True, False]):
-                            new_dimension_name = random_string('updated_dimension')
-                            result = modify_semantic_model(semantic_model, 'update_dimension', {'table_name': current_table_name, 'dimension_name': dimension['name'], 'new_values': {'name': new_dimension_name}})
-                            if result.get('success'):
-                                semantic_model = result.get('semantic_yaml')
+                            new_dimension_name = random_string("updated_dimension")
+                            result = modify_semantic_model(
+                                semantic_model,
+                                "update_dimension",
+                                {
+                                    "table_name": current_table_name,
+                                    "dimension_name": dimension["name"],
+                                    "new_values": {"name": new_dimension_name},
+                                },
+                            )
+                            if result.get("success"):
+                                semantic_model = result.get("semantic_yaml")
                             else:
-                                raise Exception(f"Error updating dimension: {result.get('message')}")
+                                raise Exception(
+                                    f"Error updating dimension: {result.get('message')}"
+                                )
 
-                    for measure in table.get('measures', []):
+                    for measure in table.get("measures", []):
                         if random.choice([True, False]):
-                            new_measure_name = random_string('updated_measure')
-                            result = modify_semantic_model(semantic_model, 'update_measure', {'table_name': current_table_name, 'measure_name': measure['name'], 'new_values': {'name': new_measure_name}})
-                            if result.get('success'):
-                                semantic_model = result.get('semantic_yaml')
+                            new_measure_name = random_string("updated_measure")
+                            result = modify_semantic_model(
+                                semantic_model,
+                                "update_measure",
+                                {
+                                    "table_name": current_table_name,
+                                    "measure_name": measure["name"],
+                                    "new_values": {"name": new_measure_name},
+                                },
+                            )
+                            if result.get("success"):
+                                semantic_model = result.get("semantic_yaml")
                             else:
-                                raise Exception(f"Error updating measure: {result.get('message')}")
+                                raise Exception(
+                                    f"Error updating measure: {result.get('message')}"
+                                )
 
-                    for filter in table.get('filters', []):
+                    for filter in table.get("filters", []):
                         if random.choice([True, False]):
-                            new_filter_name = random_string('updated_filter')
-                            result = modify_semantic_model(semantic_model, 'update_filter', {'table_name': current_table_name, 'filter_name': filter['name'], 'new_values': {'name': new_filter_name}})
-                            if result.get('success'):
-                                semantic_model = result.get('semantic_yaml')
+                            new_filter_name = random_string("updated_filter")
+                            result = modify_semantic_model(
+                                semantic_model,
+                                "update_filter",
+                                {
+                                    "table_name": current_table_name,
+                                    "filter_name": filter["name"],
+                                    "new_values": {"name": new_filter_name},
+                                },
+                            )
+                            if result.get("success"):
+                                semantic_model = result.get("semantic_yaml")
                             else:
-                                raise Exception(f"Error updating filter: {result.get('message')}")
-    
+                                raise Exception(
+                                    f"Error updating filter: {result.get('message')}"
+                                )
+
         # Update descriptions for tables, dimensions, measures, and filters using modify_semantic_model
-        for table in semantic_model.get('tables', []):
+        for table in semantic_model.get("tables", []):
             # Update table description
             if random.choice([True, False]):
                 new_description = f"Updated description for {table['name']}"
-                result = modify_semantic_model(semantic_model, 'update_table', {'table_name': table['name'], 'new_values': {'description': new_description}})
-                if result.get('success'):
-                    semantic_model = result.get('semantic_yaml')
+                result = modify_semantic_model(
+                    semantic_model,
+                    "update_table",
+                    {
+                        "table_name": table["name"],
+                        "new_values": {"description": new_description},
+                    },
+                )
+                if result.get("success"):
+                    semantic_model = result.get("semantic_yaml")
                 else:
-                    raise Exception(f"Error updating table description: {result.get('message')}")
+                    raise Exception(
+                        f"Error updating table description: {result.get('message')}"
+                    )
 
             # Update dimensions descriptions
-            for dimension in table.get('dimensions', []):
+            for dimension in table.get("dimensions", []):
                 if random.choice([True, False]):
                     new_description = f"Updated description for {dimension['name']}"
-                    result = modify_semantic_model(semantic_model, 'update_dimension', {'table_name': table['name'], 'dimension_name': dimension['name'], 'new_values': {'description': new_description}})
-                    if result.get('success'):
-                        semantic_model = result.get('semantic_yaml')
+                    result = modify_semantic_model(
+                        semantic_model,
+                        "update_dimension",
+                        {
+                            "table_name": table["name"],
+                            "dimension_name": dimension["name"],
+                            "new_values": {"description": new_description},
+                        },
+                    )
+                    if result.get("success"):
+                        semantic_model = result.get("semantic_yaml")
                     else:
-                        raise Exception(f"Error updating dimension description: {result.get('message')}")
+                        raise Exception(
+                            f"Error updating dimension description: {result.get('message')}"
+                        )
 
             # Update measures descriptions
-            for measure in table.get('measures', []):
+            for measure in table.get("measures", []):
                 if random.choice([True, False]):
                     new_description = f"Updated description for {measure['name']}"
-                    result = modify_semantic_model(semantic_model, 'update_measure', {'table_name': table['name'], 'measure_name': measure['name'], 'new_values': {'description': new_description}})
-                    if result.get('success'):
-                        semantic_model = result.get('semantic_yaml')
+                    result = modify_semantic_model(
+                        semantic_model,
+                        "update_measure",
+                        {
+                            "table_name": table["name"],
+                            "measure_name": measure["name"],
+                            "new_values": {"description": new_description},
+                        },
+                    )
+                    if result.get("success"):
+                        semantic_model = result.get("semantic_yaml")
                     else:
-                        raise Exception(f"Error updating measure description: {result.get('message')}")
+                        raise Exception(
+                            f"Error updating measure description: {result.get('message')}"
+                        )
 
             # Update filters descriptions
-            for filter in table.get('filters', []):
+            for filter in table.get("filters", []):
                 if random.choice([True, False]):
                     new_description = f"Updated description for {filter['name']}"
-                    result = modify_semantic_model(semantic_model, 'update_filter', {'table_name': table['name'], 'filter_name': filter['name'], 'new_values': {'description': new_description}})
-                    if result.get('success'):
-                        semantic_model = result.get('semantic_yaml')
+                    result = modify_semantic_model(
+                        semantic_model,
+                        "update_filter",
+                        {
+                            "table_name": table["name"],
+                            "filter_name": filter["name"],
+                            "new_values": {"description": new_description},
+                        },
+                    )
+                    if result.get("success"):
+                        semantic_model = result.get("semantic_yaml")
                     else:
-                        raise Exception(f"Error updating filter description: {result.get('message')}")
+                        raise Exception(
+                            f"Error updating filter description: {result.get('message')}"
+                        )
         # Verify the re
         # Update the physical table for some of the logical tables
         for table_name in tables:
             current_table_name = updated_table_names.get(table_name, table_name)
-            if random.choice([True, False]):  # Randomly decide whether to update the physical table
-                new_database_name = random_string('new_database')
-                new_schema_name = random_string('new_schema')
-                new_base_table_name = random_string('new_base_table')
-                result = modify_semantic_model(semantic_model, 'update_table', {
-                    'table_name': current_table_name,
-                    'new_values': {
-                        'base_table': {
-                            'database': new_database_name,
-                            'schema': new_schema_name,
-                            'table': new_base_table_name
-                        }
-                    }
-                })
-                if result.get('success'):
-                    semantic_model = result.get('semantic_yaml')
-                    updated_table_names[table_name] = new_base_table_name  # Track the updated table names
+            if random.choice(
+                [True, False]
+            ):  # Randomly decide whether to update the physical table
+                new_database_name = random_string("new_database")
+                new_schema_name = random_string("new_schema")
+                new_base_table_name = random_string("new_base_table")
+                result = modify_semantic_model(
+                    semantic_model,
+                    "update_table",
+                    {
+                        "table_name": current_table_name,
+                        "new_values": {
+                            "base_table": {
+                                "database": new_database_name,
+                                "schema": new_schema_name,
+                                "table": new_base_table_name,
+                            }
+                        },
+                    },
+                )
+                if result.get("success"):
+                    semantic_model = result.get("semantic_yaml")
+                    updated_table_names[table_name] = (
+                        new_base_table_name  # Track the updated table names
+                    )
                 else:
-                    raise Exception(f"Error updating base table: {result.get('message')}")
-                
-        assert 'tables' in semantic_model
-        assert len(semantic_model['tables']) == num_tables
-        for table in semantic_model['tables']:
-            if 'dimensions' not in table or not (2 <= len(table['dimensions']) <= 5):
-                raise AssertionError("Table '{}' does not have the required number of dimensions (between 2 and 5).".format(table.get('name')))
-            assert 'measures' in table and 2 <= len(table['measures']) <= 5
-            assert 'filters' in table and 2 <= len(table['filters']) <= 5
+                    raise Exception(
+                        f"Error updating base table: {result.get('message')}"
+                    )
+
+        assert "tables" in semantic_model
+        assert len(semantic_model["tables"]) == num_tables
+        for table in semantic_model["tables"]:
+            if "dimensions" not in table or not (2 <= len(table["dimensions"]) <= 5):
+                raise AssertionError(
+                    "Table '{}' does not have the required number of dimensions (between 2 and 5).".format(
+                        table.get("name")
+                    )
+                )
+            assert "measures" in table and 2 <= len(table["measures"]) <= 5
+            assert "filters" in table and 2 <= len(table["filters"]) <= 5
         # Check that each table has a physical table with the correct fields set
-        for table in semantic_model.get('tables', []):
-            base_table = table.get('base_table')
+        for table in semantic_model.get("tables", []):
+            base_table = table.get("base_table")
             if not base_table:
-                raise Exception(f"Table '{table['name']}' does not have a base table associated with it.")
-            required_fields = ['database', 'schema', 'table']
+                raise Exception(
+                    f"Table '{table['name']}' does not have a base table associated with it."
+                )
+            required_fields = ["database", "schema", "table"]
             for field in required_fields:
                 if field not in base_table or not base_table[field]:
-                    raise Exception(f"Base table for '{table['name']}' does not have the required field '{field}' set correctly.")
+                    raise Exception(
+                        f"Base table for '{table['name']}' does not have the required field '{field}' set correctly."
+                    )
 
         return semantic_model
 
-    def suggest_improvements(self,semantic_model, thread_id=None):
+    def suggest_improvements(self, semantic_model, thread_id=None):
         """
         Analyze the semantic model and suggest improvements to make it more comprehensive and complete.
 
@@ -3864,20 +4932,28 @@ GRANT USAGE ON INTEGRATION GENESIS_EAI TO APPLICATION   IDENTIFIER($APP_DATABASE
         suggestions = []
 
         # Check if model name and description are set
-        if not semantic_model.get('model_name'):
-            suggestions.append("Consider adding a 'model_name' to your semantic model for better identification.")
-        if not semantic_model.get('description'):
-            suggestions.append("Consider adding a 'description' to your semantic model to provide more context.")
+        if not semantic_model.get("model_name"):
+            suggestions.append(
+                "Consider adding a 'model_name' to your semantic model for better identification."
+            )
+        if not semantic_model.get("description"):
+            suggestions.append(
+                "Consider adding a 'description' to your semantic model to provide more context."
+            )
 
         # Check for tables
-        tables = semantic_model.get('tables', [])
+        tables = semantic_model.get("tables", [])
         if not tables:
-            suggestions.append("Your semantic model has no tables. Consider adding some tables to it.")
+            suggestions.append(
+                "Your semantic model has no tables. Consider adding some tables to it."
+            )
         else:
             # Check for uniqueness of table names
-            table_names = [table.get('name') for table in tables]
+            table_names = [table.get("name") for table in tables]
             if len(table_names) != len(set(table_names)):
-                suggestions.append("Some table names are not unique. Ensure each table has a unique name.")
+                suggestions.append(
+                    "Some table names are not unique. Ensure each table has a unique name."
+                )
 
             synonyms = set()
             synonym_conflicts = set()
@@ -3886,75 +4962,113 @@ GRANT USAGE ON INTEGRATION GENESIS_EAI TO APPLICATION   IDENTIFIER($APP_DATABASE
 
             for table in tables:
                 # Check for table description
-                if not table.get('description'):
-                    suggestions.append(f"Table '{table['name']}' has no description. Consider adding a description for clarity.")
+                if not table.get("description"):
+                    suggestions.append(
+                        f"Table '{table['name']}' has no description. Consider adding a description for clarity."
+                    )
 
                 # Check for physical table mapping
-                base_table = table.get('base_table')
-                if not base_table or not all(key in base_table for key in ['database', 'schema', 'table']):
-                    suggestions.append(f"Table '{table['name']}' has incomplete base table mapping. Ensure 'database', 'schema', and 'table' are defined.")
+                base_table = table.get("base_table")
+                if not base_table or not all(
+                    key in base_table for key in ["database", "schema", "table"]
+                ):
+                    suggestions.append(
+                        f"Table '{table['name']}' has incomplete base table mapping. Ensure 'database', 'schema', and 'table' are defined."
+                    )
 
                 # Check for dimensions, measures, and filters
-                if not table.get('dimensions'):
-                    suggestions.append(f"Table '{table['name']}' has no dimensions. Consider adding some dimensions.")
-                if not table.get('measures'):
-                    suggestions.append(f"Table '{table['name']}' has no measures. Consider adding some measures.")
-                if not table.get('filters'):
-                    suggestions.append(f"Table '{table['name']}' has no filters. Consider adding some filters.")
+                if not table.get("dimensions"):
+                    suggestions.append(
+                        f"Table '{table['name']}' has no dimensions. Consider adding some dimensions."
+                    )
+                if not table.get("measures"):
+                    suggestions.append(
+                        f"Table '{table['name']}' has no measures. Consider adding some measures."
+                    )
+                if not table.get("filters"):
+                    suggestions.append(
+                        f"Table '{table['name']}' has no filters. Consider adding some filters."
+                    )
 
                 # Check for time dimensions
-                if 'time_dimensions' not in table or not table['time_dimensions']:
-                    suggestions.append(f"Table '{table['name']}' has no time dimensions. Consider adding time dimensions for time-based analysis.")
+                if "time_dimensions" not in table or not table["time_dimensions"]:
+                    suggestions.append(
+                        f"Table '{table['name']}' has no time dimensions. Consider adding time dimensions for time-based analysis."
+                    )
 
                 # Check for synonyms and sample_values
-                for element in table.get('dimensions', []) + table.get('measures', []) + table.get('filters', []) + table.get('time_dimensions', []):
-                    if element.get('synonyms'):
+                for element in (
+                    table.get("dimensions", [])
+                    + table.get("measures", [])
+                    + table.get("filters", [])
+                    + table.get("time_dimensions", [])
+                ):
+                    if element.get("synonyms"):
                         tables_with_synonyms += 1
-                        for synonym in element['synonyms']:
+                        for synonym in element["synonyms"]:
                             if synonym in synonyms:
                                 synonym_conflicts.add(synonym)
                             synonyms.add(synonym)
 
-                    if 'sample_values' in element and len(element['sample_values']) >= 5:
+                    if (
+                        "sample_values" in element
+                        and len(element["sample_values"]) >= 5
+                    ):
                         tables_with_sample_values += 1
 
             # Suggestions for synonyms
             if tables_with_synonyms < len(tables) / 2:
-                suggestions.append("Consider adding synonyms to at least half of the dimensions, measures, and filters for better searchability.")
+                suggestions.append(
+                    "Consider adding synonyms to at least half of the dimensions, measures, and filters for better searchability."
+                )
 
             if synonym_conflicts:
-                suggestions.append(f"Synonyms {', '.join(synonym_conflicts)} are not unique across the semantic model. Consider making synonyms unique.")
+                suggestions.append(
+                    f"Synonyms {', '.join(synonym_conflicts)} are not unique across the semantic model. Consider making synonyms unique."
+                )
 
             # Suggestions for sample_values
             if tables_with_sample_values < len(tables) / 2:
-                suggestions.append("Consider adding at least five examples of 'sample_values' on at least half of the measures, dimensions, and time dimensions for better examples in your model.")
+                suggestions.append(
+                    "Consider adding at least five examples of 'sample_values' on at least half of the measures, dimensions, and time dimensions for better examples in your model."
+                )
 
         return suggestions
+
     # Define a global map to store semantic models by thread_id
 
-    def initialize_semantic_model(self, model_name=None, model_description=None, thread_id=None):
+    def initialize_semantic_model(
+        self, model_name=None, model_description=None, thread_id=None
+    ):
         """
         Creates an empty semantic model and stores it in a map with the thread_id as the key.
-        
+
         Args:
             model_name (str): The name of the model to initialize.
             thread_id (str): The unique identifier for the thread.
         """
         # Create an empty semantic model
         if not model_name:
-             return {"Success": False, "Error": "model_name not provided"}
-        
-        empty_model = self.create_empty_semantic_model(model_name=model_name, model_description=model_description)
+            return {"Success": False, "Error": "model_name not provided"}
+
+        empty_model = self.create_empty_semantic_model(
+            model_name=model_name, model_description=model_description
+        )
         # Store the model in the map using thread_id as the key
         map_key = thread_id + "__" + model_name
         self.semantic_models_map[map_key] = empty_model
 
         if empty_model is not None:
-            return {"Success": True, "Message": f"The model {model_name} has been initialized."}
+            return {
+                "Success": True,
+                "Message": f"The model {model_name} has been initialized.",
+            }
         else:
             return {"Success": False, "Error": "Failed to initialize the model."}
 
-    def modify_and_update_semantic_model(self, model_name, command, parameters=None, thread_id=None):
+    def modify_and_update_semantic_model(
+        self, model_name, command, parameters=None, thread_id=None
+    ):
         """
         Modifies the semantic model based on the provided modifications, updates the model in the map,
         and returns the modified semantic model without the resulting YAML. Ensures that only one thread
@@ -3981,23 +5095,26 @@ GRANT USAGE ON INTEGRATION GENESIS_EAI TO APPLICATION   IDENTIFIER($APP_DATABASE
             # Retrieve the semantic model from the map
             semantic_model = self.semantic_models_map.get(map_key)
             if not semantic_model:
-                raise ValueError(f"No semantic model found for model_name: {model_name} and thread_id: {thread_id}")
+                raise ValueError(
+                    f"No semantic model found for model_name: {model_name} and thread_id: {thread_id}"
+                )
 
             # Call modify_semantic_model with the retrieved model and the modifications
-            result = self.modify_semantic_model(semantic_model=semantic_model, command=command, parameters=parameters)
+            result = self.modify_semantic_model(
+                semantic_model=semantic_model, command=command, parameters=parameters
+            )
 
             # Check if 'semantic_yaml' is in the result and store it back into the map
-            if 'semantic_yaml' in result:
-                self.semantic_models_map[map_key] = result['semantic_yaml']
+            if "semantic_yaml" in result:
+                self.semantic_models_map[map_key] = result["semantic_yaml"]
                 # Strip 'semantic_yaml' parameter from result
-                del result['semantic_yaml']
+                del result["semantic_yaml"]
 
                 # Call the suggestions function with the model and add the suggestions to the result
-           #     suggestions_result = self.suggest_improvements(self.semantic_models_map[map_key])
-           #     result['suggestions'] = suggestions_result
+            #     suggestions_result = self.suggest_improvements(self.semantic_models_map[map_key])
+            #     result['suggestions'] = suggestions_result
             # Return the modified semantic model without the resulting YAML
             return result
-
 
     def get_semantic_model(self, model_name, thread_id):
         """
@@ -4018,9 +5135,14 @@ GRANT USAGE ON INTEGRATION GENESIS_EAI TO APPLICATION   IDENTIFIER($APP_DATABASE
         if semantic_yaml:
             return {"Success": True, "SemanticModel": yaml.dump(semantic_yaml)}
         else:
-            return {"Success": False, "Error": f"No semantic model found for model_name: {model_name} and thread_id: {thread_id}"}
+            return {
+                "Success": False,
+                "Error": f"No semantic model found for model_name: {model_name} and thread_id: {thread_id}",
+            }
 
-    def deploy_semantic_model(self, model_name=None, target_name=None, prod=False, thread_id=None):
+    def deploy_semantic_model(
+        self, model_name=None, target_name=None, prod=False, thread_id=None
+    ):
 
         map_key = thread_id + "__" + model_name
         # Retrieve the semantic model from the map
@@ -4040,19 +5162,24 @@ GRANT USAGE ON INTEGRATION GENESIS_EAI TO APPLICATION   IDENTIFIER($APP_DATABASE
             else:
                 yaml_file_name = f"{target_name}.yaml"
             # Save the YAML string to the stage
-            db, sch = self.genbot_internal_project_and_schema.split('.')
+            db, sch = self.genbot_internal_project_and_schema.split(".")
             self.add_file_to_stage(
                 database=db,
                 schema=sch,
                 stage=stage_name,
                 file_name=yaml_file_name,
-                file_content=semantic_yaml_str
+                file_content=semantic_yaml_str,
             )
-            print(f"Semantic YAML for model '{model_name}' saved to stage '{stage_name}'.")
+            print(
+                f"Semantic YAML for model '{model_name}' saved to stage '{stage_name}'."
+            )
         except Exception as e:
-            return {"Success": False, "Error": f"Failed to save semantic YAML to stage '{stage_name}': {e}"}
+            return {
+                "Success": False,
+                "Error": f"Failed to save semantic YAML to stage '{stage_name}': {e}",
+            }
 
-    def load_semantic_model(self, model_name,  prod=False, thread_id=None):
+    def load_semantic_model(self, model_name, prod=False, thread_id=None):
         """
         Loads a semantic model from the specified stage into the semantic models map.
 
@@ -4068,21 +5195,23 @@ GRANT USAGE ON INTEGRATION GENESIS_EAI TO APPLICATION   IDENTIFIER($APP_DATABASE
         stage_name = "SEMANTIC_MODELS" if prod else "SEMANTIC_MODELS_DEV"
         # Define the file name for the YAML file
         yaml_file_name = model_name
-        if not yaml_file_name.endswith('.yaml'):
-            yaml_file_name += '.yaml'
+        if not yaml_file_name.endswith(".yaml"):
+            yaml_file_name += ".yaml"
         # Attempt to read the YAML file from the stage
         try:
-            db, sch = self.genbot_internal_project_and_schema.split('.')
+            db, sch = self.genbot_internal_project_and_schema.split(".")
             if thread_id is None:
-                thread_id = ''.join(random.choices(string.ascii_letters + string.digits, k=6))
+                thread_id = "".join(
+                    random.choices(string.ascii_letters + string.digits, k=6)
+                )
 
             file_content = self.read_file_from_stage(
                 database=db,
                 schema=sch,
                 stage=stage_name,
                 file_name=yaml_file_name,
-                return_contents=True, 
-                thread_id=thread_id
+                return_contents=True,
+                thread_id=thread_id,
             )
             if file_content:
                 # Convert YAML content to a Python object
@@ -4091,11 +5220,20 @@ GRANT USAGE ON INTEGRATION GENESIS_EAI TO APPLICATION   IDENTIFIER($APP_DATABASE
                 map_key = thread_id + "__" + model_name
                 # Store the semantic model in the map
                 self.semantic_models_map[map_key] = semantic_model
-                return {"Success": True, "Message": f"Semantic model '{model_name}' loaded from stage '{stage_name}'."}
+                return {
+                    "Success": True,
+                    "Message": f"Semantic model '{model_name}' loaded from stage '{stage_name}'.",
+                }
             else:
-                return {"Success": False, "Error": f"Semantic model '{model_name}' not found in stage '{stage_name}'."}
+                return {
+                    "Success": False,
+                    "Error": f"Semantic model '{model_name}' not found in stage '{stage_name}'.",
+                }
         except Exception as e:
-            return {"Success": False, "Error": f"Failed to load semantic model from stage '{stage_name}': {e}"}
+            return {
+                "Success": False,
+                "Error": f"Failed to load semantic model from stage '{stage_name}': {e}",
+            }
 
     def list_semantic_models(self, prod=None, thread_id=None):
         """
@@ -4105,7 +5243,7 @@ GRANT USAGE ON INTEGRATION GENESIS_EAI TO APPLICATION   IDENTIFIER($APP_DATABASE
             dict: A JSON object containing the lists of models in production and non-production stages.
         """
         # Split the combined project and schema string into separate database and schema variables
-        db, sch = self.genbot_internal_project_and_schema.split('.')
+        db, sch = self.genbot_internal_project_and_schema.split(".")
         prod_stage_name = "SEMANTIC_MODELS"
         dev_stage_name = "SEMANTIC_MODELS_DEV"
         prod_models = []
@@ -4113,68 +5251,73 @@ GRANT USAGE ON INTEGRATION GENESIS_EAI TO APPLICATION   IDENTIFIER($APP_DATABASE
         try:
             # List models in production stage
             prod_stage_contents = self.list_stage_contents(
-                database=db,
-                schema=sch,
-                stage=prod_stage_name
+                database=db, schema=sch, stage=prod_stage_name
             )
-            prod_models = [model['name'] for model in prod_stage_contents]
+            prod_models = [model["name"] for model in prod_stage_contents]
 
             # List models in non-production stage
             dev_stage_contents = self.list_stage_contents(
-                database=db,
-                schema=sch,
-                stage=dev_stage_name
+                database=db, schema=sch, stage=dev_stage_name
             )
-            dev_models = [model['name'] for model in dev_stage_contents]
+            dev_models = [model["name"] for model in dev_stage_contents]
 
-            prod_models = [model.split('/')[-1] if '/' in model else model for model in prod_models]
-            dev_models = [model.split('/')[-1] if '/' in model else model for model in dev_models]
-            prod_models = [model.replace('.yaml', '') for model in prod_models]
-            dev_models = [model.replace('.yaml', '') for model in dev_models]
-            return {
-                "Success": True,
-                "ProdModels": prod_models,
-                "DevModels": dev_models
-            }
+            prod_models = [
+                model.split("/")[-1] if "/" in model else model for model in prod_models
+            ]
+            dev_models = [
+                model.split("/")[-1] if "/" in model else model for model in dev_models
+            ]
+            prod_models = [model.replace(".yaml", "") for model in prod_models]
+            dev_models = [model.replace(".yaml", "") for model in dev_models]
+            return {"Success": True, "ProdModels": prod_models, "DevModels": dev_models}
         except Exception as e:
-            return {
-                "Success": False,
-                "Error": str(e)
-            }
+            return {"Success": False, "Error": str(e)}
 
-    def db_remove_bot_tools(self, project_id=None, dataset_name=None, bot_servicing_table=None, bot_id=None, updated_tools_str=None, tools_to_be_removed=None, invalid_tools=None, updated_tools=None):
+    def db_remove_bot_tools(
+        self,
+        project_id=None,
+        dataset_name=None,
+        bot_servicing_table=None,
+        bot_id=None,
+        updated_tools_str=None,
+        tools_to_be_removed=None,
+        invalid_tools=None,
+        updated_tools=None,
+    ):
 
-            # Query to update the available_tools in the database
-            update_query = f"""
+        # Query to update the available_tools in the database
+        update_query = f"""
                 UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
                 SET available_tools = %s
                 WHERE upper(bot_id) = upper(%s)
             """
 
-            # Execute the update query
-            try:
-                cursor = self.connection.cursor()
-                cursor.execute(update_query, (updated_tools_str, bot_id))
-                self.connection.commit()
-                logger.info(f"Successfully updated available_tools for bot_id: {bot_id}")
+        # Execute the update query
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute(update_query, (updated_tools_str, bot_id))
+            self.connection.commit()
+            logger.info(f"Successfully updated available_tools for bot_id: {bot_id}")
 
-                return {
-                    "success": True,
-                    "removed": tools_to_be_removed,
-                    "invalid tools": invalid_tools,
-                    "all_bot_tools": updated_tools
-                }
+            return {
+                "success": True,
+                "removed": tools_to_be_removed,
+                "invalid tools": invalid_tools,
+                "all_bot_tools": updated_tools,
+            }
 
-            except Exception as e:
-                logger.error(f"Failed to remove tools from bot_id: {bot_id} with error: {e}")
-                return {"success": False, "error": str(e)}
-        
+        except Exception as e:
+            logger.error(
+                f"Failed to remove tools from bot_id: {bot_id} with error: {e}"
+            )
+            return {"success": False, "error": str(e)}
+
     def extract_knowledge(self, primary_user, bot_id):
-        bot_name, bot_serial = bot_id.split('-')
+        bot_name, bot_serial = bot_id.split("-")
         query = f"""SELECT THREAD_SUMMARY, USER_LEARNING, TOOL_LEARNING, DATA_LEARNING FROM {self.knowledge_table_name} 
                     WHERE primary_user = '{primary_user}' AND BOT_ID LIKE '{bot_name}%'
                     ORDER BY TIMESTAMP DESC
-                    LIMIT 1;""" 
+                    LIMIT 1;"""
         knowledge = self.run_query(query)
         if knowledge:
             return knowledge[0]
@@ -4183,28 +5326,32 @@ GRANT USAGE ON INTEGRATION GENESIS_EAI TO APPLICATION   IDENTIFIER($APP_DATABASE
 
 def test_stage_functions():
     # Create a test instance of SnowflakeConnector
-    test_connector = SnowflakeConnector('Snowflake')
+    test_connector = SnowflakeConnector("Snowflake")
 
     # Call the list_stage method with the specified parameters
     stage_list = test_connector.list_stage_contents(
-        database="GENESIS_TEST",
-        schema="GENESIS_INTERNAL",
-        stage="SEMANTIC_STAGE"
+        database="GENESIS_TEST", schema="GENESIS_INTERNAL", stage="SEMANTIC_STAGE"
     )
 
     # Print the result
     print(stage_list)
-    
+
     for file_info in stage_list:
-        file_name = file_info['name'].split('/')[-1]  # Extract the file name
-        file_size = file_info['size']
-        file_md5 = file_info['md5']
-        file_last_modified = file_info['last_modified']
+        file_name = file_info["name"].split("/")[-1]  # Extract the file name
+        file_size = file_info["size"]
+        file_md5 = file_info["md5"]
+        file_last_modified = file_info["last_modified"]
         print(f"Reading file: {file_name}")
         print(f"Size: {file_size} bytes")
         print(f"MD5: {file_md5}")
         print(f"Last Modified: {file_last_modified}")
-        file_content = test_connector.read_file_from_stage(database="GENESIS_TEST", schema="GENESIS_INTERNAL", stage="SEMANTIC_STAGE", file_name=file_name, return_contents=True)
+        file_content = test_connector.read_file_from_stage(
+            database="GENESIS_TEST",
+            schema="GENESIS_INTERNAL",
+            stage="SEMANTIC_STAGE",
+            file_name=file_name,
+            return_contents=True,
+        )
         print(file_content)
 
         # Call the function to write 'tostage.txt' to the stage
@@ -4212,9 +5359,9 @@ def test_stage_functions():
         database="GENESIS_TEST",
         schema="GENESIS_INTERNAL",
         stage="SEMANTIC_STAGE",
-        file_name="tostage.txt")
+        file_name="tostage.txt",
+    )
     print(result)
-
 
     # Read the 'tostage.txt' file from the stage
     tostage_content = test_connector.read_file_from_stage(
@@ -4222,8 +5369,7 @@ def test_stage_functions():
         schema="GENESIS_INTERNAL",
         stage="SEMANTIC_STAGE",
         file_name="tostage.txt",
-        return_contents=True
-
+        return_contents=True,
     )
     print("Content of 'tostage.txt':")
     print(tostage_content)
@@ -4234,13 +5380,13 @@ def test_stage_functions():
     # Function to generate a random string of fixed length
     def random_string(length=10):
         letters = string.ascii_letters
-        return ''.join(random.choice(letters) for i in range(length))
+        return "".join(random.choice(letters) for i in range(length))
 
     # Generate a random string
     random_str = random_string()
 
     # Append the random string to the 'tostage.txt' file
-    with open('./stage_files/tostage.txt', 'a') as file:
+    with open("./stage_files/tostage.txt", "a") as file:
         file.write(f"{random_str}\n")
 
     print(f"Appended random string to 'tostage.txt': {random_str}")
@@ -4250,7 +5396,7 @@ def test_stage_functions():
         database="GENESIS_TEST",
         schema="GENESIS_INTERNAL",
         stage="SEMANTIC_STAGE",
-        file_name="tostage.txt"
+        file_name="tostage.txt",
     )
     print(f"Update result for 'tostage.txt': {update_result}")
 
@@ -4260,16 +5406,18 @@ def test_stage_functions():
         schema="GENESIS_INTERNAL",
         stage="SEMANTIC_STAGE",
         file_name="tostage.txt",
-        return_contents=False
+        return_contents=False,
     )
 
     # Load new_version_contents from the file returned by new_version_filename
-    with open("./stage_files/"+new_version_filename, 'r') as file:
+    with open("./stage_files/" + new_version_filename, "r") as file:
         new_version_content = file.read()
-    
+
     # Split the content into lines and check the last line for the random string
-    lines = new_version_content.split('\n')
-    if lines[-2].strip() == random_str:  # -2 because the last element is an empty string due to the trailing newline
+    lines = new_version_content.split("\n")
+    if (
+        lines[-2].strip() == random_str
+    ):  # -2 because the last element is an empty string due to the trailing newline
         print("The last line in the new version contains the random string.")
     else:
         print("The second to last line is:", lines[-2])
@@ -4280,21 +5428,20 @@ def test_stage_functions():
         database="GENESIS_TEST",
         schema="GENESIS_INTERNAL",
         stage="SEMANTIC_STAGE",
-        file_name="tostage.txt"
+        file_name="tostage.txt",
     )
     print(f"Delete result for 'tostage.txt': {delete_result}")
 
     # Re-list the stage contents to confirm deletion of 'tostage.txt'
     stage_list_after_deletion = test_connector.list_stage_contents(
-        database="GENESIS_TEST",
-        schema="GENESIS_INTERNAL",
-        stage="SEMANTIC_STAGE"
+        database="GENESIS_TEST", schema="GENESIS_INTERNAL", stage="SEMANTIC_STAGE"
     )
 
     # Check if 'tostage.txt' is in the stage list after deletion
-    file_names_after_deletion = [file_info['name'].split('/')[-1] for file_info in stage_list_after_deletion]
+    file_names_after_deletion = [
+        file_info["name"].split("/")[-1] for file_info in stage_list_after_deletion
+    ]
     if "tostage.txt" not in file_names_after_deletion:
         print("'tostage.txt' has been successfully deleted from the stage.")
     else:
         print("Error: 'tostage.txt' is still present in the stage.")
-

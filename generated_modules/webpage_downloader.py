@@ -72,10 +72,7 @@ TOOL_FUNCTION_DESCRIPTION_WEBPAGE_DOWNLOADER = {
         }
     }
 }
-# End of Generated Description
 
-# Start of Generated Mapping
 webpage_tools = {"webpage_downloader--download_webpage": download_webpage}
 webpage_downloader_action_function_mapping = {"webpage_downloader--download_webpage": download_webpage}
 
-# End of Generated Mapping

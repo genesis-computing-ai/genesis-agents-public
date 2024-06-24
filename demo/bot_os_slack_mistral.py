@@ -52,7 +52,7 @@ session = BotOsSession(
     instructions=ELSA_DATA_ANALYST_INSTRUCTIONS_MISTRAL,
     # validation_intructions="Please double check and improve your answer if necessary.",
     input_adapters=[slack_adapter],  # , email_adapter],
-    asistant_implementaion=BotOsAssistantMistral,
+    assistant_implementaion=BotOsAssistantMistral,
     available_functions={
         "run_query": bind_run_query([bigquery_connector]),
         "search_metadata": bind_search_metadata(

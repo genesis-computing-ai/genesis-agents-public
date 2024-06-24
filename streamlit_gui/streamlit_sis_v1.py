@@ -1,19 +1,17 @@
 import streamlit as st
-import os, json
-import base64
+import json
 
 app_name = "GENESIS_BOTS"
 prefix = app_name + ".app1"
 core_prefix = app_name + ".CORE"
 
 # Retrieve the current database name from Snowflake and set it to app_name
-
 st.set_page_config(layout="wide")
 
 if "wh_name" not in st.session_state:
     st.session_state["wh_name"] = "XSMALL"
 
-SnowMode = True
+NativeMode = True
 
 import time
 import uuid
@@ -21,12 +19,12 @@ import datetime
 import pandas as pd
 
 try:
-    if SnowMode:
+    if NativeMode:
         from snowflake.snowpark.context import get_active_session
 
         session = get_active_session()
 except:
-    SnowMode = False
+    NativeMode = False
 
 
 def provide_slack_level_key(bot_id=None, slack_app_level_key=None):
@@ -34,15 +32,15 @@ def provide_slack_level_key(bot_id=None, slack_app_level_key=None):
     import requests
     import json
 
-    print(SnowMode)
-    if SnowMode:
+    print(f"Snow Mode: {NativeMode}")
+    if NativeMode:
 
         sql = f"select {prefix}.set_bot_app_level_key('{bot_id}','{slack_app_level_key}') "
         data = session.sql(sql).collect()
         response = json.loads(data[0][0])
         return response
 
-    # add SnowMode
+    # add NativeMode
     url = "http://127.0.0.1:8080/udf_proxy/set_bot_app_level_key"
     headers = {"Content-Type": "application/json"}
 
@@ -59,14 +57,14 @@ def get_slack_tokens():
     import requests
     import json
 
-    if SnowMode:
+    if NativeMode:
 
         sql = f"select {prefix}.get_slack_endpoints() "
         data = session.sql(sql).collect()
         response = json.loads(data[0][0])
         return response
 
-    # add SnowMode
+    # add NativeMode
     url = "http://127.0.0.1:8080/udf_proxy/get_slack_tokens"
     headers = {"Content-Type": "application/json"}
 
@@ -85,7 +83,7 @@ def get_ngrok_tokens():
     import requests
     import json
 
-    if SnowMode:
+    if NativeMode:
         sql = f"select {prefix}.get_ngrok_tokens() "
         data = session.sql(sql).collect()
         response = json.loads(data[0][0])
@@ -93,7 +91,7 @@ def get_ngrok_tokens():
 
     else:
 
-        # add SnowMode
+        # add NativeMode
         url = "http://127.0.0.1:8080/udf_proxy/get_ngrok_tokens"
         headers = {"Content-Type": "application/json"}
 
@@ -119,15 +117,15 @@ def set_ngrok_token(ngrok_auth_token, ngrok_use_domain, ngrok_domain):
     import requests
     import json
 
-    print(SnowMode)
-    if SnowMode:
+    print(NativeMode)
+    if NativeMode:
 
         sql = f"select {prefix}.configure_ngrok_token('{ngrok_auth_token}','{ngrok_use_domain}','{ngrok_domain}') "
         data = session.sql(sql).collect()
         response = json.loads(data[0][0])
         return response
 
-    # add SnowMode
+    # add NativeMode
     url = "http://127.0.0.1:8080/udf_proxy/configure_ngrok_token"
     headers = {"Content-Type": "application/json"}
 
@@ -150,7 +148,7 @@ def set_slack_tokens(slack_app_token, slack_app_refresh_token):
     import requests
     import json
 
-    if SnowMode:
+    if NativeMode:
 
         sql = f"select {prefix}.configure_slack_app_token('{slack_app_token}','{slack_app_refresh_token}') "
         data = session.sql(sql).collect()
@@ -176,10 +174,10 @@ def get_bot_details():
     import requests
     import json
 
-    # add SnowMode
+    # add NativeMode
     #    st.write('get bot details start')
 
-    if SnowMode:
+    if NativeMode:
 
         for _ in range(5):
             sql = f"select {prefix}.list_available_bots() "
@@ -214,8 +212,7 @@ def configure_llm(llm_model_name, llm_api_key):
     import requests
     import json
 
-    if SnowMode:
-
+    if NativeMode:
         sql = f"select {prefix}.configure_llm('{llm_model_name}', '{llm_api_key}') "
         data = session.sql(sql).collect()
         response = data[0][0]
@@ -240,7 +237,7 @@ def get_metadata(metadata_type):
     import requests
     import json
 
-    if SnowMode:
+    if NativeMode:
 
         sql = f"select {prefix}.get_metadata('{metadata_type}') "
         data = session.sql(sql).collect()
@@ -274,7 +271,7 @@ def submit_to_udf_proxy(input_text, thread_id, bot_id):
         "bot_id": bot_id,
     }
 
-    if SnowMode:
+    if NativeMode:
         try:
             sql = "select {}.submit_udf(?, ?, ?)".format(prefix)
             data = session.sql(
@@ -305,7 +302,7 @@ def get_response_from_udf_proxy(uu, bot_id):
 
     # add snowmode
 
-    if SnowMode:
+    if NativeMode:
 
         try:
             # sql = f"select {prefix}.lookup_udf('{uu}', '{bot_id}') "
@@ -339,7 +336,7 @@ def deploy_bot(bot_id):
     import requests
     import json
 
-    if SnowMode:
+    if NativeMode:
 
         sql = f"select {prefix}.deploy_bot('{bot_id}') "
         data = session.sql(sql).collect()
@@ -1636,7 +1633,7 @@ def check_status():
     return service_status_result[0][0]
 
 
-if SnowMode:
+if NativeMode:
     try:
         # status_query = f"select v.value:status::varchar status from (select parse_json(system$get_service_status('{prefix}.GENESISAPP_SERVICE_SERVICE'))) t, lateral flatten(input => t.$1) v"
         # service_status_result = session.sql(status_query).collect()
@@ -1711,7 +1708,7 @@ if data:
     if st.session_state.get("needs_keys", False):
         del pages["Chat with Bots"]
 
-    #    if SnowMode == True:
+    #    if NativeMode == True:
     #        del pages["Setup Ngrok"]
 
     st.sidebar.title("Genesis Bots Configuration")

@@ -1280,7 +1280,3 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       for thread_id in threads_still_pending:
          if thread_id not in self.active_runs:
              self.active_runs.append(thread_id)
-
-
-
-            

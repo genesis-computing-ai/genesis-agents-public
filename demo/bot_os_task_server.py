@@ -281,7 +281,7 @@ else:
 app = Flask(__name__)
 
 # add routers to a map of bot_ids if we allow multiple bots to talk this way via one UDF
-
+assistant
 # @app.route("/udf_proxy/lookup_ui", methods=["GET", "POST"])
 # def lookup_fn():
 #    return udf_adapter.lookup_fn()

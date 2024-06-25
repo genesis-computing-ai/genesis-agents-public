@@ -991,21 +991,22 @@ def grant_data():
         + chr(36)
         + chr(36)
         + """
+        var dbName = `"${DATABASE_NAME.replace(/"/g, '')}"`;
         var connection = snowflake.createStatement({
-            sqlText: `SELECT SCHEMA_NAME FROM ${DATABASE_NAME}.INFORMATION_SCHEMA.SCHEMATA`
+            sqlText: `SELECT '"' || REPLACE(replace(SCHEMA_NAME,'"',''), '.', '"."') || '"' as SCHEMA_NAME FROM ${dbName}.INFORMATION_SCHEMA.SCHEMATA`
         });
         var result = connection.execute();
         
         while (result.next()) {
             var schemaName = result.getColumnValue(1);
-            if (schemaName === 'INFORMATION_SCHEMA') {
+            if (schemaName === '"INFORMATION_SCHEMA"') {
                 continue;
             }
             var sqlCommands = [
-                `GRANT USAGE ON DATABASE ${DATABASE_NAME} TO APPLICATION ${APP_NAME}`,
-                `GRANT USAGE ON SCHEMA ${DATABASE_NAME}.${schemaName} TO APPLICATION ${APP_NAME}`,
-                `GRANT SELECT ON ALL TABLES IN SCHEMA ${DATABASE_NAME}.${schemaName} TO APPLICATION ${APP_NAME}`,
-                `GRANT SELECT ON ALL VIEWS IN SCHEMA ${DATABASE_NAME}.${schemaName} TO APPLICATION ${APP_NAME}`,
+                `GRANT USAGE ON DATABASE ${dbName} TO APPLICATION ${APP_NAME}`,
+                `GRANT USAGE ON SCHEMA ${dbName}.${schemaName} TO APPLICATION ${APP_NAME}`,
+                `GRANT SELECT ON ALL TABLES IN SCHEMA ${dbName}.${schemaName} TO APPLICATION ${APP_NAME}`,
+                `GRANT SELECT ON ALL VIEWS IN SCHEMA ${dbName}.${schemaName} TO APPLICATION ${APP_NAME}`,
             ];
             
             for (var i = 0; i < sqlCommands.length; i++) {
@@ -1034,7 +1035,7 @@ def grant_data():
     -- users. So grant data in this manner only to non-sensitive data that is ok for any Slack user to view, or first have 
     -- Eve limit the access to the Database Tools-enabled bots to only select users on Slack.
 
-    -- Replace <your app name> with the name of your database you want to grant
+    -- Replace <your app name> with the name of your database you want to grant. Note, the database name is case-sensitive
     call GENESIS_LOCAL_DB.SETTINGS.grant_schema_usage_and_select_to_app('<your db name>',$APP_DATABASE);
 
     -- If you want to grant data that has been shared to you via Snowflake data sharing, use this process below instead

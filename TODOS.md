@@ -11,9 +11,9 @@ x Move available_functions (all_functions) to a central object and log it and mo
 x (added logging on output submission) when calling a single tool like search metadata they dont respond
 x JL-Folder of files upload 
 JL-Mistral harvester
-MR-task to grant the workspaces to app_public periodically
-MR-task to capture what is granted and then re-grant later if needed
-MR - make this work on multicase call GENESIS_LOCAL_DB.SETTINGS.grant_schema_usage_and_select_to_app('MY_DATA',$APP_DATABASE); (fix in SiS script)
+x (happens anytime an object is created in the workspace by the bot) MR-task to grant the workspaces to app_public periodically
+x MR-task to capture what is granted and then re-grant later if needed
+x MR - make this work on multicase call GENESIS_LOCAL_DB.SETTINGS.grant_schema_usage_and_select_to_app('MY_DATA',$APP_DATABASE); (fix in SiS script)
 MR-SiS app will restart service is suspended (With pool) but doesnt wake up harvester, errors in SiS log harvest screen
 x RV-(couple fixes) Add USERS field to messages log table to keep track of the users involved in a thread or dm
 Turn on MFA on accounts
@@ -28,7 +28,7 @@ Files in and out of streamlit
 catch missing files from stage at startup, and let the bot know they are missing 
 JL-Have DMs also get history if they are not threadded, give the past n DMs too 
 JL-Give Kevin's docs to Jenny and see if she can answer q's based on them
-MR-add the bot images table and view to the copy program to other regions
+x (automatically replicates with LAF) MR-add the bot images table and view to the copy program to other regions
 analyzing data that is added first 
 (soon) add the ability for send_direct and _channel messages to have created files in them (works for images, not for graphs/pdfs - maybe a tool to save file locally and retrigger thread...?) 
 (soon) Add undeploy from Slack button on bot config

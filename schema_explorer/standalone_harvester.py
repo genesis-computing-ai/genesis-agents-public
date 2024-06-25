@@ -17,7 +17,8 @@ logging.basicConfig(level=logging.WARN, format='%(asctime)s - %(levelname)s - %(
 genesis_source = os.getenv('GENESIS_SOURCE',default="BigQuery")
 
 print("waiting 60 seconds for other services to start first...", flush=True)
-time.sleep(60)
+if os.getenv('HARVEST_TEST', 'FALSE') != 'TRUE':
+    time.sleep(60)
 
 ### LLM KEY STUFF
 print('Starting harvester... ')
@@ -139,7 +140,11 @@ def update_harvest_control_with_new_databases(connector):
 # Check and update harvest control data if the source is Snowflake
 
 refresh_seconds = os.getenv("HARVESTER_REFRESH_SECONDS", 60)
+
 refresh_seconds = int(refresh_seconds)
+if os.getenv("HARVEST_TEST", "FALSE").upper() == "TRUE":
+    refresh_seconds = 5
+
 
 print("     [-------]     ")
 print("    [         ]    ")

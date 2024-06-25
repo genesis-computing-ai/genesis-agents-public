@@ -57,6 +57,27 @@ class SnowflakeConnector(DatabaseConnector):
         self.token_connection = False
         self.connection = self._create_connection()
         self.semantic_models_map = {}
+        self.cortex_mode = False 
+        if os.getenv('USE_CORTEX_IF_AVAILABLE', 'FALSE').upper() == 'TRUE':
+            print('Testing for Cortex availability...')
+            cortex_test = self.run_query("select snowflake.cortex.complete('reka-flash','what is 1+1')")
+            try:
+                result_value = next(iter(cortex_test[0].values()))
+                if result_value:
+                    print(f"Result value: {result_value}")
+                    self.cortex_mode = True
+            except:
+                pass
+     #       self.snowpark_session = self._create_snowpark_connection()
+        if False and self.snowpark_session is not None:
+            p = "Please provide a brief summary of a database table in the 'SPIDER_DATA.BASEBALL' schema named 'BATTING'. This table includes the following columns: PLAYER_ID, YEAR, STINT, TEAM_ID, LEAGUE_ID, G, AB, R, H, DOUBLE, TRIPLE, HR, RBI, SB, CS, BB, SO, IBB, HBP, SH, SF, G_IDP."
+            prompt = [
+                {"role": "system", "content": "You an assistant that is great at explaining database tables and columns in natural language."},
+                {"role": "user", "content": p}
+             ]
+            r = self._cortex_complete("reka-flash",str(prompt))
+            print('cortex test:',r)
+   
 
         try:
             pass
@@ -65,7 +86,6 @@ class SnowflakeConnector(DatabaseConnector):
             print("Could not get REST Token: ", e)
 
         self.client = self.connection
-
         self.schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "GENESIS_INTERNAL")
 
         # self.client = self._create_client()
@@ -144,6 +164,39 @@ class SnowflakeConnector(DatabaseConnector):
         # make sure harvester control and results tables are available, if not create them
         # self.ensure_table_exists()
         self.source_name = "Snowflake"
+
+    def _create_snowpark_connection(self):
+        try:
+            from snowflake.snowpark import Session
+            from snowflake.cortex import Complete
+
+            connection_parameters = {
+                "account": os.getenv("SNOWFLAKE_ACCOUNT_OVERRIDE"),
+                "user": os.getenv("SNOWFLAKE_USER_OVERRIDE"),
+                "password": os.getenv("SNOWFLAKE_PASSWORD_OVERRIDE"),
+                "role": os.getenv("SNOWFLAKE_ROLE_OVERRIDE", "PUBLIC"),  # optional
+                "warehouse": os.getenv("SNOWFLAKE_WAREHOUSE_OVERRIDE", "XSMALL"),  # optional
+                "database": os.getenv("SNOWFLAKE_DATABASE_OVERRIDE", "GENESIS_TEST"),  # optional
+                "schema": os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "GENESIS_TEST.GENESIS_JL"),  # optional
+            }  
+
+            sp_session = Session.builder.configs(connection_parameters).create()
+
+        except Exception as e:
+            print(f'Cortex not available: {e}')
+            sp_session = None
+        return sp_session 
+
+    def _cortex_complete(self, model='reka-flash',prompt=None):
+        try:
+            from snowflake.cortex import Complete
+            result = Complete(model,str(prompt))
+        except Exception as e:
+            print(f'Cortex not available: {e}')
+            self.sp_session = None
+            result = None
+        return result  
+
 
     def sha256_hash_hex_string(self, input_string):
         # Encode the input string to bytes, then create a SHA256 hash and convert it to a hexadecimal string
@@ -2207,7 +2260,7 @@ class SnowflakeConnector(DatabaseConnector):
                 role=self.role,
                 client_session_keep_alive=True,
             )
-
+        
     # snowed
     def connector_type(self):
         return "snowflake"

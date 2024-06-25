@@ -3,31 +3,34 @@ GENESIS BOT TODOS
 =================
 
 SOON:
-x Fix sis streaming on Dev
-Test uploading lots of files to a folder (botos docs)
+have task server pickup newly added bots (when sees a task for a missing bot, add a session)..and refresh sessions if bot is updated (keep a timestamp for when bot was updated)
+generate files cant get added to stage
 n Allow files to be uploaded to stage without downloading them to slack
 Only upload a file to vector store if its not already there (and is the same.. using md5, track last md5 submitted) 
+x Fix sis streaming on Dev
+x Test uploading lots of files to a folder (botos docs)
 x Move available_functions (all_functions) to a central object and log it and monitor it
 x (added logging on output submission) when calling a single tool like search metadata they dont respond
 x JL-Folder of files upload 
+x RV-(couple fixes) Add USERS field to messages log table to keep track of the users involved in a thread or dm
+n MG-Do stripe setup for monitized listing
+x Give the bots the PDFs on the docs to Eve so she can answer stuff on them, with multipdf uploader to stage and grant of folder to bot  
+x JL-Give Kevin's docs to Jenny and see if she can answer q's based on them
+x JF-add a way to remove tools from bot
 JL-Mistral harvester
 x (happens anytime an object is created in the workspace by the bot) MR-task to grant the workspaces to app_public periodically
 x MR-task to capture what is granted and then re-grant later if needed
 x MR - make this work on multicase call GENESIS_LOCAL_DB.SETTINGS.grant_schema_usage_and_select_to_app('MY_DATA',$APP_DATABASE); (fix in SiS script)
 MR-SiS app will restart service is suspended (With pool) but doesnt wake up harvester, errors in SiS log harvest screen
-x RV-(couple fixes) Add USERS field to messages log table to keep track of the users involved in a thread or dm
 Turn on MFA on accounts
 MR - Have ability to give a bot its own oauth token or uid/pwd so it has its own RBAC
 JD- Make a bot Testy that tests the other bots (excercises and validates all their tools)
-MG-Do stripe setup for monitized listing
 JL- Add a way for user to provide new refresh key when making new bot
 (later) MR - harvest - formula1 doesnt come back if you delete the harvest rows
 MR-Add a service start/stop/restart buttons to SiS
-Give the bots the PDFs on the docs to Eve so she can answer stuff on them, with multipdf uploader to stage and grant of folder to bot  
 Files in and out of streamlit
 catch missing files from stage at startup, and let the bot know they are missing 
 JL-Have DMs also get history if they are not threadded, give the past n DMs too 
-JL-Give Kevin's docs to Jenny and see if she can answer q's based on them
 x (automatically replicates with LAF) MR-add the bot images table and view to the copy program to other regions
 analyzing data that is added first 
 (soon) add the ability for send_direct and _channel messages to have created files in them (works for images, not for graphs/pdfs - maybe a tool to save file locally and retrigger thread...?) 
@@ -35,7 +38,6 @@ analyzing data that is added first
 JL-(test more on spcs) Something blocks the thinking messages or bolt app when doing image analysis and/or file generation/upload to Slack
 RV-Learnings service, learns from each thread once its done about data, schema, tables, general stuff, people, etc. Stores and updates background knowledge. 
 RV-Injector to inject the right kind of knowledge into thread on these topics
-JF-add a way to remove tools from bot
 RV-User understanding system of what bot has done with the user recently (with summaries?)
 Ability to load whole stage folder to files for a bot
 bots that needs them

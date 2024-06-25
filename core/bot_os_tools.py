@@ -158,6 +158,9 @@ def get_tools(which_tools, db_adapter, slack_adapter_local=None, include_slack=T
     tools = []
     available_functions_load = {}
     function_to_tool_map = {}
+    if 'autonomous_functions' in which_tools and 'autonomous_tools' not in which_tools:
+        which_tools = [tool if tool != 'autonomous_functions' else 'autonomous_tools' for tool in which_tools]
+    which_tools = [tool for tool in which_tools if tool != 'autonomous_functions']
     for tool in which_tools:
         try:
             tool_name = tool.get("tool_name")

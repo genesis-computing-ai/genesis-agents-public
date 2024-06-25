@@ -16,6 +16,9 @@ class SchemaExplorer:
         self.model=os.getenv("OPENAI_HARVESTER_MODEL", 'gpt-4o')
         self.embedding_model = os.getenv("OPENAI_HARVESTER_EMBEDDING_MODEL", 'text-embedding-3-large')
         self.run_number = 0
+        self.cortex_model = os.getenv("CORTEX_HARVESTER_MODEL", 'reka-flash')
+        self.cortex_embedding_model = os.getenv("CORTEX_EMBEDDING_MODEL", 'nv-embed-qa-4')
+ 
         print("harvesting using models: ",self.model, self.embedding_model)
 
     def alt_get_ddl(self,table_name = None):
@@ -139,48 +142,65 @@ class SchemaExplorer:
         #self.memory_system.store_memory(memory_content, scope='database_metadata')
 
 
-
     def generate_summary(self, prompt):
-
-        response = self.client.chat.completions.create(
-
-            model=self.model,  # Adjust the model name as necessary
-            messages=[
-                {"role": "system", "content": "You an assistant that is great at explaining database tables and columns in natural language."},
-                {"role": "user", "content": prompt}
-            ]
-        )
-        # Assuming the response structure aligns with your example,
-        # extract the last message as the summary
-
-        return response.choices[0].message.content
+        p = [
+            {"role": "system", "content": "You are an assistant that is great at explaining database tables and columns in natural language."},
+            {"role": "user", "content": prompt}
+        ]
+        return self.run_prompt(p)
+    
+    def run_prompt(self, messages):
+        if self.db_connector.cortex_mode:
+            escaped_messages = str(messages).replace("'", "\\'")
+            completion_result = self.db_connector.run_query(f"select snowflake.cortex.complete('{self.cortex_model}','{escaped_messages}')")
+            try:
+                result_value = next(iter(completion_result[0].values()))
+                if result_value:
+                    print(f"Result value: {result_value}")
+            except:
+                print('Cortext complete didnt work')
+                result_value = ""
+            return result_value
+        else:
+            response = self.client.chat.completions.create(
+                model=self.model,  # Adjust the model name as necessary
+                messages=messages
+            )
+            return response.choices[0].message.content
     
     def get_ddl_short(self, ddl):
-
         prompt = f'Here is the full DDL for a table:\n{ddl}\n\nPlease make a new ddl_summary for this table.  If there are 15 or fewer fields, just include them all. If there are more, combine any that are similar and explain that there are more, and then pick the more important 15 fields to include in the ddl_summary.  Express it as DDL, but include comments about other similar fields, and then a comment summarizing the rest of the fields and noting to see the FULL_DDL to see all columns.  Return ONLY the DDL_SUMMARY, do NOT include preamble or other post-result commentary.'
-        response = self.client.chat.completions.create(
-
-            model=self.model,  # Adjust the model name as necessary
-            messages=[
-                {"role": "system", "content": "You an assistant that is great taking full table DDL and creating shorter DDL summaries."},
-                {"role": "user", "content": prompt}
-            ]
-        )
-        # Assuming the response structure aligns with your example,
-        # extract the last message as the summary
-
-        return response.choices[0].message.content
+        
+        messages = [
+            {"role": "system", "content": "You are an assistant that is great at taking full table DDL and creating shorter DDL summaries."},
+            {"role": "user", "content": prompt}
+        ]
+        
+        response = self.run_prompt(messages)
+        
+        return response
 
 
     def get_embedding(self, text):
-
-        response = self.client.embeddings.create(
-            model=self.embedding_model,
-            input=text.replace("\n", " ")  # Replace newlines with spaces
-        )
-        # Extracting the embedding from the response
-        embedding = response.data[0].embedding
-        return embedding
+        if False and self.db_connector.cortex_mode:
+            escaped_messages = str(text).replace("'", "\\'")
+            
+            embedding_result = self.db_connector.run_query(f"SELECT SNOWFLAKE.CORTEX.EMBED_TEXT_1024('{self.cortex_embedding_model}', '{escaped_messages}');")
+            try:
+                result_value = next(iter(embedding_result[0].values()))
+                if result_value:
+                    print(f"Result value len embedding: {len(result_value)}")
+            except:
+                print('Cortext complete didnt work')
+                result_value = ""
+            return result_value
+        else:
+            response = self.client.embeddings.create(
+                model=self.embedding_model,
+                input=text.replace("\n", " ")  # Replace newlines with spaces
+            )
+            embedding = response.data[0].embedding
+            return embedding
 
 
     def explore_schemas(self):
@@ -438,7 +458,7 @@ class SchemaExplorer:
                         self.store_table_memory(database, schema, table, summary, ddl=ddl, ddl_short=ddl_short)
                     except Exception as e:
                         print(f"Harvester Error on Object: {e}",flush=True)
-                        self.store_table_memory(database, schema, table, summary=f"Harvester Error: {e}", ddl="Harvester Error", ddl_short="Harvester Error", flush=True)
+                        self.store_table_memory(database, schema, table, summary=f"Harvester Error: {e}", ddl="Harvester Error", ddl_short="Harvester Error")
                     
                     local_summaries[qualified_table_name] = summary
                 return local_summaries

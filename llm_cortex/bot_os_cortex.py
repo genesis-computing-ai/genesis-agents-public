@@ -7,6 +7,7 @@ import os
 import time
 import uuid
 import threading
+from typing_extensions import override
 
 from connectors.snowflake_connector import SnowflakeConnector
 from core.bot_os_assistant_base import BotOsAssistantInterface, execute_function
@@ -28,10 +29,36 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         self.available_functions = available_functions
         self.bot_id = bot_id
         self.bot_name = bot_name
+        self.done_map = {}
+        self.thread_run_map = {}
+        self.active_runs = deque()
+        self.processing_runs = deque()
         self.cortex_threads_schema_input_table  = os.getenv("GENESIS_INTERNAL_DB_SCHEMA") + ".CORTEX_THREADS_INPUT"
         self.cortex_threads_schema_output_table = os.getenv("GENESIS_INTERNAL_DB_SCHEMA") + ".CORTEX_THREADS_OUTPUT"
         self.client = SnowflakeConnector(connection_name='Snowflake')
         logger.debug("BotOsAssistantSnowflakeCortex:__init__ - SnowflakeConnector initialized")
+        self.my_tools = tools
+        self.log_db_connector = log_db_connector
+        self.callback_closures = {}
+        self.user_allow_cache = {}
+        self.clear_access_cache = False 
+        
+        self.allowed_types_search = [".c", ".cs", ".cpp", ".doc", ".docx", ".html", ".java", ".json", ".md", ".pdf", ".php", ".pptx", ".py", ".rb", ".tex", ".txt", ".css", ".js", ".sh", ".ts"]
+        self.allowed_types_code_i = [".c", ".cs", ".cpp", ".doc", ".docx", ".html", ".java", ".json", ".md", ".pdf", ".php", ".pptx", ".py", ".rb", ".tex", ".txt", ".css", ".js", ".sh", ".ts", ".csv", ".jpeg", ".jpg", ".gif", ".png", ".tar", ".xlsx", ".xml", ".zip"]
+        self.run_meta_map = {}
+
+
+    @override
+    def is_active(self) -> bool:
+       return self.active_runs
+   
+    @override
+    def is_processing_runs(self) -> bool:
+       return self.processing_runs
+
+    @override
+    def get_done_map(self) -> dict:
+       return self.done_map
 
     def create_thread(self) -> str:
         thread_id = f"Cortex_thread_{uuid.uuid4()}"
@@ -96,7 +123,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         thread_id = thread_to_check["thread_id"]
         timestamp = thread_to_check["timestamp"]
         if True:
-            logger.warn("BotOsAssistantSnowflakeCortex:check_runs - runing now")
+            logger.warn("BotOsAssistantSnowflakeCortex:check_runs - running now")
             query = f"""
             SELECT message_payload, message_metadata FROM {self.cortex_threads_schema_output_table}
             WHERE thread_id = %s AND model_name = %s AND message_type = 'Assistant Response' AND timestamp = %s

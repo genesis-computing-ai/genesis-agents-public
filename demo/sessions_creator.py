@@ -158,8 +158,7 @@ def make_session(
             if t["function"]["name"]
             in [
                 "run_query",
-                "semantic_copilot",
-                "_list_semantic_models",
+                "make_baby_bot",
                 "search_metadata",
             ]
         ]

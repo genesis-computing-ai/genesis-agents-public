@@ -36,6 +36,9 @@ import core.global_flags as global_flags
 
 SERVICE_HOST = os.getenv("SERVER_HOST", "0.0.0.0")
 
+### Simple mode for Cortex testing
+#os.environ["SIMPLE_MODE"] = "true"
+
 
 print("****** GENBOT VERSION 0.141 *******")
 

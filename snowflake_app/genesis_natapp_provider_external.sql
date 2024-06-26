@@ -1119,9 +1119,64 @@ AS
 
 
  
--- GRANT USAGE ON PROCEDURE CORE.RUN_ARBITRARY(VARCHAR) TO APPLICATION ROLE app_public;
+GRANT USAGE ON PROCEDURE CORE.RUN_ARBITRARY(VARCHAR) TO APPLICATION ROLE app_public;
 
 
+CREATE OR REPLACE PROCEDURE CORE.CREATE_MISSING_GRANT_VIEWS(INSTANCE_NAME STRING, APP_NAME STRING)
+RETURNS STRING
+LANGUAGE SQL
+AS
+:::
+    DECLARE
+        SQL_COMMAND STRING;
+    BEGIN
+        SQL_COMMAND := 'CREATE VIEW IF NOT EXISTS CORE.MISSING_DATABASE_GRANTS AS
+        select distinct ''"'' || REPLACE(replace(database_name,''"'',''''), ''.'', ''"."'') || ''"'' database_name from ' || APP_NAME || '.' || INSTANCE_NAME || '.HARVEST_RESULTS
+        where SPLIT_PART(replace(qualified_table_name,''"'',''''), ''.'', 1) <> ''SNOWFLAKE'' 
+        AND SPLIT_PART(replace(qualified_table_name,''"'',''''), ''.'', 2) NOT IN (''BASEBALL'', ''FORMULA_1'')
+        minus
+        select distinct  ''"'' || REPLACE(replace(name,''"'',''''), ''.'', ''"."'') || ''"'' database_name
+        from GENESIS_LOCAL_DB.GRANTS.GRANTS_TO_APP 
+        where granted_on  in (''DATABASE'')
+        and SPLIT_PART(name, ''.'', 1) <> ''SNOWFLAKE'' 
+        AND SPLIT_PART(name, ''.'', 2) NOT IN (''BASEBALL'', ''FORMULA_1'') ';
+        EXECUTE IMMEDIATE SQL_COMMAND;
+
+        SQL_COMMAND := 'CREATE VIEW IF NOT EXISTS CORE.MISSING_SCHEMA_GRANTS AS
+        select ''"'' || REPLACE(replace(database_name || ''.'' || schema_name,''"'',''''), ''.'', ''"."'') || ''"'' database_schema_name from ' || APP_NAME || '.' || INSTANCE_NAME || '.HARVEST_RESULTS
+        where SPLIT_PART(replace(qualified_table_name,''"'',''''), ''.'', 1) <> ''SNOWFLAKE'' 
+        AND SPLIT_PART(replace(qualified_table_name,''"'',''''), ''.'', 2) NOT IN (''BASEBALL'', ''FORMULA_1'')
+        minus
+        select distinct  ''"'' || REPLACE(replace(name,''"'',''''), ''.'', ''"."'') || ''"'' database_schema_name
+        from GENESIS_LOCAL_DB.GRANTS.GRANTS_TO_APP 
+        where granted_on  in (''SCHEMA'')
+        and SPLIT_PART(name, ''.'', 1) <> ''SNOWFLAKE'' 
+        AND SPLIT_PART(name, ''.'', 2) NOT IN (''BASEBALL'', ''FORMULA_1'') ';
+        EXECUTE IMMEDIATE SQL_COMMAND;
+
+        SQL_COMMAND := 'CREATE VIEW IF NOT EXISTS CORE.MISSING_OBJECT_GRANTS AS
+        select qualified_table_name  from ' || APP_NAME || '.' || INSTANCE_NAME || '.HARVEST_RESULTS
+        where SPLIT_PART(replace(qualified_table_name,''"'',''''), ''.'', 1) <> ''SNOWFLAKE'' 
+        AND SPLIT_PART(replace(qualified_table_name,''"'',''''), ''.'', 2) NOT IN (''BASEBALL'', ''FORMULA_1'')
+        minus
+        select distinct ''"'' || REPLACE(replace(name,''"'',''''), ''.'', ''"."'') || ''"'' qualified_table_name
+        from GENESIS_LOCAL_DB.GRANTS.GRANTS_TO_APP 
+        where granted_on  not in (''DATABASE'',''SCHEMA'')
+        and SPLIT_PART(name, ''.'', 1) <> ''SNOWFLAKE'' 
+        AND SPLIT_PART(name, ''.'', 2) NOT IN (''BASEBALL'', ''FORMULA_1'') ';
+        EXECUTE IMMEDIATE SQL_COMMAND;
+
+        EXECUTE IMMEDIATE 'GRANT SELECT ON VIEW CORE.MISSING_DATABASE_GRANTS TO APPLICATION ROLE APP_PUBLIC';
+        EXECUTE IMMEDIATE 'GRANT SELECT ON VIEW CORE.MISSING_SCHEMA_GRANTS TO APPLICATION ROLE APP_PUBLIC';
+        EXECUTE IMMEDIATE 'GRANT SELECT ON VIEW CORE.MISSING_OBJECT_GRANTS TO APPLICATION ROLE APP_PUBLIC';
+
+        RETURN 'Views created successfully';
+    END;
+
+:::;
+
+
+GRANT USAGE ON PROCEDURE CORE.CREATE_MISSING_GRANT_VIEWS(STRING, STRING) TO APPLICATION ROLE APP_PUBLIC;
 
 
 $$,':::','$$') VALUE;

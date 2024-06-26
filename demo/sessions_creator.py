@@ -174,6 +174,20 @@ def make_session(
         instructions += f"\nYour Internal Files Stage for bots is at snowflake stage: {genbot_internal_project_and_schema}.BOT_FILES_STAGE"
         if not stream_mode:
             instructions += ". This BOT_FILES_STAGE stage is ONLY in this particular database & schema."
+    
+    bot_id = bot_config["bot_id"]
+
+    # check if database_tools are in bot_tools
+    if "database_tools" in bot_tools:
+        try:
+            #if so, create workspace schema
+            workspace_schema_name = f"{project_id}.{bot_id}_WORKSPACE".replace('-', '_').upper()
+            db_adapter.create_bot_workspace(workspace_schema_name)
+            db_adapter.grant_all_bot_workspace(workspace_schema_name)
+            instructions += f"\nYou have a workspace schema created specifically for you named {workspace_schema_name} that the user can also access. You may use this schema for creating tables, views, and stages that are required when generating answers to data analysis questions. Only use this schema if asked to create an object. Always return the full location of the object."
+        except Exception as e:
+            logger.warning(f"Error creating bot workspace for bot_id {bot_id} {e} ")
+
 
     if simple_mode and stream_mode:
         instructions = "You are a smart data analyst named Eliza. Use emojiis to express your fun personality. You have access to 2 tools, semantic_copilot to get SQL for a natural language prompt, and run_query to execute the sql you get. Use lots of emojis to express your personality. Return data grids and sql statements in three backticks example: ``` <data> or <sql> ```. DO NOT HALUCINATE tool calls or results of tools."
@@ -183,7 +197,6 @@ def make_session(
     # TESTING UDF ADAPTER W/EVE and ELSA
     # add a map here to track botid to adapter mapping
 
-    bot_id = bot_config["bot_id"]
     udf_adapter_local = None
     if udf_enabled:
         if bot_id in bot_id_to_udf_adapter_map:

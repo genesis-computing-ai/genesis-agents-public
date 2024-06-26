@@ -43,10 +43,10 @@ def register_routes(
     default_llm_engine_param,
 ):
     global llm_api_key, default_llm_engine, sessions, api_app_id_to_session_map, bot_id_to_udf_adapter_map, server
-
     llm_api_key = llm_api_key_param
     bot_id_to_udf_adapter_map = bot_id_to_udf_adapter_map_param
     default_llm_engine = default_llm_engine_param
+    server = None
 
     if llm_api_key is not None:
         (
@@ -572,8 +572,10 @@ def register_routes(
                         "Success": False,
                         "Message": "Failed to set LLM API Key and Model Name.",
                     }
+                    return None
         except Exception as e:
             response = {"Success": False, "Message": str(e)}
+            return None
 
         output_rows = [[input_rows[0][0], response]]
 

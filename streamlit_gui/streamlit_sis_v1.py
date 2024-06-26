@@ -523,7 +523,7 @@ def chat_page():
             time.sleep(2)
             st.experimental_rerun()
 
-        print("out of thinking...")
+       # print("out of thinking...")
         # st.write('oot - response for uu ',request_id,' |',response,'|')
 
         in_resp = response
@@ -553,12 +553,17 @@ def chat_page():
                         ):
                             new_increment = "\n\n" + response
                         else:
+                            if ord(response[-1]) == 128172:
+                                offset = -2
+                            else:
+                                offset = 0
                             new_increment = response[
-                                max(len(previous_response) - 2, 0) : len(response) - 2
+                                max(len(previous_response) - 2, 0) : len(response) - offset
                             ]
 
                         previous_response = response
-                        #    start_time = time.time()
+                        if ord(new_increment[-1]) == 128172:
+                                new_increment = new_increment[:-2]#    start_time = time.time()
                         yield new_increment
 
                 if ord(response[-1]) != 128172:

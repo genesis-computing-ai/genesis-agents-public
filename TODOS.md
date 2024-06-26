@@ -3,6 +3,10 @@ GENESIS BOT TODOS
 =================
 
 SOON:
+on task runs, have it put the task_id in the DMs and Channel messages that it sends
+on task server restart, bots re-run tasks
+make them not talk so much about the uploaded documents (default prompt try first)
+make slack user lookup and send direct slack more robust on how its called, and add instructions more
 have task server pickup newly added bots (when sees a task for a missing bot, add a session)..and refresh sessions if bot is updated (keep a timestamp for when bot was updated)
 generate files cant get added to stage
 n Allow files to be uploaded to stage without downloading them to slack

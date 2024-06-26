@@ -31,14 +31,47 @@ logging.basicConfig(
 import core.global_flags as global_flags
 
 
-def register_routes(app: Flask, db_adapter, scheduler, info):
+global llm_api_key, api_app_id_to_session_map, bot_id_to_udf_adapter_map, server
+
+
+def register_routes(
+    app: Flask,
+    db_adapter,
+    scheduler,
+    llm_api_key_param,
+    bot_id_to_udf_adapter_map_param,
+    default_llm_engine_param,
+):
     global llm_api_key, default_llm_engine, sessions, api_app_id_to_session_map, bot_id_to_udf_adapter_map, server
-    llm_api_key = info["llm_api_key"]
-    default_llm_engine = info["default_llm_engine"]
-    sessions = info["sessions"]
-    api_app_id_to_session_map = info["api_app_id_to_session_map"]
-    bot_id_to_udf_adapter_map = info["bot_id_to_udf_adapter_map"]
-    server = info["server"]
+
+    llm_api_key = llm_api_key_param
+    bot_id_to_udf_adapter_map = bot_id_to_udf_adapter_map_param
+    default_llm_engine = default_llm_engine_param
+
+    if llm_api_key is not None:
+        (
+            sessions,
+            api_app_id_to_session_map,
+            bot_id_to_udf_adapter_map,
+            SystemVariables.bot_id_to_slack_adapter_map,
+        ) = create_sessions(
+            llm_api_key,
+            default_llm_engine,
+            db_adapter,
+            bot_id_to_udf_adapter_map,
+            stream_mode=True,
+        )
+        server = BotOsServer(
+            app,
+            sessions=sessions,
+            scheduler=scheduler,
+            scheduler_seconds_interval=2,
+            slack_active=global_flags.slack_active,
+        )
+        BotOsServer.stream_mode = (
+            True  # i think this should be server.stream_mode = True ?
+        )
+        set_remove_pointers(server, api_app_id_to_session_map)
 
     @app.get("/healthcheck")
     def readiness_probe():
@@ -453,7 +486,7 @@ def register_routes(app: Flask, db_adapter, scheduler, info):
 
         from openai import OpenAI, OpenAIError
 
-        global llm_api_key, default_llm_engine, sessions, api_app_id_to_session_map, bot_id_to_udf_adapter_map, server
+        # global llm_api_key, default_llm_engine, sessions, api_app_id_to_session_map, bot_id_to_udf_adapter_map, server
         try:
 
             message = request.json
@@ -702,3 +735,5 @@ def register_routes(app: Flask, db_adapter, scheduler, info):
             bot_id_to_udf_adapter_map,
             default_bot_id=list(bot_id_to_udf_adapter_map.keys())[0],
         )
+
+    return server

@@ -37,7 +37,7 @@ import core.global_flags as global_flags
 SERVICE_HOST = os.getenv("SERVER_HOST", "0.0.0.0")
 
 ### Simple mode for Cortex testing
-#os.environ["SIMPLE_MODE"] = "true"
+# os.environ["SIMPLE_MODE"] = "true"
 
 
 print("****** GENBOT VERSION 0.141 *******")
@@ -168,22 +168,22 @@ print("...Slack Connector Active Flag: ", global_flags.slack_active)
 
 SystemVariables.bot_id_to_slack_adapter_map = {}
 
-if llm_api_key is not None:
-    (
-        sessions,
-        api_app_id_to_session_map,
-        bot_id_to_udf_adapter_map,
-        SystemVariables.bot_id_to_slack_adapter_map,
-    ) = create_sessions(
-        default_llm_engine,
-        llm_api_key,
-        db_adapter,
-        bot_id_to_udf_adapter_map,
-        stream_mode=True,
-    )
-else:
-    # wait to collect API key from Streamlit user, then make sessions later
-    pass
+# if llm_api_key is not None:
+#     (
+#         sessions,
+#         api_app_id_to_session_map,
+#         bot_id_to_udf_adapter_map,
+#         SystemVariables.bot_id_to_slack_adapter_map,
+#     ) = create_sessions(
+#         default_llm_engine,
+#         llm_api_key,
+#         db_adapter,
+#         bot_id_to_udf_adapter_map,
+#         stream_mode=True,
+#     )
+# else:
+#     # wait to collect API key from Streamlit user, then make sessions later
+#     pass
 
 scheduler = BackgroundScheduler(
     {
@@ -192,27 +192,18 @@ scheduler = BackgroundScheduler(
     }
 )
 
-info = {
-    "llm_api_key": llm_api_key,
-    "default_llm_engine": default_llm_engine,
-    "sessions": sessions,
-    "api_app_id_to_session_map": api_app_id_to_session_map,
-    "bot_id_to_udf_adapter_map": bot_id_to_udf_adapter_map,
-    "server": None,
-}
-
 app = Flask(__name__)
-register_routes(app, db_adapter, scheduler, info)
+server = register_routes(
+    app,
+    db_adapter,
+    scheduler,
+    llm_api_key,
+    bot_id_to_udf_adapter_map,
+    default_llm_engine,
+)
 
 # Retrieve the number of currently running jobs in the scheduler
 # Code to clear any threads that are stuck or crashed from BackgroundScheduler
-server = None
-if llm_api_key is not None:
-    BotOsServer.stream_mode = True
-    server = BotOsServer(
-        app, sessions=sessions, scheduler=scheduler, scheduler_seconds_interval=1
-    )
-    set_remove_pointers(server, api_app_id_to_session_map)
 
 
 BotOsServer.stream_mode = True

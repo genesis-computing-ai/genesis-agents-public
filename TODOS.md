@@ -8,7 +8,7 @@ on task server restart, bots re-run tasks
 make them not talk so much about the uploaded documents (default prompt try first)
 make slack user lookup and send direct slack more robust on how its called, and add instructions more
 have task server pickup newly added bots (when sees a task for a missing bot, add a session)..and refresh sessions if bot is updated (keep a timestamp for when bot was updated)
-streamlit last 2 characters of bots messages sometimes get cut off
+x streamlit last 2 characters of bots messages sometimes get cut off
 generate files cant get added to stage
 n Allow files to be uploaded to stage without downloading them to slack
 Only upload a file to vector store if its not already there (and is the same.. using md5, track last md5 submitted) 

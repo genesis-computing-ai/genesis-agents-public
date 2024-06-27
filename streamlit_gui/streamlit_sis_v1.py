@@ -553,7 +553,7 @@ def chat_page():
                         ):
                             new_increment = "\n\n" + response
                         else:
-                            if ord(response[-1]) == 128172:
+                            if len(response) >= 2 and ord(response[-1]) == 128172:
                                 offset = -2
                             else:
                                 offset = 0
@@ -562,14 +562,17 @@ def chat_page():
                             ]
 
                         previous_response = response
-                        if ord(new_increment[-1]) == 128172:
-                                new_increment = new_increment[:-2]#    start_time = time.time()
+                        try:
+                            if ord(new_increment[-1]) == 128172:
+                                new_increment = new_increment[:-2]
+                        except:
+                            new_increment = ''
                         yield new_increment
 
-                if ord(response[-1]) != 128172:
+                if len(response) < 3 or ord(response[-1]) != 128172:
                     break
 
-                if ord(response[-1]) == 128172:
+                if len(response)>=1 and ord(response[-1]) == 128172:
                     time.sleep(0.5)
                 # if len(response) > 1 and response[:10] != ':toolbox: ' and time.time() - start_time > 3:
                 #    break

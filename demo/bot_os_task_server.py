@@ -1074,13 +1074,13 @@ def generate_task_prompt(bot_id, task):
     Here is the current server time:
     {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
     
-    Perform the task completely based on the above task description using the tools you have available if useful.  
+    Perform the task COMPLETELY based on the above task description using the tools you have available if useful.  Call mulitple tools if needed to complete the task.
     Do NOT create a new task, you are to execute the steps described above for this existing task. 
     If you send a slack direct message or slack channel message as part of the task, include at the end: _(task_id:{task_details['task_id']}_)
-    When you are done with the task, return only a JSON document with these items, no other text:
+    When you are DONE with the task and have FULLY completed it, return only a JSON document with these items, no other text:
 
     {{
-        "work_done_summary": <a summary of the work you did on the task during this run, including any tools you called and outbound communications you made>,
+        "work_done_summary": <a summary of the work you did to complete the task during this run, including any tools you called and outbound communications you made>,
         "task_status": <write a summary of the current status of the task, if its working fine and ongoing just say OK, if a specific next step is needed, state what should happen next>,
         "updated_task_learnings": <the task_learnings text you received at the start of this task, updated or appended with anything new you learned about how to perform this task during this run. Include anything you had to figure out (channel name, user name, which tool to use, etc) that you could skip next time if you knew something in advance that isn't subject to frequent change, like tables you found or SQL you used or Slack IDs of people you communicated with, or slack channel names you looked up.>,
         "report_message": <include this if you are supposed to report back based on reporting_instructions based on what happened, otherwise omit for no report back.",

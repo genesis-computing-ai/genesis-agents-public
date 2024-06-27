@@ -48,9 +48,8 @@ dataset_name = db_schema[1]
 
 genesis_source = os.getenv("GENESIS_SOURCE", default="Snowflake")
 
-
 def make_session(
-    bot_config, db_adapter, bot_id_to_udf_adapter_map={}, stream_mode=False
+    bot_config, db_adapter, bot_id_to_udf_adapter_map={}, stream_mode=False, skip_vectors=False
 ):
 
     if not stream_mode:
@@ -266,6 +265,7 @@ def make_session(
             bot_id=bot_config["bot_id"],
             stream_mode=stream_mode,
             tool_belt=ToolBelt(),
+            skip_vectors=skip_vectors
         )
     except Exception as e:
         print("Session creation exception: ", e)
@@ -299,6 +299,7 @@ def create_sessions(
     db_adapter,
     bot_id_to_udf_adapter_map,
     stream_mode=False,
+    skip_vectors=False
 ):
     # Fetch bot configurations for the given runner_id from BigQuery
     runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
@@ -310,12 +311,16 @@ def create_sessions(
     bot_id_to_slack_adapter_map = {}
 
     for bot_config in bots_config:
+    # JL TEMP REMOVE
+ #       if bot_config["bot_id"] == "Eliza-lGxIAG":
+ #           continue
         print(f'Making session for bot {bot_config["bot_id"]}')
         new_session, api_app_id, udf_adapter_local, slack_adapter_local = make_session(
             bot_config=bot_config,
             db_adapter=db_adapter,
             bot_id_to_udf_adapter_map=bot_id_to_udf_adapter_map,
             stream_mode=stream_mode,
+            skip_vectors=skip_vectors
         )
         if new_session is not None:
             sessions.append(new_session)

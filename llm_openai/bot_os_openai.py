@@ -223,7 +223,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
    def __init__(self, name:str, instructions:str, 
                 tools:list[dict] = {}, available_functions={}, files=[], 
-                update_existing=False, log_db_connector=None, bot_id='default_bot_id', bot_name='default_bot_name', all_tools:list[dict]={}, all_functions={},all_function_to_tool_map={}) -> None:
+                update_existing=False, log_db_connector=None, bot_id='default_bot_id', bot_name='default_bot_name', all_tools:list[dict]={}, all_functions={},all_function_to_tool_map={}, skip_vectors=False) -> None:
       logger.debug("BotOsAssistantOpenAI:__init__") 
       self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
       model_name = os.getenv("OPENAI_MODEL_NAME", default="gpt-4o")
@@ -281,12 +281,12 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
          self.tool_resources = {"file_search": {"vector_store_ids": [self.vector_store]}}
          if True or hasattr(files, 'urls') and files.urls is not None:
             self.assistant = self.client.beta.assistants.create(
-               name=name,
-               instructions=instructions,
-               tools=my_tools, # type: ignore
-               model=model_name,
+            name=name,
+            instructions=instructions,
+            tools=my_tools, # type: ignore
+            model=model_name,
             # file_ids=self._upload_files(files) #FixMe: what if the file contents change?
-               tool_resources=self.tool_resources
+            tool_resources=self.tool_resources
             )
          else:
             my_tools = [tool for tool in my_tools if tool.get('type') != 'file_search']
@@ -304,22 +304,32 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
             vector_store_id = self.assistant.tool_resources.file_search.vector_store_ids[0]
          except:
             vector_store_id = None
-         if vector_store_id is not None:
+         if vector_store_id is not None and skip_vectors == False:
             try:
                self.client.beta.vector_stores.delete( vector_store_id=vector_store_id )
             except:
                pass
          vector_store_name = self.bot_id + '_vectorstore'
-         self.vector_store = self.create_vector_store(vector_store_name=vector_store_name, files=files)
-         self.tool_resources = {"file_search": {"vector_store_ids": [self.vector_store]}}
-
+         if skip_vectors == False:
+            self.vector_store = self.create_vector_store(vector_store_name=vector_store_name, files=files)
+            self.tool_resources = {"file_search": {"vector_store_ids": [self.vector_store]}}
+         else:
+            self.tool_resources = {"file_search": {"vector_store_ids": [vector_store_id]}}
          if True or hasattr(files, 'urls') and files.urls is not None:
-            self.client.beta.assistants.update(self.assistant.id,
+            try:
+                self.client.beta.assistants.update(self.assistant.id,
                                           instructions=instructions,
                                           tools=my_tools, # type: ignore
                                           model=model_name,
                                           tool_resources=self.tool_resources
                 )
+            except:
+                 self.client.beta.assistants.update(self.assistant.id,
+                                          instructions=instructions,
+                                          tools=my_tools, # type: ignore
+                                          model=model_name,
+                                       #   tool_resources=self.tool_resources
+                )           
          else:
             my_tools = [tool for tool in my_tools if tool.get('type') != 'file_search']
             self.client.beta.assistants.update(self.assistant.id,

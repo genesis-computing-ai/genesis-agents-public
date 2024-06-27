@@ -273,6 +273,7 @@ if llm_api_key is not None:
         db_adapter,
         bot_id_to_udf_adapter_map,
         stream_mode=False,
+        skip_vectors=True,
     )
 else:
     # wait to collect API key from Streamlit user, then make sessions later
@@ -926,6 +927,7 @@ def bot_install_followup(bot_id=None, no_slack=False):
             db_adapter=db_adapter,
             bot_id_to_udf_adapter_map=bot_id_to_udf_adapter_map,
             stream_mode=False,
+            skip_vectors=True,
         )
         # check new_session
         if new_session is None:
@@ -992,13 +994,61 @@ def slack_event_handle(bot_id=None):
 scheduler.start()
 
 
+def add_bot_session(bot_id=None, no_slack=False):
+    # Extract the API App ID from the incoming request
+    global llm_api_key, default_llm_engine, sessions, api_app_id_to_session_map, bot_id_to_slack_adapter_map, bot_id_to_udf_adapter_map, server
+
+    logger.info("HERE 1")
+    bot_details = get_bot_details(bot_id=bot_id)
+
+    # print(bot_id, 'code: ', code, 'state', state)
+
+    # lookup via the bot map via bot_id
+
+    # Save these mapped to the bot
+    runner = os.getenv("RUNNER_ID", "jl-local-runner")
+    if runner == bot_details["runner_id"]:
+        bot_config = get_bot_details(bot_id=bot_id)
+        if no_slack:
+            bot_config["slack_active"] = "N"
+        new_session, api_app_id, udf_local_adapter, slack_adapter_local = make_session(
+            bot_config=bot_config,
+            db_adapter=db_adapter,
+            bot_id_to_udf_adapter_map=bot_id_to_udf_adapter_map,
+            stream_mode=False,
+            skip_vectors=True,
+        )
+        # check new_session
+        if new_session is None:
+            print("new_session is none")
+            return "Error: Not Installed new session is none"
+        if slack_adapter_local is not None:
+            bot_id_to_slack_adapter_map[bot_config["bot_id"]] = slack_adapter_local
+        if udf_local_adapter is not None:
+            bot_id_to_udf_adapter_map[bot_config["bot_id"]] = udf_local_adapter
+        api_app_id_to_session_map[api_app_id] = new_session
+        #   print("about to add session ",new_session)
+        server.add_session(new_session, replace_existing=True)
+        sessions.append(new_session)
+
+        if no_slack:
+            print(
+                f"Genesis bot {bot_id} successfully installed and ready for use via Streamlit."
+            )
+        else:
+            return f"Genesis bot {bot_id} successfully installed to Streamlit and Slack and ready for use."
+    else:
+        # Handle errors
+        return "Error: Not new bot added"
+
+
 def generate_task_prompt(bot_id, task):
     # Retrieve task details from the database using bot_id and task_id
     task_details = task
 
     # Construct the prompt based on the task details and the template provided
     prompt = f"""
-    You have been woken up automatically to perform a task in unattended mode.
+    You have been woken up automatically to carry out an existing task in unattended mode.  You are not to create a new task.
 
     Task name:
     {task_details['task_name']}
@@ -1024,7 +1074,10 @@ def generate_task_prompt(bot_id, task):
     Here is the current server time:
     {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
     
-    Perform the task using the tools you have available if useful. When you are done with the task, return only a JSON document with these items, no other text:
+    Perform the task completely based on the above task description using the tools you have available if useful.  
+    Do NOT create a new task, you are to execute the steps described above for this existing task. 
+    If you send a slack direct message or slack channel message as part of the task, include at the end: _(task_id:{task_details['task_id']}_)
+    When you are done with the task, return only a JSON document with these items, no other text:
 
     {{
         "work_done_summary": <a summary of the work you did on the task during this run, including any tools you called and outbound communications you made>,
@@ -1139,6 +1192,28 @@ def tasks_loop():
             )
             sys.stdout.flush()
             i = 0
+
+        # Get all bot details
+        all_bots_details = get_all_bots_full_details(runner_id=runner_id)
+
+        # Extract bot IDs from the details
+        all_bot_ids = [bot['bot_id'] for bot in all_bots_details]
+
+        # Check if any new sessions need to be added
+        for bot_id in all_bot_ids:
+            if bot_id not in [session.bot_id for session in sessions]:
+                bot_details = next(bot for bot in all_bots_details if bot['bot_id'] == bot_id)
+                print(f"New bot found: ID={bot_id}, Name={bot_details['bot_name']}. Adding to sessions.")
+                # Determine the Slack status of the bot
+                bot_details = next(bot for bot in all_bots_details if bot['bot_id'] == bot_id)
+                if bot_details.get('bot_slack_user_id', False) == False:
+                    no_slack = True
+                else:
+                    no_slack = False
+                
+                # Add a new session for the bot with the appropriate no_slack flag
+                add_bot_session(bot_id, no_slack=no_slack)
+                print(f"New session added for bot_id: {bot_id} with no_slack={no_slack}")
 
         # Retrieve the list of bots and their tasks
 

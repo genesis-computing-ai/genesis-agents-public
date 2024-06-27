@@ -40,7 +40,7 @@ class BotOsServer:
         scheduler_seconds_interval=2,
         slack_active=False,
     ):
-        logger.debug(f"BotOsServer:__iniit__ creating server {flask_app.name}")
+        logger.debug(f"BotOsServer:__init__ creating server {flask_app.name}")
         self.app = flask_app
         self.sessions = sessions
         self.scheduler = scheduler

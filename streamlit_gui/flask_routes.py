@@ -486,9 +486,9 @@ def register_routes(
 
         from openai import OpenAI, OpenAIError
 
-        # global llm_api_key, default_llm_engine, sessions, api_app_id_to_session_map, bot_id_to_udf_adapter_map, server
+        global llm_api_key, default_llm_engine, sessions, api_app_id_to_session_map, bot_id_to_udf_adapter_map, server
         try:
-
+            llm_api_key = None
             message = request.json
             input_rows = message["data"]
 
@@ -529,49 +529,57 @@ def register_routes(
                     and default_llm_engine.lower() == "openai"
                 ):
                     os.environ["OPENAI_API_KEY"] = llm_api_key_candidate
+
                 if (
                     llm_api_key_candidate is not None
                     and default_llm_engine.lower() == "reka"
                 ):
                     os.environ["REKA_API_KEY"] = llm_api_key_candidate
-                (
-                    sessions,
-                    api_app_id_to_session_map,
-                    bot_id_to_udf_adapter_map,
-                    SystemVariables.bot_id_to_slack_adapter_map,
-                ) = create_sessions(
-                    llm_api_key,
-                    default_llm_engine,
-                    db_adapter,
-                    bot_id_to_udf_adapter_map,
-                    stream_mode=True,
-                )
-                server = BotOsServer(
-                    app,
-                    sessions=sessions,
-                    scheduler=scheduler,
-                    scheduler_seconds_interval=2,
-                    slack_active=global_flags.slack_active,
-                )
-                BotOsServer.stream_mode = True
-                set_remove_pointers(server, api_app_id_to_session_map)
 
-                # Assuming 'babybot' is an instance of a class that has the 'set_llm_key' method
-                # and it has been instantiated and imported above in the code.
-                set_key_result = set_llm_key(
-                    llm_key=llm_api_key,
-                    llm_type=default_llm_engine,
-                )
-                if set_key_result:
-                    response = {
-                        "Success": True,
-                        "Message": "LLM API Key and Model Name configured successfully.",
-                    }
-                else:
-                    response = {
-                        "Success": False,
-                        "Message": "Failed to set LLM API Key and Model Name.",
-                    }
+                if bot_id_to_udf_adapter_map:
+                    (
+                        sessions,
+                        api_app_id_to_session_map,
+                        bot_id_to_udf_adapter_map,
+                        SystemVariables.bot_id_to_slack_adapter_map,
+                    ) = create_sessions(
+                        llm_api_key,
+                        default_llm_engine,
+                        db_adapter,
+                        bot_id_to_udf_adapter_map,
+                        stream_mode=True,
+                    )
+                    server = BotOsServer(
+                        app,
+                        sessions=sessions,
+                        scheduler=scheduler,
+                        scheduler_seconds_interval=2,
+                        slack_active=global_flags.slack_active,
+                    )
+                    BotOsServer.stream_mode = True
+                    set_remove_pointers(server, api_app_id_to_session_map)
+
+                    # Assuming 'babybot' is an instance of a class that has the 'set_llm_key' method
+                    # and it has been instantiated and imported above in the code.
+                    set_key_result = set_llm_key(
+                        llm_key=llm_api_key,
+                        llm_type=default_llm_engine,
+                    )
+                    if set_key_result:
+                        response = {
+                            "Success": True,
+                            "Message": "LLM API Key and Model Name configured successfully.",
+                        }
+                    else:
+                        response = {
+                            "Success": False,
+                            "Message": "Failed to set LLM API Key and Model Name.",
+                        }
+            else:
+                response = {
+                    "Success": False,
+                    "Message": "Failed to find global variable bot_id_to_udf_adapter_map.",
+                }
         except Exception as e:
             response = {"Success": False, "Message": str(e)}
 

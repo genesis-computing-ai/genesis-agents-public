@@ -728,15 +728,6 @@ class SnowflakeConnector(DatabaseConnector):
         if action == "UPDATE_CONFIRMED":
             action = "UPDATE"
 
-        if action == "UPDATE":
-            return {
-                "Success": False,
-                "Confirmation_Needed": "Please reconfirm all the task details with the user, especially that you're altering the correct TASK_ID, then call this function again with the action UPDATE_CONFIRMED to actually update the task.  Call with LIST to double-check the task_id if you aren't sure.",
-                "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
-            }
-
-        if action == "UPDATE_CONFIRMED":
-            action = "UPDATE"
 
         if action == "DELETE":
             return {
@@ -3223,6 +3214,8 @@ class SnowflakeConnector(DatabaseConnector):
 
         try:
             cursor = self.connection.cursor()
+            #print(select_query, bot_id)
+
             cursor.execute(select_query, (bot_id,))
             result = cursor.fetchone()
             cursor.close()

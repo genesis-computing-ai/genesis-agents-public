@@ -523,7 +523,7 @@ def chat_page():
             time.sleep(2)
             st.experimental_rerun()
 
-       # print("out of thinking...")
+        # print("out of thinking...")
         # st.write('oot - response for uu ',request_id,' |',response,'|')
 
         in_resp = response
@@ -1730,8 +1730,8 @@ def start_stop():
 
     // resume service
 
-alter compute pool GENESIS_POOL RESUME; -- if you paused the compute pool
-call {app_name}.core.start_app_instance('APP1','GENESIS_POOL','GENESIS_EAI','{st.session_state.wh_name}'); 
+    alter compute pool GENESIS_POOL RESUME; -- if you paused the compute pool
+    call {app_name}.core.start_app_instance('APP1','GENESIS_POOL','GENESIS_EAI','{st.session_state.wh_name}'); 
 
         """
     st.text_area("", start_stop_text, height=620)

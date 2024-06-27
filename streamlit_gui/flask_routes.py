@@ -582,6 +582,7 @@ def register_routes(
                 }
         except Exception as e:
             response = {"Success": False, "Message": str(e)}
+            return None
 
         output_rows = [[input_rows[0][0], response]]
 

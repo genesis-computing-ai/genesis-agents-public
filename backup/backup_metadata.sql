@@ -1,4 +1,4 @@
-// currently setup on DSHRNXX.CVB46967 account to backup the demo GENESIS_BOTS_ALPHA metadata
+// currently setup on DSHRNXX.CVB46967 account to backup the demo GENESIS_BOTS metadata
 
 /* 
 1. In the current GENESIS Bots app, ask Eliza to run the following statement:
@@ -7,11 +7,18 @@
 2.a. Stop all services and compute pool
 2.b. Backup all metadata from the currently installed app
 */
+
+USE DATABASE GENESIS_BOTS;
+
+call GENESIS_BOTS.core.stop_app_instance('APP1');
+alter compute pool GENESIS_POOL SUSPEND; -- to pause the compute pool
+
+
+CREATE DATABASE IF NOT EXISTS GENESIS_BACKUP;
+
 /**** Backup stored proc ****/
 
-CREATE DATABASE IF NOT EXISTS GENESIS_BACKUP_ALPHA;
-
-CREATE OR REPLACE PROCEDURE GENESIS_BACKUP_ALPHA.PUBLIC.BACKUP_ALPHA_DATA(APP_NAME STRING, BACKUP_DATABASE STRING)
+CREATE OR REPLACE PROCEDURE GENESIS_BACKUP.PUBLIC.BACKUP_DATA(APP_NAME STRING, BACKUP_DATABASE STRING)
 RETURNS STRING
 LANGUAGE SQL
 AS
@@ -86,17 +93,23 @@ BEGIN
 END;
 $$;    
 
-call GENESIS_BACKUP_ALPHA.PUBLIC.BACKUP_ALPHA_DATA('GENESIS_BOTS_ALPHA','GENESIS_BACKUP_ALPHA');
+call GENESIS_BACKUP.PUBLIC.BACKUP_DATA('GENESIS_BOTS','GENESIS_BACKUP');
+
+
+// Verify your back up data, then uninstall the Genesis Bots application via script below or from the Snowflake Data Products-->Apps UI
+DROP APPLICATION GENESIS_BOTS;
+
+
 
 
 
 // if needed, create a task to backup metadtata that runs every morning  
 
-DROP TASK GENESIS_BACKUP_ALPHA.PUBLIC.backup_alpha_data_task;
-CREATE TASK GENESIS_BACKUP_ALPHA.PUBLIC.backup_alpha_data_task
+DROP TASK GENESIS_BACKUP.PUBLIC.backup_data_task;
+CREATE TASK GENESIS_BACKUP.PUBLIC.backup_data_task
   WAREHOUSE = XSMALL
   SCHEDULE = 'USING CRON 0 10 * * * UTC'
   AS
-  CALL GENESIS_BACKUP_ALPHA.PUBLIC.BACKUP_ALPHA_DATA('GENESIS_BOTS_ALPHA','GENESIS_BACKUP_ALPHA');
+  CALL GENESIS_BACKUP.PUBLIC.BACKUP_DATA('GENESIS_BOTS','GENESIS_BACKUP');
 
-ALTER TASK GENESIS_BACKUP_ALPHA.PUBLIC.backup_alpha_data_task RESUME;
+ALTER TASK GENESIS_BACKUP.PUBLIC.backup_data_task RESUME;

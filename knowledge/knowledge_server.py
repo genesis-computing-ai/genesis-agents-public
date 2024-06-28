@@ -15,7 +15,8 @@ class KnowledgeServer:
     def __init__(self, db_connector, maxsize=100):
         self.db_connector = db_connector
         self.maxsize = maxsize
-        self.queue = queue.Queue(maxsize)
+        self.thread_queue = queue.Queue(maxsize)
+        self.user_queue = queue.Queue(0)
         self.condition = threading.Condition()
         self.thread_set = set()  
         self.thread_set_lock = threading.Lock()  
@@ -51,10 +52,10 @@ class KnowledgeServer:
                         continue
                 
                 with self.condition:
-                    if self.queue.full():
+                    if self.thread_queue.full():
                         print("Queue is full, producer is waiting...")
                         self.condition.wait()
-                    self.queue.put(thread)
+                    self.thread_queue.put(thread)
                     print(f'Produced {thread_id}')
                     self.condition.notify()
 
@@ -65,10 +66,10 @@ class KnowledgeServer:
     def consumer(self):
         while True:
             with self.condition:
-                if self.queue.empty():
+                if self.thread_queue.empty():
                     print("Queue is empty, consumer is waiting...")
                     self.condition.wait()
-                thread = self.queue.get()
+                thread = self.thread_queue.get()
                 self.condition.notify()
             
             thread_id = thread['THREAD_ID']
@@ -123,7 +124,8 @@ class KnowledgeServer:
             while not self.client.beta.threads.runs.retrieve(thread_id=knowledge_thread_id, run_id=run.id).completed_at:
                 time.sleep(1)
             
-            response = json.loads(self.client.beta.threads.messages.list(knowledge_thread_id).data[0].content[0].text.value)
+            raw_knowledge = self.client.beta.threads.messages.list(knowledge_thread_id).data[0].content[0].text.value
+            response = json.loads(raw_knowledge)
 
             try:
                 # Ensure the timestamp is in the correct format for Snowflake
@@ -145,24 +147,78 @@ class KnowledgeServer:
                 cursor.execute(insert_query, (timestamp, thread_id, knowledge_thread_id, primary_user, bot_id, last_timestamp, thread_summary, user_learning, 
                                               tool_learning, data_learning))
                 self.db_connector.client.commit()
+
+                self.user_queue.put((primary_user, bot_id, raw_knowledge))
             except Exception as e:
-                print(f"Encountered errors while inserting into knowledge table row: {e}")
+                print(f"Encountered errors while inserting into {self.db_connector.knowledge_table_name} row: {e}")
             finally:
                 if cursor is not None:
                     cursor.close()
 
-
-                        
             with self.thread_set_lock:
                 self.thread_set.remove(thread_id)
                 print(f'Consumed {thread_id}')
+
+    def refiner(self):
+        
+        while True:
+            if self.user_queue.empty():
+                print("Queue is empty, refiner is waiting...")
+                time.sleep(refresh_seconds)
+                continue
+            primary_user, bot_id, raw_knowledge = self.user_queue.get()
+            query = f"""SELECT * FROM {self.db_connector.user_bot_table_name}
+                        WHERE primary_user = '{primary_user}' AND BOT_ID = '{bot_id}'
+                        ORDER BY TIMESTAMP DESC
+                        LIMIT 1;"""
+            user_bot_knowledge = self.db_connector.run_query(query)
+            if user_bot_knowledge:   
+                previous_knowledge = user_bot_knowledge[0]['KNOWLEDGE']             
+                content = f'''This is a previous user and bot summary:
+                              {previous_knowledge}
+
+                              And this is the new raw knowledge
+                              {raw_knowledge}
+                        '''
+            else:
+                content = f'''This is the new raw knowledge:
+                             {raw_knowledge}
+                        '''
+
+            response = self.client.chat.completions.create(
+                            model=self.model, messages=[
+                            {"role": "system", "content": "Use the following raw knowledge information about the interaction of the user and the bot, \
+                             summarize what we learned about the user in bullet point."},
+                            {"role": "user", "content": content} ])
+            new_knowledge = response.choices[0].message.content
+
+            try:
+                insert_query = f"""
+                INSERT INTO {self.db_connector.user_bot_table_name} 
+                    (timestamp, primary_user, bot_id, knowledge)
+                    VALUES (%s, %s, %s, %s)                    
+                """
+                timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                cursor = self.db_connector.client.cursor()
+                cursor.execute(insert_query, (timestamp, primary_user, bot_id, new_knowledge))
+                self.db_connector.client.commit()
+            except Exception as e:
+                print(f"Encountered errors while inserting into {self.db_connector.user_bot_table_name} row: {e}")
+            finally:
+                if cursor is not None:
+                    cursor.close()
+                
+
     
     def start_threads(self):
         producer_thread = threading.Thread(target=self.producer)
         consumer_thread = threading.Thread(target=self.consumer)
+        refiner_thread  = threading.Thread(target=self.refiner)
         
         producer_thread.start()
         consumer_thread.start()
+        refiner_thread.start()
         
         producer_thread.join()
         consumer_thread.join()
+        refiner_thread.join()

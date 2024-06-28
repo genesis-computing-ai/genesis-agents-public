@@ -53,7 +53,7 @@ import threading
 from core.system_variables import SystemVariables
 
 from demo.sessions_creator import create_sessions, make_session
-from demo.sessions_creator import create_sessions, make_session
+
 
 # for Cortex testing
 # os.environ['SIMPLE_MODE'] = 'true'
@@ -68,7 +68,11 @@ logging.basicConfig(
 import core.global_flags as global_flags
 
 
-print("****** GENBOT VERSION 0.139a *******")
+### Simple mode for Cortex testing
+# os.environ["SIMPLE_MODE"] = "true"
+
+
+print("****** GENBOT VERSION 0.141 *******")
 
 runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
 global_flags.runner_id = runner_id
@@ -782,6 +786,7 @@ scheduler = BackgroundScheduler(
 )
 # Retrieve the number of currently running jobs in the scheduler
 # Code to clear any threads that are stuck or crashed from BackgroundScheduler
+
 server = None
 if llm_api_key is not None:
     BotOsServer.stream_mode = True

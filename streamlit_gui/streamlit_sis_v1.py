@@ -1067,6 +1067,7 @@ def grant_data():
     st.text_area("Commands to allow this application to see your data:", wh_text, height=800)
 
 
+
 def bot_config():
 
     bot_details = get_bot_details()

@@ -357,6 +357,10 @@ BOT_DISPATCH_DESCRIPTIONS = [
                     },
                 },
                 "required": ["task_template", "args_array"],
+                "bot_id": {
+                    "type": "string",
+                    "description": "The unique identifier for an existing bot you are aware of to dispatch the tasks to. Should be the bot_name dash a 6 letter alphanumeric random code, for example mybot-w73hxg. Pass None to dispatch to yourself."
+                }
             },
         },
     }

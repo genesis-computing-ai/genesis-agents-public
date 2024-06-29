@@ -27,3 +27,4 @@ saved_llm_settings_local.json
 *.exe
 rsa_key.p8
 rsa_key.pub
+.venv/*

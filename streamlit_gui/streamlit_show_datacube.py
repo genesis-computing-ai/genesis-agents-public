@@ -26,10 +26,10 @@ def expand_paths(df:pd.DataFrame, open_paths:list[pd.DataFrame], base_query:str,
                  expand_path_level:int) -> pd.DataFrame:
     if expand_path_level > len(group_by_columns)+1:
         return df
-    filters_with_locations = get_expand_paths_filter(df, column_names, open_paths, group_by_columns[:expand_path_level])
-    expanded_dfs = []
-    inner_group_by_columns = group_by_columns[expand_path_level:]
+    inner_group_by_columns = group_by_columns[expand_path_level:expand_path_level+1]
     outter_group_by_columns= group_by_columns[:expand_path_level]
+    filters_with_locations = get_expand_paths_filter(df, column_names, open_paths, outter_group_by_columns) #group_by_columns[:expand_path_level])
+    expanded_dfs = []
     for filter, location in filters_with_locations:
         if filter_conditions is None:
             filter_conditions_per = [filter]
@@ -74,9 +74,13 @@ def use_run_query(query, column_names:list=["*"], column_types:dict={}, group_by
 
     # Remove group_by_columns from column_names
     column_names = [col for col in column_names if col != '__UNIQUE_ID__']
+    
+    # Reorder column_names to match the order in base_column_names
+    column_names = sorted(column_names, key=lambda x: base_group_by_columns.index(x) if x in base_group_by_columns else len(base_group_by_columns))
+    
     if group_by_columns and len(group_by_columns) > 0:
         column_names_with_aliases = [
-            f"sum({col}) as {col}" if column_types.get(col,'') in ['int', 'float'] else f"min({col}) as {col}"
+            f"sum({col}) as {col}" if column_types.get(col,'') in ['int', 'float'] else f"'-' as {col}" # f"min({col}) as {col}"
             for col in column_names if col not in group_by_columns
         ]
         column_names = [
@@ -125,8 +129,11 @@ def use_run_query(query, column_names:list=["*"], column_types:dict={}, group_by
             df.insert(0, 'is_expanded', False)
             column_types = {col: type(result_set[0][col]).__name__ for col in column_names}
             if open_paths and expand_open_paths:
-                df = expand_paths(df, open_paths, base_query, base_column_names, column_types, base_group_by_columns, 
-                                  filter_conditions, expand_path_level+1)
+                # This code filters the open_paths list to include only those paths whose '__UNIQUE_ID__' exists in the DataFrame 'df'.
+                matching_open_paths = [open_path for open_path in open_paths if open_path['__UNIQUE_ID__'] in df['__UNIQUE_ID__'].values]
+                if matching_open_paths:
+                    df = expand_paths(df, matching_open_paths, base_query, base_column_names, column_types, base_group_by_columns, 
+                                      filter_conditions, expand_path_level+1)
         else:
             df = pd.DataFrame()  # Return an empty DataFrame if result_set is empty
             column_types = {}

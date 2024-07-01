@@ -1,13 +1,28 @@
 import streamlit as st
-from connectors.snowflake_connector import SnowflakeConnector
 import pandas as pd
-#from st_aggrid import AgGrid
-
 # with st.echo():
 #     st.write(st.__version__)
 #     st.help(st.dataframe)
 
-def get_expand_paths_filter(df:pd.DataFrame, column_names:list[str], open_paths:list[pd.DataFrame], group_by_columns:list[str]) -> list[tuple[str, int]]:
+NativeMode = False
+try:
+    from snowflake.snowpark.context import get_active_session
+    session = get_active_session()
+    NativeMode = True
+except:
+    from connectors.snowflake_connector import SnowflakeConnector
+    snowflake_connector = SnowflakeConnector(connection_name='Snowflake')
+
+def run_query(sql:str, max_rows:int):
+    if NativeMode:
+        result = session.sql(sql).limit(max_rows).to_pandas() #collect()
+        return result
+    else:
+        result = snowflake_connector.run_query(sql, max_rows=max_rows, max_rows_override=True)
+        column_names = [col for col in result[0].keys()]
+        return pd.DataFrame(result, columns=column_names)
+
+def get_expand_paths_filter(df:pd.DataFrame, column_names:list, open_paths:list, group_by_columns:list) -> list:
     filter_strings_with_locations = []
     for path_df in open_paths:
         path_filter_strings = []
@@ -22,7 +37,7 @@ def get_expand_paths_filter(df:pd.DataFrame, column_names:list[str], open_paths:
                 filter_strings_with_locations.append((filter_string, location[0]))
     return filter_strings_with_locations
 
-def expand_paths(df:pd.DataFrame, open_paths:list[pd.DataFrame], base_query:str, column_names:list, column_types:dict, group_by_columns:list[str], filter_conditions:list[str],
+def expand_paths(df:pd.DataFrame, open_paths:list, base_query:str, column_names:list, column_types:dict, group_by_columns:list, filter_conditions:list,
                  expand_path_level:int) -> pd.DataFrame:
     if expand_path_level > len(group_by_columns)+1:
         return df
@@ -58,10 +73,10 @@ def use_run_query(query, column_names:list=["*"], column_types:dict={}, group_by
     base_column_names = column_names
     base_group_by_columns = group_by_columns
 
-    print(f"use_run_query - open_paths = {open_paths}")
+    #print(f"use_run_query - open_paths = {open_paths}")
     
     # Initialize SnowflakeConnector
-    snowflake_connector = SnowflakeConnector(connection_name='Snowflake')
+    #snowflake_connector = SnowflakeConnector(connection_name='Snowflake')
     
     # Ensure the original query is wrapped correctly and ends with a semicolon
     base_query = query.strip().rstrip(';')
@@ -111,11 +126,11 @@ def use_run_query(query, column_names:list=["*"], column_types:dict={}, group_by
         main_query += " GROUP BY (" + ", ".join(group_by_columns) + ")"
         main_query += " ORDER BY " + ", ".join([f"{col} NULLS LAST" for col in reversed(group_by_columns)])
     
-    final_query = f"{cte_query} {main_query};"
+    final_query = f"{cte_query} {main_query}"#;"
     
     print(final_query)
     # Use the run_query method from SnowflakeConnector to execute the final query
-    result_set = snowflake_connector.run_query(final_query, max_rows=1000, max_rows_override=True)
+    result_set = run_query(final_query, max_rows=1000)
     # Handle case where result_set is a dict with Success key = False
     column_names = []
     if isinstance(result_set, dict) and not result_set.get("Success", True):
@@ -123,11 +138,13 @@ def use_run_query(query, column_names:list=["*"], column_types:dict={}, group_by
         df = pd.DataFrame()  # Return an empty DataFrame in case of failure
         column_types = {}
     else:
-        if result_set:
-            column_names = [col for col in result_set[0].keys()]# if col != '__UNIQUE_ID__']
-            df = pd.DataFrame(result_set, columns=column_names)
+        if len(result_set) > 0:
+            df = result_set
+            column_names = df.columns.tolist()
             df.insert(0, 'is_expanded', False)
-            column_types = {col: type(result_set[0][col]).__name__ for col in column_names}
+            #column_types = {col: type(result_set[0][col]).__name__ for col in column_names}
+            column_types = df.dtypes.to_dict()
+
             if open_paths and expand_open_paths:
                 # This code filters the open_paths list to include only those paths whose '__UNIQUE_ID__' exists in the DataFrame 'df'.
                 matching_open_paths = [open_path for open_path in open_paths if open_path['__UNIQUE_ID__'] in df['__UNIQUE_ID__'].values]
@@ -149,10 +166,15 @@ def fetch_column_names(query):
 
 # Main app
 def main():
+    st.set_page_config(layout="wide")
+
     # Parse query parameter from URL
     query_params = st.query_params
-    sql_query = query_params.get("sql_query", "")#[0]  # Default to empty string if not found
+    #query_params = st.experimental_get_query_params()
 
+    #st.write(query_params)
+    sql_query = query_params.get("sql_query", "")#[0]  # Default to empty string if not found
+    #sql_query = "select * from spider_data.baseball.all_star"
     if sql_query:
         sql_query = st.text_area(label="Base Query", value=sql_query)
 

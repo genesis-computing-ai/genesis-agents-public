@@ -154,6 +154,8 @@ def main():
     sql_query = query_params.get("sql_query", "")#[0]  # Default to empty string if not found
 
     if sql_query:
+        sql_query = st.text_area(label="Base Query", value=sql_query)
+
         # Fetch column names for the SQL query
         column_names, column_types = fetch_column_names(sql_query)
         
@@ -171,11 +173,13 @@ def main():
                                                 #open_paths = st.session_state.get('open_paths', []))
         #result_df.insert(0, 'is_expanded', False)
     
-        st.write("Select rows to expand/collapse:")
-        
-        def reset_cube():
-            st.session_state.open_paths = []
-        st.button("Reset", on_click=reset_cube)
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            st.write("Select rows to expand/collapse:")
+        with col2:
+            def reset_cube():
+                st.session_state.open_paths = []
+            st.button("Reset", on_click=reset_cube)
         
         def data_change():
             print(st.session_state["my_data_editor_key"])

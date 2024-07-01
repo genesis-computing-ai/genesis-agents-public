@@ -37,7 +37,7 @@ def expand_paths(df:pd.DataFrame, open_paths:list[pd.DataFrame], base_query:str,
             filter_conditions_per = filter_conditions + [filter]
         df2, df2_col_names, df2_col_types = use_run_query(base_query, column_names, column_types, group_by_columns=inner_group_by_columns, filter_conditions=filter_conditions_per,
                             expand_open_paths=True, expand_path_level=expand_path_level)
-        df2[outter_group_by_columns] = '+'
+        df2[outter_group_by_columns] = '├──'
         expanded_dfs.append((filter, location, df2))
 
     output_df = df.copy()

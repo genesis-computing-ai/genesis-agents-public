@@ -262,7 +262,7 @@ privileges:
   - BIND SERVICE ENDPOINT:
       description: "Allow access to application endpoints"
   - IMPORTED PRIVILEGES ON SNOWFLAKE DB:
-      description: "to use of CORTEX LLM functions"
+      description: "(Optional) Allow GenBots access to query account_usage views"
 $$)
 ;
 --privileges:
@@ -328,7 +328,7 @@ To allow Genesis to open two endpoints, one for Slack to authorize new Apps via 
 access to the Streamlit Genesis GUI
 
 `IMPORTED PRIVILEGES` ON **SNOWFLAKE DB**
-To allow use of Snowflake CORTEX LLM functions
+(Optional) Allow GenBots access to query account_usage views
 
 ### Privileges to objects
 `USAGE` on **COMPUTE POOL**

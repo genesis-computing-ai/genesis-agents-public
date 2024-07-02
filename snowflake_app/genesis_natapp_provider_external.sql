@@ -261,6 +261,8 @@ configuration:
 privileges:
   - BIND SERVICE ENDPOINT:
       description: "Allow access to application endpoints"
+  - IMPORTED PRIVILEGES ON SNOWFLAKE DB:
+      description: "(Optional) Allow GenBots access to query account_usage views"      
 $$)
 ;
 --privileges:
@@ -322,6 +324,9 @@ in your Snowflake account to grant the application access to the following resou
 `BIND SERVICE ENDPOINT` on **ACCOUNT**
 To allow Genesis to open two endpoints, one for Slack to authorize new Apps via OAuth, and one for inbound
 access to the Streamlit Genesis GUI
+
+`IMPORTED PRIVILEGES` ON **SNOWFLAKE DB**
+(Optional) Allow GenBots access to query account_usage views
 
 ### Privileges to objects
 `USAGE` on **COMPUTE POOL**

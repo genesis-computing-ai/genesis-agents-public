@@ -30,6 +30,7 @@ x MR-task to capture what is granted and then re-grant later if needed
 x MR - make this work on multicase call GENESIS_LOCAL_DB.SETTINGS.grant_schema_usage_and_select_to_app('MY_DATA',$APP_DATABASE); (fix in SiS script)
 MR-SiS app will restart service is suspended (With pool) but doesnt wake up harvester, errors in SiS log harvest screen
 Turn on MFA on accounts
+Create an account in each region Gensis has been installed with event logging setup to collect logs
 MR - Have ability to give a bot its own oauth token or uid/pwd so it has its own RBAC
 JD- Make a bot Testy that tests the other bots (excercises and validates all their tools)
 JL- Add a way for user to provide new refresh key when making new bot

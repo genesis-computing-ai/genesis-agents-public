@@ -14,6 +14,7 @@ generate files cant get added to stage
 n Allow files to be uploaded to stage without downloading them to slack
 Only upload a file to vector store if its not already there (and is the same.. using md5, track last md5 submitted) 
 Add request for imported privs on snowflake db to manifest (now available in EXT patch 85 for pfizer)
+Add Janice as default bot - including way to add default files.
 x Fix sis streaming on Dev
 x Test uploading lots of files to a folder (botos docs)
 x Move available_functions (all_functions) to a central object and log it and monitor it

@@ -13,6 +13,7 @@ x streamlit last 2 characters of bots messages sometimes get cut off
 generate files cant get added to stage
 n Allow files to be uploaded to stage without downloading them to slack
 Only upload a file to vector store if its not already there (and is the same.. using md5, track last md5 submitted) 
+Add request for imported privs on snowflake db to manifest 
 x Fix sis streaming on Dev
 x Test uploading lots of files to a folder (botos docs)
 x Move available_functions (all_functions) to a central object and log it and monitor it

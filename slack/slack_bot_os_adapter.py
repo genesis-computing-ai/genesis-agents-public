@@ -1001,6 +1001,8 @@ class SlackBotAdapter(BotOsInputAdapter):
             if response["ok"]:
                 # Iterate through the users to find a matching display name or real name
                 for member in response["members"]:
+                    if "id" in member and member["id"].lower() == user_name:
+                        return member["id"]
                     if "name" in member and member["name"].lower() == user_name:
                         return member["id"]
                     if (

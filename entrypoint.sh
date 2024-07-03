@@ -1,6 +1,15 @@
 #!/bin/bash
 
-if [ "$GENESIS_MODE" = "HARVESTER" ]; then
+if [ "$GENESIS_MODE" = "KNOWLEDGE" ]; then
+    echo "Running Genesis Knowledge Server"
+
+    export PYTHONPATH=$PYTHONPATH:~/bot_os
+    export PYTHONPATH=$PYTHONPATH:/src/app/
+    export PYTHONPATH=$PYTHONPATH:/
+
+    python3 /src/app/knowledge/bot_os_knowledge.py
+
+elif [ "$GENESIS_MODE" = "HARVESTER" ]; then
     echo "Running Genesis Harvester"
 
     export PYTHONPATH=$PYTHONPATH:~/bot_os

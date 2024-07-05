@@ -184,6 +184,7 @@ def make_session(
             db_adapter.create_bot_workspace(workspace_schema_name)
             db_adapter.grant_all_bot_workspace(workspace_schema_name)
             instructions += f"\nYou have a workspace schema created specifically for you named {workspace_schema_name} that the user can also access. You may use this schema for creating tables, views, and stages that are required when generating answers to data analysis questions. Only use this schema if asked to create an object. Always return the full location of the object."
+            instructions += f"\nWhenever asked for data, always provide a link to a datacube visualization to help them understand the data you used on of the form: http://{os.getenv('DATA_CUBES_INGRESS_URL','localhost:8501')}?sql_query=select%20*%20from%20spider_data.baseball.all_star -- replace sql_query with the query you used."
         except Exception as e:
             logger.warning(f"Error creating bot workspace for bot_id {bot_id} {e} ")
 

@@ -14,6 +14,8 @@ except:
     snowflake_connector = SnowflakeConnector(connection_name='Snowflake')
 
 def run_query(sql:str, max_rows:int):
+    if st.session_state.get('generated_queries'):
+        st.session_state.generated_queries += sql + '\n\n'
     if NativeMode:
         result = session.sql(sql).limit(max_rows).to_pandas() #collect()
         return result
@@ -219,8 +221,14 @@ def main():
             st.session_state.open_paths = expanded_rows
 
         editable = st.data_editor(result_df, use_container_width=True, key="my_data_editor_key", on_change=data_change)
-        st.write(f"{len(result_df)} rows returned.")
-
+        row_count = len(result_df)
+        st.write(f"{row_count} rows returned.")
+        if row_count == 1000:
+            st.warning("Warning: The dataset may not be complete. The result set is limited to 1000 rows.")
+    
+        if not st.session_state.get('generated_queries'):
+            st.session_state.generated_queries = " "
+        st.session_state.generated_queries = st.text_area(label="Queries Generated", value=st.session_state.generated_queries, height=200)
     else:
         st.write("Please provide a SQL query in the URL parameter `sql_query`.")
 if __name__ == "__main__":

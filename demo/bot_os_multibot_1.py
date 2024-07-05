@@ -125,8 +125,6 @@ else:  # Initialize BigQuery client
     print("Starting Snowflake connector...")
     db_adapter = SnowflakeConnector(connection_name="Snowflake")
     connection_info = {"Connection_Type": "Snowflake"}
-data_cubes_ingress_url = get_udf_endpoint_url("streamlitdatacubes")
-os.environ["DATA_CUBES_INGRESS_URL"] = data_cubes_ingress_url if data_cubes_ingress_url else "localhost:8501"
 db_adapter.ensure_table_exists()
 print("---> CONNECTED TO DATABASE:: ", genesis_source)
 global_flags.source = genesis_source
@@ -206,6 +204,9 @@ else:
     t, r = get_slack_config_tokens()
 print("...Slack Connector Active Flag: ", global_flags.slack_active)
 
+data_cubes_ingress_url = get_udf_endpoint_url("streamlitdatacubes")
+data_cubes_ingress_url = data_cubes_ingress_url if data_cubes_ingress_url else "localhost:8501"
+print(f"data_cubes_ingress_url set to {data_cubes_ingress_url}")
 
 SystemVariables.bot_id_to_slack_adapter_map = {}
 
@@ -221,6 +222,7 @@ if llm_api_key is not None:
         db_adapter,
         bot_id_to_udf_adapter_map,
         stream_mode=True,
+        data_cubes_ingress_url=data_cubes_ingress_url,
     )
 else:
     # wait to collect API key from Streamlit user, then make sessions later
@@ -872,6 +874,10 @@ def bot_install_followup(bot_id=None, no_slack=False):
             )
 
     runner = os.getenv("RUNNER_ID", "jl-local-runner")
+    data_cubes_ingress_url = get_udf_endpoint_url("streamlitdatacubes")
+    data_cubes_ingress_url = data_cubes_ingress_url if data_cubes_ingress_url else "localhost:8501"
+    print(f"data_cubes_ingress_url set to {data_cubes_ingress_url}")
+
     if runner == bot_details["runner_id"]:
         bot_config = get_bot_details(bot_id=bot_id)
         if no_slack:
@@ -881,6 +887,7 @@ def bot_install_followup(bot_id=None, no_slack=False):
             db_adapter=db_adapter,
             bot_id_to_udf_adapter_map=bot_id_to_udf_adapter_map,
             stream_mode=True,
+            data_cubes_ingress_url=data_cubes_ingress_url,
         )
         # check new_session
         if new_session is None:

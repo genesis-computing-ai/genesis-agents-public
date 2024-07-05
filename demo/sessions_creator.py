@@ -49,7 +49,7 @@ dataset_name = db_schema[1]
 genesis_source = os.getenv("GENESIS_SOURCE", default="Snowflake")
 
 def make_session(
-    bot_config, db_adapter, bot_id_to_udf_adapter_map={}, stream_mode=False, skip_vectors=False
+    bot_config, db_adapter, bot_id_to_udf_adapter_map={}, stream_mode=False, skip_vectors=False, data_cubes_ingress_url=None,
 ):
 
     if not stream_mode:
@@ -184,7 +184,8 @@ def make_session(
             db_adapter.create_bot_workspace(workspace_schema_name)
             db_adapter.grant_all_bot_workspace(workspace_schema_name)
             instructions += f"\nYou have a workspace schema created specifically for you named {workspace_schema_name} that the user can also access. You may use this schema for creating tables, views, and stages that are required when generating answers to data analysis questions. Only use this schema if asked to create an object. Always return the full location of the object."
-            instructions += f"\nWhenever asked for data, always provide a link to a datacube visualization to help them understand the data you used on of the form: http://{os.getenv('DATA_CUBES_INGRESS_URL','localhost:8501')}?sql_query=select%20*%20from%20spider_data.baseball.all_star -- replace sql_query with the query you used."
+            if data_cubes_ingress_url:
+                instructions += f"\nWhenever asked for data, always provide a link to a datacube visualization to help them understand the data you used on of the form: http://{data_cubes_ingress_url}?sql_query=select%20*%20from%20spider_data.baseball.all_star -- replace sql_query with the query you used."
         except Exception as e:
             logger.warning(f"Error creating bot workspace for bot_id {bot_id} {e} ")
 
@@ -300,7 +301,9 @@ def create_sessions(
     db_adapter,
     bot_id_to_udf_adapter_map,
     stream_mode=False,
-    skip_vectors=False
+    skip_vectors=False,
+    data_cubes_ingress_url=None,
+
 ):
     # Fetch bot configurations for the given runner_id from BigQuery
     runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
@@ -321,7 +324,8 @@ def create_sessions(
             db_adapter=db_adapter,
             bot_id_to_udf_adapter_map=bot_id_to_udf_adapter_map,
             stream_mode=stream_mode,
-            skip_vectors=skip_vectors
+            skip_vectors=skip_vectors,
+            data_cubes_ingress_url=data_cubes_ingress_url,
         )
         if new_session is not None:
             sessions.append(new_session)

@@ -126,7 +126,7 @@ else:  # Initialize BigQuery client
     db_adapter = SnowflakeConnector(connection_name="Snowflake")
     connection_info = {"Connection_Type": "Snowflake"}
 data_cubes_ingress_url = get_udf_endpoint_url("streamlitdatacubes")
-os.environ["DATA_CUBES_INGRESS_URL"] = data_cubes_ingress_url
+os.environ["DATA_CUBES_INGRESS_URL"] = data_cubes_ingress_url if data_cubes_ingress_url else "localhost:8501"
 db_adapter.ensure_table_exists()
 print("---> CONNECTED TO DATABASE:: ", genesis_source)
 global_flags.source = genesis_source

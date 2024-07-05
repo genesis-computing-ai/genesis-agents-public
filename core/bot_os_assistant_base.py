@@ -26,6 +26,7 @@ class BotOsAssistantInterface:
         all_tools: list[dict] = {},
         all_functions={},
         all_function_to_tool_map={},
+        skip_vectors=False,
     ) -> None:
         pass
 

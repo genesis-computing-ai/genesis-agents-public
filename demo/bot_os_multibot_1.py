@@ -78,6 +78,28 @@ runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
 global_flags.runner_id = runner_id
 print("Runner ID: ", runner_id)
 
+def get_udf_endpoint_url(endpoint_name="udfendpoint"):
+    alt_service_name = os.getenv("ALT_SERVICE_NAME", None)
+    if alt_service_name:
+        query1 = f"SHOW ENDPOINTS IN SERVICE {alt_service_name};"
+    else:
+        query1 = f"SHOW ENDPOINTS IN SERVICE {project_id}.{dataset_name}.GENESISAPP_SERVICE_SERVICE;"
+    try:
+        logger.warning(f"Running query to check endpoints: {query1}")
+        results = db_adapter.run_query(query1)
+        udf_endpoint_url = next(
+            (
+                endpoint["ingress_url"]
+                for endpoint in results
+                if endpoint["name"] == endpoint_name
+            ),
+            None,
+        )
+        return udf_endpoint_url
+    except Exception as e:
+        logger.warning(f"Failed to get {endpoint_name} endpoint URL with error: {e}")
+        return None
+
 genbot_internal_project_and_schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "None")
 if genbot_internal_project_and_schema == "None":
     print("ENV Variable GENESIS_INTERNAL_DB_SCHEMA is not set.")
@@ -103,6 +125,8 @@ else:  # Initialize BigQuery client
     print("Starting Snowflake connector...")
     db_adapter = SnowflakeConnector(connection_name="Snowflake")
     connection_info = {"Connection_Type": "Snowflake"}
+data_cubes_ingress_url = get_udf_endpoint_url("streamlitdatacubes")
+os.environ["DATA_CUBES_INGRESS_URL"] = data_cubes_ingress_url
 db_adapter.ensure_table_exists()
 print("---> CONNECTED TO DATABASE:: ", genesis_source)
 global_flags.source = genesis_source
@@ -111,32 +135,11 @@ global_flags.source = genesis_source
 #    db_adapter.semantic_copilot(prompt, semantic_model='"!SEMANTIC"."GENESIS_TEST"."GENESIS_INTERNAL"."SEMANTIC_STAGE"."revenue.yaml"')
 
 
-def get_udf_endpoint_url():
-    alt_service_name = os.getenv("ALT_SERVICE_NAME", None)
-    if alt_service_name:
-        query1 = f"SHOW ENDPOINTS IN SERVICE {alt_service_name};"
-    else:
-        query1 = f"SHOW ENDPOINTS IN SERVICE {project_id}.{dataset_name}.GENESISAPP_SERVICE_SERVICE;"
-    try:
-        logger.warning(f"Running query to check endpoints: {query1}")
-        results = db_adapter.run_query(query1)
-        udf_endpoint_url = next(
-            (
-                endpoint["ingress_url"]
-                for endpoint in results
-                if endpoint["name"] == "udfendpoint"
-            ),
-            None,
-        )
-        return udf_endpoint_url
-    except Exception as e:
-        logger.warning(f"Failed to get UDF endpoint URL with error: {e}")
-        return None
 
 
 # Call the function to show endpoints
 try:
-    ep = get_udf_endpoint_url()
+    ep = get_udf_endpoint_url(endpoint_name="udfendpoint")
     logger.warning(f"udf endpoint: {ep}")
 except Exception as e:
     logger.warning(f"Error on get_endpoints {e} ")

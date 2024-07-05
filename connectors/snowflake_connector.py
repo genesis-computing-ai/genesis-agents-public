@@ -1011,6 +1011,8 @@ class SnowflakeConnector(DatabaseConnector):
 
     def ensure_table_exists(self):
         import bot_genesis.tools_descriptions
+        streamlitdc_url = os.getenv("DATA_CUBES_INGRESS_URL", None)
+        print(f"streamlit data cubes ingress URL: {streamlitdc_url}")
 
         llm_results_table_check_query = (
             f"SHOW TABLES LIKE 'LLM_RESULTS' IN SCHEMA {self.schema};"

@@ -480,6 +480,9 @@ VALUES ('GENESISAPP_SERVICE_SERVICE',
       - name: streamlit
         port: 8501
         public: true
+      - name: streamlitdatacubes
+        port: 8502
+        public: true
       logExporters:
         eventTableConfig:
           logLevel: INFO
@@ -488,6 +491,7 @@ VALUES ('GENESISAPP_SERVICE_SERVICE',
       endpoints:
       - udfendpoint
       - streamlit
+      - streamlitdatacubes
 :::)
 ;
 

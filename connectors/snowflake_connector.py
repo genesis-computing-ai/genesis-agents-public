@@ -1736,7 +1736,9 @@ class SnowflakeConnector(DatabaseConnector):
                     timestamp TIMESTAMP NOT NULL,
                     primary_user STRING,
                     bot_id STRING,                    
-                    knowledge STRING
+                    user_learning STRING,
+                    tool_learning STRING,
+                    data_learning STRING
                 );
                 """
                 cursor.execute(user_bot_table_ddl)
@@ -5356,7 +5358,7 @@ class SnowflakeConnector(DatabaseConnector):
 
     def extract_knowledge(self, primary_user, bot_id):
         bot_name, bot_serial = bot_id.split("-")
-        query = f"""SELECT THREAD_SUMMARY, USER_LEARNING, TOOL_LEARNING, DATA_LEARNING FROM {self.knowledge_table_name} 
+        query = f"""SELECT * FROM {self.user_bot_table_name} 
                     WHERE primary_user = '{primary_user}' AND BOT_ID LIKE '{bot_name}%'
                     ORDER BY TIMESTAMP DESC
                     LIMIT 1;"""

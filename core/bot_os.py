@@ -371,7 +371,7 @@ class BotOsSession:
                     knowledge = self.log_db_connector.extract_knowledge(primary_user, self.bot_id)
                     if knowledge:
                         input_message.msg = f'''NOTE--Here are some things you know about this user from previous interactions, that may be helpful to this conversation:
-                                           {knowledge['THREAD_SUMMARY']}\n\n''' + input_message.msg
+                                           {knowledge['USER_LEARNING']}\n\n''' + input_message.msg
 
            # logger.error(f"Out Thread {out_thread} ->> In Thead {input_message.thread_id}")
            

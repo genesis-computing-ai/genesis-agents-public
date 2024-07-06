@@ -148,7 +148,7 @@ class KnowledgeServer:
                                               tool_learning, data_learning))
                 self.db_connector.client.commit()
 
-                self.user_queue.put((primary_user, bot_id, raw_knowledge))
+                self.user_queue.put((primary_user, bot_id, response))
             except Exception as e:
                 print(f"Encountered errors while inserting into {self.db_connector.knowledge_table_name} row: {e}")
             finally:
@@ -166,41 +166,48 @@ class KnowledgeServer:
                 print("Queue is empty, refiner is waiting...")
                 time.sleep(refresh_seconds)
                 continue
-            primary_user, bot_id, raw_knowledge = self.user_queue.get()
+            primary_user, bot_id, knowledge = self.user_queue.get()
             query = f"""SELECT * FROM {self.db_connector.user_bot_table_name}
                         WHERE primary_user = '{primary_user}' AND BOT_ID = '{bot_id}'
                         ORDER BY TIMESTAMP DESC
                         LIMIT 1;"""
+
             user_bot_knowledge = self.db_connector.run_query(query)
-            if user_bot_knowledge:   
-                previous_knowledge = user_bot_knowledge[0]['KNOWLEDGE']             
-                content = f'''This is a previous user and bot summary:
-                              {previous_knowledge}
 
-                              And this is the new raw knowledge
-                              {raw_knowledge}
-                        '''
-            else:
-                content = f'''This is the new raw knowledge:
-                             {raw_knowledge}
-                        '''
+            new_knowledge = {}
+            prompts = {'USER_LEARNING': 'user', 'TOOL_LEARNING': 'tools the user used', 'DATA_LEARNING': 'data the user used'}
+            for item, prompt in prompts.items():
+                raw_knowledge = knowledge[item.lower()]
+                if user_bot_knowledge:   
+                    previous_knowledge = user_bot_knowledge[0][item]             
+                    content = f'''This is the previous summary:
+                                {previous_knowledge}
 
-            response = self.client.chat.completions.create(
-                            model=self.model, messages=[
-                            {"role": "system", "content": "Use the following raw knowledge information about the interaction of the user and the bot, \
-                             summarize what we learned about the user in bullet point."},
-                            {"role": "user", "content": content} ])
-            new_knowledge = response.choices[0].message.content
+                                And this is the new raw knowledge
+                                {raw_knowledge}
+                            '''
+                else:
+                    content = f'''This is the new raw knowledge:
+                                {raw_knowledge}
+                            '''
+
+                response = self.client.chat.completions.create(
+                                model=self.model, messages=[
+                                {"role": "system", "content": f"Use the following raw knowledge information about the interaction of the user and the bot, \
+                                summarize what we learned about the {prompt} in bullet point."},
+                                {"role": "user", "content": content} ])
+                new_knowledge[item] = response.choices[0].message.content
 
             try:
                 insert_query = f"""
                 INSERT INTO {self.db_connector.user_bot_table_name} 
-                    (timestamp, primary_user, bot_id, knowledge)
-                    VALUES (%s, %s, %s, %s)                    
+                    (timestamp, primary_user, bot_id, user_learning, tool_learning, data_learning)
+                    VALUES (%s, %s, %s, %s, %s, %s)                    
                 """
                 timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 cursor = self.db_connector.client.cursor()
-                cursor.execute(insert_query, (timestamp, primary_user, bot_id, new_knowledge))
+                cursor.execute(insert_query, (timestamp, primary_user, bot_id, new_knowledge['USER_LEARNING'],  
+                                              new_knowledge['TOOL_LEARNING'],  new_knowledge['DATA_LEARNING']))
                 self.db_connector.client.commit()
             except Exception as e:
                 print(f"Encountered errors while inserting into {self.db_connector.user_bot_table_name} row: {e}")

@@ -729,6 +729,10 @@ def configure_llm():
                     llm_api_key_candidate = None
 
         if llm_api_key_candidate is not None:
+            data_cubes_ingress_url = get_udf_endpoint_url("streamlitdatacubes")
+            data_cubes_ingress_url = data_cubes_ingress_url if data_cubes_ingress_url else "localhost:8501"
+            logger.warn(f"data_cubes_ingress_url(2) set to {data_cubes_ingress_url}")
+        
             if (
                 llm_api_key_candidate is not None
                 and default_llm_engine.lower() == "openai"
@@ -750,6 +754,7 @@ def configure_llm():
                 db_adapter,
                 bot_id_to_udf_adapter_map,
                 stream_mode=True,
+                data_cubes_ingress_url=data_cubes_ingress_url,
             )
             server = BotOsServer(
                 app,

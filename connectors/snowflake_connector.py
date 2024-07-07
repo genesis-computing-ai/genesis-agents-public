@@ -1732,7 +1732,7 @@ class SnowflakeConnector(DatabaseConnector):
             cursor.execute(user_bot_table_check_query)
             if not cursor.fetchone():
                 user_bot_table_ddl = f"""
-                CREATE TABLE {self.user_bot_table_name} (
+                CREATE TABLE IF NOT EXISTS {self.user_bot_table_name} (
                     timestamp TIMESTAMP NOT NULL,
                     primary_user STRING,
                     bot_id STRING,                    

@@ -67,6 +67,8 @@ logging.basicConfig(
 
 import core.global_flags as global_flags
 
+import debugpy
+debugpy.listen(("0.0.0.0", 5678))
 
 ### Simple mode for Cortex testing
 # os.environ["SIMPLE_MODE"] = "true"
@@ -144,6 +146,10 @@ except Exception as e:
 
 
 ngrok_active = False
+
+# log where the remote debugger is listening
+debug_endpoint_url = get_udf_endpoint_url("debug_genesis") or "localhost"
+logger.warning(f"Remote debugger is listening on {debug_endpoint_url}:5678")
 
 ##########################
 # Main stuff starts here

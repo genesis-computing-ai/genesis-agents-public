@@ -24,4 +24,4 @@ urllib3<2.0
 #ngrok
 snowflake_connector_python
 reka-api
-
+debugpy

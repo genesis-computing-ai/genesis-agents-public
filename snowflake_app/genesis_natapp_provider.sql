@@ -483,7 +483,7 @@ VALUES ('GENESISAPP_SERVICE_SERVICE',
       - name: streamlitdatacubes
         port: 8502
         public: true
-      - name: debug_genesis
+      - name: debuggenesis
         port: 5678
         public: true
       logExporters:
@@ -495,7 +495,7 @@ VALUES ('GENESISAPP_SERVICE_SERVICE',
       - udfendpoint
       - streamlit
       - streamlitdatacubes
-      - debug_genesis
+      - debuggenesis
 :::)
 ;
 

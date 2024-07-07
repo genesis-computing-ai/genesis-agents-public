@@ -148,7 +148,7 @@ except Exception as e:
 ngrok_active = False
 
 # log where the remote debugger is listening
-debug_endpoint_url = get_udf_endpoint_url("debug_genesis") or "localhost"
+debug_endpoint_url = get_udf_endpoint_url("debuggenesis") or "localhost"
 logger.warning(f"Remote debugger is listening on {debug_endpoint_url}:5678")
 
 ##########################

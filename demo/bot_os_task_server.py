@@ -115,8 +115,9 @@ print("---> CONNECTED TO DATABASE:: ", genesis_source)
 #    db_adapter.semantic_copilot(prompt, semantic_model='"!SEMANTIC"."GENESIS_TEST"."GENESIS_INTERNAL"."SEMANTIC_STAGE"."revenue.yaml"')
 
 
-def get_udf_endpoint_url():
+def get_udf_endpoint_url(endpoint_name="udfendpoint"):
     alt_service_name = os.getenv("ALT_SERVICE_NAME", None)
+    #TODO logic may break when getting data cubes endpoint and alt_service_name is set
     if alt_service_name:
         query1 = f"SHOW ENDPOINTS IN SERVICE {alt_service_name};"
     else:
@@ -128,19 +129,21 @@ def get_udf_endpoint_url():
             (
                 endpoint["ingress_url"]
                 for endpoint in results
-                if endpoint["name"] == "udfendpoint"
+                if endpoint["name"] == endpoint_name
             ),
             None,
         )
         return udf_endpoint_url
     except Exception as e:
-        logger.warning(f"Failed to get UDF endpoint URL with error: {e}")
+        logger.warning(f"Failed to get {endpoint_name} endpoint URL with error: {e}")
         return None
-
 
 # Call the function to show endpoints
 try:
-    ep = get_udf_endpoint_url()
+    ep = get_udf_endpoint_url("udfendpoint")
+    data_cubes_ingress_url = get_udf_endpoint_url("streamlitdatacubes")
+    data_cubes_ingress_url = data_cubes_ingress_url if data_cubes_ingress_url else "localhost:8501"
+    logger.warning(f"data_cubes_ingress_url set to {data_cubes_ingress_url}")
     logger.warning(f"udf endpoint: {ep}")
 except Exception as e:
     logger.warning(f"Error on get_endpoints {e} ")
@@ -274,6 +277,7 @@ if llm_api_key is not None:
         bot_id_to_udf_adapter_map,
         stream_mode=False,
         skip_vectors=True,
+        data_cubes_ingress_url=data_cubes_ingress_url,
     )
 else:
     # wait to collect API key from Streamlit user, then make sessions later
@@ -772,6 +776,9 @@ def configure_llm():
                     llm_api_key_candidate = None
 
         if llm_api_key_candidate is not None:
+            data_cubes_ingress_url = get_udf_endpoint_url("streamlitdatacubes")
+            data_cubes_ingress_url = data_cubes_ingress_url if data_cubes_ingress_url else "localhost:8501"
+            logger.warning(f"data_cubes_ingress_url(2) set to {data_cubes_ingress_url}")
             if (
                 llm_api_key_candidate is not None
                 and default_llm_engine.lower() == "openai"
@@ -793,6 +800,7 @@ def configure_llm():
                 db_adapter,
                 bot_id_to_udf_adapter_map,
                 stream_mode=False,
+                data_cubes_ingress_url=data_cubes_ingress_url,
             )
             server = BotOsServer(
                 app,
@@ -918,6 +926,9 @@ def bot_install_followup(bot_id=None, no_slack=False):
             )
 
     runner = os.getenv("RUNNER_ID", "jl-local-runner")
+    data_cubes_ingress_url = get_udf_endpoint_url("streamlitdatacubes")
+    data_cubes_ingress_url = data_cubes_ingress_url if data_cubes_ingress_url else "localhost:8501"
+    logger.warning(f"data_cubes_ingress_url(3) set to {data_cubes_ingress_url}")
     if runner == bot_details["runner_id"]:
         bot_config = get_bot_details(bot_id=bot_id)
         if no_slack:
@@ -928,6 +939,7 @@ def bot_install_followup(bot_id=None, no_slack=False):
             bot_id_to_udf_adapter_map=bot_id_to_udf_adapter_map,
             stream_mode=False,
             skip_vectors=True,
+            data_cubes_ingress_url=data_cubes_ingress_url
         )
         # check new_session
         if new_session is None:

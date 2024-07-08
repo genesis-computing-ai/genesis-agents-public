@@ -140,6 +140,9 @@ global_flags.source = genesis_source
 # Call the function to show endpoints
 try:
     ep = get_udf_endpoint_url(endpoint_name="udfendpoint")
+    data_cubes_ingress_url = get_udf_endpoint_url("streamlitdatacubes")
+    data_cubes_ingress_url = data_cubes_ingress_url if data_cubes_ingress_url else "localhost:8501"
+    logger.warning(f"data_cubes_ingress_url: {data_cubes_ingress_url}")
     logger.warning(f"udf endpoint: {ep}")
 except Exception as e:
     logger.warning(f"Error on get_endpoints {e} ")
@@ -148,8 +151,8 @@ except Exception as e:
 ngrok_active = False
 
 # log where the remote debugger is listening
-debug_endpoint_url = get_udf_endpoint_url("debuggenesis") or "localhost"
-logger.warning(f"Remote debugger is listening on {debug_endpoint_url}:5678")
+# debug_endpoint_url = get_udf_endpoint_url("debuggenesis") or "localhost"
+# logger.warning(f"Remote debugger is listening on {debug_endpoint_url}:5678")
 
 ##########################
 # Main stuff starts here
@@ -210,9 +213,7 @@ else:
     t, r = get_slack_config_tokens()
 print("...Slack Connector Active Flag: ", global_flags.slack_active)
 
-data_cubes_ingress_url = get_udf_endpoint_url("streamlitdatacubes")
-data_cubes_ingress_url = data_cubes_ingress_url if data_cubes_ingress_url else "localhost:8501"
-print(f"data_cubes_ingress_url set to {data_cubes_ingress_url}")
+
 
 SystemVariables.bot_id_to_slack_adapter_map = {}
 
@@ -731,7 +732,7 @@ def configure_llm():
         if llm_api_key_candidate is not None:
             data_cubes_ingress_url = get_udf_endpoint_url("streamlitdatacubes")
             data_cubes_ingress_url = data_cubes_ingress_url if data_cubes_ingress_url else "localhost:8501"
-            logger.warn(f"data_cubes_ingress_url(2) set to {data_cubes_ingress_url}")
+            logger.warning(f"data_cubes_ingress_url(2) set to {data_cubes_ingress_url}")
         
             if (
                 llm_api_key_candidate is not None
@@ -887,7 +888,7 @@ def bot_install_followup(bot_id=None, no_slack=False):
     runner = os.getenv("RUNNER_ID", "jl-local-runner")
     data_cubes_ingress_url = get_udf_endpoint_url("streamlitdatacubes")
     data_cubes_ingress_url = data_cubes_ingress_url if data_cubes_ingress_url else "localhost:8501"
-    print(f"data_cubes_ingress_url set to {data_cubes_ingress_url}")
+    print(f"data_cubes_ingress_url(3) set to {data_cubes_ingress_url}")
 
     if runner == bot_details["runner_id"]:
         bot_config = get_bot_details(bot_id=bot_id)

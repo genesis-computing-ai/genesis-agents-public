@@ -239,7 +239,7 @@ def make_session(
         # assistant_implementation = BotOsAssistantOpenAI
 
     try:
-        logger.warning(f"GenBot {bot_id} instructions:::  {instructions}")
+        # logger.warning(f"GenBot {bot_id} instructions:::  {instructions}")
         # print(f'tools: {tools}')
         asst_impl = (
             assistant_implementation if stream_mode else None

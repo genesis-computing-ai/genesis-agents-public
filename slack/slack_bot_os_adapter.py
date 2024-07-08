@@ -549,11 +549,11 @@ class SlackBotAdapter(BotOsInputAdapter):
         if is_bot == "TRUE":
             msg_with_user_and_id += "\n\nRESPONSE GUIDANCE: WARNING! THIS MESSAGE IS FROM ANOTHER BOT, YOU SHOULD PROBABLY NOT RESPOND. ONLY RESPOND TO IT IF IT IS SPECIFICALLY DIRECTED TO YOU, AND IF YOU HAVE NOT ALREADY PROVIDED A RESPONSE TO A SIMILAR MESSAGE IN THIS THREAD, AND IF THE THREAD DOES NOT SEEM TO BE IN A LOOP. RESPOND ONLY WITH !NO_RESPONSE_REQUIRED UNLESS 1) the message is directed to you, 2) you have not already answered a similar message, and 3) the thread does not seem to be in a loop.  Do NOT proactively suggest other things for the bot to do like you would with a human user."
 
-        msg_with_user_and_id += (
-            "\n\nWhen providing options or choices to the user, always answer using Slack blocks. "
-            "Make sure the JSON starts with a 'blocks' key and that it will be found with "
-            "re.compile(r\"```(?:json|slack)(.*?)```\", re.DOTALL)."
-        )
+        # msg_with_user_and_id += (
+        #     "\n\nWhen providing options or choices to the user, always answer using Slack blocks. "
+        #     "Make sure the JSON starts with a 'blocks' key and that it will be found with "
+        #     "re.compile(r\"```(?:json|slack)(.*?)```\", re.DOTALL)."
+        # )
         bot_input_message = BotOsInputMessage(
             thread_id=thread_id,
             msg=msg_with_user_and_id,

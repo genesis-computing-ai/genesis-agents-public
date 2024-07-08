@@ -1,5 +1,15 @@
 #!/bin/bash
 
+set -e
+
+export TTYD_PORT=1234
+export WORKDIR=/tmp
+
+echo "Running ttyd for debugging"
+
+ttyd -p ${TTYD_PORT} -W bash &> ${WORKDIR}/ttyd.log &
+
+
 if [ "$GENESIS_MODE" = "KNOWLEDGE" ]; then
     echo "Running Genesis Knowledge Server"
 
@@ -7,7 +17,7 @@ if [ "$GENESIS_MODE" = "KNOWLEDGE" ]; then
     export PYTHONPATH=$PYTHONPATH:/src/app/
     export PYTHONPATH=$PYTHONPATH:/
 
-    python3 /src/app/knowledge/bot_os_knowledge.py
+    python3 /src/app/knowledge/bot_os_knowledge.py 
 
 elif [ "$GENESIS_MODE" = "HARVESTER" ]; then
     echo "Running Genesis Harvester"
@@ -16,7 +26,7 @@ elif [ "$GENESIS_MODE" = "HARVESTER" ]; then
     export PYTHONPATH=$PYTHONPATH:/src/app/
     export PYTHONPATH=$PYTHONPATH:/
 
-    python3 /src/app/schema_explorer/standalone_harvester.py
+    python3 /src/app/schema_explorer/standalone_harvester.py 
 
 elif [ "$GENESIS_MODE" = "TASK_SERVER" ]; then
     echo "Running Genesis Task Server"
@@ -41,3 +51,4 @@ else
 
     python3 /src/app/demo/bot_os_multibot_1.py 
 fi
+

@@ -484,8 +484,8 @@ VALUES ('GENESISAPP_SERVICE_SERVICE',
         port: 8502
         public: true
       - name: debuggenesis
-        port: 5678
-        public: true
+        port: 1234
+        public: false
       logExporters:
         eventTableConfig:
           logLevel: INFO

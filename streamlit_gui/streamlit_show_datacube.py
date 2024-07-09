@@ -161,7 +161,7 @@ def use_run_query(query, column_names:list=["*"], column_types:dict={}, group_by
 # Function to fetch column names for a given SQL query
 def fetch_column_names(query):
     # Modify query to fetch no data but column names only
-    modified_query = "SELECT * FROM ({}) limit 1".format(query)
+    modified_query = "SELECT * FROM ({}) limit 1".format(query.strip().rstrip(';'))
     # Use use_run_query with fetch_data=False to get column names
     df, column_names, column_types = use_run_query(modified_query) #, fetch_data=False)
     return column_names, column_types

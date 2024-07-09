@@ -103,7 +103,7 @@ tools_data = [
     ),
     ("image_tools", "Tools to interpret visual images and pictures"),
     (
-        "autonomous_functions",
+        "autonomous_tools",
         "Tools for bots to create and managed autonomous tasks",
     ),
     (

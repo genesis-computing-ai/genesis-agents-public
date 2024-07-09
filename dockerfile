@@ -24,6 +24,7 @@ COPY embed ./embed
 COPY generated_modules ./generated_modules
 COPY entrypoint.sh /entrypoint.sh
 
+RUN apt-get update && apt-get install -y procps
 RUN apt-get -y update && \
     apt-get -y install  \
         curl

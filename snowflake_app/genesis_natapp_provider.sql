@@ -470,6 +470,7 @@ VALUES ('GENESISAPP_SERVICE_SERVICE',
             GENESIS_SOURCE: Snowflake
             SNOWFLAKE_SECURE: FALSE
             OPENAI_HARVESTER_EMBEDDING_MODEL: text-embedding-3-large
+            USE_KNOWLEDGE: TRUE
         readinessProbe:
           port: 8080
           path: /healthcheck

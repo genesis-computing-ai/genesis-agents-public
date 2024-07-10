@@ -21,8 +21,11 @@ def run_query(sql:str, max_rows:int):
         return result
     else:
         result = snowflake_connector.run_query(sql, max_rows=max_rows, max_rows_override=True)
-        column_names = [col for col in result[0].keys()]
-        return pd.DataFrame(result, columns=column_names)
+        try:
+            column_names = [col for col in result[0].keys()]
+            return pd.DataFrame(result, columns=column_names)
+        except Exception:
+            return result
 
 def get_expand_paths_filter(df:pd.DataFrame, column_names:list, open_paths:list, group_by_columns:list) -> list:
     filter_strings_with_locations = []

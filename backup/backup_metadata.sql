@@ -62,7 +62,7 @@ BEGIN
         -- Loop through each table in the schema
         FOR table_record IN rs_tables DO
             table_name := table_record.TABLE_NAME;
-            create_command := 'CREATE OR REPLACE TABLE ' || :BACKUP_DATABASE || '.' || :schema_name || '.' || :table_name || ' AS SELECT * FROM ' || :APP_NAME || '.' || :schema_name || '.' || :table_name;
+            create_command := 'CREATE OR REPLACE TABLE ' || :BACKUP_DATABASE || '.' || :schema_name || '."' || :table_name || '" AS SELECT * FROM ' || :APP_NAME || '.' || :schema_name || '."' || :table_name || '"';
             EXECUTE IMMEDIATE create_command;
             output := :output || '\n' || :BACKUP_DATABASE || '.' || :schema_name || '.' || :table_name || ' table created and backed up.';
         END FOR;

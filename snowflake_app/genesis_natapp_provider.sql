@@ -489,7 +489,7 @@ VALUES ('GENESISAPP_SERVICE_SERVICE',
         public: false
       logExporters:
         eventTableConfig:
-          logLevel: INFO
+          logLevel: DEBUG
     serviceRoles:
     - name: GENESISAPP_SERVICE_SERVICE_ROLE
       endpoints:
@@ -522,7 +522,7 @@ VALUES ('GENESISAPP_HARVESTER_SERVICE',
         public: false
       logExporters:
         eventTableConfig:
-          logLevel: INFO
+          logLevel: DEBUG
     serviceRoles:
     - name: GENESISAPP_HARVESTER_SERVICE_ROLE
       endpoints:
@@ -550,7 +550,7 @@ VALUES ('GENESISAPP_KNOWLEDGE_SERVICE',
         public: false
       logExporters:
         eventTableConfig:
-          logLevel: INFO
+          logLevel: DEBUG
     serviceRoles:
     - name: GENESISAPP_KNOWLEDGE_SERVICE_ROLE
       endpoints:
@@ -580,7 +580,7 @@ VALUES ('GENESISAPP_TASK_SERVICE',
         public: false
       logExporters:
         eventTableConfig:
-          logLevel: INFO
+          logLevel: DEBUG
     serviceRoles:
     - name: GENESISAPP_TASK_SERVICE_ROLE
       endpoints:

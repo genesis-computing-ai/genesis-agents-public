@@ -99,14 +99,10 @@ def use_run_query(query, column_names:list=["*"], column_types:dict={}, group_by
     column_names = sorted(column_names, key=lambda x: base_group_by_columns.index(x) if x in base_group_by_columns else len(base_group_by_columns))
     
     if group_by_columns and len(group_by_columns) > 0:
-        column_names_with_aliases = [
-            f"sum({col}) as {col}" if column_types.get(col,'') in ['int', 'float'] else f"'-' as {col}" # f"min({col}) as {col}"
-            for col in column_names if col not in group_by_columns
-        ]
-        column_names = [
-            f"sum({col})" if column_types.get(col,'') in ['int', 'float'] else f"min({col})"
-            for col in column_names if col not in group_by_columns
-        ]
+        agg_l = lambda col: f"sum({col})" if str(column_types.get(col, '')).lower() in ['int', 'int64', 'float', 'double'] else f"min({col})"
+
+        column_names_with_aliases = [f"{agg_l(col)} as {col}" for col in column_names if col not in group_by_columns]
+        column_names              = [f"{agg_l(col)}" for col in column_names if col not in group_by_columns]
     else:
         column_names_with_aliases = column_names
 
@@ -147,7 +143,6 @@ def use_run_query(query, column_names:list=["*"], column_types:dict={}, group_by
             df = result_set
             column_names = df.columns.tolist()
             df.insert(0, 'is_expanded', False)
-            #column_types = {col: type(result_set[0][col]).__name__ for col in column_names}
             column_types = df.dtypes.to_dict()
 
             if open_paths and expand_open_paths:

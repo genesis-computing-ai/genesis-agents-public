@@ -19,6 +19,7 @@ from openai.types.beta.threads.runs import ToolCall, ToolCallDelta
 from openai.types.beta.threads import Message, MessageDelta
 from openai.types.beta.threads.runs import ToolCall, RunStep
 from openai.types.beta import AssistantStreamEvent
+from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.WARN, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -254,6 +255,8 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       self.callback_closures = {}
       self.user_allow_cache = {}
       self.clear_access_cache = False 
+      self.first_tool_call = defaultdict(lambda: True)
+      self.first_data_call = defaultdict(lambda: True)
     
       self.allowed_types_search = [".c", ".cs", ".cpp", ".doc", ".docx", ".html", ".java", ".json", ".md", ".pdf", ".php", ".pptx", ".py", ".rb", ".tex", ".txt", ".css", ".js", ".sh", ".ts"]
       self.allowed_types_code_i = [".c", ".cs", ".cpp", ".doc", ".docx", ".html", ".java", ".json", ".md", ".pdf", ".php", ".pptx", ".py", ".rb", ".tex", ".txt", ".css", ".js", ".sh", ".ts", ".csv", ".jpeg", ".jpg", ".gif", ".png", ".tar", ".xlsx", ".xml", ".zip"]
@@ -636,7 +639,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       return True
 
 
-   def _submit_tool_outputs(self, run_id, thread_id, tool_call_id, function_call_details, func_response):
+   def _submit_tool_outputs(self, run_id, thread_id, tool_call_id, function_call_details, func_response, metadata=None):
      
       logger.debug(f"_submit_tool_outputs - {thread_id} {run_id} {tool_call_id} - {function_call_details} - {func_response}")
 
@@ -783,6 +786,22 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       
       # now pacakge up the responses together
       tool_outputs = [{'tool_call_id': k, 'output': str(v)} for k, v in self.tool_completion_status[run_id].items()]
+
+      if os.getenv("USE_KNOWLEDGE", "false").lower() == 'true' and metadata is not None:
+         primary_user = json.dumps({'user_id': metadata.get('user_id', 'Unknown User ID'), 
+                        'user_name': metadata.get('user_name', 'Unknown User')})
+         knowledge = self.log_db_connector.extract_knowledge(primary_user, self.bot_id)
+         if knowledge:
+               if function_call_details[0][0] == 'search_metadata' and self.first_tool_call[thread_id]:
+                  tool_outputs[0]['output'] += f'''\n\nNOTE--Here are some things you know about this user and the data they used from previous interactions, that may be helpful to this conversation:
+                                 {knowledge['DATA_LEARNING']}''' 
+                  self.first_tool_call[thread_id] = False
+               elif self.first_data_call[thread_id]:
+                  tool_outputs[0]['output'] += f'''\n\nNOTE--Here are some things you know about this user and the tools they called from previous interactions, that may be helpful to this conversation:
+                                 {knowledge['TOOL_LEARNING']}''' 
+                  self.first_data_call[thread_id] = False
+
+
       # Limit the output of each tool to length 800000
       tool_outputs_limited = []
       for tool_output in tool_outputs:
@@ -838,7 +857,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       except Exception as e:
          logger.error(f"submit_tool_outputs - caught exception: {e}")
 
-   def _generate_callback_closure(self, run, thread, tool_call_id, function_details):
+   def _generate_callback_closure(self, run, thread, tool_call_id, function_details, metadata=None):
       def callback_closure(func_response):  # FixMe: need to break out as a generate closure so tool_call_id isn't copied
          try:                     
             del self.running_tools[tool_call_id]
@@ -846,12 +865,12 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
             error_string = f"callback_closure - tool call already deleted - caught exception: {e}"
             print(error_string)
          try:
-            self._submit_tool_outputs(run.id, thread.id, tool_call_id, function_details, func_response)
+            self._submit_tool_outputs(run.id, thread.id, tool_call_id, function_details, func_response, metadata)
          except Exception as e:
             error_string = f"callback_closure - _submit_tool_outputs - caught exception: {e}"
             print(error_string)
             try:
-               self._submit_tool_outputs(run.id, thread.id, tool_call_id, function_details, error_string)
+               self._submit_tool_outputs(run.id, thread.id, tool_call_id, function_details, error_string, metadata)
             except Exception as e:
                error_string = f"callback_closure - _submit_tool_outputs - caught exception: {e} submitting error_string {error_string}"
                print(error_string)
@@ -1099,7 +1118,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                            pass
                      log_readable_payload = func_name+"("+func_args+")"
                      try:
-                        callback_closure = self._generate_callback_closure(run, thread, tool_call_id, function_details)
+                        callback_closure = self._generate_callback_closure(run, thread, tool_call_id, function_details, run.metadata)
                         self.callback_closures[tool_call_id] = callback_closure
                      except Exception as e:
                         print(f"Failed to generate callback closure for run {run.id}, thread {thread.id}, tool_call_id {tool_call_id} with error: {e}")

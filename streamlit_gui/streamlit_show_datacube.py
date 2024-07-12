@@ -1,3 +1,4 @@
+from decimal import Decimal
 import streamlit as st
 import pandas as pd
 # with st.echo():
@@ -99,7 +100,7 @@ def use_run_query(query, column_names:list=["*"], column_types:dict={}, group_by
     column_names = sorted(column_names, key=lambda x: base_group_by_columns.index(x) if x in base_group_by_columns else len(base_group_by_columns))
     
     if group_by_columns and len(group_by_columns) > 0:
-        agg_l = lambda col: f"sum({col})" if str(column_types.get(col, '')).lower() in ['int', 'int64', 'float', 'double'] else f"min({col})"
+        agg_l = lambda col: f"sum({col})" if str(column_types.get(col, '')).lower() in ['int', 'int64', 'float', 'double', 'decimal'] else f"min({col})"
 
         column_names_with_aliases = [f"{agg_l(col)} as {col}" for col in column_names if col not in group_by_columns]
         column_names              = [f"{agg_l(col)}" for col in column_names if col not in group_by_columns]
@@ -144,6 +145,9 @@ def use_run_query(query, column_names:list=["*"], column_types:dict={}, group_by
             column_names = df.columns.tolist()
             df.insert(0, 'is_expanded', False)
             column_types = df.dtypes.to_dict()
+            for col in df.columns:
+                if df[col].dtype == 'object' and isinstance(df[col].iloc[0], Decimal):
+                    column_types[col] = 'decimal'
 
             if open_paths and expand_open_paths:
                 # This code filters the open_paths list to include only those paths whose '__UNIQUE_ID__' exists in the DataFrame 'df'.
@@ -192,9 +196,7 @@ def main():
         result_df, output_column_names, output_column_types = use_run_query(sql_query, column_names=column_names, column_types=column_types, 
                                                 group_by_columns=selected_group_by, filter_conditions=filter_conditions,
                                                 expand_open_paths=True)
-                                                #open_paths = st.session_state.get('open_paths', []))
-        #result_df.insert(0, 'is_expanded', False)
-    
+        #result_df = result_df.sort_values(by=['is_expanded'] + selected_group_by, ascending=[False] + [True] * len(selected_group_by))
         col1, col2 = st.columns([3, 1])
         with col1:
             st.write("Select rows to expand/collapse:")

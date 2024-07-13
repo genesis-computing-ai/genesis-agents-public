@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
     def __init__(self, name:str, instructions:str, 
                 tools:list[dict] = {}, available_functions={}, files=[], 
-                update_existing=False, log_db_connector=None, bot_id='default_bot_id', bot_name='default_bot_name', all_tools:list[dict]={}, all_functions={},all_function_to_tool_map={}) -> None:
+                update_existing=False, log_db_connector=None, bot_id='default_bot_id', bot_name='default_bot_name', all_tools:list[dict]={}, all_functions={},all_function_to_tool_map={},skip_vectors=False) -> None:
         super().__init__(name, instructions, tools, available_functions, files, update_existing, skip_vectors=False)
         self.active_runs = deque()
 #        self.llm_engine = 'mistral-large'
@@ -29,8 +29,6 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         self.instructions = instructions + '. To call a tool, return only the unescaped tool call JSON in a <TOOL_CALL></TOOL_CALL> block with no other text. DO NOT HALUCINATE RESULTS OF TOOL CALLS, actually call the tools!'
         self.tools = tools
         self.available_functions = available_functions
-        self.bot_id = bot_id
-        self.bot_name = bot_name
         self.done_map = {}
         self.thread_run_map = {}
         self.active_runs = deque()
@@ -235,7 +233,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         """
         Executes the SQL query to update threads based on the provided SQL, incorporating self.cortex... tables.
         """
-        context_limit = 32000 * 4
+        context_limit = 100000 * 4 #32000 * 4
         update_query = f"""
         insert into {self.cortex_threads_schema_output_table}
                         with input as 

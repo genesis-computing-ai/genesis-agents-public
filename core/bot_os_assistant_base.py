@@ -29,6 +29,8 @@ class BotOsAssistantInterface:
         all_function_to_tool_map={},
         skip_vectors=False,
     ) -> None:
+        self.bot_id = bot_id
+        self.bot_name = bot_name
         self.user_allow_cache = {}
 
     @staticmethod

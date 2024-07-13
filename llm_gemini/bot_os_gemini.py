@@ -26,8 +26,6 @@ class BotOsAssistantGemini(BotOsAssistantInterface):
         self.instructions = instructions 
         self.tools = tools
         self.available_functions = available_functions
-        self.bot_id = bot_id
-        self.bot_name = bot_name
         #self.done_map = {}
         self.thread_run_map = {}
         #self.active_runs = deque()

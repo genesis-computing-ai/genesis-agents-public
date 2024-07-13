@@ -226,6 +226,8 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                 tools:list[dict] = {}, available_functions={}, files=[], 
                 update_existing=False, log_db_connector=None, bot_id='default_bot_id', bot_name='default_bot_name', all_tools:list[dict]={}, all_functions={},all_function_to_tool_map={}, skip_vectors=False) -> None:
       logger.debug("BotOsAssistantOpenAI:__init__") 
+      super().__init__(name, instructions, tools, available_functions, files, update_existing, skip_vectors=False)
+
       self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
       model_name = os.getenv("OPENAI_MODEL_NAME", default="gpt-4o")
     
@@ -235,8 +237,6 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       self.active_runs = deque()
       self.processing_runs = deque()
       self.done_map = {}
-      self.bot_id = bot_id
-      self.bot_name = bot_name
       self.file_storage = {}
       self.available_functions = available_functions
       self.all_tools = all_tools

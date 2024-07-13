@@ -115,7 +115,32 @@
             // },
             "jinja": true,
             "justMyCode": true
-        }
-
+        },
+        {
+            "name": "Python: Remote Attach",
+            "type": "python",
+            "request": "attach",
+            "connect": {
+              "host": "ogaaoakz-dshrnxx-genesis-dev-consumer.snowflakecomputing.app",
+              "port": 5678
+            },
+            "pathMappings": [
+              {
+                "localRoot": "${workspaceFolder}",
+                "remoteRoot": "/src/app"
+              }
+            ]
+        },
+        {
+            "name": "Python: Current File with Genesis",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/bot_os:${workspaceFolder}/src/app:${workspaceFolder}"
+            },
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
     ]
 }

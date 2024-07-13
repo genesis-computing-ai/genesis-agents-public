@@ -10,6 +10,7 @@ COPY llm_openai ./llm_openai
 COPY llm_reka ./llm_reka
 COPY llm_mistral ./llm_mistral
 COPY llm_cortex ./llm_cortex
+COPY llm_gemini ./llm_gemini
 COPY schema_explorer ./schema_explorer
 COPY knowledge ./knowledge
 COPY slack ./slack

@@ -43,7 +43,7 @@ class BotOsAssistantGemini(BotOsAssistantInterface):
         genai.configure(api_key=os.environ['GEMINI_API_KEY'])
 
         if files:
-            files_uploaded = self._upload_files(files)
+            files_uploaded = self._upload_files(files.urls)
 
         tools = self._convert_tool_format(tools)
         tools = genai.protos.Tool(tools)

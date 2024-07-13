@@ -2,6 +2,8 @@ import json
 import os
 import sys
 
+from llm_gemini.bot_os_gemini import BotOsAssistantGemini
+
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from core.bot_os import BotOsSession
 from core.bot_os_corpus import URLListFileCorpus
@@ -231,6 +233,11 @@ def make_session(
             and bot_config["bot_implementation"] == "cortex"
         ):
             assistant_implementation = BotOsAssistantSnowflakeCortex
+        elif (
+            "bot_implementation" in bot_config
+            and bot_config["bot_implementation"] == "gemini"
+        ):
+            assistant_implementation = BotOsAssistantGemini
         else:
             assistant_implementation = BotOsAssistantOpenAI
 

@@ -413,7 +413,7 @@ def insert_new_bot(api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instruct
         slack_channel_id (str): The Slack channel ID where the bot will operate.
         tools (str): A list of tools the bot has access to.
         files (json-embedded list): A list of files to include with the bot.
-        bot_implementation: openai or cortex or ...
+        bot_implementation: openai or cortex or gemini ...
         bot_intro_prompt: Prompt to generate default bot greeting.
         bot_avatar_image: Default GenBots avatar image
     """

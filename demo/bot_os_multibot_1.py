@@ -22,8 +22,6 @@ from connectors.bigquery_connector import BigQueryConnector
 from connectors.snowflake_connector import SnowflakeConnector
 from core.bot_os_tools import get_tools
 from embed.embed_openbb import openbb_query
-from llm_cortex.bot_os_cortex import BotOsAssistantSnowflakeCortex
-from llm_openai.bot_os_openai import BotOsAssistantOpenAI
 from slack.slack_bot_os_adapter import SlackBotAdapter
 from bot_genesis.make_baby_bot import (
     make_baby_bot,

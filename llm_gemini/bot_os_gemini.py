@@ -145,8 +145,8 @@ class BotOsAssistantGemini(BotOsAssistantInterface):
 
         for part in response.parts:
             if fn := part.function_call:
-                args = ", ".join(f"{key}={val}" for key, val in fn.args.items())
-                print(f"{fn.name}({args})")
+                args = {key: val for key, val in fn.args.items()}
+                print(f'{{"function_name":"{fn.name}","arguments":{json.dumps(args)}}}')
                 timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S%f")
                 self._process_tool_call(thread_id, timestamp, fn.name, args, input_metadata)
             else:

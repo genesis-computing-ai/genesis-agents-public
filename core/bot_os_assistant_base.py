@@ -1,4 +1,5 @@
 from abc import abstractmethod
+from collections import deque
 import json
 import logging
 import sys
@@ -28,7 +29,7 @@ class BotOsAssistantInterface:
         all_function_to_tool_map={},
         skip_vectors=False,
     ) -> None:
-        pass
+        self.user_allow_cache = {}
 
     @staticmethod
     @abstractmethod
@@ -48,11 +49,11 @@ class BotOsAssistantInterface:
         pass
 
     @abstractmethod
-    def is_active(self) -> bool:
+    def is_active(self) -> deque:
         pass
 
     @abstractmethod
-    def is_processing_runs(self) -> bool:
+    def is_processing_runs(self) -> deque:
         pass
 
     @abstractmethod

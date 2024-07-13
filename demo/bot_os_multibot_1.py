@@ -72,7 +72,7 @@ import core.global_flags as global_flags
 #import pydevd
 #pydevd.settrace('0.0.0.0', port=5678, stdoutToServer=True, stderrToServer=True, suspend=False)
 import pdb_attach
-pdb_attach.listen(5678)  # Listen on port 5678.
+pdb_attach.listen(5679)  # Listen on port 5678.
 # $ python -m pdb_attach <PID> 5678
 
     

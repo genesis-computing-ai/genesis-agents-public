@@ -253,7 +253,6 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       #logger.warn(f'yoyo mytools {my_tools}')
       self.my_tools = my_tools
       self.callback_closures = {}
-      self.user_allow_cache = {}
       self.clear_access_cache = False 
       self.first_tool_call = defaultdict(lambda: True)
       self.first_data_call = defaultdict(lambda: True)

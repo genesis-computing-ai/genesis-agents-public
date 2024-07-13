@@ -25,5 +25,5 @@ urllib3<2.0
 snowflake_connector_python
 reka-api
 #debugpy
-#google-generativeai
+google-generativeai
 pdb_attach

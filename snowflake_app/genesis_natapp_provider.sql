@@ -10,8 +10,8 @@ SET APP_DISTRIBUTION = 'INTERNAL';
 -- ########## END   ENVIRONMENT  ######################################
 
 
-
-USE ROLE APP_DEPLOY_ROLE;
+-- commented out for GenBot to deploy code. uncomment to set role
+-- USE ROLE ACCOUNTADMIN;
 USE WAREHOUSE XSMALL;
 
 

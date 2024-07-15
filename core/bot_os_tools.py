@@ -115,29 +115,146 @@ class ToolBelt(BaseModel):
         except Exception as e:
             return {"error": str(e)}
 
-    def run_process(self, action, thread_id):
-        print(f"Running processes Action: {action} | thread_id: {thread_id}")
-        if action == "GET_ANSWER":
-            print("The meaning of life has been discovered - 42!")
-            return {
-                "Success": True,
-                "Message": "The meaning of life has been discovered - 42!",
-            }
-        elif action == "GET_FIRST_STEP":
-            print("The first step is to run the test process.")
-            return {
-                "Success": True,
-                "Message": "The first step is to run the test process.",
-            }
-        elif action == "GET_NEXT_STEP":
-            print("The next step is to run the next step of the test process.")
-            return {
-                "Success": True,
-                "Message": "The next step is to run the test process.",
-            }
-        else:
-            print("No action specified.")
-            return {"Success": False, "Message": "No action specified."}
+
+def run_process(
+    self,
+    action,
+    previous_response,
+    thread_id=None,
+    # session=None,
+    process_name="",
+):
+    print(f"Running processes Action: {action} | process_id: {process_name}")
+    # Try to get process info from PROCESSES table
+    process = self.db_adapter.get_process_info(process_name)
+    if len(process) == 0:
+        return {
+            "Success": False,
+            "Message": f"Process {process_name} not found in the PROCESSES table.",
+        }
+
+    if action == "GET_ANSWER":
+        print("The meaning of life has been discovered - 42!")
+        return {
+            "Success": True,
+            "Message": "The meaning of life has been discovered - 42!",
+        }
+    elif action == "KICKOFF_PROCESS":
+        print("Kickoff process.")
+        self.counter = 1
+
+        print(
+            f"Process {process_name} has been kicked off.  Process object: \n{process}"
+        )
+
+        extract_instructions = f"""
+            These are the process instructions for the entire process.  Extract the section titled 'Objective' and 
+            step {self.counter} and return the text.
+            {process['PROCESS_INSTRUCTIONS']}
+            """
+
+        response = self.client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {
+                    "role": "user",
+                    "content": extract_instructions,
+                },
+            ],
+        )
+        llm_return = response.choices[0].message.content
+        try:
+            instructions = llm_return.split("**Instruction:**")[1]
+        except:
+            instructions = llm_return
+
+        # print("\n", instructions, "\n")
+
+        instructions = f"""
+               Hey @{process['BOT_ID']} <@{process['BOT_SLACK_USER_ID']}>, here is step {self.counter} of the process.
+               {instructions}
+                Execute these instructions now and then call the run process tool with action GET_NEXT_STEP to get the next step.
+                Do not verify anything witht the user.  Just execute the instructions.
+                """
+
+        print("\n", instructions, "\n")
+        # channel_id = "C076L59T21H"  # sessions.input_adapters[0].
+
+        # session.input_adapters[0].send_slack_channel_message(
+        #     channel_id,  # Needs to be channel id
+        #     instructions,
+        #     thread_id=thread_id,
+        #     wait=True,
+        # )
+
+        return {
+            "Success": True,
+            "Message": f"<@{process['BOT_SLACK_USER_ID']}> {instructions}",
+        }
+
+    elif action == "GET_NEXT_STEP":
+        print("GET NEXT STEP - process_runner.")
+
+        previous_response += f"""
+            These are the process instructions for the entire process.  
+            {process['PROCESS_INSTRUCTIONS']}
+
+            **Results from Step {self.counter}**:
+            If the step and the results from the step do not look satisfactory, please return a request to
+            run the process again with the action GET_NEXT_STEP and success = false.  If they are satisfactory, please return a request to
+            run step {self.counter + 1} with the text of step {self.counter + 1} from process instructions and success = true.  
+            Return the information as a JSON object with two fields: 'Success' and 'Message'.
+            Do not return anything else in the message beside the JSON object.
+
+            ** Results from previous step {self.counter}**
+            {previous_response}
+            """
+
+        # conversation_history = self.slack_app.client.conversations_history(
+        #     channel=channel, limit=2
+        # ).data
+
+        response = self.client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {
+                    "role": "user",
+                    "content": previous_response,
+                },
+            ],
+        )
+
+        llm_return = (
+            response.choices[0]
+            .message.content.replace("json", "")
+            .replace("true", "True")
+            .replace("false", "False")
+            .replace("```", "")
+            .replace("\\", "")
+            .replace("\n", "")
+        )
+        result = json.loads(llm_return)
+
+        if result["Success"]:
+            self.counter += 1
+
+        print(result["Message"])
+
+        # response = client.chat_postMessage(
+        #     channel="general",
+        #     text="This is a reply",
+        #     thread_ts="1561764011.015500"
+        # )
+        # assert response["ok"]
+        # print(response)
+
+        return {
+            "Success": True,
+            "Message": f'@{process["BOT_SLACK_USER_ID"]} {result["Message"]}',
+        }
+    else:
+        print("No action specified.")
+        return {"Success": False, "Message": "No action specified."}
 
 
 if genesis_source == "BigQuery":
@@ -158,9 +275,12 @@ def get_tools(which_tools, db_adapter, slack_adapter_local=None, include_slack=T
     tools = []
     available_functions_load = {}
     function_to_tool_map = {}
-    if 'autonomous_functions' in which_tools and 'autonomous_tools' not in which_tools:
-        which_tools = [tool if tool != 'autonomous_functions' else 'autonomous_tools' for tool in which_tools]
-    which_tools = [tool for tool in which_tools if tool != 'autonomous_functions']
+    if "autonomous_functions" in which_tools and "autonomous_tools" not in which_tools:
+        which_tools = [
+            tool if tool != "autonomous_functions" else "autonomous_tools"
+            for tool in which_tools
+        ]
+    which_tools = [tool for tool in which_tools if tool != "autonomous_functions"]
     for tool in which_tools:
         try:
             tool_name = tool.get("tool_name")
@@ -359,8 +479,8 @@ BOT_DISPATCH_DESCRIPTIONS = [
                 "required": ["task_template", "args_array"],
                 "bot_id": {
                     "type": "string",
-                    "description": "The unique identifier for an existing bot you are aware of to dispatch the tasks to. Should be the bot_name dash a 6 letter alphanumeric random code, for example mybot-w73hxg. Pass None to dispatch to yourself."
-                }
+                    "description": "The unique identifier for an existing bot you are aware of to dispatch the tasks to. Should be the bot_name dash a 6 letter alphanumeric random code, for example mybot-w73hxg. Pass None to dispatch to yourself.",
+                },
             },
         },
     }

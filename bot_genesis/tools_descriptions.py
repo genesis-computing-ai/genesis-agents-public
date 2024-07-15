@@ -24,7 +24,7 @@ process_runner_functions = [
                     "action": {
                         "type": "string",
                         "description": """
-                        The action to perform on the task can be one of these: GET_ANSWER, GET_FIRST_STEP, GET_NEXT_STEP
+                        The action to perform on the task can be one of these: GET_ANSWER, KICKOFF_PROCESS, GET_NEXT_STEP
                         """,
                     },
                     "process_to_run": {

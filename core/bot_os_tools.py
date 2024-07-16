@@ -156,7 +156,7 @@ class ToolBelt:
 
             extract_instructions = f"""
             These are the process instructions for the entire process.  Extract the section titled 'Objective' and 
-            step {self.counter} and return the text.
+            step {self.counter} and return the text in those sections only.  Do not include any other text.
             {process['PROCESS_INSTRUCTIONS']}
             """
 

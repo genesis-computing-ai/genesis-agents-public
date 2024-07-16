@@ -29,7 +29,8 @@ import base64
 import requests
 import re
 
-import bot_genesis.tools_descriptions
+# import bot_genesis.tools_descriptions
+import core.bot_os_tool_descriptions
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -57,10 +58,12 @@ class SnowflakeConnector(DatabaseConnector):
         self.token_connection = False
         self.connection = self._create_connection()
         self.semantic_models_map = {}
-        self.cortex_mode = False 
-        if os.getenv('USE_CORTEX_IF_AVAILABLE', 'FALSE').upper() == 'TRUE':
-            print('Testing for Cortex availability...')
-            cortex_test = self.run_query("select snowflake.cortex.complete('reka-flash','what is 1+1')")
+        self.cortex_mode = False
+        if os.getenv("USE_CORTEX_IF_AVAILABLE", "FALSE").upper() == "TRUE":
+            print("Testing for Cortex availability...")
+            cortex_test = self.run_query(
+                "select snowflake.cortex.complete('reka-flash','what is 1+1')"
+            )
             try:
                 result_value = next(iter(cortex_test[0].values()))
                 if result_value:
@@ -68,16 +71,18 @@ class SnowflakeConnector(DatabaseConnector):
                     self.cortex_mode = True
             except:
                 pass
-     #       self.snowpark_session = self._create_snowpark_connection()
+        #       self.snowpark_session = self._create_snowpark_connection()
         if False and self.snowpark_session is not None:
             p = "Please provide a brief summary of a database table in the 'SPIDER_DATA.BASEBALL' schema named 'BATTING'. This table includes the following columns: PLAYER_ID, YEAR, STINT, TEAM_ID, LEAGUE_ID, G, AB, R, H, DOUBLE, TRIPLE, HR, RBI, SB, CS, BB, SO, IBB, HBP, SH, SF, G_IDP."
             prompt = [
-                {"role": "system", "content": "You an assistant that is great at explaining database tables and columns in natural language."},
-                {"role": "user", "content": p}
-             ]
-            r = self._cortex_complete("reka-flash",str(prompt))
-            print('cortex test:',r)
-   
+                {
+                    "role": "system",
+                    "content": "You an assistant that is great at explaining database tables and columns in natural language.",
+                },
+                {"role": "user", "content": p},
+            ]
+            r = self._cortex_complete("reka-flash", str(prompt))
+            print("cortex test:", r)
 
         try:
             pass
@@ -103,30 +108,70 @@ class SnowflakeConnector(DatabaseConnector):
             # Todo remove, internal note
             print("ENV Variable GENESIS_INTERNAL_DB_SCHEMA is not set.")
         if self.genbot_internal_project_and_schema is not None:
-            self.genbot_internal_project_and_schema = self.genbot_internal_project_and_schema.upper()
-            
-        self.genbot_internal_harvest_table = os.getenv('GENESIS_INTERNAL_HARVEST_RESULTS_TABLE','harvest_results')
-        self.genbot_internal_harvest_control_table = os.getenv('GENESIS_INTERNAL_HARVEST_CONTROL_TABLE','harvest_control')
-        self.genbot_internal_message_log = os.getenv('GENESIS_INTERNAL_MESSAGE_LOG_TABLE','MESSAGE_LOG')
-        self.genbot_internal_knowledge_table = os.getenv('GENESIS_INTERNAL_KNOWLEDGE_TABLE','KNOWLEDGE')
-        self.genbot_internal_user_bot_table = os.getenv('GENESIS_INTERNAL_USER_BOT_TABLE','USER_BOT')
-        self.app_share_schema = 'APP_SHARE'
+            self.genbot_internal_project_and_schema = (
+                self.genbot_internal_project_and_schema.upper()
+            )
 
-       # print("genbot_internal_project_and_schema: ", self.genbot_internal_project_and_schema)
-        self.metadata_table_name = self.genbot_internal_project_and_schema+'.'+self.genbot_internal_harvest_table
-        self.harvest_control_table_name = self.genbot_internal_project_and_schema+'.'+self.genbot_internal_harvest_control_table
-        self.message_log_table_name = self.genbot_internal_project_and_schema+'.'+self.genbot_internal_message_log
-        self.knowledge_table_name = self.genbot_internal_project_and_schema+'.'+self.genbot_internal_knowledge_table
-        self.user_bot_table_name = self.genbot_internal_project_and_schema+'.'+self.genbot_internal_user_bot_table
-        self.slack_tokens_table_name = self.genbot_internal_project_and_schema+'.'+'SLACK_APP_CONFIG_TOKENS'
-        self.available_tools_table_name = self.genbot_internal_project_and_schema + '.' + 'AVAILABLE_TOOLS'
-        self.bot_servicing_table_name = self.genbot_internal_project_and_schema + '.' + 'BOT_SERVICING'
-        self.ngrok_tokens_table_name = self.genbot_internal_project_and_schema + '.' + 'NGROK_TOKENS'
-        self.images_table_name = self.app_share_schema + '.' + 'IMAGES'
-        
-     #   print("harvest_control_table_name: ", self.harvest_control_table_name)
-     #   print("metadata_table_name: ", self.metadata_table_name)
-     #   print("message_log_table_name: ", self.genbot_internal_message_log)
+        self.genbot_internal_harvest_table = os.getenv(
+            "GENESIS_INTERNAL_HARVEST_RESULTS_TABLE", "harvest_results"
+        )
+        self.genbot_internal_harvest_control_table = os.getenv(
+            "GENESIS_INTERNAL_HARVEST_CONTROL_TABLE", "harvest_control"
+        )
+        self.genbot_internal_message_log = os.getenv(
+            "GENESIS_INTERNAL_MESSAGE_LOG_TABLE", "MESSAGE_LOG"
+        )
+        self.genbot_internal_knowledge_table = os.getenv(
+            "GENESIS_INTERNAL_KNOWLEDGE_TABLE", "KNOWLEDGE"
+        )
+        self.genbot_internal_user_bot_table = os.getenv(
+            "GENESIS_INTERNAL_USER_BOT_TABLE", "USER_BOT"
+        )
+        self.app_share_schema = "APP_SHARE"
+
+        # print("genbot_internal_project_and_schema: ", self.genbot_internal_project_and_schema)
+        self.metadata_table_name = (
+            self.genbot_internal_project_and_schema
+            + "."
+            + self.genbot_internal_harvest_table
+        )
+        self.harvest_control_table_name = (
+            self.genbot_internal_project_and_schema
+            + "."
+            + self.genbot_internal_harvest_control_table
+        )
+        self.message_log_table_name = (
+            self.genbot_internal_project_and_schema
+            + "."
+            + self.genbot_internal_message_log
+        )
+        self.knowledge_table_name = (
+            self.genbot_internal_project_and_schema
+            + "."
+            + self.genbot_internal_knowledge_table
+        )
+        self.user_bot_table_name = (
+            self.genbot_internal_project_and_schema
+            + "."
+            + self.genbot_internal_user_bot_table
+        )
+        self.slack_tokens_table_name = (
+            self.genbot_internal_project_and_schema + "." + "SLACK_APP_CONFIG_TOKENS"
+        )
+        self.available_tools_table_name = (
+            self.genbot_internal_project_and_schema + "." + "AVAILABLE_TOOLS"
+        )
+        self.bot_servicing_table_name = (
+            self.genbot_internal_project_and_schema + "." + "BOT_SERVICING"
+        )
+        self.ngrok_tokens_table_name = (
+            self.genbot_internal_project_and_schema + "." + "NGROK_TOKENS"
+        )
+        self.images_table_name = self.app_share_schema + "." + "IMAGES"
+
+        #   print("harvest_control_table_name: ", self.harvest_control_table_name)
+        #   print("metadata_table_name: ", self.metadata_table_name)
+        #   print("message_log_table_name: ", self.genbot_internal_message_log)
 
         #   print("harvest_control_table_name: ", self.harvest_control_table_name)
         #   print("metadata_table_name: ", self.metadata_table_name)
@@ -148,28 +193,34 @@ class SnowflakeConnector(DatabaseConnector):
                 "user": os.getenv("SNOWFLAKE_USER_OVERRIDE"),
                 "password": os.getenv("SNOWFLAKE_PASSWORD_OVERRIDE"),
                 "role": os.getenv("SNOWFLAKE_ROLE_OVERRIDE", "PUBLIC"),  # optional
-                "warehouse": os.getenv("SNOWFLAKE_WAREHOUSE_OVERRIDE", "XSMALL"),  # optional
-                "database": os.getenv("SNOWFLAKE_DATABASE_OVERRIDE", "GENESIS_TEST"),  # optional
-                "schema": os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "GENESIS_TEST.GENESIS_JL"),  # optional
-            }  
+                "warehouse": os.getenv(
+                    "SNOWFLAKE_WAREHOUSE_OVERRIDE", "XSMALL"
+                ),  # optional
+                "database": os.getenv(
+                    "SNOWFLAKE_DATABASE_OVERRIDE", "GENESIS_TEST"
+                ),  # optional
+                "schema": os.getenv(
+                    "GENESIS_INTERNAL_DB_SCHEMA", "GENESIS_TEST.GENESIS_JL"
+                ),  # optional
+            }
 
             sp_session = Session.builder.configs(connection_parameters).create()
 
         except Exception as e:
-            print(f'Cortex not available: {e}')
+            print(f"Cortex not available: {e}")
             sp_session = None
-        return sp_session 
+        return sp_session
 
-    def _cortex_complete(self, model='reka-flash',prompt=None):
+    def _cortex_complete(self, model="reka-flash", prompt=None):
         try:
             from snowflake.cortex import Complete
-            result = Complete(model,str(prompt))
+
+            result = Complete(model, str(prompt))
         except Exception as e:
-            print(f'Cortex not available: {e}')
+            print(f"Cortex not available: {e}")
             self.sp_session = None
             result = None
-        return result  
-
+        return result
 
     def sha256_hash_hex_string(self, input_string):
         # Encode the input string to bytes, then create a SHA256 hash and convert it to a hexadecimal string
@@ -643,6 +694,301 @@ class SnowflakeConnector(DatabaseConnector):
             if cursor is not None:
                 cursor.close()
 
+    # ========================================================================================================
+
+    def get_processes_list(self, bot_id="all"):
+        cursor = self.client.cursor()
+        try:
+            if bot_id == "all":
+                list_query = f"SELECT * FROM {self.schema}.PROCESSES"
+            else:
+                list_query = f"SELECT * FROM {self.schema}.PROCESSES WHERE upper(bot_id) = upper(%s)"
+            cursor.execute(list_query, (bot_id,))
+            processs = cursor.fetchall()
+            process_list = []
+            for process in processs:
+                process_dict = {
+                    "process_id": process[0],
+                    "bot_id": process[1],
+                    "process_name": process[2],
+                    "process_details": process[3],
+                    "process_instructions": process[4],
+                    "process_reporting_instructions": process[5],
+                }
+                process_list.append(process_dict)
+            return {"Success": True, "processs": process_list}
+        except Exception as e:
+            return {
+                "Success": False,
+                "Error": f"Failed to list processs for bot {bot_id}: {e}",
+            }
+
+    def get_process_info(self, process_name):
+        cursor = self.client.cursor()
+        try:
+            query = f"SELECT * FROM {self.schema}.PROCESSES WHERE process_name LIKE %s"
+            cursor.execute(query, (f"%{process_name}%",))
+            result = cursor.fetchone()
+            if result:
+                # Assuming the result is a tuple of values corresponding to the columns in the PROCESSES table
+                # Convert the tuple to a dictionary with appropriate field names
+                field_names = [desc[0] for desc in cursor.description]
+                return dict(zip(field_names, result))
+            else:
+                return {}
+        except Exception as e:
+            return {}
+
+    def manage_processes(
+        self, action, bot_id=None, process_id=None, process_details=None, thread_id=None
+    ):
+        """
+        Manages processs in the PROCESSES table with actions to create, delete, or update a process.
+
+        Args:
+            action (str): The action to perform - 'CREATE', 'DELETE','UPDATE', 'LIST','SHOW'.
+            bot_id (str): The bot ID associated with the process.
+            process_id (str): The process ID for the process to manage.
+            process_details (dict, optional): The details of the process for create or update actions.
+
+        Returns:
+            dict: A dictionary with the result of the operation.
+        """
+        required_fields_create = [
+            "process_name",
+            "process_details",
+            "process_instructions",
+            "process_reporting_instructions",
+        ]
+
+        required_fields_update = [
+            "process_details",
+            "process_instructions",
+            "process_reporting_instructions",
+        ]
+
+        if action == "TIME":
+            return {
+                "current_system_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S %Z")
+            }
+        action = action.upper()
+
+        if action == "CREATE":
+            return {
+                "Success": False,
+                "Confirmation_Needed": "Please reconfirm all the process details with the user, then call this function again with the action CREATE_CONFIRMED to actually create the process.",
+                "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}",
+            }
+        if action == "CREATE_CONFIRMED":
+            action = "CREATE"
+
+        if action == "UPDATE":
+            return {
+                "Success": False,
+                "Confirmation_Needed": "Please reconfirm all the process details with the user, especially that you're altering the correct process_ID, then call this function again with the action UPDATE_CONFIRMED to actually update the process.  Call with LIST to double-check the process_id if you aren't sure.",
+                "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}",
+            }
+        if action == "UPDATE_CONFIRMED":
+            action = "UPDATE"
+
+        if action == "DELETE":
+            return {
+                "Success": False,
+                "Confirmation_Needed": "Please reconfirm that you are deleting the correct process_ID, and double check with the user they want to delete this process, then call this function again with the action DELETE_CONFIRMED to actually delete the process.  Call with LIST to double-check the process_id if you aren't sure that its right.",
+            }
+
+        if action == "DELETE_CONFIRMED":
+            action = "DELETE"
+
+        if action not in ["CREATE", "DELETE", "UPDATE", "LIST"]:
+            return {"Success": False, "Error": "Invalid action specified."}
+
+        cursor = self.client.cursor()
+
+        if action == "LIST":
+            print("Running get processes list")
+            return self.get_processes_list("all")
+
+        if action == "SHOW":
+            print("Running show process info")
+            return self.get_process_info(bot_id)
+
+        if process_id is None:
+            return {"Success": False, "Error": f"Missing process_id field"}
+
+        if action in ["CREATE", "UPDATE"] and not process_details:
+            return {
+                "Success": False,
+                "Error": "Process details must be provided for CREATE or UPDATE action.",
+            }
+
+        if action in ["CREATE"] and any(
+            field not in process_details for field in required_fields_create
+        ):
+            missing_fields = [
+                field
+                for field in required_fields_create
+                if field not in process_details
+            ]
+            return {
+                "Success": False,
+                "Error": f"Missing required process details: {', '.join(missing_fields)}",
+            }
+
+        if action in ["UPDATE"] and any(
+            field not in process_details for field in required_fields_update
+        ):
+            missing_fields = [
+                field
+                for field in required_fields_update
+                if field not in process_details
+            ]
+            return {
+                "Success": False,
+                "Error": f"Missing required process details: {', '.join(missing_fields)}",
+            }
+
+        if action == "UPDATE" and process_details.get("process_active", False):
+            if "next_check_ts" not in process_details:
+                return {
+                    "Success": False,
+                    "Error": "The 'next_check_ts' field is required when updating an active process.",
+                }
+
+        # Convert timestamp from string in format 'YYYY-MM-DD HH:MM:SS' to a Snowflake-compatible timestamp
+        if process_details is not None and process_details.get("process_active", False):
+            try:
+                formatted_next_check_ts = datetime.strptime(
+                    process_details["next_check_ts"], "%Y-%m-%d %H:%M:%S"
+                )
+            except ValueError as ve:
+                return {
+                    "Success": False,
+                    "Error": f"Invalid timestamp format for 'next_check_ts'. Required format: 'YYYY-MM-DD HH:MM:SS' in system timezone. Error details: {ve}",
+                    "Info": f"Current system time in system timezone is {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}. The system timezone is {datetime.now().strftime('%Z')}. Please note that the timezone should not be included in the submitted timestamp.",
+                }
+            if formatted_next_check_ts < datetime.now():
+                return {
+                    "Success": False,
+                    "Error": "The 'next_check_ts' is in the past.",
+                    "Info": f"Current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}",
+                }
+
+        try:
+            if action == "CREATE":
+                insert_query = f"""
+                    INSERT INTO {self.schema}.PROCESSES (
+                        process_id, bot_id, bot_slack_user_id, process_name, process_details, process_instructions, process_reporting_instructions
+                    ) VALUES (
+                        %(process_id)s, %(bot_id)s, %(bot_slack_user_id)s, %(process_name)s, %(process_details)s, %(process_instructions)s, %(process_reporting_instructions)s
+                    )
+                """
+
+                # Generate 6 random alphanumeric characters
+                random_suffix = "".join(
+                    random.choices(string.ascii_letters + string.digits, k=6)
+                )
+                process_id_with_suffix = process_id + "_" + random_suffix
+                cursor.execute(
+                    insert_query,
+                    {
+                        **process_details,
+                        "process_id": process_id_with_suffix,
+                        "bot_id": bot_id,
+                    },
+                )
+                self.client.commit()
+                return {
+                    "Success": True,
+                    "Message": f"process successfully created.",
+                }
+
+            elif action == "DELETE":
+                delete_query = f"""
+                    DELETE FROM {self.schema}.PROCESSES
+                    WHERE process_id = %s
+                """
+                cursor.execute(delete_query, (process_id))
+                self.client.commit()
+
+            elif action == "UPDATE":
+                update_query = f"""
+                    UPDATE {self.schema}.PROCESSES
+                    SET {', '.join([f"{key} = %({key})s" for key in process_details.keys()])}
+                    WHERE process_id = %(process_id)s
+                """
+                cursor.execute(
+                    update_query,
+                    {**process_details, "process_id": process_id},
+                )
+                self.client.commit()
+
+            return {"Success": True, "Message": f"process update or delete confirmed."}
+        except Exception as e:
+            return {"Success": False, "Error": str(e)}
+
+        finally:
+            cursor.close()
+
+    def insert_process_history(
+        self,
+        process_id,
+        work_done_summary,
+        process_status,
+        updated_process_learnings,
+        report_message="",
+        done_flag=False,
+        needs_help_flag="N",
+        process_clarity_comments="",
+    ):
+        """
+        Inserts a row into the PROCESS_HISTORY table.
+
+        Args:
+            process_id (str): The unique identifier for the process.
+            work_done_summary (str): A summary of the work done.
+            process_status (str): The status of the process.
+            updated_process_learnings (str): Any new learnings from the process.
+            report_message (str): The message to report about the process.
+            done_flag (bool): Flag indicating if the process is done.
+            needs_help_flag (bool): Flag indicating if help is needed.
+            process_clarity_comments (str): Comments on the clarity of the process.
+        """
+        insert_query = f"""
+            INSERT INTO {self.schema}.PROCESS_HISTORY (
+                process_id, work_done_summary, process_status, updated_process_learnings, 
+                report_message, done_flag, needs_help_flag, process_clarity_comments
+            ) VALUES (
+                %s, %s, %s, %s, %s, %s, %s, %s
+            )
+        """
+        try:
+            cursor = self.client.cursor()
+            cursor.execute(
+                insert_query,
+                (
+                    process_id,
+                    work_done_summary,
+                    process_status,
+                    updated_process_learnings,
+                    report_message,
+                    done_flag,
+                    needs_help_flag,
+                    process_clarity_comments,
+                ),
+            )
+            self.client.commit()
+            cursor.close()
+            print(
+                f"Process history row inserted successfully for process_id: {process_id}"
+            )
+        except Exception as e:
+            print(f"An error occurred while inserting the process history row: {e}")
+            if cursor is not None:
+                cursor.close()
+
+    # ========================================================================================================
+
     def manage_tasks(
         self, action, bot_id, task_id=None, task_details=None, thread_id=None
     ):
@@ -700,7 +1046,6 @@ class SnowflakeConnector(DatabaseConnector):
             }
         if action == "UPDATE_CONFIRMED":
             action = "UPDATE"
-
 
         if action == "DELETE":
             return {
@@ -1010,7 +1355,9 @@ class SnowflakeConnector(DatabaseConnector):
                 cursor.close()
 
     def ensure_table_exists(self):
-        import bot_genesis.tools_descriptions
+        # import bot_genesis.tools_descriptions
+        import core.bot_os_tool_descriptions
+
         streamlitdc_url = os.getenv("DATA_CUBES_INGRESS_URL", None)
         print(f"streamlit data cubes ingress URL: {streamlitdc_url}")
 
@@ -1593,7 +1940,7 @@ class SnowflakeConnector(DatabaseConnector):
                     f"Table {self.available_tools_table_name} (re)created, this is expected on every run."
                 )
 
-                tools_data = bot_genesis.tools_descriptions.tools_data
+                tools_data = core.bot_os_tool_descriptions.tools_data
 
                 insert_tools_query = f"""
                 INSERT INTO {self.available_tools_table_name} (TOOL_NAME, TOOL_DESCRIPTION)
@@ -1693,9 +2040,10 @@ class SnowflakeConnector(DatabaseConnector):
                 f"An error occurred while checking or creating table {self.message_log_table_name}: {e}"
             )
 
-
-        # KNOWLEDGE TABLE        
-        knowledge_table_check_query = f"SHOW TABLES LIKE 'KNOWLEDGE' IN SCHEMA {self.schema};"
+        # KNOWLEDGE TABLE
+        knowledge_table_check_query = (
+            f"SHOW TABLES LIKE 'KNOWLEDGE' IN SCHEMA {self.schema};"
+        )
         # Check if the chat knowledge table exists
         try:
             cursor = self.client.cursor()
@@ -1722,10 +2070,14 @@ class SnowflakeConnector(DatabaseConnector):
                 check_query = f"DESCRIBE TABLE {self.knowledge_table_name};"
                 print(f"Table {self.knowledge_table_name} already exists.")
         except Exception as e:
-            print(f"An error occurred while checking or creating table {self.knowledge_table_name}: {e}")
+            print(
+                f"An error occurred while checking or creating table {self.knowledge_table_name}: {e}"
+            )
 
-        # KNOWLEDGE TABLE        
-        user_bot_table_check_query = f"SHOW TABLES LIKE 'USER_BOT' IN SCHEMA {self.schema};"
+        # KNOWLEDGE TABLE
+        user_bot_table_check_query = (
+            f"SHOW TABLES LIKE 'USER_BOT' IN SCHEMA {self.schema};"
+        )
         # Check if the chat knowledge table exists
         try:
             cursor = self.client.cursor()
@@ -1748,8 +2100,9 @@ class SnowflakeConnector(DatabaseConnector):
                 check_query = f"DESCRIBE TABLE {self.user_bot_table_name};"
                 print(f"Table {self.user_bot_table_name} already exists.")
         except Exception as e:
-            print(f"An error occurred while checking or creating table {self.user_bot_table_name}: {e}")
-        
+            print(
+                f"An error occurred while checking or creating table {self.user_bot_table_name}: {e}"
+            )
 
         # HARVEST CONTROL TABLE
         hc_table_id = self.genbot_internal_harvest_control_table
@@ -2249,7 +2602,7 @@ class SnowflakeConnector(DatabaseConnector):
                 role=self.role,
                 client_session_keep_alive=True,
             )
-        
+
     # snowed
     def connector_type(self):
         return "snowflake"
@@ -3212,7 +3565,7 @@ class SnowflakeConnector(DatabaseConnector):
 
         try:
             cursor = self.connection.cursor()
-            #print(select_query, bot_id)
+            # print(select_query, bot_id)
 
             cursor.execute(select_query, (bot_id,))
             result = cursor.fetchone()

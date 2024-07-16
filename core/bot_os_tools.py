@@ -4,6 +4,7 @@ import time
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
+from openai import OpenAI
 
 from jinja2 import Template
 from bot_genesis.make_baby_bot import MAKE_BABY_BOT_DESCRIPTIONS, make_baby_bot_tools
@@ -19,6 +20,8 @@ from connectors.database_tools import (
     bind_semantic_copilot,
     autonomous_functions,
     autonomous_tools,
+    process_manager_tools,
+    process_manager_functions,
     database_tool_functions,
     database_tools,
     snowflake_stage_functions,
@@ -46,28 +49,33 @@ from core.bot_os_defaults import (
 from core.bot_os_input import BotOsInputAdapter, BotOsInputMessage, BotOsOutputMessage
 from core.bot_os_memory import BotOsKnowledgeAnnoy_Metadata
 
-from bot_genesis.tools_descriptions import process_runner_tools
+from core.bot_os_tool_descriptions import (
+    BOT_DISPATCH_DESCRIPTIONS,
+    bot_dispatch_tools,
+    process_runner_functions,
+    process_runner_tools,
+    webpage_downloader_functions,
+    webpage_downloader_tools,
+    webpage_downloader_action_function_mapping,
+)
 
 
 # import sys
 # sys.path.append('/Users/mglickman/helloworld/bot_os')  # Adjust the path as necessary
 import logging
 
-from bot_genesis.tools_descriptions import (
-    process_runner_functions,
-    process_runner_tools,
-    webpage_downloader_functions,
-    webpage_downloader_tools,
-)
 
 logger = logging.getLogger(__name__)
 
 genesis_source = os.getenv("GENESIS_SOURCE", default="Snowflake")
 
-from pydantic import BaseModel
 
-
-class ToolBelt(BaseModel):
+class ToolBelt:
+    def __init__(self, db_adapter):
+        self.db_adapter = db_adapter
+        self.openai_api_key = os.getenv("OPENAI_API_KEY")
+        self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        self.counter = 0
 
     # Function to make HTTP request and get the entire content
     def get_webpage_content(self, url):
@@ -115,87 +123,86 @@ class ToolBelt(BaseModel):
         except Exception as e:
             return {"error": str(e)}
 
+    def run_process(
+        self,
+        action,
+        previous_response="",
+        thread_id=None,
+        # session=None,
+        process_name="",
+    ):
+        print(f"Running processes Action: {action} | process_id: {process_name}")
+        # Try to get process info from PROCESSES table
+        process = self.db_adapter.get_process_info(process_name)
+        if len(process) == 0:
+            return {
+                "Success": False,
+                "Message": f"Process {process_name} not found in the PROCESSES table.",
+            }
 
-def run_process(
-    self,
-    action,
-    previous_response,
-    thread_id=None,
-    # session=None,
-    process_name="",
-):
-    print(f"Running processes Action: {action} | process_id: {process_name}")
-    # Try to get process info from PROCESSES table
-    process = self.db_adapter.get_process_info(process_name)
-    if len(process) == 0:
-        return {
-            "Success": False,
-            "Message": f"Process {process_name} not found in the PROCESSES table.",
-        }
+        if action == "GET_ANSWER":
+            print("The meaning of life has been discovered - 42!")
+            return {
+                "Success": True,
+                "Message": "The meaning of life has been discovered - 42!",
+            }
+        elif action == "KICKOFF_PROCESS":
+            print("Kickoff process.")
+            self.counter = 1
 
-    if action == "GET_ANSWER":
-        print("The meaning of life has been discovered - 42!")
-        return {
-            "Success": True,
-            "Message": "The meaning of life has been discovered - 42!",
-        }
-    elif action == "KICKOFF_PROCESS":
-        print("Kickoff process.")
-        self.counter = 1
+            print(
+                f"Process {process_name} has been kicked off.  Process object: \n{process}"
+            )
 
-        print(
-            f"Process {process_name} has been kicked off.  Process object: \n{process}"
-        )
-
-        extract_instructions = f"""
+            extract_instructions = f"""
             These are the process instructions for the entire process.  Extract the section titled 'Objective' and 
             step {self.counter} and return the text.
             {process['PROCESS_INSTRUCTIONS']}
             """
 
-        response = self.client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {
-                    "role": "user",
-                    "content": extract_instructions,
-                },
-            ],
-        )
-        llm_return = response.choices[0].message.content
-        try:
-            instructions = llm_return.split("**Instruction:**")[1]
-        except:
-            instructions = llm_return
+            response = self.client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {
+                        "role": "user",
+                        "content": extract_instructions,
+                    },
+                ],
+            )
+            llm_return = response.choices[0].message.content
+            try:
+                instructions = llm_return.split("**Instruction:**")[1]
+            except:
+                instructions = llm_return
 
-        # print("\n", instructions, "\n")
+            # print("\n", instructions, "\n")
 
-        instructions = f"""
+            instructions = f"""
                Hey @{process['BOT_ID']} <@{process['BOT_SLACK_USER_ID']}>, here is step {self.counter} of the process.
                {instructions}
                 Execute these instructions now and then call the run process tool with action GET_NEXT_STEP to get the next step.
                 Do not verify anything witht the user.  Just execute the instructions.
                 """
 
-        print("\n", instructions, "\n")
-        # channel_id = "C076L59T21H"  # sessions.input_adapters[0].
+            print("\n", instructions, "\n")
+            # channel_id = "C076L59T21H"  # sessions.input_adapters[0].
 
-        # session.input_adapters[0].send_slack_channel_message(
-        #     channel_id,  # Needs to be channel id
-        #     instructions,
-        #     thread_id=thread_id,
-        #     wait=True,
-        # )
+            # session.input_adapters[0].send_slack_channel_message(
+            #     channel_id,  # Needs to be channel id
+            #     instructions,
+            #     thread_id=thread_id,
+            #     wait=True,
+            # )
 
-        return {
-            "Success": True,
-            "Message": f"<@{process['BOT_SLACK_USER_ID']}> {instructions}",
-        }
+            return {
+                "Success": True,
+                "Message": f"<@{process['BOT_SLACK_USER_ID']}> {instructions}",
+            }
 
-    elif action == "GET_NEXT_STEP":
-        print("GET NEXT STEP - process_runner.")
+        elif action == "GET_NEXT_STEP":
+            print("GET NEXT STEP - process_runner.")
 
-        previous_response += f"""
+            previous_response += f"""
             These are the process instructions for the entire process.  
             {process['PROCESS_INSTRUCTIONS']}
 
@@ -210,51 +217,51 @@ def run_process(
             {previous_response}
             """
 
-        # conversation_history = self.slack_app.client.conversations_history(
-        #     channel=channel, limit=2
-        # ).data
+            # conversation_history = self.slack_app.client.conversations_history(
+            #     channel=channel, limit=2
+            # ).data
 
-        response = self.client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {
-                    "role": "user",
-                    "content": previous_response,
-                },
-            ],
-        )
+            response = self.client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {
+                        "role": "user",
+                        "content": previous_response,
+                    },
+                ],
+            )
 
-        llm_return = (
-            response.choices[0]
-            .message.content.replace("json", "")
-            .replace("true", "True")
-            .replace("false", "False")
-            .replace("```", "")
-            .replace("\\", "")
-            .replace("\n", "")
-        )
-        result = json.loads(llm_return)
+            llm_return = (
+                response.choices[0]
+                .message.content.replace("json", "")
+                .replace("true", "True")
+                .replace("false", "False")
+                .replace("```", "")
+                .replace("\\", "")
+                .replace("\n", "")
+            )
+            result = json.loads(llm_return)
 
-        if result["Success"]:
-            self.counter += 1
+            if result["Success"]:
+                self.counter += 1
 
-        print(result["Message"])
+            print(result["Message"])
 
-        # response = client.chat_postMessage(
-        #     channel="general",
-        #     text="This is a reply",
-        #     thread_ts="1561764011.015500"
-        # )
-        # assert response["ok"]
-        # print(response)
+            # response = client.chat_postMessage(
+            #     channel="general",
+            #     text="This is a reply",
+            #     thread_ts="1561764011.015500"
+            # )
+            # assert response["ok"]
+            # print(response)
 
-        return {
-            "Success": True,
-            "Message": f'@{process["BOT_SLACK_USER_ID"]} {result["Message"]}',
-        }
-    else:
-        print("No action specified.")
-        return {"Success": False, "Message": "No action specified."}
+            return {
+                "Success": True,
+                "Message": f'@{process["BOT_SLACK_USER_ID"]} {result["Message"]}',
+            }
+        else:
+            print("No action specified.")
+            return {"Success": False, "Message": "No action specified."}
 
 
 if genesis_source == "BigQuery":
@@ -268,7 +275,7 @@ if genesis_source == "BigQuery":
 else:  # Initialize Snowflake client
     db_adapter = SnowflakeConnector(connection_name="Snowflake")
     connection_info = {"Connection_Type": "Snowflake"}
-    tool_belt = ToolBelt()
+    tool_belt = ToolBelt(db_adapter)
 
 
 def get_tools(which_tools, db_adapter, slack_adapter_local=None, include_slack=True):
@@ -334,6 +341,10 @@ def get_tools(which_tools, db_adapter, slack_adapter_local=None, include_slack=T
             tools.extend(process_runner_functions)
             available_functions_load.update(process_runner_tools)
             function_to_tool_map[tool_name] = process_runner_functions
+        elif tool_name == "process_manager_tools":
+            tools.extend(process_manager_functions)
+            available_functions_load.update(process_manager_tools)
+            function_to_tool_map[tool_name] = process_manager_functions
         elif tool_name == "webpage_downloader":
             tools.extend(webpage_downloader_functions)
             available_functions_load.update(webpage_downloader_tools)
@@ -455,43 +466,6 @@ def dispatch_to_bots(task_template, args_array, dispatch_bot_id=None):
             print(f"dispatch_to_bots - {responses}")
             return responses
         time.sleep(1)
-
-
-BOT_DISPATCH_DESCRIPTIONS = [
-    {
-        "type": "function",
-        "function": {
-            "name": "dispatch_to_bots",
-            "description": 'Specify an arry of templated natual language tasks you want to execute in parallel to a set of bots like you. for example, "Who is the president of {{ country_name }}". Never use this tool for arrays with < 2 items.',
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "task_template": {
-                        "type": "string",
-                        "description": "Jinja template for the tasks you want to farm out to other bots",
-                    },
-                    "args_array": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": 'Arguments you want to fill in for each jinja template variable of the form [{"country_name": "france"}, {"country_name": "spain"}]',
-                    },
-                },
-                "required": ["task_template", "args_array"],
-                "bot_id": {
-                    "type": "string",
-                    "description": "The unique identifier for an existing bot you are aware of to dispatch the tasks to. Should be the bot_name dash a 6 letter alphanumeric random code, for example mybot-w73hxg. Pass None to dispatch to yourself.",
-                },
-            },
-        },
-    }
-]
-# "bot_id": {
-#     "type": "string",
-#     "description": "The unique identifier for an existing bot you are aware of to dispatch the tasks to. Should be the bot_name dash a 6 letter alphanumeric random code, for example mybot-w73hxg."
-# }
-
-
-bot_dispatch_tools = {"dispatch_to_bots": "core.bot_os_tools.dispatch_to_bots"}
 
 
 def make_session_for_dispatch(bot_config):

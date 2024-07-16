@@ -305,7 +305,7 @@ $$)
 //delete from script;
 
 
-CREATE TEMPORARY TABLE IF NOT EXISTS GENESISAPP_APP_PKG.CODE_SCHEMA.script_tmp AS SELECT 'README' NAME,REGEXP_REPLACE($$
+CREATE OR REPLACE TEMPORARY TABLE GENESISAPP_APP_PKG.CODE_SCHEMA.script_tmp AS SELECT 'README' NAME,REGEXP_REPLACE($$
 
 # Title
 Genesis Bots are AI-powered workers that can perform jobs for your company.
@@ -490,7 +490,7 @@ VALUES ('GENESISAPP_SERVICE_SERVICE',
         public: false
       logExporters:
         eventTableConfig:
-          logLevel: DEBUG
+          logLevel: INFO
     serviceRoles:
     - name: GENESISAPP_SERVICE_SERVICE_ROLE
       endpoints:
@@ -523,7 +523,7 @@ VALUES ('GENESISAPP_HARVESTER_SERVICE',
         public: false
       logExporters:
         eventTableConfig:
-          logLevel: DEBUG
+          logLevel: INFO
     serviceRoles:
     - name: GENESISAPP_HARVESTER_SERVICE_ROLE
       endpoints:
@@ -551,7 +551,7 @@ VALUES ('GENESISAPP_KNOWLEDGE_SERVICE',
         public: false
       logExporters:
         eventTableConfig:
-          logLevel: DEBUG
+          logLevel: INFO
     serviceRoles:
     - name: GENESISAPP_KNOWLEDGE_SERVICE_ROLE
       endpoints:
@@ -581,7 +581,7 @@ VALUES ('GENESISAPP_TASK_SERVICE',
         public: false
       logExporters:
         eventTableConfig:
-          logLevel: DEBUG
+          logLevel: INFO
     serviceRoles:
     - name: GENESISAPP_TASK_SERVICE_ROLE
       endpoints:

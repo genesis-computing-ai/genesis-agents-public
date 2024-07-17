@@ -82,8 +82,8 @@ class SlackBotAdapter(BotOsInputAdapter):
                 ack()
                 # TODO, clear this after 30 min
                 if event.get("subtype", None) == "message_changed":
-                    msg = event["message"].get("text",None)
-                    thread_ts = event["message"].get("thread_ts",None)
+                    msg = event["message"].get("text", None)
+                    thread_ts = event["message"].get("thread_ts", None)
                     user_id = event["message"].get("user", "NO_USER")
                     txt = msg[:30]
                 else:
@@ -100,6 +100,7 @@ class SlackBotAdapter(BotOsInputAdapter):
                     msg != "no text"
                     and msg != "_thinking..._"
                     and msg[:10] != ":toolbox: "
+                    and len(self.events) > 1
                 ):
                     print(
                         f'{self.bot_name} slack_in {event.get("type","no type")[:50]}, queue len {len(self.events)+1}'
@@ -248,7 +249,7 @@ class SlackBotAdapter(BotOsInputAdapter):
         return files
 
     # abstract method from BotOsInputAdapter
-    
+
     def get_input(
         self, thread_map=None, active=None, processing=None, done_map=None
     ) -> BotOsInputMessage | None:
@@ -265,8 +266,8 @@ class SlackBotAdapter(BotOsInputAdapter):
 
         if event.get("subtype", None) == "message_changed":
             msg = event["message"]["text"]
-            thread_ts = event["message"].get("thread_ts",None)
-            if event["previous_message"].get("text",None) == msg:
+            thread_ts = event["message"].get("thread_ts", None)
+            if event["previous_message"].get("text", None) == msg:
                 done_map[event["ts"]] = True
                 return None
         else:
@@ -419,7 +420,9 @@ class SlackBotAdapter(BotOsInputAdapter):
                         self.user_info_cache[uid] = user_info["user"]["real_name"]
                     except:
                         try:
-                            self.user_info_cache[uid] = user_info["user"]["profile"]["real_name"]
+                            self.user_info_cache[uid] = user_info["user"]["profile"][
+                                "real_name"
+                            ]
                         except:
                             self.user_info_cache[uid] = uid
                 msg = msg.replace(f"<@{uid}>", f"<@{uid}({self.user_info_cache[uid]})>")
@@ -597,7 +600,7 @@ class SlackBotAdapter(BotOsInputAdapter):
 
     def _extract_slack_blocks(self, msg: str) -> list | None:
         extract_pattern = re.compile(r"```(?:json|slack)(.*?)```", re.DOTALL)
-        
+
         json_matches = extract_pattern.findall(msg)
         blocks = []
         for json_match in json_matches:
@@ -637,7 +640,7 @@ class SlackBotAdapter(BotOsInputAdapter):
                         " len ",
                         len(message.output),
                     )
-                    msg = message.output.replace('\n 💬',' 💬')
+                    msg = message.output.replace("\n 💬", " 💬")
                     self.slack_app.client.chat_update(
                         channel=message.input_metadata.get("channel", self.channel_id),
                         ts=thinking_ts,
@@ -660,13 +663,20 @@ class SlackBotAdapter(BotOsInputAdapter):
             message.output = "!NO_RESPONSE_REQUIRED"
 
         if "!NO_RESPONSE_REQUIRED" in message.output:
-            if not message.output.startswith('!NO_RESPONSE_REQUIRED'):
-                message.output = message.output.replace("!NO_RESPONSE_REQUIRED", "").strip()
+            if not message.output.startswith("!NO_RESPONSE_REQUIRED"):
+                message.output = message.output.replace(
+                    "!NO_RESPONSE_REQUIRED", ""
+                ).strip()
             else:
-                print("Bot has indicated that no response will be posted to this thread.")
+                print(
+                    "Bot has indicated that no response will be posted to this thread."
+                )
                 if thinking_ts is not None:
-                    self.slack_app.client.chat_delete(channel= message.input_metadata.get("channel",self.channel_id),ts = thinking_ts)
-  
+                    self.slack_app.client.chat_delete(
+                        channel=message.input_metadata.get("channel", self.channel_id),
+                        ts=thinking_ts,
+                    )
+
         else:
             try:
 

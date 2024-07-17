@@ -339,61 +339,6 @@ autonomous_functions = [
     }
 ]
 
-process_manager_functions = [
-    {
-        "type": "function",
-        "function": {
-            "name": "_manage_processes",
-            "description": "Manages processes for bots, including creating, updating, and deleting processes allowing bots to manage processes that can be run on other bots.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "action": {
-                        "type": "string",
-                        "description": "The action to perform on a process: CREATE, UPDATE, or DELETE.  LIST returns a list of all processes, SHOW shows details for a process, or TIME to get current system time.",
-                    },
-                    "bot_id": {
-                        "type": "string",
-                        "description": "The identifier of the bot that is having its processes managed.",
-                    },
-                    "process_id": {
-                        "type": "string",
-                        "description": "The unique identifier of the process, create as bot_id_<random 6 character string>. MAKE SURE TO DOUBLE-CHECK THAT YOU ARE USING THE CORRECT process_id ON UPDATES AND DELETES!",
-                    },
-                    "process_details": {
-                        "type": "object",
-                        "description": "The details of the process, required for create and update actions.",
-                        "properties": {
-                            "process_name": {
-                                "type": "string",
-                                "description": "The name of the process.",
-                            },
-                            "process_details": {
-                                "type": "string",
-                                "description": "Details of the process",
-                            },
-                            "process_instructions": {
-                                "type": "string",
-                                "description": "Detailed instructions for completing the process.",
-                            },
-                            "process_reporting_instructions": {
-                                "type": "string",
-                                "description": "Detailed instructions for reporting the completed the process.",
-                            },
-                        },
-                        "required": [
-                            "process_name",
-                            "process_details",
-                            "process_instructions",
-                            "process_reporting_instructions",
-                        ],
-                    },
-                },
-                "required": ["action"],
-            },
-        },
-    }
-]
 
 snowflake_stage_functions = [
     {
@@ -604,8 +549,8 @@ snowflake_stage_tools = {
 }
 
 autonomous_tools = {"_manage_tasks": "db_adapter.manage_tasks"}
+
 process_runner_tools = {"_run_process": "tool_belt.run_process"}
-process_manager_tools = {"_manage_processes": "db_adapter.manage_processes"}
 
 
 def bind_semantic_copilot(data_connection_info):

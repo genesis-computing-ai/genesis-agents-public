@@ -20,6 +20,7 @@ from openai.types.beta.threads import Message, MessageDelta
 from openai.types.beta.threads.runs import ToolCall, RunStep
 from openai.types.beta import AssistantStreamEvent
 from collections import defaultdict
+import traceback
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.WARN, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -868,6 +869,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
          except Exception as e:
             error_string = f"callback_closure - _submit_tool_outputs - caught exception: {e}"
             print(error_string)
+            print(traceback.format_exc())
             try:
                self._submit_tool_outputs(run.id, thread.id, tool_call_id, function_details, error_string, metadata)
             except Exception as e:

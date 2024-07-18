@@ -67,6 +67,8 @@ class SlackBotAdapter(BotOsInputAdapter):
         self.thinking_map = {}
         self.events_map = {}
         self.handled_events = {}
+        self.chunk_start_map = {}
+        self.thinking_msg_overide_map = {}
 
         self.events_lock = threading.Lock()
 
@@ -627,8 +629,14 @@ class SlackBotAdapter(BotOsInputAdapter):
         thinking_ts = None
         try:
             thinking_ts = message.input_metadata.get("thinking_ts", None)
+            orig_thinking = thinking_ts
+            if orig_thinking in self.thinking_msg_overide_map:
+                thinking_ts = self.thinking_msg_overide_map[orig_thinking]
             if thinking_ts:
-
+                current_chunk_start =  self.chunk_start_map.get(orig_thinking,None)
+                msg = message.output.replace("\n 💬", " 💬")
+                if current_chunk_start is not None:
+                    msg = msg[current_chunk_start:]
                 if (
                     message.status == "in_progress"
                     or message.status == "requires_action"
@@ -640,13 +648,56 @@ class SlackBotAdapter(BotOsInputAdapter):
                         " len ",
                         len(message.output),
                     )
-                    msg = message.output.replace("\n 💬", " 💬")
-                    self.slack_app.client.chat_update(
-                        channel=message.input_metadata.get("channel", self.channel_id),
-                        ts=thinking_ts,
-                        text=msg,
-                    )
-                    return
+
+                    if len(msg) > 3980:
+                        split_index = msg[:3980].rfind("```")
+                        if split_index == -1:
+                            split_index = msg[:3980].rfind(" ")
+                        if split_index != -1:
+                            msg_part1 = msg[:split_index]
+                            msg_part2 = msg[split_index:]
+                            chunk_start = split_index
+                        else:
+                            msg_part1 = msg[:3980]
+                            msg_part2 = msg[3980:]
+                            chunk_start = 3980
+                        
+                        if thinking_ts in self.chunk_start_map:
+                            self.chunk_start_map[thinking_ts] += chunk_start
+                        else:
+                            self.chunk_start_map[thinking_ts] = chunk_start
+
+                        try:
+                            self.slack_app.client.chat_update(
+                                channel=message.input_metadata.get("channel", self.channel_id),
+                                ts=thinking_ts,
+                                text=msg_part1,
+                            )
+                            thread_ts = message.input_metadata.get("thread_ts", None)
+                        except Exception as e:
+                            pass
+                       #     self.slack_app.client.chat_postMessage(
+                       #         channel=message.input_metadata.get("channel", self.channel_id),
+                       #         thread_ts=thread_ts,
+                       #         text=msg_part1,
+                       #     )                           
+
+                        posted_message = self.slack_app.client.chat_postMessage(
+                            channel=message.input_metadata.get("channel", self.channel_id),
+                            thread_ts=thread_ts,
+                            text=msg_part2,
+                        )
+                        thinking_ts = posted_message["ts"]
+                        if orig_thinking is not None:
+                            self.thinking_msg_overide_map[orig_thinking] = thinking_ts
+                        return
+                    else:
+                        self.slack_app.client.chat_update(
+                            channel=message.input_metadata.get("channel", self.channel_id),
+                            ts=thinking_ts,
+                            text=msg,
+                        )
+                        return
                 else:
                     pass
                     # self.slack_app.client.chat_delete(channel= message.input_metadata.get("channel",self.channel_id),ts = thinking_ts)
@@ -680,7 +731,17 @@ class SlackBotAdapter(BotOsInputAdapter):
         else:
             try:
 
-                msg = message.output
+                thinking_ts = message.input_metadata.get("thinking_ts", None)
+                orig_thinking = thinking_ts
+                if orig_thinking in self.thinking_msg_overide_map:
+                    thinking_ts = self.thinking_msg_overide_map[orig_thinking]
+
+                current_chunk_start =  self.chunk_start_map.get(orig_thinking,None)
+                msg = message.output.replace("\n 💬", " 💬")
+                if current_chunk_start is not None:
+                    msg = msg[current_chunk_start:]
+
+#                msg = message.output
 
                 thread_ts = message.input_metadata.get("thread_ts", None)
 
@@ -804,28 +865,75 @@ class SlackBotAdapter(BotOsInputAdapter):
 
                 #      print("sending message to slack post url fixes:", msg)
                 blocks = self._extract_slack_blocks(msg)
-                if message.output == msg and thinking_ts is not None:
-                    self.slack_app.client.chat_update(
-                        channel=message.input_metadata.get("channel", self.channel_id),
-                        ts=thinking_ts,
-                        text=msg,
-                        blocks=blocks,
-                    )
-                else:
-                    if thinking_ts is not None:
-                        self.slack_app.client.chat_delete(
-                            channel=message.input_metadata.get(
-                                "channel", self.channel_id
-                            ),
+#                if blocks is not None or len(msg) > 2000:
+#                    print('blocks / long: ',len(msg))
+
+                if len(msg) > 3980:
+                    split_index = msg[:3980].rfind("```")
+                    if split_index == -1:
+                        split_index = msg[:3980].rfind(" ")
+                    if split_index != -1:
+                        msg_part1 = msg[:split_index]
+                        msg_part2 = msg[split_index:]
+                        chunk_start = split_index
+                    else:
+                        msg_part1 = msg[:3980]
+                        msg_part2 = msg[3980:]
+                        chunk_start = 3980
+                    
+                    if thinking_ts in self.chunk_start_map:
+                        self.chunk_start_map[thinking_ts] += chunk_start
+                    else:
+                        self.chunk_start_map[thinking_ts] = chunk_start
+
+                    try:
+                        self.slack_app.client.chat_update(
+                            channel=message.input_metadata.get("channel", self.channel_id),
                             ts=thinking_ts,
+                            text=msg_part1,
                         )
-                    result = self.slack_app.client.chat_postMessage(
+                        thread_ts = message.input_metadata.get("thread_ts", None)
+                    except Exception as e:
+                        pass
+#                        self.slack_app.client.chat_postMessage(
+#                                channel=message.input_metadata.get("channel", self.channel_id),
+#                                thread_ts=thread_ts,
+#                                text=msg_part1,
+#                            )   
+
+                    posted_message = self.slack_app.client.chat_postMessage(
                         channel=message.input_metadata.get("channel", self.channel_id),
                         thread_ts=thread_ts,
-                        text=msg,
+                        text=msg_part2,
                     )
-                    if message.input_metadata.get("thinking_ts", None) is None:
-                        message.input_metadata.thinking_ts = result.ts
+                    thinking_ts = posted_message["ts"]
+                    if orig_thinking is not None:
+                        self.thinking_msg_overide_map[orig_thinking] = thinking_ts
+
+                else:
+                    if message.output == msg and thinking_ts is not None:
+
+                        self.slack_app.client.chat_update(
+                            channel=message.input_metadata.get("channel", self.channel_id),
+                            ts=thinking_ts,
+                            text=msg,
+                            blocks=blocks,
+                        )
+                    else:
+                        if thinking_ts is not None:
+                            self.slack_app.client.chat_delete(
+                                channel=message.input_metadata.get(
+                                    "channel", self.channel_id
+                                ),
+                                ts=thinking_ts,
+                            )
+                        result = self.slack_app.client.chat_postMessage(
+                            channel=message.input_metadata.get("channel", self.channel_id),
+                            thread_ts=thread_ts,
+                            text=msg,
+                        )
+                        if message.input_metadata.get("thinking_ts", None) is None:
+                            message.input_metadata.thinking_ts = result.ts
 
                 #    print("Result of sending message to Slack:", result)
                 # Replace patterns in msg with the appropriate format

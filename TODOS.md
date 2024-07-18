@@ -2,6 +2,12 @@
 GENESIS BOT TODOS
 =================
 
+July:
+JL-Have task server only reuse/reference existing assistant, not recreate/update it on startup
+JL-Why are bots doing other bots tasks?
+JL-Why is it losing tools after running for a while? (keep expected tools, and if not there, reload them?)
+add error trapping on fail to find or call functions
+
 SOON:
 x on task runs, have it put the task_id in the DMs and Channel messages that it sends
 (test, they shouldn't unless they missed a run) on task server restart, bots re-run tasks

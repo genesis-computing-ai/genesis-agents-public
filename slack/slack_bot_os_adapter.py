@@ -69,6 +69,8 @@ class SlackBotAdapter(BotOsInputAdapter):
         self.handled_events = {}
         self.chunk_start_map = {}
         self.thinking_msg_overide_map = {}
+        self.in_markdown_map = {}
+        
 
         self.events_lock = threading.Lock()
 
@@ -635,8 +637,14 @@ class SlackBotAdapter(BotOsInputAdapter):
             if thinking_ts:
                 current_chunk_start =  self.chunk_start_map.get(orig_thinking,None)
                 msg = message.output.replace("\n 💬", " 💬")
+                inmarkdown = False
                 if current_chunk_start is not None:
                     msg = msg[current_chunk_start:]
+                    if orig_thinking in self.in_markdown_map:
+                        if self.in_markdown_map[orig_thinking] == True:
+                            msg = '```' + msg
+                            inmarkdown = True
+      
                 if (
                     message.status == "in_progress"
                     or message.status == "requires_action"
@@ -650,12 +658,7 @@ class SlackBotAdapter(BotOsInputAdapter):
                     )
 
                     if len(msg) > 3900:
-                        if msg.count("```") % 2 != 0:
-                            split_index = msg[:3900].rfind("```")
-                        else:
-                            split_index = -1
-                        if split_index == -1:
-                            split_index = msg[:3900].rfind(" ")
+                        split_index = msg[:3900].rfind("\n")
                         if split_index != -1:
                             msg_part1 = msg[:split_index]
                             msg_part2 = msg[split_index:]
@@ -664,11 +667,19 @@ class SlackBotAdapter(BotOsInputAdapter):
                             msg_part1 = msg[:3900]
                             msg_part2 = msg[3900:]
                             chunk_start = 3900
-                        
-                        if thinking_ts in self.chunk_start_map:
+                        if msg_part1.count("```") % 2 != 0:
+                            msg_part1 += "```"
+                            msg_part2 = "```" + msg_part2
+                            self.in_markdown_map[orig_thinking] = True
+                        else:
+                            self.in_markdown_map[orig_thinking] = False
+                        if orig_thinking in self.chunk_start_map:
                             self.chunk_start_map[orig_thinking] += chunk_start
                         else:
                             self.chunk_start_map[orig_thinking] = chunk_start
+                        if inmarkdown:
+                            self.chunk_start_map[orig_thinking] -= 3
+
 
                         try:
                             self.slack_app.client.chat_update(
@@ -679,12 +690,8 @@ class SlackBotAdapter(BotOsInputAdapter):
                             thread_ts = message.input_metadata.get("thread_ts", None)
                         except Exception as e:
                             pass
-                       #     self.slack_app.client.chat_postMessage(
-                       #         channel=message.input_metadata.get("channel", self.channel_id),
-                       #         thread_ts=thread_ts,
-                       #         text=msg_part1,
-                       #     )                           
-
+                        if msg_part2.count("```") % 2 != 0:
+                            msg_part2 += "```"
                         posted_message = self.slack_app.client.chat_postMessage(
                             channel=message.input_metadata.get("channel", self.channel_id),
                             thread_ts=thread_ts,
@@ -695,6 +702,8 @@ class SlackBotAdapter(BotOsInputAdapter):
                             self.thinking_msg_overide_map[orig_thinking] = thinking_ts
                         return
                     else:
+                        if msg.count("```") % 2 != 0:
+                            msg += "```"
                         self.slack_app.client.chat_update(
                             channel=message.input_metadata.get("channel", self.channel_id),
                             ts=thinking_ts,
@@ -741,8 +750,14 @@ class SlackBotAdapter(BotOsInputAdapter):
 
                 current_chunk_start =  self.chunk_start_map.get(orig_thinking,None)
                 msg = message.output.replace("\n 💬", " 💬")
+                msg_trimmed = msg
                 if current_chunk_start is not None:
                     msg = msg[current_chunk_start:]
+                    if orig_thinking in self.in_markdown_map:
+                        if self.in_markdown_map[orig_thinking] == True:
+                            msg = '```' + msg
+                            inmarkdown = True
+                    
 
 #                msg = message.output
 
@@ -871,13 +886,9 @@ class SlackBotAdapter(BotOsInputAdapter):
 #                if blocks is not None or len(msg) > 2000:
 #                    print('blocks / long: ',len(msg))
 
+
                 if len(msg) > 3900:
-                    if msg.count("```") % 2 != 0:
-                        split_index = msg[:3900].rfind("```")
-                    else:
-                        split_index = -1
-                    if split_index == -1:
-                        split_index = msg[:3900].rfind(" ")
+                    split_index = msg[:3900].rfind("\n")
                     if split_index != -1:
                         msg_part1 = msg[:split_index]
                         msg_part2 = msg[split_index:]
@@ -886,8 +897,11 @@ class SlackBotAdapter(BotOsInputAdapter):
                         msg_part1 = msg[:3900]
                         msg_part2 = msg[3900:]
                         chunk_start = 3900
-                    
-                    if thinking_ts in self.chunk_start_map:
+                    if msg_part1.count("```") % 2 != 0:
+                        msg_part1 += "```"
+                        msg_part2 = "```" + msg_part2
+
+                    if orig_thinking in self.chunk_start_map:
                         self.chunk_start_map[orig_thinking] += chunk_start
                     else:
                         self.chunk_start_map[orig_thinking] = chunk_start
@@ -901,11 +915,6 @@ class SlackBotAdapter(BotOsInputAdapter):
                         thread_ts = message.input_metadata.get("thread_ts", None)
                     except Exception as e:
                         pass
-#                        self.slack_app.client.chat_postMessage(
-#                                channel=message.input_metadata.get("channel", self.channel_id),
-#                                thread_ts=thread_ts,
-#                                text=msg_part1,
-#                            )   
 
                     posted_message = self.slack_app.client.chat_postMessage(
                         channel=message.input_metadata.get("channel", self.channel_id),
@@ -917,8 +926,10 @@ class SlackBotAdapter(BotOsInputAdapter):
                         self.thinking_msg_overide_map[orig_thinking] = thinking_ts
 
                 else:
-                    if message.output == msg and thinking_ts is not None:
 
+                    if msg_trimmed == msg and thinking_ts is not None:
+                        if msg.count("```") % 2 != 0:
+                            msg += "```"
                         self.slack_app.client.chat_update(
                             channel=message.input_metadata.get("channel", self.channel_id),
                             ts=thinking_ts,
@@ -933,6 +944,8 @@ class SlackBotAdapter(BotOsInputAdapter):
                                 ),
                                 ts=thinking_ts,
                             )
+                        if msg.count("```") % 2 != 0:
+                            msg += "```"
                         result = self.slack_app.client.chat_postMessage(
                             channel=message.input_metadata.get("channel", self.channel_id),
                             thread_ts=thread_ts,

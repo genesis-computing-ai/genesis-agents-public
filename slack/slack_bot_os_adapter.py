@@ -650,7 +650,10 @@ class SlackBotAdapter(BotOsInputAdapter):
                     )
 
                     if len(msg) > 3900:
-                        split_index = msg[:3900].rfind("```")
+                        if msg.count("```") % 2 != 0:
+                            split_index = msg[:3900].rfind("```")
+                        else:
+                            split_index = -1
                         if split_index == -1:
                             split_index = msg[:3900].rfind(" ")
                         if split_index != -1:
@@ -869,7 +872,10 @@ class SlackBotAdapter(BotOsInputAdapter):
 #                    print('blocks / long: ',len(msg))
 
                 if len(msg) > 3900:
-                    split_index = msg[:3900].rfind("```")
+                    if msg.count("```") % 2 != 0:
+                        split_index = msg[:3900].rfind("```")
+                    else:
+                        split_index = -1
                     if split_index == -1:
                         split_index = msg[:3900].rfind(" ")
                     if split_index != -1:

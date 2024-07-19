@@ -365,7 +365,8 @@ class BotOsSession:
                 with open(f'./thread_maps_{sanitized_bot_id}.pickle', 'wb') as handle:
                     pickle.dump({'out_to_in': self.out_to_in_thread_map, 'in_to_out': self.in_to_out_thread_map}, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-                if os.getenv("USE_KNOWLEDGE", "false").lower() == 'true':
+                if os.getenv("USE_KNOWLEDGE", "false").lower() == 'true' and not input_message.msg.startswith('NOTE--'):
+
                     primary_user = json.dumps({'user_id': input_message.metadata.get('user_id', 'Unknown User ID'), 
                                                'user_name': input_message.metadata.get('user_name', 'Unknown User')})
                     knowledge = self.log_db_connector.extract_knowledge(primary_user, self.bot_id)

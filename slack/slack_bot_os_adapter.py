@@ -643,7 +643,7 @@ class SlackBotAdapter(BotOsInputAdapter):
                     if orig_thinking in self.chunk_last_100:
                         last100 = self.chunk_last_100[orig_thinking]
                         if last100 in msg:
-                            msg = msg.split(last100, 1)[1]
+                            msg = msg.split(last100)[-1]
                             trimmed=True
                     if not trimmed:
                         msg = msg[current_chunk_start:]
@@ -779,7 +779,7 @@ class SlackBotAdapter(BotOsInputAdapter):
                     if orig_thinking in self.chunk_last_100:
                         last100 = self.chunk_last_100[orig_thinking]
                         if last100 in msg:
-                            msg = msg.split(last100, 1)[1]
+                            msg = msg.split(last100)[-1]
                             trimmed=True
                     if not trimmed:
                         msg = msg[current_chunk_start:]

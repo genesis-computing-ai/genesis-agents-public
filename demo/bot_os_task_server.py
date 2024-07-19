@@ -56,7 +56,11 @@ logging.basicConfig(
 import core.global_flags as global_flags
 
 ##### TEST MODE FLAG
-# os.environ['TEST_TASK_MODE'] = 'true'
+#os.environ['TEST_TASK_MODE'] = 'true'
+########################################
+
+##### SET TASK FLAG (causes openAI init to not update or recreate the assistant, reuses existing one from multibot runnner)
+os.environ['TASK_MODE'] = 'true'
 ########################################
 
 print("****** GENBOT VERSION 0.150 *******")
@@ -1089,6 +1093,7 @@ def generate_task_prompt(bot_id, task):
     Perform the task COMPLETELY based on the above task description using the tools you have available if useful.  Call mulitple tools if needed to complete the task.
     Do NOT create a new task, you are to execute the steps described above for this existing task. 
     If you send a slack direct message or slack channel message as part of the task, include at the end: _(task_id:{task_details['task_id']}_)
+    Do not call manage_tasks while performing this work.  Only call run_process if the task specfically tells you to run a specific named BotProcess.
     When you are DONE with the task and have FULLY completed it, return only a JSON document with these items, no other text:
 
     {{

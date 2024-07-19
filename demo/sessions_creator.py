@@ -56,8 +56,8 @@ def make_session(
 
     if not stream_mode:
         test_task_mode = os.getenv("TEST_TASK_MODE", "false").lower() == "true"
-        if test_task_mode and bot_config["bot_name"] != "Eliza":
-            return None, None, None, None
+        #if test_task_mode and bot_config["bot_name"] != "Eliza":
+        #    return None, None, None, None
 
     # streamlit and slack launch todos:
     # add a flag for udf_enabled and slack_enabled to database

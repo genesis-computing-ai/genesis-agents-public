@@ -17,7 +17,7 @@ process_runner_functions = [
         "type": "function",
         "function": {
             "name": "_run_process",
-            "description": "Manages processes run on other bots",
+            "description": "Runs a BotProcess.  Only use this when instructed specifically to run a named BotProcess by a user or an automated task.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -104,10 +104,11 @@ tools_data = [
     ("image_tools", "Tools to interpret visual images and pictures"),
     (
         "autonomous_tools",
-        "Tools for bots to create and managed autonomous tasks",
+        "Tools for bots to create and managed autonomous scheduled tasks",
     ),
     (
         "process_runner_tools",
-        "Tools for Peter the Process Runner to run processes.",
+        "Tools to run BotProcesses",
     ),
+
 ]

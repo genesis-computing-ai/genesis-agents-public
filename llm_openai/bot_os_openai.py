@@ -305,44 +305,49 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
       elif len(my_assistants) > 0:
          self.assistant = my_assistants[0]
-         try:
-            vector_store_id = self.assistant.tool_resources.file_search.vector_store_ids[0]
-         except:
-            vector_store_id = None
-         if vector_store_id is not None and skip_vectors == False:
-            try:
-               self.client.beta.vector_stores.delete( vector_store_id=vector_store_id )
-            except:
-               pass
-         vector_store_name = self.bot_id + '_vectorstore'
-         if skip_vectors == False:
-            self.vector_store = self.create_vector_store(vector_store_name=vector_store_name, files=files)
-            self.tool_resources = {"file_search": {"vector_store_ids": [self.vector_store]}}
+
+         if os.getenv("TASK_MODE", "false").lower() == "true":
+            # dont do this for the TASK SERVER, just have it use the existing assistant being managed by the MultiBot Runner Process
+            pass
          else:
-            self.tool_resources = {"file_search": {"vector_store_ids": [vector_store_id]}}
-         if True or hasattr(files, 'urls') and files.urls is not None:
             try:
-                self.client.beta.assistants.update(self.assistant.id,
-                                          instructions=instructions,
-                                          tools=my_tools, # type: ignore
-                                          model=model_name,
-                                          tool_resources=self.tool_resources
-                )
+               vector_store_id = self.assistant.tool_resources.file_search.vector_store_ids[0]
             except:
-                 self.client.beta.assistants.update(self.assistant.id,
-                                          instructions=instructions,
-                                          tools=my_tools, # type: ignore
-                                          model=model_name,
-                                       #   tool_resources=self.tool_resources
-                )           
-         else:
-            my_tools = [tool for tool in my_tools if tool.get('type') != 'file_search']
-            self.client.beta.assistants.update(self.assistant.id,
-                                          instructions=instructions,
-                                          tools=my_tools, # type: ignore
-                                          model=model_name,
-                )            
-         self.first_message = True
+               vector_store_id = None
+            if vector_store_id is not None and skip_vectors == False:
+               try:
+                  self.client.beta.vector_stores.delete( vector_store_id=vector_store_id )
+               except:
+                  pass
+            vector_store_name = self.bot_id + '_vectorstore'
+            if skip_vectors == False:
+               self.vector_store = self.create_vector_store(vector_store_name=vector_store_name, files=files)
+               self.tool_resources = {"file_search": {"vector_store_ids": [self.vector_store]}}
+            else:
+               self.tool_resources = {"file_search": {"vector_store_ids": [vector_store_id]}}
+            if True or hasattr(files, 'urls') and files.urls is not None:
+               try:
+                  self.client.beta.assistants.update(self.assistant.id,
+                                             instructions=instructions,
+                                             tools=my_tools, # type: ignore
+                                             model=model_name,
+                                             tool_resources=self.tool_resources
+                  )
+               except:
+                  self.client.beta.assistants.update(self.assistant.id,
+                                             instructions=instructions,
+                                             tools=my_tools, # type: ignore
+                                             model=model_name,
+                                          #   tool_resources=self.tool_resources
+                  )           
+            else:
+               my_tools = [tool for tool in my_tools if tool.get('type') != 'file_search']
+               self.client.beta.assistants.update(self.assistant.id,
+                                             instructions=instructions,
+                                             tools=my_tools, # type: ignore
+                                             model=model_name,
+                  )            
+            self.first_message = True
          
       logger.debug(f"BotOsAssistantOpenAI:__init__: assistant.id={self.assistant.id}")
 

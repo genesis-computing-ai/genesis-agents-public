@@ -802,13 +802,12 @@ class SlackBotAdapter(BotOsInputAdapter):
 
                 # Extract file paths from the message and add them to files_in array
                 image_pattern = re.compile(
-                    r"\[.*?\]\((sandbox:/mnt/data/downloads/.*?)\)"
+                    r"\[.*?\]\((sandbox:/mnt/data(?:/downloads)?/.*?)\)"
                 )
                 matches = image_pattern.findall(msg)
                 for match in matches:
-                    local_path = match.replace(
-                        "sandbox:/mnt/data/downloads", ".downloaded_files"
-                    )
+                    local_path = match.replace("sandbox:/mnt/data/downloads", f"./downloaded_files/{message.thread_id}").replace("sandbox:/mnt/data", f"./downloaded_files/{message.thread_id}")
+                    
                     if local_path not in files_in:
                         #      print(f"Pattern 0 found, attaching {local_path}")
                         files_in.append(local_path)
@@ -840,9 +839,10 @@ class SlackBotAdapter(BotOsInputAdapter):
                 chart_pattern = re.compile(
                     r"\(sandbox:/mnt/data/(.*?)\)\n2\. \[(.*?)\]"
                 )
+
                 chart_matches = chart_pattern.findall(msg)
                 for chart_match in chart_matches:
-                    local_chart_path = f"./downloaded_files/{chart_match}"
+                    local_chart_path = f"./downloaded_files/{message.thread_id}/{chart_match}"
                     if local_chart_path not in files_in:
                         #     print(f"Pattern 2 found, attaching {local_chart_path}")
                         files_in.append(local_chart_path)
@@ -913,6 +913,11 @@ class SlackBotAdapter(BotOsInputAdapter):
                     r"\[(.*?)\]\(sandbox:/mnt/data/downloaded_files/(.*?)/(.+?)\)"
                 )
                 msg = re.sub(pattern, r"<\2|\1>", msg)
+                
+                # Check for link blocks with a ! immediately before it and remove the !
+                link_block_pattern = re.compile(r"!\s*(<https?://[^|]+?\|[^>]+?>)")
+                msg = re.sub(link_block_pattern, r"\1", msg)
+
 
                 #      print("sending message to slack post url fixes:", msg)
                 blocks = self._extract_slack_blocks(msg)

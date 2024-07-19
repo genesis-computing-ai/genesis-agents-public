@@ -162,7 +162,7 @@ print("   /        \\    ")
 print("  G E N E S I S ")
 print("    B o t O S")
 print(" ---- HARVESTER----")
-print('Harvester Start Version 0.141',flush=True)
+print('Harvester Start Version 0.150',flush=True)
 
 
 while True:

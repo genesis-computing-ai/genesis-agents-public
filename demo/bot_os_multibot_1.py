@@ -79,7 +79,7 @@ pdb_attach.listen(5679)  # Listen on port 5678.
 # os.environ["SIMPLE_MODE"] = "true"
 
 
-print("****** GENBOT VERSION 0.141 *******")
+print("****** GENBOT VERSION 0.150 *******")
 
 runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
 global_flags.runner_id = runner_id

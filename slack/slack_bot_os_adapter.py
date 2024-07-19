@@ -750,14 +750,16 @@ class SlackBotAdapter(BotOsInputAdapter):
 
                 current_chunk_start =  self.chunk_start_map.get(orig_thinking,None)
                 msg = message.output.replace("\n 💬", " 💬")
-                msg_trimmed = msg
+                
                 if current_chunk_start is not None:
                     msg = msg[current_chunk_start:]
                     if orig_thinking in self.in_markdown_map:
                         if self.in_markdown_map[orig_thinking] == True:
                             msg = '```' + msg
                             inmarkdown = True
-                    
+
+
+                msg_trimmed = msg
 
 #                msg = message.output
 
@@ -937,6 +939,11 @@ class SlackBotAdapter(BotOsInputAdapter):
                             blocks=blocks,
                         )
                     else:
+
+                        thinking_ts = message.input_metadata.get("thinking_ts", None)
+                        orig_thinking = thinking_ts
+                        if orig_thinking in self.thinking_msg_overide_map:
+                            thinking_ts = self.thinking_msg_overide_map[orig_thinking]
                         if thinking_ts is not None:
                             self.slack_app.client.chat_delete(
                                 channel=message.input_metadata.get(

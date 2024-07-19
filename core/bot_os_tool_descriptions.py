@@ -147,6 +147,10 @@ tools_data = [
     ),
     (
         "process_runner_tools",
-        "Tools for Peter the Process Runner to run processes.",
+        "Tools to run processes.",
+    ),
+   (
+        "process_manager_tools",
+        "Tools to create and manage processes.",
     ),
 ]

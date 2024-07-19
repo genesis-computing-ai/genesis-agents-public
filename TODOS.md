@@ -7,6 +7,9 @@ JL-Have task server only reuse/reference existing assistant, not recreate/update
 JL-Why are bots doing other bots tasks?
 JL-Why is it losing tools after running for a while? (keep expected tools, and if not there, reload them?)
 add error trapping on fail to find or call functions
+test last message of a multi-part message
+returning images
+returning images and files on long messages 
 
 SOON:
 x on task runs, have it put the task_id in the DMs and Channel messages that it sends

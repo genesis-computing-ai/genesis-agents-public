@@ -3810,7 +3810,7 @@ class SnowflakeConnector(DatabaseConnector):
         # Use the provided query or a default one if not provided
         prompt = query if query else "What’s in this image?"
 
-        openai_model_name = os.getenv("OPENAI_MODEL_NAME", "gpt-4o")
+        openai_model_name = os.getenv("OPENAI_MODEL_NAME", "gpt-4o-mini")
 
         payload = {
             "model": openai_model_name,

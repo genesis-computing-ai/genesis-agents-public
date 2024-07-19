@@ -55,8 +55,6 @@ def register_routes(
             bot_id_to_udf_adapter_map,
             SystemVariables.bot_id_to_slack_adapter_map,
         ) = create_sessions(
-            llm_api_key,
-            default_llm_engine,
             db_adapter,
             bot_id_to_udf_adapter_map,
             stream_mode=True,
@@ -536,6 +534,12 @@ def register_routes(
                 ):
                     os.environ["REKA_API_KEY"] = llm_api_key_candidate
 
+                if (
+                    llm_api_key_candidate is not None
+                    and default_llm_engine.lower() == "gemini"
+                ):
+                    os.environ["GEMINI_API_KEY"] = llm_api_key_candidate
+
                 if bot_id_to_udf_adapter_map:
                     (
                         sessions,
@@ -543,8 +547,6 @@ def register_routes(
                         bot_id_to_udf_adapter_map,
                         SystemVariables.bot_id_to_slack_adapter_map,
                     ) = create_sessions(
-                        llm_api_key,
-                        default_llm_engine,
                         db_adapter,
                         bot_id_to_udf_adapter_map,
                         stream_mode=True,

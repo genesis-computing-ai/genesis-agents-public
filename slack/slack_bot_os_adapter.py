@@ -663,6 +663,8 @@ class SlackBotAdapter(BotOsInputAdapter):
                         " len ",
                         len(message.output),
                     )
+                    # show knowledge incorporated
+                    msg = "\n\n".join(f"({k}): {v}" for k, v in message.input_metadata.items() if k.endswith("_knowledge")) + "\n\n" + msg    
 
                     if len(msg) > 3900:
                         split_index = msg[:3900].rfind("\n")
@@ -718,6 +720,7 @@ class SlackBotAdapter(BotOsInputAdapter):
                     else:
                         if msg.count("```") % 2 != 0:
                             msg += "```"
+
                         self.slack_app.client.chat_update(
                             channel=message.input_metadata.get("channel", self.channel_id),
                             ts=thinking_ts,

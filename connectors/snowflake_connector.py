@@ -2706,7 +2706,7 @@ class SnowflakeConnector(DatabaseConnector):
         Retrieves the LLM key and type for the given runner_id from BigQuery.
 
         Returns:
-            tuple: A tuple containing the LLM key and LLM type.
+            list: A list of tuples, each containing an LLM key and LLM type.
         """
         runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
         logger.info("in getllmkey")
@@ -2716,30 +2716,25 @@ class SnowflakeConnector(DatabaseConnector):
             FROM {self.genbot_internal_project_and_schema}.llm_tokens
             WHERE runner_id = %s
         """
-        # print('query = ',query)
         logger.info(f"query: {query}")
         try:
             cursor = self.connection.cursor()
             cursor.execute(query, (runner_id,))
-            result = cursor.fetchone()
-            logger.info(f"result: {result}")
+            results = cursor.fetchall()
+            logger.info(f"results: {results}")
             cursor.close()
 
-            if result:
-                llm_key, llm_type = result
-                # logger.info(f"returning llm key and type: key: {llm_key} ' type {llm_type}")
-                #    print('returning llm key and type: key and type:',llm_type )
-                return llm_key, llm_type
+            if results:
+                llm_keys_and_types = [(row[0], row[1]) for row in results]
+                return llm_keys_and_types
             else:
                 # Log an error if no LLM key was found for the runner_id
-                #  logger.error(f"No LLM key found in database for runner_id: {runner_id}")
-                return None, None
+                return []
         except Exception as e:
-            # logger.error(f"LLM_TOKENS table not yet created,  try again later. hi!!!! ")
             logger.info(
-                "LLM_TOKENS table not yet created, returning None, try again later. hi!"
+                "LLM_TOKENS table not yet created, returning empty list, try again later."
             )
-            return None, None
+            return []
 
     def db_set_llm_key(self, llm_key, llm_type, project_id=None, dataset_name=None):
         """
@@ -2753,7 +2748,7 @@ class SnowflakeConnector(DatabaseConnector):
 
         # Query to merge the LLM tokens, inserting if the row doesn't exist
         query = f"""
-            MERGE INTO {project_id}.{dataset_name}.llm_tokens USING (SELECT 1 AS one) ON (runner_id = %s)
+            MERGE INTO {project_id}.{dataset_name}.llm_tokens USING (SELECT 1 AS one) ON (runner_id = %s and llm_type = {llm_type})
             WHEN MATCHED THEN
                 UPDATE SET llm_key = %s, llm_type = %s
             WHEN NOT MATCHED THEN
@@ -5357,7 +5352,7 @@ class SnowflakeConnector(DatabaseConnector):
             return {"success": False, "error": str(e)}
 
     def extract_knowledge(self, primary_user, bot_id):
-        bot_name, bot_serial = bot_id.split("-")
+        bot_name = "-".join(bot_id.split("-")[:-1])
         query = f"""SELECT * FROM {self.user_bot_table_name} 
                     WHERE primary_user = '{primary_user}' AND BOT_ID LIKE '{bot_name}%'
                     ORDER BY TIMESTAMP DESC

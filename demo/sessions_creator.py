@@ -306,8 +306,6 @@ def make_session(
 
 
 def create_sessions(
-    default_llm_engine,
-    llm_api_key,
     db_adapter,
     bot_id_to_udf_adapter_map,
     stream_mode=False,

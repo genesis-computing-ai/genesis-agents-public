@@ -190,31 +190,27 @@ if genesis_source == "BigQuery" and api_key_from_env == False:
 # llm_api_key = None
 # api_key_from_env = False
 
-if llm_api_key is None and genesis_source == "Snowflake":
-    llm_key, llm_type = get_llm_key()
-    if llm_key and llm_type:
-        default_llm_engine = llm_type
-        llm_api_key = llm_key
-        api_key_from_env = False
-    #  print("LLM Key loaded from Database")
+llm_keys_and_types = []
+#if llm_api_key is None and genesis_source == "Snowflake":
+if genesis_source == "Snowflake":
+
+    llm_keys_and_types = get_llm_key()
+    if llm_keys_and_types:
+        for llm_key, llm_type in llm_keys_and_types:
+            if llm_key and llm_type:
+                if llm_type.lower() == "openai":
+                    os.environ["OPENAI_API_KEY"] = llm_key
+                elif llm_type.lower() == "reka":
+                    os.environ["REKA_API_KEY"] = llm_key
+                elif llm_type.lower() == "gemini":
+                    os.environ["GEMINI_API_KEY"] = llm_key
+                api_key_from_env = False
+                break
     else:
         print("===========")
         print("NOTE: Config via Streamlit to continue")
         print("===========")
 #        logger.warn('LLM config not found in Env Var nor in Database LLM_CONFIG table.. starting without LLM Key, please provide via Streamlit')
-
-if llm_api_key is not None and default_llm_engine.lower() == "openai":
-    os.environ["OPENAI_API_KEY"] = llm_api_key
-if llm_api_key is not None and default_llm_engine.lower() == "reka":
-    os.environ["REKA_API_KEY"] = llm_api_key
-
-
-global_flags.slack_active = test_slack_config_token()
-if global_flags.slack_active == "token_expired":
-    t, r = get_slack_config_tokens()
-    tp, rp = rotate_slack_token(config_token=t, refresh_token=r)
-    global_flags.slack_active = test_slack_config_token()
-else:
     t, r = get_slack_config_tokens()
 print("...Slack Connector Active Flag: ", global_flags.slack_active)
 
@@ -229,8 +225,6 @@ if llm_api_key is not None:
         bot_id_to_udf_adapter_map,
         SystemVariables.bot_id_to_slack_adapter_map,
     ) = create_sessions(
-        default_llm_engine,
-        llm_api_key,
         db_adapter,
         bot_id_to_udf_adapter_map,
         stream_mode=True,
@@ -741,22 +735,25 @@ def configure_llm():
         
             if (
                 llm_api_key_candidate is not None
-                and default_llm_engine.lower() == "openai"
+                and default_llm_engine_candidate.lower() == "openai"
             ):
                 os.environ["OPENAI_API_KEY"] = llm_api_key_candidate
             if (
                 llm_api_key_candidate is not None
-                and default_llm_engine.lower() == "reka"
+                and default_llm_engine_candidate.lower() == "reka"
             ):
                 os.environ["REKA_API_KEY"] = llm_api_key_candidate
+            if (
+                llm_api_key_candidate is not None
+                and default_llm_engine_candidate.lower() == "gemini"
+            ):
+                os.environ["GEMINI_API_KEY"] = llm_api_key_candidate
             (
                 sessions,
                 api_app_id_to_session_map,
                 bot_id_to_udf_adapter_map,
                 SystemVariables.bot_id_to_slack_adapter_map,
             ) = create_sessions(
-                llm_api_key,
-                default_llm_engine,
                 db_adapter,
                 bot_id_to_udf_adapter_map,
                 stream_mode=True,
@@ -775,8 +772,8 @@ def configure_llm():
             # Assuming 'babybot' is an instance of a class that has the 'set_llm_key' method
             # and it has been instantiated and imported above in the code.
             set_key_result = set_llm_key(
-                llm_key=llm_api_key,
-                llm_type=default_llm_engine,
+                llm_key=llm_api_key_candidate,
+                llm_type=default_llm_engine_candidate,
             )
             if set_key_result:
                 response = {

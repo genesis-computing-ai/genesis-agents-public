@@ -802,10 +802,12 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                if function_call_details[0][0] == 'search_metadata' and self.first_tool_call[thread_id]:
                   tool_outputs[0]['output'] += f'''\n\nNOTE--Here are some things you know about this user and the data they used from previous interactions, that may be helpful to this conversation:
                                  {knowledge['DATA_LEARNING']}''' 
+                  metadata["data_knowledge"] = knowledge['DATA_LEARNING']
                   self.first_tool_call[thread_id] = False
                elif self.first_data_call[thread_id]:
                   tool_outputs[0]['output'] += f'''\n\nNOTE--Here are some things you know about this user and the tools they called from previous interactions, that may be helpful to this conversation:
-                                 {knowledge['TOOL_LEARNING']}''' 
+                                 {knowledge['TOOL_LEARNING']}'''
+                  metadata["tool_knowledge"] = knowledge['TOOL_LEARNING'] 
                   self.first_data_call[thread_id] = False
 
 

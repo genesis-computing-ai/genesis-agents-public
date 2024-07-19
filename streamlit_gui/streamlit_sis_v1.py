@@ -211,7 +211,7 @@ def configure_llm(llm_model_name, llm_api_key):
     """
     import requests
     import json
-
+    
     if NativeMode:
         sql = f"select {prefix}.configure_llm('{llm_model_name}', '{llm_api_key}') "
         data = session.sql(sql).collect()
@@ -432,7 +432,7 @@ def llm_config():  # Check if data is not empty
         st.write(
             "Genesis Bots require access to OpenAI, as these are the only LLMs currently powerful enough to service the bots. Please visit https://platform.openai.com/signup to get a paid API key for OpenAI before proceeding."
         )
-        llm_model = st.selectbox("Choose LLM Model:", ["OpenAI"])
+        llm_model = st.selectbox("Choose LLM Model:", ["OpenAI", "gemini"])
         llm_api_key = st.text_input("Enter API Key:", value=cur_key)
 
         if "disable_submit" not in st.session_state:

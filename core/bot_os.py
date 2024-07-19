@@ -373,6 +373,7 @@ class BotOsSession:
                     if knowledge:
                         input_message.msg = f'''NOTE--Here are some things you know about this user from previous interactions, that may be helpful to this conversation:
                                            {knowledge['USER_LEARNING']}\n\n''' + input_message.msg
+                        input_message.metadata["user_knowledge"] = knowledge['USER_LEARNING']
 
            # logger.error(f"Out Thread {out_thread} ->> In Thead {input_message.thread_id}")
            

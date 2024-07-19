@@ -154,7 +154,7 @@ def run_process(
             """
 
         response = self.client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-4o-mini",
             messages=[
                 {
                     "role": "user",
@@ -215,7 +215,7 @@ def run_process(
         # ).data
 
         response = self.client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-4o-mini",
             messages=[
                 {
                     "role": "user",

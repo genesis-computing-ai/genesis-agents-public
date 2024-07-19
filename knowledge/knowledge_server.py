@@ -22,7 +22,7 @@ class KnowledgeServer:
         self.thread_set_lock = threading.Lock()  
         self.openai_api_key = os.getenv('OPENAI_API_KEY')
         self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-        self.model = os.getenv("OPENAI_KNOWLEDGE_MODEL", 'gpt-4o')
+        self.model = os.getenv("OPENAI_KNOWLEDGE_MODEL", 'gpt-4o-mini')
         self.assistant = self.client.beta.assistants.create(
             name="Knowledge Explorer",
             description="You are a Knowledge Explorer to extract, synthesize, and inject knowledge that bots learn from doing their jobs",

@@ -68,8 +68,10 @@ class SlackBotAdapter(BotOsInputAdapter):
         self.events_map = {}
         self.handled_events = {}
         self.chunk_start_map = {}
+        self.chunk_last_100 = {}
         self.thinking_msg_overide_map = {}
         self.in_markdown_map = {}
+        self.finalized_threads = {}
         
 
         self.events_lock = threading.Lock()
@@ -424,9 +426,7 @@ class SlackBotAdapter(BotOsInputAdapter):
                         self.user_info_cache[uid] = user_info["user"]["real_name"]
                     except:
                         try:
-                            self.user_info_cache[uid] = user_info["user"]["profile"][
-                                "real_name"
-                            ]
+                            self.user_info_cache[uid] = user_info["user"]["profile"]["real_name"]
                         except:
                             self.user_info_cache[uid] = uid
                 msg = msg.replace(f"<@{uid}>", f"<@{uid}({self.user_info_cache[uid]})>")
@@ -639,7 +639,14 @@ class SlackBotAdapter(BotOsInputAdapter):
                 msg = message.output.replace("\n 💬", " 💬")
                 inmarkdown = False
                 if current_chunk_start is not None:
-                    msg = msg[current_chunk_start:]
+                    trimmed = False
+                    if orig_thinking in self.chunk_last_100:
+                        last100 = self.chunk_last_100[orig_thinking]
+                        if last100 in msg:
+                            msg = msg.split(last100, 1)[1]
+                            trimmed=True
+                    if not trimmed:
+                        msg = msg[current_chunk_start:]
                     if orig_thinking in self.in_markdown_map:
                         if self.in_markdown_map[orig_thinking] == True:
                             msg = '```' + msg
@@ -667,6 +674,7 @@ class SlackBotAdapter(BotOsInputAdapter):
                             msg_part1 = msg[:3900]
                             msg_part2 = msg[3900:]
                             chunk_start = 3900
+                        self.chunk_last_100[orig_thinking] = msg_part1[-100:]
                         if msg_part1.count("```") % 2 != 0:
                             msg_part1 += "```"
                             msg_part2 = "```" + msg_part2
@@ -679,9 +687,15 @@ class SlackBotAdapter(BotOsInputAdapter):
                             self.chunk_start_map[orig_thinking] = chunk_start
                         if inmarkdown:
                             self.chunk_start_map[orig_thinking] -= 3
-
-
+                       # print('chunkstart: ', self.chunk_start_map[orig_thinking])
+                        chunk_start = self.chunk_start_map[orig_thinking]
+                        #print('Breakpoint context: ', message.output.replace("\n 💬", " 💬")[max(0, chunk_start-20):chunk_start] + '<>' + message.output.replace("\n 💬", " 💬")[chunk_start:chunk_start+20])
+                        # Store the first 100 characters of the first part of the message in the chunk_last_100 dictionary
+                        # Store the substring of msg_part1 starting from the 100th character in the chunk_last_100 dictionary
+                        # Store the last 100 characters of msg_part1 in the chunk_last_100 dictionary
+                        
                         try:
+
                             self.slack_app.client.chat_update(
                                 channel=message.input_metadata.get("channel", self.channel_id),
                                 ts=thinking_ts,
@@ -745,14 +759,31 @@ class SlackBotAdapter(BotOsInputAdapter):
 
                 thinking_ts = message.input_metadata.get("thinking_ts", None)
                 orig_thinking = thinking_ts
+
+                # only finalize threads with this function once even if called multiple times
+                if orig_thinking in self.finalized_threads:
+                    return
+                else:
+                    self.finalized_threads[orig_thinking] = True
+
                 if orig_thinking in self.thinking_msg_overide_map:
                     thinking_ts = self.thinking_msg_overide_map[orig_thinking]
 
+ 
                 current_chunk_start =  self.chunk_start_map.get(orig_thinking,None)
                 msg = message.output.replace("\n 💬", " 💬")
                 
+
                 if current_chunk_start is not None:
-                    msg = msg[current_chunk_start:]
+                    trimmed = False
+                    if orig_thinking in self.chunk_last_100:
+                        last100 = self.chunk_last_100[orig_thinking]
+                        if last100 in msg:
+                            msg = msg.split(last100, 1)[1]
+                            trimmed=True
+                    if not trimmed:
+                        msg = msg[current_chunk_start:]
+
                     if orig_thinking in self.in_markdown_map:
                         if self.in_markdown_map[orig_thinking] == True:
                             msg = '```' + msg

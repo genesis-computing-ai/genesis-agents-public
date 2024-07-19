@@ -82,6 +82,8 @@ class StreamingEventHandler(AssistantEventHandler):
     #   print(f"\nassistant on_message_created > {message}\n", end="", flush=True)
    @override
    def on_message_done(self, message: Message) -> None:
+      return
+   
       try:
          txt = message.text
       except:
@@ -1030,7 +1032,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                threads_still_pending.append(thread_id)
                try:
                   # Corrected to ensure it only calls after each minute beyond the first 60 seconds
-                  if run_duration > 60 and run_duration % 60 < 2:  # Check if run duration is beyond 60 seconds and within the first 5 seconds of each subsequent minute
+                  if run_duration > 60 and run_duration % 60 < 2 and run.id not in StreamingEventHandler.run_id_to_output_stream:  # Check if run duration is beyond 60 seconds and within the first 5 seconds of each subsequent minute # Check if run duration is beyond 60 seconds and within the first 5 seconds of each subsequent minute
                      event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id, 
                                                                            status=run.status, 
                                                                            output=f"_still running..._ {run.id} has been waiting on OpenAI for {int(run_duration // 60)} minute(s)...", 
@@ -1042,7 +1044,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
             if run.status == "queued":
                threads_still_pending.append(thread_id)
                try:
-                  if run_duration > 60 and run_duration % 60 < 2:  # Check if run duration is beyond 60 seconds and within the first 5 seconds of each subsequent minute
+                  if run_duration > 60 and run_duration % 60 < 2 and run.id not in StreamingEventHandler.run_id_to_output_stream:  # Check if run duration is beyond 60 seconds and within the first 5 seconds of each subsequent minute # Check if run duration is beyond 60 seconds and within the first 5 seconds of each subsequent minute
                      event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id, 
                                                                            status=run.status, 
                                                                            output=f"_still running..._ {run.id} has been queued by OpenAI for {int(run_duration // 60)} minute(s)...", 
@@ -1255,7 +1257,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
             #      if  StreamingEventHandler.run_id_to_output_stream.get(run.id,None) is not None:
             #         output = StreamingEventHandler.run_id_to_output_stream.get(run.id)
                   if os.getenv('SHOW_COST', 'false').lower() == 'true':
-                     output += '  `'+"$"+str(round(run.usage.prompt_tokens/1000000*10+run.usage.completion_tokens/1000000*30,4))+'`'
+                     output += '  `'+"$"+str(round(run.usage.prompt_tokens/1000000*0.15+run.usage.completion_tokens/1000000*0.60,4))+'`'
                   output_array.append(output)
                meta_prime = self.run_meta_map.get(run.id, None)
                if meta_prime is not None:

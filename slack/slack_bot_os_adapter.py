@@ -649,23 +649,23 @@ class SlackBotAdapter(BotOsInputAdapter):
                         len(message.output),
                     )
 
-                    if len(msg) > 3980:
-                        split_index = msg[:3980].rfind("```")
+                    if len(msg) > 3900:
+                        split_index = msg[:3900].rfind("```")
                         if split_index == -1:
-                            split_index = msg[:3980].rfind(" ")
+                            split_index = msg[:3900].rfind(" ")
                         if split_index != -1:
                             msg_part1 = msg[:split_index]
                             msg_part2 = msg[split_index:]
                             chunk_start = split_index
                         else:
-                            msg_part1 = msg[:3980]
-                            msg_part2 = msg[3980:]
-                            chunk_start = 3980
+                            msg_part1 = msg[:3900]
+                            msg_part2 = msg[3900:]
+                            chunk_start = 3900
                         
                         if thinking_ts in self.chunk_start_map:
-                            self.chunk_start_map[thinking_ts] += chunk_start
+                            self.chunk_start_map[orig_thinking] += chunk_start
                         else:
-                            self.chunk_start_map[thinking_ts] = chunk_start
+                            self.chunk_start_map[orig_thinking] = chunk_start
 
                         try:
                             self.slack_app.client.chat_update(
@@ -868,23 +868,23 @@ class SlackBotAdapter(BotOsInputAdapter):
 #                if blocks is not None or len(msg) > 2000:
 #                    print('blocks / long: ',len(msg))
 
-                if len(msg) > 3980:
-                    split_index = msg[:3980].rfind("```")
+                if len(msg) > 3900:
+                    split_index = msg[:3900].rfind("```")
                     if split_index == -1:
-                        split_index = msg[:3980].rfind(" ")
+                        split_index = msg[:3900].rfind(" ")
                     if split_index != -1:
                         msg_part1 = msg[:split_index]
                         msg_part2 = msg[split_index:]
                         chunk_start = split_index
                     else:
-                        msg_part1 = msg[:3980]
-                        msg_part2 = msg[3980:]
-                        chunk_start = 3980
+                        msg_part1 = msg[:3900]
+                        msg_part2 = msg[3900:]
+                        chunk_start = 3900
                     
                     if thinking_ts in self.chunk_start_map:
-                        self.chunk_start_map[thinking_ts] += chunk_start
+                        self.chunk_start_map[orig_thinking] += chunk_start
                     else:
-                        self.chunk_start_map[thinking_ts] = chunk_start
+                        self.chunk_start_map[orig_thinking] = chunk_start
 
                     try:
                         self.slack_app.client.chat_update(

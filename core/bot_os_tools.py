@@ -66,14 +66,8 @@ genesis_source = os.getenv("GENESIS_SOURCE", default="Snowflake")
 
 from pydantic import BaseModel
 
-class ToolBelt:
-    def __init__(self, db_adapter):
-        self.db_adapter = db_adapter
-        self.openai_api_key = os.getenv("OPENAI_API_KEY")
-        self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-        self.counter = 0
-        self.instructions = ""
-        self.process = {}
+
+class ToolBelt(BaseModel):
 
     # Function to make HTTP request and get the entire content
     def get_webpage_content(self, url):
@@ -122,16 +116,22 @@ class ToolBelt:
             return {"error": str(e)}
 
 
-        if action == "GET_ANSWER":
-            print("The meaning of life has been discovered - 42!")
-            return {
-                "Success": True,
-                "Message": "The meaning of life has been discovered - 42!",
-            }
-        elif action == "KICKOFF_PROCESS":
-            print("Kickoff process.")
-            self.counter = 1
-            self.process = process
+def run_process(
+    self,
+    action,
+    previous_response,
+    thread_id=None,
+    # session=None,
+    process_name="",
+):
+    print(f"Running processes Action: {action} | process_id: {process_name}")
+    # Try to get process info from PROCESSES table
+    process = self.db_adapter.get_process_info(process_name)
+    if len(process) == 0:
+        return {
+            "Success": False,
+            "Message": f"Process {process_name} not found in the PROCESSES table.",
+        }
 
     if action == "GET_ANSWER":
         print("The meaning of life has been discovered - 42!")
@@ -143,37 +143,42 @@ class ToolBelt:
         print("Kickoff process.")
         self.counter = 1
 
-            extract_instructions = f"""
-            These are the process instructions for the entire process.  Extract the section titled 
-            Step {self.counter} and return the text of that section only.  Do not include any other text before or after Step {self.counter}.
+        print(
+            f"Process {process_name} has been kicked off.  Process object: \n{process}"
+        )
+
+        extract_instructions = f"""
+            These are the process instructions for the entire process.  Extract the section titled 'Objective' and 
+            step {self.counter} and return the text.
             {process['PROCESS_INSTRUCTIONS']}
             """
 
-            response = self.client.chat.completions.create(
-                model="gpt-4o",
-                messages=[
-                    {
-                        "role": "user",
-                        "content": extract_instructions,
-                    },
-                ],
-            )
-            first_step = response.choices[0].message.content
+        response = self.client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "user",
+                    "content": extract_instructions,
+                },
+            ],
+        )
+        llm_return = response.choices[0].message.content
+        try:
+            instructions = llm_return.split("**Instruction:**")[1]
+        except:
+            instructions = llm_return
 
-            self.instructions = f"""
-               Hey **@{process['BOT_ID']}** <@{process['BOT_SLACK_USER_ID']}>, here is step {self.counter} of the process.
-               {first_step}
-                Execute these instructions now and then pass your response to the run_process tool as a parameter
-                called previous_response and an action of GET_NEXT_STEP.  
-                Do not verify anything with the user.  Execute the instructions you were given without asking for permission.
+        # print("\n", instructions, "\n")
+
+        instructions = f"""
+               Hey @{process['BOT_ID']} <@{process['BOT_SLACK_USER_ID']}>, here is step {self.counter} of the process.
+               {instructions}
+                Execute these instructions now and then call the run process tool with action GET_NEXT_STEP to get the next step.
+                Do not verify anything witht the user.  Just execute the instructions.
                 """
 
-            self.instructions = "\n".join(
-                line.lstrip() for line in self.instructions.splitlines()
-            )
-
-            print("\n", self.instructions, "\n")
-            # channel_id = "C076L59T21H"  # sessions.input_adapters[0].
+        print("\n", instructions, "\n")
+        # channel_id = "C076L59T21H"  # sessions.input_adapters[0].
 
         # session.input_adapters[0].send_slack_channel_message(
         #     channel_id,  # Needs to be channel id
@@ -182,83 +187,58 @@ class ToolBelt:
         #     wait=True,
         # )
 
-            return {"Success": True, "Message": self.instructions}
+        return {
+            "Success": True,
+            "Message": f"<@{process['BOT_SLACK_USER_ID']}> {instructions}",
+        }
 
     elif action == "GET_NEXT_STEP":
         print("GET NEXT STEP - process_runner.")
 
-            check_response = f"""
-            Below is the previous question that the bot was asked and the response it gave.  Review the response and 
-            determine if the bot's response was correct and makes sense.  If it was not correct, return a request to run the process again 
-            by returning the text "**fail**" follwed by an explanation as why it failed.  If the response was correct, return only the text string 
-            "**success**" to continue to the next step.
+        previous_response += f"""
+            These are the process instructions for the entire process.  
+            {process['PROCESS_INSTRUCTIONS']}
 
-            Instructions: {self.instructions}
-            Previous Response: {previous_response}
+            **Results from Step {self.counter}**:
+            If the step and the results from the step do not look satisfactory, please return a request to
+            run the process again with the action GET_NEXT_STEP and success = false.  If they are satisfactory, please return a request to
+            run step {self.counter + 1} with the text of step {self.counter + 1} from process instructions and success = true.  
+            Return the information as a JSON object with two fields: 'Success' and 'Message'.
+            Do not return anything else in the message beside the JSON object.
+
+            ** Results from previous step {self.counter}**
+            {previous_response}
             """
 
-            print(f"\n{check_response}\n")
+        # conversation_history = self.slack_app.client.conversations_history(
+        #     channel=channel, limit=2
+        # ).data
 
-            # NO CHANNEL ID FROM ADPATER
-            # conversation_history = self.slack_app.client.conversations_history(
-            #     channel=channel, limit=2
-            # ).data
+        response = self.client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "user",
+                    "content": previous_response,
+                },
+            ],
+        )
 
-            response = self.client.chat.completions.create(
-                model="gpt-4o",
-                messages=[
-                    {
-                        "role": "user",
-                        "content": check_response,
-                    },
-                ],
-            )
+        llm_return = (
+            response.choices[0]
+            .message.content.replace("json", "")
+            .replace("true", "True")
+            .replace("false", "False")
+            .replace("```", "")
+            .replace("\\", "")
+            .replace("\n", "")
+        )
+        result = json.loads(llm_return)
 
-            result = response.choices[0].message.content
-
-            print(f"\n{result}\n")
-
-            if "**fail**" in result.lower():
-                print(f"\nStep {self.counter} failed.  Trying again...\n")
-                return {
-                    "Success": True,
-                    "Message": f"That is not the correct answer.  Try Step {self.counter} again:\n{self.instructions}",
-                }
-
+        if result["Success"]:
             self.counter += 1
 
-            extract_instructions = f"""
-            Extract the text for step {self.counter} from the process instructions and return it.  Do not include any other 
-            text before or after Step {self.counter}.  Return the text of the step only.
-
-            Process Instructions: {process['PROCESS_INSTRUCTIONS']}
-            """
-
-            print(f"\n{extract_instructions}\n")
-
-            response = self.client.chat.completions.create(
-                model="gpt-4o",
-                messages=[
-                    {
-                        "role": "user",
-                        "content": extract_instructions,
-                    },
-                ],
-            )
-
-            next_step = response.choices[0].message.content
-
-            print(f"\n{next_step}\n")
-
-            self.instructions = f"""
-               Hey **@{process['BOT_ID']}** <@{process['BOT_SLACK_USER_ID']}>, here is step {self.counter} of the process.
-               {next_step}
-                Execute these instructions now and then pass your response to the run_process tool as a parameter
-                called previous_response and an action of GET_NEXT_STEP.  
-                Do not verify anything with the user.  Execute the instructions you were given without asking for permission.
-                """
-
-            print(f"\n{self.instructions}\n")
+        print(result["Message"])
 
         # response = client.chat_postMessage(
         #     channel="general",
@@ -268,13 +248,13 @@ class ToolBelt:
         # assert response["ok"]
         # print(response)
 
-            return {
-                "Success": True,
-                "Message": self.instructions,
-            }
-        else:
-            print("No action specified.")
-            return {"Success": False, "Message": "No action specified."}
+        return {
+            "Success": True,
+            "Message": f'@{process["BOT_SLACK_USER_ID"]} {result["Message"]}',
+        }
+    else:
+        print("No action specified.")
+        return {"Success": False, "Message": "No action specified."}
 
 
 if genesis_source == "BigQuery":

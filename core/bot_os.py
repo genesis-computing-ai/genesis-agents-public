@@ -369,7 +369,7 @@ class BotOsSession:
 
                     primary_user = json.dumps({'user_id': input_message.metadata.get('user_id', 'Unknown User ID'), 
                                                'user_name': input_message.metadata.get('user_name', 'Unknown User')})
-                    knowledge = self.log_db_connector.extract_knowledge(primary_user, self.bot_id)
+                    knowledge = self.log_db_connector.extract_knowledge(primary_user, self.bot_name)
                     if knowledge:
                         input_message.msg = f'''NOTE--Here are some things you know about this user from previous interactions, that may be helpful to this conversation:
                                            {knowledge['USER_LEARNING']}\n\n''' + input_message.msg

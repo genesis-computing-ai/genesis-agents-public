@@ -5351,8 +5351,7 @@ class SnowflakeConnector(DatabaseConnector):
             )
             return {"success": False, "error": str(e)}
 
-    def extract_knowledge(self, primary_user, bot_id):
-        bot_name = "-".join(bot_id.split("-")[:-1])
+    def extract_knowledge(self, primary_user, bot_name):
         query = f"""SELECT * FROM {self.user_bot_table_name} 
                     WHERE primary_user = '{primary_user}' AND BOT_ID LIKE '{bot_name}%'
                     ORDER BY TIMESTAMP DESC

@@ -693,6 +693,8 @@ class SnowflakeConnector(DatabaseConnector):
             if cursor is not None:
                 cursor.close()
 
+    
+
     def manage_tasks(
         self, action, bot_id, task_id=None, task_details=None, thread_id=None
     ):

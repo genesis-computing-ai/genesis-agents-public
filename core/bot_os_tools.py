@@ -4,6 +4,7 @@ import time
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
+from openai import OpenAI
 
 from jinja2 import Template
 from bot_genesis.make_baby_bot import MAKE_BABY_BOT_DESCRIPTIONS, make_baby_bot_tools
@@ -68,6 +69,13 @@ genesis_source = os.getenv("GENESIS_SOURCE", default="Snowflake")
 
 
 class ToolBelt:
+    def __init__(self, db_adapter):
+        self.db_adapter = db_adapter
+        self.openai_api_key = os.getenv("OPENAI_API_KEY")
+        self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        self.counter = 0
+        self.instructions = ""
+        self.process = {}
 
     # Function to make HTTP request and get the entire content
     def get_webpage_content(self, url):

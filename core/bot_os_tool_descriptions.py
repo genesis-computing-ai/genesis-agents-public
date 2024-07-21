@@ -59,7 +59,7 @@ process_runner_functions = [
                     "action": {
                         "type": "string",
                         "description": """
-                        The action to perform on the task can be one of these: GET_ANSWER, KICKOFF_PROCESS, GET_NEXT_STEP
+                        The action to perform on the task can be one of these: GET_ANSWER, KICKOFF_PROCESS, GET_NEXT_STEP, GOTO_STEP, END_PROCESS
                         """,
                     },
                     "process_name": {
@@ -69,6 +69,14 @@ process_runner_functions = [
                     "previous_response": {
                         "type": "string",
                         "description": "The previous response from the bot",
+                    },
+                    "goto_step": {
+                        "type": "string",
+                        "description": "Directs the process runner to update the program counter",
+                    },
+                    "end_process": {
+                        "type": "string",
+                        "description": "Sets the done flag to true to instruct the process to stop",
                     },
                 },
             },
@@ -149,7 +157,7 @@ tools_data = [
         "process_runner_tools",
         "Tools to run processes.",
     ),
-   (
+    (
         "process_manager_tools",
         "Tools to create and manage processes.",
     ),

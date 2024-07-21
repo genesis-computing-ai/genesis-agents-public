@@ -50,13 +50,19 @@ dataset_name = db_schema[1]
 
 genesis_source = os.getenv("GENESIS_SOURCE", default="Snowflake")
 
+
 def make_session(
-    bot_config, db_adapter, bot_id_to_udf_adapter_map={}, stream_mode=False, skip_vectors=False, data_cubes_ingress_url=None,
+    bot_config,
+    db_adapter,
+    bot_id_to_udf_adapter_map={},
+    stream_mode=False,
+    skip_vectors=False,
+    data_cubes_ingress_url=None,
 ):
 
     if not stream_mode:
         test_task_mode = os.getenv("TEST_TASK_MODE", "false").lower() == "true"
-        #if test_task_mode and bot_config["bot_name"] != "Eliza":
+        # if test_task_mode and bot_config["bot_name"] != "Eliza":
         #    return None, None, None, None
 
     # streamlit and slack launch todos:
@@ -175,24 +181,27 @@ def make_session(
         instructions += f"\nYour Internal Files Stage for bots is at snowflake stage: {genbot_internal_project_and_schema}.BOT_FILES_STAGE"
         if not stream_mode:
             instructions += ". This BOT_FILES_STAGE stage is ONLY in this particular database & schema."
-    
+
     bot_id = bot_config["bot_id"]
 
     # check if database_tools are in bot_tools
     if "database_tools" in bot_tools:
         try:
-            #if so, create workspace schema
-            
-            workspace_schema_name = f"{project_id}.{bot_id}_WORKSPACE".replace('-', '_').upper()
+            # if so, create workspace schema
+
+            workspace_schema_name = f"{project_id}.{bot_id}_WORKSPACE".replace(
+                "-", "_"
+            ).upper()
             db_adapter.create_bot_workspace(workspace_schema_name)
             db_adapter.grant_all_bot_workspace(workspace_schema_name)
             instructions += f"\nYou have a workspace schema created specifically for you named {workspace_schema_name} that the user can also access. You may use this schema for creating tables, views, and stages that are required when generating answers to data analysis questions. Only use this schema if asked to create an object. Always return the full location of the object."
             if data_cubes_ingress_url:
-                logger.warning(f"Setting data_cubes_ingress_url for {bot_id}: {data_cubes_ingress_url}")
+                logger.warning(
+                    f"Setting data_cubes_ingress_url for {bot_id}: {data_cubes_ingress_url}"
+                )
                 instructions += f"\nWhenever you show the results from run_query, always provide a link to a datacube visualization to help them understand the data you used in the form: http://{data_cubes_ingress_url}?sql_query=select%20*%20from%20spider_data.baseball.all_star -- replace the value of the sql_query query parameter with the query you used."
         except Exception as e:
             logger.warning(f"Error creating bot workspace for bot_id {bot_id} {e} ")
-
 
     if simple_mode and stream_mode:
         instructions = "You are a smart data analyst named Eliza. Use emojiis to express your fun personality. You have access to 2 tools, semantic_copilot to get SQL for a natural language prompt, and run_query to execute the sql you get. Use lots of emojis to express your personality. Return data grids and sql statements in three backticks example: ``` <data> or <sql> ```. DO NOT HALUCINATE tool calls or results of tools."
@@ -276,8 +285,8 @@ def make_session(
             all_function_to_tool_map=all_function_to_tool_map,
             bot_id=bot_config["bot_id"],
             stream_mode=stream_mode,
-            tool_belt=ToolBelt(),
-            skip_vectors=skip_vectors
+            tool_belt=ToolBelt(db_adapter),
+            skip_vectors=skip_vectors,
         )
     except Exception as e:
         print("Session creation exception: ", e)
@@ -311,7 +320,6 @@ def create_sessions(
     stream_mode=False,
     skip_vectors=False,
     data_cubes_ingress_url=None,
-
 ):
     # Fetch bot configurations for the given runner_id from BigQuery
     runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
@@ -323,9 +331,9 @@ def create_sessions(
     bot_id_to_slack_adapter_map = {}
 
     for bot_config in bots_config:
-    # JL TEMP REMOVE
- #       if bot_config["bot_id"] == "Eliza-lGxIAG":
- #           continue
+        # JL TEMP REMOVE
+        #       if bot_config["bot_id"] == "Eliza-lGxIAG":
+        #           continue
         print(f'Making session for bot {bot_config["bot_id"]}')
         new_session, api_app_id, udf_adapter_local, slack_adapter_local = make_session(
             bot_config=bot_config,

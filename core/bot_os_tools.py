@@ -76,6 +76,7 @@ class ToolBelt:
         self.counter = 0
         self.instructions = ""
         self.process = {}
+        self.done = False
 
     # Function to make HTTP request and get the entire content
     def get_webpage_content(self, url):
@@ -127,9 +128,8 @@ class ToolBelt:
         self,
         action,
         previous_response="",
-        thread_id=None,
-        # session=None,
         process_name="",
+        goto_step=None,
     ):
         print(f"Running processes Action: {action} | process_id: {process_name}")
         # Try to get process info from PROCESSES table
@@ -198,6 +198,12 @@ class ToolBelt:
 
         elif action == "GET_NEXT_STEP":
             print("GET NEXT STEP - process_runner.")
+
+            if self.done:
+                return {
+                    "Success": True,
+                    "Message": "Process run complete.",
+                }
 
             check_response = f"""
                 Below is the previous question that the bot was asked and the response it gave.  Review the response and 
@@ -284,6 +290,10 @@ class ToolBelt:
                 "Success": True,
                 "Message": self.instructions,
             }
+        elif action == "GOTO_STEP":
+            self.counter = goto_step
+        elif action == "END_PROCESS":
+            self.done = True
         else:
             print("No action specified.")
             return {"Success": False, "Message": "No action specified."}
@@ -300,7 +310,7 @@ if genesis_source == "BigQuery":
 else:  # Initialize Snowflake client
     db_adapter = SnowflakeConnector(connection_name="Snowflake")
     connection_info = {"Connection_Type": "Snowflake"}
-    tool_belt = ToolBelt()
+    tool_belt = ToolBelt(db_adapter)
 
 
 def get_tools(which_tools, db_adapter, slack_adapter_local=None, include_slack=True):

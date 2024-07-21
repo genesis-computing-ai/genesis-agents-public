@@ -112,9 +112,11 @@ webpage_downloader_functions = [
     }
 ]
 
-webpage_downloader_tools = {"webpage_downloader": "tool_belt.download_webpage"}
+webpage_downloader_tools = {
+    "webpage_downloader": "generated_modules.webpage_downloader.download_webpage"
+}
 webpage_downloader_action_function_mapping = {
-    "webpage_downloader": "tool_belt.download_webpage"
+    "webpage_downloader": "generated_modules.webpage_downloader.download_webpage"
 }
 
 

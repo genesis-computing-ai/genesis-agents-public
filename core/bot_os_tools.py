@@ -186,14 +186,6 @@ class ToolBelt:
             )
 
             print("\n", self.instructions, "\n")
-            # channel_id = "C076L59T21H"  # sessions.input_adapters[0].
-
-            # session.input_adapters[0].send_slack_channel_message(
-            #     channel_id,  # Needs to be channel id
-            #     instructions,
-            #     thread_id=thread_id,
-            #     wait=True,
-            # )
 
             return {"Success": True, "Message": self.instructions}
 
@@ -217,11 +209,6 @@ class ToolBelt:
                 """
 
             print(f"\n{check_response}\n")
-
-            # NO CHANNEL ID FROM ADPATER
-            # conversation_history = self.slack_app.client.conversations_history(
-            #     channel=channel, limit=2
-            # ).data
 
             response = self.client.chat.completions.create(
                 model="gpt-4o",
@@ -278,14 +265,6 @@ class ToolBelt:
                     """
 
             print(f"\n{self.instructions}\n")
-
-            # response = client.chat_postMessage(
-            #     channel="general",
-            #     text="This is a reply",
-            #     thread_ts="1561764011.015500"
-            # )
-            # assert response["ok"]
-            # print(response)
 
             return {
                 "Success": True,

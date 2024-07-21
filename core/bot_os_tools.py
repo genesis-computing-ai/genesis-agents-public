@@ -130,6 +130,7 @@ class ToolBelt:
         previous_response="",
         process_name="",
         goto_step=None,
+        thread_id=None,
     ):
         print(f"Running processes Action: {action} | process_id: {process_name}")
         # Try to get process info from PROCESSES table

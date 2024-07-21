@@ -29,7 +29,7 @@ import base64
 import requests
 import re
 
-import bot_genesis.tools_descriptions
+import core.bot_os_tool_descriptions
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -57,10 +57,12 @@ class SnowflakeConnector(DatabaseConnector):
         self.token_connection = False
         self.connection = self._create_connection()
         self.semantic_models_map = {}
-        self.cortex_mode = False 
-        if os.getenv('USE_CORTEX_IF_AVAILABLE', 'FALSE').upper() == 'TRUE':
-            print('Testing for Cortex availability...')
-            cortex_test = self.run_query("select snowflake.cortex.complete('reka-flash','what is 1+1')")
+        self.cortex_mode = False
+        if os.getenv("USE_CORTEX_IF_AVAILABLE", "FALSE").upper() == "TRUE":
+            print("Testing for Cortex availability...")
+            cortex_test = self.run_query(
+                "select snowflake.cortex.complete('reka-flash','what is 1+1')"
+            )
             try:
                 result_value = next(iter(cortex_test[0].values()))
                 if result_value:
@@ -68,16 +70,18 @@ class SnowflakeConnector(DatabaseConnector):
                     self.cortex_mode = True
             except:
                 pass
-     #       self.snowpark_session = self._create_snowpark_connection()
+        #       self.snowpark_session = self._create_snowpark_connection()
         if False and self.snowpark_session is not None:
             p = "Please provide a brief summary of a database table in the 'SPIDER_DATA.BASEBALL' schema named 'BATTING'. This table includes the following columns: PLAYER_ID, YEAR, STINT, TEAM_ID, LEAGUE_ID, G, AB, R, H, DOUBLE, TRIPLE, HR, RBI, SB, CS, BB, SO, IBB, HBP, SH, SF, G_IDP."
             prompt = [
-                {"role": "system", "content": "You an assistant that is great at explaining database tables and columns in natural language."},
-                {"role": "user", "content": p}
-             ]
-            r = self._cortex_complete("reka-flash",str(prompt))
-            print('cortex test:',r)
-   
+                {
+                    "role": "system",
+                    "content": "You an assistant that is great at explaining database tables and columns in natural language.",
+                },
+                {"role": "user", "content": p},
+            ]
+            r = self._cortex_complete("reka-flash", str(prompt))
+            print("cortex test:", r)
 
         try:
             pass
@@ -103,30 +107,70 @@ class SnowflakeConnector(DatabaseConnector):
             # Todo remove, internal note
             print("ENV Variable GENESIS_INTERNAL_DB_SCHEMA is not set.")
         if self.genbot_internal_project_and_schema is not None:
-            self.genbot_internal_project_and_schema = self.genbot_internal_project_and_schema.upper()
-            
-        self.genbot_internal_harvest_table = os.getenv('GENESIS_INTERNAL_HARVEST_RESULTS_TABLE','harvest_results')
-        self.genbot_internal_harvest_control_table = os.getenv('GENESIS_INTERNAL_HARVEST_CONTROL_TABLE','harvest_control')
-        self.genbot_internal_message_log = os.getenv('GENESIS_INTERNAL_MESSAGE_LOG_TABLE','MESSAGE_LOG')
-        self.genbot_internal_knowledge_table = os.getenv('GENESIS_INTERNAL_KNOWLEDGE_TABLE','KNOWLEDGE')
-        self.genbot_internal_user_bot_table = os.getenv('GENESIS_INTERNAL_USER_BOT_TABLE','USER_BOT')
-        self.app_share_schema = 'APP_SHARE'
+            self.genbot_internal_project_and_schema = (
+                self.genbot_internal_project_and_schema.upper()
+            )
 
-       # print("genbot_internal_project_and_schema: ", self.genbot_internal_project_and_schema)
-        self.metadata_table_name = self.genbot_internal_project_and_schema+'.'+self.genbot_internal_harvest_table
-        self.harvest_control_table_name = self.genbot_internal_project_and_schema+'.'+self.genbot_internal_harvest_control_table
-        self.message_log_table_name = self.genbot_internal_project_and_schema+'.'+self.genbot_internal_message_log
-        self.knowledge_table_name = self.genbot_internal_project_and_schema+'.'+self.genbot_internal_knowledge_table
-        self.user_bot_table_name = self.genbot_internal_project_and_schema+'.'+self.genbot_internal_user_bot_table
-        self.slack_tokens_table_name = self.genbot_internal_project_and_schema+'.'+'SLACK_APP_CONFIG_TOKENS'
-        self.available_tools_table_name = self.genbot_internal_project_and_schema + '.' + 'AVAILABLE_TOOLS'
-        self.bot_servicing_table_name = self.genbot_internal_project_and_schema + '.' + 'BOT_SERVICING'
-        self.ngrok_tokens_table_name = self.genbot_internal_project_and_schema + '.' + 'NGROK_TOKENS'
-        self.images_table_name = self.app_share_schema + '.' + 'IMAGES'
-        
-     #   print("harvest_control_table_name: ", self.harvest_control_table_name)
-     #   print("metadata_table_name: ", self.metadata_table_name)
-     #   print("message_log_table_name: ", self.genbot_internal_message_log)
+        self.genbot_internal_harvest_table = os.getenv(
+            "GENESIS_INTERNAL_HARVEST_RESULTS_TABLE", "harvest_results"
+        )
+        self.genbot_internal_harvest_control_table = os.getenv(
+            "GENESIS_INTERNAL_HARVEST_CONTROL_TABLE", "harvest_control"
+        )
+        self.genbot_internal_message_log = os.getenv(
+            "GENESIS_INTERNAL_MESSAGE_LOG_TABLE", "MESSAGE_LOG"
+        )
+        self.genbot_internal_knowledge_table = os.getenv(
+            "GENESIS_INTERNAL_KNOWLEDGE_TABLE", "KNOWLEDGE"
+        )
+        self.genbot_internal_user_bot_table = os.getenv(
+            "GENESIS_INTERNAL_USER_BOT_TABLE", "USER_BOT"
+        )
+        self.app_share_schema = "APP_SHARE"
+
+        # print("genbot_internal_project_and_schema: ", self.genbot_internal_project_and_schema)
+        self.metadata_table_name = (
+            self.genbot_internal_project_and_schema
+            + "."
+            + self.genbot_internal_harvest_table
+        )
+        self.harvest_control_table_name = (
+            self.genbot_internal_project_and_schema
+            + "."
+            + self.genbot_internal_harvest_control_table
+        )
+        self.message_log_table_name = (
+            self.genbot_internal_project_and_schema
+            + "."
+            + self.genbot_internal_message_log
+        )
+        self.knowledge_table_name = (
+            self.genbot_internal_project_and_schema
+            + "."
+            + self.genbot_internal_knowledge_table
+        )
+        self.user_bot_table_name = (
+            self.genbot_internal_project_and_schema
+            + "."
+            + self.genbot_internal_user_bot_table
+        )
+        self.slack_tokens_table_name = (
+            self.genbot_internal_project_and_schema + "." + "SLACK_APP_CONFIG_TOKENS"
+        )
+        self.available_tools_table_name = (
+            self.genbot_internal_project_and_schema + "." + "AVAILABLE_TOOLS"
+        )
+        self.bot_servicing_table_name = (
+            self.genbot_internal_project_and_schema + "." + "BOT_SERVICING"
+        )
+        self.ngrok_tokens_table_name = (
+            self.genbot_internal_project_and_schema + "." + "NGROK_TOKENS"
+        )
+        self.images_table_name = self.app_share_schema + "." + "IMAGES"
+
+        #   print("harvest_control_table_name: ", self.harvest_control_table_name)
+        #   print("metadata_table_name: ", self.metadata_table_name)
+        #   print("message_log_table_name: ", self.genbot_internal_message_log)
 
         #   print("harvest_control_table_name: ", self.harvest_control_table_name)
         #   print("metadata_table_name: ", self.metadata_table_name)
@@ -148,28 +192,34 @@ class SnowflakeConnector(DatabaseConnector):
                 "user": os.getenv("SNOWFLAKE_USER_OVERRIDE"),
                 "password": os.getenv("SNOWFLAKE_PASSWORD_OVERRIDE"),
                 "role": os.getenv("SNOWFLAKE_ROLE_OVERRIDE", "PUBLIC"),  # optional
-                "warehouse": os.getenv("SNOWFLAKE_WAREHOUSE_OVERRIDE", "XSMALL"),  # optional
-                "database": os.getenv("SNOWFLAKE_DATABASE_OVERRIDE", "GENESIS_TEST"),  # optional
-                "schema": os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "GENESIS_TEST.GENESIS_JL"),  # optional
-            }  
+                "warehouse": os.getenv(
+                    "SNOWFLAKE_WAREHOUSE_OVERRIDE", "XSMALL"
+                ),  # optional
+                "database": os.getenv(
+                    "SNOWFLAKE_DATABASE_OVERRIDE", "GENESIS_TEST"
+                ),  # optional
+                "schema": os.getenv(
+                    "GENESIS_INTERNAL_DB_SCHEMA", "GENESIS_TEST.GENESIS_JL"
+                ),  # optional
+            }
 
             sp_session = Session.builder.configs(connection_parameters).create()
 
         except Exception as e:
-            print(f'Cortex not available: {e}')
+            print(f"Cortex not available: {e}")
             sp_session = None
-        return sp_session 
+        return sp_session
 
-    def _cortex_complete(self, model='reka-flash',prompt=None):
+    def _cortex_complete(self, model="reka-flash", prompt=None):
         try:
             from snowflake.cortex import Complete
-            result = Complete(model,str(prompt))
+
+            result = Complete(model, str(prompt))
         except Exception as e:
-            print(f'Cortex not available: {e}')
+            print(f"Cortex not available: {e}")
             self.sp_session = None
             result = None
-        return result  
-
+        return result
 
     def sha256_hash_hex_string(self, input_string):
         # Encode the input string to bytes, then create a SHA256 hash and convert it to a hexadecimal string
@@ -701,7 +751,6 @@ class SnowflakeConnector(DatabaseConnector):
         if action == "UPDATE_CONFIRMED":
             action = "UPDATE"
 
-
         if action == "DELETE":
             return {
                 "Success": False,
@@ -1010,7 +1059,8 @@ class SnowflakeConnector(DatabaseConnector):
                 cursor.close()
 
     def ensure_table_exists(self):
-        import bot_genesis.tools_descriptions
+        import core.bot_os_tool_descriptions
+
         streamlitdc_url = os.getenv("DATA_CUBES_INGRESS_URL", None)
         print(f"streamlit data cubes ingress URL: {streamlitdc_url}")
 
@@ -1593,7 +1643,7 @@ class SnowflakeConnector(DatabaseConnector):
                     f"Table {self.available_tools_table_name} (re)created, this is expected on every run."
                 )
 
-                tools_data = bot_genesis.tools_descriptions.tools_data
+                tools_data = core.bot_os_tool_descriptions.tools_data
 
                 insert_tools_query = f"""
                 INSERT INTO {self.available_tools_table_name} (TOOL_NAME, TOOL_DESCRIPTION)
@@ -1693,9 +1743,10 @@ class SnowflakeConnector(DatabaseConnector):
                 f"An error occurred while checking or creating table {self.message_log_table_name}: {e}"
             )
 
-
-        # KNOWLEDGE TABLE        
-        knowledge_table_check_query = f"SHOW TABLES LIKE 'KNOWLEDGE' IN SCHEMA {self.schema};"
+        # KNOWLEDGE TABLE
+        knowledge_table_check_query = (
+            f"SHOW TABLES LIKE 'KNOWLEDGE' IN SCHEMA {self.schema};"
+        )
         # Check if the chat knowledge table exists
         try:
             cursor = self.client.cursor()
@@ -1722,10 +1773,14 @@ class SnowflakeConnector(DatabaseConnector):
                 check_query = f"DESCRIBE TABLE {self.knowledge_table_name};"
                 print(f"Table {self.knowledge_table_name} already exists.")
         except Exception as e:
-            print(f"An error occurred while checking or creating table {self.knowledge_table_name}: {e}")
+            print(
+                f"An error occurred while checking or creating table {self.knowledge_table_name}: {e}"
+            )
 
-        # KNOWLEDGE TABLE        
-        user_bot_table_check_query = f"SHOW TABLES LIKE 'USER_BOT' IN SCHEMA {self.schema};"
+        # KNOWLEDGE TABLE
+        user_bot_table_check_query = (
+            f"SHOW TABLES LIKE 'USER_BOT' IN SCHEMA {self.schema};"
+        )
         # Check if the chat knowledge table exists
         try:
             cursor = self.client.cursor()
@@ -1748,8 +1803,9 @@ class SnowflakeConnector(DatabaseConnector):
                 check_query = f"DESCRIBE TABLE {self.user_bot_table_name};"
                 print(f"Table {self.user_bot_table_name} already exists.")
         except Exception as e:
-            print(f"An error occurred while checking or creating table {self.user_bot_table_name}: {e}")
-        
+            print(
+                f"An error occurred while checking or creating table {self.user_bot_table_name}: {e}"
+            )
 
         # HARVEST CONTROL TABLE
         hc_table_id = self.genbot_internal_harvest_control_table
@@ -2249,7 +2305,7 @@ class SnowflakeConnector(DatabaseConnector):
                 role=self.role,
                 client_session_keep_alive=True,
             )
-        
+
     # snowed
     def connector_type(self):
         return "snowflake"
@@ -3207,7 +3263,7 @@ class SnowflakeConnector(DatabaseConnector):
 
         try:
             cursor = self.connection.cursor()
-            #print(select_query, bot_id)
+            # print(select_query, bot_id)
 
             cursor.execute(select_query, (bot_id,))
             result = cursor.fetchone()

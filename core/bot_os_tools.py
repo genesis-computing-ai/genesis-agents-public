@@ -19,6 +19,8 @@ from connectors.database_tools import (
     bind_semantic_copilot,
     autonomous_functions,
     autonomous_tools,
+    process_manager_tools,
+    process_manager_functions,
     database_tool_functions,
     database_tools,
     snowflake_stage_functions,
@@ -46,14 +48,14 @@ from core.bot_os_defaults import (
 from core.bot_os_input import BotOsInputAdapter, BotOsInputMessage, BotOsOutputMessage
 from core.bot_os_memory import BotOsKnowledgeAnnoy_Metadata
 
-from bot_genesis.tools_descriptions import process_runner_tools
+from core.bot_os_tool_descriptions import process_runner_tools
 
 
 # import sys
 # sys.path.append('/Users/mglickman/helloworld/bot_os')  # Adjust the path as necessary
 import logging
 
-from bot_genesis.tools_descriptions import (
+from core.bot_os_tool_descriptions import (
     process_runner_functions,
     process_runner_tools,
     webpage_downloader_functions,
@@ -334,6 +336,10 @@ def get_tools(which_tools, db_adapter, slack_adapter_local=None, include_slack=T
             tools.extend(process_runner_functions)
             available_functions_load.update(process_runner_tools)
             function_to_tool_map[tool_name] = process_runner_functions
+        elif tool_name == "process_manager_tools":
+            tools.extend(process_manager_functions)
+            available_functions_load.update(process_manager_tools)
+            function_to_tool_map[tool_name] = process_manager_functions
         elif tool_name == "webpage_downloader":
             tools.extend(webpage_downloader_functions)
             available_functions_load.update(webpage_downloader_tools)

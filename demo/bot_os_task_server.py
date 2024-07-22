@@ -56,7 +56,7 @@ logging.basicConfig(
 import core.global_flags as global_flags
 
 ##### TEST MODE FLAG
-os.environ['TEST_TASK_MODE'] = 'true'
+#os.environ['TEST_TASK_MODE'] = 'true'
 ########################################
 
 ##### SET TASK FLAG (causes openAI init to not update or recreate the assistant, reuses existing one from multibot runnner)

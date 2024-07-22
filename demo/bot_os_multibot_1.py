@@ -207,7 +207,6 @@ if llm_api_key is None and genesis_source == "Snowflake":
                 api_key_from_env = False
                 llm_api_key = llm_key
                 default_llm_engine = llm_type
-                llm_api_key = llm_key
                 break
     else:
         print("===========")

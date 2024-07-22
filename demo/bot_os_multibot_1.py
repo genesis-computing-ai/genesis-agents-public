@@ -205,6 +205,8 @@ if genesis_source == "Snowflake":
                 elif llm_type.lower() == "gemini":
                     os.environ["GEMINI_API_KEY"] = llm_key
                 api_key_from_env = False
+                llm_api_key = llm_key
+                default_llm_engine = llm_type
                 break
     else:
         print("===========")

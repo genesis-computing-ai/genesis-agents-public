@@ -56,11 +56,12 @@ logging.basicConfig(
 import core.global_flags as global_flags
 
 ##### TEST MODE FLAG
-#os.environ['TEST_TASK_MODE'] = 'true'
+os.environ['TEST_TASK_MODE'] = 'true'
 ########################################
 
 ##### SET TASK FLAG (causes openAI init to not update or recreate the assistant, reuses existing one from multibot runnner)
 os.environ['TASK_MODE'] = 'true'
+os.environ['SHOW_COST'] = 'false'
 ########################################
 
 print("****** GENBOT VERSION 0.150 *******")
@@ -234,6 +235,7 @@ while llm_api_key == None:
                         os.environ["REKA_API_KEY"] = llm_key
                     elif llm_type.lower() == "gemini":
                         os.environ["GEMINI_API_KEY"] = llm_key
+                    llm_api_key = llm_key
                     api_key_from_env = False
                     break
         else:
@@ -1083,7 +1085,7 @@ def generate_task_prompt(bot_id, task):
     Perform the task COMPLETELY based on the above task description using the tools you have available if useful.  Call mulitple tools if needed to complete the task.
     Do NOT create a new task, you are to execute the steps described above for this existing task. 
     If you send a slack direct message or slack channel message as part of the task, include at the end: _(task_id:{task_details['task_id']}_)
-    Do not call manage_tasks while performing this work.  Only call run_process if the task specfically tells you to run a specific named BotProcess.
+    Do not call manage_tasks while performing this work. Only generate an image if specifically told to. Only call run_process if the task specfically tells you to run a specific named BotProcess.
     When you are DONE with the task and have FULLY completed it, return only a JSON document with these items, no other text:
 
     {{
@@ -1299,6 +1301,10 @@ def tasks_loop():
                 error_msg = ""
                 response_valid = True
                 try:
+                    if response.output.endswith("`'"):
+                        dollar_index = response.output.rfind("  `$")
+                        if dollar_index != -1:
+                            response.output = response.output[:dollar_index].strip()
                     if response.output.startswith(
                         "```json"
                     ) and response.output.endswith("```"):
@@ -1491,6 +1497,9 @@ def tasks_loop():
         #   i = input('Next round? >')
 
         time_to_sleep = 60 - (datetime.datetime.now() - iteration_start_time).seconds
+        if os.getenv("TEST_TASK_MODE", "false").lower() == "true":
+           time_to_sleep = 10 - (datetime.datetime.now() - iteration_start_time).seconds
+
         if time_to_sleep > 0:
             for remaining in range(time_to_sleep, 0, -5):
                 # sys.stdout.write("\r")

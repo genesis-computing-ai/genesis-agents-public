@@ -643,8 +643,10 @@ class SlackBotAdapter(BotOsInputAdapter):
                     if orig_thinking in self.chunk_last_100:
                         last100 = self.chunk_last_100[orig_thinking]
                         if last100 in msg:
-                            msg = msg.split(last100)[-1]
-                            trimmed=True
+                            last_index = msg.rfind(last100, 0, current_chunk_start)
+                            if last_index != -1:
+                                msg = msg[last_index + len(last100):]
+                                trimmed=True
                     if not trimmed:
                         msg = msg[current_chunk_start:]
                     if orig_thinking in self.in_markdown_map:
@@ -667,7 +669,14 @@ class SlackBotAdapter(BotOsInputAdapter):
                     msg = "\n\n".join(f"({k}): {v}" for k, v in message.input_metadata.items() if k.endswith("_knowledge")) + "\n\n" + msg    
 
                     if len(msg) > 3900:
-                        split_index = msg[:3900].rfind("\n")
+                        split_index = msg[max(0, 3900-300):3900].rfind("\n")
+                        if split_index != -1:
+                            split_index += 3600
+                        if split_index == -1:
+                            # Find the last space character within the range of 3600 to 3900 to split the message cleanly
+                            split_index = msg[max(0, 3900-300):3900].rfind(" ")
+                            if split_index != -1:
+                                split_index += 3600
                         if split_index != -1:
                             msg_part1 = msg[:split_index]
                             msg_part2 = msg[split_index:]
@@ -676,7 +685,7 @@ class SlackBotAdapter(BotOsInputAdapter):
                             msg_part1 = msg[:3900]
                             msg_part2 = msg[3900:]
                             chunk_start = 3900
-                        self.chunk_last_100[orig_thinking] = msg_part1[-100:]
+                        self.chunk_last_100[orig_thinking] = msg_part1[-300:]
                         if msg_part1.count("```") % 2 != 0:
                             msg_part1 += "```"
                             msg_part2 = "```" + msg_part2
@@ -778,12 +787,18 @@ class SlackBotAdapter(BotOsInputAdapter):
                 
 
                 if current_chunk_start is not None:
+
                     trimmed = False
                     if orig_thinking in self.chunk_last_100:
                         last100 = self.chunk_last_100[orig_thinking]
                         if last100 in msg:
-                            msg = msg.split(last100)[-1]
-                            trimmed=True
+                            # This code finds the last occurrence of 'last100' in 'msg' before 'current_chunk_start'.
+                            # If found, it trims 'msg' to start right after this occurrence and sets 'trimmed' to True.
+                            last_index = msg.rfind(last100, 0, current_chunk_start)
+                            if last_index != -1:
+                                msg = msg[last_index + len(last100):]
+                                trimmed=True
+
                     if not trimmed:
                         msg = msg[current_chunk_start:]
 
@@ -927,9 +942,15 @@ class SlackBotAdapter(BotOsInputAdapter):
 #                if blocks is not None or len(msg) > 2000:
 #                    print('blocks / long: ',len(msg))
 
-
                 if len(msg) > 3900:
-                    split_index = msg[:3900].rfind("\n")
+                    split_index = msg[max(0, 3900-300):3900].rfind("\n")
+                    if split_index != -1:
+                        split_index += 3600
+                    if split_index == -1:
+                        # Find the last space character within the range of 3600 to 3900 to split the message cleanly
+                        split_index = msg[max(0, 3900-300):3900].rfind(" ")
+                        if split_index != -1:
+                            split_index += 3600
                     if split_index != -1:
                         msg_part1 = msg[:split_index]
                         msg_part2 = msg[split_index:]
@@ -938,14 +959,22 @@ class SlackBotAdapter(BotOsInputAdapter):
                         msg_part1 = msg[:3900]
                         msg_part2 = msg[3900:]
                         chunk_start = 3900
+                    self.chunk_last_100[orig_thinking] = msg_part1[-300:]
                     if msg_part1.count("```") % 2 != 0:
                         msg_part1 += "```"
                         msg_part2 = "```" + msg_part2
-
+                        self.in_markdown_map[orig_thinking] = True
+                    else:
+                        self.in_markdown_map[orig_thinking] = False
                     if orig_thinking in self.chunk_start_map:
                         self.chunk_start_map[orig_thinking] += chunk_start
                     else:
                         self.chunk_start_map[orig_thinking] = chunk_start
+                    if inmarkdown:
+                        self.chunk_start_map[orig_thinking] -= 3
+                    # print('chunkstart: ', self.chunk_start_map[orig_thinking])
+                    chunk_start = self.chunk_start_map[orig_thinking]
+
 
                     try:
                         self.slack_app.client.chat_update(

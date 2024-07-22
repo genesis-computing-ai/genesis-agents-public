@@ -2800,6 +2800,12 @@ class SnowflakeConnector(DatabaseConnector):
             results = cursor.fetchmany(max_rows)
             columns = [col[0] for col in cursor.description]
             sample_data = [dict(zip(columns, row)) for row in results]
+        
+        # Replace occurrences of triple backticks with triple single quotes in sample data
+            sample_data = [
+                {key: (value.replace("```", "\`\`\`") if isinstance(value, str) else value) for key, value in row.items()}
+                for row in sample_data
+            ]
         except Exception as e:
             print("run query: ", query, "\ncaused error: ", e)
             cursor.close()

@@ -192,7 +192,7 @@ if genesis_source == "BigQuery" and api_key_from_env == False:
 
 llm_keys_and_types = []
 #if llm_api_key is None and genesis_source == "Snowflake":
-if genesis_source == "Snowflake":
+if llm_api_key is None and genesis_source == "Snowflake":
 
     llm_keys_and_types = get_llm_key()
     if llm_keys_and_types:
@@ -207,6 +207,7 @@ if genesis_source == "Snowflake":
                 api_key_from_env = False
                 llm_api_key = llm_key
                 default_llm_engine = llm_type
+                llm_api_key = llm_key
                 break
     else:
         print("===========")

@@ -69,10 +69,10 @@ genesis_source = os.getenv("GENESIS_SOURCE", default="Snowflake")
 
 
 class ToolBelt:
-    def __init__(self, db_adapter):
+    def __init__(self, db_adapter, openai_api_key):
         self.db_adapter = db_adapter
-        self.openai_api_key = None  # os.getenv("OPENAI_API_KEY")
-        self.client = None  # OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        self.openai_api_key = openai_api_key  # os.getenv("OPENAI_API_KEY")
+        self.client = openai_api_key  # OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         self.counter = 0
         self.instructions = ""
         self.process = {}

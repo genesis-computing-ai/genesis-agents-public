@@ -285,7 +285,7 @@ def make_session(
             all_function_to_tool_map=all_function_to_tool_map,
             bot_id=bot_config["bot_id"],
             stream_mode=stream_mode,
-            tool_belt=ToolBelt(db_adapter),
+            tool_belt=ToolBelt(db_adapter, os.getenv("OPENAI_API_KEY")),
             skip_vectors=skip_vectors,
         )
     except Exception as e:

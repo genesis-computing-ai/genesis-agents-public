@@ -290,7 +290,7 @@ if genesis_source == "BigQuery":
 else:  # Initialize Snowflake client
     db_adapter = SnowflakeConnector(connection_name="Snowflake")
     connection_info = {"Connection_Type": "Snowflake"}
-    tool_belt = ToolBelt(db_adapter)
+    tool_belt = (ToolBelt(db_adapter, os.getenv("OPENAI_API_KEY")),)
 
 
 def get_tools(which_tools, db_adapter, slack_adapter_local=None, include_slack=True):

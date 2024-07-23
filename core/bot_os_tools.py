@@ -72,7 +72,7 @@ class ToolBelt:
     def __init__(self, db_adapter, openai_api_key):
         self.db_adapter = db_adapter
         self.openai_api_key = openai_api_key  # os.getenv("OPENAI_API_KEY")
-        self.client = openai_api_key  # OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        self.client = OpenAI(api_key=openai_api_key)
         self.counter = 0
         self.instructions = ""
         self.process = {}
@@ -133,6 +133,7 @@ class ToolBelt:
         thread_id=None,
     ):
         print(f"Running processes Action: {action} | process_id: {process_name}")
+
         # Try to get process info from PROCESSES table
         process = self.db_adapter.get_process_info(process_name)
         if len(process) == 0:
@@ -290,7 +291,9 @@ if genesis_source == "BigQuery":
 else:  # Initialize Snowflake client
     db_adapter = SnowflakeConnector(connection_name="Snowflake")
     connection_info = {"Connection_Type": "Snowflake"}
-    tool_belt = (ToolBelt(db_adapter, os.getenv("OPENAI_API_KEY")),)
+    # tool_belt = (ToolBelt(db_adapter, os.getenv("OPENAI_API_KEY")),)
+
+tool_belt = ToolBelt(db_adapter, os.getenv("OPENAI_API_KEY"))
 
 
 def get_tools(which_tools, db_adapter, slack_adapter_local=None, include_slack=True):

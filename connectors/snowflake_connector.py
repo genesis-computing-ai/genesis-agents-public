@@ -3105,7 +3105,7 @@ class SnowflakeConnector(DatabaseConnector):
 
         # Query to merge the LLM tokens, inserting if the row doesn't exist
         query = f"""
-            MERGE INTO {project_id}.{dataset_name}.llm_tokens USING (SELECT 1 AS one) ON (runner_id = %s and llm_type = {llm_type})
+            MERGE INTO {project_id}.{dataset_name}.llm_tokens USING (SELECT 1 AS one) ON (runner_id = %s and llm_type = '{llm_type}')
             WHEN MATCHED THEN
                 UPDATE SET llm_key = %s, llm_type = %s
             WHEN NOT MATCHED THEN
@@ -4162,7 +4162,7 @@ class SnowflakeConnector(DatabaseConnector):
         # Use the provided query or a default one if not provided
         prompt = query if query else "What’s in this image?"
 
-        openai_model_name = os.getenv("OPENAI_MODEL_NAME", "gpt-4o-mini")
+        openai_model_name = os.getenv("OPENAI_MODEL_NAME", "gpt-4o")
 
         payload = {
             "model": openai_model_name,

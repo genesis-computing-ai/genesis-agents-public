@@ -54,7 +54,7 @@ from demo.sessions_creator import create_sessions, make_session
 
 
 # for Cortex testing
-# os.environ['SIMPLE_MODE'] = 'true'
+#os.environ['SIMPLE_MODE'] = 'true'
 
 import logging
 
@@ -74,10 +74,6 @@ pdb_attach.listen(5679)  # Listen on port 5678.
 # $ python -m pdb_attach <PID> 5678
 
     
-
-### Simple mode for Cortex testing
-# os.environ["SIMPLE_MODE"] = "true"
-
 
 print("****** GENBOT VERSION 0.150 *******")
 

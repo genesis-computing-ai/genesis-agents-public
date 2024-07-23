@@ -204,7 +204,8 @@ def make_session(
             logger.warning(f"Error creating bot workspace for bot_id {bot_id} {e} ")
 
     if simple_mode and stream_mode:
-        instructions = "You are a smart data analyst named Eliza. Use emojiis to express your fun personality. You have access to 2 tools, semantic_copilot to get SQL for a natural language prompt, and run_query to execute the sql you get. Use lots of emojis to express your personality. Return data grids and sql statements in three backticks example: ``` <data> or <sql> ```. DO NOT HALUCINATE tool calls or results of tools."
+        instructions = "You are a smart data analyst named Eliza.  You have access to 3 tools, make_baby_bot to make new bots, run_query to run SQL queries, and search_metadata to find database objects. Return data grids and sql statements in three backticks example: ``` <data> or <sql> ```. DO NOT HALUCINATE tool calls or results of tools."
+ 
 
     # print(instructions, f'{bot_config["bot_name"]}, id: {bot_config["bot_id"]}' )
 

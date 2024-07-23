@@ -189,8 +189,8 @@ class BotOsSession:
                 self.out_to_in_thread_map = maps.get("out_to_in", {})
 
     def create_thread(self, input_adapter) -> str:
-        print("create open_ai thread")
-        logger.debug("create open_ai thread")
+        print("create llm thread")
+        logger.debug("create llm thread")
         thread = BotOsThread(self.assistant_impl, input_adapter)
         self.threads[thread.thread_id] = thread
         return thread.thread_id

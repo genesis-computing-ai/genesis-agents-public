@@ -25,7 +25,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         self.active_runs = deque()
 #        self.llm_engine = 'mistral-large'
 
-        self.llm_engine = 'reka-flash'
+        self.llm_engine = 'llama3.1-405b'
         self.instructions = instructions + '. To call a tool, return only the unescaped tool call JSON in a <TOOL_CALL></TOOL_CALL> block with no other text. DO NOT HALUCINATE RESULTS OF TOOL CALLS, actually call the tools!'
         self.tools = tools
         self.available_functions = available_functions
@@ -139,6 +139,8 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                         if "<TOOL_CALL>" in decoded_payload:
                             self.process_tool_call(thread_id, timestamp, decoded_payload, message_metadata)
                             #self.active_runs.append(thread_to_check)
+                        elif "<|python_tag|>" in decoded_payload:
+                            self.process_tool_call(thread_id, timestamp, decoded_payload, message_metadata)
                         else:
                             if message_metadata == '':
                                 message_metadata = '{}'                  
@@ -160,12 +162,17 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         end_tag = "</TOOL_CALL>"
         start_index = message_payload.find(start_tag) + len(start_tag)
         end_index = message_payload.find(end_tag)
+        if start_index == -1:
+            start_tag = "<|python_tag|>"
+            end_tag = "<|eom_id|>"
+            start_index = message_payload.find(start_tag) + len(start_tag)
+            end_index = message_payload.find(end_tag)        
         tool_call_str = message_payload[start_index:end_index].strip()
         try:
             cb_closure = self._generate_callback_closure(thread_id, timestamp, message_metadata)
             tool_call_data = json.loads(tool_call_str)
-            function_to_call = tool_call_data.get("function")
-            arguments = tool_call_data.get("arguments", {})
+            function_to_call = tool_call_data.get("name")
+            arguments = tool_call_data.get("parameters", {})
             execute_function(function_to_call, json.dumps(arguments), self.available_functions, cb_closure, thread_id, self.bot_id)
         except json.JSONDecodeError as e:
             logger.error(f"Failed to decode tool call JSON {tool_call_str}: {e}")
@@ -233,7 +240,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         """
         Executes the SQL query to update threads based on the provided SQL, incorporating self.cortex... tables.
         """
-        context_limit = 100000 * 4 #32000 * 4
+        context_limit = 128000 * 4 #32000 * 4
         update_query = f"""
         insert into {self.cortex_threads_schema_output_table}
                         with input as 
@@ -303,7 +310,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                         (
                         SELECT
                         p.thread_id,
-                        '<Prior Prompt Summary>' || SNOWFLAKE.CORTEX.COMPLETE('{self.llm_engine}', 'Summarize this:' || ARRAY_TO_STRING(ARRAY_AGG(CASE WHEN message_type NOT IN ('System Prompt') AND timestamp < COALESCE(lup.latest_user_prompt_timestamp, '9999-12-31') THEN CONCAT('<', message_type, '>', message_payload, '</', message_type, '>') ELSE NULL END) WITHIN GROUP (ORDER BY timestamp ASC), ' ')) || '</Prior Prompt Summary>' AS summarized_payload
+                        '<Prior Thread History>'  || ARRAY_TO_STRING(ARRAY_AGG(CASE WHEN message_type NOT IN ('System Prompt') AND timestamp < COALESCE(lup.latest_user_prompt_timestamp, '9999-12-31') THEN CONCAT('<', message_type, '>', message_payload, '</', message_type, '>') ELSE NULL END) WITHIN GROUP (ORDER BY timestamp ASC), ' ') || '</Prior Prompt Summary>' AS summarized_payload
                         FROM
                         prior_in_thread p
                         LEFT JOIN latest_user_prompt lup ON p.thread_id = lup.thread_id
@@ -343,6 +350,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                         join threads on i.thread_id = threads.thread_id
                         where i.message_type = 'User Prompt'
         """
+# '<Prior Prompt Summary>' || SNOWFLAKE.CORTEX.COMPLETE('{self.llm_engine}', 'Summarize this:' || ARRAY_TO_STRING(ARRAY_AGG(CASE WHEN message_type NOT IN ('System Prompt') AND timestamp < COALESCE(lup.latest_user_prompt_timestamp, '9999-12-31') THEN CONCAT('<', message_type, '>', message_payload, '</', message_type, '>') ELSE NULL END) WITHIN GROUP (ORDER BY timestamp ASC), ' ')) || '</Prior Prompt Summary>' AS summarized_payload
         try:
             cursor = self.client.connection.cursor()
             start_time = time.time()

@@ -67,30 +67,22 @@ while llm_api_key == None:
             print('!!!!! Loading LLM API Key from File No longer Supported -- Please provide via ENV VAR when using BigQuery Source')
             time.sleep(3)
     
-    #print('Checking database for LLM Key...', flush=True)
     logger.info('Checking database for LLM Key...', flush=True)
     if llm_api_key is None and genesis_source == 'Snowflake':
-        llm_key, llm_type = harvester_db_connector.db_get_llm_key(project_id=None, dataset_name=None)
-        #logger.info('got a response')
-        if llm_key == None or llm_key == '' or llm_key == 'NULL' or len(llm_key)<10:
-           # logger.info('Llm key is None')
-            llm_key = None
-            llm_type = None
-        if llm_key and llm_type:
-            default_llm_engine = llm_type
-            llm_api_key = llm_key
-            api_key_from_env = False
-            logger.info("LLM Key loaded from Database")
-        else:
-            pass
-          #  print("===========")
-          #  print("NOTE: LLM Key not found in Env Var nor in Database LLM_CONFIG table.. starting without LLM Key, please provide via Streamlit")
-          #  print("===========", flush=True)
-
-    if llm_api_key is not None and default_llm_engine.lower() == 'openai':
-        os.environ["OPENAI_API_KEY"] = llm_api_key
-    if llm_api_key is not None and default_llm_engine.lower() == 'reka':
-        os.environ["REKA_API_KEY"] = llm_api_key
+        llm_keys_and_types = harvester_db_connector.db_get_llm_key(project_id=None, dataset_name=None)
+        if llm_keys_and_types:
+            for llm_key, llm_type in llm_keys_and_types:
+                if llm_key and llm_type:
+                    if llm_type.lower() == "openai":
+                        os.environ["OPENAI_API_KEY"] = llm_key
+                    elif llm_type.lower() == "reka":
+                        os.environ["REKA_API_KEY"] = llm_key
+                    elif llm_type.lower() == "gemini":
+                        os.environ["GEMINI_API_KEY"] = llm_key
+                    api_key_from_env = False
+                    llm_api_key = llm_key
+                    default_llm_engine = llm_type
+                    break      
 
     if llm_api_key is None:
      #   print('No LLM Key Available in ENV var or Snowflake database, sleeping 20 seconds before retry.', flush=True)

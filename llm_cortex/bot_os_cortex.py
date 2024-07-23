@@ -81,7 +81,8 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                 timestamp, self.bot_id, self.bot_name, thread_id, message_type, str(self.tools), "",
             ))
             self.client.connection.commit()
-            threading.Thread(target=self.update_threads, args=(thread_id, None)).start()
+          #  thread_name = f"Cortex_{thread_id}"
+          #  threading.Thread(target=self.update_threads, args=(thread_id, thread_name, None)).start()
 
             logger.info(f"Successfully inserted system prompt for thread_id: {thread_id}")
         except Exception as e:
@@ -107,7 +108,8 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                 timestamp, self.bot_id, self.bot_name, thread_id, message_type, message_payload, message_metadata,
             ))
             self.client.connection.commit()
-            threading.Thread(target=self.update_threads, args=(thread_id, timestamp)).start()
+            thread_name = f"Cortex_{thread_id}"
+            threading.Thread(target=self.update_threads, name=thread_name, args=(thread_id, timestamp)).start()
 
             logger.info(f"Successfully inserted message log for bot_id: {self.bot_id}")
             #self.active_runs.append({"thread_id": thread_id, "timestamp": timestamp})
@@ -212,8 +214,10 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                 except Exception as e:
                     print('Cortex submit tool output, simple insert error: {e}')
  
-            threading.Thread(target=self.update_threads, args=(thread_id, new_timestamp)).start()
-            #self.active_runs.append({"thread_id": thread_id, "timestamp": new_timestamp})
+            thread_name = f"Cortex_ToolSub_{thread_id}"
+            threading.Thread(target=self.update_threads, name=thread_name, args=(thread_id, new_timestamp)).start()
+            #self.update_threads(thread_id, new_timestamp)
+            self.active_runs.append({"thread_id": thread_id, "timestamp": new_timestamp})
 
             logger.info(f"Successfully inserted tool call results for Thread ID {thread_id} and Tool Call ID {new_timestamp} old: {timestamp}")
         except Exception as e:
@@ -348,7 +352,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                             LEFT(concatenated_payload, 16000)
                         from input as i
                         join threads on i.thread_id = threads.thread_id
-                        where i.message_type = 'User Prompt'
+                        where i.message_type = 'User Prompt' or i.message_type = 'Tool Response';
         """
 # '<Prior Prompt Summary>' || SNOWFLAKE.CORTEX.COMPLETE('{self.llm_engine}', 'Summarize this:' || ARRAY_TO_STRING(ARRAY_AGG(CASE WHEN message_type NOT IN ('System Prompt') AND timestamp < COALESCE(lup.latest_user_prompt_timestamp, '9999-12-31') THEN CONCAT('<', message_type, '>', message_payload, '</', message_type, '>') ELSE NULL END) WITHIN GROUP (ORDER BY timestamp ASC), ' ')) || '</Prior Prompt Summary>' AS summarized_payload
         try:

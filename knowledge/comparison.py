@@ -16,7 +16,7 @@ knowledge_db_connector = SnowflakeConnector(connection_name='Snowflake')
 
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-model = os.getenv("OPENAI_KNOWLEDGE_MODEL", 'gpt-4o-mini')
+model = os.getenv("OPENAI_KNOWLEDGE_MODEL", 'gpt-4o')
 assistant = client.beta.assistants.create(
             name="Knowledge Explorer",
             description="You are a Knowledge Explorer to extract, synthesize, and inject knowledge that bots learn from doing their jobs",

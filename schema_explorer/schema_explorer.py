@@ -13,7 +13,7 @@ class SchemaExplorer:
         self.db_connector = db_connector
         self.openai_api_key = os.getenv('OPENAI_API_KEY')
         self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-        self.model=os.getenv("OPENAI_HARVESTER_MODEL", 'gpt-4o-mini')
+        self.model=os.getenv("OPENAI_HARVESTER_MODEL", 'gpt-4o')
         self.embedding_model = os.getenv("OPENAI_HARVESTER_EMBEDDING_MODEL", 'text-embedding-3-large')
         self.run_number = 0
         self.cortex_model = os.getenv("CORTEX_HARVESTER_MODEL", 'reka-flash')

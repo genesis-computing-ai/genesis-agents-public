@@ -255,7 +255,7 @@ def handle_jobs():
 
         else:
             response = client.chat.completions.create(
-                    model='gpt-4o-mini',
+                    model='gpt-4o',
                     messages=[
                         {"role": m["role"], "content": m["content"]}
                         for m in messages

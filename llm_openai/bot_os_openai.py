@@ -232,7 +232,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       super().__init__(name, instructions, tools, available_functions, files, update_existing, skip_vectors=False, bot_id=bot_id, bot_name=bot_name)
 
       self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-      model_name = os.getenv("OPENAI_MODEL_NAME", default="gpt-4o-mini")
+      model_name = os.getenv("OPENAI_MODEL_NAME", default="gpt-4o")
     
       name = bot_id
       print("-> OpenAI Model == ",model_name)

@@ -22,7 +22,7 @@ your_assistant = openai_client.beta.assistants.create(
  name="Blog Post Example Assistant",
  description="An example data analyst for a blog post.",
  instructions="You are a data analysis expert that gives insights on json data.",
- model="gpt-4o-mini",
+ model="gpt-4o",
  tools = [
    {
        "type": "function",

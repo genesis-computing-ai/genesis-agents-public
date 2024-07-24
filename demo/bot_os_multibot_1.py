@@ -54,7 +54,7 @@ from demo.sessions_creator import create_sessions, make_session
 
 
 # for Cortex testing
-# os.environ['SIMPLE_MODE'] = 'true'
+#os.environ['SIMPLE_MODE'] = 'true'
 
 import logging
 
@@ -65,22 +65,21 @@ logging.basicConfig(
 
 import core.global_flags as global_flags
 
-# import debugpy
-# debugpy.listen(("0.0.0.0", 5678))
-# import pydevd
-# pydevd.settrace('0.0.0.0', port=5678, stdoutToServer=True, stderrToServer=True, suspend=False)
+#import debugpy
+#debugpy.listen(("0.0.0.0", 5678))
+#import pydevd
+#pydevd.settrace('0.0.0.0', port=5678, stdoutToServer=True, stderrToServer=True, suspend=False)
 import pdb_attach
-
 pdb_attach.listen(5679)  # Listen on port 5678.
 # $ python -m pdb_attach <PID> 5678
 
+    
 
 print("****** GENBOT VERSION 0.150 *******")
 
 runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
 global_flags.runner_id = runner_id
 print("Runner ID: ", runner_id)
-
 
 def get_udf_endpoint_url(endpoint_name="udfendpoint"):
     alt_service_name = os.getenv("ALT_SERVICE_NAME", None)
@@ -103,7 +102,6 @@ def get_udf_endpoint_url(endpoint_name="udfendpoint"):
     except Exception as e:
         logger.warning(f"Failed to get {endpoint_name} endpoint URL with error: {e}")
         return None
-
 
 genbot_internal_project_and_schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "None")
 if genbot_internal_project_and_schema == "None":
@@ -138,13 +136,13 @@ global_flags.source = genesis_source
 #    db_adapter.semantic_copilot(prompt, semantic_model='"!SEMANTIC"."GENESIS_TEST"."GENESIS_INTERNAL"."SEMANTIC_STAGE"."revenue.yaml"')
 
 
+
+
 # Call the function to show endpoints
 try:
     ep = get_udf_endpoint_url(endpoint_name="udfendpoint")
     data_cubes_ingress_url = get_udf_endpoint_url("streamlitdatacubes")
-    data_cubes_ingress_url = (
-        data_cubes_ingress_url if data_cubes_ingress_url else "localhost:8501"
-    )
+    data_cubes_ingress_url = data_cubes_ingress_url if data_cubes_ingress_url else "localhost:8501"
     logger.warning(f"data_cubes_ingress_url: {data_cubes_ingress_url}")
     logger.warning(f"udf endpoint: {ep}")
 except Exception as e:
@@ -189,7 +187,7 @@ if genesis_source == "BigQuery" and api_key_from_env == False:
 # api_key_from_env = False
 
 llm_keys_and_types = []
-# if llm_api_key is None and genesis_source == "Snowflake":
+#if llm_api_key is None and genesis_source == "Snowflake":
 if llm_api_key is None and genesis_source == "Snowflake":
 
     llm_keys_and_types = get_llm_key()
@@ -210,9 +208,10 @@ if llm_api_key is None and genesis_source == "Snowflake":
         print("===========")
         print("NOTE: Config via Streamlit to continue")
         print("===========")
-    #        logger.warn('LLM config not found in Env Var nor in Database LLM_CONFIG table.. starting without LLM Key, please provide via Streamlit')
+#        logger.warn('LLM config not found in Env Var nor in Database LLM_CONFIG table.. starting without LLM Key, please provide via Streamlit')
     t, r = get_slack_config_tokens()
 print("...Slack Connector Active Flag: ", global_flags.slack_active)
+
 
 
 SystemVariables.bot_id_to_slack_adapter_map = {}
@@ -713,7 +712,7 @@ def configure_llm():
                     client = OpenAI(api_key=llm_api_key_candidate)
 
                     completion = client.chat.completions.create(
-                        model="gpt-4o-mini",
+                        model="gpt-4o",
                         messages=[{"role": "user", "content": "What is 1+1?"}],
                     )
                     # Success!  Update model and keys
@@ -729,11 +728,9 @@ def configure_llm():
 
         if llm_api_key_candidate is not None:
             data_cubes_ingress_url = get_udf_endpoint_url("streamlitdatacubes")
-            data_cubes_ingress_url = (
-                data_cubes_ingress_url if data_cubes_ingress_url else "localhost:8501"
-            )
+            data_cubes_ingress_url = data_cubes_ingress_url if data_cubes_ingress_url else "localhost:8501"
             logger.warning(f"data_cubes_ingress_url(2) set to {data_cubes_ingress_url}")
-
+        
             if (
                 llm_api_key_candidate is not None
                 and default_llm_engine_candidate.lower() == "openai"
@@ -890,9 +887,7 @@ def bot_install_followup(bot_id=None, no_slack=False):
 
     runner = os.getenv("RUNNER_ID", "jl-local-runner")
     data_cubes_ingress_url = get_udf_endpoint_url("streamlitdatacubes")
-    data_cubes_ingress_url = (
-        data_cubes_ingress_url if data_cubes_ingress_url else "localhost:8501"
-    )
+    data_cubes_ingress_url = data_cubes_ingress_url if data_cubes_ingress_url else "localhost:8501"
     print(f"data_cubes_ingress_url(3) set to {data_cubes_ingress_url}")
 
     if runner == bot_details["runner_id"]:

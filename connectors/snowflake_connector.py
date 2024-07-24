@@ -2749,9 +2749,7 @@ class SnowflakeConnector(DatabaseConnector):
             try:
                 max_rows = int(max_rows)
             except ValueError:
-                raise ValueError(
-                    "max_rows should be an integer or a string that can be converted to an integer."
-                )
+                raise ValueError("max_rows should be an integer or a string that can be converted to an integer.")
 
         if job_config is not None:
             raise Exception("Job configuration is not supported in this method.")
@@ -2808,17 +2806,10 @@ class SnowflakeConnector(DatabaseConnector):
             results = cursor.fetchmany(max_rows)
             columns = [col[0] for col in cursor.description]
             sample_data = [dict(zip(columns, row)) for row in results]
-
-            # Replace occurrences of triple backticks with triple single quotes in sample data
+        
+        # Replace occurrences of triple backticks with triple single quotes in sample data
             sample_data = [
-                {
-                    key: (
-                        value.replace("```", "\`\`\`")
-                        if isinstance(value, str)
-                        else value
-                    )
-                    for key, value in row.items()
-                }
+                {key: (value.replace("```", "\`\`\`") if isinstance(value, str) else value) for key, value in row.items()}
                 for row in sample_data
             ]
         except Exception as e:
@@ -4177,7 +4168,7 @@ class SnowflakeConnector(DatabaseConnector):
         # Use the provided query or a default one if not provided
         prompt = query if query else "What’s in this image?"
 
-        openai_model_name = os.getenv("OPENAI_MODEL_NAME", "gpt-4o-mini")
+        openai_model_name = os.getenv("OPENAI_MODEL_NAME", "gpt-4o")
 
         payload = {
             "model": openai_model_name,

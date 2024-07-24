@@ -41,6 +41,7 @@ class KnowledgeServer:
                 WITH K AS (SELECT thread_id, max(last_timestamp) as last_timestamp FROM {self.db_connector.knowledge_table_name}
                     GROUP BY thread_id),
                 M AS (SELECT thread_id, max(timestamp) as timestamp, COUNT(*) as count FROM {self.db_connector.message_log_table_name} 
+                    WHERE PRIMARY_USER IS NOT NULL 
                     GROUP BY thread_id
                     HAVING count > 3)
                 SELECT M.thread_id, timestamp as timestamp, COALESCE(K.last_timestamp, DATE('2000-1-1')) as last_timestamp FROM M

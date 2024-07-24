@@ -681,6 +681,11 @@ def bind_search_metadata(knowledge_base_path):
 
         # logger.info(f"Search metadata called with query: {query}, scope: {scope}, top_n: {top_n}, verbosity: {verbosity}")
         try:
+            if isinstance(top_n, str):
+                try:
+                    top_n = int(top_n)
+                except ValueError:
+                    top_n = 8
             print(
                 "Search metadata: query len=",
                 len(query),

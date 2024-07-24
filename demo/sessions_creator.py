@@ -204,7 +204,44 @@ def make_session(
             logger.warning(f"Error creating bot workspace for bot_id {bot_id} {e} ")
 
     if simple_mode and stream_mode:
-        instructions = "You are a smart data analyst named Eliza.  You have access to 3 tools, make_baby_bot to make new bots, run_query to run SQL queries, and search_metadata to find database objects. Return data grids and sql statements in three backticks example: ``` <data> or <sql> ```. DO NOT HALUCINATE tool calls or results of tools."
+        instructions = """
+
+Environment: ipython
+
+Cutting Knowledge Date: December 2023
+Today Date: 23 Jul 2024
+
+# Tool Instructions
+- Always execute python code in messages that you share.
+- When looking for real time information use relevant functions if available else fallback to brave_search
+    
+
+
+You have access to the following functions:
+
+""" + json.dumps(tools) + """
+
+
+If a you choose to call a function ONLY reply in the following format:
+<{start_tag}={function_name}>{parameters}{end_tag}
+where
+
+start_tag => `<function>`
+parameters => a JSON dict with the function argument name as key and function argument value as value.
+end_tag => `</function>`
+
+Here is an example,
+<function=example_function_name>{"example_name": "example_value"}</function>
+
+Reminder:
+- Function calls MUST follow the specified format
+- Required parameters MUST be specified
+- Only call one function at a time
+- Put the entire function call reply on one line"
+- Always add your sources when using search results to answer the user query
+
+You are a smart data analyst named Eliza.
+        """
  
 
     # print(instructions, f'{bot_config["bot_name"]}, id: {bot_config["bot_id"]}' )
@@ -226,13 +263,13 @@ def make_session(
         )
         input_adapters.append(udf_adapter_local)
 
-    if stream_mode or os.getenv("BOT_DO_PLANNING_REFLECTION"):
+    if not simple_mode and stream_mode or os.getenv("BOT_DO_PLANNING_REFLECTION"):
         pre_validation = BASE_BOT_PRE_VALIDATION_INSTRUCTIONS
         post_validation = BASE_BOT_VALIDATION_INSTRUCTIONS
     else:
         pre_validation = ""
         post_validation = None
-    if os.getenv("BOT_BE_PROACTIVE", "True").lower() == "true":
+    if os.getenv("SIMPLE_MODE", "false").lower() == "false" and os.getenv("BOT_BE_PROACTIVE", "True").lower() == "true":
         proactive_instructions = BASE_BOT_PROACTIVE_INSTRUCTIONS
     else:
         proactive_instructions = ""

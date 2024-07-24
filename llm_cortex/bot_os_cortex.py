@@ -4,6 +4,8 @@ from decimal import Decimal
 import html
 import json
 import os
+import requests
+import sseclient
 import time
 import uuid
 import threading
@@ -25,8 +27,9 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         self.active_runs = deque()
 #        self.llm_engine = 'mistral-large'
 
-        self.llm_engine = 'llama3.1-405b'
-        self.instructions = instructions + '. To call a tool, return only the unescaped tool call JSON in a <TOOL_CALL></TOOL_CALL> block with no other text. DO NOT HALUCINATE RESULTS OF TOOL CALLS, actually call the tools!'
+        self.llm_engine = 'llama3.1-70b'
+#        self.llm_engine = 'llama3.1-405b'
+        self.instructions = instructions 
         self.tools = tools
         self.available_functions = available_functions
         self.done_map = {}
@@ -47,6 +50,48 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         self.allowed_types_code_i = [".c", ".cs", ".cpp", ".doc", ".docx", ".html", ".java", ".json", ".md", ".pdf", ".php", ".pptx", ".py", ".rb", ".tex", ".txt", ".css", ".js", ".sh", ".ts", ".csv", ".jpeg", ".jpg", ".gif", ".png", ".tar", ".xlsx", ".xml", ".zip"]
         self.run_meta_map = {}
 
+    # Create a map to store thread history
+        self.thread_history = {}
+
+        self.thread_full_response = {}
+
+
+    def cortex_rest_api(self,thread_id):
+        
+        SNOWFLAKE_HOST = self.client.client.host
+        REST_TOKEN = self.client.client.rest.token
+        url=f"https://{SNOWFLAKE_HOST}/api/v2/cortex/inference/complete"
+        headers = {
+            "Accept": "text/event-stream",
+            "Content-Type": "application/json",
+            "Authorization": f'Snowflake Token="{REST_TOKEN}"',
+        }
+        newarray = [{"role": message["message_type"], "content": message["content"]} for message in self.thread_history[thread_id]]
+        request_data = {
+            "model": self.llm_engine,
+#            "messages": [{"content": "Hi there"}],
+            "messages": newarray,
+            "stream": False,
+        }
+
+        response = requests.post(url, json=request_data, stream=False, headers=headers)
+        print(response.content)
+        return(response.content)
+
+
+
+    def stream_data(self,response, thread_id):
+        
+        client = sseclient.SSEClient(response)
+        for event in client.events():
+            d = json.loads(event.data)
+            try:
+                response = d['choices'][0]['delta']['content']
+                self.thread_full_response[thread_id] += response
+                yield response
+            except Exception:
+                pass
+        
 
     @override
     def is_active(self) -> bool:
@@ -77,12 +122,22 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                 timestamp, self.bot_id, self.bot_name, thread_id, message_type, self.instructions, "",
             ))
             self.client.connection.commit()
-            cursor.execute(insert_query, (
-                timestamp, self.bot_id, self.bot_name, thread_id, message_type, str(self.tools), "",
-            ))
+        #    cursor.execute(insert_query, (
+        #        timestamp, self.bot_id, self.bot_name, thread_id, message_type, TOOLS_PREFIX+str(self.tools), "",
+        #    ))
             self.client.connection.commit()
           #  thread_name = f"Cortex_{thread_id}"
           #  threading.Thread(target=self.update_threads, args=(thread_id, thread_name, None)).start()
+
+            message_object = {
+                "message_type": "system",
+                "content": self.instructions,
+                "timestamp": timestamp.isoformat()
+            }
+
+            if thread_id not in self.thread_history:
+                self.thread_history[thread_id] = []
+            self.thread_history[thread_id].append(message_object)
 
             logger.info(f"Successfully inserted system prompt for thread_id: {thread_id}")
         except Exception as e:
@@ -93,7 +148,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         timestamp = datetime.datetime.now()
         thread_id = input_message.thread_id  # Assuming input_message has a thread_id attribute
         message_payload = input_message.msg 
-        message_type = 'User Prompt'
+        message_type = 'user'
         message_metadata = json.dumps(input_message.metadata)  # Assuming BotOsInputMessage has a metadata attribute that needs to be converted to string
     
         insert_query = f"""
@@ -101,6 +156,17 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             TIMESTAMP, BOT_ID, BOT_NAME, THREAD_ID, MESSAGE_TYPE, MESSAGE_PAYLOAD, MESSAGE_METADATA
         ) VALUES (%s, %s, %s, %s, %s, %s, %s)
         """
+
+        message_object = {
+            "message_type": message_type,
+            "content": message_payload,
+            "timestamp": timestamp.isoformat(),
+            "metadata": message_metadata
+        }
+
+        if thread_id not in self.thread_history:
+            self.thread_history[thread_id] = []
+        self.thread_history[thread_id].append(message_object)
 
         try:
             cursor = self.client.connection.cursor()
@@ -125,32 +191,53 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         thread_id = thread_to_check["thread_id"]
         timestamp = thread_to_check["timestamp"]
         if True:
-            logger.warn("BotOsAssistantSnowflakeCortex:check_runs - running now")
-            query = f"""
-            SELECT message_payload, message_metadata FROM {self.cortex_threads_schema_output_table}
-            WHERE thread_id = %s AND model_name = %s AND message_type = 'Assistant Response' AND timestamp = %s
-            """
+            print(f"BotOsAssistantSnowflakeCortex:check_runs - running now, thread {thread_id} ts {timestamp} ")
+
+            thread = self.thread_history.get(thread_id, [])
+            user_message = next((msg for msg in thread if msg.get("message_type") == "user" and msg.get("timestamp") == timestamp.isoformat()), None)
+            assistant_message = next((msg for msg in thread if msg.get("message_type") == "assistant" and msg.get("timestamp") == timestamp.isoformat()), None)
+            if assistant_message:
+                message_payload = assistant_message.get("content")
+                print(f"Assistant message found: {message_payload}")
+            else:
+                print("No assistant message found in the thread with the specified timestamp.")
+                message_payload = None
+            if user_message:
+                message_metadata = user_message.get('metadata')
+            else:
+                message_metadata = None
+
+           # query = f"""
+           # SELECT message_payload, message_metadata FROM {self.cortex_threads_schema_output_table}
+           # WHERE thread_id = %s AND model_name = %s AND message_type = 'Assistant Response' AND timestamp = %s
+           # """
             try:
-                cursor = self.client.connection.cursor()
-                cursor.execute(query, (thread_id, self.llm_engine, timestamp))
-                responses = cursor.fetchall()
-                if responses:
-                    for message_payload, message_metadata in responses:
-                        logger.info(f"Response for Thread ID {thread_id}, {timestamp} with model {self.llm_engine}: {message_payload}")
-                        decoded_payload = html.unescape(message_payload)
-                        if "<TOOL_CALL>" in decoded_payload:
-                            self.process_tool_call(thread_id, timestamp, decoded_payload, message_metadata)
-                            #self.active_runs.append(thread_to_check)
-                        elif "<|python_tag|>" in decoded_payload:
-                            self.process_tool_call(thread_id, timestamp, decoded_payload, message_metadata)
-                        else:
-                            if message_metadata == '':
-                                message_metadata = '{}'                  
-                            event_callback(self.bot_id, BotOsOutputMessage(thread_id=thread_id, 
-                                                                     status="completed", 
-                                                                     output=message_payload, 
-                                                                     messages="", 
-                                                                     input_metadata=json.loads(message_metadata)))
+            #    cursor = self.client.connection.cursor()
+            #    cursor.execute(query, (thread_id, self.llm_engine, timestamp))
+               # responses = cursor.fetchall()
+                if message_payload:
+
+                       # if thread_id not in self.thread_history:
+                       #     self.thread_history[thread_id] = []
+                       # self.thread_history[thread_id].append(message_object)
+
+                    print(f"Response for Thread ID {thread_id}, {timestamp} with model {self.llm_engine}: {message_payload}")
+                    decoded_payload = html.unescape(message_payload)
+                    if "<TOOL_CALL>" in decoded_payload:
+                        self.process_tool_call(thread_id, timestamp, decoded_payload, message_metadata)
+                        #self.active_runs.append(thread_to_check)
+                    elif "<function=" in decoded_payload and "</function>" in decoded_payload:
+                        self.process_tool_call(thread_id, timestamp, decoded_payload, message_metadata)
+                    #  elif '{\n "type": "function",' in decoded_payload:
+                    #      self.process_tool_call(thread_id, timestamp, decoded_payload, message_metadata)
+                    else:
+                        if message_metadata == '':
+                            message_metadata = '{}'                  
+                        event_callback(self.bot_id, BotOsOutputMessage(thread_id=thread_id, 
+                                                                    status="completed", 
+                                                                    output=message_payload, 
+                                                                    messages="", 
+                                                                    input_metadata=json.loads(message_metadata)))
                 else:
                     logger.error(f"No Assistant Response found for Thread ID {thread_id} {timestamp} and model {self.llm_engine}")
                     #self.active_runs.append(thread_to_check)
@@ -160,21 +247,33 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
 
     def process_tool_call(self, thread_id, timestamp, message_payload, message_metadata):
         import json
-        start_tag = "<TOOL_CALL>"
-        end_tag = "</TOOL_CALL>"
-        start_index = message_payload.find(start_tag) + len(start_tag)
-        end_index = message_payload.find(end_tag)
+        start_tag = '<function='
+        end_tag = '</function>'
+        start_index = message_payload.find(start_tag) 
+        end_index = message_payload.find(end_tag, start_index)
         if start_index == -1:
             start_tag = "<|python_tag|>"
             end_tag = "<|eom_id|>"
-            start_index = message_payload.find(start_tag) + len(start_tag)
-            end_index = message_payload.find(end_tag)        
+            start_index = message_payload.find(start_tag)
+            if start_index != -1:
+                start_index += len(start_tag)
+            end_index = message_payload.find(end_tag)  
         tool_call_str = message_payload[start_index:end_index].strip()
         try:
             cb_closure = self._generate_callback_closure(thread_id, timestamp, message_metadata)
-            tool_call_data = json.loads(tool_call_str)
-            function_to_call = tool_call_data.get("name")
-            arguments = tool_call_data.get("parameters", {})
+            function_call_str = message_payload[start_index:end_index].strip()
+            function_name_start = function_call_str.find('<function=') + len('<function=')
+            function_name_end = function_call_str.find('>', function_name_start)
+            function_name = function_call_str[function_name_start:function_name_end]
+
+            arguments_start = function_name_end + 1
+            arguments_str = function_call_str[arguments_start:].strip()
+            arguments_str = arguments_str.replace('\\\\"', '\\"')
+            if arguments_str.endswith('>'):
+                arguments_str = arguments_str[:-1]
+            arguments_json = json.loads(arguments_str)
+            function_to_call = function_name
+            arguments = arguments_json
             execute_function(function_to_call, json.dumps(arguments), self.available_functions, cb_closure, thread_id, self.bot_id)
         except json.JSONDecodeError as e:
             logger.error(f"Failed to decode tool call JSON {tool_call_str}: {e}")
@@ -187,6 +286,26 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         """
         Inserts tool call results back into the genesis_test.public.genesis_threads table.
         """
+
+        new_ts = datetime.datetime.now()
+        if isinstance(results, (dict, list)):
+            results = json.dumps(results)
+
+        message_object = {
+            "message_type": "user",
+            "content": results,
+            "timestamp": new_ts.isoformat(),
+            "metadata": message_metadata
+        }
+
+        if thread_id not in self.thread_history:
+            self.thread_history[thread_id] = []
+        self.thread_history[thread_id].append(message_object)
+
+        self.update_threads(thread_id, new_ts)
+   #     self.active_runs.append({"thread_id": thread_id, "timestamp": new_ts})
+        return 
+
         insert_query = f"""
         INSERT INTO {self.cortex_threads_schema_input_table} (
             TIMESTAMP, BOT_ID, BOT_NAME, THREAD_ID, MESSAGE_TYPE, MESSAGE_PAYLOAD, MESSAGE_METADATA
@@ -215,8 +334,8 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                     print('Cortex submit tool output, simple insert error: {e}')
  
             thread_name = f"Cortex_ToolSub_{thread_id}"
-            threading.Thread(target=self.update_threads, name=thread_name, args=(thread_id, new_timestamp)).start()
-            #self.update_threads(thread_id, new_timestamp)
+            #threading.Thread(target=self.update_threads, name=thread_name, args=(thread_id, new_timestamp)).start()
+            self.update_threads(thread_id, new_timestamp)
             self.active_runs.append({"thread_id": thread_id, "timestamp": new_timestamp})
 
             logger.info(f"Successfully inserted tool call results for Thread ID {thread_id} and Tool Call ID {new_timestamp} old: {timestamp}")
@@ -244,7 +363,30 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         """
         Executes the SQL query to update threads based on the provided SQL, incorporating self.cortex... tables.
         """
+
+        resp = self.cortex_rest_api(thread_id)
+
+        try:
+            msg = json.loads(resp)['choices'][0]['message']['content']
+        except:
+            msg = 'Cortex error -- nothing returned.'
+        
+        message_object = {
+            "message_type": "assistant",
+            "content": msg,
+            "timestamp": timestamp.isoformat(),
+        }
+
+        if thread_id not in self.thread_history:
+            self.thread_history[thread_id] = []
+        self.thread_history[thread_id].append(message_object)
+
+        self.active_runs.append({"thread_id": thread_id, "timestamp": timestamp})
+
+        return
+
         context_limit = 128000 * 4 #32000 * 4
+        tools_reminder = """\nIMPORTANT REMINDER!: To call a tool, return only the JSON tool call between <|python_tag|>...<|eom_id|> tags.  DO NOT HALUCINATE the results of tool calls, actually call the tools."""
         update_query = f"""
         insert into {self.cortex_threads_schema_output_table}
                         with input as 
@@ -267,7 +409,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                         (
                         SELECT
                         i.thread_id,
-                        ARRAY_TO_STRING(ARRAY_AGG(CASE WHEN i.message_type = 'System Prompt' THEN CONCAT('<System Prompt>', i.message_payload, '</System Prompt>') ELSE NULL END) WITHIN GROUP (ORDER BY i.timestamp ASC), ' ') AS system_prompts_payload
+                        ARRAY_TO_STRING(ARRAY_AGG(CASE WHEN i.message_type = 'System Prompt' THEN CONCAT('            <|begin_of_text|><|start_header_id|>system<|end_header_id|>', i.message_payload, '<|eot_id|>') ELSE NULL END) WITHIN GROUP (ORDER BY i.timestamp ASC), ' ') AS system_prompts_payload
                         FROM
                         prior_in_thread i
                         GROUP BY
@@ -302,7 +444,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                         (
                         SELECT
                         p.thread_id,
-                        '<User Prompt>' || p.message_payload || '</User Prompt>' as latest_user_prompt_payload,
+                        '<|start_header_id|>user<|end_header_id|> ' || p.message_payload || '<|eot_id|> ' as latest_user_prompt_payload,
                         p.timestamp as latest_user_prompt_timestamp
                         FROM
                         prior_in_thread p
@@ -314,7 +456,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                         (
                         SELECT
                         p.thread_id,
-                        '<Prior Thread History>'  || ARRAY_TO_STRING(ARRAY_AGG(CASE WHEN message_type NOT IN ('System Prompt') AND timestamp < COALESCE(lup.latest_user_prompt_timestamp, '9999-12-31') THEN CONCAT('<', message_type, '>', message_payload, '</', message_type, '>') ELSE NULL END) WITHIN GROUP (ORDER BY timestamp ASC), ' ') || '</Prior Prompt Summary>' AS summarized_payload
+                        '<Prior Thread History>'  || ARRAY_TO_STRING(ARRAY_AGG(CASE WHEN message_type NOT IN ('System Prompt') AND timestamp < COALESCE(lup.latest_user_prompt_timestamp, '9999-12-31') THEN CONCAT('<', message_type, '>', message_payload, '</', message_type, '>') ELSE NULL END) WITHIN GROUP (ORDER BY timestamp ASC), ' ') || '</Prior Thread History>' AS summarized_payload
                         FROM
                         prior_in_thread p
                         LEFT JOIN latest_user_prompt lup ON p.thread_id = lup.thread_id
@@ -326,7 +468,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                         (
                         SELECT
                         sp.thread_id,
-                        SUBSTRING(CONCAT(sp.system_prompts_payload, ' ', COALESCE(sm.summarized_payload, ''), ' ', COALESCE(lup.latest_user_prompt_payload, ''), ' ', COALESCE(lar.latest_assistant_response_payload, ''), ' ', COALESCE(ltr.latest_tool_response_payload, '')), 1, {context_limit}) AS concatenated_payload
+                        SUBSTRING(CONCAT(sp.system_prompts_payload, ' ', COALESCE(sm.summarized_payload, ''), ' ', COALESCE(lup.latest_user_prompt_payload, ''), ' ', COALESCE(lar.latest_assistant_response_payload, ''), ' ', COALESCE(ltr.latest_tool_response_payload, ''), ' \n<|start_header_id|>assistant<|end_header_id|>'), 1, {context_limit}) AS concatenated_payload
                         FROM
                         system_prompts sp
                         LEFT JOIN latest_user_prompt lup ON sp.thread_id = lup.thread_id
@@ -349,7 +491,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                             0 as tokens_in,
                             0 as tokens_out,
                             '{self.llm_engine}',
-                            LEFT(concatenated_payload, 16000)
+                            LEFT(concatenated_payload, 128000*4)
                         from input as i
                         join threads on i.thread_id = threads.thread_id
                         where i.message_type = 'User Prompt' or i.message_type = 'Tool Response';

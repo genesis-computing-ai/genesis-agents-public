@@ -2745,6 +2745,12 @@ class SnowflakeConnector(DatabaseConnector):
         :return: A list of dictionaries representing the rows returned by the query.
         """
 
+        if isinstance(max_rows, str):
+            try:
+                max_rows = int(max_rows)
+            except ValueError:
+                raise ValueError("max_rows should be an integer or a string that can be converted to an integer.")
+
         if job_config is not None:
             raise Exception("Job configuration is not supported in this method.")
 

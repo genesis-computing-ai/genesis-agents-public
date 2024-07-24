@@ -27,8 +27,8 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         self.active_runs = deque()
 #        self.llm_engine = 'mistral-large'
 
-        #self.llm_engine = 'llama3.1-70b'
-        self.llm_engine = 'llama3.1-405b'
+        self.llm_engine = 'llama3.1-70b'
+#        self.llm_engine = 'llama3.1-405b'
         self.instructions = instructions 
         self.tools = tools
         self.available_functions = available_functions
@@ -58,6 +58,18 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
 
     def cortex_rest_api(self,thread_id):
         
+
+        from huggingface_hub import InferenceClient
+        import minijinja
+
+        client = InferenceClient(
+            "meta-llama/Meta-Llama-3.1-405B-Instruct",
+            token="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",
+        )
+
+
+
+
         SNOWFLAKE_HOST = self.client.client.host
         REST_TOKEN = self.client.client.rest.token
         url=f"https://{SNOWFLAKE_HOST}/api/v2/cortex/inference/complete"
@@ -74,9 +86,19 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             "stream": False,
         }
 
-        response = requests.post(url, json=request_data, stream=False, headers=headers)
-        print(response.content)
-        return(response.content)
+        message = client.chat_completion(
+            messages=newarray,
+            max_tokens=4000,
+            stream=False,
+        )
+        print(message.choices[0], end="")
+
+
+     #   response = requests.post(url, json=request_data, stream=False, headers=headers)
+     #   print(response.content)
+      
+
+        return(message.choices[0].message['content'])
 
 
 
@@ -292,7 +314,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             results = json.dumps(results)
 
         message_object = {
-            "message_type": "user",
+            "message_type": "ipython",
             "content": results,
             "timestamp": new_ts.isoformat(),
             "metadata": message_metadata
@@ -367,7 +389,8 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         resp = self.cortex_rest_api(thread_id)
 
         try:
-            msg = json.loads(resp)['choices'][0]['message']['content']
+           # msg = json.loads(resp)['choices'][0]['message']['content']
+            msg = resp 
         except:
             msg = 'Cortex error -- nothing returned.'
         

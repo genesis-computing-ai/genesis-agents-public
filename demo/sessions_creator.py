@@ -156,7 +156,7 @@ def make_session(
     )
 
     simple_mode = os.getenv("SIMPLE_MODE", "false").lower() == "true"
-    if simple_mode and stream_mode:  # stream mode is for multibot, not task mode
+    if False and simple_mode and stream_mode:  # stream mode is for multibot, not task mode
         print("SIMPLE MODE TOOLS OVERRIDE *** ")
         # Code to execute in simple mode
         tools = [
@@ -240,8 +240,8 @@ Reminder:
 - Put the entire function call reply on one line"
 - Always add your sources when using search results to answer the user query
 
-You are a smart data analyst named Eliza.
-        """
+# Persona Instructions
+ """+bot_config["bot_instructions"] + "\n\n# Base Bot Instructions\n" + BASE_BOT_INSTRUCTIONS_ADDENDUM
  
 
     # print(instructions, f'{bot_config["bot_name"]}, id: {bot_config["bot_id"]}' )

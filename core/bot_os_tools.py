@@ -164,7 +164,7 @@ class ToolBelt:
                 """
 
             response = self.client.chat.completions.create(
-                model="gpt-4o",
+                model="gpt-4o-mini",
                 messages=[
                     {
                         "role": "user",
@@ -212,7 +212,7 @@ class ToolBelt:
             print(f"\n{check_response}\n")
 
             response = self.client.chat.completions.create(
-                model="gpt-4o",
+                model="gpt-4o-mini",
                 messages=[
                     {
                         "role": "user",
@@ -244,7 +244,7 @@ class ToolBelt:
             print(f"\n{extract_instructions}\n")
 
             response = self.client.chat.completions.create(
-                model="gpt-4o",
+                model="gpt-4o-mini",
                 messages=[
                     {
                         "role": "user",

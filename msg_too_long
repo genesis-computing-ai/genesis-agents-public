@@ -66,28 +66,28 @@ Application role 'GENESIS_TEST.APP_PUBLIC' does not exist or not authorized.
 2024-07-17 01:19:56,970 - WARNING - Setting data_cubes_ingress_url for Eve-37zAQo: localhost:8501
 Creating Snowflake regular connection...
 ⚡️ Bolt app is running!
--> OpenAI Model ==  gpt-4o
+-> OpenAI Model ==  gpt-4o-mini
 Making session for bot Eliza-HLjnc7
 2024-07-17 01:20:04,497 - ERROR - Failed to grant all bot workspace objects for GENESIS_TEST.ELIZA_HLJNC7_WORKSPACE (expected in local mode): 002003 (02000): SQL compilation error:
 Application role 'GENESIS_TEST.APP_PUBLIC' does not exist or not authorized.
 2024-07-17 01:20:04,497 - WARNING - Setting data_cubes_ingress_url for Eliza-HLjnc7: localhost:8501
 Creating Snowflake regular connection...
--> OpenAI Model ==  gpt-4o
+-> OpenAI Model ==  gpt-4o-mini
 Making session for bot Eliza-4HH6FN
 ⚡️ Bolt app is running!
 2024-07-17 01:20:19,935 - ERROR - Failed to grant all bot workspace objects for GENESIS_TEST.ELIZA_4HH6FN_WORKSPACE (expected in local mode): 002003 (02000): SQL compilation error:
 Application role 'GENESIS_TEST.APP_PUBLIC' does not exist or not authorized.
 2024-07-17 01:20:19,935 - WARNING - Setting data_cubes_ingress_url for Eliza-4HH6FN: localhost:8501
 Creating Snowflake regular connection...
--> OpenAI Model ==  gpt-4o
+-> OpenAI Model ==  gpt-4o-mini
 Making session for bot Testy-xyz123
 Creating Snowflake regular connection...
 ⚡️ Bolt app is running!
--> OpenAI Model ==  gpt-4o
+-> OpenAI Model ==  gpt-4o-mini
 default_bot_name for bot default_bot_id update_vector_store successfully retrieved tests_and_expected_results_short.txt from stage and saved to ./downloaded_files/default_bot_id_BOT_DOCS/tests_and_expected_results_short.txt
 Making session for bot DataManager-abc123
 Creating Snowflake regular connection...
--> OpenAI Model ==  gpt-4o
+-> OpenAI Model ==  gpt-4o-mini
 Ingress established at https://fc62-198-167-199-51.ngrok-free.app
  * Serving Flask app './demo/bot_os_multibot_1.py'
  * Debug mode: on
@@ -211,7 +211,7 @@ GET NEXT STEP - process_runner.
 
             Below is the previous question that the bot was asked and the response it gave.  Review the response and 
             determine if the bot's response was correct and makes sense.  If it was not correct, return a request to run the process again 
-            by returning the text "**fail**" follwed by an explanation as why it failed.  If the response was correct, return only the text string 
+            by returning the text "**fail**" followed by an explanation as why it failed.  If the response was correct, return only the text string 
             "**success**" to continue to the next step.
 
             Instructions: 

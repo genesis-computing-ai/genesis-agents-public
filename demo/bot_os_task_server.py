@@ -56,12 +56,12 @@ logging.basicConfig(
 import core.global_flags as global_flags
 
 ##### TEST MODE FLAG
-#os.environ['TEST_TASK_MODE'] = 'true'
+# os.environ['TEST_TASK_MODE'] = 'true'
 ########################################
 
 ##### SET TASK FLAG (causes openAI init to not update or recreate the assistant, reuses existing one from multibot runnner)
-os.environ['TASK_MODE'] = 'true'
-os.environ['SHOW_COST'] = 'false'
+os.environ["TASK_MODE"] = "true"
+os.environ["SHOW_COST"] = "false"
 ########################################
 
 print("****** GENBOT VERSION 0.150 *******")
@@ -122,7 +122,7 @@ print("---> CONNECTED TO DATABASE:: ", genesis_source)
 
 def get_udf_endpoint_url(endpoint_name="udfendpoint"):
     alt_service_name = os.getenv("ALT_SERVICE_NAME", None)
-    #TODO logic may break when getting data cubes endpoint and alt_service_name is set
+    # TODO logic may break when getting data cubes endpoint and alt_service_name is set
     if alt_service_name:
         query1 = f"SHOW ENDPOINTS IN SERVICE {alt_service_name};"
     else:
@@ -143,11 +143,14 @@ def get_udf_endpoint_url(endpoint_name="udfendpoint"):
         logger.warning(f"Failed to get {endpoint_name} endpoint URL with error: {e}")
         return None
 
+
 # Call the function to show endpoints
 try:
     ep = get_udf_endpoint_url("udfendpoint")
     data_cubes_ingress_url = get_udf_endpoint_url("streamlitdatacubes")
-    data_cubes_ingress_url = data_cubes_ingress_url if data_cubes_ingress_url else "localhost:8501"
+    data_cubes_ingress_url = (
+        data_cubes_ingress_url if data_cubes_ingress_url else "localhost:8501"
+    )
     logger.warning(f"data_cubes_ingress_url set to {data_cubes_ingress_url}")
     logger.warning(f"udf endpoint: {ep}")
 except Exception as e:
@@ -759,7 +762,7 @@ def configure_llm():
                     client = OpenAI(api_key=llm_api_key_candidate)
 
                     completion = client.chat.completions.create(
-                        model="gpt-4o",
+                        model="gpt-4o-mini",
                         messages=[{"role": "user", "content": "What is 1+1?"}],
                     )
                     # Success!  Update model and keys
@@ -775,7 +778,9 @@ def configure_llm():
 
         if llm_api_key_candidate is not None:
             data_cubes_ingress_url = get_udf_endpoint_url("streamlitdatacubes")
-            data_cubes_ingress_url = data_cubes_ingress_url if data_cubes_ingress_url else "localhost:8501"
+            data_cubes_ingress_url = (
+                data_cubes_ingress_url if data_cubes_ingress_url else "localhost:8501"
+            )
             logger.warning(f"data_cubes_ingress_url(2) set to {data_cubes_ingress_url}")
             if (
                 llm_api_key_candidate is not None
@@ -923,7 +928,9 @@ def bot_install_followup(bot_id=None, no_slack=False):
 
     runner = os.getenv("RUNNER_ID", "jl-local-runner")
     data_cubes_ingress_url = get_udf_endpoint_url("streamlitdatacubes")
-    data_cubes_ingress_url = data_cubes_ingress_url if data_cubes_ingress_url else "localhost:8501"
+    data_cubes_ingress_url = (
+        data_cubes_ingress_url if data_cubes_ingress_url else "localhost:8501"
+    )
     logger.warning(f"data_cubes_ingress_url(3) set to {data_cubes_ingress_url}")
     if runner == bot_details["runner_id"]:
         bot_config = get_bot_details(bot_id=bot_id)
@@ -935,7 +942,7 @@ def bot_install_followup(bot_id=None, no_slack=False):
             bot_id_to_udf_adapter_map=bot_id_to_udf_adapter_map,
             stream_mode=False,
             skip_vectors=True,
-            data_cubes_ingress_url=data_cubes_ingress_url
+            data_cubes_ingress_url=data_cubes_ingress_url,
         )
         # check new_session
         if new_session is None:
@@ -1206,23 +1213,31 @@ def tasks_loop():
         all_bots_details = get_all_bots_full_details(runner_id=runner_id)
 
         # Extract bot IDs from the details
-        all_bot_ids = [bot['bot_id'] for bot in all_bots_details]
+        all_bot_ids = [bot["bot_id"] for bot in all_bots_details]
 
         # Check if any new sessions need to be added
         for bot_id in all_bot_ids:
             if bot_id not in [session.bot_id for session in sessions]:
-                bot_details = next(bot for bot in all_bots_details if bot['bot_id'] == bot_id)
-                print(f"New bot found: ID={bot_id}, Name={bot_details['bot_name']}. Adding to sessions.")
+                bot_details = next(
+                    bot for bot in all_bots_details if bot["bot_id"] == bot_id
+                )
+                print(
+                    f"New bot found: ID={bot_id}, Name={bot_details['bot_name']}. Adding to sessions."
+                )
                 # Determine the Slack status of the bot
-                bot_details = next(bot for bot in all_bots_details if bot['bot_id'] == bot_id)
-                if bot_details.get('bot_slack_user_id', False) == False:
+                bot_details = next(
+                    bot for bot in all_bots_details if bot["bot_id"] == bot_id
+                )
+                if bot_details.get("bot_slack_user_id", False) == False:
                     no_slack = True
                 else:
                     no_slack = False
-                
+
                 # Add a new session for the bot with the appropriate no_slack flag
                 add_bot_session(bot_id, no_slack=no_slack)
-                print(f"New session added for bot_id: {bot_id} with no_slack={no_slack}")
+                print(
+                    f"New session added for bot_id: {bot_id} with no_slack={no_slack}"
+                )
 
         # Retrieve the list of bots and their tasks
 
@@ -1498,7 +1513,9 @@ def tasks_loop():
 
         time_to_sleep = 60 - (datetime.datetime.now() - iteration_start_time).seconds
         if os.getenv("TEST_TASK_MODE", "false").lower() == "true":
-           time_to_sleep = 10 - (datetime.datetime.now() - iteration_start_time).seconds
+            time_to_sleep = (
+                10 - (datetime.datetime.now() - iteration_start_time).seconds
+            )
 
         if time_to_sleep > 0:
             for remaining in range(time_to_sleep, 0, -5):

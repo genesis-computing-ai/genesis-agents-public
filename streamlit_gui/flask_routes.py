@@ -507,7 +507,7 @@ def register_routes(
                         client = OpenAI(api_key=llm_api_key_candidate)
 
                         completion = client.chat.completions.create(
-                            model="gpt-4o",
+                            model="gpt-4o-mini",
                             messages=[{"role": "user", "content": "What is 1+1?"}],
                         )
                         # Success!  Update model and keys

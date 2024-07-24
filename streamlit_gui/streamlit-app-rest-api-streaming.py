@@ -70,10 +70,10 @@ if prompt := st.chat_input("What is up?"):
         data = {
             "model": model,
             "messages": [{"content": st.session_state.messages[-1]["content"]}],
-            "stream": False,
+            "stream": True,
         }
-        response = requests.post(url, json=data, stream=False, headers=headers)
-        st.write(response.content)
-      #  st.write_stream(stream_data(response))
+        response = requests.post(url, json=data, stream=True, headers=headers)
+       # st.write(response.content)
+        st.write_stream(stream_data(response))
     st.session_state.messages.append({"role": "assistant", "content": full_response})
     

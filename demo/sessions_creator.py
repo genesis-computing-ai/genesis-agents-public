@@ -211,13 +211,12 @@ Environment: ipython
 Cutting Knowledge Date: December 2023
 Today Date: 23 Jul 2024
 
-# Tool Instructions
-- Always execute python code in messages that you share.
-- When looking for real time information use relevant functions if available else fallback to brave_search
-    
+# Tool Instructions""" 
+#- Always execute python code in messages that you share.
+#- When looking for real time information use relevant functions if available else fallback to brave_search
+        instructions+="""    
 
-
-You have access to the following functions:
+You have access to the following functions, only call them when needed to perform actions or lookup information that you do not already have:
 
 """ + json.dumps(tools) + """
 
@@ -237,7 +236,7 @@ Reminder:
 - Function calls MUST follow the specified format
 - Required parameters MUST be specified
 - Only call one function at a time
-- Put the entire function call reply on one line"
+- Put the entire function call reply on one line
 - Always add your sources when using search results to answer the user query
 
 # Persona Instructions

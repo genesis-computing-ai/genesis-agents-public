@@ -48,13 +48,27 @@ class KnowledgeServer:
                 WHERE timestamp > COALESCE(K.last_timestamp, DATE('2000-1-1')) AND timestamp < TO_TIMESTAMP('{cutoff}')"""
             threads = self.db_connector.run_query(query)
             for thread in threads:
-                thread_id = thread["THREAD_ID"]
+                thread_id = thread['THREAD_ID']
+
                 with self.thread_set_lock:
                     if thread_id not in self.thread_set:
                         self.thread_set.add(thread_id)
                     else:
                         continue
 
+                query = f'''
+                        WITH BOTS AS (SELECT BOT_SLACK_USER_ID, CONCAT('{{"user_id": "', BOT_SLACK_USER_ID, '", "user_name": "', BOT_NAME, '"}}') as PRIMARY_USER 
+                            FROM {self.db_connector.bot_servicing_table_name})
+                        SELECT COUNT(DISTINCT M.PRIMARY_USER) AS CNT FROM {self.db_connector.message_log_table_name} M
+                        LEFT JOIN BOTS ON M.PRIMARY_USER = BOTS.PRIMARY_USER
+                        WHERE THREAD_ID = '{thread_id}' AND BOT_SLACK_USER_ID IS NULL;
+                        '''
+                count_non_bot_users = self.db_connector.run_query(query) 
+                # this is needed to exclude channels with more than one user
+
+                if count_non_bot_users and count_non_bot_users[0]['CNT'] != 1:
+                    continue
+                
                 with self.condition:
                     if self.thread_queue.full():
                         print("Queue is full, producer is waiting...")

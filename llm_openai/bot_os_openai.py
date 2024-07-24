@@ -740,8 +740,9 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                      
                   print(f"Bot instructions for {target_bot} updated: {instructions}")
                         
-                  #new_response.pop("new_instructions", None)
-
+                  #new_response.pop("new_instructions", None)  
+         if function_call_details[0][0] == 'run_process' and func_response.get('success',False)==True:
+            pass
          if (function_call_details[0][0] == 'add_bot_files' or function_call_details[0][0] == 'remove_bot_files' ) and (func_response.get('success',False)==True or func_response.get('Success',False)==True):
          #  raise ('need to update bot_os_openai.py line 215 for new files structure with v2')
             try:

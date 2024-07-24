@@ -1618,7 +1618,9 @@ class SnowflakeConnector(DatabaseConnector):
                     f"Inserted initial row into {self.slack_tokens_table_name} with runner_id: {runner_id}"
                 )
             else:
-                print(f"Table {self.slack_tokens_table_name} already exists.")
+                print(
+                    f"Table {self.slack_tokens_table_name} already exists."
+                )  # SLACK_APP_CONFIG_TOKENS
         except Exception as e:
             print(
                 f"An error occurred while checking or creating table {self.slack_tokens_table_name}: {e}"
@@ -2749,7 +2751,9 @@ class SnowflakeConnector(DatabaseConnector):
             try:
                 max_rows = int(max_rows)
             except ValueError:
-                raise ValueError("max_rows should be an integer or a string that can be converted to an integer.")
+                raise ValueError(
+                    "max_rows should be an integer or a string that can be converted to an integer."
+                )
 
         if job_config is not None:
             raise Exception("Job configuration is not supported in this method.")
@@ -2806,10 +2810,17 @@ class SnowflakeConnector(DatabaseConnector):
             results = cursor.fetchmany(max_rows)
             columns = [col[0] for col in cursor.description]
             sample_data = [dict(zip(columns, row)) for row in results]
-        
-        # Replace occurrences of triple backticks with triple single quotes in sample data
+
+            # Replace occurrences of triple backticks with triple single quotes in sample data
             sample_data = [
-                {key: (value.replace("```", "\`\`\`") if isinstance(value, str) else value) for key, value in row.items()}
+                {
+                    key: (
+                        value.replace("```", "\`\`\`")
+                        if isinstance(value, str)
+                        else value
+                    )
+                    for key, value in row.items()
+                }
                 for row in sample_data
             ]
         except Exception as e:

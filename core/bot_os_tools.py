@@ -72,7 +72,7 @@ class ToolBelt:
     def __init__(self, db_adapter, openai_api_key):
         self.db_adapter = db_adapter
         self.openai_api_key = openai_api_key  # os.getenv("OPENAI_API_KEY")
-        self.client = OpenAI(api_key=openai_api_key)
+        self.client = OpenAI(api_key=openai_api_key) if openai_api_key else None
         self.counter = 0
         self.instructions = ""
         self.process = {}
@@ -132,6 +132,8 @@ class ToolBelt:
         goto_step=None,
         thread_id=None,
     ):
+        if self.client is None:
+            self.client = OpenAI(api_key=self.openai_api_key)
         print(f"Running processes Action: {action} | process_id: {process_name}")
 
         # Try to get process info from PROCESSES table

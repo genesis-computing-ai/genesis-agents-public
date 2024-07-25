@@ -27,3 +27,4 @@ reka-api
 #debugpy
 google-generativeai
 pdb_attach
+sseclient

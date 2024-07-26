@@ -760,7 +760,7 @@ class SlackBotAdapter(BotOsInputAdapter):
                 "thinking already deleted"
             )  # FixMe: need to keep track when thinking is deleted
         message.output = message.output.strip()
-        print('     ...in the completion handler now...')
+        print('...in the completion handler now...')
         if message.output.startswith("<Assistant>"):
             message.output = message.output[len("<Assistant>") :].strip()
 

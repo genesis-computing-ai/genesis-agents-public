@@ -806,13 +806,13 @@ class SnowflakeConnector(DatabaseConnector):
             "process_name",
             "process_details",
             "process_instructions",
-            "process_reporting_instructions",
+       #     "process_reporting_instructions",
         ]
 
         required_fields_update = [
             "process_details",
             "process_instructions",
-            "process_reporting_instructions",
+     #       "process_reporting_instructions",
         ]
 
         if action == "TIME":
@@ -825,7 +825,7 @@ class SnowflakeConnector(DatabaseConnector):
             return {
                 "Success": False,
                 "Confirmation_Needed": "Please reconfirm all the process details with the user, then call this function again with the action CREATE_CONFIRMED to actually create the process.",
-                "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}",
+            #    "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}",
             }
         if action == "CREATE_CONFIRMED":
             action = "CREATE"
@@ -834,7 +834,7 @@ class SnowflakeConnector(DatabaseConnector):
             return {
                 "Success": False,
                 "Confirmation_Needed": "Please reconfirm all the process details with the user, especially that you're altering the correct process_ID, then call this function again with the action UPDATE_CONFIRMED to actually update the process.  Call with LIST to double-check the process_id if you aren't sure.",
-                "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}",
+           #     "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}",
             }
         if action == "UPDATE_CONFIRMED":
             action = "UPDATE"
@@ -926,9 +926,9 @@ class SnowflakeConnector(DatabaseConnector):
             if action == "CREATE":
                 insert_query = f"""
                     INSERT INTO {self.schema}.PROCESSES (
-                        process_id, bot_id, bot_slack_user_id, process_name, process_details, process_instructions, process_reporting_instructions
+                        process_id, bot_id, process_name, process_details, process_instructions
                     ) VALUES (
-                        %(process_id)s, %(bot_id)s, %(bot_slack_user_id)s, %(process_name)s, %(process_details)s, %(process_instructions)s, %(process_reporting_instructions)s
+                        %(process_id)s, %(bot_id)s, %(process_name)s, %(process_details)s, %(process_instructions)s
                     )
                 """
 

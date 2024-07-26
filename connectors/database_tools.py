@@ -376,16 +376,16 @@ process_manager_functions = [
                                 "type": "string",
                                 "description": "Detailed instructions for completing the process.",
                             },
-                            "process_reporting_instructions": {
-                                "type": "string",
-                                "description": "Detailed instructions for reporting the completed the process.",
-                            },
+                         #   "process_reporting_instructions": {
+                         #       "type": "string",
+                         #       "description": "Detailed instructions for reporting the completed the process.",
+                         #   },
                         },
                         "required": [
                             "process_name",
                             "process_details",
                             "process_instructions",
-                            "process_reporting_instructions",
+                         #   "process_reporting_instructions",
                         ],
                     },
                 },

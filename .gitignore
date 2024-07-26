@@ -17,7 +17,7 @@ kb_test/*
 downloaded_files/*
 uploads/*
 saved_llm_settings_local.json
-.DS_Store
+*.DS_Store
 *.pickle
 /snowflake_app/mr_genesis_natapp_provider.sql
 /streamlit_gui/mr_streamlit_sis_v1.py
@@ -28,3 +28,4 @@ saved_llm_settings_local.json
 rsa_key.p8
 rsa_key.pub
 .venv/*
+requirements_orig.txt

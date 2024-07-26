@@ -130,6 +130,12 @@ class SnowflakeConnector(DatabaseConnector):
         self.genbot_internal_knowledge_table = os.getenv(
             "GENESIS_INTERNAL_KNOWLEDGE_TABLE", "KNOWLEDGE"
         )
+        self.genbot_internal_processes_table = os.getenv(
+            "GENESIS_INTERNAL_PROCESSES_TABLE", "PROCESSES"
+        )
+        self.genbot_internal_process_history_table = os.getenv(
+            "GENESIS_INTERNAL_PROCESS_HISTORY_TABLE", "PROCESS_HISTORY"
+        )
         self.genbot_internal_user_bot_table = os.getenv(
             "GENESIS_INTERNAL_USER_BOT_TABLE", "USER_BOT"
         )
@@ -155,6 +161,16 @@ class SnowflakeConnector(DatabaseConnector):
             self.genbot_internal_project_and_schema
             + "."
             + self.genbot_internal_knowledge_table
+        )
+        self.processes_table_name = (
+            self.genbot_internal_project_and_schema
+            + "."
+            + self.genbot_internal_processes_table
+        )
+        self.process_history_table_name = (
+            self.genbot_internal_project_and_schema
+            + "."
+            + self.genbot_internal_process_history_table
         )
         self.user_bot_table_name = (
             self.genbot_internal_project_and_schema
@@ -2170,7 +2186,70 @@ class SnowflakeConnector(DatabaseConnector):
                 f"An error occurred while checking or creating table {self.knowledge_table_name}: {e}"
             )
 
-        # KNOWLEDGE TABLE
+        # PROCESSES TABLE
+        processes_table_check_query = (
+            f"SHOW TABLES LIKE 'PROCESSES' IN SCHEMA {self.schema};"
+        )
+        # Check if the processes table exists
+        try:
+            cursor = self.client.cursor()
+            cursor.execute(processes_table_check_query)
+            if not cursor.fetchone():
+                processes_table_ddl = f"""
+                CREATE TABLE {self.processes_table_name} (
+                    timestamp TIMESTAMP NOT NULL,
+                    process_id STRING NOT NULL,
+                    bot_id STRING,
+                    process_name STRING NOT NULL,
+                    process_details STRING,
+                    process_instructions STRING,
+                );
+                """
+                cursor.execute(processes_table_ddl)
+                self.client.commit()
+                print(f"Table {self.processes_table_name} created.")
+            else:
+                check_query = f"DESCRIBE TABLE {self.processes_table_name};"
+                print(f"Table {self.processes_table_name} already exists.")
+        except Exception as e:
+            print(
+                f"An error occurred while checking or creating table {self.processes_table_name}: {e}"
+            )
+
+        # PROCESS_HISTORY TABLE
+        process_history_table_check_query = (
+            f"SHOW TABLES LIKE 'PROCESS_HISTORY' IN SCHEMA {self.schema};"
+        )
+        # Check if the processes table exists
+        try:
+            cursor = self.client.cursor()
+            cursor.execute(process_history_table_check_query)
+            if not cursor.fetchone():
+                process_history_table_ddl = f"""
+                CREATE TABLE {self.process_history_table_name} (
+                    timestamp TIMESTAMP NOT NULL,
+                    process_id STRING NOT NULL,
+                    work_done_summary STRING,
+                    process_status STRING,
+                    updated_process_learnings STRING,
+                    report_message STRING,
+                    done_flag BOOLEAN,
+                    needs_help_flag BOOLEAN,
+                    process_clarity_comments STRING,
+                );
+                """
+                cursor.execute(process_history_table_ddl)
+                self.client.commit()
+                print(f"Table {self.process_history_table_name} created.")
+            else:
+                check_query = f"DESCRIBE TABLE {self.process_history_table_name};"
+                print(f"Table {self.process_history_table_name} already exists.")
+        except Exception as e:
+            print(
+                f"An error occurred while checking or creating table {self.process_history_table_name}: {e}"
+            )
+
+        # USER BOT TABLE
         user_bot_table_check_query = (
             f"SHOW TABLES LIKE 'USER_BOT' IN SCHEMA {self.schema};"
         )

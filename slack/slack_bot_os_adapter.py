@@ -635,40 +635,56 @@ class SlackBotAdapter(BotOsInputAdapter):
             if orig_thinking in self.thinking_msg_overide_map:
                 thinking_ts = self.thinking_msg_overide_map[orig_thinking]
             if thinking_ts:
+                print('0-0-0-0-0-0-0-0 SLACK RESPONSE HANDLER -0-0-0-0-0-0-0-0-0')
                 current_chunk_start =  self.chunk_start_map.get(orig_thinking,None)
+                if current_chunk_start:
+                    print('     Current chunk start: ', current_chunk_start)
                 msg = message.output.replace("\n 💬", " 💬")
+                if current_chunk_start:
+                    print(f"    Length of message: {len(msg)}")
                 inmarkdown = False
                 if current_chunk_start is not None:
                     trimmed = False
                     if orig_thinking in self.chunk_last_100:
                         last100 = self.chunk_last_100[orig_thinking]
+                        print(f"    Length of last 100: {len(last100)}")
                         if last100 in msg:
+                            print(f"    Last 100 is in msg")
                             last_index = msg.rfind(last100, 0, current_chunk_start)
+                            print(f"    Last index: {last_index}")
                             if last_index != -1:
                                 msg = msg[last_index + len(last100):]
                                 trimmed=True
+                                print(f"    Length of new trimmed msg: {len(msg)}")
                     if not trimmed:
+                        print("     Not trimmed based on last100, going to trim on current chunk start: ",current_chunk_start)
                         msg = msg[current_chunk_start:]
+                        print(f"    Length of new trimmed msg: {len(msg)}")
                     if orig_thinking in self.in_markdown_map:
                         if self.in_markdown_map[orig_thinking] == True:
                             msg = '```' + msg
+                            print('     Added markedown start to start of msg')
                             inmarkdown = True
       
                 if (
                     message.status == "in_progress"
                     or message.status == "requires_action"
                 ):
-                    print(
-                        message.status,
+                    print('processing in_progress message: ', message.status,
                         " updating ",
                         thinking_ts,
                         " len ",
                         len(message.output),
                     )
                     # show knowledge incorporated
-                    msg = "\n\n".join(f"({k}): {v}" for k, v in message.input_metadata.items() if k.endswith("_knowledge")) + "\n\n" + msg    
+                    knowledge_parts = [f"({k}): {v}" for k, v in message.input_metadata.items() if k.endswith("_knowledge")]
+                    if knowledge_parts:
+                        print(f"Length of msg before knowledge add: {len(msg)}")
+                        msg = "\n\n".join(knowledge_parts) + "\n\n" + msg
+                        print(f"Length of msg after knowledge add: {len(msg)}")
 
                     if len(msg) > 3900:
+                        print('     Splitting message')
                         split_index = msg[max(0, 3900-300):3900].rfind("\n")
                         if split_index != -1:
                             split_index += 3600
@@ -744,7 +760,7 @@ class SlackBotAdapter(BotOsInputAdapter):
                 "thinking already deleted"
             )  # FixMe: need to keep track when thinking is deleted
         message.output = message.output.strip()
-
+        print('     ...in the completion handler now...')
         if message.output.startswith("<Assistant>"):
             message.output = message.output[len("<Assistant>") :].strip()
 
@@ -785,28 +801,41 @@ class SlackBotAdapter(BotOsInputAdapter):
                 current_chunk_start =  self.chunk_start_map.get(orig_thinking,None)
                 msg = message.output.replace("\n 💬", " 💬")
                 
-
                 if current_chunk_start is not None:
+
+                    print (' -0-0-0-0-0- IN the completion handler ready to trim if needed -0-0-0-0-0')
 
                     trimmed = False
                     if orig_thinking in self.chunk_last_100:
                         last100 = self.chunk_last_100[orig_thinking]
+                        print(f"    Length of last 100: {len(last100)}")
                         if last100 in msg:
-                            # This code finds the last occurrence of 'last100' in 'msg' before 'current_chunk_start'.
-                            # If found, it trims 'msg' to start right after this occurrence and sets 'trimmed' to True.
+                            print(f"    Last 100 is in msg")
                             last_index = msg.rfind(last100, 0, current_chunk_start)
+                            print(f"    Last index: {last_index}")
                             if last_index != -1:
                                 msg = msg[last_index + len(last100):]
                                 trimmed=True
-
+                                print(f"    Length of new trimmed msg: {len(msg)}")
+                        else:
+                            last50 = last100[-50:]
+                            if last50 in msg:
+                                print(f"    Last 50 is in msg")
+                                last_index = msg.rfind(last50, 0, current_chunk_start)
+                                print(f"    Last index: {last_index}")
+                                if last_index != -1:
+                                    msg = msg[last_index + len(last50):]
+                                    trimmed=True
+                                    print(f"    Length of new trimmed msg based on last50: {len(msg)}")
                     if not trimmed:
+                        print("     Not trimmed based on last100, going to trim on current chunk start: ",current_chunk_start)
                         msg = msg[current_chunk_start:]
-
+                        print(f"    Length of new trimmed msg: {len(msg)}")
                     if orig_thinking in self.in_markdown_map:
                         if self.in_markdown_map[orig_thinking] == True:
                             msg = '```' + msg
+                            print('     Added markdown start to start of msg')
                             inmarkdown = True
-
 
                 msg_trimmed = msg
 

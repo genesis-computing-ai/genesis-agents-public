@@ -1783,7 +1783,7 @@ class SnowflakeConnector(DatabaseConnector):
                     database=database,
                     schema=schema,
                     stage="BOT_FILES_STAGE",
-                    file_name="./defaul_files/janice/*",
+                    file_name="./default_files/janice/*",
                 )
                 print(result)
 

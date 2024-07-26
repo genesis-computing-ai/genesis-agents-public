@@ -161,59 +161,63 @@ ngrok_active = False
 
 bot_id_to_udf_adapter_map = {}
 api_key_from_env = False
-default_llm_engine = os.getenv("BOT_OS_DEFAULT_LLM_ENGINE", "openai")
 llm_api_key = None
-if default_llm_engine.lower() == "openai":
-    llm_api_key = os.getenv("OPENAI_API_KEY", None)
-    if llm_api_key == "":
-        llm_api_key = None
-    if llm_api_key:
-        api_key_from_env = True
-elif default_llm_engine.lower() == "reka":
-    llm_api_key = os.getenv("REKA_API_KEY", None)
-    if llm_api_key:
-        api_key_from_env = True
 
-if genesis_source == "BigQuery" and api_key_from_env == False:
-    while True:
-        print(
-            "!!!!! Loading LLM config from File No longer Supported -- Please provide via ENV VAR when using BigQuery Source"
-        )
-        time.sleep(3)
+os.environ["CORTEX_AVAILABLE"] = 'False'
+if genesis_source == "Snowflake":
 
+    cortex_test = db_adapter.test_cortex()
 
-# to test streamlit first time key capture page
-# llm_api_key = None
-# api_key_from_env = False
+    if cortex_test == True:
+        os.environ["CORTEX_AVAILABLE"] = 'True'
+        default_llm_engine = 'cortex'
+        llm_api_key = 'cortex_no_key_needed'
+        print('Cortex LLM is Available and successfully tested')
+
+# check for Openai Env Override
+openai_llm_api_key = os.getenv("OPENAI_API_KEY", None)
+if openai_llm_api_key == "":
+    openai_llm_api_key = None
+if openai_llm_api_key:
+    api_key_from_env = True
+    llm_api_key = openai_llm_api_key
+    print('Default LLM set to OpenAI because ENV Var OPENAI_API_KEY is present')
 
 llm_keys_and_types = []
 #if llm_api_key is None and genesis_source == "Snowflake":
-if llm_api_key is None and genesis_source == "Snowflake":
-
+if api_key_from_env == False and genesis_source == "Snowflake":
+    print('Checking LLM_TOKENS for saved LLM Keys:')
     llm_keys_and_types = get_llm_key()
     if llm_keys_and_types:
         for llm_key, llm_type in llm_keys_and_types:
             if llm_key and llm_type:
                 if llm_type.lower() == "openai":
                     os.environ["OPENAI_API_KEY"] = llm_key
-                elif llm_type.lower() == "reka":
-                    os.environ["REKA_API_KEY"] = llm_key
+                    print("Found OpenAI Key in LLM_TOKENS, setting env var OPENAI_API_KEY")
+                #elif llm_type.lower() == "reka":
+                #    os.environ["REKA_API_KEY"] = llm_key
                 elif llm_type.lower() == "gemini":
                     os.environ["GEMINI_API_KEY"] = llm_key
-                api_key_from_env = False
-                llm_api_key = llm_key
-                default_llm_engine = llm_type
+                    print("Found Gemini Key in LLM_TOKENS, setting env var GEMINI_API_KEY")
+                if llm_api_key is None:
+                    print(f"Cortex is not available, so setting default LLM API key: {llm_key} and type: {llm_type} found in LLM_TOKENS")
+                    api_key_from_env = False
+                    llm_api_key = llm_key
+                    default_llm_engine = llm_type
                 break
-    else:
-        print("===========")
-        print("NOTE: Config via Streamlit to continue")
-        print("===========")
-#        logger.warn('LLM config not found in Env Var nor in Database LLM_CONFIG table.. starting without LLM Key, please provide via Streamlit')
-    t, r = get_slack_config_tokens()
+if llm_api_key is None:
+    print("===========")
+    print("NOTE: Cortex not available and no LLM configured, Config via Streamlit to continue")
+    print("===========")
+
+t, r = get_slack_config_tokens()
+#global_flags.slack_active = test_slack_config_token()
+#if global_flags.slack_active == 'token_expired':
+#    print('Slack Config Token Expired')
+#    global_flags.slack_active = False 
+#global_flags.slack_active = True 
+
 print("...Slack Connector Active Flag: ", global_flags.slack_active)
-
-
-
 SystemVariables.bot_id_to_slack_adapter_map = {}
 
 if llm_api_key is not None:

@@ -416,7 +416,7 @@ def llm_config():  # Check if data is not empty
     bot_details = get_bot_details()
     # st.write(bot_details)
 
-    cur_key = "<existing key present on server>"
+    cur_key = ""
 
     if bot_details == {"Success": False, "Message": "Needs LLM Type and Key"}:
         st.success("Welcome! Before you chat with bots, please setup your LLM Keys")
@@ -425,12 +425,12 @@ def llm_config():  # Check if data is not empty
 
     if True:
         st.header("LLM Model & API Key Setup")
-        if cur_key == "<existing key present on server>":
+        if cur_key == "":
             st.success(
-                "Your key is already set and active. If you want to change it, you can do so below."
+                "You already have an LLM active. If you want to change it, you can do so below."
             )
         st.write(
-            "Genesis Bots require access to OpenAI, as these are the only LLMs currently powerful enough to service the bots. Please visit https://platform.openai.com/signup to get a paid API key for OpenAI before proceeding."
+            "Genesis Bots can optionally use OpenAI or Gemini LLMs, in addition to Snowflake Cortex.  To add or update a key for these models, enter it below:"
         )
         llm_model = st.selectbox("Choose LLM Model:", ["OpenAI", "gemini"])
         llm_api_key = st.text_input("Enter API Key:", value=cur_key)

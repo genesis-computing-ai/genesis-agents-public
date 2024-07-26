@@ -77,8 +77,8 @@ def make_session(
     slack_enabled = bot_config.get("slack_active", "Y") == "Y"
     runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
 
-    if global_flags.slack_active is False and slack_enabled:
-        global_flags.slack_active = False
+#    if global_flags.slack_active is False and slack_enabled:
+#        global_flags.slack_active = False
 
     input_adapters = []
 
@@ -174,7 +174,7 @@ def make_session(
         bot_config["bot_instructions"] + "\n" + BASE_BOT_INSTRUCTIONS_ADDENDUM
     )
     instructions += f'\nNote current settings:\nData source: {genesis_source}\nYour bot_id: {bot_config["bot_id"]}.\nRunner_id: {runner_id}'
-    if bot_config["slack_active"] == "Y" and global_flags.slack_active:
+    if bot_config["slack_active"] == "Y":
         instructions += "\nYour slack user_id: " + bot_config["bot_slack_user_id"]
 
     if "snowflake_stage_tools" in bot_tools and "make_baby_bot" in bot_tools:
@@ -203,45 +203,6 @@ def make_session(
         except Exception as e:
             logger.warning(f"Error creating bot workspace for bot_id {bot_id} {e} ")
 
-    if simple_mode and stream_mode:
-        instructions = """
-
-Environment: ipython
-
-Cutting Knowledge Date: December 2023
-Today Date: 23 Jul 2024
-
-# Tool Instructions""" 
-#- Always execute python code in messages that you share.
-#- When looking for real time information use relevant functions if available else fallback to brave_search
-        instructions+="""    
-
-You have access to the following functions, only call them when needed to perform actions or lookup information that you do not already have:
-
-""" + json.dumps(tools) + """
-
-
-If a you choose to call a function ONLY reply in the following format:
-<{start_tag}={function_name}>{parameters}{end_tag}
-where
-
-start_tag => `<function>`
-parameters => a JSON dict with the function argument name as key and function argument value as value.
-end_tag => `</function>`
-
-Here is an example,
-<function=example_function_name>{"example_name": "example_value"}</function>
-
-Reminder:
-- Function calls MUST follow the specified format
-- Required parameters MUST be specified
-- Only call one function at a time
-- Put the entire function call reply on one line
-- Always add your sources when using search results to answer the user query
-
-# Persona Instructions
- """+bot_config["bot_instructions"] + "\n\n# Base Bot Instructions\n" + BASE_BOT_INSTRUCTIONS_ADDENDUM
- 
 
     # print(instructions, f'{bot_config["bot_name"]}, id: {bot_config["bot_id"]}' )
 
@@ -274,6 +235,7 @@ Reminder:
         proactive_instructions = ""
 
     if stream_mode:
+        print(f"Bot implementation from bot config: {bot_config.get('bot_implementation', 'Not specified')}")
         if (
             "bot_implementation" in bot_config
             and bot_config["bot_implementation"] == "cortex"
@@ -284,13 +246,67 @@ Reminder:
             and bot_config["bot_implementation"] == "gemini"
         ):
             assistant_implementation = BotOsAssistantGemini
-        else:
+        elif (
+            "bot_implementation" in bot_config
+            and bot_config["bot_implementation"] == "openai"
+        ):
             assistant_implementation = BotOsAssistantOpenAI
+        else:
+            if os.getenv("OPENAI_API_KEY",None) in [None, ""] and os.getenv("CORTEX_AVAILABLE",None) == "True":
+                assistant_implementation = BotOsAssistantSnowflakeCortex
+                print('Bot implementation not specified, OpenAI not available, so Defaulting LLM to Snowflake Cortex')
+            else:
+                print('Bot implementation not specified, OpenAI is available, so defaulting LLM to OpenAI')
+                assistant_implementation = BotOsAssistantOpenAI
+
+        if os.getenv("OPENAI_API_KEY",None) in [None, ""] and os.getenv("CORTEX_AVAILABLE",None) == "True" and assistant_implementation == BotOsAssistantOpenAI:  
+            print("Switched to Cortex implementation because OPENAI_API_KEY is not set and CORTEX is available.")
+            assistant_implementation = BotOsAssistantSnowflakeCortex
 
         if os.getenv("SIMPLE_MODE", "false").lower() == "true":
             assistant_implementation = BotOsAssistantSnowflakeCortex
         # assistant_implementation = BotOsAssistantOpenAI
 
+        if assistant_implementation == BotOsAssistantSnowflakeCortex and stream_mode:
+            instructions = """
+
+Environment: ipython
+
+Cutting Knowledge Date: December 2023
+Today Date: 23 Jul 2024
+
+# Tool Instructions""" 
+#- Always execute python code in messages that you share.
+#- When looking for real time information use relevant functions if available else fallback to brave_search
+            instructions+="""    
+
+You have access to the following functions, only call them when needed to perform actions or lookup information that you do not already have:
+
+""" + json.dumps(tools) + """
+
+
+If a you choose to call a function ONLY reply in the following format:
+<{start_tag}={function_name}>{parameters}{end_tag}
+where
+
+start_tag => `<function>`
+parameters => a JSON dict with the function argument name as key and function argument value as value.
+end_tag => `</function>`
+
+Here is an example,
+<function=example_function_name>{"example_name": "example_value"}</function>
+
+Reminder:
+- Function calls MUST follow the specified format
+- Required parameters MUST be specified
+- Only call one function at a time
+- Put the entire function call reply on one line
+- Do not add any preable of other text before or after the function call
+- Always add your sources when using search results to answer the user query
+
+# Persona Instructions
+ """+bot_config["bot_instructions"] + "\n\n# Base Bot Instructions\n" + BASE_BOT_INSTRUCTIONS_ADDENDUM
+ 
     try:
         # logger.warning(f"GenBot {bot_id} instructions:::  {instructions}")
         # print(f'tools: {tools}')

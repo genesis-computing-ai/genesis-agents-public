@@ -725,7 +725,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                   instructions += f'\nNote current settings:\nData source: {global_flags.source}\nYour bot_id: {bot_details["bot_id"]}.\n'
                   if global_flags.runner_id is not None:
                      instructions += f'Runner_id: {global_flags.runner_id}\n'
-                  if bot_details["slack_active"]=='Y' and global_flags.slack_active:
+                  if bot_details["slack_active"]=='Y':
                      instructions += "\nYour slack user_id: "+bot_details["bot_slack_user_id"]
 
                   if "snowflake_stage_tools" in bot_details["available_tools"] and 'make_baby_bot' in bot_details["available_tools"]:        

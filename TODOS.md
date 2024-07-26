@@ -2,6 +2,25 @@
 GENESIS BOT TODOS
 =================
 
+
+Cortex:
+Make add tools to bot and change instructions work for Cortex mode bots
+Streaming mode 
+adding to a thread in progress, the system message isn't included 
+add a text cortex function
+default system to cortex on startup unless openai key is present
+allow adding of openai key via streamlit after startup
+have initial bots be on cortex if thats whats active
+fix/test on the fly bot engine changing w/relaunch
+harvester system, make it work with cortex
+task system, make it get the right llm keys for cortex like multibot does now, and the right instructions for cortex
+streamlit screen update for llm key not needed cortex 
+allow it to update openai key via streamlit in general
+test switching to openai and relaunching bots on it 
+default all bots to no specified llm
+make task system relaunch when something in a bot chanes (like the llm, instructions, etc.)
+
+
 July:
 x JL-Have task server only reuse/reference existing assistant, not recreate/update it on startup
 JL-Why are bots doing other bots tasks?

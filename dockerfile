@@ -23,6 +23,7 @@ COPY demo ./demo
 COPY development ./development
 COPY embed ./embed
 COPY generated_modules ./generated_modules
+COPY default_files ./default_files
 COPY entrypoint.sh /entrypoint.sh
 
 RUN apt-get update && apt-get install -y procps

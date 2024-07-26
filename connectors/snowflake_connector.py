@@ -18,9 +18,11 @@ from core.bot_os_defaults import (
     BASE_EVE_BOT_INSTRUCTIONS,
     ELIZA_DATA_ANALYST_INSTRUCTIONS,
     STUART_DATA_STEWARD_INSTRUCTIONS,
+    JANICE_JANITOR_INSTRUCTIONS,
     EVE_INTRO_PROMPT,
     ELIZA_INTRO_PROMPT,
     STUART_INTRO_PROMPT,
+    JANICE_INTRO_PROMPT,
 )
 
 # from database_connector import DatabaseConnector
@@ -1740,6 +1742,51 @@ class SnowflakeConnector(DatabaseConnector):
                     f"Inserted initial Eliza row into {self.bot_servicing_table_name} with runner_id: {runner_id}"
                 )
 
+                runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
+                bot_id = "Janice-"
+                bot_id += "".join(
+                    random.choices(string.ascii_letters + string.digits, k=6)
+                )
+                bot_name = "Janice"
+                bot_instructions = JANICE_JANITOR_INSTRUCTIONS
+                available_tools = '["slack_tools", "database_tools", "snowflake_stage_tools", "image_tools", "autonomous_tools"]'
+                udf_active = "Y"
+                slack_active = "N"
+                bot_intro_prompt = JANICE_INTRO_PROMPT
+
+                insert_initial_row_query = f"""
+                INSERT INTO {self.bot_servicing_table_name} (
+                    RUNNER_ID, BOT_ID, BOT_NAME, BOT_INSTRUCTIONS, AVAILABLE_TOOLS, UDF_ACTIVE, SLACK_ACTIVE, BOT_INTRO_PROMPT
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
+                """
+                cursor.execute(
+                    insert_initial_row_query,
+                    (
+                        runner_id,
+                        bot_id,
+                        bot_name,
+                        bot_instructions,
+                        available_tools,
+                        udf_active,
+                        slack_active,
+                        bot_intro_prompt,
+                    ),
+                )
+                self.client.commit()
+                print(
+                    f"Inserted initial Janice row into {self.bot_servicing_table_name} with runner_id: {runner_id}"
+                )
+                #TODO add files to stage from local dir for Janice
+                database, schema = self.genbot_internal_project_and_schema.split('.')
+                result = self.add_file_to_stage(
+                    database=database,
+                    schema=schema,
+                    stage="BOT_FILES_STAGE",
+                    file_name="./defaul_files/janice/*",
+                )
+                print(result)
+
             #          runner_id = os.getenv('RUNNER_ID', 'jl-local-runner')
             #          bot_id = 'Stuart-'
             #          bot_id += ''.join(random.choices(string.ascii_letters + string.digits, k=6))
@@ -1814,7 +1861,9 @@ class SnowflakeConnector(DatabaseConnector):
                                 UNION
                                 SELECT 'ELIZA' BOT_NAME, $${ELIZA_INTRO_PROMPT}$$ BOT_INTRO_PROMPT
                                 UNION
-                                SELECT 'STUART' BOT_NAME, $${STUART_INTRO_PROMPT}$$ BOT_INTRO_PROMPT
+                                SELECT 'JANICE' BOT_NAME, $${JANICE_INTRO_PROMPT}$$ BOT_INTRO_PROMPT
+                                UNION
+                                SELECT 'STUART' BOT_NAME, $${STUART_INTRO_PROMPT}$$ BOT_INTRO_PROMPT                                
                             ) ) a 
                         WHERE upper(a.BOT_NAME) = upper(b.BOT_NAME)"""
                         cursor.execute(insert_initial_intros_query)

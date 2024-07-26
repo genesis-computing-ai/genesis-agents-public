@@ -1291,6 +1291,7 @@ def bot_config():
                             label="Instructions",
                             value=bot["bot_instructions"],
                             height=100,
+                            key=bot["bot_id"],
                         )
 
             except ValueError as e:
@@ -1605,7 +1606,7 @@ def start_stop():
         st.session_state.wh_name = "<your warehouse name>"
 
     st.write(
-        "You can use the below commands in a worksheet to stop, start, and monitor the Gensis Server:"
+        "You can use the buttons to stop or start each service - or copy/paste the below commands to a worksheet to stop, start, and monitor the Genesis Server:"
     )
     start_stop_text = f"""USE DATABASE IDENTIFIER('{app_name}');
 
@@ -1620,7 +1621,7 @@ def start_stop():
     call {app_name}.core.start_app_instance('APP1','GENESIS_POOL','GENESIS_EAI','{st.session_state.wh_name}'); 
 
         """
-    st.text_area("", start_stop_text, height=620)
+    st.text_area("", start_stop_text, height=400)
 
 
 def check_status():

@@ -278,7 +278,9 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       my_assistants = self.client.beta.assistants.list(
          order="desc", limit=100
       )
+      print('finding assistant...')
       my_assistants = [a for a in my_assistants if a.name == name]
+      print('assistant found')
 
       if len(my_assistants) == 0 and update_existing:
          vector_store_name = self.bot_id + '_vectorstore'
@@ -1049,7 +1051,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                                                                            output=f"_still running..._ {run.id} has been waiting on OpenAI for {int(run_duration // 60)} minute(s)...", 
                                                                            messages=None, 
                                                                            input_metadata=run.metadata))
-               except:
+               except Exception as e:
                   pass
 
             if run.status == "queued":

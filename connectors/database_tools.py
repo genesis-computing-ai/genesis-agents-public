@@ -358,7 +358,7 @@ process_manager_functions = [
                     },
                     "process_id": {
                         "type": "string",
-                        "description": "The unique identifier of the process, create as bot_id_<random 6 character string>. MAKE SURE TO DOUBLE-CHECK THAT YOU ARE USING THE CORRECT process_id ON UPDATES AND DELETES!",
+                        "description": "The unique identifier of the process, create as bot_id_<random 6 character string>. MAKE SURE TO DOUBLE-CHECK THAT YOU ARE USING THE CORRECT process_id ON UPDATES AND DELETES!  Required for CREATE, UPDATE, and DELETE.",
                     },
                     "process_details": {
                         "type": "object",
@@ -368,10 +368,10 @@ process_manager_functions = [
                                 "type": "string",
                                 "description": "The name of the process.",
                             },
-                            "process_details": {
-                                "type": "string",
-                                "description": "Details of the process",
-                            },
+                       #     "process_details": {
+                       #         "type": "string",
+                       #         "description": "Details of the process",
+                       #     },
                             "process_instructions": {
                                 "type": "string",
                                 "description": "Detailed instructions for completing the process.",
@@ -383,13 +383,13 @@ process_manager_functions = [
                         },
                         "required": [
                             "process_name",
-                            "process_details",
+                    #        "process_details",
                             "process_instructions",
                          #   "process_reporting_instructions",
                         ],
                     },
                 },
-                "required": ["action"],
+                "required": ["action", "bot_id"],
             },
         },
     }

@@ -820,13 +820,12 @@ class SnowflakeConnector(DatabaseConnector):
         """
         required_fields_create = [
             "process_name",
-            "process_details",
-            "process_instructions",
+      #      "process_details"_            "process_instructions",
        #     "process_reporting_instructions",
         ]
 
         required_fields_update = [
-            "process_details",
+ #           "process_details",
             "process_instructions",
      #       "process_reporting_instructions",
         ]
@@ -877,8 +876,13 @@ class SnowflakeConnector(DatabaseConnector):
             print("Running show process info")
             return self.get_process_info(bot_id)
 
+        process_id_created = False
         if process_id is None:
-            return {"Success": False, "Error": f"Missing process_id field"}
+            if action == "CREATE":
+                process_id = f"{bot_id}_{''.join(random.choices(string.ascii_letters + string.digits, k=6))}"
+                process_id_created = True
+            else:
+                return {"Success": False, "Error": f"Missing process_id field"}
 
         if action in ["CREATE", "UPDATE"] and not process_details:
             return {
@@ -937,22 +941,31 @@ class SnowflakeConnector(DatabaseConnector):
                     "Error": "The 'next_check_ts' is in the past.",
                     "Info": f"Current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}",
                 }
+        if bot_id is None:
+            return {
+                "Success": False,
+                "Error": "The 'bot_id' field is required."
+            }
+    
 
         try:
             if action == "CREATE":
                 insert_query = f"""
                     INSERT INTO {self.schema}.PROCESSES (
-                        process_id, bot_id, process_name, process_details, process_instructions
+                        timestamp, process_id, bot_id, process_name, process_instructions
                     ) VALUES (
-                        %(process_id)s, %(bot_id)s, %(process_name)s, %(process_details)s, %(process_instructions)s
+                        current_timestamp(), %(process_id)s, %(bot_id)s, %(process_name)s, %(process_instructions)s
                     )
                 """
 
                 # Generate 6 random alphanumeric characters
-                random_suffix = "".join(
+                if process_id_created == False:
+                    random_suffix = "".join(
                     random.choices(string.ascii_letters + string.digits, k=6)
-                )
-                process_id_with_suffix = process_id + "_" + random_suffix
+                     )
+                    process_id_with_suffix = process_id + "_" + random_suffix
+                else:
+                    process_id_with_suffix = process_id
                 cursor.execute(
                     insert_query,
                     {
@@ -965,6 +978,8 @@ class SnowflakeConnector(DatabaseConnector):
                 return {
                     "Success": True,
                     "Message": f"process successfully created.",
+                    "process_id": process_id,
+                    "Suggestion": "Now that the process is created, offer to test it using run_process, and if there are any issues you can later on UPDATE the process using manage_processes to clarify anything needed."
                 }
 
             elif action == "DELETE":

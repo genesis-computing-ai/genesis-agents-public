@@ -2202,7 +2202,7 @@ class SnowflakeConnector(DatabaseConnector):
                     bot_id STRING,
                     process_name STRING NOT NULL,
                     process_details STRING,
-                    process_instructions STRING,
+                    process_instructions STRING
                 );
                 """
                 cursor.execute(processes_table_ddl)
@@ -2235,7 +2235,7 @@ class SnowflakeConnector(DatabaseConnector):
                     report_message STRING,
                     done_flag BOOLEAN,
                     needs_help_flag BOOLEAN,
-                    process_clarity_comments STRING,
+                    process_clarity_comments STRING
                 );
                 """
                 cursor.execute(process_history_table_ddl)

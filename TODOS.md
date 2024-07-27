@@ -19,7 +19,9 @@ allow it to update openai key via streamlit in general
 test switching to openai and relaunching bots on it 
 default all bots to no specified llm
 make task system relaunch when something in a bot chanes (like the llm, instructions, etc.)
-
+make system start without an openai key, the annoy lookup thing needs one now 
+make update_bot_instructions work ok with cortext bots
+make update_files etc not fail if run on cortex bots (check first)
 
 July:
 x JL-Have task server only reuse/reference existing assistant, not recreate/update it on startup

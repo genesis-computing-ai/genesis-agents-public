@@ -708,6 +708,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                   #self.client.beta.assistants.update(assistant.id,tools=bot_tools)
                   
                logger.info(f"Bot tools for {target_bot} updated.")
+
          if function_call_details[0][0] == 'update_bot_instructions' and (func_response.get('success',False)==True or func_response.get('Success',False)==True):
             new_instructions = func_response.get("new_instructions",None)
             if new_instructions:

@@ -2,6 +2,7 @@ import traceback, datetime
 from flask import Flask
 from core.bot_os import BotOsSession
 import threading
+import os
 from connectors.snowflake_connector import SnowflakeConnector
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.events import EVENT_JOB_ERROR, EVENT_JOB_EXECUTED
@@ -12,6 +13,9 @@ from apscheduler.executors.pool import ThreadPoolExecutor
 import time, sys
 import threading
 
+from demo.sessions_creator import create_sessions, make_session
+
+from bot_genesis.make_baby_bot import (  get_bot_details ) 
 
 import logging
 
@@ -39,11 +43,21 @@ class BotOsServer:
         scheduler: BackgroundScheduler,
         scheduler_seconds_interval=2,
         slack_active=False,
+        db_adapter=None,
+        bot_id_to_udf_adapter_map = None, 
+        api_app_id_to_session_map = None,
+        data_cubes_ingress_url = None,
+        bot_id_to_slack_adapter_map = None,
     ):
         logger.debug(f"BotOsServer:__init__ creating server {flask_app.name}")
         self.app = flask_app
         self.sessions = sessions
         self.scheduler = scheduler
+        self.db_adapter = db_adapter
+        self.bot_id_to_udf_adapter_map = bot_id_to_udf_adapter_map
+        self.api_app_id_to_session_map = api_app_id_to_session_map
+        self.data_cubes_ingress_url = data_cubes_ingress_url
+        self.bot_id_to_slack_adapter_map = bot_id_to_slack_adapter_map
 
         existing_job = self.scheduler.get_job("bots")
         if existing_job:
@@ -115,6 +129,44 @@ class BotOsServer:
         running_jobs = executor._instances["bots"]
         return running_jobs
 
+    def reset_session(self, bot_id, session):
+        bot_config = get_bot_details(bot_id=bot_id)
+        
+        existing_udf = None
+        existing_slack = None
+        if session is not None:
+            existing_slack = next(
+                (adapter for adapter in session.input_adapters if type(adapter).__name__ == "SlackBotAdapter"),
+                None
+            )
+            existing_udf = next(
+                (adapter for adapter in session.input_adapters if type(adapter).__name__ == "UDFBotOsInputAdapter"),
+                None
+            )
+        new_session, api_app_id, udf_local_adapter, slack_adapter_local = make_session(
+            bot_config=bot_config,
+            db_adapter=self.db_adapter,
+            bot_id_to_udf_adapter_map=self.bot_id_to_udf_adapter_map,
+            stream_mode=True,
+            data_cubes_ingress_url=self.data_cubes_ingress_url,
+            existing_slack=existing_slack,
+            existing_udf=existing_udf
+        )
+        # check new_session
+        if new_session is None:
+            print("new_session is none")
+            return "Error: Not Installed new session is none"
+        if slack_adapter_local is not None:
+            self.bot_id_to_slack_adapter_map[bot_config["bot_id"]] = (
+                slack_adapter_local
+            )
+        if udf_local_adapter is not None:
+            self.bot_id_to_udf_adapter_map[bot_config["bot_id"]] = udf_local_adapter
+        self.api_app_id_to_session_map[api_app_id] = new_session
+        #    print("about to add session ",new_session)
+        self.add_session(new_session, replace_existing=True)
+
+
     def _execute_session(self):
         BotOsServer.run_count += 1
         if BotOsServer.run_count >= 60:
@@ -164,7 +216,12 @@ class BotOsServer:
             try:
                 # import threading
                 # print(f"Thread ID: {threading.get_ident()} - starting execute cycle...")
-                s.execute()
+                if os.getenv(f'RESET_BOT_SESSION_{s.bot_id}', 'False') == 'True':
+                    print(f"Resetting bot session for bot_id: {s.bot_id}", flush=True)
+                    os.environ[f'RESET_BOT_SESSION_{s.bot_id}'] = 'False'
+                    self.reset_session(s.bot_id,s)
+                else:
+                    s.execute()
                 # print(f"Thread ID: {threading.get_ident()} - ending execute cycle...")
             except Exception as e:
                 traceback.print_exc()

@@ -1281,7 +1281,7 @@ def _remove_bot(bot_id, thread_id=None, confirmed=None):
     else:
         return(f"Successfully deleted bot with bot_id: {bot_id}.")
 
-def update_bot_implementation(bot_id, bot_implementation):
+def update_bot_implementation(bot_id, bot_implementation, thread_id=None):
     """
     Updates the bot_implementation field in the BOT_SERVICING table for a given bot_id.
 
@@ -1539,14 +1539,14 @@ MAKE_BABY_BOT_DESCRIPTIONS.append({
 MAKE_BABY_BOT_DESCRIPTIONS.append({
     "type": "function",
     "function": {
-        "name": "update_bot_implementation",
-        "description": "Updates the implementation type for a specific bot, allowing for changes in how the bot operates or interacts with its environment.",
+        "name": "_update_bot_implementation",
+        "description": "Updates the implementation type for a specific bot, to change the LLM that a bot uses.",
         "parameters": {
             "type": "object",
             "properties": {
                 "bot_id": {
                     "type": "string",
-                    "description": "The unique identifier for the bot."
+                    "description": "The unique identifier for the bot. Use list_all_bots to get this identifier, it is not just the bots name."
                 },
                 "bot_implementation": {
                     "type": "string",
@@ -1600,7 +1600,7 @@ make_baby_bot_tools["add_new_tools_to_bot"] = "bot_genesis.make_baby_bot.add_new
 make_baby_bot_tools["add_bot_files"] = "bot_genesis.make_baby_bot.add_bot_files"
 make_baby_bot_tools["remove_bot_files"] = "bot_genesis.make_baby_bot.remove_bot_files"
 make_baby_bot_tools["update_app_level_key"] = "bot_genesis.make_baby_bot.update_slack_app_level_key"
-make_baby_bot_tools["update_bot_implementation"] = "bot_genesis.make_baby_bot.update_bot_implementation"
+make_baby_bot_tools["_update_bot_implementation"] = "bot_genesis.make_baby_bot.update_bot_implementation"
 make_baby_bot_tools["_modify_slack_allow_list"] = "bot_genesis.make_baby_bot.modify_slack_allow_list"
 make_baby_bot_tools["remove_tools_from_bot"] = "bot_genesis.make_baby_bot.remove_tools_from_bot"
 

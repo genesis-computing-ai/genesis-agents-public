@@ -58,6 +58,8 @@ def make_session(
     stream_mode=False,
     skip_vectors=False,
     data_cubes_ingress_url=None,
+    existing_slack=None,
+    existing_udf=None
 ):
 
     if not stream_mode:
@@ -83,7 +85,10 @@ def make_session(
     input_adapters = []
 
     slack_adapter_local = None
-    if slack_enabled:
+    if existing_slack:
+        slack_adapter_local = existing_slack
+        input_adapters.append(slack_adapter_local)
+    if slack_enabled and existing_slack is None:
         try:
             app_level_token = bot_config.get("slack_app_level_key", None)
 
@@ -209,8 +214,12 @@ def make_session(
     # TESTING UDF ADAPTER W/EVE and ELSA
     # add a map here to track botid to adapter mapping
 
-    udf_adapter_local = None
-    if udf_enabled:
+    if existing_udf:
+        udf_adapter_local = existing_udf
+        input_adapters.append(udf_adapter_local)
+    else:
+        udf_adapter_local = None
+    if udf_enabled and not existing_udf:
         if bot_id in bot_id_to_udf_adapter_map:
             udf_adapter_local = bot_id_to_udf_adapter_map[bot_id]
         else:
@@ -268,6 +277,7 @@ def make_session(
         # assistant_implementation = BotOsAssistantOpenAI
 
         if assistant_implementation == BotOsAssistantSnowflakeCortex and stream_mode:
+            incoming_instructions = instructions
             instructions = """
 
 Environment: ipython
@@ -305,7 +315,7 @@ Reminder:
 - Always add your sources when using search results to answer the user query
 
 # Persona Instructions
- """+bot_config["bot_instructions"] + "\n\n# Base Bot Instructions\n" + BASE_BOT_INSTRUCTIONS_ADDENDUM
+ """+incoming_instructions + "\n\n"
  
     try:
         # logger.warning(f"GenBot {bot_id} instructions:::  {instructions}")

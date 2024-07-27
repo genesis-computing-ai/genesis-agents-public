@@ -287,7 +287,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             print(f"BotOsAssistantSnowflakeCortex:check_runs - running now, thread {thread_id} ts {timestamp} ")
 
             thread = self.thread_history.get(thread_id, [])
-            user_message = next((msg for msg in thread if msg.get("message_type") == "user" and msg.get("timestamp") == timestamp.isoformat()), None)
+            user_message = next((msg for msg in thread if (msg.get("message_type") == "user" or msg.get("message_type") == "ipython") and msg.get("timestamp") == timestamp.isoformat()), None)
             assistant_message = next((msg for msg in thread if msg.get("message_type") == "assistant" and msg.get("timestamp") == timestamp.isoformat()), None)
             if assistant_message:
                 message_payload = assistant_message.get("content")
@@ -326,7 +326,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                     elif '<|python_tag|>{"type": "function"' in decoded_payload:
                         self.process_tool_call(thread_id, timestamp, decoded_payload, message_metadata)
                     else:
-                        if message_metadata == '':
+                        if message_metadata == '' or message_metadata == None:
                             message_metadata = '{}'                  
                         event_callback(self.bot_id, BotOsOutputMessage(thread_id=thread_id, 
                                                                     status="completed", 
@@ -353,6 +353,8 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             if start_index != -1:
                 start_index += len(start_tag)
             end_index = message_payload.find(end_tag)
+            if end_index == -1:
+                end_index = len(message_payload)
             tool_type = 'json'
         else:
             tool_type = 'markup'
@@ -411,8 +413,11 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         if isinstance(results, (dict, list)):
             results = json.dumps(results, default=custom_serializer)
 
+
+
+
         message_object = {
-            "message_type": "user",
+            "message_type": "ipython",
             "content": results,
             "timestamp": new_ts.isoformat(),
             "metadata": message_metadata

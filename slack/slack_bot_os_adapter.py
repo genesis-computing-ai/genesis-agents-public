@@ -262,6 +262,7 @@ class SlackBotAdapter(BotOsInputAdapter):
         # logger.info(f"SlackBotAdapter:get_input")
         files = []
 
+     #    print(self.bot_name)
         with self.events_lock:
             if len(self.events) == 0:
                 return None

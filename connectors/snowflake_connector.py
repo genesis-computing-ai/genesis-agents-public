@@ -3608,7 +3608,7 @@ class SnowflakeConnector(DatabaseConnector):
         bot_id,
         bot_implementation,
         runner_id,
-    ):
+        thread_id = None):
         """
         Updates the implementation type for a specific bot in the database.
 
@@ -3631,12 +3631,40 @@ class SnowflakeConnector(DatabaseConnector):
             WHERE upper(bot_id) = upper(%s) AND runner_id = %s
         """
 
+        # Check if bot_id is valid
+        valid_bot_query = f"""
+            SELECT COUNT(*)
+            FROM {project_id}.{dataset_name}.{bot_servicing_table}
+            WHERE upper(bot_id) = upper(%s)
+        """
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute(valid_bot_query, (bot_id,))
+            result = cursor.fetchone()
+            if result[0] == 0:
+                return {
+                    "success": False,
+                    "error": f"Invalid bot_id: {bot_id}. Please use list_all_bots to get the correct bot_id."
+                }
+        except Exception as e:
+            logger.error(f"Error checking bot_id validity for bot_id: {bot_id} with error: {e}")
+            return {"success": False, "error": str(e)}
+
         # Execute the update query
         try:
             cursor = self.connection.cursor()
-            cursor.execute(update_query, (bot_implementation, bot_id, runner_id))
+            res = cursor.execute(update_query, (bot_implementation, bot_id, runner_id))
             self.connection.commit()
+            result = cursor.fetchone()
+            if result[0] == 0 and result[1] == 0:
+                return {
+                    "success": False,
+                    "error": f"No bots found to update.  Possibly wrong bot_id. Please use list_all_bots to get the correct bot_id."
+                }
             logger.info(f"Successfully updated bot_implementation for bot_id: {bot_id}")
+
+            os.environ[f'RESET_BOT_SESSION_{bot_id}'] = 'True'
+
 
             return {
                 "success": True,

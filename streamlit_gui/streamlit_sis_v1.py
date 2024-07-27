@@ -1110,6 +1110,8 @@ def bot_config():
                         bot_implementation = bot.get("bot_implementation", None)
                         if bot_implementation is not None:
                             st.caption(f"LLM Engine: {bot_implementation}")
+                        else:
+                            st.caption(f"LLM Engine: best available (default)")
                         # Display the files associated with the bot
                         bot_files = bot.get("files", None)
                         if bot_files == "null" or bot_files == "" or bot_files == "[]":

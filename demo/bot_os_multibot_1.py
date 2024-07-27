@@ -767,6 +767,11 @@ def configure_llm():
                 scheduler=scheduler,
                 scheduler_seconds_interval=2,
                 slack_active=global_flags.slack_active,
+                db_adapter=db_adapter,
+                bot_id_to_udf_adapter_map = bot_id_to_udf_adapter_map,
+                api_app_id_to_session_map = api_app_id_to_session_map,
+                data_cubes_ingress_url = data_cubes_ingress_url,
+                bot_id_to_slack_adapter_map = SystemVariables.bot_id_to_slack_adapter_map,
             )
             BotOsServer.stream_mode = True
             set_remove_pointers(server, api_app_id_to_session_map)
@@ -812,7 +817,13 @@ server = None
 if llm_api_key is not None:
     BotOsServer.stream_mode = True
     server = BotOsServer(
-        app, sessions=sessions, scheduler=scheduler, scheduler_seconds_interval=1
+        app, sessions=sessions, scheduler=scheduler, scheduler_seconds_interval=1,    
+        slack_active=global_flags.slack_active,
+         db_adapter=db_adapter,
+                bot_id_to_udf_adapter_map = bot_id_to_udf_adapter_map,
+                api_app_id_to_session_map = api_app_id_to_session_map,
+                data_cubes_ingress_url = data_cubes_ingress_url,
+                bot_id_to_slack_adapter_map = SystemVariables.bot_id_to_slack_adapter_map,
     )
     set_remove_pointers(server, api_app_id_to_session_map)
 

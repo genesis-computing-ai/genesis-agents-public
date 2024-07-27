@@ -328,6 +328,7 @@ class BotOsSession:
         ):
             BotOsSession.clear_access_cache = True
             self.assistant_impl.clear_access_cache = False
+      #  print('ex ',self.bot_name)
 
         if self.next_messages:
             for message in self.next_messages:
@@ -336,9 +337,9 @@ class BotOsSession:
             self.next_messages.clear()
 
         self.assistant_impl.check_runs(self._validate_response)
-
+      #  print('ex2 ',self.bot_name)
         for a in self.input_adapters:
-
+        #    print('ex3 ',self.bot_name)
             input_message = a.get_input(
                 thread_map=self.in_to_out_thread_map,
                 active=self.assistant_impl.is_active(),

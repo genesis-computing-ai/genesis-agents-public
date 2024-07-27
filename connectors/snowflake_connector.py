@@ -2997,7 +2997,8 @@ class SnowflakeConnector(DatabaseConnector):
 
         #    print('getting results:')
         try:
-            results = cursor.fetchmany(max_rows)
+
+            results = cursor.fetchmany(min(1,max_rows))
             columns = [col[0] for col in cursor.description]
             sample_data = [dict(zip(columns, row)) for row in results]
 

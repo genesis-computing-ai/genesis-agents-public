@@ -27,10 +27,14 @@ logging.basicConfig(level=logging.WARN, format='%(asctime)s - %(levelname)s - %(
 
 def _get_function_details(run):
       function_details = []
-      for tool_call in run.required_action.submit_tool_outputs.tool_calls:
-         function_details.append(
-            (tool_call.function.name, tool_call.function.arguments, tool_call.id)
-         )
+      if run.required_action and run.required_action.submit_tool_outputs:
+         for tool_call in run.required_action.submit_tool_outputs.tool_calls:
+            function_details.append(
+               (tool_call.function.name, tool_call.function.arguments, tool_call.id)
+            )
+      else:
+         logger.error("run.required_action.submit_tool_outputs is None")
+         raise AttributeError("'NoneType' object has no attribute 'submit_tool_outputs'")
       return function_details
 
 
@@ -1052,6 +1056,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                                                                            messages=None, 
                                                                            input_metadata=run.metadata))
                except Exception as e:
+                  print("requires action exception: ",e)
                   pass
 
             if run.status == "queued":
@@ -1099,7 +1104,12 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                # Todo add more handling here to tell the user the thread failed
 
             if run.status == "requires_action":
-               function_details = _get_function_details(run)
+               try:
+                  function_details = _get_function_details(run)
+               except Exception as e:
+                  print('!! no function details')
+                  continue 
+
                parallel_tool_call_ids = [f[2] for f in function_details]
            #    if self.tool_completion_status.get(run.id,None) is not None:
            #       function_details = [f for f in function_details if f[2] not in self.tool_completion_status[run.id]]

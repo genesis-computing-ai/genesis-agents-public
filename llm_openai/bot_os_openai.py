@@ -291,7 +291,8 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
             tools=my_tools, # type: ignore
             model=model_name,
             # file_ids=self._upload_files(files) #FixMe: what if the file contents change?
-            tool_resources=self.tool_resources
+            tool_resources=self.tool_resources,
+            temperature=0.0
             )
          else:
             my_tools = [tool for tool in my_tools if tool.get('type') != 'file_search']
@@ -300,6 +301,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                instructions=instructions,
                tools=my_tools, # type: ignore
                model=model_name,
+               temperature=0.0
             # file_ids=self._upload_files(files) #FixMe: what if the file contents change?
             )            
 

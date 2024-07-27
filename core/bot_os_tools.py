@@ -176,8 +176,10 @@ class ToolBelt:
             )
             first_step = response.choices[0].message.content
 
+            # <@{process['BOT_SLACK_USER_ID']}>
+
             self.instructions = f"""
-                Hey **@{process['BOT_ID']}** <@{process['BOT_SLACK_USER_ID']}>, here is step {self.counter} of the process.
+                Hey **@{process['BOT_ID']}** , here is step {self.counter} of the process.
                 {first_step}
                     Execute these instructions now and then pass your response to the run_process tool as a parameter
                     called previous_response and an action of GET_NEXT_STEP.  
@@ -260,7 +262,7 @@ class ToolBelt:
             print(f"\n{next_step}\n")
 
             self.instructions = f"""
-                Hey **@{process['BOT_ID']}** <@{process['BOT_SLACK_USER_ID']}>, here is step {self.counter} of the process.
+                Hey **@{process['BOT_ID']}**, here is step {self.counter} of the process.
                 {next_step}
                     Execute these instructions now and then pass your response to the run_process tool as a parameter
                     called previous_response and an action of GET_NEXT_STEP.  

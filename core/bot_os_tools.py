@@ -259,8 +259,9 @@ class ToolBelt:
                 print(f"\nStep {self.counter} failed.  Trying again...\n")
                 return {
                     "Success": False,
-                    "Message": result,
+                    "Feedback from Supervisor": result,
                     "Recovery Step": f"Review the message above and submit a clarification, and/or try this Step {self.counter} again:\n{self.instructions}",
+                    "Additional request": "Please also explain this feedback to the user so they know whats going on."
                 }
 
             self.counter += 1

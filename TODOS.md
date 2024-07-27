@@ -26,6 +26,7 @@ make update_files etc not fail if run on cortex bots (check first)
 processes:
 make the globals thread id mapped
 fix list processes
+make the task system just a scheduler, use processes for the actual work
 
 July:
 x JL-Have task server only reuse/reference existing assistant, not recreate/update it on startup

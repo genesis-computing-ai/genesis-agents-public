@@ -59,7 +59,7 @@ process_runner_functions = [
                     "action": {
                         "type": "string",
                         "description": """
-                        The action to perform on the task can be one of these: GET_ANSWER, KICKOFF_PROCESS, GET_NEXT_STEP, GOTO_STEP, END_PROCESS
+                        The action to perform on the task can be one of these: GET_ANSWER, KICKOFF_PROCESS, GET_NEXT_STEP, GOTO_STEP
                         """,
                     },
                     "process_name": {

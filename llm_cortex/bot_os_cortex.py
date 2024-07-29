@@ -76,8 +76,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             return self.cortex_rest_api(thread_id, message_metadata=message_metadata, event_callback=event_callback)
 
         newarray = [{"role": message["message_type"], "content": message["content"]} for message in self.thread_history[thread_id]]
-        new_array_str = json.dumps(newarray)
-
+        new_array_str = json.dumps(newarray) 
 
         print(self.bot_name, f"bot_os_cortex calling cortex {self.llm_engine} via SQL, content est tok len=",len(new_array_str)/4)
 
@@ -111,93 +110,126 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
 
         newarray = [{"role": message["message_type"], "content": message["content"]} for message in self.thread_history[thread_id]]
         
-        if fireworks:
- 
-            if self.llm_engine == 'llama3.1-405b':
-                fireworks_model = 'accounts/fireworks/models/llama-v3p1-405b-instruct'
-            else:
-                fireworks_model = 'accounts/fireworks/models/llama-v3p1-70b-instruct'
-            fireworks_api_key = os.getenv('FIREWORKSAI_API_KEY',None)
-            if fireworks_api_key == None:
-                print('No Fireworks API key set in FIREWORKSAI_API_KEY ENV VAR')
-                raise('No Fireworks API key set in FIREWORKSAI_API_KEY ENV VAR')
-            url = "https://api.fireworks.ai/inference/v1/chat/completions"
-            payload = {
-            "model": fireworks_model,
-            "max_tokens": 16384,
-            "top_p": 1,
-            "top_k": 40,
-            "presence_penalty": 0,
-            "frequency_penalty": 0,
-            "temperature": 0.6,
-            "messages": newarray
-            }
-            headers = {
-            "Accept": "application/json",
-            "Content-Type": "application/json",
-            "Authorization": "Bearer "+fireworks_api_key+""
-            }
-            print(self.bot_name, f" bot_os_cortex calling {fireworks_model.split('/')[-1]} via FIREWORKS API, content est tok len=",len(str(newarray))/4)
+        resp = ''
+        curr_resp = ''
 
-            resp = requests.request("POST", url, headers=headers, data=json.dumps(payload))
-            curr_resp = resp 
-        else:
-
-            SNOWFLAKE_HOST = self.client.client.host
-            REST_TOKEN = self.client.client.rest.token
-            url=f"https://{SNOWFLAKE_HOST}/api/v2/cortex/inference/complete"
-            headers = {
-                "Accept": "text/event-stream",
-                "Content-Type": "application/json",
-                "Authorization": f'Snowflake Token="{REST_TOKEN}"',
-            }
-        
-            request_data = {
-                "model": self.llm_engine,
-    #            "messages": [{"content": "Hi there"}],
-                "messages": newarray,
-                "stream": True,
-            }
-
-
-            print(self.bot_name, f" bot_os_cortex calling cortex {self.llm_engine} via REST API, content est tok len=",len(str(newarray))/4)
-
-
-        #    response = requests.post(url, json=request_data, stream=False, headers=headers)
-
-            response = requests.post(url, json=request_data, stream=True, headers=headers)
-            client = sseclient.SSEClient(response)
-            resp = self.thread_full_response.get(thread_id,None)
-            curr_resp = ''
-            if resp is None:
-                resp = ''
-            last_update = None
-            for event in client.events():
-                d = json.loads(event.data)
-                r = ''
-                try:
-                    r = d['choices'][0]['delta']['content']
-                except:
-                    pass
-                print(r, end="")
-                
-                resp += r
-                curr_resp += r
-                if r != '' and BotOsAssistantSnowflakeCortex.stream_mode == True and (last_update is None and len(resp) >= 15) or (last_update and (time.time() - last_update > 2)):
-                    last_update = time.time()
-                    if self.event_callback:
-                        self.event_callback(self.bot_id, BotOsOutputMessage(thread_id=thread_id, 
-                                                                            status='in_progress', 
-                                                                            output=resp+" 💬", 
-                                                                            messages=None, 
-                                                                            input_metadata=json.loads(message_metadata)))
-            if r != '' and BotOsAssistantSnowflakeCortex.stream_mode == True:
+        last_user_message = next((message for message in reversed(newarray) if message["role"] == "user"), None)
+        if last_user_message is not None:
+            if '> says: !model'in last_user_message["content"]:
+                resp= f"The model is set to: {self.llm_engine}.  You can say !model llama3.1-405b, !model llama3.1-70b, or !model llama3.1-8b to change model size."
+                curr_resp = resp
+            if '> says: !model llama3.1-405b' in last_user_message["content"]:
+                self.llm_engine = 'llama3.1-405b'
+                resp= f"The model is changed to: {self.llm_engine}"
+                curr_resp = resp
+            if '> says: !model llama3.1-70b' in last_user_message["content"]:
+                self.llm_engine = 'llama3.1-70b'
+                resp= f"The model is changed to: {self.llm_engine}"
+                curr_resp = resp
+            if '> says: !model llama3.1-8b' in last_user_message["content"]:
+                self.llm_engine = 'llama3.1-8b'
+                resp= f"The model is changed to: {self.llm_engine}"
+                curr_resp = resp
+        if resp != '':
+            self.thread_history[thread_id] = [message for message in self.thread_history[thread_id] if not (message.get("role","") == "user" and message == last_user_message)]
+            if BotOsAssistantSnowflakeCortex.stream_mode == True:
                 if self.event_callback:
                     self.event_callback(self.bot_id, BotOsOutputMessage(thread_id=thread_id, 
                                                                         status='in_progress', 
                                                                         output=resp, 
                                                                         messages=None, 
                                                                         input_metadata=json.loads(message_metadata)))
+            return None 
+                
+        if resp == '':
+            if fireworks:
+    
+                if self.llm_engine == 'llama3.1-405b':
+                    fireworks_model = 'accounts/fireworks/models/llama-v3p1-405b-instruct'
+                else:
+                    fireworks_model = 'accounts/fireworks/models/llama-v3p1-70b-instruct'
+                fireworks_api_key = os.getenv('FIREWORKSAI_API_KEY',None)
+                if fireworks_api_key == None:
+                    print('No Fireworks API key set in FIREWORKSAI_API_KEY ENV VAR')
+                    raise('No Fireworks API key set in FIREWORKSAI_API_KEY ENV VAR')
+                url = "https://api.fireworks.ai/inference/v1/chat/completions"
+                payload = {
+                "model": fireworks_model,
+                "max_tokens": 16384,
+                "top_p": 1,
+                "top_k": 40,
+                "presence_penalty": 0,
+                "frequency_penalty": 0,
+                "temperature": 0.6,
+                "messages": newarray
+                }
+                headers = {
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+                "Authorization": "Bearer "+fireworks_api_key+""
+                }
+                print(self.bot_name, f" bot_os_cortex calling {fireworks_model.split('/')[-1]} via FIREWORKS API, content est tok len=",len(str(newarray))/4)
+
+                resp = requests.request("POST", url, headers=headers, data=json.dumps(payload))
+                curr_resp = resp 
+            else:
+
+                SNOWFLAKE_HOST = self.client.client.host
+                REST_TOKEN = self.client.client.rest.token
+                url=f"https://{SNOWFLAKE_HOST}/api/v2/cortex/inference/complete"
+                headers = {
+                    "Accept": "text/event-stream",
+                    "Content-Type": "application/json",
+                    "Authorization": f'Snowflake Token="{REST_TOKEN}"',
+                }
+            
+                request_data = {
+                    "model": self.llm_engine,
+        #            "messages": [{"content": "Hi there"}],
+                    "messages": newarray,
+                    "stream": True,
+                }
+
+
+                print(self.bot_name, f" bot_os_cortex calling cortex {self.llm_engine} via REST API, content est tok len=",len(str(newarray))/4)
+
+
+            #    response = requests.post(url, json=request_data, stream=False, headers=headers)
+
+                response = requests.post(url, json=request_data, stream=True, headers=headers)
+                client = sseclient.SSEClient(response)
+                resp = self.thread_full_response.get(thread_id,None)
+                curr_resp = ''
+                if resp is None:
+                    resp = ''
+                last_update = None
+                for event in client.events():
+                    d = json.loads(event.data)
+                    r = ''
+                    try:
+                        r = d['choices'][0]['delta']['content']
+                    except:
+                        pass
+                    print(r, end="")
+                    
+                    resp += r
+                    curr_resp += r
+                    if r != '' and BotOsAssistantSnowflakeCortex.stream_mode == True and (last_update is None and len(resp) >= 15) or (last_update and (time.time() - last_update > 2)):
+                        last_update = time.time()
+                        if self.event_callback:
+                            self.event_callback(self.bot_id, BotOsOutputMessage(thread_id=thread_id, 
+                                                                                status='in_progress', 
+                                                                                output=resp+" 💬", 
+                                                                                messages=None, 
+                                                                                input_metadata=json.loads(message_metadata)))
+                        
+        if resp != '' and BotOsAssistantSnowflakeCortex.stream_mode == True:
+            if self.event_callback:
+                self.event_callback(self.bot_id, BotOsOutputMessage(thread_id=thread_id, 
+                                                                    status='in_progress', 
+                                                                    output=resp, 
+                                                                    messages=None, 
+                                                                    input_metadata=json.loads(message_metadata)))
         try:
             if fireworks:
                 s = 'Fireworks'
@@ -377,7 +409,8 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                         if message_metadata == '' or message_metadata == None:
                             message_metadata = '{}'   
                         output = self.thread_full_response[thread_id]
-                        self.thread_full_response[thread_id] = ""      
+                        self.thread_full_response[thread_id] = "" 
+                             
                       #  event_callback(self.bot_id, BotOsOutputMessage(thread_id=thread_id, 
                       #                                              status="completed", 
                       #                                              output=output, 
@@ -539,9 +572,13 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         Executes the SQL query to update threads based on the provided SQL, incorporating self.cortex... tables.
         """
 
+
+
   #      resp = self.cortex_rest_api(thread_id)
         resp = self.cortex_complete(thread_id=thread_id, message_metadata=message_metadata, event_callback=event_callback)
-
+        if resp is None:
+            return 
+        
         try:
             if isinstance(resp, (list, tuple, bytes)):
                 resp = json.loads(resp)['choices'][0]['message']['content']

@@ -27,7 +27,7 @@ database_tool_functions = [
                     },
                     "top_n": {
                         "type": "integer",
-                        "description": "How many of the top results to return, max 50, default 15",
+                        "description": "How many of the top results to return, max 50, default 15.  Use 15 to start.",
                         "default": 15,
                     },
                     #                   "database": {"type": "string", "description": "Use when you want to constrain the search to a specific database, only use this when you already know for sure the name of the database."},

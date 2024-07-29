@@ -253,8 +253,6 @@ class SnowflakeConnector(DatabaseConnector):
         newarray = [{"role": "user", "content": "hi there"} ]
         new_array_str = json.dumps(newarray)
 
-        print(f"snowflake_connector test calling cortex {self.llm_engine} via SQL, content est tok len=",len(new_array_str)/4)
-
         try:
         
             resp = ''

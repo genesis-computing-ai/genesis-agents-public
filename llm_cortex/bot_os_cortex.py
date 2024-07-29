@@ -231,9 +231,9 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             
                 request_data = {
                     "model": self.llm_engine,
-        #            "messages": [{"content": "Hi there"}],
                     "messages": newarray,
                     "stream": True,
+                    "max_tokens": 3000,
                 }
 
 
@@ -245,34 +245,60 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                 start_time = time.time()
                 response = requests.post(url, json=request_data, stream=True, headers=headers)
 
-                response = requests.post(url, json=request_data, stream=True, headers=headers)
-                client = sseclient.SSEClient(response)
-                resp = self.thread_full_response.get(thread_id,None)
-                curr_resp = ''
-                if resp is None:
-                    resp = ''
-                last_update = None
-                for event in client.events():
-                    d = json.loads(event.data)
-                    r = ''
+                if response.status_code == 200:
+
+                    client = sseclient.SSEClient(response)
+                    resp = self.thread_full_response.get(thread_id,None)
+                    curr_resp = ''
+                    if resp is None:
+                        resp = ''
+                    last_update = None
+                    usage = None
+                    gen_start_time = None
+                    for event in client.events():
+                        d = json.loads(event.data)
+                        r = ''
+                        try:
+                            r = d['choices'][0]['delta']['content']
+                            if gen_start_time is None:
+                                gen_start_time = time.time()
+                            if d['usage']:
+                                usage = d['usage']
+                        except:
+                            pass
+                        print(r, end="")
+                        
+                        resp += r
+                        curr_resp += r
+                        if r != '' and BotOsAssistantSnowflakeCortex.stream_mode == True and (last_update is None and len(resp) >= 15) or (last_update and (time.time() - last_update > 2)):
+                            last_update = time.time()
+                            if self.event_callback:
+                                self.event_callback(self.bot_id, BotOsOutputMessage(thread_id=thread_id, 
+                                                                                    status='in_progress', 
+                                                                                    output=resp+" 💬", 
+                                                                                    messages=None, 
+                                                                                    input_metadata=json.loads(message_metadata)))
+                    if gen_start_time is not None:
+                        elapsed_time = time.time() - start_time
+                        gen_time = time.time() - gen_start_time
+                        print(f"\nRequest to Cortex REST API completed in {elapsed_time:.2f} seconds total, {gen_time:.2f} seconds generating, time to gen start: {gen_start_time - start_time:.2f} seconds")
+
+                else:
                     try:
-                        r = d['choices'][0]['delta']['content']
+                        resp = f"Error calling Cortex: Received status code {response.status_code} with message: {response.reason}"
+                        cur_resp = resp
                     except:
-                        pass
-                    print(r, end="")
-                    
-                    resp += r
-                    curr_resp += r
-                    if r != '' and BotOsAssistantSnowflakeCortex.stream_mode == True and (last_update is None and len(resp) >= 15) or (last_update and (time.time() - last_update > 2)):
-                        last_update = time.time()
-                        if self.event_callback:
-                            self.event_callback(self.bot_id, BotOsOutputMessage(thread_id=thread_id, 
-                                                                                status='in_progress', 
-                                                                                output=resp+" 💬", 
-                                                                                messages=None, 
-                                                                                input_metadata=json.loads(message_metadata)))
-                elapsed_time = time.time() - start_time
-                print(f"Request to Cortex REST API completed in {elapsed_time:.2f} seconds")
+                        resp = 'Error calling Cortex'
+                        cur_resp = resp 
+
+        try:
+            print(json.dumps(usage))
+            response_tokens = usage['completion_tokens']
+            tokens_per_second = response_tokens / elapsed_time
+            tokens_per_second_gen = response_tokens / gen_time
+            print(f"Tokens per second overall: {tokens_per_second:.2f}, Tokens per second generating: {tokens_per_second_gen:.2f}")
+        except:
+            pass
 
         if resp != '' and BotOsAssistantSnowflakeCortex.stream_mode == True:
             if self.event_callback:
@@ -422,7 +448,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             assistant_message = next((msg for msg in reversed(thread) if msg.get("message_type") == "assistant" and msg.get("timestamp") == timestamp.isoformat()), None)
             if assistant_message:
                 message_payload = assistant_message.get("content")
-                print(f"Assistant message found: {message_payload}")
+              #  print(f"Assistant message found: {message_payload}")
             else:
                 print("No assistant message found in the thread with the specified timestamp.")
                 message_payload = None
@@ -541,6 +567,16 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         def custom_serializer(obj):
             if isinstance(obj, Decimal):
                 return float(obj)
+            elif isinstance(obj, datetime.datetime):
+                return obj.isoformat()
+            elif isinstance(obj, datetime.date):
+                return obj.isoformat()
+            elif isinstance(obj, datetime.time):
+                return obj.isoformat()
+            elif isinstance(obj, set):
+                return list(obj)
+            elif isinstance(obj, bytes):
+                return obj.decode('utf-8')
             raise TypeError(f"Object of type {obj.__class__.__name__} is not JSON serializable")
 
         new_ts = datetime.datetime.now()
@@ -548,11 +584,13 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             results = json.dumps(results, default=custom_serializer)
 
 
-
+        prefix = ""
+        if os.getenv("CORTEX_VIA_COMPLETE", "false").lower() == "true":
+            prefix = 'Here are the results of the tool call: '
 
         message_object = {
             "message_type": "user",
-            "content": results,
+            "content": prefix+results,
             "timestamp": new_ts.isoformat(),
             "metadata": message_metadata
         }

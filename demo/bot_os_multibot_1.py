@@ -176,7 +176,9 @@ if genesis_source == "Snowflake":
     except Exception as e:
         print('Cortex LLM Not available via REST, exception on test: ',e)
 
-if genesis_source == "Snowflake" and os.environ["CORTEX_AVAILABLE"] == 'False':
+if os.getenv("CORTEX_VIA_COMPLETE",'False').lower() == '':
+    os.environ["CORTEX_VIA_COMPLETE"] = 'False'
+if genesis_source == "Snowflake" and (os.environ["CORTEX_AVAILABLE"] == 'False' or os.getenv("CORTEX_VIA_COMPLETE",'False').lower() == 'true'):
     try:
         cortex_test = db_adapter.test_cortex()
 

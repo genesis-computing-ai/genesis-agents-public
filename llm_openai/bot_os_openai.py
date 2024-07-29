@@ -1118,6 +1118,10 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                      self.tool_completion_status[run.id] = {key: None for key in parallel_tool_call_ids} 
                except:
                   self.tool_completion_status[run.id] = {key: None for key in parallel_tool_call_ids} # need to submit completed parallel calls together
+
+               if all(self.tool_completion_status[run.id][key] is not None for key in parallel_tool_call_ids):
+                  print('All tool call results are ready for this run')
+               
                thread = self.client.beta.threads.retrieve(thread_id)
                try:
                   for func_name, func_args, tool_call_id in function_details:

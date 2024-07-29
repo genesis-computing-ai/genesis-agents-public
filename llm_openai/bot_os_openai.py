@@ -1121,6 +1121,13 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
                if all(self.tool_completion_status[run.id][key] is not None for key in parallel_tool_call_ids):
                   print('All tool call results are ready for this run')
+                  print("############################################################")
+                  print("############################################################")
+                  print("##                                                        ##")
+                  print("##              Resubmission is possible !!               ##")
+                  print("##                                                        ##")
+                  print("############################################################")
+                  print("############################################################")
                
                thread = self.client.beta.threads.retrieve(thread_id)
                try:

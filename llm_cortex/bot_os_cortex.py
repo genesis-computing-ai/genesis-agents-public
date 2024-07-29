@@ -72,11 +72,42 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
    
     def cortex_complete(self,thread_id, message_metadata = None, event_callback = None ):
         
-        if os.getenv("CORTEX_VIA_REST", "true").lower() == "true":
+        if os.getenv("CORTEX_VIA_COMPLETE", "false").lower() == "false":
             return self.cortex_rest_api(thread_id, message_metadata=message_metadata, event_callback=event_callback)
 
         newarray = [{"role": message["message_type"], "content": message["content"]} for message in self.thread_history[thread_id]]
         new_array_str = json.dumps(newarray) 
+
+        resp = ''
+        curr_resp = ''
+
+        last_user_message = next((message for message in reversed(newarray) if message["role"] == "user"), None)
+        if last_user_message is not None:
+            if '> says: !model'in last_user_message["content"]:
+                resp= f"The model is set to: {self.llm_engine}. Current running Cortex via SQL COMPLETE. You can say !model llama3.1-405b, !model llama3.1-70b, or !model llama3.1-8b to change model size."
+                curr_resp = resp
+            if '> says: !model llama3.1-405b' in last_user_message["content"]:
+                self.llm_engine = 'llama3.1-405b'
+                resp= f"The model is changed to: {self.llm_engine}"
+                curr_resp = resp
+            if '> says: !model llama3.1-70b' in last_user_message["content"]:
+                self.llm_engine = 'llama3.1-70b'
+                resp= f"The model is changed to: {self.llm_engine}"
+                curr_resp = resp
+            if '> says: !model llama3.1-8b' in last_user_message["content"]:
+                self.llm_engine = 'llama3.1-8b'
+                resp= f"The model is changed to: {self.llm_engine}"
+                curr_resp = resp
+        if resp != '':
+            self.thread_history[thread_id] = [message for message in self.thread_history[thread_id] if not (message.get("role","") == "user" and message == last_user_message)]
+            if BotOsAssistantSnowflakeCortex.stream_mode == True:
+                if self.event_callback:
+                    self.event_callback(self.bot_id, BotOsOutputMessage(thread_id=thread_id, 
+                                                                        status='in_progress', 
+                                                                        output=resp, 
+                                                                        messages=None, 
+                                                                        input_metadata=json.loads(message_metadata)))
+            return None 
 
         print(self.bot_name, f"bot_os_cortex calling cortex {self.llm_engine} via SQL, content est tok len=",len(new_array_str)/4)
 
@@ -87,15 +118,30 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         try:
             cursor = self.client.connection.cursor()
             start_time = time.time()
+            start_exec_time = time.time()
             cursor.execute(cortex_query, (new_array_str,))
+            end_exec_time = time.time()
+            etime = end_exec_time - start_exec_time
             self.client.connection.commit()
             elapsed_time = time.time() - start_time
             result = cursor.fetchone()
             completion = result[0] if result else None
 
-            print(completion)
+            print(f"{completion} ({elapsed_time:.2f} seconds)")
+            resp = completion
+            curr_resp = completion
 
-            return(completion)
+            if resp != '' and BotOsAssistantSnowflakeCortex.stream_mode == True:
+                if self.event_callback:
+                    self.event_callback(self.bot_id, BotOsOutputMessage(thread_id=thread_id, 
+                                                                        status='in_progress', 
+                                                                        output=resp, 
+                                                                        messages=None, 
+                                                                        input_metadata=json.loads(message_metadata)))
+
+            self.thread_full_response[thread_id] = resp + '\n'
+            return(curr_resp)
+
         except Exception as e:
             print('query error: ',e)
             self.client.connection.rollback()
@@ -116,7 +162,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         last_user_message = next((message for message in reversed(newarray) if message["role"] == "user"), None)
         if last_user_message is not None:
             if '> says: !model'in last_user_message["content"]:
-                resp= f"The model is set to: {self.llm_engine}.  You can say !model llama3.1-405b, !model llama3.1-70b, or !model llama3.1-8b to change model size."
+                resp= f"The model is set to: {self.llm_engine}. Currently running via Cortext via REST. You can say !model llama3.1-405b, !model llama3.1-70b, or !model llama3.1-8b to change model size."
                 curr_resp = resp
             if '> says: !model llama3.1-405b' in last_user_message["content"]:
                 self.llm_engine = 'llama3.1-405b'
@@ -196,6 +242,9 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
 
             #    response = requests.post(url, json=request_data, stream=False, headers=headers)
 
+                start_time = time.time()
+                response = requests.post(url, json=request_data, stream=True, headers=headers)
+
                 response = requests.post(url, json=request_data, stream=True, headers=headers)
                 client = sseclient.SSEClient(response)
                 resp = self.thread_full_response.get(thread_id,None)
@@ -222,7 +271,9 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                                                                                 output=resp+" 💬", 
                                                                                 messages=None, 
                                                                                 input_metadata=json.loads(message_metadata)))
-                        
+                elapsed_time = time.time() - start_time
+                print(f"Request to Cortex REST API completed in {elapsed_time:.2f} seconds")
+
         if resp != '' and BotOsAssistantSnowflakeCortex.stream_mode == True:
             if self.event_callback:
                 self.event_callback(self.bot_id, BotOsOutputMessage(thread_id=thread_id, 
@@ -421,7 +472,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                     #self.active_runs.append(thread_to_check)
                 logger.warn("BotOsAssistantSnowflakeCortex:check_runs - run complete")
             except Exception as e:
-                logger.error(f"Error retrieving Assistant Response for Thread ID {thread_id} and model {self.llm_engine}: {e}")
+                print(f"Error retrieving Assistant Response for Thread ID {thread_id} and model {self.llm_engine}: {e}")
 
     def process_tool_call(self, thread_id, timestamp, message_payload, message_metadata):
         import json

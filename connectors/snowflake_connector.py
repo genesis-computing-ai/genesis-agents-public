@@ -9,6 +9,7 @@ import uuid
 import os
 import time
 import hashlib
+import sseclient
 import yaml, time, random, string
 import snowflake.connector
 import random, string
@@ -238,14 +239,70 @@ class SnowflakeConnector(DatabaseConnector):
             result = cursor.fetchone()
             completion = result[0] if result else None
 
-            print("snowflake_connector test call result: ",completion)
+            print(f"snowflake_connector test call result: ",completion)
 
             return True
         except Exception as e:
             print('cortex not available, query error: ',e)
-            self.client.connection.rollback()
+            self.connection.rollback()
             return False
  
+
+    def test_cortex_via_rest(self):
+        
+        newarray = [{"role": "user", "content": "hi there"} ]
+        new_array_str = json.dumps(newarray)
+
+        print(f"snowflake_connector test calling cortex {self.llm_engine} via SQL, content est tok len=",len(new_array_str)/4)
+
+        try:
+        
+            resp = ''
+            curr_resp = ''
+
+            SNOWFLAKE_HOST = self.client.host
+            REST_TOKEN = self.client.rest.token
+            url=f"https://{SNOWFLAKE_HOST}/api/v2/cortex/inference/complete"
+            headers = {
+                "Accept": "text/event-stream",
+                "Content-Type": "application/json",
+                "Authorization": f'Snowflake Token="{REST_TOKEN}"',
+            }
+        
+            request_data = {
+                "model": self.llm_engine,
+    #            "messages": [{"content": "Hi there"}],
+                "messages": newarray,
+                "stream": True,
+            }
+
+            print(f"snowflake_connector test calling cortex {self.llm_engine} via REST API, content est tok len=",len(str(newarray))/4)
+
+            response = requests.post(url, json=request_data, stream=True, headers=headers)
+            client = sseclient.SSEClient(response)
+            res = ''
+            curr_resp = ''
+            if resp is None:
+                resp = ''
+            for event in client.events():
+                d = json.loads(event.data)
+                r = ''
+                try:
+                    r = d['choices'][0]['delta']['content']
+                except:
+                    pass
+                print(r, end="")
+                
+                resp += r
+                curr_resp += r
+                    
+        except Exception as e:
+            print ("Error calling Cortex Rest API, ",e)
+            return False
+            pass
+
+        return True
+
 
     def _create_snowpark_connection(self):
         try:

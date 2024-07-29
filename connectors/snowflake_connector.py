@@ -224,7 +224,7 @@ class SnowflakeConnector(DatabaseConnector):
                 cursor.execute(cortex_query, (new_array_str,))
             except Exception as e:
                 if 'unknown model' in e.msg:
-                    print(f'Model {self.llm_engine} not avilable in this region, trying llama3.1-70b')
+                    print(f'Model {self.llm_engine} not available in this region, trying llama3.1-70b')
                     self.llm_engine = 'llama3.1-70b'        
                     cortex_query = f"""
                         select SNOWFLAKE.CORTEX.COMPLETE('{self.llm_engine}', %s) as completion; """

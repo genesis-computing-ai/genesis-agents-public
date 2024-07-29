@@ -74,10 +74,6 @@ process_runner_functions = [
                         "type": "string",
                         "description": "Directs the process runner to update the program counter",
                     },
-                    "end_process": {
-                        "type": "string",
-                        "description": "Sets the done flag to true to instruct the process to stop",
-                    },
                 },
             },
         },

@@ -6,6 +6,7 @@ import threading
 from core.bot_os_corpus import FileCorpus
 from core.bot_os_input import BotOsInputAdapter, BotOsInputMessage, BotOsOutputMessage
 from llm_openai.bot_os_openai import BotOsAssistantOpenAI
+from llm_cortex.bot_os_cortex import BotOsAssistantSnowflakeCortex
 
 # from bot_os_reka import BotOsAssistantReka
 from core.bot_os_reminders import RemindersTest
@@ -33,9 +34,13 @@ class BotOsThread:
         self.input_adapter.thread_id = self.thread_id
         self.validated = False
 
-    def add_message(self, message: BotOsInputMessage):
+    def add_message(self, message: BotOsInputMessage, event_callback=None):
         # logger.debug("BotOsThread:add message")
-        ret = self.assistant_impl.add_message(message)
+        if isinstance(self.assistant_impl, BotOsAssistantSnowflakeCortex):
+            ret = self.assistant_impl.add_message(message, event_callback=event_callback)
+        else:
+            ret = self.assistant_impl.add_message(message)
+        #ret = self.assistant_impl.add_message(message)
         if ret == False:
             print("thread add_message: false return, run already going")
             return ret
@@ -109,6 +114,7 @@ class BotOsSession:
     ):
       #  print(skip_vectors)
         BotOsAssistantOpenAI.stream_mode = stream_mode
+        BotOsAssistantSnowflakeCortex.stream_mode = stream_mode
         self.session_name = session_name
 
         self.task_test_mode = os.getenv("TEST_TASK_MODE", "false").lower() == "true"
@@ -207,7 +213,7 @@ class BotOsSession:
         return mem
 
     def add_message(
-        self, input_message: BotOsInputMessage
+        self, input_message: BotOsInputMessage, event_callback = None
     ):  # thread_id:str, message:str, files=[]):
 
         if input_message.thread_id not in self.threads:
@@ -265,7 +271,7 @@ class BotOsSession:
                 if input_message.metadata["user_authorized"] == "TRUE":
                     self.assistant_impl.user_allow_cache[user_id] = True
 
-        ret = thread.add_message(input_message)
+        ret = thread.add_message(input_message, event_callback=event_callback)
         if ret == False:
             print("bot os session add false - thread already running")
             return False
@@ -384,7 +390,7 @@ class BotOsSession:
 
             if input_message is None or input_message.msg == "":
                 continue
-            ret = self.add_message(input_message)
+            ret = self.add_message(input_message, self._validate_response)
             if ret == False and input_message is not None:
                 is_bot = input_message.metadata.get("is_bot", "TRUE")
                 if is_bot == "FALSE":

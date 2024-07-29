@@ -21,6 +21,9 @@ from core.bot_os_input import BotOsInputMessage, BotOsOutputMessage
 logger = logging.getLogger(__name__)
 
 class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
+
+    stream_mode = False
+    
     def __init__(self, name:str, instructions:str, 
                 tools:list[dict] = {}, available_functions={}, files=[], 
                 update_existing=False, log_db_connector=None, bot_id='default_bot_id', bot_name='default_bot_name', all_tools:list[dict]={}, all_functions={},all_function_to_tool_map={},skip_vectors=False) -> None:
@@ -34,6 +37,9 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         else:
             self.llm_engine = 'llama3.1-405b'
 
+
+        # TODO Make this dy
+        self.event_callback = None
         self.instructions = instructions 
         self.bot_name = bot_name
         self.bot_id = bot_id
@@ -64,10 +70,10 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
 
 
    
-    def cortex_complete(self,thread_id):
+    def cortex_complete(self,thread_id, message_metadata = None, event_callback = None ):
         
-        if os.getenv("CORTEX_VIA_REST", "False").lower() == "true":
-            return self.cortex_rest_api(thread_id)
+        if os.getenv("CORTEX_VIA_REST", "true").lower() == "true":
+            return self.cortex_rest_api(thread_id, message_metadata=message_metadata, event_callback=event_callback)
 
         newarray = [{"role": message["message_type"], "content": message["content"]} for message in self.thread_history[thread_id]]
         new_array_str = json.dumps(newarray)
@@ -96,7 +102,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             self.client.connection.rollback()
  
 
-    def cortex_rest_api(self,thread_id):
+    def cortex_rest_api(self,thread_id,message_metadata=None, event_callback=None):
 
         if os.getenv("CORTEX_FIREWORKS_OVERRIDE", "False").lower() == "true":
             fireworks = True
@@ -133,7 +139,8 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             }
             print(self.bot_name, f" bot_os_cortex calling {fireworks_model.split('/')[-1]} via FIREWORKS API, content est tok len=",len(str(newarray))/4)
 
-            response = requests.request("POST", url, headers=headers, data=json.dumps(payload))
+            resp = requests.request("POST", url, headers=headers, data=json.dumps(payload))
+            curr_resp = resp 
         else:
 
             SNOWFLAKE_HOST = self.client.client.host
@@ -149,11 +156,48 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                 "model": self.llm_engine,
     #            "messages": [{"content": "Hi there"}],
                 "messages": newarray,
-                "stream": False,
+                "stream": True,
             }
-            print(self.bot_name, f" bot_os_cortex calling cortex {self.llm_engine} via REST API, content est tok len=",len(str(newarray)/4))
 
-            response = requests.post(url, json=request_data, stream=False, headers=headers)
+
+            print(self.bot_name, f" bot_os_cortex calling cortex {self.llm_engine} via REST API, content est tok len=",len(str(newarray))/4)
+
+
+        #    response = requests.post(url, json=request_data, stream=False, headers=headers)
+
+            response = requests.post(url, json=request_data, stream=True, headers=headers)
+            client = sseclient.SSEClient(response)
+            resp = self.thread_full_response.get(thread_id,None)
+            curr_resp = ''
+            if resp is None:
+                resp = ''
+            last_update = None
+            for event in client.events():
+                d = json.loads(event.data)
+                r = ''
+                try:
+                    r = d['choices'][0]['delta']['content']
+                except:
+                    pass
+                print(r, end="")
+                
+                resp += r
+                curr_resp += r
+                if r != '' and BotOsAssistantSnowflakeCortex.stream_mode == True and (last_update is None and len(resp) >= 15) or (last_update and (time.time() - last_update > 2)):
+                    last_update = time.time()
+                    if self.event_callback:
+                        self.event_callback(self.bot_id, BotOsOutputMessage(thread_id=thread_id, 
+                                                                            status='in_progress', 
+                                                                            output=resp+" 💬", 
+                                                                            messages=None, 
+                                                                            input_metadata=json.loads(message_metadata)))
+            if r != '' and BotOsAssistantSnowflakeCortex.stream_mode == True:
+                if self.event_callback:
+                    self.event_callback(self.bot_id, BotOsOutputMessage(thread_id=thread_id, 
+                                                                        status='in_progress', 
+                                                                        output=resp, 
+                                                                        messages=None, 
+                                                                        input_metadata=json.loads(message_metadata)))
         try:
             if fireworks:
                 s = 'Fireworks'
@@ -163,21 +207,22 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         except:
             pass
 
-        return(response.content)
+        self.thread_full_response[thread_id] = resp + '\n'
+        return(curr_resp)
 
 
 
-    def stream_data(self,response, thread_id):
+    #def stream_data(self,response, thread_id):
         
-        client = sseclient.SSEClient(response)
-        for event in client.events():
-            d = json.loads(event.data)
-            try:
-                response = d['choices'][0]['delta']['content']
-                self.thread_full_response[thread_id] += response
-                yield response
-            except Exception:
-                pass
+#        client = sseclient.SSEClient(response)
+#        for event in client.events():
+#            d = json.loads(event.data)
+#            try:
+#                response = d['choices'][0]['delta']['content']
+#                self.thread_full_response[thread_id] += response
+#                yield response
+#            except Exception:
+#                pass
         
 
     @override
@@ -231,8 +276,10 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             logger.error(f"Failed to insert system prompt for thread_id: {thread_id} with error: {e}")
         return thread_id
     
-    def add_message(self, input_message:BotOsInputMessage):
+    def add_message(self, input_message:BotOsInputMessage, event_callback=None):
         timestamp = datetime.datetime.now()
+        if self.event_callback is None and event_callback is not None:
+            self.event_callback = event_callback
         thread_id = input_message.thread_id  # Assuming input_message has a thread_id attribute
         message_payload = input_message.msg 
         message_type = 'user'
@@ -268,7 +315,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
          #   ))
          #   self.client.connection.commit()
             thread_name = f"Cortex_{self.bot_name}_{thread_id}"
-            threading.Thread(target=self.update_threads, name=thread_name, args=(thread_id, timestamp)).start()
+            threading.Thread(target=self.update_threads, name=thread_name, args=(thread_id, timestamp, message_metadata, event_callback)).start()
 
             logger.info(f"Successfully inserted message log for bot_id: {self.bot_id}")
             #self.active_runs.append({"thread_id": thread_id, "timestamp": timestamp})
@@ -288,7 +335,8 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
 
             thread = self.thread_history.get(thread_id, [])
             user_message = next((msg for msg in thread if (msg.get("message_type") == "user" or msg.get("message_type") == "ipython") and msg.get("timestamp") == timestamp.isoformat()), None)
-            assistant_message = next((msg for msg in thread if msg.get("message_type") == "assistant" and msg.get("timestamp") == timestamp.isoformat()), None)
+            # This line searches for the last message in the thread that is of type "assistant" and has a timestamp matching the given timestamp.
+            assistant_message = next((msg for msg in reversed(thread) if msg.get("message_type") == "assistant" and msg.get("timestamp") == timestamp.isoformat()), None)
             if assistant_message:
                 message_payload = assistant_message.get("content")
                 print(f"Assistant message found: {message_payload}")
@@ -327,12 +375,14 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                         self.process_tool_call(thread_id, timestamp, decoded_payload, message_metadata)
                     else:
                         if message_metadata == '' or message_metadata == None:
-                            message_metadata = '{}'                  
-                        event_callback(self.bot_id, BotOsOutputMessage(thread_id=thread_id, 
-                                                                    status="completed", 
-                                                                    output=message_payload, 
-                                                                    messages="", 
-                                                                    input_metadata=json.loads(message_metadata)))
+                            message_metadata = '{}'   
+                        output = self.thread_full_response[thread_id]
+                        self.thread_full_response[thread_id] = ""      
+                      #  event_callback(self.bot_id, BotOsOutputMessage(thread_id=thread_id, 
+                      #                                              status="completed", 
+                      #                                              output=output, 
+                      #                                              messages="", 
+                      #                                              input_metadata=json.loads(message_metadata)))
                 else:
                     logger.error(f"No Assistant Response found for Thread ID {thread_id} {timestamp} and model {self.llm_engine}")
                     #self.active_runs.append(thread_to_check)
@@ -417,7 +467,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
 
 
         message_object = {
-            "message_type": "ipython",
+            "message_type": "user",
             "content": results,
             "timestamp": new_ts.isoformat(),
             "metadata": message_metadata
@@ -427,7 +477,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             self.thread_history[thread_id] = []
         self.thread_history[thread_id].append(message_object)
 
-        self.update_threads(thread_id, new_ts)
+        self.update_threads(thread_id, new_ts, message_metadata=message_metadata)
    #     self.active_runs.append({"thread_id": thread_id, "timestamp": new_ts})
         return 
 
@@ -484,13 +534,13 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             #self._submit_tool_outputs(thread_id, timestamp, error_string, message_metadata)
       return callback_closure
 
-    def update_threads(self, thread_id, timestamp):
+    def update_threads(self, thread_id, timestamp, message_metadata = None, event_callback = None):
         """
         Executes the SQL query to update threads based on the provided SQL, incorporating self.cortex... tables.
         """
 
   #      resp = self.cortex_rest_api(thread_id)
-        resp = self.cortex_complete(thread_id=thread_id)
+        resp = self.cortex_complete(thread_id=thread_id, message_metadata=message_metadata, event_callback=event_callback)
 
         try:
             if isinstance(resp, (list, tuple, bytes)):

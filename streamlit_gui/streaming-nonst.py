@@ -65,6 +65,10 @@ response = requests.post(url, json=data, stream=True, headers=headers)
 client = sseclient.SSEClient(response)
 for event in client.events():
     d = json.loads(event.data)
-    r = d['choices'][0]['delta']['content']
-    pprint.pprint(r)
+    r = ''
+    try:
+        r = d['choices'][0]['delta']['content']
+    except:
+        pass
+    print(r, end="")
   

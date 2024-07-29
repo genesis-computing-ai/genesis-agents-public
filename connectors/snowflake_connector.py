@@ -206,45 +206,45 @@ class SnowflakeConnector(DatabaseConnector):
         self.source_name = "Snowflake"
 
 
-    def test_cortex(self):
+    # def test_cortex(self):
         
-        newarray = [{"role": "user", "content": "hi there"} ]
-        new_array_str = json.dumps(newarray)
+    #     newarray = [{"role": "user", "content": "hi there"} ]
+    #     new_array_str = json.dumps(newarray)
 
-        print(f"snowflake_connector test calling cortex {self.llm_engine} via SQL, content est tok len=",len(new_array_str)/4)
+    #     print(f"snowflake_connector test calling cortex {self.llm_engine} via SQL, content est tok len=",len(new_array_str)/4)
 
-        context_limit = 128000 * 4 #32000 * 4
-        cortex_query = f"""
-                        select SNOWFLAKE.CORTEX.COMPLETE('{self.llm_engine}', %s) as completion;
-        """
-        try:
-            cursor = self.connection.cursor()
-            start_time = time.time()
-            try:
-                cursor.execute(cortex_query, (new_array_str,))
-            except Exception as e:
-                if 'unknown model' in e.msg:
-                    print(f'Model {self.llm_engine} not avilable in this region, trying llama3.1-70b')
-                    self.llm_engine = 'llama3.1-70b'        
-                    cortex_query = f"""
-                        select SNOWFLAKE.CORTEX.COMPLETE('{self.llm_engine}', %s) as completion; """
-                    cursor.execute(cortex_query, (new_array_str,))
-                    print('Ok that worked, changing CORTEX_MODEL ENV VAR to llama3.1-70b')
-                    os.environ['CORTEX_MODEL'] = 'llama3.1-70b'
-                else:
-                    raise(e)
-            self.connection.commit()
-            elapsed_time = time.time() - start_time
-            result = cursor.fetchone()
-            completion = result[0] if result else None
+    #     context_limit = 128000 * 4 #32000 * 4
+    #     cortex_query = f"""
+    #                     select SNOWFLAKE.CORTEX.COMPLETE('{self.llm_engine}', %s) as completion;
+    #     """
+    #     try:
+    #         cursor = self.connection.cursor()
+    #         start_time = time.time()
+    #         try:
+    #             cursor.execute(cortex_query, (new_array_str,))
+    #         except Exception as e:
+    #             if 'unknown model' in e.msg:
+    #                 print(f'Model {self.llm_engine} not avilable in this region, trying llama3.1-70b')
+    #                 self.llm_engine = 'llama3.1-70b'        
+    #                 cortex_query = f"""
+    #                     select SNOWFLAKE.CORTEX.COMPLETE('{self.llm_engine}', %s) as completion; """
+    #                 cursor.execute(cortex_query, (new_array_str,))
+    #                 print('Ok that worked, changing CORTEX_MODEL ENV VAR to llama3.1-70b')
+    #                 os.environ['CORTEX_MODEL'] = 'llama3.1-70b'
+    #             else:
+    #                 raise(e)
+    #         self.connection.commit()
+    #         elapsed_time = time.time() - start_time
+    #         result = cursor.fetchone()
+    #         completion = result[0] if result else None
 
-            print("snowflake_connector test call result: ",completion)
+    #         print("snowflake_connector test call result: ",completion)
 
-            return True
-        except Exception as e:
-            print('cortex not available, query error: ',e)
-            self.client.connection.rollback()
-            return False
+    #         return True
+    #     except Exception as e:
+    #         print('cortex not available, query error: ',e)
+    #         self.client.connection.rollback()
+    #         return False
  
 
     def _create_snowpark_connection(self):

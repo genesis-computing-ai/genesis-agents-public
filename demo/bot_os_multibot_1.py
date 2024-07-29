@@ -164,15 +164,14 @@ api_key_from_env = False
 llm_api_key = None
 
 os.environ["CORTEX_AVAILABLE"] = 'False'
-if genesis_source == "Snowflake":
+# if genesis_source == "Snowflake":
+    # cortex_test = db_adapter.test_cortex()
 
-    cortex_test = db_adapter.test_cortex()
-
-    if cortex_test == True:
-        os.environ["CORTEX_AVAILABLE"] = 'True'
-        default_llm_engine = 'cortex'
-        llm_api_key = 'cortex_no_key_needed'
-        print('Cortex LLM is Available and successfully tested')
+    # if cortex_test == True:
+    #     os.environ["CORTEX_AVAILABLE"] = 'True'
+    #     default_llm_engine = 'cortex'
+    #     llm_api_key = 'cortex_no_key_needed'
+    #     print('Cortex LLM is Available and successfully tested')
 
 # check for Openai Env Override
 openai_llm_api_key = os.getenv("OPENAI_API_KEY", None)

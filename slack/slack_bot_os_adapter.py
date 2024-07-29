@@ -106,7 +106,7 @@ class SlackBotAdapter(BotOsInputAdapter):
                     msg != "no text"
                     and msg != "_thinking..._"
                     and msg[:10] != ":toolbox: "
-                    and len(self.events) > 1
+                    and len(self.events) > 100    # change to 1 for testing
                 ):
                     print(
                         f'{self.bot_name} slack_in {event.get("type","no type")[:50]}, queue len {len(self.events)+1}'

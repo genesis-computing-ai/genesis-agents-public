@@ -29,3 +29,4 @@ reka-api
 google-generativeai
 pdb_attach
 sseclient
+botbuilder-integration-aiohttp>=4.15.0

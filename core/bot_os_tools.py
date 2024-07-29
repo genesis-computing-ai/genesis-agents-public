@@ -239,7 +239,8 @@ class ToolBelt:
                     previous step without asking to see the sql queries and results that led to the final conclusion. If you are very seriously concerned that the step may not 
                     have been correctly perfomed, return a request to re-run the step of the process again by returning the text "**fail**" followed by a 
                     DETAILED EXPLAINATION as to why it did not pass and what your concern is, and any suggestions you have on how to succeed on the next try.  
-                    If the response seems like it is likely correct, return only the text string "**success**" to continue to the next step.
+                    If the response seems like it is likely correct, return only the text string "**success**" to continue to the next step.  If the process is complete,
+                    tell the process to stop running.  Remember, proceed under your own direction and do not ask the user for permission to proceed.
 
                     Instructions: {self.instructions.get(thread_id,None)}
                     Bot's Response: {previous_response}

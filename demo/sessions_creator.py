@@ -278,6 +278,8 @@ def make_session(
 
         if assistant_implementation == BotOsAssistantSnowflakeCortex and stream_mode:
             incoming_instructions = instructions
+            # Tools: brave_search, wolfram_alpha, code_interpreter
+
             instructions = """
 
 Environment: ipython
@@ -285,13 +287,12 @@ Environment: ipython
 Cutting Knowledge Date: December 2023
 Today Date: 23 Jul 2024
 
-Tools: brave_search, wolfram_alpha, code_interpreter
-
 # Tool Instructions 
- - Always execute python code in messages that you share.
- - When looking for real time information use relevant functions if available else fallback to brave_search
- 
-You also have access to the following functions, only call them when needed to perform actions or lookup information that you do not already have:
+""" 
+#""" - Always execute python code in messages that you share.
+# - When looking for real time information use relevant functions if available else fallback to brave_search
+# 
+            instructions += """You have access to the following functions, only call them when needed to perform actions or lookup information that you do not already have:
 
 """ + json.dumps(tools) + """
 

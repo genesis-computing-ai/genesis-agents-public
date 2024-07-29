@@ -279,6 +279,15 @@ class SnowflakeConnector(DatabaseConnector):
             print(f"snowflake_connector test calling cortex {self.llm_engine} via REST API, content est tok len=",len(str(newarray))/4)
 
             response = requests.post(url, json=request_data, stream=True, headers=headers)
+            try:
+                if response.status_code != 200:
+                    print(f"Response status code: {response.status_code}")
+                    if response.text:
+                        print('Error from cortex: ',response.text)
+                    return False
+            except Exception as e:
+                print('Error reading cortex response: ',e)
+                return False
             client = sseclient.SSEClient(response)
             res = ''
             curr_resp = ''

@@ -43,15 +43,36 @@ _semantic_lock = Lock()
 
 
 class SnowflakeConnector(DatabaseConnector):
-    def __init__(self, connection_name):
+    def __init__(self, connection_name, bot_database_creds=None):
         super().__init__(connection_name)
         # print('Snowflake connector entry...')
-        self.account = os.getenv("SNOWFLAKE_ACCOUNT_OVERRIDE", None)
-        self.user = os.getenv("SNOWFLAKE_USER_OVERRIDE", None)
-        self.password = os.getenv("SNOWFLAKE_PASSWORD_OVERRIDE", None)
-        self.database = os.getenv("SNOWFLAKE_DATABASE_OVERRIDE", None)
-        self.warehouse = os.getenv("SNOWFLAKE_WAREHOUSE_OVERRIDE", None)
-        self.role = os.getenv("SNOWFLAKE_ROLE_OVERRIDE", None)
+        
+        account, database, user, password, warehouse, role = [None] * 6
+
+        if bot_database_creds:
+            account = bot_database_creds.get("account")
+            database = bot_database_creds.get("database")
+            user = bot_database_creds.get("user")
+            password = bot_database_creds.get("pwd")
+            warehouse = bot_database_creds.get("warehouse")
+            role = bot_database_creds.get("role")
+
+        # used to get the default value if not none, otherwise get env var. allows local mode to work with bot credentials
+        def get_env_or_default(value, env_var):
+            return value if value is not None else os.getenv(env_var)
+
+        self.account = get_env_or_default(account, "SNOWFLAKE_ACCOUNT_OVERRIDE")
+        self.user = get_env_or_default(user, "SNOWFLAKE_USER_OVERRIDE")
+        self.password = get_env_or_default(password, "SNOWFLAKE_PASSWORD_OVERRIDE")
+        self.database = get_env_or_default(database, "SNOWFLAKE_DATABASE_OVERRIDE")
+        self.warehouse = get_env_or_default(warehouse, "SNOWFLAKE_WAREHOUSE_OVERRIDE")
+        self.role = get_env_or_default(role, "SNOWFLAKE_ROLE_OVERRIDE")        
+        # self.account = os.getenv("SNOWFLAKE_ACCOUNT_OVERRIDE", account)
+        # self.user = os.getenv("SNOWFLAKE_USER_OVERRIDE", user)
+        # self.password = os.getenv("SNOWFLAKE_PASSWORD_OVERRIDE", password)
+        # self.database = os.getenv("SNOWFLAKE_DATABASE_OVERRIDE", database)
+        # self.warehouse = os.getenv("SNOWFLAKE_WAREHOUSE_OVERRIDE", warehouse)
+        # self.role = os.getenv("SNOWFLAKE_ROLE_OVERRIDE", role)
         if self.database:
             self.project_id = self.database
         else:
@@ -101,45 +122,23 @@ class SnowflakeConnector(DatabaseConnector):
         self.schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "GENESIS_INTERNAL")
 
         # self.client = self._create_client()
-        self.genbot_internal_project_and_schema = os.getenv(
-            "GENESIS_INTERNAL_DB_SCHEMA", "None"
-        )
+        self.genbot_internal_project_and_schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "None")
         if self.genbot_internal_project_and_schema is None:
-            self.genbot_internal_project_and_schema = os.getenv(
-                "ELSA_INTERNAL_DB_SCHEMA", "None"
-            )
-            print(
-                "!! Please switch from using ELSA_INTERNAL_DB_SCHEMA ENV VAR to GENESIS_INTERNAL_DB_SCHEMA !!"
-            )
+            self.genbot_internal_project_and_schema = os.getenv("ELSA_INTERNAL_DB_SCHEMA", "None")
+            print("!! Please switch from using ELSA_INTERNAL_DB_SCHEMA ENV VAR to GENESIS_INTERNAL_DB_SCHEMA !!")
         if self.genbot_internal_project_and_schema == "None":
             # Todo remove, internal note
             print("ENV Variable GENESIS_INTERNAL_DB_SCHEMA is not set.")
         if self.genbot_internal_project_and_schema is not None:
-            self.genbot_internal_project_and_schema = (
-                self.genbot_internal_project_and_schema.upper()
-            )
+            self.genbot_internal_project_and_schema = (self.genbot_internal_project_and_schema.upper() )
 
-        self.genbot_internal_harvest_table = os.getenv(
-            "GENESIS_INTERNAL_HARVEST_RESULTS_TABLE", "harvest_results"
-        )
-        self.genbot_internal_harvest_control_table = os.getenv(
-            "GENESIS_INTERNAL_HARVEST_CONTROL_TABLE", "harvest_control"
-        )
-        self.genbot_internal_message_log = os.getenv(
-            "GENESIS_INTERNAL_MESSAGE_LOG_TABLE", "MESSAGE_LOG"
-        )
-        self.genbot_internal_knowledge_table = os.getenv(
-            "GENESIS_INTERNAL_KNOWLEDGE_TABLE", "KNOWLEDGE"
-        )
-        self.genbot_internal_processes_table = os.getenv(
-            "GENESIS_INTERNAL_PROCESSES_TABLE", "PROCESSES"
-        )
-        self.genbot_internal_process_history_table = os.getenv(
-            "GENESIS_INTERNAL_PROCESS_HISTORY_TABLE", "PROCESS_HISTORY"
-        )
-        self.genbot_internal_user_bot_table = os.getenv(
-            "GENESIS_INTERNAL_USER_BOT_TABLE", "USER_BOT"
-        )
+        self.genbot_internal_harvest_table = os.getenv("GENESIS_INTERNAL_HARVEST_RESULTS_TABLE", "harvest_results" )
+        self.genbot_internal_harvest_control_table = os.getenv("GENESIS_INTERNAL_HARVEST_CONTROL_TABLE", "harvest_control")
+        self.genbot_internal_message_log = os.getenv("GENESIS_INTERNAL_MESSAGE_LOG_TABLE", "MESSAGE_LOG")
+        self.genbot_internal_knowledge_table = os.getenv("GENESIS_INTERNAL_KNOWLEDGE_TABLE", "KNOWLEDGE")
+        self.genbot_internal_processes_table = os.getenv("GENESIS_INTERNAL_PROCESSES_TABLE", "PROCESSES" )
+        self.genbot_internal_process_history_table = os.getenv("GENESIS_INTERNAL_PROCESS_HISTORY_TABLE", "PROCESS_HISTORY" )
+        self.genbot_internal_user_bot_table = os.getenv("GENESIS_INTERNAL_USER_BOT_TABLE", "USER_BOT")
         self.app_share_schema = "APP_SHARE"
 
         # print("genbot_internal_project_and_schema: ", self.genbot_internal_project_and_schema)
@@ -1922,7 +1921,7 @@ class SnowflakeConnector(DatabaseConnector):
                 print(
                     f"Inserted initial Janice row into {self.bot_servicing_table_name} with runner_id: {runner_id}"
                 )
-                #TODO add files to stage from local dir for Janice
+                # add files to stage from local dir for Janice
                 database, schema = self.genbot_internal_project_and_schema.split('.')
                 result = self.add_file_to_stage(
                     database=database,
@@ -2777,15 +2776,11 @@ class SnowflakeConnector(DatabaseConnector):
     def _create_connection(self):
 
         # Snowflake token testing
-
+        self.token_connection = False
         #  logger.warn('Creating connection..')
-        SNOWFLAKE_ACCOUNT = os.getenv("SNOWFLAKE_ACCOUNT", None)
+        SNOWFLAKE_ACCOUNT = os.getenv("SNOWFLAKE_ACCOUNT", self.account)
         SNOWFLAKE_HOST = os.getenv("SNOWFLAKE_HOST", None)
-        logger.info(
-            "Checking possible SPCS ENV vars -- Account, Host: %s, %s",
-            SNOWFLAKE_ACCOUNT,
-            SNOWFLAKE_HOST,
-        )
+        logger.info("Checking possible SPCS ENV vars -- Account, Host: %s, %s", SNOWFLAKE_ACCOUNT, SNOWFLAKE_HOST,)
 
         logger.info("SNOWFLAKE_HOST: %s", os.getenv("SNOWFLAKE_HOST"))
         logger.info("SNOWFLAKE_ACCOUNT: %s", os.getenv("SNOWFLAKE_ACCOUNT"))
@@ -2794,11 +2789,8 @@ class SnowflakeConnector(DatabaseConnector):
         logger.info("SNOWFLAKE_DATABASE: %s", os.getenv("SNOWFLAKE_DATABASE"))
         logger.info("SNOWFLAKE_SCHEMA: %s", os.getenv("SNOWFLAKE_SCHEMA"))
 
-        if (
-            SNOWFLAKE_ACCOUNT
-            and SNOWFLAKE_HOST
-            and os.getenv("SNOWFLAKE_PASSWORD_OVERRIDE", None) == None
-        ):
+        if (SNOWFLAKE_ACCOUNT and SNOWFLAKE_HOST and os.getenv("SNOWFLAKE_PASSWORD_OVERRIDE", None) == None):
+            # token based connection from SPCS
             with open("/snowflake/session/token", "r") as f:
                 snowflake_token = f.read()
             logger.info("SPCS Snowflake token found, length: %d", len(snowflake_token))
@@ -2836,7 +2828,7 @@ class SnowflakeConnector(DatabaseConnector):
                 )
 
         print("Creating Snowflake regular connection...")
-        self.token_connection = False
+        # self.token_connection = False
 
         if os.getenv("SNOWFLAKE_SECURE", "TRUE").upper() == "FALSE":
             return connect(
@@ -3020,6 +3012,7 @@ class SnowflakeConnector(DatabaseConnector):
 
         #   print('running query ... ', query)
         cursor = self.connection.cursor()
+
         try:
             #   if query_params:
             #       cursor.execute(query, query_params)
@@ -3861,6 +3854,45 @@ class SnowflakeConnector(DatabaseConnector):
         # Query to select the bot details
         select_query = f"""
             SELECT *
+            FROM {project_id}.{dataset_name}.{bot_servicing_table}
+            WHERE upper(bot_id) = upper(%s)
+        """
+
+        try:
+            cursor = self.connection.cursor()
+            # print(select_query, bot_id)
+
+            cursor.execute(select_query, (bot_id,))
+            result = cursor.fetchone()
+            cursor.close()
+            if result:
+                # Assuming the result is a tuple, we convert it to a dictionary using the column names
+                columns = [desc[0].lower() for desc in cursor.description]
+                bot_details = dict(zip(columns, result))
+                return bot_details
+            else:
+                logger.error(f"No details found for bot_id: {bot_id}")
+                return None
+        except Exception as e:
+            logger.exception(
+                f"Failed to retrieve details for bot_id: {bot_id} with error: {e}"
+            )
+            return None
+        
+    def db_get_bot_database_creds(self, project_id, dataset_name, bot_servicing_table, bot_id):
+        """
+        Retrieves the database credentials for a bot based on the provided bot_id from the BOT_SERVICING table.
+
+        Args:
+            bot_id (str): The unique identifier for the bot.
+
+        Returns:
+            dict: A dictionary containing the bot details if found, otherwise None.
+        """
+
+        # Query to select the bot details
+        select_query = f"""
+            SELECT bot_id, database_credentials
             FROM {project_id}.{dataset_name}.{bot_servicing_table}
             WHERE upper(bot_id) = upper(%s)
         """

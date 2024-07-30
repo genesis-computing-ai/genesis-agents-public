@@ -4,6 +4,7 @@ from core.bot_os_memory import BotOsKnowledgeAnnoy_Metadata, BotOsKnowledgeBase
 from connectors.bigquery_connector import BigQueryConnector
 from connectors.snowflake_connector import SnowflakeConnector
 from connectors.database_connector import DatabaseConnector
+from connectors.bot_snowflake_connector import bot_credentials
 
 import logging
 
@@ -634,21 +635,20 @@ def bind_semantic_copilot(data_connection_info):
 def bind_run_query(data_connection_info: list):
     def _run_query(query: str, connection: str, max_rows: int = 20, bot_id: str = None):
         if connection != "BigQuery":
-            my_dc = [SnowflakeConnector("Snowflake")]
+            # if a bot has a snowflake user and connection use it
+            bot_creds = bot_credentials(bot_id=bot_id) 
+            if bot_creds:
+                my_dc = [SnowflakeConnector("Snowflake", bot_creds)] 
+            else:
+                my_dc = [SnowflakeConnector("Snowflake")] 
+             
         else:
             my_dc = [BigQueryConnector(ci, "BigQuery") for ci in data_connection_info]
 
         for a in my_dc:
-            print(a.connection_name)  # FixMe: check the connection_name matches
-            print(
-                "Query: len=",
-                len(query),
-                " Connection: ",
-                connection,
-                " Max rows: ",
-                max_rows,
-            )
-            logger.info(f"_run_query - {a.connection_name}: {query}")
+            # print(a.connection_name)  # FixMe: check the connection_name matches
+            print("Query: len=", len(query), " Connection: ", connection, " Max rows: ", max_rows,)
+            logger.info(f"_run_query: {query}")
             results = a.run_query(query, max_rows, bot_id=bot_id)
             return results
 

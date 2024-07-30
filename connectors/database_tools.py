@@ -345,7 +345,7 @@ process_manager_functions = [
         "type": "function",
         "function": {
             "name": "_manage_processes",
-            "description": "Manages processes for bots, including creating, updating, and deleting processes allowing bots to manage processes that can be run on other bots.",
+            "description": "Manages processes for bots, including creating, updating, and deleting processes allowing bots to manage processes that can be run on other bots.  Remember that this is not used to create new bots",
             "parameters": {
                 "type": "object",
                 "properties": {

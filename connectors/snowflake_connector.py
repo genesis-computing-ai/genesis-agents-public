@@ -905,7 +905,7 @@ class SnowflakeConnector(DatabaseConnector):
         if action == "CREATE":
             return {
                 "Success": False,
-                "Confirmation_Needed": "Please reconfirm all the process details with the user, then call this function again with the action CREATE_CONFIRMED to actually create the process.",
+                "Confirmation_Needed": "Please reconfirm all the process details with the user, then call this function again with the action CREATE_CONFIRMED to actually create the process.  Remember that this function is used to create processes for existing bots, not to create bots themselves.",
             #    "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}",
             }
         if action == "CREATE_CONFIRMED":

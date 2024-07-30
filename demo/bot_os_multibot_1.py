@@ -172,7 +172,7 @@ if genesis_source == "Snowflake":
             os.environ["CORTEX_AVAILABLE"] = 'True'
             default_llm_engine = 'cortex'
             llm_api_key = 'cortex_no_key_needed'
-            print('Cortex LLM is Available via REST and successfully tested')
+            print('\nCortex LLM is Available via REST and successfully tested')
     except Exception as e:
         print('Cortex LLM Not available via REST, exception on test: ',e)
 

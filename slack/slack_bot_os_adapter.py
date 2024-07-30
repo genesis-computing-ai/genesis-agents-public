@@ -636,7 +636,7 @@ class SlackBotAdapter(BotOsInputAdapter):
             if orig_thinking in self.thinking_msg_overide_map:
                 thinking_ts = self.thinking_msg_overide_map[orig_thinking]
             if thinking_ts:
-                print('0-0-0-0-0-0-0-0 SLACK RESPONSE HANDLER -0-0-0-0-0-0-0-0-0')
+             #   print('0-0-0-0-0-0-0-0 SLACK RESPONSE HANDLER -0-0-0-0-0-0-0-0-0')
                 current_chunk_start =  self.chunk_start_map.get(orig_thinking,None)
                 if current_chunk_start:
                     print('     Current chunk start: ', current_chunk_start)

@@ -33,8 +33,8 @@ def _get_function_details(run):
                (tool_call.function.name, tool_call.function.arguments, tool_call.id)
             )
       else:
-         logger.error("run.required_action.submit_tool_outputs is None")
-         raise AttributeError("'NoneType' object has no attribute 'submit_tool_outputs'")
+         print("run.required_action.submit_tool_outputs is None")
+        # raise AttributeError("'NoneType' object has no attribute 'submit_tool_outputs'")
       return function_details
 
 
@@ -267,6 +267,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       self.allowed_types_search = [".c", ".cs", ".cpp", ".doc", ".docx", ".html", ".java", ".json", ".md", ".pdf", ".php", ".pptx", ".py", ".rb", ".tex", ".txt", ".css", ".js", ".sh", ".ts"]
       self.allowed_types_code_i = [".c", ".cs", ".cpp", ".doc", ".docx", ".html", ".java", ".json", ".md", ".pdf", ".php", ".pptx", ".py", ".rb", ".tex", ".txt", ".css", ".js", ".sh", ".ts", ".csv", ".jpeg", ".jpg", ".gif", ".png", ".tar", ".xlsx", ".xml", ".zip"]
       self.run_meta_map = {}
+      self.threads_in_recovery = deque()
 
       genbot_internal_project_and_schema = os.getenv('GENESIS_INTERNAL_DB_SCHEMA','None')
       if genbot_internal_project_and_schema is not None:
@@ -797,13 +798,34 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
          self.tool_completion_status[run_id][tool_call_id] = new_response
 
       # check if all parallel tool calls are complete
-      if any(value is None for value in self.tool_completion_status[run_id].values()):
-         logger.info(f"_submit_tool_outputs - {thread_id} {run_id} {tool_call_id} complete. waiting for {sum(value is None for value in self.tool_completion_status[run_id].values())}")
-         return
-      
-      # now pacakge up the responses together
-      tool_outputs = [{'tool_call_id': k, 'output': str(v)} for k, v in self.tool_completion_status[run_id].items()]
 
+      run = self.client.beta.threads.runs.retrieve(thread_id = thread_id, run_id = run_id)
+      function_details = _get_function_details(run)
+      
+      if run.status == 'requires_action':
+         parallel_tool_call_ids = [f[2] for f in function_details]
+
+         #  check to see if any expected tool calls are missing from completion_status 
+         missing_tool_call_ids = [tool_call_id for tool_call_id in parallel_tool_call_ids if tool_call_id not in self.tool_completion_status[run.id]]
+         if missing_tool_call_ids: 
+            print('Error: a parallel tool call is missing form the completion status map.  Probably need to fail the run.')
+            return
+
+         if all(self.tool_completion_status[run.id][key] is not None for key in parallel_tool_call_ids):
+            tool_outputs = [{'tool_call_id': key, 'output': str(self.tool_completion_status[run.id][key])} for key in parallel_tool_call_ids]
+         else:
+            logger.info(f"_submit_tool_outputs - {thread_id} {run_id} {tool_call_id}, not submitted, waiting for parallel tool calls")
+            return
+      else:
+         print('No tool response needed for this run, status is now ',run.status)
+         return
+
+    #  if any(value is None for value in self.tool_completion_status[run_id].values()):
+    #     return
+      
+      # now package up the responses together
+
+#      tool_outputs = [{'tool_call_id': k, 'output': str(v)} for k, v in self.tool_completion_status[run_id].items()]
       if os.getenv("USE_KNOWLEDGE", "false").lower() == 'true' and metadata is not None:
          primary_user = json.dumps({'user_id': metadata.get('user_id', 'Unknown User ID'), 
                         'user_name': metadata.get('user_name', 'Unknown User')})
@@ -839,9 +861,15 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
  
             meta = StreamingEventHandler.run_id_to_metadata.get(run_id,None)
             print(f'{self.bot_name} openai submit_tool_outputs submitting tool outputs len={len(tool_outputs)} ')
+            run_id_to_update = run_id
+    #        import random
+    #        if random.random() < 0.33:
+    #            run_id_to_update = "Zowzers!"
+    #        else:
+    #            run_id_to_update = run_id
             with self.client.beta.threads.runs.submit_tool_outputs_stream(
                    thread_id=thread_id,
-                   run_id=run_id,
+                   run_id=run_id_to_update,
                    tool_outputs=tool_outputs,
                    event_handler=StreamingEventHandler(self.client, thread_id,   StreamingEventHandler.run_id_to_bot_assist[run_id],  meta, self)
                ) as stream:
@@ -1124,37 +1152,58 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                   self.tool_completion_status[run.id] = {key: None for key in parallel_tool_call_ids} # need to submit completed parallel calls together
 
                if all(self.tool_completion_status[run.id][key] is not None for key in parallel_tool_call_ids):
-                  time.sleep(3)
-                  try:
-                     run = self.client.beta.threads.runs.retrieve(thread_id = thread_id, run_id = thread_run["run"])
-                     function_details = _get_function_details(run)
-                     if run.status == 'requires_action':
-                        parallel_tool_call_ids = [f[2] for f in function_details]
-                        if all(self.tool_completion_status[run.id][key] is not None for key in parallel_tool_call_ids):
-                           print('All tool call results are ready for this run, and its still pending after a 3 second delay')
-                           print("############################################################")
-                           print("############################################################")
-                           print("##                                                        ##")
-                           print("##              Resubmitting tool outputs !!              ##")
-                           print("##                                                        ##")
-                           print("############################################################")
-                           print("############################################################")
-                           try:
-                              if parallel_tool_call_ids:
-                                 tool_call_id = parallel_tool_call_ids[0]
-                                 tool_output = self.tool_completion_status[run.id][tool_call_id]
-                                 if tool_output is not None:
-                                    self._submit_tool_outputs(
-                                       run_id=run.id,
-                                       thread_id=thread_id,
-                                       tool_call_id=tool_call_id,
-                                       function_call_details=function_details,
-                                       func_response=tool_output
-                                    )
-                           except Exception as e:
-                              logger.error(f"Failed to resubmit tool outputs for run {run.id} with error: {e}")
-                  except Exception as e:
-                     pass
+                  if run.id not in self.threads_in_recovery:
+                     self.threads_in_recovery.append(run.id)
+                     print(f"*** Run {run.id} is now in recovery mode. *** ")
+                     time.sleep(3)
+                     try:
+                        run = self.client.beta.threads.runs.retrieve(thread_id = thread_id, run_id = thread_run["run"])
+                        function_details = _get_function_details(run)
+                        if run.status == 'requires_action':
+                           parallel_tool_call_ids = [f[2] for f in function_details]
+                           if all(self.tool_completion_status[run.id][key] is not None for key in parallel_tool_call_ids):
+                              print('All tool call results are ready for this run, and its still pending after a 3 second delay')
+                              print("############################################################")
+                              print("############################################################")
+                              print("##                                                        ##")
+                              print("##              Resubmitting tool outputs !!              ##")
+                              print("##                                                        ##")
+                              print("############################################################")
+                              print("############################################################")
+                              try:
+                                 if parallel_tool_call_ids:
+                                    tool_call_id = parallel_tool_call_ids[0]
+                                    tool_output = self.tool_completion_status[run.id][tool_call_id]
+                                    if tool_output is not None:
+                                       self._submit_tool_outputs(
+                                          run_id=run.id,
+                                          thread_id=thread_id,
+                                          tool_call_id=tool_call_id,
+                                          function_call_details=function_details,
+                                          func_response=tool_output
+                                       )
+                                 time.sleep(2)
+                                 if run.id in self.threads_in_recovery:
+                                    self.threads_in_recovery.remove(run.id)
+                                 print('* Recovery complete')
+                              except Exception as e:
+                                 print(f"Failed to resubmit tool outputs for run {run.id} with error: {e}")
+                                 if run.id in self.threads_in_recovery:
+                                    self.threads_in_recovery.remove(run.id)
+                           else: 
+                              print('* Recovery no longer needed, all calls not yet complete now')
+                              if run.id in self.threads_in_recovery:
+                                 self.threads_in_recovery.remove(run.id)
+                        else:
+                           print('* Recovery no longer needed, status is no longer requires_action')
+                           if run.id in self.threads_in_recovery:
+                              self.threads_in_recovery.remove(run.id)
+
+                     except Exception as e:
+                        print("Recovery attempted, errored with exception: ",e)
+                        if run.id in self.threads_in_recovery:
+                            self.threads_in_recovery.remove(run.id)
+                        pass
                
                thread = self.client.beta.threads.retrieve(thread_id)
                try:

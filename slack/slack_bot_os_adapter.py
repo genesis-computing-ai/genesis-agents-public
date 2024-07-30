@@ -686,6 +686,7 @@ class SlackBotAdapter(BotOsInputAdapter):
 
                     if len(msg) > 3900:
                         print('     Splitting message')
+                        duplicato = False
                         split_index = msg[max(0, 3900-300):3900].rfind("\n")
                         if split_index != -1:
                             split_index += 3600
@@ -710,7 +711,11 @@ class SlackBotAdapter(BotOsInputAdapter):
                         else:
                             self.in_markdown_map[orig_thinking] = False
                         if orig_thinking in self.chunk_start_map:
-                            self.chunk_start_map[orig_thinking] += chunk_start
+                            if self.chunk_start_map[orig_thinking] + chunk_start < len(msg):
+                                self.chunk_start_map[orig_thinking] += chunk_start
+                            else:
+                                print('*** avoiding double add to the chunk_start ')
+                                duplicato = True
                         else:
                             self.chunk_start_map[orig_thinking] = chunk_start
                         if inmarkdown:
@@ -722,26 +727,27 @@ class SlackBotAdapter(BotOsInputAdapter):
                         # Store the substring of msg_part1 starting from the 100th character in the chunk_last_100 dictionary
                         # Store the last 100 characters of msg_part1 in the chunk_last_100 dictionary
                         
-                        try:
+                        if True or not duplicato:
+                            try:
 
-                            self.slack_app.client.chat_update(
+                                self.slack_app.client.chat_update(
+                                    channel=message.input_metadata.get("channel", self.channel_id),
+                                    ts=thinking_ts,
+                                    text=msg_part1,
+                                )
+                                thread_ts = message.input_metadata.get("thread_ts", None)
+                            except Exception as e:
+                                pass
+                            if msg_part2.count("```") % 2 != 0:
+                                msg_part2 += "```"
+                            posted_message = self.slack_app.client.chat_postMessage(
                                 channel=message.input_metadata.get("channel", self.channel_id),
-                                ts=thinking_ts,
-                                text=msg_part1,
+                                thread_ts=thread_ts,
+                                text=msg_part2,
                             )
-                            thread_ts = message.input_metadata.get("thread_ts", None)
-                        except Exception as e:
-                            pass
-                        if msg_part2.count("```") % 2 != 0:
-                            msg_part2 += "```"
-                        posted_message = self.slack_app.client.chat_postMessage(
-                            channel=message.input_metadata.get("channel", self.channel_id),
-                            thread_ts=thread_ts,
-                            text=msg_part2,
-                        )
-                        thinking_ts = posted_message["ts"]
-                        if orig_thinking is not None:
-                            self.thinking_msg_overide_map[orig_thinking] = thinking_ts
+                            thinking_ts = posted_message["ts"]
+                            if orig_thinking is not None:
+                                self.thinking_msg_overide_map[orig_thinking] = thinking_ts
                         return
                     else:
                         if msg.count("```") % 2 != 0:

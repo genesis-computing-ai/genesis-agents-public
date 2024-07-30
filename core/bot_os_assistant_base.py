@@ -79,6 +79,7 @@ def execute_function_blocking(
             #   return(str(results))
             return results
         except Exception as e:
+            print(f"Error: {str(e)}")
             return f"caught exception {str(e)} trying to run {func_name}"
     else:
         return f"Error function {func_name} does not exist"

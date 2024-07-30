@@ -77,7 +77,7 @@ TOOL_FUNCTION_DESCRIPTION_WEBPAGE_DOWNLOADER = {
     },
 }
 
-webpage_tools = {"webpage_downloader--download_webpage": download_webpage}
-webpage_downloader_action_function_mapping = {
-    "webpage_downloader--download_webpage": download_webpage
-}
+# webpage_tools = {"webpage_downloader--download_webpage": download_webpage}
+# webpage_downloader_action_function_mapping = {
+#     "webpage_downloader--download_webpage": download_webpage
+# }

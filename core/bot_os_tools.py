@@ -81,9 +81,39 @@ class ToolBelt:
 
     # Function to make HTTP request and get the entire content
     def get_webpage_content(self, url):
-        response = requests.get(url)
-        response.raise_for_status()
-        return response.content  # Return the entire content
+        from selenium import webdriver
+        from selenium.webdriver.common.by import By
+        from selenium.webdriver.chrome.service import Service
+        from selenium.webdriver.chrome.options import Options
+        from selenium.webdriver.support.ui import WebDriverWait
+        from selenium.webdriver.support import expected_conditions as EC
+        import time
+        chrome_options = Options()
+        chrome_options.add_argument("--headless")  # Run in headless mode (no browser window)
+        chrome_options.add_argument("--disable-gpu")
+        chrome_options.add_argument("--no-sandbox")
+        chrome_options.add_argument("--disable-dev-shm-usage")
+        chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+
+        current_file_path = os.path.abspath(__file__)
+        print(current_file_path)
+
+        service = Service('../../chromedriver')  
+        # driver = webdriver.Chrome(service=service, options=chrome_options)
+        driver = webdriver.Chrome(options=chrome_options)
+
+        driver.get(url)    
+        try:
+            WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.TAG_NAME, 'body'))
+            )
+        except Exception as e:
+            print("Error: ", e)
+            driver.quit()
+
+        data = driver.page_source #find_element(By.XPATH, '//*[@id="data-id"]').text
+        print(f"Data scraped from {url}: \n{data}\n")
+        return data  
 
     # Function for parsing HTML content, extracting links, and then chunking the beautified content
     def parse_and_chunk_content(self, content, base_url, chunk_size=256 * 1024):
@@ -107,7 +137,7 @@ class ToolBelt:
         return chunks, len(chunks)  # Return chunks and total number of chunks
 
     # Main function to download webpage, extract links, and ensure each part is within the size limit
-    def download_webpage(self, url, chunk_index=0):
+    def download_webpage(self, url, chunk_index=0, thread_id=None):
         try:
             content = self.get_webpage_content(url)
             chunks, total_chunks = self.parse_and_chunk_content(content, url)
@@ -191,6 +221,7 @@ class ToolBelt:
                     Do not ever verify anything with the user.  Execute the instructions you were given without asking for permission.
                     However DO generate text explaining what you are doing and showing interium outputs, etc. while you are running this and further steps to keep the user informed what is going on.
                     In your response back to run_process, provide a DETAILED description of what you did, what result you achieved, and why you believe this to have successfully completed the step.
+                    Do not use your memory or any cache that you might have.  Do not simulate any user interaction or tools.  Do not ask for any user input.
                     """
 
             self.instructions[thread_id] = "\n".join(

@@ -829,9 +829,10 @@ class SnowflakeConnector(DatabaseConnector):
         try:
             if bot_id == "all":
                 list_query = f"SELECT * FROM {self.schema}.PROCESSES"
+                cursor.execute(list_query)
             else:
                 list_query = f"SELECT * FROM {self.schema}.PROCESSES WHERE upper(bot_id) = upper(%s)"
-            cursor.execute(list_query, (bot_id,))
+                cursor.execute(list_query, (bot_id,))
             processs = cursor.fetchall()
             process_list = []
             for process in processs:
@@ -844,12 +845,14 @@ class SnowflakeConnector(DatabaseConnector):
                     "process_reporting_instructions": process[5],
                 }
                 process_list.append(process_dict)
-            return {"Success": True, "processs": process_list}
+            return {"Success": True, "processes": process_list}
         except Exception as e:
             return {
                 "Success": False,
                 "Error": f"Failed to list processs for bot {bot_id}: {e}",
             }
+        finally:
+            cursor.close()
 
     def get_process_info(self, process_name):
         cursor = self.client.cursor()

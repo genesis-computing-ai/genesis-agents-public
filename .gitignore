@@ -29,3 +29,4 @@ rsa_key.p8
 rsa_key.pub
 .venv/*
 requirements_orig.txt
+.vscode/*

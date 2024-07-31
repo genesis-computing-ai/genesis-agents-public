@@ -34,5 +34,5 @@ def bot_credentials(bot_id):
             bot_database_creds = json.loads(bot_database_creds)
     
     except Exception as e:
-        print(f"Error getting bot credentials for {bot_config["bot_id"]} : {str(e)}")
+        print(f"Error getting bot credentials for {bot_config['bot_id']} : {str(e)}")
     return bot_database_creds

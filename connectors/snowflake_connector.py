@@ -276,38 +276,93 @@ class SnowflakeConnector(DatabaseConnector):
             print(f"snowflake_connector test calling cortex {self.llm_engine} via REST API, content est tok len=",len(str(newarray))/4)
 
             response = requests.post(url, json=request_data, stream=True, headers=headers)
-            try:
-                if response.status_code != 200:
-                    print(f"Response status code: {response.status_code}")
-                    if response.text:
-                        print('Error from cortex: ',response.text)
-                    return False
-            except Exception as e:
-                print('Error reading cortex response: ',e)
+            if response.status_code != 200:
+                print(f"Failed to connect to Cortex API. Status code: {response.status_code}")
+                print(f"Response: {response.text}")
                 return False
-            client = sseclient.SSEClient(response)
-            res = ''
-            curr_resp = ''
-            if resp is None:
-                resp = ''
-            for event in client.events():
-                d = json.loads(event.data)
-                r = ''
-                try:
-                    r = d['choices'][0]['delta']['content']
-                except:
-                    pass
-                print(r, end="")
-                
-                resp += r
-                curr_resp += r
-                    
-        except Exception as e:
-            print ("Error calling Cortex Rest API, ",e)
-            return False
-            pass
+            else:
 
-        return True
+                for line in response.iter_lines():
+                    if line:
+                        try:
+                            decoded_line = line.decode('utf-8')
+                            if not decoded_line.strip():
+                                print("Received an empty line.")
+                                continue
+                            if decoded_line.startswith("data: "):
+                                decoded_line = decoded_line[len("data: "):]
+                            event_data = json.loads(decoded_line)
+                            if 'choices' in event_data:
+                                d = event_data['choices'][0]['delta'].get('content','')
+                                curr_resp += d
+                                print(d, end='', flush=True)
+                        except json.JSONDecodeError as e:
+                            print(f"Error decoding JSON: {e}")
+                            continue
+
+              #  print('full resp: ',curr_resp)
+                if len(curr_resp) > 2:
+                    return True
+                else:
+                    return False
+
+            # print('got response from REST API')
+            # try:
+            #     print('response status code on next line',flush=True)
+            #     print('code: ',response.status_code, flush=True)
+            #     if response.status_code != 200:
+            #         print(f"Code is not 200 -- Response status code: {response.status_code}")
+            #         print('response text on next line',flush=True)
+            #         print('text: ',response.text, flush=True)
+            #         if response.text:
+            #             print('Error from cortex: ',response.text, flush=True)
+            #         return False
+            # except Exception as e:
+            #     print('Ok, were here now: Error reading cortex response: ',e, flush=True)
+            #     return False
+            # print('getting sec client...', flush=True)
+            # try:
+            #     pass
+            #     #client = sseclient.SSEClient(response)
+            # except Exception as e:
+            #     print('exception getting sec client: ', flush=True)
+            #     print('  ...the exception is: ',e,flush=True)
+            #     print('the response text:',flush=True)
+            #     print('   ...response text is: ',response.text, flush=True)
+            #     return False
+            # print('got sec client ok',flush=True)
+            # res = ''
+            # curr_resp = ''
+            # if resp is None:
+            #     resp = ''
+            # print('getting client events...', flush=True)
+            # while True:
+            #     data = response.read(1)
+            #     #print(data, end='')
+
+            # #     for event in client.events():
+            #     print('loading event data...', flush=True)
+            # #     d = json.loads(event.data)
+            #     d = data
+            #     r = ''
+            #     try:
+            #         print('getting choices...', flush=True)
+            #         r = d['choices'][0]['delta']['content']
+            #     except:
+            #         print('failed to get choices...', flush=True)
+            #         pass
+            #     print(r, end="")
+                
+            #     resp += r
+            #     curr_resp += r
+            #     print('added delta to resp... ', flush=True)
+            # print('done looping over events... ', flush=True)           
+        except Exception as e:
+            print ("Bottom of function -- Error calling Cortex Rest API, ",e, flush=True)
+            return False
+
+            # print('returning true... ', flush=True)
+            # return True
 
 
     def _create_snowpark_connection(self):
@@ -3893,7 +3948,8 @@ class SnowflakeConnector(DatabaseConnector):
         # Query to select the bot details
         select_query = f"""
             SELECT bot_id, database_credentials
-            FROM {project_id}.{dataset_name}.{bot_servicing_table}
+
+                        FROM {project_id}.{dataset_name}.{bot_servicing_table}
             WHERE upper(bot_id) = upper(%s)
         """
 

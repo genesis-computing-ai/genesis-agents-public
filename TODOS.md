@@ -24,6 +24,8 @@ make update_bot_instructions work ok with cortext bots
 make update_files etc not fail if run on cortex bots (check first)
 if cortex api not pupr, default back to complete()
 handle > 128k tokens
+make add bot tools to cortex 
+test if update process works
 
 processes:
 make the globals thread id mapped

@@ -145,6 +145,11 @@ def execute_function(
 ):
     print(f"fn execute_function - {func_name}")
     function = available_functions.get(func_name, None)
+    if function is None:
+        print(f"fn execute_function - _{func_name} (trying with added underscore)")
+        function = available_functions.get('_'+func_name, None)
+        if function is not None:
+            func_name = '_' + func_name
     if function is not None:
         s_arguments = json.loads(arguments)
         try:
@@ -172,7 +177,7 @@ def execute_function(
             completion_callback(f"caught exception {str(e)} trying to run {func_name}")
     else:
         completion_callback(
-            f"!FN_MISSING - Error function {func_name} does not exist for bot {bot_id}.\nAvailable functions, len:\n{len(available_functions)}"
+            f"!FN_MISSING - Error function {func_name} does not exist for bot {bot_id}.\n Calling it again will not help, check the function name and make sure its correct including any _'s in the name. Available functions, len:\n{len(available_functions)}"
         )
 
 

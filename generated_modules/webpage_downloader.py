@@ -57,7 +57,7 @@ def download_webpage(url, chunk_index=0):
 TOOL_FUNCTION_DESCRIPTION_WEBPAGE_DOWNLOADER = {
     "type": "function",
     "function": {
-        "name": "webpage_downloader--download_webpage",
+        "name": "_webpage_downloader",
         "description": "Downloads a webpage and returns its HTML content and hyperlinks in chunks, ensuring each chunk does not exceed 512KB. Allows specifying a chunk index to download specific parts of the beautified content. This tool is particularly useful for large and complex webpages and utilizes BeautifulSoup for parsing. It might require multiple sequential chunk downloads to capture the complete content relevant to the user's request.",
         "parameters": {
             "type": "object",

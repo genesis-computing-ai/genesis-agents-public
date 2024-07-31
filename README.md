@@ -106,8 +106,8 @@ streamlit run ./streamlit_gui/streamlit_sis_v1.py
 In Windows an extra application is needed for ngrok:
 
 - Download ngrok.exe from https://ngrok-downloads.ngrok.com/ngrok.exe
-- Open terminal and run `ngrok config add-authtoken <ngrok_token>`
-- In terminal run `ngrok http http://localhost:8080`
+- Open terminal and run `./ngrok.exe config add-authtoken <ngrok_token>`
+- In terminal run `./ngrok.exe http http://localhost:8080`
 
 - If you get this error:
 

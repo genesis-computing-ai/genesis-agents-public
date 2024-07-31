@@ -115,8 +115,6 @@ global_flags.project_id = project_id
 dataset_name = db_schema[1]
 global_flags.genbot_internal_project_and_schema = genbot_internal_project_and_schema
 
-os.environ['GENESIS_SOURCE'] = 'Sqlite'
-
 genesis_source = os.getenv("GENESIS_SOURCE", default="Snowflake")
 
 if genesis_source == "BigQuery":

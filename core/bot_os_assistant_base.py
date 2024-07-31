@@ -109,7 +109,7 @@ def create_func_wrapper(function, func_name):
 
     def run_task_with_exception_handling(args):
         try:
-            print(f"\nCREATE_FUNCTION_WRAPPER: function type = {type(function)}\n")
+            print(f"\nCREATE_FUNCTION_WRAPPER: function type = {type(function)}\n", flush=True)
             function_serialized = dill.dumps(function)
             p = Process(
                 target=fork_function_call,

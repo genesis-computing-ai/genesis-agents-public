@@ -212,8 +212,12 @@ class StreamingEventHandler(AssistantEventHandler):
             self.run_id = event.data.id
             StreamingEventHandler.run_id_to_metadata[self.run_id] = self.metadata
             StreamingEventHandler.run_id_to_bot_assist[self.run_id] = self.bot_assist
+            if 'parent_run' in self.metadata:
+                parent_run_id = self.metadata['parent_run']
+                if parent_run_id in StreamingEventHandler.run_id_to_output_stream:
+                    StreamingEventHandler.run_id_to_output_stream[self.run_id] = StreamingEventHandler.run_id_to_output_stream[parent_run_id]
             self.bot_assist.thread_run_map[self.thread_id] = {"run": self.run_id, "completed_at": None}
-            #print(f"run is {self.run_id}")
+            print(f"----> run is {self.run_id}")
             if self.thread_id not in self.bot_assist.active_runs:
                self.bot_assist.active_runs.append(self.thread_id)
        except:
@@ -268,6 +272,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       self.allowed_types_code_i = [".c", ".cs", ".cpp", ".doc", ".docx", ".html", ".java", ".json", ".md", ".pdf", ".php", ".pptx", ".py", ".rb", ".tex", ".txt", ".css", ".js", ".sh", ".ts", ".csv", ".jpeg", ".jpg", ".gif", ".png", ".tar", ".xlsx", ".xml", ".zip"]
       self.run_meta_map = {}
       self.threads_in_recovery = deque()
+      self.unposted_run_ids = {}
 
       genbot_internal_project_and_schema = os.getenv('GENESIS_INTERNAL_DB_SCHEMA','None')
       if genbot_internal_project_and_schema is not None:
@@ -634,6 +639,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                event_handler=StreamingEventHandler(self.client, thread.id, self.assistant.id, input_message.metadata, self),
                metadata=input_message.metadata
             ) as stream:
+             #  print('here')
                stream.until_done()
          except Exception as e:
             print('... Thread already running, putting event back on queue...')
@@ -1052,15 +1058,22 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 #      for thread_id in self.thread_run_map:
       try:
          thread_id = self.active_runs.popleft()
+         if thread_id is None:
+            return
+         print(f"0-0-0-0-0-0-0->>>> thread_id: {thread_id}, in self.processing_runs: {thread_id in self.processing_runs}")
          if thread_id in self.processing_runs:
+            print('.... outta here ...')
             return
          if thread_id not in self.processing_runs:
             self.processing_runs.append(thread_id)
 
       except IndexError:
          thread_id = None
-      while thread_id is not None:
+         return
+
+      for _ in range(1):
          thread_run = self.thread_run_map[thread_id]
+         restarting_flag = False
          if thread_run["completed_at"] is None:
 
             run = self.client.beta.threads.runs.retrieve(thread_id = thread_id, run_id = thread_run["run"])
@@ -1073,7 +1086,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                                                                            messages=None, 
                                                                            input_metadata=run.metadata))
             #logger.info(f"run.status {run.status} Thread: {thread_id}")
-            print(f"{self.bot_name} open_ai check_runs ",run.status," thread: ", thread_id, flush=True)
+            print(f"{self.bot_name} open_ai check_runs ",run.status," thread: ", thread_id, ' runid: ', run.id, flush=True)
 
             current_time = datetime.datetime.now()
             run_duration = (current_time - datetime.datetime.fromtimestamp(run.created_at)).total_seconds()
@@ -1102,6 +1115,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                                                                            input_metadata=run.metadata))
                except:
                   pass
+               continue
 
 
             if run.status == "failed":
@@ -1122,6 +1136,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                                                               message_type='Assistant Response', message_payload=output, message_metadata=None, 
                                                               tokens_in=0, tokens_out=0)
                threads_completed[thread_id] = run.completed_at
+               continue
 
 
             if run.status == "expired":
@@ -1134,6 +1149,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                                                                      input_metadata=run.metadata))
                #del threads_completed[thread_id] 
                # Todo add more handling here to tell the user the thread failed
+               continue
 
             if run.status == "requires_action":
                try:
@@ -1205,130 +1221,133 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                             self.threads_in_recovery.remove(run.id)
                         pass
                
-               thread = self.client.beta.threads.retrieve(thread_id)
+
+               # need to submit tool runs, but first check how long the run has been going, consider starting a new run
+
+               current_time = time.time()
                try:
-                  for func_name, func_args, tool_call_id in function_details:
-                     if tool_call_id in self.running_tools: # already running in a parallel thread
-                        continue
-                     if self.tool_completion_status[run.id].get(tool_call_id,None) is not None:
-                        continue
-                     if False and self.tool_completion_status[run.id].get(tool_call_id,None) is not None:
+                  seconds_left = run.expires_at - current_time
+               except:
+                  # run is gone
+                  continue
+               print(f"Seconds left before the run {run.id} expires: {seconds_left}")
+               if seconds_left < 120:
+                  try:
+                     # Cancel the current run
+                     restarting_flag = True
+                  except Exception as e:
+                     print(f"Failed to handle thread expiration for run {run.id} with error: {e}")
+
+
+
+               
+               if restarting_flag == False:
+                  thread = self.client.beta.threads.retrieve(thread_id)
+                  try:
+                     for func_name, func_args, tool_call_id in function_details:
+                        if tool_call_id in self.running_tools: # already running in a parallel thread
+                           continue
+                        log_readable_payload = func_name+"("+func_args+")"
                         try:
-                           if tool_call_id in self.callback_closures:
-                              callback = self.callback_closures[tool_call_id]
-                              result = self.tool_completion_status[run.id][tool_call_id]
-                              print("Tool is done but results not submitted. Calling back again.")
-                              try:
-                                 callback(result)
-                                 print('callback result|',result,'|end_result')
-                              except Exception as e:
-                                 print('callback exception: ',e)
-                                 pass
-                              #time.sleep(1)
-                              continue
-                        except:
-                           print("Tool completed but callback failed. Running tool again.")
-                           pass
-                     log_readable_payload = func_name+"("+func_args+")"
-                     try:
-                        callback_closure = self._generate_callback_closure(run, thread, tool_call_id, function_details, run.metadata)
-                        self.callback_closures[tool_call_id] = callback_closure
-                     except Exception as e:
-                        print(f"Failed to generate callback closure for run {run.id}, thread {thread.id}, tool_call_id {tool_call_id} with error: {e}")
-                     self.running_tools[tool_call_id] = {"run_id": run.id, "thread_id": thread.id }
-
-                     meta = run.metadata
-                     primary_user = json.dumps({'user_id': meta.get('user_id', 'Unknown User ID'), 
-                                 'user_name': meta.get('user_name', 'Unknown User')})
-                     self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id,
-                                                                    message_type='Tool Call', message_payload=log_readable_payload, 
-                                                                    message_metadata={'tool_call_id':tool_call_id, 'func_name':func_name, 'func_args':func_args},
-                                                                    channel_type=meta.get("channel_type", None), channel_name=meta.get("channel", None),
-                                                                    primary_user=primary_user)
-                     func_args_dict = json.loads(func_args)
-                     if "image_data" in func_args_dict: # FixMe: find a better way to convert file_id back to stored file
-                        func_args_dict["image_data"] = self.file_storage.get(func_args_dict["image_data"].removeprefix('/mnt/data/'))
-                        func_args = json.dumps(func_args_dict)
-                    # if "files" in func_args_dict: # FixMe: find a better way to convert file_id back to stored file
-                    #    files = json.loads(func_args_dict["files"])
-                    #    from urllib.parse import quote
-                    #    func_args_dict["files"] = json.dumps([f"file://{quote(self.file_storage.get(f['file_id']))}" for f in files])
-                    #    func_args = json.dumps(func_args_dict)
-
-                     if 'file_name' in func_args_dict:
-
-                        try:
-                           if func_args_dict['file_name'].startswith('/mnt/data/'):
-                              file_id = func_args_dict['file_name'].split('/')[-1]
-                              new_file_location = self.file_storage[file_id]
-                              if '/' in new_file_location:
-                                 new_file_location = new_file_location.split('/')[-1]   
-                              func_args_dict['file_name'] = new_file_location
-                              func_args = json.dumps(func_args_dict)
+                           callback_closure = self._generate_callback_closure(run, thread, tool_call_id, function_details, run.metadata)
+                           self.callback_closures[tool_call_id] = callback_closure
                         except Exception as e:
-                           logger.warn(f"Failed to update file_name in func_args_dict with error: {e}")
+                           print(f"Failed to generate callback closure for run {run.id}, thread {thread.id}, tool_call_id {tool_call_id} with error: {e}")
+                        self.running_tools[tool_call_id] = {"run_id": run.id, "thread_id": thread.id }
 
-                     if 'openai_file_id' in func_args_dict:
+                        meta = run.metadata
+                        primary_user = json.dumps({'user_id': meta.get('user_id', 'Unknown User ID'), 
+                                    'user_name': meta.get('user_name', 'Unknown User')})
+                        self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id,
+                                                                     message_type='Tool Call', message_payload=log_readable_payload, 
+                                                                     message_metadata={'tool_call_id':tool_call_id, 'func_name':func_name, 'func_args':func_args},
+                                                                     channel_type=meta.get("channel_type", None), channel_name=meta.get("channel", None),
+                                                                     primary_user=primary_user)
+                        func_args_dict = json.loads(func_args)
+                        if "image_data" in func_args_dict: # FixMe: find a better way to convert file_id back to stored file
+                           func_args_dict["image_data"] = self.file_storage.get(func_args_dict["image_data"].removeprefix('/mnt/data/'))
+                           func_args = json.dumps(func_args_dict)
+                     # if "files" in func_args_dict: # FixMe: find a better way to convert file_id back to stored file
+                     #    files = json.loads(func_args_dict["files"])
+                     #    from urllib.parse import quote
+                     #    func_args_dict["files"] = json.dumps([f"file://{quote(self.file_storage.get(f['file_id']))}" for f in files])
+                     #    func_args = json.dumps(func_args_dict)
 
-                        try:
-                           file_id = func_args_dict['openai_file_id'].split('/')[-1]
-                           existing_location = f"./downloaded_files/{thread_id}/{file_id}"
-                           if not os.path.exists(existing_location):
-                              # If the file does not exist at the existing location, download it from OpenAI
-                              try:
-                                 os.makedirs(os.path.dirname(existing_location), exist_ok=True)
-                                 self._download_openai_file(file_id, thread_id)
-                              except:
-                                 pass
-                        except:
-                           pass
+                        if 'file_name' in func_args_dict:
 
-                     self.validate_or_add_function(func_name)
+                           try:
+                              if func_args_dict['file_name'].startswith('/mnt/data/'):
+                                 file_id = func_args_dict['file_name'].split('/')[-1]
+                                 new_file_location = self.file_storage[file_id]
+                                 if '/' in new_file_location:
+                                    new_file_location = new_file_location.split('/')[-1]   
+                                 func_args_dict['file_name'] = new_file_location
+                                 func_args = json.dumps(func_args_dict)
+                           except Exception as e:
+                              logger.warn(f"Failed to update file_name in func_args_dict with error: {e}")
 
-                     if BotOsAssistantOpenAI.stream_mode == True and run.id in StreamingEventHandler.run_id_to_bot_assist:
-                        msg = f':toolbox: _Using {func_name}_...\n'
+                        if 'openai_file_id' in func_args_dict:
 
-                        if  StreamingEventHandler.run_id_to_output_stream.get(run.id,None) is not None:
-                           if StreamingEventHandler.run_id_to_output_stream.get(run.id,"").endswith('\n'):
-                              StreamingEventHandler.run_id_to_output_stream[run.id] += "\n"
+                           try:
+                              file_id = func_args_dict['openai_file_id'].split('/')[-1]
+                              existing_location = f"./downloaded_files/{thread_id}/{file_id}"
+                              if not os.path.exists(existing_location):
+                                 # If the file does not exist at the existing location, download it from OpenAI
+                                 try:
+                                    os.makedirs(os.path.dirname(existing_location), exist_ok=True)
+                                    self._download_openai_file(file_id, thread_id)
+                                 except:
+                                    pass
+                           except:
+                              pass
+
+                        self.validate_or_add_function(func_name)
+
+
+                        if BotOsAssistantOpenAI.stream_mode == True and run.id in StreamingEventHandler.run_id_to_bot_assist:
+                           msg = f':toolbox: _Using {func_name}_...\n'
+
+                           if  StreamingEventHandler.run_id_to_output_stream.get(run.id,None) is not None:
+                              if StreamingEventHandler.run_id_to_output_stream.get(run.id,"").endswith('\n'):
+                                 StreamingEventHandler.run_id_to_output_stream[run.id] += "\n"
+                              else:
+                                 StreamingEventHandler.run_id_to_output_stream[run.id] += "\n\n"
+                              StreamingEventHandler.run_id_to_output_stream[run.id] += msg
+                              msg = StreamingEventHandler.run_id_to_output_stream[run.id]
+                           event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id, 
+                                                                              status=run.status, 
+                                                                              output=msg+" 💬",
+                                                                              messages=None, 
+                                                                              input_metadata=run.metadata))
+
+                        if func_name not in self.all_functions:
+                           self.all_functions = BotOsAssistantOpenAI.all_functions_backup
+                           if func_name in self.all_functions:
+                              print('!! function was missing from self.all_functions, restored from backup, now its ok')
                            else:
-                              StreamingEventHandler.run_id_to_output_stream[run.id] += "\n\n"
-                           StreamingEventHandler.run_id_to_output_stream[run.id] += msg
-                           msg = StreamingEventHandler.run_id_to_output_stream[run.id]
+                              print(f'!! function was missing from self.all_functions, restored from backup, still missing func: {func_name}, len of backup={len(BotOsAssistantOpenAI.all_functions_backup)}')
+         
+                        execute_function(func_name, func_args, self.all_functions, callback_closure,
+                                       thread_id = thread_id, bot_id=self.bot_id)#, dispatch_task_callback=dispatch_task_callback)
+
+                     continue
+                  except Exception as e:
+                     print(f"check_runs - requires action - exception:{e}")
+                     try:
+                        output = f"!!! Error making tool call, exception:{str(e)}"
                         event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id, 
                                                                            status=run.status, 
-                                                                           output=msg+" 💬",
+                                                                           output=output, 
                                                                            messages=None, 
                                                                            input_metadata=run.metadata))
-
-                     if func_name not in self.all_functions:
-                        self.all_functions = BotOsAssistantOpenAI.all_functions_backup
-                        if func_name in self.all_functions:
-                           print('!! function was missing from self.all_functions, restored from backup, now its ok')
-                        else:
-                           print(f'!! function was missing from self.all_functions, restored from backup, still missing func: {func_name}, len of backup={len(BotOsAssistantOpenAI.all_functions_backup)}')
-      
-                     execute_function(func_name, func_args, self.all_functions, callback_closure,
-                                      thread_id = thread_id, bot_id=self.bot_id)#, dispatch_task_callback=dispatch_task_callback)
-
-                  continue
-               except Exception as e:
-                  print(f"check_runs - requires action - exception:{e}")
-                  try:
-                     output = f"!!! Error making tool call, exception:{str(e)}"
-                     event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id, 
-                                                                        status=run.status, 
-                                                                        output=output, 
-                                                                        messages=None, 
-                                                                        input_metadata=run.metadata))
-                  except:
-                     pass
-                  try:
-                     self.client.beta.threads.runs.cancel(run_id=run.id, thread_id=thread_id)
-                  except:
-                     pass
-           
-            elif run.status == "completed" and run.completed_at != thread_run["completed_at"]:
+                     except:
+                        pass
+                     try:
+                        self.client.beta.threads.runs.cancel(run_id=run.id, thread_id=thread_id)
+                     except:
+                        pass
+            
+            if restarting_flag == False and ( run.status == "completed" and run.completed_at != thread_run["completed_at"]):
 
                try:
                   self.done_map[run.metadata['event_ts']] = True
@@ -1343,9 +1362,10 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                for message in messages.data:
 
                   output = ""
-                  if message.run_id is None or message.run_id != run.id:
+                  if message.run_id is None:
+                     continue
+                  if (message.run_id != run.id and message.run_id not in self.unposted_run_ids.get(thread_id, [])):
                      break
-
                   latest_attachments.extend( message.attachments)
 
                   for content in message.content:
@@ -1366,9 +1386,12 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                   #if output != '!NO_RESPONSE_REQUIRED':
             #      if  StreamingEventHandler.run_id_to_output_stream.get(run.id,None) is not None:
             #         output = StreamingEventHandler.run_id_to_output_stream.get(run.id)
-                  if os.getenv('SHOW_COST', 'false').lower() == 'true':
-                     output += '  `'+"$"+str(round(run.usage.prompt_tokens/1000000*0.15+run.usage.completion_tokens/1000000*0.60,4))+'`'
-                  output_array.append(output)
+                  try:
+                     if os.getenv('SHOW_COST', 'false').lower() == 'true':
+                        output += '  `'+"$"+str(round(run.usage.prompt_tokens/1000000*0.15+run.usage.completion_tokens/1000000*0.60,4))+'`'
+                     output_array.append(output)
+                  except:
+                     pass
                meta_prime = self.run_meta_map.get(run.id, None)
                if meta_prime is not None:
                   meta = meta_prime
@@ -1379,6 +1402,8 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                files_in = self._store_files_locally(latest_attachments, thread_id)
                output = '\n'.join(reversed(output_array))
                 #  print(f"{self.bot_name} open_ai output of store files locally {files_in}")
+         #      if output.endswith("💬"):
+         #         output = output[:-1]
                event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id, 
                                                                      status=run.status, 
                                                                      output=output, 
@@ -1386,18 +1411,22 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                                                                      # UPDATE THIS FOR LOCAL FILE DOWNLOAD 
                                                                      files=files_in,
                                                                      input_metadata=meta))
+               self.unposted_run_ids[thread_id] = []
                try:
                   message_metadata = str(message.content)
                except:
                   message_metadata = "!error converting content to string"
                primary_user = json.dumps({'user_id': meta.get('user_id', 'Unknown User ID'), 
                               'user_name': meta.get('user_name', 'Unknown User')})
-               self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id, 
-                                                               message_type='Assistant Response', message_payload=output, message_metadata=message_metadata,
-                                                               tokens_in=run.usage.prompt_tokens, tokens_out=run.usage.completion_tokens, files=files_in,
-                                                               channel_type=meta.get("channel_type", None), channel_name=meta.get("channel", None),
-                                                               primary_user=primary_user)
-            threads_completed[thread_id] = run.completed_at
+               try:
+                  self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id, 
+                                                                  message_type='Assistant Response', message_payload=output, message_metadata=message_metadata,
+                                                                  tokens_in=run.usage.prompt_tokens, tokens_out=run.usage.completion_tokens, files=files_in,
+                                                                  channel_type=meta.get("channel_type", None), channel_name=meta.get("channel", None),
+                                                                  primary_user=primary_user)
+               except:
+                  pass
+               threads_completed[thread_id] = run.completed_at
 
          else:
             logger.debug(f"check_runs - {thread_id} - {run.status} - {run.completed_at} - {thread_run['completed_at']}")
@@ -1411,13 +1440,49 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
        #  try:
        #     thread_id = self.active_runs.popleft()
        #  except IndexError:
-         if run.status != "requires_action":
-            if thread_id in self.processing_runs:
-               self.processing_runs.remove(thread_id)
-         else:
-            self.active_runs.append(thread_id)
-         thread_id = None
-            
+         #if restarting_flag == False and run.status != "requires_action" and run.status != 'cancelled':
+           # if thread_id in self.processing_runs:
+           #    if run.status == 'cancelled':
+       #           self.processing_runs.remove(thread_id)
+           #       return
+        # else:
+        #    if restarting_flag == False:
+        #       self.active_runs.append(thread_id)
+
+         if restarting_flag == True:
+               self.client.beta.threads.runs.cancel(thread_id=thread_id, run_id=run.id)
+               # Add a user message to the thread
+               if run.id in self.threads_in_recovery:
+                  self.threads_in_recovery.remove(run.id)
+               meta_prime = self.run_meta_map.get(run.id, None)
+               if meta_prime is not None:
+                  meta = meta_prime
+               else:
+                  meta = run.metadata
+     #          if 'thinking_ts' in meta:
+     #             del meta['thinking_ts']
+               meta['parent_run'] = run.id
+               if thread_id in self.processing_runs:
+                  self.processing_runs.remove(thread_id)
+               if thread_id in threads_still_pending:
+                  del threads_still_pending[thread_id]
+
+               if thread_id not in self.unposted_run_ids:
+                   self.unposted_run_ids[thread_id] = []
+               self.unposted_run_ids[thread_id].append(run.id)
+               self.add_message(BotOsInputMessage(thread_id=thread_id, msg='The run has expired, please resubmit the tool call(s).', metadata=meta))
+               # Remove the current thread/run from the processing queue
+
+               # Add the new thread/run to the active runs queue
+               # self.active_runs_queue.append((thread_id, run.id))
+               print(f"Run {run.id} cancelled before tool call, and agent notified to resubmit the tool call due to upcoming thread expiration.")
+               return 
+
+
+         #thread_id = None
+      
+      if thread_id in self.processing_runs:
+         self.processing_runs.remove(thread_id)
       # put pending threads back on queue
       for thread_id in threads_still_pending:
          if thread_id not in self.active_runs:

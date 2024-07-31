@@ -23,6 +23,7 @@ make system start without an openai key, the annoy lookup thing needs one now
 make update_bot_instructions work ok with cortext bots
 make update_files etc not fail if run on cortex bots (check first)
 if cortex api not pupr, default back to complete()
+handle > 128k tokens
 
 processes:
 make the globals thread id mapped
@@ -31,6 +32,7 @@ make the task system just a scheduler, use processes for the actual work
 make it start a new run for each process step and/or when it gets close to 10 min 
 
 July:
+Eves stuff test 
 x JL-Have task server only reuse/reference existing assistant, not recreate/update it on startup
 JL-Why are bots doing other bots tasks?
 JL-Why is it losing tools after running for a while? (keep expected tools, and if not there, reload them?)

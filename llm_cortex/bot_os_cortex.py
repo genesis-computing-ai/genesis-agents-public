@@ -109,7 +109,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                                                                         input_metadata=json.loads(message_metadata)))
             return None 
 
-        print(self.bot_name, f"bot_os_cortex calling cortex {self.llm_engine} via SQL, content est tok len=",len(new_array_str)/4)
+        print(self.bot_name, f"bot_os_cortex calling cortex {self.llm_engine} via SQL, content est tok len=",len(new_array_str)/4, flush=True)
 
         context_limit = 128000 * 4 #32000 * 4
         cortex_query = f"""
@@ -237,7 +237,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                 }
 
 
-                print(self.bot_name, f" bot_os_cortex calling cortex {self.llm_engine} via REST API, content est tok len=",len(str(newarray))/4)
+                print(self.bot_name, f" bot_os_cortex calling cortex {self.llm_engine} via REST API, content est tok len=",len(str(newarray))/4, flush=True)
 
 
             #    response = requests.post(url, json=request_data, stream=False, headers=headers)
@@ -550,7 +550,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             function_to_call = function_name
             arguments = arguments_json
             print(f"Function to call: {function_to_call}")
-            print(f"Arguments: {json.dumps(arguments, indent=2)}")
+            print(f"Arguments: {json.dumps(arguments, indent=2)}", flush=True)
             execute_function(function_to_call, json.dumps(arguments), self.available_functions, cb_closure, thread_id, self.bot_id)
         except json.JSONDecodeError as e:
             logger.error(f"Failed to decode tool call JSON {tool_call_str}: {e}")

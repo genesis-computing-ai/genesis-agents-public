@@ -2793,7 +2793,7 @@ class SnowflakeConnector(DatabaseConnector):
             # token based connection from SPCS
             with open("/snowflake/session/token", "r") as f:
                 snowflake_token = f.read()
-            logger.info("SPCS Snowflake token found, length: %d", len(snowflake_token))
+            print("Natapp Connection: SPCS Snowflake token found, length: %d", len(snowflake_token), flush=True)
             self.token_connection = True
             #   logger.warn('Snowflake token mode (SPCS)...')
             if os.getenv("SNOWFLAKE_SECURE", "TRUE").upper() == "FALSE":

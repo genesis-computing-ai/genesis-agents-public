@@ -3,6 +3,7 @@ import csv, json
 from google.cloud import bigquery
 from google.oauth2 import service_account
 from connectors.snowflake_connector import SnowflakeConnector
+from connectors.sqlite_connector import SqliteConnector
 
 from openai import OpenAI
 from tqdm.auto import tqdm
@@ -14,9 +15,13 @@ genesis_source = os.getenv('GENESIS_SOURCE',default="BigQuery")
 
 if genesis_source == 'BigQuery':
     emb_connection = 'BigQuery'
-else:    # Initialize BigQuery client
+elif genesis_source == 'Sqlite':
+    emb_db_adapter = SqliteConnector(connection_name="Sqlite")
+elif genesis_source == 'Snowflake':    
     emb_db_adapter = SnowflakeConnector(connection_name='Snowflake')
     emb_connection = 'Snowflake'
+else:
+    raise ValueError('Invalud Source')
 
 
 def _get_bigquery_connection():

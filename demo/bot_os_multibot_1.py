@@ -20,6 +20,7 @@ from core.bot_os_server import BotOsServer
 from apscheduler.schedulers.background import BackgroundScheduler
 from connectors.bigquery_connector import BigQueryConnector
 from connectors.snowflake_connector import SnowflakeConnector
+from connectors.sqlite_connector import SqliteConnector
 from core.bot_os_tools import get_tools
 from embed.embed_openbb import openbb_query
 from slack.slack_bot_os_adapter import SlackBotAdapter
@@ -114,6 +115,8 @@ global_flags.project_id = project_id
 dataset_name = db_schema[1]
 global_flags.genbot_internal_project_and_schema = genbot_internal_project_and_schema
 
+os.environ['GENESIS_SOURCE'] = 'Sqlite'
+
 genesis_source = os.getenv("GENESIS_SOURCE", default="Snowflake")
 
 if genesis_source == "BigQuery":
@@ -124,10 +127,14 @@ if genesis_source == "BigQuery":
         connection_info = json.load(f)
     # Initialize BigQuery client
     db_adapter = BigQueryConnector(connection_info, "BigQuery")
-else:  # Initialize BigQuery client
+elif genesis_source == 'Sqlite':
+    db_adapter = SqliteConnector(connection_name="Sqlite")
+elif genesis_source == 'Snowflake':  # Initialize BigQuery client
     print("Starting Snowflake connector...")
     db_adapter = SnowflakeConnector(connection_name="Snowflake")
     connection_info = {"Connection_Type": "Snowflake"}
+else:
+    raise ValueError('Invalid Source')
 db_adapter.ensure_table_exists()
 print("---> CONNECTED TO DATABASE:: ", genesis_source)
 global_flags.source = genesis_source

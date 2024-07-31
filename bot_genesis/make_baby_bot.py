@@ -3,6 +3,8 @@ import logging
 import os, json, requests, uuid
 from connectors.bigquery_connector import BigQueryConnector
 from connectors.snowflake_connector import SnowflakeConnector
+from connectors.sqlite_connector import SqliteConnector
+
 from google.cloud import bigquery
 import threading
 
@@ -21,8 +23,12 @@ genesis_source = os.getenv('GENESIS_SOURCE',default="Snowflake")
 #    # Initialize BigQuery client
 #    bb_db_connector = BigQueryConnector(connection_info,'BigQuery')
 #else:    # Initialize BigQuery client
-
-bb_db_connector = SnowflakeConnector(connection_name='Snowflake')
+if genesis_source == 'Sqlite':
+    bb_db_connector = SqliteConnector(connection_name="Sqlite")
+elif genesis_source == 'Snowflake':
+    bb_db_connector = SnowflakeConnector(connection_name='Snowflake')
+else:
+    raise ValueError('Invalid Source')
 
 genbot_internal_project_and_schema = os.getenv('GENESIS_INTERNAL_DB_SCHEMA','None')
 if  genbot_internal_project_and_schema is None:       

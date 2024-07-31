@@ -11,6 +11,7 @@ from bot_genesis.make_baby_bot import MAKE_BABY_BOT_DESCRIPTIONS, make_baby_bot_
 from connectors import database_tools
 from connectors.bigquery_connector import BigQueryConnector
 from connectors.snowflake_connector import SnowflakeConnector
+from connectors.sqlite_connector import SqliteConnector
 from slack.slack_tools import slack_tools, slack_tools_descriptions
 from connectors.database_tools import (
     image_functions,
@@ -376,9 +377,14 @@ if genesis_source == "BigQuery":
         connection_info = json.load(f)
     # Initialize BigQuery client
     db_adapter = BigQueryConnector(connection_info, "BigQuery")
-else:  # Initialize Snowflake client
+elif genesis_source == 'Sqlite':
+    db_adapter = SqliteConnector(connection_name="Sqlite")
+    connection_info = {"Connection_Type": "Sqlite"}
+elif genesis_source == 'Snowflake':  # Initialize Snowflake client
     db_adapter = SnowflakeConnector(connection_name="Snowflake")
     connection_info = {"Connection_Type": "Snowflake"}
+else:
+    raise ValueError('Invalid Source')
     # tool_belt = (ToolBelt(db_adapter, os.getenv("OPENAI_API_KEY")),)
 
 tool_belt = ToolBelt(db_adapter, os.getenv("OPENAI_API_KEY"))

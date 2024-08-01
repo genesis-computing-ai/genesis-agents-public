@@ -301,7 +301,7 @@ class ToolBelt:
                     "success": False,
                     "feedback_from_supervisor": result,
                     "recovery_step": f"Review the message above and submit a clarification, and/or try this Step {self.counter.get(thread_id,None)} again:\n{self.instructions.get(thread_id,None)}",
-                    "additional_request": "Please also explain this feedback to the user so they know whats going on."
+                    "additional_request": "Please also explain and summarize this feedback from the supervisor bot to the user so they know whats going on, and how you plan to rectify it."
                 }
 
             print(f"\nStep {self.counter.get(thread_id,None)} passed.  Moving to {self.counter.get(thread_id,None) + 1}\n")
@@ -312,7 +312,7 @@ class ToolBelt:
             extract_instructions = f"""
                 Extract the text for step {self.counter.get(thread_id,None)} from the process instructions and return it.  Do not include any other 
                 text before or after Step {self.counter.get(thread_id,None)}.  Return the text of the step only.  If there are no steps with this or 
-                greater step numbers, respond "***done**" with no other text.
+                greater step numbers, respond "**done**" with no other text.
 
                 Process Instructions: {self.process.get(thread_id,None)['PROCESS_INSTRUCTIONS']}
                 """
@@ -331,7 +331,7 @@ class ToolBelt:
 
             next_step = response.choices[0].message.content
 
-            if next_step == '**done**':
+            if next_step == '**done**' or next_step == '***done***':
                 self.last_fail[thread_id] = None
                 return {
                     "success": True,

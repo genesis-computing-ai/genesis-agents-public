@@ -313,8 +313,10 @@ Reminder:
 - Required parameters MUST be specified
 - Only call one function at a time
 - Put the entire function call reply on one line
-- Do not add any preable of other text before or after the function call
+- Do not add any preable of other text before or directly after the function call
 - Always add your sources when using search results to answer the user query
+- Don't generate a function call unless you want to actually call it immediately 
+- Don't forget to call the tools, don't just say you can do it, actually do it when needed
 
 # Persona Instructions
  """+incoming_instructions + "\n\n"

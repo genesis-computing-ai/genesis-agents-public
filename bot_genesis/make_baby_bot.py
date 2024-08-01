@@ -617,7 +617,8 @@ def add_new_tools_to_bot(bot_id, new_tools):
     
     available_tools_list = bb_db_connector.db_get_available_tools(project_id=project_id, dataset_name=dataset_name)
     available_tool_names = [tool['tool_name'] for tool in available_tools_list]
-
+    if isinstance(new_tools, str):
+        new_tools = json.loads(new_tools.replace("'", '"'))
     # Check if all new_tools are in the list of available tools
     invalid_tools = [tool for tool in new_tools if tool not in available_tool_names]
     if invalid_tools:
@@ -1361,7 +1362,7 @@ MAKE_BABY_BOT_DESCRIPTIONS.append({
     "type": "function",
     "function": {
         "name": "get_available_tools",
-        "description": "Retrieves the list of tools that a bot can assign to baby bots when using make_baby_bot.",
+        "description": "Retrieves the list of tools that a bot can assign to baby bots when using make_baby_bot.  This is NOT the list of tools that you have access to yourself right now, that is in your system prompt.",
     }
 })
 
@@ -1740,7 +1741,8 @@ def remove_tools_from_bot(bot_id, remove_tools):
     available_tool_names = [tool['tool_name'] for tool in available_tools_list]
     print(bot_id, remove_tools)
     
-    # Check if all tools are in the list of available tools
+    if isinstance(remove_tools, str):
+        remove_tools = json.loads(remove_tools.replace("'", '"'))
     invalid_tools = [tool for tool in remove_tools if tool not in available_tool_names]
     if invalid_tools:
         return {"success": False, "error": f"The following tools are not available: {', '.join(invalid_tools)}. The available tools are {available_tool_names}."}
@@ -1756,7 +1758,9 @@ def remove_tools_from_bot(bot_id, remove_tools):
     # Determine which tools are present and can be removed
     updated_tools_list = [tool for tool in current_tools if tool not in remove_tools]
     invalid_tools = [tool for tool in remove_tools if tool not in current_tools]
-
+    if invalid_tools:
+        return {"success": False, "error": f"The following tools are not assigned to the bot: {invalid_tools}. The the bot has these tools currently: {current_tools}."}
+    
     # Update the available_tools in the database
     updated_tools_str = json.dumps(updated_tools_list)
 

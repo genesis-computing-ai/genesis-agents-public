@@ -28,10 +28,12 @@ make add bot tools to cortex
 test if update process works
 
 processes:
-make the globals thread id mapped
-fix list processes
+x? make the globals thread id mapped
+x fix list processes
 make the task system just a scheduler, use processes for the actual work
-make it start a new run for each process step and/or when it gets close to 10 min 
+x make it start a new run for each process step and/or when it gets close to 10 min 
+make get_next_step make sure process is already kicked off to avoid + error Nonetype and int
+make sure the same bot doesnt run the same process at the same time (or make it possible for it to do so, track threads better?)
 
 July:
 Eves stuff test 

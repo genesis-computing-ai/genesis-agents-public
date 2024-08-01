@@ -4,6 +4,7 @@ from decimal import Decimal
 import html
 import json
 import os
+import re
 import requests
 import sseclient
 import time
@@ -351,11 +352,21 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         except:
             pass
 
+        postfix = ""
+        if "</function>" in resp[-30:]:
+            postfix = "💬"
+   
+        pattern = re.compile(r'<\|python_tag\|>\{.*?\}')
+        match = pattern.search(resp)
+        
+        if match and resp.endswith('}'):
+            postfix = "💬"
+            
         if resp != '' and BotOsAssistantSnowflakeCortex.stream_mode == True:
             if self.event_callback:
                 self.event_callback(self.bot_id, BotOsOutputMessage(thread_id=thread_id, 
                                                                     status='in_progress', 
-                                                                    output=resp, 
+                                                                    output=resp+postfix, 
                                                                     messages=None, 
                                                                     input_metadata=json.loads(message_metadata)))
         try:
@@ -573,29 +584,41 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         tool_call_str = message_payload[start_index:end_index].strip()
         try:
             if tool_type == 'markup':
-                cb_closure = self._generate_callback_closure(thread_id, timestamp, message_metadata)
                 function_call_str = message_payload[start_index:end_index].strip()
+                #function_call_str = function_call_str.encode("utf-8").decode("unicode_escape")
                 function_name_start = function_call_str.find('<function=') + len('<function=')
                 function_name_end = function_call_str.find('>', function_name_start)
                 function_name = function_call_str[function_name_start:function_name_end]
 
                 arguments_start = function_name_end + 1
                 arguments_str = function_call_str[arguments_start:].strip()
+               # arguments_str = arguments_str.encode("utf-8").decode("unicode_escape")
                 arguments_str = arguments_str.replace('\\\\"', '\\"')
                 if arguments_str.endswith('>'):
                     arguments_str = arguments_str[:-1]
                 if arguments_str == '':
                     arguments_str = '{}'
                 arguments_json = json.loads(arguments_str)
+                func_call_details = {
+                        "function_name": function_name,
+                        "arguments": arguments_json
+                    }
+                cb_closure = self._generate_callback_closure(thread_id, timestamp, message_metadata, func_call_details=func_call_details)
             if tool_type == 'json':
-                cb_closure = self._generate_callback_closure(thread_id, timestamp, message_metadata)
                 function_call_str = message_payload[start_index:end_index].strip()
+                function_call_str = bytes(function_call_str, "utf-8").decode("unicode_escape")
                 try:
                     function_call_json = json.loads(function_call_str)
                     function_name = function_call_json.get("name")
                     arguments_json = function_call_json.get("parameters", {})
+                    func_call_details = {
+                        "function_name": function_name,
+                        "arguments": arguments_json
+                    }
+                    cb_closure = self._generate_callback_closure(thread_id, timestamp, message_metadata, func_call_details=func_call_details)
                 except json.JSONDecodeError as e:
                     logger.error(f"Failed to decode function call JSON {function_call_str}: {e}")
+                    cb_closure = self._generate_callback_closure(thread_id, timestamp, message_metadata)
                     cb_closure(f"Failed to decode function call JSON {function_call_str}: {e}")
                     return
             function_to_call = function_name
@@ -604,13 +627,14 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             print(f"Arguments: {json.dumps(arguments, indent=2)}", flush=True)
             execute_function(function_to_call, json.dumps(arguments), self.available_functions, cb_closure, thread_id, self.bot_id)
         except json.JSONDecodeError as e:
-            logger.error(f"Failed to decode tool call JSON {tool_call_str}: {e}")
-            cb_closure(f"Failed to decode tool call JSON {tool_call_str}: {e}")
+            print(f"Failed to decode tool call JSON {tool_call_str}: {e}")
+            cb_closure = self._generate_callback_closure(thread_id, timestamp, message_metadata)
+            cb_closure(f"Failed to decode tool call JSON {tool_call_str}: {e}.  Did you make sure to escape any double quotes that are inside another")
         except Exception as e:
             logger.error(f"Error processing tool call: {e}")
             cb_closure(f"Error processing tool call: {e}")
 
-    def _submit_tool_outputs(self, thread_id, timestamp, results, message_metadata):
+    def _submit_tool_outputs(self, thread_id, timestamp, results, message_metadata, func_call_details=None):
         """
         Inserts tool call results back into the genesis_test.public.genesis_threads table.
         """
@@ -645,6 +669,27 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             "timestamp": new_ts.isoformat(),
             "metadata": message_metadata
         }
+
+        try:
+            results_json = json.loads(results)
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to decode results JSON: {e}")
+            results_json = results  # Fallback to original results if JSON decoding fails
+        if isinstance(results, dict) and 'success' in results and results['success']:
+            logger.info(f"Tool call was successful for Thread ID {thread_id}")        
+        if func_call_details is not None:
+            function_name = func_call_details.get('function_name')
+            if function_name in ['remove_tools_from_bot','add_new_tools_to_bot', 'add_bot_files', 'update_bot_instructions', 'remove_bot_files']:
+                try:
+                    results_json = json.loads(results)
+                    if ('success' in results_json and results_json['success']) or ('Success' in results_json and results_json['Success']):
+                        if func_call_details and 'arguments' in func_call_details:
+                            arguments = func_call_details['arguments']
+                            if 'bot_id' in arguments:
+                                bot_id = arguments['bot_id']
+                                os.environ[f'RESET_BOT_SESSION_{bot_id}'] = 'True'
+                except:
+                    pass
 
         if thread_id not in self.thread_history:
             self.thread_history[thread_id] = []
@@ -692,14 +737,14 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
            # JL - I think this may be causing thread locking issues
            # self.client.connection.rollback()
 
-    def _generate_callback_closure(self, thread_id, timestamp, message_metadata):
+    def _generate_callback_closure(self, thread_id, timestamp, message_metadata, func_call_details = None):
       def callback_closure(func_response):  # FixMe: need to break out as a generate closure so tool_call_id isn't copied
         #  try:                     
         #     del self.running_tools[tool_call_id]
         #  except Exception as e:
         #     logger.error(f"callback_closure - tool call already deleted - caught exception: {e}")
          try:
-            self._submit_tool_outputs(thread_id, timestamp, func_response, message_metadata)
+            self._submit_tool_outputs(thread_id, timestamp, func_response, message_metadata, func_call_details=func_call_details)
          except Exception as e:
             error_string = f"callback_closure - _submit_tool_outputs - caught exception: {e}"
             logger.error(error_string)

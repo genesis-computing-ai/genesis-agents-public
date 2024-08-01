@@ -591,10 +591,10 @@ snowflake_semantic_tools = {
 database_tools = {
     "run_query": "run_query_f.local",
     "search_metadata": "search_metadata_f.local",
-    "semantic_copilot": "semantic_copilot_f.local",
+ #   "semantic_copilot": "semantic_copilot_f.local",
     "get_full_table_details": "search_metadata_f.local",
-    "_list_semantic_models": "db_adapter.list_semantic_models",
-    "_get_semantic_model": "db_adapter.get_semantic_model",
+ #   "_list_semantic_models": "db_adapter.list_semantic_models",
+  #  "_get_semantic_model": "db_adapter.get_semantic_model",
 }
 
 snowflake_stage_tools = {

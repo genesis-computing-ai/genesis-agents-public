@@ -1206,7 +1206,16 @@ class SlackBotAdapter(BotOsInputAdapter):
                             "thread_id": thread_id,
                         }
 
-                return f"Message sent to {slack_user_id} with result {res}"
+                try:
+                    if res.data['ok']:
+                        return f"Message sent to {slack_user_id} successfully."
+                    else:
+                        if res.data:
+                            return f"Response from slack: {res.data}."
+                        else:
+                            return f"Response from slack: {res}"
+                except:
+                    return f"Response from slack: {res}"
 
         except Exception as e:
             return f"Error sending message: {str(e)}"

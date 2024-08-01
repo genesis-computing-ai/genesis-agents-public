@@ -26,6 +26,7 @@ if cortex api not pupr, default back to complete()
 handle > 128k tokens
 make add bot tools to cortex 
 test if update process works
+work on tweaking prompt for suggesting to run tools vs actually running them
 
 processes:
 x? make the globals thread id mapped

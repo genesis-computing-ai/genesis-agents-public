@@ -37,6 +37,7 @@ docker build --rm -t genesis_app:latest --platform linux/amd64 .
 docker tag genesis_app:latest dshrnxx-genesis-dev.registry.snowflakecomputing.com/genesisapp_master/code_schema/service_repo/genesis_app:latest
 docker push dshrnxx-genesis-dev.registry.snowflakecomputing.com/genesisapp_master/code_schema/service_repo/genesis_app:latest
 
+dshrnxx-genesis-dev.registry.snowflakecomputing.com/genesisapp_master/code_schema/service_repo
 
 // mfa for genesis account
 

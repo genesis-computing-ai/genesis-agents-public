@@ -63,6 +63,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         self.allowed_types_search = [".c", ".cs", ".cpp", ".doc", ".docx", ".html", ".java", ".json", ".md", ".pdf", ".php", ".pptx", ".py", ".rb", ".tex", ".txt", ".css", ".js", ".sh", ".ts"]
         self.allowed_types_code_i = [".c", ".cs", ".cpp", ".doc", ".docx", ".html", ".java", ".json", ".md", ".pdf", ".php", ".pptx", ".py", ".rb", ".tex", ".txt", ".css", ".js", ".sh", ".ts", ".csv", ".jpeg", ".jpg", ".gif", ".png", ".tar", ".xlsx", ".xml", ".zip"]
         self.run_meta_map = {}
+        self.thread_stop_map = {}
 
     # Create a map to store thread history
         self.thread_history = {}
@@ -84,18 +85,19 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
 
         last_user_message = next((message for message in reversed(newarray) if message["role"] == "user"), None)
         if last_user_message is not None:
-            if '!model' in last_user_message["content"]:
-                resp= f"The model is set to: {self.llm_engine}. Current running Cortex via SQL COMPLETE. You can say !model llama3.1-405b, !model llama3.1-70b, or !model llama3.1-8b to change model size."
+
+            if '> says: !model' in last_user_message["content"] or last_user_message["content"]=='!model':
+                resp= f"The model is set to: {self.llm_engine}. Currently running via Cortext via REST. You can say !model llama3.1-405b, !model llama3.1-70b, or !model llama3.1-8b to change model size."
                 curr_resp = resp
-            if '!model llama3.1-405b' in last_user_message["content"]:
+            if '> says: !model llama3.1-405b' in last_user_message["content"] or last_user_message["content"]=='!model llama3.1-405b':
                 self.llm_engine = 'llama3.1-405b'
                 resp= f"The model is changed to: {self.llm_engine}"
                 curr_resp = resp
-            if '!model llama3.1-70b' in last_user_message["content"]:
+            if '> says: !model llama3.1-70b' in last_user_message["content"] or last_user_message["content"]=='!model llama3.1-70b':
                 self.llm_engine = 'llama3.1-70b'
                 resp= f"The model is changed to: {self.llm_engine}"
                 curr_resp = resp
-            if '!model llama3.1-8b' in last_user_message["content"]:
+            if '> says: !model llama3.1-8b' in last_user_message["content"] or last_user_message["content"]=='!model llama3.1-8b':
                 self.llm_engine = 'llama3.1-8b'
                 resp= f"The model is changed to: {self.llm_engine}"
                 curr_resp = resp
@@ -162,18 +164,33 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
 
         last_user_message = next((message for message in reversed(newarray) if message["role"] == "user"), None)
         if last_user_message is not None:
-            if '> says: !model'in last_user_message["content"]:
+            if last_user_message["content"].endswith('> says: !stop') or last_user_message["content"]=='!stop':
+                future_timestamp = datetime.datetime.now() + datetime.timedelta(seconds=5)
+                self.thread_stop_map[thread_id] = future_timestamp
+
+                time.sleep(5)
+
+                if self.thread_stop_map.get(thread_id) == 'stopped':
+                    self.thread_stop_map.pop(thread_id, None)
+                    resp = "Streaming stopped for previous request"
+                else:
+                    self.thread_stop_map.pop(thread_id, None)
+                    resp = "No streaming response found to stop"                    
+                curr_resp = resp
+            if thread_id in self.thread_stop_map:
+                self.thread_stop_map.pop(thread_id)
+            if '> says: !model' in last_user_message["content"] or last_user_message["content"]=='!model':
                 resp= f"The model is set to: {self.llm_engine}. Currently running via Cortext via REST. You can say !model llama3.1-405b, !model llama3.1-70b, or !model llama3.1-8b to change model size."
                 curr_resp = resp
-            if '> says: !model llama3.1-405b' in last_user_message["content"]:
+            if '> says: !model llama3.1-405b' in last_user_message["content"] or last_user_message["content"]=='!model llama3.1-405b':
                 self.llm_engine = 'llama3.1-405b'
                 resp= f"The model is changed to: {self.llm_engine}"
                 curr_resp = resp
-            if '> says: !model llama3.1-70b' in last_user_message["content"]:
+            if '> says: !model llama3.1-70b' in last_user_message["content"] or last_user_message["content"]=='!model llama3.1-70b':
                 self.llm_engine = 'llama3.1-70b'
                 resp= f"The model is changed to: {self.llm_engine}"
                 curr_resp = resp
-            if '> says: !model llama3.1-8b' in last_user_message["content"]:
+            if '> says: !model llama3.1-8b' in last_user_message["content"] or last_user_message["content"]=='!model llama3.1-8b':
                 self.llm_engine = 'llama3.1-8b'
                 resp= f"The model is changed to: {self.llm_engine}"
                 curr_resp = resp
@@ -261,6 +278,17 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                         return False
                     else:
                         for line in response.iter_lines():
+                            if thread_id in self.thread_stop_map:
+                                stop_timestamp = self.thread_stop_map[thread_id]
+                                if isinstance(stop_timestamp, str) and stop_timestamp == 'stopped':
+                                    del self.thread_stop_map[thread_id]
+                                if isinstance(stop_timestamp, datetime.datetime) and (time.time() - stop_timestamp.timestamp()) <= 5:
+                                    self.thread_stop_map[thread_id] = 'stopped'
+                                    if 'cur_resp' not in locals():
+                                        cur_resp = ''
+                                    cur_resp += '<!Stopped by user request>'
+                                    print('cortex thread stopped by user request')
+                                    break
                             if line:
                                 try:
                                     decoded_line = line.decode('utf-8')
@@ -455,12 +483,6 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         message_payload = input_message.msg 
         message_type = 'user'
         message_metadata = json.dumps(input_message.metadata)  # Assuming BotOsInputMessage has a metadata attribute that needs to be converted to string
-    
-        insert_query = f"""
-        INSERT INTO {self.cortex_threads_schema_input_table} (
-            TIMESTAMP, BOT_ID, BOT_NAME, THREAD_ID, MESSAGE_TYPE, MESSAGE_PAYLOAD, MESSAGE_METADATA
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s)
-        """
 
         message_object = {
             "message_type": message_type,
@@ -480,11 +502,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         self.thread_history[thread_id].append(message_object)
 
         try:
-         #   cursor = self.client.connection.cursor()
-         #   cursor.execute(insert_query, (
-         #       timestamp, self.bot_id, self.bot_name, thread_id, message_type, message_payload, message_metadata,
-         #   ))
-         #   self.client.connection.commit()
+
             thread_name = f"Cortex_{self.bot_name}_{thread_id}"
             threading.Thread(target=self.update_threads, name=thread_name, args=(thread_id, timestamp, message_metadata, event_callback)).start()
 

@@ -528,11 +528,18 @@ def chat_page():
 
         in_resp = response
 
+        # Initialize stop flag in session state
+        if "stop_streaming" not in st.session_state:
+            st.session_state.stop_streaming = False
+
         # Display assistant response in chat message container
         def response_generator(in_resp=None):
             previous_response = ""
             #  start_time = time.time()
             while True:
+                if st.session_state.stop_streaming:
+                    st.session_state.stop_streaming = False
+                    break
                 if in_resp is None:
                     response = get_response_from_udf_proxy(
                         uu=request_id, bot_id=selected_bot_id
@@ -583,6 +590,7 @@ def chat_page():
         else:
             with st.chat_message("assistant"):
                 response = st.write_stream(response_generator(in_resp))
+        st.session_state.stop_streaming = False
 
         if st.session_state["last_response"] == "":
             st.session_state["last_response"] = response

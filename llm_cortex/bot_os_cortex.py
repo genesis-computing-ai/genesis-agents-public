@@ -84,18 +84,18 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
 
         last_user_message = next((message for message in reversed(newarray) if message["role"] == "user"), None)
         if last_user_message is not None:
-            if '> says: !model'in last_user_message["content"]:
+            if '!model' in last_user_message["content"]:
                 resp= f"The model is set to: {self.llm_engine}. Current running Cortex via SQL COMPLETE. You can say !model llama3.1-405b, !model llama3.1-70b, or !model llama3.1-8b to change model size."
                 curr_resp = resp
-            if '> says: !model llama3.1-405b' in last_user_message["content"]:
+            if '!model llama3.1-405b' in last_user_message["content"]:
                 self.llm_engine = 'llama3.1-405b'
                 resp= f"The model is changed to: {self.llm_engine}"
                 curr_resp = resp
-            if '> says: !model llama3.1-70b' in last_user_message["content"]:
+            if '!model llama3.1-70b' in last_user_message["content"]:
                 self.llm_engine = 'llama3.1-70b'
                 resp= f"The model is changed to: {self.llm_engine}"
                 curr_resp = resp
-            if '> says: !model llama3.1-8b' in last_user_message["content"]:
+            if '!model llama3.1-8b' in last_user_message["content"]:
                 self.llm_engine = 'llama3.1-8b'
                 resp= f"The model is changed to: {self.llm_engine}"
                 curr_resp = resp

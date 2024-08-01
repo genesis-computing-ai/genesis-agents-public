@@ -315,8 +315,9 @@ Reminder:
 - Put the entire function call reply on one line
 - Do not add any preable of other text before or directly after the function call
 - Always add your sources when using search results to answer the user query
-- Don't generate a function call unless you want to actually call it immediately 
+- Don't generate function call syntax (e.g. as an example) unless you want to actually call it immediately 
 - Don't forget to call the tools, don't just say you can do it, actually do it when needed
+- If you're suggestion a next step to the user, just suggest it, but don't immediately perform it, wait for them to agree
 
 # Persona Instructions
  """+incoming_instructions + "\n\n"

@@ -76,7 +76,7 @@ pdb_attach.listen(5679)  # Listen on port 5678.
 
     
 
-print("****** GENBOT VERSION 0.150j *******")
+print("****** GENBOT VERSION 0.150k *******")
 
 runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
 global_flags.runner_id = runner_id
@@ -233,12 +233,11 @@ if llm_api_key is None:
     print("===========")
     print("NOTE: Cortex not available and no LLM configured, Config via Streamlit to continue")
     print("===========")
-
 t, r = get_slack_config_tokens()
-#global_flags.slack_active = test_slack_config_token()
-#if global_flags.slack_active == 'token_expired':
-#    print('Slack Config Token Expired')
-#    global_flags.slack_active = False 
+global_flags.slack_active = test_slack_config_token()
+if global_flags.slack_active == 'token_expired':
+    print('Slack Config Token Expired')
+    global_flags.slack_active = False 
 #global_flags.slack_active = True 
 
 print("...Slack Connector Active Flag: ", global_flags.slack_active)

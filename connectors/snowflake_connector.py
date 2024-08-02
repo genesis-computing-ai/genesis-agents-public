@@ -3794,6 +3794,7 @@ class SnowflakeConnector(DatabaseConnector):
                 }
             logger.info(f"Successfully updated bot_implementation for bot_id: {bot_id}")
 
+            # trigger the changed bot to reload its session
             os.environ[f'RESET_BOT_SESSION_{bot_id}'] = 'True'
 
 

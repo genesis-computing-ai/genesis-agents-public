@@ -21,6 +21,7 @@ from openai.types.beta.threads.runs import ToolCall, RunStep
 from openai.types.beta import AssistantStreamEvent
 from collections import defaultdict
 import traceback
+from bot_genesis.make_baby_bot import (  get_bot_details ) 
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.WARN, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -660,6 +661,18 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                                                     primary_user=primary_user)
       return True
 
+   def is_bot_openai(self,bot_id):
+       bot_details = get_bot_details(bot_id)
+       return bot_details.get("bot_implementation") == 'openai'
+
+   def reset_bot_if_not_openai(self,bot_id):
+       bot_details = get_bot_details(bot_id)
+       if bot_details.get("bot_implementation") != "openai":
+           os.environ[f'RESET_BOT_SESSION_{bot_id}'] = 'True'
+           return True
+       else:
+            return False
+
 
    def _submit_tool_outputs(self, run_id, thread_id, tool_call_id, function_call_details, func_response, metadata=None):
      
@@ -682,45 +695,46 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       try:
          if function_call_details[0][0] == '_modify_slack_allow_list' and (func_response.get('success',False)==True or func_response.get('Success',False)==True):
             self.clear_access_cache = True
+
          if (function_call_details[0][0] == 'remove_tools_from_bot' or function_call_details[0][0] == 'add_new_tools_to_bot') and (func_response.get('success',False)==True or func_response.get('Success',False)==True):
             target_bot = json.loads(function_call_details[0][1]).get('bot_id',None)
             if target_bot is not None:
-               my_assistants = self.client.beta.assistants.list(order="desc", limit=100)
-               my_assistants = [a for a in my_assistants if a.name == target_bot]
-               for assistant in my_assistants:
+               
+               if self.is_bot_openai(target_bot):
                   bot_tools = None
-                  #print(self.all_tools)
                   all_tools_for_bot = func_response.get('all_bot_tools', None)
                   if all_tools_for_bot is not None:
                      #print(all_tools_for_bot)
                      #print(self.all_function_to_tool_map)
                      bot_tools_array = []
                      for tool in all_tools_for_bot:
-                      #  logger.warn(f'--> Calling validate_or_add_function on {tool} <---- ')
+                     #  logger.warn(f'--> Calling validate_or_add_function on {tool} <---- ')
                         self.validate_or_add_function(tool)
                         tool_name = tool
                         if tool_name in self.all_function_to_tool_map:
                            for t in self.all_function_to_tool_map[tool_name]:
                               bot_tools_array.append(t)
 
-                  new_instructions = assistant.instructions 
-                  if "snowflake_stage_tools" in all_tools_for_bot and 'make_baby_bot' in all_tools_for_bot:        
-                        new_instructions += f"\nYour Internal Files Stage for bots is at snowflake stage: {self.genbot_internal_project_and_schema}.BOT_FILES_STAGE"
-                        print("Instruction for target bot updated with Internal Files Stage location.")
-                  bot_tools_array = bot_tools_array + _BOT_OS_BUILTIN_TOOLS + [{"type": "code_interpreter"}, {"type": "file_search"}]
+                  my_assistants = self.client.beta.assistants.list(order="desc", limit=100)
+                  my_assistants = [a for a in my_assistants if a.name == target_bot]
 
-                  if "database_tools" in all_tools_for_bot:
-                     workspace_schema_name = f"{target_bot}_WORKSPACE".replace('-','_').upper()
-                     new_instructions += f"\nYou have a workspace schema created specifically for you named {workspace_schema_name} that the user can also access. You may use this schema for creating tables, views, and stages that are required when generating answers to data analysis questions. Only use this schema if asked to create an object. Always return the full location of the object."
+                  for assistant in my_assistants:
 
-                  self.client.beta.assistants.update(assistant.id,tools=bot_tools_array, instructions=new_instructions)
-                  
-                  # handle looking for newly created tools, import them and add on the fly, also do that in execute function if not already there 
+                     new_instructions = assistant.instructions 
+                     if "snowflake_stage_tools" in all_tools_for_bot and 'make_baby_bot' in all_tools_for_bot:        
+                           new_instructions += f"\nYour Internal Files Stage for bots is at snowflake stage: {self.genbot_internal_project_and_schema}.BOT_FILES_STAGE"
+                           print("Instruction for target bot updated with Internal Files Stage location.")
+                     bot_tools_array = bot_tools_array + _BOT_OS_BUILTIN_TOOLS + [{"type": "code_interpreter"}, {"type": "file_search"}]
 
-                  ### PLAN HERE: TODO ##
-                  ## have available_functions be in multibot main, and have all available functions pre-mapped, and make sure new ones somehow are added to it, or add them here somehow
-                  ## have a function here that assembles the tools object (but no links to the actual functions)
-                  #self.client.beta.assistants.update(assistant.id,tools=bot_tools)
+                     if "database_tools" in all_tools_for_bot:
+                        workspace_schema_name = f"{target_bot}_WORKSPACE".replace('-','_').upper()
+                        new_instructions += f"\nYou have a workspace schema created specifically for you named {workspace_schema_name} that the user can also access. You may use this schema for creating tables, views, and stages that are required when generating answers to data analysis questions. Only use this schema if asked to create an object. Always return the full location of the object."
+
+                     self.client.beta.assistants.update(assistant.id,tools=bot_tools_array, instructions=new_instructions)
+
+               else: # target bot is not openai
+                  # this will start a new session with the updated tools and proper instructions
+                  self.reset_bot_if_not_openai(bot_id=target_bot) 
                   
                logger.info(f"Bot tools for {target_bot} updated.")
 
@@ -734,8 +748,6 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                    func_response.pop("new_bot_details", None)
                
                if target_bot is not None:
-                  my_assistants = self.client.beta.assistants.list(order="desc",limit=100)
-                  my_assistants = [a for a in my_assistants if a.name == target_bot]
 
                   instructions = new_instructions + "\n" + BASE_BOT_INSTRUCTIONS_ADDENDUM
                   instructions += f'\nNote current settings:\nData source: {global_flags.source}\nYour bot_id: {bot_details["bot_id"]}.\n'
@@ -751,8 +763,13 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                      workspace_schema_name = f"{global_flags.project_id}.{target_bot}_WORKSPACE".replace('-', '_').upper()
                      instructions += f"\nYou have a workspace schema created specifically for you named {workspace_schema_name} that the user can also access. You may use this schema for creating tables, views, and stages that are required when generating answers to data analysis questions. Only use this schema if asked to create an object. Always return the full location of the object."
 
-                  for assistant in my_assistants:
-                     self.client.beta.assistants.update(assistant.id,instructions=instructions)
+                  if not self.reset_bot_if_not_openai(bot_id=target_bot):
+
+                     my_assistants = self.client.beta.assistants.list(order="desc",limit=100)
+                     my_assistants = [a for a in my_assistants if a.name == target_bot]
+
+                     for assistant in my_assistants:
+                        self.client.beta.assistants.update(assistant.id,instructions=instructions)
                      
                   print(f"Bot instructions for {target_bot} updated: {instructions}")
                         
@@ -1058,9 +1075,9 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
          thread_id = self.active_runs.popleft()
          if thread_id is None:
             return
-         print(f"0-0-0-0-0-0-0->>>> thread_id: {thread_id}, in self.processing_runs: {thread_id in self.processing_runs}")
+       #  print(f"0-0-0-0-0-0-0->>>> thread_id: {thread_id}, in self.processing_runs: {thread_id in self.processing_runs}")
          if thread_id in self.processing_runs:
-            print('.... outta here ...')
+        #    print('.... outta here ...')
             return
          if thread_id not in self.processing_runs:
             self.processing_runs.append(thread_id)

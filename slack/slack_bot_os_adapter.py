@@ -810,7 +810,7 @@ class SlackBotAdapter(BotOsInputAdapter):
                 
                 if current_chunk_start is not None:
 
-                    print (' -0-0-0-0-0- IN the completion handler ready to trim if needed -0-0-0-0-0')
+                 #   print (' -0-0-0-0-0- IN the completion handler ready to trim if needed -0-0-0-0-0')
 
                     trimmed = False
                     if orig_thinking in self.chunk_last_100:

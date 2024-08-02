@@ -3,6 +3,18 @@ GENESIS BOT TODOS
 =================
 
 
+soon-jl:
+x comment out semantic tools 
+x test an openai bot eve updating instructions and adding and removing tools for a cortex bot
+make file add tools give error back for cortex bots
+update janice , remove semantic, tasks, add process tools
+have kevin retest
+add a bot remove from slack tool (stub added to babybot)
+put a new slack token into Alpha and test rotation on startup
+redo task system as just as scheduler for processes
+re-test with small changes made friday 11am, commented out semantics fully from db tools
+
+
 Cortex:
 Make add tools to bot and change instructions work for Cortex mode bots
 Streaming mode 
@@ -32,6 +44,7 @@ processes:
 x? make the globals thread id mapped
 x fix list processes
 make the task system just a scheduler, use processes for the actual work
+make sure that DMs sent from processes can be responded to and bot will know context 
 x make it start a new run for each process step and/or when it gets close to 10 min 
 make get_next_step make sure process is already kicked off to avoid + error Nonetype and int
 make sure the same bot doesnt run the same process at the same time (or make it possible for it to do so, track threads better?)

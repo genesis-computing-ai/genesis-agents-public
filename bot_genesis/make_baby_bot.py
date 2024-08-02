@@ -977,6 +977,7 @@ def make_baby_bot(bot_id, bot_name, bot_instructions='You are a helpful bot.', a
                   files = "", bot_implementation = "openai",
                   update_existing=False, slack_access_open = True):
     
+    bot_implementation = bot_implementation.lower()
 
     try:
         files_array = json.loads(files)
@@ -1299,6 +1300,7 @@ def update_bot_implementation(bot_id, bot_implementation, thread_id=None):
     runner_id = os.getenv('RUNNER_ID', 'jl-local-runner')
 
     bot_config = get_bot_details(bot_id=bot_id)
+    bot_implementation = bot_implementation.lower()
 
     return bb_db_connector.db_update_bot_implementation(project_id=project_id, dataset_name=dataset_name, bot_servicing_table=bot_servicing_table, bot_id=bot_id, bot_implementation=bot_implementation, runner_id=runner_id)
 
@@ -1766,3 +1768,14 @@ def remove_tools_from_bot(bot_id, remove_tools):
 
     return bb_db_connector.db_remove_bot_tools(project_id=project_id,dataset_name=dataset_name,bot_servicing_table=bot_servicing_table, bot_id=bot_id, updated_tools_str=updated_tools_str, tools_to_be_removed=remove_tools, invalid_tools=invalid_tools, updated_tools=updated_tools_list)
 
+
+def remove_bot_from_slack():
+    # STUB PLACEHOLDER 
+    
+    query = '''update bot_servicing 
+    set api_app_id = null, bot_slack_user_id = null, slack_app_token = null, slack_app_level_key = null, 
+    slack_signing_secret = null, auth_url = null, auth_state = null, client_id = null, client_secret = null, 
+    slack_active = 'N' 
+    where bot_id = 'Eve-s2Wjwi';''' 
+
+    pass

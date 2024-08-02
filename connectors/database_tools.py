@@ -64,32 +64,32 @@ database_tool_functions = [
             },
         },
     },
-    {
-        "type": "function",
-        "function": {
-            "name": "semantic_copilot",
-            "description": "Calls the Snowflake semantic copilot to generate proposed SQL against a semantic model. Only this if you know the name of an existing semantic model.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "prompt": {
-                        "type": "string",
-                        "description": "Brief but complete natural language description of what you want the resulting SQL to do.",
-                    },
-                    "semantic_model": {
-                        "type": "string",
-                        "description": "The name of the semantic model.",
-                    },
-                    "prod": {
-                        "type": "boolean",
-                        "description": "True for a production model, false to use a dev non-prod model.",
-                        "default": True,
-                    },
-                },
-                "required": ["prompt", "semantic_model", "prod"],
-            },
-        },
-    },
+    # {
+    #     "type": "function",
+    #     "function": {
+    #         "name": "semantic_copilot",
+    #         "description": "Calls the Snowflake semantic copilot to generate proposed SQL against a semantic model. Only this if you know the name of an existing semantic model.",
+    #         "parameters": {
+    #             "type": "object",
+    #             "properties": {
+    #                 "prompt": {
+    #                     "type": "string",
+    #                     "description": "Brief but complete natural language description of what you want the resulting SQL to do.",
+    #                 },
+    #                 "semantic_model": {
+    #                     "type": "string",
+    #                     "description": "The name of the semantic model.",
+    #                 },
+    #                 "prod": {
+    #                     "type": "boolean",
+    #                     "description": "True for a production model, false to use a dev non-prod model.",
+    #                     "default": True,
+    #                 },
+    #             },
+    #             "required": ["prompt", "semantic_model", "prod"],
+    #         },
+    #     },
+    # },
     {
         "type": "function",
         "function": {
@@ -116,41 +116,41 @@ database_tool_functions = [
             },
         },
     },
-    {
-        "type": "function",
-        "function": {
-            "name": "_list_semantic_models",
-            "description": "Lists the semantic models available in the system.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "prod": {
-                        "type": "boolean",
-                        "description": "True for production models, false for dev models. Omit for both.",
-                        "default": False,
-                    }
-                },
-                "required": [],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "_get_semantic_model",
-            "description": "Retrieves an existing semantic model from the map based on the model name and thread id.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "model_name": {
-                        "type": "string",
-                        "description": "The name of the model to retrieve.",
-                    },
-                },
-                "required": ["model_name"],
-            },
-        },
-    },
+    # {
+    #     "type": "function",
+    #     "function": {
+    #         "name": "_list_semantic_models",
+    #         "description": "Lists the semantic models available in the system.",
+    #         "parameters": {
+    #             "type": "object",
+    #             "properties": {
+    #                 "prod": {
+    #                     "type": "boolean",
+    #                     "description": "True for production models, false for dev models. Omit for both.",
+    #                     "default": False,
+    #                 }
+    #             },
+    #             "required": [],
+    #         },
+    #     },
+    # },
+    # {
+    #     "type": "function",
+    #     "function": {
+    #         "name": "_get_semantic_model",
+    #         "description": "Retrieves an existing semantic model from the map based on the model name and thread id.",
+    #         "parameters": {
+    #             "type": "object",
+    #             "properties": {
+    #                 "model_name": {
+    #                     "type": "string",
+    #                     "description": "The name of the model to retrieve.",
+    #                 },
+    #             },
+    #             "required": ["model_name"],
+    #         },
+    #     },
+    # },
 ]
 
 snowflake_semantic_functions = [
@@ -582,10 +582,10 @@ image_tools = {
 
 
 snowflake_semantic_tools = {
-    "_modify_semantic_model": "db_adapter.modify_and_update_semantic_model",
-    "_initialize_semantic_model": "db_adapter.initialize_semantic_model",
-    "_deploy_semantic_model": "db_adapter.deploy_semantic_model",
-    "_load_semantic_model": "db_adapter.load_semantic_model",
+  #  "_modify_semantic_model": "db_adapter.modify_and_update_semantic_model",
+  #  "_initialize_semantic_model": "db_adapter.initialize_semantic_model",
+  #  "_deploy_semantic_model": "db_adapter.deploy_semantic_model",
+  #  "_load_semantic_model": "db_adapter.load_semantic_model",
 }
 
 database_tools = {

@@ -438,6 +438,7 @@ def get_tools(which_tools, db_adapter, slack_adapter_local=None, include_slack=T
             available_functions_load.update(image_tools)
             function_to_tool_map[tool_name] = image_functions
         elif tool_name == "snowflake_semantic_tools":
+            print('Note: Semantic Tools are currently disabled pending refactoring or removal.')
             tools.extend(snowflake_semantic_functions)
             available_functions_load.update(snowflake_semantic_tools)
             function_to_tool_map[tool_name] = snowflake_semantic_functions

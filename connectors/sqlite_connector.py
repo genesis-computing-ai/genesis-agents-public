@@ -1,5 +1,6 @@
 import sqlite3
 from snowflake.connector import connect
+from tqdm import tqdm
 
 import os
 import json
@@ -2651,7 +2652,7 @@ class SqliteConnector(DatabaseConnector):
 
         # Query to insert or update the slack app config tokens
         query = f"""
-            MERGE INTO {project_id}.{dataset_name}.slack_app_config_tokens USING (
+            MERGE INTO slack_app_config_tokens USING (
                 SELECT ? AS runner_id
             ) AS src
             ON src.runner_id = slack_app_config_tokens.runner_id
@@ -2699,7 +2700,7 @@ class SqliteConnector(DatabaseConnector):
         # Query to retrieve the slack app config tokens
         query = f"""
             SELECT slack_app_config_token, slack_app_config_refresh_token
-            FROM {project_id}.{dataset_name}.slack_app_config_tokens
+            FROM slack_app_config_tokens
             WHERE runner_id = '{runner_id}'
         """
 
@@ -2735,7 +2736,7 @@ class SqliteConnector(DatabaseConnector):
         # Query to retrieve the ngrok auth token and related information
         query = f"""
             SELECT ngrok_auth_token, ngrok_use_domain, ngrok_domain
-            FROM {project_id}.{dataset_name}.ngrok_tokens
+            FROM ngrok_tokens
             WHERE runner_id = ?
         """
 
@@ -2780,7 +2781,7 @@ class SqliteConnector(DatabaseConnector):
 
         # Query to merge the ngrok tokens, inserting if the row doesn't exist
         query = f"""
-            MERGE INTO {project_id}.{dataset_name}.ngrok_tokens USING (SELECT 1 AS one) ON (runner_id = ?)
+            MERGE INTO ngrok_tokens USING (SELECT 1 AS one) ON (runner_id = ?)
             WHEN MATCHED THEN
                 UPDATE SET ngrok_auth_token = ?,
                            ngrok_use_domain = ?,
@@ -2868,7 +2869,7 @@ class SqliteConnector(DatabaseConnector):
 
         # Query to merge the LLM tokens, inserting if the row doesn't exist
         query = f"""
-            MERGE INTO {project_id}.{dataset_name}.llm_tokens USING (SELECT 1 AS one) ON (runner_id = ? and llm_type = '{llm_type}')
+            MERGE INTO llm_tokens USING (SELECT 1 AS one) ON (runner_id = ? and llm_type = '{llm_type}')
             WHEN MATCHED THEN
                 UPDATE SET llm_key = ?, llm_type = ?
             WHEN NOT MATCHED THEN
@@ -2943,7 +2944,7 @@ class SqliteConnector(DatabaseConnector):
         """
 
         insert_query = f"""
-            INSERT INTO {project_id}.{dataset_name}.{bot_servicing_table} (
+            INSERT INTO {bot_servicing_table} (
                 api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instructions, runner_id, 
                 slack_signing_secret, slack_channel_id, available_tools, auth_url, auth_state, client_id, client_secret, udf_active, slack_active,
                 files, bot_implementation, bot_intro_prompt, bot_avatar_image
@@ -2986,7 +2987,7 @@ class SqliteConnector(DatabaseConnector):
 
             if not slack_user_allow:
                 slack_user_allow_update_query = f"""
-                    UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
+                    UPDATE {bot_servicing_table}
                     SET slack_user_allow = parse_json(?)
                     WHERE upper(bot_id) = upper(?)
                     """
@@ -3025,7 +3026,7 @@ class SqliteConnector(DatabaseConnector):
 
         # Query to update the available_tools in the database
         update_query = f"""
-            UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
+            UPDATE {bot_servicing_table}
             SET available_tools = ?
             WHERE upper(bot_id) = upper(?)
         """
@@ -3066,7 +3067,7 @@ class SqliteConnector(DatabaseConnector):
     ):
         # Query to update the files in the database
         update_query = f"""
-            UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
+            UPDATE {bot_servicing_table}
             SET files = ?
             WHERE upper(bot_id) = upper(?)
         """
@@ -3106,7 +3107,7 @@ class SqliteConnector(DatabaseConnector):
             dict: A dictionary with the result of the operation, indicating success or failure.
         """
         update_query = f"""
-            UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
+            UPDATE {bot_servicing_table}
             SET SLACK_APP_LEVEL_KEY = ?
             WHERE upper(bot_id) = upper(?)
         """
@@ -3143,7 +3144,7 @@ class SqliteConnector(DatabaseConnector):
 
         # Query to update the bot instructions in the database
         update_query = f"""
-            UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
+            UPDATE {bot_servicing_table}
             SET bot_instructions = ?
             WHERE upper(bot_id) = upper(?) AND runner_id = ?
         """
@@ -3197,7 +3198,7 @@ class SqliteConnector(DatabaseConnector):
 
         # Query to update the bot implementation in the database
         update_query = f"""
-            UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
+            UPDATE {bot_servicing_table}
             SET bot_implementation = ?
             WHERE upper(bot_id) = upper(?) AND runner_id = ?
         """
@@ -3242,7 +3243,7 @@ class SqliteConnector(DatabaseConnector):
 
         # Query to update the SLACK_USER_ALLOW list in the database
         update_query = f"""
-            UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
+            UPDATE {bot_servicing_table}
             SET SLACK_USER_ALLOW = parse_json(?)
             WHERE upper(bot_id) = upper(?)
         """
@@ -3251,7 +3252,7 @@ class SqliteConnector(DatabaseConnector):
         slack_user_allow_list_str = json.dumps(slack_user_allow_list)
         if slack_user_allow_list == []:
             update_query = f"""
-            UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
+            UPDATE {bot_servicing_table}
             SET SLACK_USER_ALLOW = null
             WHERE upper(bot_id) = upper(?)
                """
@@ -3321,7 +3322,7 @@ class SqliteConnector(DatabaseConnector):
         # Query to select the bot details
         select_query = f"""
             SELECT *
-            FROM {project_id}.{dataset_name}.{bot_servicing_table}
+            FROM {bot_servicing_table}
             WHERE upper(bot_id) = upper(?)
         """
 
@@ -3382,7 +3383,7 @@ class SqliteConnector(DatabaseConnector):
         """
 
         update_query = f"""
-            UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
+            UPDATE {bot_servicing_table}
             SET API_APP_ID = ?, BOT_SLACK_USER_ID = ?, CLIENT_ID = ?, CLIENT_SECRET = ?,
                 SLACK_SIGNING_SECRET = ?, AUTH_URL = ?, AUTH_STATE = ?,
                 UDF_ACTIVE = ?, SLACK_ACTIVE = ?, FILES = ?, BOT_IMPLEMENTATION = ?
@@ -3436,7 +3437,7 @@ class SqliteConnector(DatabaseConnector):
         """
 
         update_query = f"""
-            UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
+            UPDATE {bot_servicing_table}
             SET BOT_SLACK_USER_ID = ?, SLACK_APP_TOKEN = ?
             WHERE upper(BOT_ID) = upper(?)
         """
@@ -3496,7 +3497,7 @@ class SqliteConnector(DatabaseConnector):
         """
         # Query to merge (upsert) tool into the available_tools table
         merge_query = f"""
-            MERGE INTO {project_id}.{dataset_name}.available_tools USING (
+            MERGE INTO available_tools USING (
                 SELECT ? AS tool_name, ? AS tool_description
             ) AS source ON target.tool_name = source.tool_name
             WHEN MATCHED THEN
@@ -3533,7 +3534,7 @@ class SqliteConnector(DatabaseConnector):
 
         # Query to delete the bot from the database table
         delete_query = f"""
-            DELETE FROM {project_id}.{dataset_name}.{bot_servicing_table}
+            DELETE FROM {bot_servicing_table}
             WHERE upper(bot_id) = upper(?)
         """
 
@@ -3570,7 +3571,7 @@ class SqliteConnector(DatabaseConnector):
         # Query to select the bots from the BOT_SERVICING table
         select_query = f"""
             SELECT bot_id, api_app_id, slack_app_token
-            FROM {project_id}.{dataset_name}.{bot_servicing_table}
+            FROM {bot_servicing_table}
             WHERE runner_id = ? AND slack_active = 'Y'
         """
 
@@ -5446,7 +5447,7 @@ class SqliteConnector(DatabaseConnector):
 
         # Query to update the available_tools in the database
         update_query = f"""
-                UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
+                UPDATE {bot_servicing_table}
                 SET available_tools = ?
                 WHERE upper(bot_id) = upper(?)
             """
@@ -5480,126 +5481,113 @@ class SqliteConnector(DatabaseConnector):
         if knowledge:
             return knowledge[0]
         return []
+    
+    def fetch_embeddings(self, table_id):
+        # Initialize Snowflake connector
+
+        # Initialize variables
+        batch_size = 100
+        offset = 0
+        total_fetched = 0
+
+        # Initialize lists to store results
+        embeddings = []
+        table_names = []
+
+        # First, get the total number of rows to set up the progress bar
+        total_rows_query = f"SELECT COUNT(*) as total FROM {table_id}"
+        cursor = self.client.cursor()
+    # print('total rows query: ',total_rows_query)
+        cursor.execute(total_rows_query)
+        total_rows_result = cursor.fetchone()
+        total_rows = total_rows_result[0]
+
+        with tqdm(total=total_rows, desc="Fetching embeddings") as pbar:
+            while True:
+                # Modify the query to include LIMIT and OFFSET
+                query = f"SELECT qualified_table_name, embedding FROM {table_id} LIMIT {batch_size} OFFSET {offset}"
+    #            print('fetch query ',query)
+                cursor.execute(query)
+                rows = cursor.fetchall()
+
+                # Temporary lists to hold batch results
+                temp_embeddings = []
+                temp_table_names = []
+
+                for row in rows:
+                    try:
+                        temp_embeddings.append(json.loads('['+row[1][5:-3]+']'))
+                        temp_table_names.append(row[0])
+    #                    print('temp_embeddings len: ',len(temp_embeddings))
+    #                    print('temp table_names: ',temp_table_names)
+                    except:
+                        try:
+                            temp_embeddings.append(json.loads('['+row[1][5:-10]+']'))
+                            temp_table_names.append(row[0])
+                        except:
+                            print('Cant load array from Snowflake')
+                    # Assuming qualified_table_name is the first column
+
+                # Check if the batch was empty and exit the loop if so
+                if not temp_embeddings:
+                    break
+
+                # Append batch results to the main lists
+                embeddings.extend(temp_embeddings)
+                table_names.extend(temp_table_names)
+
+                # Update counters and progress bar
+                fetched = len(temp_embeddings)
+                total_fetched += fetched
+                pbar.update(fetched)
+
+                if fetched < batch_size:
+                    # If less than batch_size rows were fetched, it's the last batch
+                    break
+
+                # Increase the offset for the next batch
+                offset += batch_size
+
+        cursor.close()
+    #   print('table names ',table_names)
+    #   print('embeddings len ',len(embeddings))
+        return table_names, embeddings
+
+    def generate_filename_from_last_modified(self, table_id):
+
+        try:
+            # Fetch the maximum LAST_CRAWLED_TIMESTAMP from the harvest_results table
+            query = f"SELECT MAX(LAST_CRAWLED_TIMESTAMP) AS last_crawled_time FROM HARVEST_RESULTS"
+            cursor = self.client.cursor()
+
+            cursor.execute(query)
+            bots = cursor.fetchall()
+            if bots is not None:
+                columns = [col[0].lower() for col in cursor.description]
+                result = [dict(zip(columns, bot)) for bot in bots]
+            else:
+                result = None
+            cursor.close()
 
 
-def test_stage_functions():
-    # Create a test instance of SnowflakeConnector
-    test_connector = SnowflakeConnector("Snowflake")
+            # Ensure we have a valid result and last_crawled_time is not None
+            if not result or result[0]['last_crawled_time'] is None:
+                raise ValueError("No data crawled - This is expected on fresh install.")
+                return('NO_DATA_CRAWLED')
+                #raise ValueError("Table last crawled timestamp is None. Unable to generate filename.")
 
-    # Call the list_stage method with the specified parameters
-    stage_list = test_connector.list_stage_contents(
-        database="GENESIS_TEST", schema="GENESIS_INTERNAL", stage="SEMANTIC_STAGE"
-    )
+            # The `last_crawled_time` attribute should be a datetime object. Format it.
+            last_crawled_time = result[0]['last_crawled_time']
+            timestamp_str = last_crawled_time.strftime("%Y%m%dT%H%M%S") + "Z"
 
-    # Print the result
-    print(stage_list)
+            # Create the filename with the .ann extension
+            filename = f"{timestamp_str}.ann"
+            metafilename = f"{timestamp_str}.json"
+            return filename, metafilename
+        except Exception as e:
+            # Handle errors: for example, table not found, or API errors
+            #print(f"An error occurred: {e}, possibly no data yet harvested, using default name for index file.")
+            # Return a default filename or re-raise the exception based on your use case
+            return "default_filename.ann", "default_metadata.json"
 
-    for file_info in stage_list:
-        file_name = file_info["name"].split("/")[-1]  # Extract the file name
-        file_size = file_info["size"]
-        file_md5 = file_info["md5"]
-        file_last_modified = file_info["last_modified"]
-        print(f"Reading file: {file_name}")
-        print(f"Size: {file_size} bytes")
-        print(f"MD5: {file_md5}")
-        print(f"Last Modified: {file_last_modified}")
-        file_content = test_connector.read_file_from_stage(
-            database="GENESIS_TEST",
-            schema="GENESIS_INTERNAL",
-            stage="SEMANTIC_STAGE",
-            file_name=file_name,
-            return_contents=True,
-        )
-        print(file_content)
 
-        # Call the function to write 'tostage.txt' to the stage
-    result = test_connector.add_file_to_stage(
-        database="GENESIS_TEST",
-        schema="GENESIS_INTERNAL",
-        stage="SEMANTIC_STAGE",
-        file_name="tostage.txt",
-    )
-    print(result)
-
-    # Read the 'tostage.txt' file from the stage
-    tostage_content = test_connector.read_file_from_stage(
-        database="GENESIS_TEST",
-        schema="GENESIS_INTERNAL",
-        stage="SEMANTIC_STAGE",
-        file_name="tostage.txt",
-        return_contents=True,
-    )
-    print("Content of 'tostage.txt':")
-    print(tostage_content)
-
-    import random
-    import string
-
-    # Function to generate a random string of fixed length
-    def random_string(length=10):
-        letters = string.ascii_letters
-        return "".join(random.choice(letters) for i in range(length))
-
-    # Generate a random string
-    random_str = random_string()
-
-    # Append the random string to the 'tostage.txt' file
-    with open("./stage_files/tostage.txt", "a") as file:
-        file.write(f"{random_str}\n")
-
-    print(f"Appended random string to 'tostage.txt': {random_str}")
-
-    # Upload the updated 'tostage.txt' to the stage
-    update_result = test_connector.update_file_in_stage(
-        database="GENESIS_TEST",
-        schema="GENESIS_INTERNAL",
-        stage="SEMANTIC_STAGE",
-        file_name="tostage.txt",
-    )
-    print(f"Update result for 'tostage.txt': {update_result}")
-
-    # Read the 'tostage.txt' file from the stage
-    new_version_filename = test_connector.read_file_from_stage(
-        database="GENESIS_TEST",
-        schema="GENESIS_INTERNAL",
-        stage="SEMANTIC_STAGE",
-        file_name="tostage.txt",
-        return_contents=False,
-    )
-
-    # Load new_version_contents from the file returned by new_version_filename
-    with open("./stage_files/" + new_version_filename, "r") as file:
-        new_version_content = file.read()
-
-    # Split the content into lines and check the last line for the random string
-    lines = new_version_content.split("\n")
-    if (
-        lines[-2].strip() == random_str
-    ):  # -2 because the last element is an empty string due to the trailing newline
-        print("The last line in the new version contains the random string.")
-    else:
-        print("The second to last line is:", lines[-2])
-        print("The last line is:", lines[-1])
-        print("The last line in the new version does not contain the random string.")
-    # Delete the 'tostage.txt' file from the stage
-    delete_result = test_connector.delete_file_from_stage(
-        database="GENESIS_TEST",
-        schema="GENESIS_INTERNAL",
-        stage="SEMANTIC_STAGE",
-        file_name="tostage.txt",
-    )
-    print(f"Delete result for 'tostage.txt': {delete_result}")
-
-    # Re-list the stage contents to confirm deletion of 'tostage.txt'
-    stage_list_after_deletion = test_connector.list_stage_contents(
-        database="GENESIS_TEST", schema="GENESIS_INTERNAL", stage="SEMANTIC_STAGE"
-    )
-
-    # Check if 'tostage.txt' is in the stage list after deletion
-    file_names_after_deletion = [
-        file_info["name"].split("/")[-1] for file_info in stage_list_after_deletion
-    ]
-    if "tostage.txt" not in file_names_after_deletion:
-        print("'tostage.txt' has been successfully deleted from the stage.")
-    else:
-        print("Error: 'tostage.txt' is still present in the stage.")

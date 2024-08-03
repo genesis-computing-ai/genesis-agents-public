@@ -10,6 +10,7 @@ import os
 import time
 import hashlib
 import json
+from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
@@ -1203,3 +1204,88 @@ class BigQueryConnector(DatabaseConnector):
         except Exception as e:
             logger.error(f"Failed to get list of bots active on slack for a runner {e}")
             raise e
+
+
+    def generate_filename_from_last_modified(self, table_id):
+
+        try:
+            # Fetch the table
+            table = self.client.get_table(table_id)
+
+            # Ensure we have a valid datetime object for `modified`
+            if table.modified is None:
+                raise ValueError("Table modified time is None. Unable to generate filename.")
+
+            # The `modified` attribute should be a datetime object. Format it.
+            last_modified_time = table.modified
+            timestamp_str = last_modified_time.strftime("%Y%m%dT%H%M%S") + "Z"
+
+            # Create the filename with the .ann extension
+            filename = f"{timestamp_str}.ann"
+            metafilename = f"{timestamp_str}.json"
+            return filename, metafilename
+        except Exception as e:
+            # Handle errors: for example, table not found, or API errors
+            #print(f"An error occurred: {e}")
+            # Return a default filename or re-raise the exception based on your use case
+            return "default_filename.ann", "default_metadata.json"
+        
+
+    def fetch_embeddings(self, table_id):
+
+        # Initialize variables
+        batch_size = 100
+        offset = 0
+        total_fetched = 0
+
+        # Initialize lists to store results
+        embeddings = []
+        table_names = []
+
+        # First, get the total number of rows to set up the progress bar
+        total_rows_query = f"""
+            SELECT COUNT(*) as total
+            FROM `{table_id}`
+        """
+        total_rows_result = self.client.query(total_rows_query).to_dataframe()
+        total_rows = total_rows_result.total[0]
+
+        with tqdm(total=total_rows, desc="Fetching embeddings") as pbar:
+            while True:
+                # Modify the query to include LIMIT and OFFSET
+                query = f"""
+                    SELECT qualified_table_name, embedding
+                    FROM `{table_id}`
+                    LIMIT {batch_size} OFFSET {offset}
+                """
+                query_job = self.client.query(query)
+
+                # Temporary lists to hold batch results
+                temp_embeddings = []
+                temp_table_names = []
+
+                for row in query_job:
+                    temp_embeddings.append(row.embedding)
+                    temp_table_names.append(row.qualified_table_name)
+
+                # Check if the batch was empty and exit the loop if so
+                if not temp_embeddings:
+                    break
+
+                # Append batch results to the main lists
+                embeddings.extend(temp_embeddings)
+                table_names.extend(temp_table_names)
+
+                # Update counters and progress bar
+                fetched = len(temp_embeddings)
+                total_fetched += fetched
+                pbar.update(fetched)
+
+                if fetched < batch_size:
+                    # If less than batch_size rows were fetched, it's the last batch
+                    break
+
+                # Increase the offset for the next batch
+                offset += batch_size
+
+        return table_names, embeddings

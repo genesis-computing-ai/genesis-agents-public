@@ -31,6 +31,7 @@ from threading import Lock
 import base64
 import requests
 import re
+from tqdm import tqdm
 
 import core.bot_os_tool_descriptions
 
@@ -6109,6 +6110,117 @@ class SnowflakeConnector(DatabaseConnector):
         if knowledge:
             return knowledge[0]
         return []
+
+    def fetch_embeddings(self, table_id):
+        # Initialize Snowflake connector
+
+        # Initialize variables
+        batch_size = 100
+        offset = 0
+        total_fetched = 0
+
+        # Initialize lists to store results
+        embeddings = []
+        table_names = []
+
+        # First, get the total number of rows to set up the progress bar
+        total_rows_query = f"SELECT COUNT(*) as total FROM {table_id}"
+        cursor = self.connection.cursor()
+    # print('total rows query: ',total_rows_query)
+        cursor.execute(total_rows_query)
+        total_rows_result = cursor.fetchone()
+        total_rows = total_rows_result[0]
+
+        with tqdm(total=total_rows, desc="Fetching embeddings") as pbar:
+            while True:
+                # Modify the query to include LIMIT and OFFSET
+                query = f"SELECT qualified_table_name, embedding FROM {table_id} LIMIT {batch_size} OFFSET {offset}"
+    #            print('fetch query ',query)
+                cursor.execute(query)
+                rows = cursor.fetchall()
+
+                # Temporary lists to hold batch results
+                temp_embeddings = []
+                temp_table_names = []
+
+                for row in rows:
+                    try:
+                        temp_embeddings.append(json.loads('['+row[1][5:-3]+']'))
+                        temp_table_names.append(row[0])
+    #                    print('temp_embeddings len: ',len(temp_embeddings))
+    #                    print('temp table_names: ',temp_table_names)
+                    except:
+                        try:
+                            temp_embeddings.append(json.loads('['+row[1][5:-10]+']'))
+                            temp_table_names.append(row[0])
+                        except:
+                            print('Cant load array from Snowflake')
+                    # Assuming qualified_table_name is the first column
+
+                # Check if the batch was empty and exit the loop if so
+                if not temp_embeddings:
+                    break
+
+                # Append batch results to the main lists
+                embeddings.extend(temp_embeddings)
+                table_names.extend(temp_table_names)
+
+                # Update counters and progress bar
+                fetched = len(temp_embeddings)
+                total_fetched += fetched
+                pbar.update(fetched)
+
+                if fetched < batch_size:
+                    # If less than batch_size rows were fetched, it's the last batch
+                    break
+
+                # Increase the offset for the next batch
+                offset += batch_size
+
+        cursor.close()
+    #   print('table names ',table_names)
+    #   print('embeddings len ',len(embeddings))
+        return table_names, embeddings
+
+    def generate_filename_from_last_modified(self, table_id):
+
+        database, schema, table = table_id.split('.')
+
+        try:
+            # Fetch the maximum LAST_CRAWLED_TIMESTAMP from the harvest_results table
+            query = f"SELECT MAX(LAST_CRAWLED_TIMESTAMP) AS last_crawled_time FROM {database}.{schema}.HARVEST_RESULTS"
+            cursor = self.connection.cursor()
+
+            cursor.execute(query)
+            bots = cursor.fetchall()
+            if bots is not None:
+                columns = [col[0].lower() for col in cursor.description]
+                result = [dict(zip(columns, bot)) for bot in bots]
+            else:
+                result = None
+            cursor.close()
+
+
+            # Ensure we have a valid result and last_crawled_time is not None
+            if not result or result[0]['last_crawled_time'] is None:
+                raise ValueError("No data crawled - This is expected on fresh install.")
+                return('NO_DATA_CRAWLED')
+                #raise ValueError("Table last crawled timestamp is None. Unable to generate filename.")
+
+            # The `last_crawled_time` attribute should be a datetime object. Format it.
+            last_crawled_time = result[0]['last_crawled_time']
+            timestamp_str = last_crawled_time.strftime("%Y%m%dT%H%M%S") + "Z"
+
+            # Create the filename with the .ann extension
+            filename = f"{timestamp_str}.ann"
+            metafilename = f"{timestamp_str}.json"
+            return filename, metafilename
+        except Exception as e:
+            # Handle errors: for example, table not found, or API errors
+            #print(f"An error occurred: {e}, possibly no data yet harvested, using default name for index file.")
+            # Return a default filename or re-raise the exception based on your use case
+            return "default_filename.ann", "default_metadata.json"
+
 
 
 def test_stage_functions():

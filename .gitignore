@@ -30,3 +30,6 @@ rsa_key.pub
 .venv/*
 requirements_orig.txt
 .vscode/*
+
+genesis_env/*
+.matt.sh

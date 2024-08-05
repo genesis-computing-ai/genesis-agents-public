@@ -25,6 +25,8 @@ else:
     raise ValueError('Invalud Source')
 
 
+index_file_path = './tmp/'
+
 def load_embeddings_from_csv(csv_file_path):
     embeddings = []
     filenames = []
@@ -83,9 +85,6 @@ def make_and_save_index(table_id):
     print("saving index to file...")
  
     # Save the index to a file
-
-    index_file_path = './tmp/'
-
     if not os.path.exists(index_file_path):
         os.makedirs(index_file_path)
 
@@ -143,8 +142,6 @@ def load_or_create_embeddings_index(table_id, refresh=True):
 
     embedding_size = 3072
 
-    index_file_path = tempfile.gettempdir()
-
     if refresh:
         index_file_name, meta_file_name = emb_db_adapter.generate_filename_from_last_modified(table_id)
     else:
@@ -166,8 +163,7 @@ def load_or_create_embeddings_index(table_id, refresh=True):
           #      logger.info(f'metadata_mapping meta  {metadata_mapping}')
           #      print('metadata_mapping meta  ',metadata_mapping)
 
-            if refresh:                
-                index_file_path = './tmp/'
+            if refresh:                                
                 if not os.path.exists(index_file_path):
                     os.makedirs(index_file_path)
                 copy_index_file_name, copy_meta_file_name = 'latest_cached_index.ann', 'latest_cached_metadata.json'

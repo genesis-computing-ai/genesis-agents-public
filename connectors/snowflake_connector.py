@@ -3052,6 +3052,24 @@ class SnowflakeConnector(DatabaseConnector):
         :return: A list of dictionaries representing the rows returned by the query.
         """
 
+        if not query.endswith(';'):
+            return {
+                "Success": False,
+                "Error": "Error: Query must end with a semicolon;"
+
+            }
+
+   #     if not query.endswith('!END_QUERY'):
+   #         return {
+   #             "Success": False,
+   #             "Error": "Truncated query!  You did not generate a full and complete query.  Query must have a '!END_QUERY' tag at the end!. You often do this when there are quotes or single quotes in the query string for some reason.",
+   #             "Query You Sent": query + " <-- see there is no !END_QUERY here!",
+   #             'Hint': 'You should UTF8 encode the query, include the FULL query, and finish with !END_QUERY'
+    #        }
+    #    else:
+    #        if query.endswith('!END_QUERY'):
+    #            query = query[:-len('!END_QUERY')].strip()
+
         if isinstance(max_rows, str):
             try:
                 max_rows = int(max_rows)

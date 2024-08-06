@@ -14,8 +14,16 @@ Kevin - put a new slack token into Alpha and test rotation on startup
 redo task system as just as scheduler for processes
 re-test with small changes made friday 11am, commented out semantics fully from db tools
 Test cortex COMPLETE mode more with tool calling
+Eve is talking a lot about the uploaded files.  No vector store unless needed?  And some prompt notes?
+
+willow testing:
+eve cant deploy existing bots to slack
+bots do things when a differnt bot is directly tagged
 
 Cortex:
+
+try for error on submit: Failed to connect to Cortex API. Status code: 422 Response: {"message":"required field 'content' is zero value.","request_id":"f88c2e5a-6747-4a4e-a132-79273c1067ad"}
+x trying to run a query with run_query with a single quoted string goofs up the tool call, omits the string
 x Make add tools to bot and change instructions work for Cortex mode bots
 x Streaming mode 
 adding to a thread in progress, the system message isn't included 

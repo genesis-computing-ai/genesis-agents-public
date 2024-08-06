@@ -33,3 +33,4 @@ requirements_orig.txt
 
 genesis_env/*
 .matt.sh
+genesis.db

@@ -649,7 +649,7 @@ def bind_run_query(data_connection_info: list):
             # print(a.connection_name)  # FixMe: check the connection_name matches
             print("Query: len=", len(query), " Connection: ", connection, " Max rows: ", max_rows,)
             logger.info(f"_run_query: {query}")
-            results = a.run_query(query, max_rows, bot_id=bot_id)
+            results = a.run_query('USERQUERY::'+query, max_rows, bot_id=bot_id)
             return results
 
     return _run_query

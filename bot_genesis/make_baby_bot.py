@@ -1309,7 +1309,7 @@ MAKE_BABY_BOT_DESCRIPTIONS = [{
     "type": "function",
     "function": {
         "name": "make_baby_bot",
-        "description": "Creates a new bot with the specified parameters and logs the creation event.  BE SURE TO RECONFIRM AND DOUBLE CHECK ALL THE PARAMETERS WITH THE END USER BEFORE RUNNING THIS TOOL!",
+        "description": "Creates a new bot with the specified parameters and logs the creation event.  Only use this when instructed to do so by a user. BE SURE TO RECONFIRM AND DOUBLE CHECK ALL THE PARAMETERS WITH THE END USER BEFORE RUNNING THIS TOOL!",
         "parameters": {
             "type": "object",
             "properties": {

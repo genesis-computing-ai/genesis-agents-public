@@ -46,7 +46,7 @@ class KnowledgeServer:
                     HAVING count > 3)
                 SELECT M.thread_id, timestamp as timestamp, COALESCE(K.last_timestamp, DATE('2000-1-1')) as last_timestamp FROM M
                 LEFT JOIN K on M.thread_id = K.thread_id
-                WHERE timestamp > COALESCE(K.last_timestamp, DATE('2000-1-1')) AND timestamp < TO_TIMESTAMP('{cutoff}')"""
+                WHERE timestamp > COALESCE(K.last_timestamp, DATE('2000-1-1')) AND timestamp < TO_TIMESTAMP('{cutoff}');"""
             threads = self.db_connector.run_query(query)
             for thread in threads:
                 thread_id = thread["THREAD_ID"]
@@ -61,8 +61,7 @@ class KnowledgeServer:
                             FROM {self.db_connector.bot_servicing_table_name})
                         SELECT COUNT(DISTINCT M.PRIMARY_USER) AS CNT FROM {self.db_connector.message_log_table_name} M
                         LEFT JOIN BOTS ON M.PRIMARY_USER = BOTS.PRIMARY_USER
-                        WHERE THREAD_ID = '{thread_id}' AND BOT_SLACK_USER_ID IS NULL;
-                        """
+                        WHERE THREAD_ID = '{thread_id}' AND BOT_SLACK_USER_ID IS NULL;"""
                 count_non_bot_users = self.db_connector.run_query(query)
                 # this is needed to exclude channels with more than one user
 

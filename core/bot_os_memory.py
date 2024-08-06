@@ -213,8 +213,7 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
             WHERE source_name = '{source_name_escaped}'
               AND database_name = '{database_name_escaped}'
               AND schema_name = '{schema_name_escaped}'
-              AND table_name = '{table_name_escaped}'
-        """
+              AND table_name = '{table_name_escaped}';"""
         
         # Execute the query and fetch the result
         try:

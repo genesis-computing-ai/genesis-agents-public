@@ -2503,6 +2503,18 @@ class SqliteConnector(DatabaseConnector):
         :return: A list of dictionaries representing the rows returned by the query.
         """
 
+        userquery = False
+        if query.startswith("USERQUERY::"):
+            userquery = True
+            query = query[len("USERQUERY::"):]
+
+        if userquery and not query.endswith(';'):
+            return {
+             "success": False,
+             "Error:": "Error! Query must end with a semicolon.  Add a ; to the end and RUN THIS TOOL AGAIN NOW!"
+            }
+
+
         if isinstance(max_rows, str):
             try:
                 max_rows = int(max_rows)

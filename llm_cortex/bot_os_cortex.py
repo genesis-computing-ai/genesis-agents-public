@@ -252,8 +252,12 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                     "messages": newarray,
                     "stream": True,
                     "max_tokens": 3000,
+                    "temperature": 0.6,
+                    "top_p": 1,
+                    "top_k": 40,
+                    "presence_penalty": 0,
+                    "frequency_penalty": 0,
                 }
-
 
                 print(self.bot_name, f" bot_os_cortex calling cortex {self.llm_engine} via REST API, content est tok len=",len(str(newarray))/4, flush=True)
 
@@ -272,6 +276,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                     if resp is None:
                         resp = ''
                     response = requests.post(url, json=request_data, stream=True, headers=headers)
+                    
                     if response.status_code != 200:
                         print(f"Failed to connect to Cortex API. Status code: {response.status_code}")
                         print(f"Response: {response.text}")
@@ -677,13 +682,13 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             results = json.dumps(results, default=custom_serializer)
 
 
-        prefix = ""
-        if os.getenv("CORTEX_VIA_COMPLETE", "false").lower() == "true":
-            prefix = 'Here are the results of the tool call: '
+       # prefix = ""
+#        if os.getenv("CORTEX_VIA_COMPLETE", "false").lower() == "true":
+#            prefix = 'Here are the results of the tool call: '
 
         message_object = {
             "message_type": "user",
-            "content": prefix+results,
+            "content": results,
             "timestamp": new_ts.isoformat(),
             "metadata": message_metadata
         }
@@ -691,7 +696,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         try:
             results_json = json.loads(results)
         except json.JSONDecodeError as e:
-            logger.error(f"Failed to decode results JSON: {e}")
+           # logger.error(f"Failed to decode results JSON: {e}")
             results_json = results  # Fallback to original results if JSON decoding fails
         if isinstance(results, dict) and 'success' in results and results['success']:
             logger.info(f"Tool call was successful for Thread ID {thread_id}")        
@@ -778,6 +783,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
 
 
   #      resp = self.cortex_rest_api(thread_id)
+
         resp = self.cortex_complete(thread_id=thread_id, message_metadata=message_metadata, event_callback=event_callback)
         if resp is None:
             return 

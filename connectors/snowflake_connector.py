@@ -3051,13 +3051,21 @@ class SnowflakeConnector(DatabaseConnector):
         :raises: Exception if job_config is provided.
         :return: A list of dictionaries representing the rows returned by the query.
         """
+        userquery = False
 
-        if not query.endswith(';'):
-            return {
-                "Success": False,
-                "Error": "Error: Query must end with a semicolon;"
+        if query.startswith("USERQUERY::"):
+            userquery = True
+            query = query[len("USERQUERY::"):]
 
-            }
+       # if userquery and not query.endswith(';'):
+       #     return {
+       #      "success": False,
+        #     "Error:": "Error! Query must end with a semicolon.  Add a ; to the end and RUN THIS TOOL AGAIN NOW!"
+        #    }
+
+        if userquery and not query.endswith(';'):
+            return "Error, your query was cut off.  Query must be complete and end with a semicolon.  Include the full query text, with an ; on the end and RUN THIS TOOL AGAIN NOW!"
+
 
    #     if not query.endswith('!END_QUERY'):
    #         return {

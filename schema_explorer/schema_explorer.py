@@ -23,7 +23,7 @@ class SchemaExplorer:
 
     def alt_get_ddl(self,table_name = None):
         #print(table_name) 
-        describe_query = f"DESCRIBE TABLE {table_name}"
+        describe_query = f"DESCRIBE TABLE {table_name};"
         try:
             describe_result = self.db_connector.run_query(query=describe_query, max_rows=1000, max_rows_override=True)
         except:
@@ -152,7 +152,7 @@ class SchemaExplorer:
     def run_prompt(self, messages):
         if self.db_connector.cortex_mode:
             escaped_messages = str(messages).replace("'", "\\'")
-            completion_result = self.db_connector.run_query(f"select snowflake.cortex.complete('{self.cortex_model}','{escaped_messages}')")
+            completion_result = self.db_connector.run_query(f"select snowflake.cortex.complete('{self.cortex_model}','{escaped_messages}';")
             try:
                 result_value = next(iter(completion_result[0].values()))
                 if result_value:
@@ -267,14 +267,12 @@ class SchemaExplorer:
             query = f"""
                 update {self.db_connector.harvest_control_table_name}
                 set initial_crawl_complete = {crawl_flag}
-                where source_name = '{self.db_connector.source_name}' and database_name = '{database_name}'
-                """
+                where source_name = '{self.db_connector.source_name}' and database_name = '{database_name}';"""
         else:
             query = f"""
                 update `{self.db_connector.harvest_control_table_name}`
                 set initial_crawl_complete = {crawl_flag}
-                where source_name = '{self.db_connector.source_name}' and database_name = '{database_name}'
-                """
+                where source_name = '{self.db_connector.source_name}' and database_name = '{database_name}';"""
         update_query = self.db_connector.run_query(query)
 
     def explore_and_summarize_tables_parallel(self, max_to_process=1000):
@@ -335,8 +333,7 @@ class SchemaExplorer:
                 SELECT qualified_table_name, ddl_hash, last_crawled_timestamp, (SUMMARY = '{{!placeholder}}') as needs_full
                 FROM {self.db_connector.metadata_table_name}
                 WHERE source_name = '{self.db_connector.source_name}'
-                AND database_name= '{db}' and schema_name = '{sch}'
-                """
+                AND database_name= '{db}' and schema_name = '{sch}';"""
                 try:
                     existing_tables_info = self.db_connector.run_query(check_query, max_rows=1000, max_rows_override=True)
                     existing_tables_set = {info['QUALIFIED_TABLE_NAME'] for info in existing_tables_info}
@@ -426,8 +423,7 @@ class SchemaExplorer:
                 SELECT hr.qualified_table_name
                 FROM `{dataset}.INFORMATION_SCHEMA.TABLES` ist
                 JOIN `{self.db_connector.metadata_table_name}` hr ON qualified_table_name = 
-                    CONCAT("{dataset}.", ist.table_name) where TO_HEX(SHA256(ist.ddl)) <> hr.ddl_hash and hr.source_name = '{self.db_connector.source_name}'
-                """
+                    CONCAT("{dataset}.", ist.table_name) where TO_HEX(SHA256(ist.ddl)) <> hr.ddl_hash and hr.source_name = '{self.db_connector.source_name}';"""
                 try:
                     non_indexed_tables = self.db_connector.run_query(query, max_rows = max_to_process, max_rows_override = True)
                 except Exception as e:

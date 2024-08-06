@@ -32,8 +32,8 @@ query = f"""SELECT * FROM {knowledge_db_connector.message_log_table_name}
 query = '''
     SELECT * FROM GENESIS_BOTS_ALPHA.APP1.MESSAGE_LOG
 WHERE THREAD_ID = 'thread_6jBPGzKUgqsxpAOyCfiAUbYO'
-ORDER BY TIMESTAMP DESC;
-'''
+ORDER BY TIMESTAMP DESC;'''
+
 msg_log = knowledge_db_connector.run_query(query)
 
 import pandas as pd

@@ -321,6 +321,9 @@ Reminder:
 
 # Persona Instructions
  """+incoming_instructions + "\n\n"
+            
+   # with open('./latest_instructions.txt', 'w') as file:
+   #     file.write(instructions)
  
     try:
         # logger.warning(f"GenBot {bot_id} instructions:::  {instructions}")

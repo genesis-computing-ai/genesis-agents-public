@@ -583,14 +583,12 @@ class BigQueryConnector(DatabaseConnector):
         if runner_id is None:
             select_query = f"""
             SELECT {select_str}
-            FROM `{project_id}.{dataset_name}.{bot_servicing_table}`
-            """
+            FROM `{project_id}.{dataset_name}.{bot_servicing_table}`;"""
         else:
             select_query = f"""
             SELECT {select_str}
             FROM `{project_id}.{dataset_name}.{bot_servicing_table}`
-            WHERE runner_id = '{runner_id}'
-            """
+            WHERE runner_id = '{runner_id}';"""
 
         try:
             # Execute the query and fetch all bot records
@@ -620,8 +618,7 @@ class BigQueryConnector(DatabaseConnector):
         SELECT *
         FROM `{project_id}.{dataset_name}.{bot_servicing_table}`
         WHERE bot_id = '{bot_id}'
-        LIMIT 1
-        """
+        LIMIT 1;"""
 
         try:
             # Execute the query and fetch the bot record
@@ -656,8 +653,7 @@ class BigQueryConnector(DatabaseConnector):
                 UPDATE SET slack_app_config_token = '{slack_app_config_token}', slack_app_config_refresh_token = '{slack_app_config_refresh_token}'
             WHEN NOT MATCHED THEN
                 INSERT (runner_id, slack_app_config_token, slack_app_config_refresh_token)
-                VALUES ('{runner_id}', '{slack_app_config_token}', '{slack_app_config_refresh_token}')
-        """
+                VALUES ('{runner_id}', '{slack_app_config_token}', '{slack_app_config_refresh_token}');"""
 
         # Execute the query
         try:
@@ -683,8 +679,7 @@ class BigQueryConnector(DatabaseConnector):
         query = f"""
             SELECT slack_app_config_token, slack_app_config_refresh_token
             FROM `{project_id}.{dataset_name}.slack_app_config_tokens`
-            WHERE runner_id = '{runner_id}'
-        """
+            WHERE runner_id = '{runner_id}';"""
 
         # Execute the query and fetch the results
         result = self.run_query(query=query)
@@ -848,8 +843,7 @@ class BigQueryConnector(DatabaseConnector):
         update_query = f"""
             UPDATE `{project_id}.{dataset_name}.{bot_servicing_table}`
             SET available_tools = @updated_tools
-            WHERE bot_id = @bot_id
-        """
+            WHERE bot_id = @bot_id;"""
 
         # Set the query parameters
         query_params = [

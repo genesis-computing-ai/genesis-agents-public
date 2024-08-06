@@ -8,9 +8,9 @@ x comment out semantic tools
 x test an openai bot eve updating instructions and adding and removing tools for a cortex bot
 make file add tools give error back for cortex bots
 x update janice , remove semantic, tasks, add process tools
-Kevin - retest
+x Kevin - retest
 add a bot remove from slack tool (stub added to babybot)
-Kevin - put a new slack token into Alpha and test rotation on startup
+x Kevin - put a new slack token into Alpha and test rotation on startup
 redo task system as just as scheduler for processes
 re-test with small changes made friday 11am, commented out semantics fully from db tools
 Test cortex COMPLETE mode more with tool calling

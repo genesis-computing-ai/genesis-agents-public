@@ -15,6 +15,7 @@ redo task system as just as scheduler for processes
 re-test with small changes made friday 11am, commented out semantics fully from db tools
 Test cortex COMPLETE mode more with tool calling
 Eve is talking a lot about the uploaded files.  No vector store unless needed?  And some prompt notes?
+make !stop work on OpenAI
 
 willow testing:
 eve cant deploy existing bots to slack
@@ -46,6 +47,9 @@ x if cortex api not pupr, default back to complete()
 handle > 128k tokens
 x make add bot tools to cortex 
 x work on tweaking prompt for suggesting to run tools vs actually running them
+make python interpreter work
+x (not needed-aug pupr for REST API) if going with COMPLETE, make it send the structure of the array properly not just string dumped
+
 
 processes:
 test if update process works

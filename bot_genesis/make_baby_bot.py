@@ -748,6 +748,10 @@ def add_bot_files(bot_id, new_file_names=None, new_file_ids=None):
         logger.error(f"Bot with ID {bot_id} not found.")
         return {"success": False, "error": "Bot not found.  Check for the bot_id using the list_all_bots function."}
 
+    if bot_details.get('bot_implementation','') == 'cortex' or (bot_details.get('implementation',None) is None and os.getenv("OPENAI_API_KEY", None) in [None, ""] and os.getenv("CORTEX_AVAILABLE", None) == "True"):
+        error_message = f"Bot {bot_id} is operating on Cortex LLM, which does not support files. Currently only bots running on OpenAI support files."
+        return {"success": False, "error": error_message}
+
     v = validate_potential_files(new_file_ids=new_file_ids)
     if v.get("success",False) == False:
         return v
@@ -789,6 +793,10 @@ def remove_bot_files(bot_id, file_ids_to_remove):
     if not bot_details:
         logger.error(f"Bot with ID {bot_id} not found.")
         return {"success": False, "error": "Bot not found.  Check for the bot_id using the list_all_bots function."}
+
+    if bot_details.get('bot_implementation','') == 'cortex' or (bot_details.get('implementation',None) is None and os.getenv("OPENAI_API_KEY", None) in [None, ""] and os.getenv("CORTEX_AVAILABLE", None) == "True"):
+        error_message = f"Bot {bot_id} is operating on Cortex LLM, which does not support files. Currently only bots running on OpenAI support files."
+        return {"success": False, "error": error_message}
 
     current_files_str = bot_details.get('files', '[]')
     if current_files_str == 'null':

@@ -682,13 +682,13 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             results = json.dumps(results, default=custom_serializer)
 
 
-       # prefix = ""
-#        if os.getenv("CORTEX_VIA_COMPLETE", "false").lower() == "true":
-#            prefix = 'Here are the results of the tool call: '
+        prefix = ""
+        if os.getenv("CORTEX_VIA_COMPLETE", "false").lower() == "true":
+            prefix = 'Here are the results of the tool call: '
 
         message_object = {
             "message_type": "user",
-            "content": results,
+            "content": prefix+results,
             "timestamp": new_ts.isoformat(),
             "metadata": message_metadata
         }

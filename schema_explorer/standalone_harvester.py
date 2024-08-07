@@ -8,6 +8,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '.
 
 from connectors.bigquery_connector import BigQueryConnector
 from connectors.snowflake_connector import SnowflakeConnector
+from connectors.sqlite_connector import SqliteConnector
 from schema_explorer import SchemaExplorer
 #import schema_explorer.embeddings_index_handler as embeddings_handler
 import logging
@@ -31,9 +32,12 @@ if genesis_source == 'BigQuery':
         connection_info = json.load(f)
     # Initialize BigQuery client
     harvester_db_connector = BigQueryConnector(connection_info,'BigQuery')
-else:    # Initialize BigQuery client
+elif genesis_source ==  'Sqlite':
+    harvester_db_connector = SqliteConnector(connection_name='Sqlite') 
+elif genesis_source == 'Snowflake':    # Initialize BigQuery client
     harvester_db_connector = SnowflakeConnector(connection_name='Snowflake')
-
+else:
+    raise ValueError('Invalid Source')
 
 logger.info('Getting LLM API Key...')
 api_key_from_env = False

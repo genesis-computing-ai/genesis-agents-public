@@ -2818,7 +2818,7 @@ class SqliteConnector(DatabaseConnector):
                     ngrok_domain,
                 ),
             )
-            self.connection.commit()
+            self.client.commit()
             affected_rows = cursor.rowcount
             cursor.close()
 
@@ -2894,7 +2894,7 @@ class SqliteConnector(DatabaseConnector):
             cursor.execute(
                 query, (runner_id, llm_key, llm_type, runner_id, llm_key, llm_type)
             )
-            self.connection.commit()
+            self.client.commit()
             affected_rows = cursor.rowcount
             cursor.close()
 
@@ -2994,7 +2994,7 @@ class SqliteConnector(DatabaseConnector):
                     bot_avatar_image,
                 ),
             )
-            self.connection.commit()
+            self.client.commit()
             print(f"Successfully inserted new bot configuration for bot_id: {bot_id}")
 
             if not slack_user_allow:
@@ -3008,7 +3008,7 @@ class SqliteConnector(DatabaseConnector):
                     cursor.execute(
                         slack_user_allow_update_query, (slack_user_allow_value, bot_id)
                     )
-                    self.connection.commit()
+                    self.client.commit()
                     print(
                         f"Updated slack_user_allow for bot_id: {bot_id} to block all users."
                     )
@@ -3047,7 +3047,7 @@ class SqliteConnector(DatabaseConnector):
         try:
             cursor = self.client.cursor()
             cursor.execute(update_query, (updated_tools_str, bot_id))
-            self.connection.commit()
+            self.client.commit()
             logger.info(f"Successfully updated available_tools for bot_id: {bot_id}")
 
             if "DATABASE_TOOLS" in updated_tools_str.upper():
@@ -3087,7 +3087,7 @@ class SqliteConnector(DatabaseConnector):
         try:
             cursor = self.client.cursor()
             cursor.execute(update_query, (updated_files_str, bot_id))
-            self.connection.commit()
+            self.client.commit()
             logger.info(f"Successfully updated files for bot_id: {bot_id}")
 
             return {
@@ -3128,7 +3128,7 @@ class SqliteConnector(DatabaseConnector):
         try:
             cursor = self.client.cursor()
             cursor.execute(update_query, (slack_app_level_key, bot_id))
-            self.connection.commit()
+            self.client.commit()
             logger.info(
                 f"Successfully updated SLACK_APP_LEVEL_KEY for bot_id: {bot_id}"
             )
@@ -3165,7 +3165,7 @@ class SqliteConnector(DatabaseConnector):
         try:
             cursor = self.client.cursor()
             cursor.execute(update_query, (instructions, bot_id, runner_id))
-            self.connection.commit()
+            self.client.commit()
             logger.info(f"Successfully updated bot_instructions for bot_id: {bot_id}")
             bot_details = self.db_get_bot_details(
                 project_id, dataset_name, bot_servicing_table, bot_id
@@ -3219,7 +3219,7 @@ class SqliteConnector(DatabaseConnector):
         try:
             cursor = self.client.cursor()
             cursor.execute(update_query, (bot_implementation, bot_id, runner_id))
-            self.connection.commit()
+            self.client.commit()
             logger.info(f"Successfully updated bot_implementation for bot_id: {bot_id}")
 
             return {
@@ -3276,7 +3276,7 @@ class SqliteConnector(DatabaseConnector):
                 cursor.execute(update_query, (slack_user_allow_list_str, bot_id))
             else:
                 cursor.execute(update_query, (bot_id))
-            self.connection.commit()
+            self.client.commit()
             logger.info(
                 f"Successfully updated SLACK_USER_ALLOW list for bot_id: {bot_id}"
             )
@@ -5468,7 +5468,7 @@ class SqliteConnector(DatabaseConnector):
         try:
             cursor = self.client.cursor()
             cursor.execute(update_query, (updated_tools_str, bot_id))
-            self.connection.commit()
+            self.client.commit()
             logger.info(f"Successfully updated available_tools for bot_id: {bot_id}")
 
             return {

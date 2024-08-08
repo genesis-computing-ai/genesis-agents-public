@@ -75,10 +75,10 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
 
 
    
-    def cortex_complete(self,thread_id, message_metadata = None, event_callback = None ):
+    def cortex_complete(self,thread_id, message_metadata = None, event_callback = None, temperature=None ):
         
         if os.getenv("CORTEX_VIA_COMPLETE", "false").lower() == "false":
-            return self.cortex_rest_api(thread_id, message_metadata=message_metadata, event_callback=event_callback)
+            return self.cortex_rest_api(thread_id, message_metadata=message_metadata, event_callback=event_callback, temperature=temperature)
 
         newarray = [{"role": message["message_type"], "content": message["content"]} for message in self.thread_history[thread_id]]
         new_array_str = json.dumps(newarray) 
@@ -153,7 +153,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             self.client.connection.rollback()
  
 
-    def cortex_rest_api(self,thread_id,message_metadata=None, event_callback=None):
+    def cortex_rest_api(self,thread_id,message_metadata=None, event_callback=None, temperature=None):
 
         if os.getenv("CORTEX_FIREWORKS_OVERRIDE", "False").lower() == "true":
             fireworks = True
@@ -261,16 +261,19 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                     "Authorization": f'Snowflake Token="{REST_TOKEN}"',
                 }
             
+                if temperature is None:
+                    temperature = 0.2
                 request_data = {
                     "model": self.llm_engine,
                     "messages": newarray,
                     "stream": True,
                     "max_tokens": 3000,
-                    "temperature": 0.6,
+                    "temperature": temperature,
                     "top_p": 1,
                     "top_k": 40,
                     "presence_penalty": 0,
                     "frequency_penalty": 0,
+                    "stop": '</function>',
                 }
 
                 print(self.bot_name, f" bot_os_cortex calling cortex {self.llm_engine} via REST API, content est tok len=",len(str(newarray))/4, flush=True)
@@ -338,6 +341,8 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                                                                                             output=resp+" 💬", 
                                                                                             messages=None, 
                                                                                             input_metadata=json.loads(message_metadata)))
+                                    if resp.endswith("<|eom_id|>") or resp.endswith("</function>"):
+                                        break
                             except json.JSONDecodeError as e:
                                 print(f"Error decoding JSON: {e}")
                                 continue
@@ -737,11 +742,15 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             self.thread_history[thread_id] = []
         self.thread_history[thread_id].append(message_object)
 
+        if isinstance(results_json, str) and results_json.strip() == "Error, your query was cut off.  Query must be complete and end with a semicolon.  Include the full query text, with an ; on the end and RUN THIS TOOL AGAIN NOW!":
+            hightemp = 0.6
+        else:
+            hightemp = None
         if thread_id in self.last_stop_time_map and timestamp < self.last_stop_time_map[thread_id]:
             print('bot_os_cortex _submit_tool_outputs stop message received, not rerunning thread with outputs')
             self.stop_result_map[thread_id] = 'stopped'
         else:
-            self.update_threads(thread_id, new_ts, message_metadata=message_metadata)
+            self.update_threads(thread_id, new_ts, message_metadata=message_metadata, temperature=hightemp)
    #     self.active_runs.append({"thread_id": thread_id, "timestamp": new_ts})
         return 
 
@@ -761,7 +770,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             #self._submit_tool_outputs(thread_id, timestamp, error_string, message_metadata)
       return callback_closure
 
-    def update_threads(self, thread_id, timestamp, message_metadata = None, event_callback = None):
+    def update_threads(self, thread_id, timestamp, message_metadata = None, event_callback = None, temperature = None):
         """
         Executes the SQL query to update threads based on the provided SQL, incorporating self.cortex... tables.
         """
@@ -771,7 +780,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
 
   #      resp = self.cortex_rest_api(thread_id)
 
-        resp = self.cortex_complete(thread_id=thread_id, message_metadata=message_metadata, event_callback=event_callback)
+        resp = self.cortex_complete(thread_id=thread_id, message_metadata=message_metadata, event_callback=event_callback, temperature=temperature)
         if resp is None:
             if thread_id in self.thread_busy_list:
                 self.thread_busy_list.remove(thread_id)

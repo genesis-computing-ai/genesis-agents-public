@@ -330,7 +330,7 @@ class SlackBotAdapter(BotOsInputAdapter):
             else:
                 return            
 
-        if msg == "_thinking..._" or msg[:10] == ":toolbox: ":
+        if msg == "_thinking..._" or msg[:10] == ":toolbox: " or msg == '!NO_RESPONSE_REQUIRED':
             return None
 
         if msg.endswith("💬") or msg.endswith(":speech_balloon:"):
@@ -447,7 +447,7 @@ class SlackBotAdapter(BotOsInputAdapter):
                             self.user_info_cache[uid] = uid
                 msg = msg.replace(f"<@{uid}>", f"<@{uid}({self.user_info_cache[uid]})>")
 
-            msg_with_user_and_id = f"<@{user_id}({user_full_name})> says: {msg}"
+            msg_with_user_and_id = f"<@{user_id}>({user_full_name}) says: {msg}"
         except Exception as e:
             print(f"    --NOT A USER MESSAGE, SKIPPING {e} ")
             # not a user message

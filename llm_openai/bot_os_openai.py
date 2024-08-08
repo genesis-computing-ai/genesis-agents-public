@@ -578,7 +578,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
       thread_id = input_message.thread_id
 
-      if input_message.msg.endswith('> says: !stop') or input_message.msg=='!stop':
+      if input_message.msg.endswith(') says: !stop') or input_message.msg=='!stop':
             future_timestamp = datetime.datetime.now() + datetime.timedelta(seconds=60)
             self.thread_stop_map[thread_id] = future_timestamp
             for _ in range(12):
@@ -1532,6 +1532,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                if thread_id not in self.unposted_run_ids:
                    self.unposted_run_ids[thread_id] = []
                self.unposted_run_ids[thread_id].append(run.id)
+               # check here to make sure correct thread_id is getting put on this...should be the input thread id
                self.add_message(BotOsInputMessage(thread_id=thread_id, msg='The run has expired, please resubmit the tool call(s).', metadata=meta))
                # Remove the current thread/run from the processing queue
 

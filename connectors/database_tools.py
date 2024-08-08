@@ -4,6 +4,7 @@ from core.bot_os_memory import BotOsKnowledgeAnnoy_Metadata, BotOsKnowledgeBase
 from connectors.bigquery_connector import BigQueryConnector
 from connectors.snowflake_connector import SnowflakeConnector
 from connectors.database_connector import DatabaseConnector
+from connectors.bot_snowflake_connector import bot_credentials
 
 import logging
 
@@ -27,7 +28,7 @@ database_tool_functions = [
                     },
                     "top_n": {
                         "type": "integer",
-                        "description": "How many of the top results to return, max 50, default 15",
+                        "description": "How many of the top results to return, max 50, default 15.  Use 15 to",
                         "default": 15,
                     },
                     #                   "database": {"type": "string", "description": "Use when you want to constrain the search to a specific database, only use this when you already know for sure the name of the database."},
@@ -63,32 +64,32 @@ database_tool_functions = [
             },
         },
     },
-    {
-        "type": "function",
-        "function": {
-            "name": "semantic_copilot",
-            "description": "Calls the Snowflake semantic copilot to generate proposed SQL against a semantic model. Only this if you know the name of an existing semantic model.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "prompt": {
-                        "type": "string",
-                        "description": "Brief but complete natural language description of what you want the resulting SQL to do.",
-                    },
-                    "semantic_model": {
-                        "type": "string",
-                        "description": "The name of the semantic model.",
-                    },
-                    "prod": {
-                        "type": "boolean",
-                        "description": "True for a production model, false to use a dev non-prod model.",
-                        "default": True,
-                    },
-                },
-                "required": ["prompt", "semantic_model", "prod"],
-            },
-        },
-    },
+    # {
+    #     "type": "function",
+    #     "function": {
+    #         "name": "semantic_copilot",
+    #         "description": "Calls the Snowflake semantic copilot to generate proposed SQL against a semantic model. Only this if you know the name of an existing semantic model.",
+    #         "parameters": {
+    #             "type": "object",
+    #             "properties": {
+    #                 "prompt": {
+    #                     "type": "string",
+    #                     "description": "Brief but complete natural language description of what you want the resulting SQL to do.",
+    #                 },
+    #                 "semantic_model": {
+    #                     "type": "string",
+    #                     "description": "The name of the semantic model.",
+    #                 },
+    #                 "prod": {
+    #                     "type": "boolean",
+    #                     "description": "True for a production model, false to use a dev non-prod model.",
+    #                     "default": True,
+    #                 },
+    #             },
+    #             "required": ["prompt", "semantic_model", "prod"],
+    #         },
+    #     },
+    # },
     {
         "type": "function",
         "function": {
@@ -115,41 +116,41 @@ database_tool_functions = [
             },
         },
     },
-    {
-        "type": "function",
-        "function": {
-            "name": "_list_semantic_models",
-            "description": "Lists the semantic models available in the system.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "prod": {
-                        "type": "boolean",
-                        "description": "True for production models, false for dev models. Omit for both.",
-                        "default": False,
-                    }
-                },
-                "required": [],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "_get_semantic_model",
-            "description": "Retrieves an existing semantic model from the map based on the model name and thread id.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "model_name": {
-                        "type": "string",
-                        "description": "The name of the model to retrieve.",
-                    },
-                },
-                "required": ["model_name"],
-            },
-        },
-    },
+    # {
+    #     "type": "function",
+    #     "function": {
+    #         "name": "_list_semantic_models",
+    #         "description": "Lists the semantic models available in the system.",
+    #         "parameters": {
+    #             "type": "object",
+    #             "properties": {
+    #                 "prod": {
+    #                     "type": "boolean",
+    #                     "description": "True for production models, false for dev models. Omit for both.",
+    #                     "default": False,
+    #                 }
+    #             },
+    #             "required": [],
+    #         },
+    #     },
+    # },
+    # {
+    #     "type": "function",
+    #     "function": {
+    #         "name": "_get_semantic_model",
+    #         "description": "Retrieves an existing semantic model from the map based on the model name and thread id.",
+    #         "parameters": {
+    #             "type": "object",
+    #             "properties": {
+    #                 "model_name": {
+    #                     "type": "string",
+    #                     "description": "The name of the model to retrieve.",
+    #                 },
+    #             },
+    #             "required": ["model_name"],
+    #         },
+    #     },
+    # },
 ]
 
 snowflake_semantic_functions = [
@@ -344,7 +345,7 @@ process_manager_functions = [
         "type": "function",
         "function": {
             "name": "_manage_processes",
-            "description": "Manages processes for bots, including creating, updating, and deleting processes allowing bots to manage processes that can be run on other bots.",
+            "description": "Manages processes for bots, including creating, updating, and deleting processes allowing bots to manage processes that can be run on other bots.  Remember that this is not used to create new bots",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -581,19 +582,19 @@ image_tools = {
 
 
 snowflake_semantic_tools = {
-    "_modify_semantic_model": "db_adapter.modify_and_update_semantic_model",
-    "_initialize_semantic_model": "db_adapter.initialize_semantic_model",
-    "_deploy_semantic_model": "db_adapter.deploy_semantic_model",
-    "_load_semantic_model": "db_adapter.load_semantic_model",
+  #  "_modify_semantic_model": "db_adapter.modify_and_update_semantic_model",
+  #  "_initialize_semantic_model": "db_adapter.initialize_semantic_model",
+  #  "_deploy_semantic_model": "db_adapter.deploy_semantic_model",
+  #  "_load_semantic_model": "db_adapter.load_semantic_model",
 }
 
 database_tools = {
     "run_query": "run_query_f.local",
     "search_metadata": "search_metadata_f.local",
-    "semantic_copilot": "semantic_copilot_f.local",
+ #   "semantic_copilot": "semantic_copilot_f.local",
     "get_full_table_details": "search_metadata_f.local",
-    "_list_semantic_models": "db_adapter.list_semantic_models",
-    "_get_semantic_model": "db_adapter.get_semantic_model",
+ #   "_list_semantic_models": "db_adapter.list_semantic_models",
+  #  "_get_semantic_model": "db_adapter.get_semantic_model",
 }
 
 snowflake_stage_tools = {
@@ -634,22 +635,21 @@ def bind_semantic_copilot(data_connection_info):
 def bind_run_query(data_connection_info: list):
     def _run_query(query: str, connection: str, max_rows: int = 20, bot_id: str = None):
         if connection != "BigQuery":
-            my_dc = [SnowflakeConnector("Snowflake")]
+            # if a bot has a snowflake user and connection use it
+            bot_creds = bot_credentials(bot_id=bot_id) 
+            if bot_creds:
+                my_dc = [SnowflakeConnector("Snowflake", bot_creds)] 
+            else:
+                my_dc = [SnowflakeConnector("Snowflake")] 
+             
         else:
             my_dc = [BigQueryConnector(ci, "BigQuery") for ci in data_connection_info]
 
         for a in my_dc:
-            print(a.connection_name)  # FixMe: check the connection_name matches
-            print(
-                "Query: len=",
-                len(query),
-                " Connection: ",
-                connection,
-                " Max rows: ",
-                max_rows,
-            )
-            logger.info(f"_run_query - {a.connection_name}: {query}")
-            results = a.run_query(query, max_rows, bot_id=bot_id)
+            # print(a.connection_name)  # FixMe: check the connection_name matches
+            print("Query: len=", len(query), " Connection: ", connection, " Max rows: ", max_rows,)
+            logger.info(f"_run_query: {query}")
+            results = a.run_query('USERQUERY::'+query, max_rows, bot_id=bot_id)
             return results
 
     return _run_query

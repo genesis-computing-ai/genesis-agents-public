@@ -4,6 +4,7 @@ from decimal import Decimal
 import html
 import json
 import os
+import re
 import requests
 import sseclient
 import time
@@ -62,6 +63,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         self.allowed_types_search = [".c", ".cs", ".cpp", ".doc", ".docx", ".html", ".java", ".json", ".md", ".pdf", ".php", ".pptx", ".py", ".rb", ".tex", ".txt", ".css", ".js", ".sh", ".ts"]
         self.allowed_types_code_i = [".c", ".cs", ".cpp", ".doc", ".docx", ".html", ".java", ".json", ".md", ".pdf", ".php", ".pptx", ".py", ".rb", ".tex", ".txt", ".css", ".js", ".sh", ".ts", ".csv", ".jpeg", ".jpg", ".gif", ".png", ".tar", ".xlsx", ".xml", ".zip"]
         self.run_meta_map = {}
+        self.thread_stop_map = {}
 
     # Create a map to store thread history
         self.thread_history = {}
@@ -72,13 +74,45 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
    
     def cortex_complete(self,thread_id, message_metadata = None, event_callback = None ):
         
-        if os.getenv("CORTEX_VIA_REST", "true").lower() == "true":
+        if os.getenv("CORTEX_VIA_COMPLETE", "false").lower() == "false":
             return self.cortex_rest_api(thread_id, message_metadata=message_metadata, event_callback=event_callback)
 
         newarray = [{"role": message["message_type"], "content": message["content"]} for message in self.thread_history[thread_id]]
         new_array_str = json.dumps(newarray) 
 
-        print(self.bot_name, f"bot_os_cortex calling cortex {self.llm_engine} via SQL, content est tok len=",len(new_array_str)/4)
+        resp = ''
+        curr_resp = ''
+
+        last_user_message = next((message for message in reversed(newarray) if message["role"] == "user"), None)
+        if last_user_message is not None:
+
+            if '> says: !model' in last_user_message["content"] or last_user_message["content"]=='!model':
+                resp= f"The model is set to: {self.llm_engine}. Currently running via Cortext via REST. You can say !model llama3.1-405b, !model llama3.1-70b, or !model llama3.1-8b to change model size."
+                curr_resp = resp
+            if '> says: !model llama3.1-405b' in last_user_message["content"] or last_user_message["content"]=='!model llama3.1-405b':
+                self.llm_engine = 'llama3.1-405b'
+                resp= f"The model is changed to: {self.llm_engine}"
+                curr_resp = resp
+            if '> says: !model llama3.1-70b' in last_user_message["content"] or last_user_message["content"]=='!model llama3.1-70b':
+                self.llm_engine = 'llama3.1-70b'
+                resp= f"The model is changed to: {self.llm_engine}"
+                curr_resp = resp
+            if '> says: !model llama3.1-8b' in last_user_message["content"] or last_user_message["content"]=='!model llama3.1-8b':
+                self.llm_engine = 'llama3.1-8b'
+                resp= f"The model is changed to: {self.llm_engine}"
+                curr_resp = resp
+        if resp != '':
+            self.thread_history[thread_id] = [message for message in self.thread_history[thread_id] if not (message.get("role","") == "user" and message == last_user_message)]
+            if BotOsAssistantSnowflakeCortex.stream_mode == True:
+                if self.event_callback:
+                    self.event_callback(self.bot_id, BotOsOutputMessage(thread_id=thread_id, 
+                                                                        status='in_progress', 
+                                                                        output=resp, 
+                                                                        messages=None, 
+                                                                        input_metadata=json.loads(message_metadata)))
+            return None 
+
+        print(self.bot_name, f"bot_os_cortex calling cortex {self.llm_engine} via SQL, content est tok len=",len(new_array_str)/4, flush=True)
 
         context_limit = 128000 * 4 #32000 * 4
         cortex_query = f"""
@@ -87,15 +121,30 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         try:
             cursor = self.client.connection.cursor()
             start_time = time.time()
+            start_exec_time = time.time()
             cursor.execute(cortex_query, (new_array_str,))
+            end_exec_time = time.time()
+            etime = end_exec_time - start_exec_time
             self.client.connection.commit()
             elapsed_time = time.time() - start_time
             result = cursor.fetchone()
             completion = result[0] if result else None
 
-            print(completion)
+            print(f"{completion} ({elapsed_time:.2f} seconds)")
+            resp = completion
+            curr_resp = completion
 
-            return(completion)
+            if resp != '' and BotOsAssistantSnowflakeCortex.stream_mode == True:
+                if self.event_callback:
+                    self.event_callback(self.bot_id, BotOsOutputMessage(thread_id=thread_id, 
+                                                                        status='in_progress', 
+                                                                        output=resp, 
+                                                                        messages=None, 
+                                                                        input_metadata=json.loads(message_metadata)))
+
+            self.thread_full_response[thread_id] = resp + '\n'
+            return(curr_resp)
+
         except Exception as e:
             print('query error: ',e)
             self.client.connection.rollback()
@@ -115,18 +164,36 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
 
         last_user_message = next((message for message in reversed(newarray) if message["role"] == "user"), None)
         if last_user_message is not None:
-            if '> says: !model'in last_user_message["content"]:
-                resp= f"The model is set to: {self.llm_engine}.  You can say !model llama3.1-405b, !model llama3.1-70b, or !model llama3.1-8b to change model size."
+            if last_user_message["content"].endswith('> says: !stop') or last_user_message["content"]=='!stop':
+                future_timestamp = datetime.datetime.now() + datetime.timedelta(seconds=60)
+                self.thread_stop_map[thread_id] = future_timestamp
+
+                for _ in range(12):
+                    if self.thread_stop_map.get(thread_id) == 'stopped':
+                        break
+                    time.sleep(5)
+                    
+                if self.thread_stop_map.get(thread_id) == 'stopped':
+                    self.thread_stop_map.pop(thread_id, None)
+                    resp = "Streaming stopped for previous request"
+                else:
+                    self.thread_stop_map.pop(thread_id, None)
+                    resp = "No streaming response found to stop"                    
                 curr_resp = resp
-            if '> says: !model llama3.1-405b' in last_user_message["content"]:
+            if thread_id in self.thread_stop_map:
+                self.thread_stop_map.pop(thread_id)
+            if '> says: !model' in last_user_message["content"] or last_user_message["content"]=='!model':
+                resp= f"The model is set to: {self.llm_engine}. Currently running via Cortext via REST. You can say !model llama3.1-405b, !model llama3.1-70b, or !model llama3.1-8b to change model size."
+                curr_resp = resp
+            if '> says: !model llama3.1-405b' in last_user_message["content"] or last_user_message["content"]=='!model llama3.1-405b':
                 self.llm_engine = 'llama3.1-405b'
                 resp= f"The model is changed to: {self.llm_engine}"
                 curr_resp = resp
-            if '> says: !model llama3.1-70b' in last_user_message["content"]:
+            if '> says: !model llama3.1-70b' in last_user_message["content"] or last_user_message["content"]=='!model llama3.1-70b':
                 self.llm_engine = 'llama3.1-70b'
                 resp= f"The model is changed to: {self.llm_engine}"
                 curr_resp = resp
-            if '> says: !model llama3.1-8b' in last_user_message["content"]:
+            if '> says: !model llama3.1-8b' in last_user_message["content"] or last_user_message["content"]=='!model llama3.1-8b':
                 self.llm_engine = 'llama3.1-8b'
                 resp= f"The model is changed to: {self.llm_engine}"
                 curr_resp = resp
@@ -185,49 +252,157 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             
                 request_data = {
                     "model": self.llm_engine,
-        #            "messages": [{"content": "Hi there"}],
                     "messages": newarray,
                     "stream": True,
+                    "max_tokens": 3000,
+                    "temperature": 0.6,
+                    "top_p": 1,
+                    "top_k": 40,
+                    "presence_penalty": 0,
+                    "frequency_penalty": 0,
                 }
 
-
-                print(self.bot_name, f" bot_os_cortex calling cortex {self.llm_engine} via REST API, content est tok len=",len(str(newarray))/4)
+                print(self.bot_name, f" bot_os_cortex calling cortex {self.llm_engine} via REST API, content est tok len=",len(str(newarray))/4, flush=True)
 
 
             #    response = requests.post(url, json=request_data, stream=False, headers=headers)
 
-                response = requests.post(url, json=request_data, stream=True, headers=headers)
-                client = sseclient.SSEClient(response)
-                resp = self.thread_full_response.get(thread_id,None)
-                curr_resp = ''
-                if resp is None:
-                    resp = ''
-                last_update = None
-                for event in client.events():
-                    d = json.loads(event.data)
-                    r = ''
-                    try:
-                        r = d['choices'][0]['delta']['content']
-                    except:
-                        pass
-                    print(r, end="")
+                start_time = time.time()
+
+                if True:
+
+                    resp = self.thread_full_response.get(thread_id,None)
+                    curr_resp = ''
+                    usage = None
+                    gen_start_time = None
+                    last_update = None
+                    if resp is None:
+                        resp = ''
+                    response = requests.post(url, json=request_data, stream=True, headers=headers)
                     
-                    resp += r
-                    curr_resp += r
-                    if r != '' and BotOsAssistantSnowflakeCortex.stream_mode == True and (last_update is None and len(resp) >= 15) or (last_update and (time.time() - last_update > 2)):
-                        last_update = time.time()
-                        if self.event_callback:
-                            self.event_callback(self.bot_id, BotOsOutputMessage(thread_id=thread_id, 
-                                                                                status='in_progress', 
-                                                                                output=resp+" 💬", 
-                                                                                messages=None, 
-                                                                                input_metadata=json.loads(message_metadata)))
-                        
+                    if response.status_code != 200:
+                        print(f"Failed to connect to Cortex API. Status code: {response.status_code}")
+                        print(f"Response: {response.text}")
+                        return False
+                    else:
+                        for line in response.iter_lines():
+                            if thread_id in self.thread_stop_map:
+                                stop_timestamp = self.thread_stop_map[thread_id]
+                                if isinstance(stop_timestamp, str) and stop_timestamp == 'stopped':
+                                    del self.thread_stop_map[thread_id]
+                                if isinstance(stop_timestamp, datetime.datetime) and (time.time() - stop_timestamp.timestamp()) <= 5:
+                                    self.thread_stop_map[thread_id] = 'stopped'
+                                    if 'cur_resp' not in locals():
+                                        cur_resp = ''
+                                    cur_resp += '<!Stopped by user request>'
+                                    print('cortex thread stopped by user request')
+                                    break
+                            if line:
+                                try:
+                                    decoded_line = line.decode('utf-8')
+                                    if not decoded_line.strip():
+                                        print("Received an empty line.")
+                                        continue
+                                    if decoded_line.startswith("data: "):
+                                        decoded_line = decoded_line[len("data: "):]
+                                    d = ''
+                                    event_data = json.loads(decoded_line)
+                                    if 'choices' in event_data:
+                                        if gen_start_time is None:
+                                            gen_start_time = time.time()
+                                        d = event_data['choices'][0]['delta'].get('content','')
+                                        curr_resp += d
+                                        resp += d
+                                        #print(d, end='', flush=True)
+                                        u = event_data.get('usage')
+                                        if u:
+                                            usage = u
+                                    if d != '' and BotOsAssistantSnowflakeCortex.stream_mode == True and (last_update is None and len(resp) >= 15) or (last_update and (time.time() - last_update > 2)):
+                                        last_update = time.time()
+                                        if self.event_callback:
+                                            self.event_callback(self.bot_id, BotOsOutputMessage(thread_id=thread_id, 
+                                                                                                status='in_progress', 
+                                                                                                output=resp+" 💬", 
+                                                                                                messages=None, 
+                                                                                                input_metadata=json.loads(message_metadata)))
+                                except json.JSONDecodeError as e:
+                                    print(f"Error decoding JSON: {e}")
+                                    continue
+
+
+                else:
+                    response = requests.post(url, json=request_data, stream=True, headers=headers)
+
+                    if response.status_code == 200:
+
+                        client = sseclient.SSEClient(response)
+                        resp = self.thread_full_response.get(thread_id,None)
+                        curr_resp = ''
+                        if resp is None:
+                            resp = ''
+                        last_update = None
+                        usage = None
+                        gen_start_time = None
+                        for event in client.events():
+                            d = json.loads(event.data)
+                            r = ''
+                            try:
+                                r = d['choices'][0]['delta']['content']
+                                if gen_start_time is None:
+                                    gen_start_time = time.time()
+                                if d['usage']:
+                                    usage = d['usage']
+                            except:
+                                pass
+                            print(r, end="")
+                            
+                            resp += r
+                            curr_resp += r
+                        if r != '' and BotOsAssistantSnowflakeCortex.stream_mode == True and (last_update is None and len(resp) >= 15) or (last_update and (time.time() - last_update > 2)):
+                            last_update = time.time()
+                            if self.event_callback:
+                                self.event_callback(self.bot_id, BotOsOutputMessage(thread_id=thread_id, 
+                                                                                    status='in_progress', 
+                                                                                    output=resp+" 💬", 
+                                                                                    messages=None, 
+                                                                                    input_metadata=json.loads(message_metadata)))
+                if gen_start_time is not None:
+                    elapsed_time = time.time() - start_time
+                    gen_time = time.time() - gen_start_time
+                    print(f"\nRequest to Cortex REST API completed in {elapsed_time:.2f} seconds total, {gen_time:.2f} seconds generating, time to gen start: {gen_start_time - start_time:.2f} seconds")
+
+                else:
+                    try:
+                        resp = f"Error calling Cortex: Received status code {response.status_code} with message: {response.reason}"
+                        cur_resp = resp
+                    except:
+                        resp = 'Error calling Cortex'
+                        cur_resp = resp 
+
+        try:
+            print(json.dumps(usage))
+            response_tokens = usage['completion_tokens']
+            tokens_per_second = response_tokens / elapsed_time
+            tokens_per_second_gen = response_tokens / gen_time
+            print(f"Tokens per second overall: {tokens_per_second:.2f}, Tokens per second generating: {tokens_per_second_gen:.2f}")
+        except:
+            pass
+
+        postfix = ""
+        if "</function>" in resp[-30:]:
+            postfix = "💬"
+   
+        pattern = re.compile(r'<\|python_tag\|>\{.*?\}')
+        match = pattern.search(resp)
+        
+        if match and resp.endswith('}'):
+            postfix = "💬"
+            
         if resp != '' and BotOsAssistantSnowflakeCortex.stream_mode == True:
             if self.event_callback:
                 self.event_callback(self.bot_id, BotOsOutputMessage(thread_id=thread_id, 
                                                                     status='in_progress', 
-                                                                    output=resp, 
+                                                                    output=resp+postfix, 
                                                                     messages=None, 
                                                                     input_metadata=json.loads(message_metadata)))
         try:
@@ -316,12 +491,6 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         message_payload = input_message.msg 
         message_type = 'user'
         message_metadata = json.dumps(input_message.metadata)  # Assuming BotOsInputMessage has a metadata attribute that needs to be converted to string
-    
-        insert_query = f"""
-        INSERT INTO {self.cortex_threads_schema_input_table} (
-            TIMESTAMP, BOT_ID, BOT_NAME, THREAD_ID, MESSAGE_TYPE, MESSAGE_PAYLOAD, MESSAGE_METADATA
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s)
-        """
 
         message_object = {
             "message_type": message_type,
@@ -341,11 +510,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         self.thread_history[thread_id].append(message_object)
 
         try:
-         #   cursor = self.client.connection.cursor()
-         #   cursor.execute(insert_query, (
-         #       timestamp, self.bot_id, self.bot_name, thread_id, message_type, message_payload, message_metadata,
-         #   ))
-         #   self.client.connection.commit()
+
             thread_name = f"Cortex_{self.bot_name}_{thread_id}"
             threading.Thread(target=self.update_threads, name=thread_name, args=(thread_id, timestamp, message_metadata, event_callback)).start()
 
@@ -371,7 +536,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             assistant_message = next((msg for msg in reversed(thread) if msg.get("message_type") == "assistant" and msg.get("timestamp") == timestamp.isoformat()), None)
             if assistant_message:
                 message_payload = assistant_message.get("content")
-                print(f"Assistant message found: {message_payload}")
+              #  print(f"Assistant message found: {message_payload}")
             else:
                 print("No assistant message found in the thread with the specified timestamp.")
                 message_payload = None
@@ -421,7 +586,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                     #self.active_runs.append(thread_to_check)
                 logger.warn("BotOsAssistantSnowflakeCortex:check_runs - run complete")
             except Exception as e:
-                logger.error(f"Error retrieving Assistant Response for Thread ID {thread_id} and model {self.llm_engine}: {e}")
+                print(f"Error retrieving Assistant Response for Thread ID {thread_id} and model {self.llm_engine}: {e}")
 
     def process_tool_call(self, thread_id, timestamp, message_payload, message_metadata):
         import json
@@ -445,44 +610,57 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         tool_call_str = message_payload[start_index:end_index].strip()
         try:
             if tool_type == 'markup':
-                cb_closure = self._generate_callback_closure(thread_id, timestamp, message_metadata)
                 function_call_str = message_payload[start_index:end_index].strip()
+                #function_call_str = function_call_str.encode("utf-8").decode("unicode_escape")
                 function_name_start = function_call_str.find('<function=') + len('<function=')
                 function_name_end = function_call_str.find('>', function_name_start)
                 function_name = function_call_str[function_name_start:function_name_end]
 
                 arguments_start = function_name_end + 1
                 arguments_str = function_call_str[arguments_start:].strip()
+               # arguments_str = arguments_str.encode("utf-8").decode("unicode_escape")
                 arguments_str = arguments_str.replace('\\\\"', '\\"')
                 if arguments_str.endswith('>'):
                     arguments_str = arguments_str[:-1]
                 if arguments_str == '':
                     arguments_str = '{}'
                 arguments_json = json.loads(arguments_str)
+                func_call_details = {
+                        "function_name": function_name,
+                        "arguments": arguments_json
+                    }
+                cb_closure = self._generate_callback_closure(thread_id, timestamp, message_metadata, func_call_details=func_call_details)
             if tool_type == 'json':
-                cb_closure = self._generate_callback_closure(thread_id, timestamp, message_metadata)
                 function_call_str = message_payload[start_index:end_index].strip()
+                function_call_str = bytes(function_call_str, "utf-8").decode("unicode_escape")
                 try:
                     function_call_json = json.loads(function_call_str)
                     function_name = function_call_json.get("name")
                     arguments_json = function_call_json.get("parameters", {})
+                    func_call_details = {
+                        "function_name": function_name,
+                        "arguments": arguments_json
+                    }
+                    cb_closure = self._generate_callback_closure(thread_id, timestamp, message_metadata, func_call_details=func_call_details)
                 except json.JSONDecodeError as e:
                     logger.error(f"Failed to decode function call JSON {function_call_str}: {e}")
+                    cb_closure = self._generate_callback_closure(thread_id, timestamp, message_metadata)
                     cb_closure(f"Failed to decode function call JSON {function_call_str}: {e}")
                     return
             function_to_call = function_name
             arguments = arguments_json
             print(f"Function to call: {function_to_call}")
-            print(f"Arguments: {json.dumps(arguments, indent=2)}")
+            print(f"Arguments: {json.dumps(arguments, indent=2)}", flush=True)
             execute_function(function_to_call, json.dumps(arguments), self.available_functions, cb_closure, thread_id, self.bot_id)
         except json.JSONDecodeError as e:
-            logger.error(f"Failed to decode tool call JSON {tool_call_str}: {e}")
-            cb_closure(f"Failed to decode tool call JSON {tool_call_str}: {e}")
+            print(f"Failed to decode tool call JSON {tool_call_str}: {e}")
+            cb_closure = self._generate_callback_closure(thread_id, timestamp, message_metadata)
+            cb_closure(f"Failed to decode tool call JSON {tool_call_str}: {e}.  Did you make sure to escape any double quotes that are inside another")
         except Exception as e:
             logger.error(f"Error processing tool call: {e}")
             cb_closure(f"Error processing tool call: {e}")
 
-    def _submit_tool_outputs(self, thread_id, timestamp, results, message_metadata):
+    def _submit_tool_outputs(self, thread_id, timestamp, results, message_metadata, func_call_details=None):
         """
         Inserts tool call results back into the genesis_test.public.genesis_threads table.
         """
@@ -490,6 +668,16 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         def custom_serializer(obj):
             if isinstance(obj, Decimal):
                 return float(obj)
+            elif isinstance(obj, datetime.datetime):
+                return obj.isoformat()
+            elif isinstance(obj, datetime.date):
+                return obj.isoformat()
+            elif isinstance(obj, datetime.time):
+                return obj.isoformat()
+            elif isinstance(obj, set):
+                return list(obj)
+            elif isinstance(obj, bytes):
+                return obj.decode('utf-8')
             raise TypeError(f"Object of type {obj.__class__.__name__} is not JSON serializable")
 
         new_ts = datetime.datetime.now()
@@ -497,14 +685,37 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             results = json.dumps(results, default=custom_serializer)
 
 
-
+        prefix = ""
+        if os.getenv("CORTEX_VIA_COMPLETE", "false").lower() == "true":
+            prefix = 'Here are the results of the tool call: '
 
         message_object = {
             "message_type": "user",
-            "content": results,
+            "content": prefix+results,
             "timestamp": new_ts.isoformat(),
             "metadata": message_metadata
         }
+
+        try:
+            results_json = json.loads(results)
+        except json.JSONDecodeError as e:
+           # logger.error(f"Failed to decode results JSON: {e}")
+            results_json = results  # Fallback to original results if JSON decoding fails
+        if isinstance(results, dict) and 'success' in results and results['success']:
+            logger.info(f"Tool call was successful for Thread ID {thread_id}")        
+        if func_call_details is not None:
+            function_name = func_call_details.get('function_name')
+            if function_name in ['remove_tools_from_bot','add_new_tools_to_bot', 'add_bot_files', 'update_bot_instructions', 'remove_bot_files']:
+                try:
+                    results_json = json.loads(results)
+                    if ('success' in results_json and results_json['success']) or ('Success' in results_json and results_json['Success']):
+                        if func_call_details and 'arguments' in func_call_details:
+                            arguments = func_call_details['arguments']
+                            if 'bot_id' in arguments:
+                                bot_id = arguments['bot_id']
+                                os.environ[f'RESET_BOT_SESSION_{bot_id}'] = 'True'
+                except:
+                    pass
 
         if thread_id not in self.thread_history:
             self.thread_history[thread_id] = []
@@ -552,14 +763,14 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
            # JL - I think this may be causing thread locking issues
            # self.client.connection.rollback()
 
-    def _generate_callback_closure(self, thread_id, timestamp, message_metadata):
+    def _generate_callback_closure(self, thread_id, timestamp, message_metadata, func_call_details = None):
       def callback_closure(func_response):  # FixMe: need to break out as a generate closure so tool_call_id isn't copied
         #  try:                     
         #     del self.running_tools[tool_call_id]
         #  except Exception as e:
         #     logger.error(f"callback_closure - tool call already deleted - caught exception: {e}")
          try:
-            self._submit_tool_outputs(thread_id, timestamp, func_response, message_metadata)
+            self._submit_tool_outputs(thread_id, timestamp, func_response, message_metadata, func_call_details=func_call_details)
          except Exception as e:
             error_string = f"callback_closure - _submit_tool_outputs - caught exception: {e}"
             logger.error(error_string)
@@ -575,6 +786,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
 
 
   #      resp = self.cortex_rest_api(thread_id)
+
         resp = self.cortex_complete(thread_id=thread_id, message_metadata=message_metadata, event_callback=event_callback)
         if resp is None:
             return 

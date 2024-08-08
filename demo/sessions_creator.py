@@ -204,7 +204,7 @@ def make_session(
                 logger.warning(
                     f"Setting data_cubes_ingress_url for {bot_id}: {data_cubes_ingress_url}"
                 )
-                instructions += f"\nWhenever you show the results from run_query, always provide a link to a datacube visualization to help them understand the data you used in the form: http://{data_cubes_ingress_url}?sql_query=select%20*%20from%20spider_data.baseball.all_star -- replace the value of the sql_query query parameter with the query you used."
+                instructions += f"\nWhenever you show the results from run_query, always also provide a link to a datacube visualization to help them understand the data you used in the form: http://{data_cubes_ingress_url}?sql_query=select%20*%20from%20spider_data.baseball.all_star -- replace the value of the sql_query query parameter with the query you used."
         except Exception as e:
             logger.warning(f"Error creating bot workspace for bot_id {bot_id} {e} ")
 
@@ -238,7 +238,7 @@ def make_session(
     else:
         pre_validation = ""
         post_validation = None
-    if os.getenv("SIMPLE_MODE", "false").lower() == "false" and os.getenv("BOT_BE_PROACTIVE", "True").lower() == "true":
+    if os.getenv("SIMPLE_MODE", "false").lower() == "false" and os.getenv("BOT_BE_PROACTIVE", "False").lower() == "true":
         proactive_instructions = BASE_BOT_PROACTIVE_INSTRUCTIONS
     else:
         proactive_instructions = ""
@@ -278,6 +278,8 @@ def make_session(
 
         if assistant_implementation == BotOsAssistantSnowflakeCortex and stream_mode:
             incoming_instructions = instructions
+            # Tools: brave_search, wolfram_alpha, code_interpreter
+
             instructions = """
 
 Environment: ipython
@@ -285,13 +287,12 @@ Environment: ipython
 Cutting Knowledge Date: December 2023
 Today Date: 23 Jul 2024
 
-Tools: brave_search, wolfram_alpha, code_interpreter
-
 # Tool Instructions 
- - Always execute python code in messages that you share.
- - When looking for real time information use relevant functions if available else fallback to brave_search
- 
-You also have access to the following functions, only call them when needed to perform actions or lookup information that you do not already have:
+""" 
+#""" - Always execute python code in messages that you share.
+# - When looking for real time information use relevant functions if available else fallback to brave_search
+# 
+            instructions += """You have access to the following functions, only call them when needed to perform actions or lookup information that you do not already have:
 
 """ + json.dumps(tools) + """
 
@@ -312,11 +313,17 @@ Reminder:
 - Required parameters MUST be specified
 - Only call one function at a time
 - Put the entire function call reply on one line
-- Do not add any preable of other text before or after the function call
+- Do not add any preable of other text before or directly after the function call
 - Always add your sources when using search results to answer the user query
+- Don't generate function call syntax (e.g. as an example) unless you want to actually call it immediately 
+- Don't forget to call the tools, don't just say you can do it, actually do it when needed
+- If you're suggestion a next step to the user, just suggest it, but don't immediately perform it, wait for them to agree
 
 # Persona Instructions
  """+incoming_instructions + "\n\n"
+            
+   # with open('./latest_instructions.txt', 'w') as file:
+   #     file.write(instructions)
  
     try:
         # logger.warning(f"GenBot {bot_id} instructions:::  {instructions}")

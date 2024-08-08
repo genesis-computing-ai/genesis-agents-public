@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 class EchoBot(ActivityHandler):
     def __init__(self):
+    
         from teams_bot_os_adapter import TeamsBotOsInputAdapter
         super().__init__()
         self.teams_bot= TeamsBotOsInputAdapter(self)
@@ -23,7 +24,7 @@ class EchoBot(ActivityHandler):
                 #print(turn_context.activity.id) conversation ID? 
                 await turn_context.send_activity("Hello and welcome!")
                 MessageFactory.text(f"member id: {member.id}" )
-                MessageFactory.text(f"You said: {turn_context.activity.recipient.id}")
+                MessageFactory.text(f"You said ffff: {turn_context.activity.recipient.id}")
 
     async def on_message_activity(self, turn_context: TurnContext):
 

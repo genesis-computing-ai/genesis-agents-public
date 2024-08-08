@@ -11,6 +11,7 @@ from bot_genesis.make_baby_bot import MAKE_BABY_BOT_DESCRIPTIONS, make_baby_bot_
 from connectors import database_tools
 from connectors.bigquery_connector import BigQueryConnector
 from connectors.snowflake_connector import SnowflakeConnector
+from connectors.sqlite_connector import SqliteConnector
 from slack.slack_tools import slack_tools, slack_tools_descriptions
 from connectors.database_tools import (
     image_functions,
@@ -81,9 +82,39 @@ class ToolBelt:
 
     # Function to make HTTP request and get the entire content
     def get_webpage_content(self, url):
-        response = requests.get(url)
-        response.raise_for_status()
-        return response.content  # Return the entire content
+        from selenium import webdriver
+        from selenium.webdriver.common.by import By
+        from selenium.webdriver.chrome.service import Service
+        from selenium.webdriver.chrome.options import Options
+        from selenium.webdriver.support.ui import WebDriverWait
+        from selenium.webdriver.support import expected_conditions as EC
+        import time
+        chrome_options = Options()
+        chrome_options.add_argument("--headless")  # Run in headless mode (no browser window)
+        chrome_options.add_argument("--disable-gpu")
+        chrome_options.add_argument("--no-sandbox")
+        chrome_options.add_argument("--disable-dev-shm-usage")
+        chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+
+        current_file_path = os.path.abspath(__file__)
+        print(current_file_path)
+
+        service = Service('../../chromedriver')  
+        # driver = webdriver.Chrome(service=service, options=chrome_options)
+        driver = webdriver.Chrome(options=chrome_options)
+
+        driver.get(url)    
+        try:
+            WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.TAG_NAME, 'body'))
+            )
+        except Exception as e:
+            print("Error: ", e)
+            driver.quit()
+
+        data = driver.page_source #find_element(By.XPATH, '//*[@id="data-id"]').text
+        print(f"Data scraped from {url}: \n{data}\n")
+        return data  
 
     # Function for parsing HTML content, extracting links, and then chunking the beautified content
     def parse_and_chunk_content(self, content, base_url, chunk_size=256 * 1024):
@@ -107,7 +138,7 @@ class ToolBelt:
         return chunks, len(chunks)  # Return chunks and total number of chunks
 
     # Main function to download webpage, extract links, and ensure each part is within the size limit
-    def download_webpage(self, url, chunk_index=0):
+    def download_webpage(self, url, chunk_index=0, thread_id=None):
         try:
             content = self.get_webpage_content(url)
             chunks, total_chunks = self.parse_and_chunk_content(content, url)
@@ -191,6 +222,7 @@ class ToolBelt:
                     Do not ever verify anything with the user.  Execute the instructions you were given without asking for permission.
                     However DO generate text explaining what you are doing and showing interium outputs, etc. while you are running this and further steps to keep the user informed what is going on.
                     In your response back to run_process, provide a DETAILED description of what you did, what result you achieved, and why you believe this to have successfully completed the step.
+                    Do not use your memory or any cache that you might have.  Do not simulate any user interaction or tools.  Do not ask for any user input.
                     """
 
             self.instructions[thread_id] = "\n".join(
@@ -239,7 +271,8 @@ class ToolBelt:
                     previous step without asking to see the sql queries and results that led to the final conclusion. If you are very seriously concerned that the step may not 
                     have been correctly perfomed, return a request to re-run the step of the process again by returning the text "**fail**" followed by a 
                     DETAILED EXPLAINATION as to why it did not pass and what your concern is, and any suggestions you have on how to succeed on the next try.  
-                    If the response seems like it is likely correct, return only the text string "**success**" to continue to the next step.
+                    If the response seems like it is likely correct, return only the text string "**success**" to continue to the next step.  If the process is complete,
+                    tell the process to stop running.  Remember, proceed under your own direction and do not ask the user for permission to proceed.
 
                     Instructions: {self.instructions.get(thread_id,None)}
                     Bot's Response: {previous_response}
@@ -268,7 +301,7 @@ class ToolBelt:
                     "success": False,
                     "feedback_from_supervisor": result,
                     "recovery_step": f"Review the message above and submit a clarification, and/or try this Step {self.counter.get(thread_id,None)} again:\n{self.instructions.get(thread_id,None)}",
-                    "additional_request": "Please also explain this feedback to the user so they know whats going on."
+                    "additional_request": "Please also explain and summarize this feedback from the supervisor bot to the user so they know whats going on, and how you plan to rectify it."
                 }
 
             print(f"\nStep {self.counter.get(thread_id,None)} passed.  Moving to {self.counter.get(thread_id,None) + 1}\n")
@@ -279,7 +312,7 @@ class ToolBelt:
             extract_instructions = f"""
                 Extract the text for step {self.counter.get(thread_id,None)} from the process instructions and return it.  Do not include any other 
                 text before or after Step {self.counter.get(thread_id,None)}.  Return the text of the step only.  If there are no steps with this or 
-                greater step numbers, respond "***done**" with no other text.
+                greater step numbers, respond "**done**" with no other text.
 
                 Process Instructions: {self.process.get(thread_id,None)['PROCESS_INSTRUCTIONS']}
                 """
@@ -298,7 +331,7 @@ class ToolBelt:
 
             next_step = response.choices[0].message.content
 
-            if next_step == '**done**':
+            if next_step == '**done**' or next_step == '***done***':
                 self.last_fail[thread_id] = None
                 return {
                     "success": True,
@@ -344,9 +377,14 @@ if genesis_source == "BigQuery":
         connection_info = json.load(f)
     # Initialize BigQuery client
     db_adapter = BigQueryConnector(connection_info, "BigQuery")
-else:  # Initialize Snowflake client
+elif genesis_source == 'Sqlite':
+    db_adapter = SqliteConnector(connection_name="Sqlite")
+    connection_info = {"Connection_Type": "Sqlite"}
+elif genesis_source == 'Snowflake':  # Initialize Snowflake client
     db_adapter = SnowflakeConnector(connection_name="Snowflake")
     connection_info = {"Connection_Type": "Snowflake"}
+else:
+    raise ValueError('Invalid Source')
     # tool_belt = (ToolBelt(db_adapter, os.getenv("OPENAI_API_KEY")),)
 
 tool_belt = ToolBelt(db_adapter, os.getenv("OPENAI_API_KEY"))
@@ -400,6 +438,7 @@ def get_tools(which_tools, db_adapter, slack_adapter_local=None, include_slack=T
             available_functions_load.update(image_tools)
             function_to_tool_map[tool_name] = image_functions
         elif tool_name == "snowflake_semantic_tools":
+            print('Note: Semantic Tools are currently disabled pending refactoring or removal.')
             tools.extend(snowflake_semantic_functions)
             available_functions_load.update(snowflake_semantic_tools)
             function_to_tool_map[tool_name] = snowflake_semantic_functions

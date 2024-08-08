@@ -9,6 +9,7 @@ import uuid
 import os
 import time
 import hashlib
+import sseclient
 import yaml, time, random, string
 import snowflake.connector
 import random, string
@@ -30,6 +31,7 @@ from threading import Lock
 import base64
 import requests
 import re
+from tqdm import tqdm
 
 import core.bot_os_tool_descriptions
 
@@ -42,15 +44,36 @@ _semantic_lock = Lock()
 
 
 class SnowflakeConnector(DatabaseConnector):
-    def __init__(self, connection_name):
+    def __init__(self, connection_name, bot_database_creds=None):
         super().__init__(connection_name)
         # print('Snowflake connector entry...')
-        self.account = os.getenv("SNOWFLAKE_ACCOUNT_OVERRIDE", None)
-        self.user = os.getenv("SNOWFLAKE_USER_OVERRIDE", None)
-        self.password = os.getenv("SNOWFLAKE_PASSWORD_OVERRIDE", None)
-        self.database = os.getenv("SNOWFLAKE_DATABASE_OVERRIDE", None)
-        self.warehouse = os.getenv("SNOWFLAKE_WAREHOUSE_OVERRIDE", None)
-        self.role = os.getenv("SNOWFLAKE_ROLE_OVERRIDE", None)
+        
+        account, database, user, password, warehouse, role = [None] * 6
+
+        if bot_database_creds:
+            account = bot_database_creds.get("account")
+            database = bot_database_creds.get("database")
+            user = bot_database_creds.get("user")
+            password = bot_database_creds.get("pwd")
+            warehouse = bot_database_creds.get("warehouse")
+            role = bot_database_creds.get("role")
+
+        # used to get the default value if not none, otherwise get env var. allows local mode to work with bot credentials
+        def get_env_or_default(value, env_var):
+            return value if value is not None else os.getenv(env_var)
+
+        self.account = get_env_or_default(account, "SNOWFLAKE_ACCOUNT_OVERRIDE")
+        self.user = get_env_or_default(user, "SNOWFLAKE_USER_OVERRIDE")
+        self.password = get_env_or_default(password, "SNOWFLAKE_PASSWORD_OVERRIDE")
+        self.database = get_env_or_default(database, "SNOWFLAKE_DATABASE_OVERRIDE")
+        self.warehouse = get_env_or_default(warehouse, "SNOWFLAKE_WAREHOUSE_OVERRIDE")
+        self.role = get_env_or_default(role, "SNOWFLAKE_ROLE_OVERRIDE")        
+        # self.account = os.getenv("SNOWFLAKE_ACCOUNT_OVERRIDE", account)
+        # self.user = os.getenv("SNOWFLAKE_USER_OVERRIDE", user)
+        # self.password = os.getenv("SNOWFLAKE_PASSWORD_OVERRIDE", password)
+        # self.database = os.getenv("SNOWFLAKE_DATABASE_OVERRIDE", database)
+        # self.warehouse = os.getenv("SNOWFLAKE_WAREHOUSE_OVERRIDE", warehouse)
+        # self.role = os.getenv("SNOWFLAKE_ROLE_OVERRIDE", role)
         if self.database:
             self.project_id = self.database
         else:
@@ -100,45 +123,23 @@ class SnowflakeConnector(DatabaseConnector):
         self.schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "GENESIS_INTERNAL")
 
         # self.client = self._create_client()
-        self.genbot_internal_project_and_schema = os.getenv(
-            "GENESIS_INTERNAL_DB_SCHEMA", "None"
-        )
+        self.genbot_internal_project_and_schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "None")
         if self.genbot_internal_project_and_schema is None:
-            self.genbot_internal_project_and_schema = os.getenv(
-                "ELSA_INTERNAL_DB_SCHEMA", "None"
-            )
-            print(
-                "!! Please switch from using ELSA_INTERNAL_DB_SCHEMA ENV VAR to GENESIS_INTERNAL_DB_SCHEMA !!"
-            )
+            self.genbot_internal_project_and_schema = os.getenv("ELSA_INTERNAL_DB_SCHEMA", "None")
+            print("!! Please switch from using ELSA_INTERNAL_DB_SCHEMA ENV VAR to GENESIS_INTERNAL_DB_SCHEMA !!")
         if self.genbot_internal_project_and_schema == "None":
             # Todo remove, internal note
             print("ENV Variable GENESIS_INTERNAL_DB_SCHEMA is not set.")
         if self.genbot_internal_project_and_schema is not None:
-            self.genbot_internal_project_and_schema = (
-                self.genbot_internal_project_and_schema.upper()
-            )
+            self.genbot_internal_project_and_schema = (self.genbot_internal_project_and_schema.upper() )
 
-        self.genbot_internal_harvest_table = os.getenv(
-            "GENESIS_INTERNAL_HARVEST_RESULTS_TABLE", "harvest_results"
-        )
-        self.genbot_internal_harvest_control_table = os.getenv(
-            "GENESIS_INTERNAL_HARVEST_CONTROL_TABLE", "harvest_control"
-        )
-        self.genbot_internal_message_log = os.getenv(
-            "GENESIS_INTERNAL_MESSAGE_LOG_TABLE", "MESSAGE_LOG"
-        )
-        self.genbot_internal_knowledge_table = os.getenv(
-            "GENESIS_INTERNAL_KNOWLEDGE_TABLE", "KNOWLEDGE"
-        )
-        self.genbot_internal_processes_table = os.getenv(
-            "GENESIS_INTERNAL_PROCESSES_TABLE", "PROCESSES"
-        )
-        self.genbot_internal_process_history_table = os.getenv(
-            "GENESIS_INTERNAL_PROCESS_HISTORY_TABLE", "PROCESS_HISTORY"
-        )
-        self.genbot_internal_user_bot_table = os.getenv(
-            "GENESIS_INTERNAL_USER_BOT_TABLE", "USER_BOT"
-        )
+        self.genbot_internal_harvest_table = os.getenv("GENESIS_INTERNAL_HARVEST_RESULTS_TABLE", "harvest_results" )
+        self.genbot_internal_harvest_control_table = os.getenv("GENESIS_INTERNAL_HARVEST_CONTROL_TABLE", "harvest_control")
+        self.genbot_internal_message_log = os.getenv("GENESIS_INTERNAL_MESSAGE_LOG_TABLE", "MESSAGE_LOG")
+        self.genbot_internal_knowledge_table = os.getenv("GENESIS_INTERNAL_KNOWLEDGE_TABLE", "KNOWLEDGE")
+        self.genbot_internal_processes_table = os.getenv("GENESIS_INTERNAL_PROCESSES_TABLE", "PROCESSES" )
+        self.genbot_internal_process_history_table = os.getenv("GENESIS_INTERNAL_PROCESS_HISTORY_TABLE", "PROCESS_HISTORY" )
+        self.genbot_internal_user_bot_table = os.getenv("GENESIS_INTERNAL_USER_BOT_TABLE", "USER_BOT")
         self.app_share_schema = "APP_SHARE"
 
         # print("genbot_internal_project_and_schema: ", self.genbot_internal_project_and_schema)
@@ -238,14 +239,132 @@ class SnowflakeConnector(DatabaseConnector):
             result = cursor.fetchone()
             completion = result[0] if result else None
 
-            print("snowflake_connector test call result: ",completion)
+            print(f"snowflake_connector test call result: ",completion)
 
             return True
         except Exception as e:
             print('cortex not available, query error: ',e)
-            self.client.connection.rollback()
+            self.connection.rollback()
             return False
  
+
+    def test_cortex_via_rest(self):
+        
+        newarray = [{"role": "user", "content": "hi there"} ]
+        new_array_str = json.dumps(newarray)
+
+        try:
+        
+            resp = ''
+            curr_resp = ''
+
+            SNOWFLAKE_HOST = self.client.host
+            REST_TOKEN = self.client.rest.token
+            url=f"https://{SNOWFLAKE_HOST}/api/v2/cortex/inference/complete"
+            headers = {
+                "Accept": "text/event-stream",
+                "Content-Type": "application/json",
+                "Authorization": f'Snowflake Token="{REST_TOKEN}"',
+            }
+        
+            request_data = {
+                "model": self.llm_engine,
+    #            "messages": [{"content": "Hi there"}],
+                "messages": newarray,
+                "stream": True,
+            }
+
+            print(f"snowflake_connector test calling cortex {self.llm_engine} via REST API, content est tok len=",len(str(newarray))/4)
+
+            response = requests.post(url, json=request_data, stream=True, headers=headers)
+            if response.status_code != 200:
+                print(f"Failed to connect to Cortex API. Status code: {response.status_code}")
+                print(f"Response: {response.text}")
+                return False
+            else:
+
+                for line in response.iter_lines():
+                    if line:
+                        try:
+                            decoded_line = line.decode('utf-8')
+                            if not decoded_line.strip():
+                                print("Received an empty line.")
+                                continue
+                            if decoded_line.startswith("data: "):
+                                decoded_line = decoded_line[len("data: "):]
+                            event_data = json.loads(decoded_line)
+                            if 'choices' in event_data:
+                                d = event_data['choices'][0]['delta'].get('content','')
+                                curr_resp += d
+                                print(d, end='', flush=True)
+                        except json.JSONDecodeError as e:
+                            print(f"Error decoding JSON: {e}")
+                            continue
+
+              #  print('full resp: ',curr_resp)
+                if len(curr_resp) > 2:
+                    return True
+                else:
+                    return False
+
+            # print('got response from REST API')
+            # try:
+            #     print('response status code on next line',flush=True)
+            #     print('code: ',response.status_code, flush=True)
+            #     if response.status_code != 200:
+            #         print(f"Code is not 200 -- Response status code: {response.status_code}")
+            #         print('response text on next line',flush=True)
+            #         print('text: ',response.text, flush=True)
+            #         if response.text:
+            #             print('Error from cortex: ',response.text, flush=True)
+            #         return False
+            # except Exception as e:
+            #     print('Ok, were here now: Error reading cortex response: ',e, flush=True)
+            #     return False
+            # print('getting sec client...', flush=True)
+            # try:
+            #     pass
+            #     #client = sseclient.SSEClient(response)
+            # except Exception as e:
+            #     print('exception getting sec client: ', flush=True)
+            #     print('  ...the exception is: ',e,flush=True)
+            #     print('the response text:',flush=True)
+            #     print('   ...response text is: ',response.text, flush=True)
+            #     return False
+            # print('got sec client ok',flush=True)
+            # res = ''
+            # curr_resp = ''
+            # if resp is None:
+            #     resp = ''
+            # print('getting client events...', flush=True)
+            # while True:
+            #     data = response.read(1)
+            #     #print(data, end='')
+
+            # #     for event in client.events():
+            #     print('loading event data...', flush=True)
+            # #     d = json.loads(event.data)
+            #     d = data
+            #     r = ''
+            #     try:
+            #         print('getting choices...', flush=True)
+            #         r = d['choices'][0]['delta']['content']
+            #     except:
+            #         print('failed to get choices...', flush=True)
+            #         pass
+            #     print(r, end="")
+                
+            #     resp += r
+            #     curr_resp += r
+            #     print('added delta to resp... ', flush=True)
+            # print('done looping over events... ', flush=True)           
+        except Exception as e:
+            print ("Bottom of function -- Error calling Cortex Rest API, ",e, flush=True)
+            return False
+
+            # print('returning true... ', flush=True)
+            # return True
+
 
     def _create_snowpark_connection(self):
         try:
@@ -765,9 +884,10 @@ class SnowflakeConnector(DatabaseConnector):
         try:
             if bot_id == "all":
                 list_query = f"SELECT * FROM {self.schema}.PROCESSES"
+                cursor.execute(list_query)
             else:
                 list_query = f"SELECT * FROM {self.schema}.PROCESSES WHERE upper(bot_id) = upper(%s)"
-            cursor.execute(list_query, (bot_id,))
+                cursor.execute(list_query, (bot_id,))
             processs = cursor.fetchall()
             process_list = []
             for process in processs:
@@ -780,12 +900,14 @@ class SnowflakeConnector(DatabaseConnector):
                     "process_reporting_instructions": process[5],
                 }
                 process_list.append(process_dict)
-            return {"Success": True, "processs": process_list}
+            return {"Success": True, "processes": process_list}
         except Exception as e:
             return {
                 "Success": False,
                 "Error": f"Failed to list processs for bot {bot_id}: {e}",
             }
+        finally:
+            cursor.close()
 
     def get_process_info(self, process_name):
         cursor = self.client.cursor()
@@ -839,7 +961,7 @@ class SnowflakeConnector(DatabaseConnector):
         if action == "CREATE":
             return {
                 "Success": False,
-                "Confirmation_Needed": "Please reconfirm all the process details with the user, then call this function again with the action CREATE_CONFIRMED to actually create the process.",
+                "Confirmation_Needed": "Please reconfirm all the process details with the user, then call this function again with the action CREATE_CONFIRMED to actually create the process.  Remember that this function is used to create processes for existing bots, not to create bots themselves.",
             #    "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}",
             }
         if action == "CREATE_CONFIRMED":
@@ -979,7 +1101,7 @@ class SnowflakeConnector(DatabaseConnector):
                     "Success": True,
                     "Message": f"process successfully created.",
                     "process_id": process_id,
-                    "Suggestion": "Now that the process is created, offer to test it using run_process, and if there are any issues you can later on UPDATE the process using manage_processes to clarify anything needed."
+                    "Suggestion": "Now that the process is created, offer to test it using run_process, and if there are any issues you can later on UPDATE the process using manage_processes to clarify anything needed.  OFFER to test it, but don't just test it unless the user agrees."
                 }
 
             elif action == "DELETE":
@@ -1755,7 +1877,7 @@ class SnowflakeConnector(DatabaseConnector):
                 )
                 bot_name = "Eve"
                 bot_instructions = BASE_EVE_BOT_INSTRUCTIONS
-                available_tools = '["slack_tools", "make_baby_bot", "snowflake_stage_tools", "image_tools", "harvester_tools", "autonomous_tools"]'
+                available_tools = '["slack_tools", "make_baby_bot", "snowflake_stage_tools", "image_tools", "autonomous_tools"]'
                 udf_active = "Y"
                 slack_active = "N"
                 bot_intro_prompt = EVE_INTRO_PROMPT
@@ -1855,7 +1977,7 @@ class SnowflakeConnector(DatabaseConnector):
                 print(
                     f"Inserted initial Janice row into {self.bot_servicing_table_name} with runner_id: {runner_id}"
                 )
-                #TODO add files to stage from local dir for Janice
+                # add files to stage from local dir for Janice
                 database, schema = self.genbot_internal_project_and_schema.split('.')
                 result = self.add_file_to_stage(
                     database=database,
@@ -2710,15 +2832,11 @@ class SnowflakeConnector(DatabaseConnector):
     def _create_connection(self):
 
         # Snowflake token testing
-
+        self.token_connection = False
         #  logger.warn('Creating connection..')
-        SNOWFLAKE_ACCOUNT = os.getenv("SNOWFLAKE_ACCOUNT", None)
+        SNOWFLAKE_ACCOUNT = os.getenv("SNOWFLAKE_ACCOUNT", self.account)
         SNOWFLAKE_HOST = os.getenv("SNOWFLAKE_HOST", None)
-        logger.info(
-            "Checking possible SPCS ENV vars -- Account, Host: %s, %s",
-            SNOWFLAKE_ACCOUNT,
-            SNOWFLAKE_HOST,
-        )
+        logger.info("Checking possible SPCS ENV vars -- Account, Host: %s, %s", SNOWFLAKE_ACCOUNT, SNOWFLAKE_HOST,)
 
         logger.info("SNOWFLAKE_HOST: %s", os.getenv("SNOWFLAKE_HOST"))
         logger.info("SNOWFLAKE_ACCOUNT: %s", os.getenv("SNOWFLAKE_ACCOUNT"))
@@ -2727,14 +2845,11 @@ class SnowflakeConnector(DatabaseConnector):
         logger.info("SNOWFLAKE_DATABASE: %s", os.getenv("SNOWFLAKE_DATABASE"))
         logger.info("SNOWFLAKE_SCHEMA: %s", os.getenv("SNOWFLAKE_SCHEMA"))
 
-        if (
-            SNOWFLAKE_ACCOUNT
-            and SNOWFLAKE_HOST
-            and os.getenv("SNOWFLAKE_PASSWORD_OVERRIDE", None) == None
-        ):
+        if (SNOWFLAKE_ACCOUNT and SNOWFLAKE_HOST and os.getenv("SNOWFLAKE_PASSWORD_OVERRIDE", None) == None):
+            # token based connection from SPCS
             with open("/snowflake/session/token", "r") as f:
                 snowflake_token = f.read()
-            logger.info("SPCS Snowflake token found, length: %d", len(snowflake_token))
+            print("Natapp Connection: SPCS Snowflake token found, length: %d", len(snowflake_token), flush=True)
             self.token_connection = True
             #   logger.warn('Snowflake token mode (SPCS)...')
             if os.getenv("SNOWFLAKE_SECURE", "TRUE").upper() == "FALSE":
@@ -2769,7 +2884,7 @@ class SnowflakeConnector(DatabaseConnector):
                 )
 
         print("Creating Snowflake regular connection...")
-        self.token_connection = False
+        # self.token_connection = False
 
         if os.getenv("SNOWFLAKE_SECURE", "TRUE").upper() == "FALSE":
             return connect(
@@ -2936,6 +3051,32 @@ class SnowflakeConnector(DatabaseConnector):
         :raises: Exception if job_config is provided.
         :return: A list of dictionaries representing the rows returned by the query.
         """
+        userquery = False
+
+        if query.startswith("USERQUERY::"):
+            userquery = True
+            query = query[len("USERQUERY::"):]
+
+       # if userquery and not query.endswith(';'):
+       #     return {
+       #      "success": False,
+        #     "Error:": "Error! Query must end with a semicolon.  Add a ; to the end and RUN THIS TOOL AGAIN NOW!"
+        #    }
+
+        if userquery and not query.endswith(';'):
+            return "Error, your query was cut off.  Query must be complete and end with a semicolon.  Include the full query text, with an ; on the end and RUN THIS TOOL AGAIN NOW!"
+
+
+   #     if not query.endswith('!END_QUERY'):
+   #         return {
+   #             "Success": False,
+   #             "Error": "Truncated query!  You did not generate a full and complete query.  Query must have a '!END_QUERY' tag at the end!. You often do this when there are quotes or single quotes in the query string for some reason.",
+   #             "Query You Sent": query + " <-- see there is no !END_QUERY here!",
+   #             'Hint': 'You should UTF8 encode the query, include the FULL query, and finish with !END_QUERY'
+    #        }
+    #    else:
+    #        if query.endswith('!END_QUERY'):
+    #            query = query[:-len('!END_QUERY')].strip()
 
         if isinstance(max_rows, str):
             try:
@@ -2953,6 +3094,7 @@ class SnowflakeConnector(DatabaseConnector):
 
         #   print('running query ... ', query)
         cursor = self.connection.cursor()
+
         try:
             #   if query_params:
             #       cursor.execute(query, query_params)
@@ -3679,6 +3821,7 @@ class SnowflakeConnector(DatabaseConnector):
                 }
             logger.info(f"Successfully updated bot_implementation for bot_id: {bot_id}")
 
+            # trigger the changed bot to reload its session
             os.environ[f'RESET_BOT_SESSION_{bot_id}'] = 'True'
 
 
@@ -3795,6 +3938,46 @@ class SnowflakeConnector(DatabaseConnector):
         select_query = f"""
             SELECT *
             FROM {project_id}.{dataset_name}.{bot_servicing_table}
+            WHERE upper(bot_id) = upper(%s)
+        """
+
+        try:
+            cursor = self.connection.cursor()
+            # print(select_query, bot_id)
+
+            cursor.execute(select_query, (bot_id,))
+            result = cursor.fetchone()
+            cursor.close()
+            if result:
+                # Assuming the result is a tuple, we convert it to a dictionary using the column names
+                columns = [desc[0].lower() for desc in cursor.description]
+                bot_details = dict(zip(columns, result))
+                return bot_details
+            else:
+                logger.error(f"No details found for bot_id: {bot_id}")
+                return None
+        except Exception as e:
+            logger.exception(
+                f"Failed to retrieve details for bot_id: {bot_id} with error: {e}"
+            )
+            return None
+        
+    def db_get_bot_database_creds(self, project_id, dataset_name, bot_servicing_table, bot_id):
+        """
+        Retrieves the database credentials for a bot based on the provided bot_id from the BOT_SERVICING table.
+
+        Args:
+            bot_id (str): The unique identifier for the bot.
+
+        Returns:
+            dict: A dictionary containing the bot details if found, otherwise None.
+        """
+
+        # Query to select the bot details
+        select_query = f"""
+            SELECT bot_id, database_credentials
+
+                        FROM {project_id}.{dataset_name}.{bot_servicing_table}
             WHERE upper(bot_id) = upper(%s)
         """
 
@@ -5953,6 +6136,117 @@ class SnowflakeConnector(DatabaseConnector):
         if knowledge:
             return knowledge[0]
         return []
+
+    def fetch_embeddings(self, table_id):
+        # Initialize Snowflake connector
+
+        # Initialize variables
+        batch_size = 100
+        offset = 0
+        total_fetched = 0
+
+        # Initialize lists to store results
+        embeddings = []
+        table_names = []
+
+        # First, get the total number of rows to set up the progress bar
+        total_rows_query = f"SELECT COUNT(*) as total FROM {table_id}"
+        cursor = self.connection.cursor()
+    # print('total rows query: ',total_rows_query)
+        cursor.execute(total_rows_query)
+        total_rows_result = cursor.fetchone()
+        total_rows = total_rows_result[0]
+
+        with tqdm(total=total_rows, desc="Fetching embeddings") as pbar:
+            while True:
+                # Modify the query to include LIMIT and OFFSET
+                query = f"SELECT qualified_table_name, embedding FROM {table_id} LIMIT {batch_size} OFFSET {offset}"
+    #            print('fetch query ',query)
+                cursor.execute(query)
+                rows = cursor.fetchall()
+
+                # Temporary lists to hold batch results
+                temp_embeddings = []
+                temp_table_names = []
+
+                for row in rows:
+                    try:
+                        temp_embeddings.append(json.loads('['+row[1][5:-3]+']'))
+                        temp_table_names.append(row[0])
+    #                    print('temp_embeddings len: ',len(temp_embeddings))
+    #                    print('temp table_names: ',temp_table_names)
+                    except:
+                        try:
+                            temp_embeddings.append(json.loads('['+row[1][5:-10]+']'))
+                            temp_table_names.append(row[0])
+                        except:
+                            print('Cant load array from Snowflake')
+                    # Assuming qualified_table_name is the first column
+
+                # Check if the batch was empty and exit the loop if so
+                if not temp_embeddings:
+                    break
+
+                # Append batch results to the main lists
+                embeddings.extend(temp_embeddings)
+                table_names.extend(temp_table_names)
+
+                # Update counters and progress bar
+                fetched = len(temp_embeddings)
+                total_fetched += fetched
+                pbar.update(fetched)
+
+                if fetched < batch_size:
+                    # If less than batch_size rows were fetched, it's the last batch
+                    break
+
+                # Increase the offset for the next batch
+                offset += batch_size
+
+        cursor.close()
+    #   print('table names ',table_names)
+    #   print('embeddings len ',len(embeddings))
+        return table_names, embeddings
+
+    def generate_filename_from_last_modified(self, table_id):
+
+        database, schema, table = table_id.split('.')
+
+        try:
+            # Fetch the maximum LAST_CRAWLED_TIMESTAMP from the harvest_results table
+            query = f"SELECT MAX(LAST_CRAWLED_TIMESTAMP) AS last_crawled_time FROM {database}.{schema}.HARVEST_RESULTS"
+            cursor = self.connection.cursor()
+
+            cursor.execute(query)
+            bots = cursor.fetchall()
+            if bots is not None:
+                columns = [col[0].lower() for col in cursor.description]
+                result = [dict(zip(columns, bot)) for bot in bots]
+            else:
+                result = None
+            cursor.close()
+
+
+            # Ensure we have a valid result and last_crawled_time is not None
+            if not result or result[0]['last_crawled_time'] is None:
+                raise ValueError("No data crawled - This is expected on fresh install.")
+                return('NO_DATA_CRAWLED')
+                #raise ValueError("Table last crawled timestamp is None. Unable to generate filename.")
+
+            # The `last_crawled_time` attribute should be a datetime object. Format it.
+            last_crawled_time = result[0]['last_crawled_time']
+            timestamp_str = last_crawled_time.strftime("%Y%m%dT%H%M%S") + "Z"
+
+            # Create the filename with the .ann extension
+            filename = f"{timestamp_str}.ann"
+            metafilename = f"{timestamp_str}.json"
+            return filename, metafilename
+        except Exception as e:
+            # Handle errors: for example, table not found, or API errors
+            #print(f"An error occurred: {e}, possibly no data yet harvested, using default name for index file.")
+            # Return a default filename or re-raise the exception based on your use case
+            return "default_filename.ann", "default_metadata.json"
+
 
 
 def test_stage_functions():

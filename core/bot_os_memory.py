@@ -12,6 +12,7 @@ import sys
 import spacy
 from connectors.bigquery_connector import BigQueryConnector
 from connectors.snowflake_connector import SnowflakeConnector
+from connectors.sqlite_connector import SqliteConnector
 from  schema_explorer.embeddings_index_handler import load_or_create_embeddings_index
 
 logger = logging.getLogger(__name__)
@@ -121,7 +122,10 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
             # Initialize BigQuery client
             self.meta_database_connector = BigQueryConnector(connection_info,'BigQuery')
             self.project_id = connection_info["project_id"]
-        else:    # Initialize BigQuery client
+        elif self.source_name  == 'Sqlite':  
+            self.meta_database_connector = SqliteConnector(connection_name='Sqlite')
+            self.project_id = self.meta_database_connector.database
+        elif self.source_name  == 'Snowflake':  
             self.meta_database_connector = SnowflakeConnector(connection_name='Snowflake')
             self.project_id = self.meta_database_connector.database
 
@@ -209,8 +213,7 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
             WHERE source_name = '{source_name_escaped}'
               AND database_name = '{database_name_escaped}'
               AND schema_name = '{schema_name_escaped}'
-              AND table_name = '{table_name_escaped}'
-        """
+              AND table_name = '{table_name_escaped}';"""
         
         # Execute the query and fetch the result
         try:

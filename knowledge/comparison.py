@@ -28,7 +28,16 @@ thread_id = 'thread_px24rDds8HEUwqdnIUx2zO2A'
 query = f"""SELECT * FROM {knowledge_db_connector.message_log_table_name} 
                         WHERE thread_id = '{thread_id}'
                         ORDER BY TIMESTAMP;""" 
+
+query = '''
+    SELECT * FROM GENESIS_BOTS_ALPHA.APP1.MESSAGE_LOG
+WHERE THREAD_ID = 'thread_6jBPGzKUgqsxpAOyCfiAUbYO'
+ORDER BY TIMESTAMP DESC;'''
+
 msg_log = knowledge_db_connector.run_query(query)
+
+import pandas as pd
+messages = '\n'.join(pd.read_csv(r'C:\Users\VAGHEFI\Downloads\knowledge.csv')['MESSAGE_PAYLOAD'].astype(str).tolist())
 
 messages = [f"{msg['MESSAGE_TYPE']}: {msg['MESSAGE_PAYLOAD']}:" for msg in msg_log]
 messages = '\n'.join(messages)            
@@ -42,13 +51,15 @@ content = f'''Given the following conversations between the user and agent, anal
             - thread_summary: Extract summary of the conversation                                                       
             - user_learning: Extract what you learned about this user, their preferences, and interests                            
             - tool_learning: For any tools you called in this thread, what did you learn about how to best use them or call them
-            - data_learning: For any data you analyzed, what did you learn about the data that was not obvious from the metadata that you were provided by search_metadata.                             
+            - data_learning: For any data you analyzed, what did you learn about the data that was not obvious from the metadata that you were provided by search_metadata.
+            - snowflake_learning: For any interaction with snowflake, what did you learn about snowflake
 
             Expected output in JSON:
             {{'thread_summary': STRING, 
                 'user_learning': STRING,
                 'tool_learning': STRING,
-                'data_learning': STRING}}
+                'data_learning': STRING,
+                'snowflake_learning': STRING}}
         '''
 knowledge_thread_id = client.beta.threads.create().id
 client.beta.threads.messages.create(

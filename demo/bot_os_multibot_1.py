@@ -20,6 +20,7 @@ from core.bot_os_server import BotOsServer
 from apscheduler.schedulers.background import BackgroundScheduler
 from connectors.bigquery_connector import BigQueryConnector
 from connectors.snowflake_connector import SnowflakeConnector
+from connectors.sqlite_connector import SqliteConnector
 from core.bot_os_tools import get_tools
 from embed.embed_openbb import openbb_query
 from slack.slack_bot_os_adapter import SlackBotAdapter
@@ -43,7 +44,7 @@ from bot_genesis.make_baby_bot import (
 )
 from auto_ngrok.auto_ngrok import launch_ngrok_and_update_bots
 from streamlit_gui.udf_proxy_bot_os_adapter import UDFBotOsInputAdapter
-from llm_reka.bot_os_reka import BotOsAssistantReka
+# from llm_reka.bot_os_reka import BotOsAssistantReka
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 from apscheduler.executors.pool import ThreadPoolExecutor
@@ -75,7 +76,7 @@ pdb_attach.listen(5679)  # Listen on port 5678.
 
     
 
-print("****** GENBOT VERSION 0.150 *******")
+print("****** GENBOT VERSION 0.150k *******")
 
 runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
 global_flags.runner_id = runner_id
@@ -124,10 +125,14 @@ if genesis_source == "BigQuery":
         connection_info = json.load(f)
     # Initialize BigQuery client
     db_adapter = BigQueryConnector(connection_info, "BigQuery")
-else:  # Initialize BigQuery client
+elif genesis_source == 'Sqlite':
+    db_adapter = SqliteConnector(connection_name="Sqlite")
+elif genesis_source == 'Snowflake':  # Initialize BigQuery client
     print("Starting Snowflake connector...")
     db_adapter = SnowflakeConnector(connection_name="Snowflake")
     connection_info = {"Connection_Type": "Snowflake"}
+else:
+    raise ValueError('Invalid Source')
 db_adapter.ensure_table_exists()
 print("---> CONNECTED TO DATABASE:: ", genesis_source)
 global_flags.source = genesis_source
@@ -166,15 +171,32 @@ llm_api_key = None
 os.environ["CORTEX_AVAILABLE"] = 'False'
 if genesis_source == "Snowflake":
     try:
-        cortex_test = db_adapter.test_cortex()
+        cortex_test = db_adapter.test_cortex_via_rest()
 
         if cortex_test == True:
             os.environ["CORTEX_AVAILABLE"] = 'True'
             default_llm_engine = 'cortex'
             llm_api_key = 'cortex_no_key_needed'
-            print('Cortex LLM is Available and successfully tested')
+            print('\nCortex LLM is Available via REST and successfully tested')
     except Exception as e:
-        print('Cortex LLM Not available, exception on test: ',e)
+        print('Cortex LLM Not available via REST, exception on test: ',e)
+
+if os.getenv("CORTEX_VIA_COMPLETE",'False').lower() == '':
+    os.environ["CORTEX_VIA_COMPLETE"] = 'False'
+if genesis_source == "Snowflake" and (os.environ["CORTEX_AVAILABLE"] == 'False' or os.getenv("CORTEX_VIA_COMPLETE",'False').lower() == 'true'):
+    try:
+        cortex_test = db_adapter.test_cortex()
+
+        if cortex_test == True:
+            os.environ["CORTEX_AVAILABLE"] = 'True'
+            os.environ["CORTEX_VIA_COMPLETE"] = 'True'
+            default_llm_engine = 'cortex'
+            llm_api_key = 'cortex_no_key_needed'
+            print('Cortex LLM is Available via SQL COMPLETE() and successfully tested')
+
+    except Exception as e:
+        print('Cortex LLM Not available via SQL COMPLETE(), exception on test: ',e)
+
 
 # check for Openai Env Override
 openai_llm_api_key = os.getenv("OPENAI_API_KEY", None)
@@ -211,12 +233,11 @@ if llm_api_key is None:
     print("===========")
     print("NOTE: Cortex not available and no LLM configured, Config via Streamlit to continue")
     print("===========")
-
 t, r = get_slack_config_tokens()
-#global_flags.slack_active = test_slack_config_token()
-#if global_flags.slack_active == 'token_expired':
-#    print('Slack Config Token Expired')
-#    global_flags.slack_active = False 
+global_flags.slack_active = test_slack_config_token()
+if global_flags.slack_active == 'token_expired':
+    print('Slack Config Token Expired')
+    global_flags.slack_active = False 
 #global_flags.slack_active = True 
 
 print("...Slack Connector Active Flag: ", global_flags.slack_active)

@@ -3,6 +3,8 @@ import logging
 import os, json, requests, uuid
 from connectors.bigquery_connector import BigQueryConnector
 from connectors.snowflake_connector import SnowflakeConnector
+from connectors.sqlite_connector import SqliteConnector
+
 from google.cloud import bigquery
 import threading
 
@@ -21,8 +23,12 @@ genesis_source = os.getenv('GENESIS_SOURCE',default="Snowflake")
 #    # Initialize BigQuery client
 #    bb_db_connector = BigQueryConnector(connection_info,'BigQuery')
 #else:    # Initialize BigQuery client
-
-bb_db_connector = SnowflakeConnector(connection_name='Snowflake')
+if genesis_source == 'Sqlite':
+    bb_db_connector = SqliteConnector(connection_name="Sqlite")
+elif genesis_source == 'Snowflake':
+    bb_db_connector = SnowflakeConnector(connection_name='Snowflake')
+else:
+    raise ValueError('Invalid Source')
 
 genbot_internal_project_and_schema = os.getenv('GENESIS_INTERNAL_DB_SCHEMA','None')
 if  genbot_internal_project_and_schema is None:       
@@ -611,7 +617,8 @@ def add_new_tools_to_bot(bot_id, new_tools):
     
     available_tools_list = bb_db_connector.db_get_available_tools(project_id=project_id, dataset_name=dataset_name)
     available_tool_names = [tool['tool_name'] for tool in available_tools_list]
-
+    if isinstance(new_tools, str):
+        new_tools = json.loads(new_tools.replace("'", '"'))
     # Check if all new_tools are in the list of available tools
     invalid_tools = [tool for tool in new_tools if tool not in available_tool_names]
     if invalid_tools:
@@ -741,6 +748,10 @@ def add_bot_files(bot_id, new_file_names=None, new_file_ids=None):
         logger.error(f"Bot with ID {bot_id} not found.")
         return {"success": False, "error": "Bot not found.  Check for the bot_id using the list_all_bots function."}
 
+    if bot_details.get('bot_implementation','') == 'cortex' or (bot_details.get('implementation',None) is None and os.getenv("OPENAI_API_KEY", None) in [None, ""] and os.getenv("CORTEX_AVAILABLE", None) == "True"):
+        error_message = f"Bot {bot_id} is operating on Cortex LLM, which does not support files. Currently only bots running on OpenAI support files."
+        return {"success": False, "error": error_message}
+
     v = validate_potential_files(new_file_ids=new_file_ids)
     if v.get("success",False) == False:
         return v
@@ -782,6 +793,10 @@ def remove_bot_files(bot_id, file_ids_to_remove):
     if not bot_details:
         logger.error(f"Bot with ID {bot_id} not found.")
         return {"success": False, "error": "Bot not found.  Check for the bot_id using the list_all_bots function."}
+
+    if bot_details.get('bot_implementation','') == 'cortex' or (bot_details.get('implementation',None) is None and os.getenv("OPENAI_API_KEY", None) in [None, ""] and os.getenv("CORTEX_AVAILABLE", None) == "True"):
+        error_message = f"Bot {bot_id} is operating on Cortex LLM, which does not support files. Currently only bots running on OpenAI support files."
+        return {"success": False, "error": error_message}
 
     current_files_str = bot_details.get('files', '[]')
     if current_files_str == 'null':
@@ -970,6 +985,7 @@ def make_baby_bot(bot_id, bot_name, bot_instructions='You are a helpful bot.', a
                   files = "", bot_implementation = "openai",
                   update_existing=False, slack_access_open = True):
     
+    bot_implementation = bot_implementation.lower()
 
     try:
         files_array = json.loads(files)
@@ -1292,6 +1308,7 @@ def update_bot_implementation(bot_id, bot_implementation, thread_id=None):
     runner_id = os.getenv('RUNNER_ID', 'jl-local-runner')
 
     bot_config = get_bot_details(bot_id=bot_id)
+    bot_implementation = bot_implementation.lower()
 
     return bb_db_connector.db_update_bot_implementation(project_id=project_id, dataset_name=dataset_name, bot_servicing_table=bot_servicing_table, bot_id=bot_id, bot_implementation=bot_implementation, runner_id=runner_id)
 
@@ -1300,7 +1317,7 @@ MAKE_BABY_BOT_DESCRIPTIONS = [{
     "type": "function",
     "function": {
         "name": "make_baby_bot",
-        "description": "Creates a new bot with the specified parameters and logs the creation event.  BE SURE TO RECONFIRM AND DOUBLE CHECK ALL THE PARAMETERS WITH THE END USER BEFORE RUNNING THIS TOOL!",
+        "description": "Creates a new bot with the specified parameters and logs the creation event.  Only use this when instructed to do so by a user. BE SURE TO RECONFIRM AND DOUBLE CHECK ALL THE PARAMETERS WITH THE END USER BEFORE RUNNING THIS TOOL!",
         "parameters": {
             "type": "object",
             "properties": {
@@ -1355,7 +1372,7 @@ MAKE_BABY_BOT_DESCRIPTIONS.append({
     "type": "function",
     "function": {
         "name": "get_available_tools",
-        "description": "Retrieves the list of tools that a bot can assign to baby bots when using make_baby_bot.",
+        "description": "Retrieves the list of tools that a bot can assign to baby bots when using make_baby_bot.  This is NOT the list of tools that you have access to yourself right now, that is in your system prompt.",
     }
 })
 
@@ -1734,7 +1751,8 @@ def remove_tools_from_bot(bot_id, remove_tools):
     available_tool_names = [tool['tool_name'] for tool in available_tools_list]
     print(bot_id, remove_tools)
     
-    # Check if all tools are in the list of available tools
+    if isinstance(remove_tools, str):
+        remove_tools = json.loads(remove_tools.replace("'", '"'))
     invalid_tools = [tool for tool in remove_tools if tool not in available_tool_names]
     if invalid_tools:
         return {"success": False, "error": f"The following tools are not available: {', '.join(invalid_tools)}. The available tools are {available_tool_names}."}
@@ -1750,9 +1768,22 @@ def remove_tools_from_bot(bot_id, remove_tools):
     # Determine which tools are present and can be removed
     updated_tools_list = [tool for tool in current_tools if tool not in remove_tools]
     invalid_tools = [tool for tool in remove_tools if tool not in current_tools]
-
+    if invalid_tools:
+        return {"success": False, "error": f"The following tools are not assigned to the bot: {invalid_tools}. The the bot has these tools currently: {current_tools}."}
+    
     # Update the available_tools in the database
     updated_tools_str = json.dumps(updated_tools_list)
 
     return bb_db_connector.db_remove_bot_tools(project_id=project_id,dataset_name=dataset_name,bot_servicing_table=bot_servicing_table, bot_id=bot_id, updated_tools_str=updated_tools_str, tools_to_be_removed=remove_tools, invalid_tools=invalid_tools, updated_tools=updated_tools_list)
 
+
+def remove_bot_from_slack():
+    # STUB PLACEHOLDER 
+    
+    query = '''update bot_servicing 
+    set api_app_id = null, bot_slack_user_id = null, slack_app_token = null, slack_app_level_key = null, 
+    slack_signing_secret = null, auth_url = null, auth_state = null, client_id = null, client_secret = null, 
+    slack_active = 'N' 
+    where bot_id = 'Eve-s2Wjwi';''' 
+
+    pass

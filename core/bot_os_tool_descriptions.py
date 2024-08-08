@@ -87,7 +87,7 @@ webpage_downloader_functions = [
     {
         "type": "function",
         "function": {
-            "name": "webpage_downloader",
+            "name": "_webpage_downloader",
             "description": "Downloads a webpage and returns its HTML content and hyperlinks in chunks, ensuring each chunk does not exceed 512KB. Allows specifying a chunk index to download specific parts of the beautified content. This tool is particularly useful for large and complex webpages and utilizes BeautifulSoup for parsing. It might require multiple sequential chunk downloads to capture the complete content relevant to the user's request.",
             "parameters": {
                 "type": "object",
@@ -108,11 +108,18 @@ webpage_downloader_functions = [
     }
 ]
 
+# webpage_downloader_tools = {
+#     "webpage_downloader": "generated_modules.webpage_downloader.download_webpage"
+# }
+# webpage_downloader_action_function_mapping = {
+#     "webpage_downloader": "generated_modules.webpage_downloader.download_webpage"
+# }
+
 webpage_downloader_tools = {
-    "webpage_downloader": "generated_modules.webpage_downloader.download_webpage"
+    "_webpage_downloader": "tool_belt.download_webpage"
 }
 webpage_downloader_action_function_mapping = {
-    "webpage_downloader": "generated_modules.webpage_downloader.download_webpage"
+    "webpage_downloader": "tool_belt.download_webpage"
 }
 
 

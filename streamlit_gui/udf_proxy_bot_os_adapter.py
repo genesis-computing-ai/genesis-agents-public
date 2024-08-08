@@ -2,6 +2,7 @@ from flask import Blueprint, request, render_template, make_response
 import uuid
 import os
 from connectors.snowflake_connector import SnowflakeConnector
+from connectors.sqlite_connector import SqliteConnector
 import logging
 from core.bot_os_input import BotOsInputAdapter, BotOsInputMessage, BotOsOutputMessage
 from collections import deque
@@ -9,9 +10,17 @@ import json
 
 logger = logging.getLogger(__name__)
 
+genesis_source = os.getenv('GENESIS_SOURCE',default="BigQuery")
+if genesis_source == 'Sqlite':
+    db_connector = SqliteConnector(connection_name="Sqlite")
+elif genesis_source == 'Snowflake':    
+    db_connector = SnowflakeConnector(connection_name='Snowflake')
+else:
+    raise ValueError('Invalud Source')
+
 class UDFBotOsInputAdapter(BotOsInputAdapter):
 
-    udf_snow_connector = SnowflakeConnector(connection_name='Snowflake')
+    db_connector = db_connector
 
     def __init__(self):
         super().__init__()
@@ -55,7 +64,7 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
             else:
                 self.response_map[in_uuid] = message.output
         # write the value to the hybrid table
-        UDFBotOsInputAdapter.udf_snow_connector.db_update_llm_results(in_uuid, message.output)
+        UDFBotOsInputAdapter.db_connector.db_update_llm_results(in_uuid, message.output)
         pass
 
     def lookup_fn(self):
@@ -104,7 +113,7 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
        
         self.add_event({"msg": input, "thread_id": thread_id, "uuid": uu, "bot_id": bot_id})
       
-        UDFBotOsInputAdapter.udf_snow_connector.db_insert_llm_results(uu, "")
+        UDFBotOsInputAdapter.db_connector.db_insert_llm_results(uu, "")
         return uu
 
 

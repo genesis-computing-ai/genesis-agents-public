@@ -3,34 +3,67 @@ GENESIS BOT TODOS
 =================
 
 
+soon-jl:
+x comment out semantic tools 
+x test an openai bot eve updating instructions and adding and removing tools for a cortex bot
+make file add tools give error back for cortex bots
+x update janice , remove semantic, tasks, add process tools
+x Kevin - retest
+add a bot remove from slack tool (stub added to babybot)
+x Kevin - put a new slack token into Alpha and test rotation on startup
+redo task system as just as scheduler for processes
+re-test with small changes made friday 11am, commented out semantics fully from db tools
+Test cortex COMPLETE mode more with tool calling
+Eve is talking a lot about the uploaded files.  No vector store unless needed?  And some prompt notes?
+make !stop work on OpenAI
+make stop work better on cortex .. try on run process, keeps going.. make sure run is fully cancelled 
+
+willow testing:
+eve cant deploy existing bots to slack
+bots do things when a differnt bot is directly tagged
+
 Cortex:
-Make add tools to bot and change instructions work for Cortex mode bots
-Streaming mode 
+
+try for error on submit: Failed to connect to Cortex API. Status code: 422 Response: {"message":"required field 'content' is zero value.","request_id":"f88c2e5a-6747-4a4e-a132-79273c1067ad"}
+x trying to run a query with run_query with a single quoted string goofs up the tool call, omits the string
+x Make add tools to bot and change instructions work for Cortex mode bots
+x Streaming mode 
 adding to a thread in progress, the system message isn't included 
-add a text cortex function
-default system to cortex on startup unless openai key is present
-allow adding of openai key via streamlit after startup
-have initial bots be on cortex if thats whats active
-fix/test on the fly bot engine changing w/relaunch
-harvester system, make it work with cortex
-task system, make it get the right llm keys for cortex like multibot does now, and the right instructions for cortex
-streamlit screen update for llm key not needed cortex 
-allow it to update openai key via streamlit in general
-test switching to openai and relaunching bots on it 
-default all bots to no specified llm
-make task system relaunch when something in a bot chanes (like the llm, instructions, etc.)
-make system start without an openai key, the annoy lookup thing needs one now 
-make update_bot_instructions work ok with cortext bots
+x add a test cortex function
+x default system to cortex on startup unless openai key is present
+(test) allow adding of openai key via streamlit after startup
+(test on new install) have initial bots be on cortex if thats whats active
+x fix/test on the fly bot engine changing w/relaunch
+MR - harvester system, make it work with cortex
+n (refactoring it) - task system, make it get the right llm keys for cortex like multibot does now, and the right instructions for cortex
+(test) streamlit screen update for llm key not needed cortex 
+(test/fix) allow it to update openai key via streamlit in general
+(test) switching to openai and relaunching bots on it 
+(test) default all bots to no specified llm
+x make task system relaunch when something in a bot chanes (like the llm, instructions, etc.)
+MR - make system start without an openai key, the annoy lookup thing needs one now 
+x make update_bot_instructions work ok with cortext bots
 make update_files etc not fail if run on cortex bots (check first)
-if cortex api not pupr, default back to complete()
+x if cortex api not pupr, default back to complete()
+handle > 128k tokens
+x make add bot tools to cortex 
+x work on tweaking prompt for suggesting to run tools vs actually running them
+make python interpreter work
+x (not needed-aug pupr for REST API) if going with COMPLETE, make it send the structure of the array properly not just string dumped
+
 
 processes:
-make the globals thread id mapped
-fix list processes
+test if update process works
+x? make the globals thread id mapped
+x fix list processes
 make the task system just a scheduler, use processes for the actual work
-make it start a new run for each process step and/or when it gets close to 10 min 
+make sure that DMs sent from processes can be responded to and bot will know context 
+x make it start a new run for each process step and/or when it gets close to 10 min 
+make get_next_step make sure process is already kicked off to avoid + error Nonetype and int
+make sure the same bot doesnt run the same process at the same time (or make it possible for it to do so, track threads better?)
 
 July:
+Eves stuff test 
 x JL-Have task server only reuse/reference existing assistant, not recreate/update it on startup
 JL-Why are bots doing other bots tasks?
 JL-Why is it losing tools after running for a while? (keep expected tools, and if not there, reload them?)

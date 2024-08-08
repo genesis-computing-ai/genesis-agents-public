@@ -274,6 +274,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       self.run_meta_map = {}
       self.threads_in_recovery = deque()
       self.unposted_run_ids = {}
+      self.thread_stop_map = {}
 
       genbot_internal_project_and_schema = os.getenv('GENESIS_INTERNAL_DB_SCHEMA','None')
       if genbot_internal_project_and_schema is not None:
@@ -570,14 +571,35 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       logger.debug(f"BotOsAssistantOpenAI:_upload_files - uploaded {len(file_ids)} files") 
       return file_ids, file_map
 
+
+
    def add_message(self, input_message:BotOsInputMessage):#thread_id:str, message:str, files):
-      #logger.debug("BotOsAssistantOpenAI:add_message") 
-      
+      #logger.debug("BotOsA ssistantOpenAI:add_message") 
+
       thread_id = input_message.thread_id
+
+      if input_message.msg.endswith('> says: !stop') or input_message.msg=='!stop':
+            future_timestamp = datetime.datetime.now() + datetime.timedelta(seconds=10)
+            self.thread_stop_map[thread_id] = future_timestamp
+            for _ in range(100):
+                if self.thread_stop_map.get(thread_id) == 'stopped':
+                    break
+                time.sleep(5)
+            if self.thread_stop_map.get(thread_id) == 'stopped':
+               self.thread_stop_map.pop(thread_id, None)
+               #resp = "Streaming stopped for previous request"
+            else:
+               self.thread_stop_map.pop(thread_id, None)
+            return False
+                    
+   #   if thread_id in self.thread_stop_map:
+   #         self.thread_stop_map.pop(thread_id)
+
       if thread_id in self.active_runs or thread_id in self.processing_runs:
          return False
       if thread_id is None:
          raise(Exception("thread_id is None"))
+
       thread = self.client.beta.threads.retrieve(thread_id)
       #logger.warn(f"ADDING MESSAGE -- input thread_id: {thread_id} -> openai thread: {thread}")
       try:
@@ -1095,11 +1117,29 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
            # print(run.status)
             if (run.status == "in_progress" or run.status == 'requires_action') and BotOsAssistantOpenAI.stream_mode == True and run.id in StreamingEventHandler.run_id_to_output_stream:
                 #print(StreamingEventHandler.run_id_to_output_stream[run.id])
-                event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id, 
-                                                                           status=run.status, 
-                                                                           output=StreamingEventHandler.run_id_to_output_stream[run.id]+" 💬", 
-                                                                           messages=None, 
-                                                                           input_metadata=run.metadata))
+
+               output = StreamingEventHandler.run_id_to_output_stream[run.id]+" 💬"
+               if thread_id in self.thread_stop_map:
+                  stop_timestamp = self.thread_stop_map[thread_id]
+                  if isinstance(stop_timestamp, str) and stop_timestamp == 'stopped':
+                     del self.thread_stop_map[thread_id]
+                  if isinstance(stop_timestamp, datetime.datetime) and (time.time() - stop_timestamp.timestamp()) <= 0:
+                     self.thread_stop_map[thread_id] = 'stopped'
+                     output = output[:-2]
+                     output += ' `Stopped`'
+                     try:
+                        self.client.beta.threads.runs.cancel(thread_id=thread_id, run_id=run.id)
+                     except:
+                        # thread already completed
+                        pass
+                     print(f"Cancelled run_id: {run.id} for thread_id: {thread_id}")
+               event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id, 
+                                                      status=run.status, 
+                                                      output=output,
+                                                      messages=None, 
+                                                      input_metadata=run.metadata))
+           #    continue
+                                         
             #logger.info(f"run.status {run.status} Thread: {thread_id}")
             print(f"{self.bot_name} open_ai check_runs ",run.status," thread: ", thread_id, ' runid: ', run.id, flush=True)
 

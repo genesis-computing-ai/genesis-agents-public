@@ -289,10 +289,9 @@ class SlackBotAdapter(BotOsInputAdapter):
             return
 
         if thread_map is not None and processing is not None and active is not None:
-            if openai_thread in active or openai_thread in processing:
+            if (openai_thread in active or openai_thread in processing) and msg.strip().lower() not in ["!stop", "stop"]:
                 self.events.append(event)
                 return None
-
         if event["ts"] in self.thinking_map:
             input_message = self.thinking_map[event["ts"]]["input_message"]
             print(f"***** Resubmission {input_message.msg}")
@@ -319,12 +318,17 @@ class SlackBotAdapter(BotOsInputAdapter):
                     )
             return None  # Do not process further if it's a delete command
 
+        was_indic = False
         if msg.strip().lower() == "stop":
             # Remove the thread from the followed thread map if it exists
+            was_indic = ((self.bot_user_id, thread_ts) in thread_ts_dict)
             if (self.bot_user_id, thread_ts) in thread_ts_dict:
                 with meta_lock:
                     del thread_ts_dict[(self.bot_user_id, thread_ts)]
-            return None  # Ignore the message and do not process further
+            if was_indic:
+                msg = "!stop"
+            else:
+                return            
 
         if msg == "_thinking..._" or msg[:10] == ":toolbox: ":
             return None
@@ -340,18 +344,18 @@ class SlackBotAdapter(BotOsInputAdapter):
 
         # print(f"{uniq} {self.bot_name}-Looking for {(self.bot_user_id, thread_ts)}-Is in? {(self.bot_user_id, thread_ts) in thread_ts_dict}-Current keys in thread_ts_dict:", thread_ts_dict.keys())
         tag = f"<@{self.bot_user_id}>" in msg
-        indic = (self.bot_user_id, thread_ts) in thread_ts_dict
+        indic = ((self.bot_user_id, thread_ts) in thread_ts_dict)
         dmcheck = channel_type == "im" and msg != ""
         txt = msg[:50]
         if len(txt) == 50:
             txt += "..."
-        if tag or indic or dmcheck:
+        if tag or indic or dmcheck or was_indic:
             print(
                 f"{self.bot_name} bot_os get_input for {self.bot_user_id} {tag},{indic},{dmcheck}",
                 flush=True,
             )
             active_thread = True
-            if (self.bot_user_id, thread_ts) not in thread_ts_dict:
+            if (self.bot_user_id, thread_ts) not in thread_ts_dict and not was_indic:
                 #     print(f'{uniq}     --ENGAGE/ADD>  Adding {thread_ts} to dict', flush=True)
                 with meta_lock:
                     thread_ts_dict[self.bot_user_id, thread_ts] = {
@@ -380,11 +384,22 @@ class SlackBotAdapter(BotOsInputAdapter):
             pass
         else:
             if os.getenv("THINKING_TOGGLE", "true").lower() != "false":
-                print(f"**** Thinking {self.bot_name} {thread_ts} msg={msg}")
-                thinking_message = self.slack_app.client.chat_postMessage(
-                    channel=channel, thread_ts=thread_ts, text="_thinking..._"
-                )
-                thinking_ts = thinking_message["ts"]
+                if msg.strip().lower() in ["stop", "!stop"]:
+                    if was_indic:
+                        m = '_stopping all bots (re-@tag the bot to resume discussion)_'
+                    else:
+                        m = '_stopping..._'
+                    print(f"**** Stopping {self.bot_name} {thread_ts} msg={msg}")
+                    stopping_message = self.slack_app.client.chat_postMessage(
+                        channel=channel, thread_ts=thread_ts, text=m
+                    )
+                    thinking_ts = stopping_message["ts"]
+                else:
+                    print(f"**** Thinking {self.bot_name} {thread_ts} msg={msg}")
+                    thinking_message = self.slack_app.client.chat_postMessage(
+                        channel=channel, thread_ts=thread_ts, text="_thinking..._"
+                    )
+                    thinking_ts = thinking_message["ts"]
             else:
                 thinking_ts = None
 

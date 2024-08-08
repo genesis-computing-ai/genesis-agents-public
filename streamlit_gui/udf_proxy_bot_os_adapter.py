@@ -19,7 +19,7 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
         self.proxy_messages_in = []
         self.events = deque()
         self.genbot_internal_project_and_schema = os.getenv('GENESIS_INTERNAL_DB_SCHEMA','None')
-
+        self.bot_id = {}
 
     def add_event(self, event):
         self.events.append(event)
@@ -32,17 +32,17 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
         except IndexError:
             return None
         uu = event.get('uuid',None)
-        bot_id = event.get('bot_id', {})
+        self.bot_id = event.get('bot_id', {})
         metadata = {}
         if uu:
             metadata["input_uuid"] = uu
         metadata["channel_type"] = "Streamlit"
         metadata["channel_name"] = ""
-        metadata["user_id"] = bot_id.get('user_id', 'Unknown User ID')
-        metadata["user_name"] = bot_id.get('user_name', 'Unknown User')
+        metadata["user_id"] = self.bot_id.get('user_id', 'Unknown User ID')
+        metadata["user_name"] = self.bot_id.get('user_name', 'Unknown User')
         return BotOsInputMessage(thread_id=event.get('thread_id'), msg=event.get('msg'), metadata=metadata)
 
-
+ 
 
     def handle_response(self, session_id: str, message: BotOsOutputMessage, in_thread=None, in_uuid=None, task_meta=None):
         # Here you would implement how the Flask app should handle the response.

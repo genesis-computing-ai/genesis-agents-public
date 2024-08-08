@@ -579,9 +579,9 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       thread_id = input_message.thread_id
 
       if input_message.msg.endswith('> says: !stop') or input_message.msg=='!stop':
-            future_timestamp = datetime.datetime.now() + datetime.timedelta(seconds=10)
+            future_timestamp = datetime.datetime.now() + datetime.timedelta(seconds=60)
             self.thread_stop_map[thread_id] = future_timestamp
-            for _ in range(100):
+            for _ in range(12):
                 if self.thread_stop_map.get(thread_id) == 'stopped':
                     break
                 time.sleep(5)
@@ -597,6 +597,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
       if thread_id in self.active_runs or thread_id in self.processing_runs:
          return False
+#      print ("&#&$&$&$&$&$&$&$ TEMP: ",thread_id in self.active_runs or thread_id in self.processing_runs)
       if thread_id is None:
          raise(Exception("thread_id is None"))
 
@@ -665,9 +666,13 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
              #  print('here')
                stream.until_done()
          except Exception as e:
-            print('runs.stream caught an exception')
-            print('It could be because of Thread already running, putting event back on queue...')
-            print('Actual error is ',e)
+            try:
+               if e.status_code == 400 and 'already has an active run' in e.message:
+                  print('bot_os_openai add_message thread already has an active run, putting event back on queue...')
+                  return False
+            except:
+               pass
+            print('bot_os_openai add_message Error from OpenAI on run.streams: ',e)
             return False
       else:
          run = self.client.beta.threads.runs.create(

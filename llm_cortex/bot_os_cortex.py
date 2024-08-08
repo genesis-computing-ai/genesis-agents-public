@@ -165,11 +165,14 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         last_user_message = next((message for message in reversed(newarray) if message["role"] == "user"), None)
         if last_user_message is not None:
             if last_user_message["content"].endswith('> says: !stop') or last_user_message["content"]=='!stop':
-                future_timestamp = datetime.datetime.now() + datetime.timedelta(seconds=5)
+                future_timestamp = datetime.datetime.now() + datetime.timedelta(seconds=60)
                 self.thread_stop_map[thread_id] = future_timestamp
 
-                time.sleep(5)
-
+                for _ in range(12):
+                    if self.thread_stop_map.get(thread_id) == 'stopped':
+                        break
+                    time.sleep(5)
+                    
                 if self.thread_stop_map.get(thread_id) == 'stopped':
                     self.thread_stop_map.pop(thread_id, None)
                     resp = "Streaming stopped for previous request"

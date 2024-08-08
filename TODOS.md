@@ -16,6 +16,7 @@ re-test with small changes made friday 11am, commented out semantics fully from 
 Test cortex COMPLETE mode more with tool calling
 Eve is talking a lot about the uploaded files.  No vector store unless needed?  And some prompt notes?
 make !stop work on OpenAI
+make stop work better on cortex .. try on run process, keeps going.. make sure run is fully cancelled 
 
 willow testing:
 eve cant deploy existing bots to slack

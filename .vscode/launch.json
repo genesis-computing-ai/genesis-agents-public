@@ -62,20 +62,9 @@
         },
         {
             "name": "Python: KnowledgeServer",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
-            "module": "flask",
-            "env": {
-                "FLASK_APP": "./knowledge/bot_os_knowledge.py",
-                "FLASK_DEBUG": "1"
-            },
-            "args": [
-                "run",
-                "--no-debugger",
-                "--no-reload",
-                "--port", "8080"
-            ],
-            "jinja": true,
+            "program": "./knowledge/bot_os_knowledge.py",
             "justMyCode": true
         },
 

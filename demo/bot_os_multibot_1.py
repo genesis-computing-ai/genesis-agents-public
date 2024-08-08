@@ -44,7 +44,7 @@ from bot_genesis.make_baby_bot import (
 )
 from auto_ngrok.auto_ngrok import launch_ngrok_and_update_bots
 from streamlit_gui.udf_proxy_bot_os_adapter import UDFBotOsInputAdapter
-from llm_reka.bot_os_reka import BotOsAssistantReka
+# from llm_reka.bot_os_reka import BotOsAssistantReka
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 from apscheduler.executors.pool import ThreadPoolExecutor

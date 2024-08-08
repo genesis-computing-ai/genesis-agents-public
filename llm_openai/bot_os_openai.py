@@ -665,7 +665,9 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
              #  print('here')
                stream.until_done()
          except Exception as e:
-            print('... Thread already running, putting event back on queue...')
+            print('runs.stream caught an exception')
+            print('It could be because of Thread already running, putting event back on queue...')
+            print('Actual error is ',e)
             return False
       else:
          run = self.client.beta.threads.runs.create(

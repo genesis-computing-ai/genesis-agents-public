@@ -1,6 +1,10 @@
 import json
 import os
 from connectors.snowflake_connector import SnowflakeConnector
+from connectors.sqlite_connector import SqliteConnector
+
+genesis_source = os.getenv("GENESIS_SOURCE", default="Snowflake")
+
 
 # Global variable to hold the bot connection
 
@@ -11,7 +15,12 @@ def bot_credentials(bot_id):
     If the connection does not exist, it creates one.
     """
     try:
-        connector = SnowflakeConnector("Snowflake")
+        if genesis_source == 'Sqlite':
+            connector = SqliteConnector("Sqlite")
+        elif genesis_source == 'Snowflake':
+            connector = SnowflakeConnector("Snowflake")
+        else:
+            raise ValueError('Invalid Source')
 
         genbot_internal_project_and_schema = os.getenv('GENESIS_INTERNAL_DB_SCHEMA','None')
         if genbot_internal_project_and_schema == 'None':

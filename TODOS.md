@@ -23,7 +23,7 @@ eve cant deploy existing bots to slack
 bots do things when a differnt bot is directly tagged
 
 Cortex:
-
+make python interpreter work
 try for error on submit: Failed to connect to Cortex API. Status code: 422 Response: {"message":"required field 'content' is zero value.","request_id":"f88c2e5a-6747-4a4e-a132-79273c1067ad"}
 x trying to run a query with run_query with a single quoted string goofs up the tool call, omits the string
 x Make add tools to bot and change instructions work for Cortex mode bots
@@ -48,7 +48,6 @@ x if cortex api not pupr, default back to complete()
 handle > 128k tokens
 x make add bot tools to cortex 
 x work on tweaking prompt for suggesting to run tools vs actually running them
-make python interpreter work
 x (not needed-aug pupr for REST API) if going with COMPLETE, make it send the structure of the array properly not just string dumped
 
 

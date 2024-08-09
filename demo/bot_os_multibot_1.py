@@ -25,6 +25,7 @@ from connectors.sqlite_connector import SqliteConnector
 from core.bot_os_tools import get_tools
 from embed.embed_openbb import openbb_query
 from slack.slack_bot_os_adapter import SlackBotAdapter
+
 from bot_genesis.make_baby_bot import (
     make_baby_bot,
     update_slack_app_level_key,
@@ -134,7 +135,14 @@ elif genesis_source == 'Snowflake':  # Initialize BigQuery client
     connection_info = {"Connection_Type": "Snowflake"}
 else:
     raise ValueError('Invalid Source')
-db_adapter.ensure_table_exists()
+    
+if os.getenv("TEST_MODE", "false").lower() == "true":
+    print("()()()()()()()()()()()()()")
+    print("TEST_MODE - ensure table exists skipped")
+    print("()()()()()()()()()()()()()")
+else:
+    db_adapter.ensure_table_exists()
+
 print("---> CONNECTED TO DATABASE:: ", genesis_source)
 global_flags.source = genesis_source
 # while True:

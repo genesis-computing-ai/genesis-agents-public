@@ -20,6 +20,7 @@ from core.bot_os_tools import get_tools, ToolBelt
 from llm_cortex.bot_os_cortex import BotOsAssistantSnowflakeCortex
 from llm_openai.bot_os_openai import BotOsAssistantOpenAI
 from slack.slack_bot_os_adapter import SlackBotAdapter
+from teams.teams_bot_os_adapter import TeamsBotOsInputAdapter
 from bot_genesis.make_baby_bot import (
     get_available_tools,
     get_all_bots_full_details,
@@ -83,6 +84,19 @@ def make_session(
 #        global_flags.slack_active = False
 
     input_adapters = []
+
+    if os.getenv("TEAMS_BOT") and bot_config["bot_name"] == os.getenv("TEAMS_BOT"):
+        from teams.teams_bot_os_adapter import TeamsBotOsInputAdapter
+        teams_adapter_local = TeamsBotOsInputAdapter(
+            bot_name=bot_config["bot_name"],
+            app_id=bot_config.get("teams_app_id", None),
+            app_password=bot_config.get("teams_app_password", None),
+            app_type=bot_config.get("teams_app_type", None),
+            app_tenantid=bot_config.get("teams_tenant_id", None),
+            bot_id=bot_config["bot_id"]
+        )
+        input_adapters.append(teams_adapter_local)
+
 
     slack_adapter_local = None
     if existing_slack:
@@ -321,10 +335,10 @@ Reminder:
 
 # Persona Instructions
  """+incoming_instructions + "\n\n"
-            
-   # with open('./latest_instructions.txt', 'w') as file:
-   #     file.write(instructions)
- 
+                    
+   #         with open('./latest_instructions.txt', 'w') as file:
+   #             file.write(instructions)
+        
     try:
         # logger.warning(f"GenBot {bot_id} instructions:::  {instructions}")
         # print(f'tools: {tools}')
@@ -402,6 +416,12 @@ def create_sessions(
     bot_id_to_slack_adapter_map = {}
 
     for bot_config in bots_config:
+        if os.getenv("TEST_MODE", "false").lower() == "true":
+            if bot_config.get("bot_name") != os.getenv("TEAMS_BOT", ""):
+                print("()()()()()()()()()()()()()()()")                
+                print("Test Mode skipping all bots except ",os.getenv("TEAMS_BOT", ""))
+                print("()()()()()()()()()()()()()()()") 
+                continue
         # JL TEMP REMOVE
         #       if bot_config["bot_id"] == "Eliza-lGxIAG":
         #           continue

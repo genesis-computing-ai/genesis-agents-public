@@ -4,6 +4,19 @@ Bot Framework v4 echo bot sample.
 
 This bot has been created using [Bot Framework](https://dev.botframework.com), it shows how to create a simple bot that accepts input from the user and echoes it back.
 
+## To run in Genesis server Test Teams Mode
+## Doing this will:
+## 1) skip ensure_tables_exist for faster loading (but run it once at least to make sure your metadata is up to date)
+## 2) instantiate a Teams Adapter for the bot named in TEAMS_BOT
+## 3) skip loading any other bots other than TEAM_BOT (to make testing Teams faster to restart)
+
+export TEST_MODE=True
+export TEAMS_BOT=<name of your bot (not id, the display name)>
+##then run demo/bot_os_multibot_1.py as usual, ideally via the Debugger
+
+
+
+
 ## To try this sample
 
 - Clone the repository

@@ -6,30 +6,116 @@ import logging
 from core.bot_os_input import BotOsInputAdapter, BotOsInputMessage, BotOsOutputMessage
 from collections import deque
 import asyncio
+import threading
 from botbuilder.core import ActivityHandler, MessageFactory, TurnContext
+from teams.bots.echo_bot import EchoBot
 
 import json
-
-
 logger = logging.getLogger(__name__)
 
+import sys
+import traceback
+from datetime import datetime
+from http import HTTPStatus
+
+from aiohttp import web
+from aiohttp.web import Request, Response, json_response
+from botbuilder.core import (
+    TurnContext,
+)
+from botbuilder.core.integration import aiohttp_error_middleware
+from botbuilder.integration.aiohttp import CloudAdapter, ConfigurationBotFrameworkAuthentication
+from botbuilder.schema import Activity, ActivityTypes
+
+from teams.config import DefaultConfig 
+
+async def teams_on_error(context: TurnContext, error: Exception):
+    # This check writes out errors to console log .vs. app insights.
+    # NOTE: In production environment, you should consider logging this to Azure
+    #       application insights.
+    print(f"\n [on_turn_error] unhandled error: {error}", file=sys.stderr)
+    traceback.print_exc()
+
+    # Send a message to the user
+    await context.send_activity("The bot encountered an error or bug.")
+    await context.send_activity(
+        "To continue to run this bot, please fix the bot source code."
+    )
+    # Send a trace activity if we're talking to the Bot Framework Emulator
+    if context.activity.channel_id == "emulator":
+        # Create a trace activity that contains the error object
+        trace_activity = Activity(
+            label="TurnError",
+            name="on_turn_error Trace",
+            timestamp=datetime.utcnow(),
+            type=ActivityTypes.trace,
+            value=f"{error}",
+            value_type="https://www.botframework.com/schemas/error",
+        )
+        # Send a trace activity, which will be displayed in Bot Framework Emulator
+        await context.send_activity(trace_activity)
+
+#from teams.bots import BOT
 
 class TeamsBotOsInputAdapter(BotOsInputAdapter):
     #teams_snow_connector = SnowflakeConnector(connection_name='Snowflake')
 
-    def __init__(self, bot):
-        # from bots.echo_bot import EchoBot
+    def __init__(self, bot_name=None, app_id=None, app_password=None, app_type=None, app_tenantid=None, bot_id=None, response_map=None, proxy_messages_in=None, events=None, genbot_internal_project_and_schema=None):
         super().__init__()
+        
+        self.app_id = app_id if app_id is not None else os.environ.get("MicrosoftAppID", "f96bc6bd-b92c-4d9b-8258-b1fb659d6e8e")
+        self.app_password = app_password if app_password is not None else os.environ.get("MicrosoftAppPassword", ".Y68Q~Ftdg8iKYp59dVTxpQ2JMcxsHyb0j0MQcNN")
+        self.app_type = app_type if app_type is not None else os.environ.get("MicrosoftAppType", "MultiTenant")
+        self.app_tenantid = app_tenantid if app_tenantid is not None else os.environ.get("MicrosoftAppTenantId", "7b04cdc5-c5a1-4618-a142-bd5e98414923")
+        
+        self.response_map = response_map if response_map is not None else {}
+        self.proxy_messages_in = proxy_messages_in if proxy_messages_in is not None else []
+        self.events = events if events is not None else deque()
+        self.genbot_internal_project_and_schema = genbot_internal_project_and_schema if genbot_internal_project_and_schema is not None else os.getenv('GENESIS_INTERNAL_DB_SCHEMA','None')
+        self.bot_name = bot_name
+        self.bot_id = bot_id if bot_id is not None else {}
         
         self.response_map = {}
         self.proxy_messages_in = []
         self.events = deque()
-        self.genbot_internal_project_and_schema = os.getenv('GENESIS_INTERNAL_DB_SCHEMA','None')
-        self.bot = bot
-        self.bot_id= {}
+        self.id_to_turncontext_map = {}
+
+        CONFIG = DefaultConfig()
+        ADAPTER = CloudAdapter(ConfigurationBotFrameworkAuthentication(CONFIG))
+        ADAPTER.on_turn_error =teams_on_error
+        BOT= EchoBot(add_event=self.add_event, response_map=self.response_map) 
+
+        async def messages(req: Request) -> Response:
+            return await ADAPTER.process(req, BOT)
+
+        APP = web.Application(middlewares=[aiohttp_error_middleware])
+        APP.router.add_post("/api/messages", messages)
+
+        #if __name__ == "__main__":
+
+        async def run_app():
+            try:
+                runner = web.AppRunner(APP)
+                await runner.setup()
+                site = web.TCPSite(runner, host="localhost", port=CONFIG.PORT)
+                await site.start()
+            except Exception as error:
+                raise error
+
+
+        def start_background_loop(loop):
+            asyncio.set_event_loop(loop)
+            loop.run_forever()
+
+        new_loop = asyncio.new_event_loop()
+        t = threading.Thread(target=start_background_loop, args=(new_loop,))
+        t.start()
+
+        asyncio.run_coroutine_threadsafe(run_app(), new_loop)
+
         #self.echo_bot_instance = EchoBot()
         #self.teams_bot_handler = TeamsBotOsInputAdapter(self.echo_bot_instance)
-
+ 
 
     def add_event(self, event):
         self.events.append(event)
@@ -38,19 +124,28 @@ class TeamsBotOsInputAdapter(BotOsInputAdapter):
         if len(self.events) == 0:
             return None        
         try:
-            event = self.events.popleft()
+            event_tc = self.events.popleft()
         except IndexError:
             return None
-        uu = event.get('uuid',None)
-        bot_id = event.get('bot_id', {})
-        metadata = {}
-        if uu:
-            metadata["input_uuid"] = uu
-        metadata["channel_type"] = "msteams"
-        metadata["channel_name"] = ""
-        metadata["user_id"] = bot_id.get('user_id', 'Unknown User ID')
-        metadata["user_name"] = bot_id.get('user_name', 'Unknown User')
-        return BotOsInputMessage(thread_id=event.get('thread_id'), msg=event.get('msg'), metadata=metadata)
+        try:
+            event = event_tc.activity
+            uu = event.id
+            channel = event.channel_id
+            bot_id = event.recipient
+            metadata = {}
+            if uu:
+                metadata["input_uuid"] = uu
+            metadata["channel_type"] = "msteams"
+            metadata["channel_name"] = channel
+            metadata["user_id"] = bot_id.id
+            metadata["user_name"] = bot_id.name
+            thread_id = 'thread_1'
+            message_text = event.text
+        #    self.id_to_turncontext_map[uu] = event_tc
+        except Exception as e:
+            print('teams_bot_os_adapter get_input Error getting Input: ',e)
+            return None
+        return BotOsInputMessage(thread_id=thread_id, msg=message_text, metadata=metadata)
     
     async def return_result(self, turn_context: TurnContext, message: BotOsOutputMessage):
         logger.info(f"return_result called with turn_context: {turn_context} and message: {message}")
@@ -64,8 +159,9 @@ class TeamsBotOsInputAdapter(BotOsInputAdapter):
                 self.response_map[in_uuid] = "(no response needed)"
             else:
                 self.response_map[in_uuid] = message.output
+      #  event_tc = self.id_to_turncontext_map[in_uuid]
         #print(message.output)
-        self.return_result(TurnContext, message)
+        #self.return_result(event_tc, message)
        #MessageFactory.text(f"Response: {message.output}")
    
 

@@ -306,7 +306,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                                 self.stop_result_map[thread_id] = 'stopped'
                                 if 'cur_resp' not in locals():
                                     cur_resp = ''
-                                resp += '_Stopped by user request_'
+                                resp += ' `stopped`'
                                 print('cortex thread stopped by user request')
                                 gen_start_time = time.time()
                                 break

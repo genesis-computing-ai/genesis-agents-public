@@ -13,6 +13,8 @@ import os
 from tqdm.auto import tqdm
 from datetime import datetime
 
+from core.bot_os_llm import LLMKeyHandler
+
 genesis_source = os.getenv('GENESIS_SOURCE',default="BigQuery")
 emb_connection = genesis_source
 if genesis_source == 'BigQuery':
@@ -26,6 +28,151 @@ else:
 
 
 index_file_path = './tmp/'
+def _get_bigquery_connection():
+    # Create a BigQuery client
+    credentials_path = os.getenv('GOOGLE_APPLICATION_CREDENTIALS',default=".secrets/gcp.json")
+    with open(credentials_path) as f:
+        connection_info = json.load(f)
+    credentials = service_account.Credentials.from_service_account_info(connection_info)
+    return bigquery.Client(credentials=credentials, project=connection_info['project_id'])
+
+
+def fetch_embeddings_from_snow(table_id):
+    # Initialize Snowflake connector
+
+    # Initialize variables
+    batch_size = 100
+    offset = 0
+    total_fetched = 0
+
+    # Initialize lists to store results
+    embeddings = []
+    table_names = []
+
+    # First, get the total number of rows to set up the progress bar
+    total_rows_query = f"SELECT COUNT(*) as total FROM {table_id}"
+    cursor = emb_db_adapter.connection.cursor()
+   # print('total rows query: ',total_rows_query)
+    cursor.execute(total_rows_query)
+    total_rows_result = cursor.fetchone()
+    total_rows = total_rows_result[0]
+
+    with tqdm(total=total_rows, desc="Fetching embeddings") as pbar:
+        while True:
+            #TODO update to use embedding_native column if cortex mode
+            if LLMKeyHandler.cortex_mode:
+                embedding_column = 'embedding_native'
+            else:
+                embedding_column = 'embedding'
+            # Modify the query to include LIMIT and OFFSET
+            query = f"SELECT qualified_table_name, {embedding_column} FROM {table_id} LIMIT {batch_size} OFFSET {offset}"
+#            print('fetch query ',query)
+            cursor.execute(query)
+            rows = cursor.fetchall()
+
+            # Temporary lists to hold batch results
+            temp_embeddings = []
+            temp_table_names = []
+
+            for row in rows:
+                try:
+                    temp_embeddings.append(json.loads('['+row[1][5:-3]+']'))
+                    temp_table_names.append(row[0])
+#                    print('temp_embeddings len: ',len(temp_embeddings))
+#                    print('temp table_names: ',temp_table_names)
+                except:
+                    try:
+                        temp_embeddings.append(json.loads('['+row[1][5:-10]+']'))
+                        temp_table_names.append(row[0])
+                    except:
+                        print('Cant load array from Snowflake')
+                  # Assuming qualified_table_name is the first column
+
+            # Check if the batch was empty and exit the loop if so
+            if not temp_embeddings:
+                break
+
+            # Append batch results to the main lists
+            embeddings.extend(temp_embeddings)
+            table_names.extend(temp_table_names)
+
+            # Update counters and progress bar
+            fetched = len(temp_embeddings)
+            total_fetched += fetched
+            pbar.update(fetched)
+
+            if fetched < batch_size:
+                # If less than batch_size rows were fetched, it's the last batch
+                break
+
+            # Increase the offset for the next batch
+            offset += batch_size
+
+    cursor.close()
+ #   print('table names ',table_names)
+ #   print('embeddings len ',len(embeddings))
+    return table_names, embeddings
+
+def fetch_embeddings_from_bq(table_id):
+    client = _get_bigquery_connection()
+
+    # Initialize variables
+    batch_size = 100
+    offset = 0
+    total_fetched = 0
+
+    # Initialize lists to store results
+    embeddings = []
+    table_names = []
+
+    # First, get the total number of rows to set up the progress bar
+    total_rows_query = f"""
+        SELECT COUNT(*) as total
+        FROM `{table_id}`
+    """
+    total_rows_result = client.query(total_rows_query).to_dataframe()
+    total_rows = total_rows_result.total[0]
+
+    with tqdm(total=total_rows, desc="Fetching embeddings") as pbar:
+        while True:
+            # Modify the query to include LIMIT and OFFSET
+            query = f"""
+                SELECT qualified_table_name, embedding
+                FROM `{table_id}`
+                LIMIT {batch_size} OFFSET {offset}
+            """
+            query_job = client.query(query)
+
+            # Temporary lists to hold batch results
+            temp_embeddings = []
+            temp_table_names = []
+
+            for row in query_job:
+                temp_embeddings.append(row.embedding)
+                temp_table_names.append(row.qualified_table_name)
+
+            # Check if the batch was empty and exit the loop if so
+            if not temp_embeddings:
+                break
+
+            # Append batch results to the main lists
+            embeddings.extend(temp_embeddings)
+            table_names.extend(temp_table_names)
+
+            # Update counters and progress bar
+            fetched = len(temp_embeddings)
+            total_fetched += fetched
+            pbar.update(fetched)
+
+            if fetched < batch_size:
+                # If less than batch_size rows were fetched, it's the last batch
+                break
+
+            # Increase the offset for the next batch
+            offset += batch_size
+
+    return table_names, embeddings
+
 
 def load_embeddings_from_csv(csv_file_path):
     embeddings = []
@@ -113,6 +260,7 @@ def make_and_save_index(table_id):
 # Function to get embedding (reuse or modify your existing get_embedding function)
 def get_embedding(text):
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    #TODO if cortex mode use cortex
     response = client.embeddings.create(
         model="text-embedding-3-large",
         input=text.replace("\n", " ")  # Replace newlines with spaces
@@ -140,6 +288,13 @@ def load_or_create_embeddings_index(table_id, refresh=True):
     logger = logging.getLogger(__name__)
     logging.basicConfig(level=logging.WARN, format='%(asctime)s - %(levelname)s - %(message)s')
 
+    # if cortex_mode then 768 else
+    if LLMKeyHandler.cortex_mode:
+        embedding_size = 768
+    else:
+        embedding_size = 3072
+
+    index_file_path = './tmp/'
     embedding_size = 3072
 
     if refresh:
@@ -187,7 +342,7 @@ def load_or_create_embeddings_index(table_id, refresh=True):
         annoy_index, metadata_mapping = make_and_save_index(table_id)
 
     logger.info(f'returning  {annoy_index},{metadata_mapping}')
-   # print('returning  ',annoy_index,metadata_mapping)
+    # print('returning  ',annoy_index,metadata_mapping)
     return annoy_index, metadata_mapping
 #table_id = "hello-prototype.ELSA_INTERNAL.database_harvest"
 #annoy_index, metadata_mapping = load_or_create_embeddings_index(table_id)

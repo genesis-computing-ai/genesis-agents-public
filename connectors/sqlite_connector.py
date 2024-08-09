@@ -1343,15 +1343,16 @@ class SqliteConnector(DatabaseConnector):
                 CREATE TABLE LLM_TOKENS (
                     RUNNER_ID VARCHAR(16777216),
                     LLM_KEY VARCHAR(16777216),
-                    LLM_TYPE VARCHAR(16777216)
+                    LLM_TYPE VARCHAR(16777216),
+                    ACTIVE INTEGER
                 );
                 """
                 cursor.execute(llm_config_table_ddl)
                 self.client.commit()
                 runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
                 insert_initial_row_query = f"""
-                    INSERT INTO LLM_TOKENS (RUNNER_ID, LLM_KEY, LLM_TYPE)
-                    VALUES (?, NULL, NULL);
+                    INSERT INTO LLM_TOKENS (RUNNER_ID, LLM_KEY, LLM_TYPE, ACTIVE)
+                    VALUES (?, NULL, NULL, 0);
                 """
                 cursor.execute(insert_initial_row_query, (runner_id,))
                 self.client.commit()
@@ -2879,14 +2880,22 @@ class SqliteConnector(DatabaseConnector):
         """
         runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
 
+        try:
+            query = f""" UPDATE {project_id}.{dataset_name}.llm_tokens SET ACTIVE = 0 """
+            self.client.execute(query)
+        except Exception as e:
+            logger.error(
+                f"Failed to deactivate current active LLM with error: {e}"
+            )
+
         # Query to merge the LLM tokens, inserting if the row doesn't exist
         query = f"""
             MERGE INTO llm_tokens USING (SELECT 1 AS one) ON (runner_id = ? and llm_type = '{llm_type}')
             WHEN MATCHED THEN
-                UPDATE SET llm_key = ?, llm_type = ?
+                UPDATE SET llm_key = ?, llm_type = ?, ACTIVE = 1
             WHEN NOT MATCHED THEN
-                INSERT (runner_id, llm_key, llm_type)
-                VALUES (?, ?, ?)
+                INSERT (runner_id, llm_key, llm_type, ACTIVE)
+                VALUES (?, ?, ?, 1)
         """
 
         try:

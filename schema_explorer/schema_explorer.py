@@ -1,4 +1,5 @@
 import os, csv, io
+# import time
 import simplejson as json
 from openai import OpenAI
 import random 
@@ -10,16 +11,32 @@ from datetime import datetime
 
 class SchemaExplorer:
     def __init__(self, db_connector):
+        from core.bot_os_llm import LLMKeyHandler
         self.db_connector = db_connector
-        self.openai_api_key = os.getenv('OPENAI_API_KEY')
-        self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-        self.model=os.getenv("OPENAI_HARVESTER_MODEL", 'gpt-4o')
-        self.embedding_model = os.getenv("OPENAI_HARVESTER_EMBEDDING_MODEL", 'text-embedding-3-large')
         self.run_number = 0
-        self.cortex_model = os.getenv("CORTEX_HARVESTER_MODEL", 'reka-flash')
-        self.cortex_embedding_model = os.getenv("CORTEX_EMBEDDING_MODEL", 'nv-embed-qa-4')
- 
-        print("harvesting using models: ",self.model, self.embedding_model)
+
+        #TODO fix this determine if using openAI or cortex here
+        llm_api_key = None
+        self.llm_key_handler = LLMKeyHandler()
+        api_key_from_env, llm_api_key = self.llm_key_handler.get_llm_key_from_env()
+        if api_key_from_env == False and self.db_connector.connection_name == "Snowflake":
+            print('Checking LLM_TOKENS for saved LLM Keys:')
+            llm_keys_and_types = []
+            llm_keys_and_types = self.db_connector.db_get_llm_key()
+            llm_api_key = self.llm_key_handler.check_llm_key(llm_keys_and_types)
+        if llm_api_key is None:
+            pass
+        elif self.llm_key_handler.cortex_mode == True:
+            self.cortex_model = os.getenv("CORTEX_HARVESTER_MODEL", 'reka-flash')
+            self.cortex_embedding_model = os.getenv("CORTEX_EMBEDDING_MODEL", 'e5-base-v2')
+            if self.test_cortex():
+                if self.test_cortex_embedding() == '':
+                    print("cortex not available and no OpenAI API key present. Use streamlit to add OpenAI key")
+        else:
+            self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+            self.model=os.getenv("OPENAI_HARVESTER_MODEL", 'gpt-4o')
+            self.embedding_model = os.getenv("OPENAI_HARVESTER_EMBEDDING_MODEL", 'text-embedding-3-large')
+
 
     def alt_get_ddl(self,table_name = None):
         #print(table_name) 
@@ -95,7 +112,77 @@ class SchemaExplorer:
         except Exception as e:
             print(f"Harvester Error for an object: {e}")
             self.store_table_summary(database, schema, table, summary="Harvester Error: {e}", ddl="Harvester Error", ddl_short="Harvester Error", sample_data="Harvester Error")
-   
+
+    def test_cortex(self):
+        
+        newarray = [{"role": "user", "content": "hi there"} ]
+        new_array_str = json.dumps(newarray)
+
+        print(f"schema_explorer test calling cortex {self.cortex_model} via SQL, content est tok len=",len(new_array_str)/4)
+
+        # context_limit = 128000 * 4 #32000 * 4
+        cortex_query = f"""
+                        select SNOWFLAKE.CORTEX.COMPLETE('{self.cortex_model}', %s) as completion;
+        """
+        try:
+            cursor = self.db_connector.connection.cursor()
+            # start_time = time.time()
+            try:
+                cursor.execute(cortex_query, (new_array_str,))
+            except Exception as e:
+                if 'unknown model' in e.msg:
+                    print(f'Model {self.cortex_model} not available in this region, trying mistral-7b')
+                    self.cortex_model = 'mistral-7b'        
+                    cortex_query = f"""
+                        select SNOWFLAKE.CORTEX.COMPLETE('{self.cortex_model}', %s) as completion; """
+                    cursor.execute(cortex_query, (new_array_str,))
+                    print('Ok that worked, changing CORTEX_HARVESTER_MODEL ENV VAR to mistral-7b')
+                    os.environ['CORTEX_HARVESTER_MODEL'] = 'mistral-7b'
+                else:
+                    raise(e)
+            self.db_connector.connection.commit()
+            # elapsed_time = time.time() - start_time
+            result = cursor.fetchone()
+            completion = result[0] if result else None
+
+            print(f"schema_explorer test call result: ",completion)
+
+            return True
+        except Exception as e:
+            print('cortex not available, query error: ',e)
+            self.db_connector.connection.rollback()
+            return False
+             
+    def test_cortex_embedding(self):
+        
+        try:
+            test_message = 'this is a test message to generate an embedding'
+
+            try:
+                # review function used once new regions are unlocked in snowflake
+                embedding_result = self.db_connector.run_query(f"SELECT SNOWFLAKE.CORTEX.EMBED_TEXT_768('{self.cortex_embedding_model}', '{test_message}');")
+                result_value = next(iter(embedding_result[0].values()))
+                if result_value:
+                    os.environ['CORTEX_EMBEDDING_MODEL'] = self.cortex_embedding_model
+                    print(f"Test result value len embedding: {len(result_value)}")            
+            except Exception as e:
+                if 'unknown model' in e.msg:
+                    print(f'Model {self.cortex_embedding_model} not available in this region, trying snowflake-arctic-embed-m')
+                    self.cortex_embedding_model = 'snowflake-arctic-embed-m'        
+                    embedding_result = self.db_connector.run_query(f"SELECT SNOWFLAKE.CORTEX.EMBED_TEXT_768('{self.cortex_embedding_model}', '{test_message}');")
+                    result_value = next(iter(embedding_result[0].values()))
+                    if result_value:
+                        print(f"Test result value len embedding: {len(result_value)}")
+                        print('Ok that worked, changing CORTEX_EMBEDDING_MODEL ENV VAR to snowflake-arctic-embed-m')
+                        os.environ['CORTEX_EMBEDDING_MODEL'] = 'snowflake-arctic-embed-m'
+                else:
+                    raise(e)
+
+        except Exception as e:
+            print('Cortex embed not available, query error: ',e)
+            result_value = ""
+        return result_value
+
 
     def store_table_summary(self, database, schema, table, ddl, ddl_short="", summary="", sample_data=""):
         """
@@ -110,14 +197,16 @@ class SchemaExplorer:
             if ddl is None:
                 ddl = self.alt_get_ddl(table_name='"'+database+'"."'+schema+'"."'+table+'"')
 
- 
-            memory_content = f"<OBJECT>{database}.{schema}.{table}</OBJECT><DDL>\n{ddl}\n</DDL>\n<SUMMARY>\n{summary}\n</SUMMARY><DDL_SHORT>{ddl_short}</DDL_SHORT>"
+            if self.llm_key_handler.cortex_mode:
+                memory_content = f"<OBJECT>{database}.{schema}.{table}</OBJECT><DDL_SHORT>{ddl_short}</DDL_SHORT>"
+                complete_description = memory_content
+            else:
+                memory_content = f"<OBJECT>{database}.{schema}.{table}</OBJECT><DDL>\n{ddl}\n</DDL>\n<SUMMARY>\n{summary}\n</SUMMARY><DDL_SHORT>{ddl_short}</DDL_SHORT>"
+                if sample_data != "":
+                    memory_content += f"\n\n<SAMPLE CSV DATA>\n{sample_data}\n</SAMPLE CSV DATA>"
+                complete_description = memory_content
 
-            if sample_data != "":
-                memory_content += f"\n\n<SAMPLE CSV DATA>\n{sample_data}\n</SAMPLE CSV DATA>"
-
-            complete_description = memory_content
-            embedding = self.get_embedding(complete_description[:8000])  
+            embedding = self.get_embedding(complete_description)  
 
             #sample_data_text = json.dumps(sample_data)  # Assuming sample_data needs to be a JSON text.
 
@@ -150,12 +239,15 @@ class SchemaExplorer:
         return self.run_prompt(p)
     
     def run_prompt(self, messages):
-        if self.db_connector.cortex_mode:
-            escaped_messages = str(messages).replace("'", "\\'")
-            completion_result = self.db_connector.run_query(f"select snowflake.cortex.complete('{self.cortex_model}','{escaped_messages}';")
+        if self.llm_key_handler.cortex_mode:
+            escaped_messages = str(messages).replace("'", '\\"')
+            query = f"select snowflake.cortex.complete('{self.cortex_model}','{escaped_messages}');"
+            # print(query)
+            completion_result = self.db_connector.run_query(query)
             try:
                 result_value = next(iter(completion_result[0].values()))
                 if result_value:
+                    result_value = str(result_value).replace("\`\`\`","'''")
                     print(f"Result value: {result_value}")
             except:
                 print('Cortext complete didnt work')
@@ -182,22 +274,24 @@ class SchemaExplorer:
 
 
     def get_embedding(self, text):
-        if False and self.db_connector.cortex_mode:
-            escaped_messages = str(text).replace("'", "\\'")
+        # logic to handle switch between openai and cortex
+        if self.llm_key_handler.cortex_mode:
+            escaped_messages = str(text[:512]).replace("'", "\\'")
             
-            embedding_result = self.db_connector.run_query(f"SELECT SNOWFLAKE.CORTEX.EMBED_TEXT_1024('{self.cortex_embedding_model}', '{escaped_messages}');")
+            # review function used once new regions are unlocked in snowflake
+            embedding_result = self.db_connector.run_query(f"SELECT SNOWFLAKE.CORTEX.EMBED_TEXT_768('{self.cortex_embedding_model}', '{escaped_messages}');")
             try:
                 result_value = next(iter(embedding_result[0].values()))
                 if result_value:
                     print(f"Result value len embedding: {len(result_value)}")
             except:
-                print('Cortext complete didnt work')
+                print('Cortex embed text didnt work')
                 result_value = ""
             return result_value
         else:
             response = self.client.embeddings.create(
                 model=self.embedding_model,
-                input=text.replace("\n", " ")  # Replace newlines with spaces
+                input=text[:8000].replace("\n", " ")  # Replace newlines with spaces
             )
             embedding = response.data[0].embedding
             return embedding
@@ -276,6 +370,7 @@ class SchemaExplorer:
         update_query = self.db_connector.run_query(query)
 
     def explore_and_summarize_tables_parallel(self, max_to_process=1000):
+        # called by standalone_harvester.py
         try:
             self.run_number += 1
             databases = self.get_active_databases()
@@ -310,7 +405,7 @@ class SchemaExplorer:
         # todo, first build list of objects to harvest, then harvest them
 
         def process_dataset_step1(dataset, max_to_process = 1000):
-
+            # self.llm_key_handler = LLMKeyHandler()
             #print("  Process_dataset: ",dataset)
             # query to find new
             # tables, or those with changes to their DDL
@@ -329,8 +424,13 @@ class SchemaExplorer:
                 db, sch = dataset.split('.')[0], dataset.split('.')[1]
                 #quoted_table_names = [f'\'"{db}"."{sch}"."{table}"\'' for table in table_names]
                #in_clause = ', '.join(quoted_table_names)
+                if self.llm_key_handler.cortex_mode:
+                    embedding_column = 'embedding_native'
+                else:
+                    embedding_column = 'embedding'
+                    
                 check_query = f"""
-                SELECT qualified_table_name, ddl_hash, last_crawled_timestamp, (SUMMARY = '{{!placeholder}}') as needs_full
+                SELECT qualified_table_name, ddl_hash, last_crawled_timestamp,  (SUMMARY = '{{!placeholder}}' OR {embedding_column} IS NULL) as needs_full
                 FROM {self.db_connector.metadata_table_name}
                 WHERE source_name = '{self.db_connector.source_name}'
                 AND database_name= '{db}' and schema_name = '{sch}';"""
@@ -353,6 +453,7 @@ class SchemaExplorer:
                             # Table is not in metadata table
                             # Check to see if it exists in the shared metadata table
                             #print ("!!!! CACHING DIsABLED !!!! ", flush=True)
+                            #TODO get metadata from cache and add embeddings for all schemas, incl baseball and f1
                             if sch == 'INFORMATION_SCHEMA':
                                 shared_table_exists = self.db_connector.check_cached_metadata('PLACEHOLDER_DB_NAME', sch, table_name)
                             else:

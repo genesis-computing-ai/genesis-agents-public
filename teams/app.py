@@ -17,10 +17,10 @@ from botbuilder.core.integration import aiohttp_error_middleware
 from botbuilder.integration.aiohttp import CloudAdapter, ConfigurationBotFrameworkAuthentication
 from botbuilder.schema import Activity, ActivityTypes
 
-from teams.bots.echo_bot import EchoBot
+from bots.echo_bot import EchoBot
 from config import DefaultConfig 
 
-from teams.bots import BOT
+#from bots import BOT
 
 CONFIG = DefaultConfig()
 
@@ -60,7 +60,7 @@ async def on_error(context: TurnContext, error: Exception):
 ADAPTER.on_turn_error = on_error
 
 # Create the Bot
-#BOT= EchoBot() 
+BOT= EchoBot() 
 
 
 # Listen for incoming requests on /api/messages

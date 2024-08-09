@@ -64,7 +64,7 @@ class TeamsBotOsInputAdapter(BotOsInputAdapter):
                 self.response_map[in_uuid] = "(no response needed)"
             else:
                 self.response_map[in_uuid] = message.output
-        print("Message output: {message.output}")
+        #print(message.output)
         self.return_result(TurnContext, message)
        #MessageFactory.text(f"Response: {message.output}")
    

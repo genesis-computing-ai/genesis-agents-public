@@ -2,7 +2,7 @@
 # Licensed under the MIT License.
 
 from .echo_bot import EchoBot
-global BOT 
-BOT = EchoBot()
+""" global BOT 
+BOT = EchoBot() """
 __all__ = ["EchoBot"] 
 

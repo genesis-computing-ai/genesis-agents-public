@@ -14,6 +14,8 @@ import yaml, time, random, string
 import snowflake.connector
 import random, string
 import requests
+
+from core.bot_os_llm import LLMKeyHandler
 from .database_connector import DatabaseConnector
 from core.bot_os_defaults import (
     BASE_EVE_BOT_INSTRUCTIONS,
@@ -44,10 +46,11 @@ _semantic_lock = Lock()
 
 
 class SnowflakeConnector(DatabaseConnector):
+
     def __init__(self, connection_name, bot_database_creds=None):
         super().__init__(connection_name)
         # print('Snowflake connector entry...')
-        
+
         account, database, user, password, warehouse, role = [None] * 6
 
         if bot_database_creds:
@@ -68,12 +71,8 @@ class SnowflakeConnector(DatabaseConnector):
         self.database = get_env_or_default(database, "SNOWFLAKE_DATABASE_OVERRIDE")
         self.warehouse = get_env_or_default(warehouse, "SNOWFLAKE_WAREHOUSE_OVERRIDE")
         self.role = get_env_or_default(role, "SNOWFLAKE_ROLE_OVERRIDE")        
-        # self.account = os.getenv("SNOWFLAKE_ACCOUNT_OVERRIDE", account)
-        # self.user = os.getenv("SNOWFLAKE_USER_OVERRIDE", user)
-        # self.password = os.getenv("SNOWFLAKE_PASSWORD_OVERRIDE", password)
-        # self.database = os.getenv("SNOWFLAKE_DATABASE_OVERRIDE", database)
-        # self.warehouse = os.getenv("SNOWFLAKE_WAREHOUSE_OVERRIDE", warehouse)
-        # self.role = os.getenv("SNOWFLAKE_ROLE_OVERRIDE", role)
+        self.source_name = "Snowflake"
+
         if self.database:
             self.project_id = self.database
         else:
@@ -82,7 +81,8 @@ class SnowflakeConnector(DatabaseConnector):
         self.token_connection = False
         self.connection = self._create_connection()
         self.semantic_models_map = {}
-        self.cortex_mode = False
+
+        #TODO update logci to use cortex if available
         if False and os.getenv("USE_CORTEX_IF_AVAILABLE", "FALSE").upper() == "TRUE":
             print("Testing for Cortex availability...")
             cortex_test = self.run_query(
@@ -92,7 +92,7 @@ class SnowflakeConnector(DatabaseConnector):
                 result_value = next(iter(cortex_test[0].values()))
                 if result_value:
                     print(f"Result value: {result_value}")
-                    self.cortex_mode = True
+                    llm_key_handler.set_cortex_mode(True)
             except:
                 pass
         #       self.snowpark_session = self._create_snowpark_connection()
@@ -204,7 +204,23 @@ class SnowflakeConnector(DatabaseConnector):
 
         # make sure harvester control and results tables are available, if not create them
         # self.ensure_table_exists()
-        self.source_name = "Snowflake"
+
+        self.llm_key_handler = LLMKeyHandler()
+        # check llm key and set the cortex_mode appropriately 
+        if self.llm_key_handler.cortex_mode == False:
+            api_key_from_env, llm_api_key = self.llm_key_handler.get_llm_key_from_env()
+            if api_key_from_env == False and self.source_name == "Snowflake":
+                print('Checking LLM_TOKENS for saved LLM Keys:')
+                llm_keys_and_types = []
+                llm_keys_and_types = self.db_get_llm_key()
+                if llm_keys_and_types == []:
+                    llm_keys_and_types = [('cortex_no_key_needed','cortex')]
+                llm_api_key = self.llm_key_handler.check_llm_key(llm_keys_and_types)
+                
+            if llm_api_key is None:
+                pass        
+
+
 
 
     def test_cortex(self):
@@ -233,6 +249,8 @@ class SnowflakeConnector(DatabaseConnector):
                     print('Ok that worked, changing CORTEX_MODEL ENV VAR to llama3.1-70b')
                     os.environ['CORTEX_MODEL'] = 'llama3.1-70b'
                 else:
+                    #TODO remove llmkey handler from this file
+                    self.llm_key_handler.set_cortex_mode(False)
                     raise(e)
             self.connection.commit()
             elapsed_time = time.time() - start_time
@@ -245,6 +263,7 @@ class SnowflakeConnector(DatabaseConnector):
         except Exception as e:
             print('cortex not available, query error: ',e)
             self.connection.rollback()
+            self.llm_key_handler.set_cortex_mode(False)
             return False
  
 
@@ -305,6 +324,7 @@ class SnowflakeConnector(DatabaseConnector):
                 if len(curr_resp) > 2:
                     return True
                 else:
+                    self.llm_key_handler.set_cortex_mode(False)
                     return False
 
             # print('got response from REST API')
@@ -738,6 +758,31 @@ class SnowflakeConnector(DatabaseConnector):
         except Exception as e:
             err = f"An error occurred while retrieving bot images: {e}"
             return {"Success": False, "Error": err}
+
+    def get_llm_info(self, thread_id=None):
+        """
+        Retrieves a list of all bot avatar images.
+
+        Returns:
+            list: A list of bot names and bot avatar images.
+        """
+        try:
+            query = f"SELECT LLM_TYPE, ACTIVE, LLM_KEY FROM {self.genbot_internal_project_and_schema}.LLM_TOKENS WHERE LLM_KEY is not NULL"
+            cursor = self.client.cursor()
+            cursor.execute(query)
+            llm_info = cursor.fetchall()
+            columns = [col[0].lower() for col in cursor.description]
+            llm_list = [dict(zip(columns, llm)) for llm in llm_info]
+            json_data = json.dumps(
+                llm_list, default=str
+            )  # default=str to handle datetime and other non-serializable types
+
+            return {"Success": True, "Data": json_data}
+
+        except Exception as e:
+            err = f"An error occurred while retrieving bot images: {e}"
+            return {"Success": False, "Error": err}
+
 
     def get_harvest_summary(self, thread_id=None):
         """
@@ -1765,7 +1810,8 @@ class SnowflakeConnector(DatabaseConnector):
                 CREATE OR REPLACE TABLE {self.genbot_internal_project_and_schema}.LLM_TOKENS (
                     RUNNER_ID VARCHAR(16777216),
                     LLM_KEY VARCHAR(16777216),
-                    LLM_TYPE VARCHAR(16777216)
+                    LLM_TYPE VARCHAR(16777216),
+                    ACTIVE BOOLEAN
                 );
                 """
                 cursor.execute(llm_config_table_ddl)
@@ -1775,15 +1821,31 @@ class SnowflakeConnector(DatabaseConnector):
                 # Insert a row with the current runner_id and NULL values for the LLM key and type
                 runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
                 insert_initial_row_query = f"""
-                INSERT INTO {self.genbot_internal_project_and_schema}.LLM_TOKENS (RUNNER_ID, LLM_KEY, LLM_TYPE)
-                VALUES (%s, NULL, NULL);
+                INSERT INTO {self.genbot_internal_project_and_schema}.LLM_TOKENS (RUNNER_ID, LLM_KEY, LLM_TYPE, ACTIVE)
+                VALUES (%s, NULL, NULL, FALSE);
                 """
                 cursor.execute(insert_initial_row_query, (runner_id,))
                 self.client.commit()
             #       print(f"Inserted initial row into {self.genbot_internal_project_and_schema}.LLM_TOKENS with runner_id: {runner_id}")
             else:
-                pass
-        #               print(f"Table {self.schema}.LLM_TOKENS already exists.")
+                check_query = f"DESCRIBE TABLE {self.genbot_internal_project_and_schema}.LLM_TOKENS;"
+                try:
+                    cursor.execute(check_query)
+                    columns = [col[0] for col in cursor.fetchall()]
+                    
+                    if "ACTIVE" not in columns:
+                        alter_table_query = f"ALTER TABLE {self.genbot_internal_project_and_schema}.LLM_TOKENS ADD COLUMN ACTIVE BOOLEAN;"
+                        cursor.execute(alter_table_query)
+                        self.client.commit()
+                        logger.info(
+                            f"Column 'ACTIVE' added to table {self.genbot_internal_project_and_schema}.LLM_TOKENS."
+                        )
+
+                except Exception as e:
+                    print(
+                        f"An error occurred while checking or altering table {self.genbot_internal_project_and_schema}.LLM_TOKENS to add ACTIVE column: {e}"
+                    )
+                #               print(f"Table {self.schema}.LLM_TOKENS already exists.")
         except Exception as e:
             print(f"An error occurred while checking or creating table LLM_TOKENS: {e}")
         finally:
@@ -2476,7 +2538,8 @@ class SnowflakeConnector(DatabaseConnector):
                     last_crawled_timestamp TIMESTAMP NOT NULL,
                     crawl_status STRING NOT NULL,
                     role_used_for_crawl STRING NOT NULL,
-                    embedding ARRAY
+                    embedding ARRAY,
+                    embedding_native ARRAY
                 );
                 """
                 cursor.execute(metadata_table_ddl)
@@ -2485,8 +2548,8 @@ class SnowflakeConnector(DatabaseConnector):
 
                 try:
                     insert_initial_metadata_query = f"""
-                    INSERT INTO {metadata_table_id} (SOURCE_NAME, QUALIFIED_TABLE_NAME, DATABASE_NAME, MEMORY_UUID, SCHEMA_NAME, TABLE_NAME, COMPLETE_DESCRIPTION, DDL, DDL_SHORT, DDL_HASH, SUMMARY, SAMPLE_DATA_TEXT, LAST_CRAWLED_TIMESTAMP, CRAWL_STATUS, ROLE_USED_FOR_CRAWL, EMBEDDING)
-                    SELECT SOURCE_NAME, replace(QUALIFIED_TABLE_NAME,'APP_NAME', CURRENT_DATABASE()) QUALIFIED_TABLE_NAME,  CURRENT_DATABASE() DATABASE_NAME, MEMORY_UUID, SCHEMA_NAME, TABLE_NAME, REPLACE(COMPLETE_DESCRIPTION,'APP_NAME', CURRENT_DATABASE()) COMPLETE_DESCRIPTION, REPLACE(DDL,'APP_NAME', CURRENT_DATABASE()) DDL, REPLACE(DDL_SHORT,'APP_NAME', CURRENT_DATABASE()) DDL_SHORT, 'SHARED_VIEW' DDL_HASH, REPLACE(SUMMARY,'APP_NAME', CURRENT_DATABASE()) SUMMARY, SAMPLE_DATA_TEXT, LAST_CRAWLED_TIMESTAMP, CRAWL_STATUS, ROLE_USED_FOR_CRAWL, EMBEDDING 
+                    INSERT INTO {metadata_table_id} (SOURCE_NAME, QUALIFIED_TABLE_NAME, DATABASE_NAME, MEMORY_UUID, SCHEMA_NAME, TABLE_NAME, COMPLETE_DESCRIPTION, DDL, DDL_SHORT, DDL_HASH, SUMMARY, SAMPLE_DATA_TEXT, LAST_CRAWLED_TIMESTAMP, CRAWL_STATUS, ROLE_USED_FOR_CRAWL)
+                    SELECT SOURCE_NAME, replace(QUALIFIED_TABLE_NAME,'APP_NAME', CURRENT_DATABASE()) QUALIFIED_TABLE_NAME,  CURRENT_DATABASE() DATABASE_NAME, MEMORY_UUID, SCHEMA_NAME, TABLE_NAME, REPLACE(COMPLETE_DESCRIPTION,'APP_NAME', CURRENT_DATABASE()) COMPLETE_DESCRIPTION, REPLACE(DDL,'APP_NAME', CURRENT_DATABASE()) DDL, REPLACE(DDL_SHORT,'APP_NAME', CURRENT_DATABASE()) DDL_SHORT, 'SHARED_VIEW' DDL_HASH, REPLACE(SUMMARY,'APP_NAME', CURRENT_DATABASE()) SUMMARY, SAMPLE_DATA_TEXT, LAST_CRAWLED_TIMESTAMP, CRAWL_STATUS, ROLE_USED_FOR_CRAWL 
                     FROM APP_SHARE.HARVEST_RESULTS WHERE SCHEMA_NAME IN ('BASEBALL','FORMULA_1') AND DATABASE_NAME = 'APP_NAME'
                     """
                     cursor.execute(insert_initial_metadata_query)
@@ -2499,9 +2562,9 @@ class SnowflakeConnector(DatabaseConnector):
 
             else:
                 # Check if the 'ddl_short' column exists in the metadata table
-                ddl_short_check_query = f"DESCRIBE TABLE {self.metadata_table_name};"
+                metadata_col_check_query = f"DESCRIBE TABLE {self.metadata_table_name};"
                 try:
-                    cursor.execute(ddl_short_check_query)
+                    cursor.execute(metadata_col_check_query)
                     columns = [col[0] for col in cursor.fetchall()]
                     if "DDL_SHORT" not in columns:
                         alter_table_query = f"ALTER TABLE {self.metadata_table_name} ADD COLUMN ddl_short STRING;"
@@ -2512,6 +2575,17 @@ class SnowflakeConnector(DatabaseConnector):
                     print(
                         f"An error occurred while checking or altering table {metadata_table_id}: {e}"
                     )
+                # Check if the 'embedding_native' column exists in the metadata table
+                try:
+                    if "EMBEDDING_NATIVE" not in columns:
+                        alter_table_query = f"ALTER TABLE {self.metadata_table_name} ADD COLUMN embedding_native ARRAY;"
+                        cursor.execute(alter_table_query)
+                        self.client.commit()
+                        print(f"Column 'embedding_native' added to table {metadata_table_id}.")
+                except Exception as e:
+                    print(
+                        f"An error occurred while checking or altering table {metadata_table_id}: {e}"
+                    )                    
                 print(f"Table {metadata_table_id} already exists.")
         except Exception as e:
             print(
@@ -2594,7 +2668,7 @@ class SnowflakeConnector(DatabaseConnector):
         role_used_for_crawl="Default",
         embedding=None,
     ):
-
+        self.llm_key_handler = LLMKeyHandler()
         qualified_table_name = f'"{database_name}"."{schema_name}"."{table_name}"'
         memory_uuid = str(uuid.uuid4())
         last_crawled_timestamp = datetime.utcnow().isoformat(" ")
@@ -2603,10 +2677,14 @@ class SnowflakeConnector(DatabaseConnector):
         # Assuming role_used_for_crawl is stored in self.connection_info["client_email"]
         role_used_for_crawl = self.role
 
+        # if cortex mode, load embedding_native else load embedding column
+        if self.llm_key_handler.cortex_mode:
+            embedding_target = 'embedding_native'
+        else:
+            embedding_target = 'embedding'
+
         # Convert embedding list to string format if not None
-        embedding_str = (
-            ",".join(str(e) for e in embedding) if embedding is not None else None
-        )
+        embedding_str = (",".join(str(e) for e in embedding) if embedding is not None else None)
 
         # Construct the MERGE SQL statement with placeholders for parameters
         merge_sql = f"""
@@ -2627,7 +2705,7 @@ class SnowflakeConnector(DatabaseConnector):
                 %(last_crawled_timestamp)s AS last_crawled_timestamp,
                 %(crawl_status)s AS crawl_status,
                 %(role_used_for_crawl)s AS role_used_for_crawl,
-                %(embedding)s AS embedding
+                %(embedding)s AS {embedding_target}
         ) AS new_data
         ON {self.metadata_table_name}.qualified_table_name = new_data.qualified_table_name
         WHEN MATCHED THEN UPDATE SET
@@ -2645,16 +2723,16 @@ class SnowflakeConnector(DatabaseConnector):
             last_crawled_timestamp = TO_TIMESTAMP_NTZ(new_data.last_crawled_timestamp),
             crawl_status = new_data.crawl_status,
             role_used_for_crawl = new_data.role_used_for_crawl,
-            embedding = ARRAY_CONSTRUCT(new_data.embedding)
+            {embedding_target} = ARRAY_CONSTRUCT(new_data.{embedding_target})
         WHEN NOT MATCHED THEN INSERT (
             source_name, qualified_table_name, memory_uuid, database_name, schema_name, table_name,
             complete_description, ddl, ddl_short, ddl_hash, summary, sample_data_text, last_crawled_timestamp,
-            crawl_status, role_used_for_crawl, embedding
+            crawl_status, role_used_for_crawl, {embedding_target}
         ) VALUES (
             new_data.source_name, new_data.qualified_table_name, new_data.memory_uuid, new_data.database_name,
             new_data.schema_name, new_data.table_name, new_data.complete_description, new_data.ddl, new_data.ddl_short,
             new_data.ddl_hash, new_data.summary, new_data.sample_data_text, TO_TIMESTAMP_NTZ(new_data.last_crawled_timestamp),
-            new_data.crawl_status, new_data.role_used_for_crawl, ARRAY_CONSTRUCT(new_data.embedding)
+            new_data.crawl_status, new_data.role_used_for_crawl, ARRAY_CONSTRUCT(new_data.{embedding_target})
         );
         """
 
@@ -2760,7 +2838,7 @@ class SnowflakeConnector(DatabaseConnector):
             else:
                 db_name_filter = database_name
 
-            query = f"""SELECT SOURCE_NAME, replace(QUALIFIED_TABLE_NAME,'PLACEHOLDER_DB_NAME','{database_name}') QUALIFIED_TABLE_NAME, '{database_name}' DATABASE_NAME, MEMORY_UUID, SCHEMA_NAME, TABLE_NAME, REPLACE(COMPLETE_DESCRIPTION,'PLACEHOLDER_DB_NAME','{database_name}') COMPLETE_DESCRIPTION, REPLACE(DDL,'PLACEHOLDER_DB_NAME','{database_name}') DDL, REPLACE(DDL_SHORT,'PLACEHOLDER_DB_NAME','{database_name}') DDL_SHORT, 'SHARED_VIEW' DDL_HASH, REPLACE(SUMMARY,'PLACEHOLDER_DB_NAME','{database_name}') SUMMARY, SAMPLE_DATA_TEXT, LAST_CRAWLED_TIMESTAMP, CRAWL_STATUS, ROLE_USED_FOR_CRAWL, EMBEDDING 
+            query = f"""SELECT SOURCE_NAME, replace(QUALIFIED_TABLE_NAME,'PLACEHOLDER_DB_NAME','{database_name}') QUALIFIED_TABLE_NAME, '{database_name}' DATABASE_NAME, MEMORY_UUID, SCHEMA_NAME, TABLE_NAME, REPLACE(COMPLETE_DESCRIPTION,'PLACEHOLDER_DB_NAME','{database_name}') COMPLETE_DESCRIPTION, REPLACE(DDL,'PLACEHOLDER_DB_NAME','{database_name}') DDL, REPLACE(DDL_SHORT,'PLACEHOLDER_DB_NAME','{database_name}') DDL_SHORT, 'SHARED_VIEW' DDL_HASH, REPLACE(SUMMARY,'PLACEHOLDER_DB_NAME','{database_name}') SUMMARY, SAMPLE_DATA_TEXT, LAST_CRAWLED_TIMESTAMP, CRAWL_STATUS, ROLE_USED_FOR_CRAWL 
                 from APP_SHARE.HARVEST_RESULTS 
                 where DATABASE_NAME = '{db_name_filter}' AND SCHEMA_NAME = '{schema_name}' AND TABLE_NAME = '{table_name}';"""
 
@@ -2913,10 +2991,22 @@ class SnowflakeConnector(DatabaseConnector):
         return "snowflake"
 
     def get_databases(self, thread_id=None):
+        self.llm_key_handler = LLMKeyHandler()
         databases = []
+        # query = (
+        #     "SELECT source_name, database_name, schema_inclusions, schema_exclusions, status, refresh_interval, initial_crawl_complete FROM "
+        #     + self.harvest_control_table_name
+        # )
+        if self.llm_key_handler.cortex_mode:
+            embedding_column = 'embedding_native'
+        else:
+            embedding_column = 'embedding'
+
         query = (
-            "SELECT source_name, database_name, schema_inclusions, schema_exclusions, status, refresh_interval, initial_crawl_complete FROM "
-            + self.harvest_control_table_name
+            f"""SELECT c.source_name, c.database_name, c.schema_inclusions, c.schema_exclusions, c.status, c.refresh_interval, MAX(CASE WHEN c.initial_crawl_complete = FALSE THEN FALSE ELSE CASE WHEN c.initial_crawl_complete = TRUE AND r.embedding IS NULL THEN FALSE ELSE TRUE END END) AS initial_crawl_complete 
+              FROM {self.harvest_control_table_name} c LEFT OUTER JOIN {self.metadata_table_name} r ON c.source_name = r.source_name AND c.database_name = r.database_name 
+              GROUP BY c.source_name,c.database_name,c.schema_inclusions,c.schema_exclusions,c.status, c.refresh_interval, c.initial_crawl_complete
+            """
         )
         cursor = self.connection.cursor()
         cursor.execute(query)
@@ -3453,14 +3543,24 @@ class SnowflakeConnector(DatabaseConnector):
         """
         runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
 
+        try:
+            update_query = f""" UPDATE {project_id}.{dataset_name}.llm_tokens SET ACTIVE = FALSE """
+            cursor = self.connection.cursor()
+            cursor.execute(update_query)
+            self.connection.commit()
+        except Exception as e:
+            logger.error(
+                f"Failed to deactivate current active LLM with error: {e}"
+            )
+
         # Query to merge the LLM tokens, inserting if the row doesn't exist
         query = f"""
             MERGE INTO {project_id}.{dataset_name}.llm_tokens USING (SELECT 1 AS one) ON (runner_id = %s and llm_type = '{llm_type}')
             WHEN MATCHED THEN
-                UPDATE SET llm_key = %s, llm_type = %s
+                UPDATE SET llm_key = %s, llm_type = %s, active = TRUE
             WHEN NOT MATCHED THEN
-                INSERT (runner_id, llm_key, llm_type)
-                VALUES (%s, %s, %s)
+                INSERT (runner_id, llm_key, llm_type, active)
+                VALUES (%s, %s, %s, TRUE)
         """
 
         try:
@@ -6138,6 +6238,7 @@ class SnowflakeConnector(DatabaseConnector):
         return []
 
     def fetch_embeddings(self, table_id):
+        self.llm_key_handler = LLMKeyHandler()
         # Initialize Snowflake connector
 
         # Initialize variables
@@ -6158,10 +6259,17 @@ class SnowflakeConnector(DatabaseConnector):
         total_rows = total_rows_result[0]
 
         with tqdm(total=total_rows, desc="Fetching embeddings") as pbar:
+            # update to use embedding_native column if cortex mode
+            if self.llm_key_handler.cortex_mode:
+                embedding_column = 'embedding_native'
+            else:
+                embedding_column = 'embedding'
+
             while True:
                 # Modify the query to include LIMIT and OFFSET
-                query = f"SELECT qualified_table_name, embedding FROM {table_id} LIMIT {batch_size} OFFSET {offset}"
+                query = f"SELECT qualified_table_name, {embedding_column} FROM {table_id} LIMIT {batch_size} OFFSET {offset}"
     #            print('fetch query ',query)
+
                 cursor.execute(query)
                 rows = cursor.fetchall()
 

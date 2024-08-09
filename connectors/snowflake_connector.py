@@ -1840,7 +1840,9 @@ class SnowflakeConnector(DatabaseConnector):
                         logger.info(
                             f"Column 'ACTIVE' added to table {self.genbot_internal_project_and_schema}.LLM_TOKENS."
                         )
-
+                        update_query = f"UPDATE {self.genbot_internal_project_and_schema}.LLM_TOKENS SET ACTIVE=TRUE WHERE LLM_TYPE='OpenAI'"
+                        cursor.execute(update_query)
+                        self.client.commit()
                 except Exception as e:
                     print(
                         f"An error occurred while checking or altering table {self.genbot_internal_project_and_schema}.LLM_TOKENS to add ACTIVE column: {e}"

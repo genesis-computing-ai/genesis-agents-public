@@ -223,6 +223,7 @@ class ToolBelt:
                     However DO generate text explaining what you are doing and showing interium outputs, etc. while you are running this and further steps to keep the user informed what is going on.
                     In your response back to run_process, provide a DETAILED description of what you did, what result you achieved, and why you believe this to have successfully completed the step.
                     Do not use your memory or any cache that you might have.  Do not simulate any user interaction or tools.  Do not ask for any user input.
+                    Oh, and mention to the user before you start running the process that they can send "!stop" to you at any time to stop the running of the process.
                     """
 
             self.instructions[thread_id] = "\n".join(

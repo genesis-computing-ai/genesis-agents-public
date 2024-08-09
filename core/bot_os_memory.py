@@ -13,6 +13,7 @@ import spacy
 from connectors.bigquery_connector import BigQueryConnector
 from connectors.snowflake_connector import SnowflakeConnector
 from connectors.sqlite_connector import SqliteConnector
+from core.bot_os_llm import LLMKeyHandler
 from  schema_explorer.embeddings_index_handler import load_or_create_embeddings_index
 
 logger = logging.getLogger(__name__)
@@ -129,25 +130,54 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
             self.meta_database_connector = SnowflakeConnector(connection_name='Snowflake')
             self.project_id = self.meta_database_connector.database
 
-        self.embedding_model = os.getenv("OPENAI_HARVESTER_EMBEDDING_MODEL", 'text-embedding-3-large')
+        # check if cortex or openai
+        if LLMKeyHandler.cortex_mode:
+            self.embedding_model = os.getenv("CORTEX_EMBEDDING_MODEL", 'e5-base-v2')
+        else:
+            self.embedding_model = os.getenv("OPENAI_HARVESTER_EMBEDDING_MODEL", 'text-embedding-3-large')
   
         #self.index, self.metadata_mapping = AnnoyIndexSingleton.get_index_and_metadata(self.meta_database_connector.metadata_table_name, vector_size, refresh=refresh)
         self.index, self.metadata_mapping = load_or_create_embeddings_index(self.meta_database_connector.metadata_table_name, refresh=False)
 
-        # todo: have harvester add to this and save a new one 
+        # todo: have harvester add to this and save a new one
+        # TODO will this fail? 
         self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         logger.info(f"kb OpenAI API Key: {os.getenv('OPENAI_API_KEY')}")
 
     # Function to get embedding (reuse or modify your existing get_embedding function)
-    def get_embedding(self, text):
+    # def get_embedding(self, text):
         
-        response = self.client.embeddings.create(
-            model=self.embedding_model,
-            input=text.replace("\n", " ")  # Replace newlines with spaces
-        )
-        embedding = response.data[0].embedding
-        return embedding
+    #     response = self.client.embeddings.create(
+    #         model=self.embedding_model,
+    #         input=text.replace("\n", " ")  # Replace newlines with spaces
+    #     )
+    #     embedding = response.data[0].embedding
+    #     return embedding
 
+    # Function to get embedding (reuse or modify your existing get_embedding function)
+    def get_embedding(self, text):
+        # logic to handle switch between openai and cortex
+        if LLMKeyHandler.cortex_mode:
+            escaped_messages = str(text[:512]).replace("'", "\\'")
+            
+            # review function used once new regions are unlocked in snowflake
+            embedding_result = self.meta_database_connector.run_query(f"SELECT SNOWFLAKE.CORTEX.EMBED_TEXT_768('{self.embedding_model}', '{escaped_messages}');")
+            try:
+                result_value = next(iter(embedding_result[0].values()))
+                if result_value:
+                    print(f"Result value len embedding: {len(result_value)}")
+            except:
+                print('Cortex embed text didnt work in bot os memory')
+                result_value = ""
+            return result_value
+        else:
+            response = self.client.embeddings.create(
+                model=self.embedding_model,
+                input=text[:8000].replace("\n", " ")  # Replace newlines with spaces
+            )
+            embedding = response.data[0].embedding
+            return embedding
+        
     def store_memory(self, memory, scope="user_preferences", thread_id=""):
         if (scope == "user_preferences" or scope == "general") and len(self.find_memory_local(memory, scope=scope)) > 0:
             logger.warn(f"store_memory - not storing duplicate memory {memory} in scope {scope} thread_id {thread_id}")

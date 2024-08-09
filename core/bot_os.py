@@ -358,7 +358,13 @@ class BotOsSession:
             print(f"bot os session input message {input_message.msg}")
             # populate map
             # out_thread = self.in_to_out_thread_map.get(input_message.thread_id,None)
+
             out_thread = self.in_to_out_thread_map.get(input_message.thread_id, None)
+            if out_thread is None:
+                # check to see if the thread_id is actually an output thread, and if so change it back to the correct input thread id
+                if input_message.thread_id in self.out_to_in_thread_map:
+                    input_message.thread_id = self.out_to_in_thread_map[input_message.thread_id]
+                    out_thread = self.in_to_out_thread_map.get(input_message.thread_id, None)
 
             if out_thread is None:
                 # logger.error(f"NO Map to Out thread ... making new one for ->> In Thead {input_message.thread_id}")

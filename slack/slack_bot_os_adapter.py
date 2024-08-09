@@ -322,15 +322,15 @@ class SlackBotAdapter(BotOsInputAdapter):
         if msg.strip().lower() == "stop":
             # Remove the thread from the followed thread map if it exists
             was_indic = ((self.bot_user_id, thread_ts) in thread_ts_dict)
-            if (self.bot_user_id, thread_ts) in thread_ts_dict:
-                with meta_lock:
-                    del thread_ts_dict[(self.bot_user_id, thread_ts)]
+            #if (self.bot_user_id, thread_ts) in thread_ts_dict:
+            #    with meta_lock:
+            #        del thread_ts_dict[(self.bot_user_id, thread_ts)]
             if was_indic:
                 msg = "!stop"
             else:
                 return            
 
-        if msg == "_thinking..._" or msg[:10] == ":toolbox: ":
+        if msg == "_thinking..._" or msg[:10] == ":toolbox: " or msg == '!NO_RESPONSE_REQUIRED':
             return None
 
         if msg.endswith("💬") or msg.endswith(":speech_balloon:"):
@@ -385,10 +385,7 @@ class SlackBotAdapter(BotOsInputAdapter):
         else:
             if os.getenv("THINKING_TOGGLE", "true").lower() != "false":
                 if msg.strip().lower() in ["stop", "!stop"]:
-                    if was_indic:
-                        m = '_stopping all bots (re-@tag the bot to resume discussion)_'
-                    else:
-                        m = '_stopping..._'
+                    m = '_stopping..._'
                     print(f"**** Stopping {self.bot_name} {thread_ts} msg={msg}")
                     stopping_message = self.slack_app.client.chat_postMessage(
                         channel=channel, thread_ts=thread_ts, text=m
@@ -447,7 +444,7 @@ class SlackBotAdapter(BotOsInputAdapter):
                             self.user_info_cache[uid] = uid
                 msg = msg.replace(f"<@{uid}>", f"<@{uid}({self.user_info_cache[uid]})>")
 
-            msg_with_user_and_id = f"<@{user_id}({user_full_name})> says: {msg}"
+            msg_with_user_and_id = f"<@{user_id}>({user_full_name}) says: {msg}"
         except Exception as e:
             print(f"    --NOT A USER MESSAGE, SKIPPING {e} ")
             # not a user message
@@ -570,7 +567,7 @@ class SlackBotAdapter(BotOsInputAdapter):
         #          return None
 
         if is_bot == "TRUE":
-            msg_with_user_and_id += "\n\nRESPONSE GUIDANCE: WARNING! THIS MESSAGE IS FROM ANOTHER BOT, YOU SHOULD PROBABLY NOT RESPOND. ONLY RESPOND TO IT IF IT IS SPECIFICALLY DIRECTED TO YOU, AND IF YOU HAVE NOT ALREADY PROVIDED A RESPONSE TO A SIMILAR MESSAGE IN THIS THREAD, AND IF THE THREAD DOES NOT SEEM TO BE IN A LOOP. RESPOND ONLY WITH !NO_RESPONSE_REQUIRED UNLESS 1) the message is directed to you, 2) you have not already answered a similar message, and 3) the thread does not seem to be in a loop.  Do NOT proactively suggest other things for the bot to do like you would with a human user."
+            msg_with_user_and_id += "\n\nRESPONSE GUIDANCE: This message is from another Bot. RESPOND WITH !NO_RESPONSE_REQUIRED UNLESS 1) the message is directed to you by the other bot or a human has asked you to work with the other bot, 2) you have not already answered a similar message, and 3) the thread does not seem to be in a loop.  Do NOT proactively suggest other things for the bot to do like you would with a human user."
 
         # msg_with_user_and_id += (
         #     "\n\nWhen providing options or choices to the user, always answer using Slack blocks. "
@@ -643,6 +640,8 @@ class SlackBotAdapter(BotOsInputAdapter):
         in_uuid=None,
         task_meta=None,
     ):
+   #     if "!NO_RESPONSE_REQUIRED" in message.output:
+   #         pass
         logger.debug(f"SlackBotAdapter:handle_response - {session_id} {message}")
         thinking_ts = None
         try:
@@ -741,7 +740,6 @@ class SlackBotAdapter(BotOsInputAdapter):
                         # Store the first 100 characters of the first part of the message in the chunk_last_100 dictionary
                         # Store the substring of msg_part1 starting from the 100th character in the chunk_last_100 dictionary
                         # Store the last 100 characters of msg_part1 in the chunk_last_100 dictionary
-                        
                         if True or not duplicato:
                             try:
 
@@ -767,6 +765,25 @@ class SlackBotAdapter(BotOsInputAdapter):
                     else:
                         if msg.count("```") % 2 != 0:
                             msg += "```"
+
+                        if message.input_metadata.get("response_authorized", "TRUE") == "FALSE":
+                                message.output = "!NO_RESPONSE_REQUIRED"
+
+                        if "!NO_RESPONSE_REQUIRED" in message.output:
+                            if not message.output.startswith("!NO_RESPONSE_REQUIRED"):
+                                message.output = message.output.replace(
+                                    "!NO_RESPONSE_REQUIRED", ""
+                                ).strip()
+                            else:
+                                print(
+                                    "Bot has indicated that no response will be posted to this thread."
+                                )
+                                if thinking_ts is not None:
+                                    self.slack_app.client.chat_delete(
+                                        channel=message.input_metadata.get("channel", self.channel_id),
+                                        ts=thinking_ts,
+                                    )
+                            return
 
                         self.slack_app.client.chat_update(
                             channel=message.input_metadata.get("channel", self.channel_id),
@@ -799,10 +816,13 @@ class SlackBotAdapter(BotOsInputAdapter):
                     "Bot has indicated that no response will be posted to this thread."
                 )
                 if thinking_ts is not None:
-                    self.slack_app.client.chat_delete(
-                        channel=message.input_metadata.get("channel", self.channel_id),
-                        ts=thinking_ts,
-                    )
+                    try:
+                        self.slack_app.client.chat_delete(
+                            channel=message.input_metadata.get("channel", self.channel_id),
+                            ts=thinking_ts,
+                        )
+                    except:
+                        pass
 
         else:
             try:

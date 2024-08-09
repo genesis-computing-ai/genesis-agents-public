@@ -9,6 +9,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '.
 from connectors.bigquery_connector import BigQueryConnector
 from connectors.snowflake_connector import SnowflakeConnector
 from knowledge.knowledge_server import KnowledgeServer
+from core.bot_os_llm import LLMKeyHandler
 import logging
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.WARN, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -38,8 +39,14 @@ api_key_from_env = False
 default_llm_engine = os.getenv("BOT_OS_DEFAULT_LLM_ENGINE", "openai")
 llm_api_key = None
 
+logger.info('Getting LLM API Key...')
+api_key_from_env = False
+default_llm_engine = os.getenv("BOT_OS_DEFAULT_LLM_ENGINE", "openai")
+llm_api_key = None
+
 i = 0
 c = 0
+llm_key_handler = LLMKeyHandler()
 
 while llm_api_key == None:
 
@@ -49,42 +56,24 @@ while llm_api_key == None:
         print(f'Waiting on LLM key... (cycle {c})')
         i = 0 
 
-    if default_llm_engine.lower() == "openai":
-        llm_api_key = os.getenv("OPENAI_API_KEY", None)
-        if llm_api_key == '':
-            llm_api_key = None
-        if llm_api_key:
-            api_key_from_env = True
-    elif default_llm_engine.lower() == "reka":
-        llm_api_key = os.getenv("REKA_API_KEY", None)
-        if llm_api_key: 
-            api_key_from_env = True
+    if llm_key_handler.cortex_mode == False:
+        api_key_from_env, llm_api_key = llm_key_handler.get_llm_key_from_env()
+        if api_key_from_env == False and genesis_source == "Snowflake":
+            print('Checking LLM_TOKENS for saved LLM Keys:')
+            llm_keys_and_types = []
+            llm_keys_and_types = knowledge_db_connector.db_get_llm_key()
+            if llm_keys_and_types == []:
+                llm_keys_and_types = [('cortex_no_key_needed','cortex')]
+            llm_api_key = llm_key_handler.check_llm_key(llm_keys_and_types)
+    else:
+        llm_api_key = 'cortex_no_key_needed'
 
-    if genesis_source == 'BigQuery' and api_key_from_env == False:
-        while True:
-            print('!!!!! Loading LLM API Key from File No longer Supported -- Please provide via ENV VAR when using BigQuery Source')
-            time.sleep(3)
-    
-    logger.info('Checking database for LLM Key...', flush=True)
-    if llm_api_key is None and genesis_source == 'Snowflake':
-        llm_keys_and_types = knowledge_db_connector.db_get_llm_key(project_id=None, dataset_name=None)
-        if llm_keys_and_types:
-            for llm_key, llm_type in llm_keys_and_types:
-                if llm_key and llm_type:
-                    if llm_type.lower() == "openai":
-                        os.environ["OPENAI_API_KEY"] = llm_key
-                    elif llm_type.lower() == "reka":
-                        os.environ["REKA_API_KEY"] = llm_key
-                    elif llm_type.lower() == "gemini":
-                        os.environ["GEMINI_API_KEY"] = llm_key
-                    api_key_from_env = False
-                    llm_api_key = llm_key
-                    default_llm_engine = llm_type
-                    break        
-
-    if llm_api_key is None:
-     #   print('No LLM Key Available in ENV var or Snowflake database, sleeping 20 seconds before retry.', flush=True)
+    if llm_api_key is None and llm_api_key != 'cortex_no_key_needed':
+    #   print('No LLM Key Available in ENV var or Snowflake database, sleeping 20 seconds before retry.', flush=True)
         time.sleep(20)
+    else:
+        logger.info('Using cortex for knowledge server ')
+
 
 
 ### END LLM KEY STUFF

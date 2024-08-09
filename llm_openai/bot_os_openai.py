@@ -275,6 +275,8 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       self.threads_in_recovery = deque()
       self.unposted_run_ids = {}
       self.thread_stop_map = {}
+      self.stop_result_map = {}
+     # self.last_stop_time_map = {}
 
       genbot_internal_project_and_schema = os.getenv('GENESIS_INTERNAL_DB_SCHEMA','None')
       if genbot_internal_project_and_schema is not None:
@@ -578,19 +580,30 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
       thread_id = input_message.thread_id
 
-      if input_message.msg.endswith('> says: !stop') or input_message.msg=='!stop':
-            future_timestamp = datetime.datetime.now() + datetime.timedelta(seconds=60)
-            self.thread_stop_map[thread_id] = future_timestamp
-            for _ in range(12):
-                if self.thread_stop_map.get(thread_id) == 'stopped':
-                    break
-                time.sleep(5)
-            if self.thread_stop_map.get(thread_id) == 'stopped':
-               self.thread_stop_map.pop(thread_id, None)
-               #resp = "Streaming stopped for previous request"
-            else:
-               self.thread_stop_map.pop(thread_id, None)
-            return False
+      stop_flag = False
+      if input_message.msg.endswith(') says: !stop') or input_message.msg=='!stop':
+            if thread_id in self.active_runs or thread_id in self.processing_runs:
+               future_timestamp = datetime.datetime.now() + datetime.timedelta(seconds=15)
+               self.thread_stop_map[thread_id] = future_timestamp
+            #  self.last_stop_time_map[thread_id] = datetime.datetime.now()
+
+               i = 0
+               for _ in range(15):
+                  if self.stop_result_map.get(thread_id) == 'stopped':
+                     break
+                  time.sleep(1)
+                  i = i + 1
+                  print("stop ",i)
+                  
+               if self.stop_result_map.get(thread_id) == 'stopped':
+                  self.thread_stop_map.pop(thread_id, None)
+                  self.stop_result_map.pop(thread_id, None)
+                  resp = "Streaming stopped for previous request"
+               else:
+                  self.thread_stop_map.pop(thread_id, None)
+                  self.stop_result_map.pop(thread_id, None)
+                  resp = "No streaming response found to stop"  
+            return True
                     
    #   if thread_id in self.thread_stop_map:
    #         self.thread_stop_map.pop(thread_id)
@@ -1128,10 +1141,8 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                output = StreamingEventHandler.run_id_to_output_stream[run.id]+" 💬"
                if thread_id in self.thread_stop_map:
                   stop_timestamp = self.thread_stop_map[thread_id]
-                  if isinstance(stop_timestamp, str) and stop_timestamp == 'stopped':
-                     del self.thread_stop_map[thread_id]
                   if isinstance(stop_timestamp, datetime.datetime) and (time.time() - stop_timestamp.timestamp()) <= 0:
-                     self.thread_stop_map[thread_id] = 'stopped'
+                     self.stop_result_map[thread_id] = 'stopped'
                      output = output[:-2]
                      output += ' `Stopped`'
                      try:
@@ -1532,6 +1543,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                if thread_id not in self.unposted_run_ids:
                    self.unposted_run_ids[thread_id] = []
                self.unposted_run_ids[thread_id].append(run.id)
+               # check here to make sure correct thread_id is getting put on this...should be the input thread id
                self.add_message(BotOsInputMessage(thread_id=thread_id, msg='The run has expired, please resubmit the tool call(s).', metadata=meta))
                # Remove the current thread/run from the processing queue
 

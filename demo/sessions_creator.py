@@ -345,6 +345,7 @@ Reminder:
         asst_impl = (
             assistant_implementation if stream_mode else None
         )  # test this - may need separate BotOsSession call for stream mode
+        print(f"assistant impl : {assistant_implementation}")
         session = BotOsSession(
             bot_config["bot_id"],
             instructions=instructions + proactive_instructions + pre_validation,
@@ -370,7 +371,7 @@ Reminder:
             all_function_to_tool_map=all_function_to_tool_map,
             bot_id=bot_config["bot_id"],
             stream_mode=stream_mode,
-            tool_belt=ToolBelt(db_adapter, os.getenv("OPENAI_API_KEY")),
+            tool_belt=ToolBelt(db_adapter, os.getenv("OPENAI_API_KEY")), #TODO check this...need ot use other keys too
             skip_vectors=skip_vectors,
         )
     except Exception as e:

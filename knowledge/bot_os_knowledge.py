@@ -92,5 +92,8 @@ print(" ---- KNOWLEDGE SERVER ----")
 
 
 if __name__ == "__main__":
-    knowledge = KnowledgeServer(knowledge_db_connector, maxsize=10)
-    knowledge.start_threads()
+    if os.getenv("OPENAI_API_KEY",'') == '':
+        print("Cannot start knowledge service - no openai key found")
+    else:
+        knowledge = KnowledgeServer(knowledge_db_connector, maxsize=10)
+        knowledge.start_threads()

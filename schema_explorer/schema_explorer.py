@@ -33,9 +33,15 @@ class SchemaExplorer:
         if os.environ["CORTEX_MODE"] == 'True':
             self.cortex_model = os.getenv("CORTEX_HARVESTER_MODEL", 'reka-flash')
             self.cortex_embedding_model = os.getenv("CORTEX_EMBEDDING_MODEL", 'e5-base-v2')
-            if self.test_cortex():
-                if self.test_cortex_embedding() == '':
-                    print("cortex not available and no OpenAI API key present. Use streamlit to add OpenAI key")
+            if os.getenv("CORTEX_EMBEDDING_AVAILABLE",'False') == 'False':
+                if self.test_cortex():
+                    if self.test_cortex_embedding() == '':
+                        print("cortex not available and no OpenAI API key present. Use streamlit to add OpenAI key")
+                        os.environ["CORTEX_EMBEDDING_AVAILABLE"] = 'False'
+                    else:
+                        os.environ["CORTEX_EMBEDDING_AVAILABLE"] = 'True'
+                else:
+                    os.environ["CORTEX_EMBEDDING_AVAILABLE"] = 'False'
         else:
             self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
             self.model=os.getenv("OPENAI_HARVESTER_MODEL", 'gpt-4o')

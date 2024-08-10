@@ -131,18 +131,17 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
             self.project_id = self.meta_database_connector.database
 
         # check if cortex or openai
-        if LLMKeyHandler.cortex_mode:
+        if os.getenv("CORTEX_MODE", 'False') == 'True':
             self.embedding_model = os.getenv("CORTEX_EMBEDDING_MODEL", 'e5-base-v2')
         else:
             self.embedding_model = os.getenv("OPENAI_HARVESTER_EMBEDDING_MODEL", 'text-embedding-3-large')
+            print("setting openai key in knowledge init")
+            self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+            logger.info(f"kb OpenAI API Key: {os.getenv('OPENAI_API_KEY')}")
   
         #self.index, self.metadata_mapping = AnnoyIndexSingleton.get_index_and_metadata(self.meta_database_connector.metadata_table_name, vector_size, refresh=refresh)
         self.index, self.metadata_mapping = load_or_create_embeddings_index(self.meta_database_connector.metadata_table_name, refresh=False)
 
-        # todo: have harvester add to this and save a new one
-        # TODO will this fail? 
-        self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-        logger.info(f"kb OpenAI API Key: {os.getenv('OPENAI_API_KEY')}")
 
     # Function to get embedding (reuse or modify your existing get_embedding function)
     # def get_embedding(self, text):
@@ -157,7 +156,7 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
     # Function to get embedding (reuse or modify your existing get_embedding function)
     def get_embedding(self, text):
         # logic to handle switch between openai and cortex
-        if LLMKeyHandler.cortex_mode:
+        if os.getenv("CORTEX_MODE", 'False') == 'True':
             escaped_messages = str(text[:512]).replace("'", "\\'")
             
             # review function used once new regions are unlocked in snowflake

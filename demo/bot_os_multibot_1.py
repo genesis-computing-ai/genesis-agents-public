@@ -136,11 +136,19 @@ elif genesis_source == 'Snowflake':  # Initialize BigQuery client
 else:
     raise ValueError('Invalid Source')
     
+bot_id_to_udf_adapter_map = {}
+llm_api_key = None
+llm_key_handler = LLMKeyHandler()
+
+print('Checking LLM_TOKENS for saved LLM Keys:')
+api_key_from_env, llm_api_key = llm_key_handler.get_llm_key_from_db()
+
 if os.getenv("TEST_MODE", "false").lower() == "true":
     print("()()()()()()()()()()()()()")
     print("TEST_MODE - ensure table exists skipped")
     print("()()()()()()()()()()()()()")
 else:
+    
     db_adapter.ensure_table_exists()
 
 print("---> CONNECTED TO DATABASE:: ", genesis_source)
@@ -172,89 +180,6 @@ ngrok_active = False
 ##########################
 # Main stuff starts here
 ##########################
-
-bot_id_to_udf_adapter_map = {}
-llm_api_key = None
-llm_key_handler = LLMKeyHandler()
-api_key_from_env, llm_api_key = llm_key_handler.get_llm_key_from_env()
-if llm_key_handler.cortex_mode == False:
-    if api_key_from_env == False and genesis_source == "Snowflake":
-        print('Checking LLM_TOKENS for saved LLM Keys:')
-        llm_keys_and_types = []
-        llm_keys_and_types = db_adapter.db_get_llm_key()
-        llm_api_key = llm_key_handler.check_llm_key(llm_keys_and_types)
-# llm_api_key = LLMKeyHandler.check_llm_key() 
-
-# os.environ["CORTEX_AVAILABLE"] = 'False'
-# if genesis_source == "Snowflake":
-#     try:
-#         cortex_test = db_adapter.test_cortex_via_rest()
-
-#         if cortex_test == True:
-#             os.environ["CORTEX_AVAILABLE"] = 'True'
-#             default_llm_engine = 'cortex'
-#             LLMKeyHandler.set_cortex_mode(True)
-#             llm_api_key = 'cortex_no_key_needed'
-#             print('\nCortex LLM is Available via REST and successfully tested')
-#     except Exception as e:
-#         print('Cortex LLM Not available via REST, exception on test: ',e)
-
-# if os.getenv("CORTEX_VIA_COMPLETE",'False').lower() == '':
-#     os.environ["CORTEX_VIA_COMPLETE"] = 'False'
-# if genesis_source == "Snowflake" and (os.environ["CORTEX_AVAILABLE"] == 'False' or os.getenv("CORTEX_VIA_COMPLETE",'False').lower() == 'true'):
-#     try:
-#         cortex_test = db_adapter.test_cortex()
-
-#         if cortex_test == True:
-#             os.environ["CORTEX_AVAILABLE"] = 'True'
-#             os.environ["CORTEX_VIA_COMPLETE"] = 'True'
-#             SnowflakeConnector.set_cortex_mode(True)
-#             default_llm_engine = 'cortex'
-#             llm_api_key = 'cortex_no_key_needed'
-#             print('Cortex LLM is Available via SQL COMPLETE() and successfully tested')
-
-#     except Exception as e:
-#         print('Cortex LLM Not available via SQL COMPLETE(), exception on test: ',e)
-
-
-# # check for Openai Env Override
-# openai_llm_api_key = os.getenv("OPENAI_API_KEY", None)
-# if openai_llm_api_key == "":
-#     openai_llm_api_key = None
-# if openai_llm_api_key:
-#     api_key_from_env = True
-#     llm_api_key = openai_llm_api_key
-#     SnowflakeConnector.set_cortex_mode(False)
-#     print('Default LLM set to OpenAI because ENV Var OPENAI_API_KEY is present')
-
-# llm_keys_and_types = []
-# #if llm_api_key is None and genesis_source == "Snowflake":
-# if api_key_from_env == False and genesis_source == "Snowflake":
-#     print('Checking LLM_TOKENS for saved LLM Keys:')
-#     llm_keys_and_types = get_llm_key()
-#     if llm_keys_and_types:
-#         for llm_key, llm_type in llm_keys_and_types:
-#             if llm_key and llm_type:
-#                 if llm_type.lower() == "openai":
-#                     os.environ["OPENAI_API_KEY"] = llm_key
-#                     SnowflakeConnector.set_cortex_mode(False)
-#                     print("Found OpenAI Key in LLM_TOKENS, setting env var OPENAI_API_KEY")
-#                 #elif llm_type.lower() == "reka":
-#                 #    os.environ["REKA_API_KEY"] = llm_key
-#                 elif llm_type.lower() == "gemini":
-#                     os.environ["GEMINI_API_KEY"] = llm_key
-#                     print("Found Gemini Key in LLM_TOKENS, setting env var GEMINI_API_KEY")
-#                 if llm_api_key is None:
-#                     print(f"Cortex is not available, so setting default LLM API key: {llm_key} and type: {llm_type} found in LLM_TOKENS")
-#                     api_key_from_env = False
-#                     SnowflakeConnector.set_cortex_mode(False)
-#                     llm_api_key = llm_key
-#                     default_llm_engine = llm_type
-#                 break
-# if llm_api_key is None:
-#     print("===========")
-#     print("NOTE: Cortex not available and no LLM configured, Config via Streamlit to continue")
-#     print("===========")
 
 t, r = get_slack_config_tokens()
 global_flags.slack_active = test_slack_config_token()
@@ -742,41 +667,24 @@ def configure_llm():
         message = request.json
         input_rows = message["data"]
 
-        default_llm_engine_candidate = input_rows[0][1]
-        llm_api_key_candidate = input_rows[0][2]
+        llm_type = input_rows[0][1]
+        llm_key = input_rows[0][2]
 
-        if not llm_api_key_candidate or not llm_api_key_candidate:
+        if not llm_key or not llm_type:
             response = {
                 "Success": False,
                 "Message": "Missing LLM API Key or LLM Model Name.",
             }
-            llm_api_key_candidate = None
-            default_llm_engine_candidate = None
+            llm_key = None
+            llm_type = None
 
         #  if api_key_from_env:
         #      response = {"Success": False, "Message": "LLM type and API key are set in an environment variable and can not be set or changed using this method."}
-        #      llm_api_key_candidate = None
-        #      default_llm_engine_candidate = None
-
-        if default_llm_engine_candidate is not None:
-            if default_llm_engine_candidate.lower() == "openai":
-                try:
-                    client = OpenAI(api_key=llm_api_key_candidate)
-
-                    completion = client.chat.completions.create(
-                        model="gpt-4o",
-                        messages=[{"role": "user", "content": "What is 1+1?"}],
-                    )
-                    # Success!  Update model and keys
-                    if llm_api_key != llm_api_key_candidate:
-                        default_llm_engine = default_llm_engine_candidate
-                        llm_api_key = llm_api_key_candidate
-
-                except OpenAIError as e:
-                    response = {"Success": False, "Message": str(e)}
-                    llm_api_key_candidate = None
-
-        if llm_api_key_candidate is not None:
+        #      llm_key = None
+        #      llm_type = None
+        else:
+        # if llm_type is not None:
+            
             data_cubes_ingress_url = get_udf_endpoint_url("streamlitdatacubes")
             data_cubes_ingress_url = data_cubes_ingress_url if data_cubes_ingress_url else "localhost:8501"
             logger.warning(f"data_cubes_ingress_url(2) set to {data_cubes_ingress_url}")
@@ -785,16 +693,32 @@ def configure_llm():
             os.environ["OPENAI_API_KEY"] = ''
             os.environ["REKA_API_KEY"] = ''
             os.environ["GEMINI_API_KEY"] = ''
-            llm_key_handler.set_cortex_mode(False)
+            os.environ["CORTEX_MODE"] = ''
 
-            if (default_llm_engine_candidate.lower() == "openai"):
-                os.environ["OPENAI_API_KEY"] = llm_api_key_candidate
-            elif (default_llm_engine_candidate.lower() == "reka"):
-                os.environ["REKA_API_KEY"] = llm_api_key_candidate
-            elif (default_llm_engine_candidate.lower() == "gemini"):
-                os.environ["GEMINI_API_KEY"] = llm_api_key_candidate
-            elif (default_llm_engine_candidate.lower() == "cortex"):
-                llm_key_handler.set_cortex_mode(True)
+            if (llm_type.lower() == "openai"):
+                os.environ["OPENAI_API_KEY"] = llm_key
+                try:
+                    client = OpenAI(api_key=llm_key)
+
+                    completion = client.chat.completions.create(
+                        model="gpt-4o",
+                        messages=[{"role": "user", "content": "What is 1+1?"}],
+                    )
+                    # Success!  Update model and keys
+
+                except OpenAIError as e:
+                    response = {"Success": False, "Message": str(e)}
+                    llm_key = None
+            elif (llm_type.lower() == "reka"):
+                os.environ["REKA_API_KEY"] = llm_key
+            elif (llm_type.lower() == "gemini"):
+                os.environ["GEMINI_API_KEY"] = llm_key
+            elif (llm_type.lower() == "cortex"):
+                os.environ["CORTEX_MODE"] = 'True'
+
+            os.environ["BOT_OS_DEFAULT_LLM_ENGINE"] = llm_type
+            default_llm_engine = llm_type
+            llm_api_key = llm_key
 
             (
                 sessions,
@@ -825,8 +749,8 @@ def configure_llm():
             # Assuming 'babybot' is an instance of a class that has the 'set_llm_key' method
             # and it has been instantiated and imported above in the code.
             set_key_result = set_llm_key(
-                llm_key=llm_api_key_candidate,
-                llm_type=default_llm_engine_candidate,
+                llm_key=llm_key,
+                llm_type=llm_type,
             )
             if set_key_result:
                 response = {

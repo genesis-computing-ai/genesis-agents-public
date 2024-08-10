@@ -161,27 +161,27 @@ ngrok_active = False
 # Main stuff starts here
 ##########################
 
-bot_id_to_udf_adapter_map = {}
-api_key_from_env = False
-default_llm_engine = os.getenv("BOT_OS_DEFAULT_LLM_ENGINE", "openai")
-llm_api_key = None
-if default_llm_engine.lower() == "openai":
-    llm_api_key = os.getenv("OPENAI_API_KEY", None)
-    if llm_api_key == "":
-        llm_api_key = None
-    if llm_api_key:
-        api_key_from_env = True
-elif default_llm_engine.lower() == "reka":
-    llm_api_key = os.getenv("REKA_API_KEY", None)
-    if llm_api_key:
-        api_key_from_env = True
+# bot_id_to_udf_adapter_map = {}
+# api_key_from_env = False
+# default_llm_engine = os.getenv("BOT_OS_DEFAULT_LLM_ENGINE", "openai")
+# llm_api_key = None
+# if default_llm_engine.lower() == "openai":
+#     llm_api_key = os.getenv("OPENAI_API_KEY", None)
+#     if llm_api_key == "":
+#         llm_api_key = None
+#     if llm_api_key:
+#         api_key_from_env = True
+# elif default_llm_engine.lower() == "reka":
+#     llm_api_key = os.getenv("REKA_API_KEY", None)
+#     if llm_api_key:
+#         api_key_from_env = True
 
-if genesis_source == "BigQuery" and api_key_from_env == False:
-    while True:
-        print(
-            "!!!!! Loading LLM API Key from File No longer Supported -- Please provide via ENV VAR when using BigQuery Source"
-        )
-        time.sleep(3)
+# if genesis_source == "BigQuery" and api_key_from_env == False:
+#     while True:
+#         print(
+#             "!!!!! Loading LLM API Key from File No longer Supported -- Please provide via ENV VAR when using BigQuery Source"
+#         )
+#         time.sleep(3)
 
 
 # to test streamlit first time key capture page
@@ -190,69 +190,101 @@ if genesis_source == "BigQuery" and api_key_from_env == False:
 
 
 print(f"Waiting on LLM key...")
-api_key_from_env = False
-default_llm_engine = os.getenv("BOT_OS_DEFAULT_LLM_ENGINE", "openai")
-llm_api_key = None
-i = 0
-c = 0
+def get_llm_api_key():
+    from core.bot_os_llm import LLMKeyHandler 
+    logger.info('Getting LLM API Key...')
+    api_key_from_env = False
+    llm_type = os.getenv("BOT_OS_DEFAULT_LLM_ENGINE", "openai")
+    llm_api_key = None
 
-while llm_api_key == None:
+    i = 0
+    c = 0
 
-    i = i + 1
-    if i > 100:
-        c += 1
-        print(f"Waiting on LLM key... (cycle {c})")
-        i = 0
+    while llm_api_key == None:
 
-    if default_llm_engine.lower() == "openai":
-        llm_api_key = os.getenv("OPENAI_API_KEY", None)
-        if llm_api_key == "":
-            llm_api_key = None
-        if llm_api_key:
-            api_key_from_env = True
-    elif default_llm_engine.lower() == "reka":
-        llm_api_key = os.getenv("REKA_API_KEY", None)
-        if llm_api_key:
-            api_key_from_env = True
+        i = i + 1
+        if i > 100:
+            c += 1
+            print(f'Waiting on LLM key... (cycle {c})')
+            i = 0 
+        # llm_type = None
+        llm_key_handler = LLMKeyHandler()
+        logger.info('Getting LLM API Key...')
 
-    if genesis_source == "BigQuery" and api_key_from_env == False:
-        while True:
-            print(
-                "!!!!! Loading LLM API Key from File No longer Supported -- Please provide via ENV VAR when using BigQuery Source"
-            )
-            time.sleep(3)
+        api_key_from_env, llm_api_key = llm_key_handler.get_llm_key_from_db()
+
+        if llm_api_key is None and llm_api_key != 'cortex_no_key_needed':
+        #   print('No LLM Key Available in ENV var or Snowflake database, sleeping 20 seconds before retry.', flush=True)
+            time.sleep(20)
+        else:
+            logger.info(f"Using {llm_type} for harvester ")
+
+llm_api_key = get_llm_api_key()
+
+
+# api_key_from_env = False
+# default_llm_engine = os.getenv("BOT_OS_DEFAULT_LLM_ENGINE", "openai")
+# llm_api_key = None
+# i = 0
+# c = 0
+
+# while llm_api_key == None:
+
+#     i = i + 1
+#     if i > 100:
+#         c += 1
+#         print(f"Waiting on LLM key... (cycle {c})")
+#         i = 0
+
+#     if default_llm_engine.lower() == "openai":
+#         llm_api_key = os.getenv("OPENAI_API_KEY", None)
+#         if llm_api_key == "":
+#             llm_api_key = None
+#         if llm_api_key:
+#             api_key_from_env = True
+#     elif default_llm_engine.lower() == "reka":
+#         llm_api_key = os.getenv("REKA_API_KEY", None)
+#         if llm_api_key:
+#             api_key_from_env = True
+
+#     if genesis_source == "BigQuery" and api_key_from_env == False:
+#         while True:
+#             print(
+#                 "!!!!! Loading LLM API Key from File No longer Supported -- Please provide via ENV VAR when using BigQuery Source"
+#             )
+#             time.sleep(3)
 
     # print('Checking database for LLM Key...', flush=True)
     # logger.info('Checking database for LLM Key...', flush=True)
-    if llm_api_key is None and genesis_source == "Snowflake":
-        llm_keys_and_types = get_llm_key()
-        if llm_keys_and_types:
-            for llm_key, llm_type in llm_keys_and_types:
-                if llm_key and llm_type:
-                    if llm_type.lower() == "openai":
-                        os.environ["OPENAI_API_KEY"] = llm_key
-                    elif llm_type.lower() == "reka":
-                        os.environ["REKA_API_KEY"] = llm_key
-                    elif llm_type.lower() == "gemini":
-                        os.environ["GEMINI_API_KEY"] = llm_key
-                    llm_api_key = llm_key
-                    api_key_from_env = False
-                    break
-        else:
-            pass
+    # if llm_api_key is None and genesis_source == "Snowflake":
+    #     llm_keys_and_types = get_llm_key()
+    #     if llm_keys_and_types:
+    #         for llm_key, llm_type in llm_keys_and_types:
+    #             if llm_key and llm_type:
+    #                 if llm_type.lower() == "openai":
+    #                     os.environ["OPENAI_API_KEY"] = llm_key
+    #                 elif llm_type.lower() == "reka":
+    #                     os.environ["REKA_API_KEY"] = llm_key
+    #                 elif llm_type.lower() == "gemini":
+    #                     os.environ["GEMINI_API_KEY"] = llm_key
+    #                 llm_api_key = llm_key
+    #                 api_key_from_env = False
+    #                 break
+    #     else:
+    #         pass
         # print("===========")
         # print("NOTE: LLM Key not found in Env Var nor in Database LLM_CONFIG table.. starting without LLM Key, please provide via Streamlit")
         # print("===========", flush=True)
 
-    if not llm_api_key:
-        #  print('No LLM Key Available in ENV var or Snowflake database, sleeping 20 seconds before retry.', flush=True)
-        time.sleep(20)
+if not llm_api_key:
+    #  print('No LLM Key Available in ENV var or Snowflake database, sleeping 20 seconds before retry.', flush=True)
+    time.sleep(20)
 
 
-if llm_api_key is not None and default_llm_engine.lower() == "openai":
-    os.environ["OPENAI_API_KEY"] = llm_api_key
-if llm_api_key is not None and default_llm_engine.lower() == "reka":
-    os.environ["REKA_API_KEY"] = llm_api_key
+# if llm_api_key is not None and default_llm_engine.lower() == "openai":
+#     os.environ["OPENAI_API_KEY"] = llm_api_key
+# if llm_api_key is not None and default_llm_engine.lower() == "reka":
+#     os.environ["REKA_API_KEY"] = llm_api_key
 
 global_flags.slack_active = test_slack_config_token()
 if global_flags.slack_active == "token_expired":
@@ -723,115 +755,115 @@ def configure_ngrok_token():
     return response_var
 
 
-@app.route("/udf_proxy/configure_llm", methods=["POST"])
-def configure_llm():
+# @app.route("/udf_proxy/configure_llm", methods=["POST"])
+# def configure_llm():
 
-    from openai import OpenAI, OpenAIError
+#     from openai import OpenAI, OpenAIError
 
-    global llm_api_key, default_llm_engine, sessions, api_app_id_to_session_map, bot_id_to_udf_adapter_map, server
-    try:
+#     global llm_api_key, default_llm_engine, sessions, api_app_id_to_session_map, bot_id_to_udf_adapter_map, server
+#     try:
 
-        message = request.json
-        input_rows = message["data"]
+#         message = request.json
+#         input_rows = message["data"]
 
-        default_llm_engine_candidate = input_rows[0][1]
-        llm_api_key_candidate = input_rows[0][2]
+#         default_llm_engine_candidate = input_rows[0][1]
+#         llm_api_key_candidate = input_rows[0][2]
 
-        if not llm_api_key_candidate or not llm_api_key_candidate:
-            response = {
-                "Success": False,
-                "Message": "Missing LLM API Key or LLM Model Name.",
-            }
-            llm_api_key_candidate = None
-            default_llm_engine_candidate = None
+#         if not llm_api_key_candidate or not llm_api_key_candidate:
+#             response = {
+#                 "Success": False,
+#                 "Message": "Missing LLM API Key or LLM Model Name.",
+#             }
+#             llm_api_key_candidate = None
+#             default_llm_engine_candidate = None
 
-        if api_key_from_env:
-            response = {
-                "Success": False,
-                "Message": "LLM type and API key are set in an environment variable and can not be set or changed using this method.",
-            }
-            llm_api_key_candidate = None
-            default_llm_engine_candidate = None
+#         if api_key_from_env:
+#             response = {
+#                 "Success": False,
+#                 "Message": "LLM type and API key are set in an environment variable and can not be set or changed using this method.",
+#             }
+#             llm_api_key_candidate = None
+#             default_llm_engine_candidate = None
 
-        if default_llm_engine_candidate is not None:
-            if default_llm_engine_candidate.lower() == "openai":
-                try:
-                    client = OpenAI(api_key=llm_api_key_candidate)
+#         if default_llm_engine_candidate is not None:
+#             if default_llm_engine_candidate.lower() == "openai":
+#                 try:
+#                     client = OpenAI(api_key=llm_api_key_candidate)
 
-                    completion = client.chat.completions.create(
-                        model="gpt-4o",
-                        messages=[{"role": "user", "content": "What is 1+1?"}],
-                    )
-                    # Success!  Update model and keys
-                    if llm_api_key != llm_api_key_candidate:
-                        default_llm_engine = default_llm_engine_candidate
-                        llm_api_key = llm_api_key_candidate
-                    else:
-                        default_llm_engine_candidate = None
+#                     completion = client.chat.completions.create(
+#                         model="gpt-4o",
+#                         messages=[{"role": "user", "content": "What is 1+1?"}],
+#                     )
+#                     # Success!  Update model and keys
+#                     if llm_api_key != llm_api_key_candidate:
+#                         default_llm_engine = default_llm_engine_candidate
+#                         llm_api_key = llm_api_key_candidate
+#                     else:
+#                         default_llm_engine_candidate = None
 
-                except OpenAIError as e:
-                    response = {"Success": False, "Message": str(e)}
-                    llm_api_key_candidate = None
+#                 except OpenAIError as e:
+#                     response = {"Success": False, "Message": str(e)}
+#                     llm_api_key_candidate = None
 
-        if llm_api_key_candidate is not None:
-            data_cubes_ingress_url = get_udf_endpoint_url("streamlitdatacubes")
-            data_cubes_ingress_url = data_cubes_ingress_url if data_cubes_ingress_url else "localhost:8501"
-            logger.warning(f"data_cubes_ingress_url(2) set to {data_cubes_ingress_url}")
-            if (
-                llm_api_key_candidate is not None
-                and default_llm_engine.lower() == "openai"
-            ):
-                os.environ["OPENAI_API_KEY"] = llm_api_key_candidate
-            if (
-                llm_api_key_candidate is not None
-                and default_llm_engine.lower() == "reka"
-            ):
-                os.environ["REKA_API_KEY"] = llm_api_key_candidate
-            (
-                sessions,
-                api_app_id_to_session_map,
-                bot_id_to_udf_adapter_map,
-                bot_id_to_slack_adapter_map,
-            ) = create_sessions(
-                db_adapter,
-                bot_id_to_udf_adapter_map,
-                stream_mode=False,
-                data_cubes_ingress_url=data_cubes_ingress_url,
-            )
-            server = BotOsServer(
-                app,
-                sessions=sessions,
-                scheduler=scheduler,
-                scheduler_seconds_interval=2,
-                slack_active=global_flags.slack_active,
-            )
-            set_remove_pointers(server, api_app_id_to_session_map)
+#         if llm_api_key_candidate is not None:
+#             data_cubes_ingress_url = get_udf_endpoint_url("streamlitdatacubes")
+#             data_cubes_ingress_url = data_cubes_ingress_url if data_cubes_ingress_url else "localhost:8501"
+#             logger.warning(f"data_cubes_ingress_url(2) set to {data_cubes_ingress_url}")
+#             if (
+#                 llm_api_key_candidate is not None
+#                 and default_llm_engine.lower() == "openai"
+#             ):
+#                 os.environ["OPENAI_API_KEY"] = llm_api_key_candidate
+#             if (
+#                 llm_api_key_candidate is not None
+#                 and default_llm_engine.lower() == "reka"
+#             ):
+#                 os.environ["REKA_API_KEY"] = llm_api_key_candidate
+#             (
+#                 sessions,
+#                 api_app_id_to_session_map,
+#                 bot_id_to_udf_adapter_map,
+#                 bot_id_to_slack_adapter_map,
+#             ) = create_sessions(
+#                 db_adapter,
+#                 bot_id_to_udf_adapter_map,
+#                 stream_mode=False,
+#                 data_cubes_ingress_url=data_cubes_ingress_url,
+#             )
+#             server = BotOsServer(
+#                 app,
+#                 sessions=sessions,
+#                 scheduler=scheduler,
+#                 scheduler_seconds_interval=2,
+#                 slack_active=global_flags.slack_active,
+#             )
+#             set_remove_pointers(server, api_app_id_to_session_map)
 
-            # Assuming 'babybot' is an instance of a class that has the 'set_llm_key' method
-            # and it has been instantiated and imported above in the code.
-            set_key_result = set_llm_key(
-                llm_key=llm_api_key,
-                llm_type=default_llm_engine,
-            )
-            if set_key_result:
-                response = {
-                    "Success": True,
-                    "Message": "LLM API Key and Model Name configured successfully.",
-                }
-            else:
-                response = {
-                    "Success": False,
-                    "Message": "Failed to set LLM API Key and Model Name.",
-                }
-    except Exception as e:
-        response = {"Success": False, "Message": str(e)}
+#             # Assuming 'babybot' is an instance of a class that has the 'set_llm_key' method
+#             # and it has been instantiated and imported above in the code.
+#             set_key_result = set_llm_key(
+#                 llm_key=llm_api_key,
+#                 llm_type=default_llm_engine,
+#             )
+#             if set_key_result:
+#                 response = {
+#                     "Success": True,
+#                     "Message": "LLM API Key and Model Name configured successfully.",
+#                 }
+#             else:
+#                 response = {
+#                     "Success": False,
+#                     "Message": "Failed to set LLM API Key and Model Name.",
+#                 }
+#     except Exception as e:
+#         response = {"Success": False, "Message": str(e)}
 
-    output_rows = [[input_rows[0][0], response]]
+#     output_rows = [[input_rows[0][0], response]]
 
-    response_var = make_response({"data": output_rows})
-    response_var.headers["Content-type"] = "application/json"
-    logger.debug(f"Sending response: {response_var.json}")
-    return response_var
+#     response_var = make_response({"data": output_rows})
+#     response_var.headers["Content-type"] = "application/json"
+#     logger.debug(f"Sending response: {response_var.json}")
+#     return response_var
 
 
 scheduler = BackgroundScheduler(

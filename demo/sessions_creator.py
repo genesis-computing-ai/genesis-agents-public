@@ -275,14 +275,14 @@ def make_session(
         ):
             assistant_implementation = BotOsAssistantOpenAI
         else:
-            if os.getenv("OPENAI_API_KEY",None) in [None, ""] and os.getenv("CORTEX_AVAILABLE",None) == "True":
+            if os.getenv("OPENAI_API_KEY",None) in [None, ""] and os.getenv("CORTEX_MODE",None) == "True":
                 assistant_implementation = BotOsAssistantSnowflakeCortex
                 print('Bot implementation not specified, OpenAI not available, so Defaulting LLM to Snowflake Cortex')
             else:
                 print('Bot implementation not specified, OpenAI is available, so defaulting LLM to OpenAI')
                 assistant_implementation = BotOsAssistantOpenAI
 
-        if os.getenv("OPENAI_API_KEY",None) in [None, ""] and os.getenv("CORTEX_AVAILABLE",None) == "True" and assistant_implementation == BotOsAssistantOpenAI:  
+        if os.getenv("OPENAI_API_KEY",None) in [None, ""] and os.getenv("CORTEX_MODE",None) == "True" and assistant_implementation == BotOsAssistantOpenAI:  
             print("Switched to Cortex implementation because OPENAI_API_KEY is not set and CORTEX is available.")
             assistant_implementation = BotOsAssistantSnowflakeCortex
 

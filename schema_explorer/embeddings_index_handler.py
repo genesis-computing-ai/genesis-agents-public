@@ -289,13 +289,13 @@ def load_or_create_embeddings_index(table_id, refresh=True):
     logging.basicConfig(level=logging.WARN, format='%(asctime)s - %(levelname)s - %(message)s')
 
     # if cortex_mode then 768 else
-    if LLMKeyHandler.cortex_mode:
+    if os.environ["CORTEX_MODE"] == 'True':
         embedding_size = 768
     else:
         embedding_size = 3072
 
     index_file_path = './tmp/'
-    embedding_size = 3072
+    # embedding_size = 3072
 
     if refresh:
         index_file_name, meta_file_name = emb_db_adapter.generate_filename_from_last_modified(table_id)

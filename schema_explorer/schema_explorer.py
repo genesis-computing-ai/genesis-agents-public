@@ -10,23 +10,27 @@ from datetime import datetime
 # Assuming OpenAI SDK initialization
 
 class SchemaExplorer:
-    def __init__(self, db_connector):
+    def __init__(self, db_connector, llm_api_key):
         from core.bot_os_llm import LLMKeyHandler
         self.db_connector = db_connector
+        self.llm_api_key = llm_api_key
         self.run_number = 0
 
         #TODO fix this determine if using openAI or cortex here
-        llm_api_key = None
-        self.llm_key_handler = LLMKeyHandler()
-        api_key_from_env, llm_api_key = self.llm_key_handler.get_llm_key_from_env()
-        if api_key_from_env == False and self.db_connector.connection_name == "Snowflake":
-            print('Checking LLM_TOKENS for saved LLM Keys:')
-            llm_keys_and_types = []
-            llm_keys_and_types = self.db_connector.db_get_llm_key()
-            llm_api_key = self.llm_key_handler.check_llm_key(llm_keys_and_types)
-        if llm_api_key is None:
-            pass
-        elif self.llm_key_handler.cortex_mode == True:
+        # llm_api_key = None
+        # self.llm_key_handler = LLMKeyHandler()
+        # api_key_from_env, llm_api_key = self.llm_key_handler.get_llm_key_from_env()
+        # if api_key_from_env == False and self.db_connector.connection_name == "Snowflake":
+        #     print('Checking LLM_TOKENS for saved LLM Keys:')
+        #     llm_keys_and_types = []
+        #     llm_keys_and_types = self.db_connector.db_get_llm_key()
+        #     llm_api_key = self.llm_key_handler.check_llm_key(llm_keys_and_types)
+        # if llm_api_key is None:
+        #     pass
+        self.initialize_model()
+
+    def initialize_model(self):
+        if os.environ["CORTEX_MODE"] == 'True':
             self.cortex_model = os.getenv("CORTEX_HARVESTER_MODEL", 'reka-flash')
             self.cortex_embedding_model = os.getenv("CORTEX_EMBEDDING_MODEL", 'e5-base-v2')
             if self.test_cortex():
@@ -36,7 +40,6 @@ class SchemaExplorer:
             self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
             self.model=os.getenv("OPENAI_HARVESTER_MODEL", 'gpt-4o')
             self.embedding_model = os.getenv("OPENAI_HARVESTER_EMBEDDING_MODEL", 'text-embedding-3-large')
-
 
     def alt_get_ddl(self,table_name = None):
         #print(table_name) 
@@ -197,7 +200,7 @@ class SchemaExplorer:
             if ddl is None:
                 ddl = self.alt_get_ddl(table_name='"'+database+'"."'+schema+'"."'+table+'"')
 
-            if self.llm_key_handler.cortex_mode:
+            if os.environ["CORTEX_AVAILABLE"] == 'True':
                 memory_content = f"<OBJECT>{database}.{schema}.{table}</OBJECT><DDL_SHORT>{ddl_short}</DDL_SHORT>"
                 complete_description = memory_content
             else:
@@ -239,7 +242,7 @@ class SchemaExplorer:
         return self.run_prompt(p)
     
     def run_prompt(self, messages):
-        if self.llm_key_handler.cortex_mode:
+        if os.environ["CORTEX_AVAILABLE"] == 'True':
             escaped_messages = str(messages).replace("'", '\\"')
             query = f"select snowflake.cortex.complete('{self.cortex_model}','{escaped_messages}');"
             # print(query)
@@ -275,7 +278,7 @@ class SchemaExplorer:
 
     def get_embedding(self, text):
         # logic to handle switch between openai and cortex
-        if self.llm_key_handler.cortex_mode:
+        if os.environ["CORTEX_MODE"] == 'True':
             escaped_messages = str(text[:512]).replace("'", "\\'")
             
             # review function used once new regions are unlocked in snowflake
@@ -405,7 +408,8 @@ class SchemaExplorer:
         # todo, first build list of objects to harvest, then harvest them
 
         def process_dataset_step1(dataset, max_to_process = 1000):
-            # self.llm_key_handler = LLMKeyHandler()
+            from core.bot_os_llm import LLMKeyHandler 
+            llm_key_handler = LLMKeyHandler()
             #print("  Process_dataset: ",dataset)
             # query to find new
             # tables, or those with changes to their DDL
@@ -423,8 +427,11 @@ class SchemaExplorer:
                 table_names = [table_info['table_name'] for table_info in potential_tables]
                 db, sch = dataset.split('.')[0], dataset.split('.')[1]
                 #quoted_table_names = [f'\'"{db}"."{sch}"."{table}"\'' for table in table_names]
-               #in_clause = ', '.join(quoted_table_names)
-                if self.llm_key_handler.cortex_mode:
+                #in_clause = ', '.join(quoted_table_names)
+                print('Checking if LLM API Key updated for harvester...')
+                api_key_from_env, llm_api_key = llm_key_handler.get_llm_key_from_db(self.db_connector)
+                self.initialize_model()
+                if os.environ["CORTEX_MODE"] == 'True':
                     embedding_column = 'embedding_native'
                 else:
                     embedding_column = 'embedding'

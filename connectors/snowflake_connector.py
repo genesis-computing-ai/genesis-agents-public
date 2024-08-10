@@ -82,32 +82,6 @@ class SnowflakeConnector(DatabaseConnector):
         self.connection = self._create_connection()
         self.semantic_models_map = {}
 
-        #TODO update logci to use cortex if available
-        if False and os.getenv("USE_CORTEX_IF_AVAILABLE", "FALSE").upper() == "TRUE":
-            print("Testing for Cortex availability...")
-            cortex_test = self.run_query(
-                "select snowflake.cortex.complete('reka-flash','what is 1+1')"
-            )
-            try:
-                result_value = next(iter(cortex_test[0].values()))
-                if result_value:
-                    print(f"Result value: {result_value}")
-                    llm_key_handler.set_cortex_mode(True)
-            except:
-                pass
-        #       self.snowpark_session = self._create_snowpark_connection()
-        if False and self.snowpark_session is not None:
-            p = "Please provide a brief summary of a database table in the 'SPIDER_DATA.BASEBALL' schema named 'BATTING'. This table includes the following columns: PLAYER_ID, YEAR, STINT, TEAM_ID, LEAGUE_ID, G, AB, R, H, DOUBLE, TRIPLE, HR, RBI, SB, CS, BB, SO, IBB, HBP, SH, SF, G_IDP."
-            prompt = [
-                {
-                    "role": "system",
-                    "content": "You an assistant that is great at explaining database tables and columns in natural language.",
-                },
-                {"role": "user", "content": p},
-            ]
-            r = self._cortex_complete("reka-flash", str(prompt))
-            print("cortex test:", r)
-
         try:
             pass
         #     print('REST TOKEN: ',self.connection.rest.token)
@@ -205,20 +179,20 @@ class SnowflakeConnector(DatabaseConnector):
         # make sure harvester control and results tables are available, if not create them
         # self.ensure_table_exists()
 
-        self.llm_key_handler = LLMKeyHandler()
-        # check llm key and set the cortex_mode appropriately 
-        if self.llm_key_handler.cortex_mode == False:
-            api_key_from_env, llm_api_key = self.llm_key_handler.get_llm_key_from_env()
-            if api_key_from_env == False and self.source_name == "Snowflake":
-                print('Checking LLM_TOKENS for saved LLM Keys:')
-                llm_keys_and_types = []
-                llm_keys_and_types = self.db_get_llm_key()
-                if llm_keys_and_types == []:
-                    llm_keys_and_types = [('cortex_no_key_needed','cortex')]
-                llm_api_key = self.llm_key_handler.check_llm_key(llm_keys_and_types)
+        # self.llm_key_handler = LLMKeyHandler()
+        # # check llm key and set the cortex_mode appropriately 
+        # if os.getenv("CORTEX_MODE", "False") == 'False':
+        #     api_key_from_env, llm_api_key = self.llm_key_handler.get_llm_key_from_env()
+        #     if api_key_from_env == False and self.source_name == "Snowflake":
+        #         print('Checking LLM_TOKENS for saved LLM Keys:')
+        #         llm_keys_and_types = []
+        #         llm_keys_and_types = self.db_get_llm_key()
+        #         if llm_keys_and_types == []:
+        #             llm_keys_and_types = [('cortex_no_key_needed','cortex')]
+        #         llm_api_key = self.llm_key_handler.check_llm_key(llm_keys_and_types)
                 
-            if llm_api_key is None:
-                pass        
+        #     if llm_api_key is None:
+        #         pass        
 
 
 
@@ -250,7 +224,7 @@ class SnowflakeConnector(DatabaseConnector):
                     os.environ['CORTEX_MODEL'] = 'llama3.1-70b'
                 else:
                     #TODO remove llmkey handler from this file
-                    self.llm_key_handler.set_cortex_mode(False)
+                    self.llm_key_handler.set_cortex_mode('False')
                     raise(e)
             self.connection.commit()
             elapsed_time = time.time() - start_time
@@ -263,7 +237,7 @@ class SnowflakeConnector(DatabaseConnector):
         except Exception as e:
             print('cortex not available, query error: ',e)
             self.connection.rollback()
-            self.llm_key_handler.set_cortex_mode(False)
+            self.llm_key_handler.set_cortex_mode('False')
             return False
  
 
@@ -324,7 +298,7 @@ class SnowflakeConnector(DatabaseConnector):
                 if len(curr_resp) > 2:
                     return True
                 else:
-                    self.llm_key_handler.set_cortex_mode(False)
+                    self.llm_key_handler.set_cortex_mode('False')
                     return False
 
             # print('got response from REST API')
@@ -2680,7 +2654,7 @@ class SnowflakeConnector(DatabaseConnector):
         role_used_for_crawl = self.role
 
         # if cortex mode, load embedding_native else load embedding column
-        if self.llm_key_handler.cortex_mode:
+        if os.environ["CORTEX_MODE"] == 'True':
             embedding_target = 'embedding_native'
         else:
             embedding_target = 'embedding'
@@ -2999,7 +2973,7 @@ class SnowflakeConnector(DatabaseConnector):
         #     "SELECT source_name, database_name, schema_inclusions, schema_exclusions, status, refresh_interval, initial_crawl_complete FROM "
         #     + self.harvest_control_table_name
         # )
-        if self.llm_key_handler.cortex_mode:
+        if os.environ["CORTEX_AVAILABLE"] == 'True':
             embedding_column = 'embedding_native'
         else:
             embedding_column = 'embedding'
@@ -3502,7 +3476,7 @@ class SnowflakeConnector(DatabaseConnector):
 
     def db_get_llm_key(self, project_id=None, dataset_name=None):
         """
-        Retrieves the LLM key and type for the given runner_id from BigQuery.
+        Retrieves the LLM key and type for the given runner_id.
 
         Returns:
             list: A list of tuples, each containing an LLM key and LLM type.
@@ -3529,6 +3503,38 @@ class SnowflakeConnector(DatabaseConnector):
             else:
                 # Log an error if no LLM key was found for the runner_id
                 return []
+        except Exception as e:
+            logger.info(
+                "LLM_TOKENS table not yet created, returning empty list, try again later."
+            )
+            return []
+        
+    def db_get_active_llm_key(self):
+        """
+        Retrieves the active LLM key and type for the given runner_id.
+
+        Returns:
+            list: A list of tuples, each containing an LLM key and LLM type.
+        """
+        runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
+        logger.info("in getllmkey")
+        # Query to select the LLM key and type from the llm_tokens table
+        query = f"""
+            SELECT llm_key, llm_type
+            FROM {self.genbot_internal_project_and_schema}.llm_tokens
+            WHERE runner_id = %s and active = True
+        """
+        logger.info(f"query: {query}")
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute(query, (runner_id,))
+            result = cursor.fetchone()  # Fetch a single result
+            cursor.close()
+
+            if result:
+                return result[0], result[1]  # Return llm_key and llm_type as a tuple
+            else:
+                return None, None  # Return None if no result found
         except Exception as e:
             logger.info(
                 "LLM_TOKENS table not yet created, returning empty list, try again later."
@@ -3566,20 +3572,23 @@ class SnowflakeConnector(DatabaseConnector):
         """
 
         try:
-            cursor = self.connection.cursor()
-            cursor.execute(
-                query, (runner_id, llm_key, llm_type, runner_id, llm_key, llm_type)
-            )
-            self.connection.commit()
-            affected_rows = cursor.rowcount
-            cursor.close()
+            if llm_key:
+                cursor = self.connection.cursor()
+                cursor.execute(
+                    query, (runner_id, llm_key, llm_type, runner_id, llm_key, llm_type)
+                )
+                self.connection.commit()
+                affected_rows = cursor.rowcount
+                cursor.close()
 
-            if affected_rows > 0:
-                logger.info(f"Updated LLM key for runner_id: {runner_id}")
-                return True
+                if affected_rows > 0:
+                    logger.info(f"Updated LLM key for runner_id: {runner_id}")
+                    return True
+                else:
+                    logger.error(f"No rows updated for runner_id: {runner_id}")
+                    return False
             else:
-                logger.error(f"No rows updated for runner_id: {runner_id}")
-                return False
+                print("key variable is empty and was not stored in the database")
         except Exception as e:
             logger.error(
                 f"Failed to update LLM key for runner_id: {runner_id} with error: {e}"
@@ -6262,7 +6271,7 @@ class SnowflakeConnector(DatabaseConnector):
 
         with tqdm(total=total_rows, desc="Fetching embeddings") as pbar:
             # update to use embedding_native column if cortex mode
-            if self.llm_key_handler.cortex_mode:
+            if os.environ["CORTEX_MODE"] == 'True':
                 embedding_column = 'embedding_native'
             else:
                 embedding_column = 'embedding'

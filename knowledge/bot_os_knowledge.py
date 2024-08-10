@@ -35,45 +35,36 @@ else:    # Initialize BigQuery client
 
 
 logger.info('Getting LLM API Key...')
-api_key_from_env = False
-default_llm_engine = os.getenv("BOT_OS_DEFAULT_LLM_ENGINE", "openai")
-llm_api_key = None
+def get_llm_api_key():
+    from core.bot_os_llm import LLMKeyHandler 
+    logger.info('Getting LLM API Key...')
+    api_key_from_env = False
+    llm_type = os.getenv("BOT_OS_DEFAULT_LLM_ENGINE", "openai")
+    llm_api_key = None
 
-logger.info('Getting LLM API Key...')
-api_key_from_env = False
-default_llm_engine = os.getenv("BOT_OS_DEFAULT_LLM_ENGINE", "openai")
-llm_api_key = None
+    i = 0
+    c = 0
 
-i = 0
-c = 0
-llm_key_handler = LLMKeyHandler()
+    while llm_api_key == None:
 
-while llm_api_key == None:
+        i = i + 1
+        if i > 100:
+            c += 1
+            print(f'Waiting on LLM key... (cycle {c})')
+            i = 0 
+        # llm_type = None
+        llm_key_handler = LLMKeyHandler()
+        logger.info('Getting LLM API Key...')
 
-    i = i + 1
-    if i > 100:
-        c += 1
-        print(f'Waiting on LLM key... (cycle {c})')
-        i = 0 
+        api_key_from_env, llm_api_key = llm_key_handler.get_llm_key_from_db()
 
-    if llm_key_handler.cortex_mode == False:
-        api_key_from_env, llm_api_key = llm_key_handler.get_llm_key_from_env()
-        if api_key_from_env == False and genesis_source == "Snowflake":
-            print('Checking LLM_TOKENS for saved LLM Keys:')
-            llm_keys_and_types = []
-            llm_keys_and_types = knowledge_db_connector.db_get_llm_key()
-            if llm_keys_and_types == []:
-                llm_keys_and_types = [('cortex_no_key_needed','cortex')]
-            llm_api_key = llm_key_handler.check_llm_key(llm_keys_and_types)
-    else:
-        llm_api_key = 'cortex_no_key_needed'
+        if llm_api_key is None and llm_api_key != 'cortex_no_key_needed':
+        #   print('No LLM Key Available in ENV var or Snowflake database, sleeping 20 seconds before retry.', flush=True)
+            time.sleep(20)
+        else:
+            logger.info(f"Using {llm_type} for harvester ")
 
-    if llm_api_key is None and llm_api_key != 'cortex_no_key_needed':
-    #   print('No LLM Key Available in ENV var or Snowflake database, sleeping 20 seconds before retry.', flush=True)
-        time.sleep(20)
-    else:
-        logger.info('Using cortex for knowledge server ')
-
+llm_api_key = get_llm_api_key()
 
 
 ### END LLM KEY STUFF

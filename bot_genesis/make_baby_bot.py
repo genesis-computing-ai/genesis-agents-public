@@ -108,7 +108,7 @@ def set_ngrok_auth_token(ngrok_auth_token, ngrok_use_domain='N', ngrok_domain=''
 
 def get_llm_key():
     """
-    Retrieves the LLM key and type for the given runner_id from BigQuery.
+    Retrieves the LLM key and type and active switch for the given runner_id.
 
     Returns:
         tuple: A tuple containing the LLM key and LLM type.

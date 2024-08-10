@@ -25,7 +25,7 @@ COPY embed ./embed
 COPY generated_modules ./generated_modules
 COPY default_files ./default_files
 COPY entrypoint.sh /entrypoint.sh
-
+COPY teams ./teams
 RUN apt-get update && apt-get install -y procps
 RUN apt-get -y update && \
     apt-get -y install  \

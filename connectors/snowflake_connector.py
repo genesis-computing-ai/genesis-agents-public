@@ -15,7 +15,6 @@ import snowflake.connector
 import random, string
 import requests
 
-from core.bot_os_llm import LLMKeyHandler
 from .database_connector import DatabaseConnector
 from core.bot_os_defaults import (
     BASE_EVE_BOT_INSTRUCTIONS,
@@ -179,7 +178,6 @@ class SnowflakeConnector(DatabaseConnector):
         # make sure harvester control and results tables are available, if not create them
         # self.ensure_table_exists()
 
-        # self.llm_key_handler = LLMKeyHandler()
         # # check llm key and set the cortex_mode appropriately 
         # if os.getenv("CORTEX_MODE", "False") == 'False':
         #     api_key_from_env, llm_api_key = self.llm_key_handler.get_llm_key_from_env()
@@ -195,6 +193,50 @@ class SnowflakeConnector(DatabaseConnector):
         #         pass        
 
 
+    def check_cortex_available(self):
+
+        if os.getenv("CORTEX_AVAILABLE",'False').lower() == '':
+            os.environ["CORTEX_AVAILABLE"] = 'False'
+        if os.getenv("CORTEX_VIA_COMPLETE",'False').lower() == '':
+            os.environ["CORTEX_VIA_COMPLETE"] = 'False'
+
+        if self.source_name == "Snowflake" and os.getenv("CORTEX_AVAILABLE", "False") == 'False':
+            try:
+                cortex_test = self.test_cortex_via_rest()
+
+                if cortex_test == True:
+                    os.environ["CORTEX_AVAILABLE"] = 'True'
+                    self.default_llm_engine = 'cortex'
+                    os.environ["CORTEX_MODE"] = "True"
+                    self.llm_api_key = 'cortex_no_key_needed'
+                    print('\nCortex LLM is Available via REST and successfully tested')
+                    return True
+                else:
+                    os.environ["CORTEX_MODE"] = "False"
+                    return False
+            except Exception as e:
+                print('Cortex LLM Not available via REST, exception on test: ',e)
+
+            if os.environ["CORTEX_AVAILABLE"] == 'False' or os.getenv("CORTEX_VIA_COMPLETE",'False').lower() == 'true':
+                try:
+                    cortex_test = self.test_cortex()
+
+                    if cortex_test == True:
+                        os.environ["CORTEX_AVAILABLE"] = 'True'
+                        os.environ["CORTEX_VIA_COMPLETE"] = 'True'
+                        os.environ["CORTEX_MODE"] = "True"
+                        self.default_llm_engine = 'cortex'
+                        self.llm_api_key = 'cortex_no_key_needed'
+                        print('Cortex LLM is Available via SQL COMPLETE() and successfully tested')
+                        return True
+                    else:
+                        os.environ["CORTEX_MODE"] = "False"
+                        return False
+                except Exception as e:
+                    print('Cortex LLM Not available via SQL COMPLETE(), exception on test: ',e)
+        else:
+            return True
+                    
 
 
     def test_cortex(self):
@@ -222,9 +264,11 @@ class SnowflakeConnector(DatabaseConnector):
                     cursor.execute(cortex_query, (new_array_str,))
                     print('Ok that worked, changing CORTEX_MODEL ENV VAR to llama3.1-70b')
                     os.environ['CORTEX_MODEL'] = 'llama3.1-70b'
+                    os.environ['CORTEX_AVAILABLE'] = 'True'
                 else:
                     #TODO remove llmkey handler from this file
-                    self.llm_key_handler.set_cortex_mode('False')
+                    os.environ['CORTEX_MODE'] = 'False'
+                    os.environ['CORTEX_AVAILABLE'] = 'False'
                     raise(e)
             self.connection.commit()
             elapsed_time = time.time() - start_time
@@ -237,7 +281,8 @@ class SnowflakeConnector(DatabaseConnector):
         except Exception as e:
             print('cortex not available, query error: ',e)
             self.connection.rollback()
-            self.llm_key_handler.set_cortex_mode('False')
+            os.environ['CORTEX_MODE'] = 'False'
+            os.environ['CORTEX_AVAILABLE'] = 'False'
             return False
  
 
@@ -296,9 +341,11 @@ class SnowflakeConnector(DatabaseConnector):
 
               #  print('full resp: ',curr_resp)
                 if len(curr_resp) > 2:
+                    os.environ['CORTEX_AVAILABLE'] = 'True'
                     return True
                 else:
-                    self.llm_key_handler.set_cortex_mode('False')
+                    os.environ['CORTEX_MODE'] = 'False'
+                    os.environ['CORTEX_AVAILABLE'] = 'False'
                     return False
 
             # print('got response from REST API')
@@ -735,10 +782,10 @@ class SnowflakeConnector(DatabaseConnector):
 
     def get_llm_info(self, thread_id=None):
         """
-        Retrieves a list of all bot avatar images.
+        Retrieves a list of all llm types and keys.
 
         Returns:
-            list: A list of bot names and bot avatar images.
+            list: A list of llm keys, llm types, and the active switch.
         """
         try:
             query = f"SELECT LLM_TYPE, ACTIVE, LLM_KEY FROM {self.genbot_internal_project_and_schema}.LLM_TOKENS WHERE LLM_KEY is not NULL"
@@ -1792,13 +1839,18 @@ class SnowflakeConnector(DatabaseConnector):
                 self.client.commit()
                 #      print(f"Table {self.genbot_internal_project_and_schema}.LLM_TOKENS created.")
 
-                # Insert a row with the current runner_id and NULL values for the LLM key and type
+                # Insert a row with the current runner_id and cortex as the active LLM key and type
                 runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
                 insert_initial_row_query = f"""
                 INSERT INTO {self.genbot_internal_project_and_schema}.LLM_TOKENS (RUNNER_ID, LLM_KEY, LLM_TYPE, ACTIVE)
-                VALUES (%s, NULL, NULL, FALSE);
+                VALUES (%s, %s, %s, %s);
                 """
-                cursor.execute(insert_initial_row_query, (runner_id,))
+                # if a new install, set cortex to default LLM if available
+                test_cortex_available = self.check_cortex_available()
+                if test_cortex_available == True:
+                    cursor.execute(insert_initial_row_query, (runner_id,'cortex_no_key_needed', 'cortex', True,))
+                else:
+                    cursor.execute(insert_initial_row_query, (runner_id,None,None,False,))
                 self.client.commit()
             #       print(f"Inserted initial row into {self.genbot_internal_project_and_schema}.LLM_TOKENS with runner_id: {runner_id}")
             else:
@@ -2644,7 +2696,6 @@ class SnowflakeConnector(DatabaseConnector):
         role_used_for_crawl="Default",
         embedding=None,
     ):
-        self.llm_key_handler = LLMKeyHandler()
         qualified_table_name = f'"{database_name}"."{schema_name}"."{table_name}"'
         memory_uuid = str(uuid.uuid4())
         last_crawled_timestamp = datetime.utcnow().isoformat(" ")
@@ -2967,13 +3018,12 @@ class SnowflakeConnector(DatabaseConnector):
         return "snowflake"
 
     def get_databases(self, thread_id=None):
-        self.llm_key_handler = LLMKeyHandler()
         databases = []
         # query = (
         #     "SELECT source_name, database_name, schema_inclusions, schema_exclusions, status, refresh_interval, initial_crawl_complete FROM "
         #     + self.harvest_control_table_name
         # )
-        if os.environ["CORTEX_AVAILABLE"] == 'True':
+        if os.environ["CORTEX_MODE"] == 'True':
             embedding_column = 'embedding_native'
         else:
             embedding_column = 'embedding'
@@ -6249,7 +6299,6 @@ class SnowflakeConnector(DatabaseConnector):
         return []
 
     def fetch_embeddings(self, table_id):
-        self.llm_key_handler = LLMKeyHandler()
         # Initialize Snowflake connector
 
         # Initialize variables

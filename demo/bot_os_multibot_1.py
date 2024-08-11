@@ -140,8 +140,9 @@ bot_id_to_udf_adapter_map = {}
 llm_api_key = None
 llm_key_handler = LLMKeyHandler()
 
+# set the system LLM type and key
 print('Checking LLM_TOKENS for saved LLM Keys:')
-api_key_from_env, llm_api_key = llm_key_handler.get_llm_key_from_db()
+api_key_from_env, llm_api_key, llm_type = llm_key_handler.get_llm_key_from_db()
 
 if os.getenv("TEST_MODE", "false").lower() == "true":
     print("()()()()()()()()()()()()()")
@@ -688,12 +689,11 @@ def configure_llm():
             data_cubes_ingress_url = get_udf_endpoint_url("streamlitdatacubes")
             data_cubes_ingress_url = data_cubes_ingress_url if data_cubes_ingress_url else "localhost:8501"
             logger.warning(f"data_cubes_ingress_url(2) set to {data_cubes_ingress_url}")
-            llm_key_handler = LLMKeyHandler()
 
-            os.environ["OPENAI_API_KEY"] = ''
-            os.environ["REKA_API_KEY"] = ''
-            os.environ["GEMINI_API_KEY"] = ''
-            os.environ["CORTEX_MODE"] = ''
+            # os.environ["OPENAI_API_KEY"] = ''
+            # os.environ["REKA_API_KEY"] = ''
+            # os.environ["GEMINI_API_KEY"] = ''
+            os.environ["CORTEX_MODE"] = 'False'
 
             if (llm_type.lower() == "openai"):
                 os.environ["OPENAI_API_KEY"] = llm_key
@@ -716,6 +716,7 @@ def configure_llm():
             elif (llm_type.lower() == "cortex"):
                 os.environ["CORTEX_MODE"] = 'True'
 
+            # set the system default LLM engine
             os.environ["BOT_OS_DEFAULT_LLM_ENGINE"] = llm_type
             default_llm_engine = llm_type
             llm_api_key = llm_key

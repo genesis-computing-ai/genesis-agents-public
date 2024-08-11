@@ -333,17 +333,8 @@ class SqliteConnector(DatabaseConnector):
         Returns:
             list: A list of visible database names.
         """
-        try:
-            query = "SHOW DATABASES"
-            cursor = self.client.cursor()
-            cursor.execute(query)
-            results = cursor.fetchall()
-
-            databases = [
-                row[1] for row in results
-            ]  # Assuming the database name is in the second column
-
-            return {"Success": True, "Databases": databases}
+        try:            
+            return {"Success": True, "Databases": self.database}
 
         except Exception as e:
             err = f"An error occurred while retrieving visible databases: {e}"
@@ -2024,6 +2015,19 @@ class SqliteConnector(DatabaseConnector):
             print(
                 f"An error occurred while checking or creating table CORTEX_THREADS_OUTPUT: {e}"
             )
+
+        baseball_table_check_query = f"SELECT name FROM sqlite_master WHERE type='table' and name like 'all_star'"
+        try:
+            cursor.execute(baseball_table_check_query)
+            if not cursor.fetchone():
+                with open('spider_load/database/baseball_1_new/schema.sql', 'r') as f:
+                    baseball_table_query = f.read()
+                cursor.executescript(baseball_table_query)
+                self.client.commit()
+            else:
+                print(f"Baseball tables already exist.")
+        except Exception as e:
+            print(f"An error occurred while creating baseball tables: {e}")
 
     def insert_table_summary(
         self,

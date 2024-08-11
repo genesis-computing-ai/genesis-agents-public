@@ -3,6 +3,7 @@ import os
 from core.bot_os_memory import BotOsKnowledgeAnnoy_Metadata, BotOsKnowledgeBase
 from connectors.bigquery_connector import BigQueryConnector
 from connectors.snowflake_connector import SnowflakeConnector
+from connectors.sqlite_connector import SqliteConnector
 from connectors.database_connector import DatabaseConnector
 from connectors.bot_snowflake_connector import bot_credentials
 
@@ -634,16 +635,21 @@ def bind_semantic_copilot(data_connection_info):
 
 def bind_run_query(data_connection_info: list):
     def _run_query(query: str, connection: str, max_rows: int = 20, bot_id: str = None):
-        if connection != "BigQuery":
+        if connection == "Snowflake":
             # if a bot has a snowflake user and connection use it
             bot_creds = bot_credentials(bot_id=bot_id) 
             if bot_creds:
                 my_dc = [SnowflakeConnector("Snowflake", bot_creds)] 
             else:
-                my_dc = [SnowflakeConnector("Snowflake")] 
-             
-        else:
+                my_dc = [SnowflakeConnector("Snowflake")]              
+        elif connection == "BigQuery":
             my_dc = [BigQueryConnector(ci, "BigQuery") for ci in data_connection_info]
+        
+        elif connection == 'Sqlite':
+            my_dc = [SqliteConnector("Snowflake")] 
+        else:
+            raise ValueError('Invalid Connection!')
+    
 
         for a in my_dc:
             # print(a.connection_name)  # FixMe: check the connection_name matches

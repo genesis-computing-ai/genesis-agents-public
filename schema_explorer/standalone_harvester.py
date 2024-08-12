@@ -10,6 +10,7 @@ from connectors.bigquery_connector import BigQueryConnector
 from connectors.snowflake_connector import SnowflakeConnector
 from connectors.sqlite_connector import SqliteConnector
 from schema_explorer import SchemaExplorer
+from core.bot_os_llm import LLMKeyHandler 
 #import schema_explorer.embeddings_index_handler as embeddings_handler
 import logging
 logger = logging.getLogger(__name__)
@@ -73,9 +74,9 @@ def get_llm_api_key():
         else:
             logger.info(f"Using {llm_type} for harvester ")
         
-        return llm_api_key
+        return llm_api_key, llm_type
 
-llm_api_key = get_llm_api_key()
+llm_api_key, llm_type = get_llm_api_key()
 
 ### END LLM KEY STUFF
 logger.info('Out of LLM check section .. calling ensure_table_exists -- ')
@@ -155,6 +156,13 @@ while True:
     sys.stdout.write(f"Checking for new tables... (once per {refresh_seconds} seconds)...\n")
     sys.stdout.flush()
     #embeddings_handler.load_or_create_embeddings_index(bigquery_connector.metadata_table_name, refresh=True)
+    print('Checking if LLM API Key updated for harvester...')
+    llm_key_handler = LLMKeyHandler()
+    latest_llm_type = None
+    api_key_from_env, llm_api_key, latest_llm_type = llm_key_handler.get_llm_key_from_db(harvester_db_connector)
+    if latest_llm_type != llm_type:
+        print(f"Now using {latest_llm_type} instead of {llm_type} for harvester ")
+        
     schema_explorer.explore_and_summarize_tables_parallel()
     #print("Checking Cached Annoy Index")
   #  logger.info(f"Checking for new semantic models... (once per {refresh_seconds} seconds)")

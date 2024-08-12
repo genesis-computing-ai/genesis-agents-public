@@ -434,8 +434,7 @@ class SchemaExplorer:
                 db, sch = dataset.split('.')[0], dataset.split('.')[1]
                 #quoted_table_names = [f'\'"{db}"."{sch}"."{table}"\'' for table in table_names]
                 #in_clause = ', '.join(quoted_table_names)
-                print('Checking if LLM API Key updated for harvester...')
-                api_key_from_env, llm_api_key, llm_type = llm_key_handler.get_llm_key_from_db(self.db_connector)
+
                 self.initialize_model()
                 if os.environ["CORTEX_MODE"] == 'True':
                     embedding_column = 'embedding_native'
@@ -453,6 +452,7 @@ class SchemaExplorer:
                     non_existing_tables = [table for table in potential_tables if f'"{db}"."{sch}"."{table["table_name"]}"' not in existing_tables_set]
                     needs_updating = [table['QUALIFIED_TABLE_NAME']  for table in existing_tables_info if table["NEEDS_FULL"]]
                     refresh_tables = [table for table in potential_tables if f'"{db}"."{sch}"."{table["table_name"]}"' in needs_updating]
+                    print(f"{check_query}")
                 except Exception as e:
                     print(f'Error running check query Error: {e}',flush=True)
                     return None, None

@@ -176,13 +176,7 @@ class ToolBelt:
                 "Message": f"Process {process_name} not found in the PROCESSES table.",
             }
 
-        if action == "GET_ANSWER":
-            print("The meaning of life has been discovered - 42!")
-            return {
-                "Success": True,
-                "Message": "The meaning of life has been discovered - 42!",
-            }
-        elif action == "KICKOFF_PROCESS":
+        if action == "KICKOFF_PROCESS":
             print("Kickoff process.")
             # TODO, these need to be mapped to thread id
             self.counter[thread_id] = 1

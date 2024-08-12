@@ -452,7 +452,7 @@ class SchemaExplorer:
                     non_existing_tables = [table for table in potential_tables if f'"{db}"."{sch}"."{table["table_name"]}"' not in existing_tables_set]
                     needs_updating = [table['QUALIFIED_TABLE_NAME']  for table in existing_tables_info if table["NEEDS_FULL"]]
                     refresh_tables = [table for table in potential_tables if f'"{db}"."{sch}"."{table["table_name"]}"' in needs_updating]
-                    print(f"{check_query}")
+                    # print(f"{check_query}")
                 except Exception as e:
                     print(f'Error running check query Error: {e}',flush=True)
                     return None, None

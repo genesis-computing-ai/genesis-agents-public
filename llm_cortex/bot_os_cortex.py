@@ -389,6 +389,17 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
     #            resp = resp.replace("</function>", "")
     #        postfix = "💬"
 
+        # fix things like this: <function>function_name</function>{"param1": "param1value", "param2": "param2value, etc."} 
+        pattern_function = re.compile(r'<function>(.*?)</function>(\{.*?\})$')
+        match_function = pattern_function.search(resp)
+        
+        if match_function and resp.endswith(match_function.group(2)):
+            function_name = match_function.group(1)
+            params = match_function.group(2)
+            resp = f"<function>{function_name}{params}</function>"
+            postfix = "💬"
+
+
         if resp != '' and BotOsAssistantSnowflakeCortex.stream_mode == True:
             if self.event_callback:
                 self.event_callback(self.bot_id, BotOsOutputMessage(thread_id=thread_id, 
@@ -609,6 +620,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
 
     def process_tool_call(self, thread_id, timestamp, message_payload, message_metadata):
         import json
+
         start_tag = '<function='
         end_tag = '</function>'
         start_index = message_payload.find(start_tag) 

@@ -5,6 +5,7 @@
     "version": "0.2.0",
     "configurations": [
 
+
         {
             "name": "Python: Flask",
             "type": "python",
@@ -12,7 +13,7 @@
             "module": "flask",
             "env": {
                 "FLASK_APP": "./demo/bot_os_multibot_1.py",
-                "FLASK_DEBUG": "1"
+                "FLASK_DEBUG": "0"
             },
             "args": [
                 "run",
@@ -31,7 +32,7 @@
                 "module": "flask",
                 "env": {
                     "FLASK_APP": "./schema_explorer/standalone_harvester.py",
-                    "FLASK_DEBUG": "1"
+                    "FLASK_DEBUG": "0"
                 },
                 "args": [
                     "run",
@@ -49,7 +50,7 @@
             "module": "flask",
             "env": {
                 "FLASK_APP": "./demo/bot_os_task_server.py",
-                "FLASK_DEBUG": "1"
+                "FLASK_DEBUG": "0"
             },
             "args": [
                 "run",

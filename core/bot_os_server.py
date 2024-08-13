@@ -243,7 +243,6 @@ class BotOsServer:
     #                db_connector = session.get_database_connector()
     #                if isinstance(db_connector, SnowflakeConnector):
     #                    db_connector.refresh_tokens()
-
     def run(self, *args, **kwargs):
         # Start the Flask application
         self.app.run(*args, **kwargs)

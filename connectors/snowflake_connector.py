@@ -97,9 +97,6 @@ class SnowflakeConnector(DatabaseConnector):
 
         # self.client = self._create_client()
         self.genbot_internal_project_and_schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "None")
-        if self.genbot_internal_project_and_schema is None:
-            self.genbot_internal_project_and_schema = os.getenv("ELSA_INTERNAL_DB_SCHEMA", "None")
-            print("!! Please switch from using ELSA_INTERNAL_DB_SCHEMA ENV VAR to GENESIS_INTERNAL_DB_SCHEMA !!")
         if self.genbot_internal_project_and_schema == "None":
             # Todo remove, internal note
             print("ENV Variable GENESIS_INTERNAL_DB_SCHEMA is not set.")
@@ -3634,7 +3631,7 @@ class SnowflakeConnector(DatabaseConnector):
         runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
 
         try:
-            update_query = f""" UPDATE {project_id}.{dataset_name}.llm_tokens SET ACTIVE = FALSE """
+            update_query = f""" UPDATE  {self.genbot_internal_project_and_schema}.llm_tokens SET ACTIVE = FALSE """
             cursor = self.connection.cursor()
             cursor.execute(update_query)
             self.connection.commit()
@@ -3645,7 +3642,7 @@ class SnowflakeConnector(DatabaseConnector):
 
         # Query to merge the LLM tokens, inserting if the row doesn't exist
         query = f"""
-            MERGE INTO {project_id}.{dataset_name}.llm_tokens USING (SELECT 1 AS one) ON (runner_id = %s and llm_type = '{llm_type}')
+            MERGE INTO  {self.genbot_internal_project_and_schema}.llm_tokens USING (SELECT 1 AS one) ON (runner_id = %s and llm_type = '{llm_type}')
             WHEN MATCHED THEN
                 UPDATE SET llm_key = %s, llm_type = %s, active = TRUE
             WHEN NOT MATCHED THEN

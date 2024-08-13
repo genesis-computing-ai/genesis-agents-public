@@ -6352,8 +6352,8 @@ class SnowflakeConnector(DatabaseConnector):
                     try:
                         temp_embeddings.append(json.loads('['+row[1][5:-3]+']'))
                         temp_table_names.append(row[0])
-    #                    print('temp_embeddings len: ',len(temp_embeddings))
-    #                    print('temp table_names: ',temp_table_names)
+                        # print('temp_embeddings len: ',len(temp_embeddings))
+                        # print('temp table_names: ',temp_table_names)
                     except:
                         try:
                             temp_embeddings.append(json.loads('['+row[1][5:-10]+']'))

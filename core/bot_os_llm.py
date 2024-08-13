@@ -101,15 +101,39 @@ class LLMKeyHandler:
                     os.environ["CORTEX_EMBEDDING_MODEL"] = 'e5-base-v2'
                 else:
                     print("cortex not availabe and no llm key set")
-            api_key_from_env = True
+            api_key_from_env = False
         else:
             api_key_from_env, llm_key, llm_type = self.get_llm_key_from_env()
             api_key_from_env = True
-            
+
         os.environ["BOT_OS_DEFAULT_LLM_ENGINE"] = llm_type
+        self.set_llm_env_vars()
         return api_key_from_env, llm_key, llm_type
             
+    def set_llm_env_vars(self):
+        from connectors.snowflake_connector import SnowflakeConnector
+        db_adapter = SnowflakeConnector(connection_name=self.connection)
         
+        llm_keys_and_types = db_adapter.db_get_llm_key()
+        for llm_key, llm_type in llm_keys_and_types:  # Loop through each llm_key and llm_type
+
+            if llm_key:
+                if (llm_type.lower() == "openai"):
+                    os.environ["OPENAI_API_KEY"] = llm_key
+                elif (llm_type.lower() == "reka"):
+                    os.environ["REKA_API_KEY"] = llm_key
+                elif (llm_type.lower() == "gemini"):
+                    os.environ["GEMINI_API_KEY"] = llm_key
+                elif (llm_type.lower() == "cortex"):
+                    if os.environ.get("CORTEX_AVAILABLE", 'False') == 'False':
+                        cortex_available = db_adapter.check_cortex_available()
+                    else:
+                        cortex_available = True
+                    if not cortex_available:
+                        print("cortex not availabe and no llm key set")
+
+
+
 #TODO are u necessary?
     # def check_llm_key(self, llm_keys_and_types):
         

@@ -262,8 +262,21 @@ def make_session(
             and bot_config["bot_implementation"] == "cortex"
         ):
             if os.getenv("CORTEX_AVAILABLE",'False') == 'False':
-                db_adapter.check_cortex_available()
-            assistant_implementation = BotOsAssistantSnowflakeCortex
+                cortex_available = db_adapter.check_cortex_available()
+                if not cortex_available:
+                    print('Snowflake Cortex is not available. Defaulting to OpenAI key.')
+                    llm_keys_and_types = db_adapter.db_get_llm_key()
+                    for llm_key, llm_type in llm_keys_and_types:
+                        if llm_key and llm_type:
+                            if llm_type.lower() == "openai":
+                                os.environ["OPENAI_API_KEY"] = llm_key
+                                assistant_implementation = BotOsAssistantOpenAI
+                            else:
+                                print("openai llm key not set. bot session cannot be created.")
+                else:
+                    assistant_implementation = BotOsAssistantSnowflakeCortex
+            else:
+                assistant_implementation = BotOsAssistantSnowflakeCortex
         elif (
             "bot_implementation" in bot_config
             and bot_config["bot_implementation"] == "gemini"
@@ -287,22 +300,30 @@ def make_session(
             else:
                 assistant_implementation = BotOsAssistantOpenAI
         else:
-            #TODO fix - what if currently in cortex mode but one bot changing??
-            if os.getenv("CORTEX_MODE",None) == "True":
+            llm_type = os.getenv("BOT_OS_DEFAULT_LLM_ENGINE","cortex")
+            if llm_type.lower() == "cortex" and os.getenv("CORTEX_MODE",None) == "True":
                 if os.getenv("CORTEX_AVAILABLE",'False') == 'False':
-                    db_adapter.check_cortex_available()
-                assistant_implementation = BotOsAssistantSnowflakeCortex
+                    cortex_available = db_adapter.check_cortex_available()
+                    if not cortex_available:
+                        print('Bot implementation not specified, OpenAI is not available, Snowflake Cortex is not available. Please set LLM key in Streamlit.')
+                    else:
+                        assistant_implementation = BotOsAssistantSnowflakeCortex
+                else:
+                    assistant_implementation = BotOsAssistantSnowflakeCortex
                 print('Bot implementation not specified, OpenAI not available, so Defaulting bot LLM to Snowflake Cortex')
-            else:
+            elif llm_type.lower() == 'openai':
                 print('Bot implementation not specified, OpenAI is available, so defaulting bot LLM to OpenAI')
                 assistant_implementation = BotOsAssistantOpenAI
+            else:
+                # could be gemini or something else eventually
+                print('Bot implementation not specified, OpenAI is not available, Snowflake Cortex is not available. Please set LLM key in Streamlit.')
 
         #TODO do we need this if logic?
-        if os.getenv("OPENAI_API_KEY",None) in [None, ""] and os.getenv("CORTEX_MODE",None) == "True" and assistant_implementation == BotOsAssistantOpenAI:  
-            print("Switched to Cortex implementation because OPENAI_API_KEY is not set and CORTEX is available.")
-            if os.getenv("CORTEX_AVAILABLE",'False') == 'False':
-                db_adapter.check_cortex_available()
-            assistant_implementation = BotOsAssistantSnowflakeCortex
+        # if os.getenv("OPENAI_API_KEY",None) in [None, ""] and os.getenv("CORTEX_MODE",None) == "True" and assistant_implementation == BotOsAssistantOpenAI:  
+        #     print("Switched to Cortex implementation because OPENAI_API_KEY is not set and CORTEX is available.")
+        #     if os.getenv("CORTEX_AVAILABLE",'False') == 'False':
+        #         db_adapter.check_cortex_available()
+        #     assistant_implementation = BotOsAssistantSnowflakeCortex
 
         if os.getenv("SIMPLE_MODE", "false").lower() == "true":
             if os.getenv("CORTEX_AVAILABLE",'False') == 'False':

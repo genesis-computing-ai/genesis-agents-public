@@ -419,6 +419,8 @@ def llm_config():  # Check if data is not empty
     if len(llm_info) > 0:
         # Check which llm_type has active = true
         active_llm_type = [llm["llm_type"] for llm in llm_info if llm["active"]]
+    else:
+        active_llm_type = None
 
     # st.write(bot_details)
 
@@ -431,7 +433,7 @@ def llm_config():  # Check if data is not empty
 
     if True:
         st.header("LLM Model & API Key Setup")
-        if cur_key == "":
+        if cur_key == "" and active_llm_type is not None:
             st.success(
                 f"You already have an LLM active: **{active_llm_type[0]}**. If you want to change it, you can do so below."
             )

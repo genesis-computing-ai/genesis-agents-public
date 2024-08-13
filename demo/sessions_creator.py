@@ -104,6 +104,7 @@ def make_session(
         try:
             app_level_token = bot_config.get("slack_app_level_key", None)
 
+            # Stream mode is for interactive bot serving, False means task server
             if stream_mode:
                 slack_adapter_local = SlackBotAdapter(
                     token=bot_config[
@@ -255,7 +256,8 @@ def make_session(
     else:
         proactive_instructions = ""
 
-    if stream_mode:
+    if True:
+#    if stream_mode:
         print(f"Bot implementation from bot config: {bot_config.get('bot_implementation', 'Not specified')}")
         if (
             "bot_implementation" in bot_config
@@ -325,17 +327,19 @@ def make_session(
         #         db_adapter.check_cortex_available()
         #     assistant_implementation = BotOsAssistantSnowflakeCortex
 
-        if os.getenv("SIMPLE_MODE", "false").lower() == "true":
-            if os.getenv("CORTEX_AVAILABLE",'False') == 'False':
-                db_adapter.check_cortex_available()
-            assistant_implementation = BotOsAssistantSnowflakeCortex
+    #    if os.getenv("SIMPLE_MODE", "false").lower() == "true":
+    #        if os.getenv("CORTEX_AVAILABLE",'False') == 'False':
+    #            db_adapter.check_cortex_available()
+    #        assistant_implementation = BotOsAssistantSnowflakeCortex
         # assistant_implementation = BotOsAssistantOpenAI
 
-        if assistant_implementation == BotOsAssistantSnowflakeCortex and stream_mode:
+        #if assistant_implementation == BotOsAssistantSnowflakeCortex and stream_mode:
+        if assistant_implementation == BotOsAssistantSnowflakeCortex and True:
             incoming_instructions = instructions
             # Tools: brave_search, wolfram_alpha, code_interpreter
 
             instructions = """
+
 
 Environment: ipython
 
@@ -384,7 +388,8 @@ Reminder:
         # logger.warning(f"GenBot {bot_id} instructions:::  {instructions}")
         # print(f'tools: {tools}')
         asst_impl = (
-            assistant_implementation if stream_mode else None
+#            assistant_implementation if stream_mode else None
+            assistant_implementation 
         )  # test this - may need separate BotOsSession call for stream mode
         print(f"assistant impl : {assistant_implementation}")
         session = BotOsSession(

@@ -156,7 +156,7 @@ tools_data = [
     ("image_tools", "Tools to interpret visual images and pictures"),
     (
         "autonomous_tools",
-        "Tools for bots to create and managed autonomous tasks",
+        "These tools are depreciated.  Use process_manager_tools and process_scheduler_tools instead.",
     ),
     (
         "process_runner_tools",
@@ -165,5 +165,9 @@ tools_data = [
     (
         "process_manager_tools",
         "Tools to create and manage processes.",
+    ),
+    (
+        "process_scheduler_tools",
+        "Tools to set schedules to automatically run processes.",
     ),
 ]

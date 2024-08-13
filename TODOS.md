@@ -4,19 +4,20 @@ GENESIS BOT TODOS
 
 
 soon-jl:
+process scheduler and task server, test with cortex bots 
 x comment out semantic tools 
 x test an openai bot eve updating instructions and adding and removing tools for a cortex bot
-make file add tools give error back for cortex bots
+x make file add tools give error back for cortex bots
 x update janice , remove semantic, tasks, add process tools
 x Kevin - retest
 add a bot remove from slack tool (stub added to babybot)
 x Kevin - put a new slack token into Alpha and test rotation on startup
-redo task system as just as scheduler for processes
-re-test with small changes made friday 11am, commented out semantics fully from db tools
-Test cortex COMPLETE mode more with tool calling
+(in progress) redo task system as just as scheduler for processes
+x re-test with small changes made friday 11am, commented out semantics fully from db tools
+n Test cortex COMPLETE mode more with tool calling
 Eve is talking a lot about the uploaded files.  No vector store unless needed?  And some prompt notes?
-make !stop work on OpenAI
-make stop work better on cortex .. try on run process, keeps going.. make sure run is fully cancelled 
+x make !stop work on OpenAI
+x make stop work better on cortex .. try on run process, keeps going.. make sure run is fully cancelled 
 
 willow testing:
 eve cant deploy existing bots to slack
@@ -24,14 +25,14 @@ bots do things when a differnt bot is directly tagged
 
 Cortex:
 make python interpreter work
-try for error on submit: Failed to connect to Cortex API. Status code: 422 Response: {"message":"required field 'content' is zero value.","request_id":"f88c2e5a-6747-4a4e-a132-79273c1067ad"}
+(not seen recently) try for error on submit: Failed to connect to Cortex API. Status code: 422 Response: {"message":"required field 'content' is zero value.","request_id":"f88c2e5a-6747-4a4e-a132-79273c1067ad"}
 x trying to run a query with run_query with a single quoted string goofs up the tool call, omits the string
 x Make add tools to bot and change instructions work for Cortex mode bots
 x Streaming mode 
-adding to a thread in progress, the system message isn't included 
+x adding to a thread in progress, the system message isn't included 
 x add a test cortex function
 x default system to cortex on startup unless openai key is present
-(test) allow adding of openai key via streamlit after startup
+MR (test) allow adding of openai key via streamlit after startup
 (test on new install) have initial bots be on cortex if thats whats active
 x fix/test on the fly bot engine changing w/relaunch
 MR - harvester system, make it work with cortex
@@ -43,7 +44,7 @@ n (refactoring it) - task system, make it get the right llm keys for cortex like
 x make task system relaunch when something in a bot chanes (like the llm, instructions, etc.)
 MR - make system start without an openai key, the annoy lookup thing needs one now 
 x make update_bot_instructions work ok with cortext bots
-make update_files etc not fail if run on cortex bots (check first)
+x make update_files etc not fail if run on cortex bots (check first)
 x if cortex api not pupr, default back to complete()
 handle > 128k tokens
 x make add bot tools to cortex 
@@ -52,17 +53,18 @@ x (not needed-aug pupr for REST API) if going with COMPLETE, make it send the st
 
 
 processes:
+update manage_processes in sql_lite connector and test processes on sql_list creating and running and scheduling 
 test if update process works
 x? make the globals thread id mapped
 x fix list processes
-make the task system just a scheduler, use processes for the actual work
+(in process) make the task system just a scheduler, use processes for the actual work
 make sure that DMs sent from processes can be responded to and bot will know context 
 x make it start a new run for each process step and/or when it gets close to 10 min 
 make get_next_step make sure process is already kicked off to avoid + error Nonetype and int
 make sure the same bot doesnt run the same process at the same time (or make it possible for it to do so, track threads better?)
 
 July:
-Eves stuff test 
+x Eves stuff test 
 x JL-Have task server only reuse/reference existing assistant, not recreate/update it on startup
 JL-Why are bots doing other bots tasks?
 JL-Why is it losing tools after running for a while? (keep expected tools, and if not there, reload them?)

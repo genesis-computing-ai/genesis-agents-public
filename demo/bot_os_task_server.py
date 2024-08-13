@@ -20,6 +20,7 @@ from core.bot_os_server import BotOsServer
 from apscheduler.schedulers.background import BackgroundScheduler
 from connectors.bigquery_connector import BigQueryConnector
 from connectors.snowflake_connector import SnowflakeConnector
+from connectors.sqlite_connector import SqliteConnector
 from core.bot_os_tools import get_tools
 from slack.slack_bot_os_adapter import SlackBotAdapter
 from bot_genesis.make_baby_bot import (
@@ -47,6 +48,7 @@ from connectors.snowflake_connector import SnowflakeConnector
 
 from demo.sessions_creator import create_sessions, make_session
 from auto_ngrok.auto_ngrok import launch_ngrok_and_update_bots
+from core.system_variables import SystemVariables
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -64,7 +66,7 @@ os.environ['TASK_MODE'] = 'true'
 os.environ['SHOW_COST'] = 'false'
 ########################################
 
-print("****** GENBOT VERSION 0.150 *******")
+print("****** GENBOT VERSION 0.151 *******")
 print("****** TASK AUTOMATION SERVER *******")
 runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
 print("Runner ID: ", runner_id)
@@ -94,30 +96,49 @@ global_flags.project_id = project_id
 global_flags.genbot_internal_project_and_schema = genbot_internal_project_and_schema
 
 
-genesis_source = os.getenv("GENESIS_SOURCE", default="Snowflake")
-
-if genesis_source == "BigQuery":
-    credentials_path = os.getenv(
-        "GOOGLE_APPLICATION_CREDENTIALS", default=".secrets/gcp.json"
-    )
+# new stuff for db
+genesis_source = os.getenv('GENESIS_SOURCE',default="BigQuery")
+logger.info('Starting DB connection...')
+if genesis_source == 'BigQuery':
+    credentials_path = os.getenv('GOOGLE_APPLICATION_CREDENTIALS',default=".secrets/gcp.json")
     with open(credentials_path) as f:
         connection_info = json.load(f)
     # Initialize BigQuery client
-    db_adapter = BigQueryConnector(connection_info, "BigQuery")
-else:  # Initialize BigQuery client
-    print("Starting Snowflake connector...")
-    db_adapter = SnowflakeConnector(connection_name="Snowflake")
-    connection_info = {"Connection_Type": "Snowflake"}
-
-test_task_mode = os.getenv("TEST_TASK_MODE", "false").lower() == "true"
-if not test_task_mode:
+    db_adapter = BigQueryConnector(connection_info,'BigQuery')
+elif genesis_source ==  'Sqlite':
+    db_adapter = SqliteConnector(connection_name='Sqlite') 
+elif genesis_source == 'Snowflake':    # Initialize BigQuery client
+    db_adapter = SnowflakeConnector(connection_name='Snowflake')
+else:
+    raise ValueError('Invalid Source')
+# Initialize the BigQueryConnector with your connection info
+if not os.getenv("TEST_TASK_MODE", "false").lower() == "true":
     db_adapter.ensure_table_exists()
-print("---> CONNECTED TO DATABASE:: ", genesis_source)
+
+# old stuff for db 
+if False:
+
+    genesis_source = os.getenv("GENESIS_SOURCE", default="Snowflake")
+
+    if genesis_source == "BigQuery":
+        credentials_path = os.getenv(
+            "GOOGLE_APPLICATION_CREDENTIALS", default=".secrets/gcp.json"
+        )
+        with open(credentials_path) as f:
+            connection_info = json.load(f)
+        # Initialize BigQuery client
+        db_adapter = BigQueryConnector(connection_info, "BigQuery")
+    else:  # Initialize BigQuery client
+        print("Starting Snowflake connector...")
+        db_adapter = SnowflakeConnector(connection_name="Snowflake")
+        connection_info = {"Connection_Type": "Snowflake"}
+
+    test_task_mode = os.getenv("TEST_TASK_MODE", "false").lower() == "true"
+    if not test_task_mode:
+        db_adapter.ensure_table_exists()
+    print("---> CONNECTED TO DATABASE:: ", genesis_source)
 
 
-# while True:
-#    prompt = input('> ')
-#    db_adapter.semantic_copilot(prompt, semantic_model='"!SEMANTIC"."GENESIS_TEST"."GENESIS_INTERNAL"."SEMANTIC_STAGE"."revenue.yaml"')
 
 
 def get_udf_endpoint_url(endpoint_name="udfendpoint"):
@@ -153,43 +174,47 @@ try:
 except Exception as e:
     logger.warning(f"Error on get_endpoints {e} ")
 
-
 ngrok_active = False
 
+# old stuff
+if False:
+    print(f"Waiting on LLM key...")
+    def get_llm_api_key():
+        from core.bot_os_llm import LLMKeyHandler 
+        logger.info('Getting LLM API Key...')
+        api_key_from_env = False
+        llm_type = os.getenv("BOT_OS_DEFAULT_LLM_ENGINE", "openai")
+        llm_api_key = None
 
-##########################
-# Main stuff starts here
-##########################
+        i = 0
+        c = 0
 
-# bot_id_to_udf_adapter_map = {}
-# api_key_from_env = False
-# default_llm_engine = os.getenv("BOT_OS_DEFAULT_LLM_ENGINE", "openai")
-# llm_api_key = None
-# if default_llm_engine.lower() == "openai":
-#     llm_api_key = os.getenv("OPENAI_API_KEY", None)
-#     if llm_api_key == "":
-#         llm_api_key = None
-#     if llm_api_key:
-#         api_key_from_env = True
-# elif default_llm_engine.lower() == "reka":
-#     llm_api_key = os.getenv("REKA_API_KEY", None)
-#     if llm_api_key:
-#         api_key_from_env = True
+        while llm_api_key == None:
 
-# if genesis_source == "BigQuery" and api_key_from_env == False:
-#     while True:
-#         print(
-#             "!!!!! Loading LLM API Key from File No longer Supported -- Please provide via ENV VAR when using BigQuery Source"
-#         )
-#         time.sleep(3)
+            i = i + 1
+            if i > 100:
+                c += 1
+                print(f'Waiting on LLM key... (cycle {c})')
+                i = 0 
+            # llm_type = None
+            llm_key_handler = LLMKeyHandler()
+            logger.info('Getting LLM API Key...')
+
+            api_key_from_env, llm_api_key = llm_key_handler.get_llm_key_from_db()
+
+            if llm_api_key is None and llm_api_key != 'cortex_no_key_needed':
+            #   print('No LLM Key Available in ENV var or Snowflake database, sleeping 20 seconds before retry.', flush=True)
+                time.sleep(20)
+            else:
+                logger.info(f"Using {llm_type} for harvester ")
+
+    llm_api_key = get_llm_api_key()
 
 
-# to test streamlit first time key capture page
-# llm_api_key = None
-# api_key_from_env = False
+# new llm stuff
+logger.info('Getting LLM API Key...')
+# api_key_from_env, llm_api_key = llm_key_handler.get_llm_key_from_db()
 
-
-print(f"Waiting on LLM key...")
 def get_llm_api_key():
     from core.bot_os_llm import LLMKeyHandler 
     logger.info('Getting LLM API Key...')
@@ -211,80 +236,21 @@ def get_llm_api_key():
         llm_key_handler = LLMKeyHandler()
         logger.info('Getting LLM API Key...')
 
-        api_key_from_env, llm_api_key = llm_key_handler.get_llm_key_from_db()
+        api_key_from_env, llm_api_key, llm_type = llm_key_handler.get_llm_key_from_db()
 
         if llm_api_key is None and llm_api_key != 'cortex_no_key_needed':
         #   print('No LLM Key Available in ENV var or Snowflake database, sleeping 20 seconds before retry.', flush=True)
             time.sleep(20)
         else:
-            logger.info(f"Using {llm_type} for harvester ")
+            logger.info(f"Using {llm_type} for task server ")
+        
+        return llm_api_key, llm_type
 
-llm_api_key = get_llm_api_key()
+llm_api_key, llm_type = get_llm_api_key()
 
+### END LLM KEY STUFF
+logger.info('Out of LLM check section ..')
 
-# api_key_from_env = False
-# default_llm_engine = os.getenv("BOT_OS_DEFAULT_LLM_ENGINE", "openai")
-# llm_api_key = None
-# i = 0
-# c = 0
-
-# while llm_api_key == None:
-
-#     i = i + 1
-#     if i > 100:
-#         c += 1
-#         print(f"Waiting on LLM key... (cycle {c})")
-#         i = 0
-
-#     if default_llm_engine.lower() == "openai":
-#         llm_api_key = os.getenv("OPENAI_API_KEY", None)
-#         if llm_api_key == "":
-#             llm_api_key = None
-#         if llm_api_key:
-#             api_key_from_env = True
-#     elif default_llm_engine.lower() == "reka":
-#         llm_api_key = os.getenv("REKA_API_KEY", None)
-#         if llm_api_key:
-#             api_key_from_env = True
-
-#     if genesis_source == "BigQuery" and api_key_from_env == False:
-#         while True:
-#             print(
-#                 "!!!!! Loading LLM API Key from File No longer Supported -- Please provide via ENV VAR when using BigQuery Source"
-#             )
-#             time.sleep(3)
-
-    # print('Checking database for LLM Key...', flush=True)
-    # logger.info('Checking database for LLM Key...', flush=True)
-    # if llm_api_key is None and genesis_source == "Snowflake":
-    #     llm_keys_and_types = get_llm_key()
-    #     if llm_keys_and_types:
-    #         for llm_key, llm_type in llm_keys_and_types:
-    #             if llm_key and llm_type:
-    #                 if llm_type.lower() == "openai":
-    #                     os.environ["OPENAI_API_KEY"] = llm_key
-    #                 elif llm_type.lower() == "reka":
-    #                     os.environ["REKA_API_KEY"] = llm_key
-    #                 elif llm_type.lower() == "gemini":
-    #                     os.environ["GEMINI_API_KEY"] = llm_key
-    #                 llm_api_key = llm_key
-    #                 api_key_from_env = False
-    #                 break
-    #     else:
-    #         pass
-        # print("===========")
-        # print("NOTE: LLM Key not found in Env Var nor in Database LLM_CONFIG table.. starting without LLM Key, please provide via Streamlit")
-        # print("===========", flush=True)
-
-if not llm_api_key:
-    #  print('No LLM Key Available in ENV var or Snowflake database, sleeping 20 seconds before retry.', flush=True)
-    time.sleep(20)
-
-
-# if llm_api_key is not None and default_llm_engine.lower() == "openai":
-#     os.environ["OPENAI_API_KEY"] = llm_api_key
-# if llm_api_key is not None and default_llm_engine.lower() == "reka":
-#     os.environ["REKA_API_KEY"] = llm_api_key
 
 global_flags.slack_active = test_slack_config_token()
 if global_flags.slack_active == "token_expired":
@@ -294,19 +260,18 @@ if global_flags.slack_active == "token_expired":
 print("...Slack Connector Active Flag: ", global_flags.slack_active)
 
 
-bot_id_to_slack_adapter_map = {}
+bot_id_to_udf_adapter_map = {}
 
 if llm_api_key is not None:
     (
         sessions,
         api_app_id_to_session_map,
         bot_id_to_udf_adapter_map,
-        bot_id_to_slack_adapter_map,
+        SystemVariables.bot_id_to_slack_adapter_map,
     ) = create_sessions(
         db_adapter,
         bot_id_to_udf_adapter_map,
         stream_mode=False,
-        skip_vectors=True,
         data_cubes_ingress_url=data_cubes_ingress_url,
     )
 else:
@@ -1087,14 +1052,14 @@ def generate_task_prompt(bot_id, task):
     task_details = task
 
     # Construct the prompt based on the task details and the template provided
+#    Task description:
+#    {task_details['task_instructions']}
+
     prompt = f"""
-    You have been woken up automatically to carry out an existing task in unattended mode.  You are not to create a new task.
+    You have been woken up automatically to run a predefined process using the process runner tool in unattended mode.  You are not to create a process nor create a new schedule for a process.
 
-    Task name:
+    Process name to run:
     {task_details['task_name']}
-
-    Task description:
-    {task_details['task_instructions']}
 
     Reporting instructions:
     {task_details['reporting_instructions']}
@@ -1114,11 +1079,11 @@ def generate_task_prompt(bot_id, task):
     Here is the current server time:
     {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
     
-    Perform the task COMPLETELY based on the above task description using the tools you have available if useful.  Call mulitple tools if needed to complete the task.
-    Do NOT create a new task, you are to execute the steps described above for this existing task. 
-    If you send a slack direct message or slack channel message as part of the task, include at the end: _(task_id:{task_details['task_id']}_)
-    Do not call manage_tasks while performing this work. Only generate an image if specifically told to. Only call run_process if the task specfically tells you to run a specific named BotProcess.
-    When you are DONE with the task and have FULLY completed it, return only a JSON document with these items, no other text:
+    Use the process runner tool to run the process named above and follow the instructions that it gives you. Call mulitple tools if needed to complete the task.
+    Do NOT create a new process, or a new schedule for an existing process. You are to execute the steps described above for this existing task. 
+    If you send a slack direct message or slack channel message as part of the task, include at the end: _(process:{task_details['task_name']}, schedule_id:{task_details['task_id']}_)
+    Do not call process_scheduler while performing this work. Only generate an image if specifically told to. 
+    When you are DONE with this task and have FULLY completed it, return only a JSON document with these items, no other text:
 
     {{
         "work_done_summary": <a summary of the work you did to complete the task during this run, including any tools you called and outbound communications you made>,
@@ -1199,7 +1164,7 @@ def task_log_and_update(bot_id, task_id, task_result):
         task_active = False
     else:
         task_active = True
-    db_adapter.manage_tasks(
+    db_adapter.process_scheduler(
         action="UPDATE_CONFIRMED",
         bot_id=bot_id,
         task_id=task_id,
@@ -1276,7 +1241,7 @@ def tasks_loop():
         active_sessions = sessions
         for session in active_sessions:
             bot_id = session.bot_id
-            tasks = db_adapter.manage_tasks(action="LIST", bot_id=bot_id, task_id=None)
+            tasks = db_adapter.process_scheduler(action="LIST", bot_id=bot_id, task_id=None)
 
             if tasks.get("Success"):
                 for task in [
@@ -1320,7 +1285,7 @@ def tasks_loop():
             )
             response_map = input_adapter.response_map
             bot_id = session.bot_id
-            tasks = db_adapter.manage_tasks(action="LIST", bot_id=bot_id, task_id=None)
+            tasks = db_adapter.process_scheduler(action="LIST", bot_id=bot_id, task_id=None)
             processed_tasks = []
             for task_id, response in response_map.items():
 
@@ -1465,7 +1430,7 @@ def tasks_loop():
                         print(
                             f"Task {task_id} has exceeded the maximum number of retries. Marking as inactive."
                         )
-                        db_adapter.manage_tasks(
+                        db_adapter.process_scheduler(
                             action="UPDATE",
                             bot_id=bot_id,
                             task_id=task_id,
@@ -1530,7 +1495,9 @@ def tasks_loop():
 
         time_to_sleep = 60 - (datetime.datetime.now() - iteration_start_time).seconds
         if os.getenv("TEST_TASK_MODE", "false").lower() == "true":
-           time_to_sleep = 10 - (datetime.datetime.now() - iteration_start_time).seconds
+           time_to_sleep = 0
+        else:
+            print('Waiting 60 seconds before checking tasks again...')
 
         if time_to_sleep > 0:
             for remaining in range(time_to_sleep, 0, -5):

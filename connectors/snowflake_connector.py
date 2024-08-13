@@ -949,10 +949,10 @@ class SnowflakeConnector(DatabaseConnector):
         cursor = self.client.cursor()
         try:
             if bot_id == "all":
-                list_query = f"SELECT * FROM {self.schema}.PROCESSES"
+                list_query = f"SELECT process_id, bot_id, process_name, process_instructions FROM {self.schema}.PROCESSES"
                 cursor.execute(list_query)
             else:
-                list_query = f"SELECT * FROM {self.schema}.PROCESSES WHERE upper(bot_id) = upper(%s)"
+                list_query = f"SELECT process_id, bot_id, process_name, process_instructions FROM {self.schema}.PROCESSES WHERE upper(bot_id) = upper(%s)"
                 cursor.execute(list_query, (bot_id,))
             processs = cursor.fetchall()
             process_list = []
@@ -961,9 +961,9 @@ class SnowflakeConnector(DatabaseConnector):
                     "process_id": process[0],
                     "bot_id": process[1],
                     "process_name": process[2],
-                    "process_details": process[3],
-                    "process_instructions": process[4],
-                    "process_reporting_instructions": process[5],
+#                    "process_details": process[4],
+                    "process_instructions": process[3],
+            #        "process_reporting_instructions": process[5],
                 }
                 process_list.append(process_dict)
             return {"Success": True, "processes": process_list}
@@ -1058,7 +1058,7 @@ class SnowflakeConnector(DatabaseConnector):
 
         if action == "LIST":
             print("Running get processes list")
-            return self.get_processes_list("all")
+            return self.get_processes_list(bot_id if bot_id is not None else "all")
 
         if action == "SHOW":
             print("Running show process info")
@@ -1256,7 +1256,7 @@ class SnowflakeConnector(DatabaseConnector):
 
     # ========================================================================================================
 
-    def manage_tasks(
+    def process_scheduler(
         self, action, bot_id, task_id=None, task_details=None, thread_id=None
     ):
         import random
@@ -1281,8 +1281,8 @@ class SnowflakeConnector(DatabaseConnector):
             "next_check_ts",
             "action_trigger_type",
             "action_trigger_details",
-            "task_instructions",
-            "reporting_instructions",
+           # "task_instructions",
+           # "reporting_instructions",
             "last_task_status",
             "task_learnings",
             "task_active",
@@ -1299,7 +1299,7 @@ class SnowflakeConnector(DatabaseConnector):
         if action == "CREATE":
             return {
                 "Success": False,
-                "Confirmation_Needed": "Please reconfirm all the task details with the user, then call this function again with the action CREATE_CONFIRMED to actually create the task.   Make sure to be clear in the action_trigger_details field whether the task is to be triggered one time, or if it is ongoing and recurring.",
+                "Confirmation_Needed": "Please reconfirm all the scheduled process details with the user, then call this function again with the action CREATE_CONFIRMED to actually create the schedule for the process.   Make sure to be clear in the action_trigger_details field whether the process schedule is to be triggered one time, or if it is ongoing and recurring. Also make the next Next Check Timestamp is in the future, and aligns with when the user wants the task to run next.",
                 "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}",
             }
         if action == "CREATE_CONFIRMED":
@@ -1308,7 +1308,7 @@ class SnowflakeConnector(DatabaseConnector):
         if action == "UPDATE":
             return {
                 "Success": False,
-                "Confirmation_Needed": "Please reconfirm all the task details with the user, especially that you're altering the correct TASK_ID, then call this function again with the action UPDATE_CONFIRMED to actually update the task.  Call with LIST to double-check the task_id if you aren't sure.",
+                "Confirmation_Needed": "Please reconfirm all the scheduled process details with the user, especially that you're altering the correct TASK_ID, then call this function again with the action UPDATE_CONFIRMED to actually update the scheduled process.  Call with LIST to double-check the task_id if you aren't sure.",
                 "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}",
             }
         if action == "UPDATE_CONFIRMED":
@@ -1317,7 +1317,7 @@ class SnowflakeConnector(DatabaseConnector):
         if action == "DELETE":
             return {
                 "Success": False,
-                "Confirmation_Needed": "Please reconfirm that you are deleting the correct TASK_ID, and double check with the user they want to delete this task, then call this function again with the action DELETE_CONFIRMED to actually delete the task.  Call with LIST to double-check the task_id if you aren't sure that its right.",
+                "Confirmation_Needed": "Please reconfirm that you are deleting the correct TASK_ID, and double check with the user they want to delete this schedule for the process, then call this function again with the action DELETE_CONFIRMED to actually delete the task.  Call with LIST to double-check the task_id if you aren't sure that its right.",
             }
 
         if action == "DELETE_CONFIRMED":
@@ -1398,6 +1398,27 @@ class SnowflakeConnector(DatabaseConnector):
                     "Error": "The 'next_check_ts' field is required when updating an active task.",
                 }
 
+
+        # Check if the action is CREATE or UPDATE
+        if action in ["CREATE", "UPDATE"] and task_details and "task_name" in task_details:
+            # Check if the task_name is a valid process for the bot
+            valid_processes = self.manage_processes(action="LIST", bot_id=bot_id)
+            if not valid_processes["Success"]:
+                return {
+                    "Success": False,
+                    "Error": f"Failed to retrieve processes for bot {bot_id}: {valid_processes['Error']}",
+                }
+
+            if task_details["task_name"] not in [
+                process["process_name"] for process in valid_processes["processes"]
+            ]:
+                return {
+                    "Success": False,
+                    "Error": f"Invalid task_name: {task_details.get('task_name')}. It must be one of the valid processes for this bot",
+                    "Valid_Processes": [process["process_name"] for process in valid_processes["processes"]],
+                }
+
+
         # Convert timestamp from string in format 'YYYY-MM-DD HH:MM:SS' to a Snowflake-compatible timestamp
         if task_details is not None and task_details.get("task_active", False):
             try:
@@ -1426,8 +1447,8 @@ class SnowflakeConnector(DatabaseConnector):
                         reporting_instructions, last_task_status, task_learnings, task_active
                     ) VALUES (
                         %(task_id)s, %(bot_id)s, %(task_name)s, %(primary_report_to_type)s, %(primary_report_to_id)s,
-                        %(next_check_ts)s, %(action_trigger_type)s, %(action_trigger_details)s, %(task_instructions)s,
-                        %(reporting_instructions)s, %(last_task_status)s, %(task_learnings)s, %(task_active)s
+                        %(next_check_ts)s, %(action_trigger_type)s, %(action_trigger_details)s, null,
+                        null, %(last_task_status)s, %(task_learnings)s, %(task_active)s
                     )
                 """
 
@@ -1967,7 +1988,7 @@ class SnowflakeConnector(DatabaseConnector):
                 )
                 bot_name = "Eve"
                 bot_instructions = BASE_EVE_BOT_INSTRUCTIONS
-                available_tools = '["slack_tools", "make_baby_bot", "snowflake_stage_tools", "image_tools", "autonomous_tools"]'
+                available_tools = '["slack_tools", "make_baby_bot", "snowflake_stage_tools", "image_tools"]'
                 udf_active = "Y"
                 slack_active = "N"
                 bot_intro_prompt = EVE_INTRO_PROMPT
@@ -2003,7 +2024,7 @@ class SnowflakeConnector(DatabaseConnector):
                 )
                 bot_name = "Eliza"
                 bot_instructions = ELIZA_DATA_ANALYST_INSTRUCTIONS
-                available_tools = '["slack_tools", "database_tools", "snowflake_stage_tools", "image_tools", "autonomous_tools"]'
+                available_tools = '["slack_tools", "database_tools", "snowflake_stage_tools",  "image_tools", "process_manager_tools", "process_runner_tools", "process_scheduler_tools"]'
                 udf_active = "Y"
                 slack_active = "N"
                 bot_intro_prompt = ELIZA_INTRO_PROMPT
@@ -2039,7 +2060,7 @@ class SnowflakeConnector(DatabaseConnector):
                 )
                 bot_name = "Janice"
                 bot_instructions = JANICE_JANITOR_INSTRUCTIONS
-                available_tools = '["slack_tools", "database_tools", "snowflake_stage_tools", "image_tools", "autonomous_tools"]'
+                available_tools = '["slack_tools", "database_tools", "snowflake_stage_tools", "image_tools", "process_manager_tools", "process_runner_tools", "process_scheduler_tools"]'
                 udf_active = "Y"
                 slack_active = "N"
                 bot_intro_prompt = JANICE_INTRO_PROMPT

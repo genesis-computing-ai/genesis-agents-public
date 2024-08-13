@@ -533,10 +533,11 @@ class SqliteConnector(DatabaseConnector):
         cursor = self.client.cursor()
         try:
             if bot_id == "all":
-                list_query = f"SELECT * FROM PROCESSES"
+                list_query = f"SELECT process_id, bot_id, process_name, process_instructions FROM PROCESSES"
+                cursor.execute(list_query)
             else:
-                list_query = f"SELECT * FROM PROCESSES WHERE upper(bot_id) = upper(?)"
-            cursor.execute(list_query, (bot_id,))
+                list_query = f"SELECT process_id, bot_id, process_name, process_instructions FROM PROCESSES WHERE upper(bot_id) = upper(%s)"
+                cursor.execute(list_query, (bot_id,))
             processs = cursor.fetchall()
             process_list = []
             for process in processs:
@@ -544,12 +545,13 @@ class SqliteConnector(DatabaseConnector):
                     "process_id": process[0],
                     "bot_id": process[1],
                     "process_name": process[2],
-                    "process_details": process[3],
-                    "process_instructions": process[4],
-                    "process_reporting_instructions": process[5],
+#                    "process_details": process[4],
+                    "process_instructions": process[3],
+            #        "process_reporting_instructions": process[5],
                 }
                 process_list.append(process_dict)
-            return {"Success": True, "processs": process_list}
+            return {"Success": True, "processes": process_list}
+
         except Exception as e:
             return {
                 "Success": False,
@@ -1436,7 +1438,7 @@ class SqliteConnector(DatabaseConnector):
                 )
                 bot_name = "Eve"
                 bot_instructions = BASE_EVE_BOT_INSTRUCTIONS
-                available_tools = '["slack_tools", "make_baby_bot", "snowflake_stage_tools", "image_tools", "autonomous_tools"]'
+                available_tools = '["slack_tools", "make_baby_bot", "snowflake_stage_tools", "image_tools"]'
                 udf_active = "Y"
                 slack_active = "N"
                 bot_intro_prompt = EVE_INTRO_PROMPT
@@ -1472,7 +1474,7 @@ class SqliteConnector(DatabaseConnector):
                 )
                 bot_name = "Eliza"
                 bot_instructions = ELIZA_DATA_ANALYST_INSTRUCTIONS
-                available_tools = '["slack_tools", "database_tools", "snowflake_stage_tools", "image_tools", "autonomous_tools"]'
+                available_tools = '["slack_tools", "database_tools", "snowflake_stage_tools", "image_tools"]'
                 udf_active = "Y"
                 slack_active = "N"
                 bot_intro_prompt = ELIZA_INTRO_PROMPT

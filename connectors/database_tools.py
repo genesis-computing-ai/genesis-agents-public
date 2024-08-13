@@ -254,34 +254,34 @@ snowflake_semantic_functions = [
     },
 ]
 
-autonomous_functions = [
+process_scheduler_functions = [
     {
         "type": "function",
         "function": {
-            "name": "_manage_tasks",
-            "description": "Manages autonomous tasks for bots, including creating, updating, and deleting autonomous tasks allowing bots to take scheduled autonomous actions.",
+            "name": "_process_scheduler",
+            "description": "Manages schedules to automatically run processes on a schedule, including creating, updating, and deleting schedules for processes.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "action": {
                         "type": "string",
-                        "description": "The action to perform on the task: CREATE, UPDATE, or DELETE.  Or LIST to get details on all tasks for a bot, or TIME to get current system time.",
+                        "description": "The action to perform on the task: CREATE, UPDATE, or DELETE.  Or LIST to get details on all scheduled processes for a bot, or TIME to get current system time.",
                     },
                     "bot_id": {
                         "type": "string",
-                        "description": "The identifier of the bot for which to manage tasks.",
+                        "description": "The identifier of the bot for which to manage scheduled_processes.",
                     },
                     "task_id": {
                         "type": "string",
-                        "description": "The unique identifier of the task, create as bot_id_<random 6 character string>. MAKE SURE TO DOUBLE-CHECK THAT YOU ARE USING THE CORRECT task_id ON UPDATES AND DELETES!",
+                        "description": "The unique identifier of the process schedule, create as bot_id_<random 6 character string>. MAKE SURE TO DOUBLE-CHECK THAT YOU ARE USING THE CORRECT task_id ON UPDATES AND DELETES!",
                     },
                     "task_details": {
                         "type": "object",
-                        "description": "The details of the task, required for create and update actions.",
+                        "description": "The name of the process to run on this schedule.",
                         "properties": {
                             "task_name": {
                                 "type": "string",
-                                "description": "The name of the task.",
+                                "description": "The name of the process to run on a schedule.",
                             },
                             "primary_report_to_type": {
                                 "type": "string",
@@ -289,31 +289,31 @@ autonomous_functions = [
                             },
                             "primary_report_to_id": {
                                 "type": "string",
-                                "description": "The Slack USER ID of the person who told you to create the task.",
+                                "description": "The Slack USER ID of the person who told you to create this schedule for a process.",
                             },
                             "next_check_ts": {
                                 "type": "string",
-                                "description": "The timestamp for the next check of the task in format 'YYYY-MM-DD HH:MM:SS'. Call action TIME to get current time and timezone. Make sure this time is in the future.",
+                                "description": "The timestamp for the next run of the process 'YYYY-MM-DD HH:MM:SS'. Call action TIME to get current time and timezone. Make sure this time is in the future.",
                             },
                             "action_trigger_type": {
                                 "type": "string",
-                                "description": "TIMER or QUERY_ROWS",
+                                "description": "Always set to TIMER",
                             },
                             "action_trigger_details": {
                                 "type": "string",
-                                "description": "For TIMER, a description of when to call the task, eg every hour, Tuesdays at 9am, every morning.  Also be clear about whether the task should be called one time, or is recurring, and if recurring if it should recur forever or stop at some point. For QUERY_ROWS the query for when any rows are returned the task should be triggered.",
+                                "description": "For TIMER, a description of when to call the task, eg every hour, Tuesdays at 9am, every morning.  Also be clear about whether the task should be called one time, or is recurring, and if recurring if it should recur forever or stop at some point.",
                             },
-                            "task_instructions": {
-                                "type": "string",
-                                "description": "Detailed instructions for completing the task.",
-                            },
-                            "reporting_instructions": {
-                                "type": "string",
-                                "description": "What information to report back on and how (post to channel, DM a user, etc.)",
-                            },
+               #             "task_instructions": {
+               #                 "type": "string",
+               #                 "description": "The name of the process to run at the scheduled time.",
+               #             },
+                #            "reporting_instructions": {
+                #                "type": "string",
+                #                "description": "What information to report back on how the process run went and how (post to channel, DM a user, etc.)",
+                #            },
                             "last_task_status": {
                                 "type": "string",
-                                "description": "The current status of the task.",
+                                "description": "The current status of the scheduled process.",
                             },
                             "task_learnings": {
                                 "type": "string",
@@ -321,14 +321,14 @@ autonomous_functions = [
                             },
                             "task_active": {
                                 "type": "boolean",
-                                "description": "Is task active",
+                                "description": "Is schedule for the process active",
                             },
                         },
                         "required": [
                             "task_name",
                             "action_trigger_details",
-                            "task_instructions",
-                            "reporting_instructions",
+                     #       "task_instructions",
+                     #       "reporting_instructions",
                             "last_task_status",
                             "task_learnings",
                             "task_active",
@@ -340,6 +340,9 @@ autonomous_functions = [
         },
     }
 ]
+
+# depreciated
+autonomous_functions = []
 
 process_manager_functions = [
     {
@@ -605,10 +608,12 @@ snowflake_stage_tools = {
     "_delete_file_from_stage": "db_adapter.delete_file_from_stage",
 }
 
-autonomous_tools = {"_manage_tasks": "db_adapter.manage_tasks"}
+autonomous_tools = {}
+#autonomous_tools = {"_manage_tasks": "db_adapter.manage_tasks"}
 
 process_runner_tools = {"_run_process": "tool_belt.run_process"}
 process_manager_tools = {"_manage_processes": "db_adapter.manage_processes"}
+process_scheduler_tools = {"_process_scheduler": "db_adapter.process_scheduler"}
 
 
 def bind_semantic_copilot(data_connection_info):

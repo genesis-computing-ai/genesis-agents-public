@@ -29,6 +29,8 @@ from connectors.database_tools import (
     snowflake_stage_tools,
     snowflake_semantic_functions,
     snowflake_semantic_tools,
+    process_scheduler_functions,
+    process_scheduler_tools,
 )
 from schema_explorer.harvester_tools import (
     harvester_tools_list,
@@ -453,6 +455,10 @@ def get_tools(which_tools, db_adapter, slack_adapter_local=None, include_slack=T
             tools.extend(process_manager_functions)
             available_functions_load.update(process_manager_tools)
             function_to_tool_map[tool_name] = process_manager_functions
+        elif tool_name == "process_scheduler_tools":
+            tools.extend(process_scheduler_functions)
+            available_functions_load.update(process_scheduler_tools)
+            function_to_tool_map[tool_name] = process_scheduler_functions
         elif tool_name == "webpage_downloader":
             tools.extend(webpage_downloader_functions)
             available_functions_load.update(webpage_downloader_tools)

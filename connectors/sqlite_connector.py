@@ -2853,7 +2853,7 @@ class SqliteConnector(DatabaseConnector):
         # Query to select the LLM key and type from the llm_tokens table
         query = f"""
             SELECT llm_key, llm_type
-            FROM {self.genbot_internal_project_and_schema}.llm_tokens
+            FROM llm_tokens
             WHERE runner_id = ?
         """
         logger.info(f"query: {query}")
@@ -2870,6 +2870,38 @@ class SqliteConnector(DatabaseConnector):
             else:
                 # Log an error if no LLM key was found for the runner_id
                 return []
+        except Exception as e:
+            logger.info(
+                "LLM_TOKENS table not yet created, returning empty list, try again later."
+            )
+            return []
+
+    def db_get_active_llm_key(self):
+        """
+        Retrieves the active LLM key and type for the given runner_id.
+
+        Returns:
+            list: A list of tuples, each containing an LLM key and LLM type.
+        """
+        runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
+        logger.info("in getllmkey")
+        # Query to select the LLM key and type from the llm_tokens table
+        query = f"""
+            SELECT llm_key, llm_type
+            FROM llm_tokens
+            WHERE runner_id = ? and active = True
+        """
+        logger.info(f"query: {query}")
+        try:
+            cursor = self.client.cursor()
+            cursor.execute(query, (runner_id,))
+            result = cursor.fetchone()  # Fetch a single result
+            cursor.close()
+
+            if result:
+                return result[0], result[1]  # Return llm_key and llm_type as a tuple
+            else:
+                return None, None  # Return None if no result found
         except Exception as e:
             logger.info(
                 "LLM_TOKENS table not yet created, returning empty list, try again later."

@@ -217,7 +217,7 @@ def make_session(
                 logger.warning(
                     f"Setting data_cubes_ingress_url for {bot_id}: {data_cubes_ingress_url}"
                 )
-                instructions += f"\nWhenever you show the results from run_query, always also provide a link to a datacube visualization to help them understand the data you used in the form: http://{data_cubes_ingress_url}?sql_query=select%20*%20from%20spider_data.baseball.all_star -- replace the value of the sql_query query parameter with the query you used."
+                instructions += f"\nWhenever you show the results from run_query that may have more than 10 rows, and if you are not in the middle of running a process, also provide a link to a datacube visualization to help them understand the data you used in the form: http://{data_cubes_ingress_url}?sql_query=select%20*%20from%20spider_data.baseball.all_star -- replace the value of the sql_query query parameter with the query you used."
         except Exception as e:
             logger.warning(f"Error creating bot workspace for bot_id {bot_id} {e} ")
 

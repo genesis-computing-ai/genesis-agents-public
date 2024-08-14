@@ -666,7 +666,7 @@ class SlackBotAdapter(BotOsInputAdapter):
         if match_function_call:
             function_name = match_function_call.group(1)
             function_name_pretty = re.sub(r'(_|^)([a-z])', lambda m: m.group(2).upper(), function_name).replace('_', ' ')
-            new_resp = f"🧰 Using tool {function_name_pretty}..."
+            new_resp = f"\n🧰 Using tool {function_name_pretty}..."
             # replace for display purposes only
             resp = resp.replace(match_function_call.group(0), new_resp)
 
@@ -737,12 +737,12 @@ class SlackBotAdapter(BotOsInputAdapter):
                     message.status == "in_progress"
                     or message.status == "requires_action"
                 ):
-                    print('processing in_progress message: ', message.status,
-                        " updating ",
-                        thinking_ts,
-                        " len ",
-                        len(message.output),
-                    )
+         #           print('processing in_progress message: ', message.status,
+         #               " updating ",
+         #               thinking_ts,
+         #               " len ",
+          #              len(message.output),
+          #          )
                     # show knowledge incorporated
                     knowledge_parts = [f"({k}): {v}" for k, v in message.input_metadata.items() if k.endswith("_knowledge")]
                     if knowledge_parts:

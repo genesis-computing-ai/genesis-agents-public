@@ -174,7 +174,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             if match_function_call:
                 function_name = match_function_call.group(1)
                 function_name_pretty = re.sub(r'(_|^)([a-z])', lambda m: m.group(2).upper(), function_name).replace('_', ' ')
-                new_resp = f"🧰 Using tool: _{function_name_pretty}_..."
+                new_resp = f"\n🧰 Using tool: _{function_name_pretty}_..."
                 # replace for display purposes only
                 resp = resp.replace(match_function_call.group(0), new_resp)
 

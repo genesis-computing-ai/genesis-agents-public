@@ -26,6 +26,7 @@ x make stop work better on cortex .. try on run process, keeps going.. make sure
 if a process is stuck on a step after three tries, have it cancel the process
 have !stop on openai just cancel the run on the thread directly
 make process list not return instructions to avoid cheating, make that SHOW
+don't allow baby bot tools to be removed from Eve
 
 willow testing:
 eve cant deploy existing bots to slack

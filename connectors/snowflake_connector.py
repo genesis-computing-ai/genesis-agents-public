@@ -6362,7 +6362,7 @@ class SnowflakeConnector(DatabaseConnector):
 
             while True:
                 # Modify the query to include LIMIT and OFFSET
-                query = f"SELECT qualified_table_name, {embedding_column} FROM {table_id} LIMIT {batch_size} OFFSET {offset}"
+                query = f"SELECT qualified_table_name, {embedding_column} FROM {table_id} WHERE {embedding_column} IS NOT NULL LIMIT {batch_size} OFFSET {offset}"
     #            print('fetch query ',query)
 
                 cursor.execute(query)

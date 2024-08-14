@@ -136,6 +136,14 @@ elif genesis_source == 'Snowflake':  # Initialize BigQuery client
 else:
     raise ValueError('Invalid Source')
     
+
+if os.getenv("TEST_MODE", "false").lower() == "true":
+    print("()()()()()()()()()()()()()")
+    print("TEST_MODE - ensure table exists skipped")
+    print("()()()()()()()()()()()()()")
+else:    
+    db_adapter.ensure_table_exists()
+
 bot_id_to_udf_adapter_map = {}
 llm_api_key = None
 llm_key_handler = LLMKeyHandler(db_adapter=db_adapter)
@@ -147,14 +155,6 @@ try:
 except Exception as e:
     logger.error(f"Failed to get LLM key from database: {e}")
     llm_api_key = None
-    
-if os.getenv("TEST_MODE", "false").lower() == "true":
-    print("()()()()()()()()()()()()()")
-    print("TEST_MODE - ensure table exists skipped")
-    print("()()()()()()()()()()()()()")
-else:
-    
-    db_adapter.ensure_table_exists()
 
 print("---> CONNECTED TO DATABASE:: ", genesis_source)
 global_flags.source = genesis_source

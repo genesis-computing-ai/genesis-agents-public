@@ -204,7 +204,7 @@ class SnowflakeConnector(DatabaseConnector):
                 if cortex_test == True:
                     os.environ["CORTEX_AVAILABLE"] = 'True'
                     self.default_llm_engine = 'cortex'
-                    os.environ["CORTEX_MODE"] = "True"
+                    
                     self.llm_api_key = 'cortex_no_key_needed'
                     print('\nCortex LLM is Available via REST and successfully tested')
                     return True
@@ -222,7 +222,7 @@ class SnowflakeConnector(DatabaseConnector):
                     if cortex_test == True:
                         os.environ["CORTEX_AVAILABLE"] = 'True'
                         os.environ["CORTEX_VIA_COMPLETE"] = 'True'
-                        os.environ["CORTEX_MODE"] = "True"
+                        # os.environ["CORTEX_MODE"] = "True"
                         self.default_llm_engine = 'cortex'
                         self.llm_api_key = 'cortex_no_key_needed'
                         print('Cortex LLM is Available via SQL COMPLETE() and successfully tested')
@@ -6355,7 +6355,7 @@ class SnowflakeConnector(DatabaseConnector):
 
         with tqdm(total=total_rows, desc="Fetching embeddings") as pbar:
             # update to use embedding_native column if cortex mode
-            if os.environ["CORTEX_MODE"] == 'True':
+            if os.environ.get("CORTEX_MODE", 'False') == 'True':
                 embedding_column = 'embedding_native'
             else:
                 embedding_column = 'embedding'

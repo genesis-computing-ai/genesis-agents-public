@@ -18,7 +18,7 @@ class SchemaExplorer:
         self.initialize_model()
 
     def initialize_model(self):
-        if os.environ["CORTEX_MODE"] == 'True':
+        if os.environ.get("CORTEX_MODE", 'False') == 'True':
             self.cortex_model = os.getenv("CORTEX_HARVESTER_MODEL", 'reka-flash')
             self.cortex_embedding_model = os.getenv("CORTEX_EMBEDDING_MODEL", 'e5-base-v2')
             if os.getenv("CORTEX_EMBEDDING_AVAILABLE",'False') == 'False':

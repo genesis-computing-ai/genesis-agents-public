@@ -13,8 +13,6 @@ import os
 from tqdm.auto import tqdm
 from datetime import datetime
 
-from core.bot_os_llm import LLMKeyHandler
-
 genesis_source = os.getenv('GENESIS_SOURCE',default="BigQuery")
 emb_connection = genesis_source
 if genesis_source == 'BigQuery':
@@ -60,7 +58,7 @@ def fetch_embeddings_from_snow(table_id):
     with tqdm(total=total_rows, desc="Fetching embeddings") as pbar:
         while True:
             #TODO update to use embedding_native column if cortex mode
-            if LLMKeyHandler.cortex_mode:
+            if os.environ["CORTEX_MODE"] == 'True':
                 embedding_column = 'embedding_native'
             else:
                 embedding_column = 'embedding'

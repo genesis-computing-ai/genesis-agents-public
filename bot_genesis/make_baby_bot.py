@@ -125,7 +125,7 @@ def set_llm_key(llm_key, llm_type):
         llm_type (str): The type of LLM (e.g., 'openai', 'reka').
     """
     runner_id = os.getenv('RUNNER_ID', 'jl-local-runner')
-    return bb_db_connector.db_set_llm_key(llm_key=llm_key, llm_type=llm_type, project_id=project_id, dataset_name=dataset_name)
+    return bb_db_connector.db_set_llm_key(llm_key=llm_key, llm_type=llm_type)
 
 
 

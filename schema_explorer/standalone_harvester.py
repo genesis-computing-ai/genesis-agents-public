@@ -45,7 +45,7 @@ else:
 logger.info('Getting LLM API Key...')
 # api_key_from_env, llm_api_key = llm_key_handler.get_llm_key_from_db()
 
-def get_llm_api_key():
+def get_llm_api_key(db_adapter):
     from core.bot_os_llm import LLMKeyHandler 
     logger.info('Getting LLM API Key...')
     api_key_from_env = False
@@ -63,7 +63,7 @@ def get_llm_api_key():
             print(f'Waiting on LLM key... (cycle {c})')
             i = 0 
         # llm_type = None
-        llm_key_handler = LLMKeyHandler()
+        llm_key_handler = LLMKeyHandler(db_adapter)
         logger.info('Getting LLM API Key...')
 
         api_key_from_env, llm_api_key, llm_type = llm_key_handler.get_llm_key_from_db()
@@ -76,7 +76,7 @@ def get_llm_api_key():
         
         return llm_api_key, llm_type
 
-llm_api_key, llm_type = get_llm_api_key()
+llm_api_key, llm_type = get_llm_api_key(harvester_db_connector)
 
 ### END LLM KEY STUFF
 logger.info('Out of LLM check section .. calling ensure_table_exists -- ')
@@ -147,7 +147,7 @@ print('Harvester Start Version 0.151',flush=True)
 
 
 while True:
-    llm_api_key = get_llm_api_key()
+    llm_api_key = get_llm_api_key(harvester_db_connector)
     if genesis_source == 'Snowflake' and os.getenv('AUTO_HARVEST', 'TRUE').upper() == 'TRUE':
         print('Checking for any newly granted databases to add to harvest...', flush=True)
         update_harvest_control_with_new_databases(harvester_db_connector)
@@ -157,7 +157,7 @@ while True:
     sys.stdout.flush()
     #embeddings_handler.load_or_create_embeddings_index(bigquery_connector.metadata_table_name, refresh=True)
     print('Checking if LLM API Key updated for harvester...')
-    llm_key_handler = LLMKeyHandler()
+    llm_key_handler = LLMKeyHandler(harvester_db_connector)
     latest_llm_type = None
     api_key_from_env, llm_api_key, latest_llm_type = llm_key_handler.get_llm_key_from_db(harvester_db_connector)
     if latest_llm_type != llm_type:

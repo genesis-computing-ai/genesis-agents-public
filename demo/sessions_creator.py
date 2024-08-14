@@ -256,40 +256,36 @@ def make_session(
     else:
         proactive_instructions = ""
 
-    if True:
+    # if True:
 #    if stream_mode:
-        print(f"Bot implementation from bot config: {bot_config.get('bot_implementation', 'Not specified')}")
-        if (
-            "bot_implementation" in bot_config
-            and bot_config["bot_implementation"] == "cortex"
-        ):
-            if os.getenv("CORTEX_AVAILABLE",'False') == 'False':
+    assistant_implementation = None
+    print(f"Bot implementation from bot config: {bot_config.get('bot_implementation', 'Not specified')}")
+    if "bot_implementation" in bot_config:
+        if (bot_config["bot_implementation"] == "cortex"):
+            if os.environ.get("CORTEX_AVAILABLE", 'False') in ['False', '']:
                 cortex_available = db_adapter.check_cortex_available()
                 if not cortex_available:
-                    print('Snowflake Cortex is not available. Defaulting to OpenAI key.')
-                    llm_keys_and_types = db_adapter.db_get_llm_key()
-                    for llm_key, llm_type in llm_keys_and_types:
-                        if llm_key and llm_type:
-                            if llm_type.lower() == "openai":
-                                os.environ["OPENAI_API_KEY"] = llm_key
-                                assistant_implementation = BotOsAssistantOpenAI
-                            else:
-                                print("openai llm key not set. bot session cannot be created.")
+                    print('Snowflake Cortex is not available. reverting to openai.')
+
+                    if os.environ["OPENAI_API_KEY"] in (None,""):
+                        llm_keys_and_types = db_adapter.db_get_llm_key()
+                        for llm_key, llm_type in llm_keys_and_types:
+                            if llm_key:
+                                if llm_type.lower() == "openai":
+                                    os.environ["OPENAI_API_KEY"] = llm_key
+                                    assistant_implementation = BotOsAssistantOpenAI
+                                    break
+                        if os.environ["OPENAI_API_KEY"] in (None,""):
+                            print("openai llm key not set. bot session cannot be created.")
                 else:
                     assistant_implementation = BotOsAssistantSnowflakeCortex
             else:
                 assistant_implementation = BotOsAssistantSnowflakeCortex
-        elif (
-            "bot_implementation" in bot_config
-            and bot_config["bot_implementation"] == "gemini"
-        ):
-            assistant_implementation = BotOsAssistantGemini
-        elif (
-            "bot_implementation" in bot_config
-            and bot_config["bot_implementation"] == "openai"
-        ):
-        # check if key exists, if not get from database
-            if os.getenv("OPENAI_API_KEY",None) is None:
+        # elif ("bot_implementation" in bot_config and bot_config["bot_implementation"] == "gemini"):
+        #     assistant_implementation = BotOsAssistantGemini
+        elif (bot_config["bot_implementation"] == "openai"):
+            # check if key exists, if not get from database
+            if os.getenv("OPENAI_API_KEY") in (None, ""):
                 # get key from db
                 llm_keys_and_types = db_adapter.db_get_llm_key()
                 for llm_key, llm_type in llm_keys_and_types:
@@ -297,14 +293,25 @@ def make_session(
                         if llm_type.lower() == "openai":
                             os.environ["OPENAI_API_KEY"] = llm_key
                             assistant_implementation = BotOsAssistantOpenAI
+                            break
+                if os.getenv("OPENAI_API_KEY") in (None, ""):
+                    print("openai llm key not set. attempting cortex.")
+                    if os.environ.get("CORTEX_AVAILABLE", 'False') in ['False', '']:
+                        cortex_available = db_adapter.check_cortex_available()
+                        if not cortex_available:
+                            print('Snowflake Cortex is not available. No openai key set. Bot session cannot be created.')
                         else:
-                            print("openai llm key not set. bot session cannot be created.")
+                            assistant_implementation = BotOsAssistantSnowflakeCortex
+                    else:
+                        assistant_implementation = BotOsAssistantSnowflakeCortex
+                else:
+                    assistant_implementation = BotOsAssistantOpenAI
             else:
                 assistant_implementation = BotOsAssistantOpenAI
         else:
             llm_type = os.getenv("BOT_OS_DEFAULT_LLM_ENGINE","cortex")
-            if llm_type.lower() == "cortex" and os.getenv("CORTEX_MODE",None) == "True":
-                if os.getenv("CORTEX_AVAILABLE",'False') == 'False':
+            if llm_type.lower() == "cortex":
+                if os.environ.get("CORTEX_AVAILABLE", 'False') in ['False', '']:
                     cortex_available = db_adapter.check_cortex_available()
                     if not cortex_available:
                         print('Bot implementation not specified, OpenAI is not available, Snowflake Cortex is not available. Please set LLM key in Streamlit.')
@@ -315,12 +322,26 @@ def make_session(
                 print('Bot implementation not specified, OpenAI not available, so Defaulting bot LLM to Snowflake Cortex')
             elif llm_type.lower() == 'openai':
                 print('Bot implementation not specified, OpenAI is available, so defaulting bot LLM to OpenAI')
-                assistant_implementation = BotOsAssistantOpenAI
+                if os.getenv("OPENAI_API_KEY") in (None, ""):
+                    # get key from db
+                    llm_keys_and_types = db_adapter.db_get_llm_key()
+                    for llm_key, llm_type in llm_keys_and_types:
+                        if llm_key and llm_type:
+                            if llm_type.lower() == "openai":
+                                os.environ["OPENAI_API_KEY"] = llm_key
+                                assistant_implementation = BotOsAssistantOpenAI
+                                break
+                    if os.getenv("OPENAI_API_KEY") in (None, ""):
+                        print("openai llm key not set. cortex not available. what llm is being used?")
+                    else:
+                        assistant_implementation = BotOsAssistantOpenAI
+                else:
+                    assistant_implementation = BotOsAssistantOpenAI
             else:
                 # could be gemini or something else eventually
                 print('Bot implementation not specified, OpenAI is not available, Snowflake Cortex is not available. Please set LLM key in Streamlit.')
 
-        #TODO do we need this if logic?
+        #do we need this if logic?
         # if os.getenv("OPENAI_API_KEY",None) in [None, ""] and os.getenv("CORTEX_MODE",None) == "True" and assistant_implementation == BotOsAssistantOpenAI:  
         #     print("Switched to Cortex implementation because OPENAI_API_KEY is not set and CORTEX is available.")
         #     if os.getenv("CORTEX_AVAILABLE",'False') == 'False':
@@ -417,7 +438,7 @@ Reminder:
             all_function_to_tool_map=all_function_to_tool_map,
             bot_id=bot_config["bot_id"],
             stream_mode=stream_mode,
-            tool_belt=ToolBelt(db_adapter, os.getenv("OPENAI_API_KEY")), #TODO check this...need ot use other keys too
+            tool_belt=ToolBelt(db_adapter, os.getenv("OPENAI_API_KEY",None)), 
             skip_vectors=skip_vectors,
         )
     except Exception as e:

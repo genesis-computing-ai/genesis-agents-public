@@ -192,9 +192,9 @@ class SnowflakeConnector(DatabaseConnector):
 
     def check_cortex_available(self):
 
-        if os.getenv("CORTEX_AVAILABLE",'False').lower() == '':
+        if os.environ.get("CORTEX_AVAILABLE", 'False') in ['False', '']:
             os.environ["CORTEX_AVAILABLE"] = 'False'
-        if os.getenv("CORTEX_VIA_COMPLETE",'False').lower() == '':
+        if os.getenv("CORTEX_VIA_COMPLETE",'False') in ['False', '']:
             os.environ["CORTEX_VIA_COMPLETE"] = 'False'
 
         if self.source_name == "Snowflake" and os.getenv("CORTEX_AVAILABLE", "False") == 'False':
@@ -210,7 +210,8 @@ class SnowflakeConnector(DatabaseConnector):
                     return True
                 else:
                     os.environ["CORTEX_MODE"] = "False"
-                    return False
+                    os.environ["CORTEX_AVAILABLE"] = 'False'
+                    print('\nCortex LLM is not available via REST - trying complete()')
             except Exception as e:
                 print('Cortex LLM Not available via REST, exception on test: ',e)
 
@@ -228,9 +229,11 @@ class SnowflakeConnector(DatabaseConnector):
                         return True
                     else:
                         os.environ["CORTEX_MODE"] = "False"
+                        os.environ["CORTEX_AVAILABLE"] = 'False'
                         return False
                 except Exception as e:
                     print('Cortex LLM Not available via SQL COMPLETE(), exception on test: ',e)
+                    return False
         else:
             return True
                     
@@ -272,9 +275,12 @@ class SnowflakeConnector(DatabaseConnector):
             result = cursor.fetchone()
             completion = result[0] if result else None
 
-            print(f"snowflake_connector test call result: ",completion)
-
-            return True
+            if completion == True:
+                print(f"snowflake_connector test call result: ",completion)
+                return True
+            else:
+                print("Cortex complete failed to return a result")
+                return False
         except Exception as e:
             print('cortex not available, query error: ',e)
             self.connection.rollback()
@@ -3058,7 +3064,7 @@ class SnowflakeConnector(DatabaseConnector):
                     MAX(CASE WHEN c.initial_crawl_complete = FALSE THEN FALSE WHEN embedding_count < total_count THEN FALSE ELSE TRUE END) AS initial_crawl_complete 
                 FROM (
                     SELECT c.source_name,  c.database_name, c.schema_inclusions, c.schema_exclusions,  c.status,  c.refresh_interval,  COUNT(r.{embedding_column}) AS embedding_count,  COUNT(*) AS total_count, c.initial_crawl_complete
-                    FROM app1.harvest_control c LEFT OUTER JOIN app1.harvest_results r ON c.source_name = r.source_name AND c.database_name = r.database_name 
+                    FROM {self.genbot_internal_project_and_schema}.harvest_control c LEFT OUTER JOIN {self.genbot_internal_project_and_schema}.harvest_results r ON c.source_name = r.source_name AND c.database_name = r.database_name 
                     GROUP BY c.source_name, c.database_name, c.schema_inclusions, c.schema_exclusions, c.status, c.refresh_interval, c.initial_crawl_complete) AS c
                 GROUP BY source_name, database_name, schema_inclusions, schema_exclusions, status, refresh_interval
             """
@@ -3620,7 +3626,7 @@ class SnowflakeConnector(DatabaseConnector):
             )
             return []
 
-    def db_set_llm_key(self, llm_key, llm_type, project_id=None, dataset_name=None):
+    def db_set_llm_key(self, llm_key, llm_type):
         """
         Updates the llm_tokens table with the provided LLM key and type.
 

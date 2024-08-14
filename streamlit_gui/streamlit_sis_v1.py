@@ -488,13 +488,7 @@ def llm_config():  # Check if data is not empty
 
             if cur_key == "<existing key present on server>":
                 st.write("Reload this page to chat with your apps.")
-            else:
-                if cur_key is not None and cur_key != "":
-                    if st.button("Next -> Click here to chat with your bots!"):
-                        st.experimental_rerun()
-                        # This button will be used to talk to the bot directly via Streamlit interface
-                        # Placeholder for direct bot communication logic
-                        # st.session_state['radio'] = "Chat with Bots"
+
 
 
 def chat_page():

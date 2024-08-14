@@ -215,7 +215,7 @@ if False:
 logger.info('Getting LLM API Key...')
 # api_key_from_env, llm_api_key = llm_key_handler.get_llm_key_from_db()
 
-def get_llm_api_key():
+def get_llm_api_key(db_adapter=None):
     from core.bot_os_llm import LLMKeyHandler 
     logger.info('Getting LLM API Key...')
     api_key_from_env = False
@@ -233,7 +233,7 @@ def get_llm_api_key():
             print(f'Waiting on LLM key... (cycle {c})')
             i = 0 
         # llm_type = None
-        llm_key_handler = LLMKeyHandler()
+        llm_key_handler = LLMKeyHandler(db_adapter=db_adapter)
         logger.info('Getting LLM API Key...')
 
         api_key_from_env, llm_api_key, llm_type = llm_key_handler.get_llm_key_from_db()
@@ -246,7 +246,7 @@ def get_llm_api_key():
         
         return llm_api_key, llm_type
 
-llm_api_key, llm_type = get_llm_api_key()
+llm_api_key, llm_type = get_llm_api_key(db_adapter)
 
 ### END LLM KEY STUFF
 logger.info('Out of LLM check section ..')

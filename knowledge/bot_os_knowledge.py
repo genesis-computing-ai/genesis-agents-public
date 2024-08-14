@@ -35,7 +35,7 @@ else:    # Initialize BigQuery client
 
 
 logger.info('Getting LLM API Key...')
-def get_llm_api_key():
+def get_llm_api_key(db_adapter=None):
     from core.bot_os_llm import LLMKeyHandler 
     logger.info('Getting LLM API Key...')
     api_key_from_env = False
@@ -53,7 +53,7 @@ def get_llm_api_key():
             print(f'Waiting on LLM key... (cycle {c})')
             i = 0 
         # llm_type = None
-        llm_key_handler = LLMKeyHandler()
+        llm_key_handler = LLMKeyHandler(db_adapter)
         logger.info('Getting LLM API Key...')
 
         api_key_from_env, llm_api_key = llm_key_handler.get_llm_key_from_db()
@@ -64,7 +64,7 @@ def get_llm_api_key():
         else:
             logger.info(f"Using {llm_type} for harvester ")
 
-llm_api_key = get_llm_api_key()
+llm_api_key = get_llm_api_key(knowledge_db_connector)
 
 
 ### END LLM KEY STUFF

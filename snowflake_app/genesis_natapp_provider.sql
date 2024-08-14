@@ -471,6 +471,7 @@ VALUES ('GENESISAPP_SERVICE_SERVICE',
             GENESIS_SOURCE: Snowflake
             SNOWFLAKE_SECURE: FALSE
             OPENAI_HARVESTER_EMBEDDING_MODEL: text-embedding-3-large
+            OPENAI_MODEL_NAME: gpt-4o-2024-08-06
             USE_KNOWLEDGE: FALSE
         readinessProbe:
           port: 8080

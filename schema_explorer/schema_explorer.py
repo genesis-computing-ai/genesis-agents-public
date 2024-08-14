@@ -11,22 +11,10 @@ from datetime import datetime
 
 class SchemaExplorer:
     def __init__(self, db_connector, llm_api_key):
-        from core.bot_os_llm import LLMKeyHandler
         self.db_connector = db_connector
         self.llm_api_key = llm_api_key
         self.run_number = 0
 
-        #TODO fix this determine if using openAI or cortex here
-        # llm_api_key = None
-        # self.llm_key_handler = LLMKeyHandler()
-        # api_key_from_env, llm_api_key = self.llm_key_handler.get_llm_key_from_env()
-        # if api_key_from_env == False and self.db_connector.connection_name == "Snowflake":
-        #     print('Checking LLM_TOKENS for saved LLM Keys:')
-        #     llm_keys_and_types = []
-        #     llm_keys_and_types = self.db_connector.db_get_llm_key()
-        #     llm_api_key = self.llm_key_handler.check_llm_key(llm_keys_and_types)
-        # if llm_api_key is None:
-        #     pass
         self.initialize_model()
 
     def initialize_model(self):
@@ -257,7 +245,7 @@ class SchemaExplorer:
                 result_value = next(iter(completion_result[0].values()))
                 if result_value:
                     result_value = str(result_value).replace("\`\`\`","'''")
-                    print(f"Result value: {result_value}")
+                    # print(f"Result value: {result_value}")
             except:
                 print('Cortext complete didnt work')
                 result_value = ""
@@ -414,8 +402,6 @@ class SchemaExplorer:
         # todo, first build list of objects to harvest, then harvest them
 
         def process_dataset_step1(dataset, max_to_process = 1000):
-            from core.bot_os_llm import LLMKeyHandler 
-            llm_key_handler = LLMKeyHandler()
             #print("  Process_dataset: ",dataset)
             # query to find new
             # tables, or those with changes to their DDL

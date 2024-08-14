@@ -138,12 +138,16 @@ else:
     
 bot_id_to_udf_adapter_map = {}
 llm_api_key = None
-llm_key_handler = LLMKeyHandler()
+llm_key_handler = LLMKeyHandler(db_adapter=db_adapter)
 
 # set the system LLM type and key
 print('Checking LLM_TOKENS for saved LLM Keys:')
-api_key_from_env, llm_api_key, llm_type = llm_key_handler.get_llm_key_from_db()
-
+try:
+    api_key_from_env, llm_api_key, llm_type = llm_key_handler.get_llm_key_from_db()
+except Exception as e:
+    logger.error(f"Failed to get LLM key from database: {e}")
+    llm_api_key = None
+    
 if os.getenv("TEST_MODE", "false").lower() == "true":
     print("()()()()()()()()()()()()()")
     print("TEST_MODE - ensure table exists skipped")
@@ -720,18 +724,32 @@ def configure_llm():
             os.environ["BOT_OS_DEFAULT_LLM_ENGINE"] = llm_type
             default_llm_engine = llm_type
             llm_api_key = llm_key
-
-            (
-                sessions,
-                api_app_id_to_session_map,
-                bot_id_to_udf_adapter_map,
-                SystemVariables.bot_id_to_slack_adapter_map,
-            ) = create_sessions(
-                db_adapter,
-                bot_id_to_udf_adapter_map,
-                stream_mode=True,
-                data_cubes_ingress_url=data_cubes_ingress_url,
-            )
+            if llm_api_key is not None:
+                try:
+                    sessions, api_app_id_to_session_map, bot_id_to_udf_adapter_map, SystemVariables.bot_id_to_slack_adapter_map = create_sessions(
+                        db_adapter,
+                        bot_id_to_udf_adapter_map,
+                        stream_mode=True,
+                        data_cubes_ingress_url=data_cubes_ingress_url,
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to create sessions: {e}")
+                    sessions = []
+                    api_app_id_to_session_map = {}
+                    bot_id_to_udf_adapter_map = {}
+                    SystemVariables.bot_id_to_slack_adapter_map = {}
+                    return None
+            # (
+            #     sessions,
+            #     api_app_id_to_session_map,
+            #     bot_id_to_udf_adapter_map,
+            #     SystemVariables.bot_id_to_slack_adapter_map,
+            # ) = create_sessions(
+            #     db_adapter,
+            #     bot_id_to_udf_adapter_map,
+            #     stream_mode=True,
+            #     data_cubes_ingress_url=data_cubes_ingress_url,
+            # )
             server = BotOsServer(
                 app,
                 sessions=sessions,

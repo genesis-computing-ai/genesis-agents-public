@@ -288,7 +288,7 @@ name: sis_launch
 channels:
  - snowflake
 dependencies:
- - streamlit=1.31.1
+ - streamlit=1.35.0
  - pandas
  - snowflake-snowpark-python
 $$)
@@ -471,7 +471,7 @@ VALUES ('GENESISAPP_SERVICE_SERVICE',
             GENESIS_SOURCE: Snowflake
             SNOWFLAKE_SECURE: FALSE
             OPENAI_HARVESTER_EMBEDDING_MODEL: text-embedding-3-large
-            OPENAI_MODEL_NAME: gpt-4o-2024-08-06
+            OPENAI_MODEL_NAME: gpt-4o
             USE_KNOWLEDGE: FALSE
         readinessProbe:
           port: 8080

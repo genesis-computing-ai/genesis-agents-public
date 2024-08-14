@@ -415,12 +415,23 @@ def llm_config():  # Check if data is not empty
 
     bot_details = get_bot_details()
     
+    # llm_info = get_metadata("llm_info")
+    # if len(llm_info) > 0:
+    #     # Check which llm_type has active = true
+    #     active_llm_type = [llm["llm_type"] for llm in llm_info if llm["active"]]
+    # else:
+    #     active_llm_type = None
+
     llm_info = get_metadata("llm_info")
+    llm_types = []
     if len(llm_info) > 0:
         # Check which llm_type has active = true
         active_llm_type = [llm["llm_type"] for llm in llm_info if llm["active"]]
-    else:
-        active_llm_type = None
+        for llm in llm_info:
+            active_marker = chr(10003) if llm["active"] else ""
+            llm_types.append({"LLM Type": llm["llm_type"], "Active": active_marker})
+
+
 
     # st.write(bot_details)
 
@@ -437,9 +448,25 @@ def llm_config():  # Check if data is not empty
             st.success(
                 f"You already have an LLM active: **{active_llm_type[0]}**. If you want to change it, you can do so below."
             )
+
         st.write(
             "Genesis Bots can optionally use OpenAI or Gemini LLMs, in addition to Snowflake Cortex.  To add or update a key for these models, enter it below:"
         )
+        if cur_key == "" and active_llm_type is not None:
+            # Display the LLM types in a table
+            # st.table(llm_types)  # Display the table with LLM types
+            st.markdown("**Currently Stored LLMs**")  # Use markdown for a header
+            st.markdown(
+                """
+                <style>
+                .dataframe {
+                    width: auto !important;
+                }
+                </style>
+                """,
+                unsafe_allow_html=True
+            )
+            st.dataframe(llm_types, use_container_width=False) 
         # llm_model = st.selectbox("Choose LLM Model:", ["OpenAI", "gemini", "cortex"])
         llm_model = st.selectbox("Choose LLM Model:", ["OpenAI", "gemini", "cortex"])
 

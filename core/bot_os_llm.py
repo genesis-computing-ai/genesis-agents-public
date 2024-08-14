@@ -10,20 +10,19 @@ class LLMKeyHandler:
         self.connection = None
         self.genesis_source = os.getenv('GENESIS_SOURCE',default="BigQuery")
 
-        if self.genesis_source == 'BigQuery':
-            self.connection = 'BigQuery'
-        elif self.genesis_source == 'Sqlite':
-            # self.db_adapter = SqliteConnector(connection_name="Sqlite")
-            self.connection = 'Sqlite'
-        elif self.genesis_source == 'Snowflake':    
-            # self.db_adapter = SnowflakeConnector(connection_name='Snowflake')
-            self.connection = 'Snowflake'
-            if db_adapter:
-                self.db_adapter = db_adapter
-            else:
-                self.db_adapter = SnowflakeConnector(connection_name=self.connection)
+        if db_adapter:
+            self.db_adapter = db_adapter
         else:
-            raise ValueError('Invalid Source')
+            if self.genesis_source == 'BigQuery':
+                self.connection = 'BigQuery'
+            elif self.genesis_source == 'Sqlite':
+                self.db_adapter = SqliteConnector(connection_name="Sqlite")
+                self.connection = 'Sqlite'
+            elif self.genesis_source == 'Snowflake':    
+                self.db_adapter = SnowflakeConnector(connection_name='Snowflake')
+                self.connection = 'Snowflake'
+            else:
+                raise ValueError('Invalid Source')
 
     def get_llm_key_from_env(self):
 

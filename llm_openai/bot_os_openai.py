@@ -351,7 +351,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                                              model=model_name,
                                              tool_resources=self.tool_resources
                   )
-               except:
+               except Exception as e:
                   self.client.beta.assistants.update(self.assistant.id,
                                              instructions=instructions,
                                              tools=my_tools, # type: ignore
@@ -582,28 +582,46 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
       stop_flag = False
       if input_message.msg.endswith(') says: !stop') or input_message.msg=='!stop':
-            if thread_id in self.active_runs or thread_id in self.processing_runs:
-               future_timestamp = datetime.datetime.now() + datetime.timedelta(seconds=15)
-               self.thread_stop_map[thread_id] = future_timestamp
-            #  self.last_stop_time_map[thread_id] = datetime.datetime.now()
-
-               i = 0
-               for _ in range(15):
-                  if self.stop_result_map.get(thread_id) == 'stopped':
-                     break
-                  time.sleep(1)
-                  i = i + 1
-                  print("stop ",i)
-                  
-               if self.stop_result_map.get(thread_id) == 'stopped':
-                  self.thread_stop_map.pop(thread_id, None)
-                  self.stop_result_map.pop(thread_id, None)
+            stopped = False
+            try:
+               thread_run = self.thread_run_map[thread_id]
+               run = self.client.beta.threads.runs.retrieve(thread_id = thread_id, run_id = thread_run["run"])
+               output = StreamingEventHandler.run_id_to_output_stream[run.id]+" 💬"
+               output = output[:-2]
+               output += ' `Stopped`'
+               try:
+                  self.client.beta.threads.runs.cancel(thread_id=thread_id, run_id=run.id)
+                  print(f"Cancelled run_id: {run.id} for thread_id: {thread_id}")
                   resp = "Streaming stopped for previous request"
-               else:
-                  self.thread_stop_map.pop(thread_id, None)
-                  self.stop_result_map.pop(thread_id, None)
-                  resp = "No streaming response found to stop"  
-            return True
+                  stopped = True
+               except:
+                     pass
+            except:
+               pass
+            if not stopped:
+               if thread_id in self.active_runs or thread_id in self.processing_runs:
+                  future_timestamp = datetime.datetime.now() + datetime.timedelta(seconds=60)
+                  self.thread_stop_map[thread_id] = future_timestamp
+               #  self.last_stop_time_map[thread_id] = datetime.datetime.now()
+                  # TODO FIND AND CANCEL RUNS DIRECTLY HERE ?
+            
+                  i = 0
+                  for _ in range(15):
+                     if self.stop_result_map.get(thread_id) == 'stopped':
+                        break
+                     time.sleep(1)
+                     i = i + 1
+                     print("stop ",i)
+                     
+                  if self.stop_result_map.get(thread_id) == 'stopped':
+                     self.thread_stop_map.pop(thread_id, None)
+                     self.stop_result_map.pop(thread_id, None)
+                     resp = "Streaming stopped for previous request"
+                  else:
+                     self.thread_stop_map.pop(thread_id, None)
+                     self.stop_result_map.pop(thread_id, None)
+                     resp = "No streaming response found to stop"  
+               return True
                     
    #   if thread_id in self.thread_stop_map:
    #         self.thread_stop_map.pop(thread_id)
@@ -936,8 +954,8 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                    tool_outputs=tool_outputs,
                    event_handler=StreamingEventHandler(self.client, thread_id,   StreamingEventHandler.run_id_to_bot_assist[run_id],  meta, self)
                ) as stream:
-                  print('...sleeping 1 seconds before requeing run after submit_tool_outputs...')
-                  time.sleep(1)
+                  print('...sleeping 0.2 seconds before requeing run after submit_tool_outputs...')
+                  time.sleep(0.2)
                   if thread_id in self.processing_runs:
                      self.processing_runs.remove(thread_id)
                   if thread_id not in self.active_runs:
@@ -951,8 +969,8 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
             )
             logger.debug(f"_submit_tool_outputs - {updated_run}")
             meta = updated_run.metadata
-            print('...sleeping 1 seconds before requeing run after submit_tool_outputs...')
-            time.sleep(1)
+            print('...sleeping 0.2 seconds before requeing run after submit_tool_outputs...')
+            time.sleep(0.2)
             if thread_id in self.processing_runs:
                self.processing_runs.remove(thread_id)
             if thread_id not in self.active_runs:
@@ -1143,6 +1161,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                   stop_timestamp = self.thread_stop_map[thread_id]
                   if isinstance(stop_timestamp, datetime.datetime) and (time.time() - stop_timestamp.timestamp()) <= 0:
                      self.stop_result_map[thread_id] = 'stopped'
+                     self.thread_stop_map[thread_id] = time.time()
                      output = output[:-2]
                      output += ' `Stopped`'
                      try:
@@ -1378,7 +1397,9 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
 
                         if BotOsAssistantOpenAI.stream_mode == True and run.id in StreamingEventHandler.run_id_to_bot_assist:
-                           msg = f':toolbox: _Using {func_name}_...\n'
+                           function_name_pretty = re.sub(r'(_|^)([a-z])', lambda m: m.group(2).upper(), func_name).replace('_', '')
+                           msg = f"🧰 Using tool: _{function_name_pretty}_...\n"
+#                           msg = f':toolbox: _Using {func_name}_...\n'
 
                            if  StreamingEventHandler.run_id_to_output_stream.get(run.id,None) is not None:
                               if StreamingEventHandler.run_id_to_output_stream.get(run.id,"").endswith('\n'):

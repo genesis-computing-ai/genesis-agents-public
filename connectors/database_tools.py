@@ -379,7 +379,7 @@ process_manager_functions = [
                        #     },
                             "process_instructions": {
                                 "type": "string",
-                                "description": "Detailed instructions for completing the process.",
+                                "description": "Detailed instructions for completing the process.  These should be sequentially numbered steps expressed in natural language.",
                             },
                          #   "process_reporting_instructions": {
                          #       "type": "string",

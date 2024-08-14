@@ -2,9 +2,14 @@
 GENESIS BOT TODOS
 =================
 
+before republishing on natapp:
+cortex complete() fallback?
+clean up logging and cust data in logs
+
 
 soon-jl:
-process scheduler and task server, test with cortex bots 
+make sure openai running process eliza random numbers is !stop-able
+(in progress) process scheduler and task server, test with cortex bots 
 x comment out semantic tools 
 x test an openai bot eve updating instructions and adding and removing tools for a cortex bot
 x make file add tools give error back for cortex bots
@@ -12,12 +17,15 @@ x update janice , remove semantic, tasks, add process tools
 x Kevin - retest
 add a bot remove from slack tool (stub added to babybot)
 x Kevin - put a new slack token into Alpha and test rotation on startup
-(in progress) redo task system as just as scheduler for processes
+(test w/cortex) redo task system as just as scheduler for processes
 x re-test with small changes made friday 11am, commented out semantics fully from db tools
 n Test cortex COMPLETE mode more with tool calling
 Eve is talking a lot about the uploaded files.  No vector store unless needed?  And some prompt notes?
 x make !stop work on OpenAI
 x make stop work better on cortex .. try on run process, keeps going.. make sure run is fully cancelled 
+if a process is stuck on a step after three tries, have it cancel the process
+have !stop on openai just cancel the run on the thread directly
+make process list not return instructions to avoid cheating, make that SHOW
 
 willow testing:
 eve cant deploy existing bots to slack

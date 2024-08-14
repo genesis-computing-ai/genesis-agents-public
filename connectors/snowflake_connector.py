@@ -3621,10 +3621,10 @@ class SnowflakeConnector(DatabaseConnector):
             else:
                 return None, None  # Return None if no result found
         except Exception as e:
-            logger.info(
-                "LLM_TOKENS table not yet created, returning empty list, try again later."
+            print(
+                "Error getting data from LLM_TOKENS table: ", e
             )
-            return []
+            return None, None
 
     def db_set_llm_key(self, llm_key, llm_type):
         """

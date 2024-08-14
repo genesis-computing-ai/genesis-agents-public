@@ -72,7 +72,7 @@ class SlackBotAdapter(BotOsInputAdapter):
         self.thinking_msg_overide_map = {}
         self.in_markdown_map = {}
         self.finalized_threads = {}
-        
+        self.split_at = 3700  # use 3700 normally 
 
         self.events_lock = threading.Lock()
 
@@ -631,6 +631,47 @@ class SlackBotAdapter(BotOsInputAdapter):
                 print("Failed to decode JSON:", e)
         return blocks if blocks else None
 
+
+    def fix_fn_calls(self, resp):
+        postfix = ""
+        pattern = re.compile(r'<\|python_tag\|>\{.*?\}')
+        match = pattern.search(resp)
+        
+        if match and resp.endswith('}'):
+            postfix = "💬"
+
+        pattern_function = re.compile(r'<function>(.*?)</function>(\{.*?\})$')
+        match_function = pattern_function.search(resp)
+        
+        if match_function and resp.endswith(match_function.group(2)):
+            function_name = match_function.group(1)
+            params = match_function.group(2)
+            newcall = f"<function={function_name}>{params}</function>"
+            resp = resp.replace(match_function.group(0), newcall)
+            postfix = "💬"
+
+        pattern_function_call = re.compile(r'<function=(.*?)>\{.*?\}</function>')
+        match_function_call = pattern_function_call.search(resp)
+        
+        if not match_function_call:
+            # look for the other way of calling functions 
+            pattern_function_call = re.compile(r'<\|python_tag\|>\{"type": "function", "name": "(.*?)", "parameters": \{.*?\}\}')
+            match_function_call = pattern_function_call.search(resp)
+        
+        if not match_function_call:
+            # look for the other way of calling functions 
+            pattern_function_call = re.compile(r'<function=(.*?)>\{.*?\}')
+            match_function_call = pattern_function_call.search(resp)
+        # make the tool calls prettier 
+        if match_function_call:
+            function_name = match_function_call.group(1)
+            function_name_pretty = re.sub(r'(_|^)([a-z])', lambda m: m.group(2).upper(), function_name).replace('_', ' ')
+            new_resp = f"🧰 Using tool {function_name_pretty}..."
+            # replace for display purposes only
+            resp = resp.replace(match_function_call.group(0), new_resp)
+
+        return resp
+
     # abstract method from BotOsInputAdapter
     def handle_response(
         self,
@@ -655,6 +696,7 @@ class SlackBotAdapter(BotOsInputAdapter):
                 if current_chunk_start:
                     print('     Current chunk start: ', current_chunk_start)
                 msg = message.output.replace("\n 💬", " 💬")
+                full_msg = msg
                 if current_chunk_start:
                     print(f"    Length of message: {len(msg)}")
                 inmarkdown = False
@@ -669,6 +711,16 @@ class SlackBotAdapter(BotOsInputAdapter):
                             print(f"    Last index: {last_index}")
                             if last_index != -1:
                                 msg = msg[last_index + len(last100):]
+                                trimmed=True
+                                print(f"    Length of new trimmed msg: {len(msg)}")
+                    if not trimmed:
+                        msg_fixed = self.fix_fn_calls(msg)
+                        if last100 in msg_fixed:
+                            print(f"    Last 100 is in msg_fixed")
+                            last_index = msg_fixed.rfind(last100, 0, current_chunk_start)
+                            print(f"    Last index: {last_index}")
+                            if last_index != -1:
+                                msg = msg_fixed[last_index + len(last100):]
                                 trimmed=True
                                 print(f"    Length of new trimmed msg: {len(msg)}")
                     if not trimmed:
@@ -698,26 +750,28 @@ class SlackBotAdapter(BotOsInputAdapter):
                         msg = "\n\n".join(knowledge_parts) + "\n\n" + msg
                         print(f"Length of msg after knowledge add: {len(msg)}")
 
-                    if len(msg) > 3900:
+                    split_at = self.split_at
+                    if len(msg) > split_at:
                         print('     Splitting message')
                         duplicato = False
-                        split_index = msg[max(0, 3900-300):3900].rfind("\n")
+                        split_index = msg[max(0, split_at-300):split_at].rfind("\n")
                         if split_index != -1:
-                            split_index += 3600
+                            split_index += (split_at-300)
                         if split_index == -1:
-                            # Find the last space character within the range of 3600 to 3900 to split the message cleanly
-                            split_index = msg[max(0, 3900-300):3900].rfind(" ")
+                            # Find the last space character within the range of 3400 to 3700 to split the message cleanly
+                            split_index = msg[max(0, split_at-300):split_at].rfind(" ")
                             if split_index != -1:
-                                split_index += 3600
+                                split_index += split_at
                         if split_index != -1:
                             msg_part1 = msg[:split_index]
                             msg_part2 = msg[split_index:]
                             chunk_start = split_index
                         else:
-                            msg_part1 = msg[:3900]
-                            msg_part2 = msg[3900:]
-                            chunk_start = 3900
-                        self.chunk_last_100[orig_thinking] = msg_part1[-300:]
+                            msg_part1 = msg[:split_at]
+                            msg_part2 = msg[split_at:]
+                            chunk_start = split_at
+                        last300 = self.fix_fn_calls(msg_part1[-300:])
+                        self.chunk_last_100[orig_thinking] = last300
                         if msg_part1.count("```") % 2 != 0:
                             msg_part1 += "```"
                             msg_part2 = "```" + msg_part2
@@ -725,9 +779,9 @@ class SlackBotAdapter(BotOsInputAdapter):
                         else:
                             self.in_markdown_map[orig_thinking] = False
                         if orig_thinking in self.chunk_start_map:
-                            if self.chunk_start_map[orig_thinking] + chunk_start < len(msg):
+                           if self.chunk_start_map[orig_thinking] + chunk_start < len(full_msg):
                                 self.chunk_start_map[orig_thinking] += chunk_start
-                            else:
+                           else:
                                 print('*** avoiding double add to the chunk_start ')
                                 duplicato = True
                         else:
@@ -740,13 +794,13 @@ class SlackBotAdapter(BotOsInputAdapter):
                         # Store the first 100 characters of the first part of the message in the chunk_last_100 dictionary
                         # Store the substring of msg_part1 starting from the 100th character in the chunk_last_100 dictionary
                         # Store the last 100 characters of msg_part1 in the chunk_last_100 dictionary
-                        if True or not duplicato:
+                        if not duplicato:
                             try:
 
                                 self.slack_app.client.chat_update(
                                     channel=message.input_metadata.get("channel", self.channel_id),
                                     ts=thinking_ts,
-                                    text=msg_part1,
+                                    text=self.fix_fn_calls(msg_part1),
                                 )
                                 thread_ts = message.input_metadata.get("thread_ts", None)
                             except Exception as e:
@@ -1013,24 +1067,25 @@ class SlackBotAdapter(BotOsInputAdapter):
 #                if blocks is not None or len(msg) > 2000:
 #                    print('blocks / long: ',len(msg))
 
-                if len(msg) > 3900:
-                    split_index = msg[max(0, 3900-300):3900].rfind("\n")
+                split_at = self.split_at
+                if len(msg) > split_at:
+                    split_index = msg[max(0, split_at-300):split_at].rfind("\n")
                     if split_index != -1:
-                        split_index += 3600
+                        split_index += split_at
                     if split_index == -1:
-                        # Find the last space character within the range of 3600 to 3900 to split the message cleanly
-                        split_index = msg[max(0, 3900-300):3900].rfind(" ")
+                        # Find the last space character within the range of 3400 to 3700 to split the message cleanly
+                        split_index = msg[max(0, split_at-300):split_at].rfind(" ")
                         if split_index != -1:
-                            split_index += 3600
+                            split_index += split_at
                     if split_index != -1:
                         msg_part1 = msg[:split_index]
                         msg_part2 = msg[split_index:]
                         chunk_start = split_index
                     else:
-                        msg_part1 = msg[:3900]
-                        msg_part2 = msg[3900:]
-                        chunk_start = 3900
-                    self.chunk_last_100[orig_thinking] = msg_part1[-300:]
+                        msg_part1 = msg[:split_at]
+                        msg_part2 = msg[split_at:]
+                        chunk_start = split_at
+                    self.chunk_last_100[orig_thinking] = self.fix_fn_calls(msg_part1[-300:])
                     if msg_part1.count("```") % 2 != 0:
                         msg_part1 += "```"
                         msg_part2 = "```" + msg_part2

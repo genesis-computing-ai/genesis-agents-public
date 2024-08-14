@@ -152,6 +152,39 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             print('query error: ',e)
             self.client.connection.rollback()
  
+    def fix_tool_calls(self, resp):
+
+        while True:
+            orig_resp = resp 
+        
+            pattern_function_call = re.compile(r'<function=(.*?)>\{.*?\}</function>')
+            match_function_call = pattern_function_call.search(resp)
+            
+            if not match_function_call:
+                # look for the other way of calling functions 
+                pattern_function_call = re.compile(r'<\|python_tag\|>\{"type": "function", "name": "(.*?)", "parameters": \{.*?\}\}')
+                match_function_call = pattern_function_call.search(resp)
+
+            if not match_function_call:
+                # look for the other way of calling functions 
+                pattern_function_call = re.compile(r'<function=(.*?)>\{.*?\}')
+                match_function_call = pattern_function_call.search(resp)
+
+            # make the tool calls prettier 
+            if match_function_call:
+                function_name = match_function_call.group(1)
+                function_name_pretty = re.sub(r'(_|^)([a-z])', lambda m: m.group(2).upper(), function_name).replace('_', ' ')
+                new_resp = f"🧰 Using tool: _{function_name_pretty}_..."
+                # replace for display purposes only
+                resp = resp.replace(match_function_call.group(0), new_resp)
+
+            if resp == orig_resp:
+                break
+            else: 
+                orig_resp = resp
+
+        return resp 
+
 
     def cortex_rest_api(self,thread_id,message_metadata=None, event_callback=None, temperature=None):
 
@@ -390,15 +423,19 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
     #        postfix = "💬"
 
         # fix things like this: <function>function_name</function>{"param1": "param1value", "param2": "param2value, etc."} 
+        # to make it : <function=_manage_processes>{"action": "LIST", "bot_id": "MrsEliza-3348b2"}</function>
         pattern_function = re.compile(r'<function>(.*?)</function>(\{.*?\})$')
         match_function = pattern_function.search(resp)
         
         if match_function and resp.endswith(match_function.group(2)):
             function_name = match_function.group(1)
             params = match_function.group(2)
-            resp = f"<function>{function_name}{params}</function>"
+            newcall = f"<function={function_name}>{params}</function>"
+            resp = resp.replace(match_function.group(0), newcall)
+            curr_resp = resp
             postfix = "💬"
 
+        resp = self.fix_tool_calls(resp)
 
         if resp != '' and BotOsAssistantSnowflakeCortex.stream_mode == True:
             if self.event_callback:

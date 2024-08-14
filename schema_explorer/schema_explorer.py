@@ -194,7 +194,7 @@ class SchemaExplorer:
             if ddl is None:
                 ddl = self.alt_get_ddl(table_name='"'+database+'"."'+schema+'"."'+table+'"')
 
-            if os.environ["CORTEX_AVAILABLE"] == 'True':
+            if os.environ.get("CORTEX_AVAILABLE", 'False') == 'True':
                 memory_content = f"<OBJECT>{database}.{schema}.{table}</OBJECT><DDL_SHORT>{ddl_short}</DDL_SHORT>"
                 complete_description = memory_content
             else:
@@ -236,7 +236,7 @@ class SchemaExplorer:
         return self.run_prompt(p)
     
     def run_prompt(self, messages):
-        if os.environ["CORTEX_AVAILABLE"] == 'True':
+        if os.environ.get("CORTEX_AVAILABLE", 'False') == 'True':
             escaped_messages = str(messages).replace("'", '\\"')
             query = f"select snowflake.cortex.complete('{self.cortex_model}','{escaped_messages}');"
             # print(query)

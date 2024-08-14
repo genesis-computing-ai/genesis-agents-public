@@ -79,6 +79,7 @@ class ToolBelt:
         self.counter = {}
         self.instructions = {}
         self.process = {}
+        self.process_history = {}
         self.done = {}
         self.last_fail = {}
 
@@ -184,16 +185,19 @@ class ToolBelt:
             self.counter[thread_id] = 1
             self.process[thread_id] = process
             self.last_fail[thread_id] = None
-            self.instructions[thread_id] = None
+            self.instructions[thread_id] = None,
+            self.process_history[thread_id] = None
 
             print(
                 f"Process {process_name} has been kicked off.  Process object: \n{process}"
             )
 
             extract_instructions = f"""
-                These are the process instructions for the entire process.  Extract the section titled 
-                Step 1 and return the text of that section only.  Do not include any other text before or after Step 1.
-                If you need to get the current system time, use the manage tasks tool with an action of TIME
+                You will need to break the process instructions below up into individual steps and run them in whatever order is most effective.  
+                You will then summarize the step taken and its result at the end of this chat thread so there will be a 
+                complete record of all of the steps and all of the results.  Start by returning the first step of the process instructions below.
+
+                Process Instructions:
                 {process['PROCESS_INSTRUCTIONS']}
                 """
 
@@ -208,12 +212,12 @@ class ToolBelt:
             )
             first_step = response.choices[0].message.content
 
-            # <@{process['BOT_SLACK_USER_ID']}>
+            self.process_history[thread_id] = first_step
 
             self.instructions[thread_id] = f"""
-                Hey **@{process['BOT_ID']}** , here is step {self.counter.get(thread_id,None)} of the process.
+                Hey **@{process['BOT_ID']}** , here is the first step of the process.
                 {first_step}
-                    Execute these instructions now and then pass your response to the run_process tool as a parameter
+                    Execute this instructions now and then pass your response to the run_process tool as a parameter
                     called previous_response and an action of GET_NEXT_STEP.  
                     Execute the instructions you were given without asking for permission.
                     Do not ever verify anything with the user, unless you need to get a specific input from the user to be able to continue the process.
@@ -233,6 +237,8 @@ class ToolBelt:
 
         elif action == "GET_NEXT_STEP":
             print("GET NEXT STEP - process_runner.")
+
+            self.process_history[thread_id] += previous_response
 
         #    if self.done:
         #        self.last_fail[thread_id] = None
@@ -254,7 +260,7 @@ class ToolBelt:
                     "**success**" to continue to the next step.  At this point its ok to give the bot the benefit of the doubt to avoid
                     going in circles.
 
-                    Instructions: {self.instructions.get(thread_id,None)}
+                    Instructions: {self.process_history.get(thread_id,None)}
 
                     Your previous guidance: {self.last_fail[thread_id]}
 
@@ -264,7 +270,7 @@ class ToolBelt:
             else:
 
                 check_response = f"""
-                    Below is the previous question that the bot was asked and the response the bot gave after trying to perform the task.  Review the response and 
+                    Check the previous question that the bot was asked in the process history below and the response the bot gave after trying to perform the task.  Review the response and 
                     determine if the bot's response was correct and makes sense given the instructions it was given.  You can accept the final results of the
                     previous step without asking to see the sql queries and results that led to the final conclusion. If you are very seriously concerned that the step may not 
                     have been correctly perfomed, return a request to re-run the step of the process again by returning the text "**fail**" followed by a 
@@ -272,7 +278,7 @@ class ToolBelt:
                     If the response seems like it is likely correct, return only the text string "**success**" to continue to the next step.  If the process is complete,
                     tell the process to stop running.  Remember, proceed under your own direction and do not ask the user for permission to proceed.
 
-                    Instructions: {self.instructions.get(thread_id,None)}
+                    Process History: {self.process_history.get(thread_id,None)}
                     Bot's Response: {previous_response}
                     """
 
@@ -302,15 +308,18 @@ class ToolBelt:
                     "additional_request": "Please also explain and summarize this feedback from the supervisor bot to the user so they know whats going on, and how you plan to rectify it."
                 }
 
-            print(f"\nStep {self.counter.get(thread_id,None)} passed.  Moving to {self.counter.get(thread_id,None) + 1}\n")
+            print(f"\nThis step passed.  Moving to next step\n")
             self.counter[thread_id] += 1
             
             self.last_fail[thread_id] = None
             
             extract_instructions = f"""
-                Extract the text for step {self.counter.get(thread_id,None)} from the process instructions and return it.  Do not include any other 
-                text before or after Step {self.counter.get(thread_id,None)}.  Return the text of the step only.  If there are no steps with this or 
-                greater step numbers, respond "**done**" with no other text.
+                Extract the text for the next step from the process instructions and return it, using the section marked 'Process
+                History' to see where you are in the process. Remember, you need to break the process instructions below up into 
+                individual steps and run them in whatever order is most effective.  Return the text of the next step only.  If 
+                there are no steps with this or greater step numbers, respond "**done**" with no other text.
+
+                Process History: {self.process_history[thread_id]}
 
                 Process Instructions: {self.process.get(thread_id,None)['PROCESS_INSTRUCTIONS']}
                 """
@@ -340,7 +349,7 @@ class ToolBelt:
             print(f"\n{next_step}\n")
 
             self.instructions[thread_id] = f"""
-                Hey **@{process['BOT_ID']}**, here is step {self.counter.get(thread_id,None)} of the process.
+                Hey **@{process['BOT_ID']}**, here is the next step of the process.
                 {next_step}
                     Execute these instructions now and then pass your response to the run_process tool as a parameter
                     called previous_response and an action of GET_NEXT_STEP.  

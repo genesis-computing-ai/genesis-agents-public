@@ -666,9 +666,10 @@ class SlackBotAdapter(BotOsInputAdapter):
         if match_function_call:
             function_name = match_function_call.group(1)
             function_name_pretty = re.sub(r'(_|^)([a-z])', lambda m: m.group(2).upper(), function_name).replace('_', ' ')
-            new_resp = f"\n🧰 Using tool {function_name_pretty}..."
+            new_resp = f"🧰 Using tool _{function_name_pretty}_..."
             # replace for display purposes only
             resp = resp.replace(match_function_call.group(0), new_resp)
+            resp = re.sub(r'(?<!\n)(🧰)', r'\n\1', resp)  # add newlines before toolboxes as needed
 
         return resp
 
@@ -693,44 +694,44 @@ class SlackBotAdapter(BotOsInputAdapter):
             if thinking_ts:
              #   print('0-0-0-0-0-0-0-0 SLACK RESPONSE HANDLER -0-0-0-0-0-0-0-0-0')
                 current_chunk_start =  self.chunk_start_map.get(orig_thinking,None)
-                if current_chunk_start:
-                    print('     Current chunk start: ', current_chunk_start)
+         #       if current_chunk_start:
+         #           print('     Current chunk start: ', current_chunk_start)
                 msg = message.output.replace("\n 💬", " 💬")
                 full_msg = msg
-                if current_chunk_start:
-                    print(f"    Length of message: {len(msg)}")
+         #       if current_chunk_start:
+         #           print(f"    Length of message: {len(msg)}")
                 inmarkdown = False
                 if current_chunk_start is not None:
                     trimmed = False
                     if orig_thinking in self.chunk_last_100:
                         last100 = self.chunk_last_100[orig_thinking]
-                        print(f"    Length of last 100: {len(last100)}")
+          #              print(f"    Length of last 100: {len(last100)}")
                         if last100 in msg:
-                            print(f"    Last 100 is in msg")
+           #                 print(f"    Last 100 is in msg")
                             last_index = msg.rfind(last100, 0, current_chunk_start)
-                            print(f"    Last index: {last_index}")
+            #                print(f"    Last index: {last_index}")
                             if last_index != -1:
                                 msg = msg[last_index + len(last100):]
                                 trimmed=True
-                                print(f"    Length of new trimmed msg: {len(msg)}")
+             #                   print(f"    Length of new trimmed msg: {len(msg)}")
                     if not trimmed:
                         msg_fixed = self.fix_fn_calls(msg)
                         if last100 in msg_fixed:
-                            print(f"    Last 100 is in msg_fixed")
+              #              print(f"    Last 100 is in msg_fixed")
                             last_index = msg_fixed.rfind(last100, 0, current_chunk_start)
-                            print(f"    Last index: {last_index}")
+               #             print(f"    Last index: {last_index}")
                             if last_index != -1:
                                 msg = msg_fixed[last_index + len(last100):]
                                 trimmed=True
-                                print(f"    Length of new trimmed msg: {len(msg)}")
+                #                print(f"    Length of new trimmed msg: {len(msg)}")
                     if not trimmed:
-                        print("     Not trimmed based on last100, going to trim on current chunk start: ",current_chunk_start)
+                 #       print("     Not trimmed based on last100, going to trim on current chunk start: ",current_chunk_start)
                         msg = msg[current_chunk_start:]
-                        print(f"    Length of new trimmed msg: {len(msg)}")
+                  #      print(f"    Length of new trimmed msg: {len(msg)}")
                     if orig_thinking in self.in_markdown_map:
                         if self.in_markdown_map[orig_thinking] == True:
                             msg = '```' + msg
-                            print('     Added markedown start to start of msg')
+                 #           print('     Added markedown start to start of msg')
                             inmarkdown = True
       
                 if (

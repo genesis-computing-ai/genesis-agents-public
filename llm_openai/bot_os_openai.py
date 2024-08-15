@@ -1398,7 +1398,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
                         if BotOsAssistantOpenAI.stream_mode == True and run.id in StreamingEventHandler.run_id_to_bot_assist:
                            function_name_pretty = re.sub(r'(_|^)([a-z])', lambda m: m.group(2).upper(), func_name).replace('_', '')
-                           msg = f"🧰 Using tool: _{function_name_pretty}_...\n"
+                           msg = f"🧰 Using tool: _{function_name_pretty}_..."
 #                           msg = f':toolbox: _Using {func_name}_...\n'
 
                            if  StreamingEventHandler.run_id_to_output_stream.get(run.id,None) is not None:

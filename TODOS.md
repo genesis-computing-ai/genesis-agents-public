@@ -6,9 +6,8 @@ before republishing on natapp:
 cortex complete() fallback?
 clean up logging and cust data in logs
 
-
 soon-jl:
-make sure openai running process eliza random numbers is !stop-able
+x make sure openai running process eliza random numbers is !stop-able
 (in progress) process scheduler and task server, test with cortex bots 
 x comment out semantic tools 
 x test an openai bot eve updating instructions and adding and removing tools for a cortex bot
@@ -24,9 +23,10 @@ Eve is talking a lot about the uploaded files.  No vector store unless needed?  
 x make !stop work on OpenAI
 x make stop work better on cortex .. try on run process, keeps going.. make sure run is fully cancelled 
 if a process is stuck on a step after three tries, have it cancel the process
-have !stop on openai just cancel the run on the thread directly
+x have !stop on openai just cancel the run on the thread directly
 make process list not return instructions to avoid cheating, make that SHOW
 don't allow baby bot tools to be removed from Eve
+see if a process can stop and get input basedon change I made
 
 willow testing:
 eve cant deploy existing bots to slack

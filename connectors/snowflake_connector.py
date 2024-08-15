@@ -3211,9 +3211,8 @@ class SnowflakeConnector(DatabaseConnector):
                 f"Workspace {workspace_schema_name} objects granted to APP_PUBLIC"
             )
         except Exception as e:
-            logger.error(
-                f"Failed to grant all bot workspace objects for {workspace_schema_name} (expected in local mode): {e}"
-            )
+            if not os.getenv("GENESIS_LOCAL_RUNNER", "False").lower() == "true":
+                logger.warning("Local runner environment variable is not set. Skipping grant operations.")
 
     # handle the job_config stuff ...
     def run_query(

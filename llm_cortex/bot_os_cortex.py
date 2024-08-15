@@ -174,9 +174,10 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             if match_function_call:
                 function_name = match_function_call.group(1)
                 function_name_pretty = re.sub(r'(_|^)([a-z])', lambda m: m.group(2).upper(), function_name).replace('_', ' ')
-                new_resp = f"\n🧰 Using tool: _{function_name_pretty}_..."
+                new_resp = f"🧰 Using tool: _{function_name_pretty}_..."
                 # replace for display purposes only
                 resp = resp.replace(match_function_call.group(0), new_resp)
+                resp = re.sub(r'(?<!\n)(🧰)', r'\n\1', resp)  # add newlines before toolboxes as needed
 
             if resp == orig_resp:
                 break
@@ -337,8 +338,8 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                             #     del self.thread_stop_map[thread_id]
                             if isinstance(stop_timestamp, datetime.datetime) and (time.time() - stop_timestamp.timestamp()) <= 10:
                                 self.stop_result_map[thread_id] = 'stopped'
-                                if 'cur_resp' not in locals():
-                                    cur_resp = ''
+                                if 'curr_resp' not in locals():
+                                    curr_resp = ''
                                 resp += ' `stopped`'
                                 print('cortex thread stopped by user request')
                                 gen_start_time = time.time()
@@ -356,13 +357,21 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                                     decoded_line = decoded_line[len("data: "):]
                                 d = ''
                                 event_data = json.loads(decoded_line)
+                                break_after_update = False
                                 if 'choices' in event_data:
                                     if gen_start_time is None:
                                         gen_start_time = time.time()
                                     d = event_data['choices'][0]['delta'].get('content','')
                                     curr_resp += d
                                     resp += d
-                                    #print(d, end='', flush=True)
+                                    if "<|eom_id|>" in curr_resp[-100:]:
+                                        curr_resp = curr_resp[:curr_resp.rfind("<|eom_id|>")].strip()
+                                        resp = resp[:resp.rfind("<|eom_id|>")].strip()
+                                        break_after_update = True
+                                    if "}</function>" in curr_resp[-100:]:
+                                        curr_resp = curr_resp[:curr_resp.rfind("}</function>") + len("}</function>")].strip()
+                                        resp = resp[:resp.rfind("}</function>") + len("}</function>")].strip()
+                                        break_after_update = True
                                     u = event_data.get('usage')
                                     if u:
                                         usage = u
@@ -374,8 +383,9 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                                                                                             output=resp+" 💬", 
                                                                                             messages=None, 
                                                                                             input_metadata=json.loads(message_metadata)))
-                                    if resp.endswith("<|eom_id|>") or resp.endswith("</function>"):
-                                        break
+                                if break_after_update:
+                                    break
+                               
                             except json.JSONDecodeError as e:
                                 print(f"Error decoding JSON: {e}")
                                 continue
@@ -388,10 +398,10 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                 else:
                     try:
                         resp = f"Error calling Cortex: Received status code {response.status_code} with message: {response.reason}"
-                        cur_resp = resp
+                        curr_resp = resp
                     except:
                         resp = 'Error calling Cortex'
-                        cur_resp = resp 
+                        curr_resp = resp 
 
         try:
             print(json.dumps(usage))
@@ -453,7 +463,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         except:
             pass
 
-        self.thread_full_response[thread_id] = resp + '\n'
+        self.thread_full_response[thread_id] = resp if resp.endswith('\n') else resp + '\n'
         return(curr_resp)
 
 

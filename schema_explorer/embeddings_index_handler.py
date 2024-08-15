@@ -58,7 +58,7 @@ def fetch_embeddings_from_snow(table_id):
     with tqdm(total=total_rows, desc="Fetching embeddings") as pbar:
         while True:
             #TODO update to use embedding_native column if cortex mode
-            if os.environ["CORTEX_MODE"] == 'True':
+            if os.environ.get("CORTEX_MODE", 'False') == 'True':
                 embedding_column = 'embedding_native'
             else:
                 embedding_column = 'embedding'
@@ -287,7 +287,7 @@ def load_or_create_embeddings_index(table_id, refresh=True):
     logging.basicConfig(level=logging.WARN, format='%(asctime)s - %(levelname)s - %(message)s')
 
     # if cortex_mode then 768 else
-    if os.environ["CORTEX_MODE"] == 'True':
+    if os.environ.get("CORTEX_MODE", 'False') == 'True':
         embedding_size = 768
     else:
         embedding_size = 3072

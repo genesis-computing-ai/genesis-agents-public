@@ -759,6 +759,20 @@ class SnowflakeConnector(DatabaseConnector):
             err = f"An error occurred while retrieving schemas from database {database_name}: {e}"
             return {"Success": False, "Error": err}
 
+    def get_shared_schemas(self, database_name):
+        try:
+            query = f"SELECT DISTINCT SCHEMA_NAME FROM {self.metadata_table_name} where DATABASE_NAME = '{database_name}'"
+            cursor = self.client.cursor()
+            cursor.execute(query)
+            schemas = cursor.fetchall()
+            schema_list = [schema[0] for schema in schemas]
+
+            return schema_list
+
+        except Exception as e:
+            err = f"An error occurred while retrieving shared schemas: {e}"
+            return "Error: {err}"
+        
     def get_bot_images(self, thread_id=None):
         """
         Retrieves a list of all bot avatar images.
@@ -2719,17 +2733,21 @@ class SnowflakeConnector(DatabaseConnector):
         crawl_status="Completed",
         role_used_for_crawl="Default",
         embedding=None,
+        memory_uuid=None,
+        ddl_hash=None,
     ):
         qualified_table_name = f'"{database_name}"."{schema_name}"."{table_name}"'
-        memory_uuid = str(uuid.uuid4())
+        if not memory_uuid:
+            memory_uuid = str(uuid.uuid4())
         last_crawled_timestamp = datetime.utcnow().isoformat(" ")
-        ddl_hash = self.sha256_hash_hex_string(ddl)
+        if not ddl_hash:
+            ddl_hash = self.sha256_hash_hex_string(ddl)
 
         # Assuming role_used_for_crawl is stored in self.connection_info["client_email"]
         role_used_for_crawl = self.role
 
         # if cortex mode, load embedding_native else load embedding column
-        if os.environ["CORTEX_MODE"] == 'True':
+        if os.environ.get("CORTEX_MODE", 'False') == 'True':
             embedding_target = 'embedding_native'
         else:
             embedding_target = 'embedding'
@@ -3047,7 +3065,7 @@ class SnowflakeConnector(DatabaseConnector):
         #     "SELECT source_name, database_name, schema_inclusions, schema_exclusions, status, refresh_interval, initial_crawl_complete FROM "
         #     + self.harvest_control_table_name
         # )
-        if os.environ["CORTEX_MODE"] == 'True':
+        if os.environ.get("CORTEX_MODE", 'False') == 'True':
             embedding_column = 'embedding_native'
         else:
             embedding_column = 'embedding'
@@ -6344,9 +6362,13 @@ class SnowflakeConnector(DatabaseConnector):
         # Initialize lists to store results
         embeddings = []
         table_names = []
-
+        # update to use embedding_native column if cortex mode
+        if os.environ.get("CORTEX_MODE", 'False') == 'True':
+            embedding_column = 'embedding_native'
+        else:
+            embedding_column = 'embedding'
         # First, get the total number of rows to set up the progress bar
-        total_rows_query = f"SELECT COUNT(*) as total FROM {table_id}"
+        total_rows_query = f"SELECT COUNT(*) as total FROM {table_id} WHERE {embedding_column} IS NOT NULL"
         cursor = self.connection.cursor()
     # print('total rows query: ',total_rows_query)
         cursor.execute(total_rows_query)
@@ -6354,11 +6376,6 @@ class SnowflakeConnector(DatabaseConnector):
         total_rows = total_rows_result[0]
 
         with tqdm(total=total_rows, desc="Fetching embeddings") as pbar:
-            # update to use embedding_native column if cortex mode
-            if os.environ.get("CORTEX_MODE", 'False') == 'True':
-                embedding_column = 'embedding_native'
-            else:
-                embedding_column = 'embedding'
 
             while True:
                 # Modify the query to include LIMIT and OFFSET

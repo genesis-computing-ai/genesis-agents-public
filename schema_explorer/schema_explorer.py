@@ -20,7 +20,7 @@ class SchemaExplorer:
     def initialize_model(self):
         if os.environ.get("CORTEX_MODE", 'False') == 'True':
             self.cortex_model = os.getenv("CORTEX_HARVESTER_MODEL", 'reka-flash')
-            self.cortex_embedding_model = os.getenv("CORTEX_EMBEDDING_MODEL", 'e5-base-v2')
+            self.embedding_model = os.getenv("CORTEX_EMBEDDING_MODEL", 'e5-base-v2')
             if os.getenv("CORTEX_EMBEDDING_AVAILABLE",'False') == 'False':
                 if self.test_cortex():
                     if self.test_cortex_embedding() == '':
@@ -157,16 +157,16 @@ class SchemaExplorer:
 
             try:
                 # review function used once new regions are unlocked in snowflake
-                embedding_result = self.db_connector.run_query(f"SELECT SNOWFLAKE.CORTEX.EMBED_TEXT_768('{self.cortex_embedding_model}', '{test_message}');")
+                embedding_result = self.db_connector.run_query(f"SELECT SNOWFLAKE.CORTEX.EMBED_TEXT_768('{self.embedding_model}', '{test_message}');")
                 result_value = next(iter(embedding_result[0].values()))
                 if result_value:
-                    os.environ['CORTEX_EMBEDDING_MODEL'] = self.cortex_embedding_model
+                    # os.environ['CORTEX_EMBEDDING_MODEL'] = self.embedding_model
                     print(f"Test result value len embedding: {len(result_value)}")            
             except Exception as e:
                 if 'unknown model' in e.msg:
-                    print(f'Model {self.cortex_embedding_model} not available in this region, trying snowflake-arctic-embed-m')
-                    self.cortex_embedding_model = 'snowflake-arctic-embed-m'        
-                    embedding_result = self.db_connector.run_query(f"SELECT SNOWFLAKE.CORTEX.EMBED_TEXT_768('{self.cortex_embedding_model}', '{test_message}');")
+                    print(f'Model {self.embedding_model} not available in this region, trying snowflake-arctic-embed-m')
+                    self.embedding_model = 'snowflake-arctic-embed-m'        
+                    embedding_result = self.db_connector.run_query(f"SELECT SNOWFLAKE.CORTEX.EMBED_TEXT_768('{self.embedding_model}', '{test_message}');")
                     result_value = next(iter(embedding_result[0].values()))
                     if result_value:
                         print(f"Test result value len embedding: {len(result_value)}")
@@ -181,7 +181,7 @@ class SchemaExplorer:
         return result_value
 
 
-    def store_table_summary(self, database, schema, table, ddl, ddl_short="", summary="", sample_data=""):
+    def store_table_summary(self, database, schema, table, ddl, ddl_short="", summary="", sample_data="", memory_uuid="", ddl_hash=""):
         """
         Stores a document including the DDL and summary for a table in the memory system.
         :param schema: The schema name.
@@ -194,7 +194,7 @@ class SchemaExplorer:
             if ddl is None:
                 ddl = self.alt_get_ddl(table_name='"'+database+'"."'+schema+'"."'+table+'"')
 
-            if os.environ.get("CORTEX_AVAILABLE", 'False') == 'True':
+            if os.environ.get("CORTEX_MODE", 'False') == 'True':
                 memory_content = f"<OBJECT>{database}.{schema}.{table}</OBJECT><DDL_SHORT>{ddl_short}</DDL_SHORT>"
                 complete_description = memory_content
             else:
@@ -202,21 +202,22 @@ class SchemaExplorer:
                 if sample_data != "":
                     memory_content += f"\n\n<SAMPLE CSV DATA>\n{sample_data}\n</SAMPLE CSV DATA>"
                 complete_description = memory_content
-
             embedding = self.get_embedding(complete_description)  
-
+            print("we got the embedding!")
             #sample_data_text = json.dumps(sample_data)  # Assuming sample_data needs to be a JSON text.
 
             # Now using the modified method to insert the data into BigQuery
-            self.db_connector.insert_table_summary(schema_name=schema, 
-                                                database_name=database,
+            self.db_connector.insert_table_summary(database_name=database,
+                                                schema_name=schema,
                                                 table_name=table, 
-                                                ddl=ddl, 
+                                                ddl=ddl,  
                                                 ddl_short=ddl_short,
                                                 summary=summary, 
                                                 sample_data_text=sample_data, 
                                                 complete_description=complete_description,
-                                                embedding=embedding)
+                                                embedding=embedding,
+                                                memory_uuid=memory_uuid,
+                                                ddl_hash=ddl_hash)
             
             print(f"Stored summary for an object in Harvest Results.")
    
@@ -236,7 +237,7 @@ class SchemaExplorer:
         return self.run_prompt(p)
     
     def run_prompt(self, messages):
-        if os.environ.get("CORTEX_AVAILABLE", 'False') == 'True':
+        if os.environ.get("CORTEX_MODE", 'False') == 'True':
             escaped_messages = str(messages).replace("'", '\\"')
             query = f"select snowflake.cortex.complete('{self.cortex_model}','{escaped_messages}');"
             # print(query)
@@ -269,30 +270,34 @@ class SchemaExplorer:
         
         return response
 
-
     def get_embedding(self, text):
         # logic to handle switch between openai and cortex
-        if os.environ["CORTEX_MODE"] == 'True':
+        if os.getenv("CORTEX_MODE", 'False') == 'True':
             escaped_messages = str(text[:512]).replace("'", "\\'")
-            
-            # review function used once new regions are unlocked in snowflake
-            embedding_result = self.db_connector.run_query(f"SELECT SNOWFLAKE.CORTEX.EMBED_TEXT_768('{self.cortex_embedding_model}', '{escaped_messages}');")
-            try:
+            try:           
+                # review function used once new regions are unlocked in snowflake
+                embedding_result = self.db_connector.run_query(f"SELECT SNOWFLAKE.CORTEX.EMBED_TEXT_768('{self.embedding_model}', '{escaped_messages}');")
+
                 result_value = next(iter(embedding_result[0].values()))
                 if result_value:
                     print(f"Result value len embedding: {len(result_value)}")
             except:
-                print('Cortex embed text didnt work')
+                print('Cortex embed text didnt work in schema explorer')
                 result_value = ""
             return result_value
         else:
-            response = self.client.embeddings.create(
-                model=self.embedding_model,
-                input=text[:8000].replace("\n", " ")  # Replace newlines with spaces
-            )
-            embedding = response.data[0].embedding
+            try:
+                response = self.client.embeddings.create(
+                    model=self.embedding_model,
+                    input=text[:8000].replace("\n", " ")  # Replace newlines with spaces
+                )
+                embedding = response.data[0].embedding
+                if embedding:
+                    print(f"Result value len embedding: {len(embedding)}")
+            except:
+                print('Openai embed text didnt work in schema explorer')
+                embedding = ""
             return embedding
-
 
     def explore_schemas(self):
         try:
@@ -340,6 +345,12 @@ class SchemaExplorer:
                 inclusions = []
             if len(inclusions) == 0:
                 schemas = self.db_connector.get_schemas(database["database_name"])
+                if database["database_name"] == self.db_connector.project_id:
+                    shared_schemas = self.db_connector.get_shared_schemas(database["database_name"])
+                    if shared_schemas:
+                        if schemas is None:
+                            schemas = []
+                        schemas.extend(shared_schemas)
             else:
                 schemas = inclusions
             exclusions = database["schema_exclusions"]
@@ -349,7 +360,8 @@ class SchemaExplorer:
                 exclusions = []
             schemas = [schema for schema in schemas if schema not in exclusions]
             return schemas
-        except:
+        except Exception as e:
+            print(f"error - {e}")
             return []
 
     def update_initial_crawl_flag(self, database_name, crawl_flag):
@@ -375,6 +387,7 @@ class SchemaExplorer:
             harvesting_databases = []
 
             for database in databases:
+                print(f"checking db {database['database_name']} with initial crawl flag= {database['initial_crawl_complete']}")
                 crawl_flag = False
                 if (database["initial_crawl_complete"] == False):
                     crawl_flag = True
@@ -422,13 +435,13 @@ class SchemaExplorer:
                 #in_clause = ', '.join(quoted_table_names)
 
                 self.initialize_model()
-                if os.environ["CORTEX_MODE"] == 'True':
+                if os.environ.get("CORTEX_MODE", 'False') == 'True':
                     embedding_column = 'embedding_native'
                 else:
                     embedding_column = 'embedding'
                     
                 check_query = f"""
-                SELECT qualified_table_name, ddl_hash, last_crawled_timestamp,  (SUMMARY = '{{!placeholder}}' OR {embedding_column} IS NULL) as needs_full
+                SELECT qualified_table_name, table_name, ddl_hash, last_crawled_timestamp, ddl, ddl_short, summary, sample_data_text, memory_uuid, (SUMMARY = '{{!placeholder}}') as needs_full,  {embedding_column} IS NULL as needs_embedding
                 FROM {self.db_connector.metadata_table_name}
                 WHERE source_name = '{self.db_connector.source_name}'
                 AND database_name= '{db}' and schema_name = '{sch}';"""
@@ -437,7 +450,12 @@ class SchemaExplorer:
                     existing_tables_set = {info['QUALIFIED_TABLE_NAME'] for info in existing_tables_info}
                     non_existing_tables = [table for table in potential_tables if f'"{db}"."{sch}"."{table["table_name"]}"' not in existing_tables_set]
                     needs_updating = [table['QUALIFIED_TABLE_NAME']  for table in existing_tables_info if table["NEEDS_FULL"]]
+                    needs_embedding = [(table['QUALIFIED_TABLE_NAME'], table['TABLE_NAME']) for table in existing_tables_info if table["NEEDS_EMBEDDING"]]
                     refresh_tables = [table for table in potential_tables if f'"{db}"."{sch}"."{table["table_name"]}"' in needs_updating]
+                    # Print counts of each variable
+                    # print(f"{db}.{sch}")
+                    for tb in existing_tables_info:
+                        print(f"{tb['QUALIFIED_TABLE_NAME']}: {tb['NEEDS_EMBEDDING']}")
                     # print(f"{check_query}")
                 except Exception as e:
                     print(f'Error running check query Error: {e}',flush=True)
@@ -448,11 +466,12 @@ class SchemaExplorer:
                     try:
                         table_name = table_info['table_name']
                         quoted_table_name = f'"{db}"."{sch}"."{table_name}"'
+                        # print(f"checking {table_name} which is {quoted_table_name}")
                         if quoted_table_name not in existing_tables_set or quoted_table_name in needs_updating:
                             # Table is not in metadata table
                             # Check to see if it exists in the shared metadata table
                             #print ("!!!! CACHING DIsABLED !!!! ", flush=True)
-                            #TODO get metadata from cache and add embeddings for all schemas, incl baseball and f1
+                            # get metadata from cache and add embeddings for all schemas, incl baseball and f1
                             if sch == 'INFORMATION_SCHEMA':
                                 shared_table_exists = self.db_connector.check_cached_metadata('PLACEHOLDER_DB_NAME', sch, table_name)
                             else:
@@ -461,7 +480,7 @@ class SchemaExplorer:
                             if shared_table_exists:
                                 # print ("!!!! CACHING Working !!!! ", flush=True)
                                 # Get the record from the shared metadata table with database name modified from placeholder
-                                print('Object cache hit',flush=True)
+                                print(f"Object cache hit for {table_name}",flush=True)
                                 get_from_cache_result = self.db_connector.get_metadata_from_cache(db, sch, table_name)
                                 for record in get_from_cache_result:
                                     database = record['database_name']
@@ -484,50 +503,33 @@ class SchemaExplorer:
                                 non_indexed_tables.append(new_table)
 
                                 # store quick summary
+                                # print(f"is the table in the existing list?")
                                 if quoted_table_name not in existing_tables_set:
+                                    # print(f"yep, storing summary")
                                     self.store_table_summary(database=db, schema=sch, table=table_name, ddl=current_ddl, ddl_short=current_ddl, summary="{!placeholder}", sample_data="")
 
                     except Exception as e:
                         print(f'Error processing table in step1: {e}', flush=True)
 
+                for table_info in needs_embedding:
+                    try:
+                        quoted_table_name = table_info[0]
+                        table_name = table_info[1]
+                        print(f"embedding needed for {quoted_table_name}")
+                        
+                        for current_info in existing_tables_info:
+                            if current_info["QUALIFIED_TABLE_NAME"] == quoted_table_name:
+                                current_ddl = current_info['DDL']
+                                ddl_short = current_info['DDL_SHORT']
+                                summary = current_info['SUMMARY']
+                                sample_data_text = current_info['SAMPLE_DATA_TEXT']
+                                memory_uuid = current_info['MEMORY_UUID']
+                                ddl_hash = current_info['DDL_HASH']
+                                self.store_table_summary(database=db, schema=sch, table=table_name, ddl=current_ddl, ddl_short=ddl_short, summary=summary, sample_data=sample_data_text, memory_uuid=memory_uuid, ddl_hash=ddl_hash)
 
-                   # else:
-                   #     # Table exists, so check for updates as before
-                   #     existing_table_info = next((info for info in existing_tables_info if info['qualified_table_name'] == quoted_table_name), None)
-                   #     if existing_table_info:
-                   #         last_crawled = existing_table_info['last_crawled_timestamp']
-                   #         existing_ddl_hash = existing_table_info['ddl_hash']
-                   #         shared_view = existing_ddl_hash == 'SHARED_VIEW'
-                   #         cutoff_datetime = datetime(2024, 5, 1)
-                    #        check_for_updated_ddl = last_crawled > cutoff_datetime
-                    #        if shared_view:
-                    #            check_for_updated_ddl = False                        # Override this for now to False while sorting out harvester slowness
-                    #        check_for_updated_ddl = False
-                    #        if check_for_updated_ddl:
-                                # Fetch the DDL for the specific table and calculate its hash
-                    #            current_ddl = self.alt_get_ddl(table_name=quoted_table_name)
-                    #            if current_ddl:
-                    #                current_ddl_hash = self.db_connector.sha256_hash_hex_string(current_ddl)
-                    #                if existing_ddl_hash != current_ddl_hash:
-                    #                    print('DDL has changed for', quoted_table_name, flush=True)
-                    #                    non_indexed_tables.append({"qualified_table_name": quoted_table_name, "ddl_hash": current_ddl_hash, "ddl": current_ddl})
-            else:
-                # Bigquery 
-                query = f"""
-                SELECT CONCAT("{dataset}.", table_name) AS qualified_table_name
-                FROM `{dataset}.INFORMATION_SCHEMA.TABLES`
-                WHERE CONCAT("{dataset}.", table_name) NOT IN (
-                SELECT qualified_table_name
-                FROM `{self.db_connector.metadata_table_name}` where source_name = '{self.db_connector.source_name}')
-                UNION DISTINCT
-                SELECT hr.qualified_table_name
-                FROM `{dataset}.INFORMATION_SCHEMA.TABLES` ist
-                JOIN `{self.db_connector.metadata_table_name}` hr ON qualified_table_name = 
-                    CONCAT("{dataset}.", ist.table_name) where TO_HEX(SHA256(ist.ddl)) <> hr.ddl_hash and hr.source_name = '{self.db_connector.source_name}';"""
-                try:
-                    non_indexed_tables = self.db_connector.run_query(query, max_rows = max_to_process, max_rows_override = True)
-                except Exception as e:
-                    print(f'Error running query  Error: {e}',flush=True)
+                    except Exception as e:
+                        print(f'Error processing table in step1 embedding refresh: {e}', flush=True)
+
             return non_indexed_tables
         
         def process_dataset_step2( non_indexed_tables, max_to_process = 1000):
@@ -555,6 +557,7 @@ class SchemaExplorer:
                     except Exception as e:
                         print(f"Harvester Error on Object: {e}",flush=True)
                         self.store_table_memory(database, schema, table, summary=f"Harvester Error: {e}", ddl="Harvester Error", ddl_short="Harvester Error")
+
                     
                     local_summaries[qualified_table_name] = summary
                 return local_summaries

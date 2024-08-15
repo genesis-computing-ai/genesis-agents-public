@@ -157,10 +157,10 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
         # logic to handle switch between openai and cortex
         if os.getenv("CORTEX_MODE", 'False') == 'True':
             escaped_messages = str(text[:512]).replace("'", "\\'")
-            
-            # review function used once new regions are unlocked in snowflake
-            embedding_result = self.meta_database_connector.run_query(f"SELECT SNOWFLAKE.CORTEX.EMBED_TEXT_768('{self.embedding_model}', '{escaped_messages}');")
-            try:
+            try:           
+                # review function used once new regions are unlocked in snowflake
+                embedding_result = self.meta_database_connector.run_query(f"SELECT SNOWFLAKE.CORTEX.EMBED_TEXT_768('{self.embedding_model}', '{escaped_messages}');")
+
                 result_value = next(iter(embedding_result[0].values()))
                 if result_value:
                     print(f"Result value len embedding: {len(result_value)}")
@@ -169,11 +169,17 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
                 result_value = ""
             return result_value
         else:
-            response = self.client.embeddings.create(
-                model=self.embedding_model,
-                input=text[:8000].replace("\n", " ")  # Replace newlines with spaces
-            )
-            embedding = response.data[0].embedding
+            try:
+                response = self.client.embeddings.create(
+                    model=self.embedding_model,
+                    input=text[:8000].replace("\n", " ")  # Replace newlines with spaces
+                )
+                embedding = response.data[0].embedding
+                if embedding:
+                    print(f"Result value len embedding: {len(embedding)}")
+            except:
+                print('Openai embed text didnt work in bot os memory')
+                embedding = ""
             return embedding
         
     def store_memory(self, memory, scope="user_preferences", thread_id=""):

@@ -181,7 +181,7 @@ class ToolBelt:
 
         if action == "KICKOFF_PROCESS":
             print("Kickoff process.")
-            # TODO, these need to be mapped to thread id
+            
             self.counter[thread_id] = 1
             self.process[thread_id] = process
             self.last_fail[thread_id] = None
@@ -340,6 +340,8 @@ class ToolBelt:
 
             if next_step == '**done**' or next_step == '***done***':
                 self.last_fail[thread_id] = None
+                self.delete_process_thread(thread_id)
+                
                 return {
                     "success": True,
                     "process_complete": True,
@@ -357,7 +359,7 @@ class ToolBelt:
                     However DO generate text explaining what you are doing and showing interium outputs, etc. while you are running this and further steps to keep the user informed what is going on.
                     In your response back to run_process, provide a detailed description of what you did, what result you achieved, and why you believe this to have successfully completed the step.
 
-"""
+            """
 
             print(f"\n{self.instructions.get(thread_id,None)}\n")
 
@@ -367,15 +369,24 @@ class ToolBelt:
             }
         elif action == "GOTO_STEP":
             self.counter[thread_id] = goto_step
-        # elif action == "END_PROCESS":
-        #     print("Received END_PROCESS action.")
-        #     self.done[thread_id] = True
-        #     return {"success": True, "message": 'The process has finished.  You may now end the process.'}
+        elif action == "END_PROCESS":
+            print("Received END_PROCESS action.")
+            self.done[thread_id] = True
+            self.delete_process_thread(thread_id)
+            return {"success": True, "message": 'The process has finished.  You may now end the process.'}
         else:
             print("No action specified.")
             return {"success": False, "message": "No action specified."}
 
-
+    def delete_process_thread(self, thread_id):
+        del self.counter[thread_id]
+        del self.process[thread_id]
+        del self.last_fail[thread_id]
+        del self.instructions[thread_id]
+        del self.process_history[thread_id]
+        del self.done[thread_id]
+        return {"success": True, "message": "Process thread deleted."}
+    
 if genesis_source == "BigQuery":
     credentials_path = os.getenv(
         "GOOGLE_APPLICATION_CREDENTIALS", default=".secrets/gcp.json"

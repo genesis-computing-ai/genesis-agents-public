@@ -99,11 +99,9 @@ class KnowledgeServer:
                         WHERE timestamp > TO_TIMESTAMP('{last_timestamp}') AND
                         thread_id = '{thread_id}'
                         ORDER BY TIMESTAMP;"""
-            msg_log = self.db_connector.run_query(query, max_rows=100)
+            msg_log = self.db_connector.run_query(query, max_rows=50)
 
-            messages = [
-                f"{msg['MESSAGE_TYPE']}: {msg['MESSAGE_PAYLOAD']}:" for msg in msg_log
-            ]
+            messages = [f"{msg['MESSAGE_TYPE']}: {msg['MESSAGE_PAYLOAD']}" for msg in msg_log if "'EMBEDDING': " not in msg['MESSAGE_PAYLOAD']]
             messages = "\n".join(messages)
 
             query = f"""SELECT DISTINCT(knowledge_thread_id) FROM {self.db_connector.knowledge_table_name}

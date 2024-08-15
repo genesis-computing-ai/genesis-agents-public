@@ -95,12 +95,12 @@ class SchemaExplorer:
                 except Exception as e:
                     print(f"Error getting sample data: {e}", flush=True)
                     sample_data = None
-                    sample_data_str = ""
+                    sample_data_str = "error"
             if sample_data:
                 try:
                     sample_data_str = self.format_sample_data(sample_data)
                 except Exception as e:
-                    sample_data_str = ""
+                    sample_data_str = "format error"
                 #sample_data_str = sample_data_str.replace("\n", " ")  # Replace newlines with spaces
    
             #print('sample data string: ',sample_data_str)
@@ -345,6 +345,7 @@ class SchemaExplorer:
                 inclusions = []
             if len(inclusions) == 0:
                 schemas = self.db_connector.get_schemas(database["database_name"])
+                # get the app-shared schemas BASEBALL & FORMULA_1
                 if database["database_name"] == self.db_connector.project_id:
                     shared_schemas = self.db_connector.get_shared_schemas(database["database_name"])
                     if shared_schemas:
@@ -455,7 +456,8 @@ class SchemaExplorer:
                     # Print counts of each variable
                     # print(f"{db}.{sch}")
                     for tb in existing_tables_info:
-                        print(f"{tb['QUALIFIED_TABLE_NAME']}: {tb['NEEDS_EMBEDDING']}")
+                        if tb['NEEDS_EMBEDDING']:
+                            print(f"{tb['QUALIFIED_TABLE_NAME']} needs embedding: {tb['NEEDS_EMBEDDING']}")
                     # print(f"{check_query}")
                 except Exception as e:
                     print(f'Error running check query Error: {e}',flush=True)

@@ -766,7 +766,8 @@ class SnowflakeConnector(DatabaseConnector):
             cursor.execute(query)
             schemas = cursor.fetchall()
             schema_list = [schema[0] for schema in schemas]
-
+            for schema in schema_list:
+                print(f"can we see baseball and f1?? {schema}")
             return schema_list
 
         except Exception as e:

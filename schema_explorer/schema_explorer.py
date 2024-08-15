@@ -203,7 +203,7 @@ class SchemaExplorer:
                     memory_content += f"\n\n<SAMPLE CSV DATA>\n{sample_data}\n</SAMPLE CSV DATA>"
                 complete_description = memory_content
             embedding = self.get_embedding(complete_description)  
-            print("we got the embedding!")
+            # print("we got the embedding!")
             #sample_data_text = json.dumps(sample_data)  # Assuming sample_data needs to be a JSON text.
 
             # Now using the modified method to insert the data into BigQuery
@@ -346,6 +346,7 @@ class SchemaExplorer:
             if len(inclusions) == 0:
                 schemas = self.db_connector.get_schemas(database["database_name"])
                 # get the app-shared schemas BASEBALL & FORMULA_1
+                # print(f"get schemas for database: {database['database_name']} == {self.db_connector.project_id}")
                 if database["database_name"] == self.db_connector.project_id:
                     shared_schemas = self.db_connector.get_shared_schemas(database["database_name"])
                     if shared_schemas:
@@ -388,7 +389,7 @@ class SchemaExplorer:
             harvesting_databases = []
 
             for database in databases:
-                print(f"checking db {database['database_name']} with initial crawl flag= {database['initial_crawl_complete']}")
+                # print(f"checking db {database['database_name']} with initial crawl flag= {database['initial_crawl_complete']}")
                 crawl_flag = False
                 if (database["initial_crawl_complete"] == False):
                     crawl_flag = True
@@ -455,9 +456,9 @@ class SchemaExplorer:
                     refresh_tables = [table for table in potential_tables if f'"{db}"."{sch}"."{table["table_name"]}"' in needs_updating]
                     # Print counts of each variable
                     # print(f"{db}.{sch}")
-                    for tb in existing_tables_info:
-                        if tb['NEEDS_EMBEDDING']:
-                            print(f"{tb['QUALIFIED_TABLE_NAME']} needs embedding: {tb['NEEDS_EMBEDDING']}")
+                    # for tb in existing_tables_info:
+                    #     if tb['NEEDS_EMBEDDING']:
+                    #         print(f"{tb['QUALIFIED_TABLE_NAME']} needs embedding: {tb['NEEDS_EMBEDDING']}")
                     # print(f"{check_query}")
                 except Exception as e:
                     print(f'Error running check query Error: {e}',flush=True)
@@ -517,7 +518,7 @@ class SchemaExplorer:
                     try:
                         quoted_table_name = table_info[0]
                         table_name = table_info[1]
-                        print(f"embedding needed for {quoted_table_name}")
+                        # print(f"embedding needed for {quoted_table_name}")
                         
                         for current_info in existing_tables_info:
                             if current_info["QUALIFIED_TABLE_NAME"] == quoted_table_name:

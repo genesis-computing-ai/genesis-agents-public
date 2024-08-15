@@ -72,10 +72,7 @@ class SnowflakeConnector(DatabaseConnector):
         self.role = get_env_or_default(role, "SNOWFLAKE_ROLE_OVERRIDE")        
         self.source_name = "Snowflake"
 
-        if self.database:
-            self.project_id = self.database
-        else:
-            self.project_id = None
+
         # print('Calling _create_connection...')
         self.token_connection = False
         self.connection = self._create_connection()
@@ -102,6 +99,12 @@ class SnowflakeConnector(DatabaseConnector):
             print("ENV Variable GENESIS_INTERNAL_DB_SCHEMA is not set.")
         if self.genbot_internal_project_and_schema is not None:
             self.genbot_internal_project_and_schema = (self.genbot_internal_project_and_schema.upper() )
+
+        if self.database:
+            self.project_id = self.database
+        else:
+            db, sch = self.genbot_internal_project_and_schema.split('.')
+            self.project_id = db
 
         self.genbot_internal_harvest_table = os.getenv("GENESIS_INTERNAL_HARVEST_RESULTS_TABLE", "harvest_results" )
         self.genbot_internal_harvest_control_table = os.getenv("GENESIS_INTERNAL_HARVEST_CONTROL_TABLE", "harvest_control")
@@ -766,8 +769,8 @@ class SnowflakeConnector(DatabaseConnector):
             cursor.execute(query)
             schemas = cursor.fetchall()
             schema_list = [schema[0] for schema in schemas]
-            for schema in schema_list:
-                print(f"can we see baseball and f1?? {schema}")
+            # for schema in schema_list:
+            #     print(f"can we see baseball and f1?? {schema}")
             return schema_list
 
         except Exception as e:
@@ -3109,42 +3112,53 @@ class SnowflakeConnector(DatabaseConnector):
 
     def get_schemas(self, database, thread_id=None):
         schemas = []
-        query = f'SHOW SCHEMAS IN DATABASE "{database}"'
-        cursor = self.connection.cursor()
-        cursor.execute(query)
-        for row in cursor:
-            schemas.append(row[1])  # Assuming the schema name is in the second column
-        cursor.close()
+        try:
+            query = f'SHOW SCHEMAS IN DATABASE "{database}"'
+            cursor = self.connection.cursor()
+            cursor.execute(query)
+            for row in cursor:
+                schemas.append(row[1])  # Assuming the schema name is in the second column
+            cursor.close()
+        except Exception as e:
+            # print(f"error getting schemas for {database}: {e}")
+            return schemas
         return schemas
 
     def get_tables(self, database, schema, thread_id=None):
         tables = []
-        query = f'SHOW TABLES IN "{database}"."{schema}"'
-        cursor = self.connection.cursor()
-        cursor.execute(query)
-        for row in cursor:
-            tables.append(
-                {"table_name": row[1], "object_type": "TABLE"}
-            )  # Assuming the table name is in the second column and DDL in the third
-        cursor.close()
-        query = f'SHOW VIEWS IN "{database}"."{schema}"'
-        cursor = self.connection.cursor()
-        cursor.execute(query)
-        for row in cursor:
-            tables.append(
-                {"table_name": row[1], "object_type": "VIEW"}
-            )  # Assuming the table name is in the second column and DDL in the third
-        cursor.close()
+        try:
+            query = f'SHOW TABLES IN "{database}"."{schema}"'
+            cursor = self.connection.cursor()
+            cursor.execute(query)
+            for row in cursor:
+                tables.append(
+                    {"table_name": row[1], "object_type": "TABLE"}
+                )  # Assuming the table name is in the second column and DDL in the third
+            cursor.close()
+            query = f'SHOW VIEWS IN "{database}"."{schema}"'
+            cursor = self.connection.cursor()
+            cursor.execute(query)
+            for row in cursor:
+                tables.append(
+                    {"table_name": row[1], "object_type": "VIEW"}
+                )  # Assuming the table name is in the second column and DDL in the third
+            cursor.close()
+        except Exception as e:
+            # print(f"error getting tables for {database}.{schema}: {e}")
+            return tables
         return tables
 
     def get_columns(self, database, schema, table):
         columns = []
-        query = f'SHOW COLUMNS IN "{database}"."{schema}"."{table}"'
-        cursor = self.connection.cursor()
-        cursor.execute(query)
-        for row in cursor:
-            columns.append(row[2])  # Assuming the column name is in the first column
-        cursor.close()
+        try:
+            query = f'SHOW COLUMNS IN "{database}"."{schema}"."{table}"'
+            cursor = self.connection.cursor()
+            cursor.execute(query)
+            for row in cursor:
+                columns.append(row[2])  # Assuming the column name is in the first column
+            cursor.close()
+        except Exception as e:
+            return columns
         return columns
 
     def get_sample_data(self, database, schema_name: str, table_name: str):

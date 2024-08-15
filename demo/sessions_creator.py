@@ -188,10 +188,10 @@ def make_session(
             ]
         ]
 
-    instructions = (
-        bot_config["bot_instructions"] + "\n" + BASE_BOT_INSTRUCTIONS_ADDENDUM
-    )
-    instructions += f'\nNote current settings:\nData source: {genesis_source}\nYour bot_id: {bot_config["bot_id"]}.\nRunner_id: {runner_id}'
+    instructions = bot_config["bot_instructions"] + "\n" + BASE_BOT_INSTRUCTIONS_ADDENDUM
+    instructions += f'\nYour default database connecton is called "{genesis_source}".\n'
+
+    instructions += f'\nNote current settings:\nYour bot_id: {bot_config["bot_id"]}.\nRunner_id: {runner_id}'
     if bot_config["slack_active"] == "Y":
         instructions += "\nYour slack user_id: " + bot_config["bot_slack_user_id"]
 

@@ -64,6 +64,9 @@ class SqliteConnector(DatabaseConnector):
         self.images_table_name =  "APP_SHARE_IMAGES"      
         self.source_name = "Sqlite"
 
+    def check_cortex_available(self):
+        return False
+
     def sha256_hash_hex_string(self, input_string):
         # Encode the input string to bytes, then create a SHA256 hash and convert it to a hexadecimal string
         return hashlib.sha256(input_string.encode()).hexdigest()

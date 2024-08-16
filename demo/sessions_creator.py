@@ -201,6 +201,15 @@ def make_session(
             instructions += ". This BOT_FILES_STAGE stage is ONLY in this particular database & schema."
 
     bot_id = bot_config["bot_id"]
+    llm_type = None
+
+    # Check if the environment variable exists and has data
+    if "BOT_LLMS" in os.environ and os.environ["BOT_LLMS"]:
+        # Convert the JSON string back to a dictionary
+        bot_llms = json.loads(os.environ["BOT_LLMS"])
+    else:
+        # Initialize as an empty dictionary
+        bot_llms = {}
 
     # check if database_tools are in bot_tools
     if "database_tools" in bot_tools:
@@ -341,18 +350,21 @@ def make_session(
                 # could be gemini or something else eventually
                 print('Bot implementation not specified, OpenAI is not available, Snowflake Cortex is not available. Please set LLM key in Streamlit.')
 
-        #do we need this if logic?
-        # if os.getenv("OPENAI_API_KEY",None) in [None, ""] and os.getenv("CORTEX_MODE",None) == "True" and assistant_implementation == BotOsAssistantOpenAI:  
-        #     print("Switched to Cortex implementation because OPENAI_API_KEY is not set and CORTEX is available.")
-        #     if os.getenv("CORTEX_AVAILABLE",'False') == 'False':
-        #         db_adapter.check_cortex_available()
-        #     assistant_implementation = BotOsAssistantSnowflakeCortex
+        # Updating an existing bot's preferred_llm
+        if not bot_config["bot_implementation"]:
+            bot_llms[bot_id] = {"current_llm": os.getenv("BOT_OS_DEFAULT_LLM_ENGINE","cortex"), "preferred_llm": None}
+        elif llm_type:
+            if os.getenv("BOT_OS_DEFAULT_LLM_ENGINE","cortex").lower() != bot_config["bot_implementation"].lower() and llm_type.lower() != bot_config["bot_implementation"].lower():
+                bot_llms[bot_id] = {"current_llm": os.getenv("BOT_OS_DEFAULT_LLM_ENGINE","cortex"), "preferred_llm": bot_config["bot_implementation"]}
+            else:
+                bot_llms[bot_id] = {"current_llm": bot_config["bot_implementation"], "preferred_llm": bot_config["bot_implementation"]}
+        else:
+            bot_llms[bot_id] = {"current_llm": bot_config["bot_implementation"], "preferred_llm": llm_type}
 
-    #    if os.getenv("SIMPLE_MODE", "false").lower() == "true":
-    #        if os.getenv("CORTEX_AVAILABLE",'False') == 'False':
-    #            db_adapter.check_cortex_available()
-    #        assistant_implementation = BotOsAssistantSnowflakeCortex
-        # assistant_implementation = BotOsAssistantOpenAI
+        bot_llms_json = json.dumps(bot_llms)
+
+        # Save the JSON string as an environment variable
+        os.environ["BOT_LLMS"] = bot_llms_json
 
         #if assistant_implementation == BotOsAssistantSnowflakeCortex and stream_mode:
         if assistant_implementation == BotOsAssistantSnowflakeCortex and True:

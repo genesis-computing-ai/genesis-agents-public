@@ -1136,6 +1136,12 @@ def bot_config():
         slack_tokens = get_slack_tokens()
         slack_ready = slack_tokens.get("SlackActiveFlag", False)
 
+        llm_info = get_metadata("llm_info")
+        if len(llm_info) > 0:
+            # Check which llm_type has active = true
+            current_llm = [llm["llm_type"] for llm in llm_info if llm["active"]][0]
+        else:
+            current_llm = 'unknown'
         # st.write(slack_tokens)
 
         # Display bot_details in a pretty grid using Streamlit
@@ -1155,10 +1161,19 @@ def bot_config():
                         )
                         st.caption(f"Available Tools: {available_tools}")
                         bot_implementation = bot.get("bot_implementation", None)
-                        if bot_implementation is not None:
-                            st.caption(f"LLM Engine: {bot_implementation}")
+                        bot_llms = get_metadata("bot_llms")
+                        if len(bot_llms) > 0:
+                            for bot_id, llm_info in bot_llms.items():
+                                if bot_id == bot["bot_id"]:
+                                    current_llm = llm_info.get('current_llm')
+                                    preferred_llm = llm_info.get('preferred_llm')
+                        # current_llm = bot_llms.get( bot["bot_id"], {}).get("current_llm")
+                        # preferred_llm = bot_llms.get( bot["bot_id"], {}).get("preferred_llm")
+                        if preferred_llm:
+                            st.caption(f"Preferred LLM Engine: {preferred_llm} (current LLM engine: {current_llm})")
                         else:
-                            st.caption(f"LLM Engine: best available (default)")
+                            st.caption(f"Current LLM Engine: {current_llm} (default)")
+                            
                         # Display the files associated with the bot
                         bot_files = bot.get("files", None)
                         if bot_files == "null" or bot_files == "" or bot_files == "[]":

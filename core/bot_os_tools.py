@@ -354,7 +354,7 @@ class ToolBelt:
                 Hey **@{process['BOT_ID']}**, here is the next step of the process.
                 {next_step}
                     Execute these instructions now and then pass your response to the run_process tool as a parameter
-                    called previous_response and an action of GET_NEXT_STEP.  
+                    called previous_response and an action of GET_NEXT_STEP.  If the process is complete, call the run_process tool with an action of END_PROCESS.
                     Do not verify anything with the user.  Execute the instructions you were given without asking for permission.
                     However DO generate text explaining what you are doing and showing interium outputs, etc. while you are running this and further steps to keep the user informed what is going on.
                     In your response back to run_process, provide a detailed description of what you did, what result you achieved, and why you believe this to have successfully completed the step.

@@ -14,6 +14,7 @@ import yaml, time, random, string
 import snowflake.connector
 import random, string
 import requests
+from openai import OpenAI
 
 from .database_connector import DatabaseConnector
 from core.bot_os_defaults import (
@@ -1155,6 +1156,44 @@ class SnowflakeConnector(DatabaseConnector):
                 "Success": False,
                 "Error": "The 'bot_id' field is required."
             }
+        
+        try:
+            if action == "CREATE" or action == "UPDATE":
+                # Send process_insteructions to 2nd LLM to check it and format nicely
+                api_key = os.getenv("OPENAI_API_KEY")
+                if not api_key:
+                    print("OpenAI API key is not set in the environment variables.")
+                    return None
+
+                openai_api_key = os.getenv("OPENAI_API_KEY")
+                client = OpenAI(api_key=openai_api_key)
+
+                tidy_process_instructions = f"""
+                Below is a process that has been submitted by a user.  Please review it to insure it is something
+                that will make sense to the run_process tool.  If not, make changes so it is organized into clear
+                steps.  Make sure that it is tidy, legible and properly formatted. 
+                Return the updated and tidy process.  If there is an issue with the process, return an error message.
+
+                The process is as follows:\n {process_details['process_instructions']}
+                """
+
+                tidy_process_instructions = "\n".join(
+                    line.lstrip() for line in tidy_process_instructions.splitlines()
+                )
+
+                response = client.chat.completions.create(
+                    model="gpt-4o",
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": tidy_process_instructions,
+                        },
+                    ],
+                )
+
+                process_details['process_instructions'] = response.choices[0].message.content
+        except Exception as e:
+            return {"Success": False, "Error": f"Error connecting to OpenAI: {e}"}
     
 
         try:

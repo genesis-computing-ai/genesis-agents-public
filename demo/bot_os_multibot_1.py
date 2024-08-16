@@ -55,6 +55,8 @@ from core.system_variables import SystemVariables
 
 from demo.sessions_creator import create_sessions, make_session
 
+from openai import OpenAI
+
 
 # for Cortex testing
 #os.environ['SIMPLE_MODE'] = 'true'

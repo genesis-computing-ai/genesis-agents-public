@@ -2937,7 +2937,8 @@ class SnowflakeConnector(DatabaseConnector):
             else:
                 return "a required parameter was not entered"
         except Exception as e:
-            print(f"check harvest cache error {e}")
+            if os.environ.get('GENESIS_LOCAL_RUNNER', '').upper() != 'TRUE':
+                print(f"Error checking cached metadata: {e}")
             return False
 
     def get_metadata_from_cache(

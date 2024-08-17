@@ -342,7 +342,7 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
             content.append(msg)
             memories.append(content)
             try:
-                print(f'Search metadata: returned {len(memories)} objects')
+                print(f'Search metadata: returned {len(memories[0])} objects')
             except:
                 pass
           #  logger.info(str(content))

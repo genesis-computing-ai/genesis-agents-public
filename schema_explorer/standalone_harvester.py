@@ -19,7 +19,7 @@ logging.basicConfig(level=logging.WARN, format='%(asctime)s - %(levelname)s - %(
 genesis_source = os.getenv('GENESIS_SOURCE',default="BigQuery")
 
 print("waiting 60 seconds for other services to start first...", flush=True)
-if os.getenv('HARVEST_TEST', 'FALSE') != 'TRUE':
+if os.getenv('HARVEST_TEST', 'FALSE').upper() != 'TRUE':
     time.sleep(60)
 
 ### LLM KEY STUFF

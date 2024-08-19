@@ -34,20 +34,8 @@ class KnowledgeServer:
     def producer(self):
         while True:
             # join inside snowflake
-            cutoff = (datetime.now() - timedelta(minutes=10)).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            )
-            query = f"""
-                WITH K AS (SELECT thread_id, max(last_timestamp) as last_timestamp FROM {self.db_connector.knowledge_table_name}
-                    GROUP BY thread_id),
-                M AS (SELECT thread_id, max(timestamp) as timestamp, COUNT(*) as count FROM {self.db_connector.message_log_table_name} 
-                    WHERE PRIMARY_USER IS NOT NULL 
-                    GROUP BY thread_id
-                    HAVING count > 3)
-                SELECT M.thread_id, timestamp as timestamp, COALESCE(K.last_timestamp, DATE('2000-1-1')) as last_timestamp FROM M
-                LEFT JOIN K on M.thread_id = K.thread_id
-                WHERE timestamp > COALESCE(K.last_timestamp, DATE('2000-1-1')) AND timestamp < TO_TIMESTAMP('{cutoff}');"""
-            threads = self.db_connector.run_query(query)
+            cutoff = (datetime.now() - timedelta(minutes=10)).strftime("%Y-%m-%d %H:%M:%S")
+            threads = self.db_connector.query_threads_message_log(cutoff)
             for thread in threads:
                 thread_id = thread["THREAD_ID"]
                 with self.thread_set_lock:
@@ -93,13 +81,12 @@ class KnowledgeServer:
 
             thread_id = thread["THREAD_ID"]
             timestamp = thread["TIMESTAMP"]
-            last_timestamp = thread["LAST_TIMESTAMP"].strftime("%Y-%m-%d %H:%M:%S")
+            if type(thread["LAST_TIMESTAMP"]) != str:
+                last_timestamp = thread["LAST_TIMESTAMP"].strftime("%Y-%m-%d %H:%M:%S")
+            else:
+                last_timestamp = thread["LAST_TIMESTAMP"]
 
-            query = f"""SELECT * FROM {self.db_connector.message_log_table_name} 
-                        WHERE timestamp > TO_TIMESTAMP('{last_timestamp}') AND
-                        thread_id = '{thread_id}'
-                        ORDER BY TIMESTAMP;"""
-            msg_log = self.db_connector.run_query(query, max_rows=50)
+            msg_log = self.db_connector.query_timestamp_message_log(thread_id, last_timestamp, max_rows=50)
 
             messages = [f"{msg['MESSAGE_TYPE']}: {msg['MESSAGE_PAYLOAD']}" for msg in msg_log if "'EMBEDDING': " not in msg['MESSAGE_PAYLOAD']]
             messages = "\n".join(messages)
@@ -157,7 +144,11 @@ class KnowledgeServer:
             try:
                 # Ensure the timestamp is in the correct format for Snowflake
                 timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                last_timestamp = msg_log[-1]["TIMESTAMP"].strftime("%Y-%m-%d %H:%M:%S")
+                timestamp = thread["TIMESTAMP"]
+                if type(msg_log[-1]["TIMESTAMP"]) != str:
+                    last_timestamp = msg_log[-1]["TIMESTAMP"].strftime("%Y-%m-%d %H:%M:%S")
+                else:
+                    last_timestamp = msg_log[-1]["TIMESTAMP"]
                 bot_id = msg_log[-1]["BOT_ID"]
                 primary_user = msg_log[-1]["PRIMARY_USER"]
                 thread_summary = response["thread_summary"]
@@ -165,38 +156,14 @@ class KnowledgeServer:
                 tool_learning = response["tool_learning"]
                 data_learning = response["data_learning"]
 
-                insert_query = f"""
-                INSERT INTO {self.db_connector.knowledge_table_name} 
-                    (timestamp, thread_id, knowledge_thread_id, primary_user, bot_id, last_timestamp, thread_summary, user_learning, tool_learning, data_learning)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)                    
-                """
-                cursor = self.db_connector.client.cursor()
-                cursor.execute(
-                    insert_query,
-                    (
-                        timestamp,
-                        thread_id,
-                        knowledge_thread_id,
-                        primary_user,
-                        bot_id,
-                        last_timestamp,
-                        thread_summary,
-                        user_learning,
-                        tool_learning,
-                        data_learning,
-                    ),
-                )
-                self.db_connector.client.commit()
+                self.db_connector.run_insert(self.db_connector.knowledge_table_name, timestamp=timestamp,thread_id=thread_id,knowledge_thread_id=knowledge_thread_id,
+                                              primary_user=primary_user,bot_id=bot_id,last_timestamp=last_timestamp,thread_summary=thread_summary,
+                                              user_learning=user_learning,tool_learning=tool_learning,data_learning=data_learning)
 
                 self.user_queue.put((primary_user, bot_id, response))
             except Exception as e:
-                print(
-                    f"Encountered errors while inserting into {self.db_connector.knowledge_table_name} row: {e}"
-                )
-            finally:
-                if cursor is not None:
-                    cursor.close()
-
+                print(f"Encountered errors while inserting into {self.db_connector.knowledge_table_name} row: {e}")
+            
             with self.thread_set_lock:
                 self.thread_set.remove(thread_id)
                 print(f"Consumed {thread_id}")
@@ -251,32 +218,13 @@ class KnowledgeServer:
                 new_knowledge[item] = response.choices[0].message.content
 
             try:
-                insert_query = f"""
-                INSERT INTO {self.db_connector.user_bot_table_name} 
-                    (timestamp, primary_user, bot_id, user_learning, tool_learning, data_learning)
-                    VALUES (%s, %s, %s, %s, %s, %s)                    
-                """
-                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                cursor = self.db_connector.client.cursor()
-                cursor.execute(
-                    insert_query,
-                    (
-                        timestamp,
-                        primary_user,
-                        bot_id,
-                        new_knowledge["USER_LEARNING"],
-                        new_knowledge["TOOL_LEARNING"],
-                        new_knowledge["DATA_LEARNING"],
-                    ),
-                )
-                self.db_connector.client.commit()
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")                
+                self.db_connector.run_insert(self.db_connector.user_bot_table_name, timestamp=timestamp, primary_user=primary_user,bot_id=bot_id,
+                                              user_learning=new_knowledge["USER_LEARNING"],tool_learning=new_knowledge["TOOL_LEARNING"],
+                                              data_learning=new_knowledge["DATA_LEARNING"])
             except Exception as e:
-                print(
-                    f"Encountered errors while inserting into {self.db_connector.user_bot_table_name} row: {e}"
-                )
-            finally:
-                if cursor is not None:
-                    cursor.close()
+                print(f"Encountered errors while inserting into {self.db_connector.user_bot_table_name} row: {e}")
+
 
     def start_threads(self):
         producer_thread = threading.Thread(target=self.producer)

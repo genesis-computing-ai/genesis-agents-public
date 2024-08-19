@@ -488,11 +488,7 @@ class SqliteConnector(DatabaseConnector):
             files_str = "<no files>"
         try:
             # Ensure the timestamp is in the correct format for Snowflake
-            formatted_timestamp = (
-                timestamp.strftime("%Y-%m-%d %H:%M:?")
-                if isinstance(timestamp, datetime)
-                else timestamp
-            )
+            formatted_timestamp = timestamp.strftime("%Y-%m-%d %H:%M:%S") if isinstance(timestamp, datetime) else timestamp
             if isinstance(message_metadata, dict):
                 message_metadata = json.dumps(message_metadata)
 
@@ -2584,7 +2580,7 @@ class SqliteConnector(DatabaseConnector):
         #    print('getting results:')
         try:
             results = cursor.fetchmany(max_rows)
-            columns = [col[0] for col in cursor.description]
+            columns = [col[0].upper() for col in cursor.description]
             sample_data = [dict(zip(columns, row)) for row in results]
         
         # Replace occurrences of triple backticks with triple single quotes in sample data
@@ -5544,6 +5540,38 @@ class SqliteConnector(DatabaseConnector):
             return knowledge[0]
         return []
     
+    def query_threads_message_log(self, cutoff):
+        query = f"""
+                WITH K AS (SELECT thread_id, max(last_timestamp) as last_timestamp FROM {self.knowledge_table_name}
+                    GROUP BY thread_id),
+                M AS (SELECT thread_id, max(timestamp) as timestamp, COUNT(*) as count FROM {self.message_log_table_name} 
+                    WHERE PRIMARY_USER IS NOT NULL 
+                    GROUP BY thread_id
+                    HAVING count > 3)
+                SELECT M.thread_id, timestamp as timestamp, COALESCE(K.last_timestamp, DATE('2000-01-01')) as last_timestamp FROM M
+                LEFT JOIN K on M.thread_id = K.thread_id
+                WHERE timestamp > COALESCE(K.last_timestamp, DATE('2000-01-01')) AND timestamp < DATETIME('{cutoff}');"""
+        return self.run_query(query)
+
+    def query_timestamp_message_log(self, thread_id, last_timestamp, max_rows=50):
+        query = f"""SELECT * FROM {self.message_log_table_name} 
+                        WHERE timestamp > DATETIME('{last_timestamp}') AND
+                        thread_id = '{thread_id}'
+                        ORDER BY TIMESTAMP;"""
+        msg_log = self.run_query(query, max_rows=max_rows)
+        return msg_log
+
+    def run_insert(self, table, **kwargs):
+        keys = ','.join(kwargs.keys())
+        
+        insert_query = f"""
+            INSERT INTO {table} ({keys})
+                VALUES ({','.join(['?']*len(kwargs))})
+            """
+        cursor = self.client.cursor()
+        cursor.execute(insert_query, tuple(kwargs.values()))
+        self.client.commit()
+
     def fetch_embeddings(self, table_id):
         # Initialize Snowflake connector
 

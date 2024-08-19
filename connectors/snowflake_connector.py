@@ -971,10 +971,10 @@ class SnowflakeConnector(DatabaseConnector):
         cursor = self.client.cursor()
         try:
             if bot_id == "all":
-                list_query = f"SELECT process_id, bot_id, process_name, process_instructions FROM {self.schema}.PROCESSES"
+                list_query = f"SELECT process_id, bot_id, process_name FROM {self.schema}.PROCESSES"
                 cursor.execute(list_query)
             else:
-                list_query = f"SELECT process_id, bot_id, process_name, process_instructions FROM {self.schema}.PROCESSES WHERE upper(bot_id) = upper(%s)"
+                list_query = f"SELECT process_id, bot_id, process_name FROM {self.schema}.PROCESSES WHERE upper(bot_id) = upper(%s)"
                 cursor.execute(list_query, (bot_id,))
             processs = cursor.fetchall()
             process_list = []
@@ -984,7 +984,7 @@ class SnowflakeConnector(DatabaseConnector):
                     "bot_id": process[1],
                     "process_name": process[2],
 #                    "process_details": process[4],
-                    "process_instructions": process[3],
+                  #  "process_instructions": process[3],
             #        "process_reporting_instructions": process[5],
                 }
                 process_list.append(process_dict)
@@ -997,11 +997,11 @@ class SnowflakeConnector(DatabaseConnector):
         finally:
             cursor.close()
 
-    def get_process_info(self, process_name):
+    def get_process_info(self, bot_id, process_name):
         cursor = self.client.cursor()
         try:
-            query = f"SELECT * FROM {self.schema}.PROCESSES WHERE process_name LIKE %s"
-            cursor.execute(query, (f"%{process_name}%",))
+            query = f"SELECT * FROM {self.schema}.PROCESSES WHERE bot_id like %s AND process_name LIKE %s"
+            cursor.execute(query, (f"%{bot_id}%", f"%{process_name}%",))
             result = cursor.fetchone()
             if result:
                 # Assuming the result is a tuple of values corresponding to the columns in the PROCESSES table
@@ -1014,13 +1014,13 @@ class SnowflakeConnector(DatabaseConnector):
             return {}
 
     def manage_processes(
-        self, action, bot_id=None, process_id=None, process_details=None, thread_id=None
+        self, action, bot_id=None, process_id=None, process_details=None, thread_id=None, process_name=None
     ):
         """
         Manages processs in the PROCESSES table with actions to create, delete, or update a process.
 
         Args:
-            action (str): The action to perform - 'CREATE', 'DELETE','UPDATE', 'LIST','SHOW'.
+            action (str): The action to perform - 'CREATE', 'DELETE','UPDATE', 'LIST', 'SHOW'.
             bot_id (str): The bot ID associated with the process.
             process_id (str): The process ID for the process to manage.
             process_details (dict, optional): The details of the process for create or update actions.
@@ -1028,13 +1028,25 @@ class SnowflakeConnector(DatabaseConnector):
         Returns:
             dict: A dictionary with the result of the operation.
         """
+
+        # If process_name is specified but not in process_details, add it to process_details
+        if process_name and process_details and 'process_name' not in process_details:
+            process_details['process_name'] = process_name
+
+        # If process_name is specified but not in process_details, add it to process_details
+        if process_name and process_details==None:
+            process_details = {}
+            process_details['process_name'] = process_name
+
         required_fields_create = [
             "process_name",
-      #      "process_details"_            "process_instructions",
+      #      "process_details"_  
+           "process_instructions",
        #     "process_reporting_instructions",
         ]
 
         required_fields_update = [
+            "process_name",
  #           "process_details",
             "process_instructions",
      #       "process_reporting_instructions",
@@ -1073,8 +1085,8 @@ class SnowflakeConnector(DatabaseConnector):
         if action == "DELETE_CONFIRMED":
             action = "DELETE"
 
-        if action not in ["CREATE", "DELETE", "UPDATE", "LIST"]:
-            return {"Success": False, "Error": "Invalid action specified."}
+        if action not in ["CREATE", "DELETE", "UPDATE", "LIST", "SHOW"]:
+            return {"Success": False, "Error": "Invalid action specified. Should be CREATE, DELETE, UPDATE, LIST, or SHOW."}
 
         cursor = self.client.cursor()
 
@@ -1084,7 +1096,12 @@ class SnowflakeConnector(DatabaseConnector):
 
         if action == "SHOW":
             print("Running show process info")
-            return self.get_process_info(bot_id)
+            if bot_id is None:
+                return {"Success": False, "Error": "bot_id is required for SHOW action"}
+            if process_details is None or 'process_name' not in process_details:
+                return {"Success": False, "Error": "process_name is required in process_details for SHOW action"}
+            process_name = process_details['process_name']
+            return self.get_process_info(bot_id=bot_id, process_name=process_name)
 
         process_id_created = False
         if process_id is None:

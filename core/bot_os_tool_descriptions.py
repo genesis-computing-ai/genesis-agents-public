@@ -59,8 +59,12 @@ process_runner_functions = [
                     "action": {
                         "type": "string",
                         "description": """
-                        The action to perform on the task can be one of these: KICKOFF_PROCESS, GET_NEXT_STEP, GOTO_STEP
+                        The action to perform on the task can be one of these: KICKOFF_PROCESS, GET_NEXT_STEP
                         """,
+                    },
+                    "bot_id": {
+                        "type": "string",
+                        "description": "The bot_id for the process.",
                     },
                     "process_name": {
                         "type": "string",
@@ -70,11 +74,12 @@ process_runner_functions = [
                         "type": "string",
                         "description": "The previous response from the bot",
                     },
-                    "goto_step": {
-                        "type": "string",
-                        "description": "Directs the process runner to update the program counter",
-                    },
+         #           "goto_step": {
+         #               "type": "string",
+         #               "description": "Directs the process runner to update the program counter",
+         #           },
                 },
+                "required": ["bot_id", "process_name", "action"],
             },
         },
     }

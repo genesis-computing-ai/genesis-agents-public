@@ -166,18 +166,34 @@ class ToolBelt:
         process_name="",
         goto_step=None,
         thread_id=None,
+        bot_id=None
     ):
         if self.client is None:
             self.client = OpenAI(api_key=self.openai_api_key)
         print(f"Running processes Action: {action} | process_id: {process_name} | Thread ID: {thread_id}")
 
-        # Try to get process info from PROCESSES table
-        process = self.db_adapter.get_process_info(process_name)
-        if len(process) == 0:
+        if bot_id is None or process_name is None:
             return {
                 "Success": False,
-                "Message": f"Process {process_name} not found in the PROCESSES table.",
+                "Error": "Both bot_id and process_name are required parameters."
             }
+
+        # Try to get process info from PROCESSES table
+        process = self.db_adapter.get_process_info(bot_id, process_name)
+        if len(process) == 0:
+            # Get a list of processes for the bot
+            processes = self.db_adapter.get_processes_list(bot_id)
+            if processes is not None:
+                process_list = ", ".join([p['process_name'] for p in processes['processes']])
+                return {
+                    "Success": False,
+                    "Message": f"Process {process_name} not found. Available processes are {process_list}.",
+                }
+            else:
+                return {
+                    "Success": False,
+                    "Message": f"Process {process_name} not found. {bot_id} has no processes defined.",
+                }                
 
         if action == "KICKOFF_PROCESS":
             print("Kickoff process.")
@@ -196,6 +212,7 @@ class ToolBelt:
                 You will need to break the process instructions below up into individual steps and run them in whatever order is most effective.  
                 You will then summarize the step taken and its result at the end of this chat thread so there will be a 
                 complete record of all of the steps and all of the results.  Start by returning the first step of the process instructions below.
+                Do not actually perform the step yourself, simply return the instructions on what needs to be done.
 
                 Process Instructions:
                 {process['PROCESS_INSTRUCTIONS']}
@@ -212,7 +229,7 @@ class ToolBelt:
             )
             first_step = response.choices[0].message.content
 
-            self.process_history[thread_id] = first_step
+            self.process_history[thread_id] = "First step: "+ first_step
 
             self.instructions[thread_id] = f"""
                 Hey **@{process['BOT_ID']}** , here is the first step of the process.
@@ -238,8 +255,11 @@ class ToolBelt:
         elif action == "GET_NEXT_STEP":
             print("GET NEXT STEP - process_runner.")
 
-            self.process_history[thread_id] += previous_response
-
+            if thread_id not in self.process_history:
+                return {
+                    "Success": False,
+                    "Message": "Error: Process couldn't be continued. Please retry once more from KICKOFF_PROCESS."
+                }
         #    if self.done:
         #        self.last_fail[thread_id] = None
         #       return {
@@ -295,11 +315,14 @@ class ToolBelt:
             )
 
             result = response.choices[0].message.content
-            self.last_fail[thread_id] = result
+
+            self.process_history[thread_id] += "\nBots response: " + previous_response
 
             print(f"\n{result}\n")
 
             if "**fail**" in result.lower():
+                self.last_fail[thread_id] = result
+                self.process_history[thread_id] += "\nSupervisors concern: " + result
                 print(f"\nStep {self.counter.get(thread_id,None)} failed.  Trying again...\n")
                 return {
                     "success": False,
@@ -308,10 +331,11 @@ class ToolBelt:
                     "additional_request": "Please also explain and summarize this feedback from the supervisor bot to the user so they know whats going on, and how you plan to rectify it."
                 }
 
+            self.last_fail[thread_id] = None
             print(f"\nThis step passed.  Moving to next step\n")
             self.counter[thread_id] += 1
             
-            self.last_fail[thread_id] = None
+       #     self.last_fail[thread_id] = None
             
             extract_instructions = f"""
                 Extract the text for the next step from the process instructions and return it, using the section marked 'Process
@@ -354,7 +378,8 @@ class ToolBelt:
                 Hey **@{process['BOT_ID']}**, here is the next step of the process.
                 {next_step}
                     Execute these instructions now and then pass your response to the run_process tool as a parameter
-                    called previous_response and an action of GET_NEXT_STEP.  If the process is complete, call the run_process tool with an action of END_PROCESS.
+                    called previous_response and an action of GET_NEXT_STEP. 
+                    If need to terminate the process early, call with action of END_PROCESS.
                     Do not verify anything with the user.  Execute the instructions you were given without asking for permission.
                     However DO generate text explaining what you are doing and showing interium outputs, etc. while you are running this and further steps to keep the user informed what is going on.
                     In your response back to run_process, provide a detailed description of what you did, what result you achieved, and why you believe this to have successfully completed the step.
@@ -363,12 +388,14 @@ class ToolBelt:
 
             print(f"\n{self.instructions.get(thread_id,None)}\n")
 
+            self.process_history[thread_id] += "\nNext step: " + self.instructions[thread_id]
+
             return {
                 "success": True,
                 "message": self.instructions.get(thread_id,None),
             }
-        elif action == "GOTO_STEP":
-            self.counter[thread_id] = goto_step
+#        elif action == "GOTO_STEP":
+#            self.counter[thread_id] = goto_step
         elif action == "END_PROCESS":
             print("Received END_PROCESS action.")
             self.done[thread_id] = True
@@ -379,12 +406,18 @@ class ToolBelt:
             return {"success": False, "message": "No action specified."}
 
     def delete_process_thread(self, thread_id):
-        del self.counter[thread_id]
-        del self.process[thread_id]
-        del self.last_fail[thread_id]
-        del self.instructions[thread_id]
-        del self.process_history[thread_id]
-        del self.done[thread_id]
+        if thread_id in self.counter:
+            del self.counter[thread_id]
+        if thread_id in self.process:
+            del self.process[thread_id]
+        if thread_id in self.last_fail:
+            del self.last_fail[thread_id]
+        if thread_id in self.instructions:
+            del self.instructions[thread_id]
+        if thread_id in self.process_history:
+            del self.process_history[thread_id]
+        if thread_id in self.done:
+            del self.done[thread_id]
         return {"success": True, "message": "Process thread deleted."}
     
 if genesis_source == "BigQuery":

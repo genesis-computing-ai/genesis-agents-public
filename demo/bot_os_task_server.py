@@ -115,32 +115,6 @@ else:
 if not os.getenv("TEST_TASK_MODE", "false").lower() == "true":
     db_adapter.ensure_table_exists()
 
-# old stuff for db 
-if False:
-
-    genesis_source = os.getenv("GENESIS_SOURCE", default="Snowflake")
-
-    if genesis_source == "BigQuery":
-        credentials_path = os.getenv(
-            "GOOGLE_APPLICATION_CREDENTIALS", default=".secrets/gcp.json"
-        )
-        with open(credentials_path) as f:
-            connection_info = json.load(f)
-        # Initialize BigQuery client
-        db_adapter = BigQueryConnector(connection_info, "BigQuery")
-    else:  # Initialize BigQuery client
-        print("Starting Snowflake connector...")
-        db_adapter = SnowflakeConnector(connection_name="Snowflake")
-        connection_info = {"Connection_Type": "Snowflake"}
-
-    test_task_mode = os.getenv("TEST_TASK_MODE", "false").lower() == "true"
-    if not test_task_mode:
-        db_adapter.ensure_table_exists()
-    print("---> CONNECTED TO DATABASE:: ", genesis_source)
-
-
-
-
 def get_udf_endpoint_url(endpoint_name="udfendpoint"):
     alt_service_name = os.getenv("ALT_SERVICE_NAME", None)
     #TODO logic may break when getting data cubes endpoint and alt_service_name is set

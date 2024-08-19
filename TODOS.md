@@ -7,6 +7,8 @@ cortex complete() fallback?
 clean up logging and cust data in logs
 
 soon-jl:
+test openai stop during a process kickoff
+update sqllite manage process and schedule process
 x make sure openai running process eliza random numbers is !stop-able
 (in progress) process scheduler and task server, test with cortex bots 
 x comment out semantic tools 

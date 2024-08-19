@@ -1299,14 +1299,26 @@ class SlackBotAdapter(BotOsInputAdapter):
 
                 try:
                     if res.data['ok']:
-                        return f"Message sent to {slack_user_id} successfully."
+                        return {
+                            "success": True,
+                            "message": f"Message sent to {slack_user_id} successfully."
+                        }
                     else:
                         if res.data:
-                            return f"Response from slack: {res.data}."
+                            return {
+                                "success": False,
+                                "message": f"Response from slack: {res.data}."
+                            }
                         else:
-                            return f"Response from slack: {res}"
+                            return {
+                                "success": False,
+                                "message": f"Response from slack: {res}"
+                            }
                 except:
-                    return f"Response from slack: {res}"
+                    return {
+                        "success": False,
+                        "message": f"Response from slack: {res}"
+                    }
 
         except Exception as e:
             return f"Error sending message: {str(e)}"

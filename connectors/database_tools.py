@@ -349,13 +349,13 @@ process_manager_functions = [
         "type": "function",
         "function": {
             "name": "_manage_processes",
-            "description": "Manages processes for bots, including creating, updating, and deleting processes allowing bots to manage processes that can be run on other bots.  Remember that this is not used to create new bots",
+            "description": "Manages processes for bots, including creating, updating, listing and deleting processes allowing bots to manage processes that can be run on other bots.  Remember that this is not used to create new bots",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "action": {
                         "type": "string",
-                        "description": "The action to perform on a process: CREATE, UPDATE, or DELETE.  LIST returns a list of all processes, SHOW shows details for a process, or TIME to get current system time.",
+                        "description": "The action to perform on a process: CREATE, UPDATE, or DELETE.  LIST returns a list of all processes, SHOW shows full instructions and details for a process, or TIME to get current system time.",
                     },
                     "bot_id": {
                         "type": "string",
@@ -389,7 +389,7 @@ process_manager_functions = [
                         "required": [
                             "process_name",
                     #        "process_details",
-                            "process_instructions",
+                    #        "process_instructions",
                          #   "process_reporting_instructions",
                         ],
                     },

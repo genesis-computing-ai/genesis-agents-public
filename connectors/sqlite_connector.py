@@ -557,11 +557,12 @@ class SqliteConnector(DatabaseConnector):
                 "Error": f"Failed to list processs for bot {bot_id}: {e}",
             }
 
-    def get_process_info(self, process_name):
+
+    def get_process_info(self, bot_id, process_name):
         cursor = self.client.cursor()
         try:
-            query = f"SELECT * FROM PROCESSES WHERE process_name LIKE ?"
-            cursor.execute(query, (f"%{process_name}%",))
+            query = f"SELECT * FROM {self.schema}.PROCESSES WHERE bot_id like ? AND process_name LIKE ?"
+            cursor.execute(query, (f"%{bot_id}%", f"%{process_name}%",))
             result = cursor.fetchone()
             if result:
                 # Assuming the result is a tuple of values corresponding to the columns in the PROCESSES table
@@ -572,6 +573,7 @@ class SqliteConnector(DatabaseConnector):
                 return {}
         except Exception as e:
             return {}
+
 
     def manage_processes(
         self, action, bot_id=None, process_id=None, process_details=None, thread_id=None

@@ -353,59 +353,7 @@ class SnowflakeConnector(DatabaseConnector):
                 else:
                     os.environ['CORTEX_MODE'] = 'False'
                     os.environ['CORTEX_AVAILABLE'] = 'False'
-                    return False
-
-            # print('got response from REST API')
-            # try:
-            #     print('response status code on next line',flush=True)
-            #     print('code: ',response.status_code, flush=True)
-            #     if response.status_code != 200:
-            #         print(f"Code is not 200 -- Response status code: {response.status_code}")
-            #         print('response text on next line',flush=True)
-            #         print('text: ',response.text, flush=True)
-            #         if response.text:
-            #             print('Error from cortex: ',response.text, flush=True)
-            #         return False
-            # except Exception as e:
-            #     print('Ok, were here now: Error reading cortex response: ',e, flush=True)
-            #     return False
-            # print('getting sec client...', flush=True)
-            # try:
-            #     pass
-            #     #client = sseclient.SSEClient(response)
-            # except Exception as e:
-            #     print('exception getting sec client: ', flush=True)
-            #     print('  ...the exception is: ',e,flush=True)
-            #     print('the response text:',flush=True)
-            #     print('   ...response text is: ',response.text, flush=True)
-            #     return False
-            # print('got sec client ok',flush=True)
-            # res = ''
-            # curr_resp = ''
-            # if resp is None:
-            #     resp = ''
-            # print('getting client events...', flush=True)
-            # while True:
-            #     data = response.read(1)
-            #     #print(data, end='')
-
-            # #     for event in client.events():
-            #     print('loading event data...', flush=True)
-            # #     d = json.loads(event.data)
-            #     d = data
-            #     r = ''
-            #     try:
-            #         print('getting choices...', flush=True)
-            #         r = d['choices'][0]['delta']['content']
-            #     except:
-            #         print('failed to get choices...', flush=True)
-            #         pass
-            #     print(r, end="")
-                
-            #     resp += r
-            #     curr_resp += r
-            #     print('added delta to resp... ', flush=True)
-            # print('done looping over events... ', flush=True)           
+                    return False          
         except Exception as e:
             print ("Bottom of function -- Error calling Cortex Rest API, ",e, flush=True)
             return False
@@ -607,11 +555,6 @@ class SnowflakeConnector(DatabaseConnector):
             database_name (str): The database name of the row to remove.
         """
         try:
-            # Construct the query to delete the row
-            # query = f"""
-            # DELETE FROM {self.harvest_control_table_name}
-            # WHERE UPPER(source_name) = UPPER(%s) AND UPPER(database_name) = UPPER(%s)
-            # """
             # TODO test!! Construct the query to exclude the row
             query = f"""
             UPDATE {self.harvest_control_table_name}
@@ -1058,14 +1001,50 @@ class SnowflakeConnector(DatabaseConnector):
             }
         action = action.upper()
 
+        try:
+            if action == "CREATE" or action == "UPDATE":
+                # Send process_insteructions to 2nd LLM to check it and format nicely
+                api_key = os.getenv("OPENAI_API_KEY")
+                if not api_key:
+                    print("OpenAI API key is not set in the environment variables.")
+                    return None
+
+                openai_api_key = os.getenv("OPENAI_API_KEY")
+                client = OpenAI(api_key=openai_api_key)
+
+                tidy_process_instructions = f"""
+                Below is a process that has been submitted by a user.  Please review it to insure it is something
+                that will make sense to the run_process tool.  If not, make changes so it is organized into clear
+                steps.  Make sure that it is tidy, legible and properly formatted. 
+                Return the updated and tidy process.  If there is an issue with the process, return an error message.
+
+                The process is as follows:\n {process_details['process_instructions']}
+                """
+
+                tidy_process_instructions = "\n".join(
+                    line.lstrip() for line in tidy_process_instructions.splitlines()
+                )
+
+                response = client.chat.completions.create(
+                    model="gpt-4o",
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": tidy_process_instructions,
+                        },
+                    ],
+                )
+
+                process_details['process_instructions'] = response.choices[0].message.content
+        except Exception as e:
+            return {"Success": False, "Error": f"Error connecting to OpenAI: {e}"}
+
         if action == "CREATE":
             return {
                 "Success": False,
                 "Confirmation_Needed": "Please reconfirm all the process details with the user, then call this function again with the action CREATE_CONFIRMED to actually create the process.  Remember that this function is used to create processes for existing bots, not to create bots themselves.",
             #    "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}",
             }
-        if action == "CREATE_CONFIRMED":
-            action = "CREATE"
 
         if action == "UPDATE":
             return {
@@ -1073,6 +1052,9 @@ class SnowflakeConnector(DatabaseConnector):
                 "Confirmation_Needed": "Please reconfirm all the process details with the user, especially that you're altering the correct process_ID, then call this function again with the action UPDATE_CONFIRMED to actually update the process.  Call with LIST to double-check the process_id if you aren't sure.",
            #     "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}",
             }
+        
+        if action == "CREATE_CONFIRMED":
+            action = "CREATE"
         if action == "UPDATE_CONFIRMED":
             action = "UPDATE"
 
@@ -1173,46 +1155,7 @@ class SnowflakeConnector(DatabaseConnector):
                 "Success": False,
                 "Error": "The 'bot_id' field is required."
             }
-        
-        try:
-            if action == "CREATE" or action == "UPDATE":
-                # Send process_insteructions to 2nd LLM to check it and format nicely
-                api_key = os.getenv("OPENAI_API_KEY")
-                if not api_key:
-                    print("OpenAI API key is not set in the environment variables.")
-                    return None
-
-                openai_api_key = os.getenv("OPENAI_API_KEY")
-                client = OpenAI(api_key=openai_api_key)
-
-                tidy_process_instructions = f"""
-                Below is a process that has been submitted by a user.  Please review it to insure it is something
-                that will make sense to the run_process tool.  If not, make changes so it is organized into clear
-                steps.  Make sure that it is tidy, legible and properly formatted. 
-                Return the updated and tidy process.  If there is an issue with the process, return an error message.
-
-                The process is as follows:\n {process_details['process_instructions']}
-                """
-
-                tidy_process_instructions = "\n".join(
-                    line.lstrip() for line in tidy_process_instructions.splitlines()
-                )
-
-                response = client.chat.completions.create(
-                    model="gpt-4o",
-                    messages=[
-                        {
-                            "role": "user",
-                            "content": tidy_process_instructions,
-                        },
-                    ],
-                )
-
-                process_details['process_instructions'] = response.choices[0].message.content
-        except Exception as e:
-            return {"Success": False, "Error": f"Error connecting to OpenAI: {e}"}
     
-
         try:
             if action == "CREATE":
                 insert_query = f"""
@@ -1383,6 +1326,7 @@ class SnowflakeConnector(DatabaseConnector):
             action = "CREATE"
 
         if action == "UPDATE":
+
             return {
                 "Success": False,
                 "Confirmation_Needed": "Please reconfirm all the scheduled process details with the user, especially that you're altering the correct TASK_ID, then call this function again with the action UPDATE_CONFIRMED to actually update the scheduled process.  Call with LIST to double-check the task_id if you aren't sure.",

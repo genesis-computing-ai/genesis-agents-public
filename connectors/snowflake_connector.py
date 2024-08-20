@@ -9,7 +9,6 @@ import uuid
 import os
 import time
 import hashlib
-import sseclient
 import yaml, time, random, string
 import snowflake.connector
 import random, string
@@ -79,19 +78,21 @@ class SnowflakeConnector(DatabaseConnector):
         self.connection = self._create_connection()
         self.semantic_models_map = {}
 
-        try:
-            pass
-        #     print('REST TOKEN: ',self.connection.rest.token)
-        except Exception as e:
-            print("Could not get REST Token: ", e)
+        self.client = self.connection
+        self.schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "GENESIS_INTERNAL")
 
         if os.getenv("CORTEX_MODEL", None) is not None and os.getenv("CORTEX_MODEL", '') != '':
             self.llm_engine =  os.getenv("CORTEX_MODEL", None)
         else:
             self.llm_engine = 'llama3.1-405b'
 
-        self.client = self.connection
-        self.schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "GENESIS_INTERNAL")
+        try:
+            print(f"Is cortex avail? {self.check_cortex_available()}")
+            # pass
+        #     print('REST TOKEN: ',self.connection.rest.token)
+        except Exception as e:
+            print("Could not get REST Token: ", e)
+
 
         # self.client = self._create_client()
         self.genbot_internal_project_and_schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "None")
@@ -164,38 +165,9 @@ class SnowflakeConnector(DatabaseConnector):
         self.ngrok_tokens_table_name = (
             self.genbot_internal_project_and_schema + "." + "NGROK_TOKENS"
         )
-        self.images_table_name = self.app_share_schema + "." + "IMAGES"
-
-        #   print("harvest_control_table_name: ", self.harvest_control_table_name)
-        #   print("metadata_table_name: ", self.metadata_table_name)
-        #   print("message_log_table_name: ", self.genbot_internal_message_log)
-
-        #   print("harvest_control_table_name: ", self.harvest_control_table_name)
-        #   print("metadata_table_name: ", self.metadata_table_name)
-        #   print("message_log_table_name: ", self.genbot_internal_message_log)
-
-        # self.ensure_table_exists()
-
-        # make sure harvester control and results tables are available, if not create them
-        # self.ensure_table_exists()
-
-        # # check llm key and set the cortex_mode appropriately 
-        # if os.getenv("CORTEX_MODE", "False") == 'False':
-        #     api_key_from_env, llm_api_key = self.llm_key_handler.get_llm_key_from_env()
-        #     if api_key_from_env == False and self.source_name == "Snowflake":
-        #         print('Checking LLM_TOKENS for saved LLM Keys:')
-        #         llm_keys_and_types = []
-        #         llm_keys_and_types = self.db_get_llm_key()
-        #         if llm_keys_and_types == []:
-        #             llm_keys_and_types = [('cortex_no_key_needed','cortex')]
-        #         llm_api_key = self.llm_key_handler.check_llm_key(llm_keys_and_types)
-                
-        #     if llm_api_key is None:
-        #         pass        
-
+        self.images_table_name = self.app_share_schema + "." + "IMAGES"  
 
     def check_cortex_available(self):
-
         if os.environ.get("CORTEX_AVAILABLE", 'False') in ['False', '']:
             os.environ["CORTEX_AVAILABLE"] = 'False'
         if os.getenv("CORTEX_VIA_COMPLETE",'False') in ['False', '']:
@@ -244,7 +216,6 @@ class SnowflakeConnector(DatabaseConnector):
 
 
     def test_cortex(self):
-        
         newarray = [{"role": "user", "content": "hi there"} ]
         new_array_str = json.dumps(newarray)
 
@@ -294,15 +265,45 @@ class SnowflakeConnector(DatabaseConnector):
  
 
     def test_cortex_via_rest(self):
-        
-        newarray = [{"role": "user", "content": "hi there"} ]
-        new_array_str = json.dumps(newarray)
+        curr_resp = ''
+        response = self.cortex_chat_completion("Hi there")
+        if response.status_code != 200:
+            print(f"Failed to connect to Cortex API. Status code: {response.status_code}")
+            print(f"Response: {response.text}")
+            return False
+        else:
+            for line in response.iter_lines():
+                if line:
+                    try:
+                        decoded_line = line.decode('utf-8')
+                        if not decoded_line.strip():
+                            print("Received an empty line.")
+                            continue
+                        if decoded_line.startswith("data: "):
+                            decoded_line = decoded_line[len("data: "):]
+                        event_data = json.loads(decoded_line)
+                        if 'choices' in event_data:
+                            d = event_data['choices'][0]['delta'].get('content','')
+                            curr_resp += d
+                            print(d, end='', flush=True)
+                    except json.JSONDecodeError as e:
+                        print(f"Error decoding JSON: {e}")
+                        continue
+
+            #  print('full resp: ',curr_resp)
+            if len(curr_resp) > 2:
+                os.environ['CORTEX_AVAILABLE'] = 'True'
+                return True
+            else:
+                os.environ['CORTEX_MODE'] = 'False'
+                os.environ['CORTEX_AVAILABLE'] = 'False'
+                return False
+
+
+    def cortex_chat_completion(self, prompt):
+        newarray = [{"role": "user", "content": prompt} ]
 
         try:
-        
-            resp = ''
-            curr_resp = ''
-
             SNOWFLAKE_HOST = self.client.host
             REST_TOKEN = self.client.rest.token
             url=f"https://{SNOWFLAKE_HOST}/api/v2/cortex/inference/complete"
@@ -314,105 +315,22 @@ class SnowflakeConnector(DatabaseConnector):
         
             request_data = {
                 "model": self.llm_engine,
-    #            "messages": [{"content": "Hi there"}],
                 "messages": newarray,
                 "stream": True,
             }
 
             print(f"snowflake_connector test calling cortex {self.llm_engine} via REST API, content est tok len=",len(str(newarray))/4)
 
-            response = requests.post(url, json=request_data, stream=True, headers=headers)
-            if response.status_code != 200:
-                print(f"Failed to connect to Cortex API. Status code: {response.status_code}")
-                print(f"Response: {response.text}")
-                return False
-            else:
-
-                for line in response.iter_lines():
-                    if line:
-                        try:
-                            decoded_line = line.decode('utf-8')
-                            if not decoded_line.strip():
-                                print("Received an empty line.")
-                                continue
-                            if decoded_line.startswith("data: "):
-                                decoded_line = decoded_line[len("data: "):]
-                            event_data = json.loads(decoded_line)
-                            if 'choices' in event_data:
-                                d = event_data['choices'][0]['delta'].get('content','')
-                                curr_resp += d
-                                print(d, end='', flush=True)
-                        except json.JSONDecodeError as e:
-                            print(f"Error decoding JSON: {e}")
-                            continue
-
-              #  print('full resp: ',curr_resp)
-                if len(curr_resp) > 2:
-                    os.environ['CORTEX_AVAILABLE'] = 'True'
-                    return True
-                else:
-                    os.environ['CORTEX_MODE'] = 'False'
-                    os.environ['CORTEX_AVAILABLE'] = 'False'
-                    return False
-
-            # print('got response from REST API')
-            # try:
-            #     print('response status code on next line',flush=True)
-            #     print('code: ',response.status_code, flush=True)
-            #     if response.status_code != 200:
-            #         print(f"Code is not 200 -- Response status code: {response.status_code}")
-            #         print('response text on next line',flush=True)
-            #         print('text: ',response.text, flush=True)
-            #         if response.text:
-            #             print('Error from cortex: ',response.text, flush=True)
-            #         return False
-            # except Exception as e:
-            #     print('Ok, were here now: Error reading cortex response: ',e, flush=True)
+            return requests.post(url, json=request_data, stream=True, headers=headers)
+            # if response.status_code != 200:
+            #     print(f"Failed to connect to Cortex API. Status code: {response.status_code}")
+            #     print(f"Response: {response.text}")
             #     return False
-            # print('getting sec client...', flush=True)
-            # try:
-            #     pass
-            #     #client = sseclient.SSEClient(response)
-            # except Exception as e:
-            #     print('exception getting sec client: ', flush=True)
-            #     print('  ...the exception is: ',e,flush=True)
-            #     print('the response text:',flush=True)
-            #     print('   ...response text is: ',response.text, flush=True)
-            #     return False
-            # print('got sec client ok',flush=True)
-            # res = ''
-            # curr_resp = ''
-            # if resp is None:
-            #     resp = ''
-            # print('getting client events...', flush=True)
-            # while True:
-            #     data = response.read(1)
-            #     #print(data, end='')
-
-            # #     for event in client.events():
-            #     print('loading event data...', flush=True)
-            # #     d = json.loads(event.data)
-            #     d = data
-            #     r = ''
-            #     try:
-            #         print('getting choices...', flush=True)
-            #         r = d['choices'][0]['delta']['content']
-            #     except:
-            #         print('failed to get choices...', flush=True)
-            #         pass
-            #     print(r, end="")
-                
-            #     resp += r
-            #     curr_resp += r
-            #     print('added delta to resp... ', flush=True)
-            # print('done looping over events... ', flush=True)           
+            
+            # return response
         except Exception as e:
             print ("Bottom of function -- Error calling Cortex Rest API, ",e, flush=True)
             return False
-
-            # print('returning true... ', flush=True)
-            # return True
-
 
     def _create_snowpark_connection(self):
         try:
@@ -1058,14 +976,63 @@ class SnowflakeConnector(DatabaseConnector):
             }
         action = action.upper()
 
+        try:
+            if action == "CREATE" or action == "UPDATE":
+                # Send process_instructions to 2nd LLM to check it and format nicely
+                tidy_process_instructions = f"""
+                Below is a process that has been submitted by a user.  Please review it to insure it is something
+                that will make sense to the run_process tool.  If not, make changes so it is organized into clear
+                steps.  Make sure that it is tidy, legible and properly formatted. 
+                Return the updated and tidy process.  If there is an issue with the process, return an error message.
+
+                The process is as follows:\n {process_details['process_instructions']}
+                """
+
+                tidy_process_instructions = "\n".join(
+                    line.lstrip() for line in tidy_process_instructions.splitlines()
+                )
+
+                # Check to see what LLM is currently available
+                # os.environ["CORTEX_MODE"] = "False"
+                # os.environ["CORTEX_AVAILABLE"] = 'False'
+                # os.getenv("BOT_OS_DEFAULT_LLM_ENGINE") == 'openai | cortex'
+                # os.getenv("CORTEX_FIREWORKS_OVERRIDE", "False").lower() 
+
+                if os.getenv("BOT_OS_DEFAULT_LLM_ENGINE") == 'openai':
+                    api_key = os.getenv("OPENAI_API_KEY")
+                    if not api_key:
+                        print("OpenAI API key is not set in the environment variables.")
+                        return None
+
+                    openai_api_key = os.getenv("OPENAI_API_KEY")
+                    client = OpenAI(api_key=openai_api_key)
+                    response = client.chat.completions.create(
+                        model="gpt-4o",
+                        messages=[
+                            {
+                                "role": "user",
+                                "content": tidy_process_instructions,
+                            },
+                        ],
+                    )
+
+                    process_details['process_instructions'] = response.choices[0].message.content
+
+                elif os.getenv("BOT_OS_DEFAULT_LLM_ENGINE") == 'cortex':
+                    if not self.check_cortex_available():
+                        print("Cortex is not available.")
+                        return None
+
+
+        except Exception as e:
+            return {"Success": False, "Error": f"Error connecting to LLM: {e}"}
+
         if action == "CREATE":
             return {
                 "Success": False,
                 "Confirmation_Needed": "Please reconfirm all the process details with the user, then call this function again with the action CREATE_CONFIRMED to actually create the process.  Remember that this function is used to create processes for existing bots, not to create bots themselves.",
             #    "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}",
             }
-        if action == "CREATE_CONFIRMED":
-            action = "CREATE"
 
         if action == "UPDATE":
             return {
@@ -1073,6 +1040,10 @@ class SnowflakeConnector(DatabaseConnector):
                 "Confirmation_Needed": "Please reconfirm all the process details with the user, especially that you're altering the correct process_ID, then call this function again with the action UPDATE_CONFIRMED to actually update the process.  Call with LIST to double-check the process_id if you aren't sure.",
            #     "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}",
             }
+        
+        if action == "CREATE_CONFIRMED":
+            action = "CREATE"
+
         if action == "UPDATE_CONFIRMED":
             action = "UPDATE"
 
@@ -1173,44 +1144,6 @@ class SnowflakeConnector(DatabaseConnector):
                 "Success": False,
                 "Error": "The 'bot_id' field is required."
             }
-        
-        try:
-            if action == "CREATE" or action == "UPDATE":
-                # Send process_insteructions to 2nd LLM to check it and format nicely
-                api_key = os.getenv("OPENAI_API_KEY")
-                if not api_key:
-                    print("OpenAI API key is not set in the environment variables.")
-                    return None
-
-                openai_api_key = os.getenv("OPENAI_API_KEY")
-                client = OpenAI(api_key=openai_api_key)
-
-                tidy_process_instructions = f"""
-                Below is a process that has been submitted by a user.  Please review it to insure it is something
-                that will make sense to the run_process tool.  If not, make changes so it is organized into clear
-                steps.  Make sure that it is tidy, legible and properly formatted. 
-                Return the updated and tidy process.  If there is an issue with the process, return an error message.
-
-                The process is as follows:\n {process_details['process_instructions']}
-                """
-
-                tidy_process_instructions = "\n".join(
-                    line.lstrip() for line in tidy_process_instructions.splitlines()
-                )
-
-                response = client.chat.completions.create(
-                    model="gpt-4o",
-                    messages=[
-                        {
-                            "role": "user",
-                            "content": tidy_process_instructions,
-                        },
-                    ],
-                )
-
-                process_details['process_instructions'] = response.choices[0].message.content
-        except Exception as e:
-            return {"Success": False, "Error": f"Error connecting to OpenAI: {e}"}
     
 
         try:

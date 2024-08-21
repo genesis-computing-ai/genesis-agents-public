@@ -6,6 +6,7 @@ import json
 import os
 import requests, time
 from flask import Flask, request, jsonify, make_response
+from core.bot_os_tools import ToolBelt
 from core.bot_os import BotOsSession
 from core.bot_os_corpus import URLListFileCorpus
 from core.bot_os_defaults import (
@@ -22,7 +23,6 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from connectors.bigquery_connector import BigQueryConnector
 from connectors.snowflake_connector import SnowflakeConnector
 from connectors.sqlite_connector import SqliteConnector
-from core.bot_os_tools import get_tools
 from embed.embed_openbb import openbb_query
 from slack.slack_bot_os_adapter import SlackBotAdapter
 
@@ -160,6 +160,7 @@ except Exception as e:
 
 print("---> CONNECTED TO DATABASE:: ", genesis_source)
 global_flags.source = genesis_source
+
 # while True:
 #    prompt = input('> ')
 #    db_adapter.semantic_copilot(prompt, semantic_model='"!SEMANTIC"."GENESIS_TEST"."GENESIS_INTERNAL"."SEMANTIC_STAGE"."revenue.yaml"')

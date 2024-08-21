@@ -1043,6 +1043,9 @@ class SnowflakeConnector(DatabaseConnector):
                     if not self.check_cortex_available():
                         print("Cortex is not available.")
                         return None
+                    else:
+                        response = self.cortex_chat_completion(tidy_process_instructions)
+                        process_details['process_instructions'] = response
 
 
         except Exception as e:

@@ -161,6 +161,38 @@ class ToolBelt:
             return response
         except Exception as e:
             return {"error": str(e)}
+    
+    def chat_completion(self, message):
+        if os.getenv("BOT_OS_DEFAULT_LLM_ENGINE") == 'openai':
+                    api_key = os.getenv("OPENAI_API_KEY")
+                    if not api_key:
+                        print("OpenAI API key is not set in the environment variables.")
+                        return None
+
+                    openai_api_key = os.getenv("OPENAI_API_KEY")
+                    client = OpenAI(api_key=openai_api_key)
+                    response = client.chat.completions.create(
+                        model="gpt-4o",
+                        messages=[
+                            {
+                                "role": "user",
+                                "content": message,
+                            },
+                        ],
+                    )
+
+                    return_msg = response.choices[0].message.content
+
+        elif os.getenv("BOT_OS_DEFAULT_LLM_ENGINE") == 'cortex':
+            if not db_adapter.check_cortex_available():
+                print("Cortex is not available.")
+                return None
+            else:
+                response = db_adapter.cortex_chat_completion(message)
+                return_msg = response
+        
+        return return_msg
+
 
     def run_process(
         self,
@@ -221,19 +253,7 @@ class ToolBelt:
                 {process['PROCESS_INSTRUCTIONS']}
                 """
             
-            # print(f"API KEY IN ENV VAR: {self.openai_api_key}")
-
-            response = self.client.chat.completions.create(
-                model="gpt-4o",
-                messages=[
-                    {
-                        "role": "user",
-                        "content": extract_instructions,
-                    },
-                ],
-            
-            )
-            first_step = response.choices[0].message.content
+            first_step = self.chat_completion(extract_instructions)
 
             self.process_history[thread_id] = "First step: "+ first_step
 
@@ -310,17 +330,7 @@ class ToolBelt:
 
             print(f"\n{check_response}\n")
 
-            response = self.client.chat.completions.create(
-                model="gpt-4o",
-                messages=[
-                    {
-                        "role": "user",
-                        "content": check_response,
-                    },
-                ],
-            )
-
-            result = response.choices[0].message.content
+            result = self.chat_completion(check_response)
 
             self.process_history[thread_id] += "\nBots response: " + previous_response
 
@@ -356,17 +366,7 @@ class ToolBelt:
 
             print(f"\n{extract_instructions}\n")
 
-            response = self.client.chat.completions.create(
-                model="gpt-4o",
-                messages=[
-                    {
-                        "role": "user",
-                        "content": extract_instructions,
-                    },
-                ],
-            )
-
-            next_step = response.choices[0].message.content
+            next_step = self.chat_completion(extract_instructions)
 
             if next_step == '**done**' or next_step == '***done***':
                 self.last_fail[thread_id] = None

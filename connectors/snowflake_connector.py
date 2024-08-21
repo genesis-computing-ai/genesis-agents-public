@@ -3162,6 +3162,31 @@ class SnowflakeConnector(DatabaseConnector):
             return columns
         return columns
 
+    def alt_get_ddl(self,table_name = None):
+        #print(table_name) 
+        describe_query = f"DESCRIBE TABLE {table_name};"
+        try:
+            describe_result = self.run_query(query=describe_query, max_rows=1000, max_rows_override=True)
+        except:
+            return None 
+        
+        ddl_statement = "CREATE TABLE " + table_name + " (\n"
+        for column in describe_result:
+            column_name = column['name']
+            column_type = column['type']
+            nullable = " NOT NULL" if not column['null?'] else ""
+            default = f" DEFAULT {column['default']}" if column['default'] is not None else ""
+            comment = f" COMMENT '{column['comment']}'" if 'comment' in column and column['comment'] is not None else ""
+            key = ""
+            if column.get('primary_key', False):
+                key = " PRIMARY KEY"
+            elif column.get('unique_key', False):
+                key = " UNIQUE"
+            ddl_statement += f"    {column_name} {column_type}{nullable}{default}{key}{comment},\n"
+        ddl_statement = ddl_statement.rstrip(',\n') + "\n);"
+        #print(ddl_statement)
+        return ddl_statement
+
     def get_sample_data(self, database, schema_name: str, table_name: str):
         """
         Fetches 10 rows of sample data from a specific table in Snowflake.

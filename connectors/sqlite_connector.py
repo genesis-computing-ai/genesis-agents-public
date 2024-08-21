@@ -174,23 +174,16 @@ class SqliteConnector(DatabaseConnector):
 
             # Prepare the MERGE statement for Snowflake
             merge_statement = f"""
-            MERGE INTO {self.harvest_control_table_name} T
-            USING (SELECT %(source_name)s AS source_name, %(database_name)s AS database_name) S
-            ON T.source_name = S.source_name AND T.database_name = S.database_name
-            WHEN MATCHED THEN
-              UPDATE SET
-                initial_crawl_complete = %(initial_crawl_complete)s,
-                refresh_interval = %(refresh_interval)s,
-                schema_exclusions = %(schema_exclusions)s,
-                schema_inclusions = %(schema_inclusions)s,
-                status = %(status)s
-            WHEN NOT MATCHED THEN
-              INSERT (source_name, database_name, initial_crawl_complete, refresh_interval, schema_exclusions, schema_inclusions, status)
-              VALUES (%(source_name)s, %(database_name)s, %(initial_crawl_complete)s, %(refresh_interval)s, %(schema_exclusions)s, %(schema_inclusions)s, %(status)s)
+                UPDATE {self.harvest_control_table_name}
+                    SET initial_crawl_complete = :initial_crawl_complete,
+                        refresh_interval = :refresh_interval,
+                        schema_exclusions = :schema_exclusions,
+                        schema_inclusions = :schema_inclusions,
+                        status = :status
+                    WHERE source_name = :source_name AND database_name = :database_name;
             """
-
-            # Execute the MERGE statement
-            self.client.cursor().execute(
+            cursor = self.client.cursor()
+            cnt = cursor.execute(
                 merge_statement,
                 {
                     "source_name": source_name,
@@ -202,6 +195,16 @@ class SqliteConnector(DatabaseConnector):
                     "status": status,
                 },
             )
+            cursor.close()
+            if cnt.rowcount == 0:
+                self.run_insert(self.harvest_control_table_name, 
+                        source_name= source_name,
+                        database_name= database_name,
+                        initial_crawl_complete= initial_crawl_complete,
+                        refresh_interval= refresh_interval,
+                        schema_exclusions= str(schema_exclusions),
+                        schema_inclusions= str(schema_inclusions),
+                        status= status)               
 
             return {
                 "Success": True,
@@ -2045,108 +2048,42 @@ class SqliteConnector(DatabaseConnector):
         crawl_status="Completed",
         role_used_for_crawl="Default",
         embedding=None,
+        memory_uuid=None,
+        ddl_hash=None,
     ):
-
         qualified_table_name = f'"{database_name}"."{schema_name}"."{table_name}"'
-        memory_uuid = str(uuid.uuid4())
+        if not memory_uuid:
+            memory_uuid = str(uuid.uuid4())
         last_crawled_timestamp = datetime.utcnow().isoformat(" ")
-        ddl_hash = self.sha256_hash_hex_string(ddl)
+        if not ddl_hash:
+            ddl_hash = self.sha256_hash_hex_string(ddl)
 
         # Assuming role_used_for_crawl is stored in self.connection_info["client_email"]
         role_used_for_crawl = self.role
 
-        # Convert embedding list to string format if not None
-        embedding_str = (
-            ",".join(str(e) for e in embedding) if embedding is not None else None
-        )
+        # if cortex mode, load embedding_native else load embedding column
+        if os.environ.get("CORTEX_MODE", 'False') == 'True':
+            embedding_target = 'embedding_native'
+        else:
+            embedding_target = 'embedding'
 
-        # Construct the MERGE SQL statement with placeholders for parameters
-        merge_sql = f"""
-        MERGE INTO {self.metadata_table_name} USING (
-            SELECT
-                %(source_name)s AS source_name,
-                %(qualified_table_name)s AS qualified_table_name,
-                %(memory_uuid)s AS memory_uuid,
-                %(database_name)s AS database_name,
-                %(schema_name)s AS schema_name,
-                %(table_name)s AS table_name,
-                %(complete_description)s AS complete_description,
-                %(ddl)s AS ddl,
-                %(ddl_short)s AS ddl_short,
-                %(ddl_hash)s AS ddl_hash,
-                %(summary)s AS summary,
-                %(sample_data_text)s AS sample_data_text,
-                %(last_crawled_timestamp)s AS last_crawled_timestamp,
-                %(crawl_status)s AS crawl_status,
-                %(role_used_for_crawl)s AS role_used_for_crawl,
-                %(embedding)s AS embedding
-        ) AS new_data
-        ON {self.metadata_table_name}.qualified_table_name = new_data.qualified_table_name
-        WHEN MATCHED THEN UPDATE SET
-            source_name = new_data.source_name,
-            memory_uuid = new_data.memory_uuid,
-            database_name = new_data.database_name,
-            schema_name = new_data.schema_name,
-            table_name = new_data.table_name,
-            complete_description = new_data.complete_description,
-            ddl = new_data.ddl,
-            ddl_short = new_data.ddl_short,
-            ddl_hash = new_data.ddl_hash,
-            summary = new_data.summary,
-            sample_data_text = new_data.sample_data_text,
-            last_crawled_timestamp = TO_TIMESTAMP_NTZ(new_data.last_crawled_timestamp),
-            crawl_status = new_data.crawl_status,
-            role_used_for_crawl = new_data.role_used_for_crawl,
-            embedding = ARRAY_CONSTRUCT(new_data.embedding)
-        WHEN NOT MATCHED THEN INSERT (
-            source_name, qualified_table_name, memory_uuid, database_name, schema_name, table_name,
-            complete_description, ddl, ddl_short, ddl_hash, summary, sample_data_text, last_crawled_timestamp,
-            crawl_status, role_used_for_crawl, embedding
-        ) VALUES (
-            new_data.source_name, new_data.qualified_table_name, new_data.memory_uuid, new_data.database_name,
-            new_data.schema_name, new_data.table_name, new_data.complete_description, new_data.ddl, new_data.ddl_short,
-            new_data.ddl_hash, new_data.summary, new_data.sample_data_text, TO_TIMESTAMP_NTZ(new_data.last_crawled_timestamp),
-            new_data.crawl_status, new_data.role_used_for_crawl, ARRAY_CONSTRUCT(new_data.embedding)
-        );
-        """
-
-        # Set up the query parameters
-        query_params = {
-            "source_name": self.source_name,
-            "qualified_table_name": qualified_table_name,
-            "memory_uuid": memory_uuid,
-            "database_name": database_name,
-            "schema_name": schema_name,
-            "table_name": table_name,
-            "complete_description": complete_description,
-            "ddl": ddl,
-            "ddl_short": ddl_short,
-            "ddl_hash": ddl_hash,
-            "summary": summary,
-            "sample_data_text": sample_data_text,
-            "last_crawled_timestamp": last_crawled_timestamp,
-            "crawl_status": crawl_status,
-            "role_used_for_crawl": role_used_for_crawl,
-            "embedding": embedding_str,
-        }
-
-        for param, value in query_params.items():
-            # print(f'{param}: {value}')
-            if value is None:
-                # print(f'{param} is null')
-                query_params[param] = "NULL"
-
-        # Execute the MERGE statement with parameters
         try:
-            # print("merge sql: ",merge_sql)
-            cursor = self.client.cursor()
-            cursor.execute(merge_sql, query_params)
-            self.client.commit()
+            query = f"""SELECT COUNT(*) AS CNT  FROM  {self.metadata_table_name}                  
+                        WHERE qualified_table_name = '{qualified_table_name}';"""
+            if_exist = self.run_query(query)
+            if if_exist[0]['CNT']: # udpate
+                query = f"""DROP FROM {self.metadata_table_name}              
+                        WHERE qualified_table_name = '{qualified_table_name}';"""                
+            self.run_insert(self.metadata_table_name, 
+                source_name=self.source_name, qualified_table_name=qualified_table_name, memory_uuid=memory_uuid, 
+                database_name=database_name, schema_name=schema_name, table_name=table_name,
+                complete_description=complete_description, ddl=ddl, ddl_short=ddl_short, ddl_hash=ddl_hash,
+                summary=summary, sample_data_text=sample_data_text, last_crawled_timestamp=last_crawled_timestamp,
+                crawl_status=crawl_status, role_used_for_crawl=role_used_for_crawl, **{embedding_target: json.dumps(embedding)})
+       
         except Exception as e:
             print(f"An error occurred while executing the MERGE statement: {e}")
-        finally:
-            if cursor is not None:
-                cursor.close()
+
 
     # make sure this is returning whats expected (array vs string)
     def get_table_ddl(self, database_name: str, schema_name: str, table_name=None):
@@ -2191,7 +2128,7 @@ class SqliteConnector(DatabaseConnector):
     ):
         try:
             if database_name and schema_name and table_name:
-                query = f"SELECT IFF(count(*)>0,TRUE,FALSE) from APP_SHARE.HARVEST_RESULTS where DATABASE_NAME = '{database_name}' AND SCHEMA_NAME = '{schema_name}' AND TABLE_NAME = '{table_name}';"
+                query = f"SELECT IIF(count(*)>0,TRUE,FALSE) from HARVEST_RESULTS where DATABASE_NAME = '{database_name}' AND SCHEMA_NAME = '{schema_name}' AND TABLE_NAME = '{table_name}';"
                 cursor = self.client.cursor()
                 cursor.execute(query)
                 result = cursor.fetchone()
@@ -2389,7 +2326,7 @@ class SqliteConnector(DatabaseConnector):
 
     def get_visible_databases(self, thread_id=None):
         schemas = []
-        query = "SHOW DATABASES"
+        query = "SELECT * FROM pragma_database_list;"
         cursor = self.client.cursor()
         cursor.execute(query)
         for row in cursor:
@@ -2399,41 +2336,24 @@ class SqliteConnector(DatabaseConnector):
 
     def get_schemas(self, database, thread_id=None):
         schemas = []
-        query = f'SHOW SCHEMAS IN DATABASE "{database}"'
+        query = "SELECT name FROM sqlite_master WHERE type='table';"
         cursor = self.client.cursor()
         cursor.execute(query)
         for row in cursor:
-            schemas.append(row[1])  # Assuming the schema name is in the second column
+            schemas.append(row[0])  # Assuming the schema name is in the second column
         cursor.close()
         return schemas
 
-    def get_tables(self, database, schema, thread_id=None):
-        tables = []
-        query = f'SHOW TABLES IN "{database}"."{schema}"'
-        cursor = self.client.cursor()
-        cursor.execute(query)
-        for row in cursor:
-            tables.append(
-                {"table_name": row[1], "object_type": "TABLE"}
-            )  # Assuming the table name is in the second column and DDL in the third
-        cursor.close()
-        query = f'SHOW VIEWS IN "{database}"."{schema}"'
-        cursor = self.client.cursor()
-        cursor.execute(query)
-        for row in cursor:
-            tables.append(
-                {"table_name": row[1], "object_type": "VIEW"}
-            )  # Assuming the table name is in the second column and DDL in the third
-        cursor.close()
-        return tables
+    def get_tables(self, database, schema, thread_id=None):        
+        return [{'table_name': schema}]
 
     def get_columns(self, database, schema, table):
         columns = []
-        query = f'SHOW COLUMNS IN "{database}"."{schema}"."{table}"'
+        query = f'PRAGMA table_info({table});'
         cursor = self.client.cursor()
         cursor.execute(query)
         for row in cursor:
-            columns.append(row[2])  # Assuming the column name is in the first column
+            columns.append(row[1])  # Assuming the column name is in the first column
         cursor.close()
         return columns
 
@@ -2446,13 +2366,38 @@ class SqliteConnector(DatabaseConnector):
         :param table_name: The name of the table.
         :return: A list of dictionaries representing rows of sample data.
         """
-        query = f'SELECT * FROM "{database}"."{schema_name}"."{table_name}" LIMIT 10'
+        query = f'SELECT * FROM {table_name} LIMIT 10'
         cursor = self.client.cursor()
         cursor.execute(query)
         columns = [col[0] for col in cursor.description]
         sample_data = [dict(zip(columns, row)) for row in cursor]
         cursor.close()
         return sample_data
+
+    def alt_get_ddl(self, table_name):
+        table_name = table_name.split('.')[-1]
+        describe_query = f"PRAGMA table_info({table_name});"
+        try:
+            describe_result = self.run_query(query=describe_query, max_rows=1000, max_rows_override=True)
+        except:
+            return None 
+        
+        ddl_statement = "CREATE TABLE " + table_name + " (\n"
+        for column in describe_result:
+            column_name = column['NAME']
+            column_type = column['TYPE']
+            nullable = " NOT NULL" if not column['NOTNULL'] else ""
+            default = f" DEFAULT {column['DFLT_VALUE']}" if column['DFLT_VALUE'] is not None else ""
+            comment = ''
+            key = ""
+            if column.get('primary_key', False):
+                key = " PRIMARY KEY"
+            elif column.get('unique_key', False):
+                key = " UNIQUE"
+            ddl_statement += f"    {column_name} {column_type}{nullable}{default}{key}{comment},\n"
+        ddl_statement = ddl_statement.rstrip(',\n') + "\n);"
+        #print(ddl_statement)
+        return ddl_statement
 
     def create_bot_workspace(self, workspace_schema_name):
         try:

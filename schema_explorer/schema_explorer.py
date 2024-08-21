@@ -36,29 +36,8 @@ class SchemaExplorer:
             self.embedding_model = os.getenv("OPENAI_HARVESTER_EMBEDDING_MODEL", 'text-embedding-3-large')
 
     def alt_get_ddl(self,table_name = None):
-        #print(table_name) 
-        describe_query = f"DESCRIBE TABLE {table_name};"
-        try:
-            describe_result = self.db_connector.run_query(query=describe_query, max_rows=1000, max_rows_override=True)
-        except:
-            return None 
         
-        ddl_statement = "CREATE TABLE " + table_name + " (\n"
-        for column in describe_result:
-            column_name = column['name']
-            column_type = column['type']
-            nullable = " NOT NULL" if not column['null?'] else ""
-            default = f" DEFAULT {column['default']}" if column['default'] is not None else ""
-            comment = f" COMMENT '{column['comment']}'" if 'comment' in column and column['comment'] is not None else ""
-            key = ""
-            if column.get('primary_key', False):
-                key = " PRIMARY KEY"
-            elif column.get('unique_key', False):
-                key = " UNIQUE"
-            ddl_statement += f"    {column_name} {column_type}{nullable}{default}{key}{comment},\n"
-        ddl_statement = ddl_statement.rstrip(',\n') + "\n);"
-        #print(ddl_statement)
-        return ddl_statement
+        return self.db_connector.alt_get_ddl(table_name)
         
     def format_sample_data(self, sample_data):
         # Utility method to format sample data into a string
@@ -340,7 +319,7 @@ class SchemaExplorer:
         try:
             inclusions = database["schema_inclusions"]
             if isinstance(inclusions, str):
-                inclusions = json.loads(inclusions)
+                inclusions = json.loads(inclusions.replace("'", '"'))
             if inclusions is None:
                 inclusions = []
             if len(inclusions) == 0:
@@ -357,7 +336,7 @@ class SchemaExplorer:
                 schemas = inclusions
             exclusions = database["schema_exclusions"]
             if isinstance(exclusions, str):
-                exclusions = json.loads(exclusions)
+                exclusions = json.loads(exclusions.replace("'", '"'))
             if exclusions is None:
                 exclusions = []
             schemas = [schema for schema in schemas if schema not in exclusions]
@@ -373,12 +352,17 @@ class SchemaExplorer:
                 update {self.db_connector.harvest_control_table_name}
                 set initial_crawl_complete = {crawl_flag}
                 where source_name = '{self.db_connector.source_name}' and database_name = '{database_name}';"""
-        else:
+            update_query = self.db_connector.run_query(query)
+        elif self.db_connector.source_name == 'Sqlite':
             query = f"""
-                update `{self.db_connector.harvest_control_table_name}`
+                update {self.db_connector.harvest_control_table_name}
                 set initial_crawl_complete = {crawl_flag}
                 where source_name = '{self.db_connector.source_name}' and database_name = '{database_name}';"""
-        update_query = self.db_connector.run_query(query)
+            cursor = self.db_connector.client.cursor()
+            cursor.execute(query)
+            self.db_connector.client.commit()
+
+        
 
     def explore_and_summarize_tables_parallel(self, max_to_process=1000):
         # called by standalone_harvester.py
@@ -422,7 +406,7 @@ class SchemaExplorer:
             # tables, or those with changes to their DDL
 
  #           print('Checking a schema for new (not changed) objects.', flush=True)
-            if self.db_connector.source_name == 'Snowflake':
+            if self.db_connector.source_name == 'Snowflake' or self.db_connector.source_name == 'Sqlite':
                 try:
                     potential_tables = self.db_connector.get_tables(dataset.split('.')[0], dataset.split('.')[1])
                 except Exception as e:

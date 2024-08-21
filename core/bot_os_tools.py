@@ -74,7 +74,10 @@ genesis_source = os.getenv("GENESIS_SOURCE", default="Snowflake")
 class ToolBelt:
     def __init__(self, db_adapter, openai_api_key):
         self.db_adapter = db_adapter
-        self.openai_api_key = openai_api_key  # os.getenv("OPENAI_API_KEY")
+        self.openai_api_key = os.getenv("OPENAI_API_KEY") # openai_api_key 
+
+        # print(f"API KEY IN ENV VAR OPENAI_API_KEY: {self.openai_api_key}")
+
         self.client = OpenAI(api_key=openai_api_key) if openai_api_key else None
         self.counter = {}
         self.instructions = {}
@@ -217,6 +220,8 @@ class ToolBelt:
                 Process Instructions:
                 {process['PROCESS_INSTRUCTIONS']}
                 """
+            
+            # print(f"API KEY IN ENV VAR: {self.openai_api_key}")
 
             response = self.client.chat.completions.create(
                 model="gpt-4o",
@@ -226,6 +231,7 @@ class ToolBelt:
                         "content": extract_instructions,
                     },
                 ],
+            
             )
             first_step = response.choices[0].message.content
 
@@ -438,10 +444,9 @@ else:
     raise ValueError('Invalid Source')
     # tool_belt = (ToolBelt(db_adapter, os.getenv("OPENAI_API_KEY")),)
 
-tool_belt = ToolBelt(db_adapter, os.getenv("OPENAI_API_KEY"))
-
-
 def get_tools(which_tools, db_adapter, slack_adapter_local=None, include_slack=True):
+    print (f"Instantiating ToolBelt with db_adapter and openai_api_key: {os.getenv('OPENAI_API_KEY')}")
+    tool_belt = ToolBelt(db_adapter, os.getenv("OPENAI_API_KEY"))
     tools = []
     available_functions_load = {}
     function_to_tool_map = {}

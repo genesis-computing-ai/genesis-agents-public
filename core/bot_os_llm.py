@@ -81,6 +81,19 @@ class LLMKeyHandler:
         else:
             db_adapter = self.db_adapter
 
+        cortex_avail = db_adapter.check_cortex_available()
+
+        if "CORTEX_OVERRIDE" in os.environ:
+            if os.environ["CORTEX_OVERRIDE"] == "True" and cortex_avail:
+                os.environ["CORTEX_MODE"] = "True"
+                os.environ["CORTEX_HARVESTER_MODEL"] = "reka-flash"
+                os.environ["CORTEX_EMBEDDING_MODEL"] = 'e5-base-v2'
+                self.default_llm_engine = "cortex"
+                return False, None, "cortex"
+            elif os.environ["CORTEX_OVERRIDE"] == "True" and not cortex_avail:
+                print("Cortex override set to True but Cortex is not available")
+
+
         try:
             llm_key, llm_type = db_adapter.db_get_active_llm_key()
         except Exception as e:

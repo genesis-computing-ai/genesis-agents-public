@@ -1060,16 +1060,19 @@ class SnowflakeConnector(DatabaseConnector):
         if action == "CREATE":
             return {
                 "Success": False,
-                "Confirmation_Needed": "Please reconfirm all the process details with the user, then call this function again with the action CREATE_CONFIRMED to actually create the process.  Remember that this function is used to create processes for existing bots, not to create bots themselves.",
+                "Cleaned up instructions": process_details['process_instructions'],
+                "Confirmation_Needed": "I've run the process instructions through a cleanup step.  Please reconfirm these instructions and all the other process details with the user, then call this function again with the action CREATE_CONFIRMED to actually create the process.  Remember that this function is used to create processes for existing bots, not to create bots themselves.",
             #    "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}",
             }
 
-        if action == "UPDATE":
+        if action == "CREATE":
             return {
                 "Success": False,
-                "Confirmation_Needed": "Please reconfirm all the process details with the user, especially that you're altering the correct process_ID, then call this function again with the action UPDATE_CONFIRMED to actually update the process.  Call with LIST to double-check the process_id if you aren't sure.",
-           #     "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}",
+                "Cleaned up instructions": process_details['process_instructions'],
+                "Confirmation_Needed": "I've run the process instructions through a cleanup step.  Please reconfirm these instructions and all the other process details with the user, then call this function again with the action UPDATE_CONFIRMED to actually update the process.",
+            #    "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}",
             }
+
         
         if action == "CREATE_CONFIRMED":
             action = "CREATE"
@@ -3330,7 +3333,7 @@ class SnowflakeConnector(DatabaseConnector):
             #   else:
             cursor.execute(query)
 
-            workspace_schema_name = f"{global_flags.project_id}.{bot_id}_WORKSPACE".replace(r'[^a-zA-Z0-9]', '_' ).upper()
+            workspace_schema_name = f"{global_flags.project_id}.{bot_id.replace(r'[^a-zA-Z0-9]', '_').replace('-', '_')}_WORKSPACE".upper()
 
             # call grant_all_bot_workspace()
             if (
@@ -3884,7 +3887,7 @@ class SnowflakeConnector(DatabaseConnector):
         already_present=None,
         updated_tools=None,
     ):
-
+        import core.global_flags as global_flags
         # Query to update the available_tools in the database
         update_query = f"""
             UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
@@ -3900,7 +3903,7 @@ class SnowflakeConnector(DatabaseConnector):
             logger.info(f"Successfully updated available_tools for bot_id: {bot_id}")
 
             if "DATABASE_TOOLS" in updated_tools_str.upper():
-                workspace_schema_name = f"{project_id}_{bot_id}_WORKSPACE".replace(r'[^a-zA-Z0-9]', '_' ).upper()
+                workspace_schema_name = f"{global_flags.project_id}.{bot_id.replace(r'[^a-zA-Z0-9]', '_').replace('-', '_')}_WORKSPACE".upper()
                 self.create_bot_workspace(workspace_schema_name)
                 self.grant_all_bot_workspace(workspace_schema_name)
                 # TODO add instructions?

@@ -787,7 +787,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                      bot_tools_array = bot_tools_array + _BOT_OS_BUILTIN_TOOLS + [{"type": "code_interpreter"}, {"type": "file_search"}]
 
                      if "database_tools" in all_tools_for_bot:
-                        workspace_schema_name = f"{global_flags.project_id}._WORKSPACE".replace(r'[^a-zA-Z0-9]', '_' ).upper()
+                        workspace_schema_name = f"{global_flags.project_id}.{target_bot.replace(r'[^a-zA-Z0-9]', '_').replace('-', '_')}_WORKSPACE".upper()
                         new_instructions += f"\nYou have a workspace schema created specifically for you named {workspace_schema_name} that the user can also access. You may use this schema for creating tables, views, and stages that are required when generating answers to data analysis questions. Only use this schema if asked to create an object. Always return the full location of the object."
 
                      self.client.beta.assistants.update(assistant.id,tools=bot_tools_array, instructions=new_instructions)
@@ -821,7 +821,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
                   if "database_tools" in bot_details["available_tools"]:
                      
-                     workspace_schema_name = f"{global_flags.project_id}._WORKSPACE".replace(r'[^a-zA-Z0-9]', '_' ).upper()
+                     workspace_schema_name = f"{global_flags.project_id}.{target_bot.replace(r'[^a-zA-Z0-9]', '_').replace('-', '_')}_WORKSPACE".upper()
                      instructions += f"\nYou have a workspace schema created specifically for you named {workspace_schema_name} that the user can also access. You may use this schema for creating tables, views, and stages that are required when generating answers to data analysis questions. Only use this schema if asked to create an object. Always return the full location of the object."
 
                   if not self.reset_bot_if_not_openai(bot_id=target_bot):

@@ -631,6 +631,16 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
 
                     print(f"Response for Thread ID {thread_id}, {timestamp} with model {self.llm_engine}: {message_payload}")
                     decoded_payload = html.unescape(message_payload)
+
+                    # fix tool calls with a missing / in the close block
+                    pattern_function_call = re.compile(r'<function=(.*?)>\{.*?\}<function>')
+                    match_function_call = pattern_function_call.search(decoded_payload)
+
+                    if match_function_call:
+                        function_name = match_function_call.group(1)
+                        decoded_payload = re.sub(pattern_function_call, f'<function={function_name}>\\g<0></function>', decoded_payload)
+                        decoded_payload = decoded_payload.replace('<function></function>', '</function>')
+
                     if "<TOOL_CALL>" in decoded_payload:
                         self.process_tool_call(thread_id, timestamp, decoded_payload, message_metadata)
                         #self.active_runs.append(thread_to_check)

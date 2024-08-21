@@ -787,7 +787,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                      bot_tools_array = bot_tools_array + _BOT_OS_BUILTIN_TOOLS + [{"type": "code_interpreter"}, {"type": "file_search"}]
 
                      if "database_tools" in all_tools_for_bot:
-                        workspace_schema_name = f"{target_bot}_WORKSPACE".replace('-','_').upper()
+                        workspace_schema_name = f"{global_flags.project_id}._WORKSPACE".replace(r'[^a-zA-Z0-9]', '_' ).upper()
                         new_instructions += f"\nYou have a workspace schema created specifically for you named {workspace_schema_name} that the user can also access. You may use this schema for creating tables, views, and stages that are required when generating answers to data analysis questions. Only use this schema if asked to create an object. Always return the full location of the object."
 
                      self.client.beta.assistants.update(assistant.id,tools=bot_tools_array, instructions=new_instructions)
@@ -820,7 +820,8 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                      instructions += f"\nYour Internal Files Stage for bots is at snowflake stage: {global_flags.genbot_internal_project_and_schema}.BOT_FILES_STAGE"
 
                   if "database_tools" in bot_details["available_tools"]:
-                     workspace_schema_name = f"{global_flags.project_id}.{target_bot}_WORKSPACE".replace('-', '_').upper()
+                     
+                     workspace_schema_name = f"{global_flags.project_id}._WORKSPACE".replace(r'[^a-zA-Z0-9]', '_' ).upper()
                      instructions += f"\nYou have a workspace schema created specifically for you named {workspace_schema_name} that the user can also access. You may use this schema for creating tables, views, and stages that are required when generating answers to data analysis questions. Only use this schema if asked to create an object. Always return the full location of the object."
 
                   if not self.reset_bot_if_not_openai(bot_id=target_bot):
@@ -1482,7 +1483,22 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
             #         output = StreamingEventHandler.run_id_to_output_stream.get(run.id)
                   try:
                      if os.getenv('SHOW_COST', 'false').lower() == 'true':
-                        output += '  `'+"$"+str(round(run.usage.prompt_tokens/1000000*0.15+run.usage.completion_tokens/1000000*0.60,4))+'`'
+                        model_name = os.getenv("OPENAI_MODEL_NAME", default="gpt-4o")
+                        if model_name == "gpt-4o":
+                           input_cost = 5.000 / 1000000
+                           output_cost = 15.000 / 1000000
+                        elif model_name == "gpt-4o-2024-08-06":
+                           input_cost = 2.500 / 1000000
+                           output_cost = 10.000 / 1000000
+                        elif model_name in ["gpt-4o-mini", "gpt-4o-mini-2024-07-18"]:
+                           input_cost = 0.150 / 1000000
+                           output_cost = 0.600 / 1000000
+                        else:
+                           # Default to gpt-4o prices if model is unknown
+                           input_cost = 5.000 / 1000000
+                           output_cost = 15.000 / 1000000   
+                        total_cost = (run.usage.prompt_tokens * input_cost) + (run.usage.completion_tokens * output_cost)
+                        output += f'  `${total_cost:.4f}`'
                      output_array.append(output)
                   except:
                      pass

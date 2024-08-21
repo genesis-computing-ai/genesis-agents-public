@@ -371,7 +371,7 @@ process_manager_functions = [
                         "properties": {
                             "process_name": {
                                 "type": "string",
-                                "description": "The name of the process.",
+                                "description": "The name of the process. Required for SHOW.",
                             },
                        #     "process_details": {
                        #         "type": "string",

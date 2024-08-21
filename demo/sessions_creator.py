@@ -211,8 +211,8 @@ def make_session(
         try:
             # if so, create workspace schema
 
-            workspace_schema_name = f"{project_id}.{bot_id}_WORKSPACE".replace(
-                "-", "_"
+            workspace_schema_name = f"{project_id}_{bot_id}_WORKSPACE".replace(
+                r'[^a-zA-Z0-9]', '_'
             ).upper()
             db_adapter.create_bot_workspace(workspace_schema_name)
             db_adapter.grant_all_bot_workspace(workspace_schema_name)

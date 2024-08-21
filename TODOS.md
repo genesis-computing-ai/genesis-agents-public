@@ -7,6 +7,8 @@ cortex complete() fallback?
 clean up logging and cust data in logs
 
 soon-jl:
+(test) make workspace schema names safe even if have dots in them (sandy 0.1 is causing probs)
+give more hints to the process tidy thing
 test openai stop during a process kickoff
 update sqllite manage process and schedule process
 x make sure openai running process eliza random numbers is !stop-able
@@ -195,6 +197,7 @@ Add remove tool tool
 Make available_tools table rows runner-dependent
 allow for a mode without slack API keys where users get a manifest and they create the bots themselves
 Add links to docs in setup/config steps (e.g. Setup Slack Connection)
+Handle openai citations
 
 NICE TO HAVES:
 Use openai and/or database-hosted vector search (snow when fast, bq)

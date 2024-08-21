@@ -80,7 +80,7 @@ import core.global_flags as global_flags
 
     
 
-print("****** GENBOT VERSION 0.151 *******")
+print("****** GENBOT VERSION 0.151b *******")
 
 runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
 global_flags.runner_id = runner_id

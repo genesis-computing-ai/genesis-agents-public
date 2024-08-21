@@ -66,7 +66,7 @@ os.environ['TASK_MODE'] = 'true'
 os.environ['SHOW_COST'] = 'false'
 ########################################
 
-print("****** GENBOT VERSION 0.151 *******")
+print("****** GENBOT VERSION 0.151b *******")
 print("****** TASK AUTOMATION SERVER *******")
 runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
 print("Runner ID: ", runner_id)
@@ -1064,7 +1064,7 @@ def generate_task_prompt(bot_id, task):
         "task_status": <write a summary of the current status of the task, if its working fine and ongoing just say OK, if a specific next step is needed, state what should happen next>,
         "updated_task_learnings": <the task_learnings text you received at the start of this task, updated or appended with anything new you learned about how to perform this task during this run. Include anything you had to figure out (channel name, user name, which tool to use, etc) that you could skip next time if you knew something in advance that isn't subject to frequent change, like tables you found or SQL you used or Slack IDs of people you communicated with, or slack channel names you looked up.>,
         "report_message": <include this if you are supposed to report back based on reporting_instructions based on what happened, otherwise omit for no report back.",
-        "done_flag": <true if the task is complete and should not be re-triggered again, or if youre getting errors and need help, false if the task is ongoing and being successful and should continue to be triggered>,
+        "stop_task_flag": <TRUE if there is something wrong and the task should NOT be run again on its schedule (if any), FALSE if everything is Ok and the task should continue to trigger if scheduled to do so>,
         "needs_help_flag": <true if you need help from the administrator, are encountering errors, etc., false if assistance is not needed before the next task run>,
         "task_clarity_comments": <state any problems you are having running the task, or any help you need, errors youre getting. omit this if task is clear and working properly>
         "next_run_time": <date_timestamp for when to run this task next in %Y-%m-%d %H:%M:%S format>
@@ -1129,12 +1129,12 @@ def task_log_and_update(bot_id, task_id, task_result):
         task_status=task_result["task_status"],
         updated_task_learnings=task_result["updated_task_learnings"],
         report_message=task_result.get("report_message", ""),
-        done_flag=task_result["done_flag"],
+        done_flag=task_result["stop_task_flag"],
         needs_help_flag=task_result["needs_help_flag"],
         task_clarity_comments=task_result.get("task_clarity_comments", ""),
     )
     # Update the task in the TASKS table
-    if task_result.get("done_flag", False) == True:
+    if task_result.get("stop_task_flag", False) == True:
         task_active = False
     else:
         task_active = True
@@ -1296,7 +1296,7 @@ def tasks_loop():
                         "work_done_summary",
                         "task_status",
                         "updated_task_learnings",
-                        "done_flag",
+                        "stop_task_flag",
                         "needs_help_flag",
                         "next_run_time",
                     ]
@@ -1308,13 +1308,13 @@ def tasks_loop():
                     invalid_fields = []
                     if not missing_fields:
                         # Validate boolean fields
-                        if not isinstance(task_response_data["done_flag"], bool):
-                            invalid_fields.append("done_flag must be a boolean")
+                        if not isinstance(task_response_data["stop_task_flag"], bool):
+                            invalid_fields.append("stop_task_flag must be a boolean")
                         if not isinstance(task_response_data["needs_help_flag"], bool):
                             invalid_fields.append("needs_help_flag must be a boolean")
                         # Validate timestamp
                         try:
-                            if not task_response_data["done_flag"]:
+                            if not task_response_data["stop_task_flag"]:
                                 datetime.datetime.strptime(
                                     task_response_data["next_run_time"],
                                     "%Y-%m-%d %H:%M:%S",
@@ -1334,7 +1334,7 @@ def tasks_loop():
                 ):
                     # Retrieve the creator of the task
                     # for now, have it suspend any task that needs help
-                    task_response_data["done_flag"] = True
+                    task_response_data["stop_task_flag"] = True
                     try:
                         task = next(
                             (t for t in tasks["Tasks"] if t["task_id"] == task_id), None
@@ -1359,7 +1359,7 @@ def tasks_loop():
                             help_message += (
                                 f"\n\nWhat happened this run:```{response.output}```"
                             )
-                            if task_response_data.get("done_flag", True):
+                            if task_response_data.get("stop_task_flag", True):
                                 help_message += "\n_Note: The task has been set to inactive pending your review._"
                             else:
                                 help_message += "\n_Note: The task will stay active, but you may want to adjust its instructions to make it more clear._"

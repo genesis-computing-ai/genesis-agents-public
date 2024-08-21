@@ -700,7 +700,8 @@ def chat_page():
             if len(bot_images) > 0:
                 bot_avatar_images = [bot["bot_avatar_image"] for bot in bot_images]
                 bot_names = [bot["bot_name"] for bot in bot_images]
-                selected_bot_image_index = bot_names.index(selected_bot_name)
+                selected_bot_image_index = bot_names.index(selected_bot_name) if selected_bot_name in bot_names else -1
+        #        st.write(selected_bot_image_index)
                 if selected_bot_image_index < 0:
                     bot_avatar_image_url = ""
                 else:

@@ -2411,6 +2411,7 @@ class SqliteConnector(DatabaseConnector):
             logger.error(f"Failed to create bot workspace {workspace_schema_name}: {e}")
 
     def grant_all_bot_workspace(self, workspace_schema_name):
+
         try:
 
             query = f"GRANT ALL PRIVILEGES ON SCHEMA {workspace_schema_name} TO APPLICATION ROLE APP_PUBLIC; "
@@ -2444,6 +2445,7 @@ class SqliteConnector(DatabaseConnector):
         job_config=None,
         bot_id=None,
     ):
+        import core.global_flags as global_flags
         """
         Runs a query on Snowflake, supporting parameterized queries.
 
@@ -2488,7 +2490,8 @@ class SqliteConnector(DatabaseConnector):
             #   else:
             cursor.execute(query)
 
-            workspace_schema_name = f"{bot_id}_WORKSPACE".replace("-", "_").upper()
+            workspace_schema_name = f"{global_flags.project_id}._WORKSPACE".replace(r'[^a-zA-Z0-9]', '_' ).upper()
+
             # call grant_all_bot_workspace()
             if (
                 "CREATE" in query.upper()
@@ -3044,7 +3047,8 @@ class SqliteConnector(DatabaseConnector):
             logger.info(f"Successfully updated available_tools for bot_id: {bot_id}")
 
             if "DATABASE_TOOLS" in updated_tools_str.upper():
-                workspace_schema_name = f"{bot_id}_WORKSPACE".replace("-", "_").upper()
+                workspace_schema_name = f"{project_id}_{bot_id}_WORKSPACE".replace(r'[^a-zA-Z0-9]', '_' ).upper()
+
                 self.create_bot_workspace(workspace_schema_name)
                 self.grant_all_bot_workspace(workspace_schema_name)
                 # TODO add instructions?

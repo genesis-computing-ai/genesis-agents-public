@@ -24,11 +24,11 @@ slack_tools_descriptions = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "channel_id": {"type": "string", "description": "The NAME of the channel to send the message to, e.g. #channel"},
+                    "channel_name": {"type": "string", "description": "The NAME of the channel to send the message to, e.g. #channel"},
 #                    "message": {"type": "string", "description": "The text of the message to be sent to the channel.  Include any links to local documents referencing ./downloaded_files or the openAI file id. Use this format to reference files: ![file description](./downloaded_files/thread_<thread_id>/<file name>)"},
                     "message": {"type": "string", "description": "The text of the message to be sent to the channel.  Include any links to local documents referencing ./downloaded_files or the openAI file id."},
                 },
-                "required": ["channel_id", "message"]
+                "required": ["channel_name", "message"]
             }
         }
     },

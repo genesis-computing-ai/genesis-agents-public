@@ -1324,13 +1324,22 @@ class SlackBotAdapter(BotOsInputAdapter):
             return f"Error sending message: {str(e)}"
 
     def send_slack_channel_message(
-        self, channel_id: str, message: str, attachments=[], thread_id: str = None
+        self, channel_name: str = None, message: str = None, attachments=[], thread_id: str = None, channel_id=None
     ):
+        if channel_name is None and channel_id is not None:
+            channel_name = channel_id
+        
+        # Remove '#' from the beginning of the channel name if present
+        if channel_name and channel_name.startswith('#'):
+            channel_name = channel_name[1:]
+            
+        if channel_name is None:
+            return "Error: Both channel_name and channel_id are None. Please provide either channel_name or channel_id."
         try:
             file_list = self.process_attachments(message, attachments)
             message = self.replace_urls(msg=message, msg_files=file_list)
             res = self.slack_app.client.chat_postMessage(
-                channel=channel_id,
+                channel=channel_name,
                 text=message,
                 attachments=file_list if file_list else None,
             )
@@ -1343,11 +1352,11 @@ class SlackBotAdapter(BotOsInputAdapter):
                             "thread_id": thread_id,
                         }
 
-                return f"Message sent to channel {channel_id} successfully."
+                return f"Message sent to channel {channel_name} successfully."
             else:
-                return f"Failed to send message to channel {channel_id}."
+                return f"Failed to send message to channel {channel_name}."
         except Exception as e:
-            return f"Error sending message to channel {channel_id}: {str(e)}.  Call this tool again but provide channel name e.g. #channel instead of channel code."
+            return f"Error sending message to channel {channel_name}: {str(e)}.  Call this tool again but provide channel name e.g. #channel instead of channel id."
 
     def lookup_slack_user_id_real(self, user_name: str, thread_id: str):
         """

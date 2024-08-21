@@ -731,6 +731,12 @@ class SnowflakeConnector(DatabaseConnector):
             bots = cursor.fetchall()
             columns = [col[0].lower() for col in cursor.description]
             bot_list = [dict(zip(columns, bot)) for bot in bots]
+            # Check the total payload size
+            payload_size = sum(len(str(bot).encode('utf-8')) for bot in bot_list)
+            # If payload size exceeds 16MB (16 * 1024 * 1024 bytes) (with buffer for JSON) remove rows from the bottom
+            while payload_size > 15.9 * 1000 * 1000 and len(bot_list) > 0:
+                bot_list.pop()
+                payload_size = sum(len(str(bot).encode('utf-8')) for bot in bot_list)
             json_data = json.dumps(
                 bot_list, default=str
             )  # default=str to handle datetime and other non-serializable types
@@ -1134,31 +1140,31 @@ class SnowflakeConnector(DatabaseConnector):
                 "Error": f"Missing required process details: {', '.join(missing_fields)}",
             }
 
-        if action == "UPDATE" and process_details.get("process_active", False):
-            if "next_check_ts" not in process_details:
-                return {
-                    "Success": False,
-                    "Error": "The 'next_check_ts' field is required when updating an active process.",
-                }
+    #    if action == "UPDATE" and process_details.get("process_active", False):
+    #        if "next_check_ts" not in process_details:
+    #            return {
+    #                "Success": False,
+    #                "Error": "The 'next_check_ts' field is required when updating an active process.",
+    #            }
 
         # Convert timestamp from string in format 'YYYY-MM-DD HH:MM:SS' to a Snowflake-compatible timestamp
-        if process_details is not None and process_details.get("process_active", False):
-            try:
-                formatted_next_check_ts = datetime.strptime(
-                    process_details["next_check_ts"], "%Y-%m-%d %H:%M:%S"
-                )
-            except ValueError as ve:
-                return {
-                    "Success": False,
-                    "Error": f"Invalid timestamp format for 'next_check_ts'. Required format: 'YYYY-MM-DD HH:MM:SS' in system timezone. Error details: {ve}",
-                    "Info": f"Current system time in system timezone is {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}. The system timezone is {datetime.now().strftime('%Z')}. Please note that the timezone should not be included in the submitted timestamp.",
-                }
-            if formatted_next_check_ts < datetime.now():
-                return {
-                    "Success": False,
-                    "Error": "The 'next_check_ts' is in the past.",
-                    "Info": f"Current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}",
-                }
+   #     if process_details is not None and process_details.get("process_active", False):
+   #         try:
+   #             formatted_next_check_ts = datetime.strptime(
+   #                 process_details["next_check_ts"], "%Y-%m-%d %H:%M:%S"
+   #             )
+   #         except ValueError as ve:
+   #             return {
+   #                 "Success": False,
+   #                 "Error": f"Invalid timestamp format for 'next_check_ts'. Required format: 'YYYY-MM-DD HH:MM:SS' in system timezone. Error details: {ve}",
+   #                 "Info": f"Current system time in system timezone is {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}. The system timezone is {datetime.now().strftime('%Z')}. Please note that the timezone should not be included in the submitted timestamp.",
+   #             }
+   #         if formatted_next_check_ts < datetime.now():
+   #             return {
+   #                 "Success": False,
+   #                 "Error": "The 'next_check_ts' is in the past.",
+   #                 "Info": f"Current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}",
+   #             }
         if bot_id is None:
             return {
                 "Success": False,
@@ -1196,7 +1202,8 @@ class SnowflakeConnector(DatabaseConnector):
                     "Success": True,
                     "Message": f"process successfully created.",
                     "process_id": process_id,
-                    "Suggestion": "Now that the process is created, offer to test it using run_process, and if there are any issues you can later on UPDATE the process using manage_processes to clarify anything needed.  OFFER to test it, but don't just test it unless the user agrees."
+                    "Suggestion": "Now that the process is created, offer to test it using run_process, and if there are any issues you can later on UPDATE the process using manage_processes to clarify anything needed.  OFFER to test it, but don't just test it unless the user agrees.",
+                    "Reminder": "If you are asked to test the process, use _run_process function to each step, don't skip ahead since you already know what the steps are, pretend you don't know what the process is and let run_process give you one step at a time!",
                 }
 
             elif action == "DELETE":
@@ -3010,7 +3017,7 @@ class SnowflakeConnector(DatabaseConnector):
             # token based connection from SPCS
             with open("/snowflake/session/token", "r") as f:
                 snowflake_token = f.read()
-            print("Natapp Connection: SPCS Snowflake token found, length: %d", len(snowflake_token), flush=True)
+            print(f"Natapp Connection: SPCS Snowflake token found, length: {len(snowflake_token)}", flush=True)
             self.token_connection = True
             #   logger.warn('Snowflake token mode (SPCS)...')
             if os.getenv("SNOWFLAKE_SECURE", "TRUE").upper() == "FALSE":
@@ -3258,6 +3265,7 @@ class SnowflakeConnector(DatabaseConnector):
         job_config=None,
         bot_id=None,
     ):
+        import core.global_flags as global_flags
         """
         Runs a query on Snowflake, supporting parameterized queries.
 
@@ -3319,7 +3327,8 @@ class SnowflakeConnector(DatabaseConnector):
             #   else:
             cursor.execute(query)
 
-            workspace_schema_name = f"{bot_id}_WORKSPACE".replace("-", "_").upper()
+            workspace_schema_name = f"{global_flags.project_id}.{bot_id}_WORKSPACE".replace(r'[^a-zA-Z0-9]', '_' ).upper()
+
             # call grant_all_bot_workspace()
             if (
                 "CREATE" in query.upper()
@@ -3888,7 +3897,7 @@ class SnowflakeConnector(DatabaseConnector):
             logger.info(f"Successfully updated available_tools for bot_id: {bot_id}")
 
             if "DATABASE_TOOLS" in updated_tools_str.upper():
-                workspace_schema_name = f"{bot_id}_WORKSPACE".replace("-", "_").upper()
+                workspace_schema_name = f"{project_id}_{bot_id}_WORKSPACE".replace(r'[^a-zA-Z0-9]', '_' ).upper()
                 self.create_bot_workspace(workspace_schema_name)
                 self.grant_all_bot_workspace(workspace_schema_name)
                 # TODO add instructions?

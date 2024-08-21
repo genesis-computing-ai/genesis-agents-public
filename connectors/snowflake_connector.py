@@ -302,7 +302,7 @@ class SnowflakeConnector(DatabaseConnector):
 
     def cortex_chat_completion(self, prompt):
         newarray = [{"role": "user", "content": prompt} ]
-
+        curr_resp = ''
         try:
             SNOWFLAKE_HOST = self.client.host
             REST_TOKEN = self.client.rest.token
@@ -999,19 +999,7 @@ class SnowflakeConnector(DatabaseConnector):
 
         try:
             if action == "CREATE" or action == "UPDATE":
-<<<<<<< HEAD
-                # Send process_insteructions to 2nd LLM to check it and format nicely
-                api_key = os.getenv("OPENAI_API_KEY")
-                if not api_key:
-                    print("OpenAI API key is not set in the environment variables.")
-                    return None
-
-                openai_api_key = os.getenv("OPENAI_API_KEY")
-                client = OpenAI(api_key=openai_api_key)
-
-=======
                 # Send process_instructions to 2nd LLM to check it and format nicely
->>>>>>> testy
                 tidy_process_instructions = f"""
                 Below is a process that has been submitted by a user.  Please review it to insure it is something
                 that will make sense to the run_process tool.  If not, make changes so it is organized into clear
@@ -1025,21 +1013,6 @@ class SnowflakeConnector(DatabaseConnector):
                     line.lstrip() for line in tidy_process_instructions.splitlines()
                 )
 
-<<<<<<< HEAD
-                response = client.chat.completions.create(
-                    model="gpt-4o",
-                    messages=[
-                        {
-                            "role": "user",
-                            "content": tidy_process_instructions,
-                        },
-                    ],
-                )
-
-                process_details['process_instructions'] = response.choices[0].message.content
-        except Exception as e:
-            return {"Success": False, "Error": f"Error connecting to OpenAI: {e}"}
-=======
                 # Check to see what LLM is currently available
                 # os.environ["CORTEX_MODE"] = "False"
                 # os.environ["CORTEX_AVAILABLE"] = 'False'
@@ -1074,7 +1047,6 @@ class SnowflakeConnector(DatabaseConnector):
 
         except Exception as e:
             return {"Success": False, "Error": f"Error connecting to LLM: {e}"}
->>>>>>> testy
 
         if action == "CREATE":
             return {
@@ -1092,10 +1064,6 @@ class SnowflakeConnector(DatabaseConnector):
         
         if action == "CREATE_CONFIRMED":
             action = "CREATE"
-<<<<<<< HEAD
-=======
-
->>>>>>> testy
         if action == "UPDATE_CONFIRMED":
             action = "UPDATE"
 

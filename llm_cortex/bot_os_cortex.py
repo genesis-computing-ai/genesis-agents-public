@@ -288,7 +288,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
 
                 SNOWFLAKE_HOST = self.client.client.host
                 REST_TOKEN = self.client.client.rest.token
-                url=f"https://{SNOWFLAKE_HOST}/api/v2/cortex/inference/complete"
+                url=f"https://{SNOWFLAKE_HOST}/api/v2/cortex/inference:complete"
                 headers = {
                     "Accept": "text/event-stream",
                     "Content-Type": "application/json",

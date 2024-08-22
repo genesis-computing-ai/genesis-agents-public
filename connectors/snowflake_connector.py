@@ -173,7 +173,7 @@ class SnowflakeConnector(DatabaseConnector):
         if os.getenv("CORTEX_VIA_COMPLETE",'False') in ['False', '']:
             os.environ["CORTEX_VIA_COMPLETE"] = 'False'
 
-        if self.source_name == "Snowflake" and os.getenv("CORTEX_AVAILABLE", "False") == 'False':
+        if self.source_name == "Snowflake" and os.getenv("CORTEX_AVAILABLE", "False").lower() == 'false':
             try:
                 cortex_test = self.test_cortex_via_rest()
 
@@ -192,6 +192,10 @@ class SnowflakeConnector(DatabaseConnector):
             except Exception as e:
                 print('Cortex LLM Not available via REST, exception on test: ',e)
                 return False 
+        if self.source_name == "Snowflake" and os.getenv("CORTEX_AVAILABLE", "False").lower() == 'true':
+            return True
+        else:
+            return False
 
             # if os.environ["CORTEX_AVAILABLE"] == 'False' or os.getenv("CORTEX_VIA_COMPLETE",'False').lower() == 'true':
             #     try:
@@ -277,7 +281,7 @@ class SnowflakeConnector(DatabaseConnector):
 
             SNOWFLAKE_HOST = self.client.host
             REST_TOKEN = self.client.rest.token
-            url=f"https://{SNOWFLAKE_HOST}/api/v2/cortex/inference/complete"
+            url=f"https://{SNOWFLAKE_HOST}/api/v2/cortex/inference:complete"
             headers = {
                 "Accept": "text/event-stream",
                 "Content-Type": "application/json",
@@ -374,7 +378,7 @@ class SnowflakeConnector(DatabaseConnector):
         try:
             SNOWFLAKE_HOST = self.client.host
             REST_TOKEN = self.client.rest.token
-            url=f"https://{SNOWFLAKE_HOST}/api/v2/cortex/inference/complete"
+            url=f"https://{SNOWFLAKE_HOST}/api/v2/cortex/inference:complete"
             headers = {
                 "Accept": "text/event-stream",
                 "Content-Type": "application/json",
@@ -416,12 +420,12 @@ class SnowflakeConnector(DatabaseConnector):
 
               #  print('full resp: ',curr_resp)
                 if len(curr_resp) > 2:
-                    os.environ['CORTEX_AVAILABLE'] = 'True'
-                    return True
+                    return curr_resp   
                 else:
-                    os.environ['CORTEX_MODE'] = 'False'
-                    os.environ['CORTEX_AVAILABLE'] = 'False'
-                    return False          
+                  #  os.environ['CORTEX_MODE'] = 'False'
+                  #  os.environ['CORTEX_AVAILABLE'] = 'False'
+                    return False  
+                 
         except Exception as e:
             print ("Bottom of function -- Error calling Cortex Rest API, ",e, flush=True)
             return False
@@ -834,6 +838,7 @@ class SnowflakeConnector(DatabaseConnector):
             )  # default=str to handle datetime and other non-serializable types
 
             return {"Success": True, "Data": json_data}
+
 
         except Exception as e:
             err = f"An error occurred while retrieving bot images: {e}"

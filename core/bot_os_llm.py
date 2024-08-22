@@ -76,6 +76,8 @@ class LLMKeyHandler:
 
 
     def get_llm_key_from_db(self, db_connector=None):
+        import json 
+
         if db_connector:
             db_adapter = db_connector
         else:
@@ -127,6 +129,36 @@ class LLMKeyHandler:
             api_key_from_env = False
         else:
             api_key_from_env, llm_key, llm_type = self.get_llm_key_from_env()
+
+        if llm_type.lower() == "cortex" and not cortex_avail:
+            print("Cortex is not available. Falling back to OpenAI.")
+            llm_type = "openai"
+            # Attempt to get OpenAI key if it exists
+            
+            # First, check if OPENAI_API_KEY is already set in the environment
+            openai_key = os.environ.get("OPENAI_API_KEY", None)
+            if openai_key ==  '':
+                openai_key = None
+            if openai_key is not None:
+                api_key_from_env = True
+            
+            if not openai_key:
+                # If not set in environment, try to get it from the database
+                llm_info = db_adapter.get_llm_info()
+                if llm_info["Success"]:
+                    llm_data = json.loads(llm_info["Data"])
+                    openai_key = next((item["llm_key"] for item in llm_data if item["llm_type"].lower() == "openai"), None)
+                else:
+                    print(f"Error retrieving LLM info: {llm_info.get('Error')}")
+            
+            if openai_key:
+                llm_key = openai_key
+                os.environ["OPENAI_API_KEY"] = llm_key
+            else:
+                print("No OpenAI key found in environment or database. LLM functionality may be limited.")
+                llm_key = None
+            
+            os.environ["CORTEX_MODE"] = "False"
 
         os.environ["BOT_OS_DEFAULT_LLM_ENGINE"] = llm_type
         self.set_llm_env_vars()

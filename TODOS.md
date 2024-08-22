@@ -3,8 +3,12 @@ GENESIS BOT TODOS
 =================
 
 before republishing on natapp:
-cortex complete() fallback?
 clean up logging and cust data in logs
+add cross region calling
+streamlit requests for stuff
+default processes
+add sandy bot?
+
 
 soon-jl:
 (test) make workspace schema names safe even if have dots in them (sandy 0.1 is causing probs)

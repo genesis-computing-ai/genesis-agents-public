@@ -86,12 +86,12 @@ class SnowflakeConnector(DatabaseConnector):
         else:
             self.llm_engine = 'llama3.1-405b'
 
-        try:
-            print(f"Is cortex avail? {self.check_cortex_available()}")
-            # pass
-        #     print('REST TOKEN: ',self.connection.rest.token)
-        except Exception as e:
-            print("Could not get REST Token: ", e)
+ #       try:
+ #           print(f"Is cortex avail? {self.check_cortex_available()}")
+ #           # pass
+ #       #     print('REST TOKEN: ',self.connection.rest.token)
+ #       except Exception as e:
+ #           print("Could not get REST Token: ", e)
 
 
         # self.client = self._create_client()
@@ -187,32 +187,33 @@ class SnowflakeConnector(DatabaseConnector):
                 else:
                     os.environ["CORTEX_MODE"] = "False"
                     os.environ["CORTEX_AVAILABLE"] = 'False'
-                    print('\nCortex LLM is not available via REST - trying complete()')
+                    print('\nCortex LLM is not available via REST ')
+                    return False
             except Exception as e:
                 print('Cortex LLM Not available via REST, exception on test: ',e)
+                return False 
 
-            if os.environ["CORTEX_AVAILABLE"] == 'False' or os.getenv("CORTEX_VIA_COMPLETE",'False').lower() == 'true':
-                try:
-                    cortex_test = self.test_cortex()
+            # if os.environ["CORTEX_AVAILABLE"] == 'False' or os.getenv("CORTEX_VIA_COMPLETE",'False').lower() == 'true':
+            #     try:
+            #         cortex_test = self.test_cortex()
 
-                    if cortex_test == True:
-                        os.environ["CORTEX_AVAILABLE"] = 'True'
-                        os.environ["CORTEX_VIA_COMPLETE"] = 'True'
-                        # os.environ["CORTEX_MODE"] = "True"
-                        self.default_llm_engine = 'cortex'
-                        self.llm_api_key = 'cortex_no_key_needed'
-                        print('Cortex LLM is Available via SQL COMPLETE() and successfully tested')
-                        return True
-                    else:
-                        os.environ["CORTEX_MODE"] = "False"
-                        os.environ["CORTEX_AVAILABLE"] = 'False'
-                        return False
-                except Exception as e:
-                    print('Cortex LLM Not available via SQL COMPLETE(), exception on test: ',e)
-                    return False
-        else:
-            return True
-                    
+            #         if cortex_test == True:
+            #             os.environ["CORTEX_AVAILABLE"] = 'True'
+            #             os.environ["CORTEX_VIA_COMPLETE"] = 'True'
+            #             # os.environ["CORTEX_MODE"] = "True"
+            #             self.default_llm_engine = 'cortex'
+            #             self.llm_api_key = 'cortex_no_key_needed'
+            #             print('Cortex LLM is Available via SQL COMPLETE() and successfully tested')
+            #             return True
+            #         else:
+            #             os.environ["CORTEX_MODE"] = "False"
+            #             os.environ["CORTEX_AVAILABLE"] = 'False'
+            #             return False
+            #     except Exception as e:
+            #         print('Cortex LLM Not available via SQL COMPLETE(), exception on test: ',e)
+            #         return False
+            # else:
+            #     return True
 
 
     def test_cortex(self):
@@ -265,6 +266,73 @@ class SnowflakeConnector(DatabaseConnector):
  
 
     def test_cortex_via_rest(self):
+
+        newarray = [{"role": "user", "content": "hi there"} ]
+        new_array_str = json.dumps(newarray)
+    
+        try:
+
+            resp = ''
+            curr_resp = ''
+
+            SNOWFLAKE_HOST = self.client.host
+            REST_TOKEN = self.client.rest.token
+            url=f"https://{SNOWFLAKE_HOST}/api/v2/cortex/inference/complete"
+            headers = {
+                "Accept": "text/event-stream",
+                "Content-Type": "application/json",
+                "Authorization": f'Snowflake Token="{REST_TOKEN}"',
+            }
+
+            request_data = {
+                "model": self.llm_engine,
+    #            "messages": [{"content": "Hi there"}],
+                "messages": newarray,
+                "stream": True,
+            }
+
+            print(f"snowflake_connector test calling cortex {self.llm_engine} via REST API, content est tok len=",len(str(newarray))/4)
+
+            response = requests.post(url, json=request_data, stream=True, headers=headers)
+            if response.status_code != 200:
+                print(f"Failed to connect to Cortex API. Status code: {response.status_code}")
+                print(f"Response: {response.text}")
+                return False
+            else:
+
+                for line in response.iter_lines():
+                    if line:
+                        try:
+                            decoded_line = line.decode('utf-8')
+                            if not decoded_line.strip():
+                                print("Received an empty line.")
+                                continue
+                            if decoded_line.startswith("data: "):
+                                decoded_line = decoded_line[len("data: "):]
+                            event_data = json.loads(decoded_line)
+                            if 'choices' in event_data:
+                                d = event_data['choices'][0]['delta'].get('content','')
+                                curr_resp += d
+                                print(d, end='', flush=True)
+                        except json.JSONDecodeError as e:
+                            print(f"Error decoding JSON: {e}")
+                            continue
+
+              #  print('full resp: ',curr_resp)
+                if len(curr_resp) > 2:
+                    os.environ['CORTEX_AVAILABLE'] = 'True'
+                    return True
+                else:
+                    os.environ['CORTEX_MODE'] = 'False'
+                    os.environ['CORTEX_AVAILABLE'] = 'False'
+                    return False
+
+        except Exception as e:
+            print ("Bottom of function -- Error calling Cortex Rest API, ",e, flush=True)
+            return False
+
+        ## jeff's new version below:
+
         curr_resp = ''
         response = self.cortex_chat_completion("Hi there")
         if response.status_code != 200:
@@ -985,12 +1053,16 @@ class SnowflakeConnector(DatabaseConnector):
 
         required_fields_create = [
             "process_name",
-            "process_instructions",
+      #      "process_details"_  
+           "process_instructions",
+       #     "process_reporting_instructions",
         ]
 
         required_fields_update = [
             "process_name",
+ #           "process_details",
             "process_instructions",
+     #       "process_reporting_instructions",
         ]
 
         if action == "TIME":
@@ -1014,6 +1086,12 @@ class SnowflakeConnector(DatabaseConnector):
                 tidy_process_instructions = "\n".join(
                     line.lstrip() for line in tidy_process_instructions.splitlines()
                 )
+
+                # Check to see what LLM is currently available
+                # os.environ["CORTEX_MODE"] = "False"
+                # os.environ["CORTEX_AVAILABLE"] = 'False'
+                # os.getenv("BOT_OS_DEFAULT_LLM_ENGINE") == 'openai | cortex'
+                # os.getenv("CORTEX_FIREWORKS_OVERRIDE", "False").lower() 
 
                 if os.getenv("BOT_OS_DEFAULT_LLM_ENGINE") == 'openai':
                     api_key = os.getenv("OPENAI_API_KEY")
@@ -1043,24 +1121,25 @@ class SnowflakeConnector(DatabaseConnector):
                         response = self.cortex_chat_completion(tidy_process_instructions)
                         process_details['process_instructions'] = response
 
-            if action == "CREATE":
-                return {
-                    "Success": False,
-                    "Cleaned up instructions": process_details['process_instructions'],
-                    "Confirmation_Needed": "I've run the process instructions through a cleanup step.  Please reconfirm these instructions and all the other process details with the user, then call this function again with the action CREATE_CONFIRMED to actually create the process.  Remember that this function is used to create processes for existing bots, not to create bots themselves.",
-                #    "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}",
-                }
-
-            if action == "UPDATE":
-                return {
-                    "Success": False,
-                    "Cleaned up instructions": process_details['process_instructions'],
-                    "Confirmation_Needed": "I've run the process instructions through a cleanup step.  Please reconfirm these instructions and all the other process details with the user, then call this function again with the action UPDATE_CONFIRMED to actually update the process.",
-                #    "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}",
-                }
 
         except Exception as e:
             return {"Success": False, "Error": f"Error connecting to LLM: {e}"}
+
+        if action == "CREATE":
+            return {
+                "Success": False,
+                "Cleaned up instructions": process_details['process_instructions'],
+                "Confirmation_Needed": "I've run the process instructions through a cleanup step.  Please reconfirm these instructions and all the other process details with the user, then call this function again with the action CREATE_CONFIRMED to actually create the process.  Remember that this function is used to create processes for existing bots, not to create bots themselves.",
+            #    "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}",
+            }
+
+        if action == "CREATE":
+            return {
+                "Success": False,
+                "Cleaned up instructions": process_details['process_instructions'],
+                "Confirmation_Needed": "I've run the process instructions through a cleanup step.  Please reconfirm these instructions and all the other process details with the user, then call this function again with the action UPDATE_CONFIRMED to actually update the process.",
+            #    "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}",
+            }
 
         
         if action == "CREATE_CONFIRMED":
@@ -1135,6 +1214,31 @@ class SnowflakeConnector(DatabaseConnector):
                 "Error": f"Missing required process details: {', '.join(missing_fields)}",
             }
 
+    #    if action == "UPDATE" and process_details.get("process_active", False):
+    #        if "next_check_ts" not in process_details:
+    #            return {
+    #                "Success": False,
+    #                "Error": "The 'next_check_ts' field is required when updating an active process.",
+    #            }
+
+        # Convert timestamp from string in format 'YYYY-MM-DD HH:MM:SS' to a Snowflake-compatible timestamp
+   #     if process_details is not None and process_details.get("process_active", False):
+   #         try:
+   #             formatted_next_check_ts = datetime.strptime(
+   #                 process_details["next_check_ts"], "%Y-%m-%d %H:%M:%S"
+   #             )
+   #         except ValueError as ve:
+   #             return {
+   #                 "Success": False,
+   #                 "Error": f"Invalid timestamp format for 'next_check_ts'. Required format: 'YYYY-MM-DD HH:MM:SS' in system timezone. Error details: {ve}",
+   #                 "Info": f"Current system time in system timezone is {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}. The system timezone is {datetime.now().strftime('%Z')}. Please note that the timezone should not be included in the submitted timestamp.",
+   #             }
+   #         if formatted_next_check_ts < datetime.now():
+   #             return {
+   #                 "Success": False,
+   #                 "Error": "The 'next_check_ts' is in the past.",
+   #                 "Info": f"Current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}",
+   #             }
         if bot_id is None:
             return {
                 "Success": False,

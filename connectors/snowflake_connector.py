@@ -3339,7 +3339,7 @@ class SnowflakeConnector(DatabaseConnector):
     def run_query(
         self,
         query=None,
-        max_rows=20,
+        max_rows=-1,
         max_rows_override=False,
         job_config=None,
         bot_id=None,
@@ -3360,7 +3360,12 @@ class SnowflakeConnector(DatabaseConnector):
 
         if query.startswith("USERQUERY::"):
             userquery = True
+            if max_rows == -1:
+                max_rows = 20
             query = query[len("USERQUERY::"):]
+        else:
+            if max_rows == -1:
+                max_rows = 100
 
        # if userquery and not query.endswith(';'):
        #     return {
@@ -3409,7 +3414,7 @@ class SnowflakeConnector(DatabaseConnector):
             workspace_schema_name = f"{global_flags.project_id}.{bot_id.replace(r'[^a-zA-Z0-9]', '_').replace('-', '_')}_WORKSPACE".upper()
 
             # call grant_all_bot_workspace()
-            if (
+            if bot_id is not None and (
                 "CREATE" in query.upper()
                 and workspace_schema_name.upper() in query.upper()
             ):
@@ -6478,12 +6483,12 @@ class SnowflakeConnector(DatabaseConnector):
             )
             return {"success": False, "error": str(e)}
 
-    def extract_knowledge(self, primary_user, bot_name):
+    def extract_knowledge(self, primary_user, bot_name, bot_id=None):
         query = f"""SELECT * FROM {self.user_bot_table_name} 
                     WHERE primary_user = '{primary_user}' AND BOT_ID LIKE '{bot_name}%'
                     ORDER BY TIMESTAMP DESC
                     LIMIT 1;"""
-        knowledge = self.run_query(query)
+        knowledge = self.run_query(query, bot_id=bot_id)
         if knowledge:
             return knowledge[0]
         return []

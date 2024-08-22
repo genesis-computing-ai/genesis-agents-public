@@ -445,7 +445,7 @@ else:
     # tool_belt = (ToolBelt(db_adapter, os.getenv("OPENAI_API_KEY")),)
 
 def get_tools(which_tools, db_adapter, slack_adapter_local=None, include_slack=True):
-    print (f"Instantiating ToolBelt with db_adapter and openai_api_key: {os.getenv('OPENAI_API_KEY')}")
+    print (f"Instantiating ToolBelt with db_adapter and openai_api_key: len: {len(os.getenv('OPENAI_API_KEY'))}")
     tool_belt = ToolBelt(db_adapter, os.getenv("OPENAI_API_KEY"))
     tools = []
     available_functions_load = {}

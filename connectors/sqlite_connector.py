@@ -2552,7 +2552,7 @@ class SqliteConnector(DatabaseConnector):
             workspace_schema_name = f"{global_flags.project_id}.{bot_id.replace(r'[^a-zA-Z0-9]', '_').replace('-', '_')}_WORKSPACE".upper()
 
             # call grant_all_bot_workspace()
-            if (
+            if bot_id is not None and (
                 "CREATE" in query.upper()
                 and workspace_schema_name.upper() in query.upper()
             ):

@@ -66,7 +66,7 @@ os.environ['TASK_MODE'] = 'true'
 os.environ['SHOW_COST'] = 'false'
 ########################################
 
-print("****** GENBOT VERSION 0.152 *******")
+print("****** GENBOT VERSION 0.152b *******")
 print("****** TASK AUTOMATION SERVER *******")
 runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
 print("Runner ID: ", runner_id)

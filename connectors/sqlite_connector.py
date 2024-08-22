@@ -30,6 +30,8 @@ from threading import Lock
 import base64
 import requests
 import re
+from openai import OpenAI
+
 
 import core.bot_os_tool_descriptions
 
@@ -606,27 +608,84 @@ class SqliteConnector(DatabaseConnector):
             "process_reporting_instructions",
         ]
 
+        action = action.upper()
+
         if action == "TIME":
             return {
                 "current_system_time": datetime.now().strftime("%Y-%m-%d %H:%M:? %Z")
             }
-        action = action.upper()
+        
+        try:
+            if action == "CREATE" or action == "UPDATE":
+                # Send process_instructions to 2nd LLM to check it and format nicely
+                tidy_process_instructions = f"""
+                Below is a process that has been submitted by a user.  Please review it to insure it is something
+                that will make sense to the run_process tool.  If not, make changes so it is organized into clear
+                steps.  Make sure that it is tidy, legible and properly formatted. 
+                Return the updated and tidy process.  If there is an issue with the process, return an error message.
 
-        if action == "CREATE":
-            return {
-                "Success": False,
-                "Confirmation_Needed": "Please reconfirm all the process details with the user, then call this function again with the action CREATE_CONFIRMED to actually create the process.",
-                "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:? %Z')}",
-            }
+                The process is as follows:\n {process_details['process_instructions']}
+                """
+
+                tidy_process_instructions = "\n".join(
+                    line.lstrip() for line in tidy_process_instructions.splitlines()
+                )
+
+                # Check to see what LLM is currently available
+                # os.environ["CORTEX_MODE"] = "False"
+                # os.environ["CORTEX_AVAILABLE"] = 'False'
+                # os.getenv("BOT_OS_DEFAULT_LLM_ENGINE") == 'openai | cortex'
+                # os.getenv("CORTEX_FIREWORKS_OVERRIDE", "False").lower() 
+
+                if os.getenv("BOT_OS_DEFAULT_LLM_ENGINE") == 'openai':
+                    api_key = os.getenv("OPENAI_API_KEY")
+                    if not api_key:
+                        print("OpenAI API key is not set in the environment variables.")
+                        return None
+
+                    openai_api_key = os.getenv("OPENAI_API_KEY")
+                    client = OpenAI(api_key=openai_api_key)
+                    response = client.chat.completions.create(
+                        model="gpt-4o",
+                        messages=[
+                            {
+                                "role": "user",
+                                "content": tidy_process_instructions,
+                            },
+                        ],
+                    )
+
+                    process_details['process_instructions'] = response.choices[0].message.content
+
+                elif os.getenv("BOT_OS_DEFAULT_LLM_ENGINE") == 'cortex':
+                    if not self.check_cortex_available():
+                        print("Cortex is not available.")
+                        return None
+                    else:
+                        response = self.cortex_chat_completion(tidy_process_instructions)
+                        process_details['process_instructions'] = response
+
+            if action == "CREATE":
+                return {
+                    "Success": False,
+                    "Confirmation_Needed": "Please reconfirm all the process details with the user, then call this function again with the action CREATE_CONFIRMED to actually create the process.",
+                    "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:? %Z')}",
+                }
+
+            if action == "UPDATE":
+                return {
+                    "Success": False,
+                    "Confirmation_Needed": "Please reconfirm all the process details with the user, especially that you're altering the correct process_ID, then call this function again with the action UPDATE_CONFIRMED to actually update the process.  Call with LIST to double-check the process_id if you aren't sure.",
+                    "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:? %Z')}",
+                }
+
+        except Exception as e:
+            return {"Success": False, "Error": f"Error connecting to LLM: {e}"}
+
+        
         if action == "CREATE_CONFIRMED":
             action = "CREATE"
 
-        if action == "UPDATE":
-            return {
-                "Success": False,
-                "Confirmation_Needed": "Please reconfirm all the process details with the user, especially that you're altering the correct process_ID, then call this function again with the action UPDATE_CONFIRMED to actually update the process.  Call with LIST to double-check the process_id if you aren't sure.",
-                "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:? %Z')}",
-            }
         if action == "UPDATE_CONFIRMED":
             action = "UPDATE"
 

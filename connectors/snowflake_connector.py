@@ -985,16 +985,12 @@ class SnowflakeConnector(DatabaseConnector):
 
         required_fields_create = [
             "process_name",
-      #      "process_details"_  
-           "process_instructions",
-       #     "process_reporting_instructions",
+            "process_instructions",
         ]
 
         required_fields_update = [
             "process_name",
- #           "process_details",
             "process_instructions",
-     #       "process_reporting_instructions",
         ]
 
         if action == "TIME":
@@ -1018,12 +1014,6 @@ class SnowflakeConnector(DatabaseConnector):
                 tidy_process_instructions = "\n".join(
                     line.lstrip() for line in tidy_process_instructions.splitlines()
                 )
-
-                # Check to see what LLM is currently available
-                # os.environ["CORTEX_MODE"] = "False"
-                # os.environ["CORTEX_AVAILABLE"] = 'False'
-                # os.getenv("BOT_OS_DEFAULT_LLM_ENGINE") == 'openai | cortex'
-                # os.getenv("CORTEX_FIREWORKS_OVERRIDE", "False").lower() 
 
                 if os.getenv("BOT_OS_DEFAULT_LLM_ENGINE") == 'openai':
                     api_key = os.getenv("OPENAI_API_KEY")
@@ -1053,25 +1043,24 @@ class SnowflakeConnector(DatabaseConnector):
                         response = self.cortex_chat_completion(tidy_process_instructions)
                         process_details['process_instructions'] = response
 
+            if action == "CREATE":
+                return {
+                    "Success": False,
+                    "Cleaned up instructions": process_details['process_instructions'],
+                    "Confirmation_Needed": "I've run the process instructions through a cleanup step.  Please reconfirm these instructions and all the other process details with the user, then call this function again with the action CREATE_CONFIRMED to actually create the process.  Remember that this function is used to create processes for existing bots, not to create bots themselves.",
+                #    "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}",
+                }
+
+            if action == "UPDATE":
+                return {
+                    "Success": False,
+                    "Cleaned up instructions": process_details['process_instructions'],
+                    "Confirmation_Needed": "I've run the process instructions through a cleanup step.  Please reconfirm these instructions and all the other process details with the user, then call this function again with the action UPDATE_CONFIRMED to actually update the process.",
+                #    "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}",
+                }
 
         except Exception as e:
             return {"Success": False, "Error": f"Error connecting to LLM: {e}"}
-
-        if action == "CREATE":
-            return {
-                "Success": False,
-                "Cleaned up instructions": process_details['process_instructions'],
-                "Confirmation_Needed": "I've run the process instructions through a cleanup step.  Please reconfirm these instructions and all the other process details with the user, then call this function again with the action CREATE_CONFIRMED to actually create the process.  Remember that this function is used to create processes for existing bots, not to create bots themselves.",
-            #    "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}",
-            }
-
-        if action == "CREATE":
-            return {
-                "Success": False,
-                "Cleaned up instructions": process_details['process_instructions'],
-                "Confirmation_Needed": "I've run the process instructions through a cleanup step.  Please reconfirm these instructions and all the other process details with the user, then call this function again with the action UPDATE_CONFIRMED to actually update the process.",
-            #    "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}",
-            }
 
         
         if action == "CREATE_CONFIRMED":
@@ -1146,31 +1135,6 @@ class SnowflakeConnector(DatabaseConnector):
                 "Error": f"Missing required process details: {', '.join(missing_fields)}",
             }
 
-    #    if action == "UPDATE" and process_details.get("process_active", False):
-    #        if "next_check_ts" not in process_details:
-    #            return {
-    #                "Success": False,
-    #                "Error": "The 'next_check_ts' field is required when updating an active process.",
-    #            }
-
-        # Convert timestamp from string in format 'YYYY-MM-DD HH:MM:SS' to a Snowflake-compatible timestamp
-   #     if process_details is not None and process_details.get("process_active", False):
-   #         try:
-   #             formatted_next_check_ts = datetime.strptime(
-   #                 process_details["next_check_ts"], "%Y-%m-%d %H:%M:%S"
-   #             )
-   #         except ValueError as ve:
-   #             return {
-   #                 "Success": False,
-   #                 "Error": f"Invalid timestamp format for 'next_check_ts'. Required format: 'YYYY-MM-DD HH:MM:SS' in system timezone. Error details: {ve}",
-   #                 "Info": f"Current system time in system timezone is {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}. The system timezone is {datetime.now().strftime('%Z')}. Please note that the timezone should not be included in the submitted timestamp.",
-   #             }
-   #         if formatted_next_check_ts < datetime.now():
-   #             return {
-   #                 "Success": False,
-   #                 "Error": "The 'next_check_ts' is in the past.",
-   #                 "Info": f"Current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}",
-   #             }
         if bot_id is None:
             return {
                 "Success": False,

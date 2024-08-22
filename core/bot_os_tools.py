@@ -5,6 +5,9 @@ import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 from openai import OpenAI
+from datetime import datetime
+import random
+import string
 
 from jinja2 import Template
 from bot_genesis.make_baby_bot import MAKE_BABY_BOT_DESCRIPTIONS, make_baby_bot_tools
@@ -425,6 +428,375 @@ class ToolBelt:
         if thread_id in self.done:
             del self.done[thread_id]
         return {"success": True, "message": "Process thread deleted."}
+    
+ # ========================================================================================================
+
+    def get_processes_list(self, bot_id="all"):
+        cursor = db_adapter.client.cursor()
+        try:
+            if bot_id == "all":
+                list_query = f"SELECT process_id, bot_id, process_name FROM {db_adapter.schema}.PROCESSES" if db_adapter.schema else f"SELECT process_id, bot_id, process_name FROM PROCESSES"
+                cursor.execute(list_query)
+            else:
+                list_query = f"SELECT process_id, bot_id, process_name FROM {db_adapter.schema}.PROCESSES WHERE upper(bot_id) = upper(%s)" if db_adapter.schema else f"SELECT process_id, bot_id, process_name FROM PROCESSES WHERE upper(bot_id) = upper(%s)"
+                cursor.execute(list_query, (bot_id,))
+            processs = cursor.fetchall()
+            process_list = []
+            for process in processs:
+                process_dict = {
+                    "process_id": process[0],
+                    "bot_id": process[1],
+                    "process_name": process[2],
+                }
+                process_list.append(process_dict)
+            return {"Success": True, "processes": process_list}
+        except Exception as e:
+            return {
+                "Success": False,
+                "Error": f"Failed to list processs for bot {bot_id}: {e}",
+            }
+        finally:
+            cursor.close()
+
+    def get_process_info(self, bot_id, process_name):
+        cursor = db_adapter.client.cursor()
+        try:
+            query = f"SELECT * FROM {db_adapter.schema}.PROCESSES WHERE bot_id like %s AND process_name LIKE %s" if db_adapter.schema else f"SELECT * FROM PROCESSES WHERE bot_id like %s AND process_name LIKE %s"
+            cursor.execute(query, (f"%{bot_id}%", f"%{process_name}%",))
+            result = cursor.fetchone()
+            if result:
+                # Assuming the result is a tuple of values corresponding to the columns in the PROCESSES table
+                # Convert the tuple to a dictionary with appropriate field names
+                field_names = [desc[0] for desc in cursor.description]
+                return dict(zip(field_names, result))
+            else:
+                return {}
+        except Exception as e:
+            return {}
+
+    def manage_processes(
+        self, action, bot_id=None, process_id=None, process_details=None, thread_id=None, process_name=None
+    ):
+        """
+        Manages processs in the PROCESSES table with actions to create, delete, or update a process.
+
+        Args:
+            action (str): The action to perform - 'CREATE', 'DELETE','UPDATE', 'LIST', 'SHOW'.
+            bot_id (str): The bot ID associated with the process.
+            process_id (str): The process ID for the process to manage.
+            process_details (dict, optional): The details of the process for create or update actions.
+
+        Returns:
+            dict: A dictionary with the result of the operation.
+        """
+
+        # If process_name is specified but not in process_details, add it to process_details
+        if process_name and process_details and 'process_name' not in process_details:
+            process_details['process_name'] = process_name
+
+        # If process_name is specified but not in process_details, add it to process_details
+        if process_name and process_details==None:
+            process_details = {}
+            process_details['process_name'] = process_name
+
+        required_fields_create = [
+            "process_name",
+            "process_instructions",
+        ]
+
+        required_fields_update = [
+            "process_name",
+            "process_instructions",
+        ]
+
+        if action == "TIME":
+            return {
+                "current_system_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S %Z")
+            }
+        action = action.upper()
+
+        try:
+            if action == "CREATE" or action == "UPDATE":
+                # Send process_instructions to 2nd LLM to check it and format nicely
+                tidy_process_instructions = f"""
+                Below is a process that has been submitted by a user.  Please review it to insure it is something
+                that will make sense to the run_process tool.  If not, make changes so it is organized into clear
+                steps.  Make sure that it is tidy, legible and properly formatted. 
+                Return the updated and tidy process.  If there is an issue with the process, return an error message.
+
+                The process is as follows:\n {process_details['process_instructions']}
+                """
+
+                tidy_process_instructions = "\n".join(
+                    line.lstrip() for line in tidy_process_instructions.splitlines()
+                )
+
+                if os.getenv("BOT_OS_DEFAULT_LLM_ENGINE") == 'openai':
+                    api_key = os.getenv("OPENAI_API_KEY")
+                    if not api_key:
+                        print("OpenAI API key is not set in the environment variables.")
+                        return None
+
+                    openai_api_key = os.getenv("OPENAI_API_KEY")
+                    client = OpenAI(api_key=openai_api_key)
+                    response = client.chat.completions.create(
+                        model="gpt-4o",
+                        messages=[
+                            {
+                                "role": "user",
+                                "content": tidy_process_instructions,
+                            },
+                        ],
+                    )
+
+                    process_details['process_instructions'] = response.choices[0].message.content
+
+                elif os.getenv("BOT_OS_DEFAULT_LLM_ENGINE") == 'cortex':
+                    if not db_adapter.check_cortex_available():
+                        print("Cortex is not available.")
+                        return None
+                    else:
+                        response = self.cortex_chat_completion(tidy_process_instructions)
+                        process_details['process_instructions'] = response
+
+            if action == "CREATE":
+                return {
+                    "Success": False,
+                    "Cleaned up instructions": process_details['process_instructions'],
+                    "Confirmation_Needed": "I've run the process instructions through a cleanup step.  Please reconfirm these instructions and all the other process details with the user, then call this function again with the action CREATE_CONFIRMED to actually create the process.  Remember that this function is used to create processes for existing bots, not to create bots themselves.",
+                #    "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}",
+                }
+
+            if action == "UPDATE":
+                return {
+                    "Success": False,
+                    "Cleaned up instructions": process_details['process_instructions'],
+                    "Confirmation_Needed": "I've run the process instructions through a cleanup step.  Please reconfirm these instructions and all the other process details with the user, then call this function again with the action UPDATE_CONFIRMED to actually update the process.",
+                #    "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}",
+                }
+
+        except Exception as e:
+            return {"Success": False, "Error": f"Error connecting to LLM: {e}"}
+
+        
+        if action == "CREATE_CONFIRMED":
+            action = "CREATE"
+        if action == "UPDATE_CONFIRMED":
+            action = "UPDATE"
+
+        if action == "DELETE":
+            return {
+                "Success": False,
+                "Confirmation_Needed": "Please reconfirm that you are deleting the correct process_ID, and double check with the user they want to delete this process, then call this function again with the action DELETE_CONFIRMED to actually delete the process.  Call with LIST to double-check the process_id if you aren't sure that its right.",
+            }
+
+        if action == "DELETE_CONFIRMED":
+            action = "DELETE"
+
+        if action not in ["CREATE", "DELETE", "UPDATE", "LIST", "SHOW"]:
+            return {"Success": False, "Error": "Invalid action specified. Should be CREATE, DELETE, UPDATE, LIST, or SHOW."}
+
+        cursor = db_adapter.client.cursor()
+
+        if action == "LIST":
+            print("Running get processes list")
+            return self.get_processes_list(bot_id if bot_id is not None else "all")
+
+        if action == "SHOW":
+            print("Running show process info")
+            if bot_id is None:
+                return {"Success": False, "Error": "bot_id is required for SHOW action"}
+            if process_details is None or 'process_name' not in process_details:
+                return {"Success": False, "Error": "process_name is required in process_details for SHOW action"}
+            process_name = process_details['process_name']
+            return self.get_process_info(bot_id=bot_id, process_name=process_name)
+
+        process_id_created = False
+        if process_id is None:
+            if action == "CREATE":
+                process_id = f"{bot_id}_{''.join(random.choices(string.ascii_letters + string.digits, k=6))}"
+                process_id_created = True
+            else:
+                return {"Success": False, "Error": f"Missing process_id field"}
+
+        if action in ["CREATE", "UPDATE"] and not process_details:
+            return {
+                "Success": False,
+                "Error": "Process details must be provided for CREATE or UPDATE action.",
+            }
+
+        if action in ["CREATE"] and any(
+            field not in process_details for field in required_fields_create
+        ):
+            missing_fields = [
+                field
+                for field in required_fields_create
+                if field not in process_details
+            ]
+            return {
+                "Success": False,
+                "Error": f"Missing required process details: {', '.join(missing_fields)}",
+            }
+
+        if action in ["UPDATE"] and any(
+            field not in process_details for field in required_fields_update
+        ):
+            missing_fields = [
+                field
+                for field in required_fields_update
+                if field not in process_details
+            ]
+            return {
+                "Success": False,
+                "Error": f"Missing required process details: {', '.join(missing_fields)}",
+            }
+
+        if bot_id is None:
+            return {
+                "Success": False,
+                "Error": "The 'bot_id' field is required."
+            }
+    
+        try:
+            if action == "CREATE":
+                insert_query = f"""
+                    INSERT INTO {db_adapter.schema}.PROCESSES (
+                        timestamp, process_id, bot_id, process_name, process_instructions
+                    ) VALUES (
+                        current_timestamp(), %(process_id)s, %(bot_id)s, %(process_name)s, %(process_instructions)s
+                    )
+                """ if db_adapter.schema else f"""
+                    INSERT INTO PROCESSES (
+                        timestamp, process_id, bot_id, process_name, process_instructions
+                    ) VALUES (
+                        current_timestamp(), %(process_id)s, %(bot_id)s, %(process_name)s, %(process_instructions)s
+                    )
+                """
+
+                # Generate 6 random alphanumeric characters
+                if process_id_created == False:
+                    random_suffix = "".join(
+                    random.choices(string.ascii_letters + string.digits, k=6)
+                     )
+                    process_id_with_suffix = process_id + "_" + random_suffix
+                else:
+                    process_id_with_suffix = process_id
+                cursor.execute(
+                    insert_query,
+                    {
+                        **process_details,
+                        "process_id": process_id_with_suffix,
+                        "bot_id": bot_id,
+                    },
+                )
+                db_adapter.client.commit()
+                return {
+                    "Success": True,
+                    "Message": f"process successfully created.",
+                    "process_id": process_id,
+                    "Suggestion": "Now that the process is created, offer to test it using run_process, and if there are any issues you can later on UPDATE the process using manage_processes to clarify anything needed.  OFFER to test it, but don't just test it unless the user agrees.",
+                    "Reminder": "If you are asked to test the process, use _run_process function to each step, don't skip ahead since you already know what the steps are, pretend you don't know what the process is and let run_process give you one step at a time!",
+                }
+
+            elif action == "DELETE":
+                delete_query = f"""
+                    DELETE FROM {db_adapter.schema}.PROCESSES
+                    WHERE process_id = %s
+                """ if db_adapter.schema else f"""
+                    DELETE FROM PROCESSES
+                    WHERE process_id = %s
+                """
+                cursor.execute(delete_query, (process_id))
+                db_adapter.client.commit()
+
+            elif action == "UPDATE":
+                update_query = f"""
+                    UPDATE {db_adapter.schema}.PROCESSES
+                    SET {', '.join([f"{key} = %({key})s" for key in process_details.keys()])}
+                    WHERE process_id = %(process_id)s
+                """ if db_adapter.schema else f"""
+                    UPDATE PROCESSES
+                    SET {', '.join([f"{key} = %({key})s" for key in process_details.keys()])}
+                    WHERE process_id = %(process_id)s
+                """
+                cursor.execute(
+                    update_query,
+                    {**process_details, "process_id": process_id},
+                )
+                db_adapter.client.commit()
+
+            return {"Success": True, "Message": f"process update or delete confirmed."}
+        except Exception as e:
+            return {"Success": False, "Error": str(e)}
+
+        finally:
+            cursor.close()
+
+    def insert_process_history(
+        self,
+        process_id,
+        work_done_summary,
+        process_status,
+        updated_process_learnings,
+        report_message="",
+        done_flag=False,
+        needs_help_flag="N",
+        process_clarity_comments="",
+    ):
+        """
+        Inserts a row into the PROCESS_HISTORY table.
+
+        Args:
+            process_id (str): The unique identifier for the process.
+            work_done_summary (str): A summary of the work done.
+            process_status (str): The status of the process.
+            updated_process_learnings (str): Any new learnings from the process.
+            report_message (str): The message to report about the process.
+            done_flag (bool): Flag indicating if the process is done.
+            needs_help_flag (bool): Flag indicating if help is needed.
+            process_clarity_comments (str): Comments on the clarity of the process.
+        """
+        insert_query = f"""
+            INSERT INTO {db_adapter.schema}.PROCESS_HISTORY (
+                process_id, work_done_summary, process_status, updated_process_learnings, 
+                report_message, done_flag, needs_help_flag, process_clarity_comments
+            ) VALUES (
+                %s, %s, %s, %s, %s, %s, %s, %s
+            )
+        """ if db_adapter.schema else f"""
+            INSERT INTO PROCESS_HISTORY (
+                process_id, work_done_summary, process_status, updated_process_learnings, 
+                report_message, done_flag, needs_help_flag, process_clarity_comments
+            ) VALUES (
+                %s, %s, %s, %s, %s, %s, %s, %s
+            )
+        """
+        try:
+            cursor = db_adapter.client.cursor()
+            cursor.execute(
+                insert_query,
+                (
+                    process_id,
+                    work_done_summary,
+                    process_status,
+                    updated_process_learnings,
+                    report_message,
+                    done_flag,
+                    needs_help_flag,
+                    process_clarity_comments,
+                ),
+            )
+            db_adapter.client.commit()
+            cursor.close()
+            print(
+                f"Process history row inserted successfully for process_id: {process_id}"
+            )
+        except Exception as e:
+            print(f"An error occurred while inserting the process history row: {e}")
+            if cursor is not None:
+                cursor.close()
+
+    # ========================================================================================================
     
 if genesis_source == "BigQuery":
     credentials_path = os.getenv(

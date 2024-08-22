@@ -6,6 +6,8 @@ before republishing on natapp:
 clean up logging and cust data in logs
 add cross region calling
 streamlit requests for stuff
+    https://docs.snowflake.com/en/developer-guide/native-apps/container-about
+    https://docs.snowflake.com/en/developer-guide/native-apps/container-compute-pool
 default processes
 add sandy bot?
 

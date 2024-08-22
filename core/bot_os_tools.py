@@ -75,9 +75,9 @@ genesis_source = os.getenv("GENESIS_SOURCE", default="Snowflake")
 
 
 class ToolBelt:
-    def __init__(self, db_adapter, openai_api_key):
+    def __init__(self, db_adapter, openai_api_key=None):
         self.db_adapter = db_adapter
-        self.openai_api_key = os.getenv("OPENAI_API_KEY") # openai_api_key 
+        self.openai_api_key = os.getenv("OPENAI_API_KEY",None) # openai_api_key 
 
         # print(f"API KEY IN ENV VAR OPENAI_API_KEY: {self.openai_api_key}")
 
@@ -817,8 +817,12 @@ else:
     # tool_belt = (ToolBelt(db_adapter, os.getenv("OPENAI_API_KEY")),)
 
 def get_tools(which_tools, db_adapter, slack_adapter_local=None, include_slack=True):
-    print (f"Instantiating ToolBelt with db_adapter and openai_api_key: len: {len(os.getenv('OPENAI_API_KEY'))}")
-    tool_belt = ToolBelt(db_adapter, os.getenv("OPENAI_API_KEY"))
+    openai_key = os.getenv('OPENAI_API_KEY', None)
+    if openai_key is not None:
+        print (f"Instantiating ToolBelt with db_adapter and openai_api_key: len: {len(openai_key)}")
+    else:
+        print (f"Instantiating ToolBelt with db_adapter, no OPENAI_KEY available")
+    tool_belt = ToolBelt(db_adapter, openai_key)
     tools = []
     available_functions_load = {}
     function_to_tool_map = {}

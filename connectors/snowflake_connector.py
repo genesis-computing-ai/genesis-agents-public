@@ -3411,14 +3411,15 @@ class SnowflakeConnector(DatabaseConnector):
             #   else:
             cursor.execute(query)
 
-            workspace_schema_name = f"{global_flags.project_id}.{bot_id.replace(r'[^a-zA-Z0-9]', '_').replace('-', '_')}_WORKSPACE".upper()
-
-            # call grant_all_bot_workspace()
-            if bot_id is not None and (
-                "CREATE" in query.upper()
-                and workspace_schema_name.upper() in query.upper()
-            ):
-                self.grant_all_bot_workspace(workspace_schema_name)
+            if bot_id is not None:
+                
+                workspace_schema_name = f"{global_flags.project_id}.{bot_id.replace(r'[^a-zA-Z0-9]', '_').replace('-', '_').replace('.', '_')}_WORKSPACE".upper()
+                # call grant_all_bot_workspace()
+                if bot_id is not None and (
+                    "CREATE" in query.upper()
+                    and workspace_schema_name.upper() in query.upper()
+                ):
+                    self.grant_all_bot_workspace(workspace_schema_name)
 
         except Exception as e:
             if "does not exist or not authorized" in str(e):

@@ -1275,6 +1275,13 @@ class SlackBotAdapter(BotOsInputAdapter):
     def send_slack_direct_message(
         self, slack_user_id: str, message: str, attachments=[], thread_id: str = None
     ):
+        
+        if slack_user_id.startswith('#'):
+            return {
+                "success": False,
+                "message": "Invalid user ID. Use send_slack_channel_message to send to a channel.",
+                "suggestion": "To send a message to a channel, use the _send_slack_channel_message function instead."
+            }
         try:
             # Start a conversation with the user
             response = self.slack_app.client.conversations_open(users=slack_user_id)
@@ -1307,7 +1314,8 @@ class SlackBotAdapter(BotOsInputAdapter):
                         if res.data:
                             return {
                                 "success": False,
-                                "message": f"Response from slack: {res.data}."
+                                "message": f"Response from slack: {res.data}.",
+                                "suggestion": f"Did you perhaps intend to sent a message to a channel with send_slack_channel_message?"
                             }
                         else:
                             return {

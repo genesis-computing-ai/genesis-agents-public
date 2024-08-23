@@ -612,8 +612,8 @@ autonomous_tools = {}
 #autonomous_tools = {"_manage_tasks": "db_adapter.manage_tasks"}
 
 process_runner_tools = {"_run_process": "tool_belt.run_process"}
-process_manager_tools = {"_manage_processes": "db_adapter.manage_processes"}
-process_scheduler_tools = {"_process_scheduler": "db_adapter.process_scheduler"}
+process_manager_tools = {"_manage_processes": "tool_belt.manage_processes"}
+process_scheduler_tools = {"_process_scheduler": "tool_belt.process_scheduler"}
 
 
 def bind_semantic_copilot(data_connection_info):

@@ -276,7 +276,7 @@ class ToolBelt:
                     Do not ever verify anything with the user, unless you need to get a specific input from the user to be able to continue the process.
                     However DO generate text explaining what you are doing and showing interium outputs, etc. while you are running this and further steps to keep the user informed what is going on.
                     In your response back to run_process, provide a DETAILED description of what you did, what result you achieved, and why you believe this to have successfully completed the step.
-                    Do not use your memory or any cache that you might have.  Do not simulate any user interaction or tools.  Do not ask for any user input.
+                    Do not use your memory or any cache that you might have.  Do not simulate any user interaction or tools.  Do not ask for any user input. 
                     Oh, and mention to the user before you start running the process that they can send "stop" to you at any time to stop the running of the process.
                     """
 
@@ -313,7 +313,7 @@ class ToolBelt:
                     may still have not have been correctly perfomed, return a request to again re-run the step of the process by returning the text "**fail**" 
                     followed by a DETAILED EXPLAINATION as to why it did not pass and what your concern is, and why its previous attempt to respond to your criticism 
                     was not sufficient, and any suggestions you have on how to succeed on the next try. If the response looks correct, return only the text string 
-                    "**success**" to continue to the next step.  At this point its ok to give the bot the benefit of the doubt to avoid
+                    "**success**" (no explanation needed) to continue to the next step.  At this point its ok to give the bot the benefit of the doubt to avoid
                     going in circles.
 
                     Instructions: {self.process_history.get(thread_id,None)}
@@ -331,7 +331,7 @@ class ToolBelt:
                     previous step without asking to see the sql queries and results that led to the final conclusion. If you are very seriously concerned that the step may not 
                     have been correctly perfomed, return a request to re-run the step of the process again by returning the text "**fail**" followed by a 
                     DETAILED EXPLAINATION as to why it did not pass and what your concern is, and any suggestions you have on how to succeed on the next try.  
-                    If the response seems like it is likely correct, return only the text string "**success**" to continue to the next step.  If the process is complete,
+                    If the response seems like it is likely correct, return only the text string "**success**" (no explanation needed) to continue to the next step.  If the process is complete,
                     tell the process to stop running.  Remember, proceed under your own direction and do not ask the user for permission to proceed.
 
                     Process History: {self.process_history.get(thread_id,None)}
@@ -624,8 +624,9 @@ class ToolBelt:
             if process_details is None or ('process_name' not in process_details and 'process_id' not in process_details):
                 return {"Success": False, "Error": "Either process_name or process_id is required in process_details for SHOW action"}
             
-            if 'process_id' in process_details:
-                process_id = process_details['process_id']
+            if process_id is not None or 'process_id' in process_details:
+                if process_id is None:
+                    process_id = process_details['process_id']
                 return self.get_process_info(bot_id=bot_id, process_id=process_id)
             else:
                 process_name = process_details['process_name']

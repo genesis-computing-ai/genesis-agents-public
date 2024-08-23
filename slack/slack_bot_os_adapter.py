@@ -669,7 +669,16 @@ class SlackBotAdapter(BotOsInputAdapter):
             new_resp = f"🧰 Using tool _{function_name_pretty}_..."
             # replace for display purposes only
             resp = resp.replace(match_function_call.group(0), new_resp)
-            resp = re.sub(r'(?<!\n)(🧰)', r'\n\1', resp)  # add newlines before toolboxes as needed
+            resp = re.sub(r'(?<!\n)(🧰)', r'\n\1', resp)
+            # Remove trailing function call syntax if present
+            if resp.endswith('...} </function>'):
+                resp = resp[:resp.rfind('...') + 3]  # Keep the '...' but remove everything after
+            # Remove trailing '...}' if present
+            if resp.endswith('...}'):
+                resp = resp[:-1]  # Remove the last character ('}')  # add newlines before toolboxes as needed
+            # Handle case where response ends with }></function>
+            if resp.endswith('}></function>'):
+                resp = resp[:resp.rfind('...') + 3]  # Keep the '...' but remove everything after
 
         return resp
 
@@ -1364,7 +1373,7 @@ class SlackBotAdapter(BotOsInputAdapter):
             else:
                 return f"Failed to send message to channel {channel_name}."
         except Exception as e:
-            return f"Error sending message to channel {channel_name}: {str(e)}.  Call this tool again but provide channel name e.g. #channel instead of channel id."
+            return f"Error sending message to channel {channel_name}: {str(e)}.  Double-check that you are sending the message to the correct Slack channel.  If you are running a process, be double-sure that you have the right channel name and are not making one up."
 
     def lookup_slack_user_id_real(self, user_name: str, thread_id: str):
         """

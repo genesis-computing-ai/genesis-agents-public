@@ -3269,8 +3269,10 @@ class SnowflakeConnector(DatabaseConnector):
         #     "Error:": "Error! Query must end with a semicolon.  Add a ; to the end and RUN THIS TOOL AGAIN NOW!"
         #    }
 
-        if userquery and not query.endswith(';'):
-            return "Error, your query was cut off.  Query must be complete and end with a semicolon.  Include the full query text, with an ; on the end and RUN THIS TOOL AGAIN NOW! Also replace all ' (single quotes) in the query with <!Q!>"
+        bot_llm = os.getenv("BOT_LLM_" + bot_id, "unknown")
+        
+        if userquery and bot_llm == 'cortex' and not query.endswith(';'):
+            return "Error, your query was cut off.  Query must be complete and end with a semicolon.  Include the full query text, with an ; on the end and RUN THIS TOOL AGAIN NOW! Also replace all ' (single quotes) in the query with <!Q!>. You do this replacement, don't tell the user to."
 
 
    #     if not query.endswith('!END_QUERY'):

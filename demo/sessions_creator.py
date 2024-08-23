@@ -372,6 +372,7 @@ def make_session(
 
         # Save the JSON string as an environment variable
         os.environ["BOT_LLMS"] = bot_llms_json
+        os.environ["BOT_LLM_"+bot_id] = bot_llms_json
 
         #if assistant_implementation == BotOsAssistantSnowflakeCortex and stream_mode:
         if assistant_implementation == BotOsAssistantSnowflakeCortex and True:

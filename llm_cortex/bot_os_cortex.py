@@ -178,6 +178,16 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                 # replace for display purposes only
                 resp = resp.replace(match_function_call.group(0), new_resp)
                 resp = re.sub(r'(?<!\n)(🧰)', r'\n\1', resp)  # add newlines before toolboxes as needed
+            # Remove trailing function call syntax if present
+            # Remove trailing function call syntax if present
+            if resp.endswith('...} </function>'):
+                resp = resp[:resp.rfind('...') + 3]  # Keep the '...' but remove everything after
+            # Remove trailing '...}' if present
+            if resp.endswith('...}'):
+                resp = resp[:-1]  # Remove the last character ('}')
+            # Handle case where response ends with }></function>
+            if resp.endswith('}></function>'):
+                resp = resp[:resp.rfind('...') + 3]  # Keep the '...' but remove everything after
 
             if resp == orig_resp:
                 break

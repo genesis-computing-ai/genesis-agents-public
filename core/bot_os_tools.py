@@ -166,6 +166,7 @@ class ToolBelt:
             return {"error": str(e)}
     
     def chat_completion(self, message):
+        return_msg = ''
         if os.getenv("BOT_OS_DEFAULT_LLM_ENGINE") == 'openai':
                     api_key = os.getenv("OPENAI_API_KEY")
                     if not api_key:

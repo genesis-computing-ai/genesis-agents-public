@@ -465,11 +465,17 @@ class ToolBelt:
         finally:
             cursor.close()
 
-    def get_process_info(self, bot_id, process_name):
+    def get_process_info(self, bot_id=None, process_name=None, process_id=None):
         cursor = db_adapter.client.cursor()
         try:
-            query = f"SELECT * FROM {db_adapter.schema}.PROCESSES WHERE bot_id like %s AND process_name LIKE %s" if db_adapter.schema else f"SELECT * FROM PROCESSES WHERE bot_id like %s AND process_name LIKE %s"
-            cursor.execute(query, (f"%{bot_id}%", f"%{process_name}%",))
+            if process_id is not None:
+                query = f"SELECT * FROM {db_adapter.schema}.PROCESSES WHERE bot_id LIKE %s AND process_id = %s" if db_adapter.schema else f"SELECT * FROM PROCESSES WHERE bot_id LIKE %s AND process_id = %s"
+                cursor.execute(query, (f"%{bot_id}%", process_id))
+            elif process_name is not None:
+                query = f"SELECT * FROM {db_adapter.schema}.PROCESSES WHERE bot_id LIKE %s AND process_name LIKE %s" if db_adapter.schema else f"SELECT * FROM PROCESSES WHERE bot_id LIKE %s AND process_name LIKE %s"
+                cursor.execute(query, (f"%{bot_id}%", f"%{process_name}%"))
+            else:
+                raise ValueError("Either process_name or process_id must be provided")
             result = cursor.fetchone()
             if result:
                 # Assuming the result is a tuple of values corresponding to the columns in the PROCESSES table
@@ -538,33 +544,35 @@ class ToolBelt:
                     line.lstrip() for line in tidy_process_instructions.splitlines()
                 )
 
-                if os.getenv("BOT_OS_DEFAULT_LLM_ENGINE") == 'openai':
-                    api_key = os.getenv("OPENAI_API_KEY")
-                    if not api_key:
-                        print("OpenAI API key is not set in the environment variables.")
-                        return None
+                process_details['process_instructions'] = self.chat_completion(tidy_process_instructions)
 
-                    openai_api_key = os.getenv("OPENAI_API_KEY")
-                    client = OpenAI(api_key=openai_api_key)
-                    response = client.chat.completions.create(
-                        model="gpt-4o",
-                        messages=[
-                            {
-                                "role": "user",
-                                "content": tidy_process_instructions,
-                            },
-                        ],
-                    )
+                # if os.getenv("BOT_OS_DEFAULT_LLM_ENGINE") == 'openai':
+                #     api_key = os.getenv("OPENAI_API_KEY")
+                #     if not api_key:
+                #         print("OpenAI API key is not set in the environment variables.")
+                #         return None
 
-                    process_details['process_instructions'] = response.choices[0].message.content
+                #     openai_api_key = os.getenv("OPENAI_API_KEY")
+                #     client = OpenAI(api_key=openai_api_key)
+                #     response = client.chat.completions.create(
+                #         model="gpt-4o",
+                #         messages=[
+                #             {
+                #                 "role": "user",
+                #                 "content": tidy_process_instructions,
+                #             },
+                #         ],
+                #     )
 
-                elif os.getenv("BOT_OS_DEFAULT_LLM_ENGINE") == 'cortex':
-                    if not db_adapter.check_cortex_available():
-                        print("Cortex is not available.")
-                        return None
-                    else:
-                        response = self.cortex_chat_completion(tidy_process_instructions)
-                        process_details['process_instructions'] = response
+                #     process_details['process_instructions'] = response.choices[0].message.content
+
+                # elif os.getenv("BOT_OS_DEFAULT_LLM_ENGINE") == 'cortex':
+                #     if not db_adapter.check_cortex_available():
+                #         print("Cortex is not available.")
+                #         return None
+                #     else:
+                #         response = self.cortex_chat_completion(tidy_process_instructions)
+                #         process_details['process_instructions'] = response
 
             if action == "CREATE":
                 return {
@@ -613,10 +621,15 @@ class ToolBelt:
             print("Running show process info")
             if bot_id is None:
                 return {"Success": False, "Error": "bot_id is required for SHOW action"}
-            if process_details is None or 'process_name' not in process_details:
-                return {"Success": False, "Error": "process_name is required in process_details for SHOW action"}
-            process_name = process_details['process_name']
-            return self.get_process_info(bot_id=bot_id, process_name=process_name)
+            if process_details is None or ('process_name' not in process_details and 'process_id' not in process_details):
+                return {"Success": False, "Error": "Either process_name or process_id is required in process_details for SHOW action"}
+            
+            if 'process_id' in process_details:
+                process_id = process_details['process_id']
+                return self.get_process_info(bot_id=bot_id, process_id=process_id)
+            else:
+                process_name = process_details['process_name']
+                return self.get_process_info(bot_id=bot_id, process_name=process_name)
 
         process_id_created = False
         if process_id is None:

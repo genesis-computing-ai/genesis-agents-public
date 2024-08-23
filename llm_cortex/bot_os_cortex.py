@@ -327,9 +327,11 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                 response = requests.post(url, json=request_data, stream=True, headers=headers)
                 
                 if response.status_code != 200:
-                    print(f"Failed to connect to Cortex API. Status code: {response.status_code}")
-                    print(f"Response: {response.text}")
-                    return False
+                    msg = f"Cortex REST API Error. Status code: {response.status_code}"
+                    if response.text is not None:
+                        msg = msg + '\n' + response.text    
+                    print(f"Cortex Error: {msg}")
+                    return(resp + '\n' + msg)
                 else:
                     for line in response.iter_lines():
                         if thread_id in self.thread_stop_map:
@@ -813,6 +815,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
 
         if isinstance(results_json, str) and results_json.strip() == "Error, your query was cut off.  Query must be complete and end with a semicolon.  Include the full query text, with an ; on the end and RUN THIS TOOL AGAIN NOW!":
             hightemp = 0.6
+            print('Cortex query cut off, calling update threads with Hightemp')
         else:
             hightemp = None
         if thread_id in self.last_stop_time_map and timestamp < self.last_stop_time_map[thread_id]:

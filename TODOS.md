@@ -3,6 +3,7 @@ GENESIS BOT TODOS
 =================
 
 before republishing on natapp:
+add handler for long contexts (if getting close, have the llm condense it)
 clean up logging and cust data in logs
 add cross region calling
 streamlit requests for stuff
@@ -10,10 +11,12 @@ streamlit requests for stuff
     https://docs.snowflake.com/en/developer-guide/native-apps/container-compute-pool
 default processes
 add sandy bot?
-
+make sure Eliza doesnt talk about the baseball etc data without running search metadata (ask about allstars she makes it up)sla
+put in a check to not allow repetitive tools calls more than n times
+figure out the query calling issue on cortex
 
 soon-jl:
-(test) make workspace schema names safe even if have dots in them (sandy 0.1 is causing probs)
+x (test) make workspace schema names safe even if have dots in them (sandy 0.1 is causing probs)
 give more hints to the process tidy thing
 test openai stop during a process kickoff
 update sqllite manage process and schedule process

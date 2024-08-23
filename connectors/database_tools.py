@@ -19,17 +19,17 @@ database_tool_functions = [
         "type": "function",
         "function": {
             "name": "search_metadata",
-            "description": "Searches metadata to find the top relevant tables or views. (This does not search sta.",
+            "description": "Searches metadata to find the top relevant tables or views, if you don't already know which tables to query. (This does not search stages).",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "query": {
                         "type": "string",
-                        "description": "The search query to find relevant metadata tables or views.",
+                        "description": "A short search query to find relevant tables or views.",
                     },
                     "top_n": {
                         "type": "integer",
-                        "description": "How many of the top results to return, max 50, default 15.  Use 15 to",
+                        "description": "How many of the top results to return, max 50, default 15.  Use 15 to start.",
                         "default": 15,
                     },
                     #                   "database": {"type": "string", "description": "Use when you want to constrain the search to a specific database, only use this when you already know for sure the name of the database."},
@@ -43,7 +43,7 @@ database_tool_functions = [
         "type": "function",
         "function": {
             "name": "run_query",
-            "description": "Run a query against a data connection. Use either search_metadata first to determine the right object names to query, or use semantic_copilot to get ready-to-execute SQL.",
+            "description": "Run a query against a data connection.  If you need to find tables to query, use search_metadata first to determine the right object names to query.",
             "parameters": {
                 "type": "object",
                 "properties": {

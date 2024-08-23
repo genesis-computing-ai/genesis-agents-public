@@ -17,7 +17,8 @@ make sure Eliza doesnt talk about the baseball etc data without running search m
 put in a check to not allow repetitive tools calls more than n times
 x figure out the query calling issue on cortex
 test baby bot with new bot id logic
-
+make send slack message suggest that maybe check the process again for the slack name
+also in process runner add hint to make sure to send to the right channels
 
 soon-jl:
 x (test) make workspace schema names safe even if have dots in them (sandy 0.1 is causing probs)

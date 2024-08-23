@@ -197,7 +197,8 @@ class ToolBelt:
                 return_msg = response
         
         if return_msg is None:
-            print('Error Chat_completion, return_msg is none, llm_type = ',os.getenv("BOT_OS_DEFAULT_LLM_ENGINE").lower())
+            return_msg = 'Error Chat_completion, return_msg is none, llm_type = ',os.getenv("BOT_OS_DEFAULT_LLM_ENGINE").lower()
+            print(return_msg)
             
         return return_msg
 

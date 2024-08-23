@@ -276,6 +276,7 @@ class SnowflakeConnector(DatabaseConnector):
             print(f"Response: {response.text}")
             return False
         else:
+            curr_resp = ''
             for line in response.iter_lines():
                 if line:
                     try:
@@ -929,7 +930,7 @@ class SnowflakeConnector(DatabaseConnector):
         except Exception as e:
             return {}
 
-    def manage_processes(
+    def OLDOLD__manage_processes(
         self, action, bot_id=None, process_id=None, process_details=None, thread_id=None, process_name=None
     ):
         """

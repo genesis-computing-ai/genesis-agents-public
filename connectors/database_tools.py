@@ -42,7 +42,7 @@ database_tool_functions = [
     {
         "type": "function",
         "function": {
-            "name": "run_query",
+            "name": "_run_query",
             "description": "Run a query against a data connection.  If you need to find tables to query, use search_metadata first to determine the right object names to query.",
             "parameters": {
                 "type": "object",
@@ -593,7 +593,8 @@ snowflake_semantic_tools = {
 }
 
 database_tools = {
-    "run_query": "run_query_f.local",
+  #  "run_query": "run_query_f.local",
+    "_run_query": "db_adapter.run_query",
     "search_metadata": "search_metadata_f.local",
  #   "semantic_copilot": "semantic_copilot_f.local",
     "get_full_table_details": "search_metadata_f.local",

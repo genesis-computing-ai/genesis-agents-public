@@ -3235,6 +3235,8 @@ class SnowflakeConnector(DatabaseConnector):
         max_rows_override=False,
         job_config=None,
         bot_id=None,
+        connection=None,
+        thread_id=None,
     ):
         import core.global_flags as global_flags
         """

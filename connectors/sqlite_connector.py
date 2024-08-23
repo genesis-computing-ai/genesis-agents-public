@@ -2502,6 +2502,7 @@ class SqliteConnector(DatabaseConnector):
         max_rows=20,
         max_rows_override=False,
         job_config=None,
+        connection=None,
         bot_id=None,
     ):
         import core.global_flags as global_flags

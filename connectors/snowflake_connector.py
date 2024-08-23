@@ -86,14 +86,6 @@ class SnowflakeConnector(DatabaseConnector):
         else:
             self.llm_engine = 'llama3.1-405b'
 
- #       try:
- #           print(f"Is cortex avail? {self.check_cortex_available()}")
- #           # pass
- #       #     print('REST TOKEN: ',self.connection.rest.token)
- #       except Exception as e:
- #           print("Could not get REST Token: ", e)
-
-
         # self.client = self._create_client()
         self.genbot_internal_project_and_schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "None")
         if self.genbot_internal_project_and_schema == "None":
@@ -270,38 +262,18 @@ class SnowflakeConnector(DatabaseConnector):
  
 
     def test_cortex_via_rest(self):
-        response = self.cortex_chat_completion("Hi there")
-        if response.status_code != 200:
-            print(f"Failed to connect to Cortex API. Status code: {response.status_code}")
-            print(f"Response: {response.text}")
+        response, status_code  = self.cortex_chat_completion("Hi there")
+        if status_code != 200:
+            print(f"Failed to connect to Cortex API. Status code: {status_code}")
             return False
-        else:
-            curr_resp = ''
-            for line in response.iter_lines():
-                if line:
-                    try:
-                        decoded_line = line.decode('utf-8')
-                        if not decoded_line.strip():
-                            print("Received an empty line.")
-                            continue
-                        if decoded_line.startswith("data: "):
-                            decoded_line = decoded_line[len("data: "):]
-                        event_data = json.loads(decoded_line)
-                        if 'choices' in event_data:
-                            d = event_data['choices'][0]['delta'].get('content','')
-                            curr_resp += d
-                            print(d, end='', flush=True)
-                    except json.JSONDecodeError as e:
-                        print(f"Error decoding JSON: {e}")
-                        continue
 
-            if len(curr_resp) > 2:
-                os.environ['CORTEX_AVAILABLE'] = 'True'
-                return True
-            else:
-                os.environ['CORTEX_MODE'] = 'False'
-                os.environ['CORTEX_AVAILABLE'] = 'False'
-                return False
+        if len(response) > 2:
+            os.environ['CORTEX_AVAILABLE'] = 'True'
+            return True
+        else:
+            os.environ['CORTEX_MODE'] = 'False'
+            os.environ['CORTEX_AVAILABLE'] = 'False'
+            return False
 
     def cortex_chat_completion(self, prompt):
         newarray = [{"role": "user", "content": prompt} ]
@@ -323,11 +295,32 @@ class SnowflakeConnector(DatabaseConnector):
 
             print(f"snowflake_connector test calling cortex {self.llm_engine} via REST API, content est tok len=",len(str(newarray))/4)
 
-            return requests.post(url, json=request_data, stream=True, headers=headers)
+            response = requests.post(url, json=request_data, stream=True, headers=headers)
 
+            curr_resp = ''
+            for line in response.iter_lines():
+                if line:
+                    try:
+                        decoded_line = line.decode('utf-8')
+                        if not decoded_line.strip():
+                            print("Received an empty line.")
+                            continue
+                        if decoded_line.startswith("data: "):
+                            decoded_line = decoded_line[len("data: "):]
+                        event_data = json.loads(decoded_line)
+                        if 'choices' in event_data:
+                            d = event_data['choices'][0]['delta'].get('content','')
+                            curr_resp += d
+                            print(d, end='', flush=True)
+                    except json.JSONDecodeError as e:
+                        print(f"Error decoding JSON: {e}")
+                        continue
+
+            return curr_resp, response.status_code
+        
         except Exception as e:
             print ("Bottom of function -- Error calling Cortex Rest API, ",e, flush=True)
-            return False
+            return False, False
 
     def _create_snowpark_connection(self):
         try:
@@ -1022,7 +1015,7 @@ class SnowflakeConnector(DatabaseConnector):
                         print("Cortex is not available.")
                         return None
                     else:
-                        response = self.cortex_chat_completion(tidy_process_instructions)
+                        response, status_code = self.cortex_chat_completion(tidy_process_instructions)
                         process_details['process_instructions'] = response
 
 

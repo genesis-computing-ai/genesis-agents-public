@@ -193,7 +193,7 @@ class ToolBelt:
                 print("Cortex is not available.")
                 return None
             else:
-                response = db_adapter.cortex_chat_completion(message)
+                response, status_code = db_adapter.cortex_chat_completion(message)
                 return_msg = response
         
         if return_msg is None:
@@ -212,8 +212,9 @@ class ToolBelt:
         thread_id=None,
         bot_id=None
     ):
-        if self.client is None:
-            self.client = OpenAI(api_key=self.openai_api_key)
+    #    if self.client is None:
+    #        self.client = OpenAI(api_key=self.openai_api_key)
+    
         print(f"Running processes Action: {action} | process_id: {process_name} | Thread ID: {thread_id}")
 
         if bot_id is None or process_name is None:

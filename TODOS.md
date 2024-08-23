@@ -19,6 +19,7 @@ x figure out the query calling issue on cortex
 test baby bot with new bot id logic
 make send slack message suggest that maybe check the process again for the slack name
 also in process runner add hint to make sure to send to the right channels
+make cortex tool calls not stream when function definitions are being sent out 
 
 soon-jl:
 x (test) make workspace schema names safe even if have dots in them (sandy 0.1 is causing probs)

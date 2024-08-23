@@ -580,7 +580,7 @@ class SqliteConnector(DatabaseConnector):
             return {}
 
 
-    def manage_processes(
+    def OLD_OLD_manage_processes(
         self, action, bot_id=None, process_id=None, process_details=None, thread_id=None
     ):
         """
@@ -657,13 +657,13 @@ class SqliteConnector(DatabaseConnector):
 
                     process_details['process_instructions'] = response.choices[0].message.content
 
-                elif os.getenv("BOT_OS_DEFAULT_LLM_ENGINE") == 'cortex':
-                    if not self.check_cortex_available():
-                        print("Cortex is not available.")
-                        return None
-                    else:
-                        response = self.cortex_chat_completion(tidy_process_instructions)
-                        process_details['process_instructions'] = response
+           #     elif os.getenv("BOT_OS_DEFAULT_LLM_ENGINE") == 'cortex':
+           #         if not self.check_cortex_available():
+           #             print("Cortex is not available.")
+           #             return None
+           #         else:
+           #             response, status_code = self.cortex_chat_completion(tidy_process_instructions)
+           #             process_details['process_instructions'] = response
 
             if action == "CREATE":
                 return {

@@ -270,74 +270,6 @@ class SnowflakeConnector(DatabaseConnector):
  
 
     def test_cortex_via_rest(self):
-
-        newarray = [{"role": "user", "content": "hi there"} ]
-        new_array_str = json.dumps(newarray)
-    
-        try:
-
-            resp = ''
-            curr_resp = ''
-
-            SNOWFLAKE_HOST = self.client.host
-            REST_TOKEN = self.client.rest.token
-            url=f"https://{SNOWFLAKE_HOST}/api/v2/cortex/inference:complete"
-            headers = {
-                "Accept": "text/event-stream",
-                "Content-Type": "application/json",
-                "Authorization": f'Snowflake Token="{REST_TOKEN}"',
-            }
-
-            request_data = {
-                "model": self.llm_engine,
-    #            "messages": [{"content": "Hi there"}],
-                "messages": newarray,
-                "stream": True,
-            }
-
-            print(f"snowflake_connector test calling cortex {self.llm_engine} via REST API, content est tok len=",len(str(newarray))/4)
-
-            response = requests.post(url, json=request_data, stream=True, headers=headers)
-            if response.status_code != 200:
-                print(f"Failed to connect to Cortex API. Status code: {response.status_code}")
-                print(f"Response: {response.text}")
-                return False
-            else:
-
-                for line in response.iter_lines():
-                    if line:
-                        try:
-                            decoded_line = line.decode('utf-8')
-                            if not decoded_line.strip():
-                                print("Received an empty line.")
-                                continue
-                            if decoded_line.startswith("data: "):
-                                decoded_line = decoded_line[len("data: "):]
-                            event_data = json.loads(decoded_line)
-                            if 'choices' in event_data:
-                                d = event_data['choices'][0]['delta'].get('content','')
-                                curr_resp += d
-                                print(d, end='', flush=True)
-                        except json.JSONDecodeError as e:
-                            print(f"Error decoding JSON: {e}")
-                            continue
-
-              #  print('full resp: ',curr_resp)
-                if len(curr_resp) > 2:
-                    os.environ['CORTEX_AVAILABLE'] = 'True'
-                    return True
-                else:
-                    os.environ['CORTEX_MODE'] = 'False'
-                    os.environ['CORTEX_AVAILABLE'] = 'False'
-                    return False
-
-        except Exception as e:
-            print ("Bottom of function -- Error calling Cortex Rest API, ",e, flush=True)
-            return False
-
-        ## jeff's new version below:
-
-        curr_resp = ''
         response = self.cortex_chat_completion("Hi there")
         if response.status_code != 200:
             print(f"Failed to connect to Cortex API. Status code: {response.status_code}")
@@ -362,7 +294,6 @@ class SnowflakeConnector(DatabaseConnector):
                         print(f"Error decoding JSON: {e}")
                         continue
 
-            #  print('full resp: ',curr_resp)
             if len(curr_resp) > 2:
                 os.environ['CORTEX_AVAILABLE'] = 'True'
                 return True
@@ -371,10 +302,8 @@ class SnowflakeConnector(DatabaseConnector):
                 os.environ['CORTEX_AVAILABLE'] = 'False'
                 return False
 
-
     def cortex_chat_completion(self, prompt):
         newarray = [{"role": "user", "content": prompt} ]
-        curr_resp = ''
         try:
             SNOWFLAKE_HOST = self.client.host
             REST_TOKEN = self.client.rest.token
@@ -393,39 +322,8 @@ class SnowflakeConnector(DatabaseConnector):
 
             print(f"snowflake_connector test calling cortex {self.llm_engine} via REST API, content est tok len=",len(str(newarray))/4)
 
-            response = requests.post(url, json=request_data, stream=True, headers=headers)
-            if response.status_code != 200:
-                print(f"Failed to connect to Cortex API. Status code: {response.status_code}")
-                print(f"Response: {response.text}")
-                return False
-            else:
+            return requests.post(url, json=request_data, stream=True, headers=headers)
 
-                for line in response.iter_lines():
-                    if line:
-                        try:
-                            decoded_line = line.decode('utf-8')
-                            if not decoded_line.strip():
-                                print("Received an empty line.")
-                                continue
-                            if decoded_line.startswith("data: "):
-                                decoded_line = decoded_line[len("data: "):]
-                            event_data = json.loads(decoded_line)
-                            if 'choices' in event_data:
-                                d = event_data['choices'][0]['delta'].get('content','')
-                                curr_resp += d
-                                print(d, end='', flush=True)
-                        except json.JSONDecodeError as e:
-                            print(f"Error decoding JSON: {e}")
-                            continue
-
-              #  print('full resp: ',curr_resp)
-                if len(curr_resp) > 2:
-                    return curr_resp   
-                else:
-                  #  os.environ['CORTEX_MODE'] = 'False'
-                  #  os.environ['CORTEX_AVAILABLE'] = 'False'
-                    return False  
-                 
         except Exception as e:
             print ("Bottom of function -- Error calling Cortex Rest API, ",e, flush=True)
             return False

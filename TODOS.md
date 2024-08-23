@@ -6,6 +6,8 @@ before republishing on natapp:
 add handler for long contexts (if getting close, have the llm condense it)
 clean up logging and cust data in logs
 add cross region calling
+have bots send alerts via email:
+    Using SYSTEM$SEND_EMAIL to send email notifications
 streamlit requests for stuff
     https://docs.snowflake.com/en/developer-guide/native-apps/container-about
     https://docs.snowflake.com/en/developer-guide/native-apps/container-compute-pool
@@ -13,11 +15,13 @@ default processes
 add sandy bot?
 make sure Eliza doesnt talk about the baseball etc data without running search metadata (ask about allstars she makes it up)sla
 put in a check to not allow repetitive tools calls more than n times
-figure out the query calling issue on cortex
+x figure out the query calling issue on cortex
+test baby bot with new bot id logic
+
 
 soon-jl:
 x (test) make workspace schema names safe even if have dots in them (sandy 0.1 is causing probs)
-give more hints to the process tidy thing
+(seems ok) give more hints to the process tidy thing
 test openai stop during a process kickoff
 update sqllite manage process and schedule process
 x make sure openai running process eliza random numbers is !stop-able
@@ -29,7 +33,7 @@ x update janice , remove semantic, tasks, add process tools
 x Kevin - retest
 add a bot remove from slack tool (stub added to babybot)
 x Kevin - put a new slack token into Alpha and test rotation on startup
-(test w/cortex) redo task system as just as scheduler for processes
+x (test w/cortex) redo task system as just as scheduler for processes
 x re-test with small changes made friday 11am, commented out semantics fully from db tools
 n Test cortex COMPLETE mode more with tool calling
 Eve is talking a lot about the uploaded files.  No vector store unless needed?  And some prompt notes?
@@ -37,9 +41,9 @@ x make !stop work on OpenAI
 x make stop work better on cortex .. try on run process, keeps going.. make sure run is fully cancelled 
 if a process is stuck on a step after three tries, have it cancel the process
 x have !stop on openai just cancel the run on the thread directly
-make process list not return instructions to avoid cheating, make that SHOW
+x make process list not return instructions to avoid cheating, make that SHOW
 don't allow baby bot tools to be removed from Eve
-see if a process can stop and get input basedon change I made
+x see if a process can stop and get input basedon change I made
 
 willow testing:
 eve cant deploy existing bots to slack
@@ -47,7 +51,7 @@ bots do things when a differnt bot is directly tagged
 
 Cortex:
 make python interpreter work
-(not seen recently) try for error on submit: Failed to connect to Cortex API. Status code: 422 Response: {"message":"required field 'content' is zero value.","request_id":"f88c2e5a-6747-4a4e-a132-79273c1067ad"}
+x (not seen recently) try for error on submit: Failed to connect to Cortex API. Status code: 422 Response: {"message":"required field 'content' is zero value.","request_id":"f88c2e5a-6747-4a4e-a132-79273c1067ad"}
 x trying to run a query with run_query with a single quoted string goofs up the tool call, omits the string
 x Make add tools to bot and change instructions work for Cortex mode bots
 x Streaming mode 
@@ -55,16 +59,16 @@ x adding to a thread in progress, the system message isn't included
 x add a test cortex function
 x default system to cortex on startup unless openai key is present
 MR (test) allow adding of openai key via streamlit after startup
-(test on new install) have initial bots be on cortex if thats whats active
+x (test on new install) have initial bots be on cortex if thats whats active
 x fix/test on the fly bot engine changing w/relaunch
-MR - harvester system, make it work with cortex
+x MR - harvester system, make it work with cortex
 n (refactoring it) - task system, make it get the right llm keys for cortex like multibot does now, and the right instructions for cortex
 (test) streamlit screen update for llm key not needed cortex 
 (test/fix) allow it to update openai key via streamlit in general
 (test) switching to openai and relaunching bots on it 
 (test) default all bots to no specified llm
 x make task system relaunch when something in a bot chanes (like the llm, instructions, etc.)
-MR - make system start without an openai key, the annoy lookup thing needs one now 
+x MR - make system start without an openai key, the annoy lookup thing needs one now 
 x make update_bot_instructions work ok with cortext bots
 x make update_files etc not fail if run on cortex bots (check first)
 x if cortex api not pupr, default back to complete()

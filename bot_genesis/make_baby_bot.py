@@ -1000,6 +1000,9 @@ def make_baby_bot(bot_id, bot_name, bot_instructions='You are a helpful bot.', a
     if available_tools == []:
         available_tools = None
 
+    # Remove any special characters from bot_id except - A-Z and 0-9
+    bot_id = ''.join(char for char in bot_id if char.isalnum() or char == '-')
+
     try:
         logger.info(f"Creating {bot_id} named {bot_name}")
 

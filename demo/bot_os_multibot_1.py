@@ -80,7 +80,7 @@ import core.global_flags as global_flags
 
     
 
-print("****** GENBOT VERSION 0.152c *******")
+print("****** GENBOT VERSION 0.152d *******")
 
 runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
 global_flags.runner_id = runner_id
@@ -729,7 +729,7 @@ def configure_llm():
                 os.environ["CORTEX_MODE"] = 'True'
 
             # set the system default LLM engine
-            os.environ["BOT_OS_DEFAULT_LLM_ENGINE"] = llm_type
+            os.environ["BOT_OS_DEFAULT_LLM_ENGINE"] = llm_type.lower()
             default_llm_engine = llm_type
             llm_api_key = llm_key
             if llm_api_key is not None:

@@ -166,7 +166,9 @@ class ToolBelt:
             return {"error": str(e)}
     
     def chat_completion(self, message):
-        if os.getenv("BOT_OS_DEFAULT_LLM_ENGINE") == 'openai':
+
+        return_msg = None
+        if os.getenv("BOT_OS_DEFAULT_LLM_ENGINE").lower() == 'openai':
                     api_key = os.getenv("OPENAI_API_KEY")
                     if not api_key:
                         print("OpenAI API key is not set in the environment variables.")
@@ -186,7 +188,7 @@ class ToolBelt:
 
                     return_msg = response.choices[0].message.content
 
-        elif os.getenv("BOT_OS_DEFAULT_LLM_ENGINE") == 'cortex':
+        elif os.getenv("BOT_OS_DEFAULT_LLM_ENGINE").lower() == 'cortex':
             if not db_adapter.check_cortex_available():
                 print("Cortex is not available.")
                 return None
@@ -194,6 +196,9 @@ class ToolBelt:
                 response = db_adapter.cortex_chat_completion(message)
                 return_msg = response
         
+        if return_msg is None:
+            print('Error Chat_completion, return_msg is none, llm_type = ',os.getenv("BOT_OS_DEFAULT_LLM_ENGINE").lower())
+            
         return return_msg
 
 

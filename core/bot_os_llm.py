@@ -144,7 +144,7 @@ class LLMKeyHandler:
             
             if not openai_key:
                 # If not set in environment, try to get it from the database
-                llm_info = db_adapter.get_llm_info()
+                llm_info = db_adapter.get_llm_info() 
                 if llm_info["Success"]:
                     llm_data = json.loads(llm_info["Data"])
                     openai_key = next((item["llm_key"] for item in llm_data if item["llm_type"].lower() == "openai"), None)
@@ -160,7 +160,7 @@ class LLMKeyHandler:
             
             os.environ["CORTEX_MODE"] = "False"
 
-        os.environ["BOT_OS_DEFAULT_LLM_ENGINE"] = llm_type
+        os.environ["BOT_OS_DEFAULT_LLM_ENGINE"] = llm_type.lower()
         self.set_llm_env_vars()
         return api_key_from_env, llm_key, llm_type
             

@@ -90,6 +90,7 @@ class LLMKeyHandler:
                 os.environ["CORTEX_MODE"] = "True"
                 os.environ["CORTEX_HARVESTER_MODEL"] = "reka-flash"
                 os.environ["CORTEX_EMBEDDING_MODEL"] = 'e5-base-v2'
+                os.environ["BOT_OS_DEFAULT_LLM_ENGINE"] = 'cortex' 
                 self.default_llm_engine = "cortex"
                 print('&& CORTEX OVERRIDE FROM ENV VAR &&')
                 return False, 'cortex_no_key_needed', "cortex"

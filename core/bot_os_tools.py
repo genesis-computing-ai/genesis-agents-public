@@ -168,7 +168,7 @@ class ToolBelt:
     def chat_completion(self, message):
 
         return_msg = None
-        if os.getenv("BOT_OS_DEFAULT_LLM_ENGINE").lower() == 'openai':
+        if os.getenv("BOT_OS_DEFAULT_LLM_ENGINE",'').lower() == 'openai':
                     api_key = os.getenv("OPENAI_API_KEY")
                     if not api_key:
                         print("OpenAI API key is not set in the environment variables.")

@@ -264,6 +264,9 @@ def make_session(
     actual_llm = None
     print(f"Bot implementation from bot config: {bot_config.get('bot_implementation', 'Not specified')}")
     if "bot_implementation" in bot_config:
+        if os.environ["CORTEX_OVERRIDE"].lower() == "true":
+            print('&& cortex override for bot ',bot_id,' due to ENV VAR &&')
+            bot_config["bot_implementation"] = "cortex"
         llm_type = bot_config["bot_implementation"]
         if (bot_config["bot_implementation"] == "cortex"):
             if os.environ.get("CORTEX_AVAILABLE", 'False') in ['False', '']:

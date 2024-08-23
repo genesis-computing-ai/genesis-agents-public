@@ -3358,6 +3358,10 @@ class SnowflakeConnector(DatabaseConnector):
         """
         userquery = False
 
+        # Replace all <!Q!>s with single quotes in the query
+        if '<!Q!>' in query:
+            query = query.replace('<!Q!>', "'")
+
         if query.startswith("USERQUERY::"):
             userquery = True
             if max_rows == -1:
@@ -3374,7 +3378,7 @@ class SnowflakeConnector(DatabaseConnector):
         #    }
 
         if userquery and not query.endswith(';'):
-            return "Error, your query was cut off.  Query must be complete and end with a semicolon.  Include the full query text, with an ; on the end and RUN THIS TOOL AGAIN NOW!"
+            return "Error, your query was cut off.  Query must be complete and end with a semicolon.  Include the full query text, with an ; on the end and RUN THIS TOOL AGAIN NOW! Also replace all ' (single quotes) in the query with <!Q!>"
 
 
    #     if not query.endswith('!END_QUERY'):

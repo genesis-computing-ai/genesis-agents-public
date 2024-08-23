@@ -813,7 +813,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             self.thread_history[thread_id] = []
         self.thread_history[thread_id].append(message_object)
 
-        if isinstance(results_json, str) and results_json.strip() == "Error, your query was cut off.  Query must be complete and end with a semicolon.  Include the full query text, with an ; on the end and RUN THIS TOOL AGAIN NOW!":
+        if isinstance(results_json, str) and results_json.strip() == "Error, your query was cut off.  Query must be complete and end with a semicolon.  Include the full query text, with an ; on the end and RUN THIS TOOL AGAIN NOW! Also replace all ' (single quotes) in the query with <!Q!>":
             hightemp = 0.6
             print('Cortex query cut off, calling update threads with Hightemp')
         else:

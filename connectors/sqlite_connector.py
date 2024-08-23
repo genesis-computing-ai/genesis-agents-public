@@ -2525,7 +2525,7 @@ class SqliteConnector(DatabaseConnector):
         if userquery and not query.endswith(';'):
             return {
              "success": False,
-             "Error:": "Error! Query must end with a semicolon.  Add a ; to the end and RUN THIS TOOL AGAIN NOW!"
+             "Error:": "Error! Query must end with a semicolon.  Add a ; to the end and RUN THIS TOOL AGAIN NOW! Also replace all ' (single quotes) with 🏑"
             }
 
 

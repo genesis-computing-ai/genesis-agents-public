@@ -1173,7 +1173,7 @@ class SnowflakeConnector(DatabaseConnector):
                     "Success": True,
                     "Message": f"process successfully created.",
                     "process_id": process_id,
-                    "Suggestion": "Now that the process is created, offer to test it using run_process, and if there are any issues you can later on UPDATE the process using manage_processes to clarify anything needed.  OFFER to test it, but don't just test it unless the user agrees.",
+                    "Suggestion": "Now that the process is created, offer to test it using _run_process, and if there are any issues you can later on UPDATE the process using manage_processes to clarify anything needed.  OFFER to test it, but don't just test it unless the user agrees.",
                     "Reminder": "If you are asked to test the process, use _run_process function to each step, don't skip ahead since you already know what the steps are, pretend you don't know what the process is and let run_process give you one step at a time!",
                 }
 

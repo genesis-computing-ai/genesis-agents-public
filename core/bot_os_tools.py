@@ -343,7 +343,7 @@ class ToolBelt:
         goto_step=None,
         thread_id=None,
         bot_id=None,
-        silent_mode=True,
+        silent_mode=False,
     ):
       #  print(f"Running processes Action: {action} | process_id: {process_id or 'None'} | Thread ID: {thread_id or 'None'}")
 
@@ -429,10 +429,9 @@ class ToolBelt:
             )
 
             extract_instructions = f"""
-                You will need to break the process instructions below up into individual steps and run them in whatever order is most effective.  
-                You will then summarize the step taken and its result at the end of this chat thread so there will be a 
-                complete record of all of the steps and all of the results.  Start by returning the first step of the process instructions below.
-                Do not actually perform the step yourself, simply return the first instruction on what needs to be done first without removing or changing any details.
+                You will need to break the process instructions below up into individual steps and and return them one at a time.  
+                Start by returning the first step of the process instructions below.
+                Simply return the first instruction on what needs to be done first without removing or changing any details.
 
                 Process Instructions:
                 {process['PROCESS_INSTRUCTIONS']}
@@ -452,7 +451,7 @@ class ToolBelt:
                 if verbose:
                     self.instructions[thread_id][process_id] += """
                         However DO generate text explaining what you are doing and showing interium outputs, etc. while you are running this and further steps to keep the user informed what is going on.
-                        Oh, and mention to the user before you start running the process that they can send "stop" to you at any time to stop the running of the process, and if they want less verbose output next time they can run request to run the process in low-verbosity mode.
+                        Oh, and mention to the user before you start running the process that they can send "stop" to you at any time to stop the running of the process, and if they want less verbose output next time they can run request to run the process in "slient mode".
                         And keep them informed while you are running the process about what you are up to, especially before you call various tools.
                         """
                 else:

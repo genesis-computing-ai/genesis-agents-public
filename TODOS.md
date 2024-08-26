@@ -7,8 +7,7 @@ test out the slack bug, marty sending DMs for Janice 2.0... why .. see if my fix
 add handler for long contexts (if getting close, have the llm condense it)
 clean up logging and cust data in logs
 add cross region calling
-have bots send alerts via email:
-    Using SYSTEM$SEND_EMAIL to send email notifications
+x have bots send alerts via email:
 streamlit requests for stuff
     https://docs.snowflake.com/en/developer-guide/native-apps/container-about
     https://docs.snowflake.com/en/developer-guide/native-apps/container-compute-pool
@@ -18,8 +17,8 @@ make sure Eliza doesnt talk about the baseball etc data without running search m
 put in a check to not allow repetitive tools calls more than n times
 x figure out the query calling issue on cortex
 test baby bot with new bot id logic
-make send slack message suggest that maybe check the process again for the slack name
-also in process runner add hint to make sure to send to the right channels
+x make send slack message suggest that maybe check the process again for the slack name
+x also in process runner add hint to make sure to send to the right channels
 make cortex tool calls not stream when function definitions are being sent out 
 add stuff for send_email tool to streamlit installation script
 add error handling for send_email to tell people how to turn it on if not yet turned on

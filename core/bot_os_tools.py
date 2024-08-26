@@ -343,7 +343,7 @@ class ToolBelt:
         goto_step=None,
         thread_id=None,
         bot_id=None,
-        verbose=True,
+        silent_mode=True,
     ):
       #  print(f"Running processes Action: {action} | process_id: {process_id or 'None'} | Thread ID: {thread_id or 'None'}")
 
@@ -354,14 +354,21 @@ class ToolBelt:
             }
         
         # Convert verbose to boolean if it's a string
-        if isinstance(verbose, str):
-            if verbose.upper() == 'FALSE':
+
+        # Invert silent_mode if it's a boolean
+        if isinstance(silent_mode, bool):
+            verbose = not silent_mode
+        
+        if isinstance(silent_mode, str):
+            if silent_mode.upper() == 'TRUE':
+                silent_mode = True
                 verbose = False
             else:
+                silent_mode = False
                 verbose = True
 
         # Ensure verbose is a boolean
-        if not isinstance(verbose, bool):
+        if not isinstance(silent_mode, bool):
             verbose = True
         
         # Check if both process_name and process_id are None

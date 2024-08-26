@@ -74,9 +74,10 @@ process_runner_functions = [
                         "type": "string",
                         "description": "The previous response from the bot",
                     },
-                    "verbose": {
+                    "silent_mode": {
                         "type": "boolean",
-                        "description": "TRUE to provide a lot of details during the process run, FALSE to run the process more silently.  Default is TRUE.",
+                        "default": False,
+                        "description": "Optional, to run in low-verbosity/silent mode. Default to False.",
                     },
          #           "goto_step": {
          #               "type": "string",

@@ -42,6 +42,7 @@ def _get_function_details(run):
 class StreamingEventHandler(AssistantEventHandler):
 
    run_id_to_output_stream = {}
+   run_id_to_messages = {}
    run_id_to_metadata = {}
    run_id_to_bot_assist = {}
 
@@ -58,7 +59,7 @@ class StreamingEventHandler(AssistantEventHandler):
        self.client = client
        self.metadata = metadata
        self.bot_assist = bot_assist
-  
+   
    @override
    def on_text_created(self, text) -> None:
        pass
@@ -83,10 +84,40 @@ class StreamingEventHandler(AssistantEventHandler):
 
    @override
    def on_message_created(self, message: Message) -> None:
-       self.run_id = message.run_id
+      self.run_id = message.run_id
+      if self.run_id in StreamingEventHandler.run_id_to_messages:
+         messages = StreamingEventHandler.run_id_to_messages[self.run_id]
+         if messages and messages[-1]["type"] == "tool_call":
+               if self.run_id in StreamingEventHandler.run_id_to_output_stream:
+                  if not StreamingEventHandler.run_id_to_output_stream[self.run_id].endswith('\n'):
+                     StreamingEventHandler.run_id_to_output_stream[self.run_id] += '\n'
     #   print(f"\nassistant on_message_created > {message}\n", end="", flush=True)
    @override
    def on_message_done(self, message: Message) -> None:
+      if self.run_id not in StreamingEventHandler.run_id_to_messages:
+          StreamingEventHandler.run_id_to_messages[self.run_id] = []
+      
+   #   try:
+   #       message_text = message.content[0].text.value if message.content else ""
+   #   except:
+   #       message_text = ""
+      
+      try:
+          message_id = message.id if message.id else ""
+      except:
+          message_text = ""
+      message_obj = {
+          "type": "message",
+       #   "text": message_text,
+          "id": message_id
+      }
+      
+      StreamingEventHandler.run_id_to_messages[self.run_id].append(message_obj)
+
+      if self.run_id in StreamingEventHandler.run_id_to_output_stream:
+         if not StreamingEventHandler.run_id_to_output_stream[self.run_id].endswith('\n'):
+            StreamingEventHandler.run_id_to_output_stream[self.run_id] += ' '
+
       return 
    
       try:
@@ -276,6 +307,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       self.unposted_run_ids = {}
       self.thread_stop_map = {}
       self.stop_result_map = {}
+      self.run_tools_message_map = {}
      # self.last_stop_time_map = {}
 
       genbot_internal_project_and_schema = os.getenv('GENESIS_INTERNAL_DB_SCHEMA','None')
@@ -1219,7 +1251,8 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                #self._submit_tool_outputs(run.id, thread_id, tool_call_id=None, function_call_details=self.tool_completion_status[run.id],
                #                          func_response=None)
                # Todo add more handling here to tell the user the thread failed
-               output = f"!!! Error from OpenAI, run.lasterror {run.last_error} !!!"
+               output = StreamingEventHandler.run_id_to_output_stream.get(run.id,'') + f"\n\n!!! Error from OpenAI, run.lasterror {run.last_error} !!!"
+               
                event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id, 
                                                                      status=run.status, 
                                                                      output=output, 
@@ -1233,8 +1266,8 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
 
             if run.status == "expired":
-               logger.error(f"!!!!!!!!!! EXPIRED JOB, run.lasterror {run.last_error} !!!!!!!")
-               output = "!!! OpenAI run expired !!!"
+               print(f"!!!!!!!!!! EXPIRED JOB, run.lasterror {run.last_error} !!!!!!!")
+               output = StreamingEventHandler.run_id_to_output_stream.get(run.id,'') + "\n\n!!! OpenAI run expired !!!"
                event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id, 
                                                                      status=run.status, 
                                                                      output=output, 
@@ -1402,6 +1435,18 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                            msg = f"🧰 Using tool: _{function_name_pretty}_..."
 #                           msg = f':toolbox: _Using {func_name}_...\n'
 
+
+                           if run.id not in StreamingEventHandler.run_id_to_messages:
+                              StreamingEventHandler.run_id_to_messages[run.id] = []
+                           
+                           message_obj = {
+                              "type": "tool_call",
+                              "text": msg
+                           }
+
+                           StreamingEventHandler.run_id_to_messages[run.id].append(message_obj)
+
+                           # Initialize the array for this run_id if it doesn't exist
                            if  StreamingEventHandler.run_id_to_output_stream.get(run.id,None) is not None:
                               if StreamingEventHandler.run_id_to_output_stream.get(run.id,"").endswith('\n'):
                                  StreamingEventHandler.run_id_to_output_stream[run.id] += "\n"
@@ -1409,6 +1454,8 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                                  StreamingEventHandler.run_id_to_output_stream[run.id] += "\n\n"
                               StreamingEventHandler.run_id_to_output_stream[run.id] += msg
                               msg = StreamingEventHandler.run_id_to_output_stream[run.id]
+                           else: 
+                              StreamingEventHandler.run_id_to_output_stream[run.id] = msg
                            event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id, 
                                                                               status=run.status, 
                                                                               output=msg+" 💬",
@@ -1456,12 +1503,34 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
                for message in messages.data:
 
-                  output = ""
                   if message.run_id is None:
                      continue
                   if (message.run_id != run.id and message.run_id not in self.unposted_run_ids.get(thread_id, [])):
                      break
                   latest_attachments.extend( message.attachments)
+
+                  # Find tool calls that occurred before this message but after the previous message
+                  tool_calls = []
+                  if run.id in StreamingEventHandler.run_id_to_messages:
+                      messages_and_tool_calls = StreamingEventHandler.run_id_to_messages[run.id]
+                      found_message = False
+                      for item in reversed(messages_and_tool_calls):
+                          if not found_message:
+                              if item["type"] == "message" and item["id"] == message.id:
+                                  found_message = True
+                          else:
+                              if item["type"] == "tool_call":
+                                  tool_calls.insert(0, item)
+                              elif item["type"] == "message":
+                                  break
+                  
+                  # If there are tool calls, add them to the output
+
+                  output = ""
+
+                  if tool_calls:
+                      for tool_call in tool_calls:
+                          output += "\n"+tool_call['text']+"\n"
 
                   for content in message.content:
                      if content.type == 'image_file':
@@ -1474,7 +1543,10 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                            print('openai error parsing image attachment ',e)
                      if content.type == 'text':
                         try:
-                           output += (content.text.value + "\n") if output else content.text.value
+                           if output != '' and content.text.value == '!NO_RESPONSE_REQUIRED':
+                               pass
+                           else:
+                              output += (content.text.value + "\n") if output else content.text.value
                         except:
                            pass
                   output = output.strip()  # Remove the trailing newline if it exists
@@ -1482,23 +1554,6 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
             #      if  StreamingEventHandler.run_id_to_output_stream.get(run.id,None) is not None:
             #         output = StreamingEventHandler.run_id_to_output_stream.get(run.id)
                   try:
-                     if os.getenv('SHOW_COST', 'false').lower() == 'true':
-                        model_name = os.getenv("OPENAI_MODEL_NAME", default="gpt-4o")
-                        if model_name == "gpt-4o":
-                           input_cost = 5.000 / 1000000
-                           output_cost = 15.000 / 1000000
-                        elif model_name == "gpt-4o-2024-08-06":
-                           input_cost = 2.500 / 1000000
-                           output_cost = 10.000 / 1000000
-                        elif model_name in ["gpt-4o-mini", "gpt-4o-mini-2024-07-18"]:
-                           input_cost = 0.150 / 1000000
-                           output_cost = 0.600 / 1000000
-                        else:
-                           # Default to gpt-4o prices if model is unknown
-                           input_cost = 5.000 / 1000000
-                           output_cost = 15.000 / 1000000   
-                        total_cost = (run.usage.prompt_tokens * input_cost) + (run.usage.completion_tokens * output_cost)
-                        output += f'  `${total_cost:.4f}`'
                      output_array.append(output)
                   except:
                      pass
@@ -1511,9 +1566,26 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                   #  print(f"{self.bot_name} open_ai attachment info going into store files locally: {latest_attachments}", flush=True)
                files_in = self._store_files_locally(latest_attachments, thread_id)
                output = '\n'.join(reversed(output_array))
-                #  print(f"{self.bot_name} open_ai output of store files locally {files_in}")
-         #      if output.endswith("💬"):
-         #         output = output[:-1]
+               if os.getenv('SHOW_COST', 'false').lower() == 'true':
+                  model_name = os.getenv("OPENAI_MODEL_NAME", default="gpt-4o")
+                  if model_name == "gpt-4o":
+                     input_cost = 5.000 / 1000000
+                     output_cost = 15.000 / 1000000
+                  elif model_name == "gpt-4o-2024-08-06":
+                     input_cost = 2.500 / 1000000
+                     output_cost = 10.000 / 1000000
+                  elif model_name in ["gpt-4o-mini", "gpt-4o-mini-2024-07-18"]:
+                     input_cost = 0.150 / 1000000
+                     output_cost = 0.600 / 1000000
+                  else:
+                     # Default to gpt-4o prices if model is unknown
+                     input_cost = 5.000 / 1000000
+                     output_cost = 15.000 / 1000000   
+                  total_cost = (run.usage.prompt_tokens * input_cost) + (run.usage.completion_tokens * output_cost)
+                  output += f'  `${total_cost:.4f}`'
+          
+         #   
+         #   StreamingEventHandler.run_id_to_messages[run.id]
                event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id, 
                                                                      status=run.status, 
                                                                      output=output, 
@@ -1522,6 +1594,10 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                                                                      files=files_in,
                                                                      input_metadata=meta))
                self.unposted_run_ids[thread_id] = []
+               if run.id in StreamingEventHandler.run_id_to_output_stream:
+                   del StreamingEventHandler.run_id_to_output_stream[run.id]
+               if run.id in StreamingEventHandler.run_id_to_messages:
+                   del StreamingEventHandler.run_id_to_messages[run.id]
                try:
                   message_metadata = str(message.content)
                except:

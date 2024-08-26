@@ -26,11 +26,8 @@ make send_email use dynamic variables to prevent sql injection
 have send_email add stuff on the end to say why the message was sent and from who
 make the process tidy-er aware of the bots tools so it doesnt suggest other ways of doing things
 keep tool calls in the slack messages even upon finalization
-make send email more robust if addresses are not in an array (cortex does this)
-    "['justin.langseth@genesiscomputing.ai']"
-    This was incorrect, and I should have formatted it as a proper array instead, like this:
-    ["justin.langseth@genesiscomputing.ai"]
-
+x (test) make send email more robust if addresses are not in an array (cortex does this)
+  
 soon-jl:
 x (test) make workspace schema names safe even if have dots in them (sandy 0.1 is causing probs)
 (seems ok) give more hints to the process tidy thing

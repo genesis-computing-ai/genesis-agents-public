@@ -74,6 +74,8 @@ logger = logging.getLogger(__name__)
 
 genesis_source = os.getenv("GENESIS_SOURCE", default="Snowflake")
 
+# module level
+belts = 0
 
 class ToolBelt:
     def __init__(self, db_adapter, openai_api_key=None):
@@ -88,8 +90,11 @@ class ToolBelt:
         self.process = {}
         self.process_history = {}
         self.done = {}
-        self.last_fail = {}  
-        self.lock = threading.RLock()
+        self.last_fail = {}
+        self.lock = threading.Lock()
+        global belts
+        belts = belts + 1 
+        print(belts)
 
     # Function to make HTTP request and get the entire content
     def get_webpage_content(self, url):
@@ -475,7 +480,8 @@ class ToolBelt:
                 return {
                     "success": True,
                     "process_complete": True,
-                    "message": f"Congratulations, the process {process_name} is complete."
+                    "message": f"Congratulations, the process {process_name} is complete.",
+                    "reminder": f"If you were running this as a subprocess inside another process, be sure to continue the parent process."
                 }
 
             print(f"\n{next_step}\n")
@@ -916,13 +922,8 @@ else:
     raise ValueError('Invalid Source')
     # tool_belt = (ToolBelt(db_adapter, os.getenv("OPENAI_API_KEY")),)
 
-def get_tools(which_tools, db_adapter, slack_adapter_local=None, include_slack=True):
-    openai_key = os.getenv('OPENAI_API_KEY', None)
-    if openai_key is not None:
-        print (f"Instantiating ToolBelt with db_adapter and openai_api_key: len: {len(openai_key)}")
-    else:
-        print (f"Instantiating ToolBelt with db_adapter, no OPENAI_KEY available")
-    tool_belt = ToolBelt(db_adapter, openai_key)
+def get_tools(which_tools, db_adapter, slack_adapter_local=None, include_slack=True, tool_belt=None):
+
     tools = []
     available_functions_load = {}
     function_to_tool_map = {}

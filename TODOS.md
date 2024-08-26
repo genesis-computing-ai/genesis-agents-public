@@ -3,6 +3,7 @@ GENESIS BOT TODOS
 =================
 
 before republishing on natapp:
+test out the slack bug, marty sending DMs for Janice 2.0... why .. see if my fix fixes it and if local ones still work
 add handler for long contexts (if getting close, have the llm condense it)
 clean up logging and cust data in logs
 add cross region calling

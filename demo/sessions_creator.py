@@ -161,11 +161,18 @@ def make_session(
     if not slack_enabled:
         bot_tools = [tool for tool in bot_tools if tool != "slack_tools"]
 
+    openai_key = os.getenv('OPENAI_API_KEY', None)
+    if openai_key is not None:
+        print (f"Instantiating ToolBelt with db_adapter and openai_api_key: len: {len(openai_key)}")
+    else:
+        print (f"Instantiating ToolBelt with db_adapter, no OPENAI_KEY available")
+    tool_belt = ToolBelt(db_adapter, openai_key)
+
     tools, available_functions, function_to_tool_map = get_tools(
-        bot_tools, slack_adapter_local=slack_adapter_local, db_adapter=db_adapter
+        bot_tools, slack_adapter_local=slack_adapter_local, db_adapter=db_adapter, tool_belt=tool_belt
     )
     all_tools, all_functions, all_function_to_tool_map = get_tools(
-        available_tools, slack_adapter_local=slack_adapter_local, db_adapter=db_adapter
+        available_tools, slack_adapter_local=slack_adapter_local, db_adapter=db_adapter, tool_belt=tool_belt
     )
 
     simple_mode = os.getenv("SIMPLE_MODE", "false").lower() == "true"
@@ -458,7 +465,7 @@ Reminder:
             all_function_to_tool_map=all_function_to_tool_map,
             bot_id=bot_config["bot_id"],
             stream_mode=stream_mode,
-            tool_belt=ToolBelt(db_adapter, os.getenv("OPENAI_API_KEY",None)), 
+            tool_belt=tool_belt, 
             skip_vectors=skip_vectors,
         )
     except Exception as e:

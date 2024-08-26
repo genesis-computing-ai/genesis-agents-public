@@ -6,6 +6,7 @@ from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 from openai import OpenAI
 from datetime import datetime
+import threading 
 import random
 import string
 
@@ -87,7 +88,8 @@ class ToolBelt:
         self.process = {}
         self.process_history = {}
         self.done = {}
-        self.last_fail = {}
+        self.last_fail = {}  
+        self.lock = threading.RLock()
 
     # Function to make HTTP request and get the entire content
     def get_webpage_content(self, url):
@@ -284,13 +286,19 @@ class ToolBelt:
             }
 
         # Initialize thread-specific data structures if not already present
-        if thread_id not in self.counter:
-            self.counter[thread_id] = {}
-            self.process[thread_id] = {}
-            self.last_fail[thread_id] = {}
-            self.instructions[thread_id] = {}
-            self.process_history[thread_id] = {}
-            self.done[thread_id] = {}
+        with self.lock:
+            if thread_id not in self.counter:
+                self.counter[thread_id] = {}
+            if thread_id not in self.process:
+                self.process[thread_id] = {}
+            if thread_id not in self.last_fail:
+                self.last_fail[thread_id] = {}
+            if thread_id not in self.instructions:
+                self.instructions[thread_id] = {}
+            if thread_id not in self.process_history:
+                self.process_history[thread_id] = {}
+            if thread_id not in self.done:
+                self.done[thread_id] = {}
 
         # Try to get process info from PROCESSES table
         process = self.db_adapter.get_process_info(bot_id, process_name)
@@ -313,12 +321,13 @@ class ToolBelt:
         if action == "KICKOFF_PROCESS":
             print("Kickoff process.")
             
-            self.counter[thread_id][process_id] = 1
-            self.process[thread_id][process_id] = process
-            self.last_fail[thread_id][process_id] = None
-            self.instructions[thread_id][process_id] = None
-            self.process_history[thread_id][process_id] = None
-            self.done[thread_id][process_id] = False
+            with self.lock:
+                self.counter[thread_id][process_id] = 1
+                self.process[thread_id][process_id] = process
+                self.last_fail[thread_id][process_id] = None
+                self.instructions[thread_id][process_id] = None
+                self.process_history[thread_id][process_id] = None
+                self.done[thread_id][process_id] = False
 
             print(
                 f"Process {process_name} has been kicked off.  Process object: \n{process}"
@@ -336,25 +345,26 @@ class ToolBelt:
             
             first_step = self.chat_completion(extract_instructions)
 
-            self.process_history[thread_id][process_id] = "First step: "+ first_step
+            with self.lock:
+                self.process_history[thread_id][process_id] = "First step: "+ first_step
 
-            self.instructions[thread_id][process_id] = f"""
-                Hey **@{process['BOT_ID']}** , here is the first step of the process.
-                {first_step}
-                    Execute this instructions now and then pass your response to the run_process tool as a parameter
-                    called previous_response and an action of GET_NEXT_STEP.  
-                    Execute the instructions you were given without asking for permission.
-                    Do not ever verify anything with the user, unless you need to get a specific input from the user to be able to continue the process.
-                    However DO generate text explaining what you are doing and showing interium outputs, etc. while you are running this and further steps to keep the user informed what is going on.
-                    In your response back to run_process, provide a DETAILED description of what you did, what result you achieved, and why you believe this to have successfully completed the step.
-                    Do not use your memory or any cache that you might have.  Do not simulate any user interaction or tools.  Do not ask for any user input unless instructed to do so.
-                    If you are told to run another process as part of this process, actually run it, and run it completely before returning the results to this parent process.
-                    Oh, and mention to the user before you start running the process that they can send "stop" to you at any time to stop the running of the process.
-                    """
+                self.instructions[thread_id][process_id] = f"""
+                    Hey **@{process['BOT_ID']}** , here is the first step of the process.
+                    {first_step}
+                        Execute this instructions now and then pass your response to the run_process tool as a parameter
+                        called previous_response and an action of GET_NEXT_STEP.  
+                        Execute the instructions you were given without asking for permission.
+                        Do not ever verify anything with the user, unless you need to get a specific input from the user to be able to continue the process.
+                        However DO generate text explaining what you are doing and showing interium outputs, etc. while you are running this and further steps to keep the user informed what is going on.
+                        In your response back to run_process, provide a DETAILED description of what you did, what result you achieved, and why you believe this to have successfully completed the step.
+                        Do not use your memory or any cache that you might have.  Do not simulate any user interaction or tools.  Do not ask for any user input unless instructed to do so.
+                        If you are told to run another process as part of this process, actually run it, and run it completely before returning the results to this parent process.
+                        Oh, and mention to the user before you start running the process that they can send "stop" to you at any time to stop the running of the process.
+                        """
 
-            self.instructions[thread_id][process_id] = "\n".join(
-                line.lstrip() for line in self.instructions[thread_id][process_id].splitlines()
-            )
+                self.instructions[thread_id][process_id] = "\n".join(
+                    line.lstrip() for line in self.instructions[thread_id][process_id].splitlines()
+                )
 
             print("\n", self.instructions[thread_id][process_id], "\n")
 
@@ -363,56 +373,58 @@ class ToolBelt:
         elif action == "GET_NEXT_STEP":
             print("GET NEXT STEP - process_runner.")
 
-            if process_id not in self.process_history[thread_id]:
-                return {
-                    "Success": False,
-                    "Message": f"Error: Process {process_name} couldn't be continued. Please retry once more from KICKOFF_PROCESS."
-                }
+            with self.lock:
+                if process_id not in self.process_history[thread_id]:
+                    return {
+                        "Success": False,
+                        "Message": f"Error: Process {process_name} couldn't be continued. Please retry once more from KICKOFF_PROCESS."
+                    }
 
-            if self.done[thread_id][process_id]:
-                self.last_fail[thread_id][process_id] = None
-                return {
-                    "Success": True,
-                    "Message": f"Process {process_name} run complete.",
-                }
+                if self.done[thread_id][process_id]:
+                    self.last_fail[thread_id][process_id] = None
+                    return {
+                        "Success": True,
+                        "Message": f"Process {process_name} run complete.",
+                    }
 
-            if self.last_fail[thread_id][process_id] is not None:
-                check_response = f"""
-                    A bot has retried a step of a process based on your prior feedback (shown below).  Also below is the previous question that the bot was 
-                    asked and the response the bot gave after re-trying to perform the task based on your feedback.  Review the response and determine if the 
-                    bot's response is now better in light of the instructions and the feedback you gave previously. You can accept the final results of the
-                    previous step without asking to see the sql queries and results that led to the final conclusion.  If you are very seriously concerned that the step 
-                    may still have not have been correctly perfomed, return a request to again re-run the step of the process by returning the text "**fail**" 
-                    followed by a DETAILED EXPLAINATION as to why it did not pass and what your concern is, and why its previous attempt to respond to your criticism 
-                    was not sufficient, and any suggestions you have on how to succeed on the next try. If the response looks correct, return only the text string 
-                    "**success**" (no explanation needed) to continue to the next step.  At this point its ok to give the bot the benefit of the doubt to avoid
-                    going in circles.
+                if self.last_fail[thread_id][process_id] is not None:
+                    check_response = f"""
+                        A bot has retried a step of a process based on your prior feedback (shown below).  Also below is the previous question that the bot was 
+                        asked and the response the bot gave after re-trying to perform the task based on your feedback.  Review the response and determine if the 
+                        bot's response is now better in light of the instructions and the feedback you gave previously. You can accept the final results of the
+                        previous step without asking to see the sql queries and results that led to the final conclusion.  If you are very seriously concerned that the step 
+                        may still have not have been correctly perfomed, return a request to again re-run the step of the process by returning the text "**fail**" 
+                        followed by a DETAILED EXPLAINATION as to why it did not pass and what your concern is, and why its previous attempt to respond to your criticism 
+                        was not sufficient, and any suggestions you have on how to succeed on the next try. If the response looks correct, return only the text string 
+                        "**success**" (no explanation needed) to continue to the next step.  At this point its ok to give the bot the benefit of the doubt to avoid
+                        going in circles.
 
-                    Instructions: {self.process_history[thread_id][process_id]}
+                        Instructions: {self.process_history[thread_id][process_id]}
 
-                    Your previous guidance: {self.last_fail[thread_id][process_id]}
+                        Your previous guidance: {self.last_fail[thread_id][process_id]}
 
-                    Bot's latest response: {previous_response}
-                    """
-            else:
-                check_response = f"""
-                    Check the previous question that the bot was asked in the process history below and the response the bot gave after trying to perform the task.  Review the response and 
-                    determine if the bot's response was correct and makes sense given the instructions it was given.  You can accept the final results of the
-                    previous step without asking to see the sql queries and results that led to the final conclusion. If you are very seriously concerned that the step may not 
-                    have been correctly perfomed, return a request to re-run the step of the process again by returning the text "**fail**" followed by a 
-                    DETAILED EXPLAINATION as to why it did not pass and what your concern is, and any suggestions you have on how to succeed on the next try.  
-                    If the response seems like it is likely correct, return only the text string "**success**" (no explanation needed) to continue to the next step.  If the process is complete,
-                    tell the process to stop running.  Remember, proceed under your own direction and do not ask the user for permission to proceed.
+                        Bot's latest response: {previous_response}
+                        """
+                else:
+                    check_response = f"""
+                        Check the previous question that the bot was asked in the process history below and the response the bot gave after trying to perform the task.  Review the response and 
+                        determine if the bot's response was correct and makes sense given the instructions it was given.  You can accept the final results of the
+                        previous step without asking to see the sql queries and results that led to the final conclusion. If you are very seriously concerned that the step may not 
+                        have been correctly perfomed, return a request to re-run the step of the process again by returning the text "**fail**" followed by a 
+                        DETAILED EXPLAINATION as to why it did not pass and what your concern is, and any suggestions you have on how to succeed on the next try.  
+                        If the response seems like it is likely correct, return only the text string "**success**" (no explanation needed) to continue to the next step.  If the process is complete,
+                        tell the process to stop running.  Remember, proceed under your own direction and do not ask the user for permission to proceed.
 
-                    Process History: {self.process_history[thread_id][process_id]}
-                    Bot's Response: {previous_response}
-                    """
+                        Process History: {self.process_history[thread_id][process_id]}
+                        Bot's Response: {previous_response}
+                        """
 
             print(f"\n{check_response}\n")
 
             result = self.chat_completion(check_response)
 
-            self.process_history[thread_id][process_id] += "\nBots response: " + previous_response
+            with self.lock:
+                self.process_history[thread_id][process_id] += "\nBots response: " + previous_response
 
             if not isinstance(result, str):
                 return {
@@ -420,13 +432,14 @@ class ToolBelt:
                     "message": "Process failed: The checking function didn't return a string."
                 }
             
-            result_lower = result.lower()
+         #   result_lower = result.lower()
 
             print(f"\n{result}\n")
 
             if "**fail**" in result.lower():
-                self.last_fail[thread_id][process_id] = result
-                self.process_history[thread_id][process_id] += "\nSupervisors concern: " + result
+                with self.lock:
+                    self.last_fail[thread_id][process_id] = result
+                    self.process_history[thread_id][process_id] += "\nSupervisors concern: " + result
                 print(f"\nStep {self.counter[thread_id][process_id]} failed.  Trying again...\n")
                 return {
                     "success": False,
@@ -435,10 +448,11 @@ class ToolBelt:
                     "additional_request": "Please also explain and summarize this feedback from the supervisor bot to the user so they know whats going on, and how you plan to rectify it."
                 }
 
-            self.last_fail[thread_id][process_id] = None
-            print(f"\nThis step passed.  Moving to next step\n")
-            self.counter[thread_id][process_id] += 1
-            
+            with self.lock:
+                self.last_fail[thread_id][process_id] = None
+                print(f"\nThis step passed.  Moving to next step\n")
+                self.counter[thread_id][process_id] += 1
+                
             extract_instructions = f"""
                 Extract the text for the next step from the process instructions and return it, using the section marked 'Process
                 History' to see where you are in the process. Remember, you need to break the process instructions below up into 
@@ -455,8 +469,9 @@ class ToolBelt:
             next_step = self.chat_completion(extract_instructions)
 
             if next_step == '**done**' or next_step == '***done***':
-                self.last_fail[thread_id][process_id] = None
-                self.done[thread_id][process_id] = True
+                with self.lock:
+                    self.last_fail[thread_id][process_id] = None
+                    self.done[thread_id][process_id] = True
                 return {
                     "success": True,
                     "process_complete": True,
@@ -465,7 +480,8 @@ class ToolBelt:
 
             print(f"\n{next_step}\n")
 
-            self.instructions[thread_id][process_id] = f"""
+            with self.lock:
+                self.instructions[thread_id][process_id] = f"""
                 Hey **@{process['BOT_ID']}**, here is the next step of the process.
                 {next_step}
                     Execute these instructions now and then pass your response to the run_process tool as a parameter
@@ -479,7 +495,8 @@ class ToolBelt:
 
             print(f"\n{self.instructions[thread_id][process_id]}\n")
 
-            self.process_history[thread_id][process_id] += "\nNext step: " + self.instructions[thread_id][process_id]
+            with self.lock:
+                self.process_history[thread_id][process_id] += "\nNext step: " + self.instructions[thread_id][process_id]
 
             return {
                 "success": True,
@@ -488,7 +505,8 @@ class ToolBelt:
 
         elif action == "END_PROCESS":
             print(f"Received END_PROCESS action for process {process_name}.")
-            self.done[thread_id][process_id] = True
+            with self.lock:
+                self.done[thread_id][process_id] = True
             return {"success": True, "message": f'The process {process_name} has finished.  You may now end the process.'}
         else:
             print("No action specified.")
@@ -553,7 +571,11 @@ class ToolBelt:
                 # Assuming the result is a tuple of values corresponding to the columns in the PROCESSES table
                 # Convert the tuple to a dictionary with appropriate field names
                 field_names = [desc[0] for desc in cursor.description]
-                return dict(zip(field_names, result))
+                return {
+                    "Success": True,
+                    "Data": dict(zip(field_names, result)),
+                    "Note": "Only use this information to help manage or update processes, do not actually run a process based on these instructions. If you want to run this process, use _run_process function and follow the instructions that it gives you."
+                }
             else:
                 return {}
         except Exception as e:
@@ -774,6 +796,11 @@ class ToolBelt:
                 """
                 cursor.execute(delete_query, (process_id))
                 db_adapter.client.commit()
+                return {
+                    "Success": True,
+                    "Message": f"process deleted",
+                    "process_id": process_id,
+                }
 
             elif action == "UPDATE":
                 update_query = f"""
@@ -790,6 +817,13 @@ class ToolBelt:
                     {**process_details, "process_id": process_id},
                 )
                 db_adapter.client.commit()
+                return {
+                    "Success": True,
+                    "Message": f"process successfully updated",
+                    "process_id": process_id,
+                    "Suggestion": "Now that the process is updated, offer to test it using run_process, and if there are any issues you can later on UPDATE the process again using manage_processes to clarify anything needed.  OFFER to test it, but don't just test it unless the user agrees.",
+                    "Reminder": "If you are asked to test the process, use _run_process function to each step, don't skip ahead since you already know what the steps are, pretend you don't know what the process is and let run_process give you one step at a time!",
+                }
 
             return {"Success": True, "Message": f"process update or delete confirmed."}
         except Exception as e:

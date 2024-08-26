@@ -350,6 +350,14 @@ class ToolBelt:
 
             self.process_history[thread_id][process_id] += "\nBots response: " + previous_response
 
+            if not isinstance(result, str):
+                return {
+                    "success": False,
+                    "message": "Process failed: The checking function didn't return a string."
+                }
+            
+            result_lower = result.lower()
+
             print(f"\n{result}\n")
 
             if "**fail**" in result.lower():
@@ -398,6 +406,7 @@ class ToolBelt:
                 {next_step}
                     Execute these instructions now and then pass your response to the run_process tool as a parameter
                     called previous_response and an action of GET_NEXT_STEP. 
+                    If you are told to run another process in these instructions, actually run it using _run_process before calling GET_NEXT_STEP for this process, do not just pretend to run it.
                     If need to terminate the process early, call with action of END_PROCESS.
                     Do not verify anything with the user.  Execute the instructions you were given without asking for permission.
                     However DO generate text explaining what you are doing and showing interium outputs, etc. while you are running this and further steps to keep the user informed what is going on.

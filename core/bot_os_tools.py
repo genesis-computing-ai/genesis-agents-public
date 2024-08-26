@@ -172,9 +172,12 @@ class ToolBelt:
         except Exception as e:
             return {"error": str(e)}
     
-    def chat_completion(self, message):
-
+    def chat_completion(self, message, db_adapter, bot_id = None, bot_name = None, thread_id=None, process_id=None, process_name=None):
+        message_metadata = f"{process_id} - {process_name}"
         return_msg = None
+
+        self.write_message_log_row(db_adapter, bot_id, bot_name, thread_id, 'Supervisor Prompt', message, message_metadata)
+
         if os.getenv("BOT_OS_DEFAULT_LLM_ENGINE",'').lower() == 'openai':
                     api_key = os.getenv("OPENAI_API_KEY")
                     if not api_key:
@@ -206,8 +209,41 @@ class ToolBelt:
         if return_msg is None:
             return_msg = 'Error Chat_completion, return_msg is none, llm_type = ',os.getenv("BOT_OS_DEFAULT_LLM_ENGINE").lower()
             print(return_msg)
+
+        self.write_message_log_row(db_adapter, bot_id, bot_name, thread_id, 'Supervisor Response', return_msg, message_metadata)
             
         return return_msg
+
+    def write_message_log_row(self, db_adapter, bot_id, bot_name, thread_id, message_type, message_payload, message_metadata):
+        """
+        Inserts a row into the MESSAGE_LOG table.
+
+        Args:
+            db_adapter: The database adapter to use for the insertion.
+            bot_id (str): The ID of the bot.
+            bot_name (str): The name of the bot.
+            thread_id (str): The ID of the thread.
+            message_type (str): The type of the message.
+            message_payload (str): The payload of the message.
+            message_metadata (str): The metadata of the message.
+        """
+        timestamp = datetime.now()
+        query = f"""
+            INSERT INTO {db_adapter.schema}.MESSAGE_LOG (timestamp, bot_id, bot_name, thread_id, message_type, message_payload, message_metadata)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """
+        print(f"Writing message log row: {timestamp}, {bot_id}, {bot_name}, {thread_id}, {message_type}, {message_payload}, {message_metadata}")
+        values = (timestamp, bot_id, bot_name, thread_id, message_type, message_payload, message_metadata)
+        
+        try:
+            cursor = db_adapter.connection.cursor()
+            cursor.execute(query, values)
+            db_adapter.connection.commit()
+        except Exception as e:
+            print(f"Error writing message log row: {e}")
+            db_adapter.connection.rollback()
+        finally:
+            cursor.close()
 
     def send_email(self, to_addr_list: list, subject: str, body: str, thread_id: str = None, bot_id: str = None):
         """
@@ -290,6 +326,8 @@ class ToolBelt:
         with open(cache_file, 'w') as f:
             json.dump(cache_data, f)
 
+        
+
     def get_process_cache(self, bot_id, thread_id, process_id):
         cache_file = os.path.join("./process_cache", f"{bot_id}_{thread_id}_{process_id}.json")
         
@@ -342,7 +380,8 @@ class ToolBelt:
         process_id=None,
         goto_step=None,
         thread_id=None,
-        bot_id=None
+        bot_id=None,
+        bot_name=None
     ):
       #  print(f"Running processes Action: {action} | process_id: {process_id or 'None'} | Thread ID: {thread_id or 'None'}")
 
@@ -418,8 +457,8 @@ class ToolBelt:
                 Process Instructions:
                 {process['PROCESS_INSTRUCTIONS']}
                 """
-            
-            first_step = self.chat_completion(extract_instructions)
+
+            first_step = self.chat_completion(extract_instructions, self.db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, process_id=process_id, process_name=None )
 
             with self.lock:
                 self.process_history[thread_id][process_id] = "First step: "+ first_step
@@ -510,7 +549,7 @@ class ToolBelt:
 
             print(f"\n{check_response}\n")
 
-            result = self.chat_completion(check_response)
+            result = self.chat_completion(check_response, self.db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, process_id=process_id )
 
             with self.lock:
                 self.process_history[thread_id][process_id] += "\nBots response: " + previous_response
@@ -562,7 +601,7 @@ class ToolBelt:
 
             print(f"\n{extract_instructions}\n")
 
-            next_step = self.chat_completion(extract_instructions)
+            next_step = self.chat_completion(extract_instructions, self.db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, process_id=process_id )
 
             if next_step == '**done**' or next_step == '***done***' or next_step.strip().endswith('**done**'):
                 with self.lock:
@@ -744,7 +783,7 @@ class ToolBelt:
                     line.lstrip() for line in tidy_process_instructions.splitlines()
                 )
 
-                process_details['process_instructions'] = self.chat_completion(tidy_process_instructions)
+                process_details['process_instructions'] = self.chat_completion(tidy_process_instructions, self.db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, process_id=process_id )
 
             if action == "CREATE":
                 return {

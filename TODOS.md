@@ -23,6 +23,8 @@ make cortex tool calls not stream when function definitions are being sent out
 add stuff for send_email tool to streamlit installation script
 add error handling for send_email to tell people how to turn it on if not yet turned on
 make send_email use dynamic variables to prevent sql injection
+have send_email add stuff on the end to say why the message was sent and from who
+
 
 soon-jl:
 x (test) make workspace schema names safe even if have dots in them (sandy 0.1 is causing probs)

@@ -1410,7 +1410,7 @@ class SnowflakeConnector(DatabaseConnector):
         # Check if the action is CREATE or UPDATE
         if action in ["CREATE", "UPDATE"] and task_details and "task_name" in task_details:
             # Check if the task_name is a valid process for the bot
-            valid_processes = self.manage_processes(action="LIST", bot_id=bot_id)
+            valid_processes = self.get_processes_list(bot_id=bot_id)
             if not valid_processes["Success"]:
                 return {
                     "Success": False,

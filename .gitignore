@@ -35,3 +35,4 @@ genesis_env/*
 .matt.sh
 genesis.db
 launch.json
+*.exe

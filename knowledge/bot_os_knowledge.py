@@ -66,9 +66,12 @@ def get_llm_api_key(db_adapter=None):
         #   print('No LLM Key Available in ENV var or Snowflake database, sleeping 20 seconds before retry.', flush=True)
             time.sleep(20)
         else:
-            logger.info(f"Using {llm_type} for harvester ")
+            logger.info(f"Using {llm_type} for Knowledge Server")
+    
+    return llm_api_key, llm_type
 
-llm_api_key = get_llm_api_key(knowledge_db_connector)
+
+llm_api_key, llm_type = get_llm_api_key(knowledge_db_connector)
 
 
 ### END LLM KEY STUFF
@@ -95,9 +98,6 @@ print("    B o t O S")
 print(" ---- KNOWLEDGE SERVER ----")
 
 
-if __name__ == "__main__":
-    if os.getenv("OPENAI_API_KEY",'') == '':
-        print("Cannot start knowledge service - no openai key found")
-    else:
-        knowledge = KnowledgeServer(knowledge_db_connector, maxsize=10)
-        knowledge.start_threads()
+if __name__ == "__main__":    
+    knowledge = KnowledgeServer(knowledge_db_connector, llm_type, maxsize=10)
+    knowledge.start_threads()

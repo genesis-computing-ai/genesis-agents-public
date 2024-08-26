@@ -7,13 +7,14 @@ import os
 import sys
 from openai import OpenAI
 from datetime import datetime, timedelta
+import ast
 
 refresh_seconds = os.getenv("KNOWLEDGE_REFRESH_SECONDS", 60)
 refresh_seconds = int(refresh_seconds)
 
 
 class KnowledgeServer:
-    def __init__(self, db_connector, maxsize=100):
+    def __init__(self, db_connector, llm_type, maxsize=100):
         self.db_connector = db_connector
         self.maxsize = maxsize
         self.thread_queue = queue.Queue(maxsize)
@@ -21,15 +22,17 @@ class KnowledgeServer:
         self.condition = threading.Condition()
         self.thread_set = set()
         self.thread_set_lock = threading.Lock()
-        self.openai_api_key = os.getenv("OPENAI_API_KEY")
-        self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-        self.model = os.getenv("OPENAI_KNOWLEDGE_MODEL", "gpt-4o")
-        self.assistant = self.client.beta.assistants.create(
-            name="Knowledge Explorer",
-            description="You are a Knowledge Explorer to extract, synthesize, and inject knowledge that bots learn from doing their jobs",
-            model=self.model,
-            response_format={"type": "json_object"},
-        )
+        self.llm_type = llm_type
+        if llm_type == 'openai':
+            self.openai_api_key = os.getenv("OPENAI_API_KEY")
+            self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+            self.model = os.getenv("OPENAI_KNOWLEDGE_MODEL", "gpt-4o")
+            self.assistant = self.client.beta.assistants.create(
+                name="Knowledge Explorer",
+                description="You are a Knowledge Explorer to extract, synthesize, and inject knowledge that bots learn from doing their jobs",
+                model=self.model,
+                response_format={"type": "json_object"},
+            )
 
     def producer(self):
         while True:
@@ -100,9 +103,10 @@ class KnowledgeServer:
                              Conversation:
                              {messages}
                         """
-                self.client.beta.threads.messages.create(
-                    thread_id=knowledge_thread_id, content=content, role="user"
-                )
+                if self.llm_type == 'openai':
+                    self.client.beta.threads.messages.create(
+                        thread_id=knowledge_thread_id, content=content, role="user"
+                    )
             else:
                 content = f"""Given the following conversations between the user and agent, analyze them and extract the 4 requested information:
                              Conversation:
@@ -120,26 +124,35 @@ class KnowledgeServer:
                              'tool_learning': STRING,
                              'data_learning': STRING}}
                         """
-                knowledge_thread_id = self.client.beta.threads.create().id
-                self.client.beta.threads.messages.create(
-                    thread_id=knowledge_thread_id, content=content, role="user"
+                if self.llm_type == 'openai':
+                    knowledge_thread_id = self.client.beta.threads.create().id
+                    self.client.beta.threads.messages.create(
+                        thread_id=knowledge_thread_id, content=content, role="user"
+                    )
+                else: # cortex
+                    knowledge_thread_id = '' 
+            if self.llm_type == 'openai':
+                run = self.client.beta.threads.runs.create(
+                    thread_id=knowledge_thread_id, assistant_id=self.assistant.id
                 )
+                while not self.client.beta.threads.runs.retrieve(
+                    thread_id=knowledge_thread_id, run_id=run.id
+                ).completed_at:
+                    time.sleep(1)
 
-            run = self.client.beta.threads.runs.create(
-                thread_id=knowledge_thread_id, assistant_id=self.assistant.id
-            )
-            while not self.client.beta.threads.runs.retrieve(
-                thread_id=knowledge_thread_id, run_id=run.id
-            ).completed_at:
-                time.sleep(1)
-
-            raw_knowledge = (
-                self.client.beta.threads.messages.list(knowledge_thread_id)
-                .data[0]
-                .content[0]
-                .text.value
-            )
-            response = json.loads(raw_knowledge)
+                raw_knowledge = (
+                    self.client.beta.threads.messages.list(knowledge_thread_id)
+                    .data[0]
+                    .content[0]
+                    .text.value
+                )                
+                response = json.loads(raw_knowledge)
+            else:
+                system = "You are a Knowledge Explorer to extract, synthesize, and inject knowledge that bots learn from doing their jobs"
+                res, status_code  = self.db_connector.cortex_chat_completion(content, system)
+                response = ast.literal_eval(res.split("```")[1])
+                
+                
 
             try:
                 # Ensure the timestamp is in the correct format for Snowflake
@@ -203,19 +216,25 @@ class KnowledgeServer:
                     content = f"""This is the new raw knowledge:
                                 {raw_knowledge}
                             """
+                if self.llm_type == 'openai':
+                    response = self.client.chat.completions.create(
+                        model=self.model,
+                        messages=[
+                            {
+                                "role": "system",
+                                "content": f"Use the following raw knowledge information about the interaction of the user and the bot, \
+                                    summarize what we learned about the {prompt} in bullet point.",
+                            },
+                            {"role": "user", "content": content},
+                        ],
+                    )
+                    new_knowledge[item] = response.choices[0].message.content
+                else:
+                    system = f"Use the following raw knowledge information about the interaction of the user and the bot, \
+                                    summarize what we learned about the {prompt} in bullet point."
+                    response, status_code  = self.db_connector.cortex_chat_completion(content, system)                    
+                    new_knowledge[item] = response
 
-                response = self.client.chat.completions.create(
-                    model=self.model,
-                    messages=[
-                        {
-                            "role": "system",
-                            "content": f"Use the following raw knowledge information about the interaction of the user and the bot, \
-                                summarize what we learned about the {prompt} in bullet point.",
-                        },
-                        {"role": "user", "content": content},
-                    ],
-                )
-                new_knowledge[item] = response.choices[0].message.content
 
             try:
                 timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")                

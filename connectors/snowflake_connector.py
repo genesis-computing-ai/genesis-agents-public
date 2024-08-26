@@ -275,8 +275,12 @@ class SnowflakeConnector(DatabaseConnector):
             os.environ['CORTEX_AVAILABLE'] = 'False'
             return False
 
-    def cortex_chat_completion(self, prompt):
-        newarray = [{"role": "user", "content": prompt} ]
+    def cortex_chat_completion(self, prompt, system=None):
+        if system:
+            newarray = [{"role": "user", "content": system}, {"role": "user", "content": prompt} ]
+        else:
+            newarray = [{"role": "user", "content": prompt} ]
+        
         try:
             SNOWFLAKE_HOST = self.client.host
             REST_TOKEN = self.client.rest.token
@@ -6419,11 +6423,11 @@ class SnowflakeConnector(DatabaseConnector):
         return msg_log
 
     def run_insert(self, table, **kwargs):
-        keys = ','.join(kwargs.keys())
+        keys = ', '.join(kwargs.keys())
         
         insert_query = f"""
             INSERT INTO {table} ({keys})
-                VALUES ({','.join(['%s']*len(kwargs))})
+                VALUES ({', '.join(['%s']*len(kwargs))});
             """
         cursor = self.client.cursor()
         cursor.execute(insert_query, tuple(kwargs.values()))

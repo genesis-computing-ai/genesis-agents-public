@@ -355,7 +355,7 @@ class ToolBelt:
         
         # Convert verbose to boolean if it's a string
         if isinstance(verbose, str):
-            if str.upper() == 'FALSE':
+            if verbose.upper() == 'FALSE':
                 verbose = False
             else:
                 verbose = True
@@ -445,7 +445,7 @@ class ToolBelt:
                 if verbose:
                     self.instructions[thread_id][process_id] += """
                         However DO generate text explaining what you are doing and showing interium outputs, etc. while you are running this and further steps to keep the user informed what is going on.
-                        Oh, and mention to the user before you start running the process that they can send "stop" to you at any time to stop the running of the process.
+                        Oh, and mention to the user before you start running the process that they can send "stop" to you at any time to stop the running of the process, and if they want less verbose output next time they can run request to run the process in low-verbosity mode.
                         And keep them informed while you are running the process about what you are up to, especially before you call various tools.
                         """
                 else:

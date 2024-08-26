@@ -342,7 +342,8 @@ class ToolBelt:
         process_id=None,
         goto_step=None,
         thread_id=None,
-        bot_id=None
+        bot_id=None,
+        verbose=True,
     ):
       #  print(f"Running processes Action: {action} | process_id: {process_id or 'None'} | Thread ID: {thread_id or 'None'}")
 
@@ -351,6 +352,17 @@ class ToolBelt:
                 "Success": False,
                 "Error": "Bot_id and either process_id or process_name are required parameters."
             }
+        
+        # Convert verbose to boolean if it's a string
+        if isinstance(verbose, str):
+            if str.upper() == 'FALSE':
+                verbose = False
+            else:
+                verbose = True
+
+        # Ensure verbose is a boolean
+        if not isinstance(verbose, bool):
+            verbose = True
         
         # Check if both process_name and process_id are None
         if process_name is None and process_id is None:
@@ -413,7 +425,7 @@ class ToolBelt:
                 You will need to break the process instructions below up into individual steps and run them in whatever order is most effective.  
                 You will then summarize the step taken and its result at the end of this chat thread so there will be a 
                 complete record of all of the steps and all of the results.  Start by returning the first step of the process instructions below.
-                Do not actually perform the step yourself, simply return the instructions on what needs to be done.
+                Do not actually perform the step yourself, simply return the first instruction on what needs to be done first without removing or changing any details.
 
                 Process Instructions:
                 {process['PROCESS_INSTRUCTIONS']}
@@ -429,13 +441,21 @@ class ToolBelt:
                     {first_step}
                         Execute this instructions now and then pass your response to the run_process tool as a parameter called previous_response and an action of GET_NEXT_STEP.  
                         Execute the instructions you were given without asking for permission.
-                        Do not ever verify anything with the user, unless you need to get a specific input from the user to be able to continue the process.
+                        Do not ever verify anything with the user, unless you need to get a specific input from the user to be able to continue the process."""
+                if verbose:
+                    self.instructions[thread_id][process_id] += """
                         However DO generate text explaining what you are doing and showing interium outputs, etc. while you are running this and further steps to keep the user informed what is going on.
+                        Oh, and mention to the user before you start running the process that they can send "stop" to you at any time to stop the running of the process.
+                        And keep them informed while you are running the process about what you are up to, especially before you call various tools.
+                        """
+                else:
+                     self.instructions[thread_id][process_id] += """
+                        This process is being run in low verbosity mode, so do not generate a lot of text while running this process. Just do whats required, call the right tools, etc.
+                        """
+                self.instructions[thread_id][process_id] += """
                         In your response back to run_process, provide a DETAILED description of what you did, what result you achieved, and why you believe this to have successfully completed the step.
                         Do not use your memory or any cache that you might have.  Do not simulate any user interaction or tools calls.  Do not ask for any user input unless instructed to do so.
                         If you are told to run another process as part of this process, actually run it, and run it completely before returning the results to this parent process.
-                        Oh, and mention to the user before you start running the process that they can send "stop" to you at any time to stop the running of the process.
-                        And keep them informed while you are running the process about what you are up to, especially before you call various tools.
                         """
 
                 self.instructions[thread_id][process_id] = "\n".join(
@@ -537,12 +557,14 @@ class ToolBelt:
                 self.set_process_cache(bot_id, thread_id, process_id)
                 print(f'Process cached with bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}')
 
-                return {
+                return_dict = {
                     "success": False,
                     "feedback_from_supervisor": result,
-                    "recovery_step": f"Review the message above and submit a clarification, and/or try this Step {self.counter[thread_id][process_id]} again:\n{self.instructions[thread_id][process_id]}",
-                    "additional_request": "Please also explain and summarize this feedback from the supervisor bot to the user so they know whats going on, and how you plan to rectify it."
+                    "recovery_step": f"Review the message above and submit a clarification, and/or try this Step {self.counter[thread_id][process_id]} again:\n{self.instructions[thread_id][process_id]}"
                 }
+                if verbose:
+                    return_dict["additional_request"] = "Please also explain and summarize this feedback from the supervisor bot to the user so they know whats going on, and how you plan to rectify it."
+                return return_dict
 
             with self.lock:
                 self.last_fail[thread_id][process_id] = None
@@ -587,9 +609,18 @@ class ToolBelt:
                 {next_step}
                     Execute these instructions now and then pass your response to the run_process tool as a parameter called previous_response and an action of GET_NEXT_STEP. 
                     If you are told to run another process in these instructions, actually run it using _run_process before calling GET_NEXT_STEP for this process, do not just pretend to run it.
-                    If need to terminate the process early, call with action of END_PROCESS.
-                    Tell the user what you are going to do in this step and showing interium outputs, etc. while you are running this and further steps to keep the user informed what is going on, unless they asked you not to.
+                    If need to terminate the process early, call with action of END_PROCESS. 
+                    """
+                if verbose:
+                    self.instructions[thread_id][process_id] += """
+                    Tell the user what you are going to do in this step and showing interium outputs, etc. while you are running this and further steps to keep the user informed what is going on.
                     For example if you are going to call a tool to perform this step, first tell the user what you're going to do.
+                    """
+                else:
+                    self.instructions[thread_id][process_id] += """
+                            This process is being run in low verbosity mode, so do not generate a lot of text while running this process. Just do whats required, call the right tools, etc.
+                            """
+                self.instructions[thread_id][process_id] += """
                     Don't stop to verify anything with the user unless specifically told to.
                     In your response back to run_process, provide a detailed description of what you did, what result you achieved, and why you believe this to have successfully completed the step.
                 """

@@ -74,6 +74,10 @@ process_runner_functions = [
                         "type": "string",
                         "description": "The previous response from the bot",
                     },
+                    "verbose": {
+                        "type": "boolean",
+                        "description": "TRUE to provide a lot of details during the process run, FALSE to run the process more silently.  Default is TRUE.",
+                    },
          #           "goto_step": {
          #               "type": "string",
          #               "description": "Directs the process runner to update the program counter",

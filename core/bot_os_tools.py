@@ -216,6 +216,34 @@ class ToolBelt:
         Returns:
             dict: The result of the query execution.
         """
+
+        # Check if to_addr_list is a string representation of a list
+        if isinstance(to_addr_list, str):
+            try:
+                # Attempt to parse the string as a Python list
+                if to_addr_list.startswith('[') and to_addr_list.endswith(']'):
+                    # Remove brackets and parse as a literal Python list
+                    parsed_list = eval(to_addr_list)
+                    if isinstance(parsed_list, list):
+                        to_addr_list = [addr.strip() for addr in parsed_list if isinstance(addr, str)]
+                    else:
+                        raise ValueError("Parsed result is not a list")
+                else:
+                    # If it's not in list format, split by comma
+                    to_addr_list = [addr.strip() for addr in to_addr_list.split(',')]
+            except Exception:
+                # If parsing fails, split by comma
+                to_addr_list = [addr.strip() for addr in to_addr_list.split(',')]
+        
+        # Ensure to_addr_list is a list
+        if not isinstance(to_addr_list, list):
+            to_addr_list = [to_addr_list]
+        
+        # Remove any empty strings and strip quotes from each address
+        to_addr_list = [addr.strip("'\"") for addr in to_addr_list if addr]
+        
+        if not to_addr_list:
+            return {"Success": False, "Error": "No valid email addresses provided."}
         # Join the email addresses with commas
         to_addr_string = ', '.join(to_addr_list)
         

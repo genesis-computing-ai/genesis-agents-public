@@ -82,10 +82,41 @@ process_runner_functions = [
                 "required": ["bot_id", "process_name", "action"],
             },
         },
-    }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "_send_email",
+            "description": "Sends an email",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "to_addr_list": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "description": "A list of recipient email addresses.",
+                    },
+                    "subject": {
+                        "type": "string",
+                        "description": "The subject of the email.",
+                    },
+                    "body": {
+                        "type": "string",
+                        "description": "The body content of the email.",
+                    },
+                },
+                "required": ["to_addr_list", "subject", "body"],
+            },
+        },
+    },
 ]
 
-process_runner_tools = {"_run_process": "tool_belt.run_process"}
+process_runner_tools = {
+    "_run_process": "tool_belt.run_process",
+    "_send_email": "tool_belt.send_email"
+}
 
 # Start of Generated Description
 webpage_downloader_functions = [

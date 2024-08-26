@@ -202,6 +202,42 @@ class ToolBelt:
             
         return return_msg
 
+    def send_email(self, to_addr_list: list, subject: str, body: str, thread_id: str = None, bot_id: str = None):
+        """
+        Send an email using Snowflake's SYSTEM$SEND_EMAIL function.
+
+        Args:
+            to_addr_list (list): A list of recipient email addresses.
+            subject (str): The subject of the email.
+            body (str): The body content of the email.
+            thread_id (str, optional): The thread ID for the current operation.
+            bot_id (str, optional): The bot ID for the current operation.
+
+        Returns:
+            dict: The result of the query execution.
+        """
+        # Join the email addresses with commas
+        to_addr_string = ', '.join(to_addr_list)
+        
+        # Remove any instances of $$ from to_addr_string, subject and body
+        to_addr_string = to_addr_string.replace('$$', '')
+        subject = subject.replace('$$', '')
+        body = body.replace('$$', '')
+        query = f"""
+        CALL SYSTEM$SEND_EMAIL(
+            'genesis_email_int',
+            $${to_addr_string}$$,
+            $${subject}$$,
+            $${body}$$
+        );
+        """
+        
+        # Execute the query using the database adapter's run_query method
+        result = self.db_adapter.run_query(query, thread_id=thread_id, bot_id=bot_id)
+        
+        return result
+
+
     def run_process(
         self,
         action,

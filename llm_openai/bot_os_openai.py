@@ -670,9 +670,9 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                run_id_match = re.search(r'run_([a-zA-Z0-9]+)', e.body.get('message'))
                if run_id_match:
                   run_id = "run_" + run_id_match.group(1)
-                  logger.error(f"Extracted run_id: {run_id}")
+                  print(f"Extracted run_id: {run_id}")
                   self.client.beta.threads.runs.cancel(run_id=run_id, thread_id=thread_id)
-                  logger.info(f"Cancelled run_id: {run_id}")
+                  print(f"Cancelled run_id: {run_id}")
                   thread_message = self.client.beta.threads.messages.create(
                      thread_id=thread_id, attachments=attachments, content=content, 
                      role="user", 

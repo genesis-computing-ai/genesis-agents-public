@@ -161,6 +161,8 @@ def execute_function(
             pass
         if func_name.startswith("_"):  # run internal BotOS functions in process
             s_arguments["thread_id"] = thread_id
+            if func_name == '_run_process':
+                s_arguments["bot_id"] = bot_id
             if func_name == '_run_query':
                 s_arguments["bot_id"] = bot_id
                 if 'query' in s_arguments:

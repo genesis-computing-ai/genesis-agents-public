@@ -52,23 +52,23 @@ process_runner_functions = [
         "type": "function",
         "function": {
             "name": "_run_process",
-            "description": "Manages processes run on other bots",
+            "description": "Run a process",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "action": {
                         "type": "string",
                         "description": """
-                        The action to perform on the task can be one of these: KICKOFF_PROCESS, GET_NEXT_STEP
+                        The action to perform on the task can be one of these: KICKOFF_PROCESS, GET_NEXT_STEP.  Either process_name or process_id must be specified.
                         """,
-                    },
-                    "bot_id": {
-                        "type": "string",
-                        "description": "The bot_id for the process.",
                     },
                     "process_name": {
                         "type": "string",
-                        "description": "The name the process to run",
+                        "description": "The name of the process to run =",
+                    },
+                    "process_id": {
+                        "type": "string",
+                        "description": "The id of the process to run",
                     },
                     "previous_response": {
                         "type": "string",
@@ -79,7 +79,7 @@ process_runner_functions = [
          #               "description": "Directs the process runner to update the program counter",
          #           },
                 },
-                "required": ["bot_id", "process_name", "action"],
+                "required": ["action"],
             },
         },
     },

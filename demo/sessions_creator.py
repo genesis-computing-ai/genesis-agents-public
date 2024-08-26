@@ -176,19 +176,6 @@ def make_session(
     )
 
     simple_mode = os.getenv("SIMPLE_MODE", "false").lower() == "true"
-    if False and simple_mode and stream_mode:  # stream mode is for multibot, not task mode
-        print("SIMPLE MODE TOOLS OVERRIDE *** ")
-        # Code to execute in simple mode
-        tools = [
-            t
-            for t in tools
-            if t["function"]["name"]
-            in [
-                "run_query",
-                "make_baby_bot",
-                "search_metadata",
-            ]
-        ]
 
     instructions = bot_config["bot_instructions"] + "\n" + BASE_BOT_INSTRUCTIONS_ADDENDUM
     instructions += f'\nYour default database connecton is called "{genesis_source}".\n'

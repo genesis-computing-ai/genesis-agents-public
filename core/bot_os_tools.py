@@ -87,14 +87,14 @@ class ToolBelt:
         self.client = OpenAI(api_key=openai_api_key) if openai_api_key else None
         self.counter = {}
         self.instructions = {}
-        self.process = {}
+      # self.process = {}
         self.process_history = {}
         self.done = {}
         self.last_fail = {}
         self.lock = threading.Lock()
         global belts
         belts = belts + 1 
-        print(belts)
+   #     print(belts)
 
     # Function to make HTTP request and get the entire content
     def get_webpage_content(self, url):
@@ -273,29 +273,98 @@ class ToolBelt:
         return result
 
 
+    def set_process_cache(self, bot_id, thread_id, process_id):
+        cache_dir = "./process_cache"
+        os.makedirs(cache_dir, exist_ok=True)
+        cache_file = os.path.join(cache_dir, f"{bot_id}_{thread_id}_{process_id}.json")
+        
+        cache_data = {
+            "counter": self.counter.get(thread_id, {}).get(process_id),
+          #  "process": self.process.get(thread_id, {}).get(process_id),
+            "last_fail": self.last_fail.get(thread_id, {}).get(process_id),
+            "instructions": self.instructions.get(thread_id, {}).get(process_id),
+            "process_history": self.process_history.get(thread_id, {}).get(process_id),
+            "done": self.done.get(thread_id, {}).get(process_id)
+        }
+        
+        with open(cache_file, 'w') as f:
+            json.dump(cache_data, f)
+
+    def get_process_cache(self, bot_id, thread_id, process_id):
+        cache_file = os.path.join("./process_cache", f"{bot_id}_{thread_id}_{process_id}.json")
+        
+        if os.path.exists(cache_file):
+            with open(cache_file, 'r') as f:
+                cache_data = json.load(f)
+            
+            with self.lock:
+                if thread_id not in self.counter:
+                    self.counter[thread_id] = {}
+                self.counter[thread_id][process_id] = cache_data.get("counter")
+                
+         #      if thread_id not in self.process:
+         #           self.process[thread_id] = {}
+         #       self.process[thread_id][process_id] = cache_data.get("process")
+                
+                if thread_id not in self.last_fail:
+                    self.last_fail[thread_id] = {}
+                self.last_fail[thread_id][process_id] = cache_data.get("last_fail")
+                
+                if thread_id not in self.instructions:
+                    self.instructions[thread_id] = {}
+                self.instructions[thread_id][process_id] = cache_data.get("instructions")
+                
+                if thread_id not in self.process_history:
+                    self.process_history[thread_id] = {}
+                self.process_history[thread_id][process_id] = cache_data.get("process_history")
+                
+                if thread_id not in self.done:
+                    self.done[thread_id] = {}
+                self.done[thread_id][process_id] = cache_data.get("done")
+            
+            return True
+        return False
+
+    def clear_process_cache(self, bot_id, thread_id, process_id):
+        cache_file = os.path.join("./process_cache", f"{bot_id}_{thread_id}_{process_id}.json")
+        
+        if os.path.exists(cache_file):
+            os.remove(cache_file)
+            return True
+        return False
+
+
     def run_process(
         self,
         action,
         previous_response="",
         process_name="",
+        process_id=None,
         goto_step=None,
         thread_id=None,
         bot_id=None
     ):
-        print(f"Running processes Action: {action} | process_id: {process_name} | Thread ID: {thread_id}")
+      #  print(f"Running processes Action: {action} | process_id: {process_id or 'None'} | Thread ID: {thread_id or 'None'}")
 
-        if bot_id is None or process_name is None:
+        if bot_id is None:
             return {
                 "Success": False,
-                "Error": "Both bot_id and process_name are required parameters."
+                "Error": "Bot_id and either process_id or process_name are required parameters."
+            }
+        
+        # Check if both process_name and process_id are None
+        if process_name is None and process_id is None:
+            return {
+                "Success": False,
+                "Error": "Either process_name or process_id must be provided."
             }
 
         # Initialize thread-specific data structures if not already present
         with self.lock:
             if thread_id not in self.counter:
                 self.counter[thread_id] = {}
-            if thread_id not in self.process:
-                self.process[thread_id] = {}
+         #   if thread_id not in self.process:
+         #       self.process[thread_id] = {}
             if thread_id not in self.last_fail:
                 self.last_fail[thread_id] = {}
             if thread_id not in self.instructions:
@@ -306,7 +375,7 @@ class ToolBelt:
                 self.done[thread_id] = {}
 
         # Try to get process info from PROCESSES table
-        process = self.db_adapter.get_process_info(bot_id, process_name)
+        process = self.get_process_info(bot_id, process_name=process_name, process_id=process_id)
         if len(process) == 0:
             # Get a list of processes for the bot
             processes = self.db_adapter.get_processes_list(bot_id)
@@ -314,21 +383,23 @@ class ToolBelt:
                 process_list = ", ".join([p['process_name'] for p in processes['processes']])
                 return {
                     "Success": False,
-                    "Message": f"Process {process_name} not found. Available processes are {process_list}.",
+                    "Message": f"Process not found. Available processes are {process_list}.",
                 }
             else:
                 return {
                     "Success": False,
-                    "Message": f"Process {process_name} not found. {bot_id} has no processes defined.",
-                }                
+                    "Message": f"Process not found. {bot_id} has no processes defined.",
+                }        
+        process = process['Data']       
         process_id = process['PROCESS_ID']
+        process_name = process['PROCESS_NAME']
 
         if action == "KICKOFF_PROCESS":
             print("Kickoff process.")
             
             with self.lock:
                 self.counter[thread_id][process_id] = 1
-                self.process[thread_id][process_id] = process
+         #       self.process[thread_id][process_id] = process
                 self.last_fail[thread_id][process_id] = None
                 self.instructions[thread_id][process_id] = None
                 self.process_history[thread_id][process_id] = None
@@ -356,15 +427,15 @@ class ToolBelt:
                 self.instructions[thread_id][process_id] = f"""
                     Hey **@{process['BOT_ID']}** , here is the first step of the process.
                     {first_step}
-                        Execute this instructions now and then pass your response to the run_process tool as a parameter
-                        called previous_response and an action of GET_NEXT_STEP.  
+                        Execute this instructions now and then pass your response to the run_process tool as a parameter called previous_response and an action of GET_NEXT_STEP.  
                         Execute the instructions you were given without asking for permission.
                         Do not ever verify anything with the user, unless you need to get a specific input from the user to be able to continue the process.
                         However DO generate text explaining what you are doing and showing interium outputs, etc. while you are running this and further steps to keep the user informed what is going on.
                         In your response back to run_process, provide a DETAILED description of what you did, what result you achieved, and why you believe this to have successfully completed the step.
-                        Do not use your memory or any cache that you might have.  Do not simulate any user interaction or tools.  Do not ask for any user input unless instructed to do so.
+                        Do not use your memory or any cache that you might have.  Do not simulate any user interaction or tools calls.  Do not ask for any user input unless instructed to do so.
                         If you are told to run another process as part of this process, actually run it, and run it completely before returning the results to this parent process.
                         Oh, and mention to the user before you start running the process that they can send "stop" to you at any time to stop the running of the process.
+                        And keep them informed while you are running the process about what you are up to, especially before you call various tools.
                         """
 
                 self.instructions[thread_id][process_id] = "\n".join(
@@ -373,16 +444,29 @@ class ToolBelt:
 
             print("\n", self.instructions[thread_id][process_id], "\n")
 
-            return {"Success": True, "Message": self.instructions[thread_id][process_id]}
+            # Call set_process_cache to save the current state
+            self.set_process_cache(bot_id, thread_id, process_id)
+            print(f'Process cached with bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}')
+
+            return {"Success": True, "Instructions": self.instructions[thread_id][process_id], "process_id": process_id}
 
         elif action == "GET_NEXT_STEP":
             print("GET NEXT STEP - process_runner.")
 
+                # Load process cache
+            if not self.get_process_cache(bot_id, thread_id, process_id):
+                return {
+                    "Success": False,
+                    "Message": f"Error: Process cache for {process_id} couldn't be loaded. Please retry from KICKOFF_PROCESS."
+                }
+            # Print that the process cache has been loaded and the 3 params to get_process_cache
+            print(f"Process cache loaded with params: bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}")
+                
             with self.lock:
                 if process_id not in self.process_history[thread_id]:
                     return {
                         "Success": False,
-                        "Message": f"Error: Process {process_name} couldn't be continued. Please retry once more from KICKOFF_PROCESS."
+                        "Message": f"Error: Process {process_name} with id {process_id} couldn't be continued. Please retry once more from KICKOFF_PROCESS."
                     }
 
                 if self.done[thread_id][process_id]:
@@ -432,6 +516,9 @@ class ToolBelt:
                 self.process_history[thread_id][process_id] += "\nBots response: " + previous_response
 
             if not isinstance(result, str):
+                self.set_process_cache(bot_id, thread_id, process_id)
+                print(f'Process cached with bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}')
+
                 return {
                     "success": False,
                     "message": "Process failed: The checking function didn't return a string."
@@ -446,6 +533,10 @@ class ToolBelt:
                     self.last_fail[thread_id][process_id] = result
                     self.process_history[thread_id][process_id] += "\nSupervisors concern: " + result
                 print(f"\nStep {self.counter[thread_id][process_id]} failed.  Trying again...\n")
+
+                self.set_process_cache(bot_id, thread_id, process_id)
+                print(f'Process cached with bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}')
+
                 return {
                     "success": False,
                     "feedback_from_supervisor": result,
@@ -459,24 +550,28 @@ class ToolBelt:
                 self.counter[thread_id][process_id] += 1
                 
             extract_instructions = f"""
-                Extract the text for the next step from the process instructions and return it, using the section marked 'Process
-                History' to see where you are in the process. Remember, you need to break the process instructions below up into 
-                individual steps and run them in whatever order is most effective.  Return the text of the next step only.  If 
-                there are no steps with this or greater step numbers, respond "**done**" with no other text.
+                Extract the text for the next step from the process instructions and return it, using the section marked 'Process History' to see where you are in the process. 
+                Remember, the process instructions are a set of individual steps that need to be run in order.  
+                Return the text of the next step only, do not make any other comments or statements.
+                If the process is complete, respond "**done**" with no other text.
 
                 Process History: {self.process_history[thread_id][process_id]}
 
-                Process Instructions: {self.process[thread_id][process_id]['PROCESS_INSTRUCTIONS']}
+                Process Instructions: {process['PROCESS_INSTRUCTIONS']}
                 """
 
             print(f"\n{extract_instructions}\n")
 
             next_step = self.chat_completion(extract_instructions)
 
-            if next_step == '**done**' or next_step == '***done***':
+            if next_step == '**done**' or next_step == '***done***' or next_step.strip().endswith('**done**'):
                 with self.lock:
                     self.last_fail[thread_id][process_id] = None
                     self.done[thread_id][process_id] = True
+                # Clear the process cache when the process is complete
+                self.clear_process_cache(bot_id, thread_id, process_id)
+                print(f'Process cache cleared for bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}')
+
                 return {
                     "success": True,
                     "process_complete": True,
@@ -490,12 +585,12 @@ class ToolBelt:
                 self.instructions[thread_id][process_id] = f"""
                 Hey **@{process['BOT_ID']}**, here is the next step of the process.
                 {next_step}
-                    Execute these instructions now and then pass your response to the run_process tool as a parameter
-                    called previous_response and an action of GET_NEXT_STEP. 
+                    Execute these instructions now and then pass your response to the run_process tool as a parameter called previous_response and an action of GET_NEXT_STEP. 
                     If you are told to run another process in these instructions, actually run it using _run_process before calling GET_NEXT_STEP for this process, do not just pretend to run it.
                     If need to terminate the process early, call with action of END_PROCESS.
-                    Do not verify anything with the user.  Execute the instructions you were given without asking for permission.
-                    However DO generate text explaining what you are doing and showing interium outputs, etc. while you are running this and further steps to keep the user informed what is going on.
+                    Tell the user what you are going to do in this step and showing interium outputs, etc. while you are running this and further steps to keep the user informed what is going on, unless they asked you not to.
+                    For example if you are going to call a tool to perform this step, first tell the user what you're going to do.
+                    Don't stop to verify anything with the user unless specifically told to.
                     In your response back to run_process, provide a detailed description of what you did, what result you achieved, and why you believe this to have successfully completed the step.
                 """
 
@@ -503,6 +598,9 @@ class ToolBelt:
 
             with self.lock:
                 self.process_history[thread_id][process_id] += "\nNext step: " + self.instructions[thread_id][process_id]
+
+            self.set_process_cache(bot_id, thread_id, process_id)
+            print(f'Process cached with bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}')
 
             return {
                 "success": True,
@@ -513,6 +611,8 @@ class ToolBelt:
             print(f"Received END_PROCESS action for process {process_name}.")
             with self.lock:
                 self.done[thread_id][process_id] = True
+            self.clear_process_cache(bot_id, thread_id, process_id)
+            print(f'Process cache cleared for bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}')
             return {"success": True, "message": f'The process {process_name} has finished.  You may now end the process.'}
         else:
             print("No action specified.")

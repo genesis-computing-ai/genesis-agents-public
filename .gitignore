@@ -13,6 +13,7 @@ kb_annoy_old/*
 kb_vector/user_preferences/*
 kb_*/*
 tmp/*
+process_cache/*
 kb_test/*
 downloaded_files/*
 uploads/*

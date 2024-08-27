@@ -519,6 +519,8 @@ If you are told to run another process as part of this process, actually run it,
 
 Now, start by performing the FIRST_STEP indicated above.
 """
+            if not verbose:
+                self.instructions[thread_id][process_id] += "..... P.S. I KNOW YOU ARE IN SILENT MODE BUT ACTUALLY PERFORM THIS STEP NOW, YOU ARE NOT DONE YET!"
 
             self.instructions[thread_id][process_id] = "\n".join(
                 line.lstrip() for line in self.instructions[thread_id][process_id].splitlines()

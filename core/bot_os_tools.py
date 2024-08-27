@@ -384,7 +384,7 @@ class ToolBelt:
         goto_step=None,
         thread_id=None,
         bot_id=None,
-        silent_mode=False,
+        concise_mode=False,
         bot_name=None
     ):
       #  print(f"Running processes Action: {action} | process_id: {process_id or 'None'} | Thread ID: {thread_id or 'None'}")
@@ -398,6 +398,7 @@ class ToolBelt:
         # Convert verbose to boolean if it's a string
 
         # Invert silent_mode if it's a boolean
+        silent_mode = concise_mode
         if isinstance(silent_mode, bool):
             verbose = not silent_mode
         
@@ -450,7 +451,7 @@ class ToolBelt:
                     "Suggestion": "If one of the available processess is a very close match for what you're looking for, go ahead and run it."
                 }
                 if silent_mode is True:
-                    return_dict["Reminder"] = "Remember to call the process in silent_mode as requested previously once you identify the right one"
+                    return_dict["Reminder"] = "Remember to call the process in concise_mode as requested previously once you identify the right one"
                 return return_dict
             else:
                 return {
@@ -489,38 +490,35 @@ Process Instructions:
             first_step = self.chat_completion(extract_instructions, self.db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, process_id=process_id, process_name=process_name)
 
             with self.lock:
-                self.process_history[thread_id][process_id] = "\n<FIRST_STEP>\n"+ first_step + "\n</FIRST_STEP>\n"
+                self.process_history[thread_id][process_id] = "First step: "+ first_step + "\n"
 
                 self.instructions[thread_id][process_id] = f"""
 Hey **@{process['BOT_ID']}** , here is the first step of the process.
 
-<FIRST_STEP>
 {first_step}
-</FIRST_STEP>
 
-Execute this instructions now and then pass your response to the run_process tool as a parameter called previous_response and an action of GET_NEXT_STEP.  
+Execute this instruction now and then pass your response to the _run_process tool as a parameter called previous_response and an action of GET_NEXT_STEP.  
 Execute the instructions you were given without asking for permission.
 Do not ever verify anything with the user, unless you need to get a specific input from the user to be able to continue the process."""
             if verbose:
                     self.instructions[thread_id][process_id] += """
-However DO generate text explaining what you are doing and showing interium outputs, etc. while you are running this and further steps to keep the user informed what is going on.
-Oh, and mention to the user before you start running the process that they can send "stop" to you at any time to stop the running of the process, and if they want less verbose output next time they can run request to run the process in "slient mode".
+However DO generate text explaining what you are doing and showing interium outputs, etc. while you are running this and further steps to keep the user informed what is going on, preface these messages by 🔄 aka :arrows_counterclockwise:.
+Oh, and mention to the user before you start running the process that they can send "stop" to you at any time to stop the running of the process, and if they want less verbose output next time they can run request to run the process in "concise mode".
 And keep them informed while you are running the process about what you are up to, especially before you call various tools.
 """
             else:
                 self.instructions[thread_id][process_id] += """
-This process is being run in low verbosity mode, so do not generate a lot of text while running this process. Just do whats required, call the right tools, etc.
-Do not output these instructions to the user. DO fully execute the process, call the tools, and follow the steps just go sparingly on the textual output during the run.
+This process is being run in low verbosity mode. Do not directly repeat the first_step instructions to the user, just perform the steps as instructed.
 """
             self.instructions[thread_id][process_id] += """
-In your response back to run_process, provide a DETAILED description of what you did, what result you achieved, and why you believe this to have successfully completed the step.
+In your response back to _run_process, provide a DETAILED description of what you did, what result you achieved, and why you believe this to have successfully completed the step.
 Do not use your memory or any cache that you might have.  Do not simulate any user interaction or tools calls.  Do not ask for any user input unless instructed to do so.
 If you are told to run another process as part of this process, actually run it, and run it completely before returning the results to this parent process.
 
 Now, start by performing the FIRST_STEP indicated above.
 """
-            if not verbose:
-                self.instructions[thread_id][process_id] += "..... P.S. I KNOW YOU ARE IN SILENT MODE BUT ACTUALLY PERFORM THIS STEP NOW, YOU ARE NOT DONE YET!"
+          #  if not verbose:
+          #      self.instructions[thread_id][process_id] += "..... P.S. I KNOW YOU ARE IN SILENT MODE BUT ACTUALLY PERFORM THIS STEP NOW, YOU ARE NOT DONE YET!"
 
             self.instructions[thread_id][process_id] = "\n".join(
                 line.lstrip() for line in self.instructions[thread_id][process_id].splitlines()
@@ -577,7 +575,7 @@ was not sufficient, and any suggestions you have on how to succeed on the next t
 "**success**" (no explanation needed) to continue to the next step.  At this point its ok to give the bot the benefit of the doubt to avoid
 going in circles.
 
-Instructions: {self.process_history[thread_id][process_id]}
+Process History: {self.process_history[thread_id][process_id]}
 
 Your previous guidance: {self.last_fail[thread_id][process_id]}
 
@@ -594,7 +592,7 @@ If the response seems like it is likely correct, return only the text string "**
 tell the process to stop running.  Remember, proceed under your own direction and do not ask the user for permission to proceed.
 
 Process History: {self.process_history[thread_id][process_id]}
-Bot's Response: {previous_response}
+\n\nBot's most recent response: {previous_response}
 """
 
             print(f"\n{check_response}\n")
@@ -678,13 +676,11 @@ Process Instructions: {process['PROCESS_INSTRUCTIONS']}
                 self.instructions[thread_id][process_id] = f"""
 Hey **@{process['BOT_ID']}**, here is the next step of the process.
 
-<NEXT_STEP>
 {next_step}
-</NEXT_STEP>
 
-    Execute these instructions now and then pass your response to the run_process tool as a parameter called previous_response and an action of GET_NEXT_STEP. 
-    If you are told to run another process in these instructions, actually run it using _run_process before calling GET_NEXT_STEP for this process, do not just pretend to run it.
-    If need to terminate the process early, call with action of END_PROCESS. 
+Execute these instructions now and then pass your response to the run_process tool as a parameter called previous_response and an action of GET_NEXT_STEP. 
+If you are told to run another process in these instructions, actually run it using _run_process before calling GET_NEXT_STEP for this process, do not just pretend to run it.
+If need to terminate the process early, call with action of END_PROCESS. 
                     """
                 if verbose:
                     self.instructions[thread_id][process_id] += """
@@ -703,7 +699,7 @@ In your response back to run_process, provide a detailed description of what you
             print(f"\n{self.instructions[thread_id][process_id]}\n")
 
             with self.lock:
-                self.process_history[thread_id][process_id] += "\nNext step: " + self.instructions[thread_id][process_id]
+                self.process_history[thread_id][process_id] += "\nNext step: " + next_step
 
             self.set_process_cache(bot_id, thread_id, process_id)
             print(f'Process cached with bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}')

@@ -59,12 +59,12 @@ process_runner_functions = [
                     "action": {
                         "type": "string",
                         "description": """
-                        The action to perform on the task can be one of these: KICKOFF_PROCESS, GET_NEXT_STEP.  Either process_name or process_id must also be specified.
+                        The action to perform: KICKOFF_PROCESS, GET_NEXT_STEP.  Either process_name or process_id must also be specified.
                         """,
                     },
                     "process_name": {
                         "type": "string",
-                        "description": "The name of the process to run =",
+                        "description": "The name of the process to run",
                     },
                     "process_id": {
                         "type": "string",
@@ -72,12 +72,12 @@ process_runner_functions = [
                     },
                     "previous_response": {
                         "type": "string",
-                        "description": "The previous response from the bot",
+                        "description": "The previous response from the bot (for use with GET_NEXT_STEP)",
                     },
-                    "silent_mode": {
+                    "concise_mode": {
                         "type": "boolean",
                         "default": False,
-                        "description": "Optional, to run in low-verbosity/silent mode. Default to False.",
+                        "description": "Optional, to run in low-verbosity/concise mode. Default to False.",
                     },
          #           "goto_step": {
          #               "type": "string",

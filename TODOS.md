@@ -3,7 +3,10 @@ GENESIS BOT TODOS
 =================
 
 before republishing on natapp:
-test out the slack bug, marty sending DMs for Janice 2.0... why .. see if my fix fixes it and if local ones still work
+add an alternate way to wake up a bot on a thread for Jeff's Testy bot
+test the password process to make sure it doesnt skip steps on concise
+x change silent mode to concise mode
+(test) test out the slack bug, marty sending DMs for Janice 2.0... why .. see if my fix fixes it and if local ones still work
 add handler for long contexts (if getting close, have the llm condense it)
 clean up logging and cust data in logs
 add cross region calling
@@ -31,7 +34,7 @@ if LLM_RESULTS cant be created as a hybrid table, try as a regular table
   
 soon-jl:
 x (test) make workspace schema names safe even if have dots in them (sandy 0.1 is causing probs)
-(seems ok) give more hints to the process tidy thing
+x (seems ok) give more hints to the process tidy thing
 test openai stop during a process kickoff
 update sqllite manage process and schedule process
 x make sure openai running process eliza random numbers is !stop-able

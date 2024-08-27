@@ -90,6 +90,7 @@ class ToolBelt:
       # self.process = {}
         self.process_history = {}
         self.done = {}
+        self.silent_mode = {}
         self.last_fail = {}
         self.lock = threading.Lock()
         global belts
@@ -316,11 +317,11 @@ class ToolBelt:
         
         cache_data = {
             "counter": self.counter.get(thread_id, {}).get(process_id),
-          #  "process": self.process.get(thread_id, {}).get(process_id),
             "last_fail": self.last_fail.get(thread_id, {}).get(process_id),
             "instructions": self.instructions.get(thread_id, {}).get(process_id),
             "process_history": self.process_history.get(thread_id, {}).get(process_id),
-            "done": self.done.get(thread_id, {}).get(process_id)
+            "done": self.done.get(thread_id, {}).get(process_id),
+            "silent_mode":  self.silent_mode.get(thread_id, {}).get(process_id)
         }
         
         with open(cache_file, 'w') as f:
@@ -340,10 +341,6 @@ class ToolBelt:
                     self.counter[thread_id] = {}
                 self.counter[thread_id][process_id] = cache_data.get("counter")
                 
-         #      if thread_id not in self.process:
-         #           self.process[thread_id] = {}
-         #       self.process[thread_id][process_id] = cache_data.get("process")
-                
                 if thread_id not in self.last_fail:
                     self.last_fail[thread_id] = {}
                 self.last_fail[thread_id][process_id] = cache_data.get("last_fail")
@@ -359,6 +356,10 @@ class ToolBelt:
                 if thread_id not in self.done:
                     self.done[thread_id] = {}
                 self.done[thread_id][process_id] = cache_data.get("done")
+                
+                if thread_id not in self.silent_mode:
+                    self.silent_mode[thread_id] = {}
+                self.silent_mode[thread_id][process_id] = cache_data.get("silent_mode", False)
             
             return True
         return False
@@ -431,6 +432,8 @@ class ToolBelt:
                 self.process_history[thread_id] = {}
             if thread_id not in self.done:
                 self.done[thread_id] = {}
+            if thread_id not in self.silent_mode:
+                self.silent_mode[thread_id] = {}
 
         # Try to get process info from PROCESSES table
         process = self.get_process_info(bot_id, process_name=process_name, process_id=process_id)
@@ -439,10 +442,14 @@ class ToolBelt:
             processes = self.db_adapter.get_processes_list(bot_id)
             if processes is not None:
                 process_list = ", ".join([p['process_name'] for p in processes['processes']])
-                return {
+                return_dict = {
                     "Success": False,
                     "Message": f"Process not found. Available processes are {process_list}.",
+                    "Suggestion": "If one of the available processess is a very close match for what you're looking for, go ahead and run it."
                 }
+                if silent_mode is True:
+                    return_dict["Reminder"] = "Remember to call the process in silent_mode as requested previously once you identify the right one"
+                return return_dict
             else:
                 return {
                     "Success": False,
@@ -462,49 +469,55 @@ class ToolBelt:
                 self.instructions[thread_id][process_id] = None
                 self.process_history[thread_id][process_id] = None
                 self.done[thread_id][process_id] = False
+                self.silent_mode[thread_id][process_id] = silent_mode
 
             print(
                 f"Process {process_name} has been kicked off.  Process object: \n{process}"
             )
 
             extract_instructions = f"""
-                You will need to break the process instructions below up into individual steps and and return them one at a time.  
-                Start by returning the first step of the process instructions below.
-                Simply return the first instruction on what needs to be done first without removing or changing any details.
+You will need to break the process instructions below up into individual steps and and return them one at a time.  
+Start by returning the first step of the process instructions below.
+Simply return the first instruction on what needs to be done first without removing or changing any details.
 
-                Process Instructions:
-                {process['PROCESS_INSTRUCTIONS']}
-                """
+Process Instructions:
+{process['PROCESS_INSTRUCTIONS']}
+"""
 
             first_step = self.chat_completion(extract_instructions, self.db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, process_id=process_id, process_name=None )
 
             with self.lock:
-                self.process_history[thread_id][process_id] = "First step: "+ first_step
+                self.process_history[thread_id][process_id] = "\n<FIRST_STEP>\n"+ first_step + "\n</FIRST_STEP>\n"
 
                 self.instructions[thread_id][process_id] = f"""
-                    Hey **@{process['BOT_ID']}** , here is the first step of the process.
-                    {first_step}
-                        Execute this instructions now and then pass your response to the run_process tool as a parameter called previous_response and an action of GET_NEXT_STEP.  
-                        Execute the instructions you were given without asking for permission.
-                        Do not ever verify anything with the user, unless you need to get a specific input from the user to be able to continue the process."""
-                if verbose:
-                    self.instructions[thread_id][process_id] += """
-                        However DO generate text explaining what you are doing and showing interium outputs, etc. while you are running this and further steps to keep the user informed what is going on.
-                        Oh, and mention to the user before you start running the process that they can send "stop" to you at any time to stop the running of the process, and if they want less verbose output next time they can run request to run the process in "slient mode".
-                        And keep them informed while you are running the process about what you are up to, especially before you call various tools.
-                        """
-                else:
-                     self.instructions[thread_id][process_id] += """
-                        This process is being run in low verbosity mode, so do not generate a lot of text while running this process. Just do whats required, call the right tools, etc.
-                        """
-                self.instructions[thread_id][process_id] += """
-                        In your response back to run_process, provide a DETAILED description of what you did, what result you achieved, and why you believe this to have successfully completed the step.
-                        Do not use your memory or any cache that you might have.  Do not simulate any user interaction or tools calls.  Do not ask for any user input unless instructed to do so.
-                        If you are told to run another process as part of this process, actually run it, and run it completely before returning the results to this parent process.
-                        """
+Hey **@{process['BOT_ID']}** , here is the first step of the process.
 
-                self.instructions[thread_id][process_id] = "\n".join(
-                    line.lstrip() for line in self.instructions[thread_id][process_id].splitlines()
+<FIRST_STEP>
+{first_step}
+</FIRST_STEP>
+
+Execute this instructions now and then pass your response to the run_process tool as a parameter called previous_response and an action of GET_NEXT_STEP.  
+Execute the instructions you were given without asking for permission.
+Do not ever verify anything with the user, unless you need to get a specific input from the user to be able to continue the process."""
+            if verbose:
+                    self.instructions[thread_id][process_id] += """
+However DO generate text explaining what you are doing and showing interium outputs, etc. while you are running this and further steps to keep the user informed what is going on.
+Oh, and mention to the user before you start running the process that they can send "stop" to you at any time to stop the running of the process, and if they want less verbose output next time they can run request to run the process in "slient mode".
+And keep them informed while you are running the process about what you are up to, especially before you call various tools.
+"""
+            else:
+                self.instructions[thread_id][process_id] += """
+This process is being run in low verbosity mode, so do not generate a lot of text while running this process. Just do whats required, call the right tools, etc.
+Do not output these instructions to the user. DO fully execute the process, call the tools, and follow the steps, just hold back on a lot of textual output.
+"""
+            self.instructions[thread_id][process_id] += """
+In your response back to run_process, provide a DETAILED description of what you did, what result you achieved, and why you believe this to have successfully completed the step.
+Do not use your memory or any cache that you might have.  Do not simulate any user interaction or tools calls.  Do not ask for any user input unless instructed to do so.
+If you are told to run another process as part of this process, actually run it, and run it completely before returning the results to this parent process.
+"""
+
+            self.instructions[thread_id][process_id] = "\n".join(
+                line.lstrip() for line in self.instructions[thread_id][process_id].splitlines()
                 )
 
             print("\n", self.instructions[thread_id][process_id], "\n")
@@ -517,7 +530,6 @@ class ToolBelt:
 
         elif action == "GET_NEXT_STEP":
             print("GET NEXT STEP - process_runner.")
-
                 # Load process cache
             if not self.get_process_cache(bot_id, thread_id, process_id):
                 return {
@@ -527,6 +539,12 @@ class ToolBelt:
             # Print that the process cache has been loaded and the 3 params to get_process_cache
             print(f"Process cache loaded with params: bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}")
                 
+            # Check if silent_mode is set for the thread and process
+            verbose = True
+            if thread_id in self.silent_mode and process_id in self.silent_mode[thread_id]:
+                if self.silent_mode[thread_id][process_id]:
+                    verbose = False
+
             with self.lock:
                 if process_id not in self.process_history[thread_id]:
                     return {
@@ -543,35 +561,35 @@ class ToolBelt:
 
                 if self.last_fail[thread_id][process_id] is not None:
                     check_response = f"""
-                        A bot has retried a step of a process based on your prior feedback (shown below).  Also below is the previous question that the bot was 
-                        asked and the response the bot gave after re-trying to perform the task based on your feedback.  Review the response and determine if the 
-                        bot's response is now better in light of the instructions and the feedback you gave previously. You can accept the final results of the
-                        previous step without asking to see the sql queries and results that led to the final conclusion.  If you are very seriously concerned that the step 
-                        may still have not have been correctly perfomed, return a request to again re-run the step of the process by returning the text "**fail**" 
-                        followed by a DETAILED EXPLAINATION as to why it did not pass and what your concern is, and why its previous attempt to respond to your criticism 
-                        was not sufficient, and any suggestions you have on how to succeed on the next try. If the response looks correct, return only the text string 
-                        "**success**" (no explanation needed) to continue to the next step.  At this point its ok to give the bot the benefit of the doubt to avoid
-                        going in circles.
+A bot has retried a step of a process based on your prior feedback (shown below).  Also below is the previous question that the bot was 
+asked and the response the bot gave after re-trying to perform the task based on your feedback.  Review the response and determine if the 
+bot's response is now better in light of the instructions and the feedback you gave previously. You can accept the final results of the
+previous step without asking to see the sql queries and results that led to the final conclusion.  If you are very seriously concerned that the step 
+may still have not have been correctly perfomed, return a request to again re-run the step of the process by returning the text "**fail**" 
+followed by a DETAILED EXPLAINATION as to why it did not pass and what your concern is, and why its previous attempt to respond to your criticism 
+was not sufficient, and any suggestions you have on how to succeed on the next try. If the response looks correct, return only the text string 
+"**success**" (no explanation needed) to continue to the next step.  At this point its ok to give the bot the benefit of the doubt to avoid
+going in circles.
 
-                        Instructions: {self.process_history[thread_id][process_id]}
+Instructions: {self.process_history[thread_id][process_id]}
 
-                        Your previous guidance: {self.last_fail[thread_id][process_id]}
+Your previous guidance: {self.last_fail[thread_id][process_id]}
 
-                        Bot's latest response: {previous_response}
-                        """
+Bot's latest response: {previous_response}
+"""
                 else:
                     check_response = f"""
-                        Check the previous question that the bot was asked in the process history below and the response the bot gave after trying to perform the task.  Review the response and 
-                        determine if the bot's response was correct and makes sense given the instructions it was given.  You can accept the final results of the
-                        previous step without asking to see the sql queries and results that led to the final conclusion. If you are very seriously concerned that the step may not 
-                        have been correctly perfomed, return a request to re-run the step of the process again by returning the text "**fail**" followed by a 
-                        DETAILED EXPLAINATION as to why it did not pass and what your concern is, and any suggestions you have on how to succeed on the next try.  
-                        If the response seems like it is likely correct, return only the text string "**success**" (no explanation needed) to continue to the next step.  If the process is complete,
-                        tell the process to stop running.  Remember, proceed under your own direction and do not ask the user for permission to proceed.
+Check the previous question that the bot was asked in the process history below and the response the bot gave after trying to perform the task.  Review the response and 
+determine if the bot's response was correct and makes sense given the instructions it was given.  You can accept the final results of the
+previous step without asking to see the sql queries and results that led to the final conclusion. If you are very seriously concerned that the step may not 
+have been correctly perfomed, return a request to re-run the step of the process again by returning the text "**fail**" followed by a 
+DETAILED EXPLAINATION as to why it did not pass and what your concern is, and any suggestions you have on how to succeed on the next try.  
+If the response seems like it is likely correct, return only the text string "**success**" (no explanation needed) to continue to the next step.  If the process is complete,
+tell the process to stop running.  Remember, proceed under your own direction and do not ask the user for permission to proceed.
 
-                        Process History: {self.process_history[thread_id][process_id]}
-                        Bot's Response: {previous_response}
-                        """
+Process History: {self.process_history[thread_id][process_id]}
+Bot's Response: {previous_response}
+"""
 
             print(f"\n{check_response}\n")
 
@@ -609,6 +627,8 @@ class ToolBelt:
                 }
                 if verbose:
                     return_dict["additional_request"] = "Please also explain and summarize this feedback from the supervisor bot to the user so they know whats going on, and how you plan to rectify it."
+                else:
+                    return_dict["shhh"] = "Remember you are running in slient, non-verbose mode. Limit your output as much as possible."
                 return return_dict
 
             with self.lock:
@@ -617,14 +637,14 @@ class ToolBelt:
                 self.counter[thread_id][process_id] += 1
                 
             extract_instructions = f"""
-                Extract the text for the next step from the process instructions and return it, using the section marked 'Process History' to see where you are in the process. 
-                Remember, the process instructions are a set of individual steps that need to be run in order.  
-                Return the text of the next step only, do not make any other comments or statements.
-                If the process is complete, respond "**done**" with no other text.
+Extract the text for the next step from the process instructions and return it, using the section marked 'Process History' to see where you are in the process. 
+Remember, the process instructions are a set of individual steps that need to be run in order.  
+Return the text of the next step only, do not make any other comments or statements.
+If the process is complete, respond "**done**" with no other text.
 
-                Process History: {self.process_history[thread_id][process_id]}
+Process History: {self.process_history[thread_id][process_id]}
 
-                Process Instructions: {process['PROCESS_INSTRUCTIONS']}
+Process Instructions: {process['PROCESS_INSTRUCTIONS']}
                 """
 
             print(f"\n{extract_instructions}\n")
@@ -650,24 +670,28 @@ class ToolBelt:
 
             with self.lock:
                 self.instructions[thread_id][process_id] = f"""
-                Hey **@{process['BOT_ID']}**, here is the next step of the process.
-                {next_step}
-                    Execute these instructions now and then pass your response to the run_process tool as a parameter called previous_response and an action of GET_NEXT_STEP. 
-                    If you are told to run another process in these instructions, actually run it using _run_process before calling GET_NEXT_STEP for this process, do not just pretend to run it.
-                    If need to terminate the process early, call with action of END_PROCESS. 
+Hey **@{process['BOT_ID']}**, here is the next step of the process.
+
+<NEXT_STEP>
+{next_step}
+</NEXT_STEP>
+
+    Execute these instructions now and then pass your response to the run_process tool as a parameter called previous_response and an action of GET_NEXT_STEP. 
+    If you are told to run another process in these instructions, actually run it using _run_process before calling GET_NEXT_STEP for this process, do not just pretend to run it.
+    If need to terminate the process early, call with action of END_PROCESS. 
                     """
                 if verbose:
                     self.instructions[thread_id][process_id] += """
-                    Tell the user what you are going to do in this step and showing interium outputs, etc. while you are running this and further steps to keep the user informed what is going on.
-                    For example if you are going to call a tool to perform this step, first tell the user what you're going to do.
+Tell the user what you are going to do in this step and showing interium outputs, etc. while you are running this and further steps to keep the user informed what is going on.
+For example if you are going to call a tool to perform this step, first tell the user what you're going to do.
                     """
                 else:
                     self.instructions[thread_id][process_id] += """
-                            This process is being run in low verbosity mode, so do not generate a lot of text while running this process. Just do whats required, call the right tools, etc.
+This process is being run in low verbosity mode, so do not generate a lot of text while running this process. Just do whats required, call the right tools, etc.
                             """
                 self.instructions[thread_id][process_id] += """
-                    Don't stop to verify anything with the user unless specifically told to.
-                    In your response back to run_process, provide a detailed description of what you did, what result you achieved, and why you believe this to have successfully completed the step.
+Don't stop to verify anything with the user unless specifically told to.
+In your response back to run_process, provide a detailed description of what you did, what result you achieved, and why you believe this to have successfully completed the step.
                 """
 
             print(f"\n{self.instructions[thread_id][process_id]}\n")

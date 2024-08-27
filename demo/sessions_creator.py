@@ -101,6 +101,7 @@ def make_session(
 
             # Stream mode is for interactive bot serving, False means task server
             if stream_mode:
+                print(f"Making Slack adapter for bot_id: {bot_config['bot_id']} named {bot_config['bot_name']} with bot_user_id: {bot_config['bot_slack_user_id']}")
                 slack_adapter_local = SlackBotAdapter(
                     token=bot_config[
                         "slack_app_token"
@@ -143,12 +144,14 @@ def make_session(
 
     # tools
     available_tools = get_available_tools()
+    print(f"Number of available tools: {len(available_tools)}")
     # available_tools.append({'tool_name': "integration_tools", 'tool_description': 'integration tools'})
     # available_tools.append({'tool_name': "activate_marketing_campaign", 'tool_description': 'activate_marketing_campaign'})
     # available_tools.append({'tool_name': "send_email_via_webhook", 'tool_description': 'send_email_via_webhook'})
 
     if bot_config.get("available_tools", None) is not None:
         bot_tools = json.loads(bot_config["available_tools"])
+        print(f"Number of bot-specific tools: {len(bot_tools)}")
         # bot_tools.append({'tool_name': "integration_tools", 'tool_description': 'integration tools'})
         # bot_tools.append({'tool_name': "activate_marketing_campaign", 'tool_description': 'activate_marketing_campaign'})
         # bot_tools.append({'tool_name': "send_email_via_webhook", 'tool_description': 'send_email_via_webhook'})
@@ -156,6 +159,8 @@ def make_session(
         bot_tools = []
 
     # Check if SIMPLE_MODE environment variable is set to 'true'
+    bot_id = bot_config["bot_id"]
+    print(f"setting local bot id = {bot_id}")
 
     # remove slack tools if Slack is not enabled for this bot
     if not slack_enabled:
@@ -171,9 +176,11 @@ def make_session(
     tools, available_functions, function_to_tool_map = get_tools(
         bot_tools, slack_adapter_local=slack_adapter_local, db_adapter=db_adapter, tool_belt=tool_belt
     )
+    print(f"Number of available functions for bot {bot_id}: {len(available_functions)}")
     all_tools, all_functions, all_function_to_tool_map = get_tools(
         available_tools, slack_adapter_local=slack_adapter_local, db_adapter=db_adapter, tool_belt=tool_belt
     )
+    print(f"Number of all functions for bot {bot_id}: {len(all_functions)}")
 
     simple_mode = os.getenv("SIMPLE_MODE", "false").lower() == "true"
 
@@ -189,7 +196,6 @@ def make_session(
         if not stream_mode:
             instructions += ". This BOT_FILES_STAGE stage is ONLY in this particular database & schema."
 
-    bot_id = bot_config["bot_id"]
     llm_type = None
 
     # Check if the environment variable exists and has data
@@ -210,13 +216,12 @@ def make_session(
             db_adapter.grant_all_bot_workspace(workspace_schema_name)
             instructions += f"\nYou have a workspace schema created specifically for you named {workspace_schema_name} that the user can also access. You may use this schema for creating tables, views, and stages that are required when generating answers to data analysis questions. Only use this schema if asked to create an object. Always return the full location of the object."
             if data_cubes_ingress_url:
-                logger.warning(
+                print(
                     f"Setting data_cubes_ingress_url for {bot_id}: {data_cubes_ingress_url}"
                 )
                 instructions += f"\nWhenever you show the results from run_query that may have more than 10 rows, and if you are not in the middle of running a process, also provide a link to a datacube visualization to help them understand the data you used in the form: http://{data_cubes_ingress_url}?sql_query=select%20*%20from%20spider_data.baseball.all_star -- replace the value of the sql_query query parameter with the query you used."
         except Exception as e:
-            logger.warning(f"Error creating bot workspace for bot_id {bot_id} {e} ")
-
+            print(f"Error creating bot workspace for bot_id {bot_id} {e} ")
 
     # print(instructions, f'{bot_config["bot_name"]}, id: {bot_config["bot_id"]}' )
 
@@ -498,6 +503,8 @@ def create_sessions(
     bot_id_to_slack_adapter_map = {}
 
     for bot_config in bots_config:
+ #       if bot_config.get("bot_name") != 'Janice 2.0':
+ #           continue
         if os.getenv("TEST_MODE", "false").lower() == "true":
             if bot_config.get("bot_name") != os.getenv("TEAMS_BOT", ""):
                 print("()()()()()()()()()()()()()()()")                
@@ -507,7 +514,7 @@ def create_sessions(
         # JL TEMP REMOVE
         #       if bot_config["bot_id"] == "Eliza-lGxIAG":
         #           continue
-        print(f'Making session for bot {bot_config["bot_id"]}')
+        print(f'\nMaking session for bot {bot_config["bot_id"]}')
         new_session, api_app_id, udf_adapter_local, slack_adapter_local = make_session(
             bot_config=bot_config,
             db_adapter=db_adapter,

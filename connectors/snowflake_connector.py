@@ -1655,6 +1655,9 @@ class SnowflakeConnector(DatabaseConnector):
                 cursor.close()
 
     def ensure_table_exists(self):
+
+      #  return 
+    
         import core.bot_os_tool_descriptions
 
         streamlitdc_url = os.getenv("DATA_CUBES_INGRESS_URL", None)

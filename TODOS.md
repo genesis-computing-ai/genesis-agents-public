@@ -27,6 +27,7 @@ have send_email add stuff on the end to say why the message was sent and from wh
 make the process tidy-er aware of the bots tools so it doesnt suggest other ways of doing things
 keep tool calls in the slack messages even upon finalization
 x (test) make send email more robust if addresses are not in an array (cortex does this)
+if LLM_RESULTS cant be created as a hybrid table, try as a regular table
   
 soon-jl:
 x (test) make workspace schema names safe even if have dots in them (sandy 0.1 is causing probs)

@@ -173,8 +173,10 @@ class ToolBelt:
         except Exception as e:
             return {"error": str(e)}
     
-    def chat_completion(self, message, db_adapter, bot_id = None, bot_name = None, thread_id=None, process_id=None, process_name=None):
-        message_metadata = f"{process_id} - {process_name}"
+    def chat_completion(self, message, db_adapter, bot_id = None, bot_name = None, thread_id=None, process_id="", process_name=""):
+        process_name = "" if process_name is None else process_name
+        process_id = "" if process_id is None else process_id
+        message_metadata ={"process_id": process_id, "process_name": process_name}
         return_msg = None
 
         self.write_message_log_row(db_adapter, bot_id, bot_name, thread_id, 'Supervisor Prompt', message, message_metadata)
@@ -215,7 +217,7 @@ class ToolBelt:
             
         return return_msg
 
-    def write_message_log_row(self, db_adapter, bot_id, bot_name, thread_id, message_type, message_payload, message_metadata):
+    def write_message_log_row(self, db_adapter, bot_id="", bot_name="", thread_id="", message_type="", message_payload="", message_metadata={}):
         """
         Inserts a row into the MESSAGE_LOG table.
 
@@ -234,7 +236,7 @@ class ToolBelt:
             VALUES (%s, %s, %s, %s, %s, %s, %s)
         """
         print(f"Writing message log row: {timestamp}, {bot_id}, {bot_name}, {thread_id}, {message_type}, {message_payload}, {message_metadata}")
-        values = (timestamp, bot_id, bot_name, thread_id, message_type, message_payload, message_metadata)
+        values = (timestamp, bot_id, bot_name, thread_id, message_type, message_payload, json.dumps(message_metadata))
         
         try:
             cursor = db_adapter.connection.cursor()
@@ -484,7 +486,7 @@ Process Instructions:
 {process['PROCESS_INSTRUCTIONS']}
 """
 
-            first_step = self.chat_completion(extract_instructions, self.db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, process_id=process_id, process_name=None )
+            first_step = self.chat_completion(extract_instructions, self.db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, process_id=process_id, process_name=process_name)
 
             with self.lock:
                 self.process_history[thread_id][process_id] = "\n<FIRST_STEP>\n"+ first_step + "\n</FIRST_STEP>\n"
@@ -593,7 +595,7 @@ Bot's Response: {previous_response}
 
             print(f"\n{check_response}\n")
 
-            result = self.chat_completion(check_response, self.db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, process_id=process_id )
+            result = self.chat_completion(check_response, self.db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, process_id=process_id, process_name = process_name)
 
             with self.lock:
                 self.process_history[thread_id][process_id] += "\nBots response: " + previous_response
@@ -649,7 +651,7 @@ Process Instructions: {process['PROCESS_INSTRUCTIONS']}
 
             print(f"\n{extract_instructions}\n")
 
-            next_step = self.chat_completion(extract_instructions, self.db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, process_id=process_id )
+            next_step = self.chat_completion(extract_instructions, self.db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, process_id=process_id, process_name=process_name)
 
             if next_step == '**done**' or next_step == '***done***' or next_step.strip().endswith('**done**'):
                 with self.lock:
@@ -844,7 +846,7 @@ In your response back to run_process, provide a detailed description of what you
                     line.lstrip() for line in tidy_process_instructions.splitlines()
                 )
 
-                process_details['process_instructions'] = self.chat_completion(tidy_process_instructions, self.db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, process_id=process_id )
+                process_details['process_instructions'] = self.chat_completion(tidy_process_instructions, self.db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, process_id=process_id, process_name=process_name)
 
             if action == "CREATE":
                 return {

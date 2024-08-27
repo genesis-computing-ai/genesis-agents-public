@@ -968,7 +968,7 @@ class SnowflakeConnector(DatabaseConnector):
 
         if action == "TIME":
             return {
-                "current_system_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S %Z")
+                "current_system_time": self.get_current_time_with_timezone()
             }
         action = action.upper()
 
@@ -1267,6 +1267,15 @@ class SnowflakeConnector(DatabaseConnector):
 
     # ========================================================================================================
 
+
+    def get_current_time_with_timezone(self):
+        import pytz
+    # You can replace 'UTC' with your desired time zone, e.g., 'America/New_York'
+        tz_string = datetime.now().astimezone().tzname()
+        tz = pytz.timezone(tz_string)
+        current_time = datetime.now(tz)
+        return current_time.strftime("%Y-%m-%d %H:%M:%S %Z")
+    
     def process_scheduler(
         self, action, bot_id, task_id=None, task_details=None, thread_id=None
     ):
@@ -1303,7 +1312,7 @@ class SnowflakeConnector(DatabaseConnector):
 
         if action == "TIME":
             return {
-                "current_system_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S %Z")
+                "current_system_time": self.get_current_time_with_timezone()
             }
         action = action.upper()
 
@@ -1311,7 +1320,7 @@ class SnowflakeConnector(DatabaseConnector):
             return {
                 "Success": False,
                 "Confirmation_Needed": "Please reconfirm all the scheduled process details with the user, then call this function again with the action CREATE_CONFIRMED to actually create the schedule for the process.   Make sure to be clear in the action_trigger_details field whether the process schedule is to be triggered one time, or if it is ongoing and recurring. Also make the next Next Check Timestamp is in the future, and aligns with when the user wants the task to run next.",
-                "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}",
+                "Info": f"By the way the current system time is {self.get_current_time_with_timezone()}",
             }
         if action == "CREATE_CONFIRMED":
             action = "CREATE"
@@ -1321,7 +1330,7 @@ class SnowflakeConnector(DatabaseConnector):
             return {
                 "Success": False,
                 "Confirmation_Needed": "Please reconfirm all the scheduled process details with the user, especially that you're altering the correct TASK_ID, then call this function again with the action UPDATE_CONFIRMED to actually update the scheduled process.  Call with LIST to double-check the task_id if you aren't sure.",
-                "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}",
+                "Info": f"By the way the current system time is {self.get_current_time_with_timezone()}",
             }
         if action == "UPDATE_CONFIRMED":
             action = "UPDATE"
@@ -1441,13 +1450,13 @@ class SnowflakeConnector(DatabaseConnector):
                 return {
                     "Success": False,
                     "Error": f"Invalid timestamp format for 'next_check_ts'. Required format: 'YYYY-MM-DD HH:MM:SS' in system timezone. Error details: {ve}",
-                    "Info": f"Current system time in system timezone is {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}. The system timezone is {datetime.now().strftime('%Z')}. Please note that the timezone should not be included in the submitted timestamp.",
+                    "Info": f"Current system time in system timezone is {self.get_current_time_with_timezone()}. Please note that the timezone should not be included in the submitted timestamp.",
                 }
             if formatted_next_check_ts < datetime.now():
                 return {
                     "Success": False,
                     "Error": "The 'next_check_ts' is in the past.",
-                    "Info": f"Current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}",
+                    "Info": f"Current system time is {self.get_current_time_with_timezone()}",
                 }
 
         try:
@@ -3272,6 +3281,8 @@ class SnowflakeConnector(DatabaseConnector):
             if max_rows == -1:
                 max_rows = 100
 
+        print("run query: ", query)
+
        # if userquery and not query.endswith(';'):
        #     return {
        #      "success": False,
@@ -3365,6 +3376,7 @@ class SnowflakeConnector(DatabaseConnector):
             results = cursor.fetchmany(max(1,max_rows))
             columns = [col[0] for col in cursor.description]
             sample_data = [dict(zip(columns, row)) for row in results]
+            print('query results: ',sample_data)
 
             # Replace occurrences of triple backticks with triple single quotes in sample data
             sample_data = [

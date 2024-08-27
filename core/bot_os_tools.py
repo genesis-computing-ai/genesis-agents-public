@@ -373,7 +373,14 @@ class ToolBelt:
             os.remove(cache_file)
             return True
         return False
-
+    
+    def get_current_time_with_timezone(self):
+        import pytz
+    # You can replace 'UTC' with your desired time zone, e.g., 'America/New_York'
+        tz_string = datetime.now().astimezone().tzname()
+        tz = pytz.timezone(tz_string)
+        current_time = datetime.now(tz)
+        return current_time.strftime("%Y-%m-%d %H:%M:%S %Z")
 
     def run_process(
         self,
@@ -388,6 +395,11 @@ class ToolBelt:
         bot_name=None
     ):
       #  print(f"Running processes Action: {action} | process_id: {process_id or 'None'} | Thread ID: {thread_id or 'None'}")
+
+        if action == "TIME":
+            return {
+                "current_system_time": self.get_current_time_with_timezone()
+            }
 
         if bot_id is None:
             return {
@@ -480,8 +492,10 @@ class ToolBelt:
 
             extract_instructions = f"""
 You will need to break the process instructions below up into individual steps and and return them one at a time.  
+By the way the current system time is {self.get_current_time_with_timezone()}.
 Start by returning the first step of the process instructions below.
 Simply return the first instruction on what needs to be done first without removing or changing any details.
+
 
 Process Instructions:
 {process['PROCESS_INSTRUCTIONS']}
@@ -510,10 +524,12 @@ And keep them informed while you are running the process about what you are up t
                 self.instructions[thread_id][process_id] += """
 This process is being run in low verbosity mode. Do not directly repeat the first_step instructions to the user, just perform the steps as instructed.
 """
-            self.instructions[thread_id][process_id] += """
+            self.instructions[thread_id][process_id] += f"""
 In your response back to _run_process, provide a DETAILED description of what you did, what result you achieved, and why you believe this to have successfully completed the step.
 Do not use your memory or any cache that you might have.  Do not simulate any user interaction or tools calls.  Do not ask for any user input unless instructed to do so.
 If you are told to run another process as part of this process, actually run it, and run it completely before returning the results to this parent process.
+By the way the current system time is {self.get_current_time_with_timezone()}.  You can call manage_process with
+action TIME to get updated time if you need it when running the process.
 
 Now, start by performing the FIRST_STEP indicated above.
 """
@@ -568,14 +584,17 @@ Now, start by performing the FIRST_STEP indicated above.
 A bot has retried a step of a process based on your prior feedback (shown below).  Also below is the previous question that the bot was 
 asked and the response the bot gave after re-trying to perform the task based on your feedback.  Review the response and determine if the 
 bot's response is now better in light of the instructions and the feedback you gave previously. You can accept the final results of the
-previous step without asking to see the sql queries and results that led to the final conclusion.  If you are very seriously concerned that the step 
+previous step without asking to see the sql queries and results that led to the final conclusion.  Do not nitpick validity of actual data value 
+like names and similar. If you are very seriously concerned that the step 
 may still have not have been correctly perfomed, return a request to again re-run the step of the process by returning the text "**fail**" 
 followed by a DETAILED EXPLAINATION as to why it did not pass and what your concern is, and why its previous attempt to respond to your criticism 
 was not sufficient, and any suggestions you have on how to succeed on the next try. If the response looks correct, return only the text string 
 "**success**" (no explanation needed) to continue to the next step.  At this point its ok to give the bot the benefit of the doubt to avoid
-going in circles.
+going in circles.  By the way the current system time is {self.get_current_time_with_timezone()}. 
 
-Process History: {self.process_history[thread_id][process_id]}
+Full Process Instructions: {process['PROCESS_INSTRUCTIONS']}
+
+Process History so far this run: {self.process_history[thread_id][process_id]}
 
 Your previous guidance: {self.last_fail[thread_id][process_id]}
 
@@ -585,14 +604,20 @@ Bot's latest response: {previous_response}
                     check_response = f"""
 Check the previous question that the bot was asked in the process history below and the response the bot gave after trying to perform the task.  Review the response and 
 determine if the bot's response was correct and makes sense given the instructions it was given.  You can accept the final results of the
-previous step without asking to see the sql queries and results that led to the final conclusion. If you are very seriously concerned that the step may not 
+previous step without asking to see the sql queries and results that led to the final conclusion.  You don't need to validate things like names or other
+text values unless they seem wildly incorrect. If you are very seriously concerned that the step may not 
 have been correctly perfomed, return a request to re-run the step of the process again by returning the text "**fail**" followed by a 
 DETAILED EXPLAINATION as to why it did not pass and what your concern is, and any suggestions you have on how to succeed on the next try.  
 If the response seems like it is likely correct, return only the text string "**success**" (no explanation needed) to continue to the next step.  If the process is complete,
 tell the process to stop running.  Remember, proceed under your own direction and do not ask the user for permission to proceed.
 
-Process History: {self.process_history[thread_id][process_id]}
-\n\nBot's most recent response: {previous_response}
+Full process Instructions: {process['PROCESS_INSTRUCTIONS']}
+
+Process History so far this run: {self.process_history[thread_id][process_id]}
+
+Current system time: {self.get_current_time_with_timezone()}
+
+Bot's most recent response: {previous_response}
 """
 
             print(f"\n{check_response}\n")
@@ -627,6 +652,7 @@ Process History: {self.process_history[thread_id][process_id]}
                 return_dict = {
                     "success": False,
                     "feedback_from_supervisor": result,
+                    "current system time": {self.get_current_time_with_timezone()},
                     "recovery_step": f"Review the message above and submit a clarification, and/or try this Step {self.counter[thread_id][process_id]} again:\n{self.instructions[thread_id][process_id]}"
                 }
                 if verbose:
@@ -647,6 +673,8 @@ Return the text of the next step only, do not make any other comments or stateme
 If the process is complete, respond "**done**" with no other text.
 
 Process History: {self.process_history[thread_id][process_id]}
+
+Current system time: {self.get_current_time_with_timezone()}
 
 Process Instructions: {process['PROCESS_INSTRUCTIONS']}
                 """
@@ -691,8 +719,9 @@ For example if you are going to call a tool to perform this step, first tell the
                     self.instructions[thread_id][process_id] += """
 This process is being run in low verbosity mode, so do not generate a lot of text while running this process. Just do whats required, call the right tools, etc.
                             """
-                self.instructions[thread_id][process_id] += """
+                self.instructions[thread_id][process_id] += f"""
 Don't stop to verify anything with the user unless specifically told to.
+By the way the current system time id: {self.get_current_time_with_timezone()}.
 In your response back to run_process, provide a detailed description of what you did, what result you achieved, and why you believe this to have successfully completed the step.
                 """
 
@@ -826,7 +855,7 @@ In your response back to run_process, provide a detailed description of what you
 
         if action == "TIME":
             return {
-                "current_system_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S %Z")
+                "current_system_time": self.get_current_time_with_timezone()
             }
         action = action.upper()
 
@@ -852,7 +881,8 @@ In your response back to run_process, provide a detailed description of what you
                 return {
                     "Success": False,
                     "Cleaned up instructions": process_details['process_instructions'],
-                    "Confirmation_Needed": "I've run the process instructions through a cleanup step.  Please reconfirm these instructions and all the other process details with the user, then call this function again with the action CREATE_CONFIRMED to actually create the process.  Remember that this function is used to create processes for existing bots, not to create bots themselves.",
+                    "Confirmation_Needed": "I've run the process instructions through a cleanup step.  Please reconfirm these instructions and all the other process details with the user, then call this function again with the action CREATE_CONFIRMED to actually create the process.",
+                    "Next Step": "If you're ready to create this process call this function again with action CREATE_CONFIRMED instead of CREATE"
                 #    "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}",
                 }
 
@@ -861,6 +891,7 @@ In your response back to run_process, provide a detailed description of what you
                     "Success": False,
                     "Cleaned up instructions": process_details['process_instructions'],
                     "Confirmation_Needed": "I've run the process instructions through a cleanup step.  Please reconfirm these instructions and all the other process details with the user, then call this function again with the action UPDATE_CONFIRMED to actually update the process.",
+                    "Next Step": "If you're ready to update this process call this function again with action UPDATE_CONFIRMED instead of UPDATE"
                 #    "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}",
                 }
 
@@ -985,12 +1016,15 @@ In your response back to run_process, provide a detailed description of what you
                         "bot_id": bot_id,
                     },
                 )
+                # Get process_name from process_details if available, otherwise set to "Unknown"
+                process_name = process_details.get('process_name', "Unknown")
                 db_adapter.client.commit()
                 return {
                     "Success": True,
                     "Message": f"process successfully created.",
                     "process_id": process_id,
-                    "Suggestion": "Now that the process is created, offer to test it using run_process, and if there are any issues you can later on UPDATE the process using manage_processes to clarify anything needed.  OFFER to test it, but don't just test it unless the user agrees.",
+                    "process_name": process_name,
+                    "Suggestion": "Now that the process is created, remind the user of the process_id and process_name, and offer to test it using run_process, and if there are any issues you can later on UPDATE the process using manage_processes to clarify anything needed.  OFFER to test it, but don't just test it unless the user agrees.",
                     "Reminder": "If you are asked to test the process, use _run_process function to each step, don't skip ahead since you already know what the steps are, pretend you don't know what the process is and let run_process give you one step at a time!",
                 }
 

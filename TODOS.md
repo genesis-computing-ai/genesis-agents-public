@@ -3,20 +3,24 @@ GENESIS BOT TODOS
 =================
 
 before republishing on natapp:
+see if Janice can see her currency table on Alpha once upgraded
+on openai error, retry twice
+x give supervisor current date and time, and runner too
+x tell supervisor not to nitpick values like names etc
 processes clearing out their history during slack output during finalization (maybe when it ends with a function call?)
-add an alternate way to wake up a bot on a thread for Jeff's Testy bot
+n add an alternate way to wake up a bot on a thread for Jeff's Testy bot
 test the password process to make sure it doesnt skip steps on concise
 x change silent mode to concise mode
-(test) test out the slack bug, marty sending DMs for Janice 2.0... why .. see if my fix fixes it and if local ones still work
+x (test) test out the slack bug, marty sending DMs for Janice 2.0... why .. see if my fix fixes it and if local ones still work
 add handler for long contexts (if getting close, have the llm condense it)
-clean up logging and cust data in logs
+clean up logging and cust data in logs and run_query
 add cross region calling
 x have bots send alerts via email:
 streamlit requests for stuff
     https://docs.snowflake.com/en/developer-guide/native-apps/container-about
     https://docs.snowflake.com/en/developer-guide/native-apps/container-compute-pool
-default processes
-add sandy bot?
+JS/KJ/MG/JS: default processes
+n (go with janice instead) add sandy bot?
 make sure Eliza doesnt talk about the baseball etc data without running search metadata (ask about allstars she makes it up)sla
 put in a check to not allow repetitive tools calls more than n times
 x figure out the query calling issue on cortex

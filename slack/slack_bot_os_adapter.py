@@ -343,7 +343,7 @@ class SlackBotAdapter(BotOsInputAdapter):
         channel_type = event.get("channel_type", "")
 
         # print(f"{uniq} {self.bot_name}-Looking for {(self.bot_user_id, thread_ts)}-Is in? {(self.bot_user_id, thread_ts) in thread_ts_dict}-Current keys in thread_ts_dict:", thread_ts_dict.keys())
-        tag = (f"<@{self.bot_user_id}>" in msg) or (f"((invite:{self.bot_name}))" in msg)
+        tag = (f"<@{self.bot_user_id}>" in msg) # or (f"((invite:{self.bot_name}))" in msg)
         indic = ((self.bot_user_id, thread_ts) in thread_ts_dict)
         dmcheck = channel_type == "im" and msg != ""
         txt = msg[:50]
@@ -714,6 +714,7 @@ class SlackBotAdapter(BotOsInputAdapter):
                     trimmed = False
                     if orig_thinking in self.chunk_last_100:
                         last100 = self.chunk_last_100[orig_thinking]
+                        l100 = last100.replace(" \n\n", "\n")
           #              print(f"    Length of last 100: {len(last100)}")
                         if last100 in msg:
            #                 print(f"    Last 100 is in msg")
@@ -722,6 +723,19 @@ class SlackBotAdapter(BotOsInputAdapter):
                             if last_index != -1:
                                 msg = msg[last_index + len(last100):]
                                 trimmed=True
+                        if l100 in msg:
+           #                 print(f"    Last 100 is in msg")
+                            last_index = msg.rfind(l100, 0, current_chunk_start)
+            #                print(f"    Last index: {last_index}")
+                            if last_index != -1:
+                                msg = msg[last_index + len(l100):]
+                                trimmed=True
+                        if not trimmed and l100[:100] in msg:
+                            last_index = msg.rfind(l100[:100], 0, current_chunk_start)
+            #                print(f"    Last index: {last_index}")
+                            if last_index != -1:
+                                msg = msg[last_index + len(l100):]
+                                trimmed=True                            
              #                   print(f"    Length of new trimmed msg: {len(msg)}")
                     if not trimmed:
                         msg_fixed = self.fix_fn_calls(msg)
@@ -732,6 +746,15 @@ class SlackBotAdapter(BotOsInputAdapter):
                             if last_index != -1:
                                 msg = msg_fixed[last_index + len(last100):]
                                 trimmed=True
+                        l100 = last100.replace(" \n\n", "\n")
+                        if l100 in msg_fixed:
+              #              print(f"    Last 100 is in msg_fixed")
+                            last_index = msg_fixed.rfind(l100, 0, current_chunk_start)
+               #             print(f"    Last index: {last_index}")
+                            if last_index != -1:
+                                msg = msg_fixed[last_index + len(l100):]
+                                trimmed=True
+                        
                 #                print(f"    Length of new trimmed msg: {len(msg)}")
                     if not trimmed:
                  #       print("     Not trimmed based on last100, going to trim on current chunk start: ",current_chunk_start)

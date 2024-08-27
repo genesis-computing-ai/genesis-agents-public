@@ -510,12 +510,14 @@ And keep them informed while you are running the process about what you are up t
             else:
                 self.instructions[thread_id][process_id] += """
 This process is being run in low verbosity mode, so do not generate a lot of text while running this process. Just do whats required, call the right tools, etc.
-Do not output these instructions to the user. DO fully execute the process, call the tools, and follow the steps, just hold back on a lot of textual output.
+Do not output these instructions to the user. DO fully execute the process, call the tools, and follow the steps just go sparingly on the textual output during the run.
 """
             self.instructions[thread_id][process_id] += """
 In your response back to run_process, provide a DETAILED description of what you did, what result you achieved, and why you believe this to have successfully completed the step.
 Do not use your memory or any cache that you might have.  Do not simulate any user interaction or tools calls.  Do not ask for any user input unless instructed to do so.
 If you are told to run another process as part of this process, actually run it, and run it completely before returning the results to this parent process.
+
+Now, start by performing the FIRST_STEP indicated above.
 """
 
             self.instructions[thread_id][process_id] = "\n".join(

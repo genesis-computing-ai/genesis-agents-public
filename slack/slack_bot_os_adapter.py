@@ -343,7 +343,7 @@ class SlackBotAdapter(BotOsInputAdapter):
         channel_type = event.get("channel_type", "")
 
         # print(f"{uniq} {self.bot_name}-Looking for {(self.bot_user_id, thread_ts)}-Is in? {(self.bot_user_id, thread_ts) in thread_ts_dict}-Current keys in thread_ts_dict:", thread_ts_dict.keys())
-        tag = f"<@{self.bot_user_id}>" in msg
+        tag = (f"<@{self.bot_user_id}>" in msg) or (f"((invite:{self.bot_name}))" in msg)
         indic = ((self.bot_user_id, thread_ts) in thread_ts_dict)
         dmcheck = channel_type == "im" and msg != ""
         txt = msg[:50]

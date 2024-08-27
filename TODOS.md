@@ -3,6 +3,7 @@ GENESIS BOT TODOS
 =================
 
 before republishing on natapp:
+processes clearing out their history during slack output during finalization (maybe when it ends with a function call?)
 add an alternate way to wake up a bot on a thread for Jeff's Testy bot
 test the password process to make sure it doesnt skip steps on concise
 x change silent mode to concise mode

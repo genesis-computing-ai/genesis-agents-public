@@ -607,6 +607,14 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         except Exception as e:
             logger.error(f"Failed to insert message log for bot_id: {self.bot_id} with error: {e}")
 
+        primary_user = json.dumps({'user_id': input_message.metadata.get('user_id', 'Unknown User ID'), 
+                                 'user_name': input_message.metadata.get('user_name', 'Unknown User')})
+        attachments = []
+        self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id, 
+                                                    message_type='User Prompt', message_payload=input_message.msg, message_metadata=input_message.metadata, files=attachments,
+                                                    channel_type=input_message.metadata.get("channel_type", None), channel_name=input_message.metadata.get("channel", None),
+                                                    primary_user=primary_user)
+
     def check_runs(self, event_callback):
         try:
             thread_to_check = self.active_runs.popleft()
@@ -700,6 +708,16 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                 logger.warn("BotOsAssistantSnowflakeCortex:check_runs - run complete")
             except Exception as e:
                 print(f"Error retrieving Assistant Response for Thread ID {thread_id} and model {self.llm_engine}: {e}")
+
+        message_metadata_json = json.loads(message_metadata)
+        primary_user = json.dumps({'user_id': message_metadata_json.get('user_id', 'Unknown User ID'), 
+                                    'user_name': message_metadata_json.get('user_name', 'Unknown User')})
+        self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id,
+                                                        message_type='Tool Call', message_payload=message_payload, 
+                                                        message_metadata={'tool_call_id':'', 'func_name':'', 'func_args':''},
+                                                        channel_type=message_metadata_json.get("channel_type", None), channel_name=message_metadata_json.get("channel", None),
+                                                        primary_user=primary_user)
+
         if thread_id in self.thread_busy_list:
             self.thread_busy_list.remove(thread_id)
 
@@ -814,6 +832,9 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             "metadata": message_metadata
         }
 
+        function_name = ''
+        arguments = ''
+
         try:
             results_json = json.loads(results)
         except json.JSONDecodeError as e:
@@ -850,6 +871,14 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         else:
             self.update_threads(thread_id, new_ts, message_metadata=message_metadata, temperature=hightemp)
    #     self.active_runs.append({"thread_id": thread_id, "timestamp": new_ts})
+        meta = json.loads(message_metadata)
+        primary_user = json.dumps({'user_id': meta.get('user_id', 'Unknown User ID'), 
+                     'user_name': meta.get('user_name', 'Unknown User')})
+        self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id, 
+                                                          message_type='Tool Output', message_payload=results, 
+                                                          message_metadata={'function_name':function_name, 'arguments': arguments},
+                                                          channel_type=meta.get("channel_type", None), channel_name=meta.get("channel", None),
+                                                          primary_user=primary_user)
         return 
 
 

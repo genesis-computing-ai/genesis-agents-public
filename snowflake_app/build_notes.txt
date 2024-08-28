@@ -45,3 +45,11 @@ dshrnxx-genesis-dev.registry.snowflakecomputing.com/genesisapp_master/code_schem
 snow spcs image-registry token --connection USWEST-PRO --format=JSON
 snow spcs image-registry token --connection USWEST-PRO  --format=JSON | docker login dshrnxx-genesis-dev.registry.snowflakecomputing.com --username 0sessiontoken --password-stdin
 instructions: https://docs.google.com/document/d/1b-Ng0oPpfnTE6TbDKJY7eE7Y0KkT0gkm4nNTbOZK3Y8/edit
+
+// alpha and dev
+docker build --rm -t genesis_app:latest --platform linux/amd64 .
+docker tag genesis_app:latest dshrnxx-genesis.registry.snowflakecomputing.com/genesisapp_master/code_schema/service_repo/genesis_app:latest
+docker push dshrnxx-genesis.registry.snowflakecomputing.com/genesisapp_master/code_schema/service_repo/genesis_app:latest
+docker tag genesis_app:latest dshrnxx-genesis-dev.registry.snowflakecomputing.com/genesisapp_master/code_schema/service_repo/genesis_app:latest
+docker push dshrnxx-genesis-dev.registry.snowflakecomputing.com/genesisapp_master/code_schema/service_repo/genesis_app:latest
+

@@ -255,7 +255,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         if resp != '':
             self.thread_history[thread_id] = [message for message in self.thread_history[thread_id] if not (message.get("role","") == "user" and message == last_user_message)]
             if BotOsAssistantSnowflakeCortex.stream_mode == True:
-                if self.event_callback:
+                if self.event_callback and not fn_call:
                     self.event_callback(self.bot_id, BotOsOutputMessage(thread_id=thread_id, 
                                                                         status='in_progress', 
                                                                         output=resp, 
@@ -390,7 +390,23 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                                 if d != '' and BotOsAssistantSnowflakeCortex.stream_mode == True and (last_update is None and len(resp) >= 15) or (last_update and (time.time() - last_update > 2)):
                                     last_update = time.time()
                                     if self.event_callback:
-                                        self.event_callback(self.bot_id, BotOsOutputMessage(thread_id=thread_id, 
+                                        fn_call = False
+                                        if any(resp.strip().endswith(partial) for partial in ['<', '<f', '<fu', '<fun', '<func', '<funct', '<functi', '<functio', '<function', '<function=']):
+                                            fn_call = True
+                                        elif '<function=' in resp[-100:]:
+                                            last_function_start = resp.rfind('<function=')
+                                            if '</function>' not in resp[last_function_start:]:
+                                                fn_call = True
+                                        # Check for incomplete <|python_tag|> at the end
+                                        # Check for incomplete <|python_tag|> at the end
+                                        elif any(resp.strip().endswith(partial) for partial in ['<', '<|', '<|p', '<|py', '<|pyt', '<|pyth', '<|pytho', '<|python', '<|python_', '<|python_t', '<|python_ta', '<|python_tag', '<|python_tag|']):
+                                            fn_call = True
+                                        elif '<|python_tag|>' in resp[-100:]:
+                                            last_python_tag_start = resp.rfind('<|python_tag|>')
+                                            if resp[last_python_tag_start:].strip()[-1] not in ['}', '>']:
+                                                fn_call = True
+                                        if not fn_call:
+                                            self.event_callback(self.bot_id, BotOsOutputMessage(thread_id=thread_id, 
                                                                                             status='in_progress', 
                                                                                             output=resp+" 💬", 
                                                                                             messages=None, 
@@ -426,13 +442,13 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
 
         postfix = ""
         if "</function>" in resp[-30:]:
-            postfix = "💬"
+            postfix = " 💬"
    
         pattern = re.compile(r'<\|python_tag\|>\{.*?\}')
         match = pattern.search(resp)
         
         if match and resp.endswith('}'):
-            postfix = "💬"
+            postfix = " 💬"
 
    #     pattern_function = re.compile(r'<function=.*?>\{.*?\}')
    #     match_function = pattern_function.search(resp)
@@ -442,7 +458,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
     #    if (match_function or match_function2) and resp.endswith('}'):
     #        if match_function2:
     #            resp = resp.replace("</function>", "")
-    #        postfix = "💬"
+    #        postfix = " 💬"
 
         # fix things like this: <function>function_name</function>{"param1": "param1value", "param2": "param2value, etc."} 
         # to make it : <function=_manage_processes>{"action": "LIST", "bot_id": "MrsEliza-3348b2"}</function>
@@ -455,7 +471,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             newcall = f"<function={function_name}>{params}</function>"
             resp = resp.replace(match_function.group(0), newcall)
             curr_resp = resp
-            postfix = "💬"
+            postfix = " 💬"
 
         resp = self.fix_tool_calls(resp)
 

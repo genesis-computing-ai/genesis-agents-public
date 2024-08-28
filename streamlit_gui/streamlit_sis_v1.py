@@ -589,15 +589,22 @@ def chat_page():
                 # st.write(response)
                 if response != previous_response:
                     if response != "not found":
-                        if (
+                        if ( 
                             len(previous_response) > 10
-                            and previous_response[:10] == ":toolbox: "
+                            and '...' in previous_response[-6:]
+                            and chr(129520) in previous_response[-50:]
+                            # ":toolbox:" in previous_response
                             and (
-                                len(response) < len(previous_response)
-                                or response[len(previous_response)] != previous_response
+                                len(response) > len(previous_response)
+                      #          or response[len(previous_response)] != previous_response
                             )
                         ):
-                            new_increment = "\n\n" + response
+                            offset = 0
+                            new_increment = "\n\n"  + response[
+                                max(len(previous_response) - 2, 0) : len(response) - offset
+                            ]
+                   #         if new_increment.startswith('\n\n.') and not new_increment.startswith('\n\n..'):
+                   #             new_increment = new_increment[:2] + new_increment[3:]
                         else:
                             if len(response) >= 2 and ord(response[-1]) == 128172:
                                 offset = -2
@@ -606,6 +613,12 @@ def chat_page():
                             new_increment = response[
                                 max(len(previous_response) - 2, 0) : len(response) - offset
                             ]
+                                                        # Remove single leading dot if present
+                        # Check if response ends with '..' but not '...'
+                     #   if chr(129520) in response[-50:] or chr(129520) in previous_response[-50:]:
+                     #       st.write('here')
+                     #       if '..' in new_increment and '...' not in new_increment:
+                     #           new_increment = new_increment.replace('..', '...')
 
                         previous_response = response
                         try:

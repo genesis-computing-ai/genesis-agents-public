@@ -13,6 +13,7 @@ COPY llm_cortex ./llm_cortex
 COPY llm_gemini ./llm_gemini
 COPY schema_explorer ./schema_explorer
 COPY knowledge ./knowledge
+COPY default_data ./default_data
 COPY slack ./slack
 COPY streamlit_gui ./streamlit_gui
 COPY bot_genesis ./bot_genesis

@@ -801,6 +801,9 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         Inserts tool call results back into the genesis_test.public.genesis_threads table.
         """
 
+        if results is None:
+            results = ''
+
         def custom_serializer(obj):
             if isinstance(obj, Decimal):
                 return float(obj)

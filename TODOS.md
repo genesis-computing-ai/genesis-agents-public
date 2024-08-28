@@ -3,12 +3,12 @@ GENESIS BOT TODOS
 =================
 
 before republishing on natapp:
-make streamlit show tool calls better 
+x make streamlit show tool calls better 
 add logging to the openai finalizer and the slack finalizer to see who is zapping the history in the messages.. seems to just be on single ..
 message threads... it's actually doing it on the message 1 /2 separation step it looks like
 is the last tool call getting eaten by the openai finalizer?
-for cortex add instructions to base bots about using tools for things like processes etc if they have them
-see if Janice can see her currency table on Alpha once upgraded
+for cortex add instructions to base bots about using tools for things like processes etc if they have them.. list the processes and auto describe them into the instructions 
+x see if Janice can see her currency table on Alpha once upgraded
 on openai error, retry twice
 x give supervisor current date and time, and runner too
 x tell supervisor not to nitpick values like names etc

@@ -3043,7 +3043,7 @@ class SnowflakeConnector(DatabaseConnector):
             if max_rows == -1:
                 max_rows = 100
 
-        print("run query: ", query)
+       # print("run query: ", query)
 
        # if userquery and not query.endswith(';'):
        #     return {
@@ -3139,7 +3139,7 @@ class SnowflakeConnector(DatabaseConnector):
             columns = [col[0] for col in cursor.description]
 
             sample_data = [dict(zip(columns, row)) for row in results]
-            print('query results: ',sample_data)
+         #   print('query results: ',sample_data)
 
             # Replace occurrences of triple backticks with triple single quotes in sample data
             sample_data = [

@@ -928,286 +928,6 @@ class SnowflakeConnector(DatabaseConnector):
         except Exception as e:
             return {}
 
-    def OLDOLD__manage_processes(
-        self, action, bot_id=None, process_id=None, process_details=None, thread_id=None, process_name=None
-    ):
-        """
-        Manages processs in the PROCESSES table with actions to create, delete, or update a process.
-
-        Args:
-            action (str): The action to perform - 'CREATE', 'DELETE','UPDATE', 'LIST', 'SHOW'.
-            bot_id (str): The bot ID associated with the process.
-            process_id (str): The process ID for the process to manage.
-            process_details (dict, optional): The details of the process for create or update actions.
-
-        Returns:
-            dict: A dictionary with the result of the operation.
-        """
-
-        # If process_name is specified but not in process_details, add it to process_details
-        if process_name and process_details and 'process_name' not in process_details:
-            process_details['process_name'] = process_name
-
-        # If process_name is specified but not in process_details, add it to process_details
-        if process_name and process_details==None:
-            process_details = {}
-            process_details['process_name'] = process_name
-
-        required_fields_create = [
-            "process_name",
-      #      "process_details"_  
-           "process_instructions",
-       #     "process_reporting_instructions",
-        ]
-
-        required_fields_update = [
-            "process_name",
- #           "process_details",
-            "process_instructions",
-     #       "process_reporting_instructions",
-        ]
-
-        if action == "TIME":
-            return {
-                "current_system_time": self.get_current_time_with_timezone()
-            }
-        action = action.upper()
-
-        try:
-            if action == "CREATE" or action == "UPDATE":
-                # Send process_instructions to 2nd LLM to check it and format nicely
-                tidy_process_instructions = f"""
-                Below is a process that has been submitted by a user.  Please review it to insure it is something
-                that will make sense to the run_process tool.  If not, make changes so it is organized into clear
-                steps.  Make sure that it is tidy, legible and properly formatted. 
-                Return the updated and tidy process.  If there is an issue with the process, return an error message.
-
-                The process is as follows:\n {process_details['process_instructions']}
-                """
-
-                tidy_process_instructions = "\n".join(
-                    line.lstrip() for line in tidy_process_instructions.splitlines()
-                )
-
-                # Check to see what LLM is currently available
-                # os.environ["CORTEX_MODE"] = "False"
-                # os.environ["CORTEX_AVAILABLE"] = 'False'
-                # os.getenv("BOT_OS_DEFAULT_LLM_ENGINE") == 'openai | cortex'
-                # os.getenv("CORTEX_FIREWORKS_OVERRIDE", "False").lower() 
-
-                if os.getenv("BOT_OS_DEFAULT_LLM_ENGINE") == 'openai':
-                    api_key = os.getenv("OPENAI_API_KEY")
-                    if not api_key:
-                        print("OpenAI API key is not set in the environment variables.")
-                        return None
-
-                    openai_api_key = os.getenv("OPENAI_API_KEY")
-                    client = OpenAI(api_key=openai_api_key)
-                    response = client.chat.completions.create(
-                        model="gpt-4o",
-                        messages=[
-                            {
-                                "role": "user",
-                                "content": tidy_process_instructions,
-                            },
-                        ],
-                    )
-
-                    process_details['process_instructions'] = response.choices[0].message.content
-
-                elif os.getenv("BOT_OS_DEFAULT_LLM_ENGINE") == 'cortex':
-                    if not self.check_cortex_available():
-                        print("Cortex is not available.")
-                        return None
-                    else:
-                        response, status_code = self.cortex_chat_completion(tidy_process_instructions)
-                        process_details['process_instructions'] = response
-
-
-        except Exception as e:
-            return {"Success": False, "Error": f"Error connecting to LLM: {e}"}
-
-        if action == "CREATE":
-            return {
-                "Success": False,
-                "Cleaned up instructions": process_details['process_instructions'],
-                "Confirmation_Needed": "I've run the process instructions through a cleanup step.  Please reconfirm these instructions and all the other process details with the user, then call this function again with the action CREATE_CONFIRMED to actually create the process.  Remember that this function is used to create processes for existing bots, not to create bots themselves.",
-            #    "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}",
-            }
-
-        if action == "CREATE":
-            return {
-                "Success": False,
-                "Cleaned up instructions": process_details['process_instructions'],
-                "Confirmation_Needed": "I've run the process instructions through a cleanup step.  Please reconfirm these instructions and all the other process details with the user, then call this function again with the action UPDATE_CONFIRMED to actually update the process.",
-            #    "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}",
-            }
-
-        
-        if action == "CREATE_CONFIRMED":
-            action = "CREATE"
-        if action == "UPDATE_CONFIRMED":
-            action = "UPDATE"
-
-        if action == "DELETE":
-            return {
-                "Success": False,
-                "Confirmation_Needed": "Please reconfirm that you are deleting the correct process_ID, and double check with the user they want to delete this process, then call this function again with the action DELETE_CONFIRMED to actually delete the process.  Call with LIST to double-check the process_id if you aren't sure that its right.",
-            }
-
-        if action == "DELETE_CONFIRMED":
-            action = "DELETE"
-
-        if action not in ["CREATE", "DELETE", "UPDATE", "LIST", "SHOW"]:
-            return {"Success": False, "Error": "Invalid action specified. Should be CREATE, DELETE, UPDATE, LIST, or SHOW."}
-
-        cursor = self.client.cursor()
-
-        if action == "LIST":
-            print("Running get processes list")
-            return self.get_processes_list(bot_id if bot_id is not None else "all")
-
-        if action == "SHOW":
-            print("Running show process info")
-            if bot_id is None:
-                return {"Success": False, "Error": "bot_id is required for SHOW action"}
-            if process_details is None or 'process_name' not in process_details:
-                return {"Success": False, "Error": "process_name is required in process_details for SHOW action"}
-            process_name = process_details['process_name']
-            return self.get_process_info(bot_id=bot_id, process_name=process_name)
-
-        process_id_created = False
-        if process_id is None:
-            if action == "CREATE":
-                process_id = f"{bot_id}_{''.join(random.choices(string.ascii_letters + string.digits, k=6))}"
-                process_id_created = True
-            else:
-                return {"Success": False, "Error": f"Missing process_id field"}
-
-        if action in ["CREATE", "UPDATE"] and not process_details:
-            return {
-                "Success": False,
-                "Error": "Process details must be provided for CREATE or UPDATE action.",
-            }
-
-        if action in ["CREATE"] and any(
-            field not in process_details for field in required_fields_create
-        ):
-            missing_fields = [
-                field
-                for field in required_fields_create
-                if field not in process_details
-            ]
-            return {
-                "Success": False,
-                "Error": f"Missing required process details: {', '.join(missing_fields)}",
-            }
-
-        if action in ["UPDATE"] and any(
-            field not in process_details for field in required_fields_update
-        ):
-            missing_fields = [
-                field
-                for field in required_fields_update
-                if field not in process_details
-            ]
-            return {
-                "Success": False,
-                "Error": f"Missing required process details: {', '.join(missing_fields)}",
-            }
-
-    #    if action == "UPDATE" and process_details.get("process_active", False):
-    #        if "next_check_ts" not in process_details:
-    #            return {
-    #                "Success": False,
-    #                "Error": "The 'next_check_ts' field is required when updating an active process.",
-    #            }
-
-        # Convert timestamp from string in format 'YYYY-MM-DD HH:MM:SS' to a Snowflake-compatible timestamp
-   #     if process_details is not None and process_details.get("process_active", False):
-   #         try:
-   #             formatted_next_check_ts = datetime.strptime(
-   #                 process_details["next_check_ts"], "%Y-%m-%d %H:%M:%S"
-   #             )
-   #         except ValueError as ve:
-   #             return {
-   #                 "Success": False,
-   #                 "Error": f"Invalid timestamp format for 'next_check_ts'. Required format: 'YYYY-MM-DD HH:MM:SS' in system timezone. Error details: {ve}",
-   #                 "Info": f"Current system time in system timezone is {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}. The system timezone is {datetime.now().strftime('%Z')}. Please note that the timezone should not be included in the submitted timestamp.",
-   #             }
-   #         if formatted_next_check_ts < datetime.now():
-   #             return {
-   #                 "Success": False,
-   #                 "Error": "The 'next_check_ts' is in the past.",
-   #                 "Info": f"Current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}",
-   #             }
-        if bot_id is None:
-            return {
-                "Success": False,
-                "Error": "The 'bot_id' field is required."
-            }
-    
-        try:
-            if action == "CREATE":
-                insert_query = f"""
-                    INSERT INTO {self.schema}.PROCESSES (
-                        timestamp, process_id, bot_id, process_name, process_instructions
-                    ) VALUES (
-                        current_timestamp(), %(process_id)s, %(bot_id)s, %(process_name)s, %(process_instructions)s
-                    )
-                """
-
-                # Generate 6 random alphanumeric characters
-                if process_id_created == False:
-                    random_suffix = "".join(
-                    random.choices(string.ascii_letters + string.digits, k=6)
-                     )
-                    process_id_with_suffix = process_id + "_" + random_suffix
-                else:
-                    process_id_with_suffix = process_id
-                cursor.execute(
-                    insert_query,
-                    {
-                        **process_details,
-                        "process_id": process_id_with_suffix,
-                        "bot_id": bot_id,
-                    },
-                )
-                self.client.commit()
-                return {
-                    "Success": True,
-                    "Message": f"process successfully created.",
-                    "process_id": process_id,
-                    "Suggestion": "Now that the process is created, offer to test it using _run_process, and if there are any issues you can later on UPDATE the process using manage_processes to clarify anything needed.  OFFER to test it, but don't just test it unless the user agrees.",
-                    "Reminder": "If you are asked to test the process, use _run_process function to each step, don't skip ahead since you already know what the steps are, pretend you don't know what the process is and let run_process give you one step at a time!",
-                }
-
-            elif action == "DELETE":
-                delete_query = f"""
-                    DELETE FROM {self.schema}.PROCESSES
-                    WHERE process_id = %s
-                """
-                cursor.execute(delete_query, (process_id))
-                self.client.commit()
-
-            elif action == "UPDATE":
-                update_query = f"""
-                    UPDATE {self.schema}.PROCESSES
-                    SET {', '.join([f"{key} = %({key})s" for key in process_details.keys()])}
-                    WHERE process_id = %(process_id)s
-                """
-                cursor.execute(
-                    update_query,
-                    {**process_details, "process_id": process_id},
-                )
-                self.client.commit()
-
-            return {"Success": True, "Message": f"process update or delete confirmed."}
-        except Exception as e:
-            return {"Success": False, "Error": str(e)}
-
-        finally:
-            cursor.close()
 
     def insert_process_history(
         self,
@@ -2038,10 +1758,10 @@ class SnowflakeConnector(DatabaseConnector):
 
                 # Insert a row with specified values and NULL for the rest
                 runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
-                bot_id = "Eve-"
-                bot_id += "".join(
-                    random.choices(string.ascii_letters + string.digits, k=6)
-                )
+                bot_id = "Eve"
+#                bot_id += "".join(
+#                    random.choices(string.ascii_letters + string.digits, k=6)
+#                )
                 bot_name = "Eve"
                 bot_instructions = BASE_EVE_BOT_INSTRUCTIONS
                 available_tools = '["slack_tools", "make_baby_bot", "snowflake_stage_tools", "image_tools", "process_manager_tools", "process_runner_tools", "process_scheduler_tools"]'
@@ -2074,10 +1794,10 @@ class SnowflakeConnector(DatabaseConnector):
                 )
 
                 runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
-                bot_id = "Eliza-"
-                bot_id += "".join(
-                    random.choices(string.ascii_letters + string.digits, k=6)
-                )
+                bot_id = "Eliza"
+#                bot_id += "".join(
+#                    random.choices(string.ascii_letters + string.digits, k=6)
+#                )
                 bot_name = "Eliza"
                 bot_instructions = ELIZA_DATA_ANALYST_INSTRUCTIONS
                 available_tools = '["slack_tools", "database_tools", "snowflake_stage_tools",  "image_tools", "process_manager_tools", "process_runner_tools", "process_scheduler_tools"]'
@@ -2110,10 +1830,10 @@ class SnowflakeConnector(DatabaseConnector):
                 )
 
                 runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
-                bot_id = "Janice-"
-                bot_id += "".join(
-                    random.choices(string.ascii_letters + string.digits, k=6)
-                )
+                bot_id = "Janice"
+#                bot_id += "".join(
+#                    random.choices(string.ascii_letters + string.digits, k=6)
+#                )
                 bot_name = "Janice"
                 bot_instructions = JANICE_JANITOR_INSTRUCTIONS
                 available_tools = '["slack_tools", "database_tools", "snowflake_stage_tools", "image_tools", "process_manager_tools", "process_runner_tools", "process_scheduler_tools"]'
@@ -2491,7 +2211,7 @@ class SnowflakeConnector(DatabaseConnector):
             )
 
         # PROCESSES TABLE
-        llm_results_table_check_query = (
+        processes_table_check_query = (
                     f"SHOW TABLES LIKE 'PROCESSES' IN SCHEMA {self.schema};"
         )
 
@@ -2502,10 +2222,10 @@ class SnowflakeConnector(DatabaseConnector):
 
         try:
             cursor = self.client.cursor()
-            cursor.execute(llm_results_table_check_query)
+            cursor.execute(processes_table_check_query)
             if not cursor.fetchone():
-                create_llm_results_table_ddl = f"""
-                CREATE OR REPLACE HYBRID TABLE {self.schema}.PROCESSES (
+                create_process_table_ddl = f"""
+                CREATE TABLE {self.schema}.PROCESSES (
                     PROCESS_ID VARCHAR(16777216) NOT NULL PRIMARY KEY,
                     BOT_ID VARCHAR(16777216),
                     PROCESS_NAME VARCHAR(16777216) NOT NULL,
@@ -2513,7 +2233,7 @@ class SnowflakeConnector(DatabaseConnector):
                     TIMESTAMP TIMESTAMP_NTZ(9) NOT NULL
                 );
                 """
-                cursor.execute(create_llm_results_table_ddl)
+                cursor.execute(create_process_table_ddl)
                 self.client.commit()
                 print(f"Table {self.schema}.PROCESSES created successfully.")
 

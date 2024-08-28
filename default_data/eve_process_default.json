@@ -2,16 +2,16 @@
     "eve-process-1": {
       "BOT_ID": "Eve",
       "PROCESS_INSTRUCTIONS": "LOREM IPSUM",
-      "PROCESS_NAME": "DUMMY_PROCESS_NAME"
+      "PROCESS_NAME": "DUMMY_PROCESS_NAME1"
     },
     "eve-process-2": {
       "BOT_ID": "Eve",
       "PROCESS_INSTRUCTIONS": "LOREM IPSUM",
-      "PROCESS_NAME": "DUMMY_PROCESS_NAME"
+      "PROCESS_NAME": "DUMMY_PROCESS_NAME2"
     },
     "eve-process-3": {
       "BOT_ID": "Eve",
       "PROCESS_INSTRUCTIONS": "LOREM IPSUM",
-      "PROCESS_NAME": "DUMMY_PROCESS_NAME"
+      "PROCESS_NAME": "DUMMY_PROCESS_NAME3"
     }
   }

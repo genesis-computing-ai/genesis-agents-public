@@ -1,0 +1,17 @@
+{
+    "eliza-process-1": {
+      "BOT_ID": "Eliza",
+      "PROCESS_INSTRUCTIONS": "LOREM IPSUM",
+      "PROCESS_NAME": "DUMMY_PROCESS_NAME"
+    },
+    "eliza-process-2": {
+      "BOT_ID": "Eliza",
+      "PROCESS_INSTRUCTIONS": "LOREM IPSUM",
+      "PROCESS_NAME": "DUMMY_PROCESS_NAME"
+    },
+    "eliza-process-3": {
+      "BOT_ID": "Eliza",
+      "PROCESS_INSTRUCTIONS": "LOREM IPSUM",
+      "PROCESS_NAME": "DUMMY_PROCESS_NAME"
+    }
+  }

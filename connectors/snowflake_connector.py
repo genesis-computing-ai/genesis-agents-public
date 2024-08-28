@@ -14,6 +14,7 @@ import snowflake.connector
 import random, string
 import requests
 from openai import OpenAI
+import glob
 
 from .database_connector import DatabaseConnector
 from core.bot_os_defaults import (
@@ -1663,15 +1664,46 @@ class SnowflakeConnector(DatabaseConnector):
             if cursor is not None:
                 cursor.close()
 
-    def ensure_table_exists(self):
+    def load_default_data(self, cursor, table, unique_bot_ids):
+        folder_path = 'default_data'
+        
+        files = glob.glob(os.path.join(folder_path, '*'))
 
-      #  return 
-    
+        for filename in files:
+            with open(filename, 'r') as file:
+                default_data = json.load(file)
+
+            for id, record in default_data.items():
+                if record['BOT_ID'] not in unique_bot_ids:
+                    continue
+                columns = 'PROCESS_ID, '
+
+                values = ["'" + id + "'"]
+                for key, value in record.items():
+                    columns += key + ', '
+                    if value is None:
+                        values.append('NULL')
+                    elif isinstance(value, str):
+                        value = value.replace("'", "''")
+                        values.append(f"'{value}'")
+                    else:
+                        values.append(str(value))
+                
+                columns += ' TIMESTAMP'
+
+                current_timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                values.append(f"'{current_timestamp}'")
+
+                values_str = ', '.join(values)
+                sql = f"INSERT INTO {table} ({columns}) VALUES ({values_str})"
+                cursor.execute(sql)
+
+    def ensure_table_exists(self):
         import core.bot_os_tool_descriptions
 
         streamlitdc_url = os.getenv("DATA_CUBES_INGRESS_URL", None)
         print(f"streamlit data cubes ingress URL: {streamlitdc_url}")
-
+                
         llm_results_table_check_query = (
             f"SHOW TABLES LIKE 'LLM_RESULTS' IN SCHEMA {self.schema};"
         )
@@ -2459,34 +2491,44 @@ class SnowflakeConnector(DatabaseConnector):
             )
 
         # PROCESSES TABLE
-        processes_table_check_query = (
-            f"SHOW TABLES LIKE 'PROCESSES' IN SCHEMA {self.schema};"
+        llm_results_table_check_query = (
+                    f"SHOW TABLES LIKE 'PROCESSES' IN SCHEMA {self.schema};"
         )
-        # Check if the processes table exists
+
+        query = f"SELECT DISTINCT BOT_NAME FROM {self.schema}.BOT_SERVICING;"
+        cursor.execute(query)
+        results = cursor.fetchall()
+        unique_bot_ids = [row[0] for row in results]
+
         try:
             cursor = self.client.cursor()
-            cursor.execute(processes_table_check_query)
+            cursor.execute(llm_results_table_check_query)
             if not cursor.fetchone():
-                processes_table_ddl = f"""
-                CREATE TABLE {self.processes_table_name} (
-                    timestamp TIMESTAMP NOT NULL,
-                    process_id STRING NOT NULL,
-                    bot_id STRING,
-                    process_name STRING NOT NULL,
-                    process_details STRING,
-                    process_instructions STRING
+                create_llm_results_table_ddl = f"""
+                CREATE OR REPLACE HYBRID TABLE {self.schema}.PROCESSES (
+                    PROCESS_ID VARCHAR(16777216) NOT NULL PRIMARY KEY,
+                    BOT_ID VARCHAR(16777216),
+                    PROCESS_NAME VARCHAR(16777216) NOT NULL,
+                    PROCESS_INSTRUCTIONS VARCHAR(16777216),
+                    TIMESTAMP TIMESTAMP_NTZ(9) NOT NULL
                 );
                 """
-                cursor.execute(processes_table_ddl)
+                cursor.execute(create_llm_results_table_ddl)
                 self.client.commit()
-                print(f"Table {self.processes_table_name} created.")
+                print(f"Table {self.schema}.PROCESSES created successfully.")
+
+                table = f"{self.schema}.PROCESSES"
+                self.load_default_data(cursor, table, unique_bot_ids)
             else:
-                check_query = f"DESCRIBE TABLE {self.processes_table_name};"
-                print(f"Table {self.processes_table_name} already exists.")
+                print(f"Table {self.schema}.PROCESSES already exists.")
         except Exception as e:
             print(
-                f"An error occurred while checking or creating table {self.processes_table_name}: {e}"
+                f"An error occurred while checking or creating the PROCESSES table: {e}"
             )
+        finally:
+            if cursor is not None:
+                cursor.close()
+    
 
         # PROCESS_HISTORY TABLE
         process_history_table_check_query = (
@@ -3375,6 +3417,7 @@ class SnowflakeConnector(DatabaseConnector):
 
             results = cursor.fetchmany(max(1,max_rows))
             columns = [col[0] for col in cursor.description]
+
             sample_data = [dict(zip(columns, row)) for row in results]
             print('query results: ',sample_data)
 

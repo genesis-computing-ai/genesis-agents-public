@@ -63,10 +63,20 @@ if st.session_state.data:
         if 'active_sessions' not in st.session_state:
             st.session_state.active_sessions = []
 
-        # Display active sessions
+        # Display active sessions as clickable links
         if st.session_state.active_sessions:
             for session in st.session_state.active_sessions:
-                st.sidebar.text(f"• {session}")
+                bot_name, thread_id = session.split(' (')
+                bot_name = bot_name.split('Chat with ')[1]
+                thread_id = thread_id[:-1]  # Remove the closing parenthesis
+                full_thread_id = next((key.split('_')[1] for key in st.session_state.keys() if key.startswith(f"messages_{thread_id}")), thread_id)
+                if st.sidebar.button(f"• {session}", key=f"session_{thread_id}"):
+                    st.session_state.selected_session = {
+                        'bot_name': bot_name,
+                        'thread_id': full_thread_id
+                    }
+                    st.session_state.load_history = True
+                    st.rerun()
         else:
             st.sidebar.info("No active chat sessions.")
 

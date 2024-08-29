@@ -49,9 +49,7 @@ def chat_page():
             time.sleep(2)
             st.rerun()
 
-        # Add a message to inform the user about the response generation
-        with st.empty() as status_placeholder:
-            status_placeholder.info("Generating response... This may take a moment.")
+        
 
         in_resp = response
 

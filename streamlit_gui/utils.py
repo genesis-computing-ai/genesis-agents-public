@@ -6,7 +6,7 @@ import datetime
 import pandas as pd
 import requests
 
-app_name = "GENESIS_BOTS"
+app_name = "GENESIS_BOTS_ALPHA"
 prefix = app_name + ".app1"
 core_prefix = app_name + ".CORE"
 
@@ -20,6 +20,7 @@ def get_session():
             return get_active_session()
         except:
             NativeMode = False
+    st.write('NativeMode', NativeMode)
     return None
 
 def check_status():
@@ -32,6 +33,7 @@ def check_status():
 
 def provide_slack_level_key(bot_id=None, slack_app_level_key=None):
     if NativeMode:
+        session = get_session()
         sql = f"select {prefix}.set_bot_app_level_key('{bot_id}','{slack_app_level_key}') "
         data = session.sql(sql).collect()
         response = json.loads(data[0][0])
@@ -49,6 +51,7 @@ def provide_slack_level_key(bot_id=None, slack_app_level_key=None):
 def get_slack_tokens():
     if NativeMode:
         sql = f"select {prefix}.get_slack_endpoints() "
+        session = get_session()
         data = session.sql(sql).collect()
         response = json.loads(data[0][0])
         return response
@@ -64,6 +67,7 @@ def get_slack_tokens():
 
 def get_ngrok_tokens():
     if NativeMode:
+        session = get_session()
         sql = f"select {prefix}.get_ngrok_tokens() "
         data = session.sql(sql).collect()
         response = json.loads(data[0][0])
@@ -81,6 +85,7 @@ def get_ngrok_tokens():
 def set_ngrok_token(ngrok_auth_token, ngrok_use_domain, ngrok_domain):
     if NativeMode:
         sql = f"select {prefix}.configure_ngrok_token('{ngrok_auth_token}','{ngrok_use_domain}','{ngrok_domain}') "
+        session = get_session()
         data = session.sql(sql).collect()
         response = json.loads(data[0][0])
         return response
@@ -96,6 +101,7 @@ def set_ngrok_token(ngrok_auth_token, ngrok_use_domain, ngrok_domain):
 
 def set_slack_tokens(slack_app_token, slack_app_refresh_token):
     if NativeMode:
+        session = get_session()
         sql = f"select {prefix}.configure_slack_app_token('{slack_app_token}','{slack_app_refresh_token}') "
         data = session.sql(sql).collect()
         response = json.loads(data[0][0])
@@ -112,6 +118,7 @@ def set_slack_tokens(slack_app_token, slack_app_refresh_token):
 
 def get_bot_details():
     if NativeMode:
+        session = get_session()
         sql = f"select {prefix}.list_available_bots() "
         data = session.sql(sql).collect()
         response = json.loads(data[0][0])
@@ -128,6 +135,7 @@ def get_bot_details():
 
 def configure_llm(llm_model_name, llm_api_key):
     if NativeMode:
+        session = get_session()
         sql = f"select {prefix}.configure_llm('{llm_model_name}', '{llm_api_key}') "
         data = session.sql(sql).collect()
         response = data[0][0]
@@ -144,6 +152,7 @@ def configure_llm(llm_model_name, llm_api_key):
 
 def get_metadata(metadata_type):
     if NativeMode:
+        session = get_session()
         sql = f"select {prefix}.get_metadata('{metadata_type}') "
         data = session.sql(sql).collect()
         response = data[0][0]
@@ -170,6 +179,7 @@ def submit_to_udf_proxy(input_text, thread_id, bot_id):
     if NativeMode:
         try:
             sql = "select {}.submit_udf(?, ?, ?)".format(prefix)
+            session = get_session()
             data = session.sql(sql, (input_text, thread_id, json.dumps(primary_user))).collect()
             response = data[0][0]
             return response
@@ -188,6 +198,7 @@ def submit_to_udf_proxy(input_text, thread_id, bot_id):
 def get_response_from_udf_proxy(uu, bot_id):
     if NativeMode:
         try:
+            session = get_session()
             sql = f"""
                 SELECT message from {prefix}.LLM_RESULTS
                 WHERE uu = '{uu}'"""
@@ -210,6 +221,7 @@ def get_response_from_udf_proxy(uu, bot_id):
 def deploy_bot(bot_id):
     if NativeMode:
         sql = f"select {prefix}.deploy_bot('{bot_id}') "
+        session = get_session()
         data = session.sql(sql).collect()
         response = json.loads(data[0][0])
         return response

@@ -2,7 +2,6 @@ import streamlit as st
 from utils import app_name
 
 def config_pool():
-    st.set_page_config(layout="wide")
     
     st.title("Step 2: Configure Compute Pool")
     

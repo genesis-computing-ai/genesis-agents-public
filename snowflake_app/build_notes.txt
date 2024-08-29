@@ -53,3 +53,7 @@ docker push dshrnxx-genesis.registry.snowflakecomputing.com/genesisapp_master/co
 docker tag genesis_app:latest dshrnxx-genesis-dev.registry.snowflakecomputing.com/genesisapp_master/code_schema/service_repo/genesis_app:latest
 docker push dshrnxx-genesis-dev.registry.snowflakecomputing.com/genesisapp_master/code_schema/service_repo/genesis_app:latest
 
+
+snow sql -c ALPHA-DEMO -q "SHOW STAGES" 
+snow sql -c ALPHA-DEMO -q "PUT file://$(pwd)/*.* @APP_CODE_STAGE AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
+snow sql -c ALPHA-DEMO -q "PUT file://$(pwd)/page_files/*.py @APP_CODE_STAGE/page_files AUTO_COMPRESS=FALSE OVERWRITE=TRUE"

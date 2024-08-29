@@ -9,6 +9,7 @@ core_prefix = app_name + ".CORE"
 
 NativeMode = True
 
+
 def get_session():
     global NativeMode
     if NativeMode:

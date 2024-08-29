@@ -11,16 +11,79 @@ if 'data' not in st.session_state:
 
 # ... (keep the initialization code)
 
+st.success('NativeMode1 '+str(NativeMode))
+session = None
 if NativeMode:
     try:
         service_status_result = check_status()
+        st.success('NativeMode2 '+str(service_status_result))
         if service_status_result is None:
             st.session_state["data"] = "Local Mode"
-        # ... (keep the service status checking code)
+            NativeMode = False 
+        else:
+            st.session_state["data"] = service_status_result
+            session = get_session()
     except Exception as e:
         st.session_state["data"] = None
 else:
     st.session_state["data"] = "Local Mode"
+
+if NativeMode:
+    try:
+        # status_query = f"select v.value:status::varchar status from (select parse_json(system$get_service_status('{prefix}.GENESISAPP_SERVICE_SERVICE'))) t, lateral flatten(input => t.$1) v"
+        # service_status_result = session.sql(status_query).collect()
+        service_status_result = check_status()
+        st.success('NativeMode3 '+str(service_status_result))
+        if service_status_result != "READY":
+            st.success('NativeMode4 '+str(service_status_result))
+            with st.spinner("Waiting on Genesis Services to start..."):
+                service_status = st.empty()
+                while True:
+                    service_status.text(
+                        "Genesis Service status: " + service_status_result
+                    )
+                    if service_status_result == "SUSPENDED":
+                        # show button to start service
+                        if st.button("Click to start Genesis Service"):
+                            with st.spinner("Genesis Services is starting..."):
+                                try:
+                                    # Execute the command and collect the results
+                                    time.sleep(15)
+                                    service_start_result = session.sql(
+                                        f"call {app_name}.core.start_app_instance('APP1','GENESIS_POOL','GENESIS_EAI','{st.session_state.wh_name}')"
+                                    ).collect()
+                                    if service_start_result:
+                                        service_status.text(
+                                            "Genesis Service status: " + service_status_result
+                                        )
+                                    else:
+                                        time.sleep(10)
+                                except Exception as e:
+                                    st.error(f"Error connecting to Snowflake: {e}")
+                    service_status_result = check_status()
+                    service_status.text(
+                        "Genesis Service status: " + service_status_result
+                    )
+                    if service_status_result == "READY":
+                        service_status.text("")
+                        st.experimental_rerun()
+
+                    time.sleep(10)
+
+       # sql = f"select {prefix}.list_available_bots() "
+      #  st.session_state["data"] = session.sql(sql).collect()
+
+    except Exception as e:
+        st.session_state["data"] = None
+else:
+    st.session_state["data"] = "Local Mode"
+
+if "data" in st.session_state:
+    data = st.session_state["data"]
+
+if "last_response" not in st.session_state:
+    st.session_state["last_response"] = ""
+
 
 if st.session_state.data:
     pages = {

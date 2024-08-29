@@ -2,7 +2,6 @@ import streamlit as st
 from utils import app_name
 
 def config_eai():
-    st.set_page_config(layout="wide")
     
     st.title("Step 3: Configure External Access Integration (EAI)")
     

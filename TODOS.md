@@ -6,14 +6,18 @@ today:
 x test rezas cortex knowledge logging
 x make hybrid table fallback to regular for llm results
 test new streamlit on sis
-add cross region calls to sis 
+x add cross region calls to sis 
 add process list and info to default prompts if any
-test cortex tps
+x test cortex tps
 give bots process scheduler an action to show past runs and status
-see how it works in 70b
+x see how it works in 70b
+fix !model in cortex
+kevins thread re runs
+sanders feedback in general
 
 
 before republishing on natapp:
+add bot details caching to new streamlit 
 add the cross region stuff to the readme
 x make streamlit show tool calls better 
 add logging to the openai finalizer and the slack finalizer to see who is zapping the history in the messages.. seems to just be on single ..

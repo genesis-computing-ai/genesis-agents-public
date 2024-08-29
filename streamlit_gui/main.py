@@ -24,6 +24,8 @@ if 'data' not in st.session_state:
 if NativeMode:
     try:
         service_status_result = check_status()
+        if service_status_result is None:
+            st.session_state["data"] = "Local Mode"
         # ... (keep the service status checking code)
     except Exception as e:
         st.session_state["data"] = None

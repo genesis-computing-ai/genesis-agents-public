@@ -1,6 +1,9 @@
 import streamlit as st
 from utils import NativeMode, check_status, get_session, app_name, prefix
 
+# Set Streamlit to wide mode
+st.set_page_config(layout="wide")
+
 
 # Initialize data in session state if it doesn't exist
 if 'data' not in st.session_state:
@@ -40,8 +43,9 @@ if st.session_state.data:
     # Set the default selection to "Chat with Bots"
     default_selection = "Chat with Bots" if "Chat with Bots" in pages else list(pages.keys())[0]
     
-    selection = st.sidebar.radio(
-        "Go to:",
+    # Use a dropdown for page selection
+    selection = st.sidebar.selectbox(
+        "Select Page:",
         list(pages.keys()),
         index=list(pages.keys()).index(
             st.session_state.get("radio", default_selection)
@@ -50,6 +54,11 @@ if st.session_state.data:
     
     # Update the session state with the current selection
     st.session_state["radio"] = selection
+
+    # Add placeholder for active chat sessions when on "Chat with Bots" page
+    if selection == "Chat with Bots":
+        st.sidebar.markdown("### Active Chat Sessions")
+        st.sidebar.info("Active chat sessions will be displayed here.")
 
     if selection in pages:
         pages[selection]()

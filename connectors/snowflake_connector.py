@@ -2252,6 +2252,7 @@ class SnowflakeConnector(DatabaseConnector):
                     BOT_ID VARCHAR(16777216),
                     PROCESS_NAME VARCHAR(16777216) NOT NULL,
                     PROCESS_INSTRUCTIONS VARCHAR(16777216),
+                    PROCESS_CONFIG VARCHAR(16777216),
                     TIMESTAMP TIMESTAMP_NTZ(9) NOT NULL
                 );
                 """

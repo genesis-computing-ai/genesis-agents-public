@@ -58,7 +58,17 @@ if st.session_state.data:
     # Add placeholder for active chat sessions when on "Chat with Bots" page
     if selection == "Chat with Bots":
         st.sidebar.markdown("### Active Chat Sessions")
-        st.sidebar.info("Active chat sessions will be displayed here.")
+        
+        # Initialize active_sessions in session state if it doesn't exist
+        if 'active_sessions' not in st.session_state:
+            st.session_state.active_sessions = []
+
+        # Display active sessions
+        if st.session_state.active_sessions:
+            for session in st.session_state.active_sessions:
+                st.sidebar.text(f"• {session}")
+        else:
+            st.sidebar.info("No active chat sessions.")
 
     if selection in pages:
         pages[selection]()

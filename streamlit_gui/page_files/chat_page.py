@@ -151,14 +151,42 @@ def chat_page():
                         if st.session_state["radio"] != "Setup Slack Connection":
                             if st.button("Activate Slack Keys Here"):
                                 st.session_state["radio"] = "Setup Slack Connection"
-                                st.experimental_rerun()
+                                st.rerun()  # Changed from st.experimental_rerun()
                     else:
                         if st.button("Activate Slack Keys Here"):
                             st.session_state["radio"] = "Setup Slack Connection"
-                            st.experimental_rerun()
+                            st.rerun()  # Changed from st.experimental_rerun()
             if len(bot_names) > 0:
-                selected_bot_name = st.selectbox("Active Bots", bot_names)
+                # Store the previously selected bot name
+                previous_bot_name = st.session_state.get("previous_bot_name")
+                
+                selected_bot_name = st.selectbox("Active Bots", bot_names, key="bot_selector")
                 selected_bot_index = bot_names.index(selected_bot_name)
+                
+                # Check if a new bot has been selected
+                if selected_bot_name != previous_bot_name:
+                    # Create a new chat session for the newly selected bot
+                    new_thread_id = str(uuid.uuid4())
+                    new_session = f"Chat with {selected_bot_name} ({new_thread_id[:8]})"
+                    
+                    # Add the new session to active_sessions
+                    if 'active_sessions' not in st.session_state:
+                        st.session_state.active_sessions = []
+                    st.session_state.active_sessions.append(new_session)
+                    
+                    # Update the thread ID for the selected bot
+                    selected_bot_id = bot_ids[selected_bot_index]
+                    st.session_state[f"thread_id_{selected_bot_id}"] = new_thread_id
+                    
+                    # Initialize chat history for the new bot
+                    st.session_state[f"messages_{selected_bot_id}"] = []
+                    
+                    # Update the previous bot name
+                    st.session_state["previous_bot_name"] = selected_bot_name
+                    
+                    # Trigger a rerun to update the UI
+                    st.rerun()  # Changed from st.experimental_rerun()
+
             else:
                 st.error("No bots available")
                 return
@@ -190,8 +218,26 @@ def chat_page():
                             f"data:image/png;base64,{encoded_bot_avatar_image}"
                         )
 
+            # Initialize active_sessions if it doesn't exist
+            if 'active_sessions' not in st.session_state:
+                st.session_state.active_sessions = []
+
+            # Create initial session if it doesn't exist
+            if not st.session_state.active_sessions:
+                initial_thread_id = str(uuid.uuid4())
+                initial_session = f"Chat with {selected_bot_name} ({initial_thread_id[:8]})"
+                st.session_state.active_sessions.append(initial_session)
+                st.session_state[f"thread_id_{selected_bot_id}"] = initial_thread_id
+
             if st.button("New Chat", key="new_chat_button"):
                 # Reset the chat history and thread ID for the selected bot
+                new_thread_id = str(uuid.uuid4())
+                st.session_state[f"thread_id_{selected_bot_id}"] = new_thread_id
+                
+                # Create a new session and add it to active_sessions
+                new_session = f"Chat with {selected_bot_name} ({new_thread_id[:8]})"
+                st.session_state.active_sessions.append(new_session)
+                
                 if bot_avatar_image_url:
                     st.session_state[f"messages_{selected_bot_id}"] = [
                         {
@@ -207,10 +253,16 @@ def chat_page():
                             "content": f"Hi, I'm {selected_bot_name}! How can I help you today?",
                         }
                     ]
-                st.session_state[f"thread_id_{selected_bot_id}"] = str(uuid.uuid4())
+                st.rerun()  # Changed from st.experimental_rerun()
 
             if f"thread_id_{selected_bot_id}" not in st.session_state:
-                st.session_state[f"thread_id_{selected_bot_id}"] = str(uuid.uuid4())
+                new_thread_id = str(uuid.uuid4())
+                st.session_state[f"thread_id_{selected_bot_id}"] = new_thread_id
+                
+                # Create initial session if it doesn't exist
+                if not st.session_state.active_sessions:
+                    initial_session = f"Chat with {selected_bot_name} ({new_thread_id[:8]})"
+                    st.session_state.active_sessions.append(initial_session)
 
             # Initialize chat history
             if f"messages_{selected_bot_id}" not in st.session_state:
@@ -238,3 +290,10 @@ def chat_page():
                 submit_button(prompt, st.chat_message("user"), False)
         except Exception as e:
             st.subheader(f"Error running Genesis GUI {e}")
+
+    # Add this at the end of the chat_page function to update the sidebar
+    st.session_state.active_sessions = list(set(st.session_state.active_sessions))  # Remove duplicates
+
+    st.sidebar.info(f"Active sessions: {st.session_state.active_sessions}")
+    st.sidebar.info(f"Selected bot: {selected_bot_name}")
+    st.sidebar.info(f"Thread ID: {st.session_state.get(f'thread_id_{selected_bot_id}', 'Not set')}")

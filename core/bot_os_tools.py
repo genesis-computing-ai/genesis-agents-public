@@ -9,6 +9,7 @@ from datetime import datetime
 import threading 
 import random
 import string
+import pytz
 
 from jinja2 import Template
 from bot_genesis.make_baby_bot import MAKE_BABY_BOT_DESCRIPTIONS, make_baby_bot_tools
@@ -87,7 +88,7 @@ class ToolBelt:
         self.client = OpenAI(api_key=openai_api_key) if openai_api_key else None
         self.counter = {}
         self.instructions = {}
-      # self.process = {}
+        self.process_config = {}
         self.process_history = {}
         self.done = {}
         self.silent_mode = {}
@@ -235,7 +236,7 @@ class ToolBelt:
             INSERT INTO {db_adapter.schema}.MESSAGE_LOG (timestamp, bot_id, bot_name, thread_id, message_type, message_payload, message_metadata)
             VALUES (%s, %s, %s, %s, %s, %s, %s)
         """
-        print(f"Writing message log row: {timestamp}, {bot_id}, {bot_name}, {thread_id}, {message_type}, {message_payload}, {message_metadata}")
+        # print(f"Writing message log row: {timestamp}, {bot_id}, {bot_name}, {thread_id}, {message_type}, {message_payload}, {message_metadata}")
         values = (timestamp, bot_id, bot_name, thread_id, message_type, message_payload, json.dumps(message_metadata))
         
         try:
@@ -388,7 +389,7 @@ class ToolBelt:
         previous_response="",
         process_name="",
         process_id=None,
-        goto_step=None,
+        process_config=None,
         thread_id=None,
         bot_id=None,
         concise_mode=False,
@@ -398,7 +399,7 @@ class ToolBelt:
 
         if action == "TIME":
             return {
-                "current_system_time": self.get_current_time_with_timezone()
+                "current_system_time": datetime.now()
             }
 
         if bot_id is None:
@@ -449,6 +450,8 @@ class ToolBelt:
                 self.done[thread_id] = {}
             if thread_id not in self.silent_mode:
                 self.silent_mode[thread_id] = {}
+            if thread_id not in self.process_config:
+                self.process_config[thread_id] = {}
 
         # Try to get process info from PROCESSES table
         process = self.get_process_info(bot_id, process_name=process_name, process_id=process_id)
@@ -473,6 +476,7 @@ class ToolBelt:
         process = process['Data']       
         process_id = process['PROCESS_ID']
         process_name = process['PROCESS_NAME']
+        process_config = process.get('PROCESS_CONFIG', '')
 
         if action == "KICKOFF_PROCESS":
             print("Kickoff process.")
@@ -482,38 +486,42 @@ class ToolBelt:
          #       self.process[thread_id][process_id] = process
                 self.last_fail[thread_id][process_id] = None
                 self.instructions[thread_id][process_id] = None
+                self.process_config[thread_id][process_id] = process_config
                 self.process_history[thread_id][process_id] = None
                 self.done[thread_id][process_id] = False
                 self.silent_mode[thread_id][process_id] = silent_mode
 
+
             print(
-                f"Process {process_name} has been kicked off.  Process object: \n{process}"
+                f"Process {process_name} has been kicked off.  Process object: \n{process}\n\n"
             )
 
             extract_instructions = f"""
 You will need to break the process instructions below up into individual steps and and return them one at a time.  
-By the way the current system time is {self.get_current_time_with_timezone()}.
+By the way the current system time is {datetime.now()}.
 Start by returning the first step of the process instructions below.
 Simply return the first instruction on what needs to be done first without removing or changing any details.
 
 
 Process Instructions:
 {process['PROCESS_INSTRUCTIONS']}
-"""
-
-            first_step = self.chat_completion(extract_instructions, self.db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, process_id=process_id, process_name=process_name)
-
+""" 
+            first_step = process['PROCESS_CONFIG'] + "\n" + self.chat_completion(extract_instructions, self.db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, process_id=process_id, process_name=process_name)
             with self.lock:
                 self.process_history[thread_id][process_id] = "First step: "+ first_step + "\n"
 
                 self.instructions[thread_id][process_id] = f"""
-Hey **@{process['BOT_ID']}** , here is the first step of the process.
+Hey **@{process['BOT_ID']}**
 
 {first_step}
 
 Execute this instruction now and then pass your response to the _run_process tool as a parameter called previous_response and an action of GET_NEXT_STEP.  
 Execute the instructions you were given without asking for permission.
 Do not ever verify anything with the user, unless you need to get a specific input from the user to be able to continue the process."""
+            if self.process_config[thread_id][process_id]:
+                self.instructions[thread_id][process_id] += f"""
+Process configuration: {self.process_config[thread_id][process_id]}.
+"""
             if verbose:
                     self.instructions[thread_id][process_id] += """
 However DO generate text explaining what you are doing and showing interium outputs, etc. while you are running this and further steps to keep the user informed what is going on, preface these messages by 🔄 aka :arrows_counterclockwise:.
@@ -528,7 +536,7 @@ This process is being run in low verbosity mode. Do not directly repeat the firs
 In your response back to _run_process, provide a DETAILED description of what you did, what result you achieved, and why you believe this to have successfully completed the step.
 Do not use your memory or any cache that you might have.  Do not simulate any user interaction or tools calls.  Do not ask for any user input unless instructed to do so.
 If you are told to run another process as part of this process, actually run it, and run it completely before returning the results to this parent process.
-By the way the current system time is {self.get_current_time_with_timezone()}.  You can call manage_process with
+By the way the current system time is {datetime.now()}.  You can call manage_process with
 action TIME to get updated time if you need it when running the process.
 
 Now, start by performing the FIRST_STEP indicated above.
@@ -540,7 +548,7 @@ Now, start by performing the FIRST_STEP indicated above.
                 line.lstrip() for line in self.instructions[thread_id][process_id].splitlines()
                 )
 
-            print("\n", self.instructions[thread_id][process_id], "\n")
+            print("\nKICK-OFF STEP: \n", self.instructions[thread_id][process_id], "\n")
 
             # Call set_process_cache to save the current state
             self.set_process_cache(bot_id, thread_id, process_id)
@@ -549,7 +557,7 @@ Now, start by performing the FIRST_STEP indicated above.
             return {"Success": True, "Instructions": self.instructions[thread_id][process_id], "process_id": process_id}
 
         elif action == "GET_NEXT_STEP":
-            print("GET NEXT STEP - process_runner.")
+            print("Entered GET NEXT STEP")
                 # Load process cache
             if not self.get_process_cache(bot_id, thread_id, process_id):
                 return {
@@ -590,7 +598,9 @@ may still have not have been correctly perfomed, return a request to again re-ru
 followed by a DETAILED EXPLAINATION as to why it did not pass and what your concern is, and why its previous attempt to respond to your criticism 
 was not sufficient, and any suggestions you have on how to succeed on the next try. If the response looks correct, return only the text string 
 "**success**" (no explanation needed) to continue to the next step.  At this point its ok to give the bot the benefit of the doubt to avoid
-going in circles.  By the way the current system time is {self.get_current_time_with_timezone()}. 
+going in circles.  By the way the current system time is {datetime.now()}. 
+
+Process Config: {self.process_config[thread_id][process_id]}
 
 Full Process Instructions: {process['PROCESS_INSTRUCTIONS']}
 
@@ -611,16 +621,23 @@ DETAILED EXPLAINATION as to why it did not pass and what your concern is, and an
 If the response seems like it is likely correct, return only the text string "**success**" (no explanation needed) to continue to the next step.  If the process is complete,
 tell the process to stop running.  Remember, proceed under your own direction and do not ask the user for permission to proceed.
 
-Full process Instructions: {process['PROCESS_INSTRUCTIONS']}
+Process Config: 
+{self.process_config[thread_id][process_id]}
 
-Process History so far this run: {self.process_history[thread_id][process_id]}
+Full process Instructions: 
+{process['PROCESS_INSTRUCTIONS']}
 
-Current system time: {self.get_current_time_with_timezone()}
+Process History so far this run: 
+{self.process_history[thread_id][process_id]}
 
-Bot's most recent response: {previous_response}
+Current system time: 
+{datetime.now()}
+
+Bot's most recent response: 
+{previous_response}
 """
 
-            print(f"\n{check_response}\n")
+            print(f"\nSENT TO 2nd LLM:\n{check_response}\n")
 
             result = self.chat_completion(check_response, self.db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, process_id=process_id, process_name = process_name)
 
@@ -636,9 +653,9 @@ Bot's most recent response: {previous_response}
                     "message": "Process failed: The checking function didn't return a string."
                 }
             
-         #   result_lower = result.lower()
+            print("RUN 2nd LLM...")
 
-            print(f"\n{result}\n")
+            print(f"\nRESULT FROM 2nd LLM: {result}\n")
 
             if "**fail**" in result.lower():
                 with self.lock:
@@ -652,7 +669,7 @@ Bot's most recent response: {previous_response}
                 return_dict = {
                     "success": False,
                     "feedback_from_supervisor": result,
-                    "current system time": {self.get_current_time_with_timezone()},
+                    "current system time": {datetime.now()},
                     "recovery_step": f"Review the message above and submit a clarification, and/or try this Step {self.counter[thread_id][process_id]} again:\n{self.instructions[thread_id][process_id]}"
                 }
                 if verbose:
@@ -674,14 +691,20 @@ If the process is complete, respond "**done**" with no other text.
 
 Process History: {self.process_history[thread_id][process_id]}
 
-Current system time: {self.get_current_time_with_timezone()}
+Current system time: {datetime.now()}
 
-Process Instructions: {process['PROCESS_INSTRUCTIONS']}
+Process Instructions: 
+{self.process_config[thread_id][process_id]}
+
+{process['PROCESS_INSTRUCTIONS']}
                 """
 
-            print(f"\n{extract_instructions}\n")
+            print(f"\nEXTRACT NEXT STEP:\n{extract_instructions}\n")
 
+            print("RUN 2nd LLM...")
             next_step = self.chat_completion(extract_instructions, self.db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, process_id=process_id, process_name=process_name)
+
+            print(f"\nRESULT (NEXT_STEP_): {next_step}\n")
 
             if next_step == '**done**' or next_step == '***done***' or next_step.strip().endswith('**done**'):
                 with self.lock:
@@ -704,6 +727,8 @@ Process Instructions: {process['PROCESS_INSTRUCTIONS']}
                 self.instructions[thread_id][process_id] = f"""
 Hey **@{process['BOT_ID']}**, here is the next step of the process.
 
+{process['PROCESS_CONFIG']}
+
 {next_step}
 
 Execute these instructions now and then pass your response to the run_process tool as a parameter called previous_response and an action of GET_NEXT_STEP. 
@@ -721,14 +746,14 @@ This process is being run in low verbosity mode, so do not generate a lot of tex
                             """
                 self.instructions[thread_id][process_id] += f"""
 Don't stop to verify anything with the user unless specifically told to.
-By the way the current system time id: {self.get_current_time_with_timezone()}.
+By the way the current system time id: {datetime.now()}.
 In your response back to run_process, provide a detailed description of what you did, what result you achieved, and why you believe this to have successfully completed the step.
                 """
 
-            print(f"\n{self.instructions[thread_id][process_id]}\n")
+            print(f"\nEXTRACTED NEXT STEP: \n{self.instructions[thread_id][process_id]}\n")
 
             with self.lock:
-                self.process_history[thread_id][process_id] += "\nNext step: " + next_step
+                self.process_history[thread_id][process_id] += "\nNext step: " + self.process_config[thread_id][process_id] + "\n" + next_step
 
             self.set_process_cache(bot_id, thread_id, process_id)
             print(f'Process cached with bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}')
@@ -855,7 +880,7 @@ In your response back to run_process, provide a detailed description of what you
 
         if action == "TIME":
             return {
-                "current_system_time": self.get_current_time_with_timezone()
+                "current_system_time": datetime.now()
             }
         action = action.upper()
 

@@ -169,6 +169,37 @@ def chat_page():
                             st.session_state["radio"] = "Setup Slack Connection"
                             st.rerun()
             if len(bot_names) > 0:
+                col1, col2 = st.columns([3, 1])
+                with col1:
+                    selected_bot_name = st.selectbox("Active Bots", bot_names, key="bot_selector")
+                with col2:
+                    if st.button("New Chat", key="new_chat_button"):
+                        # Create a new chat session for the selected bot
+                        new_thread_id = str(uuid.uuid4())
+                        new_session = f"Chat with {selected_bot_name} ({new_thread_id[:8]})"
+                        
+                        # Add the new session to active_sessions
+                        if 'active_sessions' not in st.session_state:
+                            st.session_state.active_sessions = []
+                        if new_session not in st.session_state.active_sessions:
+                            st.session_state.active_sessions.append(new_session)
+                            st.session_state.new_session_added = True
+                        
+                        # Update the current thread ID
+                        st.session_state["current_thread_id"] = new_thread_id
+                        
+                        # Initialize chat history for the new thread
+                        st.session_state[f"messages_{new_thread_id}"] = []
+                        
+                        # Update the previous bot name
+                        st.session_state["previous_bot_name"] = selected_bot_name
+                        
+                        # Set the flag to trigger a rerun in main.py
+                        st.session_state.new_session_added = True
+                        
+                        # Trigger a rerun to update the UI
+                        st.rerun()
+
                 # Check if a session is selected from the sidebar
                 loading_existing_session = False
                 if 'selected_session' in st.session_state:
@@ -178,9 +209,7 @@ def chat_page():
                     loading_existing_session = True
                     del st.session_state.selected_session
                 else:
-                    # If no session is selected, use the dropdown as before
                     previous_bot_name = st.session_state.get("previous_bot_name")
-                    selected_bot_name = st.selectbox("Active Bots", bot_names, key="bot_selector")
                     selected_bot_index = bot_names.index(selected_bot_name)
                     
                     # Check if a new bot has been selected or if there's no current thread
@@ -192,10 +221,12 @@ def chat_page():
                         # Add the new session to active_sessions
                         if 'active_sessions' not in st.session_state:
                             st.session_state.active_sessions = []
-                        st.session_state.active_sessions.append(new_session)
+                        if new_session not in st.session_state.active_sessions:
+                            st.session_state.active_sessions.append(new_session)
+                            st.session_state.new_session_added = True
                     else:
                         # Use the existing thread ID
-                        selected_thread_id = st.session_state["current_thread_id"]
+                        selected_thread_id = st.session_state.get("current_thread_id")
 
                 # Update the session state
                 st.session_state["current_thread_id"] = selected_thread_id
@@ -265,6 +296,10 @@ def chat_page():
 
     # Add this at the end of the chat_page function to update the sidebar
     st.session_state.active_sessions = list(set(st.session_state.active_sessions))  # Remove duplicates
+
+    # Set the flag to trigger a rerun in main.py if a new session was added
+    if st.session_state.get('new_session_added', False):
+        st.rerun()
 
     st.sidebar.info(f"Active sessions: {st.session_state.active_sessions}")
     st.sidebar.info(f"Selected bot: {selected_bot_name}")

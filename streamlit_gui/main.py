@@ -80,6 +80,11 @@ if st.session_state.data:
         else:
             st.sidebar.info("No active chat sessions.")
 
+    # Force a rerun if a new session was added
+    if 'new_session_added' in st.session_state and st.session_state.new_session_added:
+        del st.session_state.new_session_added
+        st.rerun()
+
     if selection in pages:
         pages[selection]()
 

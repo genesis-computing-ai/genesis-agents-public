@@ -1,19 +1,6 @@
 import streamlit as st
 from utils import NativeMode, check_status, get_session, app_name, prefix
-from pages.welcome import welcome
-from pages.chat_page import chat_page
-from pages.llm_config import llm_config
-from pages.setup_slack import setup_slack
-from pages.grant_data import grant_data
-from pages.db_harvester import db_harvester
-from pages.bot_config import bot_config
-from pages.start_stop import start_stop
-from pages.show_server_logs import show_server_logs
-from pages.support import support
-from pages.config_wh import config_wh
-from pages.config_pool import config_pool
-from pages.config_eai import config_eai
-from pages.start_service import start_service
+
 
 # Initialize data in session state if it doesn't exist
 if 'data' not in st.session_state:
@@ -34,15 +21,15 @@ else:
 
 if st.session_state.data:
     pages = {
-        "Chat with Bots": chat_page,
-        "LLM Model & Key": llm_config,
-        "Setup Slack Connection": setup_slack,
-        "Grant Data Access": grant_data,
-        "Harvester Status": db_harvester,
-        "Bot Configuration": bot_config,
-        "Server Stop/Start": start_stop,
-        "Server Logs": show_server_logs,
-        "Support and Community": support,
+        "Chat with Bots": lambda: __import__('page_files.chat_page').chat_page.chat_page(),
+        "LLM Model & Key": lambda: __import__('page_files.llm_config').llm_config.llm_config(),
+        "Setup Slack Connection": lambda: __import__('page_files.setup_slack').setup_slack.setup_slack(),
+        "Grant Data Access": lambda: __import__('page_files.grant_data').grant_data.grant_data(),
+        "Harvester Status": lambda: __import__('page_files.db_harvester').db_harvester.db_harvester(),
+        "Bot Configuration": lambda: __import__('page_files.bot_config').bot_config.bot_config(),
+        "Server Stop/Start": lambda: __import__('page_files.start_stop').start_stop.start_stop(),
+        "Server Logs": lambda: __import__('page_files.show_server_logs').show_server_logs.show_server_logs(),
+        "Support and Community": lambda: __import__('page_files.support').support.support(),
     }
 
     if st.session_state.get("needs_keys", False):
@@ -63,18 +50,18 @@ if st.session_state.data:
     
     # Update the session state with the current selection
     st.session_state["radio"] = selection
-    
+
     if selection in pages:
         pages[selection]()
 
 else:
     pages = {
-        "Welcome!": welcome,
-        "1: Configure Warehouse": config_wh,
-        "2: Configure Compute Pool": config_pool,
-        "3: Configure EAI": config_eai,
-        "4: Start Genesis Server": start_service,
-        "Support and Community": support,
+        "Welcome!": lambda: __import__('page_files.welcome').welcome.welcome(),
+        "1: Configure Warehouse": lambda: __import__('page_files.config_wh').config_wh.config_wh(),
+        "2: Configure Compute Pool": lambda: __import__('page_files.config_pool').config_pool.config_pool(),
+        "3: Configure EAI": lambda: __import__('page_files.config_eai').config_eai.config_eai(),
+        "4: Start Genesis Server": lambda: __import__('page_files.start_service').start_service.start_service(),
+        "Support and Community": lambda: __import__('page_files.support').support.support(),
     }
 
     st.sidebar.title("Genesis Bots Installation")

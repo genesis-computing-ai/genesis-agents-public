@@ -2615,6 +2615,7 @@ class SqliteConnector(DatabaseConnector):
         runner_id=None,
         full=False,
         slack_details=False,
+        with_instructions=False
     ):
         """
         Returns a list of all the bots being served by the system, including their runner IDs, names, instructions, tools, etc.
@@ -2623,6 +2624,8 @@ class SqliteConnector(DatabaseConnector):
             list: A list of dictionaries, each containing details of a bot.
         """
         # Get the database schema from environment variables
+        if isinstance(with_instructions, str):
+            with_instructions = with_instructions.lower() == 'true'
 
         if full:
             select_str = "api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instructions, runner_id, slack_app_token, slack_app_level_key, slack_signing_secret, slack_channel_id, available_tools, udf_active, slack_active, files, bot_implementation, bot_intro_prompt, bot_avatar_image, slack_user_allow"
@@ -2631,6 +2634,8 @@ class SqliteConnector(DatabaseConnector):
                 select_str = "runner_id, bot_id, bot_name, bot_instructions, available_tools, bot_slack_user_id, api_app_id, auth_url, udf_active, slack_active, files, bot_implementation, bot_intro_prompt, slack_user_allow"
             else:
                 select_str = "runner_id, bot_id, bot_name, bot_instructions, available_tools, bot_slack_user_id, api_app_id, auth_url, udf_active, slack_active, files, bot_implementation, bot_intro_prompt"
+        if not with_instructions and not full:
+            select_str = select_str.replace("bot_instructions, ", "")
 
         # Query to select all bots from the BOT_SERVICING table
         if runner_id is None:

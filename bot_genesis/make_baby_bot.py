@@ -43,11 +43,11 @@ project_id = db_schema[0]
 dataset_name = db_schema[1]
 bot_servicing_table = os.getenv('BOT_SERVICING_TABLE', 'BOT_SERVICING')
 
-def list_all_bots(runner_id=None, slack_details=False):
-    return bb_db_connector.db_list_all_bots(project_id=project_id, dataset_name=dataset_name, bot_servicing_table=bot_servicing_table, runner_id=runner_id, full=False, slack_details=slack_details)
+def list_all_bots(runner_id=None, slack_details=False, with_instructions=False):
+    return bb_db_connector.db_list_all_bots(project_id=project_id, dataset_name=dataset_name, bot_servicing_table=bot_servicing_table, runner_id=runner_id, full=False, slack_details=slack_details, with_instructions=with_instructions)
  
 def get_all_bots_full_details(runner_id):
-    return bb_db_connector.db_list_all_bots(project_id=project_id, dataset_name=dataset_name, bot_servicing_table=bot_servicing_table, runner_id=runner_id, full=True)
+    return bb_db_connector.db_list_all_bots(project_id=project_id, dataset_name=dataset_name, bot_servicing_table=bot_servicing_table, runner_id=runner_id, full=True, with_instructions=True)
  
 def set_slack_config_tokens(slack_app_config_token, slack_app_config_refresh_token):
     #test
@@ -1406,6 +1406,16 @@ MAKE_BABY_BOT_DESCRIPTIONS.append({
     "function": {
         "name": "list_all_bots",
         "description": "Lists all the bots being served by the system, including their bot_ids, slack_user_id, runner IDs, names, instructions, tools, auth_url, etc.  This is useful to find information about a bot, or to search for a particular bot.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "with_instructions": {
+                    "type": "boolean",
+                    "description": "If true, includes the bot's full instructions in the result. Use this to know what the bot's role is and what it does. Defaults to false.",
+                    "default": False
+                }
+            }
+        }
     }
 })
 

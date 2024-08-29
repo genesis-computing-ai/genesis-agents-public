@@ -44,9 +44,9 @@ logging.basicConfig(
 
 _semantic_lock = Lock()
 
+from snowflake.connector import SnowflakeConnection
 
 class SnowflakeConnector(DatabaseConnector):
-
     def __init__(self, connection_name, bot_database_creds=None):
         super().__init__(connection_name)
         # print('Snowflake connector entry...')
@@ -73,10 +73,9 @@ class SnowflakeConnector(DatabaseConnector):
         self.role = get_env_or_default(role, "SNOWFLAKE_ROLE_OVERRIDE")        
         self.source_name = "Snowflake"
 
-
         # print('Calling _create_connection...')
         self.token_connection = False
-        self.connection = self._create_connection()
+        self.connection: SnowflakeConnection = self._create_connection()
         self.semantic_models_map = {}
 
         self.client = self.connection
@@ -158,7 +157,7 @@ class SnowflakeConnector(DatabaseConnector):
         self.ngrok_tokens_table_name = (
             self.genbot_internal_project_and_schema + "." + "NGROK_TOKENS"
         )
-        self.images_table_name = self.app_share_schema + "." + "IMAGES"  
+        self.images_table_name = self.app_share_schema + "." + "IMAGES"
 
     def check_cortex_available(self):
         if os.environ.get("CORTEX_AVAILABLE", 'False') in ['False', '']:
@@ -646,30 +645,30 @@ class SnowflakeConnector(DatabaseConnector):
             err = f"An error occurred while retrieving visible databases: {e}"
             return {"Success": False, "Error": err}
 
-    def get_schemas(self, database_name, thread_id=None):
-        """
-        Retrieves a list of all schemas in a given database.
-        Args:
-            database_name (str): The name of the database to retrieve schemas from.
+    # def get_schemas(self, database_name, thread_id=None):
+    #     """
+    #     Retrieves a list of all schemas in a given database.
+    #     Args:
+    #         database_name (str): The name of the database to retrieve schemas from.
 
-        Returns:
-            list: A list of schema names in the given database.
-        """
-        try:
-            query = f"SHOW SCHEMAS IN DATABASE {database_name}"
-            cursor = self.client.cursor()
-            cursor.execute(query)
-            results = cursor.fetchall()
+    #     Returns:
+    #         list: A list of schema names in the given database.
+    #     """
+    #     try:
+    #         query = f"SHOW SCHEMAS IN DATABASE {database_name}"
+    #         cursor = self.client.cursor()
+    #         cursor.execute(query)
+    #         results = cursor.fetchall()
 
-            schemas = [
-                row[1] for row in results
-            ]  # Assuming the schema name is in the second column
+    #         schemas = [
+    #             row[1] for row in results
+    #         ]  # Assuming the schema name is in the second column
 
-            return {"Success": True, "Schemas": schemas}
+    #         return {"Success": True, "Schemas": schemas}
 
-        except Exception as e:
-            err = f"An error occurred while retrieving schemas from database {database_name}: {e}"
-            return {"Success": False, "Error": err}
+    #     except Exception as e:
+    #         err = f"An error occurred while retrieving schemas from database {database_name}: {e}"
+    #         return {"Success": False, "Error": err}
 
     def get_shared_schemas(self, database_name):
         try:
@@ -993,6 +992,8 @@ class SnowflakeConnector(DatabaseConnector):
         import pytz
     # You can replace 'UTC' with your desired time zone, e.g., 'America/New_York'
         tz_string = datetime.now().astimezone().tzname()
+        if tz_string is None:
+            tz_string = 'UTC' 
         tz = pytz.timezone(tz_string)
         current_time = datetime.now(tz)
         return current_time.strftime("%Y-%m-%d %H:%M:%S %Z")
@@ -1111,7 +1112,7 @@ class SnowflakeConnector(DatabaseConnector):
                 "Error": "Task details must be provided for CREATE or UPDATE action.",
             }
 
-        if action in ["CREATE"] and any(
+        if action in ["CREATE"] and task_details and any(
             field not in task_details for field in required_fields_create
         ):
             missing_fields = [
@@ -1122,7 +1123,7 @@ class SnowflakeConnector(DatabaseConnector):
                 "Error": f"Missing required task details: {', '.join(missing_fields)}",
             }
 
-        if action in ["UPDATE"] and any(
+        if action in ["UPDATE"] and task_details and any(
             field not in task_details for field in required_fields_update
         ):
             missing_fields = [
@@ -1133,7 +1134,7 @@ class SnowflakeConnector(DatabaseConnector):
                 "Error": f"Missing required task details: {', '.join(missing_fields)}",
             }
 
-        if action == "UPDATE" and task_details.get("task_active", False):
+        if action == "UPDATE" and task_details and task_details.get("task_active", False):
             if "next_check_ts" not in task_details:
                 return {
                     "Success": False,
@@ -1267,6 +1268,7 @@ class SnowflakeConnector(DatabaseConnector):
                 %s, %s, %s, %s, %s, %s, %s, %s
             )
         """
+        cursor = None
         try:
             cursor = self.client.cursor()
             cursor.execute(
@@ -1302,6 +1304,7 @@ class SnowflakeConnector(DatabaseConnector):
             INSERT INTO {self.schema}.LLM_RESULTS (uu, message, created)
             VALUES (%s, %s, CURRENT_TIMESTAMP)
         """
+        cursor = None
         try:
             cursor = self.client.cursor()
             cursor.execute(insert_query, (uu, message))
@@ -1326,6 +1329,7 @@ class SnowflakeConnector(DatabaseConnector):
             SET message = %s
             WHERE uu = %s
         """
+        cursor = None
         try:
             cursor = self.client.cursor()
             cursor.execute(update_query, (message, uu))
@@ -1349,6 +1353,7 @@ class SnowflakeConnector(DatabaseConnector):
             FROM {self.schema}.LLM_RESULTS
             WHERE uu = %s
         """
+        cursor = None
         try:
             cursor = self.client.cursor()
             cursor.execute(select_query, (uu,))
@@ -1371,6 +1376,7 @@ class SnowflakeConnector(DatabaseConnector):
             DELETE FROM {self.schema}.LLM_RESULTS
             WHERE CURRENT_TIMESTAMP - created > INTERVAL '10 MINUTES'
         """
+        cursor = None
         try:
             cursor = self.client.cursor()
             cursor.execute(delete_query)
@@ -1430,6 +1436,10 @@ class SnowflakeConnector(DatabaseConnector):
         try:
             cursor = self.client.cursor()
             cursor.execute(llm_results_table_check_query)
+        except Exception as e:
+            print(f"Unable to execute 'SHOW TABLES' query: {e}\nQuery attempted: {llm_results_table_check_query}")
+            raise Exception(f"Unable to execute 'SHOW TABLES' query: {e}\nQuery attempted: {llm_results_table_check_query}")
+        try:
             if not cursor.fetchone():
                 create_llm_results_table_ddl = f"""
                 CREATE OR REPLACE HYBRID TABLE {self.schema}.LLM_RESULTS (
@@ -1441,17 +1451,29 @@ class SnowflakeConnector(DatabaseConnector):
                 """
                 cursor.execute(create_llm_results_table_ddl)
                 self.client.commit()
-                print(f"Table {self.schema}.LLM_RESULTS created successfully.")
+                print(f"Table {self.schema}.LLM_RESULTS created as Hybrid Table successfully.")
             else:
                 print(f"Table {self.schema}.LLM_RESULTS already exists.")
         except Exception as e:
-            print(
-                f"An error occurred while checking or creating the LLM_RESULTS table: {e}"
-            )
+            try:
+                print("Falling back to create non-hybrid table for LLM_RESULTS")
+                create_llm_results_table_ddl = f"""
+                CREATE OR REPLACE TABLE {self.schema}.LLM_RESULTS (
+                    uu VARCHAR(40) PRIMARY KEY,
+                    message VARCHAR NOT NULL,
+                    created TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+                """
+                cursor.execute(create_llm_results_table_ddl)
+                self.client.commit()
+                print(f"Table {self.schema}.LLM_RESULTS created as Regular Table successfully.")
+            except Exception as e:
+                print(  f"An error occurred while checking or creating the LLM_RESULTS table: {e}" )
+                pass
+
         finally:
             if cursor is not None:
                 cursor.close()
-
         tasks_table_check_query = f"SHOW TABLES LIKE 'TASKS' IN SCHEMA {self.schema};"
         try:
             cursor = self.client.cursor()
@@ -2711,40 +2733,35 @@ class SnowflakeConnector(DatabaseConnector):
         if self.token_connection:
             self.connection = self._create_connection()
 
-    def connection(self) -> snowflake.connector.SnowflakeConnection:
+    # def connection(self) -> snowflake.connector.SnowflakeConnection:
 
-        if os.path.isfile("/snowflake/session/token"):
-            creds = {
-                "host": os.getenv("SNOWFLAKE_HOST"),
-                "port": os.getenv("SNOWFLAKE_PORT"),
-                "protocol": "https",
-                "account": os.getenv("SNOWFLAKE_ACCOUNT"),
-                "authenticator": "oauth",
-                "token": open("/snowflake/session/token", "r").read(),
-                "warehouse": os.getenv("SNOWFLAKE_WAREHOUSE"),
-                "database": os.getenv("SNOWFLAKE_DATABASE"),
-                "schema": os.getenv("SNOWFLAKE_SCHEMA"),
-                "client_session_keep_alive": True,
-            }
-        else:
-            creds = {
-                "account": os.getenv("SNOWFLAKE_ACCOUNT"),
-                "user": os.getenv("SNOWFLAKE_USER"),
-                "password": os.getenv("SNOWFLAKE_PASSWORD"),
-                "warehouse": os.getenv("SNOWFLAKE_WAREHOUSE"),
-                "database": os.getenv("SNOWFLAKE_DATABASE"),
-                "schema": os.getenv("SNOWFLAKE_SCHEMA"),
-                "client_session_keep_alive": True,
-            }
+    #     if os.path.isfile("/snowflake/session/token"):
+    #         creds = {
+    #             "host": os.getenv("SNOWFLAKE_HOST"),
+    #             "port": os.getenv("SNOWFLAKE_PORT"),
+    #             "protocol": "https",
+    #             "account": os.getenv("SNOWFLAKE_ACCOUNT"),
+    #             "authenticator": "oauth",
+    #             "token": open("/snowflake/session/token", "r").read(),
+    #             "warehouse": os.getenv("SNOWFLAKE_WAREHOUSE"),
+    #             "database": os.getenv("SNOWFLAKE_DATABASE"),
+    #             "schema": os.getenv("SNOWFLAKE_SCHEMA"),
+    #             "client_session_keep_alive": True,
+    #         }
+    #     else:
+    #         creds = {
+    #             "account": os.getenv("SNOWFLAKE_ACCOUNT"),
+    #             "user": os.getenv("SNOWFLAKE_USER"),
+    #             "password": os.getenv("SNOWFLAKE_PASSWORD"),
+    #             "warehouse": os.getenv("SNOWFLAKE_WAREHOUSE"),
+    #             "database": os.getenv("SNOWFLAKE_DATABASE"),
+    #             "schema": os.getenv("SNOWFLAKE_SCHEMA"),
+    #             "client_session_keep_alive": True,
+    #         }
 
-        connection = snowflake.connector.connect(**creds)
-        return connection
+    #     connection = snowflake.connector.connect(**creds)
+    #     return connection
 
-    # def _create_connection(self):
-
-    # Connector connection
-    #    conn = self.connection()
-    #    return conn
 
     def _create_connection(self):
 
@@ -3171,6 +3188,7 @@ class SnowflakeConnector(DatabaseConnector):
         runner_id=None,
         full=False,
         slack_details=False,
+        with_instructions=False,
     ):
         """
         Returns a list of all the bots being served by the system, including their runner IDs, names, instructions, tools, etc.
@@ -3180,6 +3198,10 @@ class SnowflakeConnector(DatabaseConnector):
         """
         # Get the database schema from environment variables
 
+        # Convert with_instructions to boolean if it's a string
+        if isinstance(with_instructions, str):
+            with_instructions = with_instructions.lower() == 'true'
+
         if full:
             select_str = "api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instructions, runner_id, slack_app_token, slack_app_level_key, slack_signing_secret, slack_channel_id, available_tools, udf_active, slack_active, files, bot_implementation, bot_intro_prompt, bot_avatar_image, slack_user_allow"
         else:
@@ -3187,6 +3209,12 @@ class SnowflakeConnector(DatabaseConnector):
                 select_str = "runner_id, bot_id, bot_name, bot_instructions, available_tools, bot_slack_user_id, api_app_id, auth_url, udf_active, slack_active, files, bot_implementation, bot_intro_prompt, slack_user_allow"
             else:
                 select_str = "runner_id, bot_id, bot_name, bot_instructions, available_tools, bot_slack_user_id, api_app_id, auth_url, udf_active, slack_active, files, bot_implementation, bot_intro_prompt"
+        if not with_instructions and not full:
+            select_str = select_str.replace("bot_instructions, ", "")
+        # Remove bot_instructions if not requested
+        if not with_instructions and not full:
+            select_str = select_str.replace("bot_instructions, ", "")
+            select_str = select_str.replace(", bot_intro_prompt", "")
 
         # Query to select all bots from the BOT_SERVICING table
         if runner_id is None:

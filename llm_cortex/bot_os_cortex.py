@@ -170,6 +170,11 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                 pattern_function_call = re.compile(r'<function=(.*?)>\{.*?\}')
                 match_function_call = pattern_function_call.search(resp)
 
+            # New pattern to match <function=list_all_bots></function>
+            if not match_function_call:
+                pattern_function_call = re.compile(r'<function=(.*?)></function>')
+                match_function_call = pattern_function_call.search(resp)
+
             # make the tool calls prettier 
             if match_function_call:
                 function_name = match_function_call.group(1)
@@ -264,172 +269,142 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             return None 
                 
         if resp == '':
-            if fireworks:
-    
-                if self.llm_engine == 'llama3.1-405b':
-                    fireworks_model = 'accounts/fireworks/models/llama-v3p1-405b-instruct'
-                else:
-                    fireworks_model = 'accounts/fireworks/models/llama-v3p1-70b-instruct'
-                fireworks_api_key = os.getenv('FIREWORKSAI_API_KEY',None)
-                if fireworks_api_key == None:
-                    print('No Fireworks API key set in FIREWORKSAI_API_KEY ENV VAR')
-                    raise('No Fireworks API key set in FIREWORKSAI_API_KEY ENV VAR')
-                url = "https://api.fireworks.ai/inference/v1/chat/completions"
-                payload = {
-                "model": fireworks_model,
-                "max_tokens": 16384,
+ 
+            SNOWFLAKE_HOST = self.client.client.host
+            REST_TOKEN = self.client.client.rest.token
+            url=f"https://{SNOWFLAKE_HOST}/api/v2/cortex/inference:complete"
+            headers = {
+                "Accept": "text/event-stream",
+                "Content-Type": "application/json",
+                "Authorization": f'Snowflake Token="{REST_TOKEN}"',
+            }
+        
+            if temperature is None:
+                temperature = 0.2
+            request_data = {
+                "model": self.llm_engine,
+                "messages": newarray,
+                "stream": True,
+                "max_tokens": 4000,
+                "temperature": temperature,
                 "top_p": 1,
                 "top_k": 40,
                 "presence_penalty": 0,
                 "frequency_penalty": 0,
-                "temperature": 0.6,
-                "messages": newarray
-                }
-                headers = {
-                "Accept": "application/json",
-                "Content-Type": "application/json",
-                "Authorization": "Bearer "+fireworks_api_key+""
-                }
-                print(self.bot_name, f" bot_os_cortex calling {fireworks_model.split('/')[-1]} via FIREWORKS API, content est tok len=",len(str(newarray))/4)
+                "stop": '</function>',
+            }
 
-                resp = requests.request("POST", url, headers=headers, data=json.dumps(payload))
-                curr_resp = resp 
-            else:
+            print(self.bot_name, f" bot_os_cortex calling cortex {self.llm_engine} via REST API, content est tok len=",len(str(newarray))/4, flush=True)
 
-                SNOWFLAKE_HOST = self.client.client.host
-                REST_TOKEN = self.client.client.rest.token
-                url=f"https://{SNOWFLAKE_HOST}/api/v2/cortex/inference:complete"
-                headers = {
-                    "Accept": "text/event-stream",
-                    "Content-Type": "application/json",
-                    "Authorization": f'Snowflake Token="{REST_TOKEN}"',
-                }
+
+        #    response = requests.post(url, json=request_data, stream=False, headers=headers)
+
+            start_time = time.time()
+
+            resp = self.thread_full_response.get(thread_id,None)
+            curr_resp = ''
+            usage = None
+            gen_start_time = None
+            last_update = None
+            if resp is None:
+                resp = ''
+            response = requests.post(url, json=request_data, stream=True, headers=headers)
             
-                if temperature is None:
-                    temperature = 0.2
-                request_data = {
-                    "model": self.llm_engine,
-                    "messages": newarray,
-                    "stream": True,
-                    "max_tokens": 3000,
-                    "temperature": temperature,
-                    "top_p": 1,
-                    "top_k": 40,
-                    "presence_penalty": 0,
-                    "frequency_penalty": 0,
-                    "stop": '</function>',
-                }
-
-                print(self.bot_name, f" bot_os_cortex calling cortex {self.llm_engine} via REST API, content est tok len=",len(str(newarray))/4, flush=True)
-
-
-            #    response = requests.post(url, json=request_data, stream=False, headers=headers)
-
-                start_time = time.time()
-
-                resp = self.thread_full_response.get(thread_id,None)
-                curr_resp = ''
-                usage = None
-                gen_start_time = None
-                last_update = None
-                if resp is None:
-                    resp = ''
-                response = requests.post(url, json=request_data, stream=True, headers=headers)
-                
-                if response.status_code != 200:
-                    msg = f"Cortex REST API Error. Status code: {response.status_code}"
-                    if response.text is not None:
-                        msg = msg + '\n' + response.text    
-                    print(f"Cortex Error: {msg}")
-                    return(resp + '\n' + msg)
-                else:
-                    for line in response.iter_lines():
-                        if thread_id in self.thread_stop_map:
-                            stop_timestamp = self.thread_stop_map[thread_id]
-                            # if isinstance(stop_timestamp, str) and stop_timestamp == 'stopped':
-                            #     del self.thread_stop_map[thread_id]
-                            if isinstance(stop_timestamp, datetime.datetime) and (time.time() - stop_timestamp.timestamp()) <= 10:
-                                self.stop_result_map[thread_id] = 'stopped'
-                                if 'curr_resp' not in locals():
-                                    curr_resp = ''
-                                resp += ' `stopped`'
-                                print('cortex thread stopped by user request')
-                                gen_start_time = time.time()
-                                break
-                            if isinstance(stop_timestamp, datetime.datetime) and (time.time() - stop_timestamp.timestamp()) > 30:
-                                self.thread_stop_map.pop(thread_id,None)
-                                self.stop_result_map.pop(thread_id,None)
-                        if line:
-                            try:
-                                decoded_line = line.decode('utf-8')
-                                if not decoded_line.strip():
-                                    print("Received an empty line.")
-                                    continue
-                                if decoded_line.startswith("data: "):
-                                    decoded_line = decoded_line[len("data: "):]
-                                d = ''
-                                event_data = json.loads(decoded_line)
-                                break_after_update = False
-                                if 'choices' in event_data:
-                                    if gen_start_time is None:
-                                        gen_start_time = time.time()
-                                    d = event_data['choices'][0]['delta'].get('content','')
-                                    curr_resp += d
-                                    resp += d
-                                    if "<|eom_id|>" in curr_resp[-100:]:
-                                        curr_resp = curr_resp[:curr_resp.rfind("<|eom_id|>")].strip()
-                                        resp = resp[:resp.rfind("<|eom_id|>")].strip()
-                                        break_after_update = True
-                                    if "}</function>" in curr_resp[-100:]:
-                                        curr_resp = curr_resp[:curr_resp.rfind("}</function>") + len("}</function>")].strip()
-                                        resp = resp[:resp.rfind("}</function>") + len("}</function>")].strip()
-                                        break_after_update = True
-                                    u = event_data.get('usage')
-                                    if u:
-                                        usage = u
-                                if d != '' and BotOsAssistantSnowflakeCortex.stream_mode == True and (last_update is None and len(resp) >= 15) or (last_update and (time.time() - last_update > 2)):
-                                    last_update = time.time()
-                                    if self.event_callback:
-                                        fn_call = False
-                                        if any(resp.strip().endswith(partial) for partial in ['<', '<f', '<fu', '<fun', '<func', '<funct', '<functi', '<functio', '<function', '<function=']):
-                                            fn_call = True
-                                        elif '<function=' in resp[-100:]:
-                                            last_function_start = resp.rfind('<function=')
-                                            if '</function>' not in resp[last_function_start:]:
-                                                fn_call = True
-                                        # Check for incomplete <|python_tag|> at the end
-                                        # Check for incomplete <|python_tag|> at the end
-                                        elif any(resp.strip().endswith(partial) for partial in ['<', '<|', '<|p', '<|py', '<|pyt', '<|pyth', '<|pytho', '<|python', '<|python_', '<|python_t', '<|python_ta', '<|python_tag', '<|python_tag|']):
-                                            fn_call = True
-                                        elif '<|python_tag|>' in resp[-100:]:
-                                            last_python_tag_start = resp.rfind('<|python_tag|>')
-                                            if resp[last_python_tag_start:].strip()[-1] not in ['}', '>']:
-                                                fn_call = True
-                                        if not fn_call:
-                                            self.event_callback(self.bot_id, BotOsOutputMessage(thread_id=thread_id, 
-                                                                                            status='in_progress', 
-                                                                                            output=resp+" 💬", 
-                                                                                            messages=None, 
-                                                                                            input_metadata=json.loads(message_metadata)))
-                                if break_after_update:
-                                    break
-                               
-                            except json.JSONDecodeError as e:
-                                print(f"Error decoding JSON: {e}")
+            if response.status_code != 200:
+                msg = f"Cortex REST API Error. Status code: {response.status_code}"
+                if response.text is not None:
+                    msg = msg + '\n' + response.text    
+                print(f"Cortex Error: {msg}")
+                return(resp + '\n' + msg)
+            else:
+                for line in response.iter_lines():
+                    if thread_id in self.thread_stop_map:
+                        stop_timestamp = self.thread_stop_map[thread_id]
+                        # if isinstance(stop_timestamp, str) and stop_timestamp == 'stopped':
+                        #     del self.thread_stop_map[thread_id]
+                        if isinstance(stop_timestamp, datetime.datetime) and (time.time() - stop_timestamp.timestamp()) <= 10:
+                            self.stop_result_map[thread_id] = 'stopped'
+                            if 'curr_resp' not in locals():
+                                curr_resp = ''
+                            resp += ' `stopped`'
+                            print('cortex thread stopped by user request')
+                            gen_start_time = time.time()
+                            break
+                        if isinstance(stop_timestamp, datetime.datetime) and (time.time() - stop_timestamp.timestamp()) > 30:
+                            self.thread_stop_map.pop(thread_id,None)
+                            self.stop_result_map.pop(thread_id,None)
+                    if line:
+                        try:
+                            decoded_line = line.decode('utf-8')
+                            if not decoded_line.strip():
+                                print("Received an empty line.")
                                 continue
+                            if decoded_line.startswith("data: "):
+                                decoded_line = decoded_line[len("data: "):]
+                            d = ''
+                            event_data = json.loads(decoded_line)
+                            break_after_update = False
+                            if 'choices' in event_data:
+                                if gen_start_time is None:
+                                    gen_start_time = time.time()
+                                d = event_data['choices'][0]['delta'].get('content','')
+                                curr_resp += d
+                                resp += d
+                                if "<|eom_id|>" in curr_resp[-100:]:
+                                    curr_resp = curr_resp[:curr_resp.rfind("<|eom_id|>")].strip()
+                                    resp = resp[:resp.rfind("<|eom_id|>")].strip()
+                                    break_after_update = True
+                                if "}</function>" in curr_resp[-100:]:
+                                    curr_resp = curr_resp[:curr_resp.rfind("}</function>") + len("}</function>")].strip()
+                                    resp = resp[:resp.rfind("}</function>") + len("}</function>")].strip()
+                                    break_after_update = True
+                                u = event_data.get('usage')
+                                if u:
+                                    usage = u
+                            fn_call = False
+                            if d != '' and BotOsAssistantSnowflakeCortex.stream_mode == True and (last_update is None and len(resp) >= 15) or (last_update and (time.time() - last_update > 2)):
+                                last_update = time.time()
+                                if self.event_callback:
+                                    fn_call = False
+                                    if any(resp.strip().endswith(partial) for partial in ['<', '<f', '<fu', '<fun', '<func', '<funct', '<functi', '<functio', '<function', '<function=', '<function>']):
+                                        fn_call = True
+                                    elif '<function=' in resp[-100:]:
+                                        last_function_start = resp.rfind('<function=')
+                                        if '</function>' not in resp[last_function_start:]:
+                                            fn_call = True
+                                    # Check for incomplete <|python_tag|> at the end
+                                    # Check for incomplete <|python_tag|> at the end
+                                    elif any(resp.strip().endswith(partial) for partial in ['<', '<|', '<|p', '<|py', '<|pyt', '<|pyth', '<|pytho', '<|python', '<|python_', '<|python_t', '<|python_ta', '<|python_tag', '<|python_tag|']):
+                                        fn_call = True
+                                    elif '<|python_tag|>' in resp[-100:]:
+                                        last_python_tag_start = resp.rfind('<|python_tag|>')
+                                        if resp[last_python_tag_start:].strip()[-1] not in ['}', '>']:
+                                            fn_call = True
+                                    if not fn_call:
+                                        self.event_callback(self.bot_id, BotOsOutputMessage(thread_id=thread_id, 
+                                                                                        status='in_progress', 
+                                                                                        output=resp+" 💬", 
+                                                                                        messages=None, 
+                                                                                        input_metadata=json.loads(message_metadata)))
+                            if break_after_update:
+                                break
                             
-                if gen_start_time is not None:
-                    elapsed_time = time.time() - start_time
-                    gen_time = time.time() - gen_start_time
-                    print(f"\nRequest to Cortex REST API completed in {elapsed_time:.2f} seconds total, {gen_time:.2f} seconds generating, time to gen start: {gen_start_time - start_time:.2f} seconds")
+                        except json.JSONDecodeError as e:
+                            print(f"Error decoding JSON: {e}")
+                            continue
+                        
+            if gen_start_time is not None:
+                elapsed_time = time.time() - start_time
+                gen_time = time.time() - gen_start_time
+                print(f"\nRequest to Cortex REST API completed in {elapsed_time:.2f} seconds total, {gen_time:.2f} seconds generating, time to gen start: {gen_start_time - start_time:.2f} seconds")
 
-                else:
-                    try:
-                        resp = f"Error calling Cortex: Received status code {response.status_code} with message: {response.reason}"
-                        curr_resp = resp
-                    except:
-                        resp = 'Error calling Cortex'
-                        curr_resp = resp 
+            else:
+                try:
+                    resp = f"Error calling Cortex: Received status code {response.status_code} with message: {response.reason}"
+                    curr_resp = resp
+                except:
+                    resp = 'Error calling Cortex'
+                    curr_resp = resp 
 
         try:
             print(json.dumps(usage))
@@ -473,7 +448,23 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             curr_resp = resp
             postfix = " 💬"
 
+        # Handle case where there are no parameters between > and <
+        pattern_function_no_params = re.compile(r'<function=(.*?)></function>$')
+        match_function_no_params = pattern_function_no_params.search(resp)
+        
+        if match_function_no_params and resp.endswith('</function>'):
+            function_name = match_function_no_params.group(1)
+            newcall = f"<function={function_name}></function>"
+            resp = resp.replace(match_function_no_params.group(0), newcall)
+            curr_resp = resp
+            postfix = " 💬"
+
         resp = self.fix_tool_calls(resp)
+
+        # Remove trailing 💬 if present
+        if resp.endswith('💬'):
+            resp = resp[:-1]
+            curr_resp = resp
 
         if resp != '' and BotOsAssistantSnowflakeCortex.stream_mode == True:
             if self.event_callback:
@@ -483,11 +474,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                                                                     messages=None, 
                                                                     input_metadata=json.loads(message_metadata)))
         try:
-            if fireworks:
-                s = 'Fireworks'
-            else:
-                s = 'Cortex'
-            print(f"{s} response: ", json.loads(response.content)["usage"])
+            print(f"Cortex response: ", json.loads(response.content)["usage"])
         except:
             pass
 
@@ -626,6 +613,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         if thread_id in self.thread_busy_list:
             print(f"BotOsAssistantSnowflakeCortex:check_runs - skipping thread {thread_to_check['thread_id']} as its busy in another run")
             return
+        output = None
         if True:
             if thread_id not in self.thread_busy_list:
                 self.thread_busy_list.append(thread_id)
@@ -712,11 +700,12 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         message_metadata_json = json.loads(message_metadata)
         primary_user = json.dumps({'user_id': message_metadata_json.get('user_id', 'Unknown User ID'), 
                                     'user_name': message_metadata_json.get('user_name', 'Unknown User')})
-        self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id, 
-                                                                  message_type='Assistant Response', message_payload=output, message_metadata=message_metadata,
-                                                                  tokens_in=len(user_message['content'].split()), tokens_out=len(output.split()), files=[],
-                                                                  channel_type=message_metadata_json.get("channel_type", None), channel_name=message_metadata_json.get("channel", None),
-                                                                  primary_user=primary_user)
+        if output is not None:
+            self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id, 
+                                                                    message_type='Assistant Response', message_payload=output, message_metadata=message_metadata,
+                                                                    tokens_in=len(user_message['content'].split()), tokens_out=len(output.split()), files=[],
+                                                                    channel_type=message_metadata_json.get("channel_type", None), channel_name=message_metadata_json.get("channel", None),
+                                                                    primary_user=primary_user)
 
         if thread_id in self.thread_busy_list:
             self.thread_busy_list.remove(thread_id)

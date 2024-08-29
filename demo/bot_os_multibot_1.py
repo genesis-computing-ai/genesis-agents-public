@@ -331,7 +331,7 @@ def list_available_bots_fn():
         ]
     else:
         runner = os.getenv("RUNNER_ID", "jl-local-runner")
-        bots = list_all_bots(runner_id=runner)
+        bots = list_all_bots(runner_id=runner, with_instructions=True)
 
         for bot in bots:
             bot_id = bot.get("bot_id")

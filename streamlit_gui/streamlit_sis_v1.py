@@ -168,7 +168,7 @@ def set_slack_tokens(slack_app_token, slack_app_refresh_token):
         else:
             return "Error", f"Failed to set Slack Tokens: {response.text}"
 
-
+@st.cache_data(ttl=300)  # Cache the result for 5 min
 def get_bot_details():
 
     import requests
@@ -413,6 +413,7 @@ def support():
 
 def llm_config():  # Check if data is not empty
 
+    get_bot_details.clear()
     bot_details = get_bot_details()
     
     # llm_info = get_metadata("llm_info")
@@ -504,6 +505,7 @@ def llm_config():  # Check if data is not empty
 
                 if config_response["Success"]:
                     with st.spinner("Getting active bot details..."):
+                        get_metadata("bot_images").clear()
                         bot_details = get_bot_details()
                     if bot_details:
                         st.success("Bot details validated.")
@@ -1131,6 +1133,7 @@ def grant_data():
 
 def bot_config():
 
+    get_bot_details.clear()
     bot_details = get_bot_details()
 
     if bot_details == {"Success": False, "Message": "Needs LLM Type and Key"}:

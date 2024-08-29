@@ -2,7 +2,19 @@
 GENESIS BOT TODOS
 =================
 
+today:
+x test rezas cortex knowledge logging
+x make hybrid table fallback to regular for llm results
+test new streamlit on sis
+add cross region calls to sis 
+add process list and info to default prompts if any
+test cortex tps
+give bots process scheduler an action to show past runs and status
+see how it works in 70b
+
+
 before republishing on natapp:
+add the cross region stuff to the readme
 x make streamlit show tool calls better 
 add logging to the openai finalizer and the slack finalizer to see who is zapping the history in the messages.. seems to just be on single ..
 message threads... it's actually doing it on the message 1 /2 separation step it looks like

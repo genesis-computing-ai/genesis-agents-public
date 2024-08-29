@@ -712,11 +712,11 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         message_metadata_json = json.loads(message_metadata)
         primary_user = json.dumps({'user_id': message_metadata_json.get('user_id', 'Unknown User ID'), 
                                     'user_name': message_metadata_json.get('user_name', 'Unknown User')})
-        self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id,
-                                                        message_type='Tool Call', message_payload=message_payload, 
-                                                        message_metadata={'tool_call_id':'', 'func_name':'', 'func_args':''},
-                                                        channel_type=message_metadata_json.get("channel_type", None), channel_name=message_metadata_json.get("channel", None),
-                                                        primary_user=primary_user)
+        self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id, 
+                                                                  message_type='Assistant Response', message_payload=output, message_metadata=message_metadata,
+                                                                  tokens_in=len(user_message['content'].split()), tokens_out=len(output.split()), files=[],
+                                                                  channel_type=message_metadata_json.get("channel_type", None), channel_name=message_metadata_json.get("channel", None),
+                                                                  primary_user=primary_user)
 
         if thread_id in self.thread_busy_list:
             self.thread_busy_list.remove(thread_id)
@@ -787,6 +787,15 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             arguments = arguments_json
             print(f"Function to call: {function_to_call}")
             print(f"Arguments: {json.dumps(arguments, indent=2)}", flush=True)
+            meta = json.loads(message_metadata)
+            primary_user = json.dumps({'user_id': meta.get('user_id', 'Unknown User ID'), 
+                                    'user_name': meta.get('user_name', 'Unknown User')})
+            log_readable_payload = function_name+"("+arguments_str+")"
+            self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id,
+                                                        message_type='Tool Call', message_payload=log_readable_payload, 
+                                                        message_metadata={'func_name':function_to_call, 'func_args':arguments},
+                                                        channel_type=meta.get("channel_type", None), channel_name=meta.get("channel", None),
+                                                        primary_user=primary_user)
             execute_function(function_to_call, json.dumps(arguments), self.available_functions, cb_closure, thread_id, self.bot_id)
         except json.JSONDecodeError as e:
             print(f"Failed to decode tool call JSON {tool_call_str}: {e}")
@@ -795,6 +804,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         except Exception as e:
             logger.error(f"Error processing tool call: {e}")
             cb_closure(f"Error processing tool call: {e}")
+        
 
     def _submit_tool_outputs(self, thread_id, timestamp, results, message_metadata, func_call_details=None):
         """

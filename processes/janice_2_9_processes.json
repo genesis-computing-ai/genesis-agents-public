@@ -1,0 +1,20 @@
+{
+    "1": {
+        "BOT_ID": "janice-7g8h9j",
+        "PROCESS_ID": "janice-7g8h_queuing_check_qprNaz",
+        "PROCESS_INSTRUCTIONS": "\n1. Retrieve query history data and calculate average queuing time per hour for each warehouse.\n2. Identify warehouses with average queuing time per hour exceeding 60,000 microseconds.\n3. Display the top 3 warehouses with the highest total queuing times for reference.\n4. Analyze the query history to compute the average swapping to disk per query.\n5. Identify warehouses with an average swapping to disk per query exceeding 100MB (104,857,600 bytes).\n6. Display the top 3 warehouses with the highest average swapping to disk per query for a spot check, regardless of the threshold.\n7. Send an email summary of the analysis to matt@genesiscomputing.ai every Friday at 9 am ET, including recommendations for which warehouses should be made multi-cluster or resized, DataCube URLs for both queuing and swapping spot checks, and the process ID for reference.\n8. Add a description at the top of the email to explain the purpose of the email for future recipients.\n",
+        "PROCESS_NAME": "Analyze Warehouse Queuing and Swapping",
+        "TIMESTAMP": "2024-08-29 18:51:11.795"
+    }
+}
+
+
+
+
+
+
+
+
+
+
+

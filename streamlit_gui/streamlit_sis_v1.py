@@ -2,7 +2,7 @@ import streamlit as st
 import json
 import time
 
-app_name = "GENESIS_BOTS_ALPHA"
+app_name = "GENESIS_BOTS"
 prefix = app_name + ".app1"
 core_prefix = app_name + ".CORE"
 

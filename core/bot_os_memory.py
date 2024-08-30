@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import time
 import uuid
+import re
 import sys
 import spacy
 from connectors.bigquery_connector import BigQueryConnector
@@ -266,6 +267,26 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
                 return result[0]
             else:
                 # If no result is found, return None
+
+                # If no result is found, try to describe the table using the database connector
+                try:
+                    describe_query = f"DESCRIBE TABLE {database_name_escaped}.{schema_name_escaped}.{table_name_escaped}"
+                    describe_result = self.meta_database_connector.run_query(describe_query)
+                    if describe_result:
+                        return {
+                            "source_name": source_name,
+                            "database_name": database_name,
+                            "schema_name": schema_name,
+                            "table_name": table_name,
+                            "describe_table_result": describe_result
+                        }
+                    else:
+                        return None
+                except Exception as e:
+                    logger.error(f"Error describing table: {e}")
+                    return None
+
+
                 return None
         except Exception as e:
             logger.error(f"Error retrieving metadata details: {e}")
@@ -275,6 +296,16 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
     def find_memory(self, query, scope="database_metadata", top_n=15, verbosity="low", database=None, schema=None, table=None) -> list[str]:
         
         if scope == "database_metadata":
+
+            # Check if the query is a 3-part table name
+            match = re.match(r'^"?([^"\.]+)"?\."?([^"\.]+)"?\."?([^"\.]+)"?$', query.strip())
+            parts = match.groups() if match and match.group() == query.strip() else []
+            if len(parts) == 3:
+                database, schema, table = parts
+                # Remove any quotes from the parts
+                database = database.strip('"')
+                schema = schema.strip('"')
+                table = table.strip('"')
 
             if table:
                 full_metadata = self.get_full_metadata_details(source_name=self.source_name, database_name=database, schema_name=schema, table_name=table)
@@ -356,7 +387,7 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
       #                      'DESCRIPTION': 'This semantic model points to data related to revenue history and revenue forecast, including COGS and other related items.',
       #                      'USAGE INSTRUCTIONS': "You can use the semantic_copilot function to use this semantic model to access data about these topics."})
 
-            msg = f'Note! There may be more tables for this query, these were the first top_n {top_n}. If you dont see what youre looking for call it with a larger top_n (up to 50) or with a more specific search query'
+            msg = f'Note! There may be more tables for this query, these were the first top_n {top_n}. If you dont see what youre looking for call it with a larger top_n (up to 50) or with a more specific search query.  Also if you are looking for a specific table you know the name of, try get_full_table_details.'
             content.append(msg)
             memories.append(content)
             try:

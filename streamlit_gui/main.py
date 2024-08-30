@@ -1,5 +1,6 @@
 import streamlit as st
 from utils import NativeMode, check_status, get_session, app_name, prefix
+import time
 
 # Set Streamlit to wide mode
 st.set_page_config(layout="wide")

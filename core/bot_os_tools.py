@@ -637,7 +637,7 @@ Bot's most recent response:
 {previous_response}
 """
 
-            print(f"\nSENT TO 2nd LLM:\n{check_response}\n")
+            print(f"\nSENDING TO 2nd LLM:\n{check_response}\n")
 
             result = self.chat_completion(check_response, self.db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, process_id=process_id, process_name = process_name)
 
@@ -652,8 +652,6 @@ Bot's most recent response:
                     "success": False,
                     "message": "Process failed: The checking function didn't return a string."
                 }
-            
-            print("RUN 2nd LLM...")
 
             print(f"\nRESULT FROM 2nd LLM: {result}\n")
 
@@ -684,27 +682,27 @@ Bot's most recent response:
                 self.counter[thread_id][process_id] += 1
                 
             extract_instructions = f"""
-Extract the text for the next step from the process instructions and return it, using the section marked 'Process History' to see where you are in the process. 
-Remember, the process instructions are a set of individual steps that need to be run in order.  
-Return the text of the next step only, do not make any other comments or statements.
-If the process is complete, respond "**done**" with no other text.
+You are going to run the process instructions once for each item in the Items List.  You will determine the next step
+by breaking the Process Instructions into individual steps and using the History of this thread to determine which item 
+and which process step is next.
 
-Process History: {self.process_history[thread_id][process_id]}
-
-Current system time: {datetime.now()}
-
-Process Instructions: 
+Items List:
 {self.process_config[thread_id][process_id]}
 
+Process Instructions:
 {process['PROCESS_INSTRUCTIONS']}
+
+Process History: 
+{self.process_history[thread_id][process_id]}
+
+Current system time: {datetime.now()}
                 """
 
-            print(f"\nEXTRACT NEXT STEP:\n{extract_instructions}\n")
+            print(f"\nRUN 2nd LLM TO EXTRACT NEXT STEP:\n{extract_instructions}\n")
 
-            print("RUN 2nd LLM...")
             next_step = self.chat_completion(extract_instructions, self.db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, process_id=process_id, process_name=process_name)
 
-            print(f"\nRESULT (NEXT_STEP_): {next_step}\n")
+            print(f"\nRESULT (NEXT_STEP): {next_step}\n")
 
             if next_step == '**done**' or next_step == '***done***' or next_step.strip().endswith('**done**'):
                 with self.lock:
@@ -726,8 +724,6 @@ Process Instructions:
             with self.lock:
                 self.instructions[thread_id][process_id] = f"""
 Hey **@{process['BOT_ID']}**, here is the next step of the process.
-
-{process['PROCESS_CONFIG']}
 
 {next_step}
 
@@ -753,7 +749,9 @@ In your response back to run_process, provide a detailed description of what you
             print(f"\nEXTRACTED NEXT STEP: \n{self.instructions[thread_id][process_id]}\n")
 
             with self.lock:
-                self.process_history[thread_id][process_id] += "\nNext step: " + self.process_config[thread_id][process_id] + "\n" + next_step
+                if self.process_config[thread_id][process_id] != process['PROCESS_CONFIG']:
+                    print(f"NEXT STEP BEFORE APPENDING TO HISTORY: {next_step}")
+                    self.process_history[thread_id][process_id] += "\nNext step: " + next_step
 
             self.set_process_cache(bot_id, thread_id, process_id)
             print(f'Process cached with bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}')

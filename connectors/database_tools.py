@@ -19,7 +19,7 @@ database_tool_functions = [
         "type": "function",
         "function": {
             "name": "search_metadata",
-            "description": "Searches metadata to find the top relevant tables or views, if you don't already know which tables to query. (This does not search stages).",
+            "description": "Searches metadata to find the top relevant tables or views, if you don't already know which tables to query. If you already know the full table name, use get_full_table_details instead. (This does not search stages).",
             "parameters": {
                 "type": "object",
                 "properties": {

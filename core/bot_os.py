@@ -186,13 +186,13 @@ class BotOsSession:
         self.bot_id = bot_id
         self.tool_belt = tool_belt
 
-        sanitized_bot_id = re.sub(r"[^a-zA-Z0-9]", "", self.bot_id)
-        thread_maps_filename = f"./thread_maps_{sanitized_bot_id}.pickle"
-        if os.path.exists(thread_maps_filename):
-            with open(thread_maps_filename, "rb") as handle:
-                maps = pickle.load(handle)
-                self.in_to_out_thread_map = maps.get("in_to_out", {})
-                self.out_to_in_thread_map = maps.get("out_to_in", {})
+     #   sanitized_bot_id = re.sub(r"[^a-zA-Z0-9]", "", self.bot_id)
+    #    thread_maps_filename = f"./thread_maps_{sanitized_bot_id}.pickle"
+     #   if os.path.exists(thread_maps_filename):
+      #      with open(thread_maps_filename, "rb") as handle:
+       #         maps = pickle.load(handle)
+        #        self.in_to_out_thread_map = maps.get("in_to_out", {})
+        #        self.out_to_in_thread_map = maps.get("out_to_in", {})
 
     def create_thread(self, input_adapter) -> str:
         print("create llm thread")
@@ -241,16 +241,12 @@ class BotOsSession:
         # add 1 minute cycle to check
         user_id = input_message.metadata.get("user_id", None)
         if user_id is not None:
-            print(
-                f"{self.bot_name} bot_os add_message access check for {self.bot_name} slack user: {user_id}",
-                flush=True,
-            )
+
             input_message.metadata["user_authorized"] = "TRUE"
             input_message.metadata["response_authorized"] = "TRUE"
             if self.assistant_impl.user_allow_cache.get(user_id, False) == False:
-                slack_user_access = self.log_db_connector.db_get_bot_access(
-                    self.bot_id
-                ).get("slack_user_allow")
+                print(f"{self.bot_name} bot_os add_message non-cached access check for {self.bot_name} slack user: {user_id}", flush=True, )
+                slack_user_access = self.log_db_connector.db_get_bot_access( self.bot_id ).get("slack_user_allow")
                 if slack_user_access is not None:
                     allow_list = json.loads(slack_user_access)
                     if user_id not in allow_list:
@@ -374,9 +370,9 @@ class BotOsSession:
                 self.in_to_out_thread_map[input_message.thread_id] = out_thread
                 self.out_to_in_thread_map[out_thread] = input_message.thread_id
                 # Save the out_to_in_thread_map to a file
-                sanitized_bot_id = re.sub(r'[^a-zA-Z0-9]', '', self.bot_id)
-                with open(f'./thread_maps_{sanitized_bot_id}.pickle', 'wb') as handle:
-                    pickle.dump({'out_to_in': self.out_to_in_thread_map, 'in_to_out': self.in_to_out_thread_map}, handle, protocol=pickle.HIGHEST_PROTOCOL)
+       #         sanitized_bot_id = re.sub(r'[^a-zA-Z0-9]', '', self.bot_id)
+       #         with open(f'./thread_maps_{sanitized_bot_id}.pickle', 'wb') as handle:
+       #             pickle.dump({'out_to_in': self.out_to_in_thread_map, 'in_to_out': self.in_to_out_thread_map}, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
                 if os.getenv("USE_KNOWLEDGE", "false").lower() == 'true' and not input_message.msg.startswith('NOTE--'):
 

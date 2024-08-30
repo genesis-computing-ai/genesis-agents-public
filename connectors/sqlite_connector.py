@@ -1225,7 +1225,7 @@ class SqliteConnector(DatabaseConnector):
             if result is not None:
                 return result[0]
             else:
-                print(f"No LLM result found for uu: {uu}")
+                return ''
         except Exception as e:
             print(f"An error occurred while retrieving the LLM result: {e}")
             if cursor is not None:

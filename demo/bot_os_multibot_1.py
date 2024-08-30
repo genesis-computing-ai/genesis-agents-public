@@ -80,7 +80,7 @@ import core.global_flags as global_flags
 
     
 
-print("****** GENBOT VERSION 0.154 *******")
+print("****** GENBOT VERSION 0.154a *******")
 
 runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
 global_flags.runner_id = runner_id
@@ -320,6 +320,7 @@ def lookup_udf():
 @app.route("/udf_proxy/list_available_bots", methods=["POST"])
 def list_available_bots_fn():
 
+    print('-> streamlit called list available bots',flush=True)
     message = request.json
     input_rows = message["data"]
     row = input_rows[0]

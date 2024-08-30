@@ -228,6 +228,7 @@ def make_and_save_index(table_id):
         print('Error on create_index: ',e)
 
     print("saving index to file...")
+    
  
     # Save the index to a file
     if not os.path.exists(index_file_path):
@@ -251,6 +252,11 @@ def make_and_save_index(table_id):
         json.dump(table_names, f)
 
     print(f"Annoy index saved to {os.path.join(index_file_path,index_file_name)}")
+    # Save the size of the embeddings to a file
+    embedding_size = len(embeddings[0])
+    with open(os.path.join(index_file_path, 'index_size.txt'), 'w') as f:
+        f.write(str(embedding_size))
+    print(f"Embedding size ({embedding_size}) saved to {os.path.join(index_file_path, 'index_size.txt')}")
 
     return annoy_index, table_names
 
@@ -300,13 +306,25 @@ def load_or_create_embeddings_index(table_id, refresh=True):
     else:
         index_file_name, meta_file_name = 'latest_cached_index.ann', 'latest_cached_metadata.json'
 
+    index_size_file = os.path.join(index_file_path, 'index_size.txt')
+    if os.path.exists(index_size_file):
+        with open(index_size_file, 'r') as f:
+            embedding_size = int(f.read().strip())
+        print(f"Embedding size ({embedding_size}) read from {index_size_file}")
+    # Set the EMBEDDING_SIZE environment variable
+    os.environ['EMBEDDING_SIZE'] = str(embedding_size)
+    print(f"EMBEDDING_SIZE environment variable set to: {os.environ['EMBEDDING_SIZE']}")
+
     annoy_index = AnnoyIndex(embedding_size, 'angular')
 
     logger.info(f'loadtry  {os.path.join(index_file_path,index_file_name)}')
     if os.path.exists(os.path.join(index_file_path,index_file_name)):
         try:
       #      logger.info(f'load  {index_file_path+index_file_name}')
-            annoy_index.load(os.path.join(index_file_path,index_file_name))
+            try:
+                annoy_index.load(os.path.join(index_file_path,index_file_name))
+            except Exception as e:
+                print('Error on annoy_index.load: ',e)
            # logger.info(f'index  now {annoy_index}')
 
             # Load the metadata mapping

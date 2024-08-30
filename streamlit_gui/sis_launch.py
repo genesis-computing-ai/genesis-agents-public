@@ -1,5 +1,6 @@
 import streamlit as st
 import json
+import time
 
 app_name = "GENESIS_BOTS"
 prefix = app_name + ".app1"
@@ -76,6 +77,15 @@ def get_slack_tokens():
         return response.json()["data"][0][1]
     else:
         raise Exception(f"Failed to reach bot server to get list of available bots")
+
+
+@st.cache_data(ttl=1800)  # Cache for 30 minutes
+def get_slack_tokens_cached():
+    """
+    Cached version of get_slack_tokens function. Retrieves Slack tokens from the server
+    and caches the result for 5 minutes to reduce API calls.
+    """
+    return get_slack_tokens()
 
 
 def get_ngrok_tokens():
@@ -256,6 +266,14 @@ def get_metadata(metadata_type):
         else:
             raise Exception(f"Failed to get metadata: {response.text}")
 
+@st.cache_data(ttl=300)  # Cache for 5 minutes
+def get_metadata_cached(metadata_type):
+    """
+    Cached version of get_metadata function. Calls the /udf_proxy/get_metadata endpoint 
+    with the given metadata_type and returns the JSON results.
+    """
+    return get_metadata(metadata_type)
+
 
 def submit_to_udf_proxy(input_text, thread_id, bot_id):
     """
@@ -270,6 +288,7 @@ def submit_to_udf_proxy(input_text, thread_id, bot_id):
         "user_name": user_info.get("user_name", "Unknown User"),
         "bot_id": bot_id,
     }
+
 
     if NativeMode:
         try:
@@ -678,12 +697,13 @@ def chat_page():
 
         try:
             # get bot details
+            
             bot_details.sort(key=lambda x: (not "Eve" in x["bot_name"], x["bot_name"]))
             bot_names = [bot["bot_name"] for bot in bot_details]
             bot_ids = [bot["bot_id"] for bot in bot_details]
             bot_intro_prompts = [bot["bot_intro_prompt"] for bot in bot_details]
 
-            tokens = get_slack_tokens()
+            tokens = get_slack_tokens_cached()
             slack_active = tokens.get("SlackActiveFlag", False)
             if not slack_active:
                 col1, col2 = st.columns([3, 4])
@@ -709,8 +729,9 @@ def chat_page():
                 selected_bot_intro_prompt = "Please provide a brief introduction of yourself and your capabilities."
             st.session_state["last_response"] = ""
 
+
             # get avatar images
-            bot_images = get_metadata("bot_images")
+            bot_images = get_metadata_cached("bot_images")
             bot_avatar_image_url = ""
             if len(bot_images) > 0:
                 bot_avatar_images = [bot["bot_avatar_image"] for bot in bot_images]
@@ -730,7 +751,8 @@ def chat_page():
                         bot_avatar_image_url = (
                             f"data:image/png;base64,{encoded_bot_avatar_image}"
                         )
-
+            # Calculate and print total startup time
+          
             if st.button("New Chat", key="new_chat_button"):
                 # Reset the chat history and thread ID for the selected bot
                 if bot_avatar_image_url:

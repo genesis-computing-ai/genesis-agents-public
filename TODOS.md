@@ -11,13 +11,17 @@ add process list and info to default prompts if any
 x test cortex tps
 give bots process scheduler an action to show past runs and status
 x see how it works in 70b
-fix !model in cortex
+x fix !model in cortex
 kevins thread re runs
 sanders feedback in general
 test openai key insertion on new install
 thread history in db for streamlit, thread loader from database for slack and streamlit
+streamlit takes a long time before submitting welcome job for each bot.. loading avatars?
+use cortex 8b for the welcome message?
+make eliza talk about abseball more cleanly 
 
 before republishing on natapp:
+MR - DEV has missing NATIVE embeddings for shared-in data?
 add bot details caching to new streamlit 
 add the cross region stuff to the readme
 x make streamlit show tool calls better 

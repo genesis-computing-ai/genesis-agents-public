@@ -770,7 +770,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
    def _submit_tool_outputs(self, run_id, thread_id, tool_call_id, function_call_details, func_response, metadata=None):
      
-      logger.debug(f"_submit_tool_outputs - {thread_id} {run_id} {tool_call_id} - {function_call_details} - {func_response}")
+     # logger.debug(f"_submit_tool_outputs - {thread_id} {run_id} {tool_call_id} - {function_call_details} - {func_response}")
 
       new_response = func_response
  

@@ -769,6 +769,8 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                     return
             function_to_call = function_name
             arguments = arguments_json
+            if 'arguments_str' not in locals():
+                arguments_str = json.dumps(arguments)
             print(f"Function to call: {function_to_call}")
             print(f"Arguments: {json.dumps(arguments, indent=2)}", flush=True)
             meta = json.loads(message_metadata)

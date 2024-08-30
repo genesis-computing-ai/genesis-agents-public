@@ -1362,7 +1362,7 @@ class SnowflakeConnector(DatabaseConnector):
             if result is not None:
                 return result[0]
             else:
-                print(f"No LLM result found for uu: {uu}")
+                return ''
         except Exception as e:
             print(f"An error occurred while retrieving the LLM result: {e}")
             if cursor is not None:
@@ -6253,17 +6253,28 @@ class SnowflakeConnector(DatabaseConnector):
         embeddings = []
         table_names = []
         # update to use embedding_native column if cortex mode
-        if os.environ.get("CORTEX_MODE", 'False') == 'True':
-            embedding_column = 'embedding_native'
-        else:
-            embedding_column = 'embedding'
+
         # First, get the total number of rows to set up the progress bar
-        total_rows_query = f"SELECT COUNT(*) as total FROM {table_id} WHERE {embedding_column} IS NOT NULL"
+        total_rows_query_openai = f"SELECT COUNT(*) as total FROM {table_id} WHERE embedding IS NOT NULL"
+        total_rows_query_native = f"SELECT COUNT(*) as total FROM {table_id} WHERE embedding_native IS NOT NULL"
+        missing_native_count = f"SELECT COUNT(*) as total FROM {table_id} WHERE embedding_native is NULL and embedding is NULL and "
+          
         cursor = self.connection.cursor()
-    # print('total rows query: ',total_rows_query)
-        cursor.execute(total_rows_query)
-        total_rows_result = cursor.fetchone()
-        total_rows = total_rows_result[0]
+        cursor.execute(total_rows_query_openai)
+        total_rows_result_openai = cursor.fetchone()
+        total_rows_openai = total_rows_result_openai[0]
+        cursor.execute(total_rows_query_native)
+        total_rows_result_native = cursor.fetchone()
+        total_rows_native = total_rows_result_native[0]
+
+
+
+        if total_rows_openai >= total_rows_native:
+            embedding_column = 'embedding'
+        else:
+            embedding_column = 'embedding_native'
+
+        total_rows = max(total_rows_openai, total_rows_native)
 
         with tqdm(total=total_rows, desc="Fetching embeddings") as pbar:
 

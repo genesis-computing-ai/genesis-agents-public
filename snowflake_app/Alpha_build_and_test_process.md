@@ -9,9 +9,9 @@ Before running this script, make sure to:
 2. Add the following connections using SnowCLI:
    ```
     snow connection add GENESIS-DEV-PROVIDER
-        Account is : nmb71612
-    snow connection add GENESIS-DEV-CONSUMER-2
-        Account is : rdb46973
+        Account is : MMB84124
+    snow connection add GENESIS-ALPHA-CONSUMER
+        Account is : eqb52188
    ```
    These connections are required for the commands below to work properly.
    You may need to make a new ACCOUNTADMIN user without SSO/MFA for these.

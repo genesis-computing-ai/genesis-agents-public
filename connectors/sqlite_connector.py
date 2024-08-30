@@ -1283,6 +1283,45 @@ class SqliteConnector(DatabaseConnector):
             if cursor is not None:
                 cursor.close()
 
+        # TODO ADD PROCESSES TABLE
+        
+
+        query = f"SELECT DISTINCT BOT_NAME FROM {self.schema}.BOT_SERVICING;"
+        cursor.execute(query)
+        results = cursor.fetchall()
+        unique_bot_ids = [row[0] for row in results]
+
+        try:
+            cursor = self.client.cursor()
+            cursor.execute(processes_table_check_query)
+            if not cursor.fetchone():
+                create_process_table_ddl = f"""
+                CREATE TABLE {self.schema}.PROCESSES (
+                    PROCESS_ID VARCHAR(16777216) NOT NULL PRIMARY KEY,
+                    BOT_ID VARCHAR(16777216),
+                    PROCESS_NAME VARCHAR(16777216) NOT NULL,
+                    PROCESS_INSTRUCTIONS VARCHAR(16777216),
+                    PROCESS_CONFIG VARCHAR(16777216),
+                    TIMESTAMP TIMESTAMP_NTZ(9) NOT NULL
+                );
+                """
+                cursor.execute(create_process_table_ddl)
+                self.client.commit()
+                print(f"Table {self.schema}.PROCESSES created successfully.")
+
+                table = f"{self.schema}.PROCESSES"
+                self.load_default_data(cursor, table, unique_bot_ids)
+            else:
+                print(f"Table {self.schema}.PROCESSES already exists.")
+        except Exception as e:
+            print(
+                f"An error occurred while checking or creating the PROCESSES table: {e}"
+            )
+        finally:
+            if cursor is not None:
+                cursor.close()
+    
+
         tasks_table_check_query = "SELECT name FROM sqlite_master WHERE type='table' and name like 'TASKS'"
         try:
             cursor = self.client.cursor()

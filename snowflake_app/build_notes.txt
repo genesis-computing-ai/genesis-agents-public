@@ -68,8 +68,8 @@ snow sql -c GENESIS-DEV-PROVIDER -q "PUT file:///Users/justin/Documents/Code/gen
 snow sql -c GENESIS-DEV-PROVIDER -q "PUT file:///Users/justin/Documents/Code/genesis/snowflake_app/*.md @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
 snow sql -c GENESIS-DEV-PROVIDER -q "PUT file:///Users/justin/Documents/Code/genesis/snowflake_app/*.yml @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
 
-snow sql -c GENESIS-DEV-PROVIDER -q "ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG ADD PATCH FOR VERSION V0_4 USING @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE"
-snow sql -c GENESIS-DEV-PROVIDER -q "ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG SET DEFAULT RELEASE DIRECTIVE VERSION = V0_4 PATCH = 19;"
+bash ./snowflake_app/upgrade_dev.sh
 
 snow sql -c GENESIS-DEV-CONSUMER-2 -q "alter application genesis_bots upgrade"
 snow sql -c GENESIS-DEV-CONSUMER-2 -q "show services"
+

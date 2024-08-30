@@ -3,65 +3,68 @@ GENESIS BOT TODOS
 =================
 
 today:
-x test rezas cortex knowledge logging
-x make hybrid table fallback to regular for llm results
-test new streamlit on sis
-x add cross region calls to sis 
+upgrade alpha
 add process list and info to default prompts if any
-x test cortex tps
 give bots process scheduler an action to show past runs and status
-x see how it works in 70b
-x fix !model in cortex
 kevins thread re runs
 sanders feedback in general
 test openai key insertion on new install
+remove eliza as a default bot 
+n make eliza talk about abseball more cleanly 
+x test rezas cortex knowledge logging
+x make hybrid table fallback to regular for llm results
+x test new streamlit on sis
+x add cross region calls to sis 
+x test cortex tps
+x see how it works in 70b
+x fix !model in cortex
+
+new streamlit:
+use cortex 8b for the welcome message?
 thread history in db for streamlit, thread loader from database for slack and streamlit
 streamlit takes a long time before submitting welcome job for each bot.. loading avatars?
-use cortex 8b for the welcome message?
-make eliza talk about abseball more cleanly 
+add bot details caching to new streamlit 
 
 before republishing on natapp:
+add stuff for send_email tool to streamlit installation script
+add error handling for send_email to tell people how to turn it on if not yet turned on
+make send_email use dynamic variables to prevent sql injection
+have send_email add stuff on the end to say why the message was sent and from who
+add handler for long contexts (if getting close, have the llm condense it)
 MR - DEV has missing NATIVE embeddings for shared-in data?
-add bot details caching to new streamlit 
 add the cross region stuff to the readme
+clean up logging and cust data in logs and run_query
 x make streamlit show tool calls better 
 add logging to the openai finalizer and the slack finalizer to see who is zapping the history in the messages.. seems to just be on single ..
 message threads... it's actually doing it on the message 1 /2 separation step it looks like
-is the last tool call getting eaten by the openai finalizer?
-for cortex add instructions to base bots about using tools for things like processes etc if they have them.. list the processes and auto describe them into the instructions 
+processes clearing out their history during slack output during finalization (maybe when it ends with a function call?)
+x (seems ok) is the last tool call getting eaten by the openai finalizer?
 x see if Janice can see her currency table on Alpha once upgraded
 on openai error, retry twice
 x give supervisor current date and time, and runner too
 x tell supervisor not to nitpick values like names etc
-processes clearing out their history during slack output during finalization (maybe when it ends with a function call?)
 n add an alternate way to wake up a bot on a thread for Jeff's Testy bot
 test the password process to make sure it doesnt skip steps on concise
 x change silent mode to concise mode
 x (test) test out the slack bug, marty sending DMs for Janice 2.0... why .. see if my fix fixes it and if local ones still work
-add handler for long contexts (if getting close, have the llm condense it)
-clean up logging and cust data in logs and run_query
-add cross region calling
+x add cross region calling
 x have bots send alerts via email:
 streamlit requests for stuff
     https://docs.snowflake.com/en/developer-guide/native-apps/container-about
     https://docs.snowflake.com/en/developer-guide/native-apps/container-compute-pool
 JS/KJ/MG/JS: default processes
 n (go with janice instead) add sandy bot?
-make sure Eliza doesnt talk about the baseball etc data without running search metadata (ask about allstars she makes it up)sla
+n make sure Eliza doesnt talk about the baseball etc data without running search metadata (ask about allstars she makes it up)sla
 put in a check to not allow repetitive tools calls more than n times
 x figure out the query calling issue on cortex
 test baby bot with new bot id logic
 x make send slack message suggest that maybe check the process again for the slack name
 x also in process runner add hint to make sure to send to the right channels
-make cortex tool calls not stream when function definitions are being sent out 
-add stuff for send_email tool to streamlit installation script
-add error handling for send_email to tell people how to turn it on if not yet turned on
-make send_email use dynamic variables to prevent sql injection
-have send_email add stuff on the end to say why the message was sent and from who
-make the process tidy-er aware of the bots tools so it doesnt suggest other ways of doing things
-keep tool calls in the slack messages even upon finalization
+x make cortex tool calls not stream when function definitions are being sent out 
+n make the process tidy-er aware of the bots tools so it doesnt suggest other ways of doing things
+x keep tool calls in the slack messages even upon finalization
 x (test) make send email more robust if addresses are not in an array (cortex does this)
-if LLM_RESULTS cant be created as a hybrid table, try as a regular table
+x if LLM_RESULTS cant be created as a hybrid table, try as a regular table
   
 soon-jl:
 x (test) make workspace schema names safe even if have dots in them (sandy 0.1 is causing probs)

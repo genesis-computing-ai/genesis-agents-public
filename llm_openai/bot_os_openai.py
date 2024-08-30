@@ -989,8 +989,8 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                    tool_outputs=tool_outputs,
                    event_handler=StreamingEventHandler(self.client, thread_id,   StreamingEventHandler.run_id_to_bot_assist[run_id],  meta, self)
                ) as stream:
-                  print('...sleeping 0.2 seconds before requeing run after submit_tool_outputs...')
-                  time.sleep(0.2)
+                  print('.. (not) sleeping 0.0 seconds before requeing run after submit_tool_outputs...')
+                #  time.sleep(0.2)
                   if thread_id in self.processing_runs:
                      self.processing_runs.remove(thread_id)
                   if thread_id not in self.active_runs:

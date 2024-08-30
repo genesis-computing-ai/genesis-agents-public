@@ -455,6 +455,7 @@ class ToolBelt:
 
         # Try to get process info from PROCESSES table
         process = self.get_process_info(bot_id, process_name=process_name, process_id=process_id)
+
         if len(process) == 0:
             # Get a list of processes for the bot
             processes = self.db_adapter.get_processes_list(bot_id)
@@ -477,6 +478,9 @@ class ToolBelt:
         process_id = process['PROCESS_ID']
         process_name = process['PROCESS_NAME']
         process_config = process.get('PROCESS_CONFIG', '')
+        if process_config is None:
+            process_config = "None"
+            process['PROCESS_CONFIG'] = "None"
 
         if action == "KICKOFF_PROCESS":
             print("Kickoff process.")
@@ -502,11 +506,18 @@ By the way the current system time is {datetime.now()}.
 Start by returning the first step of the process instructions below.
 Simply return the first instruction on what needs to be done first without removing or changing any details.
 
-
 Process Instructions:
 {process['PROCESS_INSTRUCTIONS']}
 """ 
-            first_step = process['PROCESS_CONFIG'] + "\n" + self.chat_completion(extract_instructions, self.db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, process_id=process_id, process_name=process_name)
+
+            if process['PROCESS_CONFIG'] != "None":
+                extract_instructions += f"""
+
+Process configuration: 
+{process['PROCESS_CONFIG']}.
+""" 
+
+            first_step = self.chat_completion(extract_instructions, self.db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, process_id=process_id, process_name=process_name)
             with self.lock:
                 self.process_history[thread_id][process_id] = "First step: "+ first_step + "\n"
 

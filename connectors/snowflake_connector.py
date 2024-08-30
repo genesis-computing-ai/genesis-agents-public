@@ -2272,6 +2272,33 @@ class SnowflakeConnector(DatabaseConnector):
             if cursor is not None:
                 cursor.close()
     
+        # Check if PROCESS_CONFIG column exists in PROCESSES table
+        describe_table_query = f"DESCRIBE TABLE {self.schema}.PROCESSES;"
+        
+        try:
+            cursor = self.client.cursor()
+            cursor.execute(describe_table_query)
+            table_description = cursor.fetchall()
+            
+            column_exists = any(row[0].upper() == 'PROCESS_CONFIG' for row in table_description)
+            
+            if not column_exists:
+                # Add PROCESS_CONFIG column if it doesn't exist
+                add_column_query = f"""
+                ALTER TABLE {self.schema}.PROCESSES
+                ADD COLUMN PROCESS_CONFIG VARCHAR(16777216);
+                """
+                cursor.execute(add_column_query)
+                self.client.commit()
+                print("PROCESS_CONFIG column added to PROCESSES table.")
+            else:
+                print("PROCESS_CONFIG column already exists in PROCESSES table.")
+        except Exception as e:
+            print(f"An error occurred while checking or adding PROCESS_CONFIG column: {e}")
+        finally:
+            if cursor is not None:
+                cursor.close()
+    
 
         # PROCESS_HISTORY TABLE
         process_history_table_check_query = (

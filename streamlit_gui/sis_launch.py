@@ -331,7 +331,10 @@ def get_response_from_udf_proxy(uu, bot_id):
                 WHERE uu = '{uu}'"""
 
             data = session.sql(sql).collect()
-            response = data[0][0]
+            if data:
+                response = data[0][0]
+            else:
+                response = ""
             return response
         except Exception as e:
             st.write("!! Exception on get_response_from_udf_proxy: ", e)
@@ -572,7 +575,7 @@ def chat_page():
                 )
                 #     st.write('response for uu ',request_id,' |',response,'|')
                 if response == "" or response == "not found":
-                    time.sleep(0.5)
+                    time.sleep(0.3)
                 if response == "!!EXCEPTION_NEEDS_RETRY!!":
                     i = i + 1
                     st.write(f"waiting 2 seconds after exception for retry #{i} of 5")

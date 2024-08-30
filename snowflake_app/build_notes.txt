@@ -70,6 +70,3 @@ snow sql -c GENESIS-DEV-PROVIDER -q "PUT file:///Users/justin/Documents/Code/gen
 
 bash ./snowflake_app/upgrade_dev.sh
 
-snow sql -c GENESIS-DEV-CONSUMER-2 -q "alter application genesis_bots upgrade"
-snow sql -c GENESIS-DEV-CONSUMER-2 -q "show services"
-

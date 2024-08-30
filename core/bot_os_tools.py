@@ -529,10 +529,10 @@ Hey **@{process['BOT_ID']}**
 Execute this instruction now and then pass your response to the _run_process tool as a parameter called previous_response and an action of GET_NEXT_STEP.  
 Execute the instructions you were given without asking for permission.
 Do not ever verify anything with the user, unless you need to get a specific input from the user to be able to continue the process."""
-            if self.process_config[thread_id][process_id]:
-                self.instructions[thread_id][process_id] += f"""
-Process configuration: {self.process_config[thread_id][process_id]}.
-"""
+#            if self.process_config[thread_id][process_id]:
+#                self.instructions[thread_id][process_id] += f"""
+#Process configuration: {self.process_config[thread_id][process_id]}.
+#"""
             if verbose:
                     self.instructions[thread_id][process_id] += """
 However DO generate text explaining what you are doing and showing interium outputs, etc. while you are running this and further steps to keep the user informed what is going on, preface these messages by 🔄 aka :arrows_counterclockwise:.
@@ -648,7 +648,7 @@ Bot's most recent response:
 {previous_response}
 """
 
-            print(f"\nSENDING TO 2nd LLM:\n{check_response}\n")
+            print(f"\nSENT TO 2nd LLM:\n{check_response}\n")
 
             result = self.chat_completion(check_response, self.db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, process_id=process_id, process_name = process_name)
 
@@ -663,6 +663,8 @@ Bot's most recent response:
                     "success": False,
                     "message": "Process failed: The checking function didn't return a string."
                 }
+            
+           # print("RUN 2nd LLM...")
 
             print(f"\nRESULT FROM 2nd LLM: {result}\n")
 
@@ -693,27 +695,29 @@ Bot's most recent response:
                 self.counter[thread_id][process_id] += 1
                 
             extract_instructions = f"""
-You are going to run the process instructions once for each item in the Items List.  You will determine the next step
-by breaking the Process Instructions into individual steps and using the History of this thread to determine which item 
-and which process step is next.
+Extract the text for the next step from the process instructions and return it, using the section marked 'Process History' to see where you are in the process. 
+Remember, the process instructions are a set of individual steps that need to be run in order.  
+Return the text of the next step only, do not make any other comments or statements.
+If the process is complete, respond "**done**" with no other text.
 
-Items List:
-{self.process_config[thread_id][process_id]}
-
-Process Instructions:
-{process['PROCESS_INSTRUCTIONS']}
-
-Process History: 
-{self.process_history[thread_id][process_id]}
+Process History: {self.process_history[thread_id][process_id]}
 
 Current system time: {datetime.now()}
+
+Process Configuration: 
+{self.process_config[thread_id][process_id]}
+
+Process Instructions: 
+
+{process['PROCESS_INSTRUCTIONS']}
                 """
 
-            print(f"\nRUN 2nd LLM TO EXTRACT NEXT STEP:\n{extract_instructions}\n")
+            print(f"\nEXTRACT NEXT STEP:\n{extract_instructions}\n")
 
+       #     print("RUN 2nd LLM...")
             next_step = self.chat_completion(extract_instructions, self.db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, process_id=process_id, process_name=process_name)
 
-            print(f"\nRESULT (NEXT_STEP): {next_step}\n")
+            print(f"\nRESULT (NEXT_STEP_): {next_step}\n")
 
             if next_step == '**done**' or next_step == '***done***' or next_step.strip().endswith('**done**'):
                 with self.lock:
@@ -760,9 +764,7 @@ In your response back to run_process, provide a detailed description of what you
             print(f"\nEXTRACTED NEXT STEP: \n{self.instructions[thread_id][process_id]}\n")
 
             with self.lock:
-                if self.process_config[thread_id][process_id] != process['PROCESS_CONFIG']:
-                    print(f"NEXT STEP BEFORE APPENDING TO HISTORY: {next_step}")
-                    self.process_history[thread_id][process_id] += "\nNext step: " + next_step
+                self.process_history[thread_id][process_id] += "\nNext step: " + next_step
 
             self.set_process_cache(bot_id, thread_id, process_id)
             print(f'Process cached with bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}')

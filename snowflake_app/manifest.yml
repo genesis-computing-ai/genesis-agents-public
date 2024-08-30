@@ -1,0 +1,18 @@
+
+manifest_version: 1 # required
+artifacts:
+ setup_script: setup_script.sql
+ readme: readme.md
+ container_services:
+   images:
+   - /genesisapp_master/code_schema/service_repo/genesis_app:latest  
+ extension_code: true
+ default_streamlit: core.sis_launch
+configuration:
+  trace_level: OFF
+  log_level: DEBUG
+privileges:
+  - BIND SERVICE ENDPOINT:
+      description: "Allow access to application endpoints"
+  - IMPORTED PRIVILEGES ON SNOWFLAKE DB:
+      description: "(Optional) Allow GenBots access to query account_usage views"

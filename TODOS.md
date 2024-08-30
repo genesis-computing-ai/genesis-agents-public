@@ -14,7 +14,8 @@ x see how it works in 70b
 fix !model in cortex
 kevins thread re runs
 sanders feedback in general
-
+test openai key insertion on new install
+thread history in db for streamlit, thread loader from database for slack and streamlit
 
 before republishing on natapp:
 add bot details caching to new streamlit 

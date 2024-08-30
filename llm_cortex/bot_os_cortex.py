@@ -204,11 +204,6 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
 
     def cortex_rest_api(self,thread_id,message_metadata=None, event_callback=None, temperature=None):
 
-        if os.getenv("CORTEX_FIREWORKS_OVERRIDE", "False").lower() == "true":
-            fireworks = True
-        else:
-            fireworks = False
-
         newarray = [{"role": message["message_type"], "content": message["content"]} for message in self.thread_history[thread_id]]
         resp = ''
         curr_resp = ''
@@ -260,7 +255,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         if resp != '':
             self.thread_history[thread_id] = [message for message in self.thread_history[thread_id] if not (message.get("role","") == "user" and message == last_user_message)]
             if BotOsAssistantSnowflakeCortex.stream_mode == True:
-                if self.event_callback and not fn_call:
+                if self.event_callback:
                     self.event_callback(self.bot_id, BotOsOutputMessage(thread_id=thread_id, 
                                                                         status='in_progress', 
                                                                         output=resp, 

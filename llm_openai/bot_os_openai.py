@@ -613,6 +613,8 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       thread_id = input_message.thread_id
 
       stop_flag = False
+      if input_message.msg.endswith(') says: !model') or input_message.msg=='!model':
+         input_message.msg = input_message.msg.replace (' !model',f'SYSTEM MESSAGE: The User has requested to know what LLM model is running.  Respond by telling them that the current model is: { os.getenv("OPENAI_MODEL_NAME", default="gpt-4o")}')
       if input_message.msg.endswith(') says: !stop') or input_message.msg=='!stop':
             stopped = False
             try:

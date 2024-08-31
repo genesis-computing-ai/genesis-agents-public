@@ -855,13 +855,13 @@ In your response back to run_process, provide a detailed description of what you
             return {}
 
     def manage_processes(
-        self, action, bot_id=None, process_id=None, process_details=None, thread_id=None, process_name=None
+        self, action, bot_id=None, process_id=None, process_details=None, thread_id=None, process_name=None, process_config=None
     ):
         """
         Manages processs in the PROCESSES table with actions to create, delete, or update a process.
 
         Args:
-            action (str): The action to perform - 'CREATE', 'DELETE','UPDATE', 'LIST', 'SHOW'.
+            action (str): The action to perform
             bot_id (str): The bot ID associated with the process.
             process_id (str): The process ID for the process to manage.
             process_details (dict, optional): The details of the process for create or update actions.
@@ -895,7 +895,30 @@ In your response back to run_process, provide a detailed description of what you
             }
         action = action.upper()
 
+        cursor = db_adapter.client.cursor()
+
         try:
+            if action in ["UPDATE_PROCESS_CONFIG", "CREATE_PROCESS_CONFIG", "DELETE_PROCESS_CONFIG"]:
+                process_config = '' if action == "DELETE_PROCESS_CONFIG" else process_config
+                update_query = f"""
+                    UPDATE {db_adapter.schema}.PROCESSES
+                    SET PROCESS_CONFIG = %(process_config)s
+                    WHERE PROCESS_ID = %(process_id)s
+                """
+                cursor.execute(
+                    update_query,
+                    {"process_config": process_config, "process_id": process_id},
+                )
+                db_adapter.client.commit()
+
+                return {
+                    "Success": True,
+                    "Message": f"process_config updated or deleted",
+                    "process_id": process_id,
+                }
+
+
+            
             if action == "CREATE" or action == "UPDATE":
                 # Send process_instructions to 2nd LLM to check it and format nicely
                 tidy_process_instructions = f"""
@@ -951,8 +974,6 @@ In your response back to run_process, provide a detailed description of what you
 
         if action not in ["CREATE", "DELETE", "UPDATE", "LIST", "SHOW"]:
             return {"Success": False, "Error": "Invalid action specified. Should be CREATE, DELETE, UPDATE, LIST, or SHOW."}
-
-        cursor = db_adapter.client.cursor()
 
         if action == "LIST":
             print("Running get processes list")

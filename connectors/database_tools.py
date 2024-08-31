@@ -355,7 +355,10 @@ process_manager_functions = [
                 "properties": {
                     "action": {
                         "type": "string",
-                        "description": "The action to perform on a process: CREATE, UPDATE, or DELETE.  LIST returns a list of all processes, SHOW shows full instructions and details for a process, or TIME to get current system time.",
+                        "description": """
+                        The action to perform on a process: CREATE, UPDATE, DELETE, CREATE_PROCESS_CONFIG, UPDATE_PROCESS_CONFIG, DELETE_PROCESS_CONFIG.  
+                        LIST returns a list of all processes, SHOW shows full instructions and details for a process, SHOW_CONFIG shows the configuration for a process,
+                        or TIME to get current system time.""",
                     },
                     "bot_id": {
                         "type": "string",
@@ -381,16 +384,14 @@ process_manager_functions = [
                                 "type": "string",
                                 "description": "DETAILED instructions for completing the process  Do NOT summarize or simplify instructions provided by a user.",
                             },
-                         #   "process_reporting_instructions": {
-                         #       "type": "string",
-                         #       "description": "Detailed instructions for reporting the completed the process.",
-                         #   },
+                           "process_config": {
+                               "type": "string",
+                               "description": "Configuration string used by process when running.",
+                           },
                         },
                         "required": [
                             "process_name",
-                    #        "process_details",
                     #        "process_instructions",
-                         #   "process_reporting_instructions",
                         ],
                     },
                 },

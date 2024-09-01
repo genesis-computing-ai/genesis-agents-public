@@ -102,7 +102,7 @@ if st.session_state.data:
     if st.session_state.get("needs_keys", False):
         del pages["Chat with Bots"]
 
-    st.sidebar.title("Genesis Bots Configuration")
+    st.sidebar.title("Genesis App")
     
     # Set the default selection to "Chat with Bots"
     default_selection = "Chat with Bots" if "Chat with Bots" in pages else list(pages.keys())[0]
@@ -119,35 +119,6 @@ if st.session_state.data:
     # Update the session state with the current selection
     st.session_state["radio"] = selection
 
-    # Add placeholder for active chat sessions when on "Chat with Bots" page
-    if selection == "Chat with Bots":
-        st.sidebar.markdown("### Active Chat Sessions")
-        
-        # Initialize active_sessions in session state if it doesn't exist
-        if 'active_sessions' not in st.session_state:
-            st.session_state.active_sessions = []
-
-        # Display active sessions as clickable links
-        if st.session_state.active_sessions:
-            for session in st.session_state.active_sessions:
-                bot_name, thread_id = session.split(' (')
-                bot_name = bot_name.split('Chat with ')[1]
-                thread_id = thread_id[:-1]  # Remove the closing parenthesis
-                full_thread_id = next((key.split('_')[1] for key in st.session_state.keys() if key.startswith(f"messages_{thread_id}")), thread_id)
-                if st.sidebar.button(f"• {session}", key=f"session_{thread_id}"):
-                    st.session_state.selected_session = {
-                        'bot_name': bot_name,
-                        'thread_id': full_thread_id
-                    }
-                    st.session_state.load_history = True
-                    st.rerun()
-        else:
-            st.sidebar.info("No active chat sessions.")
-
-    # Force a rerun if a new session was added
-    if 'new_session_added' in st.session_state and st.session_state.new_session_added:
-        del st.session_state.new_session_added
-        st.rerun()
 
     if selection in pages:
         pages[selection]()

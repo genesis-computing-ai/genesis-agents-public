@@ -3,6 +3,9 @@ import time
 import uuid
 from utils import get_bot_details, get_slack_tokens, get_metadata, submit_to_udf_proxy, get_response_from_udf_proxy
 
+bot_images = get_metadata("bot_images")
+bot_avatar_images = [bot["bot_avatar_image"] for bot in bot_images]
+
 def chat_page():
     def get_chat_history(thread_id):
         return st.session_state.get(f"messages_{thread_id}", [])
@@ -144,15 +147,46 @@ def chat_page():
         return
 
     if bot_details == {"Success": False, "Message": "Needs LLM Type and Key"}:
-        from pages.llm_config import llm_config
+        from llm_config import llm_config
         llm_config()
     else:
         try:
             # get bot details
+
+            st.sidebar.markdown("### Active Chat Sessions")
+            
+            # Initialize active_sessions in session state if it doesn't exist
+            if 'active_sessions' not in st.session_state:
+                st.session_state.active_sessions = []
+
             bot_details.sort(key=lambda x: (not "Eve" in x["bot_name"], x["bot_name"]))
             bot_names = [bot["bot_name"] for bot in bot_details]
             bot_ids = [bot["bot_id"] for bot in bot_details]
             bot_intro_prompts = [bot["bot_intro_prompt"] for bot in bot_details]
+
+            if 'current_bot' not in st.session_state:
+                st.session_state.current_bot = bot_names[1]
+
+            # Display active sessions as clickable links
+            if st.session_state.active_sessions:
+                for session in st.session_state.active_sessions:
+                    bot_name, thread_id = session.split(' (')
+                    bot_name = bot_name.split('Chat with ')[1]
+                    thread_id = thread_id[:-1]  # Remove the closing parenthesis
+                    full_thread_id = next((key.split('_')[1] for key in st.session_state.keys() if key.startswith(f"messages_{thread_id}")), thread_id)
+                    if st.sidebar.button(f"• {session}"):
+                        st.session_state.current_bot = bot_name
+                        selected_bot_name = bot_name
+                        st.session_state.selected_session = {
+                            'bot_name': bot_name,
+                            'thread_id': full_thread_id
+                        }
+                        st.session_state.load_history = True
+                        #st.rerun()
+            else:
+                st.sidebar.info("No active chat sessions.")
+
+
 
             tokens = get_slack_tokens()
             slack_active = tokens.get("SlackActiveFlag", False)
@@ -173,7 +207,7 @@ def chat_page():
             if len(bot_names) > 0:
                 col1, col2 = st.columns([3, 1])
                 with col1:
-                    selected_bot_name = st.selectbox("Active Bots", bot_names, key="bot_selector")
+                    selected_bot_name = st.selectbox("Active Bots", bot_names, index = bot_names.index(st.session_state.current_bot))
                 with col2:
                     if st.button("New Chat", key="new_chat_button"):
                         # Create a new chat session for the selected bot
@@ -201,13 +235,14 @@ def chat_page():
                         
                         # Trigger a rerun to update the UI
                         st.rerun()
+                st.write(f"You selected {selected_bot_name}")
 
                 # Check if a session is selected from the sidebar
                 loading_existing_session = False
                 if 'selected_session' in st.session_state:
                     selected_session = st.session_state.selected_session
                     selected_bot_name = selected_session['bot_name']
-                    selected_thread_id = selected_session['thread_id']
+                    selected_thread_id = selected_session['thread_id']                    
                     loading_existing_session = True
                     del st.session_state.selected_session
                 else:
@@ -239,11 +274,8 @@ def chat_page():
                 selected_bot_intro_prompt = bot_intro_prompts[selected_bot_index]
 
                 # get avatar images
-                bot_images = get_metadata("bot_images")
                 bot_avatar_image_url = ""
-                if len(bot_images) > 0:
-                    bot_avatar_images = [bot["bot_avatar_image"] for bot in bot_images]
-                    bot_names = [bot["bot_name"] for bot in bot_images]
+                if len(bot_images) > 0:                    
                     selected_bot_image_index = bot_names.index(selected_bot_name) if selected_bot_name in bot_names else -1
                     if selected_bot_image_index < 0:
                         bot_avatar_image_url = ""
@@ -265,20 +297,6 @@ def chat_page():
 
                 # Generate initial message and bot introduction only for new sessions
                 if not loading_existing_session and not st.session_state[f"messages_{selected_thread_id}"]:
-                    # Generate initial message
-                    initial_message = f"Hi, I'm {selected_bot_name}! How can I help you today?"
-                    if bot_avatar_image_url:
-                        st.session_state[f"messages_{selected_thread_id}"].append({
-                            "role": "assistant",
-                            "content": initial_message,
-                            "avatar": bot_avatar_image_url,
-                        })
-                    else:
-                        st.session_state[f"messages_{selected_thread_id}"].append({
-                            "role": "assistant",
-                            "content": initial_message,
-                        })
-                    # Generate bot's introduction
                     submit_button(selected_bot_intro_prompt, st.empty, True)
 
                 # Display chat messages from history
@@ -301,14 +319,5 @@ def chat_page():
 
     # Set the flag to trigger a rerun in main.py if a new session was added
     if st.session_state.get('new_session_added', False):
+        st.session_state.new_session_added = False
         st.rerun()
-
-    st.sidebar.info(f"Active sessions: {st.session_state.active_sessions}")
-    st.sidebar.info(f"Selected bot: {selected_bot_name}")
-    st.sidebar.info(f"Thread ID: {st.session_state.get('current_thread_id', 'Not set')}")
-    
-    # Debug information
-    st.sidebar.info(f"All session state keys: {list(st.session_state.keys())}")
-    for key in st.session_state.keys():
-        if key.startswith("messages_"):
-            st.sidebar.info(f"Messages for {key}: {len(st.session_state[key])}")

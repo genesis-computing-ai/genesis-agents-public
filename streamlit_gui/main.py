@@ -5,6 +5,32 @@ import time
 # Set Streamlit to wide mode
 st.set_page_config(layout="wide")
 
+st.markdown("""
+    <style>
+    .block-container {
+        padding-top: 0rem;
+        padding-bottom: 0rem;
+        padding-left: 2rem;
+        padding-right: 2rem;
+    }
+    .stSidebar > div:first-child {
+        padding-top: 0rem;
+    }
+    .stSidebar .block-container {
+        padding-top: 0.0rem;
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+    }
+    .stTextInput > div > div > input {
+        padding-top: 0.25rem;
+        padding-bottom: 0.25rem;
+    }
+    .stButton > button {
+        padding-top: 0.25rem;
+        padding-bottom: 0.25rem;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
 # Initialize data in session state if it doesn't exist
 if 'data' not in st.session_state:
@@ -102,8 +128,10 @@ if st.session_state.data:
     if st.session_state.get("needs_keys", False):
         del pages["Chat with Bots"]
 
-    st.sidebar.subheader("**Genesis App**")
-    
+
+#    st.sidebar.subheader("**Genesis App**")
+
+    st.sidebar.image("./streamlit_gui/Genesis-Computing-Logo-White.webp", width=200)
     # Set the default selection to "Chat with Bots"
     default_selection = "Chat with Bots" if "Chat with Bots" in pages else list(pages.keys())[0]
     

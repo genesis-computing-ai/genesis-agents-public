@@ -8,32 +8,6 @@ bot_avatar_images = [bot["bot_avatar_image"] for bot in bot_images]
 
 def chat_page():
     # Add custom CSS to reduce whitespace even further
-    st.markdown("""
-        <style>
-        .block-container {
-            padding-top: 3rem;
-            padding-bottom: 0rem;
-            padding-left: 2rem;
-            padding-right: 2rem;
-        }
-        .stSidebar > div:first-child {
-            padding-top: 0.5rem;
-        }
-        .stSidebar .block-container {
-            padding-top: 0.0rem;
-            padding-left: 0.5rem;
-            padding-right: 0.5rem;
-        }
-        .stTextInput > div > div > input {
-            padding-top: 0.25rem;
-            padding-bottom: 0.25rem;
-        }
-        .stButton > button {
-            padding-top: 0.25rem;
-            padding-bottom: 0.25rem;
-        }
-        </style>
-    """, unsafe_allow_html=True)
 
     def get_chat_history(thread_id):
         return st.session_state.get(f"messages_{thread_id}", [])

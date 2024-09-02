@@ -20,7 +20,7 @@ def get_session():
             return get_active_session()
         except:
             NativeMode = False
-    st.write('NativeMode', NativeMode)
+  #  st.write('NativeMode', NativeMode)
     return None
 
 def check_status():

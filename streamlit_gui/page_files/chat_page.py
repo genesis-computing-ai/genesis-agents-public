@@ -7,6 +7,34 @@ bot_images = get_metadata("bot_images")
 bot_avatar_images = [bot["bot_avatar_image"] for bot in bot_images]
 
 def chat_page():
+    # Add custom CSS to reduce whitespace even further
+    st.markdown("""
+        <style>
+        .block-container {
+            padding-top: 3rem;
+            padding-bottom: 0rem;
+            padding-left: 2rem;
+            padding-right: 2rem;
+        }
+        .stSidebar > div:first-child {
+            padding-top: 0.5rem;
+        }
+        .stSidebar .block-container {
+            padding-top: 0.0rem;
+            padding-left: 0.5rem;
+            padding-right: 0.5rem;
+        }
+        .stTextInput > div > div > input {
+            padding-top: 0.25rem;
+            padding-bottom: 0.25rem;
+        }
+        .stButton > button {
+            padding-top: 0.25rem;
+            padding-bottom: 0.25rem;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
     def get_chat_history(thread_id):
         return st.session_state.get(f"messages_{thread_id}", [])
 
@@ -152,63 +180,21 @@ def chat_page():
     else:
         try:
             # get bot details
-
-            st.sidebar.markdown("### Active Chat Sessions")
-            
-            # Initialize active_sessions in session state if it doesn't exist
-            if 'active_sessions' not in st.session_state:
-                st.session_state.active_sessions = []
-
             bot_details.sort(key=lambda x: (not "Eve" in x["bot_name"], x["bot_name"]))
             bot_names = [bot["bot_name"] for bot in bot_details]
             bot_ids = [bot["bot_id"] for bot in bot_details]
             bot_intro_prompts = [bot["bot_intro_prompt"] for bot in bot_details]
 
             if 'current_bot' not in st.session_state:
-                st.session_state.current_bot = bot_names[1]
+                st.session_state.current_bot = bot_names[1] if len(bot_names) > 1 else bot_names[0]
 
-            # Display active sessions as clickable links
-            if st.session_state.active_sessions:
-                for session in st.session_state.active_sessions:
-                    bot_name, thread_id = session.split(' (')
-                    bot_name = bot_name.split('Chat with ')[1]
-                    thread_id = thread_id[:-1]  # Remove the closing parenthesis
-                    full_thread_id = next((key.split('_')[1] for key in st.session_state.keys() if key.startswith(f"messages_{thread_id}")), thread_id)
-                    if st.sidebar.button(f"• {session}"):
-                        st.session_state.current_bot = bot_name
-                        selected_bot_name = bot_name
-                        st.session_state.selected_session = {
-                            'bot_name': bot_name,
-                            'thread_id': full_thread_id
-                        }
-                        st.session_state.load_history = True
-                        #st.rerun()
-            else:
-                st.sidebar.info("No active chat sessions.")
-
-
-
-            tokens = get_slack_tokens()
-            slack_active = tokens.get("SlackActiveFlag", False)
-            if not slack_active:
-                col1, col2 = st.columns([3, 4])
-                with col1:
-                    st.markdown("##### Genesis is best used on Slack!")
-                with col2:
-                    if "radio" in st.session_state:
-                        if st.session_state["radio"] != "Setup Slack Connection":
-                            if st.button("Activate Slack Keys Here"):
-                                st.session_state["radio"] = "Setup Slack Connection"
-                                st.rerun()
-                    else:
-                        if st.button("Activate Slack Keys Here"):
-                            st.session_state["radio"] = "Setup Slack Connection"
-                            st.rerun()
-            if len(bot_names) > 0:
-                col1, col2 = st.columns([3, 1])
-                with col1:
-                    selected_bot_name = st.selectbox("Active Bots", bot_names, index = bot_names.index(st.session_state.current_bot))
-                with col2:
+            # Sidebar content
+            with st.sidebar:
+             #   st.markdown("### Chat Options")
+                
+                if len(bot_names) > 0:
+                    selected_bot_name = st.selectbox("Chat with:", bot_names, index=bot_names.index(st.session_state.current_bot))
+                    
                     if st.button("New Chat", key="new_chat_button"):
                         # Create a new chat session for the selected bot
                         new_thread_id = str(uuid.uuid4())
@@ -235,7 +221,72 @@ def chat_page():
                         
                         # Trigger a rerun to update the UI
                         st.rerun()
-                st.write(f"You selected {selected_bot_name}")
+
+                st.markdown("### Active Chat Sessions")
+                
+                # Initialize active_sessions in session state if it doesn't exist
+                if 'active_sessions' not in st.session_state:
+                    st.session_state.active_sessions = []
+
+                # Display active sessions as clickable links
+                if st.session_state.active_sessions:
+                    for session in st.session_state.active_sessions:
+                        bot_name, thread_id = session.split(' (')
+                        bot_name = bot_name.split('Chat with ')[1]
+                        thread_id = thread_id[:-1]  # Remove the closing parenthesis
+                        full_thread_id = next((key.split('_')[1] for key in st.session_state.keys() if key.startswith(f"messages_{thread_id}")), thread_id)
+                        if st.button(f"• {session}"):
+                            st.session_state.current_bot = bot_name
+                            selected_bot_name = bot_name
+                            st.session_state.selected_session = {
+                                'bot_name': bot_name,
+                                'thread_id': full_thread_id
+                            }
+                            st.session_state.load_history = True
+                            st.rerun()
+                else:
+                    st.info("No active chat sessions.")
+
+            # Main content area
+            tokens = get_slack_tokens()
+            slack_active = tokens.get("SlackActiveFlag", False)
+            if not slack_active:
+                col1, col2 = st.columns([3, 4])
+                with col1:
+                    st.markdown("##### Genesis is best used on Slack!")
+                with col2:
+                    if "radio" in st.session_state:
+                        if st.session_state["radio"] != "Setup Slack Connection":
+                            if st.button("Activate Slack Keys Here"):
+                                st.session_state["radio"] = "Setup Slack Connection"
+                                st.rerun()
+                    else:
+                        if st.button("Activate Slack Keys Here"):
+                            st.session_state["radio"] = "Setup Slack Connection"
+                            st.rerun()
+
+            if len(bot_names) > 0:
+                selected_bot_index = bot_names.index(selected_bot_name)
+                selected_bot_id = bot_ids[selected_bot_index]
+                selected_bot_intro_prompt = bot_intro_prompts[selected_bot_index]
+
+                # get avatar images
+                bot_avatar_image_url = ""
+                if len(bot_images) > 0:                    
+                    selected_bot_image_index = bot_names.index(selected_bot_name) if selected_bot_name in bot_names else -1
+                    if selected_bot_image_index < 0:
+                        bot_avatar_image_url = ""
+                    else:
+                        encoded_bot_avatar_image = bot_avatar_images[
+                            selected_bot_image_index
+                        ]
+                        if not encoded_bot_avatar_image:
+                            bot_avatar_image_url = ""
+                        else:
+                            # Create data URL for the avatar image
+                            bot_avatar_image_url = (
+                                f"data:image/png;base64,{encoded_bot_avatar_image}"
+                            )
 
                 # Check if a session is selected from the sidebar
                 loading_existing_session = False
@@ -247,7 +298,6 @@ def chat_page():
                     del st.session_state.selected_session
                 else:
                     previous_bot_name = st.session_state.get("previous_bot_name")
-                    selected_bot_index = bot_names.index(selected_bot_name)
                     
                     # Check if a new bot has been selected or if there's no current thread
                     if selected_bot_name != previous_bot_name or "current_thread_id" not in st.session_state:
@@ -273,24 +323,6 @@ def chat_page():
                 selected_bot_id = bot_ids[selected_bot_index]
                 selected_bot_intro_prompt = bot_intro_prompts[selected_bot_index]
 
-                # get avatar images
-                bot_avatar_image_url = ""
-                if len(bot_images) > 0:                    
-                    selected_bot_image_index = bot_names.index(selected_bot_name) if selected_bot_name in bot_names else -1
-                    if selected_bot_image_index < 0:
-                        bot_avatar_image_url = ""
-                    else:
-                        encoded_bot_avatar_image = bot_avatar_images[
-                            selected_bot_image_index
-                        ]
-                        if not encoded_bot_avatar_image:
-                            bot_avatar_image_url = ""
-                        else:
-                            # Create data URL for the avatar image
-                            bot_avatar_image_url = (
-                                f"data:image/png;base64,{encoded_bot_avatar_image}"
-                            )
-
                 # Initialize chat history if it doesn't exist for the current thread
                 if f"messages_{selected_thread_id}" not in st.session_state:
                     st.session_state[f"messages_{selected_thread_id}"] = []
@@ -312,7 +344,7 @@ def chat_page():
                 if prompt := st.chat_input("What is up?", key=f"chat_input_{selected_thread_id}"):
                     submit_button(prompt, st.chat_message("user"), False)
         except Exception as e:
-            st.subheader(f"Error running Genesis GUI {e}")
+            st.error(f"Error running Genesis GUI: {e}")
 
     # Add this at the end of the chat_page function to update the sidebar
     st.session_state.active_sessions = list(set(st.session_state.active_sessions))  # Remove duplicates

@@ -3,12 +3,14 @@ GENESIS BOT TODOS
 =================
 
 today:
-upgrade alpha
+"assistant found" on key insertion, is it naming based on bot id which arent unique anymore, is that ok... could confuse things.
+x upgrade alpha
 add process list and info to default prompts if any
 give bots process scheduler an action to show past runs and status
 kevins thread re runs
 sanders feedback in general
-test openai key insertion on new install
+x test openai key insertion on new install
+test openai key switch with metadata re: embeddings on natapp
 remove eliza as a default bot 
 n make eliza talk about abseball more cleanly 
 x test rezas cortex knowledge logging

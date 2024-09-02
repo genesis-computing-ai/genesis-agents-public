@@ -12,12 +12,12 @@ if 'data' not in st.session_state:
 
 # ... (keep the initialization code)
 
-st.success('NativeMode1 '+str(NativeMode))
+#st.success('NativeMode1 '+str(NativeMode))
 session = None
 if NativeMode:
     try:
         service_status_result = check_status()
-        st.success('NativeMode2 '+str(service_status_result))
+      #  st.success('NativeMode2 '+str(service_status_result))
         if service_status_result is None:
             st.session_state["data"] = "Local Mode"
             NativeMode = False 
@@ -34,9 +34,9 @@ if NativeMode:
         # status_query = f"select v.value:status::varchar status from (select parse_json(system$get_service_status('{prefix}.GENESISAPP_SERVICE_SERVICE'))) t, lateral flatten(input => t.$1) v"
         # service_status_result = session.sql(status_query).collect()
         service_status_result = check_status()
-        st.success('NativeMode3 '+str(service_status_result))
+       # st.success('NativeMode3 '+str(service_status_result))
         if service_status_result != "READY":
-            st.success('NativeMode4 '+str(service_status_result))
+        #    st.success('NativeMode4 '+str(service_status_result))
             with st.spinner("Waiting on Genesis Services to start..."):
                 service_status = st.empty()
                 while True:
@@ -102,14 +102,14 @@ if st.session_state.data:
     if st.session_state.get("needs_keys", False):
         del pages["Chat with Bots"]
 
-    st.sidebar.title("Genesis App")
+    st.sidebar.subheader("**Genesis App**")
     
     # Set the default selection to "Chat with Bots"
     default_selection = "Chat with Bots" if "Chat with Bots" in pages else list(pages.keys())[0]
     
     # Use a dropdown for page selection
     selection = st.sidebar.selectbox(
-        "Select Page:",
+        "Menu:",
         list(pages.keys()),
         index=list(pages.keys()).index(
             st.session_state.get("radio", default_selection)

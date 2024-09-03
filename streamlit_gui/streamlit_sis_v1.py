@@ -1450,6 +1450,9 @@ def config_wh():
                     "name"
                 ].tolist()  # Adjust 'name' if necessary to match your column name
 
+
+
+
                 # Check if 'XSMALL' is in the list of warehouse names
                 if st.session_state.wh_name not in warehouse_names:
                     # Notify the user about the naming discrepancy and suggest setting APP_WAREHOUSE

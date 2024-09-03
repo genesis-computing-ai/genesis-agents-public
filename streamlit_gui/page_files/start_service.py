@@ -43,6 +43,9 @@ def start_service():
                         [row.as_dict() for row in warehouses_result]
                     )
                     warehouse_names = warehouses_df["name"].tolist()
+                    if 'SYSTEM$STREAMLIT_NOTEBOOK_WH' in warehouse_names:
+                        warehouse_names.remove('SYSTEM$STREAMLIT_NOTEBOOK_WH')
+                
                     if st.session_state.wh_name not in warehouse_names:
                         st.session_state.wh_name = warehouse_names[0]
                     st.write(f"Found warehouse {st.session_state.wh_name}.")
@@ -70,9 +73,9 @@ def start_service():
                 st.success(f"Success: Server Started")
 
                 st.write(
-                    "**Now push the button below, you're one step away from making and chatting with your bots!**"
+                    "**Now push the button below, youre ready to start chatting with your bots!**"
                 )
-                if st.button("Continue Setup!"):
+                if st.button("Chat with your bots!"):
                     st.experimental_rerun()
             else:
                 st.error("Server not started.")
@@ -80,26 +83,35 @@ def start_service():
             st.error(f"Error connecting to Snowflake: {e}")
 
     # Add a section to check the status of the Genesis Service
-    st.subheader("Genesis Service Status")
-    if st.button("Check Genesis Service Status"):
-        try:
-            # Get app name and prefix from session state
-            app_name = st.session_state.get('app_name', '')
-            prefix = st.session_state.get('prefix', '')
+ #   st.subheader("Genesis Service Status")
+ #   if st.button("Check Genesis Service Status"):
+ #       try:
+ #           # Get app name and prefix from session state
+ #           app_name = st.session_state.get('app_name', '')
+ #           prefix = st.session_state.get('prefix', '')
 
-            status_query = f"select v.value:status::varchar status from (select parse_json(system$get_service_status('{prefix}.GENESISAPP_SERVICE_SERVICE'))) t, lateral flatten(input => t.$1) v"
-            service_status_result = session.sql(status_query).collect()
-            status = service_status_result[0][0]
-            st.write(f"Genesis Service status: {status}")
+#            status_query = f"select v.value:status::varchar status from (select parse_json(system$get_service_status('{prefix}.GENESISAPP_SERVICE_SERVICE'))) t, lateral flatten(input => t.$1) v"
+#            service_status_result = session.sql(status_query).collect()
+#            status = service_status_result[0][0]
+#            st.write(f"Genesis Service status: {status}")
 
-            if status == "SUSPENDED":
-                if st.button("Start Genesis Service"):
-                    start_command = f"call {app_name}.core.start_app_instance('APP1','GENESIS_POOL','GENESIS_EAI','{st.session_state.wh_name}')"
-                    session.sql(start_command).collect()
-                    st.success("Genesis Service start command executed. Please check the status again in a few moments.")
-            elif status == "READY":
-                st.success("Genesis Service is running and ready.")
-            else:
-                st.info(f"Genesis Service status: {status}. Please wait or check the configuration if it's not becoming READY.")
-        except Exception as e:
-            st.error(f"Error checking Genesis Service status: {e}")
+ #           if status == "SUSPENDED":
+ #               if st.button("Start Genesis Service"):
+ #                   start_command = f"call {app_name}.core.start_app_instance('APP1','GENESIS_POOL','GENESIS_EAI','{st.session_state.wh_name}')"
+ #                   session.sql(start_command).collect()
+ #                   st.success("Genesis Service start command executed. Please check the status again in a few moments.")
+ #           elif status == "READY":
+ #               st.success("Genesis Service is running and ready.")
+ #           else:
+ #               st.info(f"Genesis Service status: {status}. Please wait or check the configuration if it's not becoming READY.")
+ #       except Exception as e:
+ #           st.error(f"Error checking Genesis Service status: {e}")
+
+# st.session_state.app_name = "GENESIS_BOTS"
+# st.session_state.prefix = st.session_state.app_name + ".app1"
+# st.session_state.core_prefix = st.session_state.app_name + ".CORE"
+# st.session_state["wh_name"] = "XSMSALL"
+# import pandas as pd 
+# from snowflake.snowpark.context import get_active_session
+# session = get_active_session()
+# start_service()

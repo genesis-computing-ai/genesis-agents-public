@@ -22,6 +22,9 @@ x test cortex tps
 x see how it works in 70b
 x fix !model in cortex
 make system messages non-editable so we can upgrade them but suggest the user makes a copy if they want to change it
+warehouse test button seems to say success even if not 
+broken link shows on config step pages
+turn on knowledge on Alpha, make message nicer
 
 new streamlit:
 use cortex 8b for the welcome message?

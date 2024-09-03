@@ -1,6 +1,12 @@
 import streamlit as st
+from utils import get_session
 
 def config_wh():
+    
+    session = get_session()
+    if not session:
+        st.error("Unable to connect to Snowflake. Please check your connection.")
+        return
     
     st.title("Step 1: Configure Warehouse")
     
@@ -25,21 +31,15 @@ def config_wh():
     </style>
     """, unsafe_allow_html=True)
 
-    col1, col2 = st.columns([2, 1])
-
-    with col1:
-        st.markdown('<p class="big-font">Why do we need to configure a Warehouse?</p>', unsafe_allow_html=True)
-        
-        st.markdown("""
-        <div class="info-box">
-        Genesis Bots needs rights to use a Snowflake compute engine, known as a Virtual Warehouse, to run queries on Snowflake. This step does not provide Genesis Bots with access to any of your data, just the ability to run SQL on Snowflake in general.
-        
-        You'll need to grant Genesis access to an existing Warehouse or create a new one for its use.
-        </div>
-        """, unsafe_allow_html=True)
-
-    with col2:
-        st.image("https://path.to.your.image/warehouse_diagram.png", caption="Warehouse Configuration", use_column_width=True)
+    st.markdown('<p class="big-font">Why do we need to configure a Warehouse?</p>', unsafe_allow_html=True)
+    
+    st.markdown("""
+    <div class="info-box">
+    Genesis Bots needs rights to use a Snowflake compute engine, known as a Virtual Warehouse, to run queries on Snowflake. This step does not provide Genesis Bots with access to any of your data, just the ability to run SQL on Snowflake in general.
+    
+    You'll need to grant Genesis access to an existing Warehouse or create a new one for its use.
+    </div>
+    """, unsafe_allow_html=True)
 
     st.markdown('<p class="big-font">Configuration Steps</p>', unsafe_allow_html=True)
     
@@ -71,16 +71,52 @@ GRANT USAGE ON WAREHOUSE  IDENTIFIER($APP_WAREHOUSE) TO APPLICATION  IDENTIFIER(
 
     if st.button("TEST Access to Warehouse"):
         try:
-            # This is a placeholder for the actual test logic
-            # You'll need to implement the actual test here
-            st.success("Successfully connected to the warehouse. You can now proceed to the next step.")
+            # Execute the command and collect the results
+            warehouses_result = session.sql("SHOW WAREHOUSES").collect()
+
+            # Check if any warehouses were returned
+            if warehouses_result:
+                # Convert the list of Row objects to a Pandas DataFrame for display
+                warehouses_df = pd.DataFrame(
+                    [row.as_dict() for row in warehouses_result]
+                )
+                warehouse_names = warehouses_df[
+                    "name"
+                ].tolist()  # Adjust 'name' if necessary to match your column name
+
+                if 'SYSTEM$STREAMLIT_NOTEBOOK_WH' in warehouse_names:
+                    warehouse_names.remove('SYSTEM$STREAMLIT_NOTEBOOK_WH')
+                
+                # Check if 'XSMALL' is in the list of warehouse names
+                if st.session_state.wh_name not in warehouse_names:
+                    # Notify the user about the naming discrepancy and suggest setting APP_WAREHOUSE
+                    first_warehouse_name = warehouse_names[0]
+                    st.session_state.wh_name = first_warehouse_name
+
+                # Display success message with list of warehouses
+                st.success(
+                    f'Success: Found the following warehouses - {", ".join(warehouse_names)}, Thanks!'
+                )
+               # st.write("**<< Now, click 2. Configure Compute Pool, on left <<**")
+                if st.button("Proceed to Configure Compute Pool", key="proceed_button"):
+                    st.session_state["radio"] = "2: Configure Compute Pool"
+                    st.experimental_rerun()
+            else:
+                st.error(
+                    'Error: No warehouses found.  Please open a new worksheet, copy and paste the commands above, and run them.  Then return here and press "TEST Access to Warehouse" above.'
+                )
         except Exception as e:
             st.error(f"Error connecting to Snowflake: {e}")
 
-    st.success("Once you've run the commands and tested the access, you can proceed to the next step.")
-    
-    if st.button("Proceed to Configure Compute Pool", key="proceed_button"):
-        st.session_state["radio"] = "2: Configure Compute Pool"
-        st.experimental_rerun()
 
     st.info("If you need any assistance, please check our [documentation](https://genesiscomputing.ai/docs/) or join our [Slack community](https://communityinviter.com/apps/genesisbotscommunity/genesis-bots-community).")
+
+
+# st.session_state.app_name = "GENESIS_BOTS"
+# st.session_state.prefix = st.session_state.app_name + ".app1"
+# st.session_state.core_prefix = st.session_state.app_name + ".CORE"
+# st.session_state["wh_name"] = "XSMSALL"
+# import pandas as pd 
+# from snowflake.snowpark.context import get_active_session
+# session = get_active_session()
+# config_wh()

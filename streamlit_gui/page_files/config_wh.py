@@ -51,7 +51,7 @@ def config_wh():
 use role ACCOUNTADMIN;
 
 -- set the name of the installed application
-set APP_DATABASE = '{app_name}';
+set APP_DATABASE = '{st.session_state.get("app_name", "")}';
 
 -- set warehouse name to use
 set APP_WAREHOUSE = '{st.session_state.get("wh_name", "XSMALL")}'; 

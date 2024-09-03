@@ -51,7 +51,7 @@ def config_pool():
 use role ACCOUNTADMIN;
 
 -- set the name of the installed application
-set APP_DATABASE = '{app_name}';
+set APP_DATABASE = '{st.session_state.get("app_name", "")}';
 
 -- remove an existing pool, if you've installed this app before
 DROP COMPUTE POOL IF EXISTS GENESIS_POOL;

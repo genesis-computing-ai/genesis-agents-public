@@ -44,6 +44,11 @@ def show_server_logs():
         ["Bot Service", "Harvester", "Task Service", "Knowledge Service"]
     )
 
+    # Get prefix from session state
+    prefix = st.session_state.get('prefix', '')
+    if not prefix:
+        st.error("Application name not found in session state. Please ensure you've completed the setup process.")
+        return
     if log_type == "Bot Service":
         service_name = f"{prefix}.GENESISAPP_SERVICE_SERVICE"
         log_name = "genesis"

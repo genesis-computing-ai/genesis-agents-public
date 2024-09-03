@@ -57,7 +57,7 @@ def config_eai():
 use role ACCOUNTADMIN;
 
 -- set the name of the installed application
-set APP_DATABASE = '{app_name}';
+set APP_DATABASE = '{st.session_state.get("app_name", "")}';
 
 -- create a local database to store the network rule (you can change these to an existing database and schema if you like)
 CREATE DATABASE IF NOT EXISTS GENESIS_LOCAL_DB; 

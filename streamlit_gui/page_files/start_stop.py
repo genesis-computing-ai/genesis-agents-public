@@ -23,6 +23,9 @@ def start_stop():
         "You can use the buttons to stop or start each service - or copy/paste the below commands to a worksheet to stop, start, and monitor the Genesis Server:"
     )
     
+    app_name = st.session_state.get('app_name', '')
+    prefix = st.session_state.get('prefix', '')
+
     start_stop_text = f"""USE DATABASE IDENTIFIER('{app_name}');
 
     // pause service

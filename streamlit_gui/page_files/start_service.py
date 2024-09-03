@@ -18,6 +18,11 @@ def start_service():
     if st.button("Start Genesis Server"):
         try:
             # Check for previous installations
+            # Get core_prefix from session state
+            core_prefix = st.session_state.get('core_prefix')
+            if not core_prefix:
+                st.error("Core prefix not found in session state. Please ensure you've completed the previous setup steps.")
+                return
             st.write("Checking for previous installations...")
             try:
                 drop_result = session.sql(
@@ -78,6 +83,10 @@ def start_service():
     st.subheader("Genesis Service Status")
     if st.button("Check Genesis Service Status"):
         try:
+            # Get app name and prefix from session state
+            app_name = st.session_state.get('app_name', '')
+            prefix = st.session_state.get('prefix', '')
+
             status_query = f"select v.value:status::varchar status from (select parse_json(system$get_service_status('{prefix}.GENESISAPP_SERVICE_SERVICE'))) t, lateral flatten(input => t.$1) v"
             service_status_result = session.sql(status_query).collect()
             status = service_status_result[0][0]

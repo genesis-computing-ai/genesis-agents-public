@@ -16,7 +16,7 @@ def grant_data():
     use role ACCOUNTADMIN;
 
     -- set the name of the installed application
-    set APP_DATABASE = '{app_name}';
+    set APP_DATABASE = {st.session_state.get('app_name', '')};
 
     USE SCHEMA GENESIS_LOCAL_DB.SETTINGS;
     USE WAREHOUSE XSMALL; -- or use your warehouse if not XSMALL

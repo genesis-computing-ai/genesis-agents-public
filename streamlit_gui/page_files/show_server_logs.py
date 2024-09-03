@@ -1,5 +1,4 @@
 import streamlit as st
-from utils import app_name, prefix
 import pandas as pd
 
 def show_server_logs():

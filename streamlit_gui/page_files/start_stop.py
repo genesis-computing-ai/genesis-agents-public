@@ -1,5 +1,5 @@
 import streamlit as st
-from utils import app_name, get_session
+from utils import get_session
 
 def start_stop():
     st.subheader("Start / Stop Genesis Server")

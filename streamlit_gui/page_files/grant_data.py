@@ -1,5 +1,4 @@
 import streamlit as st
-from utils import app_name
 
 def grant_data():
     st.subheader("Grant Data Access")

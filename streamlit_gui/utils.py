@@ -6,24 +6,30 @@ import datetime
 import pandas as pd
 import requests
 
-NativeMode = True
-
 def get_session():
     global NativeMode
+    st.write('getsession ',NativeMode)
     if NativeMode:
         try:
             from snowflake.snowpark.context import get_active_session
+            st.write('getsession returning')
             return get_active_session()
         except:
             NativeMode = False
+            st.write('getsession set to false')
   #  st.write('NativeMode', NativeMode)
     return None
 
 def check_status():
+    st.write('checkstatus 1')
     session = get_session()
+    st.write('checkstatus 2')
     if session:
+        st.write('checkstatus 3')
         status_query = f"select v.value:status::varchar status from (select parse_json(system$get_service_status('{prefix}.GENESISAPP_SERVICE_SERVICE'))) t, lateral flatten(input => t.$1) v"
         service_status_result = session.sql(status_query).collect()
+        st.write('checkstatus 4')
+        st.write('checkstatus 5 ',service_status_result[0][0])
         return service_status_result[0][0]
     return None
 

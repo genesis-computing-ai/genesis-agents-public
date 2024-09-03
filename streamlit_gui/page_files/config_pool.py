@@ -64,8 +64,12 @@ GRANT USAGE, OPERATE ON COMPUTE POOL GENESIS_POOL TO APPLICATION  IDENTIFIER($AP
 
     st.success("We can't automatically test this, but if you've performed it the same way you did on Step 1, you can now proceed to the next step.")
     
-    if st.button("Proceed to Configure EAI", key="proceed_button_eai"):
-        st.session_state["radio"] = "3: Configure EAI"
-        st.rerun()
+    if "proceed_button_eai_clicked" not in st.session_state:
+        if st.button("Proceed to Configure EAI", key="proceed_button_eai"):
+            st.session_state["radio"] = "3: Configure EAI"
+            st.session_state["proceed_button_eai_clicked"] = True
+            st.rerun()
+    else:
+        st.write("<<--- Use the selector on the left to select 3: Configure EAI")
 
     st.info("If you need any assistance, please check our [documentation](https://genesiscomputing.ai/docs/) or join our [Slack community](https://communityinviter.com/apps/genesisbotscommunity/genesis-bots-community).")

@@ -104,8 +104,12 @@ ALTER APPLICATION IDENTIFIER($APP_DATABASE) SET SHARE_EVENTS_WITH_PROVIDER = TRU
 
     st.success("Once you run the above, you can proceed to the next step to start the Genesis Server.")
     
-    if st.button("Proceed to Start Genesis Server", key="proceed_button_start"):
-        st.session_state["radio"] = "4: Start Genesis Server"
-        st.rerun()
+    if "proceed_button_start_clicked" not in st.session_state:
+        if st.button("Proceed to Start Genesis Server", key="proceed_button_start"):
+            st.session_state["radio"] = "4: Start Genesis Server"
+            st.session_state["proceed_button_start_clicked"] = True
+            st.rerun()
+    else:
+        st.write("<<--- Use the selector on the left to select 4: Start Genesis Server")
 
     st.info("If you need any assistance, please check our [documentation](https://genesiscomputing.ai/docs/) or join our [Slack community](https://communityinviter.com/apps/genesisbotscommunity/genesis-bots-community).")

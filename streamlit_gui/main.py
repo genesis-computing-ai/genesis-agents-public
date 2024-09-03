@@ -9,6 +9,8 @@ st.session_state.app_name = "GENESIS_BOTS"
 st.session_state.prefix = st.session_state.app_name + ".app1"
 st.session_state.core_prefix = st.session_state.app_name + ".CORE"
 
+NativeMode = True
+
 if "wh_name" not in st.session_state:
     st.session_state["wh_name"] = "XSMALL"
 
@@ -45,12 +47,13 @@ if 'data' not in st.session_state:
 
 # ... (keep the initialization code)
 
-#st.success('NativeMode1 '+str(NativeMode))
+st.success('NativeMode1 '+str(NativeMode))
 session = None
 if NativeMode:
     try:
+        st.success('NativeMode2a')
         service_status_result = check_status()
-      #  st.success('NativeMode2 '+str(service_status_result))
+        st.success('NativeMode2b '+str(service_status_result))
         if service_status_result is None:
             st.session_state["data"] = "Local Mode"
             NativeMode = False 
@@ -67,6 +70,7 @@ if NativeMode:
         # status_query = f"select v.value:status::varchar status from (select parse_json(system$get_service_status('{prefix}.GENESISAPP_SERVICE_SERVICE'))) t, lateral flatten(input => t.$1) v"
         # service_status_result = session.sql(status_query).collect()
         service_status_result = check_status()
+        st.success('NativeMode3 '+str(service_status_result))
        # st.success('NativeMode3 '+str(service_status_result))
         if service_status_result != "READY":
         #    st.success('NativeMode4 '+str(service_status_result))

@@ -100,10 +100,13 @@ GRANT USAGE ON WAREHOUSE  IDENTIFIER($APP_WAREHOUSE) TO APPLICATION  IDENTIFIER(
                 st.success(
                     f'Success: Found the following warehouses - {", ".join(warehouse_names)}, Thanks!'
                 )
-               # st.write("**<< Now, click 2. Configure Compute Pool, on left <<**")
-                if st.button("Proceed to Configure Compute Pool", key="proceed_button_pool"):
-                    st.session_state["radio"] = "2: Configure Compute Pool"
-                    st.rerun()
+                if "proceed_button_pool_clicked" not in st.session_state:
+                   if st.button("Proceed to Configure Compute Pool", key="proceed_button_pool"):
+                       st.session_state["radio"] = "2: Configure Compute Pool"
+                       st.session_state["proceed_button_pool_clicked"] = True
+                       st.rerun()
+                else:
+                   st.write("<<--- Use the selector on the left to select 2: Configure Compute Pool")
             else:
                 st.error(
                     'Error: No warehouses found.  Please open a new worksheet, copy and paste the commands above, and run them.  Then return here and press "TEST Access to Warehouse" above.'

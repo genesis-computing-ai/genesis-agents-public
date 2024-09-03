@@ -1286,10 +1286,10 @@ class SqliteConnector(DatabaseConnector):
         # TODO ADD PROCESSES TABLE
         
 
-        query = f"SELECT DISTINCT BOT_NAME FROM {self.schema}.BOT_SERVICING;"
+        query = f"SELECT DISTINCT PROCESS_ID FROM {self.schema}.PROCESSES;"
         cursor.execute(query)
         results = cursor.fetchall()
-        unique_bot_ids = [row[0] for row in results]
+        unique_process_ids = [row[0] for row in results]
 
         try:
             cursor = self.client.cursor()
@@ -1310,7 +1310,7 @@ class SqliteConnector(DatabaseConnector):
                 print(f"Table {self.schema}.PROCESSES created successfully.")
 
                 table = f"{self.schema}.PROCESSES"
-                self.load_default_data(cursor, table, unique_bot_ids)
+                self.load_default_processes(cursor, table, unique_process_ids)
             else:
                 print(f"Table {self.schema}.PROCESSES already exists.")
         except Exception as e:

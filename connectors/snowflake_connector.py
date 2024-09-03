@@ -1390,7 +1390,7 @@ class SnowflakeConnector(DatabaseConnector):
             if cursor is not None:
                 cursor.close()
 
-    def load_default_data(self, cursor, table, unique_bot_ids):
+    def load_default_processes(self, cursor, table, unique_process_ids):
         folder_path = 'default_data'
         
         files = glob.glob(os.path.join(folder_path, '*'))
@@ -1400,7 +1400,7 @@ class SnowflakeConnector(DatabaseConnector):
                 default_data = json.load(file)
 
             for id, record in default_data.items():
-                if record['BOT_ID'] not in unique_bot_ids:
+                if record['PROCESS_ID'] not in unique_process_ids:
                     continue
                 columns = 'PROCESS_ID, '
 
@@ -2237,10 +2237,10 @@ class SnowflakeConnector(DatabaseConnector):
                     f"SHOW TABLES LIKE 'PROCESSES' IN SCHEMA {self.schema};"
         )
 
-        query = f"SELECT DISTINCT BOT_NAME FROM {self.schema}.BOT_SERVICING;"
+        query = f"SELECT DISTINCT PROCESS_ID FROM {self.schema}.PROCESSES;"
         cursor.execute(query)
         results = cursor.fetchall()
-        unique_bot_ids = [row[0] for row in results]
+        unique_process_ids = [row[0] for row in results]
 
         try:
             cursor = self.client.cursor()
@@ -2261,7 +2261,7 @@ class SnowflakeConnector(DatabaseConnector):
                 print(f"Table {self.schema}.PROCESSES created successfully.")
 
                 table = f"{self.schema}.PROCESSES"
-                self.load_default_data(cursor, table, unique_bot_ids)
+                self.load_default_processes(cursor, table, unique_process_ids)
             else:
                 print(f"Table {self.schema}.PROCESSES already exists.")
         except Exception as e:

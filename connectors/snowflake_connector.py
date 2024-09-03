@@ -1400,7 +1400,7 @@ class SnowflakeConnector(DatabaseConnector):
                 default_data = json.load(file)
 
             for id, record in default_data.items():
-                if record['PROCESS_ID'] not in unique_process_ids:
+                if id in unique_process_ids:
                     continue
                 columns = 'PROCESS_ID, '
 
@@ -1422,6 +1422,9 @@ class SnowflakeConnector(DatabaseConnector):
 
                 values_str = ', '.join(values)
                 sql = f"INSERT INTO {table} ({columns}) VALUES ({values_str})"
+
+                print(f"INSERT PROCESSES SQL: {sql}")
+
                 cursor.execute(sql)
 
     def ensure_table_exists(self):
@@ -2237,11 +2240,6 @@ class SnowflakeConnector(DatabaseConnector):
                     f"SHOW TABLES LIKE 'PROCESSES' IN SCHEMA {self.schema};"
         )
 
-        query = f"SELECT DISTINCT PROCESS_ID FROM {self.schema}.PROCESSES;"
-        cursor.execute(query)
-        results = cursor.fetchall()
-        unique_process_ids = [row[0] for row in results]
-
         try:
             cursor = self.client.cursor()
             cursor.execute(processes_table_check_query)
@@ -2259,6 +2257,13 @@ class SnowflakeConnector(DatabaseConnector):
                 cursor.execute(create_process_table_ddl)
                 self.client.commit()
                 print(f"Table {self.schema}.PROCESSES created successfully.")
+
+                query = f"SELECT DISTINCT PROCESS_ID FROM {self.schema}.PROCESSES;"
+                cursor.execute(query)
+                results = cursor.fetchall()
+                unique_process_ids = [row[0] for row in results]
+
+                print(f"Unique process IDs: {unique_process_ids}")
 
                 table = f"{self.schema}.PROCESSES"
                 self.load_default_processes(cursor, table, unique_process_ids)

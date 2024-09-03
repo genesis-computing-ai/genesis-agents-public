@@ -260,7 +260,15 @@ def chat_page():
               #      st.markdown("### Start a New Chat")
                     with st.form(key='new_chat_form'):
                         selected_bot = st.selectbox("Select a bot:", available_bots)
-                        start_chat = st.form_submit_button("Start New Chat")
+                        col1, col2 = st.columns([3, 1])
+                        with col1:
+                            start_chat = st.form_submit_button("Start New Chat")
+                        with col2:
+                            refresh = st.form_submit_button("🔄")
+                        
+                        if refresh:
+                            get_bot_details.clear()
+                            st.rerun()
                         if start_chat:
                             # Create a new chat session for the selected bot
                             new_thread_id = str(uuid.uuid4())

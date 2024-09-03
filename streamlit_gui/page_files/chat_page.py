@@ -9,11 +9,126 @@ bot_avatar_images = [bot["bot_avatar_image"] for bot in bot_images]
 def chat_page():
     # Add custom CSS to reduce whitespace even further
 
+    if 'session_message_uuids' not in st.session_state:
+        st.session_state.session_message_uuids = {}
+
     def get_chat_history(thread_id):
         return st.session_state.get(f"messages_{thread_id}", [])
 
     def save_chat_history(thread_id, messages):
         st.session_state[f"messages_{thread_id}"] = messages
+
+        # Display assistant response in chat message container
+    def response_generator(in_resp=None, request_id=None, selected_bot_id=None):
+        previous_response = ""
+        while True:
+            if st.session_state.stop_streaming:
+                st.session_state.stop_streaming = False
+                break
+            if in_resp is None:
+                response = get_response_from_udf_proxy(
+                    uu=request_id, bot_id=selected_bot_id
+                )
+            else:
+                response = in_resp
+                in_resp = None
+            if response != previous_response:
+                if response != "not found":
+                    if ( 
+                        len(previous_response) > 10
+                        and '...' in previous_response[-6:]
+                        and chr(129520) in previous_response[-50:]
+                        and (
+                            len(response) > len(previous_response)
+                        )
+                    ):
+                        offset = 0
+                        new_increment = "\n\n"  + response[
+                            max(len(previous_response) - 2, 0) : len(response) - offset
+                        ]
+                    else:
+                        if len(response) >= 2 and ord(response[-1]) == 128172:
+                            offset = -2
+                        else:
+                            offset = 0
+                        new_increment = response[
+                            max(len(previous_response) - 2, 0) : len(response) - offset
+                        ]
+                    previous_response = response
+                    try:
+                        if ord(new_increment[-1]) == 128172:
+                            new_increment = new_increment[:-2]
+                    except:
+                        new_increment = ''
+                    yield new_increment
+
+            if len(response) < 3 or ord(response[-1]) != 128172:
+                break
+
+            if len(response)>=1 and ord(response[-1]) == 128172:
+                time.sleep(0.5)
+
+    def handle_pending_request(thread_id, request_id ):
+        messages = get_chat_history(thread_id)
+        
+        response = ""
+        with st.spinner("Fetching pending response..."):
+            i = 0
+            while (
+                response == ""
+                or response == "not found"
+                or (response == "!!EXCEPTION_NEEDS_RETRY!!" and i < 6)
+            ):
+                response = get_response_from_udf_proxy(
+                    uu=request_id, bot_id=selected_bot_id
+                )
+                if response == "" or response == "not found":
+                    time.sleep(0.5)
+                if response == "!!EXCEPTION_NEEDS_RETRY!!":
+                    i += 1
+                    st.write(f"waiting 2 seconds after exception for retry #{i} of 5")
+                    time.sleep(2)
+
+        if i >= 5:
+            st.error("Error reading the UDF response... reloading in 2 seconds...")
+            time.sleep(2)
+            st.rerun()
+        
+        # Initialize stop flag in session state
+        if "stop_streaming" not in st.session_state:
+            st.session_state.stop_streaming = False
+
+        if bot_avatar_image_url:
+            with st.chat_message("assistant", avatar=bot_avatar_image_url):
+                response = st.write_stream(response_generator(None,request_id=request_id, selected_bot_id=selected_bot_id))
+        else:
+            with st.chat_message("assistant"):
+                response = st.write_stream(response_generator(None,request_id=request_id, selected_bot_id=selected_bot_id))
+        st.session_state.stop_streaming = False
+
+        # # Display the response
+        # if bot_avatar_image_url:
+        #     with st.chat_message("assistant", avatar=bot_avatar_image_url):
+        #         st.markdown(response)
+        # else:
+        #     with st.chat_message("assistant"):
+        #         st.markdown(response)
+
+        # Add the response to the chat history
+        if bot_avatar_image_url:
+            messages.append({
+                "role": "assistant",
+                "content": response,
+                "avatar": bot_avatar_image_url,
+            })
+        else:
+            messages.append({"role": "assistant", "content": response})
+
+        save_chat_history(thread_id, messages)
+
+        # Clear the UUID for this session
+        del st.session_state.session_message_uuids[thread_id]
+
 
     def submit_button(prompt, chatmessage, intro_prompt=False):
         current_thread_id = st.session_state["current_thread_id"]
@@ -31,6 +146,11 @@ def chat_page():
             thread_id=current_thread_id,
             bot_id=selected_bot_id,
         )
+
+       # Store the request_id for this session
+        st.session_state.session_message_uuids[current_thread_id] = request_id
+        # Display success message with the request_id
+ 
         response = ""
         with st.spinner("Thinking..."):
             i = 0
@@ -54,70 +174,18 @@ def chat_page():
             time.sleep(2)
             st.rerun()
 
-        
-
         in_resp = response
 
         # Initialize stop flag in session state
         if "stop_streaming" not in st.session_state:
             st.session_state.stop_streaming = False
 
-        # Display assistant response in chat message container
-        def response_generator(in_resp=None):
-            previous_response = ""
-            while True:
-                if st.session_state.stop_streaming:
-                    st.session_state.stop_streaming = False
-                    break
-                if in_resp is None:
-                    response = get_response_from_udf_proxy(
-                        uu=request_id, bot_id=selected_bot_id
-                    )
-                else:
-                    response = in_resp
-                    in_resp = None
-                if response != previous_response:
-                    if response != "not found":
-                        if ( 
-                            len(previous_response) > 10
-                            and '...' in previous_response[-6:]
-                            and chr(129520) in previous_response[-50:]
-                            and (
-                                len(response) > len(previous_response)
-                            )
-                        ):
-                            offset = 0
-                            new_increment = "\n\n"  + response[
-                                max(len(previous_response) - 2, 0) : len(response) - offset
-                            ]
-                        else:
-                            if len(response) >= 2 and ord(response[-1]) == 128172:
-                                offset = -2
-                            else:
-                                offset = 0
-                            new_increment = response[
-                                max(len(previous_response) - 2, 0) : len(response) - offset
-                            ]
-                        previous_response = response
-                        try:
-                            if ord(new_increment[-1]) == 128172:
-                                new_increment = new_increment[:-2]
-                        except:
-                            new_increment = ''
-                        yield new_increment
-
-                if len(response) < 3 or ord(response[-1]) != 128172:
-                    break
-
-                if len(response)>=1 and ord(response[-1]) == 128172:
-                    time.sleep(0.5)
-
         if bot_avatar_image_url:
             with st.chat_message("assistant", avatar=bot_avatar_image_url):
-                response = st.write_stream(response_generator(in_resp))
+                response = st.write_stream(response_generator(in_resp,request_id=request_id, selected_bot_id=selected_bot_id))
         else:
             with st.chat_message("assistant"):
-                response = st.write_stream(response_generator(in_resp))
+                response = st.write_stream(response_generator(in_resp,request_id=request_id, selected_bot_id=selected_bot_id))
         st.session_state.stop_streaming = False
 
         # Initialize last_response if it doesn't exist
@@ -137,6 +205,9 @@ def chat_page():
             messages.append({"role": "assistant", "content": response})
 
         save_chat_history(current_thread_id, messages)
+
+        if current_thread_id in st.session_state.session_message_uuids:
+            del st.session_state.session_message_uuids[current_thread_id]
 
     try:
         # Initialize last_response if it doesn't exist
@@ -159,15 +230,22 @@ def chat_page():
             bot_ids = [bot["bot_id"] for bot in bot_details]
             bot_intro_prompts = [bot["bot_intro_prompt"] for bot in bot_details]
 
-            if 'current_bot' not in st.session_state:
-                st.session_state.current_bot = bot_names[1] if len(bot_names) > 1 else bot_names[0]
+            # Fetch available bots
+            available_bots = bot_names
 
+            # Set Eve as the default bot if it exists
+            default_bot = "Eve" if "Eve" in available_bots else available_bots[0] if available_bots else None
+
+            if 'current_bot' not in st.session_state:
+                st.session_state.current_bot = default_bot if default_bot else (bot_names[1] if len(bot_names) > 1 else bot_names[0])
+           # st.success(default_bot)
             # Sidebar content
             with st.sidebar:
              #   st.markdown("### Chat Options")
                 
                 if len(bot_names) > 0:
-                    selected_bot_name = st.selectbox("Chat with:", bot_names, index=bot_names.index(st.session_state.current_bot))
+                    # Use the default_bot in the selectbox
+                    selected_bot_name = st.selectbox("Chat with:", available_bots, index=available_bots.index(default_bot) if default_bot else 0)
                     
                     if st.button("New Chat", key="new_chat_button"):
                         # Create a new chat session for the selected bot
@@ -313,6 +391,12 @@ def chat_page():
                     else:
                         with st.chat_message(message["role"]):
                             st.markdown(message["content"])
+
+                # Check if there's a pending request for the current session
+               # current_thread_id = selected_thread_id
+                if selected_thread_id and selected_thread_id in st.session_state.session_message_uuids:
+                    pending_request_id = st.session_state.session_message_uuids[selected_thread_id]
+                    handle_pending_request(selected_thread_id, pending_request_id )
 
                 # React to user input
                 if prompt := st.chat_input("What is up?", key=f"chat_input_{selected_thread_id}"):

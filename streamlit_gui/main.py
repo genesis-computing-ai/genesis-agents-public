@@ -21,7 +21,7 @@ st.markdown("""
         padding-left: 0.5rem;
         padding-right: 0.5rem;
     }
-    .stTextInput > div > div > input {
+    .stTextInput > div > div > input 
         padding-top: 0.25rem;
         padding-bottom: 0.25rem;
     }

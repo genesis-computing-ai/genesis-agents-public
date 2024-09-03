@@ -1423,8 +1423,6 @@ class SnowflakeConnector(DatabaseConnector):
                 values_str = ', '.join(values)
                 sql = f"INSERT INTO {table} ({columns}) VALUES ({values_str})"
 
-                print(f"INSERT PROCESSES SQL: {sql}")
-
                 cursor.execute(sql)
 
     def ensure_table_exists(self):
@@ -2257,18 +2255,19 @@ class SnowflakeConnector(DatabaseConnector):
                 cursor.execute(create_process_table_ddl)
                 self.client.commit()
                 print(f"Table {self.schema}.PROCESSES created successfully.")
-
-                query = f"SELECT DISTINCT PROCESS_ID FROM {self.schema}.PROCESSES;"
-                cursor.execute(query)
-                results = cursor.fetchall()
-                unique_process_ids = [row[0] for row in results]
-
-                print(f"Unique process IDs: {unique_process_ids}")
-
-                table = f"{self.schema}.PROCESSES"
-                self.load_default_processes(cursor, table, unique_process_ids)
             else:
-                print(f"Table {self.schema}.PROCESSES already exists.")
+                print(f"Table {self.schema}.PROCESSES exists.")
+
+            query = f"SELECT DISTINCT PROCESS_ID FROM {self.schema}.PROCESSES;"
+            cursor.execute(query)
+            results = cursor.fetchall()
+            unique_process_ids = [row[0] for row in results]
+
+            print(f"Unique process IDs: {unique_process_ids}")
+
+            table = f"{self.schema}.PROCESSES"
+            self.load_default_processes(cursor, table, unique_process_ids)
+
         except Exception as e:
             print(
                 f"An error occurred while checking or creating the PROCESSES table: {e}"

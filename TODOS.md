@@ -3,6 +3,7 @@ GENESIS BOT TODOS
 =================
 
 today:
+deploy new streamlit
 "assistant found" on key insertion, is it naming based on bot id which arent unique anymore, is that ok... could confuse things.
 x upgrade alpha
 add process list and info to default prompts if any
@@ -20,6 +21,7 @@ x add cross region calls to sis
 x test cortex tps
 x see how it works in 70b
 x fix !model in cortex
+make system messages non-editable so we can upgrade them but suggest the user makes a copy if they want to change it
 
 new streamlit:
 use cortex 8b for the welcome message?

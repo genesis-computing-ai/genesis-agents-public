@@ -15,7 +15,7 @@ def replace_genesis_bots(input_file, output_file):
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
 # Define input and output file paths relative to the script directory
-input_file = os.path.join(script_dir, 'streamlit_sis_v1.py')
+input_file = os.path.join(script_dir, 'main.py')
 output_file = os.path.join(script_dir, 'sis_launch.py')
 
 # Usage

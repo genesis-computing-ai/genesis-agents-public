@@ -260,11 +260,11 @@ def chat_page():
               #      st.markdown("### Start a New Chat")
                     with st.form(key='new_chat_form'):
                         selected_bot = st.selectbox("Select a bot:", available_bots)
-                        col1, col2 = st.columns([3, 1])
+                        col1, col2 = st.columns([2, 1])
                         with col1:
                             start_chat = st.form_submit_button("Start New Chat")
                         with col2:
-                            refresh = st.form_submit_button("🔄")
+                            refresh = st.form_submit_button("🔄🤖s")
                         
                         if refresh:
                             get_bot_details.clear()

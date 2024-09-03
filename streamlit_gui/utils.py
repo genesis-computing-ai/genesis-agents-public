@@ -6,10 +6,6 @@ import datetime
 import pandas as pd
 import requests
 
-app_name = "GENESIS_BOTS_ALPHA"
-prefix = app_name + ".app1"
-core_prefix = app_name + ".CORE"
-
 NativeMode = True
 
 def get_session():

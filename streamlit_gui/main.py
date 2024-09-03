@@ -1,9 +1,13 @@
 import streamlit as st
-from utils import NativeMode, check_status, get_session, app_name, prefix
+from utils import NativeMode, check_status, get_session
 import time
 
 # Set Streamlit to wide mode
 st.set_page_config(layout="wide")
+
+app_name = "GENESIS_BOTS"
+prefix = app_name + ".app1"
+core_prefix = app_name + ".CORE"
 
 st.markdown("""
     <style>

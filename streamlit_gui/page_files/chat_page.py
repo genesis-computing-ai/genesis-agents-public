@@ -257,10 +257,10 @@ def chat_page():
             # Sidebar content
             with st.sidebar:
                 if len(bot_names) > 0:
-                    st.markdown("### Start a New Chat")
+              #      st.markdown("### Start a New Chat")
                     with st.form(key='new_chat_form'):
                         selected_bot = st.selectbox("Select a bot:", available_bots)
-                        start_chat = st.form_submit_button("Start Chat")
+                        start_chat = st.form_submit_button("Start New Chat")
                         if start_chat:
                             # Create a new chat session for the selected bot
                             new_thread_id = str(uuid.uuid4())
@@ -286,7 +286,7 @@ def chat_page():
                             # Trigger a rerun to update the UI
                             st.rerun()
 
-                st.markdown("### Active Chat Sessions")
+                st.markdown("#### Active Chat Sessions:")
                 
                 # Initialize active_sessions in session state if it doesn't exist
                 if 'active_sessions' not in st.session_state:
@@ -294,19 +294,59 @@ def chat_page():
 
                 # Display active sessions as clickable links
                 if st.session_state.active_sessions:
+                    st.markdown("""
+                        <style>
+                        div[data-testid="stHorizontalBlock"] {
+                            gap: 0rem;
+                        }
+                        .stButton > button {
+                            background: none;
+                            border: none;
+                            padding: 0;
+                            font: inherit;
+                            cursor: pointer;
+                            outline: inherit;
+                            color: inherit;
+                            text-align: left;
+                            margin: 0;
+                            font-weight: normal;
+                            font-size: 0.8em;
+                        }
+                        .stButton > button:hover {
+                            color: #FFB3B3;
+                        }
+                        .stButton > button:active {
+                            background: none;
+                        }
+                        .stButton {
+                            line-height: 0.5;
+                            margin-top: -30px;
+                            margin-bottom: 0px;
+                        }
+                        </style>
+                    """, unsafe_allow_html=True)
+                    
                     for session in st.session_state.active_sessions:
                         bot_name, thread_id = session.split(' (')
                         bot_name = bot_name.split('Chat with ')[1]
                         thread_id = thread_id[:-1]  # Remove the closing parenthesis
                         full_thread_id = next((key.split('_')[1] for key in st.session_state.keys() if key.startswith(f"messages_{thread_id}")), thread_id)
-                        if st.button(f"• {session}"):
-                            st.session_state.current_bot = bot_name
-                            st.session_state.selected_session = {
-                                'bot_name': bot_name,
-                                'thread_id': full_thread_id
-                            }
-                            st.session_state.load_history = True
-                            st.rerun()
+                        col1, col2 = st.columns([4, 1])
+                        with col1:
+                            if st.button(f"&nbsp;&nbsp;&nbsp;{session}", key=f"btn_{thread_id}"):
+                                st.session_state.current_bot = bot_name
+                                st.session_state.selected_session = {
+                                    'bot_name': bot_name,
+                                    'thread_id': full_thread_id
+                                }
+                                st.session_state.load_history = True
+                                st.rerun()
+                        with col2:
+                            if st.button("⨂", key=f"remove_{thread_id}"):
+                                st.session_state.active_sessions.remove(session)
+                                if f"messages_{full_thread_id}" in st.session_state:
+                                    del st.session_state[f"messages_{full_thread_id}"]
+                                st.rerun()
                 else:
                     st.info("No active chat sessions.")
 

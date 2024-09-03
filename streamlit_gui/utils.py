@@ -116,6 +116,25 @@ def set_slack_tokens(slack_app_token, slack_app_refresh_token):
         else:
             return "Error", f"Failed to set Slack Tokens: {response.text}"
 
+@st.cache_data
+def get_slack_tokens():
+    if NativeMode:
+        session = get_session()
+        sql = f"select {prefix}.get_slack_tokens() "
+        data = session.sql(sql).collect()
+        response = json.loads(data[0][0])
+        return response
+    else:
+        url = "http://127.0.0.1:8080/udf_proxy/get_slack_tokens"
+        headers = {"Content-Type": "application/json"}
+        data = json.dumps({"data": [[0]]})
+        response = requests.post(url, headers=headers, data=data)
+        if response.status_code == 200:
+            return response.json()["data"][0][1]
+        else:
+            raise Exception(f"Failed to reach bot server to get Slack tokens")
+
+@st.cache_data
 def get_bot_details():
     if NativeMode:
         session = get_session()

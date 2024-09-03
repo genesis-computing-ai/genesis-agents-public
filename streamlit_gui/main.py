@@ -137,7 +137,7 @@ if st.session_state.data:
     
     # Use a dropdown for page selection
     selection = st.sidebar.selectbox(
-        "Menu:",
+        "#### Menu:",  # Added ### to make it bigger in Markdown
         list(pages.keys()),
         index=list(pages.keys()).index(
             st.session_state.get("radio", default_selection)

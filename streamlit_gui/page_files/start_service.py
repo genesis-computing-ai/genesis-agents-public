@@ -75,8 +75,8 @@ def start_service():
                 st.write(
                     "**Now push the button below, youre ready to start chatting with your bots!**"
                 )
-                if st.button("Chat with your bots!"):
-                    st.experimental_rerun()
+                if st.button("Chat with your bots!", key='gotochat'):
+                    st.rerun()
             else:
                 st.error("Server not started.")
         except Exception as e:

@@ -93,15 +93,17 @@ GRANT USAGE ON WAREHOUSE  IDENTIFIER($APP_WAREHOUSE) TO APPLICATION  IDENTIFIER(
                     # Notify the user about the naming discrepancy and suggest setting APP_WAREHOUSE
                     first_warehouse_name = warehouse_names[0]
                     st.session_state.wh_name = first_warehouse_name
+                    st.session_state.wh_name = first_warehouse_name
+
 
                 # Display success message with list of warehouses
                 st.success(
                     f'Success: Found the following warehouses - {", ".join(warehouse_names)}, Thanks!'
                 )
                # st.write("**<< Now, click 2. Configure Compute Pool, on left <<**")
-                if st.button("Proceed to Configure Compute Pool", key="proceed_button"):
+                if st.button("Proceed to Configure Compute Pool", key="proceed_button_pool"):
                     st.session_state["radio"] = "2: Configure Compute Pool"
-                    st.experimental_rerun()
+                    st.rerun()
             else:
                 st.error(
                     'Error: No warehouses found.  Please open a new worksheet, copy and paste the commands above, and run them.  Then return here and press "TEST Access to Warehouse" above.'

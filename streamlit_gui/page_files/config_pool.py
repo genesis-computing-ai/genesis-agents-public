@@ -60,14 +60,12 @@ MIN_NODES=1 MAX_NODES=1 INSTANCE_FAMILY='CPU_X64_S' AUTO_SUSPEND_SECS=3600 INITI
 GRANT USAGE, OPERATE ON COMPUTE POOL GENESIS_POOL TO APPLICATION  IDENTIFIER($APP_DATABASE);
 """
 
-    st.markdown('<div class="code-box">', unsafe_allow_html=True)
     st.code(wh_text, language="sql")
-    st.markdown('</div>', unsafe_allow_html=True)
 
     st.success("We can't automatically test this, but if you've performed it the same way you did on Step 1, you can now proceed to the next step.")
     
-    if st.button("Proceed to Configure EAI", key="proceed_button"):
+    if st.button("Proceed to Configure EAI", key="proceed_button_eai"):
         st.session_state["radio"] = "3: Configure EAI"
-        st.experimental_rerun()
+        st.rerun()
 
     st.info("If you need any assistance, please check our [documentation](https://genesiscomputing.ai/docs/) or join our [Slack community](https://communityinviter.com/apps/genesisbotscommunity/genesis-bots-community).")

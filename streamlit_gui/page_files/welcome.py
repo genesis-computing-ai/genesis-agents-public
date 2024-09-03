@@ -23,4 +23,7 @@ def welcome():
     st.write(
         "After completing these steps, you'll be able to start talking to Genesis Bots, creating your own Bots, analyzing data with your Bots, and more!"
     )
-    st.write("**<< Now, click 1. Configure Warehouse, on left <<**")
+
+    if st.button("Proceed to Configure Warehouses", key="proceed_button_wh"):
+        st.session_state["radio"] = "1: Configure Warehouse"
+        st.rerun()

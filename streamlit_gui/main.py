@@ -9,6 +9,9 @@ st.session_state.app_name = "GENESIS_BOTS"
 st.session_state.prefix = st.session_state.app_name + ".app1"
 st.session_state.core_prefix = st.session_state.app_name + ".CORE"
 
+if "wh_name" not in st.session_state:
+    st.session_state["wh_name"] = "XSMALL"
+
 st.markdown("""
     <style>
     .block-container {

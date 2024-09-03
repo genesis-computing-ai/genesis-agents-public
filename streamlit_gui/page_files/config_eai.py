@@ -25,27 +25,21 @@ def config_eai():
     </style>
     """, unsafe_allow_html=True)
 
-    col1, col2 = st.columns([2, 1])
+    st.markdown('<p class="big-font">Why do we need EAI?</p>', unsafe_allow_html=True)
+    
+    st.markdown("""
+    <div class="info-box">
+    Genesis uses Snowflake Cortex by default as its LLM. Currently, the Llama3.1-405b model is the best performing model for bots.
+    This model is available in some but not all Snowflake Regions. You can check the availability in each region on the [Snowflake regional LLM availability page](https://docs.snowflake.com/en/user-guide/snowflake-cortex/llm-functions#availability).
+    To allow calling models from other Snowflake regions, you enable cross-region calling, as shown below. For more information, see the [Snowflake documentation on cross-region inference](https://docs.snowflake.com/en/user-guide/snowflake-cortex/cross-region-inference).
 
-    with col1:
-        st.markdown('<p class="big-font">Why do we need EAI?</p>', unsafe_allow_html=True)
-        
-        st.markdown("""
-        <div class="info-box">
-        Genesis uses Snowflake Cortex by default as its LLM. Currently, the Llama3.1-405b model is the best performing model for bots.
-        This model is available in some but not all Snowflake Regions. You can check the availability in each region on the [Snowflake regional LLM availability page](https://docs.snowflake.com/en/user-guide/snowflake-cortex/llm-functions#availability).
-        To allow calling models from other Snowflake regions, you enable cross-region calling, as shown below. For more information, see the [Snowflake documentation on cross-region inference](https://docs.snowflake.com/en/user-guide/snowflake-cortex/cross-region-inference).
-
-        Genesis Bots can optionally use OpenAI as an LLM. To access OpenAI from the Genesis Server, you'll need to create a Snowflake External Access Integration so that the Genesis Server can call OpenAI.
-        
-        Genesis can also optionally connect to Slack, with some additional configuration, to allow your bots to interact via Slack.
-        
-        The Genesis Server can also capture and output events to a Snowflake Event Table, allowing you to track what is happening inside the server. Optionally, these logs can be shared back to the Genesis Provider for enhanced support for your GenBots.
-        </div>
-        """, unsafe_allow_html=True)
-
-    with col2:
-        st.image("https://path.to.your.image/eai_diagram.png", caption="EAI Configuration", use_column_width=True)
+    Genesis Bots can optionally use OpenAI as an LLM. To access OpenAI from the Genesis Server, you'll need to create a Snowflake External Access Integration so that the Genesis Server can call OpenAI.
+    
+    Genesis can also optionally connect to Slack, with some additional configuration, to allow your bots to interact via Slack.
+    
+    The Genesis Server can also capture and output events to a Snowflake Event Table, allowing you to track what is happening inside the server. Optionally, these logs can be shared back to the Genesis Provider for enhanced support for your GenBots.
+    </div>
+    """, unsafe_allow_html=True)
 
     st.markdown('<p class="big-font">Configuration Steps</p>', unsafe_allow_html=True)
     

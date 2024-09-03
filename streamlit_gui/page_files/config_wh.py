@@ -1,5 +1,6 @@
 import streamlit as st
 from utils import get_session
+import pandas as pd
 
 def config_wh():
     
@@ -35,8 +36,8 @@ def config_wh():
     
     st.markdown("""
     <div class="info-box">
-    Genesis Bots needs rights to use a Snowflake compute engine, known as a Virtual Warehouse, to run queries on Snowflake. This step does not provide Genesis Bots with access to any of your data, just the ability to run SQL on Snowflake in general.
-    
+    Genesis Bots needs rights to use a Snowflake compute engine, known as a Virtual Warehouse, to run queries on Snowflake. 
+    This step does not provide Genesis Bots with access to any of your data, just the ability to run SQL on Snowflake in general.
     You'll need to grant Genesis access to an existing Warehouse or create a new one for its use.
     </div>
     """, unsafe_allow_html=True)
@@ -44,7 +45,7 @@ def config_wh():
     st.markdown('<p class="big-font">Configuration Steps</p>', unsafe_allow_html=True)
     
     st.markdown("""
-    Please open another Snowflake window, go to Projects, and make a new Snowflake worksheet. Run these commands to grant Genesis access to an existing Warehouse or to make a new one for its use.
+    Please open another Snowflake window/tab, go to Projects, and make a new Snowflake worksheet. Run these commands to grant Genesis access to an existing Warehouse or to make a new one for its use.
     """)
 
     wh_text = f"""-- select role to use, generally Accountadmin or Sysadmin
@@ -65,9 +66,9 @@ WAREHOUSE_SIZE=XSMALL AUTO_RESUME = TRUE AUTO_SUSPEND = 60;
 GRANT USAGE ON WAREHOUSE  IDENTIFIER($APP_WAREHOUSE) TO APPLICATION  IDENTIFIER($APP_DATABASE);
 """
 
-    st.markdown('<div class="code-box">', unsafe_allow_html=True)
+#    st.markdown('<div class="code-box">', unsafe_allow_html=True)
     st.code(wh_text, language="sql")
-    st.markdown('</div>', unsafe_allow_html=True)
+#    st.markdown('</div>', unsafe_allow_html=True)
 
     if st.button("TEST Access to Warehouse"):
         try:

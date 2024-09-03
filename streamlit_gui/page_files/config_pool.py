@@ -25,21 +25,17 @@ def config_pool():
     </style>
     """, unsafe_allow_html=True)
 
-    col1, col2 = st.columns([2, 1])
+  
+    st.markdown('<p class="big-font">Why do we need a Compute Pool?</p>', unsafe_allow_html=True)
+    
+    st.markdown("""
+    <div class="info-box">
+    Genesis Bots has a server component that runs securely inside your Snowflake account, coordinating the actions of your Genesis Bots and managing their interactions with other users and bots. To run this server, you need to create and grant Genesis Server access to a Snowflake Compute Pool.
+    
+    This uses the Snowflake small compute pool, which costs about 0.22 Snowflake Credits per hour, or about $10/day. Once you start the server, you will be able to suspend it when not in use.
+    </div>
+    """, unsafe_allow_html=True)
 
-    with col1:
-        st.markdown('<p class="big-font">Why do we need a Compute Pool?</p>', unsafe_allow_html=True)
-        
-        st.markdown("""
-        <div class="info-box">
-        Genesis Bots has a server component that runs securely inside your Snowflake account, coordinating the actions of your Genesis Bots and managing their interactions with other users and bots. To run this server, you need to create and grant Genesis Server access to a Snowflake Compute Pool.
-        
-        This uses the Snowflake small compute pool, which costs about 0.22 Snowflake Credits per hour, or about $10/day. Once you start the server, you will be able to suspend it when not in use.
-        </div>
-        """, unsafe_allow_html=True)
-
-    with col2:
-        st.image("https://path.to.your.image/compute_pool_diagram.png", caption="Compute Pool Configuration", use_column_width=True)
 
     st.markdown('<p class="big-font">Configuration Steps</p>', unsafe_allow_html=True)
     

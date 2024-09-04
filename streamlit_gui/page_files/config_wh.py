@@ -100,6 +100,7 @@ GRANT USAGE ON WAREHOUSE  IDENTIFIER($APP_WAREHOUSE) TO APPLICATION  IDENTIFIER(
                 st.success(
                     f'Success: Found the following warehouses - {", ".join(warehouse_names)}, Thanks!'
                 )
+                st.write("<<--- Use the selector on the left to select 2: Configure Compute Pool")
                 if "proceed_button_pool_clicked" not in st.session_state:
                    if st.button("Proceed to Configure Compute Pool", key="proceed_button_pool"):
                        st.session_state["radio"] = "2: Configure Compute Pool"

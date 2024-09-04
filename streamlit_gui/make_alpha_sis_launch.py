@@ -16,7 +16,7 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 
 # Define input and output file paths relative to the script directory
 input_file = os.path.join(script_dir, 'main.py')
-output_file = os.path.join(script_dir, 'sis_launch.py')
+output_file = os.path.join(script_dir, 'Genesis.py')
 
 # Usage
 replace_genesis_bots(input_file, output_file)

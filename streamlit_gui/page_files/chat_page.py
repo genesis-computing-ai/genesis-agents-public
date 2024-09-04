@@ -1,7 +1,7 @@
 import streamlit as st
 import time
 import uuid
-from utils import get_bot_details, get_slack_tokens, get_metadata, submit_to_udf_proxy, get_response_from_udf_proxy
+from utils import get_bot_details, get_slack_tokens, get_slack_tokens_cached, get_metadata, submit_to_udf_proxy, get_response_from_udf_proxy
 
 bot_images = get_metadata("bot_images")
 bot_avatar_images = [bot["bot_avatar_image"] for bot in bot_images]
@@ -264,35 +264,35 @@ def chat_page():
                         with col1:
                             start_chat = st.form_submit_button("Start New Chat")
                         with col2:
-                            refresh = st.form_submit_button("🔄🤖s")
-                        
-                        if refresh:
-                            get_bot_details.clear()
-                            st.rerun()
-                        if start_chat:
-                            # Create a new chat session for the selected bot
-                            new_thread_id = str(uuid.uuid4())
-                            new_session = f"Chat with {selected_bot} ({new_thread_id[:8]})"
+                            refresh = st.form_submit_button("🔄 Bots")
+
+                    if refresh:
+                        get_bot_details.clear()
+                        st.rerun()
+                    if start_chat:
+                        # Create a new chat session for the selected bot
+                        new_thread_id = str(uuid.uuid4())
+                        new_session = f"Chat with {selected_bot} ({new_thread_id[:8]})"
                             
-                            # Add the new session to active_sessions
-                            if 'active_sessions' not in st.session_state:
-                                st.session_state.active_sessions = []
-                            if new_session not in st.session_state.active_sessions:
-                                st.session_state.active_sessions.append(new_session)
-                                st.session_state.new_session_added = True
-                            
-                            # Update the current thread ID and bot
-                            st.session_state["current_thread_id"] = new_thread_id
-                            st.session_state["current_bot"] = selected_bot
-                            
-                            # Initialize chat history for the new thread
-                            st.session_state[f"messages_{new_thread_id}"] = []
-                            
-                            # Set the flag to trigger a rerun in main.py
+                        # Add the new session to active_sessions
+                        if 'active_sessions' not in st.session_state:
+                            st.session_state.active_sessions = []
+                        if new_session not in st.session_state.active_sessions:
+                            st.session_state.active_sessions.append(new_session)
                             st.session_state.new_session_added = True
-                            
-                            # Trigger a rerun to update the UI
-                            st.rerun()
+                        
+                        # Update the current thread ID and bot
+                        st.session_state["current_thread_id"] = new_thread_id
+                        st.session_state["current_bot"] = selected_bot
+                        
+                        # Initialize chat history for the new thread
+                        st.session_state[f"messages_{new_thread_id}"] = []
+                        
+                        # Set the flag to trigger a rerun in main.py
+                        st.session_state.new_session_added = True
+                        
+                        # Trigger a rerun to update the UI
+                        st.rerun()
 
                 st.markdown("#### Active Chat Sessions:")
                 
@@ -359,7 +359,7 @@ def chat_page():
                     st.info("No active chat sessions.")
 
             # Main content area
-            tokens = get_slack_tokens()
+            tokens = get_slack_tokens_cached()
             slack_active = tokens.get("SlackActiveFlag", False)
             if not slack_active:
                 col1, col2 = st.columns([3, 4])

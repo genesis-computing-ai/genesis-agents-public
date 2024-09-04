@@ -1,6 +1,7 @@
 import streamlit as st
-from utils import NativeMode, check_status, get_session
+from utils import check_status, get_session
 import time
+import base64
 
 # Set Streamlit to wide mode
 st.set_page_config(layout="wide")
@@ -9,10 +10,22 @@ st.session_state.app_name = "GENESIS_BOTS"
 st.session_state.prefix = st.session_state.app_name + ".app1"
 st.session_state.core_prefix = st.session_state.app_name + ".CORE"
 
-NativeMode = True
+if 'NativeMode' not in st.session_state:
+    st.session_state.NativeMode = True
 
 if "wh_name" not in st.session_state:
     st.session_state["wh_name"] = "XSMALL"
+
+def render_image(filepath: str, width = None):
+   """
+   filepath: path to the image. Must have a valid file extension.
+   """
+   mime_type = filepath.split('.')[-1:][0].lower()
+   with open(filepath, "rb") as f:
+    content_bytes = f.read()
+    content_b64encoded = base64.b64encode(content_bytes).decode()
+    image_string = f'data:image/{mime_type};base64,{content_b64encoded}'
+    st.sidebar.image(image_string, width=width)
 
 st.markdown("""
     <style>
@@ -47,16 +60,16 @@ if 'data' not in st.session_state:
 
 # ... (keep the initialization code)
 
-st.success('NativeMode1 '+str(NativeMode))
+#st.success('NativeMode1 '+str(st.session_state.NativeMode))
 session = None
-if NativeMode:
+if st.session_state.NativeMode:
     try:
-        st.success('NativeMode2a')
+    #    st.success('NativeMode2a')
         service_status_result = check_status()
-        st.success('NativeMode2b '+str(service_status_result))
+     #   st.success('NativeMode2b '+str(service_status_result))
         if service_status_result is None:
             st.session_state["data"] = "Local Mode"
-            NativeMode = False 
+            st.session_state.NativeMode = False 
         else:
             st.session_state["data"] = service_status_result
             session = get_session()
@@ -65,12 +78,12 @@ if NativeMode:
 else:
     st.session_state["data"] = "Local Mode"
 
-if NativeMode:
+if st.session_state.NativeMode:
     try:
         # status_query = f"select v.value:status::varchar status from (select parse_json(system$get_service_status('{prefix}.GENESISAPP_SERVICE_SERVICE'))) t, lateral flatten(input => t.$1) v"
         # service_status_result = session.sql(status_query).collect()
         service_status_result = check_status()
-        st.success('NativeMode3 '+str(service_status_result))
+    #    st.success('NativeMode3 '+str(service_status_result))
        # st.success('NativeMode3 '+str(service_status_result))
         if service_status_result != "READY":
         #    st.success('NativeMode4 '+str(service_status_result))
@@ -142,7 +155,14 @@ if st.session_state.data:
 
 #    st.sidebar.subheader("**Genesis App**")
 
-    st.sidebar.image("./streamlit_gui/Genesis-Computing-Logo-White.webp", width=200)
+
+
+    # Get NativeMode from session state
+    native_mode = st.session_state.get("NativeMode", False)
+    if native_mode:
+        render_image("Genesis-Computing-Logo-White.png", width=200)
+    else:
+        st.sidebar.image("./streamlit_gui/Genesis-Computing-Logo-White.png", width=200)
     # Set the default selection to "Chat with Bots"
     default_selection = "Chat with Bots" if "Chat with Bots" in pages else list(pages.keys())[0]
     

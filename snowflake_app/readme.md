@@ -22,6 +22,9 @@ in your Snowflake account to grant the application access to the following resou
 To allow Genesis to open two endpoints, one for Slack to authorize new Apps via OAuth, and one for inbound
 access to the Streamlit Genesis GUI
 
+`CREATE COMPUTE POOL` on **ACCOUNT**
+To allow Genesis to create a Small Snowflake Compute Pool to run the application"
+
 `IMPORTED PRIVILEGES` ON **SNOWFLAKE DB**
 (Optional) Allow GenBots access to query account_usage views
 

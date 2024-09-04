@@ -1253,7 +1253,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                #self._submit_tool_outputs(run.id, thread_id, tool_call_id=None, function_call_details=self.tool_completion_status[run.id],
                #                          func_response=None)
                # Todo add more handling here to tell the user the thread failed
-               output = StreamingEventHandler.run_id_to_output_stream.get(run.id,'') + f"\n\n!!! Error from OpenAI, run.lasterror {run.last_error} !!!"
+               output = StreamingEventHandler.run_id_to_output_stream.get(run.id,'') + f"\n\n!!! Error from OpenAI, run.lasterror {run.last_error} on run {run.id} for thread {thread_id}!!!"
                
                event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id, 
                                                                      status=run.status, 

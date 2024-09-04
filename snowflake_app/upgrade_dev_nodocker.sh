@@ -13,13 +13,13 @@
 # You may need to make a new ACCOUNTADMIN user without SSO/MFA for these
 
 # Build Docker image
-docker build --rm -t genesis_app:latest --platform linux/amd64 .
+#docker build --rm -t genesis_app:latest --platform linux/amd64 .
 
 # Tag Docker image
-docker tag genesis_app:latest dshrnxx-genesis-dev.registry.snowflakecomputing.com/genesisapp_master/code_schema/service_repo/genesis_app:latest
+#docker tag genesis_app:latest dshrnxx-genesis-dev.registry.snowflakecomputing.com/genesisapp_master/code_schema/service_repo/genesis_app:latest
 
 # Push Docker image
-docker push dshrnxx-genesis-dev.registry.snowflakecomputing.com/genesisapp_master/code_schema/service_repo/genesis_app:latest
+#docker push dshrnxx-genesis-dev.registry.snowflakecomputing.com/genesisapp_master/code_schema/service_repo/genesis_app:latest
 
 # Copy main.py to sis_launch.py
 cp ./streamlit_gui/main.py ./streamlit_gui/Genesis.py

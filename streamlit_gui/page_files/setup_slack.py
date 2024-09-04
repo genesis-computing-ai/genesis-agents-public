@@ -1,8 +1,9 @@
 import streamlit as st
-from utils import get_slack_tokens, set_slack_tokens
+from utils import get_slack_tokens, set_slack_tokens, get_slack_tokens_cached
 
 def setup_slack():
     tokens = get_slack_tokens()
+    get_slack_tokens_cached.clear()
 
     tok = tokens.get("Token", None)
     ref = tokens.get("RefreshToken", None)
@@ -43,6 +44,8 @@ def setup_slack():
         if t == "Error":
             st.error(f"Failed to update Slack tokens: {resp}")
         else:
+            # Clear the cache of get_slack_tokens_cached
+            get_slack_tokens_cached.clear()
             st.success(
                 "Slack tokens updated and refreshed successfully. Your new refreshed tokens are:"
             )

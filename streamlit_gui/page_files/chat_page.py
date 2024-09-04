@@ -260,6 +260,7 @@ def chat_page():
               #      st.markdown("### Start a New Chat")
                     with st.form(key='new_chat_form'):
                         selected_bot = st.selectbox("Select a bot:", available_bots)
+                        st.write('   ')
                         col1, col2 = st.columns([2, 1])
                         with col1:
                             start_chat = st.form_submit_button("Start New Chat")
@@ -358,23 +359,24 @@ def chat_page():
                 else:
                     st.info("No active chat sessions.")
 
-            # Main content area
-            tokens = get_slack_tokens_cached()
-            slack_active = tokens.get("SlackActiveFlag", False)
-            if not slack_active:
-                col1, col2 = st.columns([3, 4])
-                with col1:
-                    st.markdown("##### Genesis is best used on Slack!")
-                with col2:
+                tokens = get_slack_tokens_cached()
+                slack_active = tokens.get("SlackActiveFlag", False)
+                if not slack_active:
+                    st.markdown("#### Genesis is best used on Slack!")
+                    st.markdown("  ")
+     
                     if "radio" in st.session_state:
                         if st.session_state["radio"] != "Setup Slack Connection":
-                            if st.button("Activate Slack Keys Here"):
+                            if st.button("&nbsp;&nbsp;&nbsp;Activate Slack keys here"):
                                 st.session_state["radio"] = "Setup Slack Connection"
                                 st.rerun()
                     else:
-                        if st.button("Activate Slack Keys Here"):
+                        if st.button("&nbsp;&nbsp;&nbsp;Activate Slack keys here"):
                             st.session_state["radio"] = "Setup Slack Connection"
                             st.rerun()
+
+
+            # Main content area       
 
             if len(bot_names) > 0:
                 # Check if a session is selected from the sidebar

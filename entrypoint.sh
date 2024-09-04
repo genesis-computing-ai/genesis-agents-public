@@ -39,7 +39,7 @@ elif [ "$GENESIS_MODE" = "TASK_SERVER" ]; then
 else
     echo "Running Genesis Bot Server"
 
-    streamlit run streamlit_gui/main.py --server.port=8501 --server.address=0.0.0.0 &
+    streamlit run streamlit_gui/Genesis.py --server.port=8501 --server.address=0.0.0.0 &
 
 
     export PYTHONPATH=$PYTHONPATH:~/bot_os

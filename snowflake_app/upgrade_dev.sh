@@ -12,6 +12,9 @@
 # These connections are required for the commands below to work properly.
 # You may need to make a new ACCOUNTADMIN user without SSO/MFA for these
 
+# Copy main.py to sis_launch.py
+cp ./streamlit_gui/main.py ./streamlit_gui/Genesis.py
+
 # Build Docker image
 docker build --rm -t genesis_app:latest --platform linux/amd64 .
 
@@ -20,10 +23,6 @@ docker tag genesis_app:latest dshrnxx-genesis-dev.registry.snowflakecomputing.co
 
 # Push Docker image
 docker push dshrnxx-genesis-dev.registry.snowflakecomputing.com/genesisapp_master/code_schema/service_repo/genesis_app:latest
-
-# Copy main.py to sis_launch.py
-cp ./streamlit_gui/main.py ./streamlit_gui/Genesis.py
-
 # Upload streamlit files
 snow sql -c GENESIS-DEV-PROVIDER -q "PUT file:///Users/justin/Documents/Code/genesis/streamlit_gui/*.* @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
 

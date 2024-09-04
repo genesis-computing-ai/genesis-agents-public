@@ -27,7 +27,7 @@ def render_image(filepath: str, width = None):
     image_string = f'data:image/{mime_type};base64,{content_b64encoded}'
     st.sidebar.image(image_string, width=width)
 
-st.markdown("""
+a = """
     <style>
     .block-container {
         padding-top: 2rem;
@@ -39,7 +39,7 @@ st.markdown("""
         padding-top: 0rem;
     }
     .stSidebar .block-container {
-        padding-top: -1rem;
+        padding-top: 2rem;
         padding-left: 0.5rem;
         padding-right: 0.5rem;
     }
@@ -52,7 +52,8 @@ st.markdown("""
         padding-bottom: 0.0rem;
     }
     </style>
-""", unsafe_allow_html=True)
+"""
+#st.markdown(a, unsafe_allow_html=True)
 
 # Initialize data in session state if it doesn't exist
 if 'data' not in st.session_state:
@@ -160,9 +161,9 @@ if st.session_state.data:
     # Get NativeMode from session state
     native_mode = st.session_state.get("NativeMode", False)
     if native_mode:
-        render_image("Genesis-Computing-Logo-White.png", width=200)
+        render_image("Genesis-Computing-Logo-White.png", width=250)
     else:
-        st.sidebar.image("./streamlit_gui/Genesis-Computing-Logo-White.png", width=200)
+        st.sidebar.image("./streamlit_gui/Genesis-Computing-Logo-White.png", width=250)
     # Set the default selection to "Chat with Bots"
     default_selection = "Chat with Bots" if "Chat with Bots" in pages else list(pages.keys())[0]
     

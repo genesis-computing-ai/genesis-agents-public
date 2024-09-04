@@ -1,17 +1,20 @@
 {
-    "eliza-process-1": {
+    "eliza-process-1_sys": {
       "BOT_ID": "Eliza",
       "PROCESS_INSTRUCTIONS": "LOREM IPSUM",
-      "PROCESS_NAME": "DUMMY_PROCESS_NAME1"
+      "PROCESS_NAME": "DUMMY_PROCESS_NAME1",
+      "TIMESTAMP": "2000-01-01T21:00:00.000Z"
     },
-    "eliza-process-2": {
+    "eliza-process-2_sys": {
       "BOT_ID": "Eliza",
       "PROCESS_INSTRUCTIONS": "LOREM IPSUM",
-      "PROCESS_NAME": "DUMMY_PROCESS_NAME2"
+      "PROCESS_NAME": "DUMMY_PROCESS_NAME2",
+      "TIMESTAMP": "2000-01-01T21:00:00.000Z"
     },
-    "eliza-process-3": {
+    "eliza-process-3_sys": {
       "BOT_ID": "Eliza",
       "PROCESS_INSTRUCTIONS": "LOREM IPSUM",
-      "PROCESS_NAME": "DUMMY_PROCESS_NAME3"
+      "PROCESS_NAME": "DUMMY_PROCESS_NAME3",
+      "TIMESTAMP": "2000-01-01T21:00:00.000Z"
     }
   }

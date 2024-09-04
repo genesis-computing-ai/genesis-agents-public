@@ -16,7 +16,5 @@ privileges:
       description: "Allow access to application endpoints"
   - CREATE COMPUTE POOL:
       description: "Allows Genesis to create a Small Snowflake Compute Pool to run the application"
-  - CREATE WAREHOUSE:
-      description: "Allows Genesis to create a XS Snowflake Warehouse to run the application (or you can use an existing warehouse)"
   - IMPORTED PRIVILEGES ON SNOWFLAKE DB:
       description: "(Optional) Allow GenBots access to query account_usage views"

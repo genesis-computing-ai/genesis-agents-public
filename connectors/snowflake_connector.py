@@ -15,6 +15,8 @@ import random, string
 import requests
 from openai import OpenAI
 import glob
+import pandas as pd
+import pytz
 
 from .database_connector import DatabaseConnector
 from core.bot_os_defaults import (
@@ -72,6 +74,8 @@ class SnowflakeConnector(DatabaseConnector):
         self.warehouse = get_env_or_default(warehouse, "SNOWFLAKE_WAREHOUSE_OVERRIDE")
         self.role = get_env_or_default(role, "SNOWFLAKE_ROLE_OVERRIDE")        
         self.source_name = "Snowflake"
+
+        self.default_data = pd.DataFrame()
 
         # print('Calling _create_connection...')
         self.token_connection = False
@@ -1390,40 +1394,73 @@ class SnowflakeConnector(DatabaseConnector):
             if cursor is not None:
                 cursor.close()
 
-    def load_default_processes(self, cursor, table, unique_process_ids):
+    def load_default_processes(self, cursor, table):
         folder_path = 'default_data'
         
         files = glob.glob(os.path.join(folder_path, '*'))
 
         for filename in files:
             with open(filename, 'r') as file:
-                default_data = json.load(file)
+                json_data = json.load(file)
+            
+            data = pd.DataFrame.from_dict(json_data, orient='index')
+            data.reset_index(inplace=True)
+            data.rename(columns={'index': 'PROCESS_ID'}, inplace=True)
 
-            for id, record in default_data.items():
-                if id in unique_process_ids:
-                    continue
-                columns = 'PROCESS_ID, '
+            self.default_data = pd.concat([self.default_data, data], ignore_index=True)
 
-                values = ["'" + id + "'"]
-                for key, value in record.items():
-                    columns += key + ', '
-                    if value is None:
-                        values.append('NULL')
-                    elif isinstance(value, str):
-                        value = value.replace("'", "''")
-                        values.append(f"'{value}'")
+        # self.default_data['TIMESTAMP'] = pd.to_datetime(self.default_data['TIMESTAMP'], utc=True)
+        # self.default_data['TIMESTAMP'] = pd.to_datetime(self.default_data['TIMESTAMP'], format='%Y-%m-%d %H:%M:%S', utc=False)
+        self.default_data['TIMESTAMP'] = pd.to_datetime(self.default_data['TIMESTAMP'], format='ISO8601', utc=True)
+
+        self.default_data = self.default_data.loc[self.default_data.groupby('PROCESS_ID')['TIMESTAMP'].idxmax()]
+
+        for _, row in self.default_data.iterrows():
+            process_id_trimmed = row['PROCESS_ID'][:-4]
+            timestamp_str = row['TIMESTAMP'].strftime('%Y-%m-%d %H:%M:%S')
+
+            query = f"SELECT * FROM {self.schema}.PROCESSES WHERE PROCESS_ID = %s"
+            cursor.execute(query, (process_id_trimmed,))
+            result = cursor.fetchone()
+            process_columns = [desc[0] for desc in cursor.description]
+
+            if result is not None:
+                db_timestamp = result[0]
+
+                if db_timestamp.tzinfo is None:
+                    db_timestamp = db_timestamp.replace(tzinfo=pytz.UTC)
+
+                if result[1] == process_id_trimmed:
+                    if db_timestamp < row['TIMESTAMP']:
+                        # Remove old process
+                        query = f"DELETE FROM {self.schema}.PROCESSES WHERE PROCESS_ID = %s"
+                        cursor.execute(query, (process_id_trimmed,))
+
+                        placeholders = ', '.join(['%s'] * len(process_columns))
+
+                        insert_values = []
+                        for key in process_columns:
+                            if key == 'PROCESS_ID':
+                                insert_values.append(process_id_trimmed)
+                            elif key == 'TIMESTAMP':
+                                insert_values.append(timestamp_str)
+                            else:
+                                insert_values.append(row.get(key,''))
+                        insert_query = f"INSERT INTO {self.schema}.PROCESSES ({', '.join(process_columns)}) VALUES ({placeholders}, %s)"
+                        cursor.execute(insert_query, insert_values)
+            else:
+                placeholders = ', '.join(['%s'] * len(process_columns))
+                insert_values = []
+                for key in process_columns:
+                    if key == 'PROCESS_ID':
+                        insert_values.append(process_id_trimmed)
+                    elif key == 'TIMESTAMP':
+                        insert_values.append(timestamp_str)
                     else:
-                        values.append(str(value))
-                
-                columns += ' TIMESTAMP'
-
-                current_timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                values.append(f"'{current_timestamp}'")
-
-                values_str = ', '.join(values)
-                sql = f"INSERT INTO {table} ({columns}) VALUES ({values_str})"
-
-                cursor.execute(sql)
+                        insert_values.append(row.get(key, ''))
+                insert_query = f"INSERT INTO {self.schema}.PROCESSES ({', '.join(process_columns)}) VALUES ({placeholders})"
+                cursor.execute(insert_query, insert_values)     
+        cursor.close()
 
     def ensure_table_exists(self):
         import core.bot_os_tool_descriptions
@@ -2258,15 +2295,8 @@ class SnowflakeConnector(DatabaseConnector):
             else:
                 print(f"Table {self.schema}.PROCESSES exists.")
 
-            query = f"SELECT DISTINCT PROCESS_ID FROM {self.schema}.PROCESSES;"
-            cursor.execute(query)
-            results = cursor.fetchall()
-            unique_process_ids = [row[0] for row in results]
-
-            print(f"Unique process IDs: {unique_process_ids}")
-
             table = f"{self.schema}.PROCESSES"
-            self.load_default_processes(cursor, table, unique_process_ids)
+            self.load_default_processes(cursor, table)
 
         except Exception as e:
             print(

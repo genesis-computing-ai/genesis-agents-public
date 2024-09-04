@@ -924,7 +924,7 @@ In your response back to run_process, provide a detailed description of what you
                 if cursor.fetchone():
                     return {
                         "Success": False,
-                        "Error": f"Process with name {process_details['process_name']} already exists for bot {bot_id}."
+                        "Error": f"Process with name {process_details['process_name']} already exists for bot {bot_id}.  Please choose a different name."
                     }
             
             if action == "CREATE" or action == "UPDATE":

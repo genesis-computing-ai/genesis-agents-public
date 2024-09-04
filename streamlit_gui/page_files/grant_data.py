@@ -17,7 +17,7 @@ def grant_data():
     ura_rot13 = "hfr ebyr NPPBHAGNQZVA;"
     ura = codecs.decode(ura_rot13, 'rot_13')
 
-    proc_header_rot13 = """\nPERNGR BE ERCYNPR CEBPRQHER TRARFVF_YBPNY_QO.FRGGVATF.tenag_fpurzn_hfntr_naq_fryrpg_gb_ncc(qngnonfr_anzr FGEVAT, NCC_ANZR FGEVAT)    ERGHEAF FGEVAT YNATHNTR WNINFPEVCG RKRPHGR NF PNYYRE    NF """
+    proc_header_rot13 = """\nPERNGR BE ERCYNPR CEBPRQHER TRARFVF_YBPNY_QO.FRGGVATF.tenag_fpurzn_hfntr_naq_fryrpg_gb_ncc(qngnonfr_anzr FGEVAT, NCC_ANZR FGEVAT)    ERGHEAF FGEVAT YNATHNTR WNINFPEVCG  NF """
     proc_header = codecs.decode(proc_header_rot13, 'rot_13')
 
     wh_text = (

@@ -6,7 +6,7 @@ Genesis Bots are AI-powered workers that can perform jobs for your company.
 ## Permissions
 In the setup guide, you'll be asked to grant additional privileges from your account.
 
-Once you install Genesis, you will be directed to a Streamlit app, which will walk you through running commands
+Once you install enesis, you will be directed to a Streamlit app, which will walk you through running commands
 in your Snowflake account to grant the application access to the following resources:
 
 1. A Snowflake Virtual Warehouse to power Snowflake queries run by Genesis

@@ -3,11 +3,10 @@ GENESIS BOT TODOS
 =================
 
 today:
- default_streamlit: core.Genesis
-
-try direct streamlit app via web not sis
-try calling http endpoints from sis
-deploy new streamlit
+check baseball data in the morning
+link to direct streamlit app via web not sis at bottom 
+x try calling http endpoints from sis
+x deploy new streamlit
 "assistant found" on key insertion, is it naming based on bot id which arent unique anymore, is that ok... could confuse things.
 x upgrade alpha
 add process list and info to default prompts if any

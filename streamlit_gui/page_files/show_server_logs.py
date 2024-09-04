@@ -1,14 +1,17 @@
 import streamlit as st
 import pandas as pd
+from utils import get_session
 
 def show_server_logs():
+
+    st.header("Server Status and Logs")
     
-    st.title("Server Logs")
-    
+    st.session_state.session = get_session()
+
     st.markdown("""
     <style>
     .big-font {
-        font-size:20px !important;
+        font-size:16px !important;
         font-weight: bold;
     }
     .info-box {
@@ -30,12 +33,7 @@ def show_server_logs():
 
     st.markdown('<p class="big-font">View Genesis Server Logs</p>', unsafe_allow_html=True)
     
-    st.markdown("""
-    <div class="info-box">
-    Here you can view the logs for different components of the Genesis Server. 
-    Select the log type you want to view from the dropdown menu below.
-    </div>
-    """, unsafe_allow_html=True)
+    st.write('You can view the logs for the components of the Genesis Server.\nSelect the log type you want to view from the dropdown menu below.')
 
     # Dropdown for log type selection
     log_type = st.selectbox(
@@ -77,9 +75,7 @@ def show_server_logs():
         st.json(status_result[0][0])
 
         st.markdown(f"<p class='big-font'>Logs for {log_type}</p>", unsafe_allow_html=True)
-        st.markdown('<div class="log-box">', unsafe_allow_html=True)
         st.text(logs_result[0][0])
-        st.markdown('</div>', unsafe_allow_html=True)
 
     except Exception as e:
         st.error(f"Error retrieving logs: {str(e)}")

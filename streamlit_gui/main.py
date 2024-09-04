@@ -174,14 +174,18 @@ if st.session_state.data:
         index=list(pages.keys()).index(
             st.session_state.get("radio", default_selection)
         ),
+        key="page_selection"
     )
     
-    # Update the session state with the current selection
-    st.session_state["radio"] = selection
-
+    # Check if the selection has changed
+    if "previous_selection" not in st.session_state or st.session_state.previous_selection != selection:
+        st.session_state.previous_selection = selection
+        st.session_state["radio"] = selection
+        st.rerun()
 
     if selection in pages:
         pages[selection]()
+    
 
 else:
     pages = {

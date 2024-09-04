@@ -184,7 +184,9 @@ def make_session(
 
     simple_mode = os.getenv("SIMPLE_MODE", "false").lower() == "true"
 
-    instructions = bot_config["bot_instructions"] + "\n" + BASE_BOT_INSTRUCTIONS_ADDENDUM
+    instructions = "Begin this session by using your tool manage_processes to list all of the processes available.\n"
+
+    instructions += bot_config["bot_instructions"] + "\n" + BASE_BOT_INSTRUCTIONS_ADDENDUM
     instructions += f'\nYour default database connecton is called "{genesis_source}".\n'
 
     instructions += f'\nNote current settings:\nYour bot_id: {bot_config["bot_id"]}.\nRunner_id: {runner_id}'

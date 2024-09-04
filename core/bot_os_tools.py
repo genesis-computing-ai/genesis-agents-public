@@ -917,7 +917,7 @@ In your response back to run_process, provide a detailed description of what you
                     "process_id": process_id,
                 }
 
-            if action == "UPDATE":
+            if action == "CREATE" or action == "UPDATE":
                 # Check for dupe name
                 sql = f"SELECT * FROM {db_adapter.schema}.PROCESSES WHERE bot_id = %s AND process_name = %s"
                 cursor.execute(sql, (bot_id, process_details['process_name']))
@@ -927,7 +927,6 @@ In your response back to run_process, provide a detailed description of what you
                         "Error": f"Process with name {process_details['process_name']} already exists for bot {bot_id}.  Please choose a different name."
                     }
             
-            if action == "CREATE" or action == "UPDATE":
                 # Send process_instructions to 2nd LLM to check it and format nicely
                 tidy_process_instructions = f"""
                 Below is a process that has been submitted by a user.  Please review it to insure it is something

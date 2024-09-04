@@ -3,7 +3,7 @@ GENESIS BOT TODOS
 =================
 
 today:
-check baseball data in the morning
+check baseball data in the morning on alpha
 link to direct streamlit app via web not sis at bottom 
 x try calling http endpoints from sis
 x deploy new streamlit
@@ -14,7 +14,7 @@ give bots process scheduler an action to show past runs and status
 kevins thread re runs
 sanders feedback in general
 x test openai key insertion on new install
-test openai key switch with metadata re: embeddings on natapp
+x test openai key switch with metadata re: embeddings on natapp
 remove eliza as a default bot 
 n make eliza talk about abseball more cleanly 
 x test rezas cortex knowledge logging
@@ -25,9 +25,10 @@ x test cortex tps
 x see how it works in 70b
 x fix !model in cortex
 make system messages non-editable so we can upgrade them but suggest the user makes a copy if they want to change it
-warehouse test button seems to say success even if not 
-broken link shows on config step pages
-turn on knowledge on Alpha, make message nicer
+x warehouse test button seems to say success even if not 
+x broken link shows on config step pages
+x turn on knowledge on Alpha
+make user knowledge message nicer "[Reviewing our past interactions...]"
 
 new streamlit:
 use cortex 8b for the welcome message?

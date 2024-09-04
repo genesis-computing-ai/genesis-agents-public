@@ -241,7 +241,7 @@ def chat_page():
                 st.session_state.current_bot = default_bot if default_bot else (bot_names[1] if len(bot_names) > 1 else bot_names[0])
                 new_thread_id = str(uuid.uuid4())
                 st.session_state.current_thread_id = new_thread_id
-                new_session = f"Chat with {st.session_state.current_bot} ({new_thread_id[:8]})"
+                new_session = f"{st.session_state.current_bot} ({new_thread_id[:8]})"
                 
                 # Initialize active_sessions if it doesn't exist
                 if 'active_sessions' not in st.session_state:

@@ -246,10 +246,12 @@ def chat_page():
                 # Initialize active_sessions if it doesn't exist
                 if 'active_sessions' not in st.session_state:
                     st.session_state.active_sessions = []
-                
+                # Initialize current_session
+                st.session_state.current_session = new_session
                 # Add the new session to active_sessions
                 if new_session not in st.session_state.active_sessions:
                     st.session_state.active_sessions.append(new_session)
+
                 
                 # Initialize chat history for the new thread
                 st.session_state[f"messages_{new_thread_id}"] = []
@@ -285,6 +287,8 @@ def chat_page():
                         # Update the current thread ID and bot
                         st.session_state["current_thread_id"] = new_thread_id
                         st.session_state["current_bot"] = selected_bot
+
+                        st.session_state.current_session = new_session
                         
                         # Initialize chat history for the new thread
                         st.session_state[f"messages_{new_thread_id}"] = []
@@ -342,12 +346,15 @@ def chat_page():
                         full_thread_id = next((key.split('_')[1] for key in st.session_state.keys() if key.startswith(f"messages_{thread_id}")), thread_id)
                         col1, col2 = st.columns([4, 1])
                         with col1:
-                            if st.button(f"&nbsp;&nbsp;&nbsp;{session}", key=f"btn_{thread_id}"):
+                        #    st.write("session ", session, ' current session ',  st.session_state.get('current_session'))
+                            session_display = f"&nbsp;&nbsp;&nbsp;⚡ {session[2:]}" if session == st.session_state.get('current_session') else f"&nbsp;&nbsp;&nbsp;{session}"
+                            if st.button(session_display, key=f"btn_{thread_id}"):
                                 st.session_state.current_bot = bot_name
                                 st.session_state.selected_session = {
                                     'bot_name': bot_name,
                                     'thread_id': full_thread_id
                                 }
+                                st.session_state.current_session = session
                                 st.session_state.load_history = True
                                 st.rerun()
                         with col2:
@@ -355,6 +362,8 @@ def chat_page():
                                 st.session_state.active_sessions.remove(session)
                                 if f"messages_{full_thread_id}" in st.session_state:
                                     del st.session_state[f"messages_{full_thread_id}"]
+                                if st.session_state.get('current_session') == session:
+                                    st.session_state.pop('current_session', None)
                                 st.rerun()
                 else:
                     st.info("No active chat sessions.")

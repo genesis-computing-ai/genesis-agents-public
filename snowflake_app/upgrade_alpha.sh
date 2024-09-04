@@ -29,6 +29,7 @@ snow sql -c GENESIS-ALPHA-PROVIDER -q "RM @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CO
 snow sql -c GENESIS-ALPHA-PROVIDER -q "PUT file:///Users/justin/Documents/Code/genesis/streamlit_gui/Genesis.py @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
 snow sql -c GENESIS-ALPHA-PROVIDER -q "PUT file:///Users/justin/Documents/Code/genesis/streamlit_gui/utils.py @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
 snow sql -c GENESIS-ALPHA-PROVIDER -q "PUT file:///Users/justin/Documents/Code/genesis/streamlit_gui/*.png @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
+snow sql -c GENESIS-ALPHA-PROVIDER -q "PUT file:///Users/justin/Documents/Code/genesis/streamlit_gui/*.yml @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
 
 # Upload streamlit files
 snow sql -c GENESIS-ALPHA-PROVIDER -q "PUT file:///Users/justin/Documents/Code/genesis/streamlit_gui/.streamlit/config.toml @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit/.streamlit AUTO_COMPRESS=FALSE OVERWRITE=TRUE"

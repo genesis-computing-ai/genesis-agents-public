@@ -1409,14 +1409,11 @@ class SnowflakeConnector(DatabaseConnector):
 
             self.default_data = pd.concat([self.default_data, data], ignore_index=True)
 
-        # self.default_data['TIMESTAMP'] = pd.to_datetime(self.default_data['TIMESTAMP'], utc=True)
-        # self.default_data['TIMESTAMP'] = pd.to_datetime(self.default_data['TIMESTAMP'], format='%Y-%m-%d %H:%M:%S', utc=False)
         self.default_data['TIMESTAMP'] = pd.to_datetime(self.default_data['TIMESTAMP'], format='ISO8601', utc=True)
-
         self.default_data = self.default_data.loc[self.default_data.groupby('PROCESS_ID')['TIMESTAMP'].idxmax()]
 
         for _, row in self.default_data.iterrows():
-            process_id_trimmed = row['PROCESS_ID'][:-4]
+            process_id_trimmed = row['PROCESS_ID']
             timestamp_str = row['TIMESTAMP'].strftime('%Y-%m-%d %H:%M:%S')
 
             query = f"SELECT * FROM {self.schema}.PROCESSES WHERE PROCESS_ID = %s"
@@ -1430,36 +1427,26 @@ class SnowflakeConnector(DatabaseConnector):
                 if db_timestamp.tzinfo is None:
                     db_timestamp = db_timestamp.replace(tzinfo=pytz.UTC)
 
+                if result[1] == process_id_trimmed and db_timestamp < row['TIMESTAMP']:
+                    # Remove old process
+                    query = f"DELETE FROM {self.schema}.PROCESSES WHERE PROCESS_ID = %s"
+                    cursor.execute(query, (process_id_trimmed,))
+
                 if result[1] == process_id_trimmed:
-                    if db_timestamp < row['TIMESTAMP']:
-                        # Remove old process
-                        query = f"DELETE FROM {self.schema}.PROCESSES WHERE PROCESS_ID = %s"
-                        cursor.execute(query, (process_id_trimmed,))
+                        continue
 
-                        placeholders = ', '.join(['%s'] * len(process_columns))
+            placeholders = ', '.join(['%s'] * len(process_columns))
 
-                        insert_values = []
-                        for key in process_columns:
-                            if key == 'PROCESS_ID':
-                                insert_values.append(process_id_trimmed)
-                            elif key == 'TIMESTAMP':
-                                insert_values.append(timestamp_str)
-                            else:
-                                insert_values.append(row.get(key,''))
-                        insert_query = f"INSERT INTO {self.schema}.PROCESSES ({', '.join(process_columns)}) VALUES ({placeholders}, %s)"
-                        cursor.execute(insert_query, insert_values)
-            else:
-                placeholders = ', '.join(['%s'] * len(process_columns))
-                insert_values = []
-                for key in process_columns:
-                    if key == 'PROCESS_ID':
-                        insert_values.append(process_id_trimmed)
-                    elif key == 'TIMESTAMP':
-                        insert_values.append(timestamp_str)
-                    else:
-                        insert_values.append(row.get(key, ''))
-                insert_query = f"INSERT INTO {self.schema}.PROCESSES ({', '.join(process_columns)}) VALUES ({placeholders})"
-                cursor.execute(insert_query, insert_values)     
+            insert_values = []
+            for key in process_columns:
+                if key == 'PROCESS_ID':
+                    insert_values.append(process_id_trimmed)
+                elif key == 'TIMESTAMP':
+                    insert_values.append(timestamp_str)
+                else:
+                    insert_values.append(row.get(key,''))
+            insert_query = f"INSERT INTO {self.schema}.PROCESSES ({', '.join(process_columns)}) VALUES ({placeholders})"
+            cursor.execute(insert_query, insert_values) 
         cursor.close()
 
     def ensure_table_exists(self):

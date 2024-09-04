@@ -26,6 +26,9 @@ docker push dshrnxx-genesis-dev.registry.snowflakecomputing.com/genesisapp_maste
 # Upload streamlit files
 snow sql -c GENESIS-DEV-PROVIDER -q "PUT file:///Users/justin/Documents/Code/genesis/streamlit_gui/*.* @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
 
+# Upload streamlit files
+snow sql -c GENESIS-DEV-PROVIDER -q "PUT file:///Users/justin/Documents/Code/genesis/streamlit_gui/.streamlit/config.toml @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit/.streamlit AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
+
 # Upload streamlit page files
 snow sql -c GENESIS-DEV-PROVIDER -q "PUT file:///Users/justin/Documents/Code/genesis/streamlit_gui/page_files/*.py @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit/page_files AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
 

@@ -716,11 +716,11 @@ def chat_page():
 
                     if "radio" in st.session_state:
                         if st.session_state["radio"] != "Setup Slack Connection":
-                            if st.button("Activate Slack Keys Here"):
+                            if st.button("⚡ Activate Slack Keys Here"):
                                 st.session_state["radio"] = "Setup Slack Connection"
                                 st.experimental_rerun()
                     else:
-                        if st.button("Activate Slack Keys Here"):
+                        if st.button("⚡ Activate Slack Keys Here"):
                             st.session_state["radio"] = "Setup Slack Connection"
                             st.experimental_rerun()
             if len(bot_names) > 0:

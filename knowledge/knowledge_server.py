@@ -239,6 +239,7 @@ class KnowledgeServer:
             try:
                 timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")                
                 self.db_connector.run_insert(self.db_connector.user_bot_table_name, timestamp=timestamp, primary_user=primary_user,bot_id=bot_id,
+                
                                               user_learning=new_knowledge["USER_LEARNING"],tool_learning=new_knowledge["TOOL_LEARNING"],
                                               data_learning=new_knowledge["DATA_LEARNING"])
             except Exception as e:

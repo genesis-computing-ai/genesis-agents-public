@@ -5593,7 +5593,7 @@ class SqliteConnector(DatabaseConnector):
         if knowledge:
             return knowledge[0]
         return []
-    
+
     def query_threads_message_log(self, cutoff):
         query = f"""
                 WITH K AS (SELECT thread_id, max(last_timestamp) as last_timestamp FROM {self.knowledge_table_name}

@@ -6238,7 +6238,7 @@ class SnowflakeConnector(DatabaseConnector):
         if knowledge:
             return knowledge[0]
         return []
-    
+
     def query_threads_message_log(self, cutoff):
         query = f"""
                 WITH K AS (SELECT thread_id, max(last_timestamp) as last_timestamp FROM {self.knowledge_table_name}
@@ -6264,11 +6264,21 @@ class SnowflakeConnector(DatabaseConnector):
         keys = ', '.join(kwargs.keys())
         
         insert_query = f"""
-            INSERT INTO {table} ({keys})
-                VALUES ({', '.join(['%s']*len(kwargs))});
+            INSERT INTO {table} ({keys}) VALUES ({', '.join(['%s']*len(kwargs))});
             """
         cursor = self.client.cursor()
         cursor.execute(insert_query, tuple(kwargs.values()))
+        # Get the results from the query
+        results = cursor.fetchall()
+        
+        # Check if there are any results
+        if results:
+            # Process the results if needed
+            # For example, you might want to return them or do something with them
+            return results
+        else:
+            # If no results, you might want to return None or an empty list
+            return None
         self.client.commit()
         cursor.close()
 

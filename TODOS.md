@@ -3,14 +3,21 @@ GENESIS BOT TODOS
 =================
 
 today:
-check baseball data in the morning on alpha
-link to direct streamlit app via web not sis at bottom 
+need handler for long cortex threads
+need a place to gather and test the email integrations, add a step for email to the welcome wizard
+get mini bot avatars into streamlit
+x make sure session switcher still works with 🤖 emoojii instead of chat with 
+(test) is streamlit sending correct user id on sis
+x make !model with work streamlit
+highlight the current chat session in the list so you know which one you're on
+x check baseball data in the morning on alpha
+n link to direct streamlit app via web not sis at bottom 
 x try calling http endpoints from sis
 x deploy new streamlit
 "assistant found" on key insertion, is it naming based on bot id which arent unique anymore, is that ok... could confuse things.
 x upgrade alpha
-add process list and info to default prompts if any
-give bots process scheduler an action to show past runs and status
+JD-add process list and info to default prompts if any
+JD-give bots process scheduler an action to show past runs and status
 kevins thread re runs
 sanders feedback in general
 x test openai key insertion on new install
@@ -29,6 +36,10 @@ x warehouse test button seems to say success even if not
 x broken link shows on config step pages
 x turn on knowledge on Alpha
 make user knowledge message nicer "[Reviewing our past interactions...]"
+
+next version:
+add a link to the email to get back into a convo with that user 
+
 
 new streamlit:
 use cortex 8b for the welcome message?

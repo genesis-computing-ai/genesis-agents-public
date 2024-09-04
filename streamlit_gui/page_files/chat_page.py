@@ -241,7 +241,7 @@ def chat_page():
                 st.session_state.current_bot = default_bot if default_bot else (bot_names[1] if len(bot_names) > 1 else bot_names[0])
                 new_thread_id = str(uuid.uuid4())
                 st.session_state.current_thread_id = new_thread_id
-                new_session = f"{st.session_state.current_bot} ({new_thread_id[:8]})"
+                new_session = f"🤖 {st.session_state.current_bot} ({new_thread_id[:8]})"
                 
                 # Initialize active_sessions if it doesn't exist
                 if 'active_sessions' not in st.session_state:
@@ -273,7 +273,7 @@ def chat_page():
                     if start_chat:
                         # Create a new chat session for the selected bot
                         new_thread_id = str(uuid.uuid4())
-                        new_session = f"Chat with {selected_bot} ({new_thread_id[:8]})"
+                        new_session = f"🤖 {selected_bot} ({new_thread_id[:8]})"
                             
                         # Add the new session to active_sessions
                         if 'active_sessions' not in st.session_state:
@@ -337,7 +337,7 @@ def chat_page():
                     
                     for session in st.session_state.active_sessions:
                         bot_name, thread_id = session.split(' (')
-                        bot_name = bot_name.split('Chat with ')[1]
+                        bot_name = bot_name.split('🤖 ')[1]
                         thread_id = thread_id[:-1]  # Remove the closing parenthesis
                         full_thread_id = next((key.split('_')[1] for key in st.session_state.keys() if key.startswith(f"messages_{thread_id}")), thread_id)
                         col1, col2 = st.columns([4, 1])
@@ -367,11 +367,11 @@ def chat_page():
      
                     if "radio" in st.session_state:
                         if st.session_state["radio"] != "Setup Slack Connection":
-                            if st.button("&nbsp;&nbsp;&nbsp;Activate Slack keys here"):
+                            if st.button("&nbsp;&nbsp;&nbsp;⚡ Activate Slack keys here"):
                                 st.session_state["radio"] = "Setup Slack Connection"
                                 st.rerun()
                     else:
-                        if st.button("&nbsp;&nbsp;&nbsp;Activate Slack keys here"):
+                        if st.button("&nbsp;&nbsp;&nbsp;⚡ Activate Slack keys here"):
                             st.session_state["radio"] = "Setup Slack Connection"
                             st.rerun()
 

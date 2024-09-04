@@ -379,16 +379,20 @@ class BotOsSession:
                     primary_user = json.dumps({'user_id': input_message.metadata.get('user_id', 'Unknown User ID'), 
                                                'user_name': input_message.metadata.get('user_name', 'Unknown User')})
                     knowledge = self.log_db_connector.extract_knowledge(primary_user, self.bot_name, bot_id=self.bot_id)
+                    print(f'bot_os {self.bot_name} knowledge injection, len knowledge="{len(knowledge)}')
                     if knowledge:
                         input_message.msg = f'''NOTE--Here are some things you know about this user from previous interactions, that may be helpful to this conversation:
-                                           {knowledge['USER_LEARNING']}\n\n''' + input_message.msg
-                        input_message.metadata["user_knowledge"] = 'True'
+                        
+User related: {knowledge['USER_LEARNING']}
+
+Tool use related: {knowledge['TOOL_LEARNING']}
+
+Data related: {knowledge['DATA_LEARNING']}
+
+Now, with that as background...\n''' + input_message.msg
+                        #input_message.metadata["user_knowledge"] = 'True'
                 
 
-           # logger.error(f"Out Thread {out_thread} ->> In Thead {input_message.thread_id}")
-           
-           # input_message.metadata["input_thread"] = input_message.thread_id
-           # input_message.metadata["input_uuid"] = input_message.input_uuid
             input_message.thread_id = out_thread
 
             if input_message is None or input_message.msg == "":

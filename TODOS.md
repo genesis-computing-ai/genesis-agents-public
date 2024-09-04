@@ -9,7 +9,7 @@ get mini bot avatars into streamlit
 x make sure session switcher still works with 🤖 emoojii instead of chat with 
 (test) is streamlit sending correct user id on sis
 x make !model with work streamlit
-highlight the current chat session in the list so you know which one you're on
+x highlight the current chat session in the list so you know which one you're on
 x check baseball data in the morning on alpha
 n link to direct streamlit app via web not sis at bottom 
 x try calling http endpoints from sis

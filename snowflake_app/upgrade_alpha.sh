@@ -22,6 +22,8 @@ docker build --rm -t genesis_app:latest --platform linux/amd64 .
 docker tag genesis_app:latest dshrnxx-genesis.registry.snowflakecomputing.com/genesisapp_master/code_schema/service_repo/genesis_app:latest
 # Push Docker image
 docker push dshrnxx-genesis.registry.snowflakecomputing.com/genesisapp_master/code_schema/service_repo/genesis_app:latest
+# Clear stage
+snow sql -c GENESIS-ALPHA-PROVIDER -q "RM @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE"
 
 # Upload streamlit files
 snow sql -c GENESIS-ALPHA-PROVIDER -q "PUT file:///Users/justin/Documents/Code/genesis/streamlit_gui/*.* @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
@@ -33,10 +35,10 @@ snow sql -c GENESIS-ALPHA-PROVIDER -q "PUT file:///Users/justin/Documents/Code/g
 snow sql -c GENESIS-ALPHA-PROVIDER -q "PUT file:///Users/justin/Documents/Code/genesis/streamlit_gui/page_files/*.py @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit/page_files AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
 
 # Upload SQL files
-snow sql -c GENESIS-ALPHA-PROVIDER -q "PUT file:///Users/justin/Documents/Code/genesis/snowflake_app/*.sql @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
+snow sql -c GENESIS-ALPHA-PROVIDER -q "PUT file:///Users/justin/Documents/Code/genesis/snowflake_app/setup_script.sql @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
 
 # Upload MD files
-snow sql -c GENESIS-ALPHA-PROVIDER -q "PUT file:///Users/justin/Documents/Code/genesis/snowflake_app/*.md @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
+snow sql -c GENESIS-ALPHA-PROVIDER -q "PUT file:///Users/justin/Documents/Code/genesis/snowflake_app/readme.md @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
 
 # Upload YML files
 snow sql -c GENESIS-ALPHA-PROVIDER -q "PUT file:///Users/justin/Documents/Code/genesis/snowflake_app/*.yml @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE AUTO_COMPRESS=FALSE OVERWRITE=TRUE"

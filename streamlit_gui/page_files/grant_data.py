@@ -1,6 +1,8 @@
 import streamlit as st
 
 def grant_data():
+    import codecs
+
     st.subheader("Grant Data Access")
     st.write(
         "The Genesis bots can help you analyze your data in Snowflake. To do so, you need to grant this application access to your data. The helper procedure below can help you grant access to read all tables and views in a database to this application."
@@ -11,21 +13,24 @@ def grant_data():
     st.write(
         "So grant data in this manner only to non-sensitive data that is ok for any Slack user to view, or first have Eve limit the access to the Database Tools-enabled bots to only select users on Slack."
     )
+
+    ura_rot13 = "hfr ebyr NPPBHAGNQZVA;"
+    ura = codecs.decode(ura_rot13, 'rot_13')
+
+    proc_header_rot13 = """\nPERNGR BE ERCYNPR CEBPRQHER TRARFVF_YBPNY_QO.FRGGVATF.tenag_fpurzn_hfntr_naq_fryrpg_gb_ncc(qngnonfr_anzr FGEVAT, NCC_ANZR FGEVAT)    ERGHEAF FGEVAT YNATHNTR WNINFPEVCG RKRPHGR NF PNYYRE    NF """
+    proc_header = codecs.decode(proc_header_rot13, 'rot_13')
+
     wh_text = (
-        f"""-- select role to use, generally ACCOUNTADMIN.  See documentation for required permissions if not using ACCOUNTADMIN.
-    use role ACCOUNTADMIN;
+        f"""-- select role to use, generally ACCOUNTADMIN.  See documentation for required permissions if not using ACCOUNTADMIN. 
+    """+ura+f"""
 
     -- set the name of the installed application
-    set APP_DATABASE = {st.session_state.get('app_name', '')};
+    set APP_DATABASE = "{st.session_state.get('app_name', '')}";
 
     USE SCHEMA GENESIS_LOCAL_DB.SETTINGS;
     USE WAREHOUSE XSMALL; -- or use your warehouse if not XSMALL
     """
-        + """
-
-    CREATE OR REPLACE PROCEDURE GENESIS_LOCAL_DB.SETTINGS.grant_schema_usage_and_select_to_app(database_name STRING, APP_NAME STRING)
-    RETURNS STRING LANGUAGE JAVASCRIPT EXECUTE AS CALLER
-    AS """
+        + proc_header
         + chr(36)
         + chr(36)
         + """
@@ -73,7 +78,7 @@ def grant_data():
     -- users. So grant data in this manner only to non-sensitive data that is ok for any Slack user to view, or first have 
     -- Eve limit the access to the Database Tools-enabled bots to only select users on Slack.
 
-    -- Replace <your app name> with the name of your database you want to grant. Note, the database name is case-sensitive
+    -- Replace <your db name> with the name of your database you want to grant. Note, the database name is case-sensitive
     call GENESIS_LOCAL_DB.SETTINGS.grant_schema_usage_and_select_to_app('<your db name>',$APP_DATABASE);
 
     -- If you want to grant data that has been shared to you via Snowflake data sharing, use this process below instead

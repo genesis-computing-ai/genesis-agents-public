@@ -7,7 +7,7 @@ need handler for long cortex threads
 need a place to gather and test the email integrations, add a step for email to the welcome wizard
 get mini bot avatars into streamlit
 x make sure session switcher still works with 🤖 emoojii instead of chat with 
-(test) is streamlit sending correct user id on sis
+x is streamlit sending correct user id on sis
 x make !model with work streamlit
 x highlight the current chat session in the list so you know which one you're on
 x check baseball data in the morning on alpha
@@ -18,8 +18,8 @@ x deploy new streamlit
 x upgrade alpha
 JD-add process list and info to default prompts if any
 JD-give bots process scheduler an action to show past runs and status
-kevins thread re runs
-sanders feedback in general
+n kevins thread re runs
+n sanders feedback in general
 x test openai key insertion on new install
 x test openai key switch with metadata re: embeddings on natapp
 remove eliza as a default bot 
@@ -31,14 +31,15 @@ x add cross region calls to sis
 x test cortex tps
 x see how it works in 70b
 x fix !model in cortex
-make system messages non-editable so we can upgrade them but suggest the user makes a copy if they want to change it
+JD-make system processes non-editable so we can upgrade them but suggest the user makes a copy if they want to change it
 x warehouse test button seems to say success even if not 
 x broken link shows on config step pages
 x turn on knowledge on Alpha
-make user knowledge message nicer "[Reviewing our past interactions...]"
+n make user knowledge message nicer "[Reviewing our past interactions...]"
 
 next version:
 add a link to the email to get back into a convo with that user 
+make knowledge based on email address so its consistent between slack and streamlit
 
 
 new streamlit:

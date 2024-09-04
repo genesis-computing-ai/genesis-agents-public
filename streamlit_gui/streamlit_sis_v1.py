@@ -1082,7 +1082,7 @@ def grant_data():
         + """
 
     CREATE OR REPLACE PROCEDURE GENESIS_LOCAL_DB.SETTINGS.grant_schema_usage_and_select_to_app(database_name STRING, APP_NAME STRING)
-    RETURNS STRING LANGUAGE JAVASCRIPT EXECUTE AS CALLER
+    RETURNS STRING LANGUAGE JAVASCRIPT EXECUTE 
     AS """
         + chr(36)
         + chr(36)

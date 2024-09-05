@@ -405,6 +405,16 @@ Now, with that as background...\n''' + input_message.msg
                         "bot os message from human - thread already running - put back on queue.."
                     )
                     try:
+                        added_back_count = input_message.metadata.get('added_back', 0)
+                        if added_back_count < 10:
+                            if 'added_back' not in input_message.metadata:
+                                input_message.metadata['added_back'] = 0
+                            input_message.metadata['added_back'] = added_back_count + 1
+                            print(f"Message added back to queue. Attempt {added_back_count + 1} of 10")
+                        else:
+                            print(f"Message has been added back 10 times. Stopping further attempts.")
+                         
+                            continue
                         print(input_message.metadata["event_ts"])
                         a.add_back_event(input_message.metadata["event_ts"])
                     except:

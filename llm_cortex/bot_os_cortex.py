@@ -67,6 +67,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         self.last_stop_time_map = {}
         self.stop_result_map = {}
         self.thread_fast_mode_map = {}
+        self.first_message_map = {}
 
     # Create a map to store thread history
         self.thread_history = {}
@@ -335,11 +336,19 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             response = requests.post(url, json=request_data, stream=True, headers=headers)
             
             if response.status_code != 200:
-                msg = f"Cortex REST API Error. Status code: {response.status_code}"
-                if response.text is not None:
+                msg = f"Cortex REST API Error. The Cortex REST API returned an error message. Status code: {response.status_code}"
+                if response.text is not None and len(response.text) < 200:
                     msg = msg + '\n' + response.text    
                 print(f"Cortex Error: {msg}")
-                return(resp + '\n' + msg)
+                self.thread_history[thread_id] = [message for message in self.thread_history[thread_id] if not (message.get("role","") == "user" and message == last_user_message)]
+                if BotOsAssistantSnowflakeCortex.stream_mode == True:
+                    if self.event_callback:
+                        self.event_callback(self.bot_id, BotOsOutputMessage(thread_id=thread_id, 
+                                                                            status='in_progress', 
+                                                                            output=msg, 
+                                                                            messages=None, 
+                                                                            input_metadata=json.loads(message_metadata)))
+                return msg
             else:
                 for line in response.iter_lines():
                     if thread_id in self.thread_stop_map:
@@ -551,6 +560,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
     def create_thread(self) -> str:
         thread_id = f"Cortex_thread_{uuid.uuid4()}"
         timestamp = datetime.datetime.now()
+        self.first_message_map[thread_id] = True
         message_type = 'System Prompt'
     
      #   insert_query = f"""
@@ -590,13 +600,24 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
     def add_message(self, input_message:BotOsInputMessage, event_callback=None):
 
         fast_mode = False
+
+        thread_id = input_message.thread_id  # Assuming input_message has a thread_id attribute
+
+        if thread_id in self.first_message_map:
+            del self.first_message_map[thread_id]
+            if input_message.metadata and 'thread_ts' in input_message.metadata:
+                fast_mode = True
+                self.thread_fast_mode_map[thread_id] = True
+                print('cortex fast mode = true (set by default for a new slack-based thread)')
+                input_message.msg  += ' [NOTE: Also in your response YOU MUST mention in passing that fast mode is active and remind me that I can send !fast off to switch to smart mode.]'
+
         if input_message.msg.endswith('<<!!FAST_MODE!!>>'):
           fast_mode = True
           input_message.msg = input_message.msg.rstrip('<<!!FAST_MODE!!>>').rstrip()
         timestamp = datetime.datetime.now()
         if self.event_callback is None and event_callback is not None:
             self.event_callback = event_callback
-        thread_id = input_message.thread_id  # Assuming input_message has a thread_id attribute
+
         message_payload = input_message.msg 
 
         if thread_id in self.thread_stop_map:

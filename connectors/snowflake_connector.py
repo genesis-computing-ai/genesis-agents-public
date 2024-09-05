@@ -268,8 +268,14 @@ class SnowflakeConnector(DatabaseConnector):
     def test_cortex_via_rest(self):
         response, status_code  = self.cortex_chat_completion("Hi there")
         if status_code != 200:
-            print(f"Failed to connect to Cortex API. Status code: {status_code}")
-            return False
+            print(f"Failed to connect to Cortex API. Status code: {status_code} RETRY 1")
+            response, status_code  = self.cortex_chat_completion("Hi there")
+            if status_code != 200:
+                print(f"Failed to connect to Cortex API. Status code: {status_code} RETRY 2")
+                response, status_code  = self.cortex_chat_completion("Hi there")
+                if status_code != 200:
+                    print(f"Failed to connect to Cortex API. Status code: {status_code} FAILED AFTER 3 TRIES")
+                    return False
 
         if len(response) > 2:
             os.environ['CORTEX_AVAILABLE'] = 'True'
@@ -301,7 +307,7 @@ class SnowflakeConnector(DatabaseConnector):
                 "stream": True,
             }
 
-            print(f"snowflake_connector test calling cortex {self.llm_engine} via REST API, content est tok len=",len(str(newarray))/4)
+            print(f"snowflake_connector calling cortex {self.llm_engine} via REST API, content est tok len=",len(str(newarray))/4)
 
             response = requests.post(url, json=request_data, stream=True, headers=headers)
 

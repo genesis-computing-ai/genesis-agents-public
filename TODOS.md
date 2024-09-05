@@ -3,6 +3,8 @@ GENESIS BOT TODOS
 =================
 
 today:
+streamlit habdle !NO RESPONSE REQUIRED better
+make no response logic less agressive 
 add retry on openai fail 
 if tool call drags keey streamlit responsibe on input box.. or add stop button 
 try mini again

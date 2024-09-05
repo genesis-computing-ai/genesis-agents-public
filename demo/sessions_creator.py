@@ -427,12 +427,18 @@ Reminder:
 - Do not add any preable of other text before or directly after the function call
 - Always add your sources when using search results to answer the user query
 - Don't generate function call syntax (e.g. as an example) unless you want to actually call it immediately 
-- Don't forget to call the tools, don't just say you can do it, actually do it when needed
-- If you're suggestion a next step to the user, just suggest it, but don't immediately perform it, wait for them to agree
+- But when you do want to call the tools, don't just say you can do it, actually do it when needed
+- If you're suggestion a next step to the user other than calling a tool, just suggest it, but don't immediately perform it, wait for them to agree, unless its a tool call
 
 # Persona Instructions
- """+incoming_instructions + "\n\n"
-                    
+ """+incoming_instructions + """
+ 
+# Important Reminders
+If you say you're going to call or use a tool, you MUST actually make the tool call immediately in the format described above.
+Only respond with !NO_RESPONSE_REQUIRED if the message is directed to someone else or in chats with multiple people if you have nothing to say.
+
+ """
+ 
    #         with open('./latest_instructions.txt', 'w') as file:
    #             file.write(instructions)
         

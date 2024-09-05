@@ -333,8 +333,8 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
 
             logger.info(f'embedding len {len(embedding)}')
 
-            if top_n > 100:
-                top_n = 100
+            if top_n > 25:
+                top_n = 25
             top_matches = self.index.get_nns_by_vector(embedding, top_n, include_distances=True)
 
             logger.info(f'top_matches len {len(top_matches)}')

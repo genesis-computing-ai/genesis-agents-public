@@ -309,6 +309,8 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       self.stop_result_map = {}
       self.run_tools_message_map = {}
       self.thread_fast_mode_map = {}
+      self.first_message_map = {}
+      self.failed_retry_run_count_map = {}
      # self.last_stop_time_map = {}
 
       genbot_internal_project_and_schema = os.getenv('GENESIS_INTERNAL_DB_SCHEMA','None')
@@ -569,9 +571,11 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
 
    def create_thread(self) -> str:
-      logger.debug("BotOsAssistantOpenAI:create_thread") 
+      #logger.debug("BotOsAssistantOpenAI:create_thread") 
       thread_id = self.client.beta.threads.create().id
       print(f"{self.bot_name} openai new_thread -> {thread_id}")
+      self.first_message_map[thread_id] = True
+
       return thread_id
 
    def _upload_files(self, files, thread_id=None):
@@ -613,6 +617,14 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
       thread_id = input_message.thread_id
 
+      if thread_id in self.first_message_map:
+         del self.first_message_map[thread_id]
+         if input_message.metadata and 'thread_ts' in input_message.metadata:
+            fast_mode = True
+            self.thread_fast_mode_map[thread_id] = True
+            print('openai fast mode = true (set by default for a new slack-based thread)')
+            input_message.msg += '  (BTW, in your initial response also mention in passing that fast mode is active, and that the user can send !fast off to switch it to smart mode)'
+         
       stop_flag = False
       fast_mode = False
       if input_message.msg.endswith('<<!!FAST_MODE!!>>') or thread_id in self.thread_fast_mode_map:
@@ -1224,10 +1236,52 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       for _ in range(1):
          thread_run = self.thread_run_map[thread_id]
          restarting_flag = False
+         failed_but_restarting_flag = False
          if thread_run["completed_at"] is None:
 
             run = self.client.beta.threads.runs.retrieve(thread_id = thread_id, run_id = thread_run["run"])
            # print(run.status)
+
+            if run.status == "failed":
+               print(f"!!!!!!!!!! FAILED JOB, run.lasterror {run.last_error} !!!!!!!")
+               # resubmit tool output if throttled
+               #tools_to_rerun = {k: v for k, v in self.tool_completion_status[run.id].items() if v is not None}
+               #self._run_tools(thread_id, run, tools_to_rerun) # type: ignore
+               #self._submit_tool_outputs(run.id, thread_id, tool_call_id=None, function_call_details=self.tool_completion_status[run.id],
+               #                          func_response=None)
+               # Todo add more handling here to tell the user the thread failed
+
+               if thread_id in self.failed_retry_run_count_map:
+                   self.failed_retry_run_count_map[thread_id] += 1
+               else:
+                   self.failed_retry_run_count_map[thread_id] = 1
+
+               if self.failed_retry_run_count_map[thread_id] <=2 :
+                  output = StreamingEventHandler.run_id_to_output_stream.get(run.id,'') + f"\n\n!! Error from OpenAI, run.lasterror {run.last_error} on run {run.id} for thread {thread_id}, attempting retry #{self.failed_retry_run_count_map[thread_id]} of 2\n 💬"
+                  restarting_flag = True
+                  failed_but_restarting_flag = True
+               else:
+                  output = StreamingEventHandler.run_id_to_output_stream.get(run.id,'') + f"\n\n!! Error from OpenAI, run.lasterror {run.last_error} on run {run.id} for thread {thread_id}, 2 retrys have failed, stopping attempts to retry."
+                  restarting_flag = False
+                  # Clear the failed retry count map for this run
+                  if thread_id in self.failed_retry_run_count_map:
+                     del self.failed_retry_run_count_map[thread_id]
+
+               event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id, 
+                                                                     status=run.status, 
+                                                                     output=output, 
+                                                                     messages=None, 
+                                                                     input_metadata=run.metadata))
+               self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id,
+                                                              message_type='Assistant Response', message_payload=output, message_metadata=None, 
+                                                              tokens_in=0, tokens_out=0)
+               if not restarting_flag:
+                  threads_completed[thread_id] = run.completed_at
+                  continue
+
+            if thread_id in self.failed_retry_run_count_map and not restarting_flag:
+               del self.failed_retry_run_count_map[thread_id]
+            
             if (run.status == "in_progress" or run.status == 'requires_action') and BotOsAssistantOpenAI.stream_mode == True and run.id in StreamingEventHandler.run_id_to_output_stream:
                 #print(StreamingEventHandler.run_id_to_output_stream[run.id])
 
@@ -1283,29 +1337,6 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                except:
                   pass
                continue
-
-
-            if run.status == "failed":
-               print(f"!!!!!!!!!! FAILED JOB, run.lasterror {run.last_error} !!!!!!!")
-               # resubmit tool output if throttled
-               #tools_to_rerun = {k: v for k, v in self.tool_completion_status[run.id].items() if v is not None}
-               #self._run_tools(thread_id, run, tools_to_rerun) # type: ignore
-               #self._submit_tool_outputs(run.id, thread_id, tool_call_id=None, function_call_details=self.tool_completion_status[run.id],
-               #                          func_response=None)
-               # Todo add more handling here to tell the user the thread failed
-               output = StreamingEventHandler.run_id_to_output_stream.get(run.id,'') + f"\n\n!!! Error from OpenAI, run.lasterror {run.last_error} on run {run.id} for thread {thread_id}!!!"
-               
-               event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id, 
-                                                                     status=run.status, 
-                                                                     output=output, 
-                                                                     messages=None, 
-                                                                     input_metadata=run.metadata))
-               self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id,
-                                                              message_type='Assistant Response', message_payload=output, message_metadata=None, 
-                                                              tokens_in=0, tokens_out=0)
-               threads_completed[thread_id] = run.completed_at
-               continue
-
 
             if run.status == "expired":
                print(f"!!!!!!!!!! EXPIRED JOB, run.lasterror {run.last_error} !!!!!!!")
@@ -1405,9 +1436,6 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                      restarting_flag = True
                   except Exception as e:
                      print(f"Failed to handle thread expiration for run {run.id} with error: {e}")
-
-
-
                
                if restarting_flag == False:
                   thread = self.client.beta.threads.retrieve(thread_id)
@@ -1682,7 +1710,10 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
         #       self.active_runs.append(thread_id)
 
          if restarting_flag == True:
-               self.client.beta.threads.runs.cancel(thread_id=thread_id, run_id=run.id)
+               try:
+                  self.client.beta.threads.runs.cancel(thread_id=thread_id, run_id=run.id)
+               except Exception as e:
+                  pass
                # Add a user message to the thread
                if run.id in self.threads_in_recovery:
                   self.threads_in_recovery.remove(run.id)
@@ -1701,14 +1732,19 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
                if thread_id not in self.unposted_run_ids:
                    self.unposted_run_ids[thread_id] = []
+               if thread_id not in self.active_runs:
+                   self.active_runs.append(thread_id)
                self.unposted_run_ids[thread_id].append(run.id)
                # check here to make sure correct thread_id is getting put on this...should be the input thread id
-               self.add_message(BotOsInputMessage(thread_id=thread_id, msg='The run has expired, please resubmit the tool call(s).', metadata=meta))
+               if failed_but_restarting_flag:
+                  self.add_message(BotOsInputMessage(thread_id=thread_id, msg='The previous run failed, please try again where you left off.', metadata=meta))
+               else:
+                  self.add_message(BotOsInputMessage(thread_id=thread_id, msg='The run has expired, please resubmit the tool call(s).', metadata=meta))
                # Remove the current thread/run from the processing queue
 
                # Add the new thread/run to the active runs queue
                # self.active_runs_queue.append((thread_id, run.id))
-               print(f"Run {run.id} cancelled before tool call, and agent notified to resubmit the tool call due to upcoming thread expiration.")
+               print(f"Run {run.id} restarted in new message")
                return 
 
 

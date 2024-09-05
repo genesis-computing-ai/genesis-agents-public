@@ -3,10 +3,13 @@ GENESIS BOT TODOS
 =================
 
 today:
+add retry on openai fail 
+if tool call drags keey streamlit responsibe on input box.. or add stop button 
 try mini again
-reza images
+RG-reza images
+x search metadata not working on dev 
 fast mode also give link to direct streamlit gui
-smarter / faster toggle in streamlit
+x smarter / faster toggle in streamlit
 switch to  "OPENAI_MODEL_NAME": "gpt-4o-2024-08-06", see how we like it
 need handler for long cortex threads
 need a place to gather and test the email integrations, add a step for email to the welcome wizard

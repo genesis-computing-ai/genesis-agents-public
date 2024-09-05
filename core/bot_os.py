@@ -294,22 +294,22 @@ class BotOsSession:
                     metadata=output_message.input_metadata,
                 )
             )
-        else:
+       #else:
             #            if not self.task_test_mode:
             # //                txt = output_message.output[:50]
             #            else:
             #                txt = output_message.output
             #            if len(txt) == 50:
             #                txt += '...'
-            try:
-                print(
-                    f"{self.bot_name} bot_os response, len={len(output_message.output)}",
-                    flush=True,
-                )
-                if len(output_message.output) == 0:
-                    pass
-            except:
-                pass
+            #try:
+                #print(
+                #    f"{self.bot_name} bot_os response, len={len(output_message.output)}",
+                 #   flush=True,
+                #)
+              #  if len(output_message.output) == 0:
+              #      pass
+           # except:
+           #     pass
         thread.handle_response(session_id, output_message)
 
     def execute(self):

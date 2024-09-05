@@ -66,6 +66,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         self.thread_stop_map = {}
         self.last_stop_time_map = {}
         self.stop_result_map = {}
+        self.thread_fast_mode_map = {}
 
     # Create a map to store thread history
         self.thread_history = {}
@@ -104,6 +105,17 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                 self.llm_engine = 'llama3.1-8b'
                 resp= f"The model is changed to: {self.llm_engine}"
                 curr_resp = resp
+
+            if ') says: !fast on' in last_user_message["content"] or last_user_message["content"] == '!fast on':
+                self.thread_fast_mode_map[thread_id] = True
+                resp = f"Fast mode activated for this thread. Model is now {os.getenv('CORTEX_FAST_MODEL_NAME', 'llama3.1-70b')}"
+                curr_resp = resp
+            elif ') says: !fast off' in last_user_message["content"] or last_user_message["content"] == '!fast off':
+                if thread_id in self.thread_fast_mode_map:
+                    del self.thread_fast_mode_map[thread_id]
+                resp = f"Fast mode activated for this thread. Model is now {self.llm_engine}"
+                curr_resp = resp
+
         if resp != '':
             self.thread_history[thread_id] = [message for message in self.thread_history[thread_id] if not (message.get("role","") == "user" and message == last_user_message)]
             if BotOsAssistantSnowflakeCortex.stream_mode == True:
@@ -252,6 +264,15 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                 self.llm_engine = 'llama3.1-8b'
                 resp= f"The model is changed to: {self.llm_engine}"
                 curr_resp = resp
+            if ') says: !fast on' in last_user_message["content"] or last_user_message["content"] == '!fast on':
+                self.thread_fast_mode_map[thread_id] = True
+                resp = f"Fast mode activated for this thread. Model is now {os.getenv('CORTEX_FAST_MODEL_NAME', 'llama3.1-70b')}"
+                curr_resp = resp
+            elif ') says: !fast off' in last_user_message["content"] or last_user_message["content"] == '!fast off':
+                if thread_id in self.thread_fast_mode_map:
+                    del self.thread_fast_mode_map[thread_id]
+                resp = f"Fast mode activated for this thread. Model is now {self.llm_engine}"
+                curr_resp = resp
         if resp != '':
             self.thread_history[thread_id] = [message for message in self.thread_history[thread_id] if not (message.get("role","") == "user" and message == last_user_message)]
             if BotOsAssistantSnowflakeCortex.stream_mode == True:
@@ -278,6 +299,9 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                 model = os.getenv("CORTEX_FAST_MODEL_NAME", "llama3.1-70b")
             else:
                 model = self.llm_engine
+
+            if not fast_mode and thread_id in self.thread_fast_mode_map:
+                model = os.getenv("CORTEX_FAST_MODEL_NAME", "llama3.1-70b")
         
             if temperature is None:
                 temperature = 0.2
@@ -396,7 +420,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             if gen_start_time is not None:
                 elapsed_time = time.time() - start_time
                 gen_time = time.time() - gen_start_time
-                print(f"\nRequest to Cortex REST API completed in {elapsed_time:.2f} seconds total, {gen_time:.2f} seconds generating, time to gen start: {gen_start_time - start_time:.2f} seconds")
+              #  print(f"\nRequest to Cortex REST API completed in {elapsed_time:.2f} seconds total, {gen_time:.2f} seconds generating, time to gen start: {gen_start_time - start_time:.2f} seconds")
 
             else:
                 try:
@@ -407,11 +431,10 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                     curr_resp = resp 
 
         try:
-            print(json.dumps(usage))
+         #   print(json.dumps(usage))
             response_tokens = usage['completion_tokens']
-            tokens_per_second = response_tokens / elapsed_time
             tokens_per_second_gen = response_tokens / gen_time
-            print(f"Tokens per second overall: {tokens_per_second:.2f}, Tokens per second generating: {tokens_per_second_gen:.2f}")
+            print(f"Cortex {model} warmup: {gen_start_time - start_time:.2f} sec, tok/sec: {tokens_per_second_gen:.2f}")
         except:
             pass
 
@@ -456,6 +479,23 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             function_name = match_function_no_params.group(1)
             newcall = f"<function={function_name}></function>"
             resp = resp.replace(match_function_no_params.group(0), newcall)
+            curr_resp = resp
+            postfix = " 💬"
+
+        # Handle case where function call is in the format <function=function_name(params)>
+        pattern_function_params = re.compile(r'<function=(.*?)\((.*?)\)></function>$')
+        match_function_params = pattern_function_params.search(resp)
+        
+        if match_function_params and resp.endswith('</function>'):
+            function_name = match_function_params.group(1)
+            params = match_function_params.group(2)
+            try:
+                params_dict = json.loads(params.replace("'", '"'))
+                newcall = f"<function={function_name}>{json.dumps(params_dict)}</function>"
+            except json.JSONDecodeError:
+                # If parsing as JSON fails, keep the original format
+                newcall = f"<function={function_name}>{{{params}}}</function>"
+            resp = resp.replace(match_function_params.group(0), newcall)
             curr_resp = resp
             postfix = " 💬"
 
@@ -677,6 +717,18 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                         function_name = match_function_call.group(1)
                         decoded_payload = re.sub(pattern_function_call, f'<function={function_name}>\\g<0></function>', decoded_payload)
                         decoded_payload = decoded_payload.replace('<function></function>', '</function>')
+
+                    # Fix tool calls with missing > and extra parentheses
+
+                    a = '<function=search_metadata({"query": "baseball teams", "top_n": 15})</function>'
+                    pattern_function_call = re.compile(r'<function=([^>]+)\((.*?)\)</function>')
+                    
+                    def fix_function_call(match):
+                        function_name = match.group(1)
+                        function_args = match.group(2)
+                        return f'<function={function_name}>{function_args}</function>'
+                    
+                    decoded_payload = pattern_function_call.sub(fix_function_call, decoded_payload)
 
                     if "<TOOL_CALL>" in decoded_payload:
                         self.process_tool_call(thread_id, timestamp, decoded_payload, message_metadata)

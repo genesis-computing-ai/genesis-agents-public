@@ -77,6 +77,11 @@ def show_server_logs():
         st.markdown(f"<p class='big-font'>Logs for {log_type}</p>", unsafe_allow_html=True)
         st.text(logs_result[0][0])
 
+    # Add a refresh button
+        if st.button("Refresh"):
+            st.rerun()
+
+
     except Exception as e:
         st.error(f"Error retrieving logs: {str(e)}")
 

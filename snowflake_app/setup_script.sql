@@ -27,7 +27,10 @@ $$
             GENESIS_SOURCE: Snowflake
             SNOWFLAKE_SECURE: FALSE
             OPENAI_HARVESTER_EMBEDDING_MODEL: text-embedding-3-large
-            OPENAI_MODEL_NAME: gpt-4o
+            OPENAI_MODEL_NAME: gpt-4o-2024-08-06
+            OPENAI_FAST_MODEL_NAME: gpt-4o-mini
+            CORTEX_MODEL=llama3.1-405b
+            CORTEX_FAST_MODEL_NAME=llama3.1-70b
             USE_KNOWLEDGE: TRUE
         readinessProbe:
           port: 8080

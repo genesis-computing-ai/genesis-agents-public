@@ -5,6 +5,7 @@ GENESIS BOT TODOS
 today:
 try mini again
 reza images
+fast mode also give link to direct streamlit gui
 smarter / faster toggle in streamlit
 switch to  "OPENAI_MODEL_NAME": "gpt-4o-2024-08-06", see how we like it
 need handler for long cortex threads

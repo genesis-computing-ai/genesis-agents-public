@@ -130,7 +130,7 @@ def chat_page():
         del st.session_state.session_message_uuids[thread_id]
 
 
-    def submit_button(prompt, chatmessage, intro_prompt=False):
+    def submit_button(prompt, chatmessage, intro_prompt=False, fast_mode_override=False):
         current_thread_id = st.session_state["current_thread_id"]
         messages = get_chat_history(current_thread_id)
 
@@ -140,6 +140,12 @@ def chat_page():
                 st.markdown(prompt)
             # Add user message to chat history
             messages.append({"role": "user", "content": prompt})
+
+        # Check if fast mode is selected in the sidebar
+
+        if intro_prompt or ('fast_mode' in st.session_state and st.session_state.fast_mode):
+            #st.success("fast mode")
+            prompt += "<<!!FAST_MODE!!>>"
 
         request_id = submit_to_udf_proxy(
             input_text=prompt,
@@ -367,6 +373,16 @@ def chat_page():
                                 st.rerun()
                 else:
                     st.info("No active chat sessions.")
+
+                # Ensure only one mode is active at a time
+                # Add toggle for fast mode
+                # Initialize fast_mode in session state if it doesn't exist
+  
+                # Create the toggle and update session state when changed
+                fast_mode = st.toggle("Fast Mode", value=True, key='fast_mode')
+
+                if fast_mode:
+                    st.info("Using a faster LLM model, but may be less accurate")
 
                 tokens = get_slack_tokens_cached()
                 slack_active = tokens.get("SlackActiveFlag", False)

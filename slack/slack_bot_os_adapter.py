@@ -576,7 +576,7 @@ class SlackBotAdapter(BotOsInputAdapter):
         # )
         bot_input_message = BotOsInputMessage(
             thread_id=thread_id,
-            msg=msg_with_user_and_id,
+            msg=msg_with_user_and_id,   # + '<<!!FAST_MODE!!>>',
             files=files,
             metadata=metadata,
         )

@@ -75,10 +75,10 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
 
 
    
-    def cortex_complete(self,thread_id, message_metadata = None, event_callback = None, temperature=None ):
+    def cortex_complete(self,thread_id, message_metadata = None, event_callback = None, temperature=None , fast_mode=False):
         
         if os.getenv("CORTEX_VIA_COMPLETE", "false").lower() == "false":
-            return self.cortex_rest_api(thread_id, message_metadata=message_metadata, event_callback=event_callback, temperature=temperature)
+            return self.cortex_rest_api(thread_id, message_metadata=message_metadata, event_callback=event_callback, temperature=temperature, fast_mode = fast_mode)
 
         newarray = [{"role": message["message_type"], "content": message["content"]} for message in self.thread_history[thread_id]]
         new_array_str = json.dumps(newarray) 
@@ -202,7 +202,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         return resp 
 
 
-    def cortex_rest_api(self,thread_id,message_metadata=None, event_callback=None, temperature=None):
+    def cortex_rest_api(self,thread_id,message_metadata=None, event_callback=None, temperature=None, fast_mode=False):
 
         newarray = [{"role": message["message_type"], "content": message["content"]} for message in self.thread_history[thread_id]]
         resp = ''
@@ -274,10 +274,15 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                 "Authorization": f'Snowflake Token="{REST_TOKEN}"',
             }
         
+            if fast_mode:
+                model = os.getenv("CORTEX_FAST_MODEL_NAME", "llama3.1-70b")
+            else:
+                model = self.llm_engine
+        
             if temperature is None:
                 temperature = 0.2
             request_data = {
-                "model": self.llm_engine,
+                "model": model,
                 "messages": newarray,
                 "stream": True,
                 "max_tokens": 4000,
@@ -289,7 +294,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                 "stop": '</function>',
             }
 
-            print(self.bot_name, f" bot_os_cortex calling cortex {self.llm_engine} via REST API, content est tok len=",len(str(newarray))/4, flush=True)
+            print(self.bot_name, f" bot_os_cortex calling cortex {model} via REST API, content est tok len=",len(str(newarray))/4, flush=True)
 
 
         #    response = requests.post(url, json=request_data, stream=False, headers=headers)
@@ -543,6 +548,11 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         return thread_id
     
     def add_message(self, input_message:BotOsInputMessage, event_callback=None):
+
+        fast_mode = False
+        if input_message.msg.endswith('<<!!FAST_MODE!!>>'):
+          fast_mode = True
+          input_message.msg = input_message.msg.rstrip('<<!!FAST_MODE!!>>').rstrip()
         timestamp = datetime.datetime.now()
         if self.event_callback is None and event_callback is not None:
             self.event_callback = event_callback
@@ -560,6 +570,14 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                 return False
         
         message_type = 'user'
+
+        # Add fast_mode to metadata if it's True
+        if fast_mode:
+            if isinstance(input_message.metadata, dict):
+                input_message.metadata['fast_mode'] = True
+            else:
+                input_message.metadata = {'fast_mode': True}
+
         message_metadata = json.dumps(input_message.metadata)  # Assuming BotOsInputMessage has a metadata attribute that needs to be converted to string
 
         message_object = {
@@ -582,7 +600,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         try:
 
             thread_name = f"Cortex_{self.bot_name}_{thread_id}"
-            threading.Thread(target=self.update_threads, name=thread_name, args=(thread_id, timestamp, message_metadata, event_callback)).start()
+            threading.Thread(target=self.update_threads, name=thread_name, args=(thread_id, timestamp, message_metadata, event_callback, None, fast_mode)).start()
 
             logger.info(f"Successfully inserted message log for bot_id: {self.bot_id}")
             #self.active_runs.append({"thread_id": thread_id, "timestamp": timestamp})
@@ -800,6 +818,15 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         if results is None:
             results = ''
 
+        # Check if fast_mode is True in message_metadata
+        fast_mode = False
+        if message_metadata:
+            try:
+                metadata_dict = json.loads(message_metadata)
+                fast_mode = metadata_dict.get('fast_mode', False)
+            except json.JSONDecodeError:
+                logger.warning("Failed to parse message_metadata as JSON")
+
         def custom_serializer(obj):
             if isinstance(obj, Decimal):
                 return float(obj)
@@ -868,7 +895,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             print('bot_os_cortex _submit_tool_outputs stop message received, not rerunning thread with outputs')
             self.stop_result_map[thread_id] = 'stopped'
         else:
-            self.update_threads(thread_id, new_ts, message_metadata=message_metadata, temperature=hightemp)
+            self.update_threads(thread_id, new_ts, message_metadata=message_metadata, temperature=hightemp, fast_mode=fast_mode)
    #     self.active_runs.append({"thread_id": thread_id, "timestamp": new_ts})
         meta = json.loads(message_metadata)
         primary_user = json.dumps({'user_id': meta.get('user_id', 'Unknown User ID'), 
@@ -896,7 +923,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             #self._submit_tool_outputs(thread_id, timestamp, error_string, message_metadata)
       return callback_closure
 
-    def update_threads(self, thread_id, timestamp, message_metadata = None, event_callback = None, temperature = None):
+    def update_threads(self, thread_id, timestamp, message_metadata = None, event_callback = None, temperature = None, fast_mode = False):
         """
         Executes the SQL query to update threads based on the provided SQL, incorporating self.cortex... tables.
         """
@@ -906,7 +933,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
 
   #      resp = self.cortex_rest_api(thread_id)
 
-        resp = self.cortex_complete(thread_id=thread_id, message_metadata=message_metadata, event_callback=event_callback, temperature=temperature)
+        resp = self.cortex_complete(thread_id=thread_id, message_metadata=message_metadata, event_callback=event_callback, temperature=temperature, fast_mode = fast_mode)
         if resp is None:
             if thread_id in self.thread_busy_list:
                 self.thread_busy_list.remove(thread_id)

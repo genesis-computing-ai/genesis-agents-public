@@ -613,8 +613,16 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       thread_id = input_message.thread_id
 
       stop_flag = False
+      fast_mode = False
+      if input_message.msg.endswith('<<!!FAST_MODE!!>>'):
+          fast_mode = True
+          print('openai fast mode = true')
+          input_message.msg = input_message.msg.rstrip('<<!!FAST_MODE!!>>').rstrip()
       if input_message.msg.endswith(') says: !model') or input_message.msg=='!model':
-         input_message.msg = input_message.msg.replace ('!model',f'SYSTEM MESSAGE: The User has requested to know what LLM model is running.  Respond by telling them that the current model is: { os.getenv("OPENAI_MODEL_NAME", default="gpt-4o")}')
+         if fast_mode:
+            input_message.msg = input_message.msg.replace ('!model',f'SYSTEM MESSAGE: The User has requested to know what LLM model is running.  Respond by telling them that the system is running in fast mode and that the current model is: { os.getenv("OPENAI_FAST_MODEL_NAME", default="gpt-4o-mini")}')
+         else:
+            input_message.msg = input_message.msg.replace ('!model',f'SYSTEM MESSAGE: The User has requested to know what LLM model is running.  Respond by telling them that the system is running in smart mode and that current model is: { os.getenv("OPENAI_MODEL_NAME", default="gpt-4o")}')
       if input_message.msg.endswith(') says: !stop') or input_message.msg=='!stop':
             stopped = False
             try:
@@ -719,18 +727,29 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       self.first_message = False 
       task_meta = input_message.metadata.pop('task_meta', None)
 
+      if fast_mode == True:
+          input_message.metadata['fast_mode'] = 'TRUE'
+
       if BotOsAssistantOpenAI.stream_mode == True:
          try:
          #   print('MINI override')
-            with self.client.beta.threads.runs.stream(
-               thread_id=thread.id,
-               assistant_id=self.assistant.id,
-               event_handler=StreamingEventHandler(self.client, thread.id, self.assistant.id, input_message.metadata, self),
-               metadata=input_message.metadata,
-           #    model='gpt-4o-mini'
-            ) as stream:
-             #  print('here')
-               stream.until_done()
+            if fast_mode:
+               with self.client.beta.threads.runs.stream(
+                  thread_id=thread.id,
+                  assistant_id=self.assistant.id,
+                  event_handler=StreamingEventHandler(self.client, thread.id, self.assistant.id, input_message.metadata, self),
+                  metadata=input_message.metadata,
+                  model=os.getenv('OPENAI_FAST_MODEL_NAME', 'gpt-4o-mini')
+               ) as stream:
+                  stream.until_done()
+            else:
+               with self.client.beta.threads.runs.stream(
+                  thread_id=thread.id,
+                  assistant_id=self.assistant.id,
+                  event_handler=StreamingEventHandler(self.client, thread.id, self.assistant.id, input_message.metadata, self),
+                  metadata=input_message.metadata,
+               ) as stream:
+                  stream.until_done()               
          except Exception as e:
             try:
                if e.status_code == 400 and 'already has an active run' in e.message:
@@ -985,10 +1004,17 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
     #            run_id_to_update = "Zowzers!"
     #        else:
     #            run_id_to_update = run_id
+
+     #       if meta and meta.get('fast_mode') == 'TRUE':
+     #          model = os.getenv('OPENAI_FAST_MODEL_NAME', 'gpt-4o-mini')
+     #       else:
+     #          model = os.getenv("OPENAI_MODEL_NAME", "gpt-4o")
+
             with self.client.beta.threads.runs.submit_tool_outputs_stream(
                    thread_id=thread_id,
                    run_id=run_id_to_update,
                    tool_outputs=tool_outputs,
+   #                model=model,
                    event_handler=StreamingEventHandler(self.client, thread_id,   StreamingEventHandler.run_id_to_bot_assist[run_id],  meta, self)
                ) as stream:
                   print('.. (not) sleeping 0.0 seconds before requeing run after submit_tool_outputs...')

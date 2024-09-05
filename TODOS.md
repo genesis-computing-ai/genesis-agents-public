@@ -49,7 +49,8 @@ next version:
 make various EAIs for openai , slack, both
 add a link to the email to get back into a convo with that user 
 make knowledge based on email address so its consistent between slack and streamlit
-
+add reference request for warehouse
+add compute pools creation request
 
 new streamlit:
 use cortex 8b for the welcome message?

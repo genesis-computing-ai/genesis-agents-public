@@ -1020,6 +1020,9 @@ class SnowflakeConnector(DatabaseConnector):
         Returns:
             dict: A dictionary with the result of the operation.
         """
+
+        print("Reached process scheduler")
+
         required_fields_create = [
             "task_name",
             "primary_report_to_type",
@@ -1035,6 +1038,17 @@ class SnowflakeConnector(DatabaseConnector):
         ]
 
         required_fields_update = ["last_task_status", "task_learnings", "task_active"]
+
+        if action == "HISTORY":
+            limit = task_details.get('history length', 5)
+            history_query = f"""
+                SELECT * FROM {self.schema}.TASKS
+                WHERE task_id = %s AND bot_id = %s 
+                LIMIT %s
+                """
+            cursor.execute(history_query, (task_id, bot_id, limit))
+            self.client.commit()
+
 
         if action == "TIME":
             return {

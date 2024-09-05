@@ -265,7 +265,7 @@ process_scheduler_functions = [
                 "properties": {
                     "action": {
                         "type": "string",
-                        "description": "The action to perform on the task: CREATE, UPDATE, or DELETE.  Or LIST to get details on all scheduled processes for a bot, or TIME to get current system time.",
+                        "description": "The action to perform on the task: CREATE, UPDATE, or DELETE.  Or LIST to get details on all scheduled processes for a bot, or TIME to get current system time or HISTORY to get the history of a scheduled process.",
                     },
                     "bot_id": {
                         "type": "string",
@@ -323,6 +323,11 @@ process_scheduler_functions = [
                                 "type": "boolean",
                                 "description": "Is schedule for the process active",
                             },
+                            "history_length": {
+                                "type": "string",
+                                "description": "The number of history entries to return for action HISTORY.",
+                                "default": 5,
+                            }
                         },
                         "required": [
                             "task_name",

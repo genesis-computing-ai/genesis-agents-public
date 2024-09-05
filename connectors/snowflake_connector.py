@@ -1854,41 +1854,41 @@ class SnowflakeConnector(DatabaseConnector):
                     f"Inserted initial Eve row into {self.bot_servicing_table_name} with runner_id: {runner_id}"
                 )
 
-                runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
-                bot_id = "Eliza"
+ #               runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
+ #               bot_id = "Eliza"
 #                bot_id += "".join(
 #                    random.choices(string.ascii_letters + string.digits, k=6)
 #                )
-                bot_name = "Eliza"
-                bot_instructions = ELIZA_DATA_ANALYST_INSTRUCTIONS
-                available_tools = '["slack_tools", "database_tools", "snowflake_stage_tools",  "image_tools", "process_manager_tools", "process_runner_tools", "process_scheduler_tools"]'
-                udf_active = "Y"
-                slack_active = "N"
-                bot_intro_prompt = ELIZA_INTRO_PROMPT
+                # bot_name = "Eliza"
+                # bot_instructions = ELIZA_DATA_ANALYST_INSTRUCTIONS
+                # available_tools = '["slack_tools", "database_tools", "snowflake_stage_tools",  "image_tools", "process_manager_tools", "process_runner_tools", "process_scheduler_tools"]'
+                # udf_active = "Y"
+                # slack_active = "N"
+                # bot_intro_prompt = ELIZA_INTRO_PROMPT
 
-                insert_initial_row_query = f"""
-                INSERT INTO {self.bot_servicing_table_name} (
-                    RUNNER_ID, BOT_ID, BOT_NAME, BOT_INSTRUCTIONS, AVAILABLE_TOOLS, UDF_ACTIVE, SLACK_ACTIVE, BOT_INTRO_PROMPT
-                )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
-                """
-                cursor.execute(
-                    insert_initial_row_query,
-                    (
-                        runner_id,
-                        bot_id,
-                        bot_name,
-                        bot_instructions,
-                        available_tools,
-                        udf_active,
-                        slack_active,
-                        bot_intro_prompt,
-                    ),
-                )
-                self.client.commit()
-                print(
-                    f"Inserted initial Eliza row into {self.bot_servicing_table_name} with runner_id: {runner_id}"
-                )
+                # insert_initial_row_query = f"""
+                # INSERT INTO {self.bot_servicing_table_name} (
+                #     RUNNER_ID, BOT_ID, BOT_NAME, BOT_INSTRUCTIONS, AVAILABLE_TOOLS, UDF_ACTIVE, SLACK_ACTIVE, BOT_INTRO_PROMPT
+                # )
+                # VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
+                # """
+                # cursor.execute(
+                #     insert_initial_row_query,
+                #     (
+                #         runner_id,
+                #         bot_id,
+                #         bot_name,
+                #         bot_instructions,
+                #         available_tools,
+                #         udf_active,
+                #         slack_active,
+                #         bot_intro_prompt,
+                #     ),
+                # )
+                # self.client.commit()
+                # print(
+                #     f"Inserted initial Eliza row into {self.bot_servicing_table_name} with runner_id: {runner_id}"
+                # )
 
                 runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
                 bot_id = "Janice"

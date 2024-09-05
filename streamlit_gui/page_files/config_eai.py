@@ -57,7 +57,7 @@ set APP_DATABASE = '{st.session_state.get("app_name", "")}';
 CREATE DATABASE IF NOT EXISTS GENESIS_LOCAL_DB; 
 CREATE SCHEMA IF NOT EXISTS GENESIS_LOCAL_DB.SETTINGS;
 
--- create a network rule that allows Genesis Server to optionally access OpenAI's API, and optionally Slack API and Azure Blob (for DALL-E image generation) 
+-- Create a network rule that allows Genesis Server to optionally access OpenAI's API, and optionally Slack API and Azure Blob (for DALL-E image generation) 
 -- OpenAI and Slack(+Azure) endpoints can be removed if you will not be using Genesis with OpenAI and/or Slack
 -- OpenAI will only be used if enabled here if you later provide an OpenAI API Key in the Genesis Server configuration
 CREATE OR REPLACE NETWORK RULE GENESIS_LOCAL_DB.SETTINGS.GENESIS_RULE

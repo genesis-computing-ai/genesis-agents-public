@@ -260,7 +260,7 @@ def chat_page():
     else:
         try:
             # get bot details
-            bot_details.sort(key=lambda x: (not "Eve" in x["bot_name"], x["bot_name"]))
+            bot_details.sort(key=lambda x: (not "Janice" in x["bot_name"], x["bot_name"]))
             bot_names = [bot["bot_name"] for bot in bot_details]
             bot_ids = [bot["bot_id"] for bot in bot_details]
             bot_intro_prompts = [bot["bot_intro_prompt"] for bot in bot_details]
@@ -269,7 +269,7 @@ def chat_page():
             available_bots = bot_names
 
             # Set Eve as the default bot if it exists
-            default_bot = "Eve" if "Eve" in available_bots else available_bots[0] if available_bots else None
+            default_bot = "Janice" if "Janice" in available_bots else available_bots[0] if available_bots else None
 
             # Initialize current_bot and current_thread_id if they don't exist
             if 'current_bot' not in st.session_state or 'current_thread_id' not in st.session_state:

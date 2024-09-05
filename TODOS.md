@@ -3,6 +3,10 @@ GENESIS BOT TODOS
 =================
 
 today:
+try mini again
+reza images
+smarter / faster toggle in streamlit
+switch to  "OPENAI_MODEL_NAME": "gpt-4o-2024-08-06", see how we like it
 need handler for long cortex threads
 need a place to gather and test the email integrations, add a step for email to the welcome wizard
 get mini bot avatars into streamlit
@@ -14,7 +18,7 @@ x check baseball data in the morning on alpha
 n link to direct streamlit app via web not sis at bottom 
 x try calling http endpoints from sis
 x deploy new streamlit
-"assistant found" on key insertion, is it naming based on bot id which arent unique anymore, is that ok... could confuse things.
+n "assistant found" on key insertion, is it naming based on bot id which arent unique anymore, is that ok... could confuse things.
 x upgrade alpha
 JD-add process list and info to default prompts if any
 JD-give bots process scheduler an action to show past runs and status
@@ -22,7 +26,7 @@ n kevins thread re runs
 n sanders feedback in general
 x test openai key insertion on new install
 x test openai key switch with metadata re: embeddings on natapp
-remove eliza as a default bot 
+(test) remove eliza as a default bot 
 n make eliza talk about abseball more cleanly 
 x test rezas cortex knowledge logging
 x make hybrid table fallback to regular for llm results
@@ -38,6 +42,7 @@ x turn on knowledge on Alpha
 n make user knowledge message nicer "[Reviewing our past interactions...]"
 
 next version:
+make various EAIs for openai , slack, both
 add a link to the email to get back into a convo with that user 
 make knowledge based on email address so its consistent between slack and streamlit
 

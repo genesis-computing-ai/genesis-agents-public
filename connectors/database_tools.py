@@ -265,11 +265,15 @@ process_scheduler_functions = [
                 "properties": {
                     "action": {
                         "type": "string",
-                        "description": "The action to perform on the task: CREATE, UPDATE, or DELETE.  Or LIST to get details on all scheduled processes for a bot, or TIME to get current system time or HISTORY to get the history of a scheduled process.",
+                        "description": "The action to perform on the task: CREATE, UPDATE, or DELETE.  Or LIST to get details on all scheduled processes for a bot, or TIME to get current system time or HISTORY to get the history of a scheduled process by task_id.  For history lookup task_id first using LIST.",
                     },
                     "bot_id": {
                         "type": "string",
                         "description": "The identifier of the bot for which to manage scheduled_processes.",
+                    },
+                    "history_rows": {
+                        "type": "integer",
+                        "description": "For action HISTORY, how many history rows about runs of the task to return.",
                     },
                     "task_id": {
                         "type": "string",

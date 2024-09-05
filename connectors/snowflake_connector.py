@@ -1003,7 +1003,7 @@ class SnowflakeConnector(DatabaseConnector):
         return current_time.strftime("%Y-%m-%d %H:%M:%S %Z")
     
     def process_scheduler(
-        self, action, bot_id, task_id=None, task_details=None, thread_id=None
+        self, action, bot_id, task_id=None, task_details=None, thread_id=None, history_rows=10
     ):
         import random
         import string
@@ -1039,15 +1039,34 @@ class SnowflakeConnector(DatabaseConnector):
 
         required_fields_update = ["last_task_status", "task_learnings", "task_active"]
 
+        cursor = self.client.cursor()
         if action == "HISTORY":
-            limit = task_details.get('history length', 5)
+            if not task_id:
+                return {
+                    "Success": False,
+                    "Error": "task_id is required for retrieving task history. You can get the task_id by calling this function with the 'LIST' action for the bot_id."
+                }
+            limit = history_rows
             history_query = f"""
-                SELECT * FROM {self.schema}.TASKS
-                WHERE task_id = %s AND bot_id = %s 
+                SELECT * FROM {self.schema}.TASK_HISTORY
+                WHERE task_id = %s 
+                ORDER BY RUN_TIMESTAMP DESC
                 LIMIT %s
                 """
-            cursor.execute(history_query, (task_id, bot_id, limit))
-            self.client.commit()
+            try:
+                cursor.execute(history_query, (task_id, limit))
+                self.client.commit()
+                history = cursor.fetchall()
+                return {
+                    "Success": True,
+                    "Task History": history,
+                    "history_rows": limit
+                }
+            except Exception as e:
+                return {
+                    "Success": False,
+                    "Error": e
+                }
 
 
         if action == "TIME":
@@ -1086,8 +1105,6 @@ class SnowflakeConnector(DatabaseConnector):
 
         if action not in ["CREATE", "DELETE", "UPDATE", "LIST"]:
             return {"Success": False, "Error": "Invalid action specified."}
-
-        cursor = self.client.cursor()
 
         if action == "LIST":
             try:

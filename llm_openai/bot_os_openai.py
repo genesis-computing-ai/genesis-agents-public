@@ -721,12 +721,13 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
       if BotOsAssistantOpenAI.stream_mode == True:
          try:
-         
+         #   print('MINI override')
             with self.client.beta.threads.runs.stream(
                thread_id=thread.id,
                assistant_id=self.assistant.id,
                event_handler=StreamingEventHandler(self.client, thread.id, self.assistant.id, input_message.metadata, self),
-               metadata=input_message.metadata
+               metadata=input_message.metadata,
+           #    model='gpt-4o-mini'
             ) as stream:
              #  print('here')
                stream.until_done()

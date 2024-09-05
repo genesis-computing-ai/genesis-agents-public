@@ -2,20 +2,6 @@ import streamlit as st
 import time
 import uuid
 from utils import get_bot_details, get_slack_tokens, get_slack_tokens_cached, get_metadata, submit_to_udf_proxy, get_response_from_udf_proxy
-import re
-import base64
-from pathlib import Path
-
-
-def img_to_bytes(img_path):
-    img_bytes = Path(img_path).read_bytes()
-    encoded = base64.b64encode(img_bytes).decode()
-    return encoded
-
-def img_to_html(img_path):
-    img_format = img_path.split(".")[-1]
-    img_html = f'<img src="data:image/{img_format.lower()};base64,{img_to_bytes(img_path)}" style="max-width: 50%;display: block;">'
-    return img_html
 
 bot_images = get_metadata("bot_images")
 bot_avatar_images = [bot["bot_avatar_image"] for bot in bot_images]
@@ -47,15 +33,6 @@ def chat_page():
                 response = in_resp
                 in_resp = None
             if response != previous_response:
-                full_image = re.findall('\n*\!\[.+\]\(.+\)\n*', response)
-                partial_image = re.findall('\n*\!\[', response)                
-                if full_image:
-                    if chr(128172) == response[-1]: continue
-                    image_path = re.findall('\((.+)\)', full_image[0])[0]
-                    response = response.replace(full_image[0], '\n'+img_to_html(image_path))                    
-                elif partial_image:
-                    continue
-                
                 if response != "not found":
                     if ( 
                         len(previous_response) > 10
@@ -123,16 +100,10 @@ def chat_page():
 
         if bot_avatar_image_url:
             with st.chat_message("assistant", avatar=bot_avatar_image_url):
-                response = ''
-                for text in response_generator(None,request_id=request_id, selected_bot_id=selected_bot_id):
-                    st.markdown(text,unsafe_allow_html=True)
-                    response += text
+                response = st.write_stream(response_generator(None,request_id=request_id, selected_bot_id=selected_bot_id))
         else:
             with st.chat_message("assistant"):
-                response = ''
-                for text in response_generator(None,request_id=request_id, selected_bot_id=selected_bot_id):
-                    st.markdown(text,unsafe_allow_html=True)
-                    response += text
+                response = st.write_stream(response_generator(None,request_id=request_id, selected_bot_id=selected_bot_id))
         st.session_state.stop_streaming = False
 
         # # Display the response
@@ -166,7 +137,7 @@ def chat_page():
         if not intro_prompt:
             # Display user message in chat message container
             with chatmessage:
-                st.markdown(prompt,unsafe_allow_html=True)
+                st.markdown(prompt)
             # Add user message to chat history
             messages.append({"role": "user", "content": prompt})
 
@@ -211,16 +182,10 @@ def chat_page():
 
         if bot_avatar_image_url:
             with st.chat_message("assistant", avatar=bot_avatar_image_url):
-                response = ''
-                for text in response_generator(None,request_id=request_id, selected_bot_id=selected_bot_id):
-                    st.markdown(text,unsafe_allow_html=True)
-                    response += text
+                response = st.write_stream(response_generator(in_resp,request_id=request_id, selected_bot_id=selected_bot_id))
         else:
             with st.chat_message("assistant"):
-                response = ''
-                for text in response_generator(None,request_id=request_id, selected_bot_id=selected_bot_id):
-                    st.markdown(text,unsafe_allow_html=True)
-                    response += text
+                response = st.write_stream(response_generator(in_resp,request_id=request_id, selected_bot_id=selected_bot_id))
         st.session_state.stop_streaming = False
 
         # Initialize last_response if it doesn't exist
@@ -457,10 +422,10 @@ def chat_page():
                     for message in st.session_state[f"messages_{selected_thread_id}"]:
                         if message["role"] == "assistant" and bot_avatar_image_url:
                             with st.chat_message(message["role"], avatar=bot_avatar_image_url):
-                                st.markdown(message["content"],unsafe_allow_html=True)
+                                st.markdown(message["content"])
                         else:
                             with st.chat_message(message["role"]):
-                                st.markdown(message["content"],unsafe_allow_html=True)
+                                st.markdown(message["content"])
 
                 # Check if there's a pending request for the current session
                 if selected_thread_id and selected_thread_id in st.session_state.session_message_uuids:

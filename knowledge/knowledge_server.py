@@ -92,7 +92,7 @@ class KnowledgeServer:
             msg_log = self.db_connector.query_timestamp_message_log(thread_id, last_timestamp, max_rows=50)
 
             messages = [f"{msg['MESSAGE_TYPE']}: {msg['MESSAGE_PAYLOAD']}" for msg in msg_log if "'EMBEDDING': " not in msg['MESSAGE_PAYLOAD']]
-            messages = "\n".join(messages)
+            messages = "\n".join(messages)[:200_000] # limit to 200k char for now
 
             query = f"""SELECT DISTINCT(knowledge_thread_id) FROM {self.db_connector.knowledge_table_name}
                         WHERE thread_id = '{thread_id}';"""

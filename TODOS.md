@@ -3,16 +3,17 @@ GENESIS BOT TODOS
 =================
 
 today:
+have it insert janice if not there
 streamlit habdle !NO RESPONSE REQUIRED better
-make no response logic less agressive 
-add retry on openai fail 
-if tool call drags keey streamlit responsibe on input box.. or add stop button 
-try mini again
+x make no response logic less agressive 
+x add retry on openai fail 
+x if tool call drags keey streamlit responsibe on input box.. or add stop button 
+x try mini again
 RG-reza images
 x search metadata not working on dev 
 fast mode also give link to direct streamlit gui
 x smarter / faster toggle in streamlit
-switch to  "OPENAI_MODEL_NAME": "gpt-4o-2024-08-06", see how we like it
+x (test) switch to  "OPENAI_MODEL_NAME": "gpt-4o-2024-08-06", see how we like it
 need handler for long cortex threads
 need a place to gather and test the email integrations, add a step for email to the welcome wizard
 get mini bot avatars into streamlit
@@ -48,6 +49,7 @@ x turn on knowledge on Alpha
 n make user knowledge message nicer "[Reviewing our past interactions...]"
 
 next version:
+move to a yaml structure for the built in processes
 make various EAIs for openai , slack, both
 add a link to the email to get back into a convo with that user 
 make knowledge based on email address so its consistent between slack and streamlit

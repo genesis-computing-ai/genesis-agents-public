@@ -92,7 +92,11 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         if last_user_message is not None:
 
             if ') says: !model' in last_user_message["content"] or last_user_message["content"]=='!model':
-                resp= f"The model is set to: {self.llm_engine}. Currently running via Cortext via REST. You can say !model llama3.1-405b, !model llama3.1-70b, or !model llama3.1-8b to change model size."
+                if thread_id in self.thread_fast_mode_map or fast_mode==True:
+                    model = os.getenv("CORTEX_FAST_MODEL_NAME", "llama3.1-70b")
+                else:
+                    model = self.llm_engine
+                resp= f"The model is set to: {model}. Currently running via Cortext via REST. You can say !model llama3.1-405b, !model llama3.1-70b, or !model llama3.1-8b to change model size."
                 curr_resp = resp
             if ') says: !model llama3.1-405b' in last_user_message["content"] or last_user_message["content"]=='!model llama3.1-405b':
                 self.llm_engine = 'llama3.1-405b'
@@ -626,9 +630,10 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                 message_payload = '!NO_RESPONSE_REQUIRED'
 
         if thread_id in self.thread_busy_list:
-            if not(message_payload.endswith(') says: !stop') or message_payload =='!stop'):
-                print('bot_os_cortex add_message thread is busy, returning new message to queue')
-                return False
+            print('Cortex thread busy but putting message anyway')
+#            if not(message_payload.endswith(') says: !stop') or message_payload =='!stop'):
+#                print('bot_os_cortex add_message thread is busy, returning new message to queue')
+#                return False
         
         message_type = 'user'
 

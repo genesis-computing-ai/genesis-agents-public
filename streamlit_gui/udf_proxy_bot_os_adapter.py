@@ -31,9 +31,16 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
         self.genbot_internal_project_and_schema = os.getenv('GENESIS_INTERNAL_DB_SCHEMA','None')
         self.bot_id = {}
         self.pending_map = {}
+        self.events_map = {}
 
     def add_event(self, event):
         self.events.append(event)
+        self.events_map[event['uuid']] = event
+
+    def add_back_event(self, metadata=None):
+        event = self.events_map.get(metadata['input_uuid'], None)
+        if event is not None:
+            self.events.append(event)
 
     def get_input(self, thread_map=None,  active=None, processing=None, done_map=None):
         if len(self.events) == 0:
@@ -49,6 +56,7 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
             metadata["input_uuid"] = uu
         metadata["channel_type"] = "Streamlit"
         metadata["channel_name"] = ""
+        metadata['is_bot'] = 'FALSE'
         metadata["user_id"] = self.bot_id.get('user_id', 'Unknown User ID')
         metadata["user_name"] = self.bot_id.get('user_name', 'Unknown User')
         return BotOsInputMessage(thread_id=event.get('thread_id'), msg=event.get('msg'), metadata=metadata)

@@ -75,15 +75,17 @@ def chat_page():
         with st.spinner("Fetching pending response..."):
             i = 0
             while (
-                response == ""
+             (   response == ""
                 or response == "not found"
-                or (response == "!!EXCEPTION_NEEDS_RETRY!!" and i < 6)
+                or (response == "!!EXCEPTION_NEEDS_RETRY!!" and i < 6))
+                and i < 16
             ):
                 response = get_response_from_udf_proxy(
                     uu=request_id, bot_id=selected_bot_id
                 )
                 if response == "" or response == "not found":
                     time.sleep(0.5)
+                    i += 1
                 if response == "!!EXCEPTION_NEEDS_RETRY!!":
                     i += 1
                     st.write(f"waiting 2 seconds after exception for retry #{i} of 5")
@@ -175,8 +177,8 @@ def chat_page():
                     st.write(f"waiting 2 seconds after exception for retry #{i} of 5")
                     time.sleep(2)
 
-        if i >= 5:
-            st.error("Error reading the UDF response... reloading in 2 seconds...")
+        if i >= 5 and response :
+        #    st.error("Error reading the UDF response... reloading in 2 seconds...")
             time.sleep(2)
             st.rerun()
 

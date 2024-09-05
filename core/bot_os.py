@@ -1,5 +1,6 @@
 import datetime
 import random
+import time 
 import re
 import os
 import threading
@@ -406,6 +407,26 @@ Now, with that as background...\n''' + input_message.msg
                     )
                     try:
                         added_back_count = input_message.metadata.get('added_back', 0)
+                        if added_back_count < 20:
+                            if 'added_back' not in input_message.metadata:
+                                input_message.metadata['added_back'] = 0
+                            input_message.metadata['added_back'] = added_back_count + 1
+                            print(f"Message added back to queue. Attempt {added_back_count + 1} of 10")
+                        else:
+                            print(f"Message has been added back 20 times. Stopping further attempts.")
+                         
+                            continue
+                       # print(input_message.metadata["event_ts"])
+                        a.add_back_event( input_message.metadata)
+                        time.sleep(0.5)
+                    except Exception as e:
+                        pass
+                else:
+                    print(
+                        "bot os message from bot - thread already running - put back on queue.."
+                    )
+                    try:
+                        added_back_count = input_message.metadata.get('added_back', 0)
                         if added_back_count < 10:
                             if 'added_back' not in input_message.metadata:
                                 input_message.metadata['added_back'] = 0
@@ -413,21 +434,14 @@ Now, with that as background...\n''' + input_message.msg
                             print(f"Message added back to queue. Attempt {added_back_count + 1} of 10")
                         else:
                             print(f"Message has been added back 10 times. Stopping further attempts.")
-                         
+                            
                             continue
-                        print(input_message.metadata["event_ts"])
-                        a.add_back_event(input_message.metadata["event_ts"])
-                    except:
+                        # print(input_message.metadata["event_ts"])
+                        a.add_back_event( input_message.metadata)
+                        time.sleep(0.5)
+                    except Exception as e:
                         pass
-                else:
-                    print(
-                        "bot os message from bot - thread already running - put back on queue.."
-                    )
-                    try:
-                        print(input_message.metadata["event_ts"])
-                        a.add_back_event(input_message.metadata["event_ts"])
-                    except:
-                        pass
+    
 
             logger.debug("execute completed")
 

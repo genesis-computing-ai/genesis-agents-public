@@ -184,7 +184,8 @@ class SlackBotAdapter(BotOsInputAdapter):
     def add_event(self, event):
         self.events.append(event)
 
-    def add_back_event(self, event_ts):
+    def add_back_event(self, metadata=None):
+        event_ts = metadata["event_ts"],
         event = self.events_map.get(event_ts, {}).get("event", None)
         if event is not None:
             self.events.append(event)

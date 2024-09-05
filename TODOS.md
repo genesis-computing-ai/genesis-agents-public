@@ -24,8 +24,8 @@ x try calling http endpoints from sis
 x deploy new streamlit
 n "assistant found" on key insertion, is it naming based on bot id which arent unique anymore, is that ok... could confuse things.
 x upgrade alpha
-JD-add process list and info to default prompts if any
-JD-give bots process scheduler an action to show past runs and status
+x JD-add process list and info to default prompts if any
+x JD-give bots process scheduler an action to show past runs and status
 n kevins thread re runs
 n sanders feedback in general
 x test openai key insertion on new install
@@ -39,7 +39,7 @@ x add cross region calls to sis
 x test cortex tps
 x see how it works in 70b
 x fix !model in cortex
-JD-make system processes non-editable so we can upgrade them but suggest the user makes a copy if they want to change it
+x JD-make system processes non-editable so we can upgrade them but suggest the user makes a copy if they want to change it
 x warehouse test button seems to say success even if not 
 x broken link shows on config step pages
 x turn on knowledge on Alpha
@@ -166,7 +166,7 @@ x fix list processes
 (in process) make the task system just a scheduler, use processes for the actual work
 make sure that DMs sent from processes can be responded to and bot will know context 
 x make it start a new run for each process step and/or when it gets close to 10 min 
-make get_next_step make sure process is already kicked off to avoid + error Nonetype and int
+X make get_next_step make sure process is already kicked off to avoid + error Nonetype and int
 make sure the same bot doesnt run the same process at the same time (or make it possible for it to do so, track threads better?)
 
 July:

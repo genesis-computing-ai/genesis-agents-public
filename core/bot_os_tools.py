@@ -569,7 +569,14 @@ Now, start by performing the FIRST_STEP indicated above.
 
         elif action == "GET_NEXT_STEP":
             print("Entered GET NEXT STEP")
-                # Load process cache
+            
+            if thread_id not in self.counter and process_id not in self.counter[thread_id]:
+                return {
+                    "Success": False,
+                    "Message": f"Error: GET_NEXT_STEP seems to have been run before KICKOFF_PROCESS. Please retry from KICKOFF_PROCESS."
+                }
+
+            # Load process cache
             if not self.get_process_cache(bot_id, thread_id, process_id):
                 return {
                     "Success": False,

@@ -184,9 +184,19 @@ def make_session(
 
     simple_mode = os.getenv("SIMPLE_MODE", "false").lower() == "true"
 
-    instructions = "Begin this session by using your tool manage_processes to list all of the processes available.\n"
+    instructions = bot_config["bot_instructions"] + "\n"
 
-    instructions += bot_config["bot_instructions"] + "\n" + BASE_BOT_INSTRUCTIONS_ADDENDUM
+    cursor = db_adapter.client.cursor()
+    query = f"SELECT process_name FROM {db_adapter.schema}.PROCESSES where bot_id = %s"
+    cursor.execute(query, (bot_id,))
+    result = cursor.fetchall()
+
+    if result:
+        processes_found = ', '.join([row[0] for row in result])
+        instructions += f"\nYou have the following processes available: {processes_found}. Show this list to the user when you start this thread\n"
+    
+    instructions += BASE_BOT_INSTRUCTIONS_ADDENDUM
+
     instructions += f'\nYour default database connecton is called "{genesis_source}".\n'
 
     instructions += f'\nNote current settings:\nYour bot_id: {bot_config["bot_id"]}.\nRunner_id: {runner_id}'

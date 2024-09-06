@@ -1070,8 +1070,7 @@ def grant_data():
         "So grant data in this manner only to non-sensitive data that is ok for any Slack user to view, or first have Eve limit the access to the Database Tools-enabled bots to only select users on Slack."
     )
     wh_text = (
-        f"""-- select role to use, generally ACCOUNTADMIN.  See documentation for required permissions if not using ACCOUNTADMIN.
-    use role ACCOUNTADMIN;
+        f"""-- select authorized role to use
 
     -- set the name of the installed application
     set APP_DATABASE = '{app_name}';
@@ -1414,8 +1413,7 @@ def config_wh():
         "Genesis Bots needs rights to use a Snowflake compute engine, known as a Virtual Warehouse, to run queries on Snowflake. Please open another Snowflake window, go to Projects, and make a new Snowflake worksheet and run these commands to grant Genesis access to an existing Warehouse, or to make a new one for its use. This step does not provide Genesis Bots with access to any of your data, just the ability to run SQL on Snowflake in general."
     )
 
-    wh_text = f"""-- select role to use, generally Accountadmin or Sysadmin
-    use role ACCOUNTADMIN;
+    wh_text = f"""
 
     -- set the name of the installed application
     set APP_DATABASE = '{app_name}';
@@ -1484,8 +1482,7 @@ def config_pool():
         "Please go back to your Snowflake worksheet and run these commands to create a new compute pool and grant Genesis the rights to use it.  This uses the Snowflake small compute pool, which costs about 0.22 Snowflake Credits per hour, or about $10/day.  Once you start the server, you will be able to suspend it when not in use."
     )
 
-    wh_text = f"""-- select role to use, generally Accountadmin or Sysadmin
-    use role ACCOUNTADMIN;
+    wh_text = f"""
 
     -- set the name of the installed application
     set APP_DATABASE = '{app_name}';
@@ -1523,8 +1520,7 @@ def config_eai():
         "So please go back to the worksheet one more time, and run these commands to create a external access integration, and grant Genesis the rights to use it. Genesis will only be able to access the endpoints listed, OpenAI, and optionally Slack. The steps for adding the event logging are optional as well, but recommended."
     )
 
-    wh_text = f"""-- select role to use, generally Accountadmin or Sysadmin
-    use role ACCOUNTADMIN;
+    wh_text = f"""
 
     -- set the name of the installed application
     set APP_DATABASE = '{app_name}';
@@ -1559,7 +1555,7 @@ def config_eai():
     CREATE EVENT TABLE  IF NOT EXISTS GENESIS_LOCAL_DB.EVENTS.GENESIS_APP_EVENTS;
 
     -- set the event table on your account, this is optional
-    -- this requires ACCOUNTADMIN, and may already be set, skip if it doesnt work
+    -- this requires an authorized role, and may already be set, skip if it doesnt work
     ALTER ACCOUNT SET EVENT_TABLE=GENESIS_LOCAL_DB.EVENTS.GENESIS_APP_EVENTS;
 
     -- allow sharing of the captured events with the Genesis Provider

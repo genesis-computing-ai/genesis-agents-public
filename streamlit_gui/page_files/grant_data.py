@@ -14,16 +14,12 @@ def grant_data():
         "So grant data in this manner only to non-sensitive data that is ok for any Slack user to view, or first have Eve limit the access to the Database Tools-enabled bots to only select users on Slack."
     )
 
-    ura_rot13 = "hfr ebyr NPPBHAGNQZVA;"
-    ura = codecs.decode(ura_rot13, 'rot_13')
-
-    proc_header_rot13 = """\nPERNGR BE ERCYNPR CEBPRQHER TRARFVF_YBPNY_QO.FRGGVATF.tenag_fpurzn_hfntr_naq_fryrpg_gb_ncc(qngnonfr_anzr FGEVAT, NCC_ANZR FGEVAT)    ERGHEAF FGEVAT YNATHNTR WNINFPEVCG  NF """
-    proc_header = codecs.decode(proc_header_rot13, 'rot_13')
+    proc_header = """\nCREATE OR REPLACE PROCEDURE GENESIS_LOCAL_DB.SETTINGS.grant_schema_usage_and_select_to_app(database_name STRING, APP_NAME STRING)    RETURNS STRING LANGUAGE JAVASCRIPT  AS """
 
     wh_text = (
-        f"""-- select role to use, generally ACCOUNTADMIN.  See documentation for required permissions if not using ACCOUNTADMIN. 
-    """+ura+f"""
-
+        f"""
+    -- use an authorized role
+    
     -- set the name of the installed application
     set APP_DATABASE = "{st.session_state.get('app_name', '')}";
 
@@ -71,7 +67,7 @@ def grant_data():
     -- see your databases
     show databases;
 
-    -- To use on a local database in your account, call with the name of the database to grant
+    -- To use on a local database in your account, call with the name of the database to grant 
     -- 
     -- Note! any bot with the Database Tools will be able to access this data, and when such a bot is deployed to Slack, 
     -- some bots may be accessible by all Slack users, unless they are configured by Eve to only be usable by select Slack

@@ -48,8 +48,7 @@ def config_wh():
     Please open another Snowflake window/tab, go to Projects, and make a new Snowflake worksheet. Run these commands to grant Genesis access to an existing Warehouse or to make a new one for its use.
     """)
 
-    wh_text = f"""-- select role to use, generally Accountadmin or Sysadmin
-use role ACCOUNTADMIN;
+    wh_text = f"""-- select authorized role to use
 
 -- set the name of the installed application
 set APP_DATABASE = '{st.session_state.get("app_name", "")}';

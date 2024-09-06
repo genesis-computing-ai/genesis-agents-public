@@ -47,8 +47,7 @@ def config_eai():
     Please go back to the worksheet one more time, and run these commands to create an external access integration, and grant Genesis the rights to use it. Genesis will only be able to access the endpoints listed, OpenAI, and optionally Slack. The steps for adding the event logging are optional as well, but recommended.
     """)
 
-    wh_text = f"""-- select role to use, generally Accountadmin or Sysadmin
-use role ACCOUNTADMIN;
+    wh_text = f"""-- select authorized role to use
 
 -- set the name of the installed application
 set APP_DATABASE = '{st.session_state.get("app_name", "")}';
@@ -90,7 +89,7 @@ CREATE SCHEMA IF NOT EXISTS GENESIS_LOCAL_DB.EVENTS;
 CREATE EVENT TABLE  IF NOT EXISTS GENESIS_LOCAL_DB.EVENTS.GENESIS_APP_EVENTS;
 
 -- set the event table on your account, this is optional
--- this requires ACCOUNTADMIN, and may already be set, skip if it doesnt work
+-- this requires an authorized role, and may already be set, skip if it doesnt work
 ALTER ACCOUNT SET EVENT_TABLE=GENESIS_LOCAL_DB.EVENTS.GENESIS_APP_EVENTS;
 
 -- allow sharing of the captured events with the Genesis Provider

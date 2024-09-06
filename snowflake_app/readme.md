@@ -76,7 +76,7 @@ To allow Genesis to access to required external APIs (OpenAI and Slack)
 
 -- use a role with sufficient privileges for the
 
-use role ACCOUNTADMIN;
+use role <authorized role>;
 
 -- set the name of the installed application and warehouse to use
 

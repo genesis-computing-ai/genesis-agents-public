@@ -1,6 +1,6 @@
 
 
-USE ROLE ACCOUNTADMIN;
+USE ROLE <authorized role>;
 
 CREATE ROLE APP_OWNER_ROLE;
 
@@ -14,7 +14,7 @@ GRANT USAGE ON SCHEMA IDENTIFIER($TMP_INTERNAL_SCH) TO role app_owner_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA IDENTIFIER($TMP_INTERNAL_SCH) TO role app_owner_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL VIEWS IN SCHEMA IDENTIFIER($TMP_INTERNAL_SCH) TO role app_owner_role;
 
-use role accountadmin;
+use role <authorized role>;
 
 delete from GENESIS_TEST.GENESIS_INTERNAL.LLM_TOKENS;
 
@@ -43,7 +43,7 @@ CREATE COMPUTE POOL genesis_test_pool
   MAX_NODES = 1
   INSTANCE_FAMILY = CPU_X64_XS AUTO_SUSPEND_SECS=3600 INITIALLY_SUSPENDED=FALSE;
 
-use role accountadmin;
+use role <authorized role>;
 
 alter compute pool genesis_test_pool suspend;
 show compute pools;
@@ -60,7 +60,7 @@ USE DATABASE spcs_test;
 USE WAREHOUSE xsmall;
 
 CREATE SCHEMA IF NOT EXISTS app_test_schema;
-GRANT ALL ON SCHEMA app_test_schema to role ACCOUNTADMIN;
+GRANT ALL ON SCHEMA app_test_schema to role <authorized role>;
 
 CREATE IMAGE REPOSITORY IF NOT EXISTS app_test_repository;
 CREATE STAGE IF NOT EXISTS app_test_stage
@@ -70,7 +70,7 @@ show image repositories;
 
 // dshrnxx-genesis.registry.snowflakecomputing.com/spcs_test/app_test_schema/app_test_repository
 
-use role accountadmin;
+use role <authorized role>;
 show compute pools;
 drop compute pool GENESIS_TEST_POOL;
 ALTER COMPUTE POOL GENESIS_TEST_POOL STOP ALL;
@@ -87,7 +87,7 @@ CREATE or replace NETWORK RULE spcs_test.app_test_schema.allow_openai_ngrok
   MODE= 'EGRESS'
   VALUE_LIST = ('0.0.0.0:443','0.0.0.0:80');
 
-  use role accountadmin;
+  use role <authorized role>;
 
   show warehouses;
   
@@ -105,7 +105,7 @@ CREATE or replace  EXTERNAL ACCESS INTEGRATION allow_openai_ngrok
   ALLOWED_NETWORK_RULES = (spcs_test.app_test_schema.allow_openai_ngrok)
   ENABLED = true;
 
-use role accountadmin;
+use role <authorized role>;
 
 GRANT USAGE ON INTEGRATION allow_openai_ngrok TO ROLE app_owner_role;
 GRANT USAGE ON INTEGRATION allow_openai_ngrok_genesis TO ROLE app_owner_role;
@@ -117,7 +117,7 @@ use role app_owner_role;
 show functions;
 
 select current_warehouse();
-use role accountadmin;
+use role <authorized role>;
 grant all on database genesis_test to role app_owner_role;
 grant all on schema GENESIS_TEST.GENESIS_NEW2 to role app_owner_role;
 
@@ -137,7 +137,7 @@ drop service spcs_test.app_test_schema.genesis_server;
 show services;
 
 select * from GENESIS_TEST.GENESIS_INTERNAL.HARVEST_RESULTS;
-use role accountadmin;
+use role <authorized role>;
 
 CREATE or replace NETWORK RULE genesis_test.public.snowflake_egress_access
   MODE = EGRESS
@@ -179,7 +179,7 @@ CREATE SERVICE spcs_test.app_test_schema.genesis_server
             SNOWFLAKE_PASSWORD_OVERRIDE: Gen12349esisBotTest3837
             SNOWFLAKE_DATABASE_OVERRIDE: GENESIS_TEST
             SNOWFLAKE_WAREHOUSE_OVERRIDE: XSMALL
-            SNOWFLAKE_ROLE_OVERRIDE: ACCOUNTADMIN
+            SNOWFLAKE_ROLE_OVERRIDE: <authorized role>
             ALT_SERVICE_NAME: spcs_test.app_test_schema.genesis_server
         readinessProbe:
           port: 8080
@@ -201,7 +201,7 @@ show compute pools;
 
 
 use role app_owner_role;
-use role accountadmin;
+use role <authorized role>;
 grant all on schema genesis_test.genesis_new_1 to role app_owner_role;
 grant all on all tables in schema genesis_test.genesis_new_1 to role app_owner_role;
 
@@ -253,13 +253,13 @@ ALTER SERVICE  spcs_test.app_test_schema.genesis_server
             SNOWFLAKE_PASSWORD_OVERRIDE: Gen12349esisBotTest3837
             SNOWFLAKE_DATABASE_OVERRIDE: GENESIS_TEST
             SNOWFLAKE_WAREHOUSE_OVERRIDE: XSMALL
-            SNOWFLAKE_ROLE_OVERRIDE: ACCOUNTADMIN
+            SNOWFLAKE_ROLE_OVERRIDE: <authorized role>
 */
       
 use schema GENESIS_TEST.GENESIS_NEW_B;
 show tables;
 select current_role();
-use role accountadmin;
+use role <authorized role>;
 grant all on all tables in schema GENESIS_TEST.GENESIS_NEW_B to role app_owner_role;
 use role app_owner_role;
 select * from GENESIS_TEST.GENESIS_NEW_B.BOT_SERVICING;
@@ -268,7 +268,7 @@ update GENESIS_TEST.GENESIS_NEW_B.BOT_SERVICING set AVAILABLE_TOOLS = null;
 select * from GENESIS_TEST.GENESIS_NEW_1.BOT_SERVICING;
 
       
-use role accountadmin;
+use role <authorized role>;
 use role app_owner_role;
 
 show tables in schema genesis_test.genesis_new3;
@@ -276,8 +276,8 @@ show tables in schema genesis_test.genesis_new3;
 show services;
 
 CREATE OR REPLACE SCHEMA genesis_test.GENESIS_NEW_B;
-GRANT ALL ON SCHEMA genesis_test.GENESIS_NEW_B TO ROLE ACCOUNTADMIN;
-grant all on database genesis_test to role accountadmin;
+GRANT ALL ON SCHEMA genesis_test.GENESIS_NEW_B TO ROLE <authorized role>;
+grant all on database genesis_test to role <authorized role>;
 
 SELECT CURRENT_ROLE();
 use schema genesis_test.GENESIS_NEW_B;
@@ -286,7 +286,7 @@ show tables;
 
 describe service spcs_test.app_test_schema.genesis_server;
 
-use role accountadmin;
+use role <authorized role>;
 use role app_owner_role;
 
 use schema genesis_test.genesis_internal;
@@ -315,7 +315,7 @@ select * from genesis_test.genesis_internal.message_log order by timestamp desc;
 select * from genesis_test.genesis_internal.harvest_results;
 
 use role app_owner_role;
-use role accountadmin;
+use role <authorized role>;
 
 show stages;
 
@@ -597,7 +597,7 @@ tables:
           - '3663.28'
 $$);
 
-use role accountadmin;
+use role <authorized role>;
 
 CREATE OR REPLACE PROCEDURE PUT_TO_STAGE(STAGE VARCHAR,FILENAME VARCHAR, CONTENT VARCHAR)
 RETURNS STRING
@@ -734,7 +734,7 @@ CREATE or replace FUNCTION response_udf (request_id varchar)
   
 select get_slack_endpoints();
 
-grant usage on function app_test_schema.list_available_bots() to role accountadmin;
+grant usage on function app_test_schema.list_available_bots() to role <authorized role>;
 
 show databases;
 
@@ -816,7 +816,7 @@ select current_user();
 
 // echo test
 
-use role accountadmin;
+use role <authorized role>;
 
 grant usage on database chattest_master to role ...;
 grant usage on schema chattest_master.code_schema to role ...;

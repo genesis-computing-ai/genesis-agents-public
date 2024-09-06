@@ -35,7 +35,7 @@ SELECT * FROM local_views;
 /****** EVENT LOGGING SETUP - PROVIDER ******/
 
 -- run event logging setup once for each cloud region
-USE ROLE ACCOUNTADMIN;
+USE ROLE  <authorized role>;
 
 SET REGION = (SELECT CURRENT_REGION()); -- events schema will be named after the region
 SET EVENT_TABLE = 'GENESIS_EVENTS.' || $REGION || '.GENESIS_BOT_EVENTS';

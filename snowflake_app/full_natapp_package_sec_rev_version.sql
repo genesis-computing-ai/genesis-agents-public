@@ -14,7 +14,7 @@ drop compute pool genesis_pool;
 -- ########## BEGIN ENVIRONMENT  ######################################
 
 
-SET APP_OWNER_ROLE = 'ACCOUNTADMIN';
+SET APP_OWNER_ROLE = '<authorized role>';
 SET APP_WAREHOUSE = 'XSMALL';
 SET APP_COMPUTE_POOL = 'genesis_test_pool';
 SET APP_DISTRIBUTION = 'INTERNAL';
@@ -23,12 +23,6 @@ SET APP_COMPUTE_POOL_FAMILY = 'CPU_X64_XS';
 
 -- ########## END   ENVIRONMENT  ######################################
 
-
-
-
-
-
-USE ROLE ACCOUNTADMIN;
 
 
 CREATE ROLE GENESIS_PROVIDER_ROLE;
@@ -105,7 +99,7 @@ CREATE COMPUTE POOL IF NOT EXISTS IDENTIFIER($APP_COMPUTE_POOL)
 USE WAREHOUSE identifier($APP_WAREHOUSE);
 drop database genesisapp_master;
 use warehouse xsmall;
-use role accountadmin;
+use role <authorized role>;
 
 
 CREATE DATABASE IF NOT EXISTS GENESISAPP_MASTER;
@@ -2044,7 +2038,7 @@ set APP_LOCAL_EAI = $APP_DATABASE||'_EAI';
 set APP_WAREHOUSE = 'XSMALL'; -- change to an existing Warehouse if desired
 
 // compute pool
-use role accountadmin;
+use role <authorized role>;
 
 
 CREATE DATABASE IF NOT EXISTS GENESIS_LOCAL_DB; 
@@ -2089,7 +2083,7 @@ CREATE OR REPLACE EXTERNAL ACCESS INTEGRATION IDENTIFIER($APP_LOCAL_EAI)
 
 // grants
 use role app_owner_role;
-grant all  on INTEGRATION IDENTIFIER($APP_LOCAL_EAI) to role accountadmin;
+grant all  on INTEGRATION IDENTIFIER($APP_LOCAL_EAI) to role  <authorized role>;
 
 
 GRANT USAGE ON DATABASE IDENTIFIER($APP_LOCAL_DB) TO APPLICATION IDENTIFIER($APP_DATABASE);
@@ -2100,7 +2094,7 @@ GRANT BIND SERVICE ENDPOINT ON ACCOUNT TO APPLICATION  IDENTIFIER($APP_DATABASE)
 GRANT USAGE ON WAREHOUSE  IDENTIFIER($APP_WAREHOUSE) TO APPLICATION  IDENTIFIER($APP_DATABASE);
 
 // start
-use role accountadmin;
+use role  <authorized role>;
 
 show compute pools;
 
@@ -2125,8 +2119,6 @@ SELECT SYSTEM$GET_SERVICE_LOGS('GENESISAPP_SERVICE_SERVICE',0,'genesis',1000);
 
 d
 SELECT CURRENT_ROLE(); -- Use the same role that installed the Application
--- USE ROLE ACCOUNTADMIN; -- Use the same role that installed the Application
--- USE DATABASE CEB_TEST;
 
 
 set OPENAI_API_KEY = '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';
@@ -2238,7 +2230,7 @@ GRANT USAGE ON INTEGRATION IDENTIFIER($APP_LOCAL_EAI) TO APPLICATION   IDENTIFIE
 GRANT READ ON SECRET  IDENTIFIER($OPENAI_SECRET_NAME) TO APPLICATION  IDENTIFIER($APP_DATABASE);
 GRANT READ ON SECRET IDENTIFIER($NGROK_SECRET_NAME) TO APPLICATION   IDENTIFIER($APP_DATABASE);
 GRANT USAGE ON COMPUTE POOL  IDENTIFIER($APP_COMPUTE_POOL) TO APPLICATION  IDENTIFIER($APP_DATABASE);
-GRANT BIND SERVICE ENDPOINT ON ACCOUNT TO ROLE ACCOUNTADMIN WITH GRANT OPTION;
+GRANT BIND SERVICE ENDPOINT ON ACCOUNT TO ROLE  <authorized role> WITH GRANT OPTION;
 GRANT BIND SERVICE ENDPOINT ON ACCOUNT TO APPLICATION  IDENTIFIER($APP_DATABASE);
 GRANT USAGE ON WAREHOUSE  IDENTIFIER($APP_WAREHOUSE) TO APPLICATION  IDENTIFIER($APP_DATABASE);
 
@@ -2322,7 +2314,7 @@ show services;
 show compute pools;
 drop compute pool GENESIS_TEST_POOL;
 
-use role accountadmin;
+use role  <authorized role>;
 show compute pools;
 
 select current_version();
@@ -2465,7 +2457,7 @@ GRANT SELECT ON ALL VIEWS IN SCHEMA JUSTIN.public TO APPLICATION GENESISAPP_APP;
 
 
 show databases;
-use role accountadmin;
+use role  <authorized role>;
 
 
 // grant another DB, see if it sees it
@@ -2482,12 +2474,12 @@ use database genesisapp_local_db;
 use schema public;
 show views;
 select * from tables_v;
-use role accountadmin;
+use role  <authorized role>;
 GRANT IMPORTED PRIVILEGES ON DATABASE SNOWFLAKE TO APPLICATION GENESISAPP_APP;
 
 
 grant usage on warehouse app_wh to role test_role_2;
-use role accountadmin;
+use role  <authorized role>;
 grant role test_role_2 to application genesisapp_app;
 
 
@@ -2545,7 +2537,7 @@ select 'hello' HI;
 
 
 use database genesisapp_app;
-use role accountadmin;
+use role  <authorized role>;
 show compute pools;
 
 

@@ -10,7 +10,7 @@
 #    snow connection add GENESIS-DEV-CONSUMER-2
 #        Account is : rdb46973
 # These connections are required for the commands below to work properly.
-# You may need to make a new ACCOUNTADMIN user without SSO/MFA for these
+# You may need to make a new <authorized role> user without SSO/MFA for these
 
 # Assign parameter to variable or default to ~/ if not provided
 DIRECTORY_PATH=${1:-~/}
@@ -19,8 +19,8 @@ DIRECTORY_PATH=${1:-~/}
 DIRECTORY_PATH=${DIRECTORY_PATH%/}
 
 # Login to image repo
-snow spcs image-registry token --connection GENESIS-DEV-PROVIDER --format=JSON
-snow spcs image-registry token --connection GENESIS-DEV-PROVIDER --format=JSON | docker login dshrnxx-genesis-dev.registry.snowflakecomputing.com --username 0sessiontoken --password-stdin
+# snow spcs image-registry token --connection GENESIS-DEV-PROVIDER --format=JSON
+#snow spcs image-registry token --connection GENESIS-DEV-PROVIDER --format=JSON | docker login dshrnxx-genesis-dev.registry.snowflakecomputing.com --username 0sessiontoken --password-stdin
 
 # Copy main.py to sis_launch.py
 cp ./streamlit_gui/main.py ./streamlit_gui/Genesis.py

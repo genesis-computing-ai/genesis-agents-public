@@ -10,7 +10,7 @@
 #    snow connection add GENESIS-DEV-CONSUMER-2
 #        Account is : rdb46973
 # These connections are required for the commands below to work properly.
-# You may need to make a new ACCOUNTADMIN user without SSO/MFA for these
+# You may need to make a new <authorized role> user without SSO/MFA for these
 
 # Build Docker image
 #docker build --rm -t genesis_app:latest --platform linux/amd64 .

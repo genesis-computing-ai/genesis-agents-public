@@ -3,6 +3,12 @@ GENESIS BOT TODOS
 =================
 
 today:
+x undo codeblocker and remove all <authorized role> mentions, and resubmit to ext
+Janice is talking about files a lot... fix prompting for that
+save chat sessions to backend
+why cant janicortex on alpha see the baseball data ?
+streamlit default fast mode off for openai bots (and hide control?)
+see if task sender of emails will add the process id etc and see if you can paste that into the bot chat to talk about it.. maybe make it a get history procedure call specifically... 
 Janice 2.0 posting to slack     caught exception 'builtin_function_or_method' object has no attribute 'startswith' trying to run _send_slack_channel_message
 tell bots proces slist may not be up to date / exhaustive
 have it insert janice if not there
@@ -390,7 +396,7 @@ x new install - (test) GENESIS_LOCAL_DB.ELIZA_WORKSPACE Create sample workspace 
 x (test) Check this function execute_function - _get_visible_tables - {"database":"my_data","schema":"public"}
 x (test) fix add_new_tools_to_bots, 2024-05-10 23:32:09,104 - ERROR - callback_closure - _submit_tool_outputs - caught exception: argument of type 
 x (test) JL-files issue Chris and Robert are seeing -- use new logging to debug
-n (include grants on future objects to accountadmin)
+n (include grants on future objects to <authorized role>)
 x (test) Harvester log make it less explicit on data 
 x (test) deploy bot flow, make sure new message shows up
 x (test) adding tools again, adding autonomouss tasks via eve didn't seem to work without restarts

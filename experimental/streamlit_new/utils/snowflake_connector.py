@@ -36,7 +36,6 @@ def initialize_session():
                 "account": os.getenv("SNOWFLAKE_ACCOUNT_OVERRIDE", "eqb52188"),
                 "user": os.getenv("SNOWFLAKE_USER_OVERRIDE", "JL_LOCAL_RUNNER"),
                 "password": os.getenv("SNOWFLAKE_PASSWORD_OVERRIDE", "pass"),
-                "role": os.getenv("SNOWFLAKE_ROLE_OVERRIDE", "ACCOUNTADMIN"),
                 "warehouse": os.getenv("SNOWFLAKE_WAREHOUSE_OVERRIDE", "XSMALL"),
                 "database": os.getenv("SNOWFLAKE_DATABASE_OVERRIDE", "GENESIS_TEST"),
                 "schema": os.getenv("SNOWFLAKE_SCHEMA")

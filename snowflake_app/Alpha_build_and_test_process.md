@@ -14,7 +14,7 @@ Before running this script, make sure to:
         Account is : eqb52188
    ```
    These connections are required for the commands below to work properly.
-   You may need to make a new ACCOUNTADMIN user without SSO/MFA for these.
+   You may need to make a new authorized user without SSO/MFA for these.
 
 ## Alpha Environment Upgrade
 

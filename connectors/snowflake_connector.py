@@ -84,9 +84,9 @@ class SnowflakeConnector(DatabaseConnector):
         # Run a SQL statement after the connection is created
         try:
             cursor = self.connection.cursor()
-            cursor.execute("USE WAREHOUSE REFERENCE('consumer_warehouse')")
+            cursor.execute("USE WAREHOUSE XSMALL")
             self.connection.commit()
-            print("Use warehouse SQL executed successfully.")
+            print("Use warehouse XSMALL SQL executed successfully.")
         except Exception as e:
             print(f"An error occurred while executing the SQL statement: {e}")
         finally:
@@ -1714,13 +1714,22 @@ class SnowflakeConnector(DatabaseConnector):
             if cursor is not None:
                 cursor.close()
 
+
         llm_config_table_check_query = (
             f"SHOW TABLES LIKE 'LLM_TOKENS' IN SCHEMA {self.schema};"
         )
         try:
             cursor = self.client.cursor()
+            print('BIG TEST')
+            print("token connection = ",self.token_connection)
+            if self.token_connection:
+                print("token connection true = ",self.token_connection, flush=True)
+                cursor.execute("use warehouse reference('consumer_warehouse');")
+                print("post use warehouse command")
             cursor.execute(llm_config_table_check_query)
-            if not cursor.fetchone():
+            print("post cursor execute command")
+            if not cursor.fetchone() or True:
+                print("in not fetchone")
                 llm_config_table_ddl = f"""
                 CREATE OR REPLACE TABLE {self.genbot_internal_project_and_schema}.LLM_TOKENS (
                     RUNNER_ID VARCHAR(16777216),
@@ -1730,21 +1739,49 @@ class SnowflakeConnector(DatabaseConnector):
                 );
                 """
                 cursor.execute(llm_config_table_ddl)
+                print("after create / replace", flush=True)
                 self.client.commit()
                 #      print(f"Table {self.genbot_internal_project_and_schema}.LLM_TOKENS created.")
 
                 # Insert a row with the current runner_id and cortex as the active LLM key and type
                 runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
                 insert_initial_row_query = f"""
+                BEGIN 
+                use warehouse reference('consumer_warehouse'); 
                 INSERT INTO {self.genbot_internal_project_and_schema}.LLM_TOKENS (RUNNER_ID, LLM_KEY, LLM_TYPE, ACTIVE)
-                VALUES (%s, %s, %s, %s);
+                VALUES (%s, %s, %s, %s); 
+                return 'done';
+                END
                 """
                 # if a new install, set cortex to default LLM if available
                 test_cortex_available = self.check_cortex_available()
+                print("2: before insert", flush=True)
+                if self.token_connection:
+                    print("2: token connection true = ",self.token_connection, flush=True)
+                    cursor.execute("use warehouse reference('consumer_warehouse');")
+                    print("2 post use inline before fetch")
+                    try:
+                        a = cursor.fetchall()
+                        print("a = ",a)                        
+                        print(f'{a[0]}')
+                    except Exception as e:
+                        print(" e ", e)
+                    print("3: get current wh")
+                    cursor.execute("select current_warehouse();")
+                    print("3 post get wh")
+                    try:
+                        b = cursor.fetchall()
+                        print("b = ",b)
+                        print(f'{b[0]}')
+                    except Exception as e:
+                        print(" e2 ", e)
+                    print("2: post use warehouse command")
                 if test_cortex_available == True:
                     cursor.execute(insert_initial_row_query, (runner_id,'cortex_no_key_needed', 'cortex', True,))
+                    print("after insert, available", flush=True)
                 else:
                     cursor.execute(insert_initial_row_query, (runner_id,None,None,False,))
+                    print("after insert, not available", flush=True)
                 self.client.commit()
             #       print(f"Inserted initial row into {self.genbot_internal_project_and_schema}.LLM_TOKENS with runner_id: {runner_id}")
             else:
@@ -1761,8 +1798,11 @@ class SnowflakeConnector(DatabaseConnector):
                             f"Column 'ACTIVE' added to table {self.genbot_internal_project_and_schema}.LLM_TOKENS."
                         )
                         update_query = f"UPDATE {self.genbot_internal_project_and_schema}.LLM_TOKENS SET ACTIVE=TRUE WHERE LLM_TYPE='OpenAI'"
+                        print("before update query", flush=True)
                         cursor.execute(update_query)
+                        print("after update query", flush=True)
                         self.client.commit()
+                        print("after update commit", flush=True)
                 except Exception as e:
                     print(
                         f"An error occurred while checking or altering table {self.genbot_internal_project_and_schema}.LLM_TOKENS to add ACTIVE column: {e}"
@@ -1771,8 +1811,11 @@ class SnowflakeConnector(DatabaseConnector):
         except Exception as e:
             print(f"An error occurred while checking or creating table LLM_TOKENS: {e}")
         finally:
+            print("in finally", flush=True)
             if cursor is not None:
                 cursor.close()
+        print("after finally", flush=True)
+
 
         slack_tokens_table_check_query = (
             f"SHOW TABLES LIKE 'SLACK_APP_CONFIG_TOKENS' IN SCHEMA {self.schema};"
@@ -2891,9 +2934,10 @@ class SnowflakeConnector(DatabaseConnector):
                     host=os.getenv("SNOWFLAKE_HOST"),
                     #        port = os.getenv('SNOWFLAKE_PORT'),
                     protocol="https",
-                    # warehouse = "REFERENCE('consumer_warehouse')",
+                    warehouse = "REFERENCE('consumer_warehouse')",
                     database=os.getenv("SNOWFLAKE_DATABASE"),
                     schema=os.getenv("SNOWFLAKE_SCHEMA"),
+                    warehouse="XSMALL",
                     account=os.getenv("SNOWFLAKE_ACCOUNT"),
                     token=snowflake_token,
                     authenticator="oauth",
@@ -2907,7 +2951,8 @@ class SnowflakeConnector(DatabaseConnector):
                     host=os.getenv("SNOWFLAKE_HOST"),
                     #         port = os.getenv('SNOWFLAKE_PORT'),
                     #         protocol = 'https',
-                    # warehouse = "REFERENCE('consumer_warehouse')",
+                #    warehouse = "REFERENCE('consumer_warehouse')",
+                    warehouse="XSMALL",
                     database=os.getenv("SNOWFLAKE_DATABASE"),
                     schema=os.getenv("SNOWFLAKE_SCHEMA"),
                     account=os.getenv("SNOWFLAKE_ACCOUNT"),

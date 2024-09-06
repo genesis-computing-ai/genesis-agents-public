@@ -3,7 +3,7 @@
 
 -- Open a worksheet and run the below commands, then load the Streamlit App for the application.
 
-USE ROLE ACCOUNTADMIN;
+USE ROLE  <authorized role>;
 
 // settings
 

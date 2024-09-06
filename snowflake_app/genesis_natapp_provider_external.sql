@@ -3,7 +3,7 @@
 -- ########## BEGIN ENVIRONMENT  ######################################
 
 
-SET APP_OWNER_ROLE = 'ACCOUNTADMIN';
+SET APP_OWNER_ROLE = '<authorized role>';
 SET APP_WAREHOUSE = 'XSMALL';
 SET APP_DISTRIBUTION = 'EXTERNAL';
 
@@ -11,7 +11,7 @@ SET APP_DISTRIBUTION = 'EXTERNAL';
 
 
 
-USE ROLE ACCOUNTADMIN;
+USE ROLE <authorized role>;
 USE WAREHOUSE XSMALL;
 
 
@@ -376,7 +376,7 @@ To allow Genesis to access to required external APIs (OpenAI and Slack)
 
 -- use a role with sufficient privileges for the
 
-use role ACCOUNTADMIN;
+use role <authorized role>;
 
 -- set the name of the installed application and warehouse to use
 

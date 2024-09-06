@@ -10,7 +10,7 @@
 #    snow connection add GENESIS-ALPHA-CONSUMER
 #        Account is : eqb52188
 # These connections are required for the commands below to work properly.
-# You may need to make a new ACCOUNTADMIN user without SSO/MFA for these
+# You may need to make a new <authorized role> user without SSO/MFA for these
 
 
 # Run make_alpha_sis_launch.py

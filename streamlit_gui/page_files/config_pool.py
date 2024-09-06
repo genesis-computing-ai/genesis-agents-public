@@ -43,8 +43,7 @@ def config_pool():
     Please go back to your Snowflake worksheet and run these commands to create a new compute pool and grant Genesis the rights to use it.
     """)
 
-    wh_text = f"""-- select role to use, generally Accountadmin or Sysadmin
-use role ACCOUNTADMIN;
+    wh_text = f"""-- select authorized role to use
 
 -- set the name of the installed application
 set APP_DATABASE = '{st.session_state.get("app_name", "")}';

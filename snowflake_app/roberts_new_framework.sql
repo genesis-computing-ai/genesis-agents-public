@@ -3,8 +3,8 @@
 --   <app_name> to your application name (use case sensitive change; This name must be lower case and the same name as above)
 --   <SERVICE_NAME> to your service name
 --   <INSTANCE_FAMILY> to your instance_family
---   <ROLE_NAME> to your role name (note: the role creation is commented out by default. You will need role ACCOUTADMIN to run it or you need to ask somebody with ACCOUNTADMIN to create and asign the roles; ; using ACCOUNTADMIN to be the application owner is discouraged for security concerns)
---   <USER_NAME> to your role name (note: the role creation is commented out by default. You will need role ACCOUTADMIN to run it or you need to ask somebody with ACCOUNTADMIN to create the roles; using ACCOUNTADMIN to be the application owner is discouraged for security concerns; create either both roles on provider & consumer, or just the respective role)
+--   <ROLE_NAME> to your role name (note: the role creation is commented out by default. You will need role ACCOUTADMIN to run it or you need to ask somebody with <authorized role> to create and asign the roles; ; using <authorized role> to be the application owner is discouraged for security concerns)
+--   <USER_NAME> to your role name (note: the role creation is commented out by default. You will need role ACCOUTADMIN to run it or you need to ask somebody with <authorized role> to create the roles; using <authorized role> to be the application owner is discouraged for security concerns; create either both roles on provider & consumer, or just the respective role)
 --   <WAREHOUSE> to your warehouse
 --   <DISTRIBUTION> to ['INTERNAL'|'EXTERNAL']. While developing the app, use 'INTERNAL' since it bypasses scanning of the containers (which can be time consuming)
 --   <container:tag> to your container:tag
@@ -20,7 +20,7 @@
 -- ########## BEGIN ROLES (OPTIONAL)  ######################################
 /*
 
-USE ROLE ACCOUNTADMIN;
+USE ROLE <authorized role>;
 
 CREATE ROLE <ROLE_NAME>_PROVIDER_ROLE;
 GRANT CREATE DATABASE ON ACCOUNT TO ROLE <ROLE_NAME>_PROVIDER_ROLE;

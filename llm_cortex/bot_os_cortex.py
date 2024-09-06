@@ -417,7 +417,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                                         last_python_tag_start = resp.rfind('<|python_tag|>')
                                         if resp[last_python_tag_start:].strip()[-1] not in ['}', '>']:
                                             fn_call = True
-                                    if not fn_call and len(resp)>20:
+                                    if not fn_call and len(resp)>50:
                                         self.event_callback(self.bot_id, BotOsOutputMessage(thread_id=thread_id, 
                                                                                         status='in_progress', 
                                                                                         output=resp+" 💬", 
@@ -616,8 +616,11 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             if input_message.metadata and 'thread_ts' in input_message.metadata:
                 fast_mode = True
                 self.thread_fast_mode_map[thread_id] = True
-                print('cortex fast mode = true (set by default for a new slack-based thread)')
-                input_message.msg  += ' [NOTE: Also in your response YOU MUST mention in passing that fast mode is active and remind me that I can send !fast off to switch to smart mode.]'
+                self.llm_engine = os.getenv("CORTEX_FAST_MODEL_NAME")
+                if os.getenv("CORTEX_MODEL",False) and os.getenv("CORTEX_FAST_MODEL_NAME",False) and os.getenv("CORTEX_MODEL") != os.getenv("CORTEX_FAST_MODEL_NAME"):
+                    print('cortex fast mode = true (set by default for a new slack-based thread)')               
+                    print(f'Switching from {os.getenv("CORTEX_MODEL")} to {os.getenv("CORTEX_FAST_MODEL_NAME")}')
+                    input_message.msg  += ' [NOTE: Also in your response YOU MUST mention in passing that fast mode is active and remind me that I can send !fast off to switch to smart mode.]'
             # Check if channel is in input_message.metadata
             if input_message.metadata and 'channel' in input_message.metadata:
                 channel = input_message.metadata['channel']

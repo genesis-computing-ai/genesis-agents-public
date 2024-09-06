@@ -19,8 +19,8 @@ DIRECTORY_PATH=${1:-~/}
 DIRECTORY_PATH=${DIRECTORY_PATH%/}
 
 # Login to image repo
-# snow spcs image-registry token --connection GENESIS-DEV-PROVIDER --format=JSON
-#snow spcs image-registry token --connection GENESIS-DEV-PROVIDER --format=JSON | docker login dshrnxx-genesis-dev.registry.snowflakecomputing.com --username 0sessiontoken --password-stdin
+#snow spcs image-registry token --connection GENESIS-DEV-PROVIDER --format=JSON
+snow spcs image-registry token --connection GENESIS-DEV-PROVIDER --format=JSON | docker login dshrnxx-genesis-dev.registry.snowflakecomputing.com --username 0sessiontoken --password-stdin
 
 # Copy main.py to sis_launch.py
 cp ./streamlit_gui/main.py ./streamlit_gui/Genesis.py
@@ -58,7 +58,7 @@ snow sql -c GENESIS-DEV-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/snowflak
 # Upload YML files
 snow sql -c GENESIS-DEV-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/snowflake_app/*.yml @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
 
-output=$(snow sql -c GENESIS-DEV-PROVIDER -q "ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG ADD PATCH FOR VERSION V0_4 USING @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE")
+output=$(snow sql -c GENESIS-DEV-PROVIDER -q "ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG ADD PATCH FOR VERSION V0_5 USING @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE")
 
 # Output the result of the first command
 echo "First command output:"

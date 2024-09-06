@@ -3,6 +3,7 @@ GENESIS BOT TODOS
 =================
 
 today:
+matts issue with scheduled processes make sure it works without thread_id ok
 x undo codeblocker and remove all <authorized role> mentions, and resubmit to ext
 make outrigger processes wake up at the top of the hour 
 Janice is talking about files a lot... fix prompting for that

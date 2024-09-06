@@ -312,6 +312,18 @@ class SnowflakeConnector(DatabaseConnector):
 
             response = requests.post(url, json=request_data, stream=True, headers=headers)
 
+            if response.status_code == 400 and 'unknown model' in response.text:
+                self.llm_engine = os.getenv("CORTEX_FAST_MODEL_NAME", "llama3.1-70b")
+                print(f"Model not found. Switching to {self.llm_engine}")
+                request_data["model"] = self.llm_engine
+                response = requests.post(url, json=request_data, stream=True, headers=headers)
+                if response.status_code != 200:
+                    print('cortex 405b and 70b not avail: ',response.status_code, response.text)
+                    return False, False
+                else:
+                    os.environ["CORTEX_MODEL"] = "llama3.1-70b"
+                    self.llm_engine = os.environ["CORTEX_MODEL"]
+
             curr_resp = ''
             for line in response.iter_lines():
                 if line:
@@ -1859,10 +1871,23 @@ class SnowflakeConnector(DatabaseConnector):
                 bot_intro_prompt = EVE_INTRO_PROMPT
 
                 insert_initial_row_query = f"""
-                INSERT INTO {self.bot_servicing_table_name} (
-                    RUNNER_ID, BOT_ID, BOT_NAME, BOT_INSTRUCTIONS, AVAILABLE_TOOLS, UDF_ACTIVE, SLACK_ACTIVE, BOT_INTRO_PROMPT
-                )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
+                MERGE INTO {self.bot_servicing_table_name} AS target
+                USING (SELECT %s AS BOT_ID, %s AS RUNNER_ID, %s AS BOT_NAME, %s AS BOT_INSTRUCTIONS, 
+                              %s AS AVAILABLE_TOOLS, %s AS UDF_ACTIVE, %s AS SLACK_ACTIVE, %s AS BOT_INTRO_PROMPT) AS source
+                ON target.BOT_ID = source.BOT_ID
+                WHEN MATCHED THEN
+                    UPDATE SET
+                        RUNNER_ID = source.RUNNER_ID,
+                        BOT_NAME = source.BOT_NAME,
+                        BOT_INSTRUCTIONS = source.BOT_INSTRUCTIONS,
+                        AVAILABLE_TOOLS = source.AVAILABLE_TOOLS,
+                        UDF_ACTIVE = source.UDF_ACTIVE,
+                        SLACK_ACTIVE = source.SLACK_ACTIVE,
+                        BOT_INTRO_PROMPT = source.BOT_INTRO_PROMPT
+                WHEN NOT MATCHED THEN
+                    INSERT (BOT_ID, RUNNER_ID, BOT_NAME, BOT_INSTRUCTIONS, AVAILABLE_TOOLS, UDF_ACTIVE, SLACK_ACTIVE, BOT_INTRO_PROMPT)
+                    VALUES (source.BOT_ID, source.RUNNER_ID, source.BOT_NAME, source.BOT_INSTRUCTIONS, 
+                            source.AVAILABLE_TOOLS, source.UDF_ACTIVE, source.SLACK_ACTIVE, source.BOT_INTRO_PROMPT);
                 """
                 cursor.execute(
                     insert_initial_row_query,
@@ -1931,10 +1956,23 @@ class SnowflakeConnector(DatabaseConnector):
                 bot_intro_prompt = JANICE_INTRO_PROMPT
 
                 insert_initial_row_query = f"""
-                INSERT INTO {self.bot_servicing_table_name} (
-                    RUNNER_ID, BOT_ID, BOT_NAME, BOT_INSTRUCTIONS, AVAILABLE_TOOLS, UDF_ACTIVE, SLACK_ACTIVE, BOT_INTRO_PROMPT
-                )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
+                MERGE INTO {self.bot_servicing_table_name} AS target
+                USING (SELECT %s AS RUNNER_ID, %s AS BOT_ID, %s AS BOT_NAME, %s AS BOT_INSTRUCTIONS, 
+                              %s AS AVAILABLE_TOOLS, %s AS UDF_ACTIVE, %s AS SLACK_ACTIVE, %s AS BOT_INTRO_PROMPT) AS source
+                ON target.BOT_ID = source.BOT_ID
+                WHEN MATCHED THEN
+                    UPDATE SET
+                        RUNNER_ID = source.RUNNER_ID,
+                        BOT_NAME = source.BOT_NAME,
+                        BOT_INSTRUCTIONS = source.BOT_INSTRUCTIONS,
+                        AVAILABLE_TOOLS = source.AVAILABLE_TOOLS,
+                        UDF_ACTIVE = source.UDF_ACTIVE,
+                        SLACK_ACTIVE = source.SLACK_ACTIVE,
+                        BOT_INTRO_PROMPT = source.BOT_INTRO_PROMPT
+                WHEN NOT MATCHED THEN
+                    INSERT (RUNNER_ID, BOT_ID, BOT_NAME, BOT_INSTRUCTIONS, AVAILABLE_TOOLS, UDF_ACTIVE, SLACK_ACTIVE, BOT_INTRO_PROMPT)
+                    VALUES (source.RUNNER_ID, source.BOT_ID, source.BOT_NAME, source.BOT_INSTRUCTIONS, 
+                            source.AVAILABLE_TOOLS, source.UDF_ACTIVE, source.SLACK_ACTIVE, source.BOT_INTRO_PROMPT);
                 """
                 cursor.execute(
                     insert_initial_row_query,

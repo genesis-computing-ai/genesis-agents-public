@@ -134,15 +134,19 @@ def chat_page():
 
     @st.cache_data(ttl=3000) 
     def get_llm_configuration(selected_bot_id):
-        bot_details = get_bot_details()
-        # Find the entry in bot_details for the selected bot
-        selected_bot_config = next((bot for bot in bot_details if bot['bot_id'] == selected_bot_id), None)
-        
-        if selected_bot_config:
-            return (selected_bot_config.get('bot_implementation', {}).lower())
+
+        current_llm = 'unknown'
+        bot_llms = get_metadata("bot_llms")
+        if len(bot_llms) > 0:
+            for bot_id, llm_info in bot_llms.items():
+                if bot_id == selected_bot_id:
+                    current_llm = llm_info.get('current_llm')
+
+            return (current_llm)
         else:
-            st.error(f"No configuration found for bot with ID: {selected_bot_id}")
+            st.error(f"No LLM configuration found for bot with ID: {selected_bot_id}")
             return {}
+        
 
     def submit_button(prompt, chatmessage, intro_prompt=False, fast_mode_override=False):
         current_thread_id = st.session_state["current_thread_id"]

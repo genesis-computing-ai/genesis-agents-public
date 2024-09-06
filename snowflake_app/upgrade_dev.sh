@@ -77,7 +77,7 @@ if [ -z "$patch_number" ]; then
 fi
 
 # Run the second command with the extracted patch number
-snow sql -c GENESIS-DEV-PROVIDER -q "ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG SET DEFAULT RELEASE DIRECTIVE VERSION = V0_4 PATCH = $patch_number;"
+snow sql -c GENESIS-DEV-PROVIDER -q "ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG SET DEFAULT RELEASE DIRECTIVE VERSION = V0_5 PATCH = $patch_number;"
 
 echo "Patch $patch_number has been set as the default release directive."
 
@@ -86,13 +86,14 @@ if [ "$patch_number" -eq 130 ]; then
     echo "WARNING: You will need to upgrade your version number before your next patch"
 fi
 
-# snow sql -c GENESIS-DEV-CONSUMER-2 -q "alter application genesis_bots upgrade"
+snow sql -c GENESIS-DEV-CONSUMER-2 -q "alter application genesis_bots upgrade"
 
-# snow sql -c GENESIS-DEV-CONSUMER-2 -q "show services"
+snow sql -c GENESIS-DEV-CONSUMER-2 -q "show services"
 
 echo "Upgrade complete"
 
 # todo: add primary version fixing when needed:
-#ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG DROP VERSION V0_2 ;
-#ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG ADD VERSION V0_4 USING @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE;#show versions in APPLICATION PACKAGE GENESISAPP_APP_PKG;
+#ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG DROP VERSION V0_3 ;
+#ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG ADD VERSION V0_5 USING @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE;#show versions in APPLICATION PACKAGE GENESISAPP_APP_PKG;
+#ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG SET DEFAULT RELEASE DIRECTIVE VERSION = V0_5 PATCH = 0;
 #show versions in APPLICATION PACKAGE GENESISAPP_APP_PKG;

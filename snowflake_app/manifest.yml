@@ -11,17 +11,6 @@ artifacts:
 configuration:
   trace_level: OFF
   log_level: DEBUG
-  grant_callback: core.grant_callback
-references:
-  - consumer_warehouse:
-      label: "Consumer warehouse"
-      description: "A virtual warehouse in the consumer account that exists outside the APPLICATION object."
-      privileges:
-        - USAGE
-        - OPERATE
-      object_type: WAREHOUSE
-      multi_valued: false
-      register_callback: core.register_single_reference
 privileges:
   - BIND SERVICE ENDPOINT:
       description: "Allow access to application endpoints"

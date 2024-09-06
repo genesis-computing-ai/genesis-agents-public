@@ -923,10 +923,23 @@ In your response back to run_process, provide a detailed description of what you
                     "Message": f"process_config updated or deleted",
                     "process_id": process_id,
                 }
+            
+            if action == "CREATE":
+                # Check for dupe name
+                sql = f"SELECT * FROM {db_adapter.schema}.PROCESSES WHERE process_name = %s"
+                cursor.execute(sql, (bot_id, process_details['process_name']))
+
+                record = cursor.fetchone()
+
+                if record:
+                    return {
+                        "Success": False,
+                        "Error": f"Process with name {process_details['process_name']} already exists.  Please choose a different name."
+                    }
 
             if action == "CREATE" or action == "UPDATE":
                 # Check for dupe name
-                sql = f"SELECT * FROM {db_adapter.schema}.PROCESSES WHERE bot_id = %s AND process_name = %s"
+                sql = f"SELECT * FROM {db_adapter.schema}.PROCESSES WHERE process_name = %s"
                 cursor.execute(sql, (bot_id, process_details['process_name']))
 
                 record = cursor.fetchone()
@@ -934,7 +947,7 @@ In your response back to run_process, provide a detailed description of what you
                 if record and '_golden' in record['process_id']:
                     return {
                         "Success": False,
-                        "Error": f"Process with name {process_details['process_name']} already exists for bot {bot_id}.  Please choose a different name."
+                        "Error": f"Process with name {process_details['process_name']}.  Please choose a different name."
                     }
             
                 # Send process_instructions to 2nd LLM to check it and format nicely

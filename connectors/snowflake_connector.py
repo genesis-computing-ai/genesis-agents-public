@@ -80,6 +80,19 @@ class SnowflakeConnector(DatabaseConnector):
         # print('Calling _create_connection...')
         self.token_connection = False
         self.connection: SnowflakeConnection = self._create_connection()
+
+        # Run a SQL statement after the connection is created
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute("USE WAREHOUSE REFERENCE('consumer_warehouse')")
+            self.connection.commit()
+            print("Use warehouse SQL executed successfully.")
+        except Exception as e:
+            print(f"An error occurred while executing the SQL statement: {e}")
+        finally:
+            if cursor is not None:
+                cursor.close()
+
         self.semantic_models_map = {}
 
         self.client = self.connection
@@ -2878,7 +2891,7 @@ class SnowflakeConnector(DatabaseConnector):
                     host=os.getenv("SNOWFLAKE_HOST"),
                     #        port = os.getenv('SNOWFLAKE_PORT'),
                     protocol="https",
-                    #     warehouse = os.getenv('SNOWFLAKE_WAREHOUSE'),
+                    # warehouse = "REFERENCE('consumer_warehouse')",
                     database=os.getenv("SNOWFLAKE_DATABASE"),
                     schema=os.getenv("SNOWFLAKE_SCHEMA"),
                     account=os.getenv("SNOWFLAKE_ACCOUNT"),
@@ -2894,7 +2907,7 @@ class SnowflakeConnector(DatabaseConnector):
                     host=os.getenv("SNOWFLAKE_HOST"),
                     #         port = os.getenv('SNOWFLAKE_PORT'),
                     #         protocol = 'https',
-                    #         warehouse = os.getenv('SNOWFLAKE_WAREHOUSE'),
+                    # warehouse = "REFERENCE('consumer_warehouse')",
                     database=os.getenv("SNOWFLAKE_DATABASE"),
                     schema=os.getenv("SNOWFLAKE_SCHEMA"),
                     account=os.getenv("SNOWFLAKE_ACCOUNT"),

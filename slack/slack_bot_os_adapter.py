@@ -257,6 +257,16 @@ class SlackBotAdapter(BotOsInputAdapter):
 
     # abstract method from BotOsInputAdapter
 
+    def get_user_info(self, user_id):
+        user_info = self.slack_app.client.users_info(user=user_id)
+        if user_id in self.user_info_cache:
+            return self.user_info_cache[user_id]
+        user_email     = user_info["user"].get('profile', {}).get('email', 'Unknown Email')
+        user_full_name = user_info["user"].get('profile', {}).get('real_name', 'Unknown User')  
+        self.user_info_cache[user_id] = (user_full_name, user_email)
+        return self.user_info_cache[user_id]
+    
+
     def get_input(
         self, thread_map=None, active=None, processing=None, done_map=None
     ) -> BotOsInputMessage | None:
@@ -409,41 +419,18 @@ class SlackBotAdapter(BotOsInputAdapter):
             pass
         #   print('...*-*-*-* Files not in event', flush=True)
 
-        user_full_name = "Unknown User"
         user_id = "Unknown User ID"
         try:
             if event.get("subtype", None) == "message_changed":
                 user_id = event["message"]["user"]
             else:
                 user_id = event["user"]
-            if user_id not in self.user_info_cache:
-                try:
-                    user_info = self.slack_app.client.users_info(user=user_id)
-                    self.user_info_cache[user_id] = user_info["user"]["real_name"]
-                    user_full_name = self.user_info_cache[user_id]
-                except:
-                    try:
-                        self.user_info_cache[user_id] = user_info["user"]["profile"][
-                            "real_name"
-                        ]
-                        user_full_name = self.user_info_cache[user_id]
-                    except:
-                        user_full_name = user_id
-            else:
-                user_full_name = self.user_info_cache[user_id]
+            user_full_name, user_email = self.get_user_info(user_id)
 
             user_ids_in_message = re.findall(r"<@(\w+)>", msg)
             for uid in user_ids_in_message:
-                if uid not in self.user_info_cache:
-                    try:
-                        user_info = self.slack_app.client.users_info(user=uid)
-                        self.user_info_cache[uid] = user_info["user"]["real_name"]
-                    except:
-                        try:
-                            self.user_info_cache[uid] = user_info["user"]["profile"]["real_name"]
-                        except:
-                            self.user_info_cache[uid] = uid
-                msg = msg.replace(f"<@{uid}>", f"<@{uid}({self.user_info_cache[uid]})>")
+                uid_full_name, _ = self.get_user_info(uid)
+                msg = msg.replace(f"<@{uid}>", f"<@{uid}({uid_full_name})>")
 
             msg_with_user_and_id = f"<@{user_id}>({user_full_name}) says: {msg}"
         except Exception as e:
@@ -463,31 +450,20 @@ class SlackBotAdapter(BotOsInputAdapter):
             is_bot = "TRUE"
         else:
             is_bot = "FALSE"
+        metadata = {
+                "thread_ts": thread_ts,
+                "channel": channel,
+                "channel_type": event.get("channel_type", ""),
+                "user_id": user_id,
+                "user_name": user_full_name,
+                "user_email": user_email,
+                "tagged_flag": tagged_flag,
+                "dm_flag": dmcheck_flag,
+                "is_bot": is_bot,
+                "event_ts": event["ts"],
+            }
         if thinking_ts:
-            metadata = {
-                "thread_ts": thread_ts,
-                "channel": channel,
-                "thinking_ts": thinking_ts,
-                "channel_type": event.get("channel_type", ""),
-                "user_id": user_id,
-                "user_name": user_full_name,
-                "tagged_flag": tagged_flag,
-                "dm_flag": dmcheck_flag,
-                "is_bot": is_bot,
-                "event_ts": event["ts"],
-            }
-        else:
-            metadata = {
-                "thread_ts": thread_ts,
-                "channel": channel,
-                "channel_type": event.get("channel_type", ""),
-                "user_id": user_id,
-                "user_name": user_full_name,
-                "tagged_flag": tagged_flag,
-                "dm_flag": dmcheck_flag,
-                "is_bot": is_bot,
-                "event_ts": event["ts"],
-            }
+            metadata['thinking_ts'] = thinking_ts
 
         if dmcheck:
             # Check if this was the first message in the DM channel with the user

@@ -798,7 +798,9 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
          self.active_runs.append(thread_id)
 
       primary_user = json.dumps({'user_id': input_message.metadata.get('user_id', 'Unknown User ID'), 
-                                 'user_name': input_message.metadata.get('user_name', 'Unknown User')})
+                                 'user_name': input_message.metadata.get('user_name', 'Unknown User'),
+                                 'user_email': input_message.metadata.get('user_email', 'Unknown Email')})
+                                 
       self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id, 
                                                     message_type='User Prompt', message_payload=input_message.msg, message_metadata=input_message.metadata, files=attachments,
                                                     channel_type=input_message.metadata.get("channel_type", None), channel_name=input_message.metadata.get("channel", None),
@@ -1071,7 +1073,8 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
        #  if thread_id in self.processing_runs:
        #     self.processing_runs.remove(thread_id)
          primary_user = json.dumps({'user_id': meta.get('user_id', 'Unknown User ID'), 
-                     'user_name': meta.get('user_name', 'Unknown User')})
+                     'user_name': meta.get('user_name', 'Unknown User'),
+                     'user_email': meta.get('user_email', 'Unknown Email')})
          for tool_output in tool_outputs:
             self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id, 
                                                           message_type='Tool Output', message_payload=tool_output['output'], 
@@ -1459,7 +1462,8 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
                         meta = run.metadata
                         primary_user = json.dumps({'user_id': meta.get('user_id', 'Unknown User ID'), 
-                                    'user_name': meta.get('user_name', 'Unknown User')})
+                                    'user_name': meta.get('user_name', 'Unknown User'),
+                                     'user_email': meta.get('user_email', 'Unknown Email')})
                         self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id,
                                                                      message_type='Tool Call', message_payload=log_readable_payload, 
                                                                      message_metadata={'tool_call_id':tool_call_id, 'func_name':func_name, 'func_args':func_args},
@@ -1683,7 +1687,8 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                except:
                   message_metadata = "!error converting content to string"
                primary_user = json.dumps({'user_id': meta.get('user_id', 'Unknown User ID'), 
-                              'user_name': meta.get('user_name', 'Unknown User')})
+                              'user_name': meta.get('user_name', 'Unknown User'),
+                              'user_email': meta.get('user_email', 'Unknown Email')})
                try:
                   self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id, 
                                                                   message_type='Assistant Response', message_payload=output, message_metadata=message_metadata,

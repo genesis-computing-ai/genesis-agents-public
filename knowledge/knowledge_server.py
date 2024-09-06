@@ -97,16 +97,15 @@ class KnowledgeServer:
             query = f"""SELECT DISTINCT(knowledge_thread_id) FROM {self.db_connector.knowledge_table_name}
                         WHERE thread_id = '{thread_id}';"""
             knowledge_thread_id = self.db_connector.run_query(query)
-            if knowledge_thread_id:
+            if knowledge_thread_id and self.llm_type == 'openai':
                 knowledge_thread_id = knowledge_thread_id[0]["KNOWLEDGE_THREAD_ID"]
                 content = f"""Find a new batch of conversations between the user and agent and update 4 requested information in the original prompt and return it in JSON format:
                              Conversation:
                              {messages}
                         """
-                if self.llm_type == 'openai':
-                    self.client.beta.threads.messages.create(
-                        thread_id=knowledge_thread_id, content=content, role="user"
-                    )
+                self.client.beta.threads.messages.create(
+                    thread_id=knowledge_thread_id, content=content, role="user"
+                )
             else:
                 content = f"""Given the following conversations between the user and agent, analyze them and extract the 4 requested information:
                              Conversation:

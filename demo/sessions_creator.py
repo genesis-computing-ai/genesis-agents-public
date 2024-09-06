@@ -515,6 +515,17 @@ def create_sessions(
     runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
 
     bots_config = get_all_bots_full_details(runner_id=runner_id)
+
+    janice = 0
+    for bot_config in bots_config:
+        if bot_config.get("bot_name") == "Janice 2.0":
+            janice += 1
+
+    if janice == 0:
+        print("Janice 2.0 bot not found in bots_config")
+        # Add Janice 2.0 to bots_config
+        
+    
     sessions = []
     api_app_id_to_session_map = {}
     bot_id_to_udf_adapter_map = {}

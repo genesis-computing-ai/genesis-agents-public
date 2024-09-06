@@ -62,4 +62,13 @@
       "PROCESS_DETAILS": "Monitor Unused Tables",
       "TIMESTAMP": "2000-01-01T00:00:00.000Z"
     }
+    ,
+    "janice_data_freshness_check_golden": {
+      "BOT_ID": "Janice",
+      "PROCESS_NAME": "janice_data_freshness_check",
+      "PROCESS_INSTRUCTIONS": "\n**Process: Update Data Field for Specific Timestamps**\n1. **Find Rows**\n- Locate all rows that have a timestamp after August 27 at 2 PM.\n2. **Display Rows**\n- Show the rows that match the above criteria.\n\n3. **Update Data Field**\n- For each of the rows found, update the data field to “fresh”.\n\n4. **Show All Rows**\n- Display all rows of the table",
+      "PROCESS_DETAILS": "Data Freshness Check",
+      "PROCESS_PARAMS": "TABLE_A, TABLE_B, TABLE_C",
+      "TIMESTAMP": "2000-01-01T00:00:00.000Z"
+    }
   }

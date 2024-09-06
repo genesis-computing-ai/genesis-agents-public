@@ -3,6 +3,8 @@ GENESIS BOT TODOS
 =================
 
 today:
+Janice 2.0 posting to slack     caught exception 'builtin_function_or_method' object has no attribute 'startswith' trying to run _send_slack_channel_message
+tell bots proces slist may not be up to date / exhaustive
 have it insert janice if not there
 streamlit habdle !NO RESPONSE REQUIRED better
 x make no response logic less agressive 

@@ -620,10 +620,10 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       if thread_id in self.first_message_map:
          del self.first_message_map[thread_id]
          if input_message.metadata and 'thread_ts' in input_message.metadata:
-            fast_mode = True
-            self.thread_fast_mode_map[thread_id] = True
-            print('openai fast mode = true (set by default for a new slack-based thread)')
-            input_message.msg += '  (BTW, in your initial response also mention in passing that fast mode is active, and that the user can send !fast off to switch it to smart mode)'
+       #     fast_mode = True
+        #    self.thread_fast_mode_map[thread_id] = True
+            print('openai fast mode = false (set by default for a new slack-based thread)')
+            input_message.msg += '  (BTW, in your initial response also mention in passing that fast mode is available, and that the user can send !fast on to switch it to fast mode)'
          
       stop_flag = False
       fast_mode = False

@@ -1055,7 +1055,7 @@ def generate_task_prompt(bot_id, task):
     
     Use the process runner tool to run the process named above and follow the instructions that it gives you. Call mulitple tools if needed to complete the task.
     Do NOT create a new process, or a new schedule for an existing process. You are to execute the steps described above for this existing task. 
-    If you send a slack direct message or slack channel message as part of the task, include at the end: _(process:{task_details['task_name']}, schedule_id:{task_details['task_id']}_)
+    If you send an email or a slack direct message or slack channel message as part of the task, include at the end of the message: _(process:{task_details['task_name']}, schedule_id:{task_details['task_id']}_)
     Do not call process_scheduler while performing this work. Only generate an image if specifically told to. 
     When you are DONE with this task and have FULLY completed it, return only a JSON document with these items, no other text:
 

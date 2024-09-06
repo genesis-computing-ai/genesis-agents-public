@@ -231,7 +231,7 @@ def make_session(
                 print(
                     f"Setting data_cubes_ingress_url for {bot_id}: {data_cubes_ingress_url}"
                 )
-                instructions += f"\nWhenever you show the results from run_query that may have more than 10 rows, and if you are not in the middle of running a process, also provide a link to a datacube visualization to help them understand the data you used in the form: http://{data_cubes_ingress_url}?sql_query=select%20*%20from%20spider_data.baseball.all_star -- replace the value of the sql_query query parameter with the query you used."
+                instructions += f"\nWhenever you show the results from run_query that may have more than 10 rows, and if you are not in the middle of running a process, also provide a link to a datacube visualization to help them understand the data you used in the form: http://{data_cubes_ingress_url}%ssql_query=select%20*%20from%20spider_data.baseball.all_star -- replace the value of the sql_query query parameter with the query you used."
         except Exception as e:
             print(f"Error creating bot workspace for bot_id {bot_id} {e} ")
 
@@ -364,7 +364,7 @@ def make_session(
                                 actual_llm = 'openai'
                                 break
                     if os.getenv("OPENAI_API_KEY") in (None, ""):
-                        print("openai llm key not set. cortex not available. what llm is being used?")
+                        print("openai llm key not set. cortex not available. what llm is being used%s")
                     else:
                         assistant_implementation = BotOsAssistantOpenAI
                         actual_llm = 'openai'
@@ -512,6 +512,7 @@ def create_sessions(
     skip_vectors=False,
     data_cubes_ingress_url=None,
 ):
+    import os
     # Fetch bot configurations for the given runner_id from BigQuery
     runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
 
@@ -519,14 +520,92 @@ def create_sessions(
 
     janice = 0
     for bot_config in bots_config:
-        if bot_config.get("bot_name") == "Janice 2.0":
+        if bot_config.get("bot_name") == "Janice":
             janice += 1
 
     if janice == 0:
-        print("Janice 2.0 bot not found in bots_config")
+        import os
+
+        cursor = db_adapter.connection.cursor()
+        print("Janice bot not found in bots_config")
+
         # Add Janice 2.0 to bots_config
+        janice_config = {
+            "API_APP_ID": "",
+            "BOT_SLACK_USER_ID": os.getenv("U076DQVN5LY", "None"),
+            "BOT_ID": "Janice",
+            "BOT_NAME": "Janice",
+            "BOT_INSTRUCTIONS": """You are the Snowflake Janitor, responsible for analyzing the SNOWFLAKE database to identify cost-saving opportunities. Your job involves looking into unused or underused virtual warehouses, little-used data, and other areas where savings can be achieved.
+
+        You can monitor the Snowflake platform for any anti-patterns that do not follow best practices. You are an expert in Snowflake and can write queries against the Snowflake metadata to find the information that you need. When writing queries to run in Snowflake, you will not place double quotes around object names and always use uppercase for object names unless explicitly instructed otherwise.
+
+        Only create objects in Snowflake or new tasks when explicitly directed to by the user. You can make suggestions, but don't actually do so without the user's explicit agreement.
+
+        When asked about cost reduction options, suggest the following approach:
+        1. Review virtual warehouse usage patterns over time. Use the documents "Exploring execution times.pdf", "Understanding compute cost.pdf", "Optimizing the warehouse cache.pdf", and "Overview of warehouses.pdf" to supplement your knowledge of the subject.
+        2. Review data storage costs. Use the documents "Storage Costs for Time Travel and Fail-safe.pdf", "Working with Temporary and Transient Tables.pdf", "Exploring storage costs.pdf", and "Data Storage Considerations.pdf" to supplement your knowledge of the subject.
+        3. Offer to run queries against the INFORMATION_SCHEMA schema in the subject database or SNOWFLAKE.ACCOUNT_USAGE schema to determine the answer to the question asked about cost and usage.
+        a. When running queries against these views or functions, be sure to sample the data first when creating a filter on a column if you do not know the possible values. Do not show this output, but use it when crafting the final query.
+        b. Only run the final query when confirmed by the user.
+        4. Offer to set up a task to monitor storage or usage patterns.
+        Your job is to query the Snowflake metadata, not the user's table data.""",
+            "AVAILABLE_TOOLS": '["integration_tools", "activate_marketing_campaign", "send_email_via_webhook", "run_process","manage_processes"]',
+            "RUNNER_ID": "snowflake-1",
+            "SLACK_APP_TOKEN": os.getenv("SLACK_APP_TOKEN", "None"),
+            "SLACK_APP_LEVEL_KEY": os.getenv("SLACK_APP_LEVEL_KEY", "None"),
+            "SLACK_SIGNING_SECRET": os.getenv("SLACK_SIGNING_SECRET", "None"),
+            "SLACK_CHANNEL_ID": os.getenv("SLACK_CHANNEL_ID", "None"),
+            "AUTH_URL": os.getenv("AUTH_URL", "None"),
+            "AUTH_STATE": os.getenv("AUTH_STATE", "None"),
+            "CLIENT_ID": os.getenv("CLIENT_ID", "None"),
+            "CLIENT_SECRET": os.getenv("CLIENT_SECRET", "None"),
+            "UDF_ACTIVE": "Y",
+            "SLACK_ACTIVE": "Y",
+            "FILES": '["TABLES_View.pdf", "Data_Storage_Considerations.pdf", "Exploring_Execution_Times.pdf", "Exploring_Storage_Costs.pdf", "Optimizing_the_Warehouse_Cache.pdf", "Overview_of_Warehouses.pdf", "Storage_Costs_for_Time_Travel_and_Failsafe.pdf", "Understanding_Compute_Cost.pdf", "Working_with_Temporary_and_Transient_Tables.pdf"]',
+            "BOT_IMPLEMENTATION": "openai",
+            "BOT_INTRO_PROMPT": "Hello, how can I help you?",
+            "BOT_AVATAR_IMAGE": "https://storage.googleapis.com/genbot-avatars/janice_avatar.png",
+            "SLACK_USER_ALLOW": None,
+            "DATABASE_CREDENTIALS": None
+        }
+
+        sql = f'''
+            INSERT INTO {db_adapter.schema}.BOT_SERVICING (
+                API_APP_ID, BOT_SLACK_USER_ID, BOT_ID, BOT_NAME, BOT_INSTRUCTIONS, AVAILABLE_TOOLS, RUNNER_ID, SLACK_APP_TOKEN, SLACK_APP_LEVEL_KEY, SLACK_SIGNING_SECRET, SLACK_CHANNEL_ID, AUTH_URL, AUTH_STATE, CLIENT_ID, CLIENT_SECRET, UDF_ACTIVE, SLACK_ACTIVE, FILES, BOT_IMPLEMENTATION, BOT_INTRO_PROMPT, BOT_AVATAR_IMAGE, SLACK_USER_ALLOW, DATABASE_CREDENTIALS
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        '''
+
+        cursor.execute(sql, (
+            janice_config["API_APP_ID"],
+            janice_config["BOT_SLACK_USER_ID"],
+            janice_config["BOT_ID"],
+            janice_config["BOT_NAME"],
+            janice_config["BOT_INSTRUCTIONS"],
+            janice_config["AVAILABLE_TOOLS"],
+            janice_config["RUNNER_ID"],
+            janice_config["SLACK_APP_TOKEN"],
+            janice_config["SLACK_APP_LEVEL_KEY"],
+            janice_config["SLACK_SIGNING_SECRET"],
+            janice_config["SLACK_CHANNEL_ID"],
+            janice_config["AUTH_URL"],
+            janice_config["AUTH_STATE"],
+            janice_config["CLIENT_ID"],
+            janice_config["CLIENT_SECRET"],
+            janice_config["UDF_ACTIVE"],
+            janice_config["SLACK_ACTIVE"],
+            janice_config["FILES"],
+            janice_config["BOT_IMPLEMENTATION"],
+            janice_config["BOT_INTRO_PROMPT"],
+            janice_config["BOT_AVATAR_IMAGE"],
+            janice_config["SLACK_USER_ALLOW"],
+            janice_config["DATABASE_CREDENTIALS"],
+        ))
+
+        db_adapter.connection.commit()
+        cursor.close()
+
+        bots_config.append(janice_config)
         
-    
     sessions = []
     api_app_id_to_session_map = {}
     bot_id_to_udf_adapter_map = {}

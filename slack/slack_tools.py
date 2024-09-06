@@ -20,11 +20,11 @@ slack_tools_descriptions = [
         "type": "function",
         "function": {
             "name": "_send_slack_channel_message",
-            "description": "Send a message to a specified Slack channel. This can be used for broadcasting messages or updates to a group of users within a channel.",
+            "description": "Send a message to a specified Slack channel.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "channel_name": {"type": "string", "description": "The NAME of the channel to send the message to, e.g. #channel"},
+                    "channel": {"type": "string", "description": "The NAME or ID of the channel to send the message to, e.g. #channel or C07FBCHFZ26.  Make sure you are sending to the channel specified by the user, don't make up channels, and don't default to #general."},
 #                    "message": {"type": "string", "description": "The text of the message to be sent to the channel.  Include any links to local documents referencing ./downloaded_files or the openAI file id. Use this format to reference files: ![file description](./downloaded_files/thread_<thread_id>/<file name>)"},
                     "message": {"type": "string", "description": "The text of the message to be sent to the channel.  Include any links to local documents referencing ./downloaded_files or the openAI file id."},
                 },

@@ -390,13 +390,13 @@ def make_session(
             incoming_instructions = instructions
             # Tools: brave_search, wolfram_alpha, code_interpreter
 
+#Environment: ipython
+#
+#Cutting Knowledge Date: December 2023
+#Today Date: 23 Jul 2024
+
+
             instructions = """
-
-
-Environment: ipython
-
-Cutting Knowledge Date: December 2023
-Today Date: 23 Jul 2024
 
 # Tool Instructions 
 """ 
@@ -409,12 +409,12 @@ Today Date: 23 Jul 2024
 
 
 If a you choose to call a function ONLY reply in the following format:
-<{start_tag}={function_name}>{parameters}{end_tag}
+<function={function_name}>{parameters}</function>
+
 where
 
-start_tag => `<function>`
+function_name => the name of the function from the list above 
 parameters => a JSON dict with the function argument name as key and function argument value as value.
-end_tag => `</function>`
 
 Here is an example,
 <function=example_function_name>{"example_name": "example_value"}</function>
@@ -428,7 +428,7 @@ Reminder:
 - Always add your sources when using search results to answer the user query
 - Don't generate function call syntax (e.g. as an example) unless you want to actually call it immediately 
 - But when you do want to call the tools, don't just say you can do it, actually do it when needed
-- If you're suggestion a next step to the user other than calling a tool, just suggest it, but don't immediately perform it, wait for them to agree, unless its a tool call
+- If you're suggesting a next step to the user other than calling a tool, just suggest it, but don't immediately perform it, wait for them to agree, unless its a tool call
 
 # Persona Instructions
  """+incoming_instructions + """
@@ -436,6 +436,7 @@ Reminder:
 # Important Reminders
 If you say you're going to call or use a tool, you MUST actually make the tool call immediately in the format described above.
 Only respond with !NO_RESPONSE_REQUIRED if the message is directed to someone else or in chats with multiple people if you have nothing to say.
+Call functions using ONLY this exact format: <function=example_function_name>{"example_name": "example_value"}</function>
 
  """
  
@@ -532,7 +533,7 @@ def create_sessions(
         # JL TEMP REMOVE
         #       if bot_config["bot_id"] == "Eliza-lGxIAG":
         #           continue
-        print(f'\nMaking session for bot {bot_config["bot_id"]}')
+        print(f'\n🤖 Making session for bot {bot_config["bot_id"]}')
         new_session, api_app_id, udf_adapter_local, slack_adapter_local = make_session(
             bot_config=bot_config,
             db_adapter=db_adapter,

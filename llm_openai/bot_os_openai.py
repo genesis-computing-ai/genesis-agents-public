@@ -617,6 +617,14 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
       thread_id = input_message.thread_id
 
+      stop_flag = False
+      fast_mode = False
+      
+      if input_message.msg.endswith('<<!!FAST_MODE!!>>') or thread_id in self.thread_fast_mode_map:
+          fast_mode = True
+          print('openai fast mode = true')
+          input_message.msg = input_message.msg.rstrip('<<!!FAST_MODE!!>>').rstrip()
+
       if thread_id in self.first_message_map:
          del self.first_message_map[thread_id]
          if input_message.metadata and 'thread_ts' in input_message.metadata:
@@ -624,13 +632,11 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
         #    self.thread_fast_mode_map[thread_id] = True
             print('openai fast mode = false (set by default for a new slack-based thread)')
             input_message.msg += '  (BTW, in your initial response also mention in passing that fast mode is available, and that the user can send !fast on to switch it to fast mode)'
-         
-      stop_flag = False
-      fast_mode = False
-      if input_message.msg.endswith('<<!!FAST_MODE!!>>') or thread_id in self.thread_fast_mode_map:
-          fast_mode = True
-          print('openai fast mode = true')
-          input_message.msg = input_message.msg.rstrip('<<!!FAST_MODE!!>>').rstrip()
+         if input_message.metadata and 'channel' in input_message.metadata:
+            channel = input_message.metadata['channel']
+            input_message.msg += f" [FYI Current Slack channel id is: {channel}]"         
+
+
       if input_message.msg.endswith(') says: !model') or input_message.msg=='!model':
          if fast_mode:
             input_message.msg = input_message.msg.replace ('!model',f'SYSTEM MESSAGE: The User has requested to know what LLM model is running.  Respond by telling them that the system is running in fast mode and that the current model is: { os.getenv("OPENAI_FAST_MODEL_NAME", default="gpt-4o-mini")}')

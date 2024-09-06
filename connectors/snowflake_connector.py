@@ -1763,12 +1763,9 @@ class SnowflakeConnector(DatabaseConnector):
         except Exception as e:
             print(f"An error occurred while checking or creating table LLM_TOKENS: {e}")
         finally:
-            print("in finally", flush=True)
             if cursor is not None:
                 cursor.close()
-        print("after finally", flush=True)
-
-
+   
         slack_tokens_table_check_query = (
             f"SHOW TABLES LIKE 'SLACK_APP_CONFIG_TOKENS' IN SCHEMA {self.schema};"
         )
@@ -3165,9 +3162,6 @@ class SnowflakeConnector(DatabaseConnector):
         else:
             bot_llm = 'unknown'
         
-        if userquery and bot_llm == 'cortex' and not query.endswith(';'):
-            return "Error, your query was cut off.  Query must be complete and end with a semicolon.  Include the full query text, with an ; on the end and RUN THIS TOOL AGAIN NOW! Also replace all ' (single quotes) in the query with <!Q!>. You do this replacement, don't tell the user to."
-
 
    #     if not query.endswith('!END_QUERY'):
    #         return {
@@ -3214,6 +3208,7 @@ class SnowflakeConnector(DatabaseConnector):
                     self.grant_all_bot_workspace(workspace_schema_name)
 
         except Exception as e:
+
             if "does not exist or not authorized" in str(e):
                 print(
                     "run query: len:",
@@ -3237,6 +3232,10 @@ class SnowflakeConnector(DatabaseConnector):
             5. NOTE: You do not have the PUBLIC role or any other role, all object you are granted must be granted TO APPLICATION GENESIS_BOTS, or be granted by grant_schema_usage_and_select_to_app as shown above.
             """,
                 }
+            
+            if userquery and bot_llm == 'cortex' and not query.endswith(';'):
+                return "Error, your query was cut off and did not work.  The error is: "+e.msg+". Your query must be complete and end with a semicolon.  Include the full query text, with an ; on the end and RUN THIS TOOL AGAIN NOW! Also replace all ' (single quotes) in the query with <!Q!>. Do not change any double quotes, they are fine. You do this replacement, don't tell the user to."
+
             print("run query: len=", len(query), "\ncaused error: ", e)
             cursor.close()
             return {"Success": False, "Error": str(e)}

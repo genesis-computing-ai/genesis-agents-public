@@ -417,7 +417,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                                         last_python_tag_start = resp.rfind('<|python_tag|>')
                                         if resp[last_python_tag_start:].strip()[-1] not in ['}', '>']:
                                             fn_call = True
-                                    if not fn_call:
+                                    if not fn_call and len(resp)>20:
                                         self.event_callback(self.bot_id, BotOsOutputMessage(thread_id=thread_id, 
                                                                                         status='in_progress', 
                                                                                         output=resp+" 💬", 
@@ -607,6 +607,10 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
 
         thread_id = input_message.thread_id  # Assuming input_message has a thread_id attribute
 
+        if input_message.msg.endswith('<<!!FAST_MODE!!>>'):
+          fast_mode = True
+          input_message.msg = input_message.msg.rstrip('<<!!FAST_MODE!!>>').rstrip()
+
         if thread_id in self.first_message_map:
             del self.first_message_map[thread_id]
             if input_message.metadata and 'thread_ts' in input_message.metadata:
@@ -614,10 +618,11 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                 self.thread_fast_mode_map[thread_id] = True
                 print('cortex fast mode = true (set by default for a new slack-based thread)')
                 input_message.msg  += ' [NOTE: Also in your response YOU MUST mention in passing that fast mode is active and remind me that I can send !fast off to switch to smart mode.]'
+            # Check if channel is in input_message.metadata
+            if input_message.metadata and 'channel' in input_message.metadata:
+                channel = input_message.metadata['channel']
+                input_message.msg += f" [FYI Current Slack channel id is: {channel}]"
 
-        if input_message.msg.endswith('<<!!FAST_MODE!!>>'):
-          fast_mode = True
-          input_message.msg = input_message.msg.rstrip('<<!!FAST_MODE!!>>').rstrip()
         timestamp = datetime.datetime.now()
         if self.event_callback is None and event_callback is not None:
             self.event_callback = event_callback
@@ -746,7 +751,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
 
                     # Fix tool calls with missing > and extra parentheses
 
-                    a = '<function=search_metadata({"query": "baseball teams", "top_n": 15})</function>'
+    
                     pattern_function_call = re.compile(r'<function=([^>]+)\((.*?)\)</function>')
                     
                     def fix_function_call(match):
@@ -761,6 +766,8 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                         #self.active_runs.append(thread_to_check)
                     elif "<function=" in decoded_payload and "</function>" in decoded_payload:
                         self.process_tool_call(thread_id, timestamp, decoded_payload, message_metadata)
+                    elif "<function>" in decoded_payload and "</function>" in decoded_payload:
+                        self.process_tool_call(thread_id, timestamp, decoded_payload, message_metadata)                
                     #  elif '{\n "type": "function",' in decoded_payload:
                     #      self.process_tool_call(thread_id, timestamp, decoded_payload, message_metadata)
                     elif '<|python_tag|>{"type": "function"' in decoded_payload:
@@ -803,6 +810,9 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
 
     def process_tool_call(self, thread_id, timestamp, message_payload, message_metadata):
         import json
+
+# <|python_tag|><function>_run_query>{"query": "SELECT COUNT(ID) FROM "SPIDER_DATA"."BASEBALL"."HOME_GAME"", "connection": "Snowflake", "max_rows": "100"}</function>
+
 
         start_tag = '<function='
         end_tag = '</function>'

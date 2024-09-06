@@ -87,6 +87,7 @@ global_flags.runner_id = runner_id
 print("Runner ID: ", runner_id)
 
 def get_udf_endpoint_url(endpoint_name="udfendpoint"):
+
     alt_service_name = os.getenv("ALT_SERVICE_NAME", None)
     if alt_service_name:
         query1 = f"SHOW ENDPOINTS IN SERVICE {alt_service_name};"

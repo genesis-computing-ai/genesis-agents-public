@@ -132,6 +132,18 @@ def chat_page():
         del st.session_state.session_message_uuids[thread_id]
 
 
+    @st.cache_data(ttl=3000) 
+    def get_llm_configuration(selected_bot_id):
+        bot_details = get_bot_details()
+        # Find the entry in bot_details for the selected bot
+        selected_bot_config = next((bot for bot in bot_details if bot['bot_id'] == selected_bot_id), None)
+        
+        if selected_bot_config:
+            return (selected_bot_config.get('bot_implementation', {}).lower())
+        else:
+            st.error(f"No configuration found for bot with ID: {selected_bot_id}")
+            return {}
+
     def submit_button(prompt, chatmessage, intro_prompt=False, fast_mode_override=False):
         current_thread_id = st.session_state["current_thread_id"]
         messages = get_chat_history(current_thread_id)
@@ -145,7 +157,10 @@ def chat_page():
 
         # Check if fast mode is selected in the sidebar
 
-        if intro_prompt or ('fast_mode' in st.session_state and st.session_state.fast_mode):
+        # Get the LLM configuration for the active bot
+        llm_configuration = get_llm_configuration(selected_bot_id)
+
+        if intro_prompt or (('fast_mode' in st.session_state and st.session_state.fast_mode) and llm_configuration != 'openai'):
             #st.success("fast mode")
             prompt += "<<!!FAST_MODE!!>>"
 
@@ -380,11 +395,31 @@ def chat_page():
                 # Add toggle for fast mode
                 # Initialize fast_mode in session state if it doesn't exist
   
-                # Create the toggle and update session state when changed
-                fast_mode = st.toggle("Fast Mode", value=True, key='fast_mode')
+                # Check if a session is selected from the sidebar
+                if 'selected_session' in st.session_state:
+                    selected_session = st.session_state.selected_session
+                    selected_bot_name = selected_session['bot_name']
+                    selected_thread_id = selected_session['thread_id']
+                    st.session_state.current_bot = selected_bot_name
+                    st.session_state.current_thread_id = selected_thread_id
+                    del st.session_state.selected_session
+                else:
+                    selected_bot_name = st.session_state.current_bot
+                    selected_thread_id = st.session_state.get("current_thread_id")
 
-                if fast_mode:
-                    st.info("Using a faster LLM model, but may be less accurate")
+                selected_bot_index = bot_names.index(selected_bot_name)
+                selected_bot_id = bot_ids[selected_bot_index]
+                selected_bot_intro_prompt = bot_intro_prompts[selected_bot_index]
+
+                selected_bot_id = bot_ids[selected_bot_index]
+                llm_configuration = get_llm_configuration(selected_bot_id)
+
+                if llm_configuration != 'openai':
+                # Create the toggle and update session state when changed
+                    fast_mode = st.toggle("Fast Mode", value=True, key='fast_mode')
+
+                    if fast_mode:
+                        st.info("Using a faster LLM model, but may be less accurate")
 
                 tokens = get_slack_tokens_cached()
                 slack_active = tokens.get("SlackActiveFlag", False)
@@ -406,21 +441,6 @@ def chat_page():
             # Main content area       
 
             if len(bot_names) > 0:
-                # Check if a session is selected from the sidebar
-                if 'selected_session' in st.session_state:
-                    selected_session = st.session_state.selected_session
-                    selected_bot_name = selected_session['bot_name']
-                    selected_thread_id = selected_session['thread_id']
-                    st.session_state.current_bot = selected_bot_name
-                    st.session_state.current_thread_id = selected_thread_id
-                    del st.session_state.selected_session
-                else:
-                    selected_bot_name = st.session_state.current_bot
-                    selected_thread_id = st.session_state.get("current_thread_id")
-
-                selected_bot_index = bot_names.index(selected_bot_name)
-                selected_bot_id = bot_ids[selected_bot_index]
-                selected_bot_intro_prompt = bot_intro_prompts[selected_bot_index]
 
                 # get avatar images
                 bot_avatar_image_url = ""

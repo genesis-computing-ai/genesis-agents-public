@@ -1309,6 +1309,10 @@ class SlackBotAdapter(BotOsInputAdapter):
         self, slack_user_id: str, message: str, attachments=[], thread_id: str = None
     ):
         
+        # Remove angle brackets from slack_user_id if present
+        if slack_user_id.startswith('<') and slack_user_id.endswith('>'):
+            slack_user_id = slack_user_id[1:-1]
+
         if slack_user_id.startswith('#'):
             return {
                 "success": False,
@@ -1365,17 +1369,33 @@ class SlackBotAdapter(BotOsInputAdapter):
             return f"Error sending message: {str(e)}"
 
     def send_slack_channel_message(
-        self, channel_name: str = None, message: str = None, attachments=[], thread_id: str = None, channel_id=None
+        self, channel: str = None, message: str = None, attachments=[], thread_id: str = None, channel_id=None
     ):
+        channel_name = channel
         if channel_name is None and channel_id is not None:
             channel_name = channel_id
-        
+
+        if channel_name is None or not isinstance(channel_name, str):
+            return "Error: channel is None or not a string. Please provide a valid channel name like #example or channel ID like C07FBCHFZ26."
+        # Remove angle brackets from channel_name if present
+
+        if channel_name and channel_name.startswith('<') and channel_name.endswith('|>'):
+            channel_name = channel_name[1:-2]
+
+        if channel_name and channel_name.startswith('<') and channel_name.endswith('>'):
+            channel_name = channel_name[1:-1]
+
+        if channel_name.endswith('|'):
+            channel_name = channel_name[:-1]
+            
         # Remove '#' from the beginning of the channel name if present
         if channel_name and channel_name.startswith('#'):
             channel_name = channel_name[1:]
             
-        if channel_name is None:
-            return "Error: Both channel_name and channel_id are None. Please provide either channel_name or channel_id."
+        if channel_name.lower() == 'general':
+            return "Bots are not allowed to post to #general. Reconfirm what channel you are supposed to post to."
+
+
         try:
             file_list = self.process_attachments(message, attachments)
             message = self.replace_urls(msg=message, msg_files=file_list)
@@ -1394,8 +1414,9 @@ class SlackBotAdapter(BotOsInputAdapter):
                         }
 
                 return {
+                    
                     "success": True,
-                    "message": f"Message sent to channel {channel_name} successfully."
+                    "message": f"Message sent to channel {channel_name} successfully (note, this is not #general)."
                 }
             else:
                 return {
@@ -1404,7 +1425,7 @@ class SlackBotAdapter(BotOsInputAdapter):
                 }
         except Exception as e:
             if channel_name.upper.startswith('C') and not channel_name.isupper():
-                return f"Error: The channel name '{channel_name}' appears to be a channel ID, but it's not in the correct format. If you're using a channel ID, please make sure it's in all uppercase letters. Try again with '{channel_name.upper()}'."
+                return f"Error: The channel '{channel_name}' appears to be a channel ID, but it's not in the correct format. If you're using a channel ID, please make sure it's in all uppercase letters. Try again with '{channel_name.upper()}'."
             return f"Error sending message to channel {channel_name}: {str(e)}.  Double-check that you are sending the message to the correct Slack channel.  If you are running a process, be double-sure that you have the right channel name and are not making one up."
 
     def lookup_slack_user_id_real(self, user_name: str, thread_id: str):

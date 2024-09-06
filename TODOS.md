@@ -4,6 +4,7 @@ GENESIS BOT TODOS
 
 today:
 x undo codeblocker and remove all <authorized role> mentions, and resubmit to ext
+make outrigger processes wake up at the top of the hour 
 Janice is talking about files a lot... fix prompting for that
 save chat sessions to backend
 why cant janicortex on alpha see the baseball data ?
@@ -57,6 +58,7 @@ x turn on knowledge on Alpha
 n make user knowledge message nicer "[Reviewing our past interactions...]"
 
 next version:
+have manage process store who created a process
 move to a yaml structure for the built in processes
 make various EAIs for openai , slack, both
 add a link to the email to get back into a convo with that user 

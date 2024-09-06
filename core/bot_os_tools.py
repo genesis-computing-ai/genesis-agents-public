@@ -928,7 +928,10 @@ In your response back to run_process, provide a detailed description of what you
                 # Check for dupe name
                 sql = f"SELECT * FROM {db_adapter.schema}.PROCESSES WHERE bot_id = %s AND process_name = %s"
                 cursor.execute(sql, (bot_id, process_details['process_name']))
-                if cursor.fetchone():
+
+                record = cursor.fetchone()
+
+                if record and '_golden' in record['process_id']:
                     return {
                         "Success": False,
                         "Error": f"Process with name {process_details['process_name']} already exists for bot {bot_id}.  Please choose a different name."

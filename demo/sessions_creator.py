@@ -193,7 +193,7 @@ def make_session(
 
     if result:
         processes_found = ', '.join([row[0] for row in result])
-        instructions += f"\n\nFYI, you have the following processes available: {processes_found}. They can be run with _run_process function if useful to your work.\n\n"
+        instructions += f"\n\nFYI, you have the following processes available: {processes_found}. They can be run with _run_process function if useful to your work. This list may not be up to date, you can use _manage_process for an up to date LIST.\n\n"
     
     instructions += BASE_BOT_INSTRUCTIONS_ADDENDUM
 

@@ -2,31 +2,32 @@
 GENESIS BOT TODOS
 =================
 
-today:
-matts issue with scheduled processes make sure it works without thread_id ok
-x undo codeblocker and remove all <authorized role> mentions, and resubmit to ext
+before listing new version:
+security review pass
+(test) matts issue with scheduled processes make sure it works without thread_id ok with the cache
+(test) see if task sender of emails will add the process id etc and see if you can paste that into the bot chat to talk about it.. maybe make it a get history procedure call specifically... 
 make outrigger processes wake up at the top of the hour 
+add streamlit startup popup for :log enablement (highly encouraged), warehouse grant existing (optional), EAI for openai and slack (optional), cross region enablement for LLM (if not us-east/us-west), data granting (maybe we mention this here too), email sending 
+openai error retries on slack dont seem to respond back
 Janice is talking about files a lot... fix prompting for that
-save chat sessions to backend
-why cant janicortex on alpha see the baseball data ?
-streamlit default fast mode off for openai bots (and hide control?)
-see if task sender of emails will add the process id etc and see if you can paste that into the bot chat to talk about it.. maybe make it a get history procedure call specifically... 
-Janice 2.0 posting to slack     caught exception 'builtin_function_or_method' object has no attribute 'startswith' trying to run _send_slack_channel_message
-tell bots proces slist may not be up to date / exhaustive
-have it insert janice if not there
-streamlit habdle !NO RESPONSE REQUIRED better
+need handler for long cortex threads
+need a place to gather and test the email integrations, add a step for email to the welcome wizard
+get mini bot avatars into streamlit
+clean up logging and cust data in logs and run_query
+test baby bot with new bot id logic
+
+done:
+x undo codeblocker and remove all <authorized role> mentions, and resubmit to ext
+x streamlit default fast mode off for openai bots (and hide control?)
+x Janice 2.0 posting to slack     caught exception 'builtin_function_or_method' object has no attribute 'startswith' trying to run _send_slack_channel_message
+x tell bots proces slist may not be up to date / exhaustive
 x make no response logic less agressive 
 x add retry on openai fail 
 x if tool call drags keey streamlit responsibe on input box.. or add stop button 
 x try mini again
-RG-reza images
 x search metadata not working on dev 
-fast mode also give link to direct streamlit gui
 x smarter / faster toggle in streamlit
 x (test) switch to  "OPENAI_MODEL_NAME": "gpt-4o-2024-08-06", see how we like it
-need handler for long cortex threads
-need a place to gather and test the email integrations, add a step for email to the welcome wizard
-get mini bot avatars into streamlit
 x make sure session switcher still works with 🤖 emoojii instead of chat with 
 x is streamlit sending correct user id on sis
 x make !model with work streamlit
@@ -43,7 +44,7 @@ n kevins thread re runs
 n sanders feedback in general
 x test openai key insertion on new install
 x test openai key switch with metadata re: embeddings on natapp
-(test) remove eliza as a default bot 
+x remove eliza as a default bot 
 n make eliza talk about abseball more cleanly 
 x test rezas cortex knowledge logging
 x make hybrid table fallback to regular for llm results
@@ -57,8 +58,14 @@ x warehouse test button seems to say success even if not
 x broken link shows on config step pages
 x turn on knowledge on Alpha
 n make user knowledge message nicer "[Reviewing our past interactions...]"
+x use cortex 8b for the welcome message?
+x streamlit takes a long time before submitting welcome job for each bot.. loading avatars?
+x add bot details caching to new streamlit 
 
 next version:
+RG-reza images
+save chat sessions to backend
+fast mode also give link to direct streamlit gui
 have manage process store who created a process
 move to a yaml structure for the built in processes
 make various EAIs for openai , slack, both
@@ -66,33 +73,23 @@ add a link to the email to get back into a convo with that user
 make knowledge based on email address so its consistent between slack and streamlit
 add reference request for warehouse
 add compute pools creation request
-
-new streamlit:
-use cortex 8b for the welcome message?
-thread history in db for streamlit, thread loader from database for slack and streamlit
-streamlit takes a long time before submitting welcome job for each bot.. loading avatars?
-add bot details caching to new streamlit 
-
-before republishing on natapp:
-add stuff for send_email tool to streamlit installation script
+streamlit habdle !NO RESPONSE REQUIRED better, if still an issue should be happening less now
 add error handling for send_email to tell people how to turn it on if not yet turned on
 make send_email use dynamic variables to prevent sql injection
 have send_email add stuff on the end to say why the message was sent and from who
-add handler for long contexts (if getting close, have the llm condense it)
-MR - DEV has missing NATIVE embeddings for shared-in data?
+test the password process to make sure it doesnt skip steps on concise
+
+before republishing on natapp:
 add the cross region stuff to the readme
-clean up logging and cust data in logs and run_query
 x make streamlit show tool calls better 
 add logging to the openai finalizer and the slack finalizer to see who is zapping the history in the messages.. seems to just be on single ..
 message threads... it's actually doing it on the message 1 /2 separation step it looks like
 processes clearing out their history during slack output during finalization (maybe when it ends with a function call?)
 x (seems ok) is the last tool call getting eaten by the openai finalizer?
 x see if Janice can see her currency table on Alpha once upgraded
-on openai error, retry twice
 x give supervisor current date and time, and runner too
 x tell supervisor not to nitpick values like names etc
 n add an alternate way to wake up a bot on a thread for Jeff's Testy bot
-test the password process to make sure it doesnt skip steps on concise
 x change silent mode to concise mode
 x (test) test out the slack bug, marty sending DMs for Janice 2.0... why .. see if my fix fixes it and if local ones still work
 x add cross region calling
@@ -100,12 +97,11 @@ x have bots send alerts via email:
 streamlit requests for stuff
     https://docs.snowflake.com/en/developer-guide/native-apps/container-about
     https://docs.snowflake.com/en/developer-guide/native-apps/container-compute-pool
-JS/KJ/MG/JS: default processes
+x JS/KJ/MG/JS: default processes
 n (go with janice instead) add sandy bot?
 n make sure Eliza doesnt talk about the baseball etc data without running search metadata (ask about allstars she makes it up)sla
 put in a check to not allow repetitive tools calls more than n times
 x figure out the query calling issue on cortex
-test baby bot with new bot id logic
 x make send slack message suggest that maybe check the process again for the slack name
 x also in process runner add hint to make sure to send to the right channels
 x make cortex tool calls not stream when function definitions are being sent out 

@@ -12,6 +12,16 @@
 # These connections are required for the commands below to work properly.
 # You may need to make a new ACCOUNTADMIN user without SSO/MFA for these
 
+# Assign parameter to variable or default to ~/ if not provided
+DIRECTORY_PATH=${1:-~/}
+
+# Ensure the directory path does not end with a slash
+DIRECTORY_PATH=${DIRECTORY_PATH%/}
+
+# Login to image repo
+snow spcs image-registry token --connection GENESIS-DEV-PROVIDER --format=JSON
+snow spcs image-registry token --connection GENESIS-DEV-PROVIDER --format=JSON | docker login dshrnxx-genesis-dev.registry.snowflakecomputing.com --username 0sessiontoken --password-stdin
+
 # Copy main.py to sis_launch.py
 cp ./streamlit_gui/main.py ./streamlit_gui/Genesis.py
 
@@ -28,25 +38,25 @@ docker push dshrnxx-genesis-dev.registry.snowflakecomputing.com/genesisapp_maste
 snow sql -c GENESIS-DEV-PROVIDER -q "RM @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE"
 
 # Upload streamlit files
-snow sql -c GENESIS-DEV-PROVIDER -q "PUT file:///Users/justin/Documents/Code/genesis/streamlit_gui/Genesis.py @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
-snow sql -c GENESIS-DEV-PROVIDER -q "PUT file:///Users/justin/Documents/Code/genesis/streamlit_gui/utils.py @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
-snow sql -c GENESIS-DEV-PROVIDER -q "PUT file:///Users/justin/Documents/Code/genesis/streamlit_gui/*.png @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
-snow sql -c GENESIS-DEV-PROVIDER -q "PUT file:///Users/justin/Documents/Code/genesis/streamlit_gui/*.yml @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
+snow sql -c GENESIS-DEV-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/streamlit_gui/Genesis.py @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
+snow sql -c GENESIS-DEV-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/streamlit_gui/utils.py @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
+snow sql -c GENESIS-DEV-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/streamlit_gui/*.png @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
+snow sql -c GENESIS-DEV-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/streamlit_gui/*.yml @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
 
 # Upload streamlit files
-snow sql -c GENESIS-DEV-PROVIDER -q "PUT file:///Users/justin/Documents/Code/genesis/streamlit_gui/.streamlit/config.toml @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit/.streamlit AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
+snow sql -c GENESIS-DEV-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/streamlit_gui/.streamlit/config.toml @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit/.streamlit AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
 
 # Upload streamlit page files
-snow sql -c GENESIS-DEV-PROVIDER -q "PUT file:///Users/justin/Documents/Code/genesis/streamlit_gui/page_files/*.py @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit/page_files AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
+snow sql -c GENESIS-DEV-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/streamlit_gui/page_files/*.py @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit/page_files AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
 
 # Upload SQL files
-snow sql -c GENESIS-DEV-PROVIDER -q "PUT file:///Users/justin/Documents/Code/genesis/snowflake_app/setup_script.sql @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
+snow sql -c GENESIS-DEV-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/snowflake_app/setup_script.sql @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
 
 # Upload MD files
-snow sql -c GENESIS-DEV-PROVIDER -q "PUT file:///Users/justin/Documents/Code/genesis/snowflake_app/readme.md @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
+snow sql -c GENESIS-DEV-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/snowflake_app/readme.md @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
 
 # Upload YML files
-snow sql -c GENESIS-DEV-PROVIDER -q "PUT file:///Users/justin/Documents/Code/genesis/snowflake_app/*.yml @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
+snow sql -c GENESIS-DEV-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/snowflake_app/*.yml @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
 
 output=$(snow sql -c GENESIS-DEV-PROVIDER -q "ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG ADD PATCH FOR VERSION V0_4 USING @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE")
 
@@ -76,9 +86,9 @@ if [ "$patch_number" -eq 130 ]; then
     echo "WARNING: You will need to upgrade your version number before your next patch"
 fi
 
-snow sql -c GENESIS-DEV-CONSUMER-2 -q "alter application genesis_bots upgrade"
+# snow sql -c GENESIS-DEV-CONSUMER-2 -q "alter application genesis_bots upgrade"
 
-snow sql -c GENESIS-DEV-CONSUMER-2 -q "show services"
+# snow sql -c GENESIS-DEV-CONSUMER-2 -q "show services"
 
 echo "Upgrade complete"
 

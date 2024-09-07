@@ -1943,63 +1943,7 @@ class SnowflakeConnector(DatabaseConnector):
                 #     f"Inserted initial Eliza row into {self.bot_servicing_table_name} with runner_id: {runner_id}"
                 # )
 
-                runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
-                bot_id = "Janice"
-#                bot_id += "".join(
-#                    random.choices(string.ascii_letters + string.digits, k=6)
-#                )
-                bot_name = "Janice"
-                bot_instructions = JANICE_JANITOR_INSTRUCTIONS
-                available_tools = '["slack_tools", "database_tools", "snowflake_stage_tools", "image_tools", "process_manager_tools", "process_runner_tools", "process_scheduler_tools"]'
-                udf_active = "Y"
-                slack_active = "N"
-                bot_intro_prompt = JANICE_INTRO_PROMPT
-
-                insert_initial_row_query = f"""
-                MERGE INTO {self.bot_servicing_table_name} AS target
-                USING (SELECT %s AS RUNNER_ID, %s AS BOT_ID, %s AS BOT_NAME, %s AS BOT_INSTRUCTIONS, 
-                              %s AS AVAILABLE_TOOLS, %s AS UDF_ACTIVE, %s AS SLACK_ACTIVE, %s AS BOT_INTRO_PROMPT) AS source
-                ON target.BOT_ID = source.BOT_ID
-                WHEN MATCHED THEN
-                    UPDATE SET
-                        RUNNER_ID = source.RUNNER_ID,
-                        BOT_NAME = source.BOT_NAME,
-                        BOT_INSTRUCTIONS = source.BOT_INSTRUCTIONS,
-                        AVAILABLE_TOOLS = source.AVAILABLE_TOOLS,
-                        UDF_ACTIVE = source.UDF_ACTIVE,
-                        SLACK_ACTIVE = source.SLACK_ACTIVE,
-                        BOT_INTRO_PROMPT = source.BOT_INTRO_PROMPT
-                WHEN NOT MATCHED THEN
-                    INSERT (RUNNER_ID, BOT_ID, BOT_NAME, BOT_INSTRUCTIONS, AVAILABLE_TOOLS, UDF_ACTIVE, SLACK_ACTIVE, BOT_INTRO_PROMPT)
-                    VALUES (source.RUNNER_ID, source.BOT_ID, source.BOT_NAME, source.BOT_INSTRUCTIONS, 
-                            source.AVAILABLE_TOOLS, source.UDF_ACTIVE, source.SLACK_ACTIVE, source.BOT_INTRO_PROMPT);
-                """
-                cursor.execute(
-                    insert_initial_row_query,
-                    (
-                        runner_id,
-                        bot_id,
-                        bot_name,
-                        bot_instructions,
-                        available_tools,
-                        udf_active,
-                        slack_active,
-                        bot_intro_prompt,
-                    ),
-                )
-                self.client.commit()
-                print(
-                    f"Inserted initial Janice row into {self.bot_servicing_table_name} with runner_id: {runner_id}"
-                )
-                # add files to stage from local dir for Janice
-                database, schema = self.genbot_internal_project_and_schema.split('.')
-                result = self.add_file_to_stage(
-                    database=database,
-                    schema=schema,
-                    stage="BOT_FILES_STAGE",
-                    file_name="./default_files/janice/*",
-                )
-                print(result)
+                
 
             #          runner_id = os.getenv('RUNNER_ID', 'jl-local-runner')
             #          bot_id = 'Stuart-'
@@ -2143,6 +2087,72 @@ class SnowflakeConnector(DatabaseConnector):
         finally:
             if cursor is not None:
                 cursor.close()
+
+        # check if Janice exists in BOT_SERVCING table
+        cursor = self.client.cursor()
+        check_janice_query = f"SELECT * FROM {self.bot_servicing_table_name} WHERE BOT_ID = 'Janice';"
+        cursor.execute(check_janice_query)
+        result = cursor.fetchone()
+
+        # If not, run this query to insert Janice
+        if result is None:
+            runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
+            bot_id = "Janice"
+    #                bot_id += "".join(
+    #                    random.choices(string.ascii_letters + string.digits, k=6)
+    #                )
+            bot_name = "Janice"
+            bot_instructions = JANICE_JANITOR_INSTRUCTIONS
+            available_tools = '["slack_tools", "database_tools", "snowflake_stage_tools", "image_tools", "process_manager_tools", "process_runner_tools", "process_scheduler_tools"]'
+            udf_active = "Y"
+            slack_active = "N"
+            bot_intro_prompt = JANICE_INTRO_PROMPT
+
+            insert_initial_row_query = f"""
+            MERGE INTO {self.bot_servicing_table_name} AS target
+            USING (SELECT %s AS RUNNER_ID, %s AS BOT_ID, %s AS BOT_NAME, %s AS BOT_INSTRUCTIONS, 
+                            %s AS AVAILABLE_TOOLS, %s AS UDF_ACTIVE, %s AS SLACK_ACTIVE, %s AS BOT_INTRO_PROMPT) AS source
+            ON target.BOT_ID = source.BOT_ID
+            WHEN MATCHED THEN
+                UPDATE SET
+                    RUNNER_ID = source.RUNNER_ID,
+                    BOT_NAME = source.BOT_NAME,
+                    BOT_INSTRUCTIONS = source.BOT_INSTRUCTIONS,
+                    AVAILABLE_TOOLS = source.AVAILABLE_TOOLS,
+                    UDF_ACTIVE = source.UDF_ACTIVE,
+                    SLACK_ACTIVE = source.SLACK_ACTIVE,
+                    BOT_INTRO_PROMPT = source.BOT_INTRO_PROMPT
+            WHEN NOT MATCHED THEN
+                INSERT (RUNNER_ID, BOT_ID, BOT_NAME, BOT_INSTRUCTIONS, AVAILABLE_TOOLS, UDF_ACTIVE, SLACK_ACTIVE, BOT_INTRO_PROMPT)
+                VALUES (source.RUNNER_ID, source.BOT_ID, source.BOT_NAME, source.BOT_INSTRUCTIONS, 
+                        source.AVAILABLE_TOOLS, source.UDF_ACTIVE, source.SLACK_ACTIVE, source.BOT_INTRO_PROMPT);
+            """
+            cursor.execute(
+                insert_initial_row_query,
+                (
+                    runner_id,
+                    bot_id,
+                    bot_name,
+                    bot_instructions,
+                    available_tools,
+                    udf_active,
+                    slack_active,
+                    bot_intro_prompt,
+                ),
+            )
+            self.client.commit()
+            print(
+                f"Inserted initial Janice row into {self.bot_servicing_table_name} with runner_id: {runner_id}"
+            )
+            # add files to stage from local dir for Janice
+            database, schema = self.genbot_internal_project_and_schema.split('.')
+            result = self.add_file_to_stage(
+                database=database,
+                schema=schema,
+                stage="BOT_FILES_STAGE",
+                file_name="./default_files/janice/*",
+            )
+            print(result)
 
         ngrok_tokens_table_check_query = (
             f"SHOW TABLES LIKE 'NGROK_TOKENS' IN SCHEMA {self.schema};"

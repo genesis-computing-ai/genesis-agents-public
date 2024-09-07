@@ -4,10 +4,11 @@ GENESIS BOT TODOS
 
 before listing new version:
 security review pass
+check new janice auto insertion code
 (test) matts issue with scheduled processes make sure it works without thread_id ok with the cache
 (test) see if task sender of emails will add the process id etc and see if you can paste that into the bot chat to talk about it.. maybe make it a get history procedure call specifically... 
 make outrigger processes wake up at the top of the hour 
-add streamlit startup popup for :log enablement (highly encouraged), warehouse grant existing (optional), EAI for openai and slack (optional), cross region enablement for LLM (if not us-east/us-west), data granting (maybe we mention this here too), email sending 
+add streamlit startup popup (maybe via links to our docs) for :log enablement (highly encouraged), warehouse grant existing (optional), EAI for openai and slack (optional), cross region enablement for LLM (if not us-east/us-west), data granting (maybe we mention this here too), email sending 
 openai error retries on slack dont seem to respond back
 Janice is talking about files a lot... fix prompting for that
 need handler for long cortex threads

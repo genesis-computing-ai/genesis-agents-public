@@ -397,6 +397,11 @@ class ToolBelt:
     ):
       #  print(f"Running processes Action: {action} | process_id: {process_id or 'None'} | Thread ID: {thread_id or 'None'}")
 
+        if process_id is not None and process_id == '':
+            process_id = None
+        if process_name is not None and process_name == '':
+            process_name = None
+
         if action == "TIME":
             return {
                 "current_system_time": datetime.now()
@@ -838,10 +843,10 @@ In your response back to run_process, provide a detailed description of what you
     def get_process_info(self, bot_id=None, process_name=None, process_id=None):
         cursor = db_adapter.client.cursor()
         try:
-            if process_id is not None:
+            if process_id is not None and process_id != '':
                 query = f"SELECT * FROM {db_adapter.schema}.PROCESSES WHERE bot_id LIKE %s AND process_id = %s" if db_adapter.schema else f"SELECT * FROM PROCESSES WHERE bot_id LIKE %s AND process_id = %s"
                 cursor.execute(query, (f"%{bot_id}%", process_id))
-            elif process_name is not None:
+            elif process_name is not None and process_name != '':
                 query = f"SELECT * FROM {db_adapter.schema}.PROCESSES WHERE bot_id LIKE %s AND process_name LIKE %s" if db_adapter.schema else f"SELECT * FROM PROCESSES WHERE bot_id LIKE %s AND process_name LIKE %s"
                 cursor.execute(query, (f"%{bot_id}%", f"%{process_name}%"))
             else:
@@ -924,10 +929,10 @@ In your response back to run_process, provide a detailed description of what you
                     "process_id": process_id,
                 }
             
-            if action == "CREATE":
+            if action == "CREATE" or action == "CREATE_CONFIRMED":
                 # Check for dupe name
-                sql = f"SELECT * FROM {db_adapter.schema}.PROCESSES WHERE process_name = %s"
-                cursor.execute(sql, (process_details['process_name']))
+                sql = f"SELECT * FROM {db_adapter.schema}.PROCESSES WHERE bot_id = %s and process_name = %s"
+                cursor.execute(sql, (bot_id, process_details['process_name']))
 
                 record = cursor.fetchone()
 
@@ -936,10 +941,10 @@ In your response back to run_process, provide a detailed description of what you
                         "Success": False,
                         "Error": f"Process with name {process_details['process_name']} already exists.  Please choose a different name."
                     }
-
-            if action == "CREATE" or action == "UPDATE":
+                
+            if action == "UPDATE" or action == 'UPDATE_CONFIRMED':
                 # Check for dupe name
-                sql = f"SELECT * FROM {db_adapter.schema}.PROCESSES WHERE process_name = %s"
+                sql = f"SELECT * FROM {db_adapter.schema}.PROCESSES WHERE bot_id = %s and process_name = %s"
                 cursor.execute(sql, (bot_id, process_details['process_name']))
 
                 record = cursor.fetchone()
@@ -947,14 +952,28 @@ In your response back to run_process, provide a detailed description of what you
                 if record and '_golden' in record['process_id']:
                     return {
                         "Success": False,
-                        "Error": f"Process with name {process_details['process_name']}.  Please choose a different name."
+                        "Error": f"Process with name {process_details['process_name']} is a system process and can not be updated.  Suggest making a copy with a new name."
                     }
+
+            if action == "CREATE" or action == "UPDATE":
+                # Check for dupe name
+                # sql = f"SELECT * FROM {db_adapter.schema}.PROCESSES WHERE bot_id = %s and process_name = %s"
+                # cursor.execute(sql, (bot_id, process_details['process_name']))
+
+                # record = cursor.fetchone()
+
+                # if record and '_golden' in record['process_id']:
+                #     return {
+                #         "Success": False,
+                #         "Error": f"Process with name {process_details['process_name']}.  Please choose a different name."
+                #     }
             
                 # Send process_instructions to 2nd LLM to check it and format nicely
                 tidy_process_instructions = f"""
                 Below is a process that has been submitted by a user.  Please review it to insure it is something
                 that will make sense to the run_process tool.  If not, make changes so it is organized into clear
                 steps.  Make sure that it is tidy, legible and properly formatted. 
+                Do not create multiple options for the instructions, as whatever you return will be used immediately.
                 Return the updated and tidy process.  If there is an issue with the process, return an error message.
 
                 The process is as follows:\n {process_details['process_instructions']}

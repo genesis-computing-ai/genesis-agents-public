@@ -66,7 +66,7 @@
     "janice_data_freshness_check_golden": {
       "BOT_ID": "Janice",
       "PROCESS_NAME": "janice_data_freshness_check",
-      "PROCESS_INSTRUCTIONS": "\n**Process: Update Data Field for Specific Timestamps**\n1. **Find Rows**\n- Locate all rows that have a timestamp after August 27 at 2 PM.\n2. **Display Rows**\n- Show the rows that match the above criteria.\n\n3. **Update Data Field**\n- For each of the rows found, update the data field to “fresh”.\n\n4. **Show All Rows**\n- Display all rows of the table",
+      "PROCESS_INSTRUCTIONS": "\n**Process:  Check for data freshness** 1. **Find tables** - Check the processes table for this process and confirm that process_config has data.  - If process_config does not have any data, inform the user and show the user a list of the names of all of the database tables you have access to.  - Ask the user which tables they want to use and update the process_config field to reflect these choices. 2. **Find latest updates in each table with more than the number of rows specified in the parameter table_cutoff_size** -Sort each table in the process_config field with more than table_cutoff_size in descending order by latest update date.  3.  **Find n tables with the oldest dates** -Using the first row of each table, find the n tables with the oldest dates where n is a parameter called unfresh_table_count.  4. **Report back to user** -Report the n tables names and update date in ascending order.",
       "PROCESS_DETAILS": "Data Freshness Check",
       "PROCESS_PARAMS": "TABLE_A, TABLE_B, TABLE_C",
       "TIMESTAMP": "2000-01-01T00:00:00.000Z"

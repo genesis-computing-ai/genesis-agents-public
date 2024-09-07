@@ -927,7 +927,7 @@ In your response back to run_process, provide a detailed description of what you
             if action == "CREATE":
                 # Check for dupe name
                 sql = f"SELECT * FROM {db_adapter.schema}.PROCESSES WHERE process_name = %s"
-                cursor.execute(sql, (bot_id, process_details['process_name']))
+                cursor.execute(sql, (process_details['process_name']))
 
                 record = cursor.fetchone()
 

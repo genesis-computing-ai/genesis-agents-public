@@ -2649,6 +2649,44 @@ class SnowflakeConnector(DatabaseConnector):
             print(
                 f"An error occurred while checking or creating table CORTEX_THREADS_OUTPUT: {e}"
             )
+        
+        # run python code stored procedure
+        stored_proc_ddl = f"""
+CREATE OR REPLACE PROCEDURE {self.schema}.execute_snowpark_code(
+    code STRING
+)
+RETURNS STRING
+LANGUAGE PYTHON
+RUNTIME_VERSION = '3.8'
+PACKAGES = ('snowflake-snowpark-python', 'pandas', 'matplotlib')
+HANDLER = 'run'
+AS
+$$
+import snowflake.snowpark as snowpark
+import pandas as pd
+
+def run(session: snowpark.Session, code: str) -> str:
+    # Define a local dictionary to capture the result
+    local_vars = {{"session": session}}
+    
+    # Execute the provided code within the local dictionary scope
+    exec(code, globals(), local_vars)
+    #exec(code)
+
+    # Ensure 'result' is defined in the executed code
+    if 'result' in local_vars:
+        return str(local_vars['result'])
+    else:
+        return "Error: 'result' is not defined in the executed code"
+
+$$;
+""" 
+        try:
+            cursor.execute(stored_proc_ddl)
+            self.client.commit()
+            print(f"Stored procedure {self.schema}.execute_snowpark_code created.")
+        except Exception as e:
+            print(f"An error occurred while creating stored procedure {self.schema}.execute_snowpark_code: {e}")
 
     def insert_table_summary(
         self,
@@ -6516,7 +6554,10 @@ class SnowflakeConnector(DatabaseConnector):
             # Return a default filename or re-raise the exception based on your use case
             return "default_filename.ann", "default_metadata.json"
 
-
+    def run_python_code(self, code: str, thread_id=None,
+) -> str:
+        stored_proc_call = f"CALL {self.schema}.execute_snowpark_code($${code}$$)"
+        return self.run_query(stored_proc_call)
 
 def test_stage_functions():
     # Create a test instance of SnowflakeConnector

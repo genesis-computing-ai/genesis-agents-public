@@ -117,6 +117,24 @@ database_tool_functions = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "run_python_code",
+            "description": "Executes a string of Python snowpark code and returns the output as a string. Never create a new snowflake session or connection always use the existing 'session' object already defined for you. Always set 'result' local variable at the end of the code execution for what you want to return.", 
+            #this function has an existing snowflake session inside that you can use called session so do not try to create a new session or connection.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "code": {
+                        "type": "string",
+                        "description": "The Python code to execute.",
+                    }
+                },
+                "required": ["code"],
+            },
+        },
+    },
     # {
     #     "type": "function",
     #     "function": {
@@ -610,6 +628,7 @@ database_tools = {
     "get_full_table_details": "search_metadata_f.local",
  #   "_list_semantic_models": "db_adapter.list_semantic_models",
   #  "_get_semantic_model": "db_adapter.get_semantic_model",
+    "_run_python_code": "db_adapter.run_python_code",
 }
 
 snowflake_stage_tools = {

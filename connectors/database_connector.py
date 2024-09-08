@@ -103,3 +103,12 @@ class DatabaseConnector:
         """
         raise NotImplementedError("This method should be implemented by subclasses.")
 
+    def run_python_code(self, code: str) -> str:
+        """
+        Executes a string of Python code and returns the output as a string.
+
+        :param code: A string containing Python code to execute.
+        :return: A string containing the output of the executed code.
+        """
+        raise NotImplementedError("This method should be implemented by subclasses.")
+        

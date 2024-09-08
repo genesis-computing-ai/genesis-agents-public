@@ -290,7 +290,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       self.running_tools = {}
       self.tool_completion_status = {}
       self.log_db_connector = log_db_connector
-      my_tools = tools + [{"type": "code_interpreter"}, {"type": "file_search"}]
+      my_tools = tools + [{"type": "file_search"}] # + ,{"type": "code_interpreter"}]  
       #my_tools = tools 
       #print(f'yoyo mytools {my_tools}')
       #logger.warn(f'yoyo mytools {my_tools}')

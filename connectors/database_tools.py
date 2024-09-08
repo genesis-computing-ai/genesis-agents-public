@@ -32,8 +32,8 @@ database_tool_functions = [
                         "description": "How many of the top results to return, max 25, default 15.  Use 15 to start.",
                         "default": 15,
                     },
-                    #                   "database": {"type": "string", "description": "Use when you want to constrain the search to a specific database, only use this when you already know for sure the name of the database."},
-                    #                    "schema": {"type": "string", "description": "Use to constrain the search to a specific schema."},
+                    "database": {"type": "string", "description": "Optional, Use when you want to constrain the search to a specific database, only use this when you already know for sure the name of the database."},
+                    "schema": {"type": "string", "description": "Optional, Use to constrain the search to a specific schema, only use this when you already know for sure the name of the schema."},
                 },
                 "required": ["query"],
             },
@@ -120,7 +120,7 @@ database_tool_functions = [
     {
         "type": "function",
         "function": {
-            "name": "run_python_code",
+            "name": "_run_python_code",
             "description": "Executes a string of Python snowpark code and returns the output as a string. Never create a new snowflake session or connection always use the existing 'session' object already defined for you. Always set 'result' local variable at the end of the code execution for what you want to return.", 
             #this function has an existing snowflake session inside that you can use called session so do not try to create a new session or connection.",
             "parameters": {

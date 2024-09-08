@@ -86,7 +86,7 @@ class SnowflakeConnector(DatabaseConnector):
         self.client = self.connection
         self.schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "GENESIS_INTERNAL")
 
-        if os.getenv("CORTEX_MODEL", None) is not None and os.getenv("CORTEX_MODEL", '') != '':
+        if os.getenv("CORTEX_MODEL", None) is not None:
             self.llm_engine =  os.getenv("CORTEX_MODEL", None)
         else:
             self.llm_engine = 'llama3.1-405b'

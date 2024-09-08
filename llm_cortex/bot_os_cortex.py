@@ -276,7 +276,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             elif ') says: !fast off' in last_user_message["content"] or last_user_message["content"] == '!fast off':
                 if thread_id in self.thread_fast_mode_map:
                     del self.thread_fast_mode_map[thread_id]
-                resp = f"Fast mode activated for this thread. Model is now {self.llm_engine}"
+                resp = f"Fast mode deactivated for this thread. Model is now {self.llm_engine}"
                 curr_resp = resp
         if resp != '':
             self.thread_history[thread_id] = [message for message in self.thread_history[thread_id] if not (message.get("role","") == "user" and message == last_user_message)]

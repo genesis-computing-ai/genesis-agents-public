@@ -2,6 +2,9 @@
 GENESIS BOT TODOS
 =================
 
+deploy then check search metadata with database and schema options
+check !fast off for cortex on alpha
+give processs ids in list of processes when not found on run, especially on get next step... 
 before listing new version:
 security review pass
 check new janice auto insertion code
@@ -65,6 +68,7 @@ x add bot details caching to new streamlit
 
 next version:
 RG-reza images
+helper tool for making graphs with snowpark, and/or running snowpark python in general
 save chat sessions to backend
 fast mode also give link to direct streamlit gui
 have manage process store who created a process

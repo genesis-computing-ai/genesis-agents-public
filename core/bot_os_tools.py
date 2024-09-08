@@ -949,7 +949,7 @@ In your response back to run_process, provide a detailed description of what you
 
                 record = cursor.fetchone()
 
-                if record and '_golden' in record['process_id']:
+                if record and '_golden' in record[1]:
                     return {
                         "Success": False,
                         "Error": f"Process with name {process_details['process_name']} is a system process and can not be updated.  Suggest making a copy with a new name."

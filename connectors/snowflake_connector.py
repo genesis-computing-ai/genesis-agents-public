@@ -2651,14 +2651,13 @@ class SnowflakeConnector(DatabaseConnector):
             )
         
         # run python code stored procedure
-        stored_proc_ddl = f"""
-CREATE OR REPLACE PROCEDURE {self.schema}.execute_snowpark_code(
+        stored_proc_ddl = f"""CREATE OR REPLACE PROCEDURE {self.schema}.execute_snowpark_code(
     code STRING
 )
 RETURNS STRING
 LANGUAGE PYTHON
 RUNTIME_VERSION = '3.8'
-PACKAGES = ('snowflake-snowpark-python', 'pandas', 'matplotlib')
+PACKAGES = ('snowflake-snowpark-python', 'pandas', 'matplotlib', 'scikit-learn')
 HANDLER = 'run'
 AS
 $$
@@ -2667,7 +2666,8 @@ import pandas as pd
 
 def run(session: snowpark.Session, code: str) -> str:
     # Define a local dictionary to capture the result
-    local_vars = {{"session": session}}
+    local_vars = {{}}
+    local_vars["session"] = session
     
     # Execute the provided code within the local dictionary scope
     exec(code, globals(), local_vars)
@@ -2679,8 +2679,7 @@ def run(session: snowpark.Session, code: str) -> str:
     else:
         return "Error: 'result' is not defined in the executed code"
 
-$$;
-""" 
+$$;""" 
         try:
             cursor.execute(stored_proc_ddl)
             self.client.commit()

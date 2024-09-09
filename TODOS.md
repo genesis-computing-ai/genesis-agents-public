@@ -2,6 +2,7 @@
 GENESIS BOT TODOS
 =================
 
+cortex python calls make nicer: <function=_run_python_code>{"code": "import numpy as np\nfrom sklearn.cluster import MeanShift, estimate_bandwidth\nfrom sklearn.datasets import make_blobs\ncenters = [[1, 1], [-1, -1], [1, 
 deploy then check search metadata with database and schema options
 check !fast off for cortex on alpha
 give processs ids in list of processes when not found on run, especially on get next step... 
@@ -68,6 +69,7 @@ x add bot details caching to new streamlit
 
 next version:
 RG-reza images
+make snowpark runner do dynamic imports
 helper tool for making graphs with snowpark, and/or running snowpark python in general
 save chat sessions to backend
 fast mode also give link to direct streamlit gui

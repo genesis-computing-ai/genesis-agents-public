@@ -298,6 +298,7 @@ def chat_page():
 
                     if refresh:
                         get_bot_details.clear()
+                        get_llm_configuration.clear()
                         st.rerun()
                     if start_chat:
                         # Create a new chat session for the selected bot

@@ -466,6 +466,13 @@ def modify_slack_allow_list(bot_id, action, user_name=None, user_identifier=None
         if not bot_slack_adapter:
             return {'success': False, 'error': 'No bots are yet deployed to Slack. Please try again once at least one bot is deployed.'}
         
+        if bot_details.get('slack_active','N') != 'Y':
+            return {
+                'success': False,
+                'error': 'This bot is not yet deployed to Slack. If the user wants to deploy it, use the _deploy_to_slack function first. Confirm that with the user first though.'
+            }
+
+        
         slack_user_allow_list = bot_details.get('slack_user_allow', None)
         if slack_user_allow_list is None:
             slack_user_allow_list = []
@@ -1064,7 +1071,7 @@ def make_baby_bot(bot_id, bot_name, bot_instructions='You are a helpful bot.', a
                 if slack_access_open:
                     conf += f'When deployed to Slack, all Slack users will have access to talk to this bot, and if it has the database_tools, be able to run any query against the data it has access to.  Please especially confirm with the user that this is ok and expected.\n'
                 if activate_slack == 'Y' and slack_access_open == False:
-                    conf += f'When deployed to slack, no users will initially have access to the bot via slack until explicitly granted using _manage_slack_allow_list\n'
+                    conf += f'When deployed to slack, no users will initially have access to the bot via slack until explicitly granted using _modify_slack_allow_list\n'
                 conf += "Please make sure you have validated all this with the user.  If you've already validated with the user, and ready to make the Bot, call this function again with the parameter confirmed=CONFIRMED"
                 return(conf)
 
@@ -1203,7 +1210,7 @@ def make_baby_bot(bot_id, bot_name, bot_instructions='You are a helpful bot.', a
                     }
         
         else:
-            return {"success": True, "message": f"Created {bot_id} named {bot_name}.  Tell the user that they can now press 'New Chat' and select this new bot from the drop down at the top of the screen."}
+            return {"success": True, "message": f"Created {bot_id} named {bot_name}.  Tell the user that they can now press Refresh in the Bot Box on the left side of the screen, select this new bot, and then press 'Start New Chat'."}
 
 
     except Exception as e:
@@ -1213,6 +1220,31 @@ def make_baby_bot(bot_id, bot_name, bot_instructions='You are a helpful bot.', a
 
 server_point = None
 map_point = None 
+
+
+def deploy_to_slack(bot_id=None, thread_id=None):
+    # Retrieve the bot details
+    bot_details = get_bot_details(bot_id)
+
+    # Redeploy the bot by calling make_baby_bot
+    deploy_result = make_baby_bot(
+        bot_id=bot_id,
+        bot_name=bot_details.get("bot_name"),
+        bot_instructions=bot_details.get("bot_instructions"),
+        available_tools=bot_details.get("available_tools"),
+        runner_id=bot_details.get("runner_id"),
+        slack_channel_id=bot_details.get("slack_channel_id"),
+        confirmed=bot_details.get("confirmed"),
+        files=bot_details.get("files"),
+        activate_slack="Y",
+        update_existing=True,
+    )
+
+    # Check if the deployment was successful
+    if not deploy_result.get("success"):
+        raise Exception(f"Failed to redeploy bot: {deploy_result.get('error')}")
+
+    return deploy_result
 
 def set_remove_pointers(server, map):
     global server_point
@@ -1364,7 +1396,7 @@ MAKE_BABY_BOT_DESCRIPTIONS = [{
                 },
                 "slack_access_open": {
                     "type": "boolean",
-                    "description": "True if when deployed to Slack, any Slack user should be able to access the bot, or False if initially no users should have access until explicitly granted using _manage_slack_allow_list.",
+                    "description": "True if when deployed to Slack, any Slack user should be able to access the bot, or False if initially no users should have access until explicitly granted using _modify_slack_allow_list.",
                 },            },
             "required": ["bot_id", "bot_name", "bot_instructions", "slack_access_open"]
         }
@@ -1418,6 +1450,25 @@ MAKE_BABY_BOT_DESCRIPTIONS.append({
         }
     }
 })
+
+MAKE_BABY_BOT_DESCRIPTIONS.append({
+    "type": "function",
+    "function": {
+        "name": "_deploy_to_slack",
+        "description": "Deploys an existing bot to Slack",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "bot_id": {
+                    "type": "string",
+                    "description": "The bot_id to deploy. Use the list_all_bots function if you are unsure of the bot_id."
+                }
+            },
+            "required": ["bot_id"]
+        }
+    }
+})
+
 
 MAKE_BABY_BOT_DESCRIPTIONS.append({
     "type": "function",
@@ -1591,7 +1642,7 @@ MAKE_BABY_BOT_DESCRIPTIONS.append({
     "type": "function",
     "function": {
         "name": "_modify_slack_allow_list",
-        "description": "Modifies the SLACK_USER_ALLOW list for a bot based on the action and user identifier provided.",
+        "description": "Modifies the SLACK_USER_ALLOW list for a bot to specify who can access it on Slack. First ensure that SLACK_ACTIVE for the bot is True using list_all_bots.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -1633,6 +1684,7 @@ make_baby_bot_tools["update_app_level_key"] = "bot_genesis.make_baby_bot.update_
 make_baby_bot_tools["_update_bot_implementation"] = "bot_genesis.make_baby_bot.update_bot_implementation"
 make_baby_bot_tools["_modify_slack_allow_list"] = "bot_genesis.make_baby_bot.modify_slack_allow_list"
 make_baby_bot_tools["remove_tools_from_bot"] = "bot_genesis.make_baby_bot.remove_tools_from_bot"
+make_baby_bot_tools["_deploy_to_slack"] = "bot_genesis.make_baby_bot.deploy_to_slack"
 
 # internal functions
 

@@ -526,6 +526,11 @@ snowflake_stage_functions = [
                         "description": "Whether to return the contents of the file or just the file name.",
                         "default": True,
                     },
+                    "is_binary": {
+                        "type": "boolean",
+                        "description": "Whether to return the contents of the file as binary or text.",
+                        "default": False,
+                    },
                 },
                 "required": ["database", "schema", "stage", "file_name"],
             },

@@ -4969,6 +4969,7 @@ $$;
         stage: str,
         file_name: str,
         return_contents: bool,
+        is_binary: bool = False,
         for_bot=None,
         thread_id=None,
     ):
@@ -5015,8 +5016,12 @@ $$;
 
             if os.path.isfile(local_file_path):
                 if return_contents:
-                    with open(local_file_path, "r") as file:
-                        return file.read()
+                    if is_binary:   
+                        with open(local_file_path, "rb") as file:
+                            return file.read()
+                    else:
+                        with open(local_file_path, "r") as file:
+                            return file.read()
                 else:
                     return file_name
             else:

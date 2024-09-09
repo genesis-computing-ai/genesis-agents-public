@@ -3295,6 +3295,24 @@ $$;
 
         except Exception as e:
 
+            if e.errno == 390114 or 'Authentication token has expired' in e.msg:
+                print('Snowflake token expired, re-authenticating...')
+                self.connection: SnowflakeConnection = self._create_connection()
+                self.client = self.connection
+                cursor = self.connection.cursor()
+                try:
+                    cursor.execute(query)
+                    if bot_id is not None:
+                        workspace_schema_name = f"{global_flags.project_id}.{bot_id.replace(r'[^a-zA-Z0-9]', '_').replace('-', '_').replace('.', '_')}_WORKSPACE".upper()
+                        # call grant_all_bot_workspace()
+                        if bot_id is not None and (
+                            "CREATE" in query.upper()
+                            and workspace_schema_name.upper() in query.upper()
+                        ):
+                            self.grant_all_bot_workspace(workspace_schema_name)
+                except Exception as e:
+                    pass
+
             if "does not exist or not authorized" in str(e):
                 print(
                     "run query: len:",
@@ -3356,6 +3374,12 @@ $$;
         cursor.close()
 
         return sample_data
+
+        self.connection: SnowflakeConnection = self._create_connection()
+
+        self.semantic_models_map = {}
+
+        self.client = self.connection
 
     def db_list_all_bots(
         self,
@@ -4968,7 +4992,7 @@ $$;
         schema: str,
         stage: str,
         file_name: str,
-        return_contents: bool,
+        return_contents: bool,        
         is_binary: bool = False,
         for_bot=None,
         thread_id=None,

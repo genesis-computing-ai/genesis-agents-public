@@ -59,6 +59,7 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
         metadata['is_bot'] = 'FALSE'
         metadata["user_id"] = self.bot_id.get('user_id', 'Unknown User ID')
         metadata["user_name"] = self.bot_id.get('user_name', 'Unknown User')
+        metadata["user_email"] = self.bot_id.get('user_id', 'Unknown Email')
         return BotOsInputMessage(thread_id=event.get('thread_id'), msg=event.get('msg'), metadata=metadata)
 
  

@@ -185,6 +185,7 @@ def submit_to_udf_proxy(input_text, thread_id, bot_id):
     primary_user = {
         "user_id": user_info.get("email", "Unknown User ID"),
         "user_name": user_info.get("user_name", "Unknown User"),
+        "user_email": user_info.get("email", "Unknown Email"),
         "bot_id": bot_id,
     }
 

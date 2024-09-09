@@ -741,7 +741,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
 
                     # handle this pattern: <function>_manage_processes</function>{"action": "LIST", "bot_id": "MrsEliza-3348b2"} (
 
-                    print(f"Response for Thread ID {thread_id}, {timestamp} with model {self.llm_engine}: {message_payload}")
+         #           print(f"Response for Thread ID {thread_id}, {timestamp}: {message_payload}")
                     decoded_payload = html.unescape(message_payload)
 
                     # fix tool calls with a missing / in the close block

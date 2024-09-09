@@ -381,6 +381,11 @@ def get_metadata():
                 result = {"Success": True, "Data": os.environ["BOT_LLMS"]}
             else:
                 result = {"Success": False, "Message": result["Error"]}
+        elif metadata_type.startswith('test_email '):
+            email = metadata_type.split('test_email ')[1].strip()
+            result = db_adapter.send_test_email(email)
+ 
+         
         else:
             raise ValueError(
                 "Invalid metadata_type provided. Expected 'harvest_control' or 'harvest_summary' or 'available_databases'."

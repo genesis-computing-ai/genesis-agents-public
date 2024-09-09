@@ -318,7 +318,7 @@ class SnowflakeConnector(DatabaseConnector):
                 request_data["model"] = self.llm_engine
                 response = requests.post(url, json=request_data, stream=True, headers=headers)
                 if response.status_code != 200:
-                    print('cortex 405b and 70b not avail: ',response.status_code, response.text)
+                    print(f'cortex {self.llm_engine} and {os.getenv("CORTEX_FAST_MODEL_NAME", "llama3.1-70b")} not avail: ',response.status_code, response.text)
                     return False, False
                 else:
                     os.environ["CORTEX_MODEL"] = "llama3.1-70b"
@@ -758,11 +758,74 @@ class SnowflakeConnector(DatabaseConnector):
 
             return {"Success": True, "Data": json_data}
 
-
         except Exception as e:
-            err = f"An error occurred while retrieving bot images: {e}"
+            err = f"An error occurred while getting llm info: {e}"
             return {"Success": False, "Error": err}
 
+    def send_test_email(self, email_addr, thread_id=None):
+        """
+        Retrieves a list of all llm types and keys.
+
+        Returns:
+            list: A list of llm keys, llm types, and the active switch.
+        """
+        try:
+
+            query = f"""
+                CALL SYSTEM$SEND_EMAIL(
+                    'genesis_email_int',
+                    $${email_addr}$$,
+                    $${'Test Email'}$$,
+                    $${'Test Email from Genesis Server'}$$
+                );
+                """
+
+            cursor = self.client.cursor()
+            cursor.execute(query)
+            email_result = cursor.fetchall()
+
+            columns = [col[0].lower() for col in cursor.description]
+            email_result = [dict(zip(columns, row)) for row in email_result]
+            json_data = json.dumps(
+                email_result, default=str
+            )  # default=str to handle datetime and other non-serializable types
+
+            # Check if DEFAULT_EMAIL table exists using SHOW TABLES LIKE
+            check_table_query = f"""
+            SHOW TABLES LIKE 'DEFAULT_EMAIL' IN {self.genbot_internal_project_and_schema}
+            """
+            cursor.execute(check_table_query)
+            table_exists = cursor.fetchone() is not None
+
+            if not table_exists:
+                # Create the table if it doesn't exist
+                create_table_query = f"""
+                CREATE TABLE {self.genbot_internal_project_and_schema}.DEFAULT_EMAIL (
+                    DEFAULT_EMAIL VARCHAR(255)
+                )
+                """
+                cursor.execute(create_table_query)
+
+            # Insert or update the default email
+                upsert_query = f"""
+                MERGE INTO {self.genbot_internal_project_and_schema}.DEFAULT_EMAIL t
+                USING (SELECT %s AS email) s
+                ON (1=1)
+                WHEN MATCHED THEN
+                    UPDATE SET t.DEFAULT_EMAIL = s.email
+                WHEN NOT MATCHED THEN
+                    INSERT (DEFAULT_EMAIL) VALUES (s.email)
+                """
+                cursor.execute(upsert_query, (email_addr,))
+
+            # Commit the changes
+                self.client.commit()
+
+            return {"Success": True, "Data": json_data}
+
+        except Exception as e:
+            err = f"An error occurred while sending test email: {e}"
+            return {"Success": False, "Error": err}
 
     def get_harvest_summary(self, thread_id=None):
         """

@@ -6,6 +6,7 @@ from utils import get_bot_details, get_slack_tokens, get_slack_tokens_cached, ge
 bot_images = get_metadata("bot_images")
 bot_avatar_images = [bot["bot_avatar_image"] for bot in bot_images]
 
+
 def chat_page():
     # Add custom CSS to reduce whitespace even further
 
@@ -483,6 +484,11 @@ def chat_page():
                 # Generate initial message and bot introduction only for new sessions
                 if not st.session_state[f"messages_{selected_thread_id}"]:
                     submit_button(selected_bot_intro_prompt, st.empty(), True)
+                
+      #          email_popup()
+
+                # Check if 'popup' exists in session state, if not, initialize it to False
+  
         except Exception as e:
             st.error(f"Error running Genesis GUI: {e}")
 

@@ -17,4 +17,4 @@ privileges:
   - CREATE COMPUTE POOL:
       description: "Allows Genesis to create a Small Snowflake Compute Pool to run the application"
   - IMPORTED PRIVILEGES ON SNOWFLAKE DB:
-      description: "(Optional) Allow GenBots access to query account_usage views"
+      description: "Allow GenBots access to query account_usage views for Snowflake cost savings analysis"

@@ -141,6 +141,7 @@ if st.session_state.data:
     pages = {
         "Chat with Bots": lambda: __import__('page_files.chat_page').chat_page.chat_page(),
         "LLM Model & Key": lambda: __import__('page_files.llm_config').llm_config.llm_config(),
+        "Setup Email Integration": lambda: __import__('page_files.config_email').config_email.setup_email(),
         "Setup Slack Connection": lambda: __import__('page_files.setup_slack').setup_slack.setup_slack(),
         "Grant Data Access": lambda: __import__('page_files.grant_data').grant_data.grant_data(),
         "Harvester Status": lambda: __import__('page_files.db_harvester').db_harvester.db_harvester(),

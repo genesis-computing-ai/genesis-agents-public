@@ -2,7 +2,10 @@
 GENESIS BOT TODOS
 =================
 
+test default email on CALL in email setup instructions
+use that as default email for process scheduling and for send email 
 cortex python calls make nicer: <function=_run_python_code>{"code": "import numpy as np\nfrom sklearn.cluster import MeanShift, estimate_bandwidth\nfrom sklearn.datasets import make_blobs\ncenters = [[1, 1], [-1, -1], [1, 
+check bot images on Dev
 deploy then check search metadata with database and schema options
 check !fast off for cortex on alpha
 give processs ids in list of processes when not found on run, especially on get next step... 
@@ -19,9 +22,9 @@ need handler for long cortex threads
 need a place to gather and test the email integrations, add a step for email to the welcome wizard
 get mini bot avatars into streamlit
 clean up logging and cust data in logs and run_query
-test baby bot with new bot id logic
 
 done:
+x test baby bot with new bot id logic
 x undo codeblocker and remove all <authorized role> mentions, and resubmit to ext
 x streamlit default fast mode off for openai bots (and hide control?)
 x Janice 2.0 posting to slack     caught exception 'builtin_function_or_method' object has no attribute 'startswith' trying to run _send_slack_channel_message
@@ -68,6 +71,7 @@ x streamlit takes a long time before submitting welcome job for each bot.. loadi
 x add bot details caching to new streamlit 
 
 next version:
+consider mistral-large-2 as fallback for 405b vs 70b for smart mode
 RG-reza images
 make snowpark runner do dynamic imports
 helper tool for making graphs with snowpark, and/or running snowpark python in general

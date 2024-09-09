@@ -15,7 +15,6 @@ def show_server_logs():
         font-weight: bold;
     }
     .info-box {
-        background-color: #e1f5fe;
         padding: 20px;
         border-radius: 5px;
         margin-bottom: 20px;

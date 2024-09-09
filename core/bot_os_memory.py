@@ -320,6 +320,13 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
                 logger.info('getting fresh stuff')
                 self.index, self.metadata_mapping = load_or_create_embeddings_index(self.meta_database_connector.metadata_table_name, refresh=True)
 
+            if database and schema:
+                query += " "+database+'.'+schema
+            elif schema:
+                query += " "+schema
+            elif database:
+                query += " "+database                
+
             # Check if the EMBEDDING_SIZE environment variable is set
             embedding_size = os.environ.get('EMBEDDING_SIZE',None)
             if embedding_size:
@@ -335,7 +342,12 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
 
             if top_n > 25:
                 top_n = 25
-            top_matches = self.index.get_nns_by_vector(embedding, top_n, include_distances=True)
+
+            run_n = top_n
+            if database or schema:
+                run_n *= 3
+
+            top_matches = self.index.get_nns_by_vector(embedding, run_n, include_distances=True)
 
             logger.info(f'top_matches len {len(top_matches)}')
             logger.info(f'top_matches {top_matches}')
@@ -357,22 +369,22 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
 
             where_clauses = [f"source_name='{source_name_escaped}'"]
             # this isnt good as it post filters improperly
-#            if database:
-#                database_escaped = database.replace("'", "''")
-#                where_clauses.append(f"database_name='{database_escaped}'")
-#            if schema:
-#                schema_escaped = schema.replace("'", "''")
-#                where_clauses.append(f"schema_name='{schema_escaped}'")
+            if database:
+                database_escaped = database.replace("'", "''")
+                where_clauses.append(f"database_name='{database_escaped}'")
+            if schema:
+                schema_escaped = schema.replace("'", "''")
+                where_clauses.append(f"schema_name='{schema_escaped}'")
             
             where_statement = " AND ".join(where_clauses) + f" AND qualified_table_name IN ({file_names_str})"
             
             if verbosity == "high":
       
-                q = f"SELECT qualified_table_name as full_table_name, ddl as DDL_FULL, sample_data_text as sample_data FROM {self.meta_database_connector.metadata_table_name} WHERE {where_statement}"
+                q = f"SELECT qualified_table_name as full_table_name, ddl as DDL_FULL, sample_data_text as sample_data FROM {self.meta_database_connector.metadata_table_name} WHERE {where_statement} LIMIT {top_n}"
                 logger.info(q)
                 content = self.meta_database_connector.run_query(q)
             else:
-                q = f"SELECT qualified_table_name as full_table_name, ddl_short FROM {self.meta_database_connector.metadata_table_name} WHERE {where_statement}"
+                q = f"SELECT qualified_table_name as full_table_name, ddl_short FROM {self.meta_database_connector.metadata_table_name} WHERE {where_statement} LIMIT {top_n}"
                 logger.info(q) 
                 content = self.meta_database_connector.run_query(q)
      

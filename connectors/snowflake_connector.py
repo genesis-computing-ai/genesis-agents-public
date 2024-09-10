@@ -1959,8 +1959,8 @@ class SnowflakeConnector(DatabaseConnector):
                 cursor.execute(
                     insert_initial_row_query,
                     (
-                        runner_id,
                         bot_id,
+                        runner_id,
                         bot_name,
                         bot_instructions,
                         available_tools,

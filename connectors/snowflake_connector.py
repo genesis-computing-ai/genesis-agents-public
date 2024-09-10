@@ -172,6 +172,7 @@ class SnowflakeConnector(DatabaseConnector):
 
         if self.source_name == "Snowflake" and os.getenv("CORTEX_AVAILABLE", "False").lower() == 'false':
             try:
+
                 cortex_test = self.test_cortex_via_rest()
 
                 if cortex_test == True:

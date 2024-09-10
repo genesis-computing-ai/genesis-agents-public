@@ -255,7 +255,9 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             if thread_id in self.thread_stop_map:
                 self.thread_stop_map.pop(thread_id)
             if ') says: !model' in last_user_message["content"] or last_user_message["content"]=='!model':
-                resp= f"The model is set to: {self.llm_engine}. Currently running via Cortext via REST. You can say !model llama3.1-405b, !model llama3.1-70b, or !model llama3.1-8b to change model size."
+                resp= f"The base model is set to: {self.llm_engine}. Currently running via Cortext via REST. You can say !model llama3.1-405b, !model llama3.1-70b, or !model llama3.1-8b to change model size."
+                if thread_id in self.thread_fast_mode_map:
+                   resp += f"\nFast mode activated for this thread. Actual is now {os.getenv('CORTEX_FAST_MODEL_NAME', 'llama3.1-70b')} due to fast mode."
                 curr_resp = resp
             if ') says: !model llama3.1-405b' in last_user_message["content"] or last_user_message["content"]=='!model llama3.1-405b':
                 self.llm_engine = 'llama3.1-405b'
@@ -623,7 +625,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             if input_message.metadata and 'thread_ts' in input_message.metadata:
                 fast_mode = True
                 self.thread_fast_mode_map[thread_id] = True
-                self.llm_engine = os.getenv("CORTEX_FAST_MODEL_NAME")
+                #self.llm_engine = os.getenv("CORTEX_FAST_MODEL_NAME")
                 if os.getenv("CORTEX_MODEL",False) and os.getenv("CORTEX_FAST_MODEL_NAME",False) and os.getenv("CORTEX_MODEL") != os.getenv("CORTEX_FAST_MODEL_NAME"):
                     print('cortex fast mode = true (set by default for a new slack-based thread)')               
                     print(f'Switching from {os.getenv("CORTEX_MODEL")} to {os.getenv("CORTEX_FAST_MODEL_NAME")}')

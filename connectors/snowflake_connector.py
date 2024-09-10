@@ -6651,9 +6651,18 @@ $$;"""
             # Return a default filename or re-raise the exception based on your use case
             return "default_filename.ann", "default_metadata.json"
 
-    def run_python_code(self, code: str, thread_id=None,
+    def run_python_code(self, code: str, packages: str = None, thread_id=None,
 ) -> str:
         import ast 
+
+        def cleanup(proc_name):         # Drop the temporary stored procedure if it was created
+            if proc_name is not None:
+                drop_proc_query = f"DROP PROCEDURE IF EXISTS {self.schema}.{proc_name}(STRING)"
+                try:
+                    self.run_query(drop_proc_query)
+                    print(f"Temporary stored procedure {proc_name} dropped successfully.")
+                except Exception as e:
+                    print(f"Error dropping temporary stored procedure {proc_name}: {e}")
 
         # Check if code contains Session.builder
         if "Session.builder" in code:
@@ -6669,7 +6678,59 @@ $$;"""
                 "reminder": """Also be sure to return the result in the global scope at the end of your code. And if you want to return a file, save it to /tmp (not root) then base64 encode it and respond like this: image_bytes = base64.b64encode(image_bytes).decode('utf-8')\nresult = { 'type': 'base64file', 'filename': file_name, 'content': image_bytes}."""
             }
 
-        stored_proc_call = f"CALL {self.schema}.execute_snowpark_code($${code}$$)"
+        # Check if libraries are provided
+        proc_name = 'EXECUTE_SNOWPARK_CODE'
+        if packages is not None:
+            # Split the libraries string into a list
+            library_list = [lib.strip() for lib in packages.split(',') if lib.strip() not in ['snowflake-snowpark-python', 'snowflake.snowpark','pandas']]
+            # Create a new stored procedure with the specified libraries
+            libraries_str = ', '.join(f"'{lib}'" for lib in library_list)
+            import uuid
+# 'matplotlib', 'scikit-learn'
+            if (libraries_str is None or libraries_str != ''):
+                proc_name = f"sp_{uuid.uuid4().hex}"
+                new_stored_proc_ddl = f"""CREATE OR REPLACE PROCEDURE {self.schema}.{proc_name}(
+    code STRING
+)
+RETURNS STRING
+LANGUAGE PYTHON
+RUNTIME_VERSION = '3.8'
+PACKAGES = ('snowflake-snowpark-python', 'pandas', {libraries_str})
+HANDLER = 'run'
+AS
+$$
+import snowflake.snowpark as snowpark
+import pandas as pd
+
+def run(session: snowpark.Session, code: str) -> str:
+    local_vars = {{}}
+    local_vars["session"] = session
+    
+    exec(code, globals(), local_vars)
+
+    if 'result' in local_vars:
+        return str(local_vars['result'])
+    else:
+        return "Error: 'result' is not defined in the executed code"
+$$;"""
+                
+                # Execute the new stored procedure creation
+                result = self.run_query(new_stored_proc_ddl)
+
+                # Check if the result is a list and if Success is False
+                if isinstance(result, dict) and 'Success' in result and result['Success'] == False:
+                    result['reminder'] = 'You do not need to specify standard python packages in the packages parameter'
+                    return result
+
+                # Update the stored procedure call to use the new procedure
+                stored_proc_call = f"CALL {self.schema}.{proc_name}($${code}$$)"
+            else:
+                stored_proc_call = f"CALL {self.schema}.execute_snowpark_code($${code}$$)"
+
+        else:
+            # Use the default stored procedure if no libraries are specified
+            stored_proc_call = f"CALL {self.schema}.execute_snowpark_code($${code}$$)"
+       
         result = self.run_query(stored_proc_call)
 
         if isinstance(result, list):
@@ -6677,20 +6738,24 @@ $$;"""
             # Check if result is a list and has at least one element
             if isinstance(result, list) and len(result) > 0:
                 # Check if 'EXECUTE_SNOWPARK_CODE' key exists in the first element
-                if 'EXECUTE_SNOWPARK_CODE' in result[0]:
+                proc_name = proc_name.upper()
+                if proc_name in result[0]:
                     # If it exists, use its value as the result
-                    result = result[0]['EXECUTE_SNOWPARK_CODE']
+                    result = result[0][proc_name]
                     # Try to parse the result as JSON
                     try:
                         result_json = ast.literal_eval(result)
                     except Exception as e:
                         # If it's not valid JSON, keep the original string
+                        cleanup(proc_name)
                         result_json = result
                 else:
                     # If 'EXECUTE_SNOWPARK_CODE' doesn't exist, use the entire result as is
+                    cleanup(proc_name)
                     result_json = result
             else:
                 # If result is not a list or is empty, use it as is
+                cleanup(proc_name)
                 result_json = result
             # Check if 'type' and 'filename' are in the JSON
             if 'type' in result_json and 'filename' in result_json:
@@ -6714,13 +6779,17 @@ $$;"""
                         "success": True,
                         "result": f'Snowpark output a file. Output a link like this so the user can see it [description of file](sandbox:/mnt/data/{result_json["filename"]})'
                     }
+                    cleanup(proc_name)
                     return result
             
                 # If conditions are not met, return the original result
+                cleanup(proc_name)
                 return result_json
             
+            cleanup(proc_name)
             return result_json
     
+        cleanup(proc_name)
         return result
 
 def test_stage_functions():

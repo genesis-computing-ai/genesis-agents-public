@@ -3,6 +3,7 @@ GENESIS BOT TODOS
 =================
 
 files and graphs out of snowpark 
+add a place for run_python to provide the libraries it needs
 test default email on CALL in email setup instructions
 use that as default email for process scheduling and for send email 
 cortex python calls make nicer: <function=_run_python_code>{"code": "import numpy as np\nfrom sklearn.cluster import MeanShift, estimate_bandwidth\nfrom sklearn.datasets import make_blobs\ncenters = [[1, 1], [-1, -1], [1, 
@@ -72,6 +73,7 @@ x streamlit takes a long time before submitting welcome job for each bot.. loadi
 x add bot details caching to new streamlit 
 
 next version:
+make a graph wrapper function with hints on making graphs with snowpark
 consider mistral-large-2 as fallback for 405b vs 70b for smart mode
 RG-reza images
 make snowpark runner do dynamic imports

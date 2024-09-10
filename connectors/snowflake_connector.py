@@ -6657,7 +6657,7 @@ $$;"""
         import ast 
 
         def cleanup(proc_name):         # Drop the temporary stored procedure if it was created
-            if proc_name is not None:
+            if proc_name is not None and proc_name != 'EXECUTE_SNOWPARK_CODE':
                 drop_proc_query = f"DROP PROCEDURE IF EXISTS {self.schema}.{proc_name}(STRING)"
                 try:
                     self.run_query(drop_proc_query)

@@ -3234,7 +3234,12 @@ $$;"""
             cursor = self.client.cursor()
             cursor.execute(query)
             self.client.commit()
-            logger.info(f"Workspace schema {workspace_schema_name} created")
+            logger.info(f"Workspace schema {workspace_schema_name} verified or created")
+            query = f"CREATE STAGE IF NOT EXISTS {workspace_schema_name}.MY_STAGE"
+            cursor = self.client.cursor()
+            cursor.execute(query)
+            self.client.commit()
+            logger.info(f"Workspace stage {workspace_schema_name}.MY_STAGE verified or created")
         except Exception as e:
             logger.error(f"Failed to create bot workspace {workspace_schema_name}: {e}")
 
@@ -3252,6 +3257,11 @@ $$;"""
             self.client.commit()
 
             query = f"GRANT SELECT ON ALL VIEWS IN SCHEMA {workspace_schema_name} TO APPLICATION ROLE APP_PUBLIC; "
+            cursor = self.client.cursor()
+            cursor.execute(query)
+            self.client.commit()
+
+            query = f"GRANT SELECT ON ALL STAGES IN SCHEMA {workspace_schema_name} TO APPLICATION ROLE APP_PUBLIC; "
             cursor = self.client.cursor()
             cursor.execute(query)
             self.client.commit()
@@ -5047,9 +5057,9 @@ $$;"""
         try:
             p = os.path.dirname(file_name) if "/" in file_name else None
             if p is not None:
-                query = f'PUT file://{file_path} @"{database}"."{schema}"."{stage}"/{p} AUTO_COMPRESS=FALSE'
+                query = f'PUT file://{file_path} @"{database}"."{schema}"."{stage}"/{p} overwrite=TRUE AUTO_COMPRESS=FALSE'
             else:
-                query = f'PUT file://{file_path} @"{database}"."{schema}"."{stage}" AUTO_COMPRESS=FALSE'
+                query = f'PUT file://{file_path} @"{database}"."{schema}"."{stage}" overwrite=TRUE AUTO_COMPRESS=FALSE'
             return self.run_query(query)
         except Exception as e:
             logger.error(f"Error adding file to stage: {e}")
@@ -6652,7 +6662,7 @@ $$;"""
             # Return a default filename or re-raise the exception based on your use case
             return "default_filename.ann", "default_metadata.json"
 
-    def run_python_code(self, code: str, packages: str = None, thread_id=None,
+    def run_python_code(self, code: str, packages: str = None, thread_id=None, bot_id=None
 ) -> str:
         import ast 
 
@@ -6678,9 +6688,20 @@ $$;"""
                 "error": "You can't use plt.show, instead save and return a base64 encoded file.",
                 "reminder": """Also be sure to return the result in the global scope at the end of your code. And if you want to return a file, save it to /tmp (not root) then base64 encode it and respond like this: image_bytes = base64.b64encode(image_bytes).decode('utf-8')\nresult = { 'type': 'base64file', 'filename': file_name, 'content': image_bytes}."""
             }
+        if "@MY_STAGE" in code:
+            import core.global_flags as global_flage
+            workspace_schema_name = f"{global_flags.project_id}.{bot_id.replace(r'[^a-zA-Z0-9]', '_').replace('-', '_')}_WORKSPACE".upper()
+            return {
+                "success": False,
+                "error": f"Use the full name of your stage to access MY_STAGE, which is {workspace_schema_name}.MY_STAGE",
+                "reminder": """Also be sure to return the result in the global scope at the end of your code. And if you want to return a file, save it to /tmp (not root) then base64 encode it and respond like this: image_bytes = base64.b64encode(image_bytes).decode('utf-8')\nresult = { 'type': 'base64file', 'filename': file_name, 'content': image_bytes}."""
+            }           
+
 
         # Check if libraries are provided
         proc_name = 'EXECUTE_SNOWPARK_CODE'
+        if packages is not None and packages == '':
+            packages = None
         if packages is not None:
             # Split the libraries string into a list
             library_list = [lib.strip() for lib in packages.split(',') if lib.strip() not in ['snowflake-snowpark-python', 'snowflake.snowpark','pandas']]

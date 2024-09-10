@@ -163,7 +163,7 @@ def execute_function(
             s_arguments["thread_id"] = thread_id
             if func_name == '_run_process':
                 s_arguments["bot_id"] = bot_id
-            if func_name == '_run_query':
+            if func_name == '_run_query' or func_name == '_run_python_code':
                 s_arguments["bot_id"] = bot_id
                 if 'query' in s_arguments:
                     s_arguments['query'] = 'USERQUERY::' + s_arguments['query']

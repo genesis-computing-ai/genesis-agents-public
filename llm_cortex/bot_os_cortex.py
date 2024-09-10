@@ -8,6 +8,7 @@ import re
 import requests
 import sseclient
 import time
+import shutil
 import uuid
 import threading
 from typing_extensions import override
@@ -619,6 +620,23 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         if input_message.msg.endswith('<<!!FAST_MODE!!>>'):
           fast_mode = True
           input_message.msg = input_message.msg.rstrip('<<!!FAST_MODE!!>>').rstrip()
+
+        # Check if files are present in input_message
+        if hasattr(input_message, 'files') and isinstance(input_message.files, list):
+            for file in input_message.files:
+                if os.path.isfile(file):
+                    # Get the filename from the full path
+                    file_name = os.path.basename(file)
+                    target_path = f"./downloaded_files/{thread_id}/" + file_name
+                    if file != target_path:
+                    # Ensure the target directory exists
+                        os.makedirs(os.path.dirname(target_path), exist_ok=True)
+                        # Copy the file to the target path
+                        shutil.copy2(file, target_path)
+                        print(f"File copied from {file} to {target_path}")
+                    input_message.msg += f"\n<FILE: Note that the user attached a file {file_name}. It's stored on the server. If you need to use it, add it to stage and use snowpark to read it>"
+                else:
+                    input_message.msg += f"\n<FILE_NOT_FOUND: Note that the user attached a file {file} but it was not found on the server>"
 
         if thread_id in self.first_message_map:
             del self.first_message_map[thread_id]

@@ -121,14 +121,14 @@ database_tool_functions = [
         "type": "function",
         "function": {
             "name": "_run_python_code",
-            "description": "Executes a string of Python snowpark code and returns the output as a string. Never create a new snowflake session or connection always use the existing 'session' object already defined for you. Always set 'result' local variable at the end of the code execution for what you want to return.", 
+            "description": "Executes a string of Python snowflake snowpark code using a precreated and provided 'session'", 
             #this function has an existing snowflake session inside that you can use called session so do not try to create a new session or connection.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "code": {
                         "type": "string",
-                        "description": "The Python code to execute.",
+                        "description": """The Python code to execute in Snowflake Snowpark. The snowpark 'session' is already created and ready for your code's use, do NOT create a new session. Always set 'result' local variable at the end of the code execution to what you want to return. To return a file base64 encode it and respond like this: image_bytes = base64.b64encode(image_bytes).decode('utf-8')\nresult = { 'type': 'base64file', 'filename': file_name, 'content': image_bytes} """,
                     }
                 },
                 "required": ["code"],

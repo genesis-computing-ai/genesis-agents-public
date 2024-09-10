@@ -2,6 +2,7 @@
 GENESIS BOT TODOS
 =================
 
+files and graphs out of snowpark 
 test default email on CALL in email setup instructions
 use that as default email for process scheduling and for send email 
 cortex python calls make nicer: <function=_run_python_code>{"code": "import numpy as np\nfrom sklearn.cluster import MeanShift, estimate_bandwidth\nfrom sklearn.datasets import make_blobs\ncenters = [[1, 1], [-1, -1], [1, 

@@ -742,10 +742,11 @@ class SlackBotAdapter(BotOsInputAdapter):
                             msg = '```' + msg
                  #           print('     Added markedown start to start of msg')
                             inmarkdown = True
-      
+
                 if (
                     message.status == "in_progress"
                     or message.status == "requires_action"
+                    or msg.endswith("💬")
                 ):
          #           print('processing in_progress message: ', message.status,
          #               " updating ",
@@ -949,6 +950,8 @@ class SlackBotAdapter(BotOsInputAdapter):
 
                 thread_ts = message.input_metadata.get("thread_ts", None)
 
+
+
                 files_in = message.files
                 # Remove duplicates from the files_in array
                 files_in = list(set(files_in))
@@ -1021,6 +1024,15 @@ class SlackBotAdapter(BotOsInputAdapter):
                         files_in.append(local_path)
 
                 #      print("Uploading files:", files_in)
+
+                # Find pattern [filename](sandbox://mnt/data/filename)
+                # sandbox_file_pattern = re.compile(r'\[([^\]]+)\]\(sandbox://mnt/data/([^\)]+)\)')
+                # sandbox_file_matches = sandbox_file_pattern.findall(msg)
+                # for filename, filepath in sandbox_file_matches:
+                #     local_path = f"./downloaded_files/{message.thread_id}/{filepath}"
+                #     if local_path not in files_in:
+                #         files_in.append(local_path)
+                #         print(f"Sandbox file pattern found, attaching {local_path}")
 
                 msg_files = self._upload_files(
                     files_in,

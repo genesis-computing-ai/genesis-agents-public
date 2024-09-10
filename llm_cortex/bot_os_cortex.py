@@ -518,11 +518,18 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         if resp.endswith('💬'):
             resp = resp[:-1]
             curr_resp = resp
+            status = 'in_progress'
+        else:
+            if '🧰' not in resp[-30:]:
+                status = 'complete'
+            else:
+                status = 'in_progress'
+
 
         if resp != '' and BotOsAssistantSnowflakeCortex.stream_mode == True:
             if self.event_callback:
                 self.event_callback(self.bot_id, BotOsOutputMessage(thread_id=thread_id, 
-                                                                    status='in_progress', 
+                                                                    status=status, 
                                                                     output=resp+postfix, 
                                                                     messages=None, 
                                                                     input_metadata=json.loads(message_metadata)))

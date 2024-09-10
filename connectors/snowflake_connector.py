@@ -6650,8 +6650,61 @@ $$;"""
 
     def run_python_code(self, code: str, thread_id=None,
 ) -> str:
+        import ast 
+
         stored_proc_call = f"CALL {self.schema}.execute_snowpark_code($${code}$$)"
-        return self.run_query(stored_proc_call)
+        result = self.run_query(stored_proc_call)
+
+        if isinstance(result, list):
+            result_json = result
+            # Check if result is a list and has at least one element
+            if isinstance(result, list) and len(result) > 0:
+                # Check if 'EXECUTE_SNOWPARK_CODE' key exists in the first element
+                if 'EXECUTE_SNOWPARK_CODE' in result[0]:
+                    # If it exists, use its value as the result
+                    result = result[0]['EXECUTE_SNOWPARK_CODE']
+                    # Try to parse the result as JSON
+                    try:
+                        result_json = ast.literal_eval(result)
+                    except Exception as e:
+                        # If it's not valid JSON, keep the original string
+                        result_json = result
+                else:
+                    # If 'EXECUTE_SNOWPARK_CODE' doesn't exist, use the entire result as is
+                    result_json = result
+            else:
+                # If result is not a list or is empty, use it as is
+                result_json = result
+            # Check if 'type' and 'filename' are in the JSON
+            if 'type' in result_json and 'filename' in result_json:
+                if result_json['type'] == 'base64file':
+                    import base64
+                    import os
+                    
+                    # Create the directory if it doesn't exist
+                    os.makedirs(f'./downloaded_files/{thread_id}', exist_ok=True)
+                    
+                    # Decode the base64 content
+                    file_content = base64.b64decode(result_json['content'])
+                    
+                    # Save the file
+                    file_path = f'./downloaded_files/{thread_id}/{result_json["filename"]}'
+                    with open(file_path, 'wb') as file:
+                        file.write(file_content)
+                    
+                    print(f"File saved to {file_path}")
+                    result = {
+                        "success": True,
+                        "result": f'Snowpark output a file. Output a link like this so the user can see it [description of file](sandbox:/mnt/data/{result_json["filename"]})'
+                    }
+                    return result
+            
+                # If conditions are not met, return the original result
+                return result_json
+            
+            return result_json
+    
+        return result
 
 def test_stage_functions():
     # Create a test instance of SnowflakeConnector

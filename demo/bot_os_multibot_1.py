@@ -358,6 +358,12 @@ def list_available_bots_fn():
     logger.debug(f"Sending response: {response.json}")
     return response
 
+import base64
+from pathlib import Path
+def img_to_bytes(img_path):
+    img_bytes = Path(img_path).read_bytes()
+    encoded = base64.b64encode(img_bytes).decode()
+    return encoded
 
 @app.route("/udf_proxy/get_metadata", methods=["POST"])
 def get_metadata():
@@ -383,9 +389,11 @@ def get_metadata():
                 result = {"Success": False, "Message": result["Error"]}
         elif metadata_type.startswith('test_email '):
             email = metadata_type.split('test_email ')[1].strip()
-            result = db_adapter.send_test_email(email)
- 
+            result = db_adapter.send_test_email(email) 
          
+        elif 'png' in metadata_type:
+            image_path = input_rows[0][1]
+            result = {"Success": True, "Data": json.dumps(img_to_bytes(image_path))}
         else:
             raise ValueError(
                 "Invalid metadata_type provided. Expected 'harvest_control' or 'harvest_summary' or 'available_databases'."
@@ -394,9 +402,7 @@ def get_metadata():
         if result["Success"]:
             output_rows = [[input_rows[0][0], json.loads(result["Data"])]]
         else:
-            output_rows = [
-                [input_rows[0][0], {"Success": False, "Message": result["Error"]}]
-            ]
+            output_rows = [[input_rows[0][0], {"Success": False, "Message": result["Error"]}]]
 
     except Exception as e:
         output_rows = [[input_rows[0][0], {"Success": False, "Message": str(e)}]]

@@ -2,6 +2,17 @@ import streamlit as st
 import time
 import uuid
 from utils import get_bot_details, get_slack_tokens, get_slack_tokens_cached, get_metadata, submit_to_udf_proxy, get_response_from_udf_proxy
+import re
+import os
+
+
+
+def img_to_html(img_path):    
+    image_name = os.path.basename(img_path)
+    img_format = image_name.split('.')[-1]
+    img_byte = get_metadata(img_path)
+    img_html = f'<img src="data:image/{img_format.lower()};base64,{img_byte}" style="max-width: 50%;display: block;">'
+    return img_html
 
 bot_images = get_metadata("bot_images")
 bot_avatar_images = [bot["bot_avatar_image"] for bot in bot_images]
@@ -12,12 +23,15 @@ def chat_page():
 
     if 'session_message_uuids' not in st.session_state:
         st.session_state.session_message_uuids = {}
+    if 'stream_images' not in st.session_state:
+        st.session_state.stream_images = set()
 
     def get_chat_history(thread_id):
         return st.session_state.get(f"messages_{thread_id}", [])
 
     def save_chat_history(thread_id, messages):
         st.session_state[f"messages_{thread_id}"] = messages
+        
 
         # Display assistant response in chat message container
     def response_generator(in_resp=None, request_id=None, selected_bot_id=None):
@@ -34,6 +48,23 @@ def chat_page():
                 response = in_resp
                 in_resp = None
             if response != previous_response:
+                found_partial = False
+                full_images = re.findall('\!\[.+\]\(.+\)', response)
+                partial_images = re.findall('\n*\!\[', response)                
+                if full_images:     
+                    for image in full_images:     
+                        image_path = re.findall('\((.+)\)', image)
+                        if not image_path: 
+                            found_partial = True
+                            break
+                        response = response.replace(image, '')  
+                        st.session_state.stream_images.add(image_path[0])                  
+                elif partial_images:
+                    found_partial = True
+                
+                if found_partial:
+                    continue
+                
                 if response != "not found":
                     if ( 
                         len(previous_response) > 10
@@ -101,31 +132,19 @@ def chat_page():
         if "stop_streaming" not in st.session_state:
             st.session_state.stop_streaming = False
 
-        if bot_avatar_image_url:
-            with st.chat_message("assistant", avatar=bot_avatar_image_url):
-                response = st.write_stream(response_generator(None,request_id=request_id, selected_bot_id=selected_bot_id))
-        else:
-            with st.chat_message("assistant"):
-                response = st.write_stream(response_generator(None,request_id=request_id, selected_bot_id=selected_bot_id))
+        with st.chat_message("assistant", avatar=bot_avatar_image_url):
+            response = st.write_stream(response_generator(None,request_id=request_id, selected_bot_id=selected_bot_id))
+        
         st.session_state.stop_streaming = False
 
-        # # Display the response
-        # if bot_avatar_image_url:
-        #     with st.chat_message("assistant", avatar=bot_avatar_image_url):
-        #         st.markdown(response)
-        # else:
-        #     with st.chat_message("assistant"):
-        #         st.markdown(response)
-
         # Add the response to the chat history
-        if bot_avatar_image_url:
-            messages.append({
-                "role": "assistant",
-                "content": response,
-                "avatar": bot_avatar_image_url,
-            })
-        else:
-            messages.append({"role": "assistant", "content": response})
+        messages.append({"role": "assistant", "content": response,  "avatar": bot_avatar_image_url})
+
+        while st.session_state.stream_images:
+            image_path = st.session_state.stream_images.pop()
+            image = img_to_html(image_path)
+            st.markdown(image , unsafe_allow_html=True)
+            messages.append({"role": "assistant", "content": image,  "avatar": bot_avatar_image_url})
 
         save_chat_history(thread_id, messages)
 
@@ -156,7 +175,7 @@ def chat_page():
         if not intro_prompt:
             # Display user message in chat message container
             with chatmessage:
-                st.markdown(prompt)
+                st.markdown(prompt,unsafe_allow_html=True)
             # Add user message to chat history
             messages.append({"role": "user", "content": prompt})
 
@@ -208,12 +227,8 @@ def chat_page():
         if "stop_streaming" not in st.session_state:
             st.session_state.stop_streaming = False
 
-        if bot_avatar_image_url:
-            with st.chat_message("assistant", avatar=bot_avatar_image_url):
-                response = st.write_stream(response_generator(in_resp,request_id=request_id, selected_bot_id=selected_bot_id))
-        else:
-            with st.chat_message("assistant"):
-                response = st.write_stream(response_generator(in_resp,request_id=request_id, selected_bot_id=selected_bot_id))
+        with st.chat_message("assistant", avatar=bot_avatar_image_url):
+            response = st.write_stream(response_generator(in_resp,request_id=request_id, selected_bot_id=selected_bot_id))
         st.session_state.stop_streaming = False
 
         # Initialize last_response if it doesn't exist
@@ -223,14 +238,13 @@ def chat_page():
         if st.session_state["last_response"] == "":
             st.session_state["last_response"] = response
 
-        if bot_avatar_image_url:
-            messages.append({
-                "role": "assistant",
-                "content": response,
-                "avatar": bot_avatar_image_url,
-            })
-        else:
-            messages.append({"role": "assistant", "content": response})
+        messages.append({"role": "assistant","content": response,"avatar": bot_avatar_image_url})
+
+        while st.session_state.stream_images:
+            image_path = st.session_state.stream_images.pop()
+            image = img_to_html(image_path)
+            st.markdown(image , unsafe_allow_html=True)
+            messages.append({"role": "assistant", "content": image,  "avatar": bot_avatar_image_url})
 
         save_chat_history(current_thread_id, messages)
 
@@ -449,7 +463,7 @@ def chat_page():
             if len(bot_names) > 0:
 
                 # get avatar images
-                bot_avatar_image_url = ""
+                bot_avatar_image_url = None
                 if len(bot_images) > 0:                    
                     selected_bot_image_index = bot_names.index(selected_bot_name) if selected_bot_name in bot_names else -1
                     if selected_bot_image_index >= 0:
@@ -466,10 +480,10 @@ def chat_page():
                     for message in st.session_state[f"messages_{selected_thread_id}"]:
                         if message["role"] == "assistant" and bot_avatar_image_url:
                             with st.chat_message(message["role"], avatar=bot_avatar_image_url):
-                                st.markdown(message["content"])
+                                st.markdown(message["content"],unsafe_allow_html=True)
                         else:
                             with st.chat_message(message["role"]):
-                                st.markdown(message["content"])
+                                st.markdown(message["content"],unsafe_allow_html=True)
 
                 # Check if there's a pending request for the current session
                 if selected_thread_id and selected_thread_id in st.session_state.session_message_uuids:

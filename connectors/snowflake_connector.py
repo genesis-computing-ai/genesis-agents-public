@@ -5071,7 +5071,7 @@ $$;"""
         schema: str,
         stage: str,
         file_name: str,
-        return_contents: bool,        
+        return_contents: bool = True,        
         is_binary: bool = False,
         for_bot=None,
         thread_id=None,
@@ -6689,13 +6689,13 @@ $$;"""
                 "reminder": """Also be sure to return the result in the global scope at the end of your code. And if you want to return a file, save it to /tmp (not root) then base64 encode it and respond like this: image_bytes = base64.b64encode(image_bytes).decode('utf-8')\nresult = { 'type': 'base64file', 'filename': file_name, 'content': image_bytes}."""
             }
         if "@MY_STAGE" in code:
-            import core.global_flags as global_flage
+            import core.global_flags as global_flags
             workspace_schema_name = f"{global_flags.project_id}.{bot_id.replace(r'[^a-zA-Z0-9]', '_').replace('-', '_')}_WORKSPACE".upper()
             return {
                 "success": False,
                 "error": f"Use the full name of your stage to access MY_STAGE, which is {workspace_schema_name}.MY_STAGE",
                 "reminder": """Also be sure to return the result in the global scope at the end of your code. And if you want to return a file, save it to /tmp (not root) then base64 encode it and respond like this: image_bytes = base64.b64encode(image_bytes).decode('utf-8')\nresult = { 'type': 'base64file', 'filename': file_name, 'content': image_bytes}."""
-            }           
+            } 
 
 
         # Check if libraries are provided
@@ -6755,6 +6755,7 @@ $$;"""
        
         result = self.run_query(stored_proc_call)
 
+
         if isinstance(result, list):
             result_json = result
             # Check if result is a list and has at least one element
@@ -6811,6 +6812,35 @@ $$;"""
             cleanup(proc_name)
             return result_json
     
+        # Check if result is a dictionary and contains 'Error'
+        if isinstance(result, dict) and 'Error' in result:
+            # If there's an error, return the result as is
+            result['hints'] = """1. If you want to access a file, first save it to stage, and then access it at its stage path, not just /tmp.\n2. Be sure to return the result in the global scope at the end of your code.\n3. If you want to return a file, save it to /tmp (not root) then base64 encode it and respond like this: image_bytes = base64.b64encode(image_bytes).decode('utf-8')\nresult = { 'type': 'base64file', 'filename': file_name, 'content': image_bytes}.\n4. Do not create a new Snowpark session, use the 'session' variable that is already available to you."""
+
+            if 'csv' in code:
+                result['example_of_csv_handling'] = """I see you may be trying to handle CSV files. If useful here's an example way to handle CSVs in Snowpark:
+
+from snowflake.snowpark.functions import col
+
+stage_name = "<fully qualified location>"
+file_path = "<csv file name>"
+
+# Read the CSV file from the stage into a DataFrame
+df = session.read.option("field_delimiter", ",").csv(f"@{stage_name}/{file_path}")
+
+# Define the table name where you want to save the data
+table_name = "<fully qualified output table name>"
+
+# Save the DataFrame to the specified table
+df.write.mode("overwrite").save_as_table(table_name)
+
+# Verify that the data was saved
+result_df = session.table(table_name)
+row_count = result_df.count()
+
+result = f'Table {table_name} created, row_count {row_count}.  If the CSV had a header, they are in the first row of the table and can be handled with post-processing SQL to apply them as column names and then remove that row.'"""
+
+
         cleanup(proc_name)
         return result
 

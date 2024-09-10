@@ -2,6 +2,9 @@
 GENESIS BOT TODOS
 =================
 
+check !fast off on alpha cortex after upgrade
+eve stops talking if repeating instructions 5 times
+cortex suppress tool call gen better
 files and graphs out of snowpark 
 add a place for run_python to provide the libraries it needs
 test default email on CALL in email setup instructions
@@ -73,6 +76,7 @@ x streamlit takes a long time before submitting welcome job for each bot.. loadi
 x add bot details caching to new streamlit 
 
 next version:
+make harvester not skip tables with VARIANTS in them
 make a graph wrapper function with hints on making graphs with snowpark
 consider mistral-large-2 as fallback for 405b vs 70b for smart mode
 RG-reza images

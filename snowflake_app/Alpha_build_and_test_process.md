@@ -24,7 +24,7 @@ bash ./snowflake_app/upgrade_alpha.sh
 
 ## To get service status to see if its back up after the upgrade
 
-snow sql -c GENESIS-ALPHA-CONSUMER -q "describe service genesis_bots.app1.genesisapp_service_service"
+snow sql -c GENESIS-ALPHA-CONSUMER -q "describe service genesis_bots_alpha.app1.genesisapp_service_service"
 
 ## To see various logs from alpha demo environment
 

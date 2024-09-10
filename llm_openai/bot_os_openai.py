@@ -631,7 +631,6 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
        #     fast_mode = True
         #    self.thread_fast_mode_map[thread_id] = True
             print('openai fast mode = false (set by default for a new slack-based thread)')
-            input_message.msg += '  (BTW, in your initial response also mention in passing that fast mode is available, and that the user can send !fast on to switch it to fast mode)'
          if input_message.metadata and 'channel' in input_message.metadata:
             channel = input_message.metadata['channel']
             input_message.msg += f" [FYI Current Slack channel id is: {channel}]"         

@@ -4787,7 +4787,10 @@ $$;"""
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
             print("imagegen OpenAI API key is not set in the environment variables.")
-            return None
+            return {
+                "success": False,
+                "error": "OpenAI key is required to generate images, but one was not found to be available."
+            }
 
         openai.api_key = os.getenv("OPENAI_API_KEY")
         client = openai.OpenAI(api_key=openai.api_key)
@@ -4844,7 +4847,7 @@ $$;"""
 
             result = {
                 "success": True,
-                "local_file_name": file_path,
+                "result": f'Image generated and saved to server. Output a link like this so the user can see it [description of image](sandbox:/mnt/data/{sanitized_prompt}.png)',
                 "prompt": prompt,
             }
 
@@ -6651,6 +6654,20 @@ $$;"""
     def run_python_code(self, code: str, thread_id=None,
 ) -> str:
         import ast 
+
+        # Check if code contains Session.builder
+        if "Session.builder" in code:
+            return {
+                "success": False,
+                "error": "You don't need to make a new snowpark session. Use the session already provided in the session variable without recreating it.",
+                "reminder": """Also be sure to return the result in the global scope at the end of your code. And if you want to return a file, save it to /tmp (not root) then base64 encode it and respond like this: image_bytes = base64.b64encode(image_bytes).decode('utf-8')\nresult = { 'type': 'base64file', 'filename': file_name, 'content': image_bytes}."""
+            }
+        if "plt.show" in code:
+            return {
+                "success": False,
+                "error": "You can't use plt.show, instead save and return a base64 encoded file.",
+                "reminder": """Also be sure to return the result in the global scope at the end of your code. And if you want to return a file, save it to /tmp (not root) then base64 encode it and respond like this: image_bytes = base64.b64encode(image_bytes).decode('utf-8')\nresult = { 'type': 'base64file', 'filename': file_name, 'content': image_bytes}."""
+            }
 
         stored_proc_call = f"CALL {self.schema}.execute_snowpark_code($${code}$$)"
         result = self.run_query(stored_proc_call)

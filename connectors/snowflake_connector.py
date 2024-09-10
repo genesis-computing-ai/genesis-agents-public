@@ -1557,7 +1557,10 @@ class SnowflakeConnector(DatabaseConnector):
                 elif key == 'TIMESTAMP':
                     insert_values.append(timestamp_str)
                 else:
-                    insert_values.append(row.get(key,''))
+                    val = row.get(key, '') if row.get(key, '') is not None else ''
+                    if pd.isna(val):
+                        val = ''
+                    insert_values.append(val)
             insert_query = f"INSERT INTO {self.schema}.PROCESSES ({', '.join(process_columns)}) VALUES ({placeholders})"
             cursor.execute(insert_query, insert_values) 
         cursor.close()

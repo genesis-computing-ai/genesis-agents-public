@@ -32,6 +32,7 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
         self.bot_id = {}
         self.pending_map = {}
         self.events_map = {}
+        self.in_to_out_thread_map = {}
 
     def add_event(self, event):
         self.events.append(event)
@@ -54,6 +55,7 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
         metadata = {}
         if uu:
             metadata["input_uuid"] = uu
+        metadata["thread_id"] = event.get('thread_id')
         metadata["channel_type"] = "Streamlit"
         metadata["channel_name"] = ""
         metadata['is_bot'] = 'FALSE'
@@ -69,6 +71,8 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
         # For example, you might send the response back to the client via a WebSocket
         # or store it in a database for later retrieval.
         #print("UDF output: ",message.output, ' in_uuid ', in_uuid)
+        
+        self.in_to_out_thread_map[message.input_metadata['thread_id']] = message.thread_id
         if in_uuid is not None:
             if message.output == '!NO_RESPONSE_REQUIRED':
                 self.response_map[in_uuid] = "(no response needed)"

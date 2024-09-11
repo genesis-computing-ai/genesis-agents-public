@@ -392,7 +392,10 @@ def get_metadata():
             result = db_adapter.send_test_email(email) 
          
         elif 'png' in metadata_type:
-            image_path = input_rows[0][1]
+            bot_id, thread_id_in, image_name = metadata_type.split('|')
+            bots_udf_adapter = bot_id_to_udf_adapter_map.get(bot_id, None)
+            thread_id_out = bots_udf_adapter.in_to_out_thread_map[thread_id_in]
+            image_path = os.path.join('downloaded_files', thread_id_out, image_name)
             result = {"Success": True, "Data": json.dumps(img_to_bytes(image_path))}
         else:
             raise ValueError(

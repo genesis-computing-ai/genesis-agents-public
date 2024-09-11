@@ -7,10 +7,10 @@ import os
 
 
 
-def img_to_html(img_path):    
+def img_to_html(bot_id, thread_id, img_path):    
     image_name = os.path.basename(img_path)
     img_format = image_name.split('.')[-1]
-    img_byte = get_metadata(img_path)
+    img_byte = get_metadata('|'.join((bot_id, thread_id, image_name)))
     img_html = f'<img src="data:image/{img_format.lower()};base64,{img_byte}" style="max-width: 50%;display: block;">'
     return img_html
 
@@ -49,8 +49,8 @@ def chat_page():
                 in_resp = None
             if response != previous_response:
                 found_partial = False
-                full_images = re.findall('\!\[.+\]\(.+\)', response)
-                partial_images = re.findall('\n*\!\[', response)                
+                full_images = re.findall(r"\n*\[.*\]\(sandbox:/mnt/data(?:/downloads)?/.*?\)", response)
+                partial_images = re.findall('\n*\[', response)                      
                 if full_images:     
                     for image in full_images:     
                         image_path = re.findall('\((.+)\)', image)
@@ -142,7 +142,7 @@ def chat_page():
 
         while st.session_state.stream_images:
             image_path = st.session_state.stream_images.pop()
-            image = img_to_html(image_path)
+            image = img_to_html(selected_bot_id, thread_id, image_path)
             st.markdown(image , unsafe_allow_html=True)
             messages.append({"role": "assistant", "content": image,  "avatar": bot_avatar_image_url})
 
@@ -242,7 +242,7 @@ def chat_page():
 
         while st.session_state.stream_images:
             image_path = st.session_state.stream_images.pop()
-            image = img_to_html(image_path)
+            image = img_to_html(selected_bot_id, current_thread_id, image_path)
             st.markdown(image , unsafe_allow_html=True)
             messages.append({"role": "assistant", "content": image,  "avatar": bot_avatar_image_url})
 

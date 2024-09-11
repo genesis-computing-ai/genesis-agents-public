@@ -378,7 +378,8 @@ class BotOsSession:
                 if os.getenv("USE_KNOWLEDGE", "false").lower() == 'true' and not input_message.msg.startswith('NOTE--'):
 
                     primary_user = json.dumps({'user_id': input_message.metadata.get('user_id', 'Unknown User ID'), 
-                                               'user_name': input_message.metadata.get('user_name', 'Unknown User')})
+                                               'user_name': input_message.metadata.get('user_name', 'Unknown User'),
+                                               'user_email': input_message.metadata.get('user_email', 'Unknown Email')})
                     knowledge = self.log_db_connector.extract_knowledge(primary_user, self.bot_name, bot_id=self.bot_id)
                     print(f'bot_os {self.bot_name} knowledge injection, user={primary_user} len knowledge="{len(knowledge)}')
                     if knowledge:

@@ -2,6 +2,12 @@
 GENESIS BOT TODOS
 =================
 
+newver:
+default email address is known to process supervisor for processes
+streamlit images
+now on gpt-4o-2024-08-06, ok?
+dont need to import libraries in every function anymore
+
 make a wrapper for graphs
 figure out why imports are needed on every function (and tell it to add them)
 cortex different way of calling a python run
@@ -80,6 +86,8 @@ x streamlit takes a long time before submitting welcome job for each bot.. loadi
 x add bot details caching to new streamlit 
 
 next version:
+handle customer granting then ungranting an external WH, trap in streamlit, notify, maybe take action
+have it on email have it suggest turning on default processes
 on upgrade retain the embeddings for the shared views if they exist
 make harvester not skip tables with VARIANTS in them
 make a graph wrapper function with hints on making graphs with snowpark

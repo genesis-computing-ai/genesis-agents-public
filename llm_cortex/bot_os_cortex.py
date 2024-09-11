@@ -51,8 +51,8 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         self.thread_run_map = {}
         self.active_runs = deque()
         self.processing_runs = deque()
-        self.cortex_threads_schema_input_table  = os.getenv("GENESIS_INTERNAL_DB_SCHEMA") + ".CORTEX_THREADS_INPUT"
-        self.cortex_threads_schema_output_table = os.getenv("GENESIS_INTERNAL_DB_SCHEMA") + ".CORTEX_THREADS_OUTPUT"
+       # self.cortex_threads_schema_input_table  = os.getenv("GENESIS_INTERNAL_DB_SCHEMA") + ".CORTEX_THREADS_INPUT"
+       # self.cortex_threads_schema_output_table = os.getenv("GENESIS_INTERNAL_DB_SCHEMA") + ".CORTEX_THREADS_OUTPUT"
         self.client = SnowflakeConnector(connection_name='Snowflake')
         logger.debug("BotOsAssistantSnowflakeCortex:__init__ - SnowflakeConnector initialized")
         self.my_tools = tools

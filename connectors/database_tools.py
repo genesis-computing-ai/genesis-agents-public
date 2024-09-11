@@ -132,7 +132,7 @@ database_tool_functions = [
                     },
                     "packages": {
                         "type": "string",
-                        "description": "A comma-separated list of required Python packages to be pip installed for code execution (do not include standard python libraries).",
+                        "description": "A comma-separated list of required non-default Python packages to be pip installed for code execution (do not include any standard python libraries).",
                     }
                 },
                 "required": ["code"],

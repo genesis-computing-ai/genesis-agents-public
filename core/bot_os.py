@@ -13,6 +13,7 @@ from llm_cortex.bot_os_cortex import BotOsAssistantSnowflakeCortex
 from core.bot_os_reminders import RemindersTest
 import schema_explorer.embeddings_index_handler as embeddings_handler
 from core.bot_os_defaults import _BOT_OS_BUILTIN_TOOLS
+import core.global_flags as global_flags
 import pickle
 
 import logging
@@ -185,7 +186,8 @@ class BotOsSession:
 
         self.next_messages = []
         self.bot_id = bot_id
-        self.tool_belt = tool_belt
+        self.last_table_update = datetime.datetime.now()
+        self.schema =  os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "None").upper()
 
      #   sanitized_bot_id = re.sub(r"[^a-zA-Z0-9]", "", self.bot_id)
     #    thread_maps_filename = f"./thread_maps_{sanitized_bot_id}.pickle"
@@ -313,6 +315,44 @@ class BotOsSession:
            #     pass
         thread.handle_response(session_id, output_message)
 
+    def get_current_time_with_timezone(self):
+        current_time = datetime.datetime.now().astimezone()
+        return current_time.strftime("%Y-%m-%d %H:%M:%S %Z")
+
+    def update_bots_active_table(self):
+
+        # Check if last_table_update is more than 60 seconds ags
+        if not global_flags.multibot_mode:
+            return
+        
+        current_time = datetime.datetime.now()
+        if not hasattr(self, 'last_table_update') or (current_time - self.last_table_update).total_seconds() > 60:
+            self.last_table_update = current_time
+        else:
+            return
+
+        current_timestamp = self.get_current_time_with_timezone()
+        
+        # Format the timestamp as a string
+        timestamp_str = current_timestamp
+        
+        # Create or replace the bots_active table with the current timestamp
+        create_bots_active_table_query = f"""
+        CREATE OR REPLACE TABLE {self.schema}.bots_active ("{timestamp_str}" STRING);
+        """
+        
+        try:
+            cursor = self.log_db_connector.connection.cursor()
+            cursor.execute(create_bots_active_table_query)
+            self.log_db_connector.connection.commit()
+            print(f"Table {self.schema}.bots_active created or replaced successfully with timestamp: {timestamp_str}")
+        except Exception as e:
+            print(f"An error occurred while creating or replacing the bots_active table: {e}")
+        finally:
+            if cursor:
+                cursor.close()
+
+
     def execute(self):
         # self._health_check()
 
@@ -353,6 +393,10 @@ class BotOsSession:
                 continue
 
             print(f"bot os session input message {input_message.msg}")
+
+
+            self.update_bots_active_table()
+
             # populate map
             # out_thread = self.in_to_out_thread_map.get(input_message.thread_id,None)
 

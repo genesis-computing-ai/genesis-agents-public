@@ -1074,14 +1074,8 @@ class SnowflakeConnector(DatabaseConnector):
 
     # ========================================================================================================
 
-
     def get_current_time_with_timezone(self):
-        import pytz
-    # You can replace 'UTC' with your desired time zone, e.g., 'America/New_York'
-        local_time = datetime.now().astimezone().tzname()
-        tz_string = local_time.tzinfo.zone if hasattr(local_time, 'tzinfo') and hasattr(local_time.tzinfo, 'zone') else 'UTC'
-        tz = pytz.timezone(tz_string)
-        current_time = datetime.now(tz)
+        current_time = datetime.now().astimezone()
         return current_time.strftime("%Y-%m-%d %H:%M:%S %Z")
     
     def process_scheduler(
@@ -1567,6 +1561,29 @@ class SnowflakeConnector(DatabaseConnector):
 
     def ensure_table_exists(self):
         import core.bot_os_tool_descriptions
+
+        # Maintain bots_active table 
+        # Get the current timestamp
+        current_timestamp = self.get_current_time_with_timezone()
+        
+        # Format the timestamp as a string
+        timestamp_str = current_timestamp
+        # Create or replace the bots_active table with the current timestamp
+        create_bots_active_table_query = f"""
+        CREATE OR REPLACE TABLE {self.schema}.bots_active ("{timestamp_str}" STRING);
+        """
+        
+        try:
+            cursor = self.client.cursor()
+            cursor.execute(create_bots_active_table_query)
+            self.client.commit()
+            print(f"Table {self.schema}.bots_active created or replaced successfully with timestamp: {timestamp_str}")
+        except Exception as e:
+            print(f"An error occurred while creating or replacing the bots_active table: {e}")
+        finally:
+            if cursor:
+                cursor.close()
+
 
         streamlitdc_url = os.getenv("DATA_CUBES_INGRESS_URL", None)
         print(f"streamlit data cubes ingress URL: {streamlitdc_url}")
@@ -2656,96 +2673,52 @@ class SnowflakeConnector(DatabaseConnector):
 
         cursor = self.client.cursor()
 
-        cortex_threads_input_table_check_query = (
-            f"SHOW TABLES LIKE 'CORTEX_THREADS_INPUT' IN SCHEMA {self.schema};"
-        )
-        try:
-            cursor.execute(cortex_threads_input_table_check_query)
-            if not cursor.fetchone():
-                cortex_threads_input_table_ddl = f"""
-                CREATE TABLE {self.schema}.CORTEX_THREADS_INPUT (
-                    timestamp TIMESTAMP,
-                    bot_id VARCHAR,
-                    bot_name VARCHAR,
-                    thread_id VARCHAR,
-                    message_type VARCHAR,
-                    message_payload VARCHAR,
-                    message_metadata VARCHAR,
-                    tokens_in NUMBER,
-                    tokens_out NUMBER
-                );
-                """
-                cursor.execute(cortex_threads_input_table_ddl)
-                self.client.commit()
-                print(f"Table {self.schema}.CORTEX_THREADS_INPUT created.")
-            else:
-                print(f"Table {self.schema}.CORTEX_THREADS_INPUT already exists.")
-        except Exception as e:
-            print(
-                f"An error occurred while checking or creating table CORTEX_THREADS_INPUT: {e}"
-            )
-
-        cortex_threads_output_table_check_query = (
-            f"SHOW TABLES LIKE 'CORTEX_THREADS_OUTPUT' IN SCHEMA {self.schema};"
-        )
-        try:
-            cursor.execute(cortex_threads_output_table_check_query)
-            if not cursor.fetchone():
-                cortex_threads_output_table_ddl = f"""
-                CREATE TABLE {self.schema}.CORTEX_THREADS_OUTPUT (
-                    timestamp TIMESTAMP,
-                    bot_id VARCHAR,
-                    bot_name VARCHAR,
-                    thread_id VARCHAR,
-                    message_type VARCHAR,
-                    message_payload VARCHAR,
-                    message_metadata VARCHAR,
-                    tokens_in NUMBER,
-                    tokens_out NUMBER,
-                    model_name VARCHAR, -- either mistral-large, snowflake-arctic, etc.
-                    messages_concatenated VARCHAR
-                );
-                """
-                cursor.execute(cortex_threads_output_table_ddl)
-                self.client.commit()
-                print(f"Table {self.schema}.CORTEX_THREADS_OUTPUT created.")
-            else:
-                print(f"Table {self.schema}.CORTEX_THREADS_OUTPUT already exists.")
-        except Exception as e:
-            print(
-                f"An error occurred while checking or creating table CORTEX_THREADS_OUTPUT: {e}"
-            )
-        
-        # run python code stored procedure
-        stored_proc_ddl = f"""CREATE OR REPLACE PROCEDURE {self.schema}.execute_snowpark_code(
-    code STRING
-)
+        # run python code stored procedurr
+        proc_name = 'execute_snowpark_code'
+        stored_proc_ddl =   f"""CREATE OR REPLACE PROCEDURE {self.schema}.{proc_name}( code STRING )
 RETURNS STRING
 LANGUAGE PYTHON
-RUNTIME_VERSION = '3.8'
-PACKAGES = ('snowflake-snowpark-python', 'pandas', 'matplotlib', 'scikit-learn')
+RUNTIME_VERSION = '3.11'
+PACKAGES = ('snowflake-snowpark-python', 'pandas' )
 HANDLER = 'run'
 AS
 $$
 import snowflake.snowpark as snowpark
+import re, importlib
 import pandas as pd
 
 def run(session: snowpark.Session, code: str) -> str:
-    # Define a local dictionary to capture the result
+    # Normalize line endings
+    code = code.replace('\\\\r\\\\n', '\\n').replace('\\r', '\\n')
+
+    # Find all import statements, including 'from ... import ...'
+    import_statements = re.findall(r'^\\s*(import\\s+.*|from\\s+.*\\s+import\\s+.*)$', code, re.MULTILINE)
+
+    global_vars = globals().copy()
+
+    # Handle imports
+    for import_statement in import_statements:
+        try:
+            exec(import_statement, global_vars)
+        except ImportError as e:
+            return f"Error: Unable to import - {{str(e)}}"
+
     local_vars = {{}}
-    local_vars["session"] = session
+    local_vars["session"] = local_vars["session"] = session
     
-    # Execute the provided code within the local dictionary scope
-    exec(code, globals(), local_vars)
-    #exec(code)
-
-    # Ensure 'result' is defined in the executed code
-    if 'result' in local_vars:
-        return str(local_vars['result'])
-    else:
-        return "Error: 'result' is not defined in the executed code"
-
-$$;""" 
+    try:
+        # Remove import statements from the code before execution
+        code_without_imports = re.sub(r'^\\s*(import\\s+.*|from\\s+.*\\s+import\\s+.*)$', '', code, flags=re.MULTILINE)
+        exec(code_without_imports, global_vars, local_vars)
+        
+        if 'result' in local_vars:
+            return local_vars['result']
+        else:
+            return "Error: 'result' is not defined in the executed code"
+    except Exception as e:
+        return f"Error: {{str(e)}}"
+$$
+"""        
         try:
             cursor.execute(stored_proc_ddl)
             self.client.commit()
@@ -6674,6 +6647,9 @@ $$;"""
                 except Exception as e:
                     print(f"Error dropping temporary stored procedure {proc_name}: {e}")
 
+        code = code.replace('\\n','\n')
+        code = code.replace('\\n','\n')
+
         # Check if code contains Session.builder
         if "Session.builder" in code:
             return {
@@ -6688,9 +6664,8 @@ $$;"""
                 "reminder": """Also be sure to return the result in the global scope at the end of your code. And if you want to return a file, save it to /tmp (not root) then base64 encode it and respond like this: image_bytes = base64.b64encode(image_bytes).decode('utf-8')\nresult = { 'type': 'base64file', 'filename': file_name, 'content': image_bytes}."""
             }
         if "@MY_STAGE" in code:
-            import core.global_flags as global_flags
             workspace_schema_name = f"{global_flags.project_id}.{bot_id.replace(r'[^a-zA-Z0-9]', '_').replace('-', '_')}_WORKSPACE".upper()
-
+            code = code.replace('@MY_STAGE',f'@{workspace_schema_name}.MY_STAGE')
 
         # Check if libraries are provided
         proc_name = 'EXECUTE_SNOWPARK_CODE'
@@ -6698,19 +6673,19 @@ $$;"""
             packages = None
         if packages is not None:
             # Split the libraries string into a list
-            library_list = [lib.strip() for lib in packages.split(',') if lib.strip() not in ['snowflake-snowpark-python', 'snowflake.snowpark','pandas','snowflake']]
+            library_list = [lib.strip() for lib in packages.split(',') if lib.strip() not in ['snowflake-snowpark-python', 'snowflake.snowpark','snowflake']]
             # Create a new stored procedure with the specified libraries
             libraries_str = ', '.join(f"'{lib}'" for lib in library_list)
             import uuid
 # 'matplotlib', 'scikit-learn'
             if (libraries_str is None or libraries_str != ''):
                 proc_name = f"sp_{uuid.uuid4().hex}"
-                new_stored_proc_ddl = f"""CREATE OR REPLACE PROCEDURE {self.schema}.{proc_name}(
+                old_new_stored_proc_ddl = f"""CREATE OR REPLACE PROCEDURE {self.schema}.{proc_name}(
     code STRING
 )
 RETURNS STRING
 LANGUAGE PYTHON
-RUNTIME_VERSION = '3.8'
+RUNTIME_VERSION = '3.'
 PACKAGES = ('snowflake-snowpark-python', 'pandas', {libraries_str})
 HANDLER = 'run'
 AS
@@ -6729,6 +6704,50 @@ def run(session: snowpark.Session, code: str) -> str:
     else:
         return "Error: 'result' is not defined in the executed code"
 $$;"""
+
+                new_stored_proc_ddl =   f"""CREATE OR REPLACE PROCEDURE {self.schema}.{proc_name}( code STRING )
+RETURNS STRING
+LANGUAGE PYTHON
+RUNTIME_VERSION = '3.11'
+PACKAGES = ('snowflake-snowpark-python', 'pandas', {libraries_str})
+HANDLER = 'run'
+AS
+$$
+import snowflake.snowpark as snowpark
+import re, importlib
+
+def run(session: snowpark.Session, code: str) -> str:
+    # Normalize line endings
+    code = code.replace('\\\\r\\\\n', '\\\\n').replace('\\\\r', '\\\\n')
+
+    # Find all import statements, including 'from ... import ...'
+    import_statements = re.findall(r'^\\s*(import\\s+.*|from\\s+.*\\s+import\\s+.*)$', code, re.MULTILINE)
+
+    global_vars = globals().copy()
+
+    # Handle imports
+    for import_statement in import_statements:
+        try:
+            exec(import_statement, global_vars)
+        except ImportError as e:
+            return f"Error: Unable to import - {{str(e)}}"
+
+    local_vars = {{}}
+    local_vars["session"] = local_vars["session"] = session
+    
+    try:
+        # Remove import statements from the code before execution
+        code_without_imports = re.sub(r'^\\s*(import\\s+.*|from\\s+.*\\s+import\\s+.*)$', '', code, flags=re.MULTILINE)
+        exec(code_without_imports, global_vars, local_vars)
+        
+        if 'result' in local_vars:
+            return local_vars['result']
+        else:
+            return "Error: 'result' is not defined in the executed code"
+    except Exception as e:
+        return f"Error: {{str(e)}}"
+$$
+"""
                 
                 # Execute the new stored procedure creation
                 result = self.run_query(new_stored_proc_ddl)
@@ -6810,6 +6829,20 @@ $$;"""
         if isinstance(result, dict) and 'Error' in result:
             # If there's an error, return the result as is
             result['hints'] = """1. If you want to access a file, first save it to stage, and then access it at its stage path, not just /tmp.\n2. Be sure to return the result in the global scope at the end of your code.\n3. If you want to return a file, save it to /tmp (not root) then base64 encode it and respond like this: image_bytes = base64.b64encode(image_bytes).decode('utf-8')\nresult = { 'type': 'base64file', 'filename': file_name, 'content': image_bytes}.\n4. Do not create a new Snowpark session, use the 'session' variable that is already available to you."""
+
+            if 'is not defined' in result["Error"]:
+                result['fixing_not_defined_errors'] = """If you def functions in your code, include any imports needed by the function inside the function, as the imports outside function won't convey. For example:
+
+import math
+
+def calc_area_of_circle(radius):
+    import math  # import again here as otherwise it wont work
+
+    area = math.pi * radius ** 2
+    return round(area, 2)
+
+result = f'The area of a circle of radius 1 is {calc_area_of_circle(1)} using pi as {math.pi}'
+"""
 
             if 'csv' in code:
                 result['example_of_csv_handling'] = """I see you may be trying to handle CSV files. If useful here's an example way to handle CSVs in Snowpark:

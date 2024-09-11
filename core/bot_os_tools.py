@@ -96,6 +96,8 @@ class ToolBelt:
         self.lock = threading.Lock()
         global belts
         belts = belts + 1 
+
+        self.sys_default_email = self.get_sys_email()
    #     print(belts)
 
     # Function to make HTTP request and get the entire content
@@ -383,6 +385,18 @@ class ToolBelt:
         tz = pytz.timezone(tz_string)
         current_time = datetime.now(tz)
         return current_time.strftime("%Y-%m-%d %H:%M:%S %Z")
+    
+    def get_sys_email(self):
+        cursor = db_adapter.client.cursor()
+        try:
+            get_sys_email_query = f"SELECT default_email FROM {db_adapter.genbot_internal_project_and_schema}.DEFAULT_EMAIL"
+            cursor.execute(get_sys_email_query)
+            result = cursor.fetchall()
+            default_email = result[0][0] if result else None
+            return default_email
+        except Exception as e:
+            print(f"Error getting sys email: {e}")
+            return None
 
     def run_process(
         self,
@@ -534,7 +548,14 @@ Hey **@{process['BOT_ID']}**
 
 Execute this instruction now and then pass your response to the _run_process tool as a parameter called previous_response and an action of GET_NEXT_STEP.  
 Execute the instructions you were given without asking for permission.
-Do not ever verify anything with the user, unless you need to get a specific input from the user to be able to continue the process."""
+Do not ever verify anything with the user, unless you need to get a specific input from the user to be able to continue the process.
+"""
+            if self.sys_default_email:
+                self.instructions[thread_id][process_id] += f"""
+The system default email address (SYS$DEFAULT_EMAIL) is {self.sys_default_email}.  If you need to send an email, use this address.
+"""
+            
+
 #            if self.process_config[thread_id][process_id]:
 #                self.instructions[thread_id][process_id] += f"""
 #Process configuration: {self.process_config[thread_id][process_id]}.

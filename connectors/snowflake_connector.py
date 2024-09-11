@@ -1078,9 +1078,8 @@ class SnowflakeConnector(DatabaseConnector):
     def get_current_time_with_timezone(self):
         import pytz
     # You can replace 'UTC' with your desired time zone, e.g., 'America/New_York'
-        tz_string = datetime.now().astimezone().tzname()
-        if tz_string is None:
-            tz_string = 'UTC' 
+        local_time = datetime.now().astimezone().tzname()
+        tz_string = local_time.tzinfo.zone if hasattr(local_time, 'tzinfo') and hasattr(local_time.tzinfo, 'zone') else 'UTC'
         tz = pytz.timezone(tz_string)
         current_time = datetime.now(tz)
         return current_time.strftime("%Y-%m-%d %H:%M:%S %Z")

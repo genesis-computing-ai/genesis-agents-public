@@ -2,29 +2,33 @@
 GENESIS BOT TODOS
 =================
 
-check !fast off on alpha cortex after upgrade
-eve stops talking if repeating instructions 5 times
+make a wrapper for graphs
+RV-get knowledge system to work again
+figure out why imports are needed on every function (and tell it to add them)
+cortex different way of calling a python run
+x change  !NO_RESPONSE_REQUIRED if its in bot instrucctions when pulling them
+(test) check !fast off on alpha cortex after upgrade
+x eve stops talking if repeating instructions 5 times
 cortex suppress tool call gen better
-files and graphs out of snowpark 
-add a place for run_python to provide the libraries it needs
-test default email on CALL in email setup instructions
-use that as default email for process scheduling and for send email 
+x files and graphs out of snowpark 
+x add a place for run_python to provide the libraries it needs
+JD-test default email on CALL in email setup instructions
+JD-use that as default email for process scheduling and for send email 
 cortex python calls make nicer: <function=_run_python_code>{"code": "import numpy as np\nfrom sklearn.cluster import MeanShift, estimate_bandwidth\nfrom sklearn.datasets import make_blobs\ncenters = [[1, 1], [-1, -1], [1, 
-check bot images on Dev
-deploy then check search metadata with database and schema options
-check !fast off for cortex on alpha
+check bot images on Dev streamlit
+(test) deploy then check search metadata with database and schema options
+x check !fast off for cortex on alpha
 give processs ids in list of processes when not found on run, especially on get next step... 
-before listing new version:
 security review pass
 check new janice auto insertion code
 (test) matts issue with scheduled processes make sure it works without thread_id ok with the cache
 (test) see if task sender of emails will add the process id etc and see if you can paste that into the bot chat to talk about it.. maybe make it a get history procedure call specifically... 
-make outrigger processes wake up at the top of the hour 
-add streamlit startup popup (maybe via links to our docs) for :log enablement (highly encouraged), warehouse grant existing (optional), EAI for openai and slack (optional), cross region enablement for LLM (if not us-east/us-west), data granting (maybe we mention this here too), email sending 
+JD-make outrigger processes wake up at the top of the hour 
+MR-add streamlit startup popup (maybe via links to our docs) for :log enablement (highly encouraged), warehouse grant existing (optional), EAI for openai and slack (optional), MR-cross region enablement for LLM (if not us-east/us-west), data granting (maybe we mention this here too), email sending 
 openai error retries on slack dont seem to respond back
 Janice is talking about files a lot... fix prompting for that
 need handler for long cortex threads
-need a place to gather and test the email integrations, add a step for email to the welcome wizard
+x need a place to gather and test the email integrations, add a step for email to the welcome wizard
 get mini bot avatars into streamlit
 clean up logging and cust data in logs and run_query
 
@@ -76,6 +80,7 @@ x streamlit takes a long time before submitting welcome job for each bot.. loadi
 x add bot details caching to new streamlit 
 
 next version:
+on upgrade retain the embeddings for the shared views if they exist
 make harvester not skip tables with VARIANTS in them
 make a graph wrapper function with hints on making graphs with snowpark
 consider mistral-large-2 as fallback for 405b vs 70b for smart mode

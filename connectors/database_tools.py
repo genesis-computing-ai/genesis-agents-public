@@ -476,11 +476,11 @@ snowflake_stage_functions = [
                     },
                     "schema": {
                         "type": "string",
-                        "description": "The name of the schema.",
+                        "description": "The name of the schema.  Use your WORKSPACE schema unless told to use something else.",
                     },
                     "stage": {
                         "type": "string",
-                        "description": "The name of the stage to add the file to.",
+                        "description": "The name of the stage to add the file to. Use your WORKSPACE stage unless told to use something else.",
                     },
                     "openai_file_id": {
                         "type": "string",

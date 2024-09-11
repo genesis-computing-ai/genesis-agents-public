@@ -6691,11 +6691,6 @@ $$;"""
         if "@MY_STAGE" in code:
             import core.global_flags as global_flags
             workspace_schema_name = f"{global_flags.project_id}.{bot_id.replace(r'[^a-zA-Z0-9]', '_').replace('-', '_')}_WORKSPACE".upper()
-            return {
-                "success": False,
-                "error": f"Use the full name of your stage to access MY_STAGE, which is {workspace_schema_name}.MY_STAGE",
-                "reminder": """Also be sure to return the result in the global scope at the end of your code. And if you want to return a file, save it to /tmp (not root) then base64 encode it and respond like this: image_bytes = base64.b64encode(image_bytes).decode('utf-8')\nresult = { 'type': 'base64file', 'filename': file_name, 'content': image_bytes}."""
-            } 
 
 
         # Check if libraries are provided
@@ -6704,7 +6699,7 @@ $$;"""
             packages = None
         if packages is not None:
             # Split the libraries string into a list
-            library_list = [lib.strip() for lib in packages.split(',') if lib.strip() not in ['snowflake-snowpark-python', 'snowflake.snowpark','pandas']]
+            library_list = [lib.strip() for lib in packages.split(',') if lib.strip() not in ['snowflake-snowpark-python', 'snowflake.snowpark','pandas','snowflake']]
             # Create a new stored procedure with the specified libraries
             libraries_str = ', '.join(f"'{lib}'" for lib in library_list)
             import uuid
@@ -6829,7 +6824,7 @@ file_path = "<csv file name>"
 df = session.read.option("field_delimiter", ",").csv(f"@{stage_name}/{file_path}")
 
 # Define the table name where you want to save the data
-table_name = "<fully qualified output table name>"
+table_name = "<fully qualified output table name with your workspace database and schema specified>"
 
 # Save the DataFrame to the specified table
 df.write.mode("overwrite").save_as_table(table_name)

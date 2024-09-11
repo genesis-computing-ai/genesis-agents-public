@@ -6794,8 +6794,9 @@ $$
                 # If result is not a list or is empty, use it as is
                 cleanup(proc_name)
                 result_json = result
+                
             # Check if 'type' and 'filename' are in the JSON
-            if result_json is dict and 'type' in result_json and 'filename' in result_json:
+            if isinstance(result_json, dict) and 'type' in result_json and 'filename' in result_json:
                 if result_json['type'] == 'base64file':
                     import base64
                     import os

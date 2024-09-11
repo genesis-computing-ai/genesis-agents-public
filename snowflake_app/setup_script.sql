@@ -72,6 +72,7 @@ $$
             GENESIS_MODE: HARVESTER
             AUTO_HARVEST: TRUE
             OPENAI_HARVESTER_EMBEDDING_MODEL: text-embedding-3-large
+            OPENAI_MODEL_NAME: gpt-4o-2024-08-06
             HARVESTER_REFRESH_SECONDS: 120
             RUNNER_ID: snowflake-1
             SNOWFLAKE_SECURE: FALSE
@@ -103,6 +104,7 @@ $$
             KNOWLEDGE_REFRESH_SECONDS: 120
             RUNNER_ID: snowflake-1
             SNOWFLAKE_SECURE: FALSE
+            OPENAI_MODEL_NAME: gpt-4o-2024-08-06
             GENESIS_INTERNAL_DB_SCHEMA: {{app_db_sch}}
             GENESIS_SOURCE: Snowflake
       endpoints:
@@ -130,6 +132,7 @@ $$
             GENESIS_MODE: TASK_SERVER
             AUTO_HARVEST: TRUE
             OPENAI_HARVESTER_EMBEDDING_MODEL: text-embedding-3-large
+            OPENAI_MODEL_NAME: gpt-4o-2024-08-06
             HARVESTER_REFRESH_SECONDS: 120
             RUNNER_ID: snowflake-1
             SNOWFLAKE_SECURE: FALSE

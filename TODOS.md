@@ -6,10 +6,11 @@ newver:
 default email address is known to process supervisor for processes
 streamlit images
 now on gpt-4o-2024-08-06, ok?
-dont need to import libraries in every function anymore
+dont need to import libraries in every snowpark function anymore
+new signal table in place bots_active for outrigger services to check to see if they should wake up or not
 
-make a wrapper for graphs
-figure out why imports are needed on every function (and tell it to add them)
+(needed/later?) make a wrapper for graphs
+x figure out why imports are needed on every function (and tell it to add them)
 cortex different way of calling a python run
 cortex suppress tool call gen better
 give processs ids in list of processes when not found on run, especially on get next step... 
@@ -18,10 +19,10 @@ Janice is talking about files a lot... fix prompting for that
 need handler for long cortex threads
 clean up logging and cust data in logs and run_query
 (test) matts issue with scheduled processes make sure it works without thread_id ok with the cache
-(test) see if task sender of emails will add the process id etc and see if you can paste that into the bot chat to talk about it.. maybe make it a get history procedure call (test) check !fast off on alpha cortex after upgrade
+(test) see if task sender of emails will add the process id etc and see if you can paste that into the bot chat to talk about it.. maybe make it a get history procedure call 
+(test) check !fast off on alpha cortex after upgrade
 (test) deploy then check search metadata with database and schema options
-(test) get mini bot avatars into streamlit
-(test) check bot images on Dev streamlit
+(test) get mini bot avatars into streamlit / check bot images on Dev streamlit
 (test) check new janice auto insertion code 
 (test) security review pass
 MR-updated streamlit launch wizard, new WH logic

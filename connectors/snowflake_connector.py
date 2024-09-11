@@ -6664,6 +6664,7 @@ $$
                 "reminder": """Also be sure to return the result in the global scope at the end of your code. And if you want to return a file, save it to /tmp (not root) then base64 encode it and respond like this: image_bytes = base64.b64encode(image_bytes).decode('utf-8')\nresult = { 'type': 'base64file', 'filename': file_name, 'content': image_bytes}."""
             }
         if "@MY_STAGE" in code:
+            import core.global_flags as global_flags
             workspace_schema_name = f"{global_flags.project_id}.{bot_id.replace(r'[^a-zA-Z0-9]', '_').replace('-', '_')}_WORKSPACE".upper()
             code = code.replace('@MY_STAGE',f'@{workspace_schema_name}.MY_STAGE')
 
@@ -6673,7 +6674,7 @@ $$
             packages = None
         if packages is not None:
             # Split the libraries string into a list
-            library_list = [lib.strip() for lib in packages.split(',') if lib.strip() not in ['snowflake-snowpark-python', 'snowflake.snowpark','snowflake']]
+            library_list = [lib.strip() for lib in packages.split(',') if lib.strip() not in ['snowflake-snowpark-python', 'snowflake.snowpark','snowflake','base64']]
             # Create a new stored procedure with the specified libraries
             libraries_str = ', '.join(f"'{lib}'" for lib in library_list)
             import uuid
@@ -6794,7 +6795,7 @@ $$
                 cleanup(proc_name)
                 result_json = result
             # Check if 'type' and 'filename' are in the JSON
-            if 'type' in result_json and 'filename' in result_json:
+            if result_json is dict and 'type' in result_json and 'filename' in result_json:
                 if result_json['type'] == 'base64file':
                     import base64
                     import os

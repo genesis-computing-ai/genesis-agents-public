@@ -143,7 +143,8 @@ def chat_page():
         while st.session_state.stream_images:
             image_path = st.session_state.stream_images.pop()
             image = img_to_html(selected_bot_id, thread_id, image_path)
-            st.markdown(image , unsafe_allow_html=True)
+            with st.chat_message("assistant", avatar=bot_avatar_image_url):
+                st.markdown(image , unsafe_allow_html=True)
             messages.append({"role": "assistant", "content": image,  "avatar": bot_avatar_image_url})
 
         save_chat_history(thread_id, messages)
@@ -243,7 +244,8 @@ def chat_page():
         while st.session_state.stream_images:
             image_path = st.session_state.stream_images.pop()
             image = img_to_html(selected_bot_id, current_thread_id, image_path)
-            st.markdown(image , unsafe_allow_html=True)
+            with st.chat_message("assistant", avatar=bot_avatar_image_url):
+                st.markdown(image , unsafe_allow_html=True)
             messages.append({"role": "assistant", "content": image,  "avatar": bot_avatar_image_url})
 
         save_chat_history(current_thread_id, messages)

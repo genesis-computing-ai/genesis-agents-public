@@ -1508,9 +1508,10 @@ class SnowflakeConnector(DatabaseConnector):
 
         for filename in files:
             with open(filename, 'r') as file:
-                json_data = json.load(file)
+                # json_data = json.load(file)
+                yaml_data = yaml.safe_load(file)
             
-            data = pd.DataFrame.from_dict(json_data, orient='index')
+            data = pd.DataFrame.from_dict(yaml_data, orient='index')
             data.reset_index(inplace=True)
             data.rename(columns={'index': 'PROCESS_ID'}, inplace=True)
 

@@ -6765,7 +6765,8 @@ result = 'Table FAKE_CUST created successfully.'
 
         if '\\n' in code:
             if '\n' not in code.replace('\\n', ''):
-                code = code.replace('\\n','\n')                code = code.replace('\\n','\n')
+                code = code.replace('\\n','\n')                
+                code = code.replace('\\n','\n')
         code = code.replace("'\\\'","\'")
         # Check if code contains Session.builder
         if "Session.builder" in code:

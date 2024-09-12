@@ -50,7 +50,7 @@ def chat_page():
                 in_resp = None
             if response != previous_response:
                 found_partial = False
-                full_files = re.findall(r"\n*\[.*\]\(sandbox:/mnt/data(?:/downloads)?/.*?\)", response)
+                full_files = re.findall(r"\n*\[.*\]\(sandbox:/mnt/data(?:/downloads)?/.*?\)", response) if 'sandbox' in response else []
                 partial_files = re.findall('\n*\[', response)                      
                 if full_files:     
                     for file in full_files:     

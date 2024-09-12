@@ -2696,7 +2696,10 @@ def run(session: snowpark.Session, code: str) -> str:
 
     # Find all import statements, including 'from ... import ...'
     import_statements = re.findall(r'^\\s*(import\\s+.*|from\\s+.*\\s+import\\s+.*)$', code, re.MULTILINE)
-
+    
+    # Additional regex to find 'from ... import ... as ...' statements
+    import_statements += re.findall(r'^from\\s+(\\S+)\\s+import\\s+(\\S+)\\s+as\\s+(\\S+)', code, re.MULTILINE)
+     
     global_vars = globals().copy()
 
     # Handle imports
@@ -6459,7 +6462,7 @@ $$
 
     def extract_knowledge(self, primary_user, bot_name, bot_id=None):
         query = f"""SELECT * FROM {self.user_bot_table_name} 
-                    WHERE primary_user = '{primary_user}' AND BOT_ID LIKE '{bot_name}%'
+                    WHERE primary_user = '{primary_user}' AND BOT_ID LIKE '{bot_id}%'
                     ORDER BY TIMESTAMP DESC
                     LIMIT 1;"""
         knowledge = self.run_query(query, bot_id=bot_id)
@@ -6637,7 +6640,117 @@ $$
             # Return a default filename or re-raise the exception based on your use case
             return "default_filename.ann", "default_metadata.json"
 
+
+    def add_hints(self, result, code):
+
+        if isinstance(result, str) and result.startswith('Error:'):
+            result = {"Error": result}
+
+        if isinstance(result, dict) and 'Error' in result:
+            # If there's an error, return the result as is
+            result['hints'] = """1. If you want to access a file, first save it to stage, and then access it at its stage path, not just /tmp.\n2. Be sure to return the result in the global scope at the end of your code.\n3. If you want to return a file, save it to /tmp (not root) then base64 encode it and respond like this: image_bytes = base64.b64encode(image_bytes).decode('utf-8')\nresult = { 'type': 'base64file', 'filename': file_name, 'content': image_bytes}.\n4. Do not create a new Snowpark session, use the 'session' variable that is already available to you. 5. Use regular loops not list comprehension"""
+
+            result['example_of_success_1'] = """Here is an example of successfully using Snowpark for a different task that may be helpful to you:
+
+from snowflake.snowpark.types import StructType, StructField, StringType, IntegerType
+from snowflake.snowpark.functions import udf, col
+
+# Define the stage path
+stage_file_path = '@GENESIS_BOTS_ALPHA.JANICE_7G8H9J_WORKSPACE.MY_STAGE/state.py'
+
+# Create a schema for reading the CSV file
+schema = StructType([
+    StructField("value", StringType(), True)
+])
+
+# Read the CSV file from the stage
+file_df = session.read.schema(schema).option("COMPRESSION", "NONE").csv(stage_file_path)
+
+# Define a Python function to count characters
+def count_characters(text):
+    return len(text) if text else 0
+
+# Register the UDF to be used in the Snowpark
+count_characters_udf = udf(count_characters, return_type=IntegerType(), input_types=[StringType()])
+
+# Apply the UDF to calculate the total number of characters
+character_counts = file_df.withColumn("char_count", count_characters_udf(col("value")))
+
+# Sum all character counts
+total_chars = character_counts.agg({"char_count": "sum"}).collect()[0][0]
+
+# Return the total number of characters
+result = total_chars
+"""
+
+            if 'is not defined' in result["Error"]:
+                result['fixing_not_defined_errors'] = """If you def functions in your code, include any imports needed by the function inside the function, as the imports outside function won't convey. For example:
+
+import math
+
+def calc_area_of_circle(radius):
+    import math  # import again here as otherwise it wont work
+
+    area = math.pi * radius ** 2
+    return round(area, 2)
+
+result = f'The area of a circle of radius 1 is {calc_area_of_circle(1)} using pi as {math.pi}'
+"""
+
+            if 'csv' in code:
+                result['example_of_csv_handling'] = """I see you may be trying to handle CSV files. If useful here's an example way to handle CSVs in Snowpark:
+
+from snowflake.snowpark.functions import col
+
+stage_name = "<fully qualified location>"
+file_path = "<csv file name>"
+
+# Read the CSV file from the stage into a DataFrame
+df = session.read.option("field_delimiter", ",").csv(f"@{stage_name}/{file_path}")
+
+# Define the table name where you want to save the data
+table_name = "<fully qualified output table name with your workspace database and schema specified>"
+
+# Save the DataFrame to the specified table
+df.write.mode("overwrite").save_as_table(table_name)
+
+# Verify that the data was saved
+result_df = session.table(table_name)
+row_count = result_df.count()
+
+result = f'Table {table_name} created, row_count {row_count}.  If the CSV had a header, they are in the first row of the table and can be handled with post-processing SQL to apply them as column names and then remove that row.'"""
+
+            if 'Faker' in code or 'faker' in code:
+                result['example_of_faker'] = """I see you are trying to use Faker to generate data. Here is an example of how to import and use Faker thay may be helpful to you to fix this error:
+from faker import Faker
+
+# Create fake data
+fake = Faker()
+data = []
+
+# use a regular for loop, NOT list comprehension
+for i in range(20):
+    data.append({'name': fake.name(), 'email': fake.email(), 'address': fake.address()})
+
+# Drop existing table if it exists
+session.sql('DROP TABLE IF EXISTS GENESIS_BOTS.<workspace schema here>.FAKE_CUST').collect()
+
+# Create a new dataframe from the fake data
+dataframe = session.createDataFrame(data, schema=['name', 'email', 'address'])
+
+# Write the dataframe to the table
+dataframe.write.saveAsTable('<your workspace db.schema>.FAKE_CUST', mode='overwrite')
+
+# Set the result message
+result = 'Table FAKE_CUST created successfully.'
+            """
+        return result
+
+
     def run_python_code(self, code: str, packages: str = None, thread_id=None, bot_id=None
+    # solid examples:
+    # use snowpark to create 5 rows of synthetic customer data using faker, return it in json
+    # ... save 100 rows of synthetic data like this to a table called CUSTFAKE1 in your workspace
 ) -> str:
         import ast 
 
@@ -6652,8 +6765,7 @@ $$
 
         if '\\n' in code:
             if '\n' not in code.replace('\\n', ''):
-                code = code.replace('\\n','\n')
-                code = code.replace('\\n','\n')
+                code = code.replace('\\n','\n')                code = code.replace('\\n','\n')
         code = code.replace("'\\\'","\'")
         # Check if code contains Session.builder
         if "Session.builder" in code:
@@ -6732,7 +6844,9 @@ def run(session: snowpark.Session, code: str) -> str:
 
     # Find all import statements, including 'from ... import ...'
     import_statements = re.findall(r'^\\s*(import\\s+.*|from\\s+.*\\s+import\\s+.*)$', code, re.MULTILINE)
-
+    # Additional regex to find 'from ... import ... as ...' statements
+    import_statements += re.findall(r'^from\\s+(\\S+)\\s+import\\s+(\\S+)\\s+as\\s+(\\S+)', code, re.MULTILINE)
+     
     global_vars = globals().copy()
 
     # Handle imports
@@ -6827,59 +6941,22 @@ $$
                         "result": f'Snowpark output a file. Output a link like this so the user can see it [description of file](sandbox:/mnt/data/{result_json["filename"]})'
                     }
                     cleanup(proc_name)
+                    result = self.add_hints(result, code)
                     return result
             
                 # If conditions are not met, return the original result
+                result_json = self.add_hints(result_json, code)
                 cleanup(proc_name)
                 return result_json
             
             cleanup(proc_name)
+            result_json = self.add_hints(result_json, code)
             return result_json
     
         # Check if result is a dictionary and contains 'Error'
-        if isinstance(result, dict) and 'Error' in result:
-            # If there's an error, return the result as is
-            result['hints'] = """1. If you want to access a file, first save it to stage, and then access it at its stage path, not just /tmp.\n2. Be sure to return the result in the global scope at the end of your code.\n3. If you want to return a file, save it to /tmp (not root) then base64 encode it and respond like this: image_bytes = base64.b64encode(image_bytes).decode('utf-8')\nresult = { 'type': 'base64file', 'filename': file_name, 'content': image_bytes}.\n4. Do not create a new Snowpark session, use the 'session' variable that is already available to you."""
-
-            if 'is not defined' in result["Error"]:
-                result['fixing_not_defined_errors'] = """If you def functions in your code, include any imports needed by the function inside the function, as the imports outside function won't convey. For example:
-
-import math
-
-def calc_area_of_circle(radius):
-    import math  # import again here as otherwise it wont work
-
-    area = math.pi * radius ** 2
-    return round(area, 2)
-
-result = f'The area of a circle of radius 1 is {calc_area_of_circle(1)} using pi as {math.pi}'
-"""
-
-            if 'csv' in code:
-                result['example_of_csv_handling'] = """I see you may be trying to handle CSV files. If useful here's an example way to handle CSVs in Snowpark:
-
-from snowflake.snowpark.functions import col
-
-stage_name = "<fully qualified location>"
-file_path = "<csv file name>"
-
-# Read the CSV file from the stage into a DataFrame
-df = session.read.option("field_delimiter", ",").csv(f"@{stage_name}/{file_path}")
-
-# Define the table name where you want to save the data
-table_name = "<fully qualified output table name with your workspace database and schema specified>"
-
-# Save the DataFrame to the specified table
-df.write.mode("overwrite").save_as_table(table_name)
-
-# Verify that the data was saved
-result_df = session.table(table_name)
-row_count = result_df.count()
-
-result = f'Table {table_name} created, row_count {row_count}.  If the CSV had a header, they are in the first row of the table and can be handled with post-processing SQL to apply them as column names and then remove that row.'"""
-
-
+ 
         cleanup(proc_name)
+        result = self.add_hints(result, code)
         return result
 
 def test_stage_functions():

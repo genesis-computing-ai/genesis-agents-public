@@ -28,4 +28,14 @@ snow sql -c GENESIS-ALPHA-CONSUMER -q "PUT file:///Users/justin/Documents/Code/g
 # Upload streamlit page files
 snow sql -c GENESIS-ALPHA-CONSUMER -q "PUT file:///Users/justin/Documents/Code/genesis/streamlit_gui/page_files/*.py @genesis_test.genesis_jl.stream_test/code_artifacts/streamlit/page_files AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
 
+# Then in a worksheet run this:
+# call genesis_bots_alpha.core.run_arbitrary('grant all on service GENESIS_BOTS_ALPHA.APP1.GENESISAPP_HARVESTER_SERVICE to application role app_public;');
+# call genesis_bots_alpha.core.run_arbitrary('grant all on service GENESIS_BOTS_ALPHA.APP1.GENESISAPP_KNOWLEDGE_SERVICE to application role app_public;');
+# call genesis_bots_alpha.core.run_arbitrary('grant all on service GENESIS_BOTS_ALPHA.APP1.GENESISAPP_TASK_SERVICE to application role app_public;');
+# call genesis_bots_alpha.core.run_arbitrary('grant all on service GENESIS_BOTS_ALPHA.APP1.GENESISAPP_SERVICE_SERVICE to application role app_public;');
+# call genesis_bots_alpha.core.run_arbitrary('grant all on all tables in schema GENESIS_BOTS_ALPHA.CORE to application role app_public;');
+# call genesis_bots_alpha.core.run_arbitrary('grant all on all functions in schema GENESIS_BOTS_ALPHA.APP1 to application role app_public;');
 
+# CREATE OR REPLACE STREAMLIT CORE.GENESIS
+#     FROM '/code_artifacts/streamlit'
+#     MAIN_FILE = '/Genesis.py';

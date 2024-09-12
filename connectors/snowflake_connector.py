@@ -6785,7 +6785,15 @@ result = 'Table FAKE_CUST created successfully.'
             import core.global_flags as global_flags
             workspace_schema_name = f"{global_flags.project_id}.{bot_id.replace(r'[^a-zA-Z0-9]', '_').replace('-', '_')}_WORKSPACE".upper()
             code = code.replace('@MY_STAGE',f'@{workspace_schema_name}.MY_STAGE')
-
+        if "sandbox:/mnt/data" in code:
+            import core.global_flags as global_flags
+            workspace_schema_name = f"{global_flags.project_id}.{bot_id.replace(r'[^a-zA-Z0-9]', '_').replace('-', '_')}_WORKSPACE".upper()
+            return {
+                "success": False,
+                "error": "You can't reference files in sandbox:/mnt/data, instead add them to your stage and reference them in the stage.",
+                "your_stage": workspace_schema_name+".MY_STAGE",
+                "reminder": """Also be sure to return the result in the global scope at the end of your code. And if you want to return a file, save it to /tmp (not root) then base64 encode it and respond like this: image_bytes = base64.b64encode(image_bytes).decode('utf-8')\nresult = { 'type': 'base64file', 'filename': file_name, 'content': image_bytes}."""
+            }
         # Check if libraries are provided
         proc_name = 'EXECUTE_SNOWPARK_CODE'
         if packages == '':

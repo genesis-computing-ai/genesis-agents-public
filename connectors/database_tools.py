@@ -601,7 +601,7 @@ image_functions = [
         "type": "function",
         "function": {
             "name": "_generate_image",
-            "description": "Generates an image using OpenAI's DALL-E 3.",
+            "description": "Generates an image using OpenAI's DALL-E 3. Use this only to make pictures. To make PDFs or files, use Snowpark not this.",
             "parameters": {
                 "type": "object",
                 "properties": {

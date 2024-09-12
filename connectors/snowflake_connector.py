@@ -17,6 +17,8 @@ from openai import OpenAI
 import glob
 import pandas as pd
 import pytz
+import sys
+import pkgutil
 
 from .database_connector import DatabaseConnector
 from core.bot_os_defaults import (
@@ -6652,7 +6654,7 @@ $$
             if '\n' not in code.replace('\\n', ''):
                 code = code.replace('\\n','\n')
                 code = code.replace('\\n','\n')
-
+        code = code.replace("'\\\'","\'")
         # Check if code contains Session.builder
         if "Session.builder" in code:
             return {
@@ -6673,11 +6675,15 @@ $$
 
         # Check if libraries are provided
         proc_name = 'EXECUTE_SNOWPARK_CODE'
-        if packages is not None and packages == '':
+        if packages == '':
             packages = None
         if packages is not None:
             # Split the libraries string into a list
             library_list = [lib.strip() for lib in packages.split(',') if lib.strip() not in ['snowflake-snowpark-python', 'snowflake.snowpark','snowflake','base64','pandas']]
+            # Remove any Python standard packages from the library_list
+            standard_libs = {name for _, name, _ in pkgutil.iter_modules() if name in sys.stdlib_module_names}
+            library_list = [lib for lib in library_list if lib not in standard_libs]
+
             # Create a new stored procedure with the specified libraries
             libraries_str = ', '.join(f"'{lib}'" for lib in library_list)
             import uuid

@@ -9,6 +9,7 @@ now on gpt-4o-2024-08-06, ok?
 dont need to import libraries in every snowpark function anymore
 new signal table in place bots_active for outrigger services to check to see if they should wake up or not
 
+have add file to stage see if the file is there before saying to return it
 try jamba model on snowpark
 (needed/later?) make a wrapper for graphs
 x figure out why imports are needed on every function (and tell it to add them)

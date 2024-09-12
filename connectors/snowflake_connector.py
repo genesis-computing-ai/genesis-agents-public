@@ -6641,10 +6641,107 @@ $$
             return "default_filename.ann", "default_metadata.json"
 
 
-    def add_hints(self, result, code):
+    def chat_completion_for_escallation(self, message):
+#        self.write_message_log_row(db_adapter, bot_id, bot_name, thread_id, 'Supervisor Prompt', message, message_metadata)
+
+        if os.getenv("BOT_OS_DEFAULT_LLM_ENGINE",'').lower() == 'openai':
+                    api_key = os.getenv("OPENAI_API_KEY")
+                    if not api_key:
+                        print("OpenAI API key is not set in the environment variables.")
+                        return None
+
+                    openai_model = os.getenv("OPENAI_MODEL_SUPERVISOR",os.getenv("OPENAI_MODEL_NAME","gpt-4o"))
+
+                    print('snowpark escallation using model: ', openai_model)
+                    try:
+                        openai_api_key = os.getenv("OPENAI_API_KEY")
+                        client = OpenAI(api_key=openai_api_key)
+                        response = client.chat.completions.create(
+                            model=openai_model,
+                            messages=[
+                                {
+                                    "role": "user",
+                                    "content": message,
+                                },
+                            ],
+                        )
+                    except Exception as e:
+                        if os.getenv("OPENAI_MODEL_SUPERVISOR", None) is not None:
+                            openai_model = os.getenv("OPENAI_MODEL_NAME","gpt-4o")
+                            print('retry snowpark escallation using model: ', openai_model)
+                            try:
+                                openai_api_key = os.getenv("OPENAI_API_KEY")
+                                client = OpenAI(api_key=openai_api_key)
+                                response = client.chat.completions.create(
+                                    model=openai_model,
+                                    messages=[
+                                        {
+                                            "role": "user",
+                                            "content": message,
+                                        },
+                                    ],
+                                )
+                            except Exception as e:   
+                                print(f"Error occurred while calling OpenAI API with snowpark escallation model {openai_model}: {e}")
+                                return None
+                        else:
+                            print(f"Error occurred while calling OpenAI API: {e}")
+                            return None
+
+                    return_msg = response.choices[0].message.content
+            
+        return return_msg
+
+    def escallate_for_advice(self, purpose, code, result, packages):
+
+
+        if os.getenv("BOT_OS_DEFAULT_LLM_ENGINE",'').lower() == 'openai' and os.getenv("OPENAI_MODEL_SUPERVISOR",None) is not None:
+
+            message = f"""A less smart AI bot is trying to write code to run in Snowflake Snowpark to accomplish this task:
+
+{purpose}
+
+The bot said these non-standard python packages would be used and they were indeed successfully installed:
+{packages}
+
+The bot wrote this code:
+{code}
+
+The result of trying to run it is:
+
+{result}
+
+Here are some general tips on how to use Snowpark in this environment:
+
+1. If you want to access a file, first save it to stage, and then access it at its stage path, not just /tmp.
+2. Be sure to return the result in the global scope at the end of your code.
+3. If you want to return a file, save it to /tmp (not root) then base64 encode it and respond like this: image_bytes = base64.b64encode(image_bytes).decode('utf-8')
+   result = {{ 'type': 'base64file', 'filename': file_name, 'content': image_bytes}}.
+4. Do not create a new Snowpark session, use the 'session' variable that is already available to you. 
+5. Use regular loops not list comprehension
+
+So, now, please provide suggestions to the bot on how to fix this code so that it runs successfully in Snowflake Snowpark.
+"""
+            
+            potential_result = self.chat_completion_for_escallation(message=message)
+            print(potential_result)
+            return potential_result
+
+        else:
+            return None
+
+
+    def add_hints(self, purpose, result, code, packages):
 
         if isinstance(result, str) and result.startswith('Error:'):
             result = {"Error": result}
+
+        if isinstance(result, dict) and 'Error' in result:
+            potential_result = self.escallate_for_advice(purpose, code, result, packages)
+            if potential_result is not None:
+               # result = potential_result
+                result['advice from a smarter llm'] = potential_result
+               # return potential_result
 
         if isinstance(result, dict) and 'Error' in result:
             # If there's an error, return the result as is
@@ -6681,6 +6778,61 @@ total_chars = character_counts.agg({"char_count": "sum"}).collect()[0][0]
 
 # Return the total number of characters
 result = total_chars
+"""
+
+            result['example_of_success_2'] = """Here is an example of successfully using Snowpark for a different task (drawing a) that may be helpful to you:
+
+import matplotlib.pyplot as plt
+
+# Load data from the Snowflake table into a Snowpark DataFrame
+df = session.table('GENESIS_BOTS_ALPHA.JANICE_7G8H9J_WORKSPACE.RANDOM_TRIPLES')
+
+# Collect the data to local for plotting
+rows = df.collect()
+x = [row['X'] for row in rows]
+y = [row['Y'] for row in rows]
+z = [row['Z'] for row in rows]
+
+# Create bubble chart
+plt.figure(figsize=(10, 6))
+plt.scatter(x, y, s=[size * 10 for size in z], alpha=0.5, c=z, cmap='viridis')
+plt.colorbar(label='Z Value')
+plt.title('Bubble Chart of Random Triples')
+plt.xlabel('X Value')
+plt.ylabel('Y Value')
+plt.grid(True)
+
+# Save the chart as an image file
+plt.savefig('/tmp/bubble_chart.png')
+
+# Encode and return image
+import base64
+with open('/tmp/bubble_chart.png', 'rb') as image_file:
+    image_bytes = base64.b64encode(image_file.read()).decode('utf-8')
+
+result = {'type': 'base64file', 'filename': 'bubble_chart.png', 'content': image_bytes}
+"""
+
+            result['example_of_success_3'] = """Here is an example of successfully using Snowpark for a different task (generating data and saving to a table) that may be helpful to you:
+
+import numpy as np
+
+# Generate random triples without the unnecessary parameter
+random_triples = [{'x': int(np.random.randint(1, 1001)),
+                   'y': int(np.random.randint(1, 1001)),
+                   'z': int(np.random.randint(1, 21))} for _ in range(500)]
+
+# Create a Snowpark DataFrame from the random triples
+df = session.create_dataframe(random_triples, schema=['x', 'y', 'z'])
+
+# Define the table name
+table_name = 'GENESIS_BOTS_ALPHA.JANICE_7G8H9J_WORKSPACE.RANDOM_TRIPLES'
+
+# Write the DataFrame to a Snowflake table
+df.write.mode('overwrite').save_as_table(table_name)
+
+# Return the result indicating success
+result = {'message': 'Table created successfully', 'full_table_name': table_name}
 """
 
             if 'is not defined' in result["Error"]:
@@ -6747,7 +6899,7 @@ result = 'Table FAKE_CUST created successfully.'
         return result
 
 
-    def run_python_code(self, code: str, packages: str = None, thread_id=None, bot_id=None
+    def run_python_code(self, purpose: str, code: str, packages: str = None, thread_id=None, bot_id=None
     # solid examples:
     # use snowpark to create 5 rows of synthetic customer data using faker, return it in json
     # ... save 100 rows of synthetic data like this to a table called CUSTFAKE1 in your workspace
@@ -6950,22 +7102,22 @@ $$
                         "result": f'Snowpark output a file. Output a link like this so the user can see it [description of file](sandbox:/mnt/data/{result_json["filename"]})'
                     }
                     cleanup(proc_name)
-                    result = self.add_hints(result, code)
+                    result = self.add_hints(purpose, result, code, packages)
                     return result
             
                 # If conditions are not met, return the original result
-                result_json = self.add_hints(result_json, code)
+                result_json = self.add_hints(purpose, result_json, code, packages)
                 cleanup(proc_name)
                 return result_json
             
             cleanup(proc_name)
-            result_json = self.add_hints(result_json, code)
+            result_json = self.add_hints(purpose, result_json, code, packages)
             return result_json
     
         # Check if result is a dictionary and contains 'Error'
  
         cleanup(proc_name)
-        result = self.add_hints(result, code)
+        result = self.add_hints(purpose, result, code, packages)
         return result
 
 def test_stage_functions():

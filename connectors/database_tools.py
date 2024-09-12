@@ -126,6 +126,10 @@ database_tool_functions = [
             "parameters": {
                 "type": "object",
                 "properties": {
+                    "purpose": {
+                        "type": "string",
+                        "description": "A detailed explanation in English of what this code is supposed to do. This will be used to help validate and debug your code.",
+                    },
                     "code": {
                         "type": "string",
                         "description": """The Python code to execute in Snowflake Snowpark. The snowpark 'session' is already created and ready for your code's use, do NOT create a new session. Run queries inside of Snowpark versus inserting a lot of static data in the code. Use the full names of any stages with database and schema. If you want to access a file, first save it to stage, and then access it at its stage path, not just /tmp. Always set 'result' variable at the end of the code execution in the global scope to what you want to return. To return a file, save it to /tmp (not root) then base64 encode it and respond like this: image_bytes = base64.b64encode(image_bytes).decode('utf-8')\nresult = { 'type': 'base64file', 'filename': file_name, 'content': image_bytes}. Be sure to properly escape any double quotes in the code.""",
@@ -135,7 +139,7 @@ database_tool_functions = [
                         "description": "A comma-separated list of required non-default Python packages to be pip installed for code execution (do not include any standard python libraries).",
                     }
                 },
-                "required": ["code"],
+                "required": ["code", "purpose"],
             },
         },
     },

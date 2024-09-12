@@ -11,6 +11,7 @@ import random
 import string
 import pytz
 
+
 from jinja2 import Template
 from bot_genesis.make_baby_bot import MAKE_BABY_BOT_DESCRIPTIONS, make_baby_bot_tools
 from connectors import database_tools
@@ -190,17 +191,37 @@ class ToolBelt:
                         print("OpenAI API key is not set in the environment variables.")
                         return None
 
-                    openai_api_key = os.getenv("OPENAI_API_KEY")
-                    client = OpenAI(api_key=openai_api_key)
-                    response = client.chat.completions.create(
-                        model="gpt-4o",
-                        messages=[
-                            {
-                                "role": "user",
-                                "content": message,
-                            },
-                        ],
-                    )
+                    openai_model = os.getenv("OPENAI_MODEL_SUPERVISOR",os.getenv("OPENAI_MODEL_NAME","gpt-4o"))
+
+                    print('process supervisor using model: ', openai_model)
+                    try:
+                        openai_api_key = os.getenv("OPENAI_API_KEY")
+                        client = OpenAI(api_key=openai_api_key)
+                        response = client.chat.completions.create(
+                            model=openai_model,
+                            messages=[
+                                {
+                                    "role": "user",
+                                    "content": message,
+                                },
+                            ],
+                        )
+                    except Exception as e:
+                        if os.getenv("OPENAI_MODEL_SUPERVISOR", None) is not None:
+                            print(f"Error occurred while calling OpenAI API with supervisor model {openai_model}: {e}")
+                            print(f'Retrying with main model {os.getenv("OPENAI_MODEL_NAME","gpt-4o")}')
+                            openai_model = os.getenv("OPENAI_MODEL_NAME","gpt-4o")
+                            response = client.chat.completions.create(
+                                model=openai_model,
+                                messages=[
+                                    {
+                                        "role": "user",
+                                        "content": message,
+                                    },
+                                ],
+                            )
+                        else:
+                            print(f"Error occurred while calling OpenAI API: {e}")
 
                     return_msg = response.choices[0].message.content
 

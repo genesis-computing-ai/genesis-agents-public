@@ -28,6 +28,7 @@ $$
             SNOWFLAKE_SECURE: FALSE
             OPENAI_HARVESTER_EMBEDDING_MODEL: text-embedding-3-large
             OPENAI_MODEL_NAME: gpt-4o-2024-08-06
+            OPENAI_MODEL_SUPERVISOR: o1-mini
             OPENAI_FAST_MODEL_NAME: gpt-4o-mini
             CORTEX_MODEL: llama3.1-405b
             CORTEX_FAST_MODEL_NAME: llama3.1-70b
@@ -73,6 +74,7 @@ $$
             AUTO_HARVEST: TRUE
             OPENAI_HARVESTER_EMBEDDING_MODEL: text-embedding-3-large
             OPENAI_MODEL_NAME: gpt-4o-2024-08-06
+            OPENAI_MODEL_SUPERVISOR: o1-mini
             HARVESTER_REFRESH_SECONDS: 120
             RUNNER_ID: snowflake-1
             SNOWFLAKE_SECURE: FALSE
@@ -105,6 +107,7 @@ $$
             RUNNER_ID: snowflake-1
             SNOWFLAKE_SECURE: FALSE
             OPENAI_MODEL_NAME: gpt-4o-2024-08-06
+            OPENAI_MODEL_SUPERVISOR: o1-mini
             GENESIS_INTERNAL_DB_SCHEMA: {{app_db_sch}}
             GENESIS_SOURCE: Snowflake
       endpoints:
@@ -134,6 +137,7 @@ $$
             OPENAI_HARVESTER_EMBEDDING_MODEL: text-embedding-3-large
             OPENAI_MODEL_NAME: gpt-4o-2024-08-06
             HARVESTER_REFRESH_SECONDS: 120
+            OPENAI_MODEL_SUPERVISOR: o1-mini
             RUNNER_ID: snowflake-1
             SNOWFLAKE_SECURE: FALSE
             GENESIS_INTERNAL_DB_SCHEMA: {{app_db_sch}}

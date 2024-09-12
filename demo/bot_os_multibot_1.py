@@ -360,11 +360,12 @@ def list_available_bots_fn():
     logger.debug(f"Sending response: {response.json}")
     return response
 
+
 import base64
 from pathlib import Path
-def img_to_bytes(img_path):
-    img_bytes = Path(img_path).read_bytes()
-    encoded = base64.b64encode(img_bytes).decode()
+def file_to_bytes(file_path):
+    file_bytes = Path(file_path).read_bytes()
+    encoded = base64.b64encode(file_bytes).decode()
     return encoded
 
 @app.route("/udf_proxy/get_metadata", methods=["POST"])
@@ -393,12 +394,12 @@ def get_metadata():
             email = metadata_type.split('test_email ')[1].strip()
             result = db_adapter.send_test_email(email) 
          
-        elif 'png' in metadata_type:
-            bot_id, thread_id_in, image_name = metadata_type.split('|')
+        elif 'sandbox' in metadata_type:
+            _, bot_id, thread_id_in, file_name = metadata_type.split('|')
             bots_udf_adapter = bot_id_to_udf_adapter_map.get(bot_id, None)
             thread_id_out = bots_udf_adapter.in_to_out_thread_map[thread_id_in]
-            image_path = os.path.join('downloaded_files', thread_id_out, image_name)
-            result = {"Success": True, "Data": json.dumps(img_to_bytes(image_path))}
+            file_path = os.path.join('downloaded_files', thread_id_out, file_name)
+            result = {"Success": True, "Data": json.dumps(file_to_bytes(file_path))}
         else:
             raise ValueError(
                 "Invalid metadata_type provided. Expected 'harvest_control' or 'harvest_summary' or 'available_databases'."

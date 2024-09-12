@@ -6,13 +6,14 @@ import re
 import os
 
 
-
-def img_to_html(bot_id, thread_id, img_path):    
-    image_name = os.path.basename(img_path)
-    img_format = image_name.split('.')[-1]
-    img_byte = get_metadata('|'.join((bot_id, thread_id, image_name)))
-    img_html = f'<img src="data:image/{img_format.lower()};base64,{img_byte}" style="max-width: 50%;display: block;">'
-    return img_html
+def file_to_html(bot_id, thread_id, file_path):    
+    file_name = os.path.basename(file_path)    
+    file_byte = get_metadata('|'.join(('sandbox',bot_id, thread_id, file_name)))
+    if 'png' in file_name:
+        href = f'<img src="data:image/png;base64,{file_byte}" style="max-width: 50%;display: block;">'    
+    else:
+        href = f'<a href="data:application/octet-stream;base64,{file_byte}" download="{file_name}">{file_name}</a>'
+    return href
 
 bot_images = get_metadata("bot_images")
 bot_avatar_images = [bot["bot_avatar_image"] for bot in bot_images]
@@ -23,8 +24,8 @@ def chat_page():
 
     if 'session_message_uuids' not in st.session_state:
         st.session_state.session_message_uuids = {}
-    if 'stream_images' not in st.session_state:
-        st.session_state.stream_images = set()
+    if 'stream_files' not in st.session_state:
+        st.session_state.stream_files = set()
 
     def get_chat_history(thread_id):
         return st.session_state.get(f"messages_{thread_id}", [])
@@ -49,17 +50,17 @@ def chat_page():
                 in_resp = None
             if response != previous_response:
                 found_partial = False
-                full_images = re.findall(r"\n*\[.*\]\(sandbox:/mnt/data(?:/downloads)?/.*?\)", response)
-                partial_images = re.findall('\n*\[', response)                      
-                if full_images:     
-                    for image in full_images:     
-                        image_path = re.findall('\((.+)\)', image)
-                        if not image_path: 
+                full_files = re.findall(r"\n*\[.*\]\(sandbox:/mnt/data(?:/downloads)?/.*?\)", response)
+                partial_files = re.findall('\n*\[', response)                      
+                if full_files:     
+                    for file in full_files:     
+                        file_path = re.findall('\((.+)\)', file)
+                        if not file_path: 
                             found_partial = True
                             break
-                        response = response.replace(image, '')  
-                        st.session_state.stream_images.add(image_path[0])                  
-                elif partial_images:
+                        response = response.replace(file, '')  
+                        st.session_state.stream_files.add(file_path[0])                  
+                elif partial_files:
                     found_partial = True
                 
                 if found_partial:
@@ -140,12 +141,12 @@ def chat_page():
         # Add the response to the chat history
         messages.append({"role": "assistant", "content": response,  "avatar": bot_avatar_image_url})
 
-        while st.session_state.stream_images:
-            image_path = st.session_state.stream_images.pop()
-            image = img_to_html(selected_bot_id, thread_id, image_path)
+        while st.session_state.stream_files:
+            file_path = st.session_state.stream_files.pop()
+            file = file_to_html(selected_bot_id, thread_id, file_path)
             with st.chat_message("assistant", avatar=bot_avatar_image_url):
-                st.markdown(image , unsafe_allow_html=True)
-            messages.append({"role": "assistant", "content": image,  "avatar": bot_avatar_image_url})
+                st.markdown(file , unsafe_allow_html=True)
+            messages.append({"role": "assistant", "content": file,  "avatar": bot_avatar_image_url})
 
         save_chat_history(thread_id, messages)
 
@@ -241,12 +242,12 @@ def chat_page():
 
         messages.append({"role": "assistant","content": response,"avatar": bot_avatar_image_url})
 
-        while st.session_state.stream_images:
-            image_path = st.session_state.stream_images.pop()
-            image = img_to_html(selected_bot_id, current_thread_id, image_path)
+        while st.session_state.stream_files:
+            file_path = st.session_state.stream_files.pop()
+            file = file_to_html(selected_bot_id, current_thread_id, file_path)
             with st.chat_message("assistant", avatar=bot_avatar_image_url):
-                st.markdown(image , unsafe_allow_html=True)
-            messages.append({"role": "assistant", "content": image,  "avatar": bot_avatar_image_url})
+                st.markdown(file , unsafe_allow_html=True)
+            messages.append({"role": "assistant", "content": file,  "avatar": bot_avatar_image_url})
 
         save_chat_history(current_thread_id, messages)
 

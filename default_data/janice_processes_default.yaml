@@ -31,16 +31,20 @@ janice_monitor_unused_tables_golden:
     # Monitor Unused Tables - New Process Description
 
     ## Overview
-    This process identifies and notifies stakeholders about unused tables within Snowflake databases. It uses AGGREGATE_ACCESS_HISTORY for comprehensive monitoring and to minimize false positives.
+    This process identifies and notifies stakeholders about unused tables within Snowflake databases. It uses AGGREGATE_ACCESS_HISTORY 
+    for comprehensive monitoring and to minimize false positives.
 
     ## Process Steps:
     1. Check for Table Existence:
        - Ensure the ignore list table exists.
-       - SQL Query: CREATE TABLE IF NOT EXISTS GENESIS_BOTS_ALPHA.JANICE_7G8H9J_WORKSPACE.MONITOR_UNUSED_TABLES_IGNORE_LIST (DATABASE_NAME STRING, TABLE_SCHEMA STRING, TABLE_NAME STRING);
+       - SQL Query: CREATE TABLE IF NOT EXISTS GENESIS_BOTS_ALPHA.JANICE_7G8H9J_WORKSPACE.MONITOR_UNUSED_TABLES_IGNORE_LIST 
+       (DATABASE_NAME STRING, TABLE_SCHEMA STRING, TABLE_NAME STRING);
 
     2. Fetch List of Tables:
        - Retrieve a complete list of tables across all databases and schemas, excluding those in the ignore list.
-       - SQL Query: SELECT DATABASE_NAME, TABLE_SCHEMA, TABLE_NAME FROM SNOWFLAKE.INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE IN ('BASE TABLE', 'MATERIALIZED VIEW') AND (TABLE_SCHEMA, TABLE_NAME) NOT IN (SELECT TABLE_SCHEMA, TABLE_NAME FROM GENESIS_BOTS_ALPHA.JANICE_7G8H9J_WORKSPACE.MONITOR_UNUSED_TABLES_IGNORE_LIST WHERE DATABASE_NAME = 'GENESIS_BOTS_ALPHA');
+       - SQL Query: SELECT DATABASE_NAME, TABLE_SCHEMA, TABLE_NAME FROM SNOWFLAKE.INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE IN 
+       ('BASE TABLE', 'MATERIALIZED VIEW') AND (TABLE_SCHEMA, TABLE_NAME) NOT IN (SELECT TABLE_SCHEMA, TABLE_NAME FROM 
+       GENESIS_BOTS_ALPHA.JANICE_7G8H9J_WORKSPACE.MONITOR_UNUSED_TABLES_IGNORE_LIST WHERE DATABASE_NAME = 'GENESIS_BOTS_ALPHA');
 
     3. Check AGGREGATE_ACCESS_HISTORY:
        - Verify that AGGREGATE_ACCESS_HISTORY is not empty.
@@ -49,7 +53,9 @@ janice_monitor_unused_tables_golden:
 
     4. Analyze Access Patterns:
        - Determine table usage through access history.
-       - SQL Query: WITH AccessedTables AS (SELECT f.value:objectName::string AS TABLE_NAME FROM SNOWFLAKE.ACCOUNT_USAGE.AGGREGATE_ACCESS_HISTORY, TABLE(FLATTEN(INPUT => DIRECT_OBJECTS_ACCESSED)) f WHERE DIRECT_OBJECTS_ACCESSED IS NOT NULL AND INTERVAL_START_TIME > CURRENT_TIMESTAMP - INTERVAL '30 days' GROUP BY TABLE_NAME)
+       - SQL Query: WITH AccessedTables AS (SELECT f.value:objectName::string AS TABLE_NAME FROM SNOWFLAKE.ACCOUNT_USAGE.AGGREGATE_ACCESS_HISTORY, 
+       TABLE(FLATTEN(INPUT => DIRECT_OBJECTS_ACCESSED)) f WHERE DIRECT_OBJECTS_ACCESSED IS NOT NULL AND 
+       INTERVAL_START_TIME > CURRENT_TIMESTAMP - INTERVAL '30 days' GROUP BY TABLE_NAME)
 
     5. Identify Unused Tables:
        - Compile a list of tables that haven't been accessed within a predefined period.
@@ -62,6 +68,10 @@ janice_monitor_unused_tables_golden:
        - Provide suggestions for further optimization.
        - Add cleanup suggestions and include a placeholder link for users to access additional analysis.
        - Placeholder Link: <https://app.snowflake.com/genesis_placeholder?bot_id=BOT_ID&thread_id=THREAD_ID>
+
+    ## Conclusion
+    This process streamlines the identification of unused tables, enabling effective cleanup and resource management 
+    within the Snowflake environment.
 
     ## Example Email Output Structure
     - Subject: Unused Tables Across Snowflake Databases
@@ -76,7 +86,8 @@ janice_data_freshness_check_golden:
     **Process:  Check for data freshness**
     1. **Find tables**
        - Check the processes table for this process and confirm that process_config has data.
-       - If process_config does not have any data, inform the user and show the user a list of the names of all of the database tables you have access to.
+       - If process_config does not have any data, inform the user and show the user a list of the names of all of the database tables you 
+         have access to.
        - Ask the user which tables they want to use and update the process_config field to reflect these choices.
     2. **Find latest updates in each table with more than the number of rows specified in the parameter table_cutoff_size**
        - Sort each table in the process_config field with more than table_cutoff_size in descending order by latest update date.
@@ -92,14 +103,131 @@ janice_dangerous_user_report_golden:
   BOT_ID: "janice-7g8h9j"
   PROCESS_INSTRUCTIONS: |
     1. Run the following SQL query to gather data on user roles and privileges:
-    ```sql
-    (complex SQL query here)
-    ```
+    ```WITH role_hier AS (
+    SELECT
+        grantee_name,
+        name
+    FROM
+        SNOWFLAKE.ACCOUNT_USAGE.GRANTS_TO_ROLES
+    WHERE
+        granted_on = 'ROLE'
+        AND privilege = 'USAGE'
+        AND deleted_on IS NULL
+    UNION ALL
+    SELECT
+        'root',
+        r.name
+    FROM
+        SNOWFLAKE.ACCOUNT_USAGE.ROLES r
+    WHERE
+        deleted_on IS NULL
+        AND NOT EXISTS (
+            SELECT
+                1
+            FROM
+                SNOWFLAKE.ACCOUNT_USAGE.GRANTS_TO_ROLES gtr
+            WHERE
+                gtr.granted_on = 'ROLE'
+                AND gtr.privilege = 'USAGE'
+                AND gtr.name = r.name
+                AND deleted_on IS NULL
+        )
+    ),
+    role_path_pre AS (
+        SELECT
+            name,
+            level,
+            sys_connect_by_path(name, ' -&gt; ') AS path
+        FROM
+            role_hier CONNECT BY grantee_name = PRIOR name START WITH grantee_name = 'root'
+        ORDER BY
+            path
+    ),
+    role_path AS (
+        SELECT
+            name,
+            level,
+            substr(path, len(' -&gt; ')) AS path
+        FROM
+            role_path_pre
+    ),
+    role_path_privs AS (
+        SELECT
+            path,
+            rp.name AS role_name,
+            privs.privilege,
+            granted_on,
+            CASE
+                WHEN privs.granted_on = 'ROLE' THEN 'Yes'
+                WHEN privs.granted_on IS NULL AND path LIKE '%-&gt;%' THEN 'Yes'
+                ELSE NULL
+            END AS is_grant_to_role,
+            CASE
+                WHEN privs.granted_on != 'ROLE' THEN 'Yes'
+                WHEN privs.granted_on IS NULL AND path NOT LIKE '%-&gt;%' THEN 'Yes'
+                ELSE NULL
+            END AS is_grant_to_privs,
+            privs.name AS priv_name,
+            'Role ' || path || ' has ' || privilege || ' on ' || granted_on || ' ' || privs.name AS Description
+        FROM
+            role_path rp
+            LEFT JOIN SNOWFLAKE.ACCOUNT_USAGE.GRANTS_TO_ROLES privs ON rp.name = privs.grantee_name
+            AND deleted_on IS NULL
+        ORDER BY
+            path
+    ),
+    role_path_privs_agg AS (
+        SELECT
+            TRIM(SPLIT(path, ' -&gt; ')[0]) role,
+            COUNT(*) num_of_privs,
+            COUNT(is_grant_to_role) num_role_grants,
+            COUNT(is_grant_to_privs) num_privs_grants
+        FROM
+            role_path_privs
+        GROUP BY
+            TRIM(SPLIT(path, ' -&gt; ')[0])
+        ORDER BY
+            COUNT(*) DESC
+    ),
+    accountadmin_check AS (
+        SELECT
+            grantee_name AS user_name,
+            MAX(CASE WHEN role = 'ACCOUNTADMIN' THEN TRUE ELSE FALSE END) AS has_accountadmin
+        FROM
+            SNOWFLAKE.ACCOUNT_USAGE.GRANTS_TO_USERS
+        GROUP BY
+            grantee_name
+    )
+    SELECT
+        current_timestamp() AS timestamp,
+        u.grantee_name AS user,
+        COUNT(a.role) AS Direct_Role_Grants,
+        SUM(num_role_grants) AS Total_Role_Grants,
+        SUM(num_privs_grants) AS Total_Privs_Grants,
+        SUM(num_of_privs) AS All_Grant_Types,
+        COALESCE(ac.has_accountadmin, FALSE) AS has_accountadmin -- Added the ACCOUNTADMIN check
+    FROM
+        SNOWFLAKE.ACCOUNT_USAGE.GRANTS_TO_USERS u
+        JOIN role_path_privs_agg a ON a.role = u.role
+        LEFT JOIN accountadmin_check ac ON u.grantee_name = ac.user_name -- Join with ACCOUNTADMIN check
+    WHERE
+        u.deleted_on IS NULL
+    GROUP BY
+        u.grantee_name, ac.has_accountadmin
+    ORDER BY
+        All_Grant_Types DESC;```
 
     2. Analyze the results based on the following criteria:
-       - Identify the top 3 users in terms of total privileges granted.
-       - Check the distribution of privileges and analyze the granting of the ACCOUNTADMIN role.
-       - Report the findings.
+          - Identify the top 3 users in terms of total privileges granted inclusive of roles. If the top users all have ACCOUNTADMIN 
+          role then be sure to note that.
+          - Determine if the rights and roles are concentrated in a few specific users or more evenly spread out. If the roles are 
+          concentrated and the users with the concentrated power also have ACCOUNTADMIN role, then note that as a possible cause of 
+          their having so much power.
+          - Check how broadly the ACCOUNTADMIN role is granted. ACCOUNTADMIN is the single most powerful role in Snowflake, and granting 
+          it too widely is very bad practice which should be discouraged.
+          - Look for any unusual patterns or noteworthy observations in the results. are there many users with similar numbers? are 
+          there only a few users with most rights and the rest have very little? MAKE SURE TO SAY IF THERE are there any ways that 
+          ACCOUNTADMIN grants may be warping the data? are there any other things about the numbers which seems noteworth
   PROCESS_NAME: "Dangerous User Report"
   PROCESS_PARAMS: "TABLE_A, TABLE_B, TABLE_C"
   TIMESTAMP: "2024-09-09 11:43:39.460 -0700"
@@ -125,6 +253,17 @@ janice_check_MFA_use_in_snowflake_golden:
        - Create an ASCII art bar chart to visualize MFA and user type adoption.
     5. **Generate Report and Recommendations**:
        - Summarize the findings and provide recommendations.
+    ### Example of Generated ASCII Art Bar Chart:
+    ```
+    MFA Adoption (Goal: 100%)
+    | ██████████▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒  20
+
+    %TYPE Set (Goal: 100%)
+    | ██▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒  5
+
+    %PERSON Users with MFA (Goal: 100%)
+    | ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒  0
+    %```
   PROCESS_NAME: "Check MFA Use in Snowflake"
   PROCESS_PARAMS: "TABLE_A, TABLE_B, TABLE_C"
   TIMESTAMP: "2024-09-09 11:43:39.460 -0700"

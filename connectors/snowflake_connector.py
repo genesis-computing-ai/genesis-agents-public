@@ -6677,7 +6677,7 @@ $$
             packages = None
         if packages is not None:
             # Split the libraries string into a list
-            library_list = [lib.strip() for lib in packages.split(',') if lib.strip() not in ['snowflake-snowpark-python', 'snowflake.snowpark','snowflake','base64',pandas']]
+            library_list = [lib.strip() for lib in packages.split(',') if lib.strip() not in ['snowflake-snowpark-python', 'snowflake.snowpark','snowflake','base64','pandas']]
             # Create a new stored procedure with the specified libraries
             libraries_str = ', '.join(f"'{lib}'" for lib in library_list)
             import uuid

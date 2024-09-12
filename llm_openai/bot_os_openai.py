@@ -120,17 +120,6 @@ class StreamingEventHandler(AssistantEventHandler):
 
       return 
    
-      try:
-         txt = message.text
-      except:
-         try:
-            txt = message.content[0].text.value
-         except:
-            txt = None
-            pass
-      if self.run_id  in StreamingEventHandler.run_id_to_output_stream and txt != None:
-         StreamingEventHandler.run_id_to_output_stream[self.run_id] = txt
-
 
    @override
    def on_message_delta(self, delta: MessageDelta, snapshot: Message) -> None:
@@ -141,99 +130,22 @@ class StreamingEventHandler(AssistantEventHandler):
        # 4
        print(f"\nassistant tool_call > {tool_call}\n", end="", flush=True)
        return
-       print(f"\nassistant on_tool_call_created > {tool_call}")
-       self.function_name = tool_call.function.name       
-       self.tool_id = tool_call.id
-       print(f"\n_tool_call_created > run_step.status > {self.run_step.status}")
-      
-       print(f"\nassistant > {tool_call.type} {self.function_name}\n", flush=True)
 
-       keep_retrieving_run = self.client.beta.threads.runs.retrieve(
-           thread_id=self.thread_id,
-           run_id=self.run_id
-       )
-
-       while keep_retrieving_run.status in ["queued", "in_progress"]: 
-           keep_retrieving_run = self.client.beta.threads.runs.retrieve(
-               thread_id=self.thread_id,
-               run_id=self.run_id
-           )
-          
-           print(f"\nSTATUS: {keep_retrieving_run.status}")      
-      
    @override
    def on_tool_call_done(self, tool_call: ToolCall) -> None: 
        return      
-       keep_retrieving_run = self.client.beta.threads.runs.retrieve(
-           thread_id=self.thread_id,
-           run_id=self.run_id
-       )
-      
-       print(f"\nDONE STATUS: {keep_retrieving_run.status}")
-      
-       if keep_retrieving_run.status == "completed":
-           all_messages = self.client.beta.threads.messages.list(
-               thread_id=self.thread_id
-           )
-
-           print(all_messages.data[0].content[0].text.value, "", "")
-           return
-      
-       elif keep_retrieving_run.status == "requires_action":
-           print("here you would call your function")
-
-           if self.function_name == "example_blog_post_function":
-               function_data = my_example_funtion()
-  
-               self.output=function_data
-              
-               with self.client.beta.threads.runs.submit_tool_outputs_stream(
-                   thread_id=self.thread_id,
-                   run_id=self.run_id,
-                   tool_outputs=[{
-                       "tool_call_id": self.tool_id,
-                       "output": self.output,
-                   }],
-                   event_handler=StreamingEventHandler(self.client, self.thread_id, self.assistant_id)
-               ) as stream:
-                 stream.until_done()                       
-           else:
-               print("unknown function")
-               return
       
    @override
    def on_run_step_created(self, run_step: RunStep) -> None:
        # 2       
        return
-       print(f"on_run_step_created")
-       self.run_id = run_step.run_id
-       self.run_step = run_step
-       print("The type ofrun_step run step is ", type(run_step), flush=True)
-       print(f"\n run step created assistant > {run_step}\n", flush=True)
 
    @override
    def on_run_step_done(self, run_step: RunStep) -> None:
        return
-       print(f"\n run step done assistant > {run_step}\n", flush=True)
 
    def on_tool_call_delta(self, delta, snapshot): 
        return
-       if delta.type == 'function':
-           # the arguments stream through here and then you get the requires action event
-           print(delta.function.arguments, end="", flush=True)
-           self.arguments += delta.function.arguments
-       elif delta.type == 'code_interpreter':
-           print(f"on_tool_call_delta > code_interpreter")
-           if delta.code_interpreter.input:
-               print(delta.code_interpreter.input, end="", flush=True)
-           if delta.code_interpreter.outputs:
-               print(f"\n\noutput >", flush=True)
-               for output in delta.code_interpreter.outputs:
-                   if output.type == "logs":
-                       print(f"\n{output.logs}", flush=True)
-       else:
-           print("ELSE")
-           print(delta, end="", flush=True)
 
    @override
    def on_event(self, event: AssistantStreamEvent) -> None:
@@ -290,7 +202,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       self.running_tools = {}
       self.tool_completion_status = {}
       self.log_db_connector = log_db_connector
-      my_tools = tools + [{"type": "file_search"}] # + ,{"type": "code_interpreter"}]  
+      my_tools = tools + [{"type": "file_search"}]  + [{"type": "code_interpreter"}]  
       #my_tools = tools 
       #print(f'yoyo mytools {my_tools}')
       #logger.warn(f'yoyo mytools {my_tools}')

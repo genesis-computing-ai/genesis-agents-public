@@ -120,8 +120,8 @@ database_tool_functions = [
     {
         "type": "function",
         "function": {
-            "name": "_run_python_code",
-            "description": "Executes a string of Python snowflake snowpark code using a precreated and provided 'session', do not create a new session", 
+            "name": "_run_snowpark_python",
+            "description": "Executes a string of Python snowflake snowpark code using a precreated and provided 'session', do not create a new session.  Use this instead of code_interpreter when directed to use snowpark, or when you want to run python that can directly interact with the user's snowflake session, tables, and stages.", 
             #this function has an existing snowflake session inside that you can use called session so do not try to create a new session or connection.",
             "parameters": {
                 "type": "object",
@@ -637,7 +637,7 @@ database_tools = {
     "get_full_table_details": "search_metadata_f.local",
  #   "_list_semantic_models": "db_adapter.list_semantic_models",
   #  "_get_semantic_model": "db_adapter.get_semantic_model",
-    "_run_python_code": "db_adapter.run_python_code",
+    "_run_snowpark_python": "db_adapter.run_python_code",
 }
 
 snowflake_stage_tools = {

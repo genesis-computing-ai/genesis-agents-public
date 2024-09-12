@@ -313,7 +313,7 @@ def load_or_create_embeddings_index(table_id, refresh=True):
         print(f"Embedding size ({embedding_size}) read from {index_size_file}")
     # Set the EMBEDDING_SIZE environment variable
     os.environ['EMBEDDING_SIZE'] = str(embedding_size)
-    print(f"EMBEDDING_SIZE environment variable set to: {os.environ['EMBEDDING_SIZE']}")
+   # print(f"EMBEDDING_SIZE environment variable set to: {os.environ['EMBEDDING_SIZE']}")
 
     annoy_index = AnnoyIndex(embedding_size, 'angular')
 

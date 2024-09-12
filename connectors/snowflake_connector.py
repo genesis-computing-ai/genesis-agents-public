@@ -6647,8 +6647,10 @@ $$
                 except Exception as e:
                     print(f"Error dropping temporary stored procedure {proc_name}: {e}")
 
-        code = code.replace('\\n','\n')
-        code = code.replace('\\n','\n')
+        if '\\n' in code:
+            if '\n' not in code.replace('\\n', ''):
+                code = code.replace('\\n','\n')
+                code = code.replace('\\n','\n')
 
         # Check if code contains Session.builder
         if "Session.builder" in code:
@@ -6674,7 +6676,7 @@ $$
             packages = None
         if packages is not None:
             # Split the libraries string into a list
-            library_list = [lib.strip() for lib in packages.split(',') if lib.strip() not in ['snowflake-snowpark-python', 'snowflake.snowpark','snowflake','base64']]
+            library_list = [lib.strip() for lib in packages.split(',') if lib.strip() not in ['snowflake-snowpark-python', 'snowflake.snowpark','snowflake','base64',pandas']]
             # Create a new stored procedure with the specified libraries
             libraries_str = ', '.join(f"'{lib}'" for lib in library_list)
             import uuid

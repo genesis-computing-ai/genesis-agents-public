@@ -1,7 +1,8 @@
 import json
 import os
 import requests
-import time, datetime
+import time
+from datetime import datetime, timedelta
 import sys
 import logging
 
@@ -1467,18 +1468,37 @@ def tasks_loop():
 
         #   i = input('Next round? >')
 
-        time_to_sleep = 60 - (datetime.datetime.now() - iteration_start_time).seconds
-        if os.getenv("TEST_TASK_MODE", "false").lower() == "true":
-           time_to_sleep = 0
-        else:
-            print('Waiting 60 seconds before checking tasks again...')
+        # time_to_sleep = 60 - (datetime.datetime.now() - iteration_start_time).seconds
+        # if os.getenv("TEST_TASK_MODE", "false").lower() == "true":
+        #    time_to_sleep = 0
+        # else:
+        #     print('Waiting 60 seconds before checking tasks again...')
 
-        if time_to_sleep > 0:
-            for remaining in range(time_to_sleep, 0, -5):
-                # sys.stdout.write("\r")
-                #           sys.stdout.write("Waiting for {:2d} seconds before next check of tasks".format(remaining))
-                # sys.stdout.flush()
-                time.sleep(5)
+        wake_up = False
+        while not wake_up:
+            time.sleep(120)
+
+            cursor = db_adapter.client.cursor()
+            check_bot_active = f"DESCRIBE TABLE {db_adapter.schema}.BOTS_ACTIVE"
+            cursor.execute(check_bot_active)
+            result = cursor.fetchone()
+
+            bot_active_time_dt = datetime.strptime(result[0], '%Y-%m-%d %H:%M:%S %Z')
+            current_time = datetime.now()
+            time_difference = current_time - bot_active_time_dt
+
+            print(f"\nBOTS ACTIVE TIME: {result[0]} | CURRENT TIME: {current_time} | TIME DIFFERENCE: {time_difference}", flush=True)
+
+            if time_difference < timedelta(minutes=5):
+                wake_up = True
+                print("Bot is active")
+
+        # if time_to_sleep > 0:
+        #     for remaining in range(time_to_sleep, 0, -5):
+        #         # sys.stdout.write("\r")
+        #         #           sys.stdout.write("Waiting for {:2d} seconds before next check of tasks".format(remaining))
+        #         # sys.stdout.flush()
+        #         time.sleep(5)
     #      sys.stdout.write("\rComplete! Waiting over.          \n")
 
     # now go through the queue of pending task runs, and check input adapter maps for responses

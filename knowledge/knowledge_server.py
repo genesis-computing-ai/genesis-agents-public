@@ -73,7 +73,25 @@ class KnowledgeServer:
                 f"Pausing KnowledgeServer Producer for {refresh_seconds} seconds before next check.\n"
             )
             sys.stdout.flush()
-            time.sleep(refresh_seconds)
+
+            wake_up = False
+            while not wake_up:
+                time.sleep(refresh_seconds)
+
+                cursor = self.db_connector.client.cursor()
+                check_bot_active = f"DESCRIBE TABLE {self.db_connector.schema}.BOTS_ACTIVE"
+                cursor.execute(check_bot_active)
+                result = cursor.fetchone()
+
+                bot_active_time_dt = datetime.strptime(result[0][0], '%Y-%m-%d %H:%M:%S %Z')
+                current_time = datetime.now()
+                time_difference = current_time - bot_active_time_dt
+
+                print(f"\nBOTS ACTIVE TIME: {result[0][0]} | CURRENT TIME: {current_time} | TIME DIFFERENCE: {time_difference}", flush=True)
+
+                if time_difference < timedelta(minutes=5):
+                    wake_up = True
+                    print("Bot is active")
 
     def consumer(self):
         while True:
@@ -187,7 +205,26 @@ class KnowledgeServer:
         while True:
             if self.user_queue.empty():
                 print("Queue is empty, refiner is waiting...")
-                time.sleep(refresh_seconds)
+                
+                wake_up = False
+                while not wake_up:
+                    time.sleep(refresh_seconds)
+
+                    cursor = self.db_connector.client.cursor()
+                    check_bot_active = f"DESCRIBE TABLE {self.db_connector.schema}.BOTS_ACTIVE"
+                    cursor.execute(check_bot_active)
+                    result = cursor.fetchone()
+
+                    bot_active_time_dt = datetime.strptime(result[0][0], '%Y-%m-%d %H:%M:%S %Z')
+                    current_time = datetime.now()
+                    time_difference = current_time - bot_active_time_dt
+
+                    print(f"\nBOTS ACTIVE TIME: {result[0][0]} | CURRENT TIME: {current_time} | TIME DIFFERENCE: {time_difference}", flush=True)
+
+                    if time_difference < timedelta(minutes=5):
+                        wake_up = True
+                        print("Bot is active")
+
                 continue
             primary_user, bot_id, knowledge = self.user_queue.get()
             query = f"""SELECT * FROM {self.db_connector.user_bot_table_name}

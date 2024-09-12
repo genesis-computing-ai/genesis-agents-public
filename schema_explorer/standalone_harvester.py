@@ -2,6 +2,7 @@ import os
 import json
 import sys
 import time
+from datetime import datetime, timedelta
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
@@ -170,4 +171,22 @@ while True:
     #embeddings_handler.make_and_save_index(bigquery_connector.metadata_table_name)
     sys.stdout.write(f'Pausing for {int(refresh_seconds)} seconds before next check.')
     sys.stdout.flush()
-    time.sleep(refresh_seconds)
+
+    wake_up = False
+    while not wake_up:
+        time.sleep(refresh_seconds)
+
+        cursor = harvester_db_connector.client.cursor()
+        check_bot_active = f"DESCRIBE TABLE {harvester_db_connector.schema}.BOTS_ACTIVE"
+        cursor.execute(check_bot_active)
+        result = cursor.fetchone()
+
+        bot_active_time_dt = datetime.strptime(result[0], '%Y-%m-%d %H:%M:%S %Z')
+        current_time = datetime.now()
+        time_difference = current_time - bot_active_time_dt
+
+        print(f"\nBOTS ACTIVE TIME: {result[0]} | CURRENT TIME: {current_time} | TIME DIFFERENCE: {time_difference}", flush=True)
+
+        if time_difference < timedelta(minutes=5):
+            wake_up = True
+            print("Bot is active")

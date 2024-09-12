@@ -398,7 +398,7 @@ def get_metadata():
             _, bot_id, thread_id_in, file_name = metadata_type.split('|')
             bots_udf_adapter = bot_id_to_udf_adapter_map.get(bot_id, None)
             thread_id_out = bots_udf_adapter.in_to_out_thread_map[thread_id_in]
-            file_path = os.path.join('downloaded_files', thread_id_out, file_name)
+            file_path = f'./downloaded_files/{thread_id_out}/{file_name}'
             result = {"Success": True, "Data": json.dumps(file_to_bytes(file_path))}
         else:
             raise ValueError(

@@ -1,6 +1,7 @@
 import streamlit as st
-from utils import get_session, get_metadata, upgrade_services
-import subprocess
+from utils import get_session, get_metadata, upgrade_services, get_references
+import snowflake.permissions as permissions
+
 
 def config_eai():
     session = get_session()
@@ -9,7 +10,15 @@ def config_eai():
         # return
         pass 
     st.title("Configure External Access Integration (EAI)")
-    
+
+    # ref = get_references("consumer_external_access")
+    # if not ref:
+    #     permissions.request_reference("consumer_external_access")
+    #     st.error("Please configure the EAI.")
+    # else:
+    #     for value in ref:
+    #         st.success(f"ref: {value}")
+
     st.markdown("""
     <style>
     .big-font {
@@ -76,9 +85,6 @@ ALLOWED_NETWORK_RULES = (GENESIS_LOCAL_DB.SETTINGS.GENESIS_RULE) ENABLED = true;
 -- grant Genesis Server the ability to use this external access integration
 GRANT USAGE ON INTEGRATION GENESIS_EAI TO APPLICATION   IDENTIFIER($APP_DATABASE);
 
--- This allows Slack to callback into the Genbots service to active new Genbots on Slack
-GRANT BIND SERVICE ENDPOINT ON ACCOUNT TO APPLICATION  IDENTIFIER($APP_DATABASE); 
-
 -- (option steps to enable cross-region inference to Llama3.1-405b)
 -- This allows calling models from other Snowflake regions, as described above, 
 -- for running Genesis in regions other than AWS US West 2 (Oregon) or AWS US East 1 (N. Virginia). 
@@ -96,7 +102,7 @@ ALTER ACCOUNT SET CORTEX_ENABLED_CROSS_REGION = 'ANY_REGION';
     st.write("Click the button to assign the external access integration to the Genesis Bots services. This will restart your service and takes 3-5 minutes to complete.")
 
     input_eai = st.text_input("External Access Integration name:", value="GENESIS_EAI")
-
+    
     if st.button("Assign EAI to Genesis", key="upgrade_button_app"):
         try:
             eai_result = get_metadata('custom_config '+input_eai+'|EAI')

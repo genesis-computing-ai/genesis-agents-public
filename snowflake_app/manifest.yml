@@ -12,6 +12,15 @@ configuration:
   trace_level: OFF
   log_level: DEBUG
   grant_callback: core.grant_callback
+references:
+  - consumer_external_access:
+      label: "Default External Access Integration"
+      description: "This is required to access Slack and/or OpenAI"
+      privileges:
+        - USAGE
+      object_type: EXTERNAL ACCESS INTEGRATION
+      register_callback: core.register_single_reference
+      configuration_callback: core.get_config_for_ref
 privileges:
   - BIND SERVICE ENDPOINT:
       description: "Allow access to application endpoints"

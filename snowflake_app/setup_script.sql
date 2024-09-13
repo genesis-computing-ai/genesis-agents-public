@@ -190,6 +190,50 @@ CREATE OR REPLACE PROCEDURE core.grant_callback(privileges array)
 
 GRANT USAGE ON PROCEDURE core.grant_callback(array) TO APPLICATION ROLE app_public;
 
+
+CREATE OR REPLACE PROCEDURE CORE.REGISTER_SINGLE_REFERENCE(ref_name STRING, operation STRING, ref_or_alias STRING)
+  RETURNS STRING
+  LANGUAGE SQL
+  AS $$
+    BEGIN
+      CASE (operation)
+        WHEN 'ADD' THEN
+          SELECT SYSTEM$SET_REFERENCE(:ref_name, :ref_or_alias);
+        WHEN 'REMOVE' THEN
+          SELECT SYSTEM$REMOVE_REFERENCE(:ref_name, :ref_or_alias);
+        WHEN 'CLEAR' THEN
+          SELECT SYSTEM$REMOVE_ALL_REFERENCES(:ref_name);
+      ELSE
+        RETURN 'unknown operation: ' || operation;
+      END CASE;
+      RETURN NULL;
+    END;
+  $$;
+
+GRANT USAGE ON PROCEDURE CORE.REGISTER_SINGLE_REFERENCE(STRING, STRING, STRING) TO APPLICATION ROLE APP_PUBLIC;
+
+CREATE OR REPLACE PROCEDURE core.get_config_for_ref(ref_name STRING)
+    RETURNS STRING
+    LANGUAGE SQL
+    AS
+    $$
+    BEGIN
+      CASE (ref_name)
+        WHEN 'CONSUMER_EXTERNAL_ACCESS' THEN
+          RETURN '{
+            "type": "CONFIGURATION",
+            "payload":{
+              "host_ports":["api.openai.com", "slack.com", "www.slack.com", "wss-primary.slack.com", "wss-backup.slack.com", "wss-primary.slack.com", "wss-backup.slack.com", "slack-files.com", "oaidalleapiprodscus.blob.core.windows.net", "downloads.slack-edge.com", "files-edge.slack.com", "files-origin.slack.com", "files.slack.com", "global-upload-edge.slack.com", "universal-upload-edge.slack.com"],
+              "allowed_secrets": "NONE"}}';
+      END CASE;
+  RETURN '';
+  END;
+  $$;
+
+GRANT USAGE ON PROCEDURE core.get_config_for_ref(string) TO APPLICATION ROLE APP_PUBLIC;
+
+
+
 CREATE OR REPLACE PROCEDURE APP.UPGRADE_APP(INSTANCE_NAME VARCHAR, SERVICE_NAME VARCHAR, UPDATE_HARVEST_METADATA BOOLEAN, APP_NAME VARCHAR, EAI_NAME VARCHAR, C_POOL_NAME VARCHAR, WAREHOUSE_NAME VARCHAR)
 RETURNS VARCHAR NOT NULL
 LANGUAGE SQL

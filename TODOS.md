@@ -15,6 +15,10 @@ process supervisor uses o1-mini if available
 new snowpark error-correction advisor for openai, uses o1-mini if available, if not gpt-4o
 
 todo:
+add cost to o1 bots
+for eva dont mess with her escaping etc in code run
+for eva dont have the code advisor and examples
+
 put process supervisor back on o1-mini vs o1-preview
 add o1-mini logging messages
 have all the exanples and tips only go into the fixit bot for snowpark to keep main thread more clear

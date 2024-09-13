@@ -124,11 +124,13 @@ def bot_config():
                                         st.success(
                                             f"The first of 3 steps to deploy {bot.get('bot_name')} to Slack is complete. Refresh this page to see the next 2 steps to complete deployment to Slack. "
                                         )
+                                        get_bot_details.clear()
                                         if st.button(
                                             "Press to Refresh Page for Next Steps",
                                             key=f"refresh_{bot['bot_id']}",
                                         ):
-                                            st.experimental_rerun()
+                                            
+                                            st.rerun()
                                     else:
                                         st.error(
                                             f"Failed to deploy {bot['bot_name']} to Slack: {deploy_response.get('Message')}"
@@ -142,7 +144,7 @@ def bot_config():
                                                 key=f"activate_{bot['bot_id']}",
                                             ):
                                                 st.session_state["radio"] = "Setup Slack Connection"
-                                                st.experimental_rerun()
+                                                st.rerun()
                                         else:
                                             st.markdown(
                                                 "###### Activate on Slack by clicking the Setup Slack Connection radio button"
@@ -153,7 +155,7 @@ def bot_config():
                                             key=f"activate_{bot['bot_id']}",
                                         ):
                                             st.session_state["radio"] = "Setup Slack Connection"
-                                            st.experimental_rerun()
+                                            st.rerun()
 
                     with col2:
                         st.caption(

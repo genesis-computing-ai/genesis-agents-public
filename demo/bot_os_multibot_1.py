@@ -364,8 +364,11 @@ def list_available_bots_fn():
 import base64
 from pathlib import Path
 def file_to_bytes(file_path):
+    print('inside file_path')
     file_bytes = Path(file_path).read_bytes()
+    print('inside file_path - after file_bytes')
     encoded = base64.b64encode(file_bytes).decode()
+    print('inside file_path - after encoded')
     return encoded
 
 @app.route("/udf_proxy/get_metadata", methods=["POST"])
@@ -374,6 +377,7 @@ def get_metadata():
         message = request.json
         input_rows = message["data"]
         metadata_type = input_rows[0][1]
+        print('****get_metadata, metadata_type', metadata_type)
 
         if metadata_type == "harvest_control":
             result = db_adapter.get_harvest_control_data_as_json()
@@ -401,11 +405,17 @@ def get_metadata():
                 object_name = object_name.split('|')[0].strip()
                 
             result = db_adapter.config_settings_test(object_name=object_name,object_type=object_type)                
-        elif 'png' in metadata_type:
-            bot_id, thread_id_in, image_name = metadata_type.split('|')
+        elif 'sandbox' in metadata_type:
+            _, bot_id, thread_id_in, file_name = metadata_type.split('|')
+            print('****get_metadata, file_name', file_name)
+            print('****get_metadata, thread_id_in', thread_id_in)
+            print('****get_metadata, file_name', bot_id)            
             bots_udf_adapter = bot_id_to_udf_adapter_map.get(bot_id, None)
+            print('****get_metadata, bots_udf_adapter', bots_udf_adapter)
             thread_id_out = bots_udf_adapter.in_to_out_thread_map[thread_id_in]
+            print('****get_metadata, thread_id_out', thread_id_out)
             file_path = f'./downloaded_files/{thread_id_out}/{file_name}'
+            print('****get_metadata, file_path', file_path)
             result = {"Success": True, "Data": json.dumps(file_to_bytes(file_path))}
         else:
             raise ValueError(

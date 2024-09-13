@@ -3,6 +3,8 @@ import time
 from utils import get_bot_details, get_metadata, configure_llm, check_eai_status
 
 def llm_config():
+
+    get_bot_details().clear()
     bot_details = get_bot_details()
     
     llm_info = get_metadata("llm_info")

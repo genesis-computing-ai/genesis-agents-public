@@ -1052,7 +1052,7 @@ def generate_task_prompt(bot_id, task):
     {task_details['action_trigger_type']} {task_details['action_trigger_details']}
 
     Here is the current server time:
-    {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+    {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
     
     Use the process runner tool to run the process named above and follow the instructions that it gives you. Call mulitple tools if needed to complete the task.
     Do NOT create a new process, or a new schedule for an existing process. You are to execute the steps described above for this existing task. 
@@ -1082,13 +1082,13 @@ def submit_task(session=None, bot_id=None, task=None):
     # Use a prompt similar to tmp/tmp_task_thoughts.txt to interact with the bot
     # Perform the task and construct the response JSON
 
-    # Check if the next_check_ts is in the past    current_time = datetime.datetime.now()
+    # Check if the next_check_ts is in the past    current_time = datetime.now()
     next_check_ts_str = task.get("next_check_ts")
     if next_check_ts_str:
-        next_check_ts = datetime.datetime.strptime(
+        next_check_ts = datetime.strptime(
             next_check_ts_str, "%Y-%m-%d %H:%M:%S"
         )
-        if datetime.datetime.now() < next_check_ts:
+        if datetime.now() < next_check_ts:
             return {
                 "task_skipped": True,
                 "reason": "Next check timestamp is in the future.",
@@ -1101,7 +1101,7 @@ def submit_task(session=None, bot_id=None, task=None):
     prompt = generate_task_prompt(bot_id, task)
 
     # Insert the current timestamp into a string
-    current_timestamp_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    current_timestamp_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     task_meta = {
         "bot_id": bot_id,
@@ -1155,17 +1155,21 @@ def task_log_and_update(bot_id, task_id, task_result):
 def tasks_loop():
 
     from collections import deque
+    from sortedcontainers import SortedList
 
     # Initialize a deque for pending tasks
     pending_tasks = deque()
     task_retry_attempts_map = {}
 
+    def task_sort_key(task):
+        return task["next_check_ts"]
+    
     i = 10
     cycle = 0
     while True:
         i = i + 1
         cycle += 1
-        iteration_start_time = datetime.datetime.now()
+        iteration_start_time = datetime.now()
         if i >= 10:
             #   print(f'Checking tasks... cycle={cycle}, {iteration_start_time}', flush=True)
             sys.stdout.write(
@@ -1199,11 +1203,11 @@ def tasks_loop():
         # Retrieve the list of bots and their tasks
 
         # Check for tasks submitted more than 10 minutes ago
-        ten_minutes_ago = datetime.datetime.now() - datetime.timedelta(minutes=10)
+        ten_minutes_ago = datetime.now() - timedelta(minutes=10)
         overdue_tasks = [
             task
             for task in pending_tasks
-            if datetime.datetime.strptime(task["submited_time"], "%Y-%m-%d %H:%M:%S")
+            if datetime.strptime(task["submited_time"], "%Y-%m-%d %H:%M:%S")
             < ten_minutes_ago
         ]
         for task in overdue_tasks:
@@ -1213,6 +1217,7 @@ def tasks_loop():
             pending_tasks.remove(task)
             # set to failed status
 
+        skipped_tasks = SortedList(key=task_sort_key)
         active_sessions = sessions
         for session in active_sessions:
             bot_id = session.bot_id
@@ -1230,6 +1235,8 @@ def tasks_loop():
                         task_result = submit_task(
                             session=session, bot_id=bot_id, task=task
                         )
+                        if task_result.get('task_skipped', False) and task_result['reason'] == "Next check timestamp is in the future.":
+                            skipped_tasks.add(task)
                         if "bot_id" in task_result:
                             pending_tasks.append(task_result)
                             print(f"Task {task['task_id']} has been started.")
@@ -1244,9 +1251,11 @@ def tasks_loop():
                         )
                         if submitted_time:
                             print(
-                                f"Task {task['task_id']} from bot {bot_id} is already running. It has been running for {(datetime.datetime.now() - datetime.datetime.strptime(submitted_time, '%Y-%m-%d %H:%M:%S')).total_seconds() / 60:.2f} minutes."
+                                f"Task {task['task_id']} from bot {bot_id} is already running. It has been running for {(datetime.now() - datetime.strptime(submitted_time, '%Y-%m-%d %H:%M:%S')).total_seconds() / 60:.2f} minutes."
                             )
         #  i = input('Check for done? >')
+
+        # for testing, make 
 
         for session in active_sessions:
             # Find the input adapter that is an instance of BotOsInputAdapter
@@ -1316,7 +1325,7 @@ def tasks_loop():
                         # Validate timestamp
                         try:
                             if not task_response_data["stop_task_flag"]:
-                                datetime.datetime.strptime(
+                                datetime.strptime(
                                     task_response_data["next_run_time"],
                                     "%Y-%m-%d %H:%M:%S",
                                 )
@@ -1379,12 +1388,12 @@ def tasks_loop():
 
                 if response_valid and task_response_data:
                     # Ensure next_run_time is at least 5 minutes from now
-                    next_run_time = datetime.datetime.strptime(
+                    next_run_time = datetime.strptime(
                         task_response_data["next_run_time"], "%Y-%m-%d %H:%M:%S"
                     )
-                    if (next_run_time - datetime.datetime.now()).total_seconds() < 300:
+                    if (next_run_time - datetime.now()).total_seconds() < 300:
                         task_response_data["next_run_time"] = (
-                            datetime.datetime.now() + datetime.timedelta(minutes=5)
+                            datetime.now() + timedelta(minutes=5)
                         ).strftime("%Y-%m-%d %H:%M:%S")
                         print(
                             f"Changed next_run_time for task {task_id} from bot {bot_id} to ensure it's at least 5 minutes from now."
@@ -1411,8 +1420,8 @@ def tasks_loop():
                             task_id=task_id,
                             task_details={
                                 "next_check_ts": (
-                                    datetime.datetime.now()
-                                    - datetime.timedelta(minutes=5)
+                                    datetime.now()
+                                    - timedelta(minutes=5)
                                 ).strftime("%Y-%m-%d %H:%M:%S"),
                                 "last_task_status": "Task failed to respond with a proper JSON after 3 tries.",
                                 "task_learnings": task_response_data.get(
@@ -1435,7 +1444,7 @@ def tasks_loop():
                         )
                     else:
                         thread = response.messages.data[0].thread_id
-                        current_timestamp_str = datetime.datetime.now().strftime(
+                        current_timestamp_str = datetime.now().strftime(
                             "%Y-%m-%d %H:%M:%S"
                         )
                         task_meta = {
@@ -1468,14 +1477,23 @@ def tasks_loop():
 
         #   i = input('Next round? >')
 
-        # time_to_sleep = 60 - (datetime.datetime.now() - iteration_start_time).seconds
+        # time_to_sleep = 60 - (datetime.now() - iteration_start_time).seconds
         # if os.getenv("TEST_TASK_MODE", "false").lower() == "true":
         #    time_to_sleep = 0
         # else:
         #     print('Waiting 60 seconds before checking tasks again...')
 
+        # for testing, set skipped_tasks[0]["next_check_ts"] to datetime.now() + timedelta(seconds=30)
+        # skipped_tasks[0]["next_check_ts"] = datetime.now() + timedelta(seconds=30)
+
         wake_up = False
         while not wake_up:
+             # Check for a task within the next two minutes
+            if len(skipped_tasks) > 0 and skipped_tasks[0]["next_check_ts"] < datetime.now() + timedelta(minutes=2):
+                wake_up = True
+                print(f"Task {task['task_id']} is due to run soon.")
+                break
+
             time.sleep(120)
 
             cursor = db_adapter.client.cursor()
@@ -1492,6 +1510,7 @@ def tasks_loop():
             if time_difference < timedelta(minutes=5):
                 wake_up = True
                 print("Bot is active")
+
 
         # if time_to_sleep > 0:
         #     for remaining in range(time_to_sleep, 0, -5):

@@ -1,17 +1,16 @@
 janice_formula1_data_golden:
   BOT_ID: "Janice"
-  PROCESS_NAME: "janice_formula1_data"
+  PROCESS_NAME: "Search Formula 1 Data"
   PROCESS_INSTRUCTIONS: |
     1. Search the Snowflake database for tables or views that contain Formula 1 data.
     2. Locate a table or view with DRIVER information.
     3. Query the identified table or view to find the driver with the most wins.
     4. Post the result to the channel #C075LL9KPM3.
-  PROCESS_DETAILS: "Search Formula 1 Data"
   TIMESTAMP: "2000-01-01T00:00:00.000Z"
 
 janice_warehouse_sizing_recommendation_golden:
   BOT_ID: "Janice"
-  PROCESS_NAME: "janice_assisted_user_creation"
+  PROCESS_NAME: "Analyze Warehouse Queuing and Swapping"
   PROCESS_INSTRUCTIONS: |
     1. Retrieve query history data and calculate average queuing time per hour for each warehouse.
     2. Identify warehouses with average queuing time per hour exceeding 60,000 microseconds.
@@ -21,12 +20,11 @@ janice_warehouse_sizing_recommendation_golden:
     6. Display the top 3 warehouses with the highest average swapping to disk per query for a spot check, regardless of the threshold.
     7. Send an email summary of the analysis to matt@genesiscomputing.ai every Friday at 9 am ET, including recommendations for which warehouses should be made multi-cluster or resized, DataCube URLs for both queuing and swapping spot checks, and the process ID for reference.
     8. Add a description at the top of the email to explain the purpose of the email for future recipients.
-  PROCESS_DETAILS: "Analyze Warehouse Queuing and Swapping"
   TIMESTAMP: "2000-01-01T00:00:00.000Z"
 
 janice_monitor_unused_tables_golden:
   BOT_ID: "Janice"
-  PROCESS_NAME: "janice_assisted_user_creation"
+  PROCESS_NAME: "Monitor Unused Tables"
   PROCESS_INSTRUCTIONS: |
     # Monitor Unused Tables - New Process Description
 
@@ -76,12 +74,11 @@ janice_monitor_unused_tables_golden:
     ## Example Email Output Structure
     - Subject: Unused Tables Across Snowflake Databases
     - Body: (Example email body structure)
-  PROCESS_DETAILS: "Monitor Unused Tables"
   TIMESTAMP: "2000-01-01T00:00:00.000Z"
 
 janice_data_freshness_check_golden:
   BOT_ID: "Janice"
-  PROCESS_NAME: "janice_data_freshness_check"
+  PROCESS_NAME: "Data Freshness Check"
   PROCESS_INSTRUCTIONS: |
     **Process:  Check for data freshness**
     1. **Find tables**
@@ -95,12 +92,12 @@ janice_data_freshness_check_golden:
        - Using the first row of each table, find the n tables with the oldest dates where n is a parameter called unfresh_table_count.
     4. **Report back to user**
        - Report the n tables names and update date in ascending order.
-  PROCESS_DETAILS: "Data Freshness Check"
   PROCESS_PARAMS: "TABLE_A, TABLE_B, TABLE_C"
   TIMESTAMP: "2000-01-01T00:00:00.000Z"
 
 janice_dangerous_user_report_golden:
   BOT_ID: "janice-7g8h9j"
+  PROCESS_NAME: "Dangerous User Report"
   PROCESS_INSTRUCTIONS: |
     1. Run the following SQL query to gather data on user roles and privileges:
     ```WITH role_hier AS (
@@ -228,12 +225,12 @@ janice_dangerous_user_report_golden:
           - Look for any unusual patterns or noteworthy observations in the results. are there many users with similar numbers? are 
           there only a few users with most rights and the rest have very little? MAKE SURE TO SAY IF THERE are there any ways that 
           ACCOUNTADMIN grants may be warping the data? are there any other things about the numbers which seems noteworth
-  PROCESS_NAME: "Dangerous User Report"
   PROCESS_PARAMS: "TABLE_A, TABLE_B, TABLE_C"
   TIMESTAMP: "2024-09-09 11:43:39.460 -0700"
 
 janice_check_MFA_use_in_snowflake_golden:
   BOT_ID: "janice-7g8h9j"
+  PROCESS_NAME: "Check MFA Use in Snowflake"
   PROCESS_INSTRUCTIONS: |
     **Process for Evaluating User MFA and Type Adoption in Snowflake**
     1. **Query to Retrieve User Data**:
@@ -264,6 +261,5 @@ janice_check_MFA_use_in_snowflake_golden:
     %PERSON Users with MFA (Goal: 100%)
     | ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒  0
     %```
-  PROCESS_NAME: "Check MFA Use in Snowflake"
   PROCESS_PARAMS: "TABLE_A, TABLE_B, TABLE_C"
   TIMESTAMP: "2024-09-09 11:43:39.460 -0700"

@@ -1,15 +1,15 @@
 import streamlit as st
-from utils import get_session, upgrade_services
+from utils import get_session
 import pandas as pd
 
-def config_wh():
+def grant_wh():
     
     session = get_session()
     if not session:
         st.error("Unable to connect to Snowflake. Please check your connection.")
-        # return
-        pass 
-    st.title("Step 1: Configure Warehouse")
+        return
+    
+    st.title("Grant Warehouse to Application")
     
     st.markdown("""
     <style>
@@ -18,6 +18,7 @@ def config_wh():
         font-weight: bold;
     }
     .info-box {
+        background-color: #e1f5fe;
         padding: 20px;
         border-radius: 5px;
         margin-bottom: 20px;
@@ -35,8 +36,8 @@ def config_wh():
     
     st.markdown("""
     <div class="info-box">
-    Genesis Bots needs rights to use a Snowflake compute engine, known as a Virtual Warehouse, to run queries on Snowflake. By default, Genesis Bots created a Virtual Warehouse for use by the application. 
-    However, you can create your own custom warehouse or assign an existing warehouse for use by the application. 
+    In order to use a Snowflake compute engine, known as a Virtual Warehouse, to run queries on Snowflake, Genesis Bots creates a Virtual Warehouse for you on startup. 
+    However, you can create your own warehouse or grant an existing warehouse to the application by following the step below.
     This step does not provide Genesis Bots with access to any of your data, just the ability to run SQL on Snowflake in general.
     You'll need to grant Genesis access to an existing Warehouse or create a new one for its use.
     </div>
@@ -86,18 +87,49 @@ GRANT USAGE ON WAREHOUSE  IDENTIFIER($APP_WAREHOUSE) TO APPLICATION  IDENTIFIER(
 
                 if 'SYSTEM$STREAMLIT_NOTEBOOK_WH' in warehouse_names:
                     warehouse_names.remove('SYSTEM$STREAMLIT_NOTEBOOK_WH')
-                if 'APP_XSMALL' in warehouse_names:
-                    warehouse_names.remove('APP_XSMALL')
                 
                 # Check if 'XSMALL' is in the list of warehouse names
                 if st.session_state.wh_name not in warehouse_names:
                     # Notify the user about the naming discrepancy and suggest setting APP_WAREHOUSE
-                    st.session_state.wh_name = warehouse_names[0]
+                    first_warehouse_name = warehouse_names[0]
+                    st.session_state.wh_name = first_warehouse_name
 
                 # Display success message with list of warehouses
                 st.success(
                     f'Success: Found the following warehouses - {", ".join(warehouse_names)}, Thanks!'
                 )
+                st.write("Click the button to assign the warehouse to the Genesis Bots services. This will restart your service and takes 3-5 minutes to complete.")
+                if "update_application" not in st.session_state:
+                    if st.button("Assign Warehouse to Genesis", key="upgrade_button_app"):
+                        st.session_state["update_application"] = True
+                        with st.spinner("Upgrading services..."):
+
+
+                            try:
+                                # Execute the command and collect the results
+                                eai_result = session.sql("SHOW EXTERNAL ACCESS INTEGRATIONS").collect()
+
+                                # Check if any warehouses were returned
+                                if eai_result:
+                                    # Convert the list of Row objects to a Pandas DataFrame for display
+                                    eai_df = pd.DataFrame(
+                                        [row.as_dict() for row in eai_result]
+                                    )
+                                    eai_names = eai_df[
+                                        "name"
+                                    ].tolist()  # Adjust 'name' if necessary to match your column name
+                                
+                                    first_eai_name = eai_names[0] if eai_names else ''
+
+                                    session.sql(f"CALL APP.UPGRADE_APP('APP1','GENESISAPP_SERVICE_SERVICE', FALSE, CURRENT_DATABASE(),'{first_eai_name}','GENESIS_POOL');").collect()
+                                    session.sql(f"CALL APP.UPGRADE_APP('APP1','GENESISAPP_HARVESTER_SERVICE', FALSE, CURRENT_DATABASE(),'{first_eai_name}','GENESIS_POOL');").collect()
+                                    session.sql(f"CALL APP.UPGRADE_APP('APP1','GENESISAPP_KNOWLEDGE_SERVICE', FALSE, CURRENT_DATABASE(),'{first_eai_name}','GENESIS_POOL');").collect()
+                                    session.sql(f"CALL APP.UPGRADE_APP('APP1','GENESISAPP_TASK_SERVICE', FALSE, CURRENT_DATABASE(),'{first_eai_name}','GENESIS_POOL');").collect()
+                            except Exception as e:
+                                st.error(f"Error upgrading services: {e}")                                    
+                        st.rerun()
+                else:
+                    st.write("")
             else:
                 st.error(
                     'Error: No warehouses found.  Please open a new worksheet, copy and paste the commands above, and run them.  Then return here and press "TEST Access to Warehouse" above.'
@@ -105,14 +137,6 @@ GRANT USAGE ON WAREHOUSE  IDENTIFIER($APP_WAREHOUSE) TO APPLICATION  IDENTIFIER(
         except Exception as e:
             st.error(f"Error connecting to Snowflake: {e}")
 
-    st.write("Click the button to assign the warehouse to the Genesis Bots services. This will restart your service and takes 3-5 minutes to complete.")
-    if st.button("Assign Warehouse to Genesis", key="upgrade_button_app"):
-        try:
-            upgrade_result = upgrade_services()
-            st.success(f"Genesis Bots upgrade result: {upgrade_result}")
-            # st.rerun()
-        except Exception as e:
-            st.error(f"Error upgrading services: {e}")                                    
 
     st.info("If you need any assistance, please check our [documentation](https://genesiscomputing.ai/docs/) or join our [Slack community](https://communityinviter.com/apps/genesisbotscommunity/genesis-bots-community).")
 

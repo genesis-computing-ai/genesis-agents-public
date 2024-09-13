@@ -393,9 +393,16 @@ def get_metadata():
         elif metadata_type.startswith('test_email '):
             email = metadata_type.split('test_email ')[1].strip()
             result = db_adapter.send_test_email(email) 
-         
-        elif 'sandbox' in metadata_type:
-            _, bot_id, thread_id_in, file_name = metadata_type.split('|')
+        elif metadata_type.startswith('custom_config '):
+            object_type = ""
+            object_name = metadata_type.split('custom_config ')[1].strip()
+            if "|" in object_name:
+                object_type = object_name.split('|')[1].strip()
+                object_name = object_name.split('|')[0].strip()
+                
+            result = db_adapter.config_settings_test(object_name=object_name,object_type=object_type)                
+        elif 'png' in metadata_type:
+            bot_id, thread_id_in, image_name = metadata_type.split('|')
             bots_udf_adapter = bot_id_to_udf_adapter_map.get(bot_id, None)
             thread_id_out = bots_udf_adapter.in_to_out_thread_map[thread_id_in]
             file_path = f'./downloaded_files/{thread_id_out}/{file_name}'
@@ -738,7 +745,11 @@ def configure_llm():
                     # Success!  Update model and keys
 
                 except OpenAIError as e:
-                    response = {"Success": False, "Message": str(e)}
+                    if "Connection" in str(e):
+                        check_eai = " - please ensure the External Access Integration is setup properly."
+                    else:
+                        check_eai = ""
+                    response = {"Success": False, "Message": f"{str(e)}{check_eai}"}
                     llm_key = None
             elif (llm_type.lower() == "reka"):
                 os.environ["REKA_API_KEY"] = llm_key
@@ -804,10 +815,11 @@ def configure_llm():
                     "Message": "LLM API Key and Model Name configured successfully.",
                 }
             else:
-                response = {
-                    "Success": False,
-                    "Message": "Failed to set LLM API Key and Model Name.",
-                }
+                if not response:
+                    response = {
+                        "Success": False,
+                        "Message": "Failed to set LLM API Key and Model Name.",
+                    }
     except Exception as e:
         response = {"Success": False, "Message": str(e)}
 

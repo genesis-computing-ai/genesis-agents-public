@@ -17,6 +17,15 @@ def get_session():
   #  st.write('NativeMode', NativeMode)
     return None
 
+def get_permissions():
+    if st.session_state.NativeMode:
+        try:
+            from snowflake.permissions import permissions
+            return permissions()
+        except:
+            st.session_state.NativeMode = False
+    return None
+
 def check_status():
     session = get_session()
     if session:
@@ -253,3 +262,23 @@ def deploy_bot(bot_id):
             return response.json()["data"][0][1]
         else:
             raise Exception(f"Failed to deploy bot: {response.text}")
+
+def upgrade_services():
+    session = get_session()
+    if session:
+        core_prefix = st.session_state.get('core_prefix', '')
+        upgrade_services_query = f"call {core_prefix}.UPGRADE_SERVICES() "
+        upgrade_services_result = session.sql(upgrade_services_query).collect()
+        return upgrade_services_result[0][0]
+    return None        
+
+def check_eai_status():
+    result = False
+    try:
+        eai_result = get_metadata('custom_config ')
+        if isinstance(eai_result, list) and len(eai_result) > 0:
+            if 'custom_object_name' in eai_result[0] and len(eai_result[0]['custom_object_name']) > 0:
+                result = True
+        return result
+    except Exception as e:
+        st.error(f"Error checking eai status: {e}")

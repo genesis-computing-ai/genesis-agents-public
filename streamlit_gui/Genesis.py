@@ -6,7 +6,7 @@ import base64
 # Set Streamlit to wide mode
 st.set_page_config(layout="wide")
 
-st.session_state.app_name = "GENESIS_BOTS_ALPHA"
+st.session_state.app_name = "GENESIS_BOTS"
 st.session_state.prefix = st.session_state.app_name + ".app1"
 st.session_state.core_prefix = st.session_state.app_name + ".CORE"
 
@@ -14,7 +14,7 @@ if 'NativeMode' not in st.session_state:
     st.session_state.NativeMode = True
 
 if "wh_name" not in st.session_state:
-    st.session_state["wh_name"] = "XSMALL"
+    st.session_state["wh_name"] = "XSMALL" # TODO fix warehouse name
 
 def render_image(filepath: str, width = None):
    """
@@ -142,11 +142,14 @@ if st.session_state.data:
         "Chat with Bots": lambda: __import__('page_files.chat_page').chat_page.chat_page(),
         "LLM Model & Key": lambda: __import__('page_files.llm_config').llm_config.llm_config(),
         "Setup Email Integration": lambda: __import__('page_files.config_email').config_email.setup_email(),
+        "Setup External Access Integration": lambda: __import__('page_files.config_eai').config_eai.config_eai(),
         "Setup Slack Connection": lambda: __import__('page_files.setup_slack').setup_slack.setup_slack(),
+        "Setup Custom Warehouse": lambda: __import__('page_files.config_wh').config_wh.config_wh(),
         "Grant Data Access": lambda: __import__('page_files.grant_data').grant_data.grant_data(),
         "Harvester Status": lambda: __import__('page_files.db_harvester').db_harvester.db_harvester(),
         "Bot Configuration": lambda: __import__('page_files.bot_config').bot_config.bot_config(),
         "Server Stop/Start": lambda: __import__('page_files.start_stop').start_stop.start_stop(),
+        "Setup Event Logging": lambda: __import__('page_files.config_logging').config_logging.config_logging(),
         "Server Logs": lambda: __import__('page_files.show_server_logs').show_server_logs.show_server_logs(),
         "Support and Community": lambda: __import__('page_files.support').support.support(),
     }

@@ -1,8 +1,14 @@
 import streamlit as st
+from utils import get_session, get_metadata, upgrade_services
+import subprocess
 
 def config_eai():
-    
-    st.title("Step 3: Configure External Access Integration (EAI)")
+    session = get_session()
+    if not session:
+        st.error("Unable to connect to Snowflake. Please check your connection.")
+        # return
+        pass 
+    st.title("Configure External Access Integration (EAI)")
     
     st.markdown("""
     <style>
@@ -27,7 +33,6 @@ def config_eai():
     st.markdown('<p class="big-font">Why do we need EAI?</p>', unsafe_allow_html=True)
     
     st.markdown("""
-    <div class="info-box">
     Genesis uses Snowflake Cortex by default as its LLM. Currently, the Llama3.1-405b model is the best performing model for bots.
     This model is available in some but not all Snowflake Regions. You can check the availability in each region on the [Snowflake regional LLM availability page](https://docs.snowflake.com/en/user-guide/snowflake-cortex/llm-functions#availability).
     To allow calling models from other Snowflake regions, you enable cross-region calling, as shown below. For more information, see the [Snowflake documentation on cross-region inference](https://docs.snowflake.com/en/user-guide/snowflake-cortex/cross-region-inference).
@@ -37,13 +42,12 @@ def config_eai():
     Genesis can also optionally connect to Slack, with some additional configuration, to allow your bots to interact via Slack.
     
     The Genesis Server can also capture and output events to a Snowflake Event Table, allowing you to track what is happening inside the server. Optionally, these logs can be shared back to the Genesis Provider for enhanced support for your GenBots.
-    </div>
     """, unsafe_allow_html=True)
 
     st.markdown('<p class="big-font">Configuration Steps</p>', unsafe_allow_html=True)
     
     st.markdown("""
-    Please go back to the worksheet one more time, and run these commands to create an external access integration, and grant Genesis the rights to use it. Genesis will only be able to access the endpoints listed, OpenAI, and optionally Slack. The steps for adding the event logging are optional as well, but recommended.
+    Please open a Snowflake worksheet and run these commands to create an external access integration, grant Genesis the rights to use it, and test the access. Genesis will only be able to access the endpoints listed, OpenAI, and optionally Slack. The steps for adding the event logging are optional as well, but recommended.
     """)
 
     wh_text = f"""-- select authorized role to use
@@ -76,38 +80,40 @@ GRANT USAGE ON INTEGRATION GENESIS_EAI TO APPLICATION   IDENTIFIER($APP_DATABASE
 GRANT BIND SERVICE ENDPOINT ON ACCOUNT TO APPLICATION  IDENTIFIER($APP_DATABASE); 
 
 -- (option steps to enable cross-region inference to Llama3.1-405b)
--- This allows calling models from other Snowflake regions, as described above, for running Genesis in regions other than AWS US West 2 (Oregon) or AWS US East 1 (N. Virginia). 
+-- This allows calling models from other Snowflake regions, as described above, 
+-- for running Genesis in regions other than AWS US West 2 (Oregon) or AWS US East 1 (N. Virginia). 
 -- Not needed if you will be using Genesis in the region where it is available, or if you are using OpenAI as your LLM.
 ALTER ACCOUNT SET CORTEX_ENABLED_CROSS_REGION = 'ANY_REGION';
 
--- (optional steps for event logging) 
--- create a schema to hold the event table
-CREATE SCHEMA IF NOT EXISTS GENESIS_LOCAL_DB.EVENTS;
-
--- create an event table to capture events from the Genesis Server
-CREATE EVENT TABLE  IF NOT EXISTS GENESIS_LOCAL_DB.EVENTS.GENESIS_APP_EVENTS;
-
--- set the event table on your account, this is optional
--- this requires an authorized role, and may already be set, skip if it doesnt work
-ALTER ACCOUNT SET EVENT_TABLE=GENESIS_LOCAL_DB.EVENTS.GENESIS_APP_EVENTS;
-
--- allow sharing of the captured events with the Genesis Provider
--- optional, skip if it doesn't work
-ALTER APPLICATION IDENTIFIER($APP_DATABASE) SET SHARE_EVENTS_WITH_PROVIDER = TRUE;
 """
 
     st.markdown('<div class="code-box">', unsafe_allow_html=True)
     st.code(wh_text, language="sql")
     st.markdown('</div>', unsafe_allow_html=True)
 
-    st.success("Once you run the above, you can proceed to the next step to start the Genesis Server.")
-    
-    if "proceed_button_start_clicked" not in st.session_state:
-        if st.button("Proceed to Start Genesis Server", key="proceed_button_start"):
-            st.session_state["radio"] = "4: Start Genesis Server"
-            st.session_state["proceed_button_start_clicked"] = True
-            st.rerun()
-    else:
-        st.write("<<--- Use the selector on the left to select 4: Start Genesis Server")
+    st.success("Once you run the above, you can proceed to the next step to assign the EAI to the Genesis services.")
+       
+    st.write("Click the button to assign the external access integration to the Genesis Bots services. This will restart your service and takes 3-5 minutes to complete.")
+
+    input_eai = st.text_input("External Access Integration name:", value="GENESIS_EAI")
+
+    if st.button("Assign EAI to Genesis", key="upgrade_button_app"):
+        try:
+            eai_result = get_metadata('custom_config '+input_eai+'|EAI')
+            if isinstance(eai_result, list) and len(eai_result) > 0:
+                if 'Success' in eai_result[0] and eai_result[0]['Success']==True:
+                    core_prefix = st.session_state.get('core_prefix', '')
+                    select_query = f"SELECT {core_prefix}.CHECK_URL_STATUS('slack');"
+                    eai_test_result = session.sql(select_query).collect()
+                    st.success(f"EAI test result: {eai_test_result[0][0]}")
+                    try:
+                        upgrade_result = upgrade_services()
+                        st.success(f"Genesis Bots upgrade result: {upgrade_result}")
+                        # st.rerun()
+                    except Exception as e:
+                        st.error(f"Error upgrading services: {e}")       
+                           
+        except Exception as e:
+            st.error(f"Error testing EAI on Snowflake: {e} : {eai_result}")
 
     st.info("If you need any assistance, please check our [documentation](https://genesiscomputing.ai/docs/) or join our [Slack community](https://communityinviter.com/apps/genesisbotscommunity/genesis-bots-community).")

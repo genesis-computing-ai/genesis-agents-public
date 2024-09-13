@@ -1,5 +1,5 @@
 import streamlit as st
-from utils import get_slack_tokens, set_slack_tokens, get_slack_tokens_cached
+from utils import get_slack_tokens, set_slack_tokens, get_slack_tokens_cached, check_eai_status
 
 def setup_slack():
     tokens = get_slack_tokens()
@@ -37,22 +37,26 @@ def setup_slack():
     )
 
     if st.button("Update Slack Token"):
-        # Call function to update tokens
-        resp = set_slack_tokens("NOT NEEDED", slack_app_refresh_token)
-        t = resp.get("Token", "Error")
-        r = resp.get("Refresh", "Error")
-        if t == "Error":
-            st.error(f"Failed to update Slack tokens: {resp}")
+        eai_status = check_eai_status()
+        if eai_status == True:
+            # Call function to update tokens
+            resp = set_slack_tokens("NOT NEEDED", slack_app_refresh_token)
+            t = resp.get("Token", "Error")
+            r = resp.get("Refresh", "Error")
+            if t == "Error":
+                st.error(f"Failed to update Slack tokens: {resp}")
+            else:
+                # Clear the cache of get_slack_tokens_cached
+                get_slack_tokens_cached.clear()
+                st.success(
+                    "Slack tokens updated and refreshed successfully. Your new refreshed tokens are:"
+                )
+                st.json({"Token": t, "RefreshToken": r})
+                st.success(
+                    "These will be different than the ones you provided, as they have been rotated successfully for freshness."
+                )
+                st.success(
+                    "You can now activate your bots on Slack from the Bot Configuration page, on the left Nav."
+                )
         else:
-            # Clear the cache of get_slack_tokens_cached
-            get_slack_tokens_cached.clear()
-            st.success(
-                "Slack tokens updated and refreshed successfully. Your new refreshed tokens are:"
-            )
-            st.json({"Token": t, "RefreshToken": r})
-            st.success(
-                "These will be different than the ones you provided, as they have been rotated successfully for freshness."
-            )
-            st.success(
-                "You can now activate your bots on Slack from the Bot Configuration page, on the left Nav."
-            )
+            st.error(f"EAI status: {eai_status}. Set up your EAI.")

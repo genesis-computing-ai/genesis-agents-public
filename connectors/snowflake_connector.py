@@ -765,12 +765,128 @@ class SnowflakeConnector(DatabaseConnector):
             err = f"An error occurred while getting llm info: {e}"
             return {"Success": False, "Error": err}
 
+
+    def config_settings_test(self, object_type, object_name):
+        try:
+
+            # Check if DEFAULT_EMAIL table exists using SHOW TABLES LIKE
+            check_table_query = f"""
+            SHOW TABLES LIKE 'CUSTOM_CONFIG_SETTING' IN {self.genbot_internal_project_and_schema}
+            """
+            cursor = self.client.cursor()
+            cursor.execute(check_table_query)
+            table_exists = cursor.fetchone() is not None
+
+            if not table_exists:
+                # Create the table if it doesn't exist
+                create_table_query = f"""
+                CREATE TABLE {self.genbot_internal_project_and_schema}.CUSTOM_CONFIG_SETTING (
+                    CUSTOM_OBJECT_NAME VARCHAR(255),
+                    CUSTOM_OBJECT_TYPE VARCHAR(255)
+                )
+                """
+                cursor.execute(create_table_query)
+            
+            if object_type == 'EAI':
+
+                # Insert or update the object name
+                upsert_query = f"""
+                MERGE INTO {self.genbot_internal_project_and_schema}.CUSTOM_CONFIG_SETTING t
+                USING (SELECT %s AS custom_object_name, %s AS custom_object_type) s
+                ON (t.custom_object_type = s.custom_object_type)
+                WHEN MATCHED THEN
+                    UPDATE SET t.CUSTOM_OBJECT_NAME = s.custom_object_name
+                WHEN NOT MATCHED THEN
+                    INSERT (CUSTOM_OBJECT_NAME, CUSTOM_OBJECT_TYPE) VALUES (s.custom_object_name, s.custom_object_type)
+                """
+                cursor.execute(upsert_query, (object_name,object_type))
+
+                # Commit the changes
+                self.client.commit()
+
+                table_success = True
+
+                try:
+
+                    create_function_query = f"""
+CREATE OR REPLACE FUNCTION {self.project_id}.CORE.CHECK_URL_STATUS(site string)
+RETURNS STRING
+LANGUAGE PYTHON
+RUNTIME_VERSION = 3.8
+HANDLER = 'get_status'
+EXTERNAL_ACCESS_INTEGRATIONS = ({object_name})
+PACKAGES = ('requests')
+AS
+$$
+import requests
+
+def get_status(site):
+    if site == 'slack':
+        url = "https://slack.com"  # Replace with the allowed URL
+    elif site == 'openai':
+        url = "https://api.openai.com/v1/models"  # Replace with the allowed URL
+    else:
+        return f"Invalid site: {{site}}"
+
+    try:
+        # Make an HTTP GET request to the allowed URL
+        response = requests.get(url, timeout=10)
+        
+        # Check if the status code is 200
+        if response.status_code == 200 or response.status_code == 401:
+            return "Success"
+        else:
+            return f"Invalid URL, status code: {{response.status_code}}"
+    
+    except requests.exceptions.RequestException as e:
+        # Catch and return any exceptions
+        return f"Error: {{str(e)}}"
+$$;
+                    """
+                    cursor = self.client.cursor()
+                    cursor.execute(create_function_query)
+
+                    function_success = True
+                                    
+                except Exception as e:
+                    err = f"An error occurred while creating EAI test function: {e}"
+                    return {"Success": False, "Error": err}
+            # elif object_type == 'WH':
+            else:
+                # check for existing EAI
+                select_query = f"""SELECT CUSTOM_OBJECT_NAME FROM {self.genbot_internal_project_and_schema}.CUSTOM_CONFIG_SETTING WHERE CUSTOM_OBJECT_TYPE = 'EAI'"""
+                cursor.execute(select_query)
+                select_result = cursor.fetchall()
+
+                columns = [col[0].lower() for col in cursor.description]
+                select_result = [dict(zip(columns, row)) for row in select_result]
+                json_data = json.dumps(
+                    select_result, default=str
+                )  # default=str to handle datetime and other non-serializable types
+                
+                return {"Success": True, "Data": json_data}
+
+        except Exception as e:
+            err = f"An error occurred while updating CUSTOM_CONFIG_SETTINGS: {e}"
+            return {"Success": False, "Error": err}
+        
+        # '[{"system$send_email": true}]'
+
+        if table_success and function_success:
+            json_data = json.dumps([{'Success': True}])
+            return {"Success": True, "Data": json_data}
+        else:
+            return {"Success": False, "Error": "something failed"}
+
+        
+
+
     def send_test_email(self, email_addr, thread_id=None):
         """
-        Retrieves a list of all llm types and keys.
+        Tests sending an email and stores the email address in a table.
 
         Returns:
-            list: A list of llm keys, llm types, and the active switch.
+            json: success or failure.
         """
         try:
 

@@ -1,6 +1,6 @@
 import streamlit as st
 import time 
-from utils import get_bot_details, get_metadata, configure_llm
+from utils import get_bot_details, get_metadata, configure_llm, check_eai_status
 
 def llm_config():
     bot_details = get_bot_details()
@@ -58,15 +58,20 @@ def llm_config():
         st.session_state.disable_submit = False
 
     if st.button("Submit Model Selection", key="sendllm", disabled=st.session_state.disable_submit):
-        st.write("One moment while I validate the key and launch the bots...")
-        with st.spinner("Validating API key and launching bots..."):
+        if llm_model != 'cortex':
+            eai_status = check_eai_status()
+        if eai_status == True or llm_model == 'cortex':
+
+            st.write("One moment while I validate the key and launch the bots...")
             if cur_key:
                 llm_api_key = selected_key[0]
             config_response = configure_llm(llm_model, llm_api_key)
-
             if config_response["Success"] is False:
                 resp = config_response["Message"]
                 st.error(f"Failed to set LLM token: {resp}")
+                # if "Connection" in resp:
+                #     #TODO go to EAI page
+                #     1=1
                 cur_key = ""
             else:
                 st.session_state.disable_submit = True
@@ -83,5 +88,8 @@ def llm_config():
                     )
                     st.session_state.clear()
 
-        if cur_key == "<existing key present on server>":
-            st.write("Reload this page to chat with your apps.")
+            if cur_key == "<existing key present on server>":
+                st.write("Reload this page to chat with your apps.")
+
+        else:
+            st.error(f"EAI status: {eai_status}. Set up your EAI.")

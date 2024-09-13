@@ -19,7 +19,7 @@ DIRECTORY_PATH=${1:-~/}
 DIRECTORY_PATH=${DIRECTORY_PATH%/}
 
 # Login to image repo
-#snow spcs image-registry token --connection GENESIS-DEV-PROVIDER --format=JSON
+snow spcs image-registry token --connection GENESIS-DEV-PROVIDER --format=JSON
 snow spcs image-registry token --connection GENESIS-DEV-PROVIDER --format=JSON | docker login dshrnxx-genesis-dev.registry.snowflakecomputing.com --username 0sessiontoken --password-stdin
 
 # Copy main.py to sis_launch.py

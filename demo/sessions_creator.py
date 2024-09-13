@@ -612,6 +612,9 @@ def create_sessions(
     bot_id_to_slack_adapter_map = {}
 
     for bot_config in bots_config:
+
+  #      if bot_config["bot_id"] != 'MrsEliza-3348b2':
+  #          continue
  #       if bot_config.get("bot_name") != 'Janice 2.0':
  #           continue
         if os.getenv("TEST_MODE", "false").lower() == "true":

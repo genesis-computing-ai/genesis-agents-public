@@ -12,6 +12,8 @@ import ast
 refresh_seconds = os.getenv("KNOWLEDGE_REFRESH_SECONDS", 60)
 refresh_seconds = int(refresh_seconds)
 
+print("waiting 60 seconds for other services to start first...", flush=True)
+time.sleep(60)
 
 class KnowledgeServer:
     def __init__(self, db_connector, llm_type, maxsize=100):

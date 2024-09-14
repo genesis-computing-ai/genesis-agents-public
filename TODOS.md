@@ -15,8 +15,11 @@ process supervisor uses o1-mini if available
 new snowpark error-correction advisor for openai, uses o1-mini if available, if not gpt-4o
 
 todo:
+make 405b supervisor for cortex even when openai key is avail
+debug prompts for why armen isnt going to o1
 add cost to o1 bots
 for eva dont mess with her escaping etc in code run
+consider having fast mode not apply to process runs
 for eva dont have the code advisor and examples
 
 now:

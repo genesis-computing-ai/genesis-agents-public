@@ -93,7 +93,8 @@ class ToolBelt:
         self.process_history = {}
         self.done = {}
         self.silent_mode = {}
-        self.last_fail = {}
+        self.last_fail= {}
+        self.fail_count = {}
         self.lock = threading.Lock()
         global belts
         belts = belts + 1 
@@ -185,7 +186,25 @@ class ToolBelt:
 
         self.write_message_log_row(db_adapter, bot_id, bot_name, thread_id, 'Supervisor Prompt', message, message_metadata)
 
-        if os.getenv("BOT_OS_DEFAULT_LLM_ENGINE",'').lower() == 'openai':
+        model = None
+
+        if "BOT_LLMS" in os.environ and os.environ["BOT_LLMS"]:
+            # Convert the JSON string back to a dictionary
+            bot_llms = json.loads(os.environ["BOT_LLMS"])
+
+        # Find the model for the specific bot_id in bot_llms
+        model = None
+        if bot_id and bot_id in bot_llms:
+            model = bot_llms[bot_id].get('current_llm')
+            
+            
+        if not model:
+            if os.getenv("BOT_OS_DEFAULT_LLM_ENGINE",'').lower() == 'openai':
+                model = 'openai'
+            else:
+                model = 'cortex'
+
+        if model == 'openai':
                     api_key = os.getenv("OPENAI_API_KEY")
                     if not api_key:
                         print("OpenAI API key is not set in the environment variables.")
@@ -225,7 +244,7 @@ class ToolBelt:
 
                     return_msg = response.choices[0].message.content
 
-        elif os.getenv("BOT_OS_DEFAULT_LLM_ENGINE").lower() == 'cortex':
+        elif model == 'cortex':
             if not db_adapter.check_cortex_available():
                 print("Cortex is not available.")
                 return None
@@ -345,6 +364,7 @@ class ToolBelt:
         cache_data = {
             "counter": self.counter.get(thread_id, {}).get(process_id),
             "last_fail": self.last_fail.get(thread_id, {}).get(process_id),
+            "fail_count": self.fail_count.get(thread_id, {}).get(process_id),
             "instructions": self.instructions.get(thread_id, {}).get(process_id),
             "process_history": self.process_history.get(thread_id, {}).get(process_id),
             "done": self.done.get(thread_id, {}).get(process_id),
@@ -372,6 +392,10 @@ class ToolBelt:
                     self.last_fail[thread_id] = {}
                 self.last_fail[thread_id][process_id] = cache_data.get("last_fail")
                 
+                if thread_id not in self.fail_count:
+                    self.fail_count[thread_id] = {}
+                self.fail_count[thread_id][process_id] = cache_data.get("fail_count")
+
                 if thread_id not in self.instructions:
                     self.instructions[thread_id] = {}
                 self.instructions[thread_id][process_id] = cache_data.get("instructions")
@@ -479,6 +503,8 @@ class ToolBelt:
          #       self.process[thread_id] = {}
             if thread_id not in self.last_fail:
                 self.last_fail[thread_id] = {}
+            if thread_id not in self.fail_count:
+                self.fail_count[thread_id] = {}
             if thread_id not in self.instructions:
                 self.instructions[thread_id] = {}
             if thread_id not in self.process_history:
@@ -526,6 +552,7 @@ class ToolBelt:
                 self.counter[thread_id][process_id] = 1
          #       self.process[thread_id][process_id] = process
                 self.last_fail[thread_id][process_id] = None
+                self.fail_count[thread_id][process_id] = 0
                 self.instructions[thread_id][process_id] = None
                 self.process_config[thread_id][process_id] = process_config
                 self.process_history[thread_id][process_id] = None
@@ -644,6 +671,7 @@ Now, start by performing the FIRST_STEP indicated above.
 
                 if self.done[thread_id][process_id]:
                     self.last_fail[thread_id][process_id] = None
+                    self.fail_count[thread_id][process_id] = None
                     return {
                         "Success": True,
                         "Message": f"Process {process_name} run complete.",
@@ -722,26 +750,44 @@ Bot's most recent response:
             if "**fail**" in result.lower():
                 with self.lock:
                     self.last_fail[thread_id][process_id] = result
+                    self.fail_count[thread_id][process_id] += 1
                     self.process_history[thread_id][process_id] += "\nSupervisors concern: " + result
-                print(f"\nStep {self.counter[thread_id][process_id]} failed.  Trying again...\n")
+                if self.fail_count[thread_id][process_id] >= 5:
+                    print(f"\nStep {self.counter[thread_id][process_id]} failed. Fail count={self.fail_count[thread_id][process_id]} > 5 failures on this step, stopping process...\n")
+                    self.set_process_cache(bot_id, thread_id, process_id)
+                    print(f'Process cached with bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}')
 
-                self.set_process_cache(bot_id, thread_id, process_id)
-                print(f'Process cached with bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}')
+                    return_dict = {
+                        "success": False,
+                        "feedback_from_supervisor": result,
+                        "current system time": {datetime.now()},
+                        "recovery_step": f"Review the message above and submit a clarification, and/or try this Step {self.counter[thread_id][process_id]} again:\n{self.instructions[thread_id][process_id]}"
+                    }
+                    if verbose:
+                        return_dict["additional_request"] = "Please also explain and summarize this feedback from the supervisor bot to the user so they know whats going on, and how you plan to rectify it."
+                    else:
+                        return_dict["shhh"] = "Remember you are running in slient, non-verbose mode. Limit your output as much as possible."
 
-                return_dict = {
-                    "success": False,
-                    "feedback_from_supervisor": result,
-                    "current system time": {datetime.now()},
-                    "recovery_step": f"Review the message above and submit a clarification, and/or try this Step {self.counter[thread_id][process_id]} again:\n{self.instructions[thread_id][process_id]}"
-                }
-                if verbose:
-                    return_dict["additional_request"] = "Please also explain and summarize this feedback from the supervisor bot to the user so they know whats going on, and how you plan to rectify it."
+                    return return_dict
+
                 else:
-                    return_dict["shhh"] = "Remember you are running in slient, non-verbose mode. Limit your output as much as possible."
-                return return_dict
+                    print(f"\nStep {self.counter[thread_id][process_id]} failed. Fail count={self.fail_count[thread_id][process_id]} Trying again...\n")
+
+                    with self.lock:
+                        self.done[thread_id][process_id] = True
+                    self.clear_process_cache(bot_id, thread_id, process_id)
+                    try:
+                        del self.counter[thread_id][process_id]
+                    except:
+                        pass
+                    print(f'Process cache cleared for bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}')
+
+                    return {"success": "False", "message": f'The process {process_name} has failed due to > 5 repeated step completion failures.  Do not start this process again without user approval.'}
+
 
             with self.lock:
                 self.last_fail[thread_id][process_id] = None
+                self.fail_count[thread_id][process_id] = 0
                 print(f"\nThis step passed.  Moving to next step\n")
                 self.counter[thread_id][process_id] += 1
                 
@@ -773,6 +819,7 @@ Process Instructions:
             if next_step == '**done**' or next_step == '***done***' or next_step.strip().endswith('**done**'):
                 with self.lock:
                     self.last_fail[thread_id][process_id] = None
+                    self.fail_count[thread_id][process_id] = None
                     self.done[thread_id][process_id] = True
                 # Clear the process cache when the process is complete
                 self.clear_process_cache(bot_id, thread_id, process_id)

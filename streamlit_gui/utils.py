@@ -5,7 +5,6 @@ import uuid
 import datetime
 import pandas as pd
 import requests
-import snowflake.permissions as permissions
 
 def get_session():
 
@@ -285,9 +284,11 @@ def check_eai_status():
         st.error(f"Error checking eai status: {e}")
 
 def get_references(reference_name):
-
-    try:
-        ref_associations = permissions.get_reference_associations(reference_name)
-        return ref_associations
-    except Exception as e:
-        st.error(f"Error checking references: {e}")
+    if st.session_state.NativeMode:
+        try:
+            from snowflake.snowpark.context import get_active_session
+            ref_associations = permissions.get_reference_associations(reference_name)
+            return ref_associations
+        except Exception as e:
+            st.error(f"Error checking references: {e}")
+            

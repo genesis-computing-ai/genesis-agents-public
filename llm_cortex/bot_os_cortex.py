@@ -88,6 +88,16 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         newarray = [{"role": message["message_type"], "content": message["content"]} for message in self.thread_history[thread_id]]
         new_array_str = json.dumps(newarray) 
 
+        # Check if process_flag is set to "TRUE" on the last message in thread history
+        process_flag = False
+        if self.thread_history[thread_id]:
+            last_message = self.thread_history[thread_id][-1]
+            if isinstance(last_message, dict) and 'process_flag' in last_message:
+                process_flag = last_message['process_flag'] == "TRUE"
+        
+        if process_flag:
+            print(f"Process flag is set to TRUE for thread {thread_id}, will use Smart model")
+
         resp = ''
         curr_resp = ''
 
@@ -225,6 +235,17 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
     def cortex_rest_api(self,thread_id,message_metadata=None, event_callback=None, temperature=None, fast_mode=False):
 
         newarray = [{"role": message["message_type"], "content": message["content"]} for message in self.thread_history[thread_id]]
+
+        process_flag = False
+        if self.thread_history[thread_id]:
+            last_message = self.thread_history[thread_id][-1]
+            if isinstance(last_message, dict) and 'process_flag' in last_message:
+                process_flag = last_message['process_flag'] == "TRUE"
+        
+        if process_flag == True and fast_mode == True:
+            print(f"Process flag is set to TRUE for thread {thread_id}, forcing Smart model instead of Fast Mode")
+            fast_mode = False
+
         resp = ''
         curr_resp = ''
 
@@ -1014,7 +1035,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             "message_type": "user",
             "content": prefix+results,
             "timestamp": new_ts.isoformat(),
-            "metadata": message_metadata
+            "metadata": message_metadata,
         }
 
         function_name = ''
@@ -1029,6 +1050,8 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             logger.info(f"Tool call was successful for Thread ID {thread_id}")        
         if func_call_details is not None:
             function_name = func_call_details.get('function_name')
+            if function_name == '_run_process':
+                message_object['process_flag'] = 'TRUE'
             if function_name in ['remove_tools_from_bot','add_new_tools_to_bot', 'add_bot_files', 'update_bot_instructions', 'remove_bot_files']:
                 try:
                     results_json = json.loads(results)

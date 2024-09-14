@@ -20,8 +20,9 @@ uploads/*
 saved_llm_settings_local.json
 *.DS_Store
 *.pickle
-/snowflake_app/mr_genesis_natapp_provider.sql
-/streamlit_gui/mr_streamlit_sis_v1.py
+snowflake_app/mr_genesis_natapp_provider.sql
+streamlit_gui/mr_streamlit_sis_v1.py
+streamlit_gui/Genesis.py
 streamlit_new/*
 .scratch
 *.ann

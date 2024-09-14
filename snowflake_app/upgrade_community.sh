@@ -85,7 +85,7 @@ if [ "$patch_number" -eq 130 ]; then
     echo "WARNING: You will need to upgrade your version number before your next patch"
 fi
 
-snow sql -c GENESIS-ALPHA-CONSUMER -q "alter application genesis_bots_alpha upgrade"
+snow sql -c GENESIS-ALPHA-CONSUMER -q "alter application genesis_bots upgrade"
 
 snow sql -c GENESIS-ALPHA-CONSUMER -q "show services"
 

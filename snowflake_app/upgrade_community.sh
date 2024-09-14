@@ -57,7 +57,7 @@ snow sql -c GENESIS-ALPHA-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/snowfl
 # Upload YML files
 snow sql -c GENESIS-ALPHA-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/snowflake_app/*.yml @GENESISAPP_APP_PKG_COMM.CODE_SCHEMA.APP_CODE_STAGE AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
 
-output=$(snow sql -c GENESIS-ALPHA-PROVIDER -q "ALTER APPLICATION PACKAGE $GENESISAPP_APP_PKG_COMM ADD PATCH FOR VERSION V0_1 USING @GENESISAPP_APP_PKG_COMM.CODE_SCHEMA.APP_CODE_STAGE")
+output=$(snow sql -c GENESIS-ALPHA-PROVIDER -q "ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG_COMM ADD PATCH FOR VERSION V0_1 USING @GENESISAPP_APP_PKG_COMM.CODE_SCHEMA.APP_CODE_STAGE")
 
 # Output the result of the first command
 echo "First command output:"
@@ -85,9 +85,9 @@ if [ "$patch_number" -eq 130 ]; then
     echo "WARNING: You will need to upgrade your version number before your next patch"
 fi
 
-# snow sql -c GENESIS-ALPHA-CONSUMER -q "alter application genesis_bots_alpha upgrade"
+snow sql -c GENESIS-ALPHA-CONSUMER -q "alter application genesis_bots_alpha upgrade"
 
-# snow sql -c GENESIS-ALPHA-CONSUMER -q "show services"
+snow sql -c GENESIS-ALPHA-CONSUMER -q "show services"
 
 echo "Upgrade complete"
 

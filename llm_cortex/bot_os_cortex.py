@@ -258,9 +258,13 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             if thread_id in self.thread_stop_map:
                 self.thread_stop_map.pop(thread_id)
             if ') says: !model' in last_user_message["content"] or last_user_message["content"]=='!model':
-                resp= f"The base model is set to: {self.llm_engine}. Currently running via Cortext via REST. You can say !model llama3.1-405b, !model llama3.1-70b, or !model llama3.1-8b to change model size."
-                if thread_id in self.thread_fast_mode_map:
-                   resp += f"\nFast mode activated for this thread. Actual is now {os.getenv('CORTEX_FAST_MODEL_NAME', 'llama3.1-70b')} due to fast mode."
+                if self.bot_id in ['eva-x1y2z3', 'MrsEliza-3348b2', os.getenv("O1_OVERRIDE_BOT","")]:
+                    resp += f'\nThis bot is running on {os.getenv("OPENAI_O1_OVERRIDE_MODEL",os.getenv("OPENAI_MODEL_NAME","gpt-4o"))} in override mode.'
+                else:
+                    if thread_id in self.thread_fast_mode_map or fast_mode:
+                        resp += f"\nFast mode activated for this thread. Model is now {os.getenv('CORTEX_FAST_MODEL_NAME', 'llama3.1-70b')}."
+                    else:
+                        resp += f"\nSmart mode is active for this thread. Model is now {self.llm_engine}." 
                 curr_resp = resp
             if ') says: !model llama3.1-405b' in last_user_message["content"] or last_user_message["content"]=='!model llama3.1-405b':
                 self.llm_engine = 'llama3.1-405b'
@@ -296,7 +300,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                 
         if resp == '':
  
-            if self.bot_id in ['eva-x1y2z3', 'MrsEliza-3348b2']:
+            if self.bot_id in ['eva-x1y2z3', 'MrsEliza-3348b2', os.getenv("O1_OVERRIDE_BOT","")]:
 
                 if os.getenv("BOT_OS_DEFAULT_LLM_ENGINE",'').lower() == 'openai':
                     api_key = os.getenv("OPENAI_API_KEY")
@@ -304,9 +308,9 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                         print("OpenAI API key is not set in the environment variables.")
                         return None
 
-                    openai_model = os.getenv("OPENAI_MODEL_SUPERVISOR",os.getenv("OPENAI_MODEL_NAME","gpt-4o"))
+                    openai_model = os.getenv("OPENAI_O1_OVERRIDE_MODEL",os.getenv("OPENAI_MODEL_NAME","gpt-4o"))
                     newarray[0]['role'] = 'user'
-                    print('o1 override - using model: ', openai_model)
+                    print(f'**** OpenaAI o1 override for bot {self.bot_id} using model: {openai_model}')
                     try:
                         openai_api_key = os.getenv("OPENAI_API_KEY")
                         client = OpenAI(api_key=openai_api_key)
@@ -318,11 +322,13 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                         print(f"Error occurred while calling OpenAI API with snowpark escallation model {openai_model}: {e}")
                         return None
                     
-                resp = self.thread_full_response.get(thread_id,None)
-                if resp is None:
-                    resp = ''         
-                curr_resp += response.choices[0].message.content
-                resp += curr_resp
+                    resp = self.thread_full_response.get(thread_id,None)
+                    if resp is None:
+                        resp = ''         
+                    curr_resp += response.choices[0].message.content
+                    resp += curr_resp
+                else:
+                    curr_resp = 'Openai not set as default but this is an override bot for openai o1'
 
             else:
 

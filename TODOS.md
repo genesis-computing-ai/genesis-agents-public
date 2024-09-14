@@ -19,10 +19,19 @@ add cost to o1 bots
 for eva dont mess with her escaping etc in code run
 for eva dont have the code advisor and examples
 
-put process supervisor back on o1-mini vs o1-preview
-add o1-mini logging messages
-have all the exanples and tips only go into the fixit bot for snowpark to keep main thread more clear
-have fixit bot work on cortex w/o openai , use 405b
+now:
+change Janice 2.0 to Janice 
+test process runner cortex and openai
+test o1 override bot with snowpark
+test cortex and openai bot with snowpark
+
+checj get file from stage when file doesnt exist, also check to see if file it local instead
+x fix !model on cortex fast mode streamlit
+x put process supervisor back on o1-mini vs o1-preview
+x add o1-mini logging messages
+x have all the exanples and tips only go into the fixit bot for snowpark to keep main thread more clear
+x have fixit bot work on cortex w/o openai , use 405b
+
 have a cut off for cortex on tool calls without stopping to talk to the user or the process supervisor after 10 tool calls in one run...
 have add file to stage see if the file is there before saying to return it
 n try jamba model on snowpark

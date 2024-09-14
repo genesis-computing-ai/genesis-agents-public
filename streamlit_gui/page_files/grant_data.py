@@ -95,4 +95,7 @@ def grant_data():
     --- once granted, Genesis will automatically start to catalog this data so you can use it with Genesis bots
     """
     )
-    st.text_area("Commands to allow this application to see your data:", wh_text, height=800)
+    st.markdown('<div class="code-box">', unsafe_allow_html=True)
+    st.code(wh_text, language="sql")
+    st.markdown('</div>', unsafe_allow_html=True)
+    # st.text_area("Commands to allow this application to see your data:", wh_text, height=800)

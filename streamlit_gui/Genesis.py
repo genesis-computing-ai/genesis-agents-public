@@ -6,7 +6,7 @@ import base64
 # Set Streamlit to wide mode
 st.set_page_config(layout="wide")
 
-st.session_state.app_name = "GENESIS_BOTS_ALPHA"
+st.session_state.app_name = "GENESIS_BOTS"
 st.session_state.prefix = st.session_state.app_name + ".app1"
 st.session_state.core_prefix = st.session_state.app_name + ".CORE"
 
@@ -15,6 +15,27 @@ if 'NativeMode' not in st.session_state:
 
 if "wh_name" not in st.session_state:
     st.session_state["wh_name"] = "XSMALL" # TODO fix warehouse name
+
+
+# Initialize session state for the modal
+# if "show_modal" not in st.session_state:
+#     st.session_state.show_modal = True  # Default to showing the modal
+
+# def hide_modal():
+#     st.session_state.show_modal = False
+
+# # Define the modal logic
+# def show_modal():
+#     with st.expander("Important Notice", expanded=True):
+#         st.write("This is an important message for the user.")
+#         if st.checkbox("Ignore this message for the rest of the session"):
+#             hide_modal()
+
+# # Show modal if the session state allows
+# if st.session_state.show_modal:
+#     show_modal()
+
+# Main content of the app
 
 def render_image(filepath: str, width = None):
    """

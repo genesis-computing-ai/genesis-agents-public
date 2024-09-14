@@ -5,6 +5,7 @@ import uuid
 import datetime
 import pandas as pd
 import requests
+import snowflake.permissions as permissions
 
 def get_session():
 
@@ -282,3 +283,11 @@ def check_eai_status():
         return result
     except Exception as e:
         st.error(f"Error checking eai status: {e}")
+
+def get_references(reference_name):
+
+    try:
+        ref_associations = permissions.get_reference_associations(reference_name)
+        return ref_associations
+    except Exception as e:
+        st.error(f"Error checking references: {e}")

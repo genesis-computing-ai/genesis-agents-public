@@ -752,7 +752,7 @@ Bot's most recent response:
                     self.last_fail[thread_id][process_id] = result
                     self.fail_count[thread_id][process_id] += 1
                     self.process_history[thread_id][process_id] += "\nSupervisors concern: " + result
-                if self.fail_count[thread_id][process_id] >= 5:
+                if self.fail_count[thread_id][process_id] <= 5:
                     print(f"\nStep {self.counter[thread_id][process_id]} failed. Fail count={self.fail_count[thread_id][process_id]} > 5 failures on this step, stopping process...\n")
                     self.set_process_cache(bot_id, thread_id, process_id)
                     print(f'Process cached with bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}')

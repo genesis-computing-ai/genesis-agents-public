@@ -1193,7 +1193,7 @@ class SlackBotAdapter(BotOsInputAdapter):
                     f"SlackBotAdapter:handle_response - Error posting message: {e}"
                 )
 
-    def process_attachments(self, msg, attachments):
+    def process_attachments(self, msg, attachments, files_in = None):
         files_to_attach = []
         for attachment in attachments:
             if "image_url" in attachment:
@@ -1246,6 +1246,10 @@ class SlackBotAdapter(BotOsInputAdapter):
             local_path = f"./downloaded_files/thread_{local_match[0]}/{local_match[1]}"
             if local_path not in files_to_attach:
                 files_to_attach.append(local_path)
+
+        # Append files_in to files_to_attach if it's not None
+        if files_in is not None:
+            files_to_attach.extend(files_in)
 
         if files_to_attach:
             uploaded_files = self._upload_files(
@@ -1310,7 +1314,21 @@ class SlackBotAdapter(BotOsInputAdapter):
         try:
             # Start a conversation with the user
             response = self.slack_app.client.conversations_open(users=slack_user_id)
-            file_list = self.process_attachments(message, attachments)
+
+        # Extract file paths from the message and add them to files_in array
+            files_in = []
+            image_pattern = re.compile(
+                r"\[.*?\]\((sandbox:/mnt/data(?:/downloads)?/.*?)\)"
+            )
+            matches = image_pattern.findall(message)
+            for match in matches:
+                local_path = match.replace("sandbox:/mnt/data/downloads", f"./downloaded_files/{thread_id}").replace("sandbox:/mnt/data", f"./downloaded_files/{thread_id}")
+                
+                if local_path not in files_in:
+                    #      print(f"Pattern 0 found, attaching {local_path}")
+                    files_in.append(local_path)
+
+            file_list = self.process_attachments(message, attachments, files_in=files_in)
 
             message = self.replace_urls(msg=message, msg_files=file_list)
             if response["ok"]:
@@ -1383,9 +1401,22 @@ class SlackBotAdapter(BotOsInputAdapter):
         if channel_name.lower() == 'general':
             return "Bots are not allowed to post to #general. Reconfirm what channel you are supposed to post to."
 
+        # Extract file paths from the message and add them to files_in array
+        files_in = []
+        image_pattern = re.compile(
+            r"\[.*?\]\((sandbox:/mnt/data(?:/downloads)?/.*?)\)"
+        )
+        matches = image_pattern.findall(message)
+        for match in matches:
+            local_path = match.replace("sandbox:/mnt/data/downloads", f"./downloaded_files/{thread_id}").replace("sandbox:/mnt/data", f"./downloaded_files/{thread_id}")
+            
+            if local_path not in files_in:
+                #      print(f"Pattern 0 found, attaching {local_path}")
+                files_in.append(local_path)
+
 
         try:
-            file_list = self.process_attachments(message, attachments)
+            file_list = self.process_attachments(message, attachments, files_in=files_in)
             message = self.replace_urls(msg=message, msg_files=file_list)
             res = self.slack_app.client.chat_postMessage(
                 channel=channel_name,

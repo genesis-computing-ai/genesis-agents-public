@@ -15,32 +15,13 @@ process supervisor uses o1-mini if available
 new snowpark error-correction advisor for openai, uses o1-mini if available, if not gpt-4o
 
 todo:
-make 405b supervisor for cortex even when openai key is avail
-debug prompts for why armen isnt going to o1
 add cost to o1 bots
-for eva dont mess with her escaping etc in code run
-consider having fast mode not apply to process runs
-for eva dont have the code advisor and examples
-
-now:
+check jeff's outrigger sleep system
 change Janice 2.0 to Janice 
-test process runner cortex and openai
-test o1 override bot with snowpark
-test cortex and openai bot with snowpark
-
 checj get file from stage when file doesnt exist, also check to see if file it local instead
-x fix !model on cortex fast mode streamlit
-x put process supervisor back on o1-mini vs o1-preview
-x add o1-mini logging messages
-x have all the exanples and tips only go into the fixit bot for snowpark to keep main thread more clear
-x have fixit bot work on cortex w/o openai , use 405b
-
-have a cut off for cortex on tool calls without stopping to talk to the user or the process supervisor after 10 tool calls in one run...
+(test) have a cut off for cortex on tool calls without stopping to talk to the user or the process supervisor after 10 tool calls in one run...
 have add file to stage see if the file is there before saying to return it
-n try jamba model on snowpark
-n (needed/later?) make a wrapper for graphs
-x figure out why imports are needed on every function (and tell it to add them)
-n (test) cortex different way of calling a python run
+wrapper for graphs for cortex
 cortex suppress tool call gen better
 give processs ids in list of processes when not found on run, especially on get next step... 
 openai error retries on slack dont seem to respond back
@@ -49,9 +30,9 @@ need handler for long cortex threads
 clean up logging and cust data in logs and run_query
 (test) matts issue with scheduled processes make sure it works without thread_id ok with the cache
 (test) see if task sender of emails will add the process id etc and see if you can paste that into the bot chat to talk about it.. maybe make it a get history procedure call 
-(test) check !fast off on alpha cortex after upgrade
+x (test) check !fast off on alpha cortex after upgrade
 (test) deploy then check search metadata with database and schema options
-(test) get mini bot avatars into streamlit / check bot images on Dev streamlit
+MR-(test) get mini bot avatars into streamlit / check bot images on Dev streamlit
 (test) check new janice auto insertion code 
 (test) security review pass
 MR-updated streamlit launch wizard, new WH logic
@@ -63,6 +44,23 @@ JD-make outrigger processes (harvest, knowledge, task) wake up at the top of the
 MR-add streamlit startup popup (maybe via links to our docs) for :log enablement (highly encouraged), warehouse grant existing (optional), EAI for openai and slack (optional), MR-cross region enablement for LLM (if not us-east/us-west), data granting (maybe we mention this here too), email sending 
 
 done:
+x fix !model on cortex fast mode streamlit
+x put process supervisor back on o1-mini vs o1-preview
+x add o1-mini logging messages
+x have all the exanples and tips only go into the fixit bot for snowpark to keep main thread more clear
+x have fixit bot work on cortex w/o openai , use 405b
+x for eva dont mess with her escaping etc in code run
+x consider having fast mode not apply to process runs
+x for eva dont have the code advisor and examples
+x make 405b supervisor for cortex even when openai key is avail
+x debug prompts for why armen isnt going to o1
+x test process runner cortex and openai
+x test o1 override bot with snowpark
+x test cortex and openai bot with snowpark
+n try jamba model on snowpark
+n (needed/later?) make a wrapper for graphs
+x figure out why imports are needed on every function (and tell it to add them)
+n (test) cortex different way of calling a python run
 x need a place to gather and test the email integrations, add a step for email to the welcome wizard
 x change  !NO_RESPONSE_REQUIRED if its in bot instrucctions when pulling them
 x eve stops talking if repeating instructions 5 times

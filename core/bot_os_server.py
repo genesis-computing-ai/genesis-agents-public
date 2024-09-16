@@ -175,8 +175,13 @@ class BotOsServer:
             insts = self.get_running_instances()
             if True or insts > 1:
                 # print(f"--- {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} bot_os_server runners: {insts} / max 100 (cycle = {BotOsServer.cycle_count})",flush=True)
+                emb_size = 'Unknown'
+                try:
+                    emb_size = os.environ['EMBEDDING_SIZE']
+                except:
+                    pass
                 sys.stdout.write(
-                    f"--- {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} bot_os_server runners: {insts} / max 100 (cycle = {BotOsServer.cycle_count})\n"
+                    f"--- {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} bot_os_server runners: {insts} / max 100, emb_size: {emb_size} (cycle = {BotOsServer.cycle_count})\n"
                 )
                 sys.stdout.flush()
                 i = 0

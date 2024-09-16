@@ -1257,6 +1257,7 @@ def tasks_loop():
 
         # for testing, make 
 
+        processed_tasks_full = []
         for session in active_sessions:
             # Find the input adapter that is an instance of BotOsInputAdapter
             input_adapter = next(
@@ -1468,6 +1469,7 @@ def tasks_loop():
                 # ...
 
                 processed_tasks.append(task_id)
+                processed_tasks_full.append(task_id)
 
             for task_id in processed_tasks:
                 pending_tasks = deque(
@@ -1493,6 +1495,13 @@ def tasks_loop():
                 wake_up = True
                 print(f"Task {task['task_id']} is due to run soon.")
                 break
+            if len(pending_tasks) > 0:
+                wake_up = True
+            for pt in processed_tasks_full:
+                if pt["next_check_ts"] < datetime.now() + timedelta(minutes=2):
+                    wake_up = True
+                    print(f"Task {pt['task_id']} is due to run soon.")
+                    break               
 
             time.sleep(120)
 

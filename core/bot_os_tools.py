@@ -630,11 +630,11 @@ Now, start by performing the FIRST_STEP indicated above.
                 line.lstrip() for line in self.instructions[thread_id][process_id].splitlines()
                 )
 
-            print("\nKICK-OFF STEP: \n", self.instructions[thread_id][process_id], "\n")
+       #     print("\nKICK-OFF STEP: \n", self.instructions[thread_id][process_id], "\n")
 
             # Call set_process_cache to save the current state
             self.set_process_cache(bot_id, thread_id, process_id)
-            print(f'Process cached with bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}')
+        #    print(f'Process cached with bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}')
 
             return {"Success": True, "Instructions": self.instructions[thread_id][process_id], "process_id": process_id}
 
@@ -727,7 +727,7 @@ Bot's most recent response:
 {previous_response}
 """
 
-            print(f"\nSENT TO 2nd LLM:\n{check_response}\n")
+       #     print(f"\nSENT TO 2nd LLM:\n{check_response}\n")
 
             result = self.chat_completion(check_response, self.db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, process_id=process_id, process_name = process_name)
 
@@ -736,7 +736,7 @@ Bot's most recent response:
 
             if not isinstance(result, str):
                 self.set_process_cache(bot_id, thread_id, process_id)
-                print(f'Process cached with bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}')
+       #         print(f'Process cached with bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}')
 
                 return {
                     "success": False,
@@ -745,7 +745,7 @@ Bot's most recent response:
             
            # print("RUN 2nd LLM...")
 
-            print(f"\nRESULT FROM 2nd LLM: {result}\n")
+    #        print(f"\nRESULT FROM 2nd LLM: {result}\n")
 
             if "**fail**" in result.lower():
                 with self.lock:
@@ -755,7 +755,7 @@ Bot's most recent response:
                 if self.fail_count[thread_id][process_id] <= 5:
                     print(f"\nStep {self.counter[thread_id][process_id]} failed. Fail count={self.fail_count[thread_id][process_id]} > 5 failures on this step, stopping process...\n")
                     self.set_process_cache(bot_id, thread_id, process_id)
-                    print(f'Process cached with bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}')
+             #       print(f'Process cached with bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}')
 
                     return_dict = {
                         "success": False,
@@ -809,12 +809,12 @@ Process Instructions:
 {process['PROCESS_INSTRUCTIONS']}
                 """
 
-            print(f"\nEXTRACT NEXT STEP:\n{extract_instructions}\n")
+       #     print(f"\nEXTRACT NEXT STEP:\n{extract_instructions}\n")
 
        #     print("RUN 2nd LLM...")
             next_step = self.chat_completion(extract_instructions, self.db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, process_id=process_id, process_name=process_name)
 
-            print(f"\nRESULT (NEXT_STEP_): {next_step}\n")
+      #      print(f"\nRESULT (NEXT_STEP_): {next_step}\n")
 
             if next_step == '**done**' or next_step == '***done***' or next_step.strip().endswith('**done**'):
                 with self.lock:
@@ -832,7 +832,7 @@ Process Instructions:
                     "reminder": f"If you were running this as a subprocess inside another process, be sure to continue the parent process."
                 }
 
-            print(f"\n{next_step}\n")
+    #        print(f"\n{next_step}\n")
 
             with self.lock:
                 self.instructions[thread_id][process_id] = f"""
@@ -859,7 +859,7 @@ By the way the current system time id: {datetime.now()}.
 In your response back to run_process, provide a detailed description of what you did, what result you achieved, and why you believe this to have successfully completed the step.
                 """
 
-            print(f"\nEXTRACTED NEXT STEP: \n{self.instructions[thread_id][process_id]}\n")
+       #     print(f"\nEXTRACTED NEXT STEP: \n{self.instructions[thread_id][process_id]}\n")
 
             with self.lock:
                 self.process_history[thread_id][process_id] += "\nNext step: " + next_step

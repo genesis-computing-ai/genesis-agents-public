@@ -310,7 +310,7 @@ def load_or_create_embeddings_index(table_id, refresh=True):
     if os.path.exists(index_size_file):
         with open(index_size_file, 'r') as f:
             embedding_size = int(f.read().strip())
-        print(f"Embedding size ({embedding_size}) read from {index_size_file}")
+#        print(f"Embedding size ({embedding_size}) read from {index_size_file}")
     # Set the EMBEDDING_SIZE environment variable
     os.environ['EMBEDDING_SIZE'] = str(embedding_size)
    # print(f"EMBEDDING_SIZE environment variable set to: {os.environ['EMBEDDING_SIZE']}")

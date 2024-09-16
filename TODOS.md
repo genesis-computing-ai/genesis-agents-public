@@ -15,7 +15,10 @@ process supervisor uses o1-mini if available
 new snowpark error-correction advisor for openai, uses o1-mini if available, if not gpt-4o
 
 todo:
+add dyanmic sql tables for processes to APP1 metadata
+cortex doesnt return file results after running snowpark a few times... gets cut off with a dangling speech bubble
 add cost to o1 bots
+read stage then slack not sending the attachment:  [Download mary_had_a_little_lamb.txt](./downloaded_files/mary_had_a_little_lamb.txt)
 check jeff's outrigger sleep system
 change Janice 2.0 to Janice 
 checj get file from stage when file doesnt exist, also check to see if file it local instead
@@ -114,6 +117,11 @@ x streamlit takes a long time before submitting welcome job for each bot.. loadi
 x add bot details caching to new streamlit 
 
 next version:
+make sure tool learnings are captured, and apply them at tool level (perhaps in error responses), e.g. armen 2.0 example
+have send_email tool have a standard footer with who sent in, link back, process info, etc.
+make process scheduler wake up for the task it just finished not just skipped tasks
+scheduler base on process id vs name
+scheduler check for overlapping existing schedules
 handle customer granting then ungranting an external WH, trap in streamlit, notify, maybe take action
 have it on email have it suggest turning on default processes
 on upgrade retain the embeddings for the shared views if they exist

@@ -1215,7 +1215,7 @@ $$;
             dict: A dictionary with the result of the operation.
         """
 
-        print("Reached process scheduler")
+    #    print("Reached process scheduler")
 
         required_fields_create = [
             "task_name",

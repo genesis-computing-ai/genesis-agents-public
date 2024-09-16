@@ -969,7 +969,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             if 'arguments_str' not in locals():
                 arguments_str = json.dumps(arguments)
             print(f"Function to call: {function_to_call}")
-            print(f"Arguments: {json.dumps(arguments, indent=2)}", flush=True)
+            print(f"Argument keys: {', '.join(arguments.keys())}", flush=True)
             meta = json.loads(message_metadata)
             primary_user = json.dumps({'user_id': meta.get('user_id', 'Unknown User ID'), 
                                     'user_name': meta.get('user_name', 'Unknown User'),

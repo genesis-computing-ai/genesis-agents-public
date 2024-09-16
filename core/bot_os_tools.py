@@ -561,7 +561,7 @@ class ToolBelt:
 
 
             print(
-                f"Process {process_name} has been kicked off.  Process object: \n{process}\n\n"
+                f"Process {process_name} has been kicked off."
             )
 
             extract_instructions = f"""

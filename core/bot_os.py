@@ -392,7 +392,7 @@ class BotOsSession:
             if input_message is None or input_message.msg == "":
                 continue
 
-            print(f"bot os session input message {input_message.msg}")
+         #   print(f"bot os session input message {input_message.msg}")
 
 
             self.update_bots_active_table()

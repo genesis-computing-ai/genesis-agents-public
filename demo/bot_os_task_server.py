@@ -1503,7 +1503,10 @@ def tasks_loop():
                     print(f"Task {pt['task_id']} is due to run soon.")
                     break               
 
-            time.sleep(120)
+            if len(pending_tasks) > 0:
+                time.sleep(30)
+            else:
+                time.sleep(120)
 
             cursor = db_adapter.client.cursor()
             check_bot_active = f"DESCRIBE TABLE {db_adapter.schema}.BOTS_ACTIVE"

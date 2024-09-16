@@ -6576,12 +6576,13 @@ $$
             )
             return {"success": False, "error": str(e)}
 
-    def extract_knowledge(self, primary_user, bot_name, bot_id=None):
+    def extract_knowledge(self, primary_user, bot_id):
+
         query = f"""SELECT * FROM {self.user_bot_table_name} 
-                    WHERE primary_user = '{primary_user}' AND BOT_ID LIKE '{bot_id}%'
+                    WHERE primary_user = '{primary_user}' AND BOT_ID = '{bot_id}'
                     ORDER BY TIMESTAMP DESC
                     LIMIT 1;"""
-        knowledge = self.run_query(query, bot_id=bot_id)
+        knowledge = self.run_query(query)
         if knowledge:
             return knowledge[0]
         return []

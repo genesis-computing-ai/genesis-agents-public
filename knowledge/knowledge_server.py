@@ -227,8 +227,14 @@ class KnowledgeServer:
 
                 continue
             primary_user, bot_id, knowledge = self.user_queue.get()
+            user_json = json.loads(primary_user)
+            if user_json.get('user_email','Unknown Email') != 'Unknown Email':
+                user_query = user_json['user_email']
+            else:
+                user_query = user_json.get('user_id', 'Unknown User ID')
+                
             query = f"""SELECT * FROM {self.db_connector.user_bot_table_name}
-                        WHERE primary_user = '{primary_user}' AND BOT_ID = '{bot_id}'
+                        WHERE primary_user = '{user_query}' AND BOT_ID = '{bot_id}'
                         ORDER BY TIMESTAMP DESC
                         LIMIT 1;"""
 
@@ -276,8 +282,7 @@ class KnowledgeServer:
 
             try:
                 timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")                
-                self.db_connector.run_insert(self.db_connector.user_bot_table_name, timestamp=timestamp, primary_user=primary_user,bot_id=bot_id,
-                
+                self.db_connector.run_insert(self.db_connector.user_bot_table_name, timestamp=timestamp, primary_user=user_query, bot_id=bot_id,                
                                               user_learning=new_knowledge["USER_LEARNING"],tool_learning=new_knowledge["TOOL_LEARNING"],
                                               data_learning=new_knowledge["DATA_LEARNING"])
             except Exception as e:

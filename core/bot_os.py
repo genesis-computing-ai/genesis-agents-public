@@ -424,8 +424,12 @@ class BotOsSession:
                     primary_user = json.dumps({'user_id': input_message.metadata.get('user_id', 'Unknown User ID'), 
                                                'user_name': input_message.metadata.get('user_name', 'Unknown User'),
                                                'user_email': input_message.metadata.get('user_email', 'Unknown Email')})
-                    knowledge = self.log_db_connector.extract_knowledge(primary_user, self.bot_name, bot_id=self.bot_id)
-                    print(f'bot_os {self.bot_name} knowledge injection, user={primary_user} len knowledge="{len(knowledge)}')
+                    if input_message.metadata.get('user_email', 'Unknown Email') != 'Unknown Email':
+                        user_query = input_message.metadata['user_email']
+                    else:
+                        user_query = input_message.metadata.get('user_id', 'Unknown User ID')
+                    knowledge = self.log_db_connector.extract_knowledge(user_query, self.bot_id)
+                    print(f'bot_os {self.bot_id} knowledge injection, user={primary_user} len knowledge="{len(knowledge)}')
                     if knowledge:
                         input_message.msg = f'''NOTE--Here are some things you know about this user from previous interactions, that may be helpful to this conversation:
                         

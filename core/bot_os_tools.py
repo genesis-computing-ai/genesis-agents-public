@@ -694,7 +694,7 @@ A bot has retried a step of a process based on your prior feedback (shown below)
 asked and the response the bot gave after re-trying to perform the task based on your feedback.  Review the response and determine if the 
 bot's response is now better in light of the instructions and the feedback you gave previously. You can accept the final results of the
 previous step without asking to see the sql queries and results that led to the final conclusion.  Do not nitpick validity of actual data value 
-like names and similar. If you are very seriously concerned that the step 
+like names and similar.  Do not ask to see all the raw data that a query or other tool has generated. If you are very seriously concerned that the step 
 may still have not have been correctly perfomed, return a request to again re-run the step of the process by returning the text "**fail**" 
 followed by a DETAILED EXPLAINATION as to why it did not pass and what your concern is, and why its previous attempt to respond to your criticism 
 was not sufficient, and any suggestions you have on how to succeed on the next try. If the response looks correct, return only the text string 
@@ -716,8 +716,9 @@ Bot's latest response: {previous_response}
 Check the previous question that the bot was asked in the process history below and the response the bot gave after trying to perform the task.  Review the response and 
 determine if the bot's response was correct and makes sense given the instructions it was given.  You can accept the final results of the
 previous step without asking to see the sql queries and results that led to the final conclusion.  You don't need to validate things like names or other
-text values unless they seem wildly incorrect. If you are very seriously concerned that the step may not 
-have been correctly perfomed, return a request to re-run the step of the process again by returning the text "**fail**" followed by a 
+text values unless they seem wildly incorrect. You do not need to see the data that came out of a query the bot ran.  
+
+If you are very seriously concerned that the step may not have been correctly perfomed, return a request to re-run the step of the process again by returning the text "**fail**" followed by a 
 DETAILED EXPLAINATION as to why it did not pass and what your concern is, and any suggestions you have on how to succeed on the next try.  
 If the response seems like it is likely correct, return only the text string "**success**" (no explanation needed) to continue to the next step.  If the process is complete,
 tell the process to stop running.  Remember, proceed under your own direction and do not ask the user for permission to proceed.
@@ -956,7 +957,8 @@ In your response back to run_process, provide a detailed description of what you
                 return {
                     "Success": True,
                     "Data": dict(zip(field_names, result)),
-                    "Note": "Only use this information to help manage or update processes, do not actually run a process based on these instructions. If you want to run this process, use _run_process function and follow the instructions that it gives you."
+                    "Note": "Only use this information to help manage or update processes, do not actually run a process based on these instructions. If you want to run this process, use _run_process function and follow the instructions that it gives you.",
+                    "Important!": "If a user has asked you to show these instructont to them, output them verbatim, do not modify of summarize them."
                 }
             else:
                 return {}

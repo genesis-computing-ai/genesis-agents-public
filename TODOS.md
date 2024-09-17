@@ -15,15 +15,16 @@ process supervisor uses o1-mini if available
 new snowpark error-correction advisor for openai, uses o1-mini if available, if not gpt-4o
 
 today:
-streamlit images
+x streamlit images
 unicode quotes for fn call cortex?
 why cant it send slack in a process for janice joke 2.0 (startswith..?)
 stremlit error
+fix cortex using process scheduler... lots of issues, changes dont stick, etc.
 
 todo:
-fix cortex using process scheduler... lots of issues, changes dont stick, etc.
 mistrallarge2, use?
 have task server reload the sessions every hour in case they've changed imp'l etc
+make knowledge server work properly, consolidate on email address
 x check one time and recurring cortex task completion, properly updating schedule table
 x make sure scheduled tasks finishes are caught, or if no response, ping them
 x add dyanmic sql tables for processes to APP1 metadata

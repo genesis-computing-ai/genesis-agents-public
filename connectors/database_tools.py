@@ -285,13 +285,13 @@ process_scheduler_functions = [
         "type": "function",
         "function": {
             "name": "_process_scheduler",
-            "description": "Manages schedules to automatically run processes on a schedule, including creating, updating, and deleting schedules for processes.",
+            "description": "Manages schedules to automatically run processes on a schedule (sometimes called tasks), including creating, updating, and deleting schedules for processes.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "action": {
                         "type": "string",
-                        "description": "The action to perform on the task: CREATE, UPDATE, or DELETE.  Or LIST to get details on all scheduled processes for a bot, or TIME to get current system time or HISTORY to get the history of a scheduled process by task_id.  For history lookup task_id first using LIST.",
+                        "description": "The action to perform on the process schedule: CREATE, UPDATE, or DELETE.  Or LIST to get details on all scheduled processes for a bot, or TIME to get current system time or HISTORY to get the history of a scheduled process by task_id.  For history lookup task_id first using LIST.  To deactive a schedule without deleting it, UPDATE it and set task_active to FALSE.",
                     },
                     "bot_id": {
                         "type": "string",
@@ -341,23 +341,18 @@ process_scheduler_functions = [
                 #                "type": "string",
                 #                "description": "What information to report back on how the process run went and how (post to channel, DM a user, etc.)",
                 #            },
-                            "last_task_status": {
-                                "type": "string",
-                                "description": "The current status of the scheduled process.",
-                            },
-                            "task_learnings": {
-                                "type": "string",
-                                "description": "Leave blank on creation, don't change on update unless instructed to.",
-                            },
+                             "last_task_status": {
+                                 "type": "string",
+                                 "description": "The current status of the scheduled process.",
+                             },
+                             "task_learnings": {
+                                 "type": "string",
+                                 "description": "Leave blank on creation, don't change on update unless instructed to.",
+                             },
                             "task_active": {
                                 "type": "boolean",
-                                "description": "Is schedule for the process active",
+                                "description": "TRUE if active, FALSE if not active.  Set to FALSE to Deactivate a schedule for a process.",
                             },
-                            "history_length": {
-                                "type": "string",
-                                "description": "The number of history entries to return for action HISTORY.",
-                                "default": 5,
-                            }
                         },
                         "required": [
                             "task_name",
@@ -393,7 +388,7 @@ process_manager_functions = [
                         "description": """
                         The action to perform on a process: CREATE, UPDATE, DELETE, CREATE_PROCESS_CONFIG, UPDATE_PROCESS_CONFIG, DELETE_PROCESS_CONFIG.  
                         LIST returns a list of all processes, SHOW shows full instructions and details for a process, SHOW_CONFIG shows the configuration for a process,
-                        or TIME to get current system time.""",
+                        or TIME to get current system time.  If you are trying to deactivate a schedule for a task, use _process_scheduler instead, don't just DELETE the porocess.""",
                     },
                     "bot_id": {
                         "type": "string",

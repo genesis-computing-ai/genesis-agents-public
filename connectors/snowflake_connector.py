@@ -1257,7 +1257,7 @@ $$;
             "task_active",
         ]
 
-        required_fields_update = ["last_task_status", "task_learnings", "task_active"]
+        required_fields_update = ["task_active", "action_trigger_type", "action_trigger_details", "next_check_ts"]
 
         cursor = self.client.cursor()
         if action == "HISTORY":
@@ -1299,6 +1299,7 @@ $$;
             return {
                 "Success": False,
                 "Confirmation_Needed": "Please reconfirm all the scheduled process details with the user, then call this function again with the action CREATE_CONFIRMED to actually create the schedule for the process.   Make sure to be clear in the action_trigger_details field whether the process schedule is to be triggered one time, or if it is ongoing and recurring. Also make the next Next Check Timestamp is in the future, and aligns with when the user wants the task to run next.",
+                "Process Schedule Details": task_details,
                 "Info": f"By the way the current system time is {self.get_current_time_with_timezone()}",
             }
         if action == "CREATE_CONFIRMED":
@@ -1308,7 +1309,8 @@ $$;
 
             return {
                 "Success": False,
-                "Confirmation_Needed": "Please reconfirm all the scheduled process details with the user, especially that you're altering the correct TASK_ID, then call this function again with the action UPDATE_CONFIRMED to actually update the scheduled process.  Call with LIST to double-check the task_id if you aren't sure.",
+                "Confirmation_Needed": "Please reconfirm all the updated process details with the user, then call this function again with the action UPDATE_CONFIRMED to actually update the schedule for the process.   Make sure to be clear in the action_trigger_details field whether the process schedule is to be triggered one time, or if it is ongoing and recurring. Also make the next Next Check Timestamp is in the future, and aligns with when the user wants the task to run next.",
+                "Proposed Updated Process Schedule Details": task_details,
                 "Info": f"By the way the current system time is {self.get_current_time_with_timezone()}",
             }
         if action == "UPDATE_CONFIRMED":
@@ -1347,14 +1349,14 @@ $$;
                         "next_check_ts": next_check,
                         "action_trigger_type": task[6],
                         "action_trigger_details": task[7],
-                        "task_instructions": task[8],
+                        "process_name_to_run": task[8],
                         "reporting_instructions": task[9],
                         "last_task_status": task[10],
-                        "task_learnings": task[11],
+                     #   "task_learnings": task[11],
                         "task_active": task[12],
                     }
                     task_list.append(task_dict)
-                return {"Success": True, "Tasks": task_list}
+                return {"Success": True, "Scheduled Processes": task_list, "Note": "Don't take any immediate actions on this information unless instructed to by the user."}
             except Exception as e:
                 return {
                     "Success": False,
@@ -1392,12 +1394,12 @@ $$;
                 "Error": f"Missing required task details: {', '.join(missing_fields)}",
             }
 
-        if action == "UPDATE" and task_details and task_details.get("task_active", False):
-            if "next_check_ts" not in task_details:
-                return {
-                    "Success": False,
-                    "Error": "The 'next_check_ts' field is required when updating an active task.",
-                }
+    #    if action == "UPDATE" and task_details and task_details.get("task_active", False):
+    #        if "next_check_ts" not in task_details:
+    #            return {
+    #                "Success": False,
+    #                "Error": "The 'next_check_ts' field is required when updating an active task.",
+    #            }
 
 
         # Check if the action is CREATE or UPDATE

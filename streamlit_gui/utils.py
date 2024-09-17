@@ -170,6 +170,27 @@ def configure_llm(llm_model_name, llm_api_key):
         else:
             raise Exception(f"Failed to configure LLM: {response.text}")
 
+def get_metadata2(metadata_type):
+    if st.session_state.NativeMode:
+        session = get_session()
+        prefix = st.session_state.get('prefix', '')
+        sql = f"select {prefix}.get_metadata('{metadata_type}') "
+        data = session.sql(sql).collect()
+        response = data[0][0]
+      #  response = data[0][0]
+      #  response = json.loads(response)
+        return response
+    else:
+        url = "http://127.0.0.1:8080/udf_proxy/get_metadata"
+        headers = {"Content-Type": "application/json"}
+        data = json.dumps({"data": [[0, metadata_type]]})
+        response = requests.post(url, headers=headers, data=data)
+        if response.status_code == 200:
+            return response.json()["data"][0][1]
+        else:
+            raise Exception(f"Failed to get metadata: {response.text}")
+
+
 def get_metadata(metadata_type):
     if st.session_state.NativeMode:
         session = get_session()

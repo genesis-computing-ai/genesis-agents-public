@@ -411,14 +411,20 @@ def get_metadata():
             _, bot_id, thread_id_in, file_name = metadata_type.split('|')
             print('****get_metadata, file_name', file_name)
             print('****get_metadata, thread_id_in', thread_id_in)
-            print('****get_metadata, file_name', bot_id)            
+            print('****get_metadata, bot_id', bot_id)            
             bots_udf_adapter = bot_id_to_udf_adapter_map.get(bot_id, None)
             print('****get_metadata, bots_udf_adapter', bots_udf_adapter)
-            thread_id_out = bots_udf_adapter.in_to_out_thread_map[thread_id_in]
-            print('****get_metadata, thread_id_out', thread_id_out)
-            file_path = f'./downloaded_files/{thread_id_out}/{file_name}'
-            print('****get_metadata, file_path', file_path)
-            result = {"Success": True, "Data": json.dumps(file_to_bytes(file_path))}
+            try:
+                print(f'**** in to out map: {bots_udf_adapter.in_to_out_thread_map}', flush=True)
+                thread_id_out = bots_udf_adapter.in_to_out_thread_map[thread_id_in]
+                print('****get_metadata, thread_id_out', thread_id_out)
+                file_path = f'./downloaded_files/{thread_id_out}/{file_name}'
+                print('****get_metadata, file_path', file_path, flush=True)
+                result = {"Success": True, "Data": json.dumps(file_to_bytes(file_path))}
+                print('result: Success len ', len(json.dumps(file_to_bytes(file_path))), flush=True)
+            except Exception as e: 
+                print('****get_metadata, thread_id_out exception ',e)
+                result = {"Success": False, "Error": e}            
         else:
             raise ValueError(
                 "Invalid metadata_type provided. Expected 'harvest_control' or 'harvest_summary' or 'available_databases'."

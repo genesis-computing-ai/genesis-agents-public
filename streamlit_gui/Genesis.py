@@ -1,5 +1,5 @@
 import streamlit as st
-from utils import check_status, get_session
+from utils import check_status, get_session, get_references
 import time
 import base64
 
@@ -18,22 +18,118 @@ if "wh_name" not in st.session_state:
 
 
 # Initialize session state for the modal
-# if "show_modal" not in st.session_state:
-#     st.session_state.show_modal = True  # Default to showing the modal
+if "show_modal" not in st.session_state:
+    st.session_state.show_modal = True  # Default to showing the modal
 
-# def hide_modal():
-#     st.session_state.show_modal = False
+def hide_modal():
+    st.session_state.show_modal = False
 
-# # Define the modal logic
-# def show_modal():
-#     with st.expander("Important Notice", expanded=True):
-#         st.write("This is an important message for the user.")
-#         if st.checkbox("Ignore this message for the rest of the session"):
-#             hide_modal()
+# Define the modal logic
+def show_modal():
+    with st.expander("Additional Configuration Options", expanded=True):
 
-# # Show modal if the session state allows
-# if st.session_state.show_modal:
-#     show_modal()
+        st.markdown(
+            """
+            <style>
+            .element-container:has(style){
+                display: none;
+            }
+            #button-after {
+                display: none;
+            }
+            .element-container:has(#button-after) {
+                display: none;
+            }
+            .element-container:has(#button-after) + div button {
+                background: none;
+                border: none;
+                padding: 0;
+                font: inherit;
+                cursor: pointer;
+                outline: inherit;
+                color: inherit;
+                text-align: left;
+                margin: 0;
+                font-weight: normal;
+                font-size: 0.8em;
+            }
+            button:hover {
+                color: #FFB3B3 !important;
+            }
+            .element-container:has(#button-after) + div button {
+                line-height: 0.5 !important;
+                margin-top: -30px !important;
+                margin-bottom: 0px !important;
+            }
+            </style>
+
+            """,
+            unsafe_allow_html=True,
+        )
+
+
+        st.markdown('<span id="button-after"></span>', unsafe_allow_html=True)
+        if st.button(" 📩 Configure your email"):
+            st.session_state["radio"] = "Setup Email Integration"
+            st.rerun()
+        st.markdown('<span id="button-after"></span>', unsafe_allow_html=True)
+        if st.button(" 📂 Configure Log Sharing"):
+            st.session_state["radio"] = "Setup Event Logging"
+            st.rerun()
+        ref = get_references("consumer_external_access")
+        if not ref:            
+            if st.session_state.NativeMode:
+                st.markdown('<span id="button-after"></span>', unsafe_allow_html=True)
+                if st.button(" ⚙️ Configure External Access Integration"):
+                    import snowflake.permissions as permissions
+                    permissions.request_reference("consumer_external_access")
+                # else:
+                #     ref = get_references("consumer_external_access")
+                #     if not ref:
+                #         import snowflake.permissions as permissions
+                #         permissions.request_reference("consumer_external_access")
+        st.markdown('<span id="button-after"></span>', unsafe_allow_html=True)
+        if st.button(" 🔆 Configure OpenAI"):
+            st.session_state["radio"] = "LLM Model & Key"
+            st.rerun()
+
+
+        if st.checkbox("Ignore this message for the rest of the session"):
+            hide_modal()
+            st.rerun()
+
+                        # <style>
+                        # div[data-testid="stHorizontalBlock"] {
+                        #     gap: 0rem;
+                        # }
+                        # .stButton > button {
+                        #     background: none;
+                        #     border: none;
+                        #     padding: 0;
+                        #     font: inherit;
+                        #     cursor: pointer;
+                        #     outline: inherit;
+                        #     color: inherit;
+                        #     text-align: left;
+                        #     margin: 0;
+                        #     font-weight: normal;
+                        #     font-size: 0.8em;
+                        # }
+                        # .stButton > button:hover {
+                        #     color: #FFB3B3;
+                        # }
+                        # .stButton > button:active {
+                        #     background: none;
+                        # }
+                        # .stButton {
+                        #     line-height: 0.5;
+                        #     margin-top: -30px;
+                        #     margin-bottom: 0px;
+                        # }
+                        # </style>
+# Show modal if the session state allows
+if st.session_state.show_modal:
+    show_modal()
 
 # Main content of the app
 
@@ -123,7 +219,7 @@ if st.session_state.NativeMode:
                                     # Execute the command and collect the results
                                     time.sleep(15)
                                     service_start_result = session.sql(
-                                        f"call {app_name}.core.start_app_instance('APP1','GENESIS_POOL','GENESIS_EAI','{st.session_state.wh_name}')"
+                                        f"call {st.session_state.app_name}.core.start_app_instance('APP1','GENESIS_POOL','GENESIS_EAI','{st.session_state.wh_name}')"
                                     ).collect()
                                     if service_start_result:
                                         service_status.text(

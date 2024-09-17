@@ -1,14 +1,14 @@
 import streamlit as st
 import time
 import uuid
-from utils import get_bot_details, get_slack_tokens, get_slack_tokens_cached, get_metadata, submit_to_udf_proxy, get_response_from_udf_proxy
+from utils import get_bot_details, get_slack_tokens, get_slack_tokens_cached, get_metadata, get_metadata2, submit_to_udf_proxy, get_response_from_udf_proxy
 import re
 import os
 
 
 def file_to_html(bot_id, thread_id, file_path):    
     file_name = os.path.basename(file_path)    
-    file_byte = get_metadata('|'.join(('sandbox',bot_id, thread_id, file_name)))
+    file_byte = get_metadata2('|'.join(('sandbox',bot_id, thread_id, file_name)))
     if 'png' in file_name:
         href = f'<img src="data:image/png;base64,{file_byte}" style="max-width: 50%;display: block;">'    
     else:

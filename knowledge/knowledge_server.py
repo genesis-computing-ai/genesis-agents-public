@@ -230,7 +230,10 @@ class KnowledgeServer:
 
                 continue
             primary_user, bot_id, knowledge = self.user_queue.get()
-            user_json = json.loads(primary_user)
+            if primary_user is not None:
+                user_json = json.loads(primary_user)
+            else:
+                user_json = {'user_email': 'Unknown Email'}
             if user_json.get('user_email','Unknown Email') != 'Unknown Email':
                 user_query = user_json['user_email']
             else:

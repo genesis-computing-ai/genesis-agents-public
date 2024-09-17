@@ -445,7 +445,8 @@ Don't use this call format unless you actually want to call the tool. Don't gene
             instructions = instructions + """
 
 # Important Reminders
-If you say you're going to call or use a tool, you MUST actually make the tool call immediately, but don't generate example tool calls, as they WILL be run.
+If you say you're going to call or use a tool, you MUST actually make the tool call immediately.
+However, do not provide example function calls to the user, as they WILL be run.
 Only respond with !NO_RESPONSE_REQUIRED if the message is directed to someone else or in chats with multiple people if you have nothing to say.
 Always respond to greetings and pleasantries like 'hi' etc, unless specifically directed at someone else.
 

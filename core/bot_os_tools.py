@@ -1222,39 +1222,46 @@ In your response back to run_process, provide a detailed description of what you
 
             elif action == "DELETE":
                 fetch_process_name_query = f"""
-                    SELECT task_name FROM {db_adapter.schema}.PROCESSES
+                    SELECT process_name FROM {db_adapter.schema}.PROCESSES
                     WHERE process_id = %s
                     """ if db_adapter.schema else """
-                    SELECT task_name FROM PROCESSES
+                    SELECT process_name FROM PROCESSES
                     WHERE process_id = %s
                     """
                 cursor.execute(fetch_process_name_query, (process_id,))
-                task_name = cursor.fetchone()[0]
+                result = cursor.fetchone()
 
-                delete_query = f"""
-                    DELETE FROM {db_adapter.schema}.PROCESSES
-                    WHERE process_id = %s
-                """ if db_adapter.schema else f"""
-                    DELETE FROM PROCESSES
-                    WHERE process_id = %s
-                """
-                cursor.execute(delete_query, (process_id))
+                if result:
+                    process_name = result[0]
+                    delete_query = f"""
+                        DELETE FROM {db_adapter.schema}.PROCESSES
+                        WHERE process_id = %s
+                    """ if db_adapter.schema else f"""
+                        DELETE FROM PROCESSES
+                        WHERE process_id = %s
+                    """
+                    cursor.execute(delete_query, (process_id))
 
-                delete_task_queries = f"""
-                    DELETE FROM {db_adapter.schema}.TASKS
-                    WHERE process_name = %s
-                """ if db_adapter.schema else """
-                    DELETE FROM TASKS
-                    WHERE process_name = %s
-                """
-                cursor.execute(delete_task_queries, (task_name,))
-                db_adapter.client.commit()
+                    delete_task_queries = f"""
+                        DELETE FROM {db_adapter.schema}.TASKS
+                        WHERE task_name = %s
+                    """ if db_adapter.schema else """
+                        DELETE FROM TASKS
+                        WHERE task_name = %s
+                    """
+                    cursor.execute(delete_task_queries, (process_name,))
+                    db_adapter.client.commit()
 
-                return {
-                    "Success": True,
-                    "Message": f"process deleted",
-                    "process_id": process_id,
-                }
+                    return {
+                        "Success": True,
+                        "Message": f"process deleted",
+                        "process_id": process_id,
+                    }
+                else:
+                    return {
+                        "Success": False,
+                        "Error": f"process with process_id {process_id} not found",
+                    }
 
             elif action == "UPDATE":
                 update_query = f"""

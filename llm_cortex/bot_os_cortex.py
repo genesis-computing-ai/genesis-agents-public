@@ -269,7 +269,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                 process_flag = last_message['process_flag'] == "TRUE"
         
         if process_flag == True and fast_mode == True:
-            print(f"Process flag is set to TRUE for thread {thread_id}, forcing Smart model instead of Fast Mode")
+#            print(f"Process flag is set to TRUE for thread {thread_id}, forcing Smart model instead of Fast Mode")
             fast_mode = False
 
         resp = ''
@@ -540,6 +540,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             pass
 
         postfix = ""
+        status = 'complete'
         if "</function>" in resp[-30:]:
             postfix = " 💬"
    
@@ -603,24 +604,27 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         resp = self.fix_tool_calls(resp)
 
         # Remove trailing 💬 if present
-        if resp.endswith('💬'): # or postfix.endswith('💬'):
+        if resp.endswith('💬'): 
             resp = resp[:-1]
             curr_resp = resp
             status = 'in_progress'
         else:
-            if '🧰' not in resp[-60:]:
-                status = 'complete'
-            else:
+            if '🧰' in resp[-40:]:
                 status = 'in_progress'
-
+        if postfix.endswith('💬'):
+            status = 'in_progress'
 
         if resp != '' and ( ( BotOsAssistantSnowflakeCortex.stream_mode == True )  or (
   message_metadata is not None and 'task_meta' in message_metadata and status == 'complete' and not postfix.endswith('💬')
         )):
+            if ( BotOsAssistantSnowflakeCortex.stream_mode == True ):
+                output = resp + postfix
+            else:
+                output = curr_resp
             if self.event_callback:
                 self.event_callback(self.bot_id, BotOsOutputMessage(thread_id=thread_id, 
                                                                     status=status, 
-                                                                    output=curr_resp, 
+                                                                    output=output, 
                                                                     messages=None, 
                                                                     input_metadata=json.loads(message_metadata)))
         try:

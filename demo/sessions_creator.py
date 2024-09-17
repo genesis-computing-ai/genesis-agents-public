@@ -436,9 +436,19 @@ Reminder:
 # Important Reminders
 If you say you're going to call or use a tool, you MUST actually make the tool call immediately in the format described above.
 Only respond with !NO_RESPONSE_REQUIRED if the message is directed to someone else or in chats with multiple people if you have nothing to say.
+Always respond to greetings and pleasantries like 'hi' etc.
 Call functions using ONLY this exact format: <function=example_function_name>{"example_name": "example_value"}</function>
 
  """
+        else:
+            instructions = instructions + """
+
+# Important Reminders
+If you say you're going to call or use a tool, you MUST actually make the tool call immediately.
+Only respond with !NO_RESPONSE_REQUIRED if the message is directed to someone else or in chats with multiple people if you have nothing to say.
+Always respond to greetings and pleasantries like 'hi' etc, unless specifically directed at someone else.
+
+"""
  
    #         with open('./latest_instructions.txt', 'w') as file:
    #             file.write(instructions)

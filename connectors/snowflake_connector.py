@@ -1219,6 +1219,7 @@ $$;
 
         if task_details and 'process_name' in task_details and 'task_name' not in task_details:
             task_details['task_name'] = task_details['process_name']
+            del task_details['process_name']
 
         required_fields_create = [
             "task_name",

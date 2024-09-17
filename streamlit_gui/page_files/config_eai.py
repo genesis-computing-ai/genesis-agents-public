@@ -1,5 +1,5 @@
 import streamlit as st
-from utils import get_session, get_metadata, upgrade_services, get_references
+from utils import get_session, upgrade_services, get_references, check_eai_status
 import snowflake.permissions as permissions
 
 
@@ -11,13 +11,10 @@ def config_eai():
         pass 
     st.title("Configure External Access Integration (EAI)")
 
-    # ref = get_references("consumer_external_access")
-    # if not ref:
-    #     permissions.request_reference("consumer_external_access")
-    #     st.error("Please configure the EAI.")
-    # else:
-    #     for value in ref:
-    #         st.success(f"ref: {value}")
+    ref = get_references("consumer_external_access")
+    if not ref:
+        permissions.request_reference("consumer_external_access")
+        st.error("Please configure the External Access Integration using the Snowsight popup window.")
 
     st.markdown("""
     <style>
@@ -55,43 +52,45 @@ def config_eai():
 
     st.markdown('<p class="big-font">Configuration Steps</p>', unsafe_allow_html=True)
     
+    # st.markdown("""
+    # Please open a Snowflake worksheet and run these commands to create an external access integration, grant Genesis the rights to use it, and test the access. Genesis will only be able to access the endpoints listed, OpenAI, and optionally Slack. The steps for adding the event logging are optional as well, but recommended.
+    # """)
     st.markdown("""
-    Please open a Snowflake worksheet and run these commands to create an external access integration, grant Genesis the rights to use it, and test the access. Genesis will only be able to access the endpoints listed, OpenAI, and optionally Slack. The steps for adding the event logging are optional as well, but recommended.
+    Please open a Snowflake worksheet and run this command to enable cortex for running Genesis in regions other than AWS US West 2 (Oregon) or AWS US East 1 (N. Virginia).
     """)
 
+    # -- set the name of the installed application
+    # set APP_DATABASE = '{st.session_state.get("app_name", "")}';
+
+    # -- create a local database to store the network rule (you can change these to an existing database and schema if you like)
+    # CREATE DATABASE IF NOT EXISTS GENESIS_LOCAL_DB; 
+    # CREATE SCHEMA IF NOT EXISTS GENESIS_LOCAL_DB.SETTINGS;
+
+    # -- Create a network rule that allows Genesis Server to optionally access OpenAI's API, and optionally Slack API and Azure Blob (for DALL-E image generation) 
+    # -- OpenAI and Slack(+Azure) endpoints can be removed if you will not be using Genesis with OpenAI and/or Slack
+    # -- OpenAI will only be used if enabled here if you later provide an OpenAI API Key in the Genesis Server configuration
+    # CREATE OR REPLACE NETWORK RULE GENESIS_LOCAL_DB.SETTINGS.GENESIS_RULE
+    # MODE = EGRESS TYPE = HOST_PORT
+    # VALUE_LIST = ('api.openai.com', 'slack.com', 'www.slack.com', 'wss-primary.slack.com',
+    # 'wss-backup.slack.com',  'wss-primary.slack.com:443','wss-backup.slack.com:443', 'slack-files.com',
+    # 'oaidalleapiprodscus.blob.core.windows.net:443', 'downloads.slack-edge.com', 'files-edge.slack.com',
+    # 'files-origin.slack.com', 'files.slack.com', 'global-upload-edge.slack.com','universal-upload-edge.slack.com');
+
+    # -- create an external access integration that surfaces the above network rule
+    # CREATE OR REPLACE EXTERNAL ACCESS INTEGRATION GENESIS_EAI
+    # ALLOWED_NETWORK_RULES = (GENESIS_LOCAL_DB.SETTINGS.GENESIS_RULE) ENABLED = true;
+
+    # -- grant Genesis Server the ability to use this external access integration
+    # GRANT USAGE ON INTEGRATION GENESIS_EAI TO APPLICATION   IDENTIFIER($APP_DATABASE);
+
     wh_text = f"""-- select authorized role to use
+    -- (option steps to enable cross-region inference to Llama3.1-405b)
+    -- This allows calling models from other Snowflake regions, as described above, 
+    -- for running Genesis in regions other than AWS US West 2 (Oregon) or AWS US East 1 (N. Virginia). 
+    -- Not needed if you will be using Genesis in the region where it is available, or if you are using OpenAI as your LLM.
+    ALTER ACCOUNT SET CORTEX_ENABLED_CROSS_REGION = 'ANY_REGION';
 
--- set the name of the installed application
-set APP_DATABASE = '{st.session_state.get("app_name", "")}';
-
--- create a local database to store the network rule (you can change these to an existing database and schema if you like)
-CREATE DATABASE IF NOT EXISTS GENESIS_LOCAL_DB; 
-CREATE SCHEMA IF NOT EXISTS GENESIS_LOCAL_DB.SETTINGS;
-
--- Create a network rule that allows Genesis Server to optionally access OpenAI's API, and optionally Slack API and Azure Blob (for DALL-E image generation) 
--- OpenAI and Slack(+Azure) endpoints can be removed if you will not be using Genesis with OpenAI and/or Slack
--- OpenAI will only be used if enabled here if you later provide an OpenAI API Key in the Genesis Server configuration
-CREATE OR REPLACE NETWORK RULE GENESIS_LOCAL_DB.SETTINGS.GENESIS_RULE
-MODE = EGRESS TYPE = HOST_PORT
-VALUE_LIST = ('api.openai.com', 'slack.com', 'www.slack.com', 'wss-primary.slack.com',
-'wss-backup.slack.com',  'wss-primary.slack.com:443','wss-backup.slack.com:443', 'slack-files.com',
-'oaidalleapiprodscus.blob.core.windows.net:443', 'downloads.slack-edge.com', 'files-edge.slack.com',
-'files-origin.slack.com', 'files.slack.com', 'global-upload-edge.slack.com','universal-upload-edge.slack.com');
-
--- create an external access integration that surfaces the above network rule
-CREATE OR REPLACE EXTERNAL ACCESS INTEGRATION GENESIS_EAI
-ALLOWED_NETWORK_RULES = (GENESIS_LOCAL_DB.SETTINGS.GENESIS_RULE) ENABLED = true;
-
--- grant Genesis Server the ability to use this external access integration
-GRANT USAGE ON INTEGRATION GENESIS_EAI TO APPLICATION   IDENTIFIER($APP_DATABASE);
-
--- (option steps to enable cross-region inference to Llama3.1-405b)
--- This allows calling models from other Snowflake regions, as described above, 
--- for running Genesis in regions other than AWS US West 2 (Oregon) or AWS US East 1 (N. Virginia). 
--- Not needed if you will be using Genesis in the region where it is available, or if you are using OpenAI as your LLM.
-ALTER ACCOUNT SET CORTEX_ENABLED_CROSS_REGION = 'ANY_REGION';
-
-"""
+    """
 
     st.markdown('<div class="code-box">', unsafe_allow_html=True)
     st.code(wh_text, language="sql")
@@ -101,25 +100,35 @@ ALTER ACCOUNT SET CORTEX_ENABLED_CROSS_REGION = 'ANY_REGION';
        
     st.write("Click the button to assign the external access integration to the Genesis Bots services. This will restart your service and takes 3-5 minutes to complete.")
 
-    input_eai = st.text_input("External Access Integration name:", value="GENESIS_EAI")
+    # input_eai = st.text_input("External Access Integration name:", value="GENESIS_EAI")
     
     if st.button("Assign EAI to Genesis", key="upgrade_button_app"):
         try:
-            eai_result = get_metadata('custom_config '+input_eai+'|EAI')
-            if isinstance(eai_result, list) and len(eai_result) > 0:
-                if 'Success' in eai_result[0] and eai_result[0]['Success']==True:
-                    core_prefix = st.session_state.get('core_prefix', '')
-                    select_query = f"SELECT {core_prefix}.CHECK_URL_STATUS('slack');"
-                    eai_test_result = session.sql(select_query).collect()
-                    st.success(f"EAI test result: {eai_test_result[0][0]}")
-                    try:
-                        upgrade_result = upgrade_services()
-                        st.success(f"Genesis Bots upgrade result: {upgrade_result}")
-                        # st.rerun()
-                    except Exception as e:
-                        st.error(f"Error upgrading services: {e}")       
+            eai_result = check_eai_status('slack')
+            if eai_result is True:
+                st.success(f"EAI test result: Success")
+                try:
+                    if ref:
+                        eai = True
+                    else:
+                        eai = False
+                    upgrade_result = upgrade_services(eai)
+                    st.success(f"Genesis Bots upgrade result: {upgrade_result}")
+                    # st.rerun()
+                except Exception as e:
+                    st.error(f"Error upgrading services: {e}")       
                            
         except Exception as e:
             st.error(f"Error testing EAI on Snowflake: {e} : {eai_result}")
+        # try:
+        #     if ref:
+        #         eai = True
+        #     else:
+        #         eai = False
+        #     upgrade_result = upgrade_services(eai)
+        #     st.success(f"Genesis Bots upgrade result: {upgrade_result}")
+        #     # st.rerun()
+        # except Exception as e:
+        #     st.error(f"Error upgrading services: {e}")          
 
     st.info("If you need any assistance, please check our [documentation](https://genesiscomputing.ai/docs/) or join our [Slack community](https://communityinviter.com/apps/genesisbotscommunity/genesis-bots-community).")

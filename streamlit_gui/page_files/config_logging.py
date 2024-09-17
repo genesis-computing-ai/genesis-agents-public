@@ -10,11 +10,7 @@ def config_logging():
         st.error("Unable to connect to Snowflake. Please check your connection.")
         # return
         pass 
-    # permissions = get_permissions()
-    if not permissions:
-        st.error("Unable to connect to Snowflake permissions. Please check your connection.")
-        # return
-        pass 
+
     st.title("Configure Application Event Logging")
     
     st.markdown("""
@@ -56,7 +52,9 @@ def config_logging():
             Logging already enabled and shared with Genesis.
             """)        
         else:
-            permissions.request_event_sharing()
+            if st.session_state.NativeMode:
+                import snowflake.permissions as permissions
+                permissions.request_event_sharing()
             st.markdown('<p class="big-font">Configuration Steps</p>', unsafe_allow_html=True)
             
             st.markdown("""

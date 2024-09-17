@@ -17,14 +17,14 @@ def get_session():
   #  st.write('NativeMode', NativeMode)
     return None
 
-def get_permissions():
-    if st.session_state.NativeMode:
-        try:
-            from snowflake.permissions import permissions
-            return permissions()
-        except:
-            st.session_state.NativeMode = False
-    return None
+# def get_permissions():
+#     if st.session_state.NativeMode:
+#         try:
+#             from snowflake.permissions import permissions
+#             return permissions()
+#         except:
+#             st.session_state.NativeMode = False
+#     return None
 
 def check_status():
     session = get_session()
@@ -263,32 +263,41 @@ def deploy_bot(bot_id):
         else:
             raise Exception(f"Failed to deploy bot: {response.text}")
 
-def upgrade_services():
+def upgrade_services(eai):
     session = get_session()
     if session:
         core_prefix = st.session_state.get('core_prefix', '')
-        upgrade_services_query = f"call {core_prefix}.UPGRADE_SERVICES() "
+        upgrade_services_query = f"call {core_prefix}.UPGRADE_SERVICES({eai}) "
         upgrade_services_result = session.sql(upgrade_services_query).collect()
         return upgrade_services_result[0][0]
     return None        
 
-def check_eai_status():
+def check_eai_status(site):
+    # session = get_session()
     result = False
     try:
-        eai_result = get_metadata('custom_config ')
+        eai_result = get_metadata(f"custom_config EAI {site}")
         if isinstance(eai_result, list) and len(eai_result) > 0:
-            if 'custom_object_name' in eai_result[0] and len(eai_result[0]['custom_object_name']) > 0:
+            if 'Success' in eai_result[0] and eai_result[0]['Success']==True:
                 result = True
         return result
     except Exception as e:
         st.error(f"Error checking eai status: {e}")
 
 def get_references(reference_name):
+    ref_associations = None
     if st.session_state.NativeMode:
         try:
-            from snowflake.snowpark.context import get_active_session
+            import snowflake.permissions as permissions
             ref_associations = permissions.get_reference_associations(reference_name)
-            return ref_associations
         except Exception as e:
-            st.error(f"Error checking references: {e}")
+            st.error(f"Error checking references: {e}")        
+    return ref_associations
             
+
+def check_log_status():
+    try:            
+        log_status = get_metadata('log_status')
+        
+    except Exception as e:
+        st.error(f"Error checking log status: {e}")

@@ -1,8 +1,23 @@
 import streamlit as st
 import time 
-from utils import get_bot_details, get_metadata, configure_llm, check_eai_status
+from utils import get_bot_details, get_metadata, configure_llm, check_eai_status, get_references, upgrade_services
+
 
 def llm_config():
+    if "eai_available" not in st.session_state:
+        st.session_state.eai_available = False
+        
+    if st.session_state.eai_available == False:
+        ref = get_references("consumer_external_access")
+        if not ref:
+            if st.session_state.NativeMode:
+                import snowflake.permissions as permissions
+                permissions.request_reference("consumer_external_access")
+        else:
+            eai_status = check_eai_status('openai')
+            st.session_state.eai_available = eai_status
+            if eai_status == True:
+                st.write(f"External Access Integration available")
 
     get_bot_details().clear()
     bot_details = get_bot_details()
@@ -30,7 +45,7 @@ def llm_config():
         )
 
     st.write(
-        "Genesis Bots can optionally use OpenAI or Gemini LLMs, in addition to Snowflake Cortex. To add or update a key for these models, enter it below:"
+        "Genesis Bots can optionally use OpenAI LLMs, in addition to Snowflake Cortex. To add or update a key for these models, enter it below:"
     )
     if cur_key == "" and active_llm_type is not None:
         st.markdown("**Currently Stored LLMs**")
@@ -45,24 +60,33 @@ def llm_config():
             unsafe_allow_html=True
         )
         st.dataframe(llm_types, use_container_width=False) 
+    if st.session_state.eai_available == False:
 
-    llm_model = st.selectbox("Choose LLM Model:", ["OpenAI", "gemini", "cortex"])
 
-    if llm_model in ["OpenAI", "gemini"]:
-        selected_key = [llm["llm_key"] for llm in llm_info if llm["llm_type"] == llm_model]
-        if selected_key:
-            cur_key = selected_key[0][:3] + "*" * (len(selected_key[0]) - 7) + selected_key[0][-4:] if len(selected_key[0]) > 10 else selected_key[0]
-        llm_api_key = st.text_input("Enter API Key:", value=cur_key)
+        if st.button("Assign EAI to Genesis", key="assigneai"):
+            upgrade_result = upgrade_services(True)
+            st.success(f"Genesis Bots upgrade result: {upgrade_result}")
+            st.session_state.clear()
+            st.rerun()
     else:
-        llm_api_key = 'cortex_no_key_needed'
 
-    if "disable_submit" not in st.session_state:
-        st.session_state.disable_submit = False
+        llm_model = st.selectbox("Choose LLM Model:", ["OpenAI", "cortex"])
 
-    if st.button("Submit Model Selection", key="sendllm", disabled=st.session_state.disable_submit):
-        if llm_model != 'cortex':
-            eai_status = check_eai_status()
-        if eai_status == True or llm_model == 'cortex':
+        if llm_model in ["OpenAI"]:
+            selected_key = [llm["llm_key"] for llm in llm_info if llm["llm_type"] == llm_model]
+            if selected_key:
+                cur_key = selected_key[0][:3] + "*" * (len(selected_key[0]) - 7) + selected_key[0][-4:] if len(selected_key[0]) > 10 else selected_key[0]
+            llm_api_key = st.text_input("Enter API Key:", value=cur_key)
+        else:
+            llm_api_key = 'cortex_no_key_needed'
+
+        if "disable_submit" not in st.session_state:
+            st.session_state.disable_submit = False
+
+        if st.button("Submit Model Selection", key="sendllm", disabled=st.session_state.disable_submit):
+            # if llm_model != 'cortex':
+            #     eai_status = check_eai_status('openai')
+            # if eai_status == True or llm_model == 'cortex':
 
             st.write("One moment while I validate the key and launch the bots...")
             if cur_key:
@@ -71,6 +95,8 @@ def llm_config():
             if config_response["Success"] is False:
                 resp = config_response["Message"]
                 st.error(f"Failed to set LLM token: {resp}")
+                config_response = configure_llm('cortex', 'cortex_no_key_needed')
+                # if config_response["Success"] is False:
                 # if "Connection" in resp:
                 #     #TODO go to EAI page
                 #     1=1
@@ -93,5 +119,8 @@ def llm_config():
             if cur_key == "<existing key present on server>":
                 st.write("Reload this page to chat with your apps.")
 
-        else:
-            st.error(f"EAI status: {eai_status}. Set up your EAI.")
+        # else:
+        #     st.error(f"EAI status: {eai_status}. Set up your EAI.")
+
+
+            

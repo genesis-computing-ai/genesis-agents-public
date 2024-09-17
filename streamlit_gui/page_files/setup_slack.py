@@ -1,7 +1,22 @@
 import streamlit as st
-from utils import get_slack_tokens, set_slack_tokens, get_slack_tokens_cached, check_eai_status
+from utils import get_slack_tokens, set_slack_tokens, get_slack_tokens_cached, check_eai_status, get_references, upgrade_services
 
 def setup_slack():
+    if "eai_available" not in st.session_state:
+        st.session_state.eai_available = False
+        
+    if st.session_state.eai_available == False:
+        references = get_references("consumer_external_access")
+        if not references:
+            if st.session_state.NativeMode:
+                import snowflake.permissions as permissions
+                permissions.request_reference("consumer_external_access")
+        else:
+            eai_status = check_eai_status('slack')
+            st.session_state.eai_available = eai_status
+            if eai_status == True:
+                st.write(f"External Access Integration available")
+
     tokens = get_slack_tokens()
     get_slack_tokens_cached.clear()
 
@@ -20,25 +35,32 @@ def setup_slack():
     st.write(
         "By providing a Slack App Refresh Token, Genesis Bots can create, update, and remove Genesis Bots from your Slack environment."
     )
-    st.write(
-        "Go to https://api.slack.com/apps and create an App Config Refresh Token, paste it below, and press Update. "
-    )
+    if st.session_state.eai_available == False:
 
-    if tok == "...":
-        tok = ""
-    if ref == "...":
-        ref = ""
+        if st.button("Assign EAI to Genesis", key="assigneai"):
+            upgrade_result = upgrade_services(True)
+            st.success(f"Genesis Bots upgrade result: {upgrade_result}")
+            st.session_state.clear()
+            st.rerun()
+    else:
 
-    if tok:
-        slack_app_token = st.text_input("Slack App Token", value=tok)
-    # Text input for Slack App Refresh Token
-    slack_app_refresh_token = st.text_input(
-        "Slack App REFRESH Token", value=ref if ref else ""
-    )
 
-    if st.button("Update Slack Token"):
-        eai_status = check_eai_status()
-        if eai_status == True:
+        st.write(
+            "Go to https://api.slack.com/apps and create an App Config Refresh Token, paste it below, and press Update. "
+        )
+
+        if tok == "...":
+            tok = ""
+        if ref == "...":
+            ref = ""
+
+        if tok:
+            slack_app_token = st.text_input("Slack App Token", value=tok)
+        # Text input for Slack App Refresh Token
+        slack_app_refresh_token = st.text_input(
+            "Slack App REFRESH Token", value=ref if ref else ""
+        )
+        if st.button("Update Slack Token"):
             # Call function to update tokens
             resp = set_slack_tokens("NOT NEEDED", slack_app_refresh_token)
             t = resp.get("Token", "Error")
@@ -55,8 +77,7 @@ def setup_slack():
                 st.success(
                     "These will be different than the ones you provided, as they have been rotated successfully for freshness."
                 )
+                #TODO upgrade_services??
                 st.success(
                     "You can now activate your bots on Slack from the Bot Configuration page, on the left Nav."
                 )
-        else:
-            st.error(f"EAI status: {eai_status}. Set up your EAI.")

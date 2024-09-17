@@ -101,7 +101,7 @@ if st.session_state.NativeMode:
                                     # Execute the command and collect the results
                                     time.sleep(15)
                                     service_start_result = session.sql(
-                                        f"call {app_name}.core.start_app_instance('APP1','GENESIS_POOL','GENESIS_EAI','{st.session_state.wh_name}')"
+                                        f"call {st.session_state.app_name}.core.start_app_instance('APP1','GENESIS_POOL','GENESIS_EAI','{st.session_state.wh_name}')"
                                     ).collect()
                                     if service_start_result:
                                         service_status.text(

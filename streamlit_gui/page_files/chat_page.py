@@ -310,8 +310,10 @@ def chat_page():
                         st.write('   ')
                         col1, col2 = st.columns([2, 1])
                         with col1:
+                            st.markdown('<span id="button-after"></span>', unsafe_allow_html=True)
                             start_chat = st.form_submit_button(" ⚡ Start New Chat")
                         with col2:
+                            st.markdown('<span id="button-after"></span>', unsafe_allow_html=True)
                             refresh = st.form_submit_button("🔄 Bots")
 
                     if refresh:
@@ -353,12 +355,20 @@ def chat_page():
 
                 # Display active sessions as clickable links
                 if st.session_state.active_sessions:
-                    st.markdown("""
+
+                    st.markdown(
+                        """
                         <style>
-                        div[data-testid="stHorizontalBlock"] {
-                            gap: 0rem;
+                        .element-container:has(style){
+                            display: none;
                         }
-                        .stButton > button {
+                        #button-after {
+                            display: none;
+                        }
+                        .element-container:has(#button-after) {
+                            display: none;
+                        }
+                        .element-container:has(#button-after) + div button {
                             background: none;
                             border: none;
                             padding: 0;
@@ -370,20 +380,19 @@ def chat_page():
                             margin: 0;
                             font-weight: normal;
                             font-size: 0.8em;
-                        }
-                        .stButton > button:hover {
-                            color: #FFB3B3;
-                        }
-                        .stButton > button:active {
-                            background: none;
-                        }
-                        .stButton {
+                            }
+                        .element-container:has(#button-after) + div button {
                             line-height: 0.5;
                             margin-top: -30px;
                             margin-bottom: 0px;
                         }
+
                         </style>
-                    """, unsafe_allow_html=True)
+
+                        """,
+                        unsafe_allow_html=True,
+                    )
+
                     
                     for session in st.session_state.active_sessions:
                         bot_name, thread_id = session.split(' (')
@@ -394,6 +403,7 @@ def chat_page():
                         with col1:
                         #    st.write("session ", session, ' current session ',  st.session_state.get('current_session'))
                             session_display = f"&nbsp;&nbsp;&nbsp;⚡ {session[2:]}" if session == st.session_state.get('current_session') else f"&nbsp;&nbsp;&nbsp;{session}"
+                            st.markdown('<span id="button-after"></span>', unsafe_allow_html=True)
                             if st.button(session_display, key=f"btn_{thread_id}"):
                                 st.session_state.current_bot = bot_name
                                 st.session_state.selected_session = {
@@ -404,6 +414,7 @@ def chat_page():
                                 st.session_state.load_history = True
                                 st.rerun()
                         with col2:
+                            st.markdown('<span id="button-after"></span>', unsafe_allow_html=True)
                             if st.button("⨂", key=f"remove_{thread_id}"):
                                 st.session_state.active_sessions.remove(session)
                                 if f"messages_{full_thread_id}" in st.session_state:
@@ -452,10 +463,12 @@ def chat_page():
      
                     if "radio" in st.session_state:
                         if st.session_state["radio"] != "Setup Slack Connection":
+                            st.markdown('<span id="button-after"></span>', unsafe_allow_html=True)
                             if st.button("&nbsp;&nbsp;&nbsp;⚡ Activate Slack keys here"):
                                 st.session_state["radio"] = "Setup Slack Connection"
                                 st.rerun()
                     else:
+                        st.markdown('<span id="button-after"></span>', unsafe_allow_html=True)
                         if st.button("&nbsp;&nbsp;&nbsp;⚡ Activate Slack keys here"):
                             st.session_state["radio"] = "Setup Slack Connection"
                             st.rerun()

@@ -1221,6 +1221,16 @@ In your response back to run_process, provide a detailed description of what you
                 }
 
             elif action == "DELETE":
+                fetch_process_name_query = f"""
+                    SELECT task_name FROM {db_adapter.schema}.PROCESSES
+                    WHERE process_id = %s
+                    """ if db_adapter.schema else """
+                    SELECT task_name FROM PROCESSES
+                    WHERE process_id = %s
+                    """
+                cursor.execute(fetch_process_name_query, (process_id,))
+                task_name = cursor.fetchone()[0]
+
                 delete_query = f"""
                     DELETE FROM {db_adapter.schema}.PROCESSES
                     WHERE process_id = %s
@@ -1229,7 +1239,17 @@ In your response back to run_process, provide a detailed description of what you
                     WHERE process_id = %s
                 """
                 cursor.execute(delete_query, (process_id))
+
+                delete_task_queries = f"""
+                    DELETE FROM {db_adapter.schema}.TASKS
+                    WHERE process_name = %s
+                """ if db_adapter.schema else """
+                    DELETE FROM TASKS
+                    WHERE process_name = %s
+                """
+                cursor.execute(delete_task_queries, (task_name,))
                 db_adapter.client.commit()
+
                 return {
                     "Success": True,
                     "Message": f"process deleted",

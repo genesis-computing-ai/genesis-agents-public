@@ -377,7 +377,6 @@ def get_metadata():
         message = request.json
         input_rows = message["data"]
         metadata_type = input_rows[0][1]
-        print('****get_metadata, metadata_type', metadata_type)
 
         if metadata_type == "harvest_control":
             result = db_adapter.get_harvest_control_data_as_json()
@@ -398,13 +397,16 @@ def get_metadata():
             email = metadata_type.split('test_email ')[1].strip()
             result = db_adapter.send_test_email(email) 
         elif metadata_type.startswith('custom_config '):
-            object_type = ""
-            object_name = metadata_type.split('custom_config ')[1].strip()
-            if "|" in object_name:
-                object_type = object_name.split('|')[1].strip()
-                object_name = object_name.split('|')[0].strip()
-                
-            result = db_adapter.config_settings_test(object_name=object_name,object_type=object_type)                
+            metadata_parts = metadata_type.split()
+            if len(metadata_parts) == 3:
+                object_type = metadata_parts[1].strip()
+                site = metadata_parts[2].strip()
+            elif len(metadata_parts) == 2:
+                object_type = metadata_parts[1].strip()
+                site = None
+            else:
+                print("missing metadata")
+            result = db_adapter.config_settings_test(object_type=object_type, site=site)                
         elif 'sandbox' in metadata_type:
             _, bot_id, thread_id_in, file_name = metadata_type.split('|')
             print('****get_metadata, file_name', file_name)
@@ -428,6 +430,7 @@ def get_metadata():
             output_rows = [[input_rows[0][0], {"Success": False, "Message": result["Error"]}]]
 
     except Exception as e:
+        print(f"***** error in metadata: {str(e)}")
         output_rows = [[input_rows[0][0], {"Success": False, "Message": str(e)}]]
 
     response = make_response({"data": output_rows})

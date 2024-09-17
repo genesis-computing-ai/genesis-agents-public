@@ -766,55 +766,54 @@ class SnowflakeConnector(DatabaseConnector):
             return {"Success": False, "Error": err}
 
 
-    def config_settings_test(self, object_type, object_name):
+    def config_settings_test(self, object_type, site):
         try:
 
-            # Check if DEFAULT_EMAIL table exists using SHOW TABLES LIKE
-            check_table_query = f"""
-            SHOW TABLES LIKE 'CUSTOM_CONFIG_SETTING' IN {self.genbot_internal_project_and_schema}
-            """
-            cursor = self.client.cursor()
-            cursor.execute(check_table_query)
-            table_exists = cursor.fetchone() is not None
+            # check_table_query = f"""
+            # SHOW TABLES LIKE 'CUSTOM_CONFIG_SETTING' IN {self.genbot_internal_project_and_schema}
+            # """
+            # cursor = self.client.cursor()
+            # cursor.execute(check_table_query)
+            # table_exists = cursor.fetchone() is not None
 
-            if not table_exists:
-                # Create the table if it doesn't exist
-                create_table_query = f"""
-                CREATE TABLE {self.genbot_internal_project_and_schema}.CUSTOM_CONFIG_SETTING (
-                    CUSTOM_OBJECT_NAME VARCHAR(255),
-                    CUSTOM_OBJECT_TYPE VARCHAR(255)
-                )
-                """
-                cursor.execute(create_table_query)
+            # if not table_exists:
+            #     # Create the table if it doesn't exist
+            #     create_table_query = f"""
+            #     CREATE TABLE {self.genbot_internal_project_and_schema}.CUSTOM_CONFIG_SETTING (
+            #         CUSTOM_OBJECT_NAME VARCHAR(255),
+            #         CUSTOM_OBJECT_TYPE VARCHAR(255)
+            #     )
+            #     """
+            #     cursor.execute(create_table_query)
             
             if object_type == 'EAI':
 
                 # Insert or update the object name
-                upsert_query = f"""
-                MERGE INTO {self.genbot_internal_project_and_schema}.CUSTOM_CONFIG_SETTING t
-                USING (SELECT %s AS custom_object_name, %s AS custom_object_type) s
-                ON (t.custom_object_type = s.custom_object_type)
-                WHEN MATCHED THEN
-                    UPDATE SET t.CUSTOM_OBJECT_NAME = s.custom_object_name
-                WHEN NOT MATCHED THEN
-                    INSERT (CUSTOM_OBJECT_NAME, CUSTOM_OBJECT_TYPE) VALUES (s.custom_object_name, s.custom_object_type)
-                """
-                cursor.execute(upsert_query, (object_name,object_type))
+                # upsert_query = f"""
+                # MERGE INTO {self.genbot_internal_project_and_schema}.CUSTOM_CONFIG_SETTING t
+                # USING (SELECT %s AS custom_object_name, %s AS custom_object_type) s
+                # ON (t.custom_object_type = s.custom_object_type)
+                # WHEN MATCHED THEN
+                #     UPDATE SET t.CUSTOM_OBJECT_NAME = s.custom_object_name
+                # WHEN NOT MATCHED THEN
+                #     INSERT (CUSTOM_OBJECT_NAME, CUSTOM_OBJECT_TYPE) VALUES (s.custom_object_name, s.custom_object_type)
+                # """
+                # cursor.execute(upsert_query, (object_name,object_type))
 
-                # Commit the changes
-                self.client.commit()
+                # # Commit the changes
+                # self.client.commit()
 
-                table_success = True
+                # table_success = True
 
                 try:
 
                     create_function_query = f"""
-CREATE OR REPLACE FUNCTION {self.project_id}.CORE.CHECK_URL_STATUS(site string)
+CREATE FUNCTION IF NOT EXISTS {self.project_id}.CORE.CHECK_URL_STATUS(site string)
 RETURNS STRING
 LANGUAGE PYTHON
 RUNTIME_VERSION = 3.8
 HANDLER = 'get_status'
-EXTERNAL_ACCESS_INTEGRATIONS = ({object_name})
+EXTERNAL_ACCESS_INTEGRATIONS = (REFERENCE('consumer_external_access'))
 PACKAGES = ('requests')
 AS
 $$
@@ -846,10 +845,33 @@ $$;
                     cursor = self.client.cursor()
                     cursor.execute(create_function_query)
 
-                    function_success = True
-                                    
+                    if site:
+                        function_test_success = False
+                        select_query = f"select {self.project_id}.CORE.CHECK_URL_STATUS('{site}')"
+                        cursor.execute(select_query)
+                        eai_test_result = cursor.fetchone()
+
+                        print(f"*********eai result: {eai_test_result}")
+                        if 'Success' in eai_test_result:
+                            function_test_success = True
+
+                            show_query = f"show services in application {self.project_id}"
+                            cursor.execute(show_query)
+                            check_eai_query = """
+                                                SELECT f.VALUE::string FROM table(result_scan(-1)) a, 
+                                                LATERAL FLATTEN(input => parse_json(a."external_access_integrations")) AS f 
+                                                WHERE "name" = 'GENESISAPP_SERVICE_SERVICE'; 
+                                            """
+
+                            cursor.execute(check_eai_query)
+                            check_eai_result = cursor.fetchone()
+                            print(f"*********check_eai_result: {check_eai_result}")
+
+                            if check_eai_result:
+                                function_success = True
+
                 except Exception as e:
-                    err = f"An error occurred while creating EAI test function: {e}"
+                    err = f"An error occurred while creating/testing EAI test function: {e}"
                     return {"Success": False, "Error": err}
             # elif object_type == 'WH':
             else:
@@ -872,7 +894,7 @@ $$;
         
         # '[{"system$send_email": true}]'
 
-        if table_success and function_success:
+        if function_success == True or function_test_success == True:
             json_data = json.dumps([{'Success': True}])
             return {"Success": True, "Data": json_data}
         else:

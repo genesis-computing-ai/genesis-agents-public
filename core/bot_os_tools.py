@@ -788,7 +788,7 @@ Bot's most recent response:
             with self.lock:
                 self.last_fail[thread_id][process_id] = None
                 self.fail_count[thread_id][process_id] = 0
-                print(f"\nThis step passed.  Moving to next step\n")
+      #          print(f"\nThis step passed.  Moving to next step\n")
                 self.counter[thread_id][process_id] += 1
                 
             extract_instructions = f"""
@@ -1059,8 +1059,18 @@ In your response back to run_process, provide a detailed description of what you
                 Below is a process that has been submitted by a user.  Please review it to insure it is something
                 that will make sense to the run_process tool.  If not, make changes so it is organized into clear
                 steps.  Make sure that it is tidy, legible and properly formatted. 
+
                 Do not create multiple options for the instructions, as whatever you return will be used immediately.
                 Return the updated and tidy process.  If there is an issue with the process, return an error message.
+
+                If the process wants to send an email to a default email, or says to send an email but doesn't specify
+                a recipient address, note that the SYS$DEFAULT_EMAIL is currently set to {self.sys_default_email}.
+                Include the notation of SYS$DEFAULT_EMAIL in the instructions instead of the actual address, unless 
+                the instructions specify a different specific email address.
+
+                If one of the steps of the process involves scheduling this process to run on a schedule, remove that step, 
+                and instead include a note separate from the cleaned up process that the user should instead use _process_scheduler 
+                to schedule the process after it has been created.
 
                 The process is as follows:\n {process_details['process_instructions']}
                 """
@@ -1216,7 +1226,7 @@ In your response back to run_process, provide a detailed description of what you
                     "Message": f"process successfully created.",
                     "process_id": process_id_with_suffix,
                     "process_name": process_name,
-                    "Suggestion": "Now that the process is created, remind the user of the process_id and process_name, and offer to test it using run_process, and if there are any issues you can later on UPDATE the process using manage_processes to clarify anything needed.  OFFER to test it, but don't just test it unless the user agrees.",
+                    "Suggestion": "Now that the process is created, remind the user of the process_id and process_name, and offer to test it using run_process, and if there are any issues you can later on UPDATE the process using manage_processes to clarify anything needed.  OFFER to test it, but don't just test it unless the user agrees.  Also OFFER to schedule it to run on a scheduled basis, using _process_scheduler if desired.",
                     "Reminder": "If you are asked to test the process, use _run_process function to each step, don't skip ahead since you already know what the steps are, pretend you don't know what the process is and let run_process give you one step at a time!",
                 }
 

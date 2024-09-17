@@ -91,7 +91,7 @@ class KnowledgeServer:
 
                 if time_difference < timedelta(minutes=5):
                     wake_up = True
-                    print("Bot is active")
+    #                print("Bot is active")
 
     def consumer(self):
         while True:
@@ -223,7 +223,7 @@ class KnowledgeServer:
 
                     if time_difference < timedelta(minutes=5):
                         wake_up = True
-                        print("Bot is active")
+                #        print("Bot is active")
 
                 continue
             primary_user, bot_id, knowledge = self.user_queue.get()

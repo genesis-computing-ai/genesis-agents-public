@@ -28,7 +28,7 @@ slack_tools_descriptions = [
 #                    "message": {"type": "string", "description": "The text of the message to be sent to the channel.  Include any links to local documents referencing ./downloaded_files or the openAI file id. Use this format to reference files: ![file description](./downloaded_files/thread_<thread_id>/<file name>)"},
                     "message": {"type": "string", "description": "The text of the message to be sent to the channel.  Include any links to local documents referencing ./downloaded_files or the openAI file id."},
                 },
-                "required": ["channel_name", "message"]
+                "required": ["channel", "message"]
             }
         }
     },

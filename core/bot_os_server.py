@@ -180,10 +180,11 @@ class BotOsServer:
                     emb_size = os.environ['EMBEDDING_SIZE']
                 except:
                     pass
-                sys.stdout.write(
-                    f"--- {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} bot_os_server runners: {insts} / max 100, emb_size: {emb_size} (cycle = {BotOsServer.cycle_count})\n"
-                )
-                sys.stdout.flush()
+                if BotOsServer.run_count % 10 == 0:
+                    sys.stdout.write(
+                        f"--- {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} bot_os_server runners: {insts} / max 100, emb_size: {emb_size} (cycle = {BotOsServer.cycle_count})\n"
+                    )
+                    sys.stdout.flush()
                 i = 0
             # self.clear_stuck_jobs(self.scheduler)
             if insts >= 90:

@@ -429,7 +429,7 @@ class BotOsSession:
                     else:
                         user_query = input_message.metadata.get('user_id', 'Unknown User ID')
                     knowledge = self.log_db_connector.extract_knowledge(user_query, self.bot_id)
-                    print(f'bot_os {self.bot_id} knowledge injection, user={primary_user} len knowledge="{len(knowledge)}')
+                    print(f'bot_os {self.bot_id} knowledge injection, user len={len(primary_user)} len knowledge="{len(knowledge)}')
                     if knowledge:
                         input_message.msg = f'''NOTE--Here are some things you know about this user from previous interactions, that may be helpful to this conversation:
                         

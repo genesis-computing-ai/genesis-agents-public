@@ -1375,9 +1375,10 @@ class SlackBotAdapter(BotOsInputAdapter):
             return f"Error sending message: {str(e)}"
 
     def send_slack_channel_message(
-        self, channel: str = None, message: str = None, attachments=[], thread_id: str = None, channel_id=None
+        self, channel: str = None, message: str = None, attachments=[], thread_id: str = None, channel_id=None, channel_name=None
     ):
-        channel_name = channel
+        if channel_name is None:
+            channel_name = channel
         if channel_name is None and channel_id is not None:
             channel_name = channel_id
 

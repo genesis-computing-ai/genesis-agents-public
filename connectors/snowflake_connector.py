@@ -333,7 +333,7 @@ class SnowflakeConnector(DatabaseConnector):
                     try:
                         decoded_line = line.decode('utf-8')
                         if not decoded_line.strip():
-                            print("Received an empty line.")
+                     #       print("Received an empty line.")
                             continue
                         if decoded_line.startswith("data: "):
                             decoded_line = decoded_line[len("data: "):]
@@ -341,7 +341,7 @@ class SnowflakeConnector(DatabaseConnector):
                         if 'choices' in event_data:
                             d = event_data['choices'][0]['delta'].get('content','')
                             curr_resp += d
-                            print(d, end='', flush=True)
+                  #          print(d, end='', flush=True)
                     except json.JSONDecodeError as e:
                         print(f"Error decoding JSON: {e}")
                         continue
@@ -1217,6 +1217,9 @@ $$;
 
     #    print("Reached process scheduler")
 
+        if task_details and 'process_name' in task_details and 'task_name' not in task_details:
+            task_details['task_name'] = task_details['process_name']
+
         required_fields_create = [
             "task_name",
             "primary_report_to_type",
@@ -1309,13 +1312,16 @@ $$;
                 tasks = cursor.fetchall()
                 task_list = []
                 for task in tasks:
+                    next_check = None
+                    if task[5] is not None:
+                        next_check = task[5].strftime("%Y-%m-%d %H:%M:%S") 
                     task_dict = {
                         "task_id": task[0],
                         "bot_id": task[1],
                         "task_name": task[2],
                         "primary_report_to_type": task[3],
                         "primary_report_to_id": task[4],
-                        "next_check_ts": task[5].strftime("%Y-%m-%d %H:%M:%S"),
+                        "next_check_ts": next_check,
                         "action_trigger_type": task[6],
                         "action_trigger_details": task[7],
                         "task_instructions": task[8],
@@ -1448,6 +1454,8 @@ $$;
                 self.client.commit()
 
             elif action == "UPDATE":
+                if task_details['task_active'] == False:
+                    task_details['next_check_ts'] = None
                 update_query = f"""
                     UPDATE {self.schema}.TASKS
                     SET {', '.join([f"{key} = %({key})s" for key in task_details.keys()])}
@@ -1640,7 +1648,10 @@ $$;
 
         for _, row in self.default_data.iterrows():
             process_id_trimmed = row['PROCESS_ID']
-            timestamp_str = row['TIMESTAMP'].strftime('%Y-%m-%d %H:%M:%S')
+            if row['TIMESTAMP'] is not None:
+                timestamp_str = row['TIMESTAMP'].strftime('%Y-%m-%d %H:%M:%S')
+            else:
+                timestamp_str = None
 
             query = f"SELECT * FROM {self.schema}.PROCESSES WHERE PROCESS_ID = %s"
             cursor.execute(query, (process_id_trimmed,))
@@ -1680,6 +1691,92 @@ $$;
 
     def ensure_table_exists(self):
         import core.bot_os_tool_descriptions
+
+
+        # Create BOT_FUNCTIONS table if it doesn't exist
+        bot_functions_table_check_query = f"SHOW TABLES LIKE 'BOT_FUNCTIONS' IN SCHEMA {self.schema};"
+        cursor = self.client.cursor()
+        cursor.execute(bot_functions_table_check_query)
+        
+        if not cursor.fetchone():
+            create_bot_functions_table_ddl = f"""
+            CREATE OR REPLACE TABLE {self.schema}.BOT_FUNCTIONS (
+                BOT_ID VARCHAR(16777216),
+                FUNCTION_ID VARCHAR(16777216),
+                FUNCTION_TYPE VARCHAR(16777216),
+                FUNCTION_DEFINITION VARCHAR(16777216),
+                DESCRIPTION VARCHAR(16777216)
+            );
+            """
+            cursor.execute(create_bot_functions_table_ddl)
+            self.client.commit()
+            print(f"Table {self.schema}.BOT_FUNCTIONS created successfully.")
+        else:
+            print(f"Table {self.schema}.BOT_FUNCTIONS already exists.")
+        
+        cursor.close()
+
+        # Check if the run_dynamic_sql procedure already exists
+        check_procedure_query = f"""
+        SHOW PROCEDURES LIKE 'RUN_PROCESS_SQL' IN SCHEMA {self.schema}
+        """
+        cursor = self.client.cursor()
+        cursor.execute(check_procedure_query)
+        procedure_exists = cursor.fetchone() is not None
+        cursor.close()
+
+        if procedure_exists:
+            print(f"Procedure RUN_PROCESS_SQL already exists in schema {self.schema}.")
+        else:
+            # Create the run_dynamic_sql procedure if it doesn't exist
+            create_procedure_query ="""
+            CREATE OR REPLACE PROCEDURE """+self.schema+""".RUN_PROCESS_SQL(statement_id VARCHAR)
+            RETURNS VARIANT
+            LANGUAGE JAVASCRIPT
+            EXECUTE AS OWNER
+            AS
+            $$
+                // Get the SQL statement from the SQL_STATEMENTS table
+                var sql_command = `SELECT FUNCTION_DEFINITION FROM """+self.schema+"""."BOT_FUNCTIONS" WHERE FUNCTION_ID = :1`;
+                var stmt = snowflake.createStatement({sqlText: sql_command, binds: [STATEMENT_ID]});
+                var result_set = stmt.execute();
+                
+                if (result_set.next()) {
+                    var dynamic_sql = result_set.getColumnValue(1);  // Retrieve the SQL_TEXT
+                    
+                    // Execute the dynamic SQL
+                    var dynamic_stmt = snowflake.createStatement({sqlText: dynamic_sql});
+                    var dynamic_result_set = dynamic_stmt.execute();
+                    
+                    // Collect the results of the dynamic SQL query
+                    var results = [];
+                    while (dynamic_result_set.next()) {
+                        var row = {};
+                        for (var i = 1; i <= dynamic_result_set.getColumnCount(); i++) {
+                            row[dynamic_result_set.getColumnName(i)] = dynamic_result_set.getColumnValue(i);
+                        }
+                        results.push(row);
+                    }
+                    
+                    // Return the results
+                    return results;
+                } else {
+                    return "SQL statement not found for the given ID.";
+                }
+            $$;
+            """
+            
+            try:
+                cursor = self.client.cursor()
+                cursor.execute(create_procedure_query)
+                self.client.commit()
+                print("Procedure run_dynamic_sql created or replaced successfully.")
+            except Exception as e:
+                print(f"An error occurred while creating or replacing the run_dynamic_sql procedure: {e}")
+            finally:
+                if cursor:
+                    cursor.close()
+
 
         # Maintain bots_active table 
         # Get the current timestamp

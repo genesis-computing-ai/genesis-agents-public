@@ -124,11 +124,11 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                 resp= f"The model is changed to: {self.llm_engine}"
                 curr_resp = resp
 
-            if ') says: !fast on' in last_user_message["content"] or last_user_message["content"] == '!fast on':
+            if '!fast on' in last_user_message["content"] or last_user_message["content"] == '!fast on':
                 self.thread_fast_mode_map[thread_id] = True
                 resp = f"Fast mode activated for this thread. Model is now {os.getenv('CORTEX_FAST_MODEL_NAME', 'llama3.1-70b')}"
                 curr_resp = resp
-            elif ') says: !fast off' in last_user_message["content"] or last_user_message["content"] == '!fast off':
+            elif '!fast off' in last_user_message["content"] or last_user_message["content"] == '!fast off':
                 if thread_id in self.thread_fast_mode_map:
                     del self.thread_fast_mode_map[thread_id]
                 resp = f"Fast mode activated for this thread. Model is now {self.llm_engine}"
@@ -235,6 +235,32 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
     def cortex_rest_api(self,thread_id,message_metadata=None, event_callback=None, temperature=None, fast_mode=False):
 
         newarray = [{"role": message["message_type"], "content": message["content"]} for message in self.thread_history[thread_id]]
+
+        # Consolidate consecutive 'user' role messages
+        consolidated_array = []
+        current_user_content = []
+
+        for message in newarray:
+            if message["role"] == "user":
+                current_user_content.append(message["content"])
+            else:
+                if current_user_content:
+                    consolidated_array.append({
+                        "role": "user",
+                        "content": "\n".join(current_user_content)
+                    })
+                    current_user_content = []
+                consolidated_array.append(message)
+
+        # Add any remaining user content
+        if current_user_content:
+            consolidated_array.append({
+                "role": "user",
+                "content": "\n".join(current_user_content)
+            })
+
+        newarray = consolidated_array
+
 
         process_flag = False
         if self.thread_history[thread_id]:
@@ -577,22 +603,24 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         resp = self.fix_tool_calls(resp)
 
         # Remove trailing 💬 if present
-        if resp.endswith('💬'):
+        if resp.endswith('💬'): # or postfix.endswith('💬'):
             resp = resp[:-1]
             curr_resp = resp
             status = 'in_progress'
         else:
-            if '🧰' not in resp[-30:]:
+            if '🧰' not in resp[-60:]:
                 status = 'complete'
             else:
                 status = 'in_progress'
 
 
-        if resp != '' and BotOsAssistantSnowflakeCortex.stream_mode == True:
+        if resp != '' and ( ( BotOsAssistantSnowflakeCortex.stream_mode == True )  or (
+  message_metadata is not None and 'task_meta' in message_metadata and status == 'complete' and not postfix.endswith('💬')
+        )):
             if self.event_callback:
                 self.event_callback(self.bot_id, BotOsOutputMessage(thread_id=thread_id, 
                                                                     status=status, 
-                                                                    output=resp+postfix, 
+                                                                    output=curr_resp, 
                                                                     messages=None, 
                                                                     input_metadata=json.loads(message_metadata)))
         try:

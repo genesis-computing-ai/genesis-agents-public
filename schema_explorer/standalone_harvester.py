@@ -154,10 +154,10 @@ while True:
         update_harvest_control_with_new_databases(harvester_db_connector)
     
     print(f"Checking for new tables... (once per {refresh_seconds} seconds)",flush=True)
-    sys.stdout.write(f"Checking for new tables... (once per {refresh_seconds} seconds)...\n")
-    sys.stdout.flush()
+ #   sys.stdout.write(f"Checking for new tables... (once per {refresh_seconds} seconds)...\n")
+ #   sys.stdout.flush()
     #embeddings_handler.load_or_create_embeddings_index(bigquery_connector.metadata_table_name, refresh=True)
-    print('Checking if LLM API Key updated for harvester...')
+   # print('Checking if LLM API Key updated for harvester...')
     llm_key_handler = LLMKeyHandler(harvester_db_connector)
     latest_llm_type = None
     api_key_from_env, llm_api_key, latest_llm_type = llm_key_handler.get_llm_key_from_db(harvester_db_connector)
@@ -169,10 +169,11 @@ while True:
   #  logger.info(f"Checking for new semantic models... (once per {refresh_seconds} seconds)")
   #  schema_explorer.explore_semantic_models()
     #embeddings_handler.make_and_save_index(bigquery_connector.metadata_table_name)
-    sys.stdout.write(f'Pausing for {int(refresh_seconds)} seconds before next check.')
+  #  sys.stdout.write(f'Pausing for {int(refresh_seconds)} seconds before next check.')
     sys.stdout.flush()
 
     wake_up = False
+    i = 0
     while not wake_up:
         time.sleep(refresh_seconds)
 
@@ -184,9 +185,12 @@ while True:
         bot_active_time_dt = datetime.strptime(result[0], '%Y-%m-%d %H:%M:%S %Z')
         current_time = datetime.now()
         time_difference = current_time - bot_active_time_dt
-
-        print(f"\nBOTS ACTIVE TIME: {result[0]} | CURRENT TIME: {current_time} | TIME DIFFERENCE: {time_difference}", flush=True)
+        i = i + 1
+        if i == 1:
+            print(f"BOTS ACTIVE TIME: {result[0]} | CURRENT TIME: {current_time} | TIME DIFFERENCE: {time_difference}", flush=True)
+        if i > 10:
+            i = 0
 
         if time_difference < timedelta(minutes=5):
             wake_up = True
-            print("Bot is active")
+       #     print("Bot is active")

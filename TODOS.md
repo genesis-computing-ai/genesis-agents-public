@@ -15,6 +15,10 @@ process supervisor uses o1-mini if available
 new snowpark error-correction advisor for openai, uses o1-mini if available, if not gpt-4o
 
 todo:
+mistrallarge2, use?
+have task server reload the sessions every hour in case they've changed imp'l etc
+check one time and recurring cortex task completion, properly updating schedule table
+make sure scheduled tasks finishes are caught, or if no response, ping them
 add dyanmic sql tables for processes to APP1 metadata
 cortex doesnt return file results after running snowpark a few times... gets cut off with a dangling speech bubble
 add cost to o1 bots
@@ -117,6 +121,9 @@ x streamlit takes a long time before submitting welcome job for each bot.. loadi
 x add bot details caching to new streamlit 
 
 next version:
+when you remove a process also remove all associated schedules for that process
+make run_query accept a query code and read from functions table
+make run_snowpark accept a program code and read from functions table
 make sure tool learnings are captured, and apply them at tool level (perhaps in error responses), e.g. armen 2.0 example
 have send_email tool have a standard footer with who sent in, link back, process info, etc.
 make process scheduler wake up for the task it just finished not just skipped tasks

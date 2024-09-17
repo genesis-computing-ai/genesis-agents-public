@@ -67,7 +67,7 @@ os.environ['TASK_MODE'] = 'true'
 os.environ['SHOW_COST'] = 'false'
 ########################################
 
-print("****** GENBOT VERSION 0.153 *******")
+print("****** GENBOT VERSION 0.166 *******")
 print("****** TASK AUTOMATION SERVER *******")
 runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
 print("Runner ID: ", runner_id)
@@ -1203,7 +1203,7 @@ def tasks_loop():
         # Retrieve the list of bots and their tasks
 
         # Check for tasks submitted more than 10 minutes ago
-        ten_minutes_ago = datetime.now() - timedelta(minutes=10)
+        ten_minutes_ago = datetime.now() - timedelta(minutes=30)
         overdue_tasks = [
             task
             for task in pending_tasks
@@ -1212,7 +1212,7 @@ def tasks_loop():
         ]
         for task in overdue_tasks:
             print(
-                f"Task {task['task_id']} from bot {task['bot_id']} is overdue, removing from queue. Can we cancel the run?."
+                f"Task {task['task_id']} from bot {task['bot_id']} is overdue, running for more than 30 minutes, removing from queue. Can we cancel the run?."
             )
             pending_tasks.remove(task)
             # set to failed status
@@ -1257,7 +1257,7 @@ def tasks_loop():
 
         # for testing, make 
 
-        processed_tasks_full = []
+        next_runs = []
         for session in active_sessions:
             # Find the input adapter that is an instance of BotOsInputAdapter
             input_adapter = next(
@@ -1319,6 +1319,20 @@ def tasks_loop():
                     invalid_fields = []
                     if not missing_fields:
                         # Validate boolean fields
+                        # Convert stop_task_flag to boolean if it's a string
+                        if isinstance(task_response_data["stop_task_flag"], str):
+                            stop_flag_upper = task_response_data["stop_task_flag"].upper()
+                            if stop_flag_upper == "TRUE":
+                                task_response_data["stop_task_flag"] = True
+                            elif stop_flag_upper == "FALSE":
+                                task_response_data["stop_task_flag"] = False
+                        # Convert needs_help_flag to boolean if it's a string
+                        if isinstance(task_response_data["needs_help_flag"], str):
+                            needs_help_flag_upper = task_response_data["needs_help_flag"].upper()
+                            if needs_help_flag_upper == "TRUE":
+                                task_response_data["needs_help_flag"] = True
+                            elif needs_help_flag_upper == "FALSE":
+                                task_response_data["needs_help_flag"] = False
                         if not isinstance(task_response_data["stop_task_flag"], bool):
                             invalid_fields.append("stop_task_flag must be a boolean")
                         if not isinstance(task_response_data["needs_help_flag"], bool):
@@ -1389,16 +1403,19 @@ def tasks_loop():
 
                 if response_valid and task_response_data:
                     # Ensure next_run_time is at least 5 minutes from now
-                    next_run_time = datetime.strptime(
-                        task_response_data["next_run_time"], "%Y-%m-%d %H:%M:%S"
-                    )
-                    if (next_run_time - datetime.now()).total_seconds() < 300:
-                        task_response_data["next_run_time"] = (
-                            datetime.now() + timedelta(minutes=5)
-                        ).strftime("%Y-%m-%d %H:%M:%S")
-                        print(
-                            f"Changed next_run_time for task {task_id} from bot {bot_id} to ensure it's at least 5 minutes from now."
-                        )
+                    if not task_response_data.get("stop_task_flag", False):
+                        next_run_time = datetime.strptime(     task_response_data["next_run_time"], "%Y-%m-%d %H:%M:%S"   )
+                        if (next_run_time - datetime.now()).total_seconds() < 300:
+                            task_response_data["next_run_time"] = (
+                                datetime.now() + timedelta(minutes=5)
+                            ).strftime("%Y-%m-%d %H:%M:%S")
+                            print(
+                                f"Changed next_run_time for task {task_id} from bot {bot_id} to ensure it's at least 5 minutes from now."
+                            )
+                        next_run_time = datetime.strptime(     task_response_data["next_run_time"], "%Y-%m-%d %H:%M:%S"   )
+                        next_runs.append(next_run_time)
+
+
 
                 if not response_valid:
                     # count retries stop after 3
@@ -1444,7 +1461,12 @@ def tasks_loop():
                             task_clarity_comments="Unknon; issue was with response content.",
                         )
                     else:
-                        thread = response.messages.data[0].thread_id
+                        # Check if thread_id is in the response
+                        if 'thread_id' in response:
+                            thread = response['thread_id']
+                        else:
+                            # If not, use the existing thread from the response object
+                            thread = response.messages.data[0].thread_id
                         current_timestamp_str = datetime.now().strftime(
                             "%Y-%m-%d %H:%M:%S"
                         )
@@ -1469,7 +1491,6 @@ def tasks_loop():
                 # ...
 
                 processed_tasks.append(task_id)
-                processed_tasks_full.append(task_id)
 
             for task_id in processed_tasks:
                 pending_tasks = deque(
@@ -1489,25 +1510,42 @@ def tasks_loop():
         # skipped_tasks[0]["next_check_ts"] = datetime.now() + timedelta(seconds=30)
 
         wake_up = False
+        i = 0
         while not wake_up:
              # Check for a task within the next two minutes
-            if len(skipped_tasks) > 0 and skipped_tasks[0]["next_check_ts"] < datetime.now() + timedelta(minutes=2):
-                wake_up = True
-                print(f"Task {task['task_id']} is due to run soon.")
-                break
-            if len(pending_tasks) > 0:
-                wake_up = True
-            for pt in processed_tasks_full:
-                if pt["next_check_ts"] < datetime.now() + timedelta(minutes=2):
+            
+            seconds_until_next_check = None
+
+            if len(skipped_tasks) > 0:
+                try:
+                    seconds_until_next_check = (datetime.strptime(skipped_tasks[0]["next_check_ts"], '%Y-%m-%d %H:%M:%S') - datetime.now()).total_seconds()
+                except:
+                    seconds_until_next_check = (datetime.strptime(skipped_tasks[0]["next_check_ts"], '%Y-%m-%d %H:%M:%S %Z') - datetime.now()).total_seconds()
+                if seconds_until_next_check and seconds_until_next_check < 120:
                     wake_up = True
-                    print(f"Task {pt['task_id']} is due to run soon.")
-                    break               
-
+                    print(f"Seconds until next check: {seconds_until_next_check:.2f}")
+                    print(f"Task {task['task_id']} is due to run soon.")
             if len(pending_tasks) > 0:
-                time.sleep(30)
-            else:
-                time.sleep(120)
+                wake_up = True
+            for next_run in next_runs:
+                if next_run < datetime.now() + timedelta(minutes=2):
+                    wake_up = True
+                    print(f"A task is due to run soon.")
+                    next_runs.remove(next_run)
+                    seconds_until_next_run = (next_run - datetime.now()).total_seconds()
+                    if seconds_until_next_check is None or seconds_until_next_run < seconds_until_next_check:
+                        seconds_until_next_check = seconds_until_next_run
+                    print(f"Task due to run in {seconds_until_next_check:.2f} seconds.")
+                    #break               
 
+            if seconds_until_next_check is not None:
+                wait_time = max(0, min(120, seconds_until_next_check))
+            else:
+                wait_time = 120
+            if len(pending_tasks) > 0:
+                    wait_time = 15
+
+            time.sleep(wait_time)
             cursor = db_adapter.client.cursor()
             check_bot_active = f"DESCRIBE TABLE {db_adapter.schema}.BOTS_ACTIVE"
             cursor.execute(check_bot_active)
@@ -1517,11 +1555,15 @@ def tasks_loop():
             current_time = datetime.now()
             time_difference = current_time - bot_active_time_dt
 
-            print(f"\nBOTS ACTIVE TIME: {result[0]} | CURRENT TIME: {current_time} | TIME DIFFERENCE: {time_difference}", flush=True)
+            i = i + 1
+            if i == 1:
+                print(f"\nBOTS ACTIVE TIME: {result[0]} | CURRENT TIME: {current_time} | TIME DIFFERENCE: {time_difference}", flush=True)
+            if i > 10:
+                i = 0
 
             if time_difference < timedelta(minutes=5):
                 wake_up = True
-                print("Bot is active")
+       #         print("Bot is active")
 
 
         # if time_to_sleep > 0:

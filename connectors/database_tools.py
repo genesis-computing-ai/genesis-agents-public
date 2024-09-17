@@ -309,9 +309,9 @@ process_scheduler_functions = [
                         "type": "object",
                         "description": "The name of the process to run on this schedule.",
                         "properties": {
-                            "task_name": {
+                            "process_name": {
                                 "type": "string",
-                                "description": "The name of the process to run on a schedule.",
+                                "description": "The name of the process to run on a schedule. This must be a valid process name shown by _manage_processes LIST",
                             },
                             "primary_report_to_type": {
                                 "type": "string",

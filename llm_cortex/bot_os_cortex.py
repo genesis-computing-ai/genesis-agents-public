@@ -458,6 +458,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                             if isinstance(stop_timestamp, datetime.datetime) and (time.time() - stop_timestamp.timestamp()) > 30:
                                 self.thread_stop_map.pop(thread_id,None)
                                 self.stop_result_map.pop(thread_id,None)
+                        curr_line = ''
                         if line:
                             try:
                                 decoded_line = line.decode('utf-8')
@@ -475,6 +476,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                                     d = event_data['choices'][0]['delta'].get('content','')
                                     curr_resp += d
                                     resp += d
+                                    curr_line += d
                                     if "<|eom_id|>" in curr_resp[-100:]:
                                         curr_resp = curr_resp[:curr_resp.rfind("<|eom_id|>")].strip()
                                         resp = resp[:resp.rfind("<|eom_id|>")].strip()
@@ -491,19 +493,20 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                                     last_update = time.time()
                                     if self.event_callback:
                                         fn_call = False
-                                        if any(resp.strip().endswith(partial) for partial in ['<', '<f', '<fu', '<fun', '<func', '<funct', '<functi', '<functio', '<function', '<function=', '<function>']):
+                                    
+                                        if any(partial in curr_resp for partial in ['<fu', '<fun', '<func', '<funct', '<functi', '<functio', '<function', '<function=', '<function>']):
                                             fn_call = True
-                                        elif '<function=' in resp[-100:]:
-                                            last_function_start = resp.rfind('<function=')
-                                            if '</function>' not in resp[last_function_start:]:
+                                        elif '<function=' in curr_resp[-100:]:
+                                            last_function_start = curr_resp.rfind('<function=')
+                                            if '</function>' not in curr_resp[last_function_start:]:
                                                 fn_call = True
                                         # Check for incomplete <|python_tag|> at the end
                                         # Check for incomplete <|python_tag|> at the end
-                                        elif any(resp.strip().endswith(partial) for partial in ['<', '<|', '<|p', '<|py', '<|pyt', '<|pyth', '<|pytho', '<|python', '<|python_', '<|python_t', '<|python_ta', '<|python_tag', '<|python_tag|']):
+                                        elif any(partial in curr_resp for partial in [ '<|p', '<|py', '<|pyt', '<|pyth', '<|pytho', '<|python', '<|python_', '<|python_t', '<|python_ta', '<|python_tag', '<|python_tag|']):
                                             fn_call = True
-                                        elif '<|python_tag|>' in resp[-100:]:
-                                            last_python_tag_start = resp.rfind('<|python_tag|>')
-                                            if resp[last_python_tag_start:].strip()[-1] not in ['}', '>']:
+                                        elif '<|python_tag|>' in curr_resp[-100:]:
+                                            last_python_tag_start = curr_resp.rfind('<|python_tag|>')
+                                            if curr_resp[last_python_tag_start:].strip()[-1] not in ['}', '>']:
                                                 fn_call = True
                                         if not fn_call and len(resp)>50:
                                             self.event_callback(self.bot_id, BotOsOutputMessage(thread_id=thread_id, 

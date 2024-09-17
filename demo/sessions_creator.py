@@ -438,13 +438,14 @@ If you say you're going to call or use a tool, you MUST actually make the tool c
 Only respond with !NO_RESPONSE_REQUIRED if the message is directed to someone else or in chats with multiple people if you have nothing to say.
 Always respond to greetings and pleasantries like 'hi' etc.
 Call functions using ONLY this exact format: <function=example_function_name>{"example_name": "example_value"}</function>
+Don't use this call format unless you actually want to call the tool. Don't generate this as an example of what you could do, only do it when you actually want to call the tool.
 
  """
         else:
             instructions = instructions + """
 
 # Important Reminders
-If you say you're going to call or use a tool, you MUST actually make the tool call immediately.
+If you say you're going to call or use a tool, you MUST actually make the tool call immediately, but don't generate example tool calls, as they WILL be run.
 Only respond with !NO_RESPONSE_REQUIRED if the message is directed to someone else or in chats with multiple people if you have nothing to say.
 Always respond to greetings and pleasantries like 'hi' etc, unless specifically directed at someone else.
 

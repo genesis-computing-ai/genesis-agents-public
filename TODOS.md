@@ -14,18 +14,25 @@ streamlit images/files?
 process supervisor uses o1-mini if available
 new snowpark error-correction advisor for openai, uses o1-mini if available, if not gpt-4o
 
+today:
+streamlit images
+unicode quotes for fn call cortex?
+why cant it send slack in a process for janice joke 2.0 (startswith..?)
+stremlit error
+
 todo:
+fix cortex using process scheduler... lots of issues, changes dont stick, etc.
 mistrallarge2, use?
 have task server reload the sessions every hour in case they've changed imp'l etc
-check one time and recurring cortex task completion, properly updating schedule table
-make sure scheduled tasks finishes are caught, or if no response, ping them
-add dyanmic sql tables for processes to APP1 metadata
+x check one time and recurring cortex task completion, properly updating schedule table
+x make sure scheduled tasks finishes are caught, or if no response, ping them
+x add dyanmic sql tables for processes to APP1 metadata
 cortex doesnt return file results after running snowpark a few times... gets cut off with a dangling speech bubble
 add cost to o1 bots
 read stage then slack not sending the attachment:  [Download mary_had_a_little_lamb.txt](./downloaded_files/mary_had_a_little_lamb.txt)
-check jeff's outrigger sleep system
-change Janice 2.0 to Janice 
-checj get file from stage when file doesnt exist, also check to see if file it local instead
+(test) check jeff's outrigger sleep system
+n change Janice 2.0 to Janice 
+check get file from stage when file doesnt exist, also check to see if file it local instead
 (test) have a cut off for cortex on tool calls without stopping to talk to the user or the process supervisor after 10 tool calls in one run...
 have add file to stage see if the file is there before saying to return it
 wrapper for graphs for cortex

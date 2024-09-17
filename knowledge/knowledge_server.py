@@ -12,8 +12,9 @@ import ast
 refresh_seconds = os.getenv("KNOWLEDGE_REFRESH_SECONDS", 60)
 refresh_seconds = int(refresh_seconds)
 
-print("waiting 60 seconds for other services to start first...", flush=True)
-time.sleep(60)
+if os.getenv("TEST_TASK_MODE",'FALSE').upper() == 'FALSE':
+    print("waiting 60 seconds for other services to start first...", flush=True)
+    time.sleep(60)
 
 class KnowledgeServer:
     def __init__(self, db_connector, llm_type, maxsize=100):
@@ -24,11 +25,13 @@ class KnowledgeServer:
         self.condition = threading.Condition()
         self.thread_set = set()
         self.thread_set_lock = threading.Lock()
+        if llm_type == 'OpenAI':
+            llm_type = 'openai'
         self.llm_type = llm_type
-        if llm_type == 'openai':
+        if llm_type == 'openai' or llm_type == 'OpenAI':
             self.openai_api_key = os.getenv("OPENAI_API_KEY")
             self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-            self.model = os.getenv("OPENAI_KNOWLEDGE_MODEL", "gpt-4o")
+            self.model = os.getenv("OPENAI_KNOWLEDGE_MODEL", os.getenv('OPENAI_MODEL_NAME',"gpt-4o"))
             self.assistant = self.client.beta.assistants.create(
                 name="Knowledge Explorer",
                 description="You are a Knowledge Explorer to extract, synthesize, and inject knowledge that bots learn from doing their jobs",
@@ -83,11 +86,11 @@ class KnowledgeServer:
                 cursor.execute(check_bot_active)
                 result = cursor.fetchone()
 
-                bot_active_time_dt = datetime.strptime(result[0][0], '%Y-%m-%d %H:%M:%S %Z')
+                bot_active_time_dt = datetime.strptime(result[0], '%Y-%m-%d %H:%M:%S %Z')
                 current_time = datetime.now()
                 time_difference = current_time - bot_active_time_dt
 
-                print(f"\nBOTS ACTIVE TIME: {result[0][0]} | CURRENT TIME: {current_time} | TIME DIFFERENCE: {time_difference}", flush=True)
+                print(f"\nBOTS ACTIVE TIME: {result[0]} | CURRENT TIME: {current_time} | TIME DIFFERENCE: {time_difference}", flush=True)
 
                 if time_difference < timedelta(minutes=5):
                     wake_up = True
@@ -117,7 +120,7 @@ class KnowledgeServer:
             query = f"""SELECT DISTINCT(knowledge_thread_id) FROM {self.db_connector.knowledge_table_name}
                         WHERE thread_id = '{thread_id}';"""
             knowledge_thread_id = self.db_connector.run_query(query)
-            if knowledge_thread_id and self.llm_type == 'openai':
+            if knowledge_thread_id and ( self.llm_type == 'openai' or self.llm_type == 'OpenAI'):
                 knowledge_thread_id = knowledge_thread_id[0]["KNOWLEDGE_THREAD_ID"]
                 content = f"""Find a new batch of conversations between the user and agent and update 4 requested information in the original prompt and return it in JSON format:
                              Conversation:
@@ -143,14 +146,14 @@ class KnowledgeServer:
                              'tool_learning': STRING,
                              'data_learning': STRING}}
                         """
-                if self.llm_type == 'openai':
+                if self.llm_type == 'openai' or self.llm_type == 'OpenAI':
                     knowledge_thread_id = self.client.beta.threads.create().id
                     self.client.beta.threads.messages.create(
                         thread_id=knowledge_thread_id, content=content, role="user"
                     )
                 else: # cortex
                     knowledge_thread_id = '' 
-            if self.llm_type == 'openai':
+            if self.llm_type == 'openai' or self.llm_type == 'OpenAI':
                 run = self.client.beta.threads.runs.create(
                     thread_id=knowledge_thread_id, assistant_id=self.assistant.id
                 )
@@ -215,11 +218,11 @@ class KnowledgeServer:
                     cursor.execute(check_bot_active)
                     result = cursor.fetchone()
 
-                    bot_active_time_dt = datetime.strptime(result[0][0], '%Y-%m-%d %H:%M:%S %Z')
+                    bot_active_time_dt = datetime.strptime(result[0], '%Y-%m-%d %H:%M:%S %Z')
                     current_time = datetime.now()
                     time_difference = current_time - bot_active_time_dt
 
-                    print(f"\nBOTS ACTIVE TIME: {result[0][0]} | CURRENT TIME: {current_time} | TIME DIFFERENCE: {time_difference}", flush=True)
+                    print(f"\nBOTS ACTIVE TIME: {result[0]} | CURRENT TIME: {current_time} | TIME DIFFERENCE: {time_difference}", flush=True)
 
                     if time_difference < timedelta(minutes=5):
                         wake_up = True
@@ -260,7 +263,7 @@ class KnowledgeServer:
                     content = f"""This is the new raw knowledge:
                                 {raw_knowledge}
                             """
-                if self.llm_type == 'openai':
+                if self.llm_type == 'openai' or self.llm_type == 'OpenAI':
                     response = self.client.chat.completions.create(
                         model=self.model,
                         messages=[

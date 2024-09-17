@@ -339,6 +339,16 @@ class ToolBelt:
         
         # Remove any instances of $$ from to_addr_string, subject and body
         to_addr_string = to_addr_string.replace('$$', '')
+        body = body.replace('\\n','\n')
+        # Fix double-backslashed unicode escape sequences in the body
+
+        # Fix double-backslashed unicode escape sequences in the body
+        import re
+
+        def unescape_unicode(match):
+            return chr(int(match.group(1), 16))
+
+        body = re.sub(r'\\u([0-9a-fA-F]{4})', unescape_unicode, body)
         subject = subject.replace('$$', '')
         body = body.replace('$$', '')
         query = f"""

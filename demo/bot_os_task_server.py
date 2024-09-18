@@ -1627,7 +1627,7 @@ def find_replace_updated_bot_service(bot_id):
         FROM {db_adapter.schema}.bot_servicing bs
         LEFT JOIN {db_adapter.schema}.bot_servicing_backup bsb
         ON bs.bot_id = bsb.bot_id  
-        WHERE bs.bot_id IS %s
+        WHERE bs.bot_id = '%s'
         AND (bs.bot_instructions != bsb.bot_instructions
         OR bs.available_tools != bsb.available_tools
         OR bs.bot_intro_prompt != bsb.bot_intro_prompt)

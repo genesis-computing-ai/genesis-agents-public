@@ -199,8 +199,12 @@ def create_annoy_index(embeddings, n_trees=10):
     try:
         with tqdm(total=len(embeddings), desc="Indexing embeddings") as pbar:
             for i, embedding in enumerate(embeddings):
-                index.add_item(i, embedding)
-                pbar.update(i)
+              #  print(i)
+                try:
+                    index.add_item(i, embedding)
+                except Exception as e:
+                    print('embedding ',i,' failed, exception: ',e,' skipping...')
+                pbar.update(1)
             index.build(n_trees)
     except Exception as e:
         print('indexing exception: ',e)

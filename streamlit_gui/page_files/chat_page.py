@@ -453,7 +453,7 @@ def chat_page():
                     fast_mode = st.toggle("Fast Mode", value=True, key='fast_mode')
 
                     if fast_mode:
-                        st.info("Using a faster LLM model, but may be less accurate")
+                        st.info("Using faster LLM: Llama3.1-70b")
 
                 tokens = get_slack_tokens_cached()
                 slack_active = tokens.get("SlackActiveFlag", False)

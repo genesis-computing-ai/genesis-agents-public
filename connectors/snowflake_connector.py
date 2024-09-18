@@ -835,7 +835,7 @@ class SnowflakeConnector(DatabaseConnector):
 CREATE FUNCTION IF NOT EXISTS {self.project_id}.CORE.CHECK_URL_STATUS(site string)
 RETURNS STRING
 LANGUAGE PYTHON
-RUNTIME_VERSION = 3.8
+RUNTIME_VERSION = 3.11
 HANDLER = 'get_status'
 EXTERNAL_ACCESS_INTEGRATIONS = (REFERENCE('consumer_external_access'))
 PACKAGES = ('requests')

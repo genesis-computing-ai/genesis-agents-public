@@ -190,7 +190,8 @@ def create_annoy_index(embeddings, n_trees=10):
     
    # print('creating index')
    # print('len embeddings ',len(embeddings))
-    dimension = len(embeddings[0])  # Assuming all embeddings have the same dimension
+    dimension = max(len(embedding) for embedding in embeddings)
+    # Find the longest embedding length
    # print('dimension ',dimension)
 
     index = AnnoyIndex(dimension, 'angular')  # Using angular distance

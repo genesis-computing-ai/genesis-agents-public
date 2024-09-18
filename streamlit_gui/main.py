@@ -16,51 +16,58 @@ if 'NativeMode' not in st.session_state:
 if "wh_name" not in st.session_state:
     st.session_state["wh_name"] = "XSMALL" # TODO fix warehouse name
 
+if 'show_log_config' not in st.session_state:
+    check_status_result = get_metadata('logging_status')        
+    if check_status_result == False:
+        st.session_state.show_log_config = True
+        if st.session_state.NativeMode:
+            import snowflake.permissions as permissions
+            permissions.request_event_sharing()
+            # st.rerun()
 
 # Initialize session state for the modal
 if "show_modal" not in st.session_state:
     st.session_state.show_modal = True  # Default to showing the modal
 
-
-st.session_state.show_email_config = False
-st.session_state.show_log_config = False
-st.session_state.show_eai_config = False
-st.session_state.show_openai_config = False
-st.session_state.show_slack_config = False
-
     
 # check for configured email
-email_info = get_metadata("get_email")
-if len(email_info) > 0:
-    if 'Success' in email_info and email_info['Success']==False:
-        st.session_state.show_email_config = True
+if 'show_email_config' not in st.session_state:
+    st.session_state.show_email_config = False
+    email_info = get_metadata("get_email")
+    if len(email_info) > 0:
+        if 'Success' in email_info and email_info['Success']==False:
+            st.session_state.show_email_config = True
 
 # check for log sharing
-check_status_result = get_metadata('logging_status')        
-if check_status_result == False:
-    st.session_state.show_log_config = True
+# check_status_result = get_metadata('logging_status')        
+# if check_status_result == False:
+#     st.session_state.show_log_config = True
 
 # check for EAI reference
-ref = get_references("consumer_external_access")
-if not ref:
-    st.session_state.show_eai_config = True
+# ref = get_references("consumer_external_access")
+# if not ref:
+#     st.session_state.show_eai_config = True
 
 # check for openai llm token
-llm_info = get_metadata("llm_info")
-openai_set = False
-if len(llm_info) > 0:
-    # Check if openai exists
-    openai_set = [True for llm in llm_info if llm["llm_type"] == 'OpenAI']
-    openai_set = openai_set[0] if openai_set else False       
-if openai_set == False:
-    st.session_state.show_openai_config = True
+if 'show_openai_config' not in st.session_state:
+    st.session_state.show_openai_config = False
+    llm_info = get_metadata("llm_info")
+    openai_set = False
+    if len(llm_info) > 0:
+        # Check if openai exists
+        openai_set = [True for llm in llm_info if llm["llm_type"] == 'OpenAI']
+        openai_set = openai_set[0] if openai_set else False       
+    if openai_set == False:
+        st.session_state.show_openai_config = True
 
 # check for slack token
-tokens = get_slack_tokens()
-get_slack_tokens_cached.clear()
-slack_active = tokens.get("SlackActiveFlag", False)
-if slack_active == False:
-    st.session_state.show_slack_config = True
+if 'show_slack_config' not in st.session_state:
+    st.session_state.show_slack_config = False
+    tokens = get_slack_tokens()
+    get_slack_tokens_cached.clear()
+    slack_active = tokens.get("SlackActiveFlag", False)
+    if slack_active == False:
+        st.session_state.show_slack_config = True
 
 def hide_modal():
     st.session_state.show_modal = False
@@ -69,7 +76,7 @@ def hide_modal():
 
 # Define the modal logic
 def show_modal():
-    with st.expander("Additional Configuration Options", expanded=True):
+    with st.expander("Enable Cool Genesis features:", expanded=True):
 
         st.markdown(
             """
@@ -94,13 +101,13 @@ def show_modal():
                 text-align: left;
                 margin: 0;
                 font-weight: normal;
-                font-size: 0.8em;
+                font-size: 0.7em;
             }
             button:hover {
                 color: #FFB3B3 !important;
             }
             .element-container:has(#button-after) + div button {
-                line-height: 0.5 !important;
+                line-height: 0.4 !important;
                 margin-top: -30px !important;
                 margin-bottom: 0px !important;
             }
@@ -113,32 +120,33 @@ def show_modal():
 
         if st.session_state.show_email_config == True:
             st.markdown('<span id="button-after"></span>', unsafe_allow_html=True)
-            if st.button(" 📩 Configure your email"):
+            if st.button(" 📧 Let your Genbots Email you"):
                 st.session_state["radio"] = "Setup Email Integration"
                 st.rerun()
-        if st.session_state.show_log_config == True:
-            st.markdown('<span id="button-after"></span>', unsafe_allow_html=True)
-            if st.button(" 📂 Configure Log Sharing"):
-                if st.session_state.NativeMode:
-                    import snowflake.permissions as permissions
-                    permissions.request_event_sharing()
-                    st.rerun()
-        if st.session_state.show_eai_config == True:
-            if st.session_state.NativeMode:
-                st.markdown('<span id="button-after"></span>', unsafe_allow_html=True)
-                if st.button(" ⚙️ Configure External Access Integration"):
-                    import snowflake.permissions as permissions
-                    permissions.request_reference("consumer_external_access")
-        if st.session_state.show_openai_config == True:
-            st.markdown('<span id="button-after"></span>', unsafe_allow_html=True)
-            if st.button(" 🔆 Configure OpenAI"):
-                st.session_state["radio"] = "LLM Model & Key"
-                st.rerun()
+        # if st.session_state.show_log_config == True:
+        #     st.markdown('<span id="button-after"></span>', unsafe_allow_html=True)
+        #     if st.button(" 📂 Configure Log Sharing"):
+        #         if st.session_state.NativeMode:
+        #             import snowflake.permissions as permissions
+        #             permissions.request_event_sharing()
+        #             st.rerun()
+        # if st.session_state.show_eai_config == True:
+        #     if st.session_state.NativeMode:
+        #         st.markdown('<span id="button-after"></span>', unsafe_allow_html=True)
+        #         if st.button(" ⚙️ Configure External Access Integration"):
+        #             import snowflake.permissions as permissions
+        #             permissions.request_reference("consumer_external_access")
         if st.session_state.show_slack_config == True:
             st.markdown('<span id="button-after"></span>', unsafe_allow_html=True)
-            if st.button(" 📝 Configure Slack Connection"):
+            if st.button(" 💬 Connect your bots to Slack"):
                 st.session_state["radio"] = "Setup Slack Connection"
+                st.rerun()        
+        if st.session_state.show_openai_config == True:
+            st.markdown('<span id="button-after"></span>', unsafe_allow_html=True)
+            if st.button(" 🧠 Enable OpenAI LLM with your Key"):
+                st.session_state["radio"] = "LLM Model & Key"
                 st.rerun()
+
         if st.checkbox("Ignore this message for the rest of the session"):
             hide_modal()
             st.rerun()
@@ -149,7 +157,7 @@ def show_modal():
 if st.session_state.show_modal:
     show_modal()
 
-if st.session_state.show_email_config == False and st.session_state.show_log_config == False and st.session_state.show_eai_config == False and st.session_state.show_openai_config == False and st.session_state.show_slack_config == False:
+if st.session_state.show_email_config == False and st.session_state.show_openai_config == False and st.session_state.show_slack_config == False:
     hide_modal()
 else:
     st.session_state.show_modal = True
@@ -288,7 +296,7 @@ if st.session_state.data:
         "Harvester Status": lambda: __import__('page_files.db_harvester').db_harvester.db_harvester(),
         "Bot Configuration": lambda: __import__('page_files.bot_config').bot_config.bot_config(),
         "Server Stop-Start": lambda: __import__('page_files.start_stop').start_stop.start_stop(),
-        "Setup Event Logging": lambda: __import__('page_files.config_logging').config_logging.config_logging(),
+        # "Setup Event Logging": lambda: __import__('page_files.config_logging').config_logging.config_logging(),
         "Server Logs": lambda: __import__('page_files.show_server_logs').show_server_logs.show_server_logs(),
         "Support and Community": lambda: __import__('page_files.support').support.support(),
     }

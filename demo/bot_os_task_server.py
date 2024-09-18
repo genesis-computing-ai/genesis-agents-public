@@ -1652,6 +1652,7 @@ def find_replace_updated_bot_service(bot_id):
 
             bot_ids_to_update = [row[2] for row in non_identical_rows]
 
+            os.environ[f'RESET_BOT_SESSION_{bot_id}'] = 'True'
             return True
         
     except Exception as e:

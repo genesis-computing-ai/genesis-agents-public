@@ -101,7 +101,7 @@ if st.session_state.NativeMode:
                                     # Execute the command and collect the results
                                     time.sleep(15)
                                     service_start_result = session.sql(
-                                        f"call {st.session_state.app_name}.core.start_app_instance('APP1','GENESIS_POOL','GENESIS_EAI','{st.session_state.wh_name}')"
+                                        f"call {st.session_state.app_name}.core.start_app_instance('APP1','GENESIS_POOL',FALSE,'{st.session_state.wh_name}')"
                                     ).collect()
                                     if service_start_result:
                                         service_status.text(
@@ -144,7 +144,7 @@ if st.session_state.data:
         "Grant Data Access": lambda: __import__('page_files.grant_data').grant_data.grant_data(),
         "Harvester Status": lambda: __import__('page_files.db_harvester').db_harvester.db_harvester(),
         "Bot Configuration": lambda: __import__('page_files.bot_config').bot_config.bot_config(),
-        "Server Stop/Start": lambda: __import__('page_files.start_stop').start_stop.start_stop(),
+        "Server Stop-Start": lambda: __import__('page_files.start_stop').start_stop.start_stop(),
         "Server Logs": lambda: __import__('page_files.show_server_logs').show_server_logs.show_server_logs(),
         "Support and Community": lambda: __import__('page_files.support').support.support(),
     }

@@ -741,6 +741,30 @@ class SnowflakeConnector(DatabaseConnector):
             err = f"An error occurred while retrieving bot images: {e}"
             return {"Success": False, "Error": err}
 
+    def get_email(self):
+        """
+        Retrieves the email address if set.
+
+        Returns:
+            list: An email address, if set.
+        """
+        try:
+            query = f"SELECT DEFAULT_EMAIL FROM {self.genbot_internal_project_and_schema}.DEFAULT_EMAIL"
+            cursor = self.client.cursor()
+            cursor.execute(query)
+            email_info = cursor.fetchall()
+            columns = [col[0].lower() for col in cursor.description]
+            email_list = [dict(zip(columns, email)) for email in email_info]
+            json_data = json.dumps(
+                email_list, default=str
+            )  # default=str to handle datetime and other non-serializable types
+
+            return {"Success": True, "Data": json_data}
+
+        except Exception as e:
+            err = f"An error occurred while getting email address: {e}"
+            return {"Success": False, "Error": err}
+
     def get_llm_info(self, thread_id=None):
         """
         Retrieves a list of all llm types and keys.
@@ -851,7 +875,6 @@ $$;
                         cursor.execute(select_query)
                         eai_test_result = cursor.fetchone()
 
-                        print(f"*********eai result: {eai_test_result}")
                         if 'Success' in eai_test_result:
                             function_test_success = True
 
@@ -865,7 +888,6 @@ $$;
 
                             cursor.execute(check_eai_query)
                             check_eai_result = cursor.fetchone()
-                            print(f"*********check_eai_result: {check_eai_result}")
 
                             if check_eai_result:
                                 function_success = True
@@ -1019,6 +1041,20 @@ $$;
             return result[0] > 0  # Returns True if a row exists, False otherwise
         except Exception as e:
             print(f"An error occurred while checking if the table summary exists: {e}")
+            return False
+        
+    def check_logging_status(self):
+        query = f"""
+        CALL {self.project_id}.CORE.CHECK_APPLICATION_SHARING()
+        """
+        try:
+            cursor = self.client.cursor()
+            cursor.execute(query)
+            result = cursor.fetchone()
+
+            return result[0]  # Returns True, False otherwise
+        except Exception as e:
+            print(f"An error occurred while checking logging status: {e}")
             return False
 
     def insert_chat_history_row(

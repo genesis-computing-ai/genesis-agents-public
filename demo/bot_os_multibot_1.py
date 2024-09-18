@@ -396,6 +396,11 @@ def get_metadata():
         elif metadata_type.startswith('test_email '):
             email = metadata_type.split('test_email ')[1].strip()
             result = db_adapter.send_test_email(email) 
+        elif metadata_type.startswith('get_email'):
+            result = db_adapter.get_email() 
+        elif metadata_type.startswith('logging_status'):
+            status = db_adapter.check_logging_status()
+            result = {"Success": True, "Data": status}  
         elif metadata_type.startswith('custom_config '):
             metadata_parts = metadata_type.split()
             if len(metadata_parts) == 3:

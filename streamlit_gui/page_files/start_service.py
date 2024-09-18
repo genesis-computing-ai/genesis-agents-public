@@ -62,7 +62,7 @@ def start_service():
                     )
                     with st.spinner("..."):
                         start_result = session.sql(
-                            f"call {core_prefix}.INITIALIZE_APP_INSTANCE('APP1','GENESIS_POOL','GENESIS_EAI','{st.session_state.wh_name}')"
+                            f"call {core_prefix}.INITIALIZE_APP_INSTANCE('APP1','GENESIS_POOL',FALSE,'{st.session_state.wh_name}')"
                         )
                         st.write(start_result)
                 except Exception as e:

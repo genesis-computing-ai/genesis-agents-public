@@ -1,6 +1,6 @@
 import time
 import streamlit as st
-from utils import get_session
+from utils import get_session, get_metadata
 import snowflake.permissions as permissions
 
 
@@ -43,9 +43,7 @@ def config_logging():
 
     try:
         # Execute the command and collect the results
-        core_prefix = st.session_state.get('core_prefix', '')
-        check_status_query = f"CALL {core_prefix}.CHECK_APPLICATION_SHARING()"
-        check_status_result = session.sql(check_status_query).collect()
+        check_status_result = get_metadata('logging_status')        
         # if permissions.is_event_sharing_enabled():
         if check_status_result == True:
             st.markdown("""
@@ -85,19 +83,6 @@ def config_logging():
             st.markdown('<div class="code-box">', unsafe_allow_html=True)
             st.code(wh_text, language="sql")
             st.markdown('</div>', unsafe_allow_html=True)
-
-            if st.button("Verify logging is enabled", key="verify_logging"):
-                st.cache_data.clear()
-                st.cache_resource.clear()
-                check_status_query = f"CALL {core_prefix}.CHECK_APPLICATION_SHARING()"
-                check_status_result = session.sql(check_status_query).collect()
-                st.success(f"{check_status_result}")
-
-                # log_share_sql = f"call core.run_arbitrary($$select system$IS_APPLICATION_SHARING_EVENTS_WITH_PROVIDER()$$)"
-                # log_share_result = session.sql(log_share_sql).collect()
-                # st.success(f"log share? {log_share_result[0][0]}")
-                time.sleep(10)
-                st.rerun()
  
 
     except Exception as e:

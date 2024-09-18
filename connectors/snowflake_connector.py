@@ -1727,19 +1727,6 @@ class SnowflakeConnector(DatabaseConnector):
         else:
             print(f"Table {self.schema}.BOT_FUNCTIONS already exists.")
 
-        check_loader_proc_sql = f"""SELECT * FROM {self.schema}.BOT_FUNCTIONS WHERE FUNCTION_ID = 'LOADER_PROC'"""
-        cursor.execute(check_loader_proc_sql)
-        if not cursor.fetchone():
-            insert_loader_proc_sql = f"""
-            INSERT INTO {self.schema}.BOT_FUNCTIONS (BOT_ID, FUNCTION_ID, FUNCTION_TYPE, FUNCTION_DEFINITION, DESCRIPTION)
-            VALUES ('LOADER', 'LOADER_PROC', 'SQL', '{LOADER_SPROC}', 'Load SQL statements for use with processes');
-            """
-            cursor.execute(insert_loader_proc_sql)
-            self.client.commit()
-            print(f"Inserted LOADER_PROC into {self.schema}.BOT_FUNCTIONS")
-        
-        cursor.close()
-
         # Check if the run_dynamic_sql procedure already exists
         check_procedure_query = f"""
         SHOW PROCEDURES LIKE 'RUN_PROCESS_SQL' IN SCHEMA {self.schema}

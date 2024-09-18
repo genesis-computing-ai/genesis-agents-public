@@ -38,3 +38,5 @@ genesis_env/*
 genesis.db
 launch.json
 *.exe
+
+sdf_workspaces/*

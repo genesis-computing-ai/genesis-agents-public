@@ -31,3 +31,4 @@ pdb_attach
 sseclient
 botbuilder-integration-aiohttp>=4.15.0
 selenium==4.24.0
+dagster-sdf

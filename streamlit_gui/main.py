@@ -16,152 +16,6 @@ if 'NativeMode' not in st.session_state:
 if "wh_name" not in st.session_state:
     st.session_state["wh_name"] = "XSMALL" # TODO fix warehouse name
 
-if 'show_log_config' not in st.session_state:
-    check_status_result = get_metadata('logging_status')        
-    if check_status_result == False:
-        st.session_state.show_log_config = True
-        if st.session_state.NativeMode:
-            import snowflake.permissions as permissions
-            permissions.request_event_sharing()
-            # st.rerun()
-
-# Initialize session state for the modal
-if "show_modal" not in st.session_state:
-    st.session_state.show_modal = True  # Default to showing the modal
-
-    
-# check for configured email
-if 'show_email_config' not in st.session_state:
-    st.session_state.show_email_config = False
-    email_info = get_metadata("get_email")
-    if len(email_info) > 0:
-        if 'Success' in email_info and email_info['Success']==False:
-            st.session_state.show_email_config = True
-
-# check for log sharing
-# check_status_result = get_metadata('logging_status')        
-# if check_status_result == False:
-#     st.session_state.show_log_config = True
-
-# check for EAI reference
-# ref = get_references("consumer_external_access")
-# if not ref:
-#     st.session_state.show_eai_config = True
-
-# check for openai llm token
-if 'show_openai_config' not in st.session_state:
-    st.session_state.show_openai_config = False
-    llm_info = get_metadata("llm_info")
-    openai_set = False
-    if len(llm_info) > 0:
-        # Check if openai exists
-        openai_set = [True for llm in llm_info if llm["llm_type"] == 'OpenAI']
-        openai_set = openai_set[0] if openai_set else False       
-    if openai_set == False:
-        st.session_state.show_openai_config = True
-
-# check for slack token
-if 'show_slack_config' not in st.session_state:
-    st.session_state.show_slack_config = False
-    tokens = get_slack_tokens()
-    get_slack_tokens_cached.clear()
-    slack_active = tokens.get("SlackActiveFlag", False)
-    if slack_active == False:
-        st.session_state.show_slack_config = True
-
-def hide_modal():
-    st.session_state.show_modal = False
-
-
-
-# Define the modal logic
-def show_modal():
-    with st.expander("Enable Cool Genesis features:", expanded=True):
-
-        st.markdown(
-            """
-            <style>
-            .element-container:has(style){
-                display: none;
-            }
-            #button-after {
-                display: none;
-            }
-            .element-container:has(#button-after) {
-                display: none;
-            }
-            .element-container:has(#button-after) + div button {
-                background: none;
-                border: none;
-                padding: 0;
-                font: inherit;
-                cursor: pointer;
-                outline: inherit;
-                color: inherit;
-                text-align: left;
-                margin: 0;
-                font-weight: normal;
-                font-size: 0.7em;
-            }
-            button:hover {
-                color: #FFB3B3 !important;
-            }
-            .element-container:has(#button-after) + div button {
-                line-height: 0.4 !important;
-                margin-top: -30px !important;
-                margin-bottom: 0px !important;
-            }
-            </style>
-
-            """,
-            unsafe_allow_html=True,
-        )
-
-
-        if st.session_state.show_email_config == True:
-            st.markdown('<span id="button-after"></span>', unsafe_allow_html=True)
-            if st.button(" 📧 Let your Genbots Email you"):
-                st.session_state["radio"] = "Setup Email Integration"
-                st.rerun()
-        # if st.session_state.show_log_config == True:
-        #     st.markdown('<span id="button-after"></span>', unsafe_allow_html=True)
-        #     if st.button(" 📂 Configure Log Sharing"):
-        #         if st.session_state.NativeMode:
-        #             import snowflake.permissions as permissions
-        #             permissions.request_event_sharing()
-        #             st.rerun()
-        # if st.session_state.show_eai_config == True:
-        #     if st.session_state.NativeMode:
-        #         st.markdown('<span id="button-after"></span>', unsafe_allow_html=True)
-        #         if st.button(" ⚙️ Configure External Access Integration"):
-        #             import snowflake.permissions as permissions
-        #             permissions.request_reference("consumer_external_access")
-        if st.session_state.show_slack_config == True:
-            st.markdown('<span id="button-after"></span>', unsafe_allow_html=True)
-            if st.button(" 💬 Connect your bots to Slack"):
-                st.session_state["radio"] = "Setup Slack Connection"
-                st.rerun()        
-        if st.session_state.show_openai_config == True:
-            st.markdown('<span id="button-after"></span>', unsafe_allow_html=True)
-            if st.button(" 🧠 Enable OpenAI LLM with your Key"):
-                st.session_state["radio"] = "LLM Model & Key"
-                st.rerun()
-
-        if st.checkbox("Ignore this message for the rest of the session"):
-            hide_modal()
-            st.rerun()
-
-
-
-# Show modal if the session state allows
-if st.session_state.show_modal:
-    show_modal()
-
-if st.session_state.show_email_config == False and st.session_state.show_openai_config == False and st.session_state.show_slack_config == False:
-    hide_modal()
-else:
-    st.session_state.show_modal = True
-
 # Main content of the app
 
 def render_image(filepath: str, width = None):
@@ -227,6 +81,120 @@ if st.session_state.NativeMode:
 else:
     st.session_state["data"] = "Local Mode"
 
+
+
+if 'show_log_config' not in st.session_state:
+    check_status_result = get_metadata('logging_status')        
+    if check_status_result == False:
+        st.session_state.show_log_config = True
+        if st.session_state.NativeMode:
+            import snowflake.permissions as permissions
+            permissions.request_event_sharing()
+            # st.rerun()
+
+# Initialize session state for the modal
+if "show_modal" not in st.session_state:
+    st.session_state.show_modal = True  # Default to showing the modal
+
+    
+# check for configured email
+if 'show_email_config' not in st.session_state:
+    st.session_state.show_email_config = False
+    email_info = get_metadata("get_email")
+    if len(email_info) > 0:
+        if 'Success' in email_info and email_info['Success']==False:
+            st.session_state.show_email_config = True
+
+# check for openai llm token
+if 'show_openai_config' not in st.session_state:
+    st.session_state.show_openai_config = False
+    llm_info = get_metadata("llm_info")
+    openai_set = False
+    if len(llm_info) > 0:
+        # Check if openai exists
+        openai_set = [True for llm in llm_info if llm["llm_type"] == 'OpenAI']
+        openai_set = openai_set[0] if openai_set else False       
+    if openai_set == False:
+        st.session_state.show_openai_config = True
+
+# check for slack token
+if 'show_slack_config' not in st.session_state:
+    st.session_state.show_slack_config = False
+    tokens = get_slack_tokens()
+    get_slack_tokens_cached.clear()
+    slack_active = tokens.get("SlackActiveFlag", False)
+    if slack_active == False:
+        st.session_state.show_slack_config = True
+
+def hide_modal():
+    st.session_state.show_modal = False
+
+
+# Define the modal logic
+def show_modal():
+    with st.expander("Enable Cool Genesis features:", expanded=True):
+
+        st.markdown(
+            """
+            <style>
+            .element-container:has(style){
+                display: none;
+            }
+            #button-after {
+                display: none;
+            }
+            .element-container:has(#button-after) {
+                display: none;
+            }
+            .element-container:has(#button-after) + div button {
+                background: none;
+                border: none;
+                padding: 0;
+                font: inherit;
+                cursor: pointer;
+                outline: inherit;
+                color: inherit;
+                text-align: left;
+                margin: 0;
+                font-weight: normal;
+                font-size: 0.7em;
+            }
+            button:hover {
+                color: #FFB3B3 !important;
+            }
+            .element-container:has(#button-after) + div button {
+                line-height: 0.4 !important;
+                margin-top: -30px !important;
+                margin-bottom: 0px !important;
+            }
+            </style>
+
+            """,
+            unsafe_allow_html=True,
+        )
+
+
+        if st.session_state.show_email_config == True:
+            st.markdown('<span id="button-after"></span>', unsafe_allow_html=True)
+            if st.button(" 📧 Let your Genbots Email you"):
+                st.session_state["radio"] = "Setup Email Integration"
+                st.rerun()
+        if st.session_state.show_slack_config == True:
+            st.markdown('<span id="button-after"></span>', unsafe_allow_html=True)
+            if st.button(" 💬 Connect your bots to Slack"):
+                st.session_state["radio"] = "Setup Slack Connection"
+                st.rerun()        
+        if st.session_state.show_openai_config == True:
+            st.markdown('<span id="button-after"></span>', unsafe_allow_html=True)
+            if st.button(" 🧠 Enable OpenAI LLM with your Key"):
+                st.session_state["radio"] = "LLM Model & Key"
+                st.rerun()
+
+        if st.checkbox("Ignore this message for the rest of the session"):
+            hide_modal()
+            st.rerun()
+
+
 if st.session_state.NativeMode:
     try:
         # status_query = f"select v.value:status::varchar status from (select parse_json(system$get_service_status('{prefix}.GENESISAPP_SERVICE_SERVICE'))) t, lateral flatten(input => t.$1) v"
@@ -284,6 +252,14 @@ if "data" in st.session_state:
 if "last_response" not in st.session_state:
     st.session_state["last_response"] = ""
 
+# Show modal if the session state allows
+if st.session_state.show_modal:
+    show_modal()
+
+if st.session_state.show_email_config == False and st.session_state.show_openai_config == False and st.session_state.show_slack_config == False:
+    hide_modal()
+else:
+    st.session_state.show_modal = True
 
 if st.session_state.data:
     pages = {

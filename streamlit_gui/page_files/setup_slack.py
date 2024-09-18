@@ -6,13 +6,15 @@ def setup_slack():
         st.session_state.eai_available = False
         
     if st.session_state.eai_available == False:
-        references = get_references("consumer_external_access")
-        if not references:
+        ref = get_references("consumer_external_access")
+        # check for custom EAI
+        eai_status = check_eai_status('slack')
+        if not ref and eai_status == False:
             if st.session_state.NativeMode:
                 import snowflake.permissions as permissions
                 permissions.request_reference("consumer_external_access")
         else:
-            eai_status = check_eai_status('slack')
+            # eai_status = check_eai_status('openai')
             st.session_state.eai_available = eai_status
             if eai_status == True:
                 st.write(f"External Access Integration available")

@@ -790,82 +790,47 @@ class SnowflakeConnector(DatabaseConnector):
             return {"Success": False, "Error": err}
 
 
-    def config_settings_test(self, object_type, site):
+    def eai_test(self, object_type, site):
         try:
 
-            # check_table_query = f"""
-            # SHOW TABLES LIKE 'CUSTOM_CONFIG_SETTING' IN {self.genbot_internal_project_and_schema}
-            # """
-            # cursor = self.client.cursor()
-            # cursor.execute(check_table_query)
-            # table_exists = cursor.fetchone() is not None
-
-            # if not table_exists:
-            #     # Create the table if it doesn't exist
-            #     create_table_query = f"""
-            #     CREATE TABLE {self.genbot_internal_project_and_schema}.CUSTOM_CONFIG_SETTING (
-            #         CUSTOM_OBJECT_NAME VARCHAR(255),
-            #         CUSTOM_OBJECT_TYPE VARCHAR(255)
-            #     )
-            #     """
-            #     cursor.execute(create_table_query)
-            
             if object_type == 'EAI':
+                
+                create_function_query = f"""
+                    CREATE FUNCTION IF NOT EXISTS {self.project_id}.CORE.CHECK_URL_STATUS(site string)
+                    RETURNS STRING
+                    LANGUAGE PYTHON
+                    RUNTIME_VERSION = 3.11
+                    HANDLER = 'get_status'
+                    EXTERNAL_ACCESS_INTEGRATIONS = (REFERENCE('consumer_external_access'))
+                    PACKAGES = ('requests')
+                    AS
+                    $$
+                    import requests
 
-                # Insert or update the object name
-                # upsert_query = f"""
-                # MERGE INTO {self.genbot_internal_project_and_schema}.CUSTOM_CONFIG_SETTING t
-                # USING (SELECT %s AS custom_object_name, %s AS custom_object_type) s
-                # ON (t.custom_object_type = s.custom_object_type)
-                # WHEN MATCHED THEN
-                #     UPDATE SET t.CUSTOM_OBJECT_NAME = s.custom_object_name
-                # WHEN NOT MATCHED THEN
-                #     INSERT (CUSTOM_OBJECT_NAME, CUSTOM_OBJECT_TYPE) VALUES (s.custom_object_name, s.custom_object_type)
-                # """
-                # cursor.execute(upsert_query, (object_name,object_type))
+                    def get_status(site):
+                        if site == 'slack':
+                            url = "https://slack.com"  # Replace with the allowed URL
+                        elif site == 'openai':
+                            url = "https://api.openai.com/v1/models"  # Replace with the allowed URL
+                        else:
+                            return f"Invalid site: {{site}}"
 
-                # # Commit the changes
-                # self.client.commit()
-
-                # table_success = True
-
+                        try:
+                            # Make an HTTP GET request to the allowed URL
+                            response = requests.get(url, timeout=10)
+                            
+                            # Check if the status code is 200
+                            if response.status_code == 200 or response.status_code == 401:
+                                return "Success"
+                            else:
+                                return f"Invalid URL, status code: {{response.status_code}}"
+                        
+                        except requests.exceptions.RequestException as e:
+                            # Catch and return any exceptions
+                            return f"Error: {{str(e)}}"
+                    $$;
+                """
                 try:
-
-                    create_function_query = f"""
-CREATE FUNCTION IF NOT EXISTS {self.project_id}.CORE.CHECK_URL_STATUS(site string)
-RETURNS STRING
-LANGUAGE PYTHON
-RUNTIME_VERSION = 3.11
-HANDLER = 'get_status'
-EXTERNAL_ACCESS_INTEGRATIONS = (REFERENCE('consumer_external_access'))
-PACKAGES = ('requests')
-AS
-$$
-import requests
-
-def get_status(site):
-    if site == 'slack':
-        url = "https://slack.com"  # Replace with the allowed URL
-    elif site == 'openai':
-        url = "https://api.openai.com/v1/models"  # Replace with the allowed URL
-    else:
-        return f"Invalid site: {{site}}"
-
-    try:
-        # Make an HTTP GET request to the allowed URL
-        response = requests.get(url, timeout=10)
-        
-        # Check if the status code is 200
-        if response.status_code == 200 or response.status_code == 401:
-            return "Success"
-        else:
-            return f"Invalid URL, status code: {{response.status_code}}"
-    
-    except requests.exceptions.RequestException as e:
-        # Catch and return any exceptions
-        return f"Error: {{str(e)}}"
-$$;
-                    """
                     cursor = self.client.cursor()
                     cursor.execute(create_function_query)
 
@@ -877,41 +842,27 @@ $$;
 
                         if 'Success' in eai_test_result:
                             function_test_success = True
-
-                            show_query = f"show services in application {self.project_id}"
-                            cursor.execute(show_query)
-                            check_eai_query = """
-                                                SELECT f.VALUE::string FROM table(result_scan(-1)) a, 
-                                                LATERAL FLATTEN(input => parse_json(a."external_access_integrations")) AS f 
-                                                WHERE "name" = 'GENESISAPP_SERVICE_SERVICE'; 
-                                            """
-
-                            cursor.execute(check_eai_query)
-                            check_eai_result = cursor.fetchone()
-
-                            if check_eai_result:
-                                function_success = True
-
                 except Exception as e:
-                    err = f"An error occurred while creating/testing EAI test function: {e}"
-                    return {"Success": False, "Error": err}
-            # elif object_type == 'WH':
-            else:
-                # check for existing EAI
-                select_query = f"""SELECT CUSTOM_OBJECT_NAME FROM {self.genbot_internal_project_and_schema}.CUSTOM_CONFIG_SETTING WHERE CUSTOM_OBJECT_TYPE = 'EAI'"""
-                cursor.execute(select_query)
-                select_result = cursor.fetchall()
+                    print(f"An error occurred while creating/testing EAI test function: {e}")
+                    function_test_success = True
 
-                columns = [col[0].lower() for col in cursor.description]
-                select_result = [dict(zip(columns, row)) for row in select_result]
-                json_data = json.dumps(
-                    select_result, default=str
-                )  # default=str to handle datetime and other non-serializable types
-                
-                return {"Success": True, "Data": json_data}
+                # check for existing EAI assigned to services
+                show_query = f"show services in application {self.project_id}"
+                cursor.execute(show_query)
+                check_eai_query = """
+                                    SELECT f.VALUE::string FROM table(result_scan(-1)) a, 
+                                    LATERAL FLATTEN(input => parse_json(a."external_access_integrations")) AS f 
+                                    WHERE "name" = 'GENESISAPP_SERVICE_SERVICE'; 
+                                """
+
+                cursor.execute(check_eai_query)
+                check_eai_result = cursor.fetchone()
+
+                if check_eai_result:
+                    function_success = True
 
         except Exception as e:
-            err = f"An error occurred while updating CUSTOM_CONFIG_SETTINGS: {e}"
+            err = f"An error occurred while creating/testing EAI test function: {e}"
             return {"Success": False, "Error": err}
         
         # '[{"system$send_email": true}]'

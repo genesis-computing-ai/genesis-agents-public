@@ -411,7 +411,7 @@ def get_metadata():
                 site = None
             else:
                 print("missing metadata")
-            result = db_adapter.config_settings_test(object_type=object_type, site=site)                
+            result = db_adapter.eai_test(object_type=object_type, site=site)                
         elif 'sandbox' in metadata_type:
             _, bot_id, thread_id_in, file_name = metadata_type.split('|')
             print('****get_metadata, file_name', file_name)

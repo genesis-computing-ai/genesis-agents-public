@@ -9,12 +9,14 @@ def llm_config():
         
     if st.session_state.eai_available == False:
         ref = get_references("consumer_external_access")
-        if not ref:
+        # check for custom EAI
+        eai_status = check_eai_status('openai')
+        if not ref and eai_status == False:
             if st.session_state.NativeMode:
                 import snowflake.permissions as permissions
                 permissions.request_reference("consumer_external_access")
         else:
-            eai_status = check_eai_status('openai')
+            # eai_status = check_eai_status('openai')
             st.session_state.eai_available = eai_status
             if eai_status == True:
                 st.write(f"External Access Integration available")

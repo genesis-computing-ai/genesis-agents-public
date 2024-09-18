@@ -67,7 +67,7 @@ os.environ['TASK_MODE'] = 'true'
 os.environ['SHOW_COST'] = 'false'
 ########################################
 
-print("****** GENBOT VERSION 0.166 *******")
+print("****** GENBOT VERSION 0.170 *******")
 print("****** TASK AUTOMATION SERVER *******")
 runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
 print("Runner ID: ", runner_id)
@@ -1223,12 +1223,17 @@ def tasks_loop():
 
         for session in active_sessions:
             bot_id = session.bot_id
+            if os.getenv("TEST_TASK_MODE", "false").lower() == "true":
+                print('test task mode - looking for tasks for bot ',bot_id)
             tasks = db_adapter.process_scheduler(action="LIST", bot_id=bot_id, task_id=None)
-
+            if os.getenv("TEST_TASK_MODE", "false").lower() == "true":
+                print('test task mode - tasks are: ',tasks)
             if tasks.get("Success"):
                 for task in [
-                    t for t in tasks.get("Tasks", []) if t.get("task_active", False)
+                    t for t in tasks.get("Scheduled Processes", []) if t.get("task_active", False)
                 ]:
+                    if os.getenv("TEST_TASK_MODE", "false").lower() == "true":
+                        print('test task mode - task is: ',task)
                     # If an instance of the task is not alreday running, Process the task using the bot
                     if not any(
                         pending_task["task_id"] == task["task_id"]
@@ -1547,6 +1552,9 @@ def tasks_loop():
             if len(pending_tasks) > 0:
                     wait_time = 15
 
+            if os.getenv("TEST_TASK_MODE", "false").lower() == "true":
+                print("TEST_TASK_MODE -> overriding sleep to 5 seconds...", flush=True)
+                wait_time = 5
             time.sleep(wait_time)
             cursor = db_adapter.client.cursor()
             check_bot_active = f"DESCRIBE TABLE {db_adapter.schema}.BOTS_ACTIVE"

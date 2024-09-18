@@ -533,8 +533,8 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       fast_mode = False
       
       if input_message.msg.endswith('<<!!FAST_MODE!!>>') or thread_id in self.thread_fast_mode_map:
-          fast_mode = True
-          print('openai fast mode = true')
+         # fast_mode = True
+         # print('openai fast mode = true')
           input_message.msg = input_message.msg.rstrip('<<!!FAST_MODE!!>>').rstrip()
 
       if thread_id in self.first_message_map:

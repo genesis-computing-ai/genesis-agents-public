@@ -129,6 +129,7 @@ x streamlit takes a long time before submitting welcome job for each bot.. loadi
 x add bot details caching to new streamlit 
 
 next version:
+add process knowledge type get from message_log and task_history, inject on process runs
 JD-have task server restart a bot's session if its details has changed
 JD-when you remove a process also remove all associated schedules for that process
 make run_query accept a query code and read from functions table

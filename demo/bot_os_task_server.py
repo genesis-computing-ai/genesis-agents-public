@@ -1111,6 +1111,8 @@ def submit_task(session=None, bot_id=None, task=None):
 
     event = {"thread_id": None, "msg": prompt, "task_meta": task_meta}
 
+    ### JEFF ADD BOT FRESHNESS CHECK HERE
+
     input_adapter = bot_id_to_udf_adapter_map.get(bot_id, None)
     if input_adapter:
         input_adapter.add_event(event)

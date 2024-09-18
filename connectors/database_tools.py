@@ -19,13 +19,13 @@ database_tool_functions = [
         "type": "function",
         "function": {
             "name": "search_metadata",
-            "description": "Searches metadata to find the top relevant tables or views, if you don't already know which tables to query. If you already know the full table name, use get_full_table_details instead. (This does not search stages).",
+            "description": "Finds available data.  Searches metadata to find the top relevant tables or views in the users database. Use this if you don't already know which tables to query. If you already know the full table name, use get_full_table_details instead. (Note, this does not search stages).",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "query": {
                         "type": "string",
-                        "description": "A short search query to find relevant tables or views.",
+                        "description": "A short search query of what kind of data the user is looking for.",
                     },
                     "top_n": {
                         "type": "integer",
@@ -43,7 +43,7 @@ database_tool_functions = [
         "type": "function",
         "function": {
             "name": "_run_query",
-            "description": "Run a query against a data connection.  If you need to find tables to query, use search_metadata first to determine the right object names to query.",
+            "description": "Run a query against a database.  If you need to find tables to query, use search_metadata first to determine the right object names to query.",
             "parameters": {
                 "type": "object",
                 "properties": {

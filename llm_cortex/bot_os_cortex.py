@@ -236,23 +236,28 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
 
         newarray = [{"role": message["message_type"], "content": message["content"]} for message in self.thread_history[thread_id]]
 
-        # Consolidate consecutive 'user' role messages
+
+### FIX THIS 
+        # Consolidate directly adjacent 'user' role messages without any intervening messages
         consolidated_array = []
         current_user_content = []
 
         for message in newarray:
             if message["role"] == "user":
+                # Accumulate content from consecutive 'user' messages
                 current_user_content.append(message["content"])
             else:
+                # If there are accumulated 'user' messages, consolidate them
                 if current_user_content:
                     consolidated_array.append({
                         "role": "user",
                         "content": "\n".join(current_user_content)
                     })
-                    current_user_content = []
+                    current_user_content = []  # Reset after consolidation
+                # Append the non-'user' message as is
                 consolidated_array.append(message)
 
-        # Add any remaining user content
+        # After the loop, check if there are any remaining 'user' messages to consolidate
         if current_user_content:
             consolidated_array.append({
                 "role": "user",
@@ -335,11 +340,13 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                 resp = f"Fast mode deactivated for this thread. Model is now {self.llm_engine}"
                 curr_resp = resp
         if resp != '':
-            self.thread_history[thread_id] = [message for message in self.thread_history[thread_id] if not (message.get("role","") == "user" and message == last_user_message)]
+            #self.thread_history[thread_id] = [message for message in self.thread_history[thread_id] if not (message.get("role","") == "user" and message['content'] == last_user_message['content'])]
+            if self.thread_history[thread_id]:
+                self.thread_history[thread_id].pop()
             if BotOsAssistantSnowflakeCortex.stream_mode == True:
                 if self.event_callback:
                     self.event_callback(self.bot_id, BotOsOutputMessage(thread_id=thread_id, 
-                                                                        status='in_progress', 
+                                                                        status='complete', 
                                                                         output=resp, 
                                                                         messages=None, 
                                                                         input_metadata=json.loads(message_metadata)))
@@ -745,7 +752,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             # Check if channel is in input_message.metadata
             if input_message.metadata and 'channel' in input_message.metadata:
                 channel = input_message.metadata['channel']
-                input_message.msg += f" [FYI Current Slack channel id is: {channel}]"
+              #  input_message.msg += f" [FYI Current Slack channel id is: {channel}, but do NOT send _slack_channel_messages to it unless specifically directed to by a user. Just respond normally with regular chat messages.]"
 
         timestamp = datetime.datetime.now()
         if self.event_callback is None and event_callback is not None:
@@ -1063,8 +1070,8 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
 
 
         prefix = ""
-        if os.getenv("CORTEX_VIA_COMPLETE", "false").lower() == "true":
-            prefix = 'Here are the results of the tool call: '
+        
+        prefix = 'SYSTEM MESSAGE: Here are the results of the tool call. Note that the end user has not seen these details:\n\n'
 
         message_object = {
             "message_type": "user",

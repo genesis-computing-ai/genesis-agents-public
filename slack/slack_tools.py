@@ -5,7 +5,7 @@ slack_tools_descriptions = [
         "type": "function",
         "function": {
             "name": "_send_slack_direct_message",
-            "description": "Send a direct message to a colleague on slack.  Only use this when directed to by a user.  DO NOT USE THIS TO RESPOND TO A REGULAR CHAT THREAD.",
+            "description": "Send a direct message to a colleague on slack.  Only use this when directed to by a user.  DO NOT USE THIS TO RESPOND TO A REGULAR THREAD.",
             "parameters": {
                 "type": "object",
                 "properties": {

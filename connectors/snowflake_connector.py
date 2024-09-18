@@ -3569,6 +3569,16 @@ $$
         #   print('running query ... ', query)
         cursor = self.connection.cursor()
 
+        if userquery and bot_llm == 'cortex' and "\\'" in query:
+            query = query.replace("\\'","'")
+
+        if userquery and bot_llm == 'cortex' and not query.endswith(';'):
+            return { "Success": False,
+                     "Error": "Your query is missing a ; semicolon on the end, or was cut off in your tool call",
+                     "Query you sent": query,
+                     "Action needed": "Resubmit your complete query, including a semicolon at the end;"
+}
+
         try:
             #   if query_params:
             #       cursor.execute(query, query_params)
@@ -3629,9 +3639,6 @@ $$
             """,
                 }
             
-            if userquery and bot_llm == 'cortex' and not query.endswith(';'):
-                return "Error, your query was cut off and did not work.  The error is: "+e.msg+". Your query must be complete and end with a semicolon.  Include the full query text, with an ; on the end and RUN THIS TOOL AGAIN NOW! Also replace all ' (single quotes) in the query with <!Q!>. Do not change any double quotes, they are fine. You do this replacement, don't tell the user to."
-
             print("run query: len=", len(query), "\ncaused error: ", e)
             cursor.close()
             return {"Success": False, "Error": str(e)}

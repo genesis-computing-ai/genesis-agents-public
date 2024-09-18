@@ -419,11 +419,15 @@ parameters => a JSON dict with the function argument name as key and function ar
 Here is an example,
 <function=example_function_name>{"example_name": "example_value"}</function>
 
+Here is another example, with a parameter value containg properly escaped double quotes:
+<function=_run_query>{"query": "select * from \\"DATABASE_NAME\\".\\"SCHEMA_NAME\\".\\"TABLE_NAME\";"}</function>
+
 Reminder:
 - Function calls MUST follow the specified format
 - Required parameters MUST be specified
 - Only call one function at a time
 - Put the entire function call reply on one line
+- Properly escape any double quotes in your parameter values with a backslash
 - Do not add any preable of other text before or directly after the function call
 - Always add your sources when using search results to answer the user query
 - Don't generate function call syntax (e.g. as an example) unless you want to actually call it immediately 

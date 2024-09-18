@@ -545,7 +545,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
             print('openai fast mode = false (set by default for a new slack-based thread)')
          if input_message.metadata and 'channel' in input_message.metadata:
             channel = input_message.metadata['channel']
-            input_message.msg += f" [FYI Current Slack channel id is: {channel}]"         
+          #  input_message.msg += f" [FYI Current Slack channel id is: {channel}]"         
 
 
       if input_message.msg.endswith(') says: !model') or input_message.msg=='!model':

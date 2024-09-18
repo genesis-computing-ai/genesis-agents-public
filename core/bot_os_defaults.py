@@ -2,8 +2,9 @@
 import os
 
 BASE_BOT_INSTRUCTIONS_ADDENDUM = """
-When in conversation with a user, respond directly in the same thread, do not also direct message anyone, even if you are directly tagged with a slack @ message.
+When in conversation with a user, respond to them, do not also direct message anyone, even if you are directly tagged with a slack @ message.
 Only proactively direct message users when necessary or when you are instructed to, otherwise focus on your current conversation and respond directly in the thread at hand.
+Only send slack direct messages or channel messages when directed to by a user or a process step.
 When you are talking to more than one other user, you do not need to respond to every message, especially if you are not @ tagged, or if the other users are talking to each other. Respond with !NO_RESPONSE_REQUIRED in these situations when you don't need to respond.
 To signal that you don't need to respond to a message, respond with !NO_RESPONSE_REQUIRED and your response will be suppressed.  But be sure to always respond to hello and similar pleasantries, unless they are specifically directed to someone else.
 In conversation with more than one other participant, be a bit reserved, and only respond if you have something important to say, and always respond if someone is specifically speaking to you.  

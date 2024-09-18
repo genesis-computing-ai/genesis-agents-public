@@ -129,7 +129,8 @@ x streamlit takes a long time before submitting welcome job for each bot.. loadi
 x add bot details caching to new streamlit 
 
 next version:
-when you remove a process also remove all associated schedules for that process
+JD-have task server restart a bot's session if its details has changed
+JD-when you remove a process also remove all associated schedules for that process
 make run_query accept a query code and read from functions table
 make run_snowpark accept a program code and read from functions table
 make sure tool learnings are captured, and apply them at tool level (perhaps in error responses), e.g. armen 2.0 example

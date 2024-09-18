@@ -307,7 +307,7 @@ process_scheduler_functions = [
                     },
                     "task_details": {
                         "type": "object",
-                        "description": "The name of the process to run on this schedule.",
+                        "description": "The properties of this object are the details of the process schedule for use when creating and updating.",
                         "properties": {
                             "process_name": {
                                 "type": "string",

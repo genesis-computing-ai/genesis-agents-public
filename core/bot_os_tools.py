@@ -331,9 +331,13 @@ class ToolBelt:
         
         # Remove any empty strings and strip quotes from each address
         to_addr_list = [addr.strip("'\"") for addr in to_addr_list if addr]
-        
+    
         if not to_addr_list:
             return {"Success": False, "Error": "No valid email addresses provided."}
+    
+        # Replace SYS$DEFAULT_EMAIL with the actual system default email
+        to_addr_list = [self.get_sys_email() if addr == 'SYS$DEFAULT_EMAIL' else addr for addr in to_addr_list]
+    
         # Join the email addresses with commas
         to_addr_string = ', '.join(to_addr_list)
         
@@ -506,6 +510,8 @@ class ToolBelt:
                 "Error": "Either process_name or process_id must be provided."
             }
 
+        self.sys_default_email = self.get_sys_email()
+
         # Initialize thread-specific data structures if not already present
         with self.lock:
             if thread_id not in self.counter:
@@ -578,6 +584,8 @@ class ToolBelt:
             extract_instructions = f"""
 You will need to break the process instructions below up into individual steps and and return them one at a time.  
 By the way the current system time is {datetime.now()}.
+By the way, the system default email address (SYS$DEFAULT_EMAIL) is {self.sys_default_email}.  If the instructions say to send an email
+to SYS$DEFAULT_EMAIL, replace it with {self.sys_default_email}.
 Start by returning the first step of the process instructions below.
 Simply return the first instruction on what needs to be done first without removing or changing any details.
 
@@ -590,6 +598,7 @@ Process Instructions:
 
 Process configuration: 
 {process['PROCESS_CONFIG']}.
+
 """ 
 
             first_step = self.chat_completion(extract_instructions, self.db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, process_id=process_id, process_name=process_name)
@@ -807,6 +816,8 @@ Bot's most recent response:
 Extract the text for the next step from the process instructions and return it, using the section marked 'Process History' to see where you are in the process. 
 Remember, the process instructions are a set of individual steps that need to be run in order.  
 Return the text of the next step only, do not make any other comments or statements.
+By the way, the system default email address (SYS$DEFAULT_EMAIL) is {self.sys_default_email}.  If the instructions say to send an email
+to SYS$DEFAULT_EMAIL, replace it with {self.sys_default_email}.
 If the process is complete, respond "**done**" with no other text.
 
 Process History: {self.process_history[thread_id][process_id]}

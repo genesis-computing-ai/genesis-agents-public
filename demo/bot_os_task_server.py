@@ -1030,6 +1030,7 @@ def generate_task_prompt(bot_id, task):
 #    Task description:
 #    {task_details['task_instructions']}
 
+    learnings = task_details.get('task_learnings','No learnings yet.')
     prompt = f"""
     You have been woken up automatically to run a predefined process using the process runner tool in unattended mode.  You are not to create a process nor create a new schedule for a process.
 
@@ -1046,7 +1047,7 @@ def generate_task_prompt(bot_id, task):
     {task_details['last_task_status']}
 
     Here are some things you've noted that you've learned in past runs of this task about how to do it better:
-    {task_details['task_learnings']}
+    {learnings}
 
     Here is how often this task should be run:
     {task_details['action_trigger_type']} {task_details['action_trigger_details']}

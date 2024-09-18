@@ -1340,7 +1340,7 @@ class SnowflakeConnector(DatabaseConnector):
                         "process_name_to_run": task[8],
                         "reporting_instructions": task[9],
                         "last_task_status": task[10],
-                     #   "task_learnings": task[11],
+                        "task_learnings": task[11],
                         "task_active": task[12],
                     }
                     task_list.append(task_dict)

@@ -83,8 +83,8 @@ snowflake_secure_value = os.getenv("SNOWFLAKE_SECURE")
 # Check if TEST_TASK_MODE is false or not existent, then wait and print a message
 if not os.getenv("TEST_TASK_MODE", "false").lower() == "true":
     print("waiting 60 seconds for other services to start first...", flush=True)
-    time.sleep(60)
-
+    # time.sleep(60)
+    time.sleep(1)
 genbot_internal_project_and_schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "None")
 if genbot_internal_project_and_schema == "None":
     print("ENV Variable GENESIS_INTERNAL_DB_SCHEMA is not set.")
@@ -1111,7 +1111,9 @@ def submit_task(session=None, bot_id=None, task=None):
 
     event = {"thread_id": None, "msg": prompt, "task_meta": task_meta}
 
-    ### JEFF ADD BOT FRESHNESS CHECK HERE
+    if find_replace_updated_bot_service(bot_id):
+        print(f"Definition for bot {bot_id} has changed and needs to be restarted.")
+        # add logic here to force re-load
 
     input_adapter = bot_id_to_udf_adapter_map.get(bot_id, None)
     if input_adapter:
@@ -1166,6 +1168,8 @@ def tasks_loop():
     def task_sort_key(task):
         return task["next_check_ts"]
     
+    backup_bot_servicing()
+    
     i = 10
     cycle = 0
     while True:
@@ -1186,21 +1190,9 @@ def tasks_loop():
         # Extract bot IDs from the details
         all_bot_ids = [bot['bot_id'] for bot in all_bots_details]
 
-        # Check if any new sessions need to be added
-        for bot_id in all_bot_ids:
-            if bot_id not in [session.bot_id for session in sessions]:
-                bot_details = next(bot for bot in all_bots_details if bot['bot_id'] == bot_id)
-                print(f"New bot found: ID={bot_id}, Name={bot_details['bot_name']}. Adding to sessions.")
-                # Determine the Slack status of the bot
-                bot_details = next(bot for bot in all_bots_details if bot['bot_id'] == bot_id)
-                if bot_details.get('bot_slack_user_id', False) == False:
-                    no_slack = True
-                else:
-                    no_slack = False
-                
-                # Add a new session for the bot with the appropriate no_slack flag
-                add_bot_session(bot_id, no_slack=no_slack)
-                print(f"New session added for bot_id: {bot_id} with no_slack={no_slack}")
+        # global sessions
+
+        add_sessions(all_bot_ids, all_bots_details, sessions)
 
         # Retrieve the list of bots and their tasks
 
@@ -1221,6 +1213,14 @@ def tasks_loop():
 
         skipped_tasks = SortedList(key=task_sort_key)
         active_sessions = sessions
+
+        # Assuming sessions is a list of session objects and sessions_to_recreate is a list of bot_ids
+        # sessions = [session for session in sessions if session.bot_id not in sessions_to_recreate]
+        
+        # if len(sessions_to_recreate) > 0:
+        #     all_bots_details = get_all_bots_full_details(runner_id=runner_id)
+        #     add_sessions(all_bot_ids, all_bots_details, sessions)
+
         for session in active_sessions:
             bot_id = session.bot_id
             tasks = db_adapter.process_scheduler(action="LIST", bot_id=bot_id, task_id=None)
@@ -1586,6 +1586,97 @@ def tasks_loop():
 
     # Sleep for a specified interval before checking for tasks again
     # Check for tasks every minute
+
+def backup_bot_servicing():
+    backup_sql = f"""CREATE OR REPLACE TABLE {db_adapter.schema}.bot_servicing_backup AS SELECT * FROM {db_adapter.schema}.bot_servicing;"""
+    cursor = db_adapter.client.cursor()
+    try:
+        cursor.execute(backup_sql)
+        print("Debug: Table bot_servicing_backup created or replaced successfully.")
+    except Exception as e:
+        print(f"Error: Failed to create or replace table bot_servicing_backup. {e}")
+    finally:
+        cursor.close()
+
+    
+def find_replace_updated_bot_service(bot_id):
+    # # exit if no changes
+    # cursor = db_adapter.client.cursor()
+    # main_table_query = f"""SELECT LAST_ALTERED FROM INFORMATION_SCHEMA.TABLES WHERE
+    #                     TABLE_NAME = 'BOT_SERVICING' AND TABLE_SCHEMA = '{db_adapter.schema}';"""
+    
+    # cursor.execute(main_table_query)
+    # result = cursor.fetchone()
+
+    # main_table_last_modified = result[0] if result else None
+
+    # backup_table_query = f"""SELECT LAST_ALTERED FROM INFORMATION_SCHEMA.TABLES WHERE
+    #                       TABLE_NAME = 'BOT_SERVICING_BACKUP' AND TABLE_SCHEMA = '{db_adapter.schema}';"""
+
+    # cursor.execute(backup_table_query)
+    # result = cursor.fetchone()
+
+    # backup_table_last_modified = result[0] if result else None
+
+    # if main_table_last_modified == backup_table_last_modified:
+    #     print("Debug: No changes in bot_servicing table.")
+    #     return []
+
+    query = """
+        SELECT bs.*
+        FROM {db_adapter.schema}.bot_servicing bs
+        LEFT JOIN {db_adapter.schema}.bot_servicing_backup bsb
+        ON bs.bot_id = bsb.bot_id  
+        WHERE bs.bot_id IS %s
+        AND (bs.bot_instructions != bsb.bot_instructions
+        OR bs.available_tools != bsb.available_tools
+        OR bs.bot_intro_prompt != bsb.bot_intro_prompt)
+    """
+    cursor = db_adapter.client.cursor()
+    try:
+        cursor.execute(query, (bot_id,))
+        non_identical_rows = cursor.fetchall()
+        print("Debug: Retrieved non-identical rows successfully.")
+
+        # Copy the changed rows to bot_servicing_backup
+        if non_identical_rows:
+            insert_query = """
+                INSERT INTO bot_servicing_backup
+                SELECT * FROM bot_servicing
+                EXCEPT
+                SELECT * FROM bot_servicing_backup;
+            """
+            cursor.execute(insert_query)
+            db_adapter.client.commit()
+            print("Debug: Copied changed rows to bot_servicing_backup successfully.")
+
+            bot_ids_to_update = [row[2] for row in non_identical_rows]
+
+            return True
+        
+    except Exception as e:
+        print(f"Error: Failed to retrieve non-identical rows. {e}")
+        return False
+    finally:
+        cursor.close()
+
+def add_sessions(all_bot_ids, all_bots_details, sessions):
+    # Check if any new sessions need to be added
+    for bot_id in all_bot_ids:
+        if bot_id not in [session.bot_id for session in sessions]:
+            bot_details = next(bot for bot in all_bots_details if bot['bot_id'] == bot_id)
+            print(f"New bot found: ID={bot_id}, Name={bot_details['bot_name']}. Adding to sessions.")
+            # Determine the Slack status of the bot
+            bot_details = next(bot for bot in all_bots_details if bot['bot_id'] == bot_id)
+            if bot_details.get('bot_slack_user_id', False) == False:
+                no_slack = True
+            else:
+                no_slack = False
+            
+            # Add a new session for the bot with the appropriate no_slack flag
+            add_bot_session(bot_id, no_slack=no_slack)
+            print(f"New session added for bot_id: {bot_id} with no_slack={no_slack}")
+    return
 
 
 # Start the task servicing loop

@@ -30,6 +30,7 @@ from core.bot_os_defaults import (
     ELIZA_INTRO_PROMPT,
     STUART_INTRO_PROMPT,
     JANICE_INTRO_PROMPT,
+    LOADER_SPROC
 )
 
 # from database_connector import DatabaseConnector
@@ -1725,6 +1726,17 @@ class SnowflakeConnector(DatabaseConnector):
             print(f"Table {self.schema}.BOT_FUNCTIONS created successfully.")
         else:
             print(f"Table {self.schema}.BOT_FUNCTIONS already exists.")
+
+        check_loader_proc_sql = f"""SELECT * FROM {self.schema}.BOT_FUNCTIONS WHERE FUNCTION_ID = 'LOADER_PROC'"""
+        cursor.execute(check_loader_proc_sql)
+        if not cursor.fetchone():
+            insert_loader_proc_sql = f"""
+            INSERT INTO {self.schema}.BOT_FUNCTIONS (BOT_ID, FUNCTION_ID, FUNCTION_TYPE, FUNCTION_DEFINITION, DESCRIPTION)
+            VALUES ('LOADER', 'LOADER_PROC', 'SQL', '{LOADER_SPROC}', 'Load SQL statements for use with processes');
+            """
+            cursor.execute(insert_loader_proc_sql)
+            self.client.commit()
+            print(f"Inserted LOADER_PROC into {self.schema}.BOT_FUNCTIONS")
         
         cursor.close()
 

@@ -1,6 +1,8 @@
 
 import os
 
+LOADER_SPROC = ''
+
 BASE_BOT_INSTRUCTIONS_ADDENDUM = """
 When in conversation with a user, respond to them, do not also direct message anyone, even if you are directly tagged with a slack @ message.
 Only proactively direct message users when necessary or when you are instructed to, otherwise focus on your current conversation and respond directly in the thread at hand.

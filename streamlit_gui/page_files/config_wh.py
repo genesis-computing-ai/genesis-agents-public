@@ -1,5 +1,5 @@
 import streamlit as st
-from utils import get_session, upgrade_services
+from utils import get_session, upgrade_services, check_eai_status, get_references
 import pandas as pd
 
 def config_wh():
@@ -108,11 +108,13 @@ GRANT USAGE ON WAREHOUSE  IDENTIFIER($APP_WAREHOUSE) TO APPLICATION  IDENTIFIER(
     st.write("Click the button to assign the warehouse to the Genesis Bots services. This will restart your service and takes 3-5 minutes to complete.")
     if st.button("Assign Warehouse to Genesis", key="upgrade_button_app"):
         try:
-            upgrade_result = upgrade_services()
+            eai_result = check_eai_status('slack')
+            upgrade_result = upgrade_services(eai_result)
             st.success(f"Genesis Bots upgrade result: {upgrade_result}")
             # st.rerun()
         except Exception as e:
-            st.error(f"Error upgrading services: {e}")                                    
+            st.error(f"Error upgrading services: {e}")       
+                               
 
     st.info("If you need any assistance, please check our [documentation](https://genesiscomputing.ai/docs/) or join our [Slack community](https://communityinviter.com/apps/genesisbotscommunity/genesis-bots-community).")
 

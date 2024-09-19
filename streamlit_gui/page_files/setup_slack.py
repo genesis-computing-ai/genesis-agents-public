@@ -42,7 +42,8 @@ def setup_slack():
         if st.button("Assign EAI to Genesis", key="assigneai"):
             upgrade_result = upgrade_services(True)
             st.success(f"Genesis Bots upgrade result: {upgrade_result}")
-            st.session_state.clear()
+            # st.session_state.clear()
+            
             st.rerun()
     else:
 
@@ -79,7 +80,7 @@ def setup_slack():
                 st.success(
                     "These will be different than the ones you provided, as they have been rotated successfully for freshness."
                 )
-                #TODO upgrade_services??
                 st.success(
                     "You can now activate your bots on Slack from the Bot Configuration page, on the left Nav."
                 )
+                st.session_state.show_slack_config = False

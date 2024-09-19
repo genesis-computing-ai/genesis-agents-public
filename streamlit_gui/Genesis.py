@@ -6,7 +6,7 @@ import base64
 # Set Streamlit to wide mode
 st.set_page_config(layout="wide")
 
-st.session_state.app_name = "GENESIS_BOTS_ALPHA"
+st.session_state.app_name = "GENESIS_BOTS"
 st.session_state.prefix = st.session_state.app_name + ".app1"
 st.session_state.core_prefix = st.session_state.app_name + ".CORE"
 
@@ -91,11 +91,12 @@ if 'show_log_config' not in st.session_state:
             import snowflake.permissions as permissions
             permissions.request_event_sharing()
             # st.rerun()
+    else:
+        st.session_state.show_log_config = False
 
 # Initialize session state for the modal
 if "show_modal" not in st.session_state:
     st.session_state.show_modal = True  # Default to showing the modal
-
     
 # check for configured email
 if 'show_email_config' not in st.session_state:
@@ -128,7 +129,6 @@ if 'show_slack_config' not in st.session_state:
 
 def hide_modal():
     st.session_state.show_modal = False
-
 
 # Define the modal logic
 def show_modal():
@@ -179,11 +179,13 @@ def show_modal():
             if st.button(" 📧 Let your Genbots Email you"):
                 st.session_state["radio"] = "Setup Email Integration"
                 st.rerun()
+
         if st.session_state.show_slack_config == True:
             st.markdown('<span id="button-after"></span>', unsafe_allow_html=True)
             if st.button(" 💬 Connect your bots to Slack"):
                 st.session_state["radio"] = "Setup Slack Connection"
-                st.rerun()        
+                st.rerun()    
+
         if st.session_state.show_openai_config == True:
             st.markdown('<span id="button-after"></span>', unsafe_allow_html=True)
             if st.button(" 🧠 Enable OpenAI LLM with your Key"):
@@ -252,14 +254,11 @@ if "data" in st.session_state:
 if "last_response" not in st.session_state:
     st.session_state["last_response"] = ""
 
-# Show modal if the session state allows
-if st.session_state.show_modal:
-    show_modal()
-
 if st.session_state.show_email_config == False and st.session_state.show_openai_config == False and st.session_state.show_slack_config == False:
     hide_modal()
-else:
-    st.session_state.show_modal = True
+elif st.session_state.show_modal:
+    # Show modal if the session state allows
+    show_modal()
 
 if st.session_state.data:
     pages = {

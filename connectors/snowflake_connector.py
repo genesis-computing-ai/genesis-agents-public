@@ -1742,13 +1742,14 @@ class SnowflakeConnector(DatabaseConnector):
 
         for _, function_default in self.function_defaults.iterrows():
             function_id = function_default['FUNCTION_ID']
-            if function_default['TIMESTAMP'] is not None:
-                # Ensure row['TIMESTAMP'] is timezone-aware
-                if function_default['TIMESTAMP'].tzinfo is None:
-                    function_default['TIMESTAMP'] = function_default['TIMESTAMP'].tz_localize(pytz.UTC)
-                timestamp_str = function_default['TIMESTAMP'].strftime('%Y-%m-%d %H:%M:%S')
-            else:
-                timestamp_str = None
+      #      if function_default['TIMESTAMP'] is not None:
+      #          # Ensure row['TIMESTAMP'] is timezone-aware
+      #          if function_default['TIMESTAMP'].tzinfo is None:
+      #              function_default['TIMESTAMP'] = function_default['TIMESTAMP'].tz_localize(pytz.UTC)
+      #          timestamp_str = function_default['TIMESTAMP'].strftime('%Y-%m-%d %H:%M:%S')
+      #      else:
+      #          timestamp_str = None
+            timestamp_str = None
 
             query = f"SELECT * FROM {self.schema}.BOT_FUNCTIONS WHERE FUNCTION_ID = %s"
             cursor.execute(query, (function_id,))

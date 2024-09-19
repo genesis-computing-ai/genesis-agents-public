@@ -2,67 +2,56 @@
 GENESIS BOT TODOS
 =================
 
-newver:
-default email address is known to process supervisor for processes
-streamlit images
-now on gpt-4o-2024-08-06, ok?
-dont need to import libraries in every snowpark function anymore
-new signal table in place bots_active for outrigger services to check to see if they should wake up or not
-
-newver:
-streamlit images/files?
-process supervisor uses o1-mini if available
-new snowpark error-correction advisor for openai, uses o1-mini if available, if not gpt-4o
-
-today:
-x streamlit images
-unicode quotes for fn call cortex?
-why cant it send slack in a process for janice joke 2.0 (startswith..?)
-stremlit error
-fix cortex using process scheduler... lots of issues, changes dont stick, etc.
-
 todo:
-bots not stopping tasks that are done because ts is required
-more error trapping in Task server to catch any crashing
-task server more than 20 threads?
-make sure 1 time tasks deactivate..done flag true but they are still triggering.. ABCs task janice 2.0
-mistrallarge2, use?
-have task server reload the sessions every hour in case they've changed imp'l etc
-make knowledge server work properly, consolidate on email address
-x check one time and recurring cortex task completion, properly updating schedule table
-x make sure scheduled tasks finishes are caught, or if no response, ping them
-x add dyanmic sql tables for processes to APP1 metadata
-cortex doesnt return file results after running snowpark a few times... gets cut off with a dangling speech bubble
+MR-cross region enablement for LLM (if not us-east/us-west), data granting (maybe we mention this here too), email sending 
+streamlit axios error
+why cant it send slack in a process for janice joke 2.0 (startswith..?)
+RV-streamlit files in
+JD-have task server reload the sessions that are changed imp'l etc
 add cost to o1 bots
 read stage then slack not sending the attachment:  [Download mary_had_a_little_lamb.txt](./downloaded_files/mary_had_a_little_lamb.txt)
-(test) check jeff's outrigger sleep system
-n change Janice 2.0 to Janice 
 check get file from stage when file doesnt exist, also check to see if file it local instead
-(test) have a cut off for cortex on tool calls without stopping to talk to the user or the process supervisor after 10 tool calls in one run...
 have add file to stage see if the file is there before saying to return it
 wrapper for graphs for cortex
-cortex suppress tool call gen better
+cortex suppress tool call gen better (dangling fn close tags sometimes)
 give processs ids in list of processes when not found on run, especially on get next step... 
 openai error retries on slack dont seem to respond back
 Janice is talking about files a lot... fix prompting for that
 need handler for long cortex threads
-clean up logging and cust data in logs and run_query
+(test) cortex doesnt return file results after running snowpark a few times... gets cut off with a dangling speech bubble
+(test) check jeff's outrigger sleep system
+(test) have a cut off for cortex on tool calls without stopping to talk to the user or the process supervisor after 10 tool calls in one run...
+(test) clean up logging and cust data in logs and run_query
 (test) matts issue with scheduled processes make sure it works without thread_id ok with the cache
 (test) see if task sender of emails will add the process id etc and see if you can paste that into the bot chat to talk about it.. maybe make it a get history procedure call 
-x (test) check !fast off on alpha cortex after upgrade
-(test) deploy then check search metadata with database and schema options
-MR-(test) get mini bot avatars into streamlit / check bot images on Dev streamlit
+(test) check search metadata with database and schema options
+(test) MR-get mini bot avatars into streamlit / check bot images on Dev streamlit
 (test) check new janice auto insertion code 
-(test) security review pass
-MR-updated streamlit launch wizard, new WH logic
-RV-get knowledge system to work again
-RV-images and files return to Streamlit
-JD-test default email on CALL in email setup instructions
-JD-use that as default email for process scheduling and for send email 
-JD-make outrigger processes (harvest, knowledge, task) wake up at the top of the hour 
-MR-add streamlit startup popup (maybe via links to our docs) for :log enablement (highly encouraged), warehouse grant existing (optional), EAI for openai and slack (optional), MR-cross region enablement for LLM (if not us-east/us-west), data granting (maybe we mention this here too), email sending 
+(test) MR-add streamlit startup popup (maybe via links to our docs) for :log enablement (highly encouraged), warehouse grant existing (optional), EAI for openai and slack (optional), 
 
 done:
+x (test) security review pass
+x MR-updated streamlit launch wizard, new WH logic
+x RV-get knowledge system to work again
+x RV-images and files return to Streamlit
+x test default email on CALL in email setup instructions
+x use that as default email for process scheduling and for send email 
+n JD-make outrigger processes (harvest, knowledge, task) wake up at the top of the hour 
+x unicode quotes for fn call cortex?
+x fix cortex using process scheduler... lots of issues, changes dont stick, etc.
+x bots not stopping tasks that are done because ts is required
+x more error trapping in Task server to catch any crashing
+x task server more than 20 threads?
+x make sure 1 time tasks deactivate..done flag true but they are still triggering.. ABCs task janice 2.0
+n mistrallarge2, use?
+x RV-make knowledge server work properly, consolidate on email address
+x check one time and recurring cortex task completion, properly updating schedule table
+x make sure scheduled tasks finishes are caught, or if no response, ping them
+x add dyanmic sql tables for processes to APP1 metadata
+n change Janice 2.0 to Janice 
+x unicode quotes for fn call cortex?
+x fix cortex using process scheduler... lots of issues, changes dont stick, etc.
+x (test) check !fast off on alpha cortex after upgrade
 x fix !model on cortex fast mode streamlit
 x put process supervisor back on o1-mini vs o1-preview
 x add o1-mini logging messages
@@ -133,7 +122,8 @@ x streamlit takes a long time before submitting welcome job for each bot.. loadi
 x add bot details caching to new streamlit 
 
 next version:
-add process knowledge type get from message_log and task_history, inject on process runs
+we could have run_query catch the queryids and log them for both successfull and unsuccessful queries
+RV-add process knowledge type get from message_log and task_history, inject on process runs
 JD-have task server restart a bot's session if its details has changed
 JD-when you remove a process also remove all associated schedules for that process
 make run_query accept a query code and read from functions table
@@ -167,6 +157,8 @@ make send_email use dynamic variables to prevent sql injection
 have send_email add stuff on the end to say why the message was sent and from who
 test the password process to make sure it doesnt skip steps on concise
 
+[BELOW NEEDS CLEAN UP]
+
 before republishing on natapp:
 add the cross region stuff to the readme
 x make streamlit show tool calls better 
@@ -182,9 +174,6 @@ x change silent mode to concise mode
 x (test) test out the slack bug, marty sending DMs for Janice 2.0... why .. see if my fix fixes it and if local ones still work
 x add cross region calling
 x have bots send alerts via email:
-streamlit requests for stuff
-    https://docs.snowflake.com/en/developer-guide/native-apps/container-about
-    https://docs.snowflake.com/en/developer-guide/native-apps/container-compute-pool
 x JS/KJ/MG/JS: default processes
 n (go with janice instead) add sandy bot?
 n make sure Eliza doesnt talk about the baseball etc data without running search metadata (ask about allstars she makes it up)sla

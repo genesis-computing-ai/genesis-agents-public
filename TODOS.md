@@ -22,6 +22,10 @@ stremlit error
 fix cortex using process scheduler... lots of issues, changes dont stick, etc.
 
 todo:
+bots not stopping tasks that are done because ts is required
+more error trapping in Task server to catch any crashing
+task server more than 20 threads?
+make sure 1 time tasks deactivate..done flag true but they are still triggering.. ABCs task janice 2.0
 mistrallarge2, use?
 have task server reload the sessions every hour in case they've changed imp'l etc
 make knowledge server work properly, consolidate on email address

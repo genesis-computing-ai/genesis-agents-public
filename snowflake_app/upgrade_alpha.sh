@@ -12,6 +12,8 @@
 # These connections are required for the commands below to work properly.
 # You may need to make a new <authorized role> user without SSO/MFA for these
 
+snow spcs image-registry token --connection GENESIS-ALPHA-PROVIDER --format=JSON | docker login dshrnxx-genesis-dev.registry.snowflakecomputing.com --username 0sessiontoken --password-stdin
+
 
 # Run make_alpha_sis_launch.py
 python3 ./streamlit_gui/make_alpha_sis_launch.py

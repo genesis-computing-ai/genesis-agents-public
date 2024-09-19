@@ -1245,7 +1245,7 @@ class SnowflakeConnector(DatabaseConnector):
             "task_active",
         ]
 
-        required_fields_update = ["task_active", "action_trigger_type", "action_trigger_details", "next_check_ts"]
+        required_fields_update = ["task_active"]
 
         cursor = self.client.cursor()
         if action == "HISTORY":

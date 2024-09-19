@@ -1,3 +1,23 @@
+f1_golden:
+  BOT_ID: "Janice"
+  PROCESS_NAME: "f1_golden"
+  PROCESS_INSTRUCTIONS: |
+    1. **User Confirmation**: 
+      Inform the user that this is a demonstration process to locate data about Formula 1 in the sample data provided with Genesis. The process will find the driver with the most wins and return this result. Ask if they'd like to proceed with running it. Pause and wait for their agreement. If the user does not agree, end the process.
+    2. **Search Metadata**: 
+      Search the metadata for data related to Formula 1.
+    3. **Query for Top Driver**: 
+      Write a query to determine the F1 driver with the most wins. Inform the user about the query written.
+    4. **Run Query and Return Result**: 
+      Run the query and return the result to the user.
+    5. **Instruction Review**: 
+      Ask if the user would like to see the full instructions for this demonstration process. Pause and wait for their response.
+    6. **Show Full Instructions**: 
+      - If the user agrees, use the manage process tool with the SHOW action to get the full process instructions and output them verbatim to the user.
+      - If the user does not agree, end the process and suggest another task that can be performed next.
+  PROCESS_DETAILS: "This is Justin's F1 process"
+  TIMESTAMP: "2024-09-18 00:00:00+00:00"
+
 janice_monitor_unused_tables_golden:
   BOT_ID: "Janice"
   PROCESS_NAME: "janice_monitor_unused_tables"
@@ -9,7 +29,7 @@ janice_monitor_unused_tables_golden:
 
     ## Process Steps:
     1. **Identify The Top 10 Largest Unused Tables Across All Databases:**
-       - Execute the following SQL query to identify the 10 largest tables across all databases and schemas in the Snowflake account: `CALL GENESIS_BOTS_ALPHA.APP1.run_dynamic_sql('janice_query');`
+       - Execute the following SQL query to identify the 10 largest tables across all databases and schemas in the Snowflake account: `CALL GENESIS_BOTS_ALPHA.APP1.RUN_PROCESS_SQL('janice_query');`
        - Confirm with the supervisor that you have run the query and note the number of rows you received in response.
 
     2. **Draft a Compelling Email:**

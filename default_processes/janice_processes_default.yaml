@@ -2,14 +2,14 @@ janice_monitor_unused_tables:
   BOT_ID: "Janice"
   PROCESS_NAME: "janice_monitor_unused_tables"
   PROCESS_INSTRUCTIONS: |
-    # Monitor Unused Data Tables
+    ## Monitor Unused Data Tables
 
     ## Overview
     This process identifies the top 10 largest unused tables across all databases and notifies stakeholders about cost-saving opportunities involving unused tables in Snowflake.
 
     ## Process Steps:
     1. **Identify The Top 10 Largest Unused Tables Across All Databases:**
-       - Execute the following SQL query to identify the 10 largest tables across all databases and schemas in the Snowflake account: `CALL GENESIS_BOTS_ALPHA.APP1.run_dynamic_sql('QUERY_50');`
+       - Execute the following SQL query to identify the 10 largest tables across all databases and schemas in the Snowflake account: `CALL GENESIS_BOTS_ALPHA.APP1.run_dynamic_sql('janice_query');`
        - Confirm with the supervisor that you have run the query and note the number of rows you received in response.
 
     2. **Draft a Compelling Email:**
@@ -31,9 +31,9 @@ janice_monitor_unused_tables:
     - Subject: (Catchy subject line with emojis)
     - Body: (Email body following the specified guidelines)
   PROCESS_DETAILS: "Monitor Unused Data Tables"
-  TIMESTAMP: "2000-01-01T00:00:00.000Z"
+  TIMESTAMP: "2024-09-18 00:00:00+00:00"
 
-  janice_top_warehouses_spillage:
+janice_top_warehouses_spillage:
     BOT_ID: "Janice"
     PROCESS_NAME: "janice_top_warehouses_spillage"
     PROCESS_INSTRUCTIONS: |
@@ -47,14 +47,14 @@ janice_monitor_unused_tables:
       1. **Identify The Top 3 Warehouses With Data Spilling:**
         - Execute the following SQL query to identify the top 3 warehouses with data spilling in the Snowflake account:
           ```sql
-          CALL GENESIS_BOTS_ALPHA.APP1.RUN_PROCESS_SQL('QUERY_52');
+          CALL GENESIS_BOTS_ALPHA.APP1.RUN_PROCESS_SQL('janice_query_1');
           
         - Confirm with the supervisor that you have run the query and note the number of rows you received in response.
       2. **Average Queuing Times Per Month:**
         - Execute the following SQL query to identify the average queuing times per month:
           
       sql
-          CALL GENESIS_BOTS_ALPHA.APP1.RUN_PROCESS_SQL('QUERY_53');
+          CALL GENESIS_BOTS_ALPHA.APP1.RUN_PROCESS_SQL('janice_query_2');
           
         - Confirm with the supervisor that you have run the query and note the number of rows you received in response.
       3. **Draft a Compelling Email:**
@@ -96,4 +96,4 @@ janice_monitor_unused_tables:
         Janice
         
     PROCESS_DETAILS: "Top 3 Warehouses Affected by Spillage and Queuing"
-    TIMESTAMP: "2000-01-01T00:00:00.000Z"
+    TIMESTAMP: "2024-09-18 00:00:00+00:00"

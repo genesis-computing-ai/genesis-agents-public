@@ -1641,65 +1641,165 @@ class SnowflakeConnector(DatabaseConnector):
                 cursor.close()
 
     def load_default_processes(self, cursor, table):
-        folder_path = 'default_data'
+        folder_path = 'default_processes'
+        self.process_data = pd.DataFrame()
         
         files = glob.glob(os.path.join(folder_path, '*'))
 
         for filename in files:
             with open(filename, 'r') as file:
-                # json_data = json.load(file)
                 yaml_data = yaml.safe_load(file)
             
             data = pd.DataFrame.from_dict(yaml_data, orient='index')
             data.reset_index(inplace=True)
             data.rename(columns={'index': 'PROCESS_ID'}, inplace=True)
 
-            self.default_data = pd.concat([self.default_data, data], ignore_index=True)
+            self.process_defaults = pd.concat([self.process_data, data], ignore_index=True)
 
-        self.default_data['TIMESTAMP'] = pd.to_datetime(self.default_data['TIMESTAMP'], format='ISO8601', utc=True)
-        self.default_data = self.default_data.loc[self.default_data.groupby('PROCESS_ID')['TIMESTAMP'].idxmax()]
+        # Ensure TIMESTAMP column is timezone-aware
+        self.process_defaults['TIMESTAMP'] = pd.to_datetime(self.process_defaults['TIMESTAMP'], format='ISO8601', utc=True)
 
-        for _, row in self.default_data.iterrows():
-            process_id_trimmed = row['PROCESS_ID']
-            if row['TIMESTAMP'] is not None:
-                timestamp_str = row['TIMESTAMP'].strftime('%Y-%m-%d %H:%M:%S')
+        updated_process = False
+
+        for _, process_default in self.process_defaults.iterrows():
+            process_id = process_default['PROCESS_ID']
+            if process_default['TIMESTAMP'] is not None:
+                # Ensure row['TIMESTAMP'] is timezone-aware
+                if process_default['TIMESTAMP'].tzinfo is None:
+                    process_default['TIMESTAMP'] = process_default['TIMESTAMP'].tz_localize(pytz.UTC)
+                timestamp_str = process_default['TIMESTAMP'].strftime('%Y-%m-%d %H:%M:%S')
             else:
                 timestamp_str = None
 
             query = f"SELECT * FROM {self.schema}.PROCESSES WHERE PROCESS_ID = %s"
-            cursor.execute(query, (process_id_trimmed,))
+            cursor.execute(query, (process_id,))
             result = cursor.fetchone()
             process_columns = [desc[0] for desc in cursor.description]
 
             if result is not None:
-                db_timestamp = result[0]
+                db_timestamp = result[0] if len(result) > 0 else None
 
-                if db_timestamp.tzinfo is None:
+                # Ensure db_timestamp is timezone-aware
+                if db_timestamp is None:
+                    db_timestamp = datetime.now(pytz.UTC)
+                elif db_timestamp.tzinfo is None:
                     db_timestamp = db_timestamp.replace(tzinfo=pytz.UTC)
 
-                if result[1] == process_id_trimmed and db_timestamp < row['TIMESTAMP']:
+                # Ensure row['TIMESTAMP'] is timezone-aware
+                if process_default['TIMESTAMP'].tzinfo is None:
+                    process_default['TIMESTAMP'] = process_default['TIMESTAMP'].tz_localize(pytz.UTC)
+
+                if result[1] == process_id and db_timestamp < process_default['TIMESTAMP']:
                     # Remove old process
                     query = f"DELETE FROM {self.schema}.PROCESSES WHERE PROCESS_ID = %s"
-                    cursor.execute(query, (process_id_trimmed,))
-
-                if result[1] == process_id_trimmed:
-                        continue
+                    cursor.execute(query, (process_id,))
+                    updated_process = True
+                elif result[1] == process_id:
+                    continue
 
             placeholders = ', '.join(['%s'] * len(process_columns))
 
             insert_values = []
             for key in process_columns:
-                if key == 'PROCESS_ID':
-                    insert_values.append(process_id_trimmed)
+                if key == 'FUNCTION_ID':
+                    insert_values.append(process_id)
                 elif key == 'TIMESTAMP':
                     insert_values.append(timestamp_str)
                 else:
-                    val = row.get(key, '') if row.get(key, '') is not None else ''
+                    val = process_default.get(key, '') if process_default.get(key, '') is not None else ''
                     if pd.isna(val):
                         val = ''
                     insert_values.append(val)
             insert_query = f"INSERT INTO {self.schema}.PROCESSES ({', '.join(process_columns)}) VALUES ({placeholders})"
             cursor.execute(insert_query, insert_values) 
+            if updated_process:
+                print(f"Process {process_id} updated successfully.")
+                updated_process = False
+            else:
+                print(f"Process {process_id} inserted successfully.")
+        cursor.close()
+
+    def load_default_functions(self, cursor, table):
+        folder_path = 'default_functions'
+        self.function_data = pd.DataFrame()
+        
+        files = glob.glob(os.path.join(folder_path, '*'))
+
+        for filename in files:
+            with open(filename, 'r') as file:
+                yaml_data = yaml.safe_load(file)
+            
+            data = pd.DataFrame.from_dict(yaml_data, orient='index')
+            data.reset_index(inplace=True)
+            data.rename(columns={'index': 'FUNCTION_ID'}, inplace=True)
+
+            self.function_defaults = pd.concat([self.function_data, data], ignore_index=True)
+
+        # Ensure TIMESTAMP column is timezone-aware
+        self.function_defaults['TIMESTAMP'] = pd.to_datetime(self.function_defaults['TIMESTAMP'], format='ISO8601', utc=True)
+
+        updated_process = False
+
+        for _, function_default in self.function_defaults.iterrows():
+            function_id = function_default['FUNCTION_ID']
+            if function_default['TIMESTAMP'] is not None:
+                # Ensure row['TIMESTAMP'] is timezone-aware
+                if function_default['TIMESTAMP'].tzinfo is None:
+                    function_default['TIMESTAMP'] = function_default['TIMESTAMP'].tz_localize(pytz.UTC)
+                timestamp_str = function_default['TIMESTAMP'].strftime('%Y-%m-%d %H:%M:%S')
+            else:
+                timestamp_str = None
+
+            query = f"SELECT * FROM {self.schema}.BOT_FUNCTIONS WHERE FUNCTION_ID = %s"
+            cursor.execute(query, (function_id,))
+            result = cursor.fetchone()
+            function_columns = [desc[0] for desc in cursor.description]
+
+            if "TIMESTAMP" not in function_columns:
+                add_column_query = f"""ALTER TABLE {self.schema}.BOT_FUNCTIONS ADD COLUMN TIMESTAMP TIMESTAMP;"""
+                cursor.execute(add_column_query)
+
+            if result is not None:
+                db_timestamp = result[5] if len(result) > 5 else None
+
+                # Ensure db_timestamp is timezone-aware
+                if db_timestamp is None:
+                    db_timestamp = datetime.now(pytz.UTC)
+                elif db_timestamp.tzinfo is None:
+                    db_timestamp = db_timestamp.replace(tzinfo=pytz.UTC)
+
+                # Ensure row['TIMESTAMP'] is timezone-aware
+                if function_default['TIMESTAMP'].tzinfo is None:
+                    function_default['TIMESTAMP'] = function_default['TIMESTAMP'].tz_localize(pytz.UTC)
+
+                if result[1] == function_id and db_timestamp < function_default['TIMESTAMP']:
+                    # Remove old process
+                    query = f"DELETE FROM {self.schema}.BOT_FUNCTIONS WHERE FUNCTION_ID = %s"
+                    cursor.execute(query, (function_id,))
+                    updated_process = True
+                elif result[1] == function_id:
+                    continue
+
+            placeholders = ', '.join(['%s'] * len(function_columns))
+
+            insert_values = []
+            for key in function_columns:
+                if key == 'FUNCTION_ID':
+                    insert_values.append(function_id)
+                elif key == 'TIMESTAMP':
+                    insert_values.append(timestamp_str)
+                else:
+                    val = function_default.get(key, '') if function_default.get(key, '') is not None else ''
+                    if pd.isna(val):
+                        val = ''
+                    insert_values.append(val)
+            insert_query = f"INSERT INTO {self.schema}.BOT_FUNCTIONS ({', '.join(function_columns)}) VALUES ({placeholders})"
+            cursor.execute(insert_query, insert_values) 
+            if updated_process:
+                print(f"Function {function_id} updated successfully.")
+                updated_process = False
+            else:
+                print(f"Function {function_id} inserted successfully.")
         cursor.close()
 
     def ensure_table_exists(self):
@@ -1719,6 +1819,7 @@ class SnowflakeConnector(DatabaseConnector):
                 FUNCTION_TYPE VARCHAR(16777216),
                 FUNCTION_DEFINITION VARCHAR(16777216),
                 DESCRIPTION VARCHAR(16777216)
+                TIMESTAMP TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
             """
             cursor.execute(create_bot_functions_table_ddl)
@@ -1726,6 +1827,9 @@ class SnowflakeConnector(DatabaseConnector):
             print(f"Table {self.schema}.BOT_FUNCTIONS created successfully.")
         else:
             print(f"Table {self.schema}.BOT_FUNCTIONS already exists.")
+        
+        table = f"{self.schema}.BOT_FUNCTIONS"
+        self.load_default_functions(cursor, table)
 
         # Check if the run_dynamic_sql procedure already exists
         check_procedure_query = f"""

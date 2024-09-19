@@ -1631,7 +1631,7 @@ def find_replace_updated_bot_service(bot_id):
     #     print("Debug: No changes in bot_servicing table.")
     #     return []
 
-    query = """
+    query = f"""
         SELECT bs.*
         FROM {db_adapter.schema}.bot_servicing bs
         LEFT JOIN {db_adapter.schema}.bot_servicing_backup bsb

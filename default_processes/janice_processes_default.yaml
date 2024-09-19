@@ -54,66 +54,153 @@ janice_monitor_unused_tables_golden:
   TIMESTAMP: "2024-09-18 00:00:00+00:00"
 
 janice_top_warehouses_spillage_golden:
-    BOT_ID: "Janice"
-    PROCESS_NAME: "janice_top_warehouses_spillage"
-    PROCESS_INSTRUCTIONS: |
-      # Top 3 Warehouses Affected by Spillage and Queuing
+  BOT_ID: "Janice"
+  PROCESS_NAME: "janice_top_warehouses_spillage"
+  PROCESS_INSTRUCTIONS: |
+    # Top 3 Warehouses Affected by Spillage and Queuing
 
-      ## Overview
-      This process identifies the top 3 warehouses with data spilling issues and analyzes average queuing times per month in the Snowflake environment. It aims to notify stakeholders about performance issues and opportunities to optimize warehouse configurations.
+    ## Overview
+    This process identifies the top 3 warehouses with data spilling issues and analyzes average queuing times per month in the Snowflake environment. It aims to notify stakeholders about performance issues and opportunities to optimize warehouse configurations.
 
-      ## Process Steps:
+    ## Process Steps:
 
-      1. **Identify The Top 3 Warehouses With Data Spilling:**
-        - Execute the following SQL query to identify the top 3 warehouses with data spilling in the Snowflake account:
-          ```sql
-          CALL GENESIS_BOTS_ALPHA.APP1.RUN_PROCESS_SQL('janice_query_1');
-          
-        - Confirm with the supervisor that you have run the query and note the number of rows you received in response.
-      2. **Average Queuing Times Per Month:**
-        - Execute the following SQL query to identify the average queuing times per month:
-          
-      sql
-          CALL GENESIS_BOTS_ALPHA.APP1.RUN_PROCESS_SQL('janice_query_2');
-          
-        - Confirm with the supervisor that you have run the query and note the number of rows you received in response.
-      3. **Draft a Compelling Email:**
-        - Draft an email with a catchy subject line including Unicode emojis about identified performance issues and an opportunity to optimize warehouse configurations in their Snowflake Environment (e.g., :snowflake::hammer_and_wrench:).
-        - Include in the email body:
-          - An explanation of what it means when a warehouse has bytes spilled to local and remote storage.
-          - An explanation of how average queuing time impacts performance.
-          - A list of the top 3 warehouses that are spilling to local and remote storage along with their average queue times from your analysis.
-          - Mention that there may be more warehouses experiencing spillage.
-          - Invite the user to come talk with you, Janice, in Streamlit or Slack by mentioning the Process ID.
-          - Ensure line breaks are included in the body where appropriate, using the standard line break indicator (\n).
-
-      4. **Send the Email:**
-        - Send the email to SYS$DEFAULT_EMAIL.
-
-      ## Conclusion
-      This process helps in identifying performance issues related to data spillage and queuing times, enabling stakeholders to optimize warehouse configurations for better performance.
-
-      ## Example Email Output Structure
-      - **Subject:** :snowflake: Performance Alert: Warehouse Optimization Needed :hammer_and_wrench:
-      - **Body:**
+    1. **Identify The Top 3 Warehouses With Data Spilling:**
+      - Execute the following SQL query to identify the top 3 warehouses with data spilling in the Snowflake account:
+        ```sql
+        CALL GENESIS_BOTS_ALPHA.APP1.RUN_PROCESS_SQL('janice_query_1');
         
-        Hello,
-
-        We've identified performance issues in our Snowflake environment related to data spillage and queuing times. When a warehouse spills bytes to local and remote storage, it indicates that the warehouse doesn't have sufficient memory to process queries efficiently, leading to slower performance.
-
-        Average queuing time impacts how long queries wait before being executed. High queuing times mean that queries are delayed due to resource constraints, affecting overall system responsiveness.
-
-        Here are the top 3 warehouses experiencing these issues:
-        1. [Warehouse_Name_1] - Spillage: [Amount], Average Queue Time: [Duration]
-        2. [Warehouse_Name_2] - Spillage: [Amount], Average Queue Time: [Duration]
-        3. [Warehouse_Name_3] - Spillage: [Amount], Average Queue Time: [Duration]
-
-        There may be more warehouses experiencing spillage and queuing issues.
-
-        Please reach out to me, Janice, in Streamlit or Slack to discuss this further. Mention Process ID: [PROCESS_ID].
-
-        Regards,
-        Janice
+      - Confirm with the supervisor that you have run the query and note the number of rows you received in response.
+    2. **Average Queuing Times Per Month:**
+      - Execute the following SQL query to identify the average queuing times per month:
         
-    PROCESS_DETAILS: "Top 3 Warehouses Affected by Spillage and Queuing"
-    TIMESTAMP: "2024-09-18 00:00:00+00:00"
+    sql
+        CALL GENESIS_BOTS_ALPHA.APP1.RUN_PROCESS_SQL('janice_query_2');
+        
+      - Confirm with the supervisor that you have run the query and note the number of rows you received in response.
+    3. **Draft a Compelling Email:**
+      - Draft an email with a catchy subject line including Unicode emojis about identified performance issues and an opportunity to optimize warehouse configurations in their Snowflake Environment (e.g., :snowflake::hammer_and_wrench:).
+      - Include in the email body:
+        - An explanation of what it means when a warehouse has bytes spilled to local and remote storage.
+        - An explanation of how average queuing time impacts performance.
+        - A list of the top 3 warehouses that are spilling to local and remote storage along with their average queue times from your analysis.
+        - Mention that there may be more warehouses experiencing spillage.
+        - Invite the user to come talk with you, Janice, in Streamlit or Slack by mentioning the Process ID.
+        - Ensure line breaks are included in the body where appropriate, using the standard line break indicator (\n).
+
+    4. **Send the Email:**
+      - Send the email to SYS$DEFAULT_EMAIL.
+
+    ## Conclusion
+    This process helps in identifying performance issues related to data spillage and queuing times, enabling stakeholders to optimize warehouse configurations for better performance.
+
+    ## Example Email Output Structure
+    - **Subject:** :snowflake: Performance Alert: Warehouse Optimization Needed :hammer_and_wrench:
+    - **Body:**
+      
+      Hello,
+
+      We've identified performance issues in our Snowflake environment related to data spillage and queuing times. When a warehouse spills bytes to local and remote storage, it indicates that the warehouse doesn't have sufficient memory to process queries efficiently, leading to slower performance.
+
+      Average queuing time impacts how long queries wait before being executed. High queuing times mean that queries are delayed due to resource constraints, affecting overall system responsiveness.
+
+      Here are the top 3 warehouses experiencing these issues:
+      1. [Warehouse_Name_1] - Spillage: [Amount], Average Queue Time: [Duration]
+      2. [Warehouse_Name_2] - Spillage: [Amount], Average Queue Time: [Duration]
+      3. [Warehouse_Name_3] - Spillage: [Amount], Average Queue Time: [Duration]
+
+      There may be more warehouses experiencing spillage and queuing issues.
+
+      Please reach out to me, Janice, in Streamlit or Slack to discuss this further. Mention Process ID: [PROCESS_ID].
+
+      Regards,
+      Janice
+      
+  PROCESS_DETAILS: "Top 3 Warehouses Affected by Spillage and Queuing"
+  TIMESTAMP: "2024-09-18 00:00:00+00:00"
+
+janice_check_MFA_use_golden:
+  BOT_ID: "Janice"
+  PROCESS_NAME: "janice_check_MFA_use_golden"
+  PROCESS_INSTRUCTIONS: |
+    1. **Query to Retrieve User Data**:
+      - Run the following SQL query to collect necessary data:
+      ```sql
+      CALL GENESIS_BOTS_ALPHA.APP1.RUN_PROCESS_SQL('QUERY_3');
+      ```
+
+    2. **Draft a Compelling Email:**
+      - As you write the email remember you're talking about security so the tone should be serious
+      - Draft an email with a catchy but serious sounding subject line about ensuring data safety through using MFA
+      - Include in the email body:
+        - a breif explanation of the benefits of MFA for authentication
+        - give them a list of some of the data you found which includes the percentage of users who currently have passwords using "PASSWORD_USERS" from the query results, the percentage of users who have passwords that also currently use MFA using "PASSWORD_USERS_MFA" from the query results, the percentage of users with admin access that use passwords without MFA using "ADMIN_PASSWORD_NO_MFA" from the query results.
+        - Invite the user to come talk with you, Janice, in Streamlit or Slack by mentioning the Process ID.
+        - be sure to include line breaks in the body where appropriate, using the standard line break indicator (\n).
+
+    3. **Send the Email:**
+      - Send the email to SYS$DEFAULT_EMAIL.
+      - Continue running the rest of the steps after sending the email
+
+    4. **Create Visual Representation**:
+      - use snowpark to create a visualization of these numbers. follow these instructions for the visualization:
+        - create a stacked bar chart. the title of the chart should be "Users with Passwords MFA Adoption Rates" the bars should be horizontal. treat each number as a percentage, and the stack should show the number as a part of the full 100% and the other part would be the leftover. label the numbers associated with the bars so it's clear what number each part of the stacked bar represents and make sure the numbers are visible, and orient the labels vertically and the label's should only use 2 digits of precision rounding up if needed
+        - The order of the bars is crucial, and the order should be:
+            - "PASSWORD_USERS"
+            - "PASSWORD_USERS_MFA"
+            - "ADMIN_PASSWORD_NO_MFA"
+            - "PASSWORD_USERS_PERSON"
+            - "PERSON_PASSWORD_NO_MFA"
+        - for the "PASSWORD_USERS" the percent that does have passwords should be red and the rest should be gray and this should be the bar at the top of the graph
+        - for all others the percent from the results should be red and the rest should be green
+        - show the graph to the person you're talking to
+
+    5. **Generate Report and Recommendations**:
+      - you are going to write an analysis of the data from the query. take note that:
+        - **ADMIN_PASSWORD_NO_MFA** tells you percent of users who have a password set and also have admin rights granted that do NOT have MFA set up
+        - **PASSWORD_USERS** tells you the percentage of all users in the account who have the ability to authenticate with a password
+        - **PASSWORD_USERS_MFA** tells you the percent of users with a password that do not have MFA set up
+        - **PASSWORD_USERS_PERSON** tells you the percent of users with a password set that have PERSON as their type attribute
+        - **PERSON_PASSWORD_NO_MFA** tells you the percent of users with a password set that have PERSON as their type attribute who do NOT have MFA set
+      - in your analysis keep these principles in mind:
+        - security best practice is that as few users as possible should have the ability to authenticate with a password. you should use federated sign in, SSO, or other means.
+        - users with PERSON as their type should be specifically encouraged to use MFA since they are human, interactive users who should not have any operational reasons not to use MFA
+        - any user with admin rights should be using MFA since they have the ability to do more damage if their credentials are compromised
+        - unless the numbers are extremely good (for example: 0% having passwords, or 100% of password users using MFA), only point out areas of improvement and don't assume anything you're seeing should be encouraged
+      - write your analysis as a statement of direction - what can the person you're talking to do to improve their security posture based on these numbers?
+
+    ### End of Process
+  PROCESS_DETAILS: "Check MFA Use in Snowflake"
+  TIMESTAMP: "2024-09-19 00:00:00+00:00"
+
+janice_dangerous_user_report_golden:
+  BOT_ID: "Janice"
+  PROCESS_NAME: "janice_dangerous_user_report_golden"
+  PROCESS_INSTRUCTIONS: |
+    1. Run the following SQL query to gather data on user roles and privileges:
+
+    ```sql
+    CALL GENESIS_BOTS_ALPHA.APP1.RUN_PROCESS_SQL('QUERY_4');
+    ```
+
+    2. **Draft a Compelling Email:**
+      - As you write the email remember you are talking about security so the tone should be serious
+      - Draft an email with a catchy but serious sounding subject line about finding users with dangerous amounts of privileges
+      - Include in the email body:
+        - a breif explanation about how having users with too much standing privilege can be very dangerous.
+        - give them a list of the top 3 users in terms of number of rights granted and make sure to note if the user is or is not granted the ACCOUNTADMIN role in each case
+        - Invite the user to come talk with you, Janice, in Streamlit or Slack by mentioning the Process ID.
+        - be sure to include line breaks in the body where appropriate, using the standard line break indicator (\n).
+
+    3. **Send the Email:**
+      - Send the email to SYS$DEFAULT_EMAIL.
+      - Continue running the rest of the steps after sending the email
+
+    4. Analyze the results based on the following criteria:
+      - Identify the top 5 users in terms of total privileges granted inclusive of roles.
+      - Determine if the rights and roles are concentrated in a few specific users or more evenly spread out.
+      - Check how broadly the ACCOUNTADMIN role is granted. ACCOUNTADMIN is the single most powerful role in Snowflake, and granting it too widely is very bad practice which should be discouraged.
+      - Look for any unusual patterns or noteworthy observations in the results. are there many users with similar numbers? are there only a few users with most rights and the rest have very little? MAKE SURE TO SAY IF THERE are there any ways that ACCOUNTADMIN grants may be warping the data? are there any other things about the numbers which seems noteworthy?
+
+    5. Report the findings, including any significant observations about the distribution of privileges and the granting of the ACCOUNTADMIN role.
+  PROCESS_DETAILS: "Dangerous Snowflake User Report"
+  TIMESTAMP: "2024-09-19 00:00:00+00:00"

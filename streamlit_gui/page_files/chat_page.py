@@ -125,7 +125,7 @@ def chat_page():
                     time.sleep(2)
 
         if i >= 5:
-            st.error("Error reading the UDF response... reloading in 2 seconds...")
+            # st.error("Error reading the UDF response... reloading in 2 seconds...")
             time.sleep(2)
             st.rerun()
         
@@ -219,7 +219,7 @@ def chat_page():
                     time.sleep(2)
 
         if i >= 5 and response :
-        #    st.error("Error reading the UDF response... reloading in 2 seconds...")
+            # st.error("Error reading the UDF response... reloading in 2 seconds...")
             time.sleep(2)
             st.rerun()
 
@@ -528,4 +528,5 @@ def chat_page():
     # Set the flag to trigger a rerun in main.py if a new session was added
     if st.session_state.get('new_session_added', False):
         st.session_state.new_session_added = False
+        st.success("new session added??")
         st.rerun()

@@ -2166,10 +2166,8 @@ class SnowflakeConnector(DatabaseConnector):
                 test_cortex_available = self.check_cortex_available()
                 if test_cortex_available == True:
                     cursor.execute(insert_initial_row_query, (runner_id,'cortex_no_key_needed', 'cortex', True,))
-                    print(f"inserted cortex row")
                 else:
                     cursor.execute(insert_initial_row_query, (runner_id,None,None,False,))
-                    print(f"inserted nada row")
                 self.client.commit()
                 print(f"Inserted initial row into {self.genbot_internal_project_and_schema}.LLM_TOKENS with runner_id: {runner_id}")
             else:
@@ -2187,11 +2185,8 @@ class SnowflakeConnector(DatabaseConnector):
                             f"Column 'ACTIVE' added to table {self.genbot_internal_project_and_schema}.LLM_TOKENS."
                         )
                         update_query = f"UPDATE {self.genbot_internal_project_and_schema}.LLM_TOKENS SET ACTIVE=TRUE WHERE LLM_TYPE='OpenAI'"
-                        print("before update query", flush=True)
                         cursor.execute(update_query)
-                        print("after update query", flush=True)
                         self.client.commit()
-                        print("after update commit", flush=True)
                 except Exception as e:
                     print(
                         f"An error occurred while checking or altering table {self.genbot_internal_project_and_schema}.LLM_TOKENS to add ACTIVE column: {e}"

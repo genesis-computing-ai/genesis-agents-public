@@ -323,10 +323,73 @@ BEGIN
             AND (ARRAY_CONTAINS('BASEBALL'::variant, SCHEMA_EXCLUSIONS) OR ARRAY_CONTAINS('FORMULA_1'::variant, SCHEMA_EXCLUSIONS)) ;
 
         IF  (:harvest_schema_exists AND NOT :harvest_excluded) THEN
-          EXECUTE IMMEDIATE 'DELETE FROM APP1.HARVEST_RESULTS WHERE DATABASE_NAME = ''' || :APP_NAME || ''' AND SCHEMA_NAME IN (''BASEBALL'', ''FORMULA_1'')';
-          EXECUTE IMMEDIATE 'INSERT INTO APP1.HARVEST_RESULTS (SOURCE_NAME, QUALIFIED_TABLE_NAME, DATABASE_NAME, MEMORY_UUID, SCHEMA_NAME, TABLE_NAME, COMPLETE_DESCRIPTION, DDL, DDL_SHORT, DDL_HASH, SUMMARY, SAMPLE_DATA_TEXT, LAST_CRAWLED_TIMESTAMP, CRAWL_STATUS, ROLE_USED_FOR_CRAWL)
-                              SELECT SOURCE_NAME, replace(QUALIFIED_TABLE_NAME,''APP_NAME'',''' || :APP_NAME || ''') QUALIFIED_TABLE_NAME, ''' || :APP_NAME || ''' DATABASE_NAME, MEMORY_UUID, SCHEMA_NAME, TABLE_NAME, REPLACE(COMPLETE_DESCRIPTION,''APP_NAME'',''' || :APP_NAME || ''') COMPLETE_DESCRIPTION, REPLACE(DDL,''APP_NAME'',''' || :APP_NAME || ''') DDL, REPLACE(DDL_SHORT,''APP_NAME'',''' || :APP_NAME || ''') DDL_SHORT, ''SHARED_VIEW'' DDL_HASH, REPLACE(SUMMARY,''APP_NAME'',''' || :APP_NAME || ''') SUMMARY, SAMPLE_DATA_TEXT, LAST_CRAWLED_TIMESTAMP, CRAWL_STATUS, ROLE_USED_FOR_CRAWL 
- FROM SHARED_HARVEST.HARVEST_RESULTS WHERE DATABASE_NAME = ''APP_NAME'' AND SCHEMA_NAME IN (''BASEBALL'', ''FORMULA_1'')';
+
+
+          EXECUTE IMMEDIATE '
+          MERGE INTO APP1.HARVEST_RESULTS AS target
+          USING (
+              SELECT 
+                  SOURCE_NAME, 
+                  REPLACE(QUALIFIED_TABLE_NAME, ''APP_NAME'', ''' || :APP_NAME || ''') AS QUALIFIED_TABLE_NAME, 
+                  ''' || :APP_NAME || ''' AS DATABASE_NAME, 
+                  MEMORY_UUID, 
+                  SCHEMA_NAME, 
+                  TABLE_NAME, 
+                  REPLACE(COMPLETE_DESCRIPTION, ''APP_NAME'', ''' || :APP_NAME || ''') AS COMPLETE_DESCRIPTION, 
+                  REPLACE(DDL, ''APP_NAME'', ''' || :APP_NAME || ''') AS DDL, 
+                  REPLACE(DDL_SHORT, ''APP_NAME'', ''' || :APP_NAME || ''') AS DDL_SHORT, 
+                  ''SHARED_VIEW'' AS DDL_HASH, 
+                  REPLACE(SUMMARY, ''APP_NAME'', ''' || :APP_NAME || ''') AS SUMMARY, 
+                  SAMPLE_DATA_TEXT, 
+                  LAST_CRAWLED_TIMESTAMP, 
+                  CRAWL_STATUS, 
+                  ROLE_USED_FOR_CRAWL
+              FROM SHARED_HARVEST.HARVEST_RESULTS
+              WHERE DATABASE_NAME = ''APP_NAME'' 
+              AND SCHEMA_NAME IN (''BASEBALL'', ''FORMULA_1'')
+          ) AS source
+          ON target.QUALIFIED_TABLE_NAME = source.QUALIFIED_TABLE_NAME AND target.DDL = source.DDL
+          WHEN MATCHED THEN
+              UPDATE SET 
+                  target.SOURCE_NAME = source.SOURCE_NAME,
+                  target.MEMORY_UUID = source.MEMORY_UUID,
+                  target.SCHEMA_NAME = source.SCHEMA_NAME,
+                  target.TABLE_NAME = source.TABLE_NAME,
+                  target.COMPLETE_DESCRIPTION = source.COMPLETE_DESCRIPTION,
+                  target.DDL = source.DDL,
+                  target.DDL_SHORT = source.DDL_SHORT,
+                  target.DDL_HASH = source.DDL_HASH,
+                  target.SUMMARY = source.SUMMARY,
+                  target.SAMPLE_DATA_TEXT = source.SAMPLE_DATA_TEXT,
+                  target.LAST_CRAWLED_TIMESTAMP = source.LAST_CRAWLED_TIMESTAMP,
+                  target.CRAWL_STATUS = source.CRAWL_STATUS,
+                  target.ROLE_USED_FOR_CRAWL = source.ROLE_USED_FOR_CRAWL
+          WHEN NOT MATCHED THEN
+              INSERT (SOURCE_NAME, QUALIFIED_TABLE_NAME, DATABASE_NAME, MEMORY_UUID, SCHEMA_NAME, TABLE_NAME, COMPLETE_DESCRIPTION, DDL, DDL_SHORT, DDL_HASH, SUMMARY, SAMPLE_DATA_TEXT, LAST_CRAWLED_TIMESTAMP, CRAWL_STATUS, ROLE_USED_FOR_CRAWL)
+              VALUES (
+                  source.SOURCE_NAME, 
+                  source.QUALIFIED_TABLE_NAME, 
+                  source.DATABASE_NAME, 
+                  source.MEMORY_UUID, 
+                  source.SCHEMA_NAME, 
+                  source.TABLE_NAME, 
+                  source.COMPLETE_DESCRIPTION, 
+                  source.DDL, 
+                  source.DDL_SHORT, 
+                  source.DDL_HASH, 
+                  source.SUMMARY, 
+                  source.SAMPLE_DATA_TEXT, 
+                  source.LAST_CRAWLED_TIMESTAMP, 
+                  source.CRAWL_STATUS, 
+                  source.ROLE_USED_FOR_CRAWL
+              );
+          ';
+
+
+--           EXECUTE IMMEDIATE 'DELETE FROM APP1.HARVEST_RESULTS WHERE DATABASE_NAME = ''' || :APP_NAME || ''' AND SCHEMA_NAME IN (''BASEBALL'', ''FORMULA_1'')';
+--           EXECUTE IMMEDIATE 'INSERT INTO APP1.HARVEST_RESULTS (SOURCE_NAME, QUALIFIED_TABLE_NAME, DATABASE_NAME, MEMORY_UUID, SCHEMA_NAME, TABLE_NAME, COMPLETE_DESCRIPTION, DDL, DDL_SHORT, DDL_HASH, SUMMARY, SAMPLE_DATA_TEXT, LAST_CRAWLED_TIMESTAMP, CRAWL_STATUS, ROLE_USED_FOR_CRAWL)
+--                               SELECT SOURCE_NAME, replace(QUALIFIED_TABLE_NAME,''APP_NAME'',''' || :APP_NAME || ''') QUALIFIED_TABLE_NAME, ''' || :APP_NAME || ''' DATABASE_NAME, MEMORY_UUID, SCHEMA_NAME, TABLE_NAME, REPLACE(COMPLETE_DESCRIPTION,''APP_NAME'',''' || :APP_NAME || ''') COMPLETE_DESCRIPTION, REPLACE(DDL,''APP_NAME'',''' || :APP_NAME || ''') DDL, REPLACE(DDL_SHORT,''APP_NAME'',''' || :APP_NAME || ''') DDL_SHORT, ''SHARED_VIEW'' DDL_HASH, REPLACE(SUMMARY,''APP_NAME'',''' || :APP_NAME || ''') SUMMARY, SAMPLE_DATA_TEXT, LAST_CRAWLED_TIMESTAMP, CRAWL_STATUS, ROLE_USED_FOR_CRAWL 
+--  FROM SHARED_HARVEST.HARVEST_RESULTS WHERE DATABASE_NAME = ''APP_NAME'' AND SCHEMA_NAME IN (''BASEBALL'', ''FORMULA_1'')';
         END IF;      
       END IF;
     END IF;

@@ -67,7 +67,7 @@ os.environ['TASK_MODE'] = 'true'
 os.environ['SHOW_COST'] = 'false'
 ########################################
 
-print("****** GENBOT VERSION 0.171 *******")
+print("****** GENBOT VERSION 0.173 *******")
 print("****** TASK AUTOMATION SERVER *******")
 runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
 print("Runner ID: ", runner_id)
@@ -1049,7 +1049,7 @@ def generate_task_prompt(bot_id, task):
     Here are some things you've noted that you've learned in past runs of this task about how to do it better:
     {learnings}
 
-    Here is how often this task should be run:
+    Here is how often this task should be run. If this notes that it is to be run 'one time', 'non-recurring' or similar, then do not run it again, and set the stop_task_flag to TRUE in your response:
     {task_details['action_trigger_type']} {task_details['action_trigger_details']}
 
     Here is the current server time:
@@ -1057,7 +1057,7 @@ def generate_task_prompt(bot_id, task):
     
     Use the process runner tool to run the process named above and follow the instructions that it gives you. Call mulitple tools if needed to complete the task.
     Do NOT create a new process, or a new schedule for an existing process. You are to execute the steps described above for this existing task. 
-    If you send an email or a slack direct message or slack channel message as part of the task, include at the end of the message and the user they can ask you about this scheduled process for more details: _(process:{task_details['task_name']}, schedule_id:{task_details['task_id']}_)
+    If you send an email or a slack direct message or slack channel message as part of the task, include at the end of the message and the user they can ask you about this scheduled process for more details: \n[This messages is from Genesis bot {bot_id} running process:{task_details['task_name']} on schedule_id:{task_details['task_id']}]
     Do not call process_scheduler while performing this work. Only generate an image if specifically told to. 
     When you are DONE with this task and have FULLY completed it, return only a JSON document with these items, no other text:
 
@@ -1069,8 +1069,8 @@ def generate_task_prompt(bot_id, task):
         "stop_task_flag": <TRUE if this was a one-time non-recurring task, or there is something wrong and the task should NOT be run again on its schedule (if any), FALSE if everything is Ok and the task should continue to trigger if scheduled to do so>,
         "needs_help_flag": <true if you need help from the administrator, are encountering errors, etc., false if assistance is not needed before the next task run>,
         "task_clarity_comments": <state any problems you are having running the task, or any help you need, errors youre getting. omit this if task is clear and working properly>
-        "next_run_time": <date_timestamp for when to run this task next in %Y-%m-%d %H:%M:%S format>
-            }} 
+        "next_run_time": <date_timestamp for when to run this task next in %Y-%m-%d %H:%M:%S format. Figure this out based on the information above. Omit this parameter if stop_task_flag is TRUE>
+    }} 
 
     If you respond back with anything other than a JSON document like the above, I will simply remind you of the required response format, as this thread is being supervised by an unattended runner. 
     Reminder: do not include any other text with your response, just the JSON document.
@@ -1169,7 +1169,8 @@ def tasks_loop():
     def task_sort_key(task):
         return task["next_check_ts"]
     
-    backup_bot_servicing()
+    if os.getenv("TEST_TASK_MODE", "false").lower() != "true":
+        backup_bot_servicing()
     
     i = 10
     cycle = 0
@@ -1192,8 +1193,9 @@ def tasks_loop():
         all_bot_ids = [bot['bot_id'] for bot in all_bots_details]
 
         # global sessions
-
-        add_sessions(all_bot_ids, all_bots_details, sessions)
+        
+        if os.getenv("TEST_TASK_MODE", "false").lower() != "true":
+            add_sessions(all_bot_ids, all_bots_details, sessions)
 
         # Retrieve the list of bots and their tasks
 
@@ -1227,14 +1229,16 @@ def tasks_loop():
             if os.getenv("TEST_TASK_MODE", "false").lower() == "true":
                 print('test task mode - looking for tasks for bot ',bot_id)
             tasks = db_adapter.process_scheduler(action="LIST", bot_id=bot_id, task_id=None)
-            if os.getenv("TEST_TASK_MODE", "false").lower() == "true":
-                print('test task mode - tasks are: ',tasks)
+           # if os.getenv("TEST_TASK_MODE", "false").lower() == "true":
+           #     print('test task mode - tasks are: ',tasks)
             if tasks.get("Success"):
                 for task in [
                     t for t in tasks.get("Scheduled Processes", []) if t.get("task_active", False)
                 ]:
-                    if os.getenv("TEST_TASK_MODE", "false").lower() == "true":
-                        print('test task mode - task is: ',task)
+           #         if os.getenv("TEST_TASK_MODE", "false").lower() == "true":
+           #             if task['task_id'] != 'janiCortex-123456_YoJani_schedule_FCUbr1':
+           #                 continue
+                 #       print('test task mode - task is: ',task)
                     # If an instance of the task is not alreday running, Process the task using the bot
                     if not any(
                         pending_task["task_id"] == task["task_id"]
@@ -1309,6 +1313,13 @@ def tasks_loop():
                     response_valid = False
                     error_msg += f"The JSON response you provided couldnt be parsed with error {e}\n"
                     task_response_data = None
+
+                # Check if stop_task_flag is True (case-insensitive)
+                if task_response_data and isinstance(task_response_data.get("stop_task_flag"), str):
+                    if task_response_data["stop_task_flag"].lower() == "true":
+                        task_response_data["next_run_time"] = None
+                elif task_response_data and task_response_data.get("stop_task_flag") is True:
+                    task_response_data["next_run_time"] = None
 
                 if response_valid and task_response_data:
                     required_fields = [
@@ -1556,25 +1567,28 @@ def tasks_loop():
             if os.getenv("TEST_TASK_MODE", "false").lower() == "true":
                 print("TEST_TASK_MODE -> overriding sleep to 5 seconds...", flush=True)
                 wait_time = 5
-            time.sleep(wait_time)
-            cursor = db_adapter.client.cursor()
-            check_bot_active = f"DESCRIBE TABLE {db_adapter.schema}.BOTS_ACTIVE"
-            cursor.execute(check_bot_active)
-            result = cursor.fetchone()
-
-            bot_active_time_dt = datetime.strptime(result[0], '%Y-%m-%d %H:%M:%S %Z')
-            current_time = datetime.now()
-            time_difference = current_time - bot_active_time_dt
-
-            i = i + 1
-            if i == 1:
-                print(f"\nBOTS ACTIVE TIME: {result[0]} | CURRENT TIME: {current_time} | TIME DIFFERENCE: {time_difference}", flush=True)
-            if i > 10:
-                i = 0
-
-            if time_difference < timedelta(minutes=5):
                 wake_up = True
-       #         print("Bot is active")
+            time.sleep(wait_time)
+
+            if os.getenv("TEST_TASK_MODE", "false").lower() == "false":
+                cursor = db_adapter.client.cursor()
+                check_bot_active = f"DESCRIBE TABLE {db_adapter.schema}.BOTS_ACTIVE"
+                cursor.execute(check_bot_active)
+                result = cursor.fetchone()
+
+                bot_active_time_dt = datetime.strptime(result[0], '%Y-%m-%d %H:%M:%S %Z')
+                current_time = datetime.now()
+                time_difference = current_time - bot_active_time_dt
+
+                i = i + 1
+                if i == 1:
+                    print(f"\nBOTS ACTIVE TIME: {result[0]} | CURRENT TIME: {current_time} | TIME DIFFERENCE: {time_difference}", flush=True)
+                if i > 10:
+                    i = 0
+
+                if time_difference < timedelta(minutes=5):
+                    wake_up = True
+        #         print("Bot is active")
 
 
         # if time_to_sleep > 0:
@@ -1690,4 +1704,12 @@ def add_sessions(all_bot_ids, all_bots_details, sessions):
 
 
 # Start the task servicing loop
-tasks_loop()
+while True:
+    try:
+        tasks_loop()
+    except Exception as e:
+        print("Task Loop Exception!!!!")
+        print(f"Error: {e}")
+        print('Starting loop again in 60 seconds...')
+        logger.error(f"Task Loop Exception: {e}", exc_info=True)
+        time.sleep(60)

@@ -435,18 +435,23 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                 response = requests.post(url, json=request_data, stream=True, headers=headers)
                 
                 if response.status_code != 200:
-                    msg = f"Cortex REST API Error. The Cortex REST API returned an error message. Status code: {response.status_code}"
-                    if response.text is not None and len(response.text) < 200:
-                        msg = msg + '\n' + response.text    
-                    print(f"Cortex Error: {msg}")
+                    msg = f"Cortex REST API Error. The Cortex REST API returned an error message. Status code: {response.status_code}."
+                    # Dump the entire response object to a string
+                    response_string = str(vars(response))
+                    msg += f"\nFull response dump:\n{response_string}"
+                    print(f"Cortex Error: {msg}", flush=True)
                     self.thread_history[thread_id] = [message for message in self.thread_history[thread_id] if not (message.get("role","") == "user" and message == last_user_message)]
-                    if BotOsAssistantSnowflakeCortex.stream_mode == True:
+                    if True or BotOsAssistantSnowflakeCortex.stream_mode == True:
                         if self.event_callback:
-                            self.event_callback(self.bot_id, BotOsOutputMessage(thread_id=thread_id, 
-                                                                                status='in_progress', 
-                                                                                output=msg, 
-                                                                                messages=None, 
-                                                                                input_metadata=json.loads(message_metadata)))
+                            chunk_size = 3000
+                            for i in range(0, len(msg), chunk_size):
+                                chunk = msg[i:i+chunk_size]
+                                status = 'in_progress' if i + chunk_size < len(msg) else 'completed'
+                                self.event_callback(self.bot_id, BotOsOutputMessage(thread_id=thread_id, 
+                                                                                    status=status, 
+                                                                                    output=chunk,
+                                                                                    messages=None, 
+                                                                                    input_metadata=json.loads(message_metadata)))
                     return msg
                 else:
                     for line in response.iter_lines():
@@ -923,7 +928,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                 else:
                     logger.error(f"No Assistant Response found for Thread ID {thread_id} {timestamp} and model {self.llm_engine}")
                     #self.active_runs.append(thread_to_check)
-                logger.warn("BotOsAssistantSnowflakeCortex:check_runs - run complete")
+              #  logger.warn("BotOsAssistantSnowflakeCortex:check_runs - run complete")
             except Exception as e:
                 print(f"Error retrieving Assistant Response for Thread ID {thread_id} and model {self.llm_engine}: {e}")
 
@@ -1063,6 +1068,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             elif isinstance(obj, bytes):
                 return obj.decode('utf-8')
             raise TypeError(f"Object of type {obj.__class__.__name__} is not JSON serializable")
+        
 
         new_ts = datetime.datetime.now()
         if isinstance(results, (dict, list)):

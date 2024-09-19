@@ -2615,7 +2615,7 @@ class SnowflakeConnector(DatabaseConnector):
             cursor = self.client.cursor()
             # cursor.execute(available_tools_table_check_query)
             # print('!!!!!!!!!!!!!!! SKIPPING AVAILABLE TOOLS --- TASK TEST !!!!!!!!!!!!')
-            if True: 
+            if os.getenv('TASK_TEST_MODE', 'False').lower() != 'true':
                 available_tools_table_ddl = f"""
                 CREATE OR REPLACE TABLE {self.available_tools_table_name} (
                     TOOL_NAME VARCHAR(16777216),

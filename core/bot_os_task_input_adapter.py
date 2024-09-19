@@ -36,7 +36,7 @@ class TaskBotOsInputAdapter(BotOsInputAdapter):
         #print("UDF output: ",message.output, ' in_uuid ', in_uuid)
         print(f'TASK RESPONSE FOR {message.input_metadata}')
         # save the response to a map, then process it from the main task loop 
-        if task_meta in message.input_metadata:
+        if 'task_meta' in message.input_metadata:
             self.response_map[message.input_metadata['task_meta']['task_id']] = message
         else:
             self.response_map[message.input_metadata['task_id']] = message

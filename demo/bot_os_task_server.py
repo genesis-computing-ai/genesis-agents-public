@@ -1049,7 +1049,7 @@ def generate_task_prompt(bot_id, task):
     Here are some things you've noted that you've learned in past runs of this task about how to do it better:
     {learnings}
 
-    Here is how often this task should be run. If this notes that it is to be run 'one time', 'non-recurring' or similar, then do not run it again, and set the stop_task_flag to TRUE in your response:
+    Here is the 'schedule' noting how often this scheduled process (aka 'task') should be run (if recurring), and possibly until what date/time. If this notes that it is to be run 'one time', 'non-recurring' or similar, or notes a date/time for the task to stop and its past that time now, then do not run it again after this run, and set the stop_task_flag to TRUE in your response:
     {task_details['action_trigger_type']} {task_details['action_trigger_details']}
 
     Here is the current server time:
@@ -1066,8 +1066,8 @@ def generate_task_prompt(bot_id, task):
         "task_status": <write a summary of the current status of the task, if its working fine and ongoing just say OK, if a specific next step is needed, state what should happen next>,
         "updated_task_learnings": <the task_learnings text you received at the start of this task, updated or appended with anything new you learned about how to perform this task during this run. Include anything you had to figure out (channel name, user name, which tool to use, etc) that you could skip next time if you knew something in advance that isn't subject to frequent change, like tables you found or SQL you used or Slack IDs of people you communicated with, or slack channel names you looked up.>,
         "report_message": <include this if you are supposed to report back based on reporting_instructions based on what happened, otherwise omit for no report back.",
-        "stop_task_flag": <TRUE if this was a one-time non-recurring task, or there is something wrong and the task should NOT be run again on its schedule (if any), FALSE if everything is Ok and the task should continue to trigger if scheduled to do so>,
-        "needs_help_flag": <true if you need help from the administrator, are encountering errors, etc., false if assistance is not needed before the next task run>,
+        "stop_task_flag": <TRUE if this was a one-time non-recurring task, if the "how often the task should run" has a date or time specificed and the current system time is past that time, or there is something wrong and the process and it should NOT be run again on its schedule (if any), FALSE if everything is Ok and the task should continue to trigger if scheduled to do so>,
+        "needs_help_flag": <true if you need help from the administrator, are encountering repeated errors, etc., false if assistance is not needed before the next task run>,
         "task_clarity_comments": <state any problems you are having running the task, or any help you need, errors youre getting. omit this if task is clear and working properly>
         "next_run_time": <date_timestamp for when to run this task next in %Y-%m-%d %H:%M:%S format. Figure this out based on the information above. Omit this parameter if stop_task_flag is TRUE>
     }} 
@@ -1089,11 +1089,15 @@ def submit_task(session=None, bot_id=None, task=None):
         next_check_ts = datetime.strptime(
             next_check_ts_str, "%Y-%m-%d %H:%M:%S"
         )
-        if datetime.now() < next_check_ts:
-            return {
-                "task_skipped": True,
-                "reason": "Next check timestamp is in the future.",
-            }
+
+        if os.getenv("TEST_TASK_MODE", "false").lower() != "true":
+            if datetime.now() < next_check_ts:
+                return {
+                    "task_skipped": True,
+                    "reason": "Next check timestamp is in the future.",
+                }
+            else:
+                '!!! TEST TASK MODE SKIPPED TIME CHECK !!!'
 
     if not task.get("task_active", False):
         return {"task_skipped": True, "reason": "Task is not active."}
@@ -1235,9 +1239,9 @@ def tasks_loop():
                 for task in [
                     t for t in tasks.get("Scheduled Processes", []) if t.get("task_active", False)
                 ]:
-           #         if os.getenv("TEST_TASK_MODE", "false").lower() == "true":
-           #             if task['task_id'] != 'janiCortex-123456_YoJani_schedule_FCUbr1':
-           #                 continue
+                    if os.getenv("TEST_TASK_MODE", "false").lower() == "true":
+                        if task['task_id'] != 'janiCortex-123456_monitor_unused_data_tables_6WIDsb_HDBgeH':
+                            continue
                  #       print('test task mode - task is: ',task)
                     # If an instance of the task is not alreday running, Process the task using the bot
                     if not any(
@@ -1380,19 +1384,24 @@ def tasks_loop():
                     # for now, have it suspend any task that needs help
                     task_response_data["stop_task_flag"] = True
                     try:
-                        task = next(
-                            (t for t in tasks["Tasks"] if t["task_id"] == task_id), None
-                        )
-                        task_creator_id = task.get("primary_report_to_id", None)
-                        task_name = task.get("task_name", None)
-                        slack_adapter = next(
-                            (
-                                adapter
-                                for adapter in session.input_adapters
-                                if isinstance(adapter, SlackBotAdapter)
-                            ),
-                            None,
-                        )
+                        try:
+                            task = next(
+                                (t for t in tasks["Scheduled Processes"] if t["task_id"] == task_id), None
+                            )
+                            task_creator_id = task.get("primary_report_to_id", None)
+                            task_name = task.get("task_name", None)
+                            slack_adapter = next(
+                                (
+                                    adapter
+                                    for adapter in session.input_adapters
+                                    if isinstance(adapter, SlackBotAdapter)
+                                ),
+                                None,
+                            )
+                        except Exception as e:
+                            slack_adapter = None
+                            task_creator_id = None
+                            print("Error finding task in process result to lookup slack user to notify: ",e)
                         # Send a direct message to the creator of the task
                         if (slack_adapter is not None) and task_creator_id:
                             help_message = f":exclamation: Task needs your help -- Task: {task_name} ({task_id}) for bot {bot_id} requires your attention.\n Issues/Suggestions: {task_response_data.get('task_clarity_comments', 'No suggestions provided.')}\nPlease discuss this with {bot_id}."
@@ -1481,6 +1490,7 @@ def tasks_loop():
                         )
                     else:
                         # Check if thread_id is in the response
+                        # Error: argument of type 'BotOsOutputMessage' is not iterable
                         if 'thread_id' in response:
                             thread = response['thread_id']
                         else:
@@ -1497,6 +1507,7 @@ def tasks_loop():
                         event = {
                             "thread_id": thread,
                             "msg": f"Your response generated an error, please try to fix it. Error: {error_msg}",
+                            "current_time": current_timestamp_str,
                             "task_meta": task_meta,
                         }
                         input_adapter.add_event(event=event)

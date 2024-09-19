@@ -1344,7 +1344,7 @@ class SnowflakeConnector(DatabaseConnector):
                         "task_active": task[12],
                     }
                     task_list.append(task_dict)
-                return {"Success": True, "Scheduled Processes": task_list, "Note": "Don't take any immediate actions on this information unless instructed to by the user."}
+                return {"Success": True, "Scheduled Processes": task_list, "Note": "Don't take any immediate actions on this information unless instructed to by the user. Also note the task_id is the id of the schedule, not the id of the process to run."}
             except Exception as e:
                 return {
                     "Success": False,

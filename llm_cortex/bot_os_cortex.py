@@ -420,9 +420,6 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
 
                 print(self.bot_name, f" bot_os_cortex calling cortex {model} via REST API, content est tok len=",len(str(newarray))/4, flush=True)
 
-
-            #    response = requests.post(url, json=request_data, stream=False, headers=headers)
-
                 start_time = time.time()
 
                 resp = self.thread_full_response.get(thread_id,None)

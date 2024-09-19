@@ -773,8 +773,8 @@ Bot's most recent response:
                     self.last_fail[thread_id][process_id] = result
                     self.fail_count[thread_id][process_id] += 1
                     self.process_history[thread_id][process_id] += "\nSupervisors concern: " + result
-                if self.fail_count[thread_id][process_id] >= 5:
-                    print(f"\nStep {self.counter[thread_id][process_id]} failed. Fail count={self.fail_count[thread_id][process_id]} > 5 failures on this step, stopping process...\n")
+                if self.fail_count[thread_id][process_id] <= 5:
+                    print(f"\nStep {self.counter[thread_id][process_id]} failed. Fail count={self.fail_count[thread_id][process_id]} Trying again up to 5 times...\n")
                     self.set_process_cache(bot_id, thread_id, process_id)
              #       print(f'Process cached with bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}')
 
@@ -792,8 +792,8 @@ Bot's most recent response:
                     return return_dict
 
                 else:
-                    print(f"\nStep {self.counter[thread_id][process_id]} failed. Fail count={self.fail_count[thread_id][process_id]} Trying again...\n")
-
+                    print(f"\nStep {self.counter[thread_id][process_id]} failed. Fail count={self.fail_count[thread_id][process_id]} > 5 failures on this step, stopping process...\n")
+                    
                     with self.lock:
                         self.done[thread_id][process_id] = True
                     self.clear_process_cache(bot_id, thread_id, process_id)
@@ -952,15 +952,22 @@ In your response back to run_process, provide a detailed description of what you
     def get_process_info(self, bot_id=None, process_name=None, process_id=None):
         cursor = db_adapter.client.cursor()
         try:
+            result = None
+
+            if (process_name is None or process_name == '') and (process_id is None or process_id == ''):
+                return {
+                    "Success": False,
+                    "Error": "Either process_name or process_id must be provided and cannot be empty."
+                }
             if process_id is not None and process_id != '':
                 query = f"SELECT * FROM {db_adapter.schema}.PROCESSES WHERE bot_id LIKE %s AND process_id = %s" if db_adapter.schema else f"SELECT * FROM PROCESSES WHERE bot_id LIKE %s AND process_id = %s"
                 cursor.execute(query, (f"%{bot_id}%", process_id))
-            elif process_name is not None and process_name != '':
-                query = f"SELECT * FROM {db_adapter.schema}.PROCESSES WHERE bot_id LIKE %s AND process_name LIKE %s" if db_adapter.schema else f"SELECT * FROM PROCESSES WHERE bot_id LIKE %s AND process_name LIKE %s"
-                cursor.execute(query, (f"%{bot_id}%", f"%{process_name}%"))
-            else:
-                raise ValueError("Either process_name or process_id must be provided")
-            result = cursor.fetchone()
+                result = cursor.fetchone()
+            if result == None:
+                if process_name is not None and process_name != '':
+                    query = f"SELECT * FROM {db_adapter.schema}.PROCESSES WHERE bot_id LIKE %s AND process_name LIKE %s" if db_adapter.schema else f"SELECT * FROM PROCESSES WHERE bot_id LIKE %s AND process_name LIKE %s"
+                    cursor.execute(query, (f"%{bot_id}%", f"%{process_name}%"))
+                    result = cursor.fetchone()
             if result:
                 # Assuming the result is a tuple of values corresponding to the columns in the PROCESSES table
                 # Convert the tuple to a dictionary with appropriate field names

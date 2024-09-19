@@ -303,7 +303,7 @@ process_scheduler_functions = [
                     },
                     "task_id": {
                         "type": "string",
-                        "description": "The unique identifier of the process schedule, create as bot_id_<random 6 character string>. MAKE SURE TO DOUBLE-CHECK THAT YOU ARE USING THE CORRECT task_id, its REQUIRED ON CREATE, UPDATES AND DELETES!",
+                        "description": "The unique identifier of the process schedule, create as bot_id_<random 6 character string>. MAKE SURE TO DOUBLE-CHECK THAT YOU ARE USING THE CORRECT task_id, its REQUIRED ON CREATE, UPDATES AND DELETES! Note that this is not the same as the process_id",
                     },
                     "task_details": {
                         "type": "object",

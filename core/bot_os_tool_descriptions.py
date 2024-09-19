@@ -68,7 +68,7 @@ process_runner_functions = [
                     },
                     "process_id": {
                         "type": "string",
-                        "description": "The id of the process to run",
+                        "description": "The id of the process to run (note: this is NOT the task_id or process_schedule_id)",
                     },
                     "previous_response": {
                         "type": "string",

@@ -808,7 +808,7 @@ def configure_ngrok_token():
 
 scheduler = BackgroundScheduler(
     {
-        "apscheduler.job_defaults.max_instances": 20,
+        "apscheduler.job_defaults.max_instances": 40,
         "apscheduler.job_defaults.coalesce": True,
     }
 )

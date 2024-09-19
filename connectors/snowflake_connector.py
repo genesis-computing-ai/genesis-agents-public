@@ -1818,7 +1818,7 @@ class SnowflakeConnector(DatabaseConnector):
                 FUNCTION_ID VARCHAR(16777216),
                 FUNCTION_TYPE VARCHAR(16777216),
                 FUNCTION_DEFINITION VARCHAR(16777216),
-                DESCRIPTION VARCHAR(16777216)
+                DESCRIPTION VARCHAR(16777216),
                 TIMESTAMP TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
             """
@@ -2129,9 +2129,7 @@ class SnowflakeConnector(DatabaseConnector):
                 cursor.close()
 
 
-        llm_config_table_check_query = (
-            f"SHOW TABLES LIKE 'LLM_TOKENS' IN SCHEMA {self.schema};"
-        )
+        llm_config_table_check_query = (f"SHOW TABLES LIKE 'LLM_TOKENS' IN SCHEMA {self.schema};")
         try:
             cursor = self.client.cursor()
             cursor.execute(llm_config_table_check_query)
@@ -2146,23 +2144,35 @@ class SnowflakeConnector(DatabaseConnector):
                 """
                 cursor.execute(llm_config_table_ddl)
                 self.client.commit()
-                #      print(f"Table {self.genbot_internal_project_and_schema}.LLM_TOKENS created.")
+                print(f"Table {self.genbot_internal_project_and_schema}.LLM_TOKENS created.")
 
                 # Insert a row with the current runner_id and cortex as the active LLM key and type
                 runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
                 insert_initial_row_query = f"""
-                INSERT INTO {self.genbot_internal_project_and_schema}.LLM_TOKENS (RUNNER_ID, LLM_KEY, LLM_TYPE, ACTIVE)
-                VALUES (%s, %s, %s, %s); 
+                    MERGE INTO {self.genbot_internal_project_and_schema}.LLM_TOKENS AS target
+                    USING (SELECT %s AS RUNNER_ID, %s AS LLM_KEY, %s AS LLM_TYPE, %s AS ACTIVE) AS source
+                    ON target.LLM_TYPE = source.LLM_TYPE
+                    WHEN MATCHED THEN
+                        UPDATE SET
+                            RUNNER_ID = source.RUNNER_ID,
+                            LLM_KEY = source.LLM_KEY,
+                            ACTIVE = source.ACTIVE
+                    WHEN NOT MATCHED THEN
+                        INSERT (RUNNER_ID, LLM_KEY, LLM_TYPE, ACTIVE)
+                        VALUES (source.RUNNER_ID, source.LLM_KEY, source.LLM_TYPE, source.ACTIVE);
                 """
                 # if a new install, set cortex to default LLM if available
                 test_cortex_available = self.check_cortex_available()
                 if test_cortex_available == True:
                     cursor.execute(insert_initial_row_query, (runner_id,'cortex_no_key_needed', 'cortex', True,))
+                    print(f"inserted cortex row")
                 else:
                     cursor.execute(insert_initial_row_query, (runner_id,None,None,False,))
+                    print(f"inserted nada row")
                 self.client.commit()
-            #       print(f"Inserted initial row into {self.genbot_internal_project_and_schema}.LLM_TOKENS with runner_id: {runner_id}")
+                print(f"Inserted initial row into {self.genbot_internal_project_and_schema}.LLM_TOKENS with runner_id: {runner_id}")
             else:
+                print(f"Table {self.genbot_internal_project_and_schema}.LLM_TOKENS already exists.")
                 check_query = f"DESCRIBE TABLE {self.genbot_internal_project_and_schema}.LLM_TOKENS;"
                 try:
                     cursor.execute(check_query)

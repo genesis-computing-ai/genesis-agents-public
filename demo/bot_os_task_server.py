@@ -1112,9 +1112,9 @@ def submit_task(session=None, bot_id=None, task=None):
 
     event = {"thread_id": None, "msg": prompt, "task_meta": task_meta}
 
-    if find_replace_updated_bot_service(bot_id):
-        print(f"Definition for bot {bot_id} has changed and needs to be restarted.")
-        # add logic here to force re-load
+    # if find_replace_updated_bot_service(bot_id):
+    #     print(f"Definition for bot {bot_id} has changed and needs to be restarted.")
+    #     # add logic here to force re-load
 
     input_adapter = bot_id_to_udf_adapter_map.get(bot_id, None)
     if input_adapter:

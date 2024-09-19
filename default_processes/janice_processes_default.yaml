@@ -1,4 +1,4 @@
-janice_monitor_unused_tables:
+janice_monitor_unused_tables_golden:
   BOT_ID: "Janice"
   PROCESS_NAME: "janice_monitor_unused_tables"
   PROCESS_INSTRUCTIONS: |
@@ -33,7 +33,7 @@ janice_monitor_unused_tables:
   PROCESS_DETAILS: "Monitor Unused Data Tables"
   TIMESTAMP: "2024-09-18 00:00:00+00:00"
 
-janice_top_warehouses_spillage:
+janice_top_warehouses_spillage_golden:
     BOT_ID: "Janice"
     PROCESS_NAME: "janice_top_warehouses_spillage"
     PROCESS_INSTRUCTIONS: |

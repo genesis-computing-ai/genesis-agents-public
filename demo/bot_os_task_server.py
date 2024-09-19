@@ -83,8 +83,7 @@ snowflake_secure_value = os.getenv("SNOWFLAKE_SECURE")
 # Check if TEST_TASK_MODE is false or not existent, then wait and print a message
 if not os.getenv("TEST_TASK_MODE", "false").lower() == "true":
     print("waiting 60 seconds for other services to start first...", flush=True)
-    # time.sleep(60)
-    time.sleep(1)
+    time.sleep(60)
 genbot_internal_project_and_schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "None")
 if genbot_internal_project_and_schema == "None":
     print("ENV Variable GENESIS_INTERNAL_DB_SCHEMA is not set.")

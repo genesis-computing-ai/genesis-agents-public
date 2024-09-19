@@ -1663,7 +1663,7 @@ class SnowflakeConnector(DatabaseConnector):
 
         for _, process_default in self.process_defaults.iterrows():
             process_id = process_default['PROCESS_ID']
-            if process_default['TIMESTAMP'] is not None:
+            if process_default['TIMESTAMP'] is not None and not pd.isna(process_default['TIMESTAMP']):
                 # Ensure row['TIMESTAMP'] is timezone-aware
                 if process_default['TIMESTAMP'].tzinfo is None:
                     process_default['TIMESTAMP'] = process_default['TIMESTAMP'].tz_localize(pytz.UTC)
@@ -1742,13 +1742,13 @@ class SnowflakeConnector(DatabaseConnector):
 
         for _, function_default in self.function_defaults.iterrows():
             function_id = function_default['FUNCTION_ID']
-      #      if function_default['TIMESTAMP'] is not None:
-      #          # Ensure row['TIMESTAMP'] is timezone-aware
-      #          if function_default['TIMESTAMP'].tzinfo is None:
-      #              function_default['TIMESTAMP'] = function_default['TIMESTAMP'].tz_localize(pytz.UTC)
-      #          timestamp_str = function_default['TIMESTAMP'].strftime('%Y-%m-%d %H:%M:%S')
-      #      else:
-      #          timestamp_str = None
+            if function_default['TIMESTAMP'] is not None  and not pd.isna(function_default['TIMESTAMP']):
+               # Ensure row['TIMESTAMP'] is timezone-aware
+               if function_default['TIMESTAMP'].tzinfo is None:
+                   function_default['TIMESTAMP'] = function_default['TIMESTAMP'].tz_localize(pytz.UTC)
+               timestamp_str = function_default['TIMESTAMP'].strftime('%Y-%m-%d %H:%M:%S')
+            else:
+               timestamp_str = None
             timestamp_str = None
 
             query = f"SELECT * FROM {self.schema}.BOT_FUNCTIONS WHERE FUNCTION_ID = %s"

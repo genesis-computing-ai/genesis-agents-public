@@ -62,13 +62,13 @@ def llm_config():
             unsafe_allow_html=True
         )
         st.dataframe(llm_types, use_container_width=False) 
-    if st.session_state.eai_available == False:
+    if st.session_state.eai_available == False and st.session_state.NativeMode:
 
 
         if st.button("Assign EAI to Genesis", key="assigneai"):
             upgrade_result = upgrade_services(True)
             st.success(f"Genesis Bots upgrade result: {upgrade_result}")
-            st.session_state.clear()
+            # st.session_state.clear()
             st.rerun()
     else:
 
@@ -117,7 +117,8 @@ def llm_config():
                         "-> Please refresh this browser page to chat with your bots!"
                     )
                     st.session_state.clear()
-
+                    st.session_state.show_openai_config = False
+                    
             if cur_key == "<existing key present on server>":
                 st.write("Reload this page to chat with your apps.")
 

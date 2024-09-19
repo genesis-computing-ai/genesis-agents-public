@@ -3,6 +3,7 @@ GENESIS BOT TODOS
 =================
 
 todo:
+ADD DEFAULT HEADER ON SEND_EMAILS
 MR-cross region enablement for LLM (if not us-east/us-west), data granting (maybe we mention this here too), email sending 
 streamlit axios error
 why cant it send slack in a process for janice joke 2.0 (startswith..?)

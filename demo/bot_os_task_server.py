@@ -67,7 +67,7 @@ os.environ['TASK_MODE'] = 'true'
 os.environ['SHOW_COST'] = 'false'
 ########################################
 
-print("****** GENBOT VERSION 0.173 *******")
+print("****** GENBOT VERSION 0.175 *******")
 print("****** TASK AUTOMATION SERVER *******")
 runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
 print("Runner ID: ", runner_id)
@@ -1460,8 +1460,11 @@ def tasks_loop():
                         print(
                             f"Task {task_id} has exceeded the maximum number of retries. Marking as inactive."
                         )
+                        
+                        processed_tasks.append(task_id)
+
                         db_adapter.process_scheduler(
-                            action="UPDATE",
+                            action="UPDATE_CONFIRMED",
                             bot_id=bot_id,
                             task_id=task_id,
                             task_details={
@@ -1491,11 +1494,22 @@ def tasks_loop():
                     else:
                         # Check if thread_id is in the response
                         # Error: argument of type 'BotOsOutputMessage' is not iterable
-                        if 'thread_id' in response:
-                            thread = response['thread_id']
-                        else:
-                            # If not, use the existing thread from the response object
-                            thread = response.messages.data[0].thread_id
+                        thread = None
+                        try:
+                            thread = response.thread_id
+                        except:
+                            try:
+                                if 'thread_id' in response:
+                                    thread = response['thread_id']
+                                else:
+                                    thread = response.messages.data[0].thread_id
+                            except:
+                                try:
+                                    thread = response.messages.data[0].thread_id
+                                except:
+                                    thread = None
+                        if thread == None:
+                            print('!!! Thread_id not found in response for callback')
                         current_timestamp_str = datetime.now().strftime(
                             "%Y-%m-%d %H:%M:%S"
                         )
@@ -1520,7 +1534,8 @@ def tasks_loop():
                 # This is a placeholder for the response processing logic
                 # ...
 
-                processed_tasks.append(task_id)
+                if response_valid:
+                    processed_tasks.append(task_id)
 
             for task_id in processed_tasks:
                 pending_tasks = deque(

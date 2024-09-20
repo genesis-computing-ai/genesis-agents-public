@@ -2483,18 +2483,10 @@ class SnowflakeConnector(DatabaseConnector):
             # update bot servicing table bot avatars from shared images table
             insert_images_query = f"""UPDATE {self.bot_servicing_table_name} b SET BOT_AVATAR_IMAGE = a.ENCODED_IMAGE_DATA
             FROM (
-                SELECT BOT_NAME, ENCODED_IMAGE_DATA FROM (
-                    SELECT S.ENCODED_IMAGE_DATA, R.BOT_NAME
-                    FROM {self.images_table_name} S, {self.bot_servicing_table_name} R
-                    WHERE UPPER(S.BOT_NAME) = UPPER(R.BOT_NAME)
-                    UNION
-                    SELECT P.ENCODED_IMAGE_DATA, Q.BOT_NAME
-                    FROM {self.images_table_name} P, {self.bot_servicing_table_name} Q
-                    WHERE UPPER(P.BOT_NAME) = 'DEFAULT' AND
-                        Q.BOT_NAME NOT IN (SELECT BOT_NAME FROM {self.images_table_name})
-                    )
-                ) a 
-            WHERE upper(a.BOT_NAME) = upper(b.BOT_NAME)"""
+                    SELECT P.ENCODED_IMAGE_DATA, P.BOT_NAME
+                    FROM {self.images_table_name} P
+                    WHERE UPPER(P.BOT_NAME) = 'DEFAULT' 
+                ) a """
             cursor.execute(insert_images_query)
             self.client.commit()
             logger.info(

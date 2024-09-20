@@ -47,7 +47,7 @@ def llm_config():
         )
 
     st.write(
-        "Genesis Bots can optionally use OpenAI LLMs, in addition to Snowflake Cortex. To add or update a key for these models, enter it below:"
+        "Genesis Bots can optionally use OpenAI LLMs, in addition to Snowflake Cortex. To add or update a key for these models, enter it below. If you have not yet assigned the External Access Integration to Genesis, click the Assign EAI to Genesis button and then you can enter your LLM Key."
     )
     if cur_key == "" and active_llm_type is not None:
         st.markdown("**Currently Stored LLMs**")

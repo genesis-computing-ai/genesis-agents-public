@@ -35,7 +35,7 @@ def setup_slack():
 
     st.title("Setup Slack Tokens")
     st.write(
-        "By providing a Slack App Refresh Token, Genesis Bots can create, update, and remove Genesis Bots from your Slack environment."
+        "By providing a Slack App Refresh Token, Genesis Bots can create, update, and remove Genesis Bots from your Slack environment. If you have not yet assigned the External Access Integration to Genesis, click the Assign EAI to Genesis button and then you can enter your Slack token."
     )
     if st.session_state.eai_available == False:
 

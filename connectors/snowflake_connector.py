@@ -2132,6 +2132,7 @@ class SnowflakeConnector(DatabaseConnector):
 
         llm_config_table_check_query = (f"SHOW TABLES LIKE 'LLM_TOKENS' IN SCHEMA {self.schema};")
         try:
+            runner_id = os.getenv("RUNNER_ID", "jl-local-runner") 
             cursor = self.client.cursor()
             cursor.execute(llm_config_table_check_query)
             if not cursor.fetchone():
@@ -2148,20 +2149,16 @@ class SnowflakeConnector(DatabaseConnector):
                 print(f"Table {self.genbot_internal_project_and_schema}.LLM_TOKENS created.")
 
                 # Insert a row with the current runner_id and cortex as the active LLM key and type
-                runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
+                
                 insert_initial_row_query = f"""
-                    MERGE INTO {self.genbot_internal_project_and_schema}.LLM_TOKENS AS target
-                    USING (SELECT %s AS RUNNER_ID, %s AS LLM_KEY, %s AS LLM_TYPE, %s AS ACTIVE) AS source
-                    ON target.LLM_TYPE = source.LLM_TYPE
-                    WHEN MATCHED THEN
-                        UPDATE SET
-                            RUNNER_ID = source.RUNNER_ID,
-                            LLM_KEY = source.LLM_KEY,
-                            ACTIVE = source.ACTIVE
-                    WHEN NOT MATCHED THEN
-                        INSERT (RUNNER_ID, LLM_KEY, LLM_TYPE, ACTIVE)
-                        VALUES (source.RUNNER_ID, source.LLM_KEY, source.LLM_TYPE, source.ACTIVE);
+                    INSERT INTO {self.genbot_internal_project_and_schema}.LLM_TOKENS
+                    SELECT
+                        %s AS RUNNER_ID,
+                        %s AS LLM_KEY,
+                        %s AS LLM_TYPE,
+                        %s AS ACTIVE;
                 """
+
                 # if a new install, set cortex to default LLM if available
                 test_cortex_available = self.check_cortex_available()
                 if test_cortex_available == True:
@@ -2178,6 +2175,7 @@ class SnowflakeConnector(DatabaseConnector):
                     columns = [col[0] for col in cursor.fetchall()]
                     
                     if "ACTIVE" not in columns:
+                        cortex_active = False
                         alter_table_query = f"ALTER TABLE {self.genbot_internal_project_and_schema}.LLM_TOKENS ADD COLUMN ACTIVE BOOLEAN;"
                         cursor.execute(alter_table_query)
                         self.client.commit()
@@ -2187,6 +2185,39 @@ class SnowflakeConnector(DatabaseConnector):
                         update_query = f"UPDATE {self.genbot_internal_project_and_schema}.LLM_TOKENS SET ACTIVE=TRUE WHERE LLM_TYPE='OpenAI'"
                         cursor.execute(update_query)
                         self.client.commit()
+                    
+                    select_active_llm_query = f"""SELECT LLM_TYPE FROM {self.genbot_internal_project_and_schema}.LLM_TOKENS WHERE ACTIVE = TRUE;"""
+                    cursor.execute(select_active_llm_query)
+                    active_llm = cursor.fetchone()
+
+                    if active_llm == 'cortex':
+                        cortex_active = True
+                    else:
+                        cortex_active = False
+                
+                    merge_cortex_row_query = f"""
+                        MERGE INTO {self.genbot_internal_project_and_schema}.LLM_TOKENS AS target
+                        USING (SELECT %s AS RUNNER_ID, %s AS LLM_KEY, %s AS LLM_TYPE, %s AS ACTIVE) AS source
+                        ON target.LLM_TYPE = source.LLM_TYPE
+                        WHEN MATCHED THEN
+                            UPDATE SET
+                                RUNNER_ID = source.RUNNER_ID,
+                                LLM_KEY = source.LLM_KEY,
+                                ACTIVE = source.ACTIVE
+                        WHEN NOT MATCHED THEN
+                            INSERT (RUNNER_ID, LLM_KEY, LLM_TYPE, ACTIVE)
+                            VALUES (source.RUNNER_ID, source.LLM_KEY, source.LLM_TYPE, source.ACTIVE);
+                    """
+
+                    # if a new install, set cortex to default LLM if available
+                    test_cortex_available = self.check_cortex_available()
+                    if test_cortex_available == True:
+                        cursor.execute(merge_cortex_row_query, (runner_id,'cortex_no_key_needed', 'cortex', cortex_active,))
+                    else:
+                        cursor.execute(insert_initial_row_query, (runner_id,None,None,False,))
+                    self.client.commit()
+                    print(f"Merged cortex row into {self.genbot_internal_project_and_schema}.LLM_TOKENS with runner_id: {runner_id}")
+
                 except Exception as e:
                     print(
                         f"An error occurred while checking or altering table {self.genbot_internal_project_and_schema}.LLM_TOKENS to add ACTIVE column: {e}"
@@ -2198,6 +2229,7 @@ class SnowflakeConnector(DatabaseConnector):
             if cursor is not None:
                 cursor.close()
    
+
         slack_tokens_table_check_query = (
             f"SHOW TABLES LIKE 'SLACK_APP_CONFIG_TOKENS' IN SCHEMA {self.schema};"
         )
@@ -7077,7 +7109,7 @@ from snowflake.snowpark.types import StructType, StructField, StringType, Intege
 from snowflake.snowpark.functions import udf, col
 
 # Define the stage path
-stage_file_path = '@GENESIS_BOTS_ALPHA.JANICE_7G8H9J_WORKSPACE.MY_STAGE/state.py'
+stage_file_path = '@GENESIS_BOTS.JANICE_7G8H9J_WORKSPACE.MY_STAGE/state.py'
 
 # Create a schema for reading the CSV file
 schema = StructType([
@@ -7111,7 +7143,7 @@ result = total_chars
 import matplotlib.pyplot as plt
 
 # Load data from the Snowflake table into a Snowpark DataFrame
-df = session.table('GENESIS_BOTS_ALPHA.JANICE_7G8H9J_WORKSPACE.RANDOM_TRIPLES')
+df = session.table('GENESIS_BOTS.JANICE_7G8H9J_WORKSPACE.RANDOM_TRIPLES')
 
 # Collect the data to local for plotting
 rows = df.collect()
@@ -7154,7 +7186,7 @@ random_triples = [{'x': int(np.random.randint(1, 1001)),
 df = session.create_dataframe(random_triples, schema=['x', 'y', 'z'])
 
 # Define the table name
-table_name = 'GENESIS_BOTS_ALPHA.JANICE_7G8H9J_WORKSPACE.RANDOM_TRIPLES'
+table_name = 'GENESIS_BOTS.JANICE_7G8H9J_WORKSPACE.RANDOM_TRIPLES'
 
 # Write the DataFrame to a Snowflake table
 df.write.mode('overwrite').save_as_table(table_name)

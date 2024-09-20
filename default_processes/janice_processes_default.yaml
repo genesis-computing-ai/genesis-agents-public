@@ -29,7 +29,7 @@ janice_monitor_unused_tables_golden:
 
     ## Process Steps:
     1. **Identify The Top 10 Largest Unused Tables Across All Databases:**
-       - Execute the following SQL query to identify the 10 largest tables across all databases and schemas in the Snowflake account: `CALL GENESIS_BOTS_ALPHA.APP1.RUN_PROCESS_SQL('janice_query');`
+       - Execute the following SQL query to identify the 10 largest tables across all databases and schemas in the Snowflake account: `CALL GENESIS_BOTS.APP1.RUN_PROCESS_SQL('janice_query');`
        - Confirm with the supervisor that you have run the query and note the number of rows you received in response.
 
     2. **Draft a Compelling Email:**
@@ -67,14 +67,14 @@ janice_top_warehouses_spillage_golden:
     1. **Identify The Top 3 Warehouses With Data Spilling:**
       - Execute the following SQL query to identify the top 3 warehouses with data spilling in the Snowflake account:
         ```sql
-        CALL GENESIS_BOTS_ALPHA.APP1.RUN_PROCESS_SQL('janice_query_1');
+        CALL GENESIS_BOTS.APP1.RUN_PROCESS_SQL('janice_query_1');
         
       - Confirm with the supervisor that you have run the query and note the number of rows you received in response.
     2. **Average Queuing Times Per Month:**
       - Execute the following SQL query to identify the average queuing times per month:
         
     sql
-        CALL GENESIS_BOTS_ALPHA.APP1.RUN_PROCESS_SQL('janice_query_2');
+        CALL GENESIS_BOTS.APP1.RUN_PROCESS_SQL('janice_query_2');
         
       - Confirm with the supervisor that you have run the query and note the number of rows you received in response.
     3. **Draft a Compelling Email:**
@@ -125,7 +125,7 @@ janice_check_MFA_use_golden:
     1. **Query to Retrieve User Data**:
       - Run the following SQL query to collect necessary data:
       ```sql
-      CALL GENESIS_BOTS_ALPHA.APP1.RUN_PROCESS_SQL('QUERY_3');
+      CALL GENESIS_BOTS.APP1.RUN_PROCESS_SQL('QUERY_3');
       ```
 
     2. **Draft a Compelling Email:**
@@ -179,7 +179,7 @@ janice_dangerous_user_report_golden:
     1. Run the following SQL query to gather data on user roles and privileges:
 
     ```sql
-    CALL GENESIS_BOTS_ALPHA.APP1.RUN_PROCESS_SQL('QUERY_4');
+    CALL GENESIS_BOTS.APP1.RUN_PROCESS_SQL('QUERY_4');
     ```
 
     2. **Draft a Compelling Email:**

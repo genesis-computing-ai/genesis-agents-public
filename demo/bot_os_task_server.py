@@ -815,7 +815,7 @@ scheduler = BackgroundScheduler(
 server = None
 if llm_api_key is not None:
     server = BotOsServer(
-        app, sessions=sessions, scheduler=scheduler, scheduler_seconds_interval=2
+        app, sessions=sessions, scheduler=scheduler, scheduler_seconds_interval=2, db_adapter=db_adapter
     )
     set_remove_pointers(server, api_app_id_to_session_map)
 

@@ -1162,7 +1162,7 @@ In your response back to run_process, provide a detailed description of what you
             print("Running show process info")
             if bot_id is None:
                 return {"Success": False, "Error": "bot_id is required for SHOW action"}
-            if process_id is None:
+            if process_id is None and 'process_name' not in process_details:
                 if process_details is None or ('process_name' not in process_details and 'process_id' not in process_details):
                     return {"Success": False, "Error": "Either process_name or process_id is required in process_details for SHOW action"}
             

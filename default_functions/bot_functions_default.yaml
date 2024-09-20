@@ -2,67 +2,67 @@ janice_query:
     BOT_ID: "Janice"
     FUNCTION_TYPE: "SQL"
     FUNCTION_DEFINITION: |
-      SELECT DATABASE_NAME
-      FROM SNOWFLAKE.INFORMATION_SCHEMA.DATABASES
-      WHERE DATABASE_NAME NOT LIKE '%.%'
-        AND TYPE != 'IMPORTED DATABASE'
-      ),
-      AllTables AS (
-          SELECT
-              t.TABLE_CATALOG AS DATABASE_NAME,
-              t.TABLE_SCHEMA,
-              t.TABLE_NAME,
-              t.TABLE_TYPE,
-              t.ROW_COUNT,
-              t.BYTES
-          FROM
-              SNOWFLAKE.ACCOUNT_USAGE.TABLES t
-          WHERE
-              t.TABLE_CATALOG IN (SELECT DATABASE_NAME FROM AllDatabases)
-              AND t.TABLE_TYPE IN ('BASE TABLE', 'MATERIALIZED VIEW')
-              AND t.DELETED IS NULL
-      ),
-      AccessedTables AS (
-          SELECT DISTINCT
-              value:database_name::string AS DATABASE_NAME,
-              value:schema_name::string AS SCHEMA_NAME,
-              value:object_name::string AS TABLE_NAME
-          FROM
-              SNOWFLAKE.ACCOUNT_USAGE.ACCESS_HISTORY ah,
-              TABLE(FLATTEN(input => ah.DIRECT_OBJECTS_ACCESSED))
-          WHERE
-              ah.QUERY_START_TIME > CURRENT_TIMESTAMP() - INTERVAL '30 days'
-              AND value:objectDomain::string = 'Table'
-      ),
-      UnusedTables AS (
-          SELECT
-              t.DATABASE_NAME,
-              t.TABLE_SCHEMA,
-              t.TABLE_NAME,
-              t.TABLE_TYPE,
-              t.BYTES
-          FROM
-              AllTables t
-          LEFT JOIN
-              AccessedTables a
-          ON
-              t.DATABASE_NAME = a.DATABASE_NAME
-              AND t.TABLE_SCHEMA = a.SCHEMA_NAME
-              AND t.TABLE_NAME = a.TABLE_NAME
-          WHERE
-              a.TABLE_NAME IS NULL
-      )
-      SELECT
-          DATABASE_NAME,
-          TABLE_SCHEMA,
-          TABLE_NAME,
-          TABLE_TYPE,
-          BYTES
-      FROM
-          UnusedTables
-      ORDER BY
-          BYTES DESC
-      LIMIT 10;
+        WITH AllDatabases AS (
+            SELECT DATABASE_NAME
+            FROM SNOWFLAKE.INFORMATION_SCHEMA.DATABASES
+            WHERE DATABASE_NAME NOT LIKE '%.%' AND TYPE != 'IMPORTED DATABASE'
+        ),
+        AllTables AS (
+            SELECT
+                t.TABLE_CATALOG AS DATABASE_NAME,
+                t.TABLE_SCHEMA,
+                t.TABLE_NAME,
+                t.TABLE_TYPE,
+                t.ROW_COUNT,
+                t.BYTES
+            FROM
+                SNOWFLAKE.ACCOUNT_USAGE.TABLES t
+            WHERE
+                t.TABLE_CATALOG IN (SELECT DATABASE_NAME FROM AllDatabases)
+                AND t.TABLE_TYPE IN ('BASE TABLE', 'MATERIALIZED VIEW')
+                AND t.DELETED IS NULL
+        ),
+        AccessedTables AS (
+            SELECT DISTINCT
+                value:database_name::string AS DATABASE_NAME,
+                value:schema_name::string AS SCHEMA_NAME,
+                value:object_name::string AS TABLE_NAME
+            FROM
+                SNOWFLAKE.ACCOUNT_USAGE.ACCESS_HISTORY ah,
+                TABLE(FLATTEN(input => ah.DIRECT_OBJECTS_ACCESSED))
+            WHERE
+                ah.QUERY_START_TIME > CURRENT_TIMESTAMP() - INTERVAL '30 days'
+                AND value:objectDomain::string = 'Table'
+        ),
+        UnusedTables AS (
+            SELECT
+                t.DATABASE_NAME,
+                t.TABLE_SCHEMA,
+                t.TABLE_NAME,
+                t.TABLE_TYPE,
+                t.BYTES
+            FROM
+                AllTables t
+            LEFT JOIN
+                AccessedTables a
+            ON
+                t.DATABASE_NAME = a.DATABASE_NAME AND
+                t.TABLE_SCHEMA = a.SCHEMA_NAME AND
+                t.TABLE_NAME = a.TABLE_NAME
+            WHERE
+                a.TABLE_NAME IS NULL
+        )
+        SELECT
+            DATABASE_NAME,
+            TABLE_SCHEMA,
+            TABLE_NAME,
+            TABLE_TYPE,
+            BYTES
+        FROM
+            UnusedTables
+        ORDER BY
+            BYTES DESC
+        LIMIT 10;
     DESCRIPTION: "Top 10 Largest Unused Tables Across All Data Bases"
     TIMESTAMP: "2024-09-18 00:00:00+00:00"
 

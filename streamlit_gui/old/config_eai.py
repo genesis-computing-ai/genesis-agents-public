@@ -114,21 +114,10 @@ def config_eai():
                         eai = False
                     upgrade_result = upgrade_services(eai)
                     st.success(f"Genesis Bots upgrade result: {upgrade_result}")
-                    # st.rerun()
                 except Exception as e:
                     st.error(f"Error upgrading services: {e}")       
                            
         except Exception as e:
-            st.error(f"Error testing EAI on Snowflake: {e} : {eai_result}")
-        # try:
-        #     if ref:
-        #         eai = True
-        #     else:
-        #         eai = False
-        #     upgrade_result = upgrade_services(eai)
-        #     st.success(f"Genesis Bots upgrade result: {upgrade_result}")
-        #     # st.rerun()
-        # except Exception as e:
-        #     st.error(f"Error upgrading services: {e}")          
+            st.error(f"Error testing EAI on Snowflake: {e} : {eai_result}")       
 
     st.info("If you need any assistance, please check our [documentation](https://genesiscomputing.ai/docs/) or join our [Slack community](https://communityinviter.com/apps/genesisbotscommunity/genesis-bots-community).")

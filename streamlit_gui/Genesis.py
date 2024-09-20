@@ -90,7 +90,6 @@ if 'show_log_config' not in st.session_state:
         if st.session_state.NativeMode:
             import snowflake.permissions as permissions
             permissions.request_event_sharing()
-            # st.rerun()
     else:
         st.session_state.show_log_config = False
 
@@ -178,19 +177,16 @@ def show_modal():
             st.markdown('<span id="button-after"></span>', unsafe_allow_html=True)
             if st.button(" 📧 Let your Genbots Email you"):
                 st.session_state["radio"] = "Setup Email Integration"
-                # st.rerun()
 
         if st.session_state.show_slack_config == True:
             st.markdown('<span id="button-after"></span>', unsafe_allow_html=True)
             if st.button(" 💬 Connect your bots to Slack"):
                 st.session_state["radio"] = "Setup Slack Connection"
-                # st.rerun()    
 
         if st.session_state.show_openai_config == True:
             st.markdown('<span id="button-after"></span>', unsafe_allow_html=True)
             if st.button(" 🧠 Enable OpenAI LLM with your Key"):
                 st.session_state["radio"] = "LLM Model & Key"
-                # st.rerun()
 
         if st.checkbox("Ignore this message for the rest of the session"):
             hide_modal()

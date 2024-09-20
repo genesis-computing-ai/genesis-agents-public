@@ -111,7 +111,6 @@ GRANT USAGE ON WAREHOUSE  IDENTIFIER($APP_WAREHOUSE) TO APPLICATION  IDENTIFIER(
             eai_result = check_eai_status('slack')
             upgrade_result = upgrade_services(eai_result)
             st.success(f"Genesis Bots upgrade result: {upgrade_result}")
-            # st.rerun()
         except Exception as e:
             st.error(f"Error upgrading services: {e}")       
                                

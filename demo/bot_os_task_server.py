@@ -815,7 +815,7 @@ scheduler = BackgroundScheduler(
 server = None
 if llm_api_key is not None:
     server = BotOsServer(
-        app, sessions=sessions, scheduler=scheduler, scheduler_seconds_interval=2, db_adapter=db_adapter
+        app, sessions=sessions, scheduler=scheduler, scheduler_seconds_interval=2, db_adapter=db_adapter, bot_id_to_udf_adapter_map=bot_id_to_udf_adapter_map, api_app_id_to_session_map=api_app_id_to_session_map
     )
     set_remove_pointers(server, api_app_id_to_session_map)
 
@@ -1648,28 +1648,6 @@ def backup_bot_servicing():
 
     
 def find_replace_updated_bot_service(bot_id):
-    # # exit if no changes
-    # cursor = db_adapter.client.cursor()
-    # main_table_query = f"""SELECT LAST_ALTERED FROM INFORMATION_SCHEMA.TABLES WHERE
-    #                     TABLE_NAME = 'BOT_SERVICING' AND TABLE_SCHEMA = '{db_adapter.schema}';"""
-    
-    # cursor.execute(main_table_query)
-    # result = cursor.fetchone()
-
-    # main_table_last_modified = result[0] if result else None
-
-    # backup_table_query = f"""SELECT LAST_ALTERED FROM INFORMATION_SCHEMA.TABLES WHERE
-    #                       TABLE_NAME = 'BOT_SERVICING_BACKUP' AND TABLE_SCHEMA = '{db_adapter.schema}';"""
-
-    # cursor.execute(backup_table_query)
-    # result = cursor.fetchone()
-
-    # backup_table_last_modified = result[0] if result else None
-
-    # if main_table_last_modified == backup_table_last_modified:
-    #     print("Debug: No changes in bot_servicing table.")
-    #     return []
-
     query = f"""
         SELECT bs.*
         FROM {db_adapter.schema}.bot_servicing bs
@@ -1684,10 +1662,10 @@ def find_replace_updated_bot_service(bot_id):
     try:
         cursor.execute(query, (bot_id,))
         non_identical_rows = cursor.fetchall()
-        print("Debug: Retrieved non-identical rows successfully.")
 
         # Copy the changed rows to bot_servicing_backup
         if non_identical_rows:
+            print("Debug: Retrieved non-identical rows successfully.")
             insert_query = f"""
                 INSERT INTO {db_adapter.schema}.bot_servicing_backup
                 SELECT * FROM {db_adapter.schema}.bot_servicing

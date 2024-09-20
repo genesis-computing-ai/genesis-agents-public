@@ -1286,7 +1286,7 @@ class SnowflakeConnector(DatabaseConnector):
         if action == "CREATE":
             return {
                 "Success": False,
-                "Confirmation_Needed": "Please reconfirm all the scheduled process details with the user, then call this function again with the action CREATE_CONFIRMED to actually create the schedule for the process.   Make sure to be clear in the action_trigger_details field whether the process schedule is to be triggered one time, or if it is ongoing and recurring. Also make the next Next Check Timestamp is in the future, and aligns with when the user wants the task to run next.",
+                "Confirmation_Needed": "Please reconfirm all the scheduled process details with the user, then call this function again with the action CREATE_CONFIRMED to actually create the schedule for the process.   Make sure to be clear in the action_trigger_details field whether the process schedule is to be triggered one time, or if it is ongoing and recurring. Also make the next Next Check Timestamp is in the future, and aligns with when the user wants the task to run next.  Also, make sure all timestamps are converted to UTC time zone",
                 "Process Schedule Details": task_details,
                 "Info": f"By the way the current system time is {self.get_current_time_with_timezone()}",
             }
@@ -1297,7 +1297,7 @@ class SnowflakeConnector(DatabaseConnector):
 
             return {
                 "Success": False,
-                "Confirmation_Needed": "Please reconfirm all the updated process details with the user, then call this function again with the action UPDATE_CONFIRMED to actually update the schedule for the process.   Make sure to be clear in the action_trigger_details field whether the process schedule is to be triggered one time, or if it is ongoing and recurring. Also make the next Next Check Timestamp is in the future, and aligns with when the user wants the task to run next.",
+                "Confirmation_Needed": "Please reconfirm all the updated process details with the user, then call this function again with the action UPDATE_CONFIRMED to actually update the schedule for the process.   Make sure to be clear in the action_trigger_details field whether the process schedule is to be triggered one time, or if it is ongoing and recurring. Also make the next Next Check Timestamp is in the future, and aligns with when the user wants the task to run next.  Also, make sure all timestamps are converted to UTC time zone",
                 "Proposed Updated Process Schedule Details": task_details,
                 "Info": f"By the way the current system time is {self.get_current_time_with_timezone()}",
             }

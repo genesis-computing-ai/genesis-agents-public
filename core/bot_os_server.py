@@ -156,7 +156,7 @@ class BotOsServer:
         if new_session is None:
             print("new_session is none")
             return "Error: Not Installed new session is none"
-        if slack_adapter_local is not None:
+        if slack_adapter_local is not None and self.bot_id_to_slack_adapter_map is not None:
             self.bot_id_to_slack_adapter_map[bot_config["bot_id"]] = (
                 slack_adapter_local
             )

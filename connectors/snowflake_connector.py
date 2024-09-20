@@ -1677,7 +1677,7 @@ class SnowflakeConnector(DatabaseConnector):
             process_columns = [desc[0] for desc in cursor.description]
 
             if result is not None:
-                db_timestamp = result[0] if len(result) > 0 else None
+                db_timestamp = result[5] if len(result) > 0 else None
 
                 # Ensure db_timestamp is timezone-aware
                 if db_timestamp is None:
@@ -1689,12 +1689,12 @@ class SnowflakeConnector(DatabaseConnector):
                 if process_default['TIMESTAMP'].tzinfo is None:
                     process_default['TIMESTAMP'] = process_default['TIMESTAMP'].tz_localize(pytz.UTC)
 
-                if result[1] == process_id and db_timestamp < process_default['TIMESTAMP']:
+                if result[0] == process_id and db_timestamp < process_default['TIMESTAMP']:
                     # Remove old process
                     query = f"DELETE FROM {self.schema}.PROCESSES WHERE PROCESS_ID = %s"
                     cursor.execute(query, (process_id,))
                     updated_process = True
-                elif result[1] == process_id:
+                elif result[0] == process_id:
                     continue
 
             placeholders = ', '.join(['%s'] * len(process_columns))

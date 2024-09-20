@@ -340,6 +340,9 @@ class ToolBelt:
     
         # Join the email addresses with commas
         to_addr_string = ', '.join(to_addr_list)
+
+        # add body title
+        body = f'🤖 This is an automated message from the Genesis Computing Native Application. Bot: {bot_id}🤖.\n\n' + body
         
         # Remove any instances of $$ from to_addr_string, subject and body
         to_addr_string = to_addr_string.replace('$$', '')

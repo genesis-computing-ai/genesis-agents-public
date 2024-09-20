@@ -1,6 +1,6 @@
 f1_golden:
   BOT_ID: "Janice"
-  PROCESS_NAME: "f1_golden"
+  PROCESS_NAME: "F1"
   PROCESS_INSTRUCTIONS: |
     1. **User Confirmation**: 
       Inform the user that this is a demonstration process to locate data about Formula 1 in the sample data provided with Genesis. The process will find the driver with the most wins and return this result. Ask if they'd like to proceed with running it. Pause and wait for their agreement. If the user does not agree, end the process.
@@ -20,7 +20,7 @@ f1_golden:
 
 janice_monitor_unused_tables_golden:
   BOT_ID: "Janice"
-  PROCESS_NAME: "janice_monitor_unused_tables"
+  PROCESS_NAME: "Janice Monitor Unused Tables"
   PROCESS_INSTRUCTIONS: |
     ## Monitor Unused Data Tables
 
@@ -55,7 +55,7 @@ janice_monitor_unused_tables_golden:
 
 janice_top_warehouses_spillage_golden:
   BOT_ID: "Janice"
-  PROCESS_NAME: "janice_top_warehouses_spillage"
+  PROCESS_NAME: "Janice Top Warehouses Spillage"
   PROCESS_INSTRUCTIONS: |
     # Top 3 Warehouses Affected by Spillage and Queuing
 
@@ -120,7 +120,7 @@ janice_top_warehouses_spillage_golden:
 
 janice_check_MFA_use_golden:
   BOT_ID: "Janice"
-  PROCESS_NAME: "janice_check_MFA_use"
+  PROCESS_NAME: "Janice Check MFA Use"
   PROCESS_INSTRUCTIONS: |
     1. **Query to Retrieve User Data**:
       - Run the following SQL query to collect necessary data:
@@ -174,7 +174,7 @@ janice_check_MFA_use_golden:
 
 janice_dangerous_user_report_golden:
   BOT_ID: "Janice"
-  PROCESS_NAME: "janice_dangerous_user_report"
+  PROCESS_NAME: "Janice Dangerous User Report"
   PROCESS_INSTRUCTIONS: |
     1. Run the following SQL query to gather data on user roles and privileges:
 

@@ -1115,9 +1115,9 @@ def submit_task(session=None, bot_id=None, task=None):
 
     event = {"thread_id": None, "msg": prompt, "task_meta": task_meta}
 
-    # if find_replace_updated_bot_service(bot_id):
-    #     print(f"Definition for bot {bot_id} has changed and needs to be restarted.")
-    #     # add logic here to force re-load
+    if find_replace_updated_bot_service(bot_id):
+        print(f"Definition for bot {bot_id} has changed and needs to be restarted.")
+        # add logic here to force re-load
 
     input_adapter = bot_id_to_udf_adapter_map.get(bot_id, None)
     if input_adapter:
@@ -1675,7 +1675,7 @@ def find_replace_updated_bot_service(bot_id):
         FROM {db_adapter.schema}.bot_servicing bs
         LEFT JOIN {db_adapter.schema}.bot_servicing_backup bsb
         ON bs.bot_id = bsb.bot_id  
-        WHERE bs.bot_id = '%s'
+        WHERE bs.bot_id = %s
         AND (bs.bot_instructions != bsb.bot_instructions
         OR bs.available_tools != bsb.available_tools
         OR bs.bot_intro_prompt != bsb.bot_intro_prompt)
@@ -1688,11 +1688,11 @@ def find_replace_updated_bot_service(bot_id):
 
         # Copy the changed rows to bot_servicing_backup
         if non_identical_rows:
-            insert_query = """
-                INSERT INTO bot_servicing_backup
-                SELECT * FROM bot_servicing
+            insert_query = f"""
+                INSERT INTO {db_adapter.schema}.bot_servicing_backup
+                SELECT * FROM {db_adapter.schema}.bot_servicing
                 EXCEPT
-                SELECT * FROM bot_servicing_backup;
+                SELECT * FROM {db_adapter.schema}.bot_servicing_backup;
             """
             cursor.execute(insert_query)
             db_adapter.client.commit()

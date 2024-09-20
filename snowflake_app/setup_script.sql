@@ -293,26 +293,33 @@ BEGIN
         ' FROM SPECIFICATION  '||chr(36)||chr(36)||'\n'|| :spec ||'\n'||chr(36)||chr(36) ||
         ' ';
 
-      IF (EAI) THEN
-        EXECUTE IMMEDIATE
-          'ALTER SERVICE IF EXISTS '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
-          ' SET ' ||
-          ' QUERY_WAREHOUSE = '||:WH_NAME||
-          ' EXTERNAL_ACCESS_INTEGRATIONS = (REFERENCE(''consumer_external_access''))';
-      ELSE
-        EXECUTE IMMEDIATE
-          'ALTER SERVICE IF EXISTS '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
-          ' SET ' ||
-          ' QUERY_WAREHOUSE = '||:WH_NAME;
-      END IF;
-
--- TODO build logic around this
+    LET x INTEGER := 0;
+    LET stmt VARCHAR := 'SELECT "name" as SERVICE_NAME, "schema_name" AS SCHEMA_NAME FROM TABLE(RESULT_SCAN(LAST_QUERY_ID()))';
+    EXECUTE IMMEDIATE 'SHOW SERVICES IN SCHEMA ' ||:INSTANCE_NAME;
+    LET RS1 RESULTSET := (EXECUTE IMMEDIATE :stmt);
+    LET c1 CURSOR FOR RS1;
+    FOR rec IN c1 DO
+          IF (EAI) THEN
             EXECUTE IMMEDIATE
-           'CREATE SERVICE IF NOT EXISTS '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
-           ' IN COMPUTE POOL  '|| :C_POOL_NAME ||
-           ' FROM SPECIFICATION  '||chr(36)||chr(36)||'\n'|| :spec ||'\n'||chr(36)||chr(36) ||
-           ' QUERY_WAREHOUSE = '||:WAREHOUSE_NAME||
-           ' EXTERNAL_ACCESS_INTEGRATIONS = ('||:EAI_NAME||')';
+              'ALTER SERVICE IF EXISTS '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
+              ' SET ' ||
+              ' QUERY_WAREHOUSE = '||:WH_NAME||
+              ' EXTERNAL_ACCESS_INTEGRATIONS = (REFERENCE(''consumer_external_access''))';
+          ELSE
+            EXECUTE IMMEDIATE
+              'ALTER SERVICE IF EXISTS '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
+              ' SET ' ||
+              ' QUERY_WAREHOUSE = '||:WH_NAME;
+          END IF;
+
+      --  EXECUTE IMMEDIATE 'CALL APP.WAIT_FOR_STARTUP(\''||rec.schema_name||'\',\''||rec.service_name||'\',300)';
+      x := x + 1;
+    END FOR;
+
+    IF (x < 4) THEN
+      CALL APP.RECREATE_APP_INSTANCE(:INSTANCE_NAME, :C_POOL_NAME, :EAI, :WH_NAME);
+    END IF;
+
 
         EXECUTE IMMEDIATE
            'GRANT USAGE ON SERVICE '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||' TO APPLICATION ROLE APP_PUBLIC';
@@ -465,13 +472,13 @@ $$
 
   IF (EAI) THEN
     EXECUTE IMMEDIATE
-      'CREATE SERVICE '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
+      'CREATE SERVICE IF NOT EXISTS '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
       ' IN COMPUTE POOL  '|| :POOL_NAME ||
       ' FROM SPECIFICATION  '||chr(36)||chr(36)||'\n'|| :spec ||'\n'||chr(36)||chr(36) ||
       ' EXTERNAL_ACCESS_INTEGRATIONS = (REFERENCE(''consumer_external_access''))';
   ELSE
     EXECUTE IMMEDIATE
-      'CREATE SERVICE '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
+      'CREATE SERVICE IF NOT EXISTS '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
       ' IN COMPUTE POOL  '|| :POOL_NAME ||
       ' FROM SPECIFICATION  '||chr(36)||chr(36)||'\n'|| :spec ||'\n'||chr(36)||chr(36) ||
       ' QUERY_WAREHOUSE = '||:WAREHOUSE_NAME;
@@ -564,13 +571,13 @@ $$
 
   IF (EAI) THEN
     EXECUTE IMMEDIATE
-      'CREATE SERVICE '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
+      'CREATE SERVICE IF NOT EXISTS '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
       ' IN COMPUTE POOL  '|| :POOL_NAME ||
       ' FROM SPECIFICATION  '||chr(36)||chr(36)||'\n'|| :spec ||'\n'||chr(36)||chr(36) ||
       ' EXTERNAL_ACCESS_INTEGRATIONS = (REFERENCE(''consumer_external_access''))';
   ELSE
     EXECUTE IMMEDIATE
-      'CREATE SERVICE '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
+      'CREATE SERVICE IF NOT EXISTS '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
       ' IN COMPUTE POOL  '|| :POOL_NAME ||
       ' FROM SPECIFICATION  '||chr(36)||chr(36)||'\n'|| :spec ||'\n'||chr(36)||chr(36) ||
       ' QUERY_WAREHOUSE = '||:WAREHOUSE_NAME;
@@ -602,13 +609,13 @@ $$
 
   IF (EAI) THEN
     EXECUTE IMMEDIATE
-      'CREATE SERVICE '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
+      'CREATE SERVICE IF NOT EXISTS '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
       ' IN COMPUTE POOL  '|| :POOL_NAME ||
       ' FROM SPECIFICATION  '||chr(36)||chr(36)||'\n'|| :spec ||'\n'||chr(36)||chr(36) ||
       ' EXTERNAL_ACCESS_INTEGRATIONS = (REFERENCE(''consumer_external_access''))';
   ELSE
     EXECUTE IMMEDIATE
-      'CREATE SERVICE '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
+      'CREATE SERVICE IF NOT EXISTS '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
       ' IN COMPUTE POOL  '|| :POOL_NAME ||
       ' FROM SPECIFICATION  '||chr(36)||chr(36)||'\n'|| :spec ||'\n'||chr(36)||chr(36) ||
       ' QUERY_WAREHOUSE = '||:WAREHOUSE_NAME;
@@ -640,13 +647,13 @@ $$
 
   IF (EAI) THEN
     EXECUTE IMMEDIATE
-      'CREATE SERVICE '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
+      'CREATE SERVICE IF NOT EXISTS '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
       ' IN COMPUTE POOL  '|| :POOL_NAME ||
       ' FROM SPECIFICATION  '||chr(36)||chr(36)||'\n'|| :spec ||'\n'||chr(36)||chr(36) ||
       ' EXTERNAL_ACCESS_INTEGRATIONS = (REFERENCE(''consumer_external_access''))';
   ELSE
     EXECUTE IMMEDIATE
-      'CREATE SERVICE '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
+      'CREATE SERVICE IF NOT EXISTS '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
       ' IN COMPUTE POOL  '|| :POOL_NAME ||
       ' FROM SPECIFICATION  '||chr(36)||chr(36)||'\n'|| :spec ||'\n'||chr(36)||chr(36) ||
       ' QUERY_WAREHOUSE = '||:WAREHOUSE_NAME;

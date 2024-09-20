@@ -3,6 +3,7 @@ GENESIS BOT TODOS
 =================
 
 todo:
+do bots have task id ok to check history?
 ADD DEFAULT HEADER ON SEND_EMAILS
 MR-cross region enablement for LLM (if not us-east/us-west), data granting (maybe we mention this here too), email sending 
 streamlit axios error
@@ -123,6 +124,9 @@ x streamlit takes a long time before submitting welcome job for each bot.. loadi
 x add bot details caching to new streamlit 
 
 next version:
+fix openai-generated graphs showing up in streamlit
+fix HISTORY action on task scheduler
+set status to "running" when a task is running and the time it started
 we could have run_query catch the queryids and log them for both successfull and unsuccessful queries
 RV-add process knowledge type get from message_log and task_history, inject on process runs
 JD-have task server restart a bot's session if its details has changed

@@ -123,10 +123,10 @@ def bot_config():
                                     deploy_response = deploy_bot(bot["bot_id"])
                                     if deploy_response.get("Success") or deploy_response.get("success"):
                                         st.success(
-                                            f"The first of 3 steps to deploy {bot.get('bot_name')} to Slack is complete. Refresh this page to see the next 2 steps to complete deployment to Slack. "
+                                            f"The first of 3 steps to deploy {bot.get('bot_name')} to Slack is complete. Press the button below to see the next 2 steps to complete deployment to Slack. "
                                         )
                                         if st.button(
-                                            "Press to Refresh Page for Next Steps",
+                                            "Press for Next Steps",
                                             key=f"refresh_{bot['bot_id']}",
                                         ):
                                             st.experimental_rerun()

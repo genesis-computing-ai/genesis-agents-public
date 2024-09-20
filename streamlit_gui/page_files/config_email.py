@@ -52,6 +52,7 @@ def setup_email():
 
 create notification integration genesis_email_int type=EMAIL enabled=TRUE;
 grant usage on integration genesis_email_int to application {st.session_state.get("app_name", "")};
+// Please ensure the email address is in your Snowflake user profile and has been verified by Snowflake
 call SYSTEM$SEND_EMAIL('genesis_email_int','{user_email}','Testing Email','This is a test.');
 call {st.session_state.get("app_name", "")}.core.set_default_email('{user_email}');
 """

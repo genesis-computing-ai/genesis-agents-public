@@ -306,6 +306,14 @@ BEGIN
           ' QUERY_WAREHOUSE = '||:WH_NAME;
       END IF;
 
+-- TODO build logic around this
+            EXECUTE IMMEDIATE
+           'CREATE SERVICE IF NOT EXISTS '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
+           ' IN COMPUTE POOL  '|| :C_POOL_NAME ||
+           ' FROM SPECIFICATION  '||chr(36)||chr(36)||'\n'|| :spec ||'\n'||chr(36)||chr(36) ||
+           ' QUERY_WAREHOUSE = '||:WAREHOUSE_NAME||
+           ' EXTERNAL_ACCESS_INTEGRATIONS = ('||:EAI_NAME||')';
+
         EXECUTE IMMEDIATE
            'GRANT USAGE ON SERVICE '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||' TO APPLICATION ROLE APP_PUBLIC';
         EXECUTE IMMEDIATE
@@ -751,7 +759,7 @@ BEGIN
    x := x + 1;
  END FOR;
 
- IF (x < 3) THEN
+ IF (x < 4) THEN
    CALL APP.RECREATE_APP_INSTANCE(:INSTANCE_NAME, :POOL_NAME, :EAI, :APP_WAREHOUSE);
  END IF;
 

@@ -120,7 +120,7 @@ class TeamsBotOsInputAdapter(BotOsInputAdapter):
     def add_event(self, event):
         self.events.append(event)
 
-    def get_input(self, thread_map=None, active=None, processing=None, done_map=None) -> BotOsInputMessage | None:
+    def get_input(self, thread_map=None, active=None, processing=None, done_map=None):# -> BotOsInputMessage | None:
         if len(self.events) == 0:
             return None        
         try:

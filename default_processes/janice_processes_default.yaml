@@ -141,20 +141,7 @@ janice_check_MFA_use_golden:
       - Send the email to SYS$DEFAULT_EMAIL.
       - Continue running the rest of the steps after sending the email
 
-    4. **Create Visual Representation**:
-      - use snowpark to create a visualization of these numbers. follow these instructions for the visualization:
-        - create a stacked bar chart. the title of the chart should be "Users with Passwords MFA Adoption Rates" the bars should be horizontal. treat each number as a percentage, and the stack should show the number as a part of the full 100% and the other part would be the leftover. label the numbers associated with the bars so it's clear what number each part of the stacked bar represents and make sure the numbers are visible, and orient the labels vertically and the label's should only use 2 digits of precision rounding up if needed
-        - The order of the bars is crucial, and the order should be:
-            - "PASSWORD_USERS"
-            - "PASSWORD_USERS_MFA"
-            - "ADMIN_PASSWORD_NO_MFA"
-            - "PASSWORD_USERS_PERSON"
-            - "PERSON_PASSWORD_NO_MFA"
-        - for the "PASSWORD_USERS" the percent that does have passwords should be red and the rest should be gray and this should be the bar at the top of the graph
-        - for all others the percent from the results should be red and the rest should be green
-        - show the graph to the person you're talking to
-
-    5. **Generate Report and Recommendations**:
+    4. **Generate Report and Recommendations**:
       - you are going to write an analysis of the data from the query. take note that:
         - **ADMIN_PASSWORD_NO_MFA** tells you percent of users who have a password set and also have admin rights granted that do NOT have MFA set up
         - **PASSWORD_USERS** tells you the percentage of all users in the account who have the ability to authenticate with a password

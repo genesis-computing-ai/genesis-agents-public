@@ -14,6 +14,8 @@ import threading
 import traceback
 import pandas
 import snowflake.connector
+
+from llm_openai.openai_utils import get_openai_client
 #from snowflake.snowpark import Session
 
 def connection() -> snowflake.connector.SnowflakeConnection:
@@ -79,7 +81,7 @@ listener = ngrok.connect(addr=f"localhost:{SERVICE_PORT}",
                        #  proto="labeled",
                        #  labels="edge:edghts_2XrFea08KOrxjjMPI6w3GJ4OUlv")
 
-client = OpenAI(api_key= os.getenv("OPENAI_API_KEY"))
+client = get_openai_client()
 
 message_map = {}
 

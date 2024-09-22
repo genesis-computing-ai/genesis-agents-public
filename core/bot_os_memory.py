@@ -2,7 +2,7 @@ from abc import abstractmethod
 import logging
 from annoy import AnnoyIndex
 import json
-from openai import OpenAI
+from openai import AzureOpenAI, OpenAI
 import os
 import shutil
 import subprocess
@@ -14,6 +14,7 @@ import spacy
 from connectors.bigquery_connector import BigQueryConnector
 from connectors.snowflake_connector import SnowflakeConnector
 from connectors.sqlite_connector import SqliteConnector
+from llm_openai.openai_utils import get_openai_client
 from  schema_explorer.embeddings_index_handler import load_or_create_embeddings_index
 
 logger = logging.getLogger(__name__)
@@ -136,8 +137,7 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
         else:
             self.embedding_model = os.getenv("OPENAI_HARVESTER_EMBEDDING_MODEL", 'text-embedding-3-large')
             print("setting openai key in knowledge init")
-            self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-            logger.info(f"kb OpenAI API Key: {os.getenv('OPENAI_API_KEY')}")
+            self.client = get_openai_client()
   
         #self.index, self.metadata_mapping = AnnoyIndexSingleton.get_index_and_metadata(self.meta_database_connector.metadata_table_name, vector_size, refresh=refresh)
         self.index, self.metadata_mapping = load_or_create_embeddings_index(self.meta_database_connector.metadata_table_name, refresh=False)

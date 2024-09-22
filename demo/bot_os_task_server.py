@@ -150,44 +150,8 @@ except Exception as e:
 
 ngrok_active = False
 
-# old stuff
-if False:
-    print(f"Waiting on LLM key...")
-    def get_llm_api_key():
-        from core.bot_os_llm import LLMKeyHandler 
-        logger.info('Getting LLM API Key...')
-        api_key_from_env = False
-        llm_type = os.getenv("BOT_OS_DEFAULT_LLM_ENGINE", "openai")
-        llm_api_key = None
-
-        i = 0
-        c = 0
-
-        while llm_api_key == None:
-
-            i = i + 1
-            if i > 100:
-                c += 1
-                print(f'Waiting on LLM key... (cycle {c})')
-                i = 0 
-            # llm_type = None
-            llm_key_handler = LLMKeyHandler()
-            logger.info('Getting LLM API Key...')
-
-            api_key_from_env, llm_api_key = llm_key_handler.get_llm_key_from_db()
-
-            if llm_api_key is None and llm_api_key != 'cortex_no_key_needed':
-            #   print('No LLM Key Available in ENV var or Snowflake database, sleeping 20 seconds before retry.', flush=True)
-                time.sleep(20)
-            else:
-                logger.info(f"Using {llm_type} for harvester ")
-
-    llm_api_key = get_llm_api_key()
-
-
 # new llm stuff
 logger.info('Getting LLM API Key...')
-# api_key_from_env, llm_api_key = llm_key_handler.get_llm_key_from_db()
 
 def get_llm_api_key(db_adapter=None):
     from core.bot_os_llm import LLMKeyHandler 
@@ -210,17 +174,17 @@ def get_llm_api_key(db_adapter=None):
         llm_key_handler = LLMKeyHandler(db_adapter=db_adapter)
         logger.info('Getting LLM API Key...')
 
-        api_key_from_env, llm_api_key, llm_type = llm_key_handler.get_llm_key_from_db()
+        not_used_api_key_from_env, llm_api_key_struct = llm_key_handler.get_llm_key_from_db()
 
-        if llm_api_key is None and llm_api_key != 'cortex_no_key_needed':
+        if llm_api_key_struct.llm_key is None and llm_api_key_struct.llm_key != 'cortex_no_key_needed':
         #   print('No LLM Key Available in ENV var or Snowflake database, sleeping 20 seconds before retry.', flush=True)
             time.sleep(20)
         else:
             logger.info(f"Using {llm_type} for task server ")
         
-        return llm_api_key, llm_type
+        return llm_api_key_struct
 
-llm_api_key, llm_type = get_llm_api_key(db_adapter)
+llm_api_key_struct = get_llm_api_key(db_adapter)
 
 ### END LLM KEY STUFF
 logger.info('Out of LLM check section ..')
@@ -236,7 +200,7 @@ print("...Slack Connector Active Flag: ", global_flags.slack_active)
 
 bot_id_to_udf_adapter_map = {}
 
-if llm_api_key is not None:
+if llm_api_key_struct.llm_key is not None:
     (
         sessions,
         api_app_id_to_session_map,

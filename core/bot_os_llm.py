@@ -1,4 +1,5 @@
 import os
+from connectors.database_connector import llm_keys_and_types_struct
 from connectors.sqlite_connector import SqliteConnector
 from connectors.snowflake_connector import SnowflakeConnector
 
@@ -34,6 +35,7 @@ class LLMKeyHandler:
         # check for Openai Env Override
         if llm_type.lower() == "openai":
             llm_api_key = os.getenv("OPENAI_API_KEY", None)
+            llm_endpoint = os.getenv("AZURE_OPENAI_API_ENDPOINT", None)
             os.environ["CORTEX_MODE"] = "False"
         # elif self.default_llm_engine.lower() == "gemini":
         #     llm_api_key = os.getenv("GEMINI_API_KEY", None)
@@ -72,10 +74,10 @@ class LLMKeyHandler:
         except Exception as e:
             print(f"error updating llm key in database with error: {e}")
 
-        return api_key_from_env, llm_api_key, llm_type
+        return api_key_from_env, llm_keys_and_types_struct(llm_api_key=llm_api_key, llm_type=llm_type, llm_endpoint=llm_endpoint)
 
 
-    def get_llm_key_from_db(self, db_connector=None):
+    def get_llm_key_from_db(self, db_connector=None) -> tuple[bool, llm_keys_and_types_struct]:
         import json 
 
         if db_connector:
@@ -99,14 +101,15 @@ class LLMKeyHandler:
 
 
         try:
-            llm_key, llm_type = db_adapter.db_get_active_llm_key()
+            llm_key_struct = db_adapter.db_get_active_llm_key()
         except Exception as e:
             print(f"Error retrieving LLM key from database: {e}")
             return False, None, None
         
-        if llm_key:
-            if (llm_type.lower() == "openai"):
-                os.environ["OPENAI_API_KEY"] = llm_key
+        if llm_key_struct.llm_key:
+            if (llm_key_struct.llm_type.lower() == "openai"):
+                os.environ["OPENAI_API_KEY"] = llm_key_struct.llm_key
+                os.environ["AZURE_OPENAI_API_ENDPOINT"] = llm_key_struct.llm_endpoint
                 os.environ["CORTEX_MODE"] = "False"
             # elif (llm_type.lower() == "reka"):
             #     os.environ["REKA_API_KEY"] = llm_key
@@ -114,14 +117,14 @@ class LLMKeyHandler:
             # elif (llm_type.lower() == "gemini"):
             #     os.environ["GEMINI_API_KEY"] = llm_key
             #     os.environ["CORTEX_MODE"] = "False"
-            elif (llm_type.lower() == "cortex"):
+            elif (llm_key_struct.llm_type.lower() == "cortex"):
                 if os.environ.get("CORTEX_AVAILABLE", 'False') in ['False', '']:
                     cortex_available = db_adapter.check_cortex_available()
                 else:
                     cortex_available = True
                 if cortex_available:
-                    self.default_llm_engine = llm_type
-                    llm_key = 'cortex_no_key_needed'
+                    self.default_llm_engine = llm_key_struct.llm_type
+                    llm_key_struct.llm_key = 'cortex_no_key_needed'
                     os.environ["CORTEX_MODE"] = "True"
                     os.environ["CORTEX_HARVESTER_MODEL"] = "reka-flash"
                     os.environ["CORTEX_EMBEDDING_MODEL"] = 'e5-base-v2'
@@ -130,11 +133,11 @@ class LLMKeyHandler:
                     print("cortex not availabe and no llm key set")
             api_key_from_env = False
         else:
-            api_key_from_env, llm_key, llm_type = self.get_llm_key_from_env()
+            api_key_from_env, llm_key_struct = self.get_llm_key_from_env()
 
-        if llm_type.lower() == "cortex" and not cortex_avail:
+        if llm_key_struct.llm_type.lower() == "cortex" and not cortex_avail:
             print("Cortex is not available. Falling back to OpenAI.")
-            llm_type = "openai"
+            llm_key_struct.llm_type = "openai"
             # Attempt to get OpenAI key if it exists
             
             # First, check if OPENAI_API_KEY is already set in the environment
@@ -162,23 +165,24 @@ class LLMKeyHandler:
             
             os.environ["CORTEX_MODE"] = "False"
 
-        os.environ["BOT_OS_DEFAULT_LLM_ENGINE"] = llm_type.lower()
+        os.environ["BOT_OS_DEFAULT_LLM_ENGINE"] = llm_key_struct.llm_type.lower()
         self.set_llm_env_vars()
-        return api_key_from_env, llm_key, llm_type
+        return api_key_from_env, llm_key_struct
             
     def set_llm_env_vars(self):
         
         try:
-            llm_keys_and_types = self.db_adapter.db_get_llm_key()
-            for llm_key, llm_type in llm_keys_and_types:  # Loop through each llm_key and llm_type
-                if llm_key:
-                    if (llm_type.lower() == "openai"):
-                        os.environ["OPENAI_API_KEY"] = llm_key
+            llm_keys_and_types_arr = self.db_adapter.db_get_llm_key()
+            for llm_keys_and_types in llm_keys_and_types_arr:
+                if llm_keys_and_types.llm_key:
+                    if (llm_keys_and_types.llm_type.lower() == "openai"):
+                        os.environ["OPENAI_API_KEY"] = llm_keys_and_types.llm_key
+                        os.environ["AZURE_OPENAI_API_ENDPOINT"]= llm_keys_and_types.llm_endpoint
                     # elif (llm_type.lower() == "reka"):
                     #     os.environ["REKA_API_KEY"] = llm_key
                     # elif (llm_type.lower() == "gemini"):
                     #     os.environ["GEMINI_API_KEY"] = llm_key
-                    elif (llm_type.lower() == "cortex"):
+                    elif (llm_keys_and_types.llm_type.lower() == "cortex"):
                         if os.environ.get("CORTEX_AVAILABLE", 'False') in ['False', '']:
                             cortex_available = self.db_adapter.check_cortex_available()
                         else:
@@ -188,3 +192,4 @@ class LLMKeyHandler:
                             #TODO does this need to be handled?
         except Exception as e:
             print(f"Error setting LLM environment variables: {e}")
+

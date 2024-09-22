@@ -2,7 +2,9 @@ from openai import OpenAI
 import os
 import csv
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+from llm_openai.openai_utils import get_openai_client
+
+client = get_openai_client()
 
 def get_embedding(text):
     response = client.embeddings.create(

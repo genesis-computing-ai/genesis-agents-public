@@ -1,3 +1,9 @@
+class llm_keys_and_types_struct:    
+    def __init__(self, llm_type=None, llm_key=None, llm_endpoint=None):
+        self.llm_type = llm_type
+        self.llm_key  = llm_key
+        self.llm_endpoint = llm_endpoint if llm_endpoint is not None else ''
+
 class DatabaseConnector:
     def __init__(self, connection_info=None, connection_name=None):
         self.connection_info = connection_info
@@ -111,4 +117,10 @@ class DatabaseConnector:
         :return: A string containing the output of the executed code.
         """
         raise NotImplementedError("This method should be implemented by subclasses.")
-        
+    
+    def db_get_llm_key(self, project_id=None, dataset_name=None) -> llm_keys_and_types_struct:
+        raise NotImplementedError("This method should be implemented by subclasses.")
+    
+    def db_get_active_llm_key(self) -> list[llm_keys_and_types_struct]:
+        raise NotImplementedError("This method should be implemented by subclasses.")
+

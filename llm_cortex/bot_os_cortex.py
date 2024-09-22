@@ -22,6 +22,7 @@ from core.bot_os_assistant_base import BotOsAssistantInterface, execute_function
 import logging
 
 from core.bot_os_input import BotOsInputMessage, BotOsOutputMessage
+from llm_openai.openai_utils import get_openai_client
 logger = logging.getLogger(__name__)
 
 class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
@@ -366,8 +367,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                     newarray[0]['role'] = 'user'
                     print(f'**** OpenaAI o1 override for bot {self.bot_id} using model: {openai_model}')
                     try:
-                        openai_api_key = os.getenv("OPENAI_API_KEY")
-                        client = OpenAI(api_key=openai_api_key)
+                        client = get_openai_client()
                         response = client.chat.completions.create(
                             model=openai_model,
                             messages=newarray,

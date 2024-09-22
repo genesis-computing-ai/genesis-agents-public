@@ -67,9 +67,9 @@ def get_llm_api_key(db_adapter):
         llm_key_handler = LLMKeyHandler(db_adapter)
         logger.info('Getting LLM API Key...')
 
-        api_key_from_env, llm_api_key, llm_type = llm_key_handler.get_llm_key_from_db()
+        api_key_from_env, llm_api_key_struct = llm_key_handler.get_llm_key_from_db()
 
-        if llm_api_key is None and llm_api_key != 'cortex_no_key_needed':
+        if llm_api_key_struct.llm_key is None and llm_api_key_struct.llm_key != 'cortex_no_key_needed':
         #   print('No LLM Key Available in ENV var or Snowflake database, sleeping 20 seconds before retry.', flush=True)
             time.sleep(20)
         else:
@@ -77,7 +77,7 @@ def get_llm_api_key(db_adapter):
         
         return llm_api_key, llm_type
 
-llm_api_key, llm_type = get_llm_api_key(harvester_db_connector)
+llm_api_key_struct = get_llm_api_key(harvester_db_connector)
 
 ### END LLM KEY STUFF
 logger.info('Out of LLM check section .. calling ensure_table_exists -- ')
@@ -128,11 +128,11 @@ if os.getenv("HARVEST_TEST", "FALSE").upper() == "TRUE":
     refresh_seconds = 5
 
 
-print("     ┌───────┐     ")
-print("    ╔═════════╗    ")
-print("   ║  ◉   ◉  ║   ")
+print("    ┌───────┐     ")
+print("   ╔═════════╗    ")
+print("  ║   ◉   ◉   ║   ")
 print("  ║    ───    ║  ")
-print(" ╚═══════════╝ ")
+print("  ╚═══════════╝ ")
 print("     ╱     ╲     ")
 print("    ╱│  ◯  │╲    ")
 print("   ╱ │_____│ ╲   ")
@@ -148,7 +148,7 @@ print('Harvester Start Version 0.153',flush=True)
 
 
 while True:
-    llm_api_key = get_llm_api_key(harvester_db_connector)
+    llm_api_key_struct = get_llm_api_key(harvester_db_connector)
     if genesis_source == 'Snowflake' and os.getenv('AUTO_HARVEST', 'TRUE').upper() == 'TRUE':
         print('Checking for any newly granted databases to add to harvest...', flush=True)
         update_harvest_control_with_new_databases(harvester_db_connector)
@@ -160,9 +160,9 @@ while True:
    # print('Checking if LLM API Key updated for harvester...')
     llm_key_handler = LLMKeyHandler(harvester_db_connector)
     latest_llm_type = None
-    api_key_from_env, llm_api_key, latest_llm_type = llm_key_handler.get_llm_key_from_db(harvester_db_connector)
-    if latest_llm_type != llm_type:
-        print(f"Now using {latest_llm_type} instead of {llm_type} for harvester ")
+    api_key_from_env, latest_llm_api_key_struct = llm_key_handler.get_llm_key_from_db(harvester_db_connector)
+    if latest_llm_api_key_struct.llm_type != llm_api_key_struct.llm_type:
+        print(f"Now using {latest_llm_api_key_struct.llm_type} instead of {llm_api_key_struct.llm_type} for harvester ")
         
     schema_explorer.explore_and_summarize_tables_parallel()
     #print("Checking Cached Annoy Index")

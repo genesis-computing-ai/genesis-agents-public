@@ -327,7 +327,7 @@ def list_available_bots_fn():
     row = input_rows[0]
 
     output_rows = []
-    if "llm_api_key" not in globals() or llm_api_key is None:
+    if "llm_api_key_struct" not in globals() or llm_api_key_struct.llm_key is None:
         output_rows = [
             [row[0], {"Success": False, "Message": "Needs LLM Type and Key"}]
         ]
@@ -722,7 +722,7 @@ def configure_llm():
 
     from openai import OpenAI, OpenAIError
 
-    global llm_api_key, default_llm_engine, sessions, api_app_id_to_session_map, bot_id_to_udf_adapter_map, server
+    global llm_api_key_struct, default_llm_engine, sessions, api_app_id_to_session_map, bot_id_to_udf_adapter_map, server
     try:
 
         message = request.json
@@ -787,8 +787,8 @@ def configure_llm():
             # set the system default LLM engine
             os.environ["BOT_OS_DEFAULT_LLM_ENGINE"] = llm_type.lower()
             default_llm_engine = llm_type
-            llm_api_key = llm_key
-            if llm_api_key is not None:
+            llm_api_key_struct.llm_key = llm_key
+            if llm_api_key_struct.llm_key is not None:
                 try:
                     sessions, api_app_id_to_session_map, bot_id_to_udf_adapter_map, SystemVariables.bot_id_to_slack_adapter_map = create_sessions(
                         db_adapter,

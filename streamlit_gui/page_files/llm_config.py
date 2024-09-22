@@ -98,7 +98,7 @@ def llm_config():
             # if eai_status == True or llm_model == 'cortex':
 
             st.write("One moment while I validate the key and launch the bots...")
-            if cur_key:
+            if "***" in llm_api_key: # if it was hidden replace with real key
                 llm_api_key = selected_key[0]
             config_response = configure_llm(llm_model, llm_api_key, llm_api_endpoint)
             if config_response["Success"] is False:

@@ -776,7 +776,13 @@ class SnowflakeConnector(DatabaseConnector):
             list: A list of llm keys, llm types, and the active switch.
         """
         try:
-            query = f"SELECT LLM_TYPE, ACTIVE, LLM_KEY, LLM_ENDPOINT FROM {self.genbot_internal_project_and_schema}.LLM_TOKENS WHERE LLM_KEY is not NULL"
+            runner_id = os.getenv("RUNNER_ID", "jl-local-runner") 
+            query = f"""
+SELECT LLM_TYPE, ACTIVE, LLM_KEY, LLM_ENDPOINT 
+FROM {self.genbot_internal_project_and_schema}.LLM_TOKENS 
+WHERE LLM_KEY is not NULL
+AND   RUNNER_ID = '{runner_id}'
+"""
             cursor = self.client.cursor()
             cursor.execute(query)
             llm_info = cursor.fetchall()
@@ -4149,11 +4155,16 @@ $$
         Args:
             llm_key (str): The LLM key.
             llm_type (str): The type of LLM (e.g., 'openai', 'reka').
+            llm_endpoint (str): endpoint for LLM like azure openai
         """
         runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
 
         try:
-            update_query = f""" UPDATE  {self.genbot_internal_project_and_schema}.llm_tokens SET ACTIVE = FALSE """
+            update_query = f"""
+    UPDATE  {self.genbot_internal_project_and_schema}.llm_tokens 
+    SET ACTIVE = FALSE 
+    WHERE RUNNER_ID = '{runner_id}'
+    """
             cursor = self.connection.cursor()
             cursor.execute(update_query)
             self.connection.commit()

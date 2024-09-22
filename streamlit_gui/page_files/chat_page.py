@@ -9,7 +9,7 @@ import os
 def file_to_html(bot_id, thread_id, file_path):    
     file_name = os.path.basename(file_path)    
     file_byte = get_metadata2('|'.join(('sandbox',bot_id, thread_id, file_name)))
-    if 'png' in file_name:
+    if 'png' in file_name or not os.path.splitext(file_path)[1]:
         href = f'<img src="data:image/png;base64,{file_byte}" style="max-width: 50%;display: block;">'    
     else:
         href = f'<a href="data:application/octet-stream;base64,{file_byte}" download="{file_name}">{file_name}</a>'

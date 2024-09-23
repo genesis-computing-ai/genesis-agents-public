@@ -42,9 +42,11 @@ class KnowledgeServer:
 
     def producer(self):
         while True:
+  
             # join inside snowflake
             cutoff = (datetime.now() - timedelta(minutes=10)).strftime("%Y-%m-%d %H:%M:%S")
             threads = self.db_connector.query_threads_message_log(cutoff)
+            print(f"Producer found {len(threads)} threads", flush=True)
             for thread in threads:
                 thread_id = thread["THREAD_ID"]
                 with self.thread_set_lock:
@@ -92,7 +94,7 @@ class KnowledgeServer:
                 current_time = datetime.now()
                 time_difference = current_time - bot_active_time_dt
 
-                print(f"\nBOTS ACTIVE TIME: {result[0]} | CURRENT TIME: {current_time} | TIME DIFFERENCE: {time_difference}", flush=True)
+                print(f"\nBOTS ACTIVE TIME: {result[0]} | CURRENT TIME: {current_time} | TIME DIFFERENCE: {time_difference} | producer", flush=True)
 
                 if time_difference < timedelta(minutes=5):
                     wake_up = True
@@ -128,9 +130,14 @@ class KnowledgeServer:
                              Conversation:
                              {messages}
                         """
-                self.client.beta.threads.messages.create(
-                    thread_id=knowledge_thread_id, content=content, role="user"
-                )
+                try:
+                    print('openai create ', knowledge_thread_id)
+                    self.client.beta.threads.messages.create(
+                        thread_id=knowledge_thread_id, content=content, role="user"
+                    )
+                except Exception as e:
+                    print('openai create exception ', e)
+                    knowledge_thread_id = None
             else:
                 content = f"""Given the following conversations between the user and agent, analyze them and extract the 4 requested information:
                              Conversation:
@@ -154,8 +161,9 @@ class KnowledgeServer:
                         thread_id=knowledge_thread_id, content=content, role="user"
                     )
                 else: # cortex
-                    knowledge_thread_id = '' 
-            if self.llm_type == 'openai' or self.llm_type == 'OpenAI':
+                    knowledge_thread_id = ''
+            response = None
+            if (self.llm_type == 'openai' or self.llm_type == 'OpenAI') and knowledge_thread_id is not None:
                 run = self.client.beta.threads.runs.create(
                     thread_id=knowledge_thread_id, assistant_id=self.assistant.id
                 )
@@ -169,8 +177,12 @@ class KnowledgeServer:
                     .data[0]
                     .content[0]
                     .text.value
-                )                
-                response = json.loads(raw_knowledge)
+                )
+                try:                
+                    response = json.loads(raw_knowledge)
+                except:
+                    response = None
+                    print('Skipped thread ',knowledge_thread_id,' knowledge unparseable')
             else:
                 system = "You are a Knowledge Explorer to extract, synthesize, and inject knowledge that bots learn from doing their jobs"
                 res, status_code  = self.db_connector.cortex_chat_completion(content, system)
@@ -179,25 +191,26 @@ class KnowledgeServer:
                 
 
             try:
-                # Ensure the timestamp is in the correct format for Snowflake
-                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                timestamp = thread["TIMESTAMP"]
-                if type(msg_log[-1]["TIMESTAMP"]) != str:
-                    last_timestamp = msg_log[-1]["TIMESTAMP"].strftime("%Y-%m-%d %H:%M:%S")
-                else:
-                    last_timestamp = msg_log[-1]["TIMESTAMP"]
-                bot_id = msg_log[-1]["BOT_ID"]
-                primary_user = msg_log[-1]["PRIMARY_USER"]
-                thread_summary = response["thread_summary"]
-                user_learning = response["user_learning"]
-                tool_learning = response["tool_learning"]
-                data_learning = response["data_learning"]
+                if response is not None:
+                    # Ensure the timestamp is in the correct format for Snowflake
+                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    timestamp = thread["TIMESTAMP"]
+                    if type(msg_log[-1]["TIMESTAMP"]) != str:
+                        last_timestamp = msg_log[-1]["TIMESTAMP"].strftime("%Y-%m-%d %H:%M:%S")
+                    else:
+                        last_timestamp = msg_log[-1]["TIMESTAMP"]
+                    bot_id = msg_log[-1]["BOT_ID"]
+                    primary_user = msg_log[-1]["PRIMARY_USER"]
+                    thread_summary = response["thread_summary"]
+                    user_learning = response["user_learning"]
+                    tool_learning = response["tool_learning"]
+                    data_learning = response["data_learning"]
 
-                self.db_connector.run_insert(self.db_connector.knowledge_table_name, timestamp=timestamp,thread_id=thread_id,knowledge_thread_id=knowledge_thread_id,
-                                              primary_user=primary_user,bot_id=bot_id,last_timestamp=last_timestamp,thread_summary=thread_summary,
-                                              user_learning=user_learning,tool_learning=tool_learning,data_learning=data_learning)
+                    self.db_connector.run_insert(self.db_connector.knowledge_table_name, timestamp=timestamp,thread_id=thread_id,knowledge_thread_id=knowledge_thread_id,
+                                                primary_user=primary_user,bot_id=bot_id,last_timestamp=last_timestamp,thread_summary=thread_summary,
+                                                user_learning=user_learning,tool_learning=tool_learning,data_learning=data_learning)
 
-                self.user_queue.put((primary_user, bot_id, response))
+                    self.user_queue.put((primary_user, bot_id, response))
             except Exception as e:
                 print(f"Encountered errors while inserting into {self.db_connector.knowledge_table_name} row: {e}")
             
@@ -207,33 +220,22 @@ class KnowledgeServer:
 
     def refiner(self):
 
+
         while True:
             if self.user_queue.empty():
                 print("Queue is empty, refiner is waiting...")
-                
-                wake_up = False
-                while not wake_up:
-                    time.sleep(refresh_seconds)
-
-                    cursor = self.db_connector.client.cursor()
-                    check_bot_active = f"DESCRIBE TABLE {self.db_connector.schema}.BOTS_ACTIVE"
-                    cursor.execute(check_bot_active)
-                    result = cursor.fetchone()
-
-                    bot_active_time_dt = datetime.strptime(result[0], '%Y-%m-%d %H:%M:%S %Z')
-                    current_time = datetime.now()
-                    time_difference = current_time - bot_active_time_dt
-
-                    print(f"\nBOTS ACTIVE TIME: {result[0]} | CURRENT TIME: {current_time} | TIME DIFFERENCE: {time_difference}", flush=True)
-
-                    if time_difference < timedelta(minutes=5):
-                        wake_up = True
-                #        print("Bot is active")
-
+                time.sleep(refresh_seconds)
                 continue
             primary_user, bot_id, knowledge = self.user_queue.get()
+            print('refining...', flush=True)
             if primary_user is not None:
-                user_json = json.loads(primary_user)
+                try:
+                    user_json = json.loads(primary_user)
+                except Exception as e:
+                    print('Error on user_json ',e)
+                    print('    primary user is ',primary_user,' switching to unknown user')
+                    primary_user = None
+                    user_json = {'user_email': 'Unknown Email'}
             else:
                 user_json = {'user_email': 'Unknown Email'}
             if user_json.get('user_email','Unknown Email') != 'Unknown Email':

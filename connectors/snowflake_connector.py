@@ -1671,6 +1671,7 @@ AND   RUNNER_ID = '{runner_id}'
 
         for _, process_default in self.process_defaults.iterrows():
             process_id = process_default['PROCESS_ID']
+            # if process_default['TIMESTAMP'] is not None and not pd.isna(process_default['TIMESTAMP']):
             if type(process_default['TIMESTAMP']) is not str and process_default['TIMESTAMP'] is not None and not pd.isna(process_default['TIMESTAMP']):
                 # Ensure row['TIMESTAMP'] is timezone-aware
                 if process_default['TIMESTAMP'].tzinfo is None:
@@ -1684,11 +1685,14 @@ AND   RUNNER_ID = '{runner_id}'
             result = cursor.fetchone()
             process_columns = [desc[0] for desc in cursor.description]
 
+            updated_process = False
+            process_found = False
             if result is not None:
-                db_timestamp = result[5] if len(result) > 0 else None
+                process_found = True
+                db_timestamp = result[process_columns.index('TIMESTAMP')] if len(result) > 0 else None
 
                 # Ensure db_timestamp is timezone-aware
-                if db_timestamp is None:
+                if db_timestamp is None or db_timestamp == '':
                     db_timestamp = datetime.now(pytz.UTC)
                 elif db_timestamp.tzinfo is None:
                     db_timestamp = db_timestamp.replace(tzinfo=pytz.UTC)
@@ -1697,34 +1701,37 @@ AND   RUNNER_ID = '{runner_id}'
                 if process_default['TIMESTAMP'].tzinfo is None:
                     process_default['TIMESTAMP'] = process_default['TIMESTAMP'].tz_localize(pytz.UTC)
 
-                if result[0] == process_id and db_timestamp < process_default['TIMESTAMP']:
+                if result[1] == process_id and db_timestamp < process_default['TIMESTAMP']:
                     # Remove old process
                     query = f"DELETE FROM {self.schema}.PROCESSES WHERE PROCESS_ID = %s"
                     cursor.execute(query, (process_id,))
                     updated_process = True
-                elif result[0] == process_id:
+                elif result[process_columns.index('PROCESS_ID')] == process_id:
                     continue
 
-            placeholders = ', '.join(['%s'] * len(process_columns))
+            if process_found == False or (process_found==True and updated_process==True):
+                placeholders = ', '.join(['%s'] * len(process_columns))
 
-            insert_values = []
-            for key in process_columns:
-                if key == 'FUNCTION_ID':
-                    insert_values.append(process_id)
-                elif key == 'TIMESTAMP':
-                    insert_values.append(timestamp_str)
+                insert_values = []
+                for key in process_columns:
+                    if key == 'FUNCTION_ID':
+                        insert_values.append(process_id)
+                    elif key == 'TIMESTAMP':
+                        insert_values.append(timestamp_str)
+                    else:
+                        val = process_default.get(key, '') if process_default.get(key, '') is not None else ''
+                        if pd.isna(val):
+                            val = ''
+                        insert_values.append(val)
+                insert_query = f"INSERT INTO {self.schema}.PROCESSES ({', '.join(process_columns)}) VALUES ({placeholders})"
+                cursor.execute(insert_query, insert_values) 
+                if updated_process:
+                    print(f"Process {process_id} updated successfully.")
+                    updated_process = False
                 else:
-                    val = process_default.get(key, '') if process_default.get(key, '') is not None else ''
-                    if pd.isna(val):
-                        val = ''
-                    insert_values.append(val)
-            insert_query = f"INSERT INTO {self.schema}.PROCESSES ({', '.join(process_columns)}) VALUES ({placeholders})"
-            cursor.execute(insert_query, insert_values) 
-            if updated_process:
-                print(f"Process {process_id} updated successfully.")
-                updated_process = False
+                    print(f"Process {process_id} inserted successfully.")
             else:
-                print(f"Process {process_id} inserted successfully.")
+                print(f"Process {process_id} already in PROCESSES and it is up to date.")
         cursor.close()
 
     def load_default_functions(self, cursor, table):
@@ -1750,6 +1757,7 @@ AND   RUNNER_ID = '{runner_id}'
 
         for _, function_default in self.function_defaults.iterrows():
             function_id = function_default['FUNCTION_ID']
+            # if function_default['TIMESTAMP'] is not None  and not pd.isna(function_default['TIMESTAMP']):
             if type(function_default['TIMESTAMP']) is not str and function_default['TIMESTAMP'] is not None  and not pd.isna(function_default['TIMESTAMP']):
                # Ensure row['TIMESTAMP'] is timezone-aware
                if function_default['TIMESTAMP'].tzinfo is None:
@@ -1769,7 +1777,8 @@ AND   RUNNER_ID = '{runner_id}'
                 cursor.execute(add_column_query)
 
             if result is not None:
-                db_timestamp = result[5] if len(result) > 5 else None
+                timestamp_index = function_columns.index('TIMESTAMP') if 'TIMESTAMP' in function_columns else None
+                db_timestamp = result[timestamp_index] if timestamp_index is not None else None
 
                 # Ensure db_timestamp is timezone-aware
                 if db_timestamp is None:
@@ -1781,12 +1790,12 @@ AND   RUNNER_ID = '{runner_id}'
                 if function_default['TIMESTAMP'].tzinfo is None:
                     function_default['TIMESTAMP'] = function_default['TIMESTAMP'].tz_localize(pytz.UTC)
 
-                if result[1] == function_id and db_timestamp < function_default['TIMESTAMP']:
+                if result[function_columns.index('FUNCTION_ID')] == function_id and db_timestamp < function_default['TIMESTAMP']:
                     # Remove old process
                     query = f"DELETE FROM {self.schema}.BOT_FUNCTIONS WHERE FUNCTION_ID = %s"
                     cursor.execute(query, (function_id,))
                     updated_process = True
-                elif result[1] == function_id:
+                elif result[function_columns.index('FUNCTION_ID')] == function_id:
                     continue
 
             placeholders = ', '.join(['%s'] * len(function_columns))
@@ -2834,12 +2843,12 @@ AND   RUNNER_ID = '{runner_id}'
             if not cursor.fetchone():
                 create_process_table_ddl = f"""
                 CREATE TABLE {self.schema}.PROCESSES (
+                    TIMESTAMP TIMESTAMP_NTZ(9) NOT NULL,
                     PROCESS_ID VARCHAR(16777216) NOT NULL PRIMARY KEY,
                     BOT_ID VARCHAR(16777216),
                     PROCESS_NAME VARCHAR(16777216) NOT NULL,
                     PROCESS_INSTRUCTIONS VARCHAR(16777216),
-                    PROCESS_CONFIG VARCHAR(16777216),
-                    TIMESTAMP TIMESTAMP_NTZ(9) NOT NULL
+                    PROCESS_CONFIG VARCHAR(16777216)     
                 );
                 """
                 cursor.execute(create_process_table_ddl)
@@ -6872,13 +6881,13 @@ $$
         query = f"""
                 WITH K AS (SELECT thread_id, max(last_timestamp) as last_timestamp FROM {self.knowledge_table_name}
                     GROUP BY thread_id),
-                M AS (SELECT thread_id, max(timestamp) as timestamp, COUNT(*) as count FROM {self.message_log_table_name} 
+                M AS (SELECT thread_id, max(timestamp) as timestamp, COUNT(*) as c FROM {self.message_log_table_name} 
                     WHERE PRIMARY_USER IS NOT NULL 
                     GROUP BY thread_id
-                    HAVING count > 3)
+                    HAVING c > 3)
                 SELECT M.thread_id, timestamp as timestamp, COALESCE(K.last_timestamp, DATE('2000-01-01')) as last_timestamp FROM M
                 LEFT JOIN K on M.thread_id = K.thread_id
-                WHERE timestamp > COALESCE(K.last_timestamp, DATE('2000-01-01')) AND timestamp < TO_TIMESTAMP('{cutoff}');"""
+                WHERE timestamp > COALESCE(K.last_timestamp, DATE('2000-01-01')) AND timestamp < TO_TIMESTAMP('{cutoff}') order by timestamp;"""
         return self.run_query(query)
 
     def query_timestamp_message_log(self, thread_id, last_timestamp, max_rows=50):
@@ -7296,7 +7305,7 @@ result = 'Table FAKE_CUST created successfully.'
 
             
             potential_result = self.chat_completion_for_escallation(message=message)
-            print(potential_result)
+            #print(potential_result)
             return potential_result
 
         else:

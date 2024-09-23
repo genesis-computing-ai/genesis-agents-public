@@ -37,7 +37,7 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
     def add_event(self, event):
         self.events.append(event)
         # self.events_map[event['uuid']] = event
-        if event and event.hasattr('uuid'):
+        if event and event.get('uuid',None) is not None:
             self.events_map[event['uuid']] = event
     def add_back_event(self, metadata=None):
         event = self.events_map.get(metadata['input_uuid'], None)

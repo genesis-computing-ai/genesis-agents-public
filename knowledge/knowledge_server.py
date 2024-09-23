@@ -44,7 +44,7 @@ class KnowledgeServer:
             # join inside snowflake
             cutoff = (datetime.now() - timedelta(minutes=10)).strftime("%Y-%m-%d %H:%M:%S")
             threads = self.db_connector.query_threads_message_log(cutoff)
-            print(f"Producer found {len(threads)} threads")
+            print(f"Producer found {len(threads)} threads", flush=True)
             for thread in threads:
                 thread_id = thread["THREAD_ID"]
                 with self.thread_set_lock:
@@ -225,6 +225,7 @@ class KnowledgeServer:
                 time.sleep(refresh_seconds)
                 continue
             primary_user, bot_id, knowledge = self.user_queue.get()
+            print('refining...', flush=True)
             if primary_user is not None:
                 try:
                     user_json = json.loads(primary_user)

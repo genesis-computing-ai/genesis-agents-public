@@ -40,30 +40,11 @@ class KnowledgeServer:
 
     def producer(self):
         while True:
-
-            wake_up = False
-            while not wake_up:
-                time.sleep(refresh_seconds)
-
-                cursor = self.db_connector.client.cursor()
-                check_bot_active = f"DESCRIBE TABLE {self.db_connector.schema}.BOTS_ACTIVE"
-                cursor.execute(check_bot_active)
-                result = cursor.fetchone()
-
-                bot_active_time_dt = datetime.strptime(result[0], '%Y-%m-%d %H:%M:%S %Z')
-                current_time = datetime.now()
-                time_difference = current_time - bot_active_time_dt
-
-                print(f"\nBOTS ACTIVE TIME: {result[0]} | CURRENT TIME: {current_time} | TIME DIFFERENCE: {time_difference} | producer", flush=True)
-
-                if time_difference < timedelta(minutes=5):
-                    wake_up = True
-            #        print("Bot is active")
-
   
             # join inside snowflake
             cutoff = (datetime.now() - timedelta(minutes=10)).strftime("%Y-%m-%d %H:%M:%S")
             threads = self.db_connector.query_threads_message_log(cutoff)
+            print(f"Producer found {len(threads)} threads")
             for thread in threads:
                 thread_id = thread["THREAD_ID"]
                 with self.thread_set_lock:

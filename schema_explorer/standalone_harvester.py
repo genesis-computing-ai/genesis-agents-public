@@ -51,12 +51,12 @@ def get_llm_api_key(db_adapter):
     logger.info('Getting LLM API Key...')
     api_key_from_env = False
     llm_type = os.getenv("BOT_OS_DEFAULT_LLM_ENGINE", "openai")
-    llm_api_key = None
+    llm_api_key_struct = None
 
     i = 0
     c = 0
 
-    while llm_api_key == None:
+    while llm_api_key_struct == None:
 
         i = i + 1
         if i > 100:
@@ -75,7 +75,7 @@ def get_llm_api_key(db_adapter):
         else:
             logger.info(f"Using {llm_type} for harvester ")
         
-        return llm_api_key, llm_type
+        return llm_api_key_struct
 
 llm_api_key_struct = get_llm_api_key(harvester_db_connector)
 
@@ -86,7 +86,7 @@ logger.info('Out of LLM check section .. calling ensure_table_exists -- ')
 harvester_db_connector.ensure_table_exists()
 
 # Initialize the SchemaExplorer with the BigQuery connector
-schema_explorer = SchemaExplorer(harvester_db_connector,llm_api_key)
+schema_explorer = SchemaExplorer(harvester_db_connector,llm_api_key_struct.llm_key)
 
 # Now, you can call methods on your schema_ex
 # 

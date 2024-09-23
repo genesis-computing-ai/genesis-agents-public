@@ -158,12 +158,12 @@ def get_llm_api_key(db_adapter=None):
     logger.info('Getting LLM API Key...')
     api_key_from_env = False
     llm_type = os.getenv("BOT_OS_DEFAULT_LLM_ENGINE", "openai")
-    llm_api_key = None
+    llm_api_key_struct = None
 
     i = 0
     c = 0
 
-    while llm_api_key == None:
+    while llm_api_key_struct == None:
 
         i = i + 1
         if i > 100:
@@ -180,7 +180,7 @@ def get_llm_api_key(db_adapter=None):
         #   print('No LLM Key Available in ENV var or Snowflake database, sleeping 20 seconds before retry.', flush=True)
             time.sleep(20)
         else:
-            logger.info(f"Using {llm_type} for task server ")
+            logger.info(f"Using {llm_api_key_struct.llm_type} for task server ")
         
         return llm_api_key_struct
 
@@ -777,7 +777,7 @@ scheduler = BackgroundScheduler(
 )
 
 server = None
-if llm_api_key is not None:
+if llm_api_key_struct is not None:
     server = BotOsServer(
         app, sessions=sessions, scheduler=scheduler, scheduler_seconds_interval=2, db_adapter=db_adapter, bot_id_to_udf_adapter_map=bot_id_to_udf_adapter_map, api_app_id_to_session_map=api_app_id_to_session_map
     )

@@ -44,12 +44,12 @@ def get_llm_api_key(db_adapter=None):
     logger.info('Getting LLM API Key...')
     api_key_from_env = False
     llm_type = os.getenv("BOT_OS_DEFAULT_LLM_ENGINE", "openai")
-    llm_api_key = None
+    llm_api_key_struct = None
 
     i = 0
     c = 0
 
-    while llm_api_key == None:
+    while llm_api_key_struct == None:
 
         i = i + 1
         if i > 100:

@@ -79,13 +79,13 @@ def llm_config():
             selected_key = [llm["llm_key"] for llm in llm_info if llm["llm_type"] == llm_model]
             if selected_key:
                 cur_key = selected_key[0][:3] + "*" * (len(selected_key[0]) - 7) + selected_key[0][-4:] if len(selected_key[0]) > 10 else selected_key[0]
-            llm_api_key = st.text_input("Enter API Key:", value=cur_key)
+            llm_api_key = st.text_input("Enter OpenAI or Azure OpenAI API Key:", value=cur_key)
             selected_endpoint = [llm["llm_endpoint"] for llm in llm_info if llm["llm_type"] == llm_model]
             if selected_endpoint:
                 cur_endpoint = selected_endpoint[0]
             else:
                 cur_endpoint = ""
-            llm_api_endpoint = st.text_input("Enter Azure API Endpoint:", value=cur_endpoint)          
+            llm_api_endpoint = st.text_input("Enter Azure API Endpoint (if applicable):", value=cur_endpoint)          
         else:
             llm_api_key = 'cortex_no_key_needed'
 

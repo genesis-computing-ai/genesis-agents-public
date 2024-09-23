@@ -1238,9 +1238,9 @@ def tasks_loop():
                 for task in [
                     t for t in tasks.get("Scheduled Processes", []) if t.get("task_active", False)
                 ]:
-                    if os.getenv("TEST_TASK_MODE", "false").lower() == "true":
-                        if task['task_id'] != 'janiCortex-123456_monitor_unused_data_tables_6WIDsb_HDBgeH':
-                            continue
+              #      if os.getenv("TEST_TASK_MODE", "false").lower() == "true":
+              #          if task['task_id'] != 'janiCortex-123456_monitor_unused_data_tables_6WIDsb_HDBgeH':
+               #             continue
                  #       print('test task mode - task is: ',task)
                     # If an instance of the task is not alreday running, Process the task using the bot
                     if not any(

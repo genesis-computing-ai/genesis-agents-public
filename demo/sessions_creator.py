@@ -631,7 +631,7 @@ def create_sessions(
 
         if os.getenv("TEST_TASK_MODE", "false").lower() == "true":
          #   if bot_config["bot_id"] != "janiCortex-123456":
-            if bot_config["bot_id"] != "janice-7g8h9j":
+            if bot_config["bot_id"] != "MrSpock-3762b2":
                 continue
 
 

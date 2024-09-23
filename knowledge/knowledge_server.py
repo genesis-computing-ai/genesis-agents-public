@@ -90,7 +90,7 @@ class KnowledgeServer:
                 current_time = datetime.now()
                 time_difference = current_time - bot_active_time_dt
 
-                print(f"\nBOTS ACTIVE TIME: {result[0]} | CURRENT TIME: {current_time} | TIME DIFFERENCE: {time_difference}", flush=True)
+                print(f"\nBOTS ACTIVE TIME: {result[0]} | CURRENT TIME: {current_time} | TIME DIFFERENCE: {time_difference} | producer", flush=True)
 
                 if time_difference < timedelta(minutes=5):
                     wake_up = True
@@ -167,8 +167,12 @@ class KnowledgeServer:
                     .data[0]
                     .content[0]
                     .text.value
-                )                
-                response = json.loads(raw_knowledge)
+                )
+                try:                
+                    response = json.loads(raw_knowledge)
+                except:
+                    response = None
+                    print('Skipped thread ',knowledge_thread_id,' knowledge unparseable')
             else:
                 system = "You are a Knowledge Explorer to extract, synthesize, and inject knowledge that bots learn from doing their jobs"
                 res, status_code  = self.db_connector.cortex_chat_completion(content, system)
@@ -177,25 +181,26 @@ class KnowledgeServer:
                 
 
             try:
-                # Ensure the timestamp is in the correct format for Snowflake
-                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                timestamp = thread["TIMESTAMP"]
-                if type(msg_log[-1]["TIMESTAMP"]) != str:
-                    last_timestamp = msg_log[-1]["TIMESTAMP"].strftime("%Y-%m-%d %H:%M:%S")
-                else:
-                    last_timestamp = msg_log[-1]["TIMESTAMP"]
-                bot_id = msg_log[-1]["BOT_ID"]
-                primary_user = msg_log[-1]["PRIMARY_USER"]
-                thread_summary = response["thread_summary"]
-                user_learning = response["user_learning"]
-                tool_learning = response["tool_learning"]
-                data_learning = response["data_learning"]
+                if response is not None:
+                    # Ensure the timestamp is in the correct format for Snowflake
+                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    timestamp = thread["TIMESTAMP"]
+                    if type(msg_log[-1]["TIMESTAMP"]) != str:
+                        last_timestamp = msg_log[-1]["TIMESTAMP"].strftime("%Y-%m-%d %H:%M:%S")
+                    else:
+                        last_timestamp = msg_log[-1]["TIMESTAMP"]
+                    bot_id = msg_log[-1]["BOT_ID"]
+                    primary_user = msg_log[-1]["PRIMARY_USER"]
+                    thread_summary = response["thread_summary"]
+                    user_learning = response["user_learning"]
+                    tool_learning = response["tool_learning"]
+                    data_learning = response["data_learning"]
 
-                self.db_connector.run_insert(self.db_connector.knowledge_table_name, timestamp=timestamp,thread_id=thread_id,knowledge_thread_id=knowledge_thread_id,
-                                              primary_user=primary_user,bot_id=bot_id,last_timestamp=last_timestamp,thread_summary=thread_summary,
-                                              user_learning=user_learning,tool_learning=tool_learning,data_learning=data_learning)
+                    self.db_connector.run_insert(self.db_connector.knowledge_table_name, timestamp=timestamp,thread_id=thread_id,knowledge_thread_id=knowledge_thread_id,
+                                                primary_user=primary_user,bot_id=bot_id,last_timestamp=last_timestamp,thread_summary=thread_summary,
+                                                user_learning=user_learning,tool_learning=tool_learning,data_learning=data_learning)
 
-                self.user_queue.put((primary_user, bot_id, response))
+                    self.user_queue.put((primary_user, bot_id, response))
             except Exception as e:
                 print(f"Encountered errors while inserting into {self.db_connector.knowledge_table_name} row: {e}")
             
@@ -222,7 +227,7 @@ class KnowledgeServer:
                     current_time = datetime.now()
                     time_difference = current_time - bot_active_time_dt
 
-                    print(f"\nBOTS ACTIVE TIME: {result[0]} | CURRENT TIME: {current_time} | TIME DIFFERENCE: {time_difference}", flush=True)
+                    print(f"\nBOTS ACTIVE TIME: {result[0]} | CURRENT TIME: {current_time} | TIME DIFFERENCE: {time_difference} | refiner", flush=True)
 
                     if time_difference < timedelta(minutes=5):
                         wake_up = True

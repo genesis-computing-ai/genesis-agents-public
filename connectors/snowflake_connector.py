@@ -7276,7 +7276,7 @@ result = 'Table FAKE_CUST created successfully.'
 
             
             potential_result = self.chat_completion_for_escallation(message=message)
-            print(potential_result)
+            #print(potential_result)
             return potential_result
 
         else:

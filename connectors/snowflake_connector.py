@@ -1671,7 +1671,7 @@ AND   RUNNER_ID = '{runner_id}'
 
         for _, process_default in self.process_defaults.iterrows():
             process_id = process_default['PROCESS_ID']
-            if process_default['TIMESTAMP'] is not None and not pd.isna(process_default['TIMESTAMP']):
+            if type(process_default['TIMESTAMP']) is not str and process_default['TIMESTAMP'] is not None and not pd.isna(process_default['TIMESTAMP']):
                 # Ensure row['TIMESTAMP'] is timezone-aware
                 if process_default['TIMESTAMP'].tzinfo is None:
                     process_default['TIMESTAMP'] = process_default['TIMESTAMP'].tz_localize(pytz.UTC)
@@ -1750,7 +1750,7 @@ AND   RUNNER_ID = '{runner_id}'
 
         for _, function_default in self.function_defaults.iterrows():
             function_id = function_default['FUNCTION_ID']
-            if function_default['TIMESTAMP'] is not None  and not pd.isna(function_default['TIMESTAMP']):
+            if type(function_default['TIMESTAMP']) is not str and function_default['TIMESTAMP'] is not None  and not pd.isna(function_default['TIMESTAMP']):
                # Ensure row['TIMESTAMP'] is timezone-aware
                if function_default['TIMESTAMP'].tzinfo is None:
                    function_default['TIMESTAMP'] = function_default['TIMESTAMP'].tz_localize(pytz.UTC)

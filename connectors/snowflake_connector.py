@@ -2817,7 +2817,7 @@ class SnowflakeConnector(DatabaseConnector):
                     BOT_ID VARCHAR(16777216),
                     PROCESS_NAME VARCHAR(16777216) NOT NULL,
                     PROCESS_INSTRUCTIONS VARCHAR(16777216),
-                    PROCESS_CONFIG VARCHAR(16777216),     
+                    PROCESS_CONFIG VARCHAR(16777216)     
                 );
                 """
                 cursor.execute(create_process_table_ddl)

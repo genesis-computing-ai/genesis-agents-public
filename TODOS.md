@@ -124,6 +124,7 @@ x streamlit takes a long time before submitting welcome job for each bot.. loadi
 x add bot details caching to new streamlit 
 
 next version:
+cortex leaves hanging speech bubble when doing tools like list processes, etc.
 fix openai-generated graphs showing up in streamlit
 fix HISTORY action on task scheduler
 set status to "running" when a task is running and the time it started

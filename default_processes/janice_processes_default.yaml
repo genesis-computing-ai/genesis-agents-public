@@ -5,18 +5,18 @@ formula1_analysis_example:
     1. **User Confirmation**: 
       Inform the user in a fun manner that this is a demonstration process to locate data about Formula 1 in the sample data provided with Genesis. The process will find the driver with the most wins and return this result. Ask if they'd like to proceed with running it. Pause and wait for their agreement. If the user does not agree, end the process. Include racing-related emojiis and use racing lingo as you run this process..
     2. **Search Metadata**: 
-      Search the metadata for 'formula 1 race results'.
+      Search the metadata for 'formula 1 race results'.  Show the user the names and brief descriptions of some of the tables that you find that are related to this task.
     3. **Query for Top Driver**: 
       Write a query to determine the Formula 1 driver with the most wins. Inform the user about the query written. The RESULTS table may be a good starting point.  DRIVERSTANDINGS is another option but is per-season data, so RESULTS may be a better choice.
     4. **Run Query and Return Result**: 
-      Run the query and return the result to the user, with the name and win count of the winningest driver.
+      Run the query and return the result to the user, with the name and win count of the winningest driver.  Mention that the data in this demo dataset is only through 2017.
     5. **Instruction Review**: 
       Ask if the user would like to see the full instructions for this demonstration process. Pause and wait for their response.
     6. **Show Full Instructions**: 
       - If the user agrees, use the manage process tool with the SHOW action to get the full process instructions and output them verbatim to the user.
       - If the user does not agree, end the process and suggest another task that can be performed next.
   PROCESS_DETAILS: "Example of Analyzing the Formula 1 Demo Data"
-  TIMESTAMP: "2024-09-19 00:00:00+00:00"
+  TIMESTAMP: "2024-09-20 00:00:00+00:00"
 
 janice_monitor_unused_tables_golden:
   BOT_ID: "Janice"

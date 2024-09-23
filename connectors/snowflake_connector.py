@@ -1677,11 +1677,14 @@ class SnowflakeConnector(DatabaseConnector):
             result = cursor.fetchone()
             process_columns = [desc[0] for desc in cursor.description]
 
+            updated_process = False
+            process_found = False
             if result is not None:
-                db_timestamp = result[5] if len(result) > 0 else None
+                process_found = True
+                db_timestamp = result[process_columns.index('TIMESTAMP')] if len(result) > 0 else None
 
                 # Ensure db_timestamp is timezone-aware
-                if db_timestamp is None:
+                if db_timestamp is None or db_timestamp == '':
                     db_timestamp = datetime.now(pytz.UTC)
                 elif db_timestamp.tzinfo is None:
                     db_timestamp = db_timestamp.replace(tzinfo=pytz.UTC)
@@ -1690,34 +1693,37 @@ class SnowflakeConnector(DatabaseConnector):
                 if process_default['TIMESTAMP'].tzinfo is None:
                     process_default['TIMESTAMP'] = process_default['TIMESTAMP'].tz_localize(pytz.UTC)
 
-                if result[0] == process_id and db_timestamp < process_default['TIMESTAMP']:
+                if result[1] == process_id and db_timestamp < process_default['TIMESTAMP']:
                     # Remove old process
                     query = f"DELETE FROM {self.schema}.PROCESSES WHERE PROCESS_ID = %s"
                     cursor.execute(query, (process_id,))
                     updated_process = True
-                elif result[0] == process_id:
+                elif result[process_columns.index('PROCESS_ID')] == process_id:
                     continue
 
-            placeholders = ', '.join(['%s'] * len(process_columns))
+            if process_found == False or (process_found==True and updated_process==True):
+                placeholders = ', '.join(['%s'] * len(process_columns))
 
-            insert_values = []
-            for key in process_columns:
-                if key == 'FUNCTION_ID':
-                    insert_values.append(process_id)
-                elif key == 'TIMESTAMP':
-                    insert_values.append(timestamp_str)
+                insert_values = []
+                for key in process_columns:
+                    if key == 'FUNCTION_ID':
+                        insert_values.append(process_id)
+                    elif key == 'TIMESTAMP':
+                        insert_values.append(timestamp_str)
+                    else:
+                        val = process_default.get(key, '') if process_default.get(key, '') is not None else ''
+                        if pd.isna(val):
+                            val = ''
+                        insert_values.append(val)
+                insert_query = f"INSERT INTO {self.schema}.PROCESSES ({', '.join(process_columns)}) VALUES ({placeholders})"
+                cursor.execute(insert_query, insert_values) 
+                if updated_process:
+                    print(f"Process {process_id} updated successfully.")
+                    updated_process = False
                 else:
-                    val = process_default.get(key, '') if process_default.get(key, '') is not None else ''
-                    if pd.isna(val):
-                        val = ''
-                    insert_values.append(val)
-            insert_query = f"INSERT INTO {self.schema}.PROCESSES ({', '.join(process_columns)}) VALUES ({placeholders})"
-            cursor.execute(insert_query, insert_values) 
-            if updated_process:
-                print(f"Process {process_id} updated successfully.")
-                updated_process = False
+                    print(f"Process {process_id} inserted successfully.")
             else:
-                print(f"Process {process_id} inserted successfully.")
+                print(f"Process {process_id} already in PROCESSES and it is up to date.")
         cursor.close()
 
     def load_default_functions(self, cursor, table):
@@ -1763,7 +1769,8 @@ class SnowflakeConnector(DatabaseConnector):
                 cursor.execute(add_column_query)
 
             if result is not None:
-                db_timestamp = result[5] if len(result) > 5 else None
+                timestamp_index = function_columns.index('TIMESTAMP') if 'TIMESTAMP' in function_columns else None
+                db_timestamp = result[timestamp_index] if timestamp_index is not None else None
 
                 # Ensure db_timestamp is timezone-aware
                 if db_timestamp is None:
@@ -1775,12 +1782,12 @@ class SnowflakeConnector(DatabaseConnector):
                 if function_default['TIMESTAMP'].tzinfo is None:
                     function_default['TIMESTAMP'] = function_default['TIMESTAMP'].tz_localize(pytz.UTC)
 
-                if result[1] == function_id and db_timestamp < function_default['TIMESTAMP']:
+                if result[function_columns.index('FUNCTION_ID')] == function_id and db_timestamp < function_default['TIMESTAMP']:
                     # Remove old process
                     query = f"DELETE FROM {self.schema}.BOT_FUNCTIONS WHERE FUNCTION_ID = %s"
                     cursor.execute(query, (function_id,))
                     updated_process = True
-                elif result[1] == function_id:
+                elif result[function_columns.index('FUNCTION_ID')] == function_id:
                     continue
 
             placeholders = ', '.join(['%s'] * len(function_columns))
@@ -2805,12 +2812,12 @@ class SnowflakeConnector(DatabaseConnector):
             if not cursor.fetchone():
                 create_process_table_ddl = f"""
                 CREATE TABLE {self.schema}.PROCESSES (
+                    TIMESTAMP TIMESTAMP_NTZ(9) NOT NULL
                     PROCESS_ID VARCHAR(16777216) NOT NULL PRIMARY KEY,
                     BOT_ID VARCHAR(16777216),
                     PROCESS_NAME VARCHAR(16777216) NOT NULL,
                     PROCESS_INSTRUCTIONS VARCHAR(16777216),
-                    PROCESS_CONFIG VARCHAR(16777216),
-                    TIMESTAMP TIMESTAMP_NTZ(9) NOT NULL
+                    PROCESS_CONFIG VARCHAR(16777216),     
                 );
                 """
                 cursor.execute(create_process_table_ddl)

@@ -200,7 +200,7 @@ if global_flags.slack_active == 'token_expired':
 print("...Slack Connector Active Flag: ", global_flags.slack_active)
 SystemVariables.bot_id_to_slack_adapter_map = {}
 
-if llm_api_key_struct.llm_key is not None:
+if llm_api_key_struct is not None and llm_api_key_struct.llm_key is not None:
     (
         sessions,
         api_app_id_to_session_map,

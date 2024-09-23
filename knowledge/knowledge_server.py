@@ -235,7 +235,7 @@ class KnowledgeServer:
         while True:
             if self.user_queue.empty():
                 print("Queue is empty, refiner is waiting...")
-                
+                time.sleep(refresh_seconds)
                 continue
             primary_user, bot_id, knowledge = self.user_queue.get()
             if primary_user is not None:

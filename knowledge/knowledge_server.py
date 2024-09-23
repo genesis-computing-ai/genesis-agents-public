@@ -246,7 +246,7 @@ class KnowledgeServer:
             primary_user, bot_id, knowledge = self.user_queue.get()
             if primary_user is not None:
                 try:
-                    user_json = json.loads(user_json = json.loads(primary_user))
+                    user_json = json.loads(primary_user)
                 except Exception as e:
                     print('Error on user_json ',e)
                     print('    primary user is ',primary_user,' switching to unknown user')

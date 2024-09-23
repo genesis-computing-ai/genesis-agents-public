@@ -42,7 +42,7 @@ janice_monitor_unused_tables_golden:
          - Be sure to include line breaks in the body where appropriate, using the standard line break indicator (`\n`).
 
     3. **Send the Email:**
-       - Send the email to `SYS$DEFAULT_EMAIL`.
+       - If SYS$DEFAULT_EMAIL is not 'None' and is an email address, send the email to `SYS$DEFAULT_EMAIL`.  Otherwise skip this step.
 
     ## Conclusion
     This process helps in identifying unused data tables and communicates cost-saving opportunities to stakeholders effectively.
@@ -77,6 +77,7 @@ janice_top_warehouses_spillage_golden:
         CALL GENESIS_BOTS.APP1.RUN_PROCESS_SQL('janice_query_2');
         
       - Confirm with the supervisor that you have run the query and note the number of rows you received in response.
+
     3. **Draft a Compelling Email:**
       - Draft an email with a catchy subject line including Unicode emojis about identified performance issues and an opportunity to optimize warehouse configurations in their Snowflake Environment (e.g., :snowflake::hammer_and_wrench:).
       - Include in the email body:
@@ -88,7 +89,7 @@ janice_top_warehouses_spillage_golden:
         - Ensure line breaks are included in the body where appropriate, using the standard line break indicator (\n).
 
     4. **Send the Email:**
-      - Send the email to SYS$DEFAULT_EMAIL.
+        - If SYS$DEFAULT_EMAIL is not 'None' and is an email address, send the email to `SYS$DEFAULT_EMAIL`.  Otherwise skip this step.
 
     ## Conclusion
     This process helps in identifying performance issues related to data spillage and queuing times, enabling stakeholders to optimize warehouse configurations for better performance.
@@ -138,8 +139,8 @@ janice_check_MFA_use_golden:
         - be sure to include line breaks in the body where appropriate, using the standard line break indicator (\n).
 
     3. **Send the Email:**
-      - Send the email to SYS$DEFAULT_EMAIL.
-      - Continue running the rest of the steps after sending the email
+        - If SYS$DEFAULT_EMAIL is not 'None' and is an email address, send the email to `SYS$DEFAULT_EMAIL`.  Otherwise skip this step.
+        - Then use run_process to continue running the rest of the steps
 
     4. **Generate Report and Recommendations**:
       - you are going to write an analysis of the data from the query. take note that:
@@ -179,8 +180,8 @@ janice_dangerous_user_report_golden:
         - be sure to include line breaks in the body where appropriate, using the standard line break indicator (\n).
 
     3. **Send the Email:**
-      - Send the email to SYS$DEFAULT_EMAIL.
-      - Continue running the rest of the steps after sending the email
+        - If SYS$DEFAULT_EMAIL is not 'None' and is an email address, send the email to `SYS$DEFAULT_EMAIL`.  Otherwise skip this step.
+        - Then use run_process to continue running the rest of the steps
 
     4. Analyze the results based on the following criteria:
       - Identify the top 5 users in terms of total privileges granted inclusive of roles.

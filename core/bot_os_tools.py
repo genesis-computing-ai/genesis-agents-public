@@ -4,7 +4,6 @@ import time
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
-from openai import OpenAI
 from datetime import datetime
 import threading 
 import random
@@ -18,6 +17,7 @@ from connectors import database_tools
 from connectors.bigquery_connector import BigQueryConnector
 from connectors.snowflake_connector import SnowflakeConnector
 from connectors.sqlite_connector import SqliteConnector
+from llm_openai.openai_utils import get_openai_client
 from slack.slack_tools import slack_tools, slack_tools_descriptions
 from connectors.database_tools import (
     image_functions,
@@ -76,17 +76,13 @@ logger = logging.getLogger(__name__)
 
 genesis_source = os.getenv("GENESIS_SOURCE", default="Snowflake")
 
+
 # module level
 belts = 0
 
 class ToolBelt:
-    def __init__(self, db_adapter, openai_api_key=None):
+    def __init__(self, db_adapter):
         self.db_adapter = db_adapter
-        self.openai_api_key = os.getenv("OPENAI_API_KEY",None) # openai_api_key 
-
-        # print(f"API KEY IN ENV VAR OPENAI_API_KEY: {self.openai_api_key}")
-
-        self.client = OpenAI(api_key=openai_api_key) if openai_api_key else None
         self.counter = {}
         self.instructions = {}
         self.process_config = {}
@@ -214,8 +210,7 @@ class ToolBelt:
 
                     print('process supervisor using model: ', openai_model)
                     try:
-                        openai_api_key = os.getenv("OPENAI_API_KEY")
-                        client = OpenAI(api_key=openai_api_key)
+                        client = get_openai_client()
                         response = client.chat.completions.create(
                             model=openai_model,
                             messages=[

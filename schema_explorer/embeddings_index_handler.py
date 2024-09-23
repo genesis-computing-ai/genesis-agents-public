@@ -13,6 +13,8 @@ import os
 from tqdm.auto import tqdm
 from datetime import datetime
 
+from llm_openai.openai_utils import get_openai_client
+
 genesis_source = os.getenv('GENESIS_SOURCE',default="BigQuery")
 emb_connection = genesis_source
 if genesis_source == 'BigQuery':
@@ -268,7 +270,7 @@ def make_and_save_index(table_id):
 
 # Function to get embedding (reuse or modify your existing get_embedding function)
 def get_embedding(text):
-    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    client = get_openai_client()
     #TODO if cortex mode use cortex
     response = client.embeddings.create(
         model="text-embedding-3-large",

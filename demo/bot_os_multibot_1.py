@@ -24,6 +24,7 @@ from connectors.bigquery_connector import BigQueryConnector
 from connectors.snowflake_connector import SnowflakeConnector
 from connectors.sqlite_connector import SqliteConnector
 from embed.embed_openbb import openbb_query
+from llm_openai.openai_utils import get_openai_client
 from slack.slack_bot_os_adapter import SlackBotAdapter
 
 from bot_genesis.make_baby_bot import (
@@ -54,9 +55,6 @@ import threading
 from core.system_variables import SystemVariables
 
 from demo.sessions_creator import create_sessions, make_session
-
-from openai import OpenAI
-
 
 # for Cortex testing
 #os.environ['SIMPLE_MODE'] = 'true'
@@ -150,16 +148,16 @@ else:
     db_adapter.ensure_table_exists()
 
 bot_id_to_udf_adapter_map = {}
-llm_api_key = None
+llm_api_key_struct = None
 llm_key_handler = LLMKeyHandler(db_adapter=db_adapter)
 
 # set the system LLM type and key
 print('Checking LLM_TOKENS for saved LLM Keys:')
 try:
-    api_key_from_env, llm_api_key, llm_type = llm_key_handler.get_llm_key_from_db()
+    api_key_from_env, llm_api_key_struct = llm_key_handler.get_llm_key_from_db()
 except Exception as e:
     logger.error(f"Failed to get LLM key from database: {e}")
-    llm_api_key = None
+    llm_api_key_struct = None
 
 print("---> CONNECTED TO DATABASE:: ", genesis_source)
 global_flags.source = genesis_source
@@ -202,7 +200,7 @@ if global_flags.slack_active == 'token_expired':
 print("...Slack Connector Active Flag: ", global_flags.slack_active)
 SystemVariables.bot_id_to_slack_adapter_map = {}
 
-if llm_api_key is not None:
+if llm_api_key_struct.llm_key is not None:
     (
         sessions,
         api_app_id_to_session_map,
@@ -329,7 +327,7 @@ def list_available_bots_fn():
     row = input_rows[0]
 
     output_rows = []
-    if "llm_api_key" not in globals() or llm_api_key is None:
+    if "llm_api_key_struct" not in globals() or llm_api_key_struct.llm_key is None:
         output_rows = [
             [row[0], {"Success": False, "Message": "Needs LLM Type and Key"}]
         ]
@@ -724,7 +722,7 @@ def configure_llm():
 
     from openai import OpenAI, OpenAIError
 
-    global llm_api_key, default_llm_engine, sessions, api_app_id_to_session_map, bot_id_to_udf_adapter_map, server
+    global llm_api_key_struct, default_llm_engine, sessions, api_app_id_to_session_map, bot_id_to_udf_adapter_map, server
     try:
 
         message = request.json
@@ -732,14 +730,16 @@ def configure_llm():
 
         llm_type = input_rows[0][1]
         llm_key = input_rows[0][2]
+        llm_endpoint = input_rows[0][3]
 
-        if not llm_key or not llm_type:
+        if not llm_key or not llm_type or not llm_endpoint:
             response = {
                 "Success": False,
-                "Message": "Missing LLM API Key or LLM Model Name.",
+                "Message": "Missing LLM API Key or LLM Model Name or LLM Endpoint.",
             }
             llm_key = None
             llm_type = None
+            llm_endpoint = None
 
         #  if api_key_from_env:
         #      response = {"Success": False, "Message": "LLM type and API key are set in an environment variable and can not be set or changed using this method."}
@@ -759,8 +759,10 @@ def configure_llm():
 
             if (llm_type.lower() == "openai"):
                 os.environ["OPENAI_API_KEY"] = llm_key
+                os.environ["AZURE_OPENAI_API_ENDPOINT"] = llm_endpoint
+
                 try:
-                    client = OpenAI(api_key=llm_key)
+                    client = get_openai_client()
 
                     completion = client.chat.completions.create(
                         model="gpt-4o",
@@ -768,7 +770,7 @@ def configure_llm():
                     )
                     # Success!  Update model and keys
 
-                except OpenAIError as e:
+                except Exception as e:
                     if "Connection" in str(e):
                         check_eai = " - please ensure the External Access Integration is setup properly."
                     else:
@@ -785,8 +787,8 @@ def configure_llm():
             # set the system default LLM engine
             os.environ["BOT_OS_DEFAULT_LLM_ENGINE"] = llm_type.lower()
             default_llm_engine = llm_type
-            llm_api_key = llm_key
-            if llm_api_key is not None:
+            llm_api_key_struct.llm_key = llm_key
+            if llm_api_key_struct.llm_key is not None:
                 try:
                     sessions, api_app_id_to_session_map, bot_id_to_udf_adapter_map, SystemVariables.bot_id_to_slack_adapter_map = create_sessions(
                         db_adapter,
@@ -832,6 +834,7 @@ def configure_llm():
             set_key_result = set_llm_key(
                 llm_key=llm_key,
                 llm_type=llm_type,
+                llm_endpoint=llm_endpoint,
             )
             if set_key_result:
                 response = {
@@ -866,7 +869,7 @@ scheduler = BackgroundScheduler(
 # Code to clear any threads that are stuck or crashed from BackgroundScheduler
 
 server = None
-if llm_api_key is not None:
+if llm_api_key_struct.llm_key is not None:
     BotOsServer.stream_mode = True
     server = BotOsServer(
         app, sessions=sessions, scheduler=scheduler, scheduler_seconds_interval=1,    

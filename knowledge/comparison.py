@@ -2,6 +2,8 @@ import os
 import json
 import sys
 
+from llm_openai.openai_utils import get_openai_client
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
@@ -15,7 +17,7 @@ from connectors.snowflake_connector import SnowflakeConnector
 knowledge_db_connector = SnowflakeConnector(connection_name='Snowflake')
 
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+client = get_openai_client()
 model = os.getenv("OPENAI_KNOWLEDGE_MODEL", 'gpt-4o')
 assistant = client.beta.assistants.create(
             name="Knowledge Explorer",

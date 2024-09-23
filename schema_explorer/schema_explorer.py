@@ -7,6 +7,8 @@ import random
 import logging
 from datetime import datetime
 
+from llm_openai.openai_utils import get_openai_client
+
 # Assuming OpenAI SDK initialization
 
 class SchemaExplorer:
@@ -31,7 +33,7 @@ class SchemaExplorer:
                 else:
                     os.environ["CORTEX_EMBEDDING_AVAILABLE"] = 'False'
         else:
-            self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+            self.client = get_openai_client()
             self.model=os.getenv("OPENAI_HARVESTER_MODEL", 'gpt-4o')
             self.embedding_model = os.getenv("OPENAI_HARVESTER_EMBEDDING_MODEL", 'text-embedding-3-large')
 

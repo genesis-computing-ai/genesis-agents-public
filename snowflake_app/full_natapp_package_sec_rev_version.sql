@@ -2121,8 +2121,8 @@ d
 SELECT CURRENT_ROLE(); -- Use the same role that installed the Application
 
 
-set OPENAI_API_KEY = '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';
-set NGROK_AUTHTOKEN = '2ce4bWGvzt5lBCDn6c2WsymnVSr_3m7QssHXhUHLi1BVCguRN';
+set OPENAI_API_KEY = '';
+set NGROK_AUTHTOKEN = '';
 
 set APP_DATABASE = 'GENESISAPP_APP';
 use database IDENTIFIER($APP_DATABASE);

@@ -2812,7 +2812,7 @@ class SnowflakeConnector(DatabaseConnector):
             if not cursor.fetchone():
                 create_process_table_ddl = f"""
                 CREATE TABLE {self.schema}.PROCESSES (
-                    TIMESTAMP TIMESTAMP_NTZ(9) NOT NULL
+                    TIMESTAMP TIMESTAMP_NTZ(9) NOT NULL,
                     PROCESS_ID VARCHAR(16777216) NOT NULL PRIMARY KEY,
                     BOT_ID VARCHAR(16777216),
                     PROCESS_NAME VARCHAR(16777216) NOT NULL,

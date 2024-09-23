@@ -6850,13 +6850,13 @@ $$
         query = f"""
                 WITH K AS (SELECT thread_id, max(last_timestamp) as last_timestamp FROM {self.knowledge_table_name}
                     GROUP BY thread_id),
-                M AS (SELECT thread_id, max(timestamp) as timestamp, COUNT(*) as count FROM {self.message_log_table_name} 
+                M AS (SELECT thread_id, max(timestamp) as timestamp, COUNT(*) as c FROM {self.message_log_table_name} 
                     WHERE PRIMARY_USER IS NOT NULL 
                     GROUP BY thread_id
-                    HAVING count > 3)
+                    HAVING c > 3)
                 SELECT M.thread_id, timestamp as timestamp, COALESCE(K.last_timestamp, DATE('2000-01-01')) as last_timestamp FROM M
                 LEFT JOIN K on M.thread_id = K.thread_id
-                WHERE timestamp > COALESCE(K.last_timestamp, DATE('2000-01-01')) AND timestamp < TO_TIMESTAMP('{cutoff}');"""
+                WHERE timestamp > COALESCE(K.last_timestamp, DATE('2000-01-01')) AND timestamp < TO_TIMESTAMP('{cutoff}') order by timestamp;"""
         return self.run_query(query)
 
     def query_timestamp_message_log(self, thread_id, last_timestamp, max_rows=50):

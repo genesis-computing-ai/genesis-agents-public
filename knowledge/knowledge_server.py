@@ -147,9 +147,14 @@ class KnowledgeServer:
                              Conversation:
                              {messages}
                         """
-                self.client.beta.threads.messages.create(
-                    thread_id=knowledge_thread_id, content=content, role="user"
-                )
+                try:
+                    print('openai create ', knowledge_thread_id)
+                    self.client.beta.threads.messages.create(
+                        thread_id=knowledge_thread_id, content=content, role="user"
+                    )
+                except Exception as e:
+                    print('openai create exception ', e)
+                    knowledge_thread_id = None
             else:
                 content = f"""Given the following conversations between the user and agent, analyze them and extract the 4 requested information:
                              Conversation:
@@ -173,8 +178,9 @@ class KnowledgeServer:
                         thread_id=knowledge_thread_id, content=content, role="user"
                     )
                 else: # cortex
-                    knowledge_thread_id = '' 
-            if self.llm_type == 'openai' or self.llm_type == 'OpenAI':
+                    knowledge_thread_id = ''
+            response = None
+            if (self.llm_type == 'openai' or self.llm_type == 'OpenAI') and knowledge_thread_id is not None:
                 run = self.client.beta.threads.runs.create(
                     thread_id=knowledge_thread_id, assistant_id=self.assistant.id
                 )

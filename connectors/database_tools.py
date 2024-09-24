@@ -374,6 +374,55 @@ process_scheduler_functions = [
 # depreciated
 autonomous_functions = []
 
+notebook_manager_functions = [
+    {
+        "type": "function",
+        "function": {
+            "name": "_manage_notebook",
+            "description": "Manages notes for bots, including creating, updating, listing and deleting notes, allowing bots to manage notebook.  Remember that this is not used to create new bots",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "action": {
+                        "type": "string",
+                        "description": """
+                        The action to perform on a note: CREATE, UPDATE, DELETE 
+                        LIST returns a list of all notes, SHOW shows full instructions and details for a note,
+                        or TIME to get current system time.""",
+                    },
+                    "bot_id": {
+                        "type": "string",
+                        "description": "The identifier of the bot that is having its processes managed.",
+                    },
+                    "note_id": {
+                        "type": "string",
+                        "description": "The unique identifier of the note, create as bot_id_<random 6 character string>. MAKE SURE TO DOUBLE-CHECK THAT YOU ARE USING THE CORRECT note_id ON UPDATES AND DELETES!  Required for CREATE, UPDATE, and DELETE.",
+                    },
+                    "note_type": {
+                        "type": "string",
+                        "description": "The type of note.  Should be 'process', 'snowpark_python', or 'sql'"
+                    },
+                    "note_definition": {
+                        "type": "object",
+                        "description": "The details of the note, required for create and update actions.",
+                        "properties": {
+                            "note_definition": {
+                                "type": "string",
+                                "description": "The body of the note",
+                            },
+                        },
+                        "required": [
+                           "note_id",
+                           "note_description",
+                        ],
+                    },
+                },
+                "required": ["action", "bot_id"],
+            },
+        },
+    }
+]
+
 process_manager_functions = [
     {
         "type": "function",
@@ -652,6 +701,7 @@ autonomous_tools = {}
 #process_runner_tools = {"_run_process": "tool_belt.run_process"}
 process_manager_tools = {"_manage_processes": "tool_belt.manage_processes"}
 process_scheduler_tools = {"_process_scheduler": "db_adapter.process_scheduler"}
+notebook_manager_tools = {"_run_notebook": "tool_belt.run_notebook"}
 
 
 def bind_semantic_copilot(data_connection_info):

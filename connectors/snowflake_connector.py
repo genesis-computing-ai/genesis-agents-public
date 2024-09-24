@@ -1820,9 +1820,69 @@ AND   RUNNER_ID = '{runner_id}'
                 print(f"Function {function_id} inserted successfully.")
         cursor.close()
 
+    def load_default_notebook(self, cursor, table):
+        pass
+
     def ensure_table_exists(self):
         import core.bot_os_tool_descriptions
 
+        # Create BOT_NOTEBOOK table if it doesn't exist
+        bot_notebook_table_check_query = f"SHOW TABLES LIKE 'BOT_NOTEBOOK' IN SCHEMA {self.schema};"
+        cursor = self.client.cursor()
+        cursor.execute(bot_notebook_table_check_query)
+        
+        if not cursor.fetchone():
+            create_bot_notebook_table_ddl = f"""
+            CREATE OR REPLACE TABLE {self.schema}.BOT_NOTEBOOK (
+                TIMESTAMP TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                BOT_ID VARCHAR(16777216),
+                NOTE_ID VARCHAR(16777216),
+                NOTE_TYPE VARCHAR(16777216),
+                NOTE_DEFINITION VARCHAR(16777216),
+                DESCRIPTION VARCHAR(16777216),
+            );
+            """
+            cursor.execute(create_bot_notebook_table_ddl)
+            self.client.commit()
+            print(f"Table {self.schema}.BOT_NOTEBOOK created successfully.")
+        else:
+            print(f"Table {self.schema}.BOT_NOTEBOOK already exists.")
+        
+        table = f"{self.schema}.BOT_NOTEBOOK"
+        self.load_default_notebook(cursor, table)
+
+         # NOTEBOOK_HISTORY TABLE
+        notebook_history_table_check_query = (
+            f"SHOW TABLES LIKE 'NOTEBOOK_HISTORY' IN SCHEMA {self.schema};"
+        )
+        # Check if the processes table exists
+        try:
+            cursor = self.client.cursor()
+            cursor.execute(notebook_history_table_check_query)
+            if not cursor.fetchone():
+                notebook_history_table_ddl = f"""
+                CREATE TABLE {self.process_history_table_name} (
+                    timestamp TIMESTAMP NOT NULL,
+                    note_id STRING NOT NULL,
+                    work_done_summary STRING,
+                    note_status STRING,
+                    updated_note_learnings STRING,
+                    report_message STRING,
+                    done_flag BOOLEAN,
+                    needs_help_flag BOOLEAN,
+                    notebook_clarity_comments STRING
+                );
+                """
+                cursor.execute(notebook_history_table_ddl)
+                self.client.commit()
+                print(f"Table {self.notebook_history_table_name} created.")
+            else:
+                check_query = f"DESCRIBE TABLE {self.notebook_history_table_name};"
+                print(f"Table {self.notebook_history_table_name} already exists.")
+        except Exception as e:
+            print(
+                f"An error occurred while checking or creating table {self.notebook_history_table_name}: {e}"
+            )
 
         # Create BOT_FUNCTIONS table if it doesn't exist
         bot_functions_table_check_query = f"SHOW TABLES LIKE 'BOT_FUNCTIONS' IN SCHEMA {self.schema};"
@@ -2357,7 +2417,7 @@ AND   RUNNER_ID = '{runner_id}'
 #                )
                 bot_name = "Eve"
                 bot_instructions = BASE_EVE_BOT_INSTRUCTIONS
-                available_tools = '["slack_tools", "make_baby_bot", "snowflake_stage_tools", "image_tools", "process_manager_tools", "process_runner_tools", "process_scheduler_tools"]'
+                available_tools = '["slack_tools", "make_baby_bot", "snowflake_stage_tools", "image_tools", "process_manager_tools", "process_runner_tools", "process_scheduler_tools", "notebook_manager_tools"]'
                 udf_active = "Y"
                 slack_active = "N"
                 bot_intro_prompt = EVE_INTRO_PROMPT
@@ -2587,7 +2647,7 @@ AND   RUNNER_ID = '{runner_id}'
     #                )
             bot_name = "Janice"
             bot_instructions = JANICE_JANITOR_INSTRUCTIONS
-            available_tools = '["slack_tools", "database_tools", "snowflake_stage_tools", "image_tools", "process_manager_tools", "process_runner_tools", "process_scheduler_tools"]'
+            available_tools = '["slack_tools", "database_tools", "snowflake_stage_tools", "image_tools", "process_manager_tools", "process_runner_tools", "process_scheduler_tools", "notebook_manager_tools"]'
             udf_active = "Y"
             slack_active = "N"
             bot_intro_prompt = JANICE_INTRO_PROMPT

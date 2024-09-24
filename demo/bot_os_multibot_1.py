@@ -869,7 +869,7 @@ scheduler = BackgroundScheduler(
 # Code to clear any threads that are stuck or crashed from BackgroundScheduler
 
 server = None
-if llm_api_key_struct.llm_key is not None:
+if llm_api_key_struct is not None and llm_api_key_struct.llm_key is not None:
     BotOsServer.stream_mode = True
     server = BotOsServer(
         app, sessions=sessions, scheduler=scheduler, scheduler_seconds_interval=1,    

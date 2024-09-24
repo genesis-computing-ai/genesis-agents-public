@@ -1851,7 +1851,7 @@ AND   RUNNER_ID = '{runner_id}'
         table = f"{self.schema}.BOT_NOTEBOOK"
         self.load_default_notebook(cursor, table)
 
-         # NOTEBOOK_HISTORY TABLE
+        # NOTEBOOK_HISTORY TABLE
         notebook_history_table_check_query = (
             f"SHOW TABLES LIKE 'NOTEBOOK_HISTORY' IN SCHEMA {self.schema};"
         )
@@ -1870,7 +1870,7 @@ AND   RUNNER_ID = '{runner_id}'
                     report_message STRING,
                     done_flag BOOLEAN,
                     needs_help_flag BOOLEAN,
-                    notebook_clarity_comments STRING
+                    note_clarity_comments STRING
                 );
                 """
                 cursor.execute(notebook_history_table_ddl)
@@ -1908,6 +1908,42 @@ AND   RUNNER_ID = '{runner_id}'
         
         table = f"{self.schema}.BOT_FUNCTIONS"
         self.load_default_functions(cursor, table)
+
+        # Check if the run_dynamic_snowpark procedure already exists
+        check_snowpark_query = f"""
+        SHOW PROCEDURES LIKE 'RUN_PROCESS_SNOWPARK' IN SCHEMA {self.schema}
+        """
+        cursor = self.client.cursor()
+        cursor.execute(check_snowpark_query)
+        procedure_exists = cursor.fetchone() is not None
+        cursor.close()
+
+        if procedure_exists:
+            print(f"Procedure RUN_PROCESS_SNOWPARK already exists in schema {self.schema}.")
+        else:
+            # Create the run_dynamic_sql procedure if it doesn't exist
+            create_procedure_query ="""
+            CREATE OR REPLACE PROCEDURE """+self.schema+""".RUN_PROCESS_SNOWPARK(statement_id VARCHAR)
+            RETURNS VARIANT
+            LANGUAGE JAVASCRIPT
+            EXECUTE AS OWNER
+            AS
+            $$
+                
+            $$;
+            """
+            
+            try:
+                cursor = self.client.cursor()
+                cursor.execute(create_procedure_query)
+                self.client.commit()
+                print("Procedure run_dynamic_snowpark created or replaced successfully.")
+            except Exception as e:
+                print(f"An error occurred while creating or replacing the run_dynamic_snowpark procedure: {e}")
+            finally:
+                if cursor:
+                    cursor.close()
+
 
         # Check if the run_dynamic_sql procedure already exists
         check_procedure_query = f"""

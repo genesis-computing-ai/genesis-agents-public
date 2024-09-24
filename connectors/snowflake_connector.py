@@ -2174,15 +2174,16 @@ AND   RUNNER_ID = '{runner_id}'
                         %s AS RUNNER_ID,
                         %s AS LLM_KEY,
                         %s AS LLM_TYPE,
-                        %s AS ACTIVE;
+                        %s AS ACTIVE,
+                        null as LLM_ENDPOINT;
                 """
 
                 # if a new install, set cortex to default LLM if available
                 test_cortex_available = self.check_cortex_available()
                 if test_cortex_available == True:
-                    cursor.execute(insert_initial_row_query, (runner_id,'cortex_no_key_needed', 'cortex', True,))
+                    cursor.execute(insert_initial_row_query, (runner_id,'cortex_no_key_needed', 'cortex', True))
                 else:
-                    cursor.execute(insert_initial_row_query, (runner_id,None,None,False,))
+                    cursor.execute(insert_initial_row_query, (runner_id,None,None,False))
                 self.client.commit()
                 print(f"Inserted initial row into {self.genbot_internal_project_and_schema}.LLM_TOKENS with runner_id: {runner_id}")
             else:
@@ -2208,7 +2209,7 @@ AND   RUNNER_ID = '{runner_id}'
                     cursor.execute(select_active_llm_query)
                     active_llm = cursor.fetchone()
 
-                    if active_llm == 'cortex':
+                    if active_llm[0] == 'cortex':
                         cortex_active = True
                     else:
                         cortex_active = False
@@ -2223,16 +2224,16 @@ AND   RUNNER_ID = '{runner_id}'
                                 LLM_KEY = source.LLM_KEY,
                                 ACTIVE = source.ACTIVE
                         WHEN NOT MATCHED THEN
-                            INSERT (RUNNER_ID, LLM_KEY, LLM_TYPE, ACTIVE)
-                            VALUES (source.RUNNER_ID, source.LLM_KEY, source.LLM_TYPE, source.ACTIVE);
+                            INSERT (RUNNER_ID, LLM_KEY, LLM_TYPE, ACTIVE, LLM_ENDPOINT)
+                            VALUES (source.RUNNER_ID, source.LLM_KEY, source.LLM_TYPE, source.ACTIVE, null);
                     """
 
                     # if a new install, set cortex to default LLM if available
                     test_cortex_available = self.check_cortex_available()
                     if test_cortex_available == True:
-                        cursor.execute(merge_cortex_row_query, (runner_id,'cortex_no_key_needed', 'cortex', cortex_active,))
+                        cursor.execute(merge_cortex_row_query, (runner_id,'cortex_no_key_needed', 'cortex', cortex_active))
                     else:
-                        cursor.execute(insert_initial_row_query, (runner_id,None,None,False,))
+                        cursor.execute(merge_cortex_row_query, (runner_id,None,None,False))
                     self.client.commit()
                     print(f"Merged cortex row into {self.genbot_internal_project_and_schema}.LLM_TOKENS with runner_id: {runner_id}")
 

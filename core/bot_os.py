@@ -247,7 +247,11 @@ class BotOsSession:
 
             input_message.metadata["user_authorized"] = "TRUE"
             input_message.metadata["response_authorized"] = "TRUE"
-            if self.assistant_impl.user_allow_cache.get(user_id, False) == False:
+            if input_message.metadata.get('channel_type','') == 'Streamlit':
+                streamlit_mode = True
+            else:
+                streamlit_mode = False
+            if streamlit_mode == False and self.assistant_impl.user_allow_cache.get(user_id, False) == False:
                 print(f"{self.bot_name} bot_os add_message non-cached access check for {self.bot_name} slack user: {user_id}", flush=True, )
                 slack_user_access = self.log_db_connector.db_get_bot_access( self.bot_id ).get("slack_user_allow")
                 if slack_user_access is not None:

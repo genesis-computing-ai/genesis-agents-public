@@ -31,7 +31,7 @@ from bot_genesis.make_baby_bot import (
     make_baby_bot,
     update_slack_app_level_key,
     set_llm_key,
-    get_llm_ke
+    get_llm_key,
     get_available_tools,
     get_ngrok_auth_token,
     set_ngrok_auth_token,
@@ -944,10 +944,7 @@ def bot_install_followup(bot_id=None, no_slack=False):
             data={"code": code, "client_id": client_id, "client_secret": client_secret},
         )
         # Check if the request was successful
-        if response.status_code == 
-      
-      
-      :
+        if response.status_code == 200:
             # Handle successful token exchange
             token_data = response.json()
             bot_user_id = token_data["bot_user_id"]

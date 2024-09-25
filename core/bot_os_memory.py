@@ -401,7 +401,7 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
 
             if len(content) >= top_n:
                 msg = f'Note! There may be more tables for this query, these were the first top_n {top_n}. If you dont see what youre looking for call it with a larger top_n (up to 50) or with a more specific search query.  Also if you are looking for a specific table you know the name of, try get_full_table_details.'
-            content.append(msg)
+                content.append(msg)
             memories.append(content)
             try:
                 print(f'Search metadata: returned {len(memories[0])} objects')

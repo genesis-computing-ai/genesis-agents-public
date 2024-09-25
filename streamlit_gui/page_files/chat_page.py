@@ -186,9 +186,13 @@ def chat_page():
         # Get the LLM configuration for the active bot
         llm_configuration = get_llm_configuration(selected_bot_id)
 
-        if intro_prompt or (('fast_mode' in st.session_state and st.session_state.fast_mode) and llm_configuration != 'openai'):
+        if (intro_prompt or ('fast_mode' in st.session_state and st.session_state.fast_mode)) and llm_configuration.lower() == 'cortex':
             #st.success("fast mode")
-            prompt += "<<!!FAST_MODE!!>>"
+            if prompt is not None:
+                prompt += "<<!!FAST_MODE!!>>"
+
+        if prompt is None:
+            prompt = 'hello'
 
         request_id = submit_to_udf_proxy(
             input_text=prompt,

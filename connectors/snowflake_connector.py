@@ -2594,18 +2594,17 @@ class SnowflakeConnector(DatabaseConnector):
                 ),
             )
             self.client.commit()
-            print(
-                f"Inserted initial Janice row into {self.bot_servicing_table_name} with runner_id: {runner_id}"
+            print(                f"Inserted initial Janice row into {self.bot_servicing_table_name} with runner_id: {runner_id}"
             )
             # add files to stage from local dir for Janice
             database, schema = self.genbot_internal_project_and_schema.split('.')
-            result = self.add_file_to_stage(
-                database=database,
-                schema=schema,
-                stage="BOT_FILES_STAGE",
-                file_name="./default_files/janice/*",
-            )
-            print(result)
+#            result = self.add_file_to_stage(
+#                database=database,
+#                schema=schema,
+#                stage="BOT_FILES_STAGE",
+#                file_name="./default_files/janice/*",
+#            )
+ #           print(result)
 
         ngrok_tokens_table_check_query = (
             f"SHOW TABLES LIKE 'NGROK_TOKENS' IN SCHEMA {self.schema};"
@@ -5347,7 +5346,8 @@ $$
         try:
             if file_content is None:
                 file_name = file_name.replace("serverlocal:", "")
-                openai_file_id = openai_file_id.replace("serverlocal:", "")
+                if openai_file_id is not None:
+                    openai_file_id = openai_file_id.replace("serverlocal:", "")
 
                 if file_name.startswith("file-"):
                     return {
@@ -5362,8 +5362,9 @@ $$
                     file_name = file_name[1:]
 
                 file_name = re.sub(r"[^\w\s\/\.-]", "", file_name.replace(" ", "_"))
-                if "/" in openai_file_id:
-                    openai_file_id = openai_file_id.split("/")[-1]
+                if openai_file_id is not None:
+                    if "/" in openai_file_id:
+                        openai_file_id = openai_file_id.split("/")[-1]
 
                 file_path = f"./downloaded_files/{thread_id}/" + file_name
                 existing_location = f"./downloaded_files/{thread_id}/{openai_file_id}"

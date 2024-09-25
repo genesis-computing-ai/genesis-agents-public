@@ -117,7 +117,7 @@ def llm_config():
                     st.success(
                         "-> Please refresh this browser page to chat with your bots!"
                     )
-                    st.session_state.clear()
+                    # st.session_state.clear()
                     st.cache_data.clear()
                     st.cache_resource.clear()
                     get_bot_details.clear()

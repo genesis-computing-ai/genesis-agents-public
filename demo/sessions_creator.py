@@ -296,7 +296,7 @@ def make_session(
                 actual_llm = 'cortex'
             else:
                 print('Snowflake Cortex is not available. Falling back to OpenAI.')
-                if _configure_openai_or_azure_openai():
+                if _configure_openai_or_azure_openai(db_adapter=db_adapter):
                     assistant_implementation = BotOsAssistantOpenAI
                     actual_llm = 'openai'
                 else:

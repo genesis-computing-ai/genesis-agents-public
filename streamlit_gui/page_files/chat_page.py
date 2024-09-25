@@ -444,6 +444,8 @@ def chat_page():
                 selected_bot_index = bot_names.index(selected_bot_name)
                 selected_bot_id = bot_ids[selected_bot_index]
                 selected_bot_intro_prompt = bot_intro_prompts[selected_bot_index]
+                if selected_bot_intro_prompt is None:
+                    selected_bot_intro_prompt = 'Briefly introduce yourself and suggest a next step to the user.'
 
                 selected_bot_id = bot_ids[selected_bot_index]
                 llm_configuration = get_llm_configuration(selected_bot_id)

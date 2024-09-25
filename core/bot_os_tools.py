@@ -351,6 +351,10 @@ class ToolBelt:
             return chr(int(match.group(1), 16))
 
         body = re.sub(r'\\u([0-9a-fA-F]{4})', unescape_unicode, body)
+        if len(subject) == 0:
+            subject = "Email from Genesis Bot"
+            if bot_id is not None:
+                subject += f' {bot_id}.'
         subject = re.sub(r'\\u([0-9a-fA-F]{4})', unescape_unicode, subject)
         subject = subject.replace('$$', '')
         body = body.replace('$$', '')

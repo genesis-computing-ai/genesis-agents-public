@@ -1004,7 +1004,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                     }
                     cb_closure = self._generate_callback_closure(thread_id, timestamp, message_metadata, func_call_details=func_call_details)
                 except json.JSONDecodeError as e:
-                    logger.error(f"Failed to decode function call JSON {function_call_str}: {e}")
+                   # logger.error(f"Failed to decode function call JSON {function_call_str}: {e}")
                     cb_closure = self._generate_callback_closure(thread_id, timestamp, message_metadata)
                     cb_closure(f"Failed to decode function call JSON {function_call_str}: {e}")
                     return
@@ -1026,7 +1026,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                                                         primary_user=primary_user)
             execute_function(function_to_call, json.dumps(arguments), self.available_functions, cb_closure, thread_id, self.bot_id)
         except json.JSONDecodeError as e:
-            print(f"Failed to decode tool call JSON {tool_call_str}: {e}")
+            print(f"Failed to decode tool call JSON: {e}")
             cb_closure = self._generate_callback_closure(thread_id, timestamp, message_metadata)
             cb_closure(f"Failed to decode tool call JSON {tool_call_str}: {e}.  Did you make sure to escape any double quotes that are inside another")
         except Exception as e:

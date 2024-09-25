@@ -23,6 +23,8 @@ def grant_data():
     -- set the name of the installed application
     set APP_DATABASE = '{st.session_state.get("app_name", "")}';
 
+    CREATE DATABASE IF NOT EXISITS GENESIS_LOCAL_DB;
+    CREATE SCHEMA IF NOT EXISTS GENESIS_LOCAL_DB.SETTINGS;
     USE SCHEMA GENESIS_LOCAL_DB.SETTINGS;
     USE WAREHOUSE XSMALL; -- or use your warehouse if not XSMALL
     """

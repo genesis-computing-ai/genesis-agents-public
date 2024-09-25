@@ -78,7 +78,7 @@ import core.global_flags as global_flags
 
     
 
-print("****** GENBOT VERSION 0.201-DEV*******")
+print("****** GENBOT VERSION 0.202-DEV*******")
 
 runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
 multbot_mode = True

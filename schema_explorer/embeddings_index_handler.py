@@ -225,9 +225,13 @@ def make_and_save_index(table_id):
 
     if len(embeddings) == 0:
         embeddings = []
-        embeddings.append( [0.0] * 3072)
+        if os.environ.get("CORTEX_MODE", 'False') == 'True':
+            embedding_size = 768
+        else:
+            embedding_size = 3072
+        embeddings.append( [0.0] * embedding_size)
         table_names = ['empty_index']
-        print("0 Embeddings found in database, saving a dummy index")
+        print("0 Embeddings found in database, saving a dummy index with size ",embedding_size," vectors")
 
     try:
         annoy_index = create_annoy_index(embeddings)

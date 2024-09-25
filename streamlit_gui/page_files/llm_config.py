@@ -26,6 +26,7 @@ def llm_config():
     
     llm_info = get_metadata("llm_info")
     llm_types = []
+    active_llm_type = None
     if len(llm_info) > 0:
         # Check which llm_type has active = true
         active_llm_type = [llm["llm_type"] for llm in llm_info if llm["active"]]

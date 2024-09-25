@@ -14,9 +14,9 @@ from openai.types.beta.threads import Message, MessageDelta
 from openai.types.beta.threads.runs import ToolCall, RunStep
 from openai.types.beta import AssistantStreamEvent
 
-OPENAI_API_KEY = "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"
+from llm_openai.openai_utils import get_openai_client
 
-openai_client = OpenAI(api_key=OPENAI_API_KEY)
+openai_client = get_openai_client()
 
 your_assistant = openai_client.beta.assistants.create(
  name="Blog Post Example Assistant",

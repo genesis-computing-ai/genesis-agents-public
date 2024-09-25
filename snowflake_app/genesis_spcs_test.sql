@@ -166,7 +166,7 @@ CREATE SERVICE spcs_test.app_test_schema.genesis_server
       - name: genesis
         image: dshrnxx-genesis.registry.snowflakecomputing.com/spcs_test/app_test_schema/app_test_repository/genesis_app:latest
         env:
-            OPENAI_API_KEY: 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
+            OPENAI_API_KEY: 
             OPENAI_HARVESTER_EMBEDDING_MODEL: text-embedding-3-large
             OPENAI_HARVESTER_MODEL: gpt-4-1106-preview
             HARVESTER_REFRESH_SECONDS: 20
@@ -225,7 +225,7 @@ ALTER SERVICE  spcs_test.app_test_schema.genesis_server
       - name: genesis
         image: dshrnxx-genesis.registry.snowflakecomputing.com/spcs_test/app_test_schema/app_test_repository/genesis_app:latest
         env:
-            OPENAI_API_KEY: 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
+            OPENAI_API_KEY: 
             OPENAI_MODEL_NAME: gpt-4-1106-preview
             OPENAI_HARVESTER_EMBEDDING_MODEL: text-embedding-3-large
             OPENAI_HARVESTER_MODEL: gpt-4-1106-preview
@@ -758,14 +758,14 @@ CREATE SERVICE echo_service
         env:
           SERVER_PORT: 8000
           CHARACTER_NAME: Bob
-          OPENAI_API_KEY: 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
-          NGROK_AUTHTOKEN: 2czFR4SUVHhScc5E0ii7FdtPZjl_6fW5cJB8DEwPJWXV5ZDcK
+          OPENAI_API_KEY: 
+          NGROK_AUTHTOKEN: 
           SNOWFLAKE_HOST_OVERRIDE: "mmb84124.prod3.us-west-2.aws.snowflakecomputing.com"
           SNOWFLAKE_PORT_OVERRIDE: 443
           SNOWFLAKE_SCHEMA_OVERRIDE: APP_TEST_SCHEMA
           SNOWFLAKE_ACCOUNT_OVERRIDE: mmb84124
           SNOWFLAKE_USER_OVERRIDE: GENESIS_RUNNER_JL
-          SNOWFLAKE_PASSWORD_OVERRIDE: Gen12349esisBotTest3837
+          SNOWFLAKE_PASSWORD_OVERRIDE: 
           SNOWFLAKE_DATABASE_OVERRIDE: GENESIS_TEST
           SNOWFLAKE_WAREHOUSE_OVERRIDE: XSMALL
           SNOWFLAKE_ROLE_OVERRIDE: APP_OWNER_ROLE

@@ -2,7 +2,6 @@ import json
 import os, uuid, re
 from typing import TypedDict
 from core.bot_os_assistant_base import BotOsAssistantInterface, execute_function
-from openai import OpenAI
 from collections import deque
 import datetime
 import time 
@@ -21,7 +20,8 @@ from openai.types.beta.threads.runs import ToolCall, RunStep
 from openai.types.beta import AssistantStreamEvent
 from collections import defaultdict
 import traceback
-from bot_genesis.make_baby_bot import (  get_bot_details ) 
+from bot_genesis.make_baby_bot import (  get_bot_details )
+from llm_openai.openai_utils import get_openai_client 
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.WARN, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -183,8 +183,8 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       logger.debug("BotOsAssistantOpenAI:__init__") 
       super().__init__(name, instructions, tools, available_functions, files, update_existing, skip_vectors=False, bot_id=bot_id, bot_name=bot_name)
 
-      self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
       model_name = os.getenv("OPENAI_MODEL_NAME", default="gpt-4o")
+      self.client = get_openai_client()
     
       name = bot_id
       print("-> OpenAI Model == ",model_name)

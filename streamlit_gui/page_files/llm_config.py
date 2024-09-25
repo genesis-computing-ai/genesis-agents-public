@@ -1,6 +1,6 @@
 import streamlit as st
 import time 
-from utils import get_bot_details, get_metadata, configure_llm, check_eai_status, get_references, upgrade_services
+from utils import get_bot_details, get_metadata, configure_llm, check_eai_status, get_references, upgrade_services, get_bot_details
 
 
 def llm_config():
@@ -74,12 +74,19 @@ def llm_config():
     else:
 
         llm_model = st.selectbox("Choose LLM Model:", ["OpenAI", "cortex"])
+        llm_api_endpoint = ""
 
         if llm_model in ["OpenAI"]:
             selected_key = [llm["llm_key"] for llm in llm_info if llm["llm_type"] == llm_model]
             if selected_key:
                 cur_key = selected_key[0][:3] + "*" * (len(selected_key[0]) - 7) + selected_key[0][-4:] if len(selected_key[0]) > 10 else selected_key[0]
-            llm_api_key = st.text_input("Enter API Key:", value=cur_key)
+            llm_api_key = st.text_input("Enter OpenAI or Azure OpenAI API Key:", value=cur_key)
+            selected_endpoint = [llm["llm_endpoint"] for llm in llm_info if llm["llm_type"] == llm_model]
+            if selected_endpoint:
+                cur_endpoint = selected_endpoint[0]
+            else:
+                cur_endpoint = ""
+            llm_api_endpoint = st.text_input("Enter Azure API Endpoint (if applicable):", value=cur_endpoint)          
         else:
             llm_api_key = 'cortex_no_key_needed'
 
@@ -92,13 +99,13 @@ def llm_config():
             # if eai_status == True or llm_model == 'cortex':
 
             st.write("One moment while I validate the key and launch the bots...")
-            if cur_key:
+            if "***" in llm_api_key: # if it was hidden replace with real key
                 llm_api_key = selected_key[0]
-            config_response = configure_llm(llm_model, llm_api_key)
+            config_response = configure_llm(llm_model, llm_api_key, llm_api_endpoint)
             if config_response["Success"] is False:
                 resp = config_response["Message"]
                 st.error(f"Failed to set LLM token: {resp}")
-                config_response = configure_llm('cortex', 'cortex_no_key_needed')
+                config_response = configure_llm('cortex', 'cortex_no_key_needed', '')
                 # if config_response["Success"] is False:
                 # if "Connection" in resp:
                 #     #TODO go to EAI page
@@ -123,6 +130,7 @@ def llm_config():
                     get_bot_details.clear()
                     if llm_model in ["OpenAI"]:
                         st.session_state.show_openai_config = False
+
                     
             if cur_key == "<existing key present on server>":
                 st.write("Reload this page to chat with your apps.")

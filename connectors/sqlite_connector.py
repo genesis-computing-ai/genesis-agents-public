@@ -15,7 +15,9 @@ import yaml, time, random, string
 import snowflake.connector
 import random, string
 import requests
-from .database_connector import DatabaseConnector
+
+from llm_openai.openai_utils import get_openai_client
+from .database_connector import DatabaseConnector, llm_keys_and_types_struct
 from core.bot_os_defaults import (
     BASE_EVE_BOT_INSTRUCTIONS,
     ELIZA_DATA_ANALYST_INSTRUCTIONS,
@@ -1439,15 +1441,16 @@ class SqliteConnector(DatabaseConnector):
                     RUNNER_ID VARCHAR(16777216),
                     LLM_KEY VARCHAR(16777216),
                     LLM_TYPE VARCHAR(16777216),
-                    ACTIVE INTEGER
+                    ACTIVE INTEGER,
+                    LLM_ENDPOINT VARCHAR(16777216)
                 );
                 """
                 cursor.execute(llm_config_table_ddl)
                 self.client.commit()
                 runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
                 insert_initial_row_query = f"""
-                    INSERT INTO LLM_TOKENS (RUNNER_ID, LLM_KEY, LLM_TYPE, ACTIVE)
-                    VALUES (?, NULL, NULL, 0);
+                    INSERT INTO LLM_TOKENS (RUNNER_ID, LLM_KEY, LLM_TYPE, ACTIVE, LLM_ENDPOINT)
+                    VALUES (?, NULL, NULL, 0, NULL);
                 """
                 cursor.execute(insert_initial_row_query, (runner_id,))
                 self.client.commit()
@@ -1455,6 +1458,29 @@ class SqliteConnector(DatabaseConnector):
                 pass
         except Exception as e:
             print(f"An error occurred while checking or creating table LLM_TOKENS: {e}")
+        finally:
+            if cursor is not None:
+                cursor.close()
+
+        # Check if LLM_ENDPOINT column exists in LLM_TOKENS table
+        check_llm_endpoint_query = f"DESCRIBE TABLE {self.genbot_internal_project_and_schema}.LLM_TOKENS;"
+        try:
+            cursor = self.client.cursor()
+            cursor.execute(check_llm_endpoint_query)
+            columns = [col[0] for col in cursor.fetchall()]
+            
+            if "LLM_ENDPOINT" not in columns:
+                # Add LLM_ENDPOINT column if it doesn't exist
+                alter_table_query = f"ALTER TABLE {self.genbot_internal_project_and_schema}.LLM_TOKENS ADD COLUMN LLM_ENDPOINT VARCHAR(16777216);"
+                cursor.execute(alter_table_query)
+                self.client.commit()
+                logger.info(
+                    f"Column 'LLM_ENDPOINT' added to table {self.genbot_internal_project_and_schema}.LLM_TOKENS."
+                )
+        except Exception as e:
+            logger.error(
+                f"An error occurred while checking or altering table {self.genbot_internal_project_and_schema}.LLM_TOKENS to add LLM_ENDPOINT column: {e}"
+            )
         finally:
             if cursor is not None:
                 cursor.close()
@@ -2910,25 +2936,20 @@ class SqliteConnector(DatabaseConnector):
         """
         logger.info(f"query: {query}")
         try:
-            cursor = self.client.cursor()
-            cursor.execute(query, (runner_id,))
-            results = cursor.fetchall()
-            logger.info(f"results: {results}")
-            cursor.close()
-
-            if results:
-                llm_keys_and_types = [(row[0], row[1]) for row in results]
-                return llm_keys_and_types
+            with self.connection.cursor() as cursor:
+                cursor.execute(query, (runner_id,))
+                result = cursor.fetchone()
+                
+            if result:
+                return llm_keys_and_types_struct(llm_type=result[1], llm_key=result[0], llm_endpoint=result[2])
             else:
-                # Log an error if no LLM key was found for the runner_id
-                return []
+                logger.info("No LLM tokens found for runner_id: %s", runner_id)
+                return llm_keys_and_types_struct()
         except Exception as e:
-            logger.info(
-                "LLM_TOKENS table not yet created, returning empty list, try again later."
-            )
-            return []
+            logger.error("Error retrieving LLM tokens: %s", str(e))
+            return llm_keys_and_types_struct()
 
-    def db_get_active_llm_key(self):
+    def db_get_active_llm_key(self) -> list[llm_keys_and_types_struct]:
         """
         Retrieves the active LLM key and type for the given runner_id.
 
@@ -2939,7 +2960,7 @@ class SqliteConnector(DatabaseConnector):
         logger.info("in getllmkey")
         # Query to select the LLM key and type from the llm_tokens table
         query = f"""
-            SELECT llm_key, llm_type
+            SELECT llm_key, llm_type, llm_endpoint
             FROM llm_tokens
             WHERE runner_id = ? and active = True
         """
@@ -2951,7 +2972,7 @@ class SqliteConnector(DatabaseConnector):
             cursor.close()
 
             if result:
-                return result[0], result[1]  # Return llm_key and llm_type as a tuple
+                return result[0], result[1], result[2]  # Return llm_key and llm_type as a tuple
             else:
                 return None, None  # Return None if no result found
         except Exception as e:
@@ -3910,8 +3931,7 @@ class SqliteConnector(DatabaseConnector):
             print("imagegen OpenAI API key is not set in the environment variables.")
             return None
 
-        openai.api_key = os.getenv("OPENAI_API_KEY")
-        client = openai.OpenAI(api_key=openai.api_key)
+        client = get_openai_client()
 
         # Generate the image using DALL-E 3
         try:

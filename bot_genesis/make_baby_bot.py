@@ -2,6 +2,7 @@
 import logging
 import os, json, requests, uuid
 from connectors.bigquery_connector import BigQueryConnector
+from connectors.database_connector import llm_keys_and_types_struct
 from connectors.snowflake_connector import SnowflakeConnector
 from connectors.sqlite_connector import SqliteConnector
 
@@ -111,7 +112,7 @@ def set_ngrok_auth_token(ngrok_auth_token, ngrok_use_domain='N', ngrok_domain=''
     return bb_db_connector.db_set_ngrok_auth_token(ngrok_auth_token=ngrok_auth_token, ngrok_use_domain=ngrok_use_domain, ngrok_domain=ngrok_domain, project_id=project_id, dataset_name=dataset_name)
 
 
-def get_llm_key():
+def get_llm_key() -> list[llm_keys_and_types_struct]:
     """
     Retrieves the LLM key and type and active switch for the given runner_id.
 
@@ -121,16 +122,17 @@ def get_llm_key():
     runner_id = os.getenv('RUNNER_ID', 'jl-local-runner')
     return bb_db_connector.db_get_llm_key(project_id=project_id, dataset_name=dataset_name)
 
-def set_llm_key(llm_key, llm_type):
+def set_llm_key(llm_key, llm_type, llm_endpoint):
     """
     Updates the llm_key table with the provided LLM key and type.
 
     Args:
         llm_key (str): The LLM key.
         llm_type (str): The type of LLM (e.g., 'openai', 'reka').
+        llm_endpoint (str): The URL endpoint (e.g., for azure)
     """
     runner_id = os.getenv('RUNNER_ID', 'jl-local-runner')
-    return bb_db_connector.db_set_llm_key(llm_key=llm_key, llm_type=llm_type)
+    return bb_db_connector.db_set_llm_key(llm_key=llm_key, llm_type=llm_type, llm_endpoint=llm_endpoint)
 
 
 

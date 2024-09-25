@@ -3,6 +3,8 @@ from openai import OpenAI
 from annoy import AnnoyIndex
 import json
 
+from llm_openai.openai_utils import get_openai_client
+
 # Assuming the embedding size is known (e.g., 4096 for "text-embedding-3-large" model)
 embedding_size = 3072
 
@@ -19,7 +21,7 @@ with open(metadata_file_path, 'r') as f:
 
 # Function to get embedding (reuse or modify your existing get_embedding function)
 def get_embedding(text):
-    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    client = get_openai_client()
     response = client.embeddings.create(
         model="text-embedding-3-large",
         input=text.replace("\n", " ")  # Replace newlines with spaces

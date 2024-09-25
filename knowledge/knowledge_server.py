@@ -9,6 +9,8 @@ from openai import OpenAI
 from datetime import datetime, timedelta
 import ast
 
+from llm_openai.openai_utils import get_openai_client
+
 refresh_seconds = os.getenv("KNOWLEDGE_REFRESH_SECONDS", 60)
 refresh_seconds = int(refresh_seconds)
 
@@ -29,7 +31,7 @@ class KnowledgeServer:
         self.llm_type = llm_type
         if llm_type == 'openai' or llm_type == 'OpenAI':
             self.openai_api_key = os.getenv("OPENAI_API_KEY")
-            self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+            self.client = get_openai_client() 
             self.model = os.getenv("OPENAI_KNOWLEDGE_MODEL", os.getenv('OPENAI_MODEL_NAME',"gpt-4o"))
             self.assistant = self.client.beta.assistants.create(
                 name="Knowledge Explorer",

@@ -20,7 +20,9 @@ import pytz
 import sys
 import pkgutil
 
-from .database_connector import DatabaseConnector
+from llm_openai.openai_utils import get_openai_client
+
+from .database_connector import DatabaseConnector, llm_keys_and_types_struct
 from core.bot_os_defaults import (
     BASE_EVE_BOT_INSTRUCTIONS,
     ELIZA_DATA_ANALYST_INSTRUCTIONS,
@@ -774,7 +776,13 @@ class SnowflakeConnector(DatabaseConnector):
             list: A list of llm keys, llm types, and the active switch.
         """
         try:
-            query = f"SELECT LLM_TYPE, ACTIVE, LLM_KEY FROM {self.genbot_internal_project_and_schema}.LLM_TOKENS WHERE LLM_KEY is not NULL"
+            runner_id = os.getenv("RUNNER_ID", "jl-local-runner") 
+            query = f"""
+SELECT LLM_TYPE, ACTIVE, LLM_KEY, LLM_ENDPOINT 
+FROM {self.genbot_internal_project_and_schema}.LLM_TOKENS 
+WHERE LLM_KEY is not NULL
+AND   RUNNER_ID = '{runner_id}'
+"""
             cursor = self.client.cursor()
             cursor.execute(query)
             llm_info = cursor.fetchall()
@@ -2150,7 +2158,8 @@ class SnowflakeConnector(DatabaseConnector):
                     RUNNER_ID VARCHAR(16777216),
                     LLM_KEY VARCHAR(16777216),
                     LLM_TYPE VARCHAR(16777216),
-                    ACTIVE BOOLEAN
+                    ACTIVE BOOLEAN,
+                    LLM_ENDPOINT VARCHAR(16777216)
                 );
                 """
                 cursor.execute(llm_config_table_ddl)
@@ -2165,15 +2174,16 @@ class SnowflakeConnector(DatabaseConnector):
                         %s AS RUNNER_ID,
                         %s AS LLM_KEY,
                         %s AS LLM_TYPE,
-                        %s AS ACTIVE;
+                        %s AS ACTIVE,
+                        null as LLM_ENDPOINT;
                 """
 
                 # if a new install, set cortex to default LLM if available
                 test_cortex_available = self.check_cortex_available()
                 if test_cortex_available == True:
-                    cursor.execute(insert_initial_row_query, (runner_id,'cortex_no_key_needed', 'cortex', True,))
+                    cursor.execute(insert_initial_row_query, (runner_id,'cortex_no_key_needed', 'cortex', True))
                 else:
-                    cursor.execute(insert_initial_row_query, (runner_id,None,None,False,))
+                    cursor.execute(insert_initial_row_query, (runner_id,None,None,False))
                 self.client.commit()
                 print(f"Inserted initial row into {self.genbot_internal_project_and_schema}.LLM_TOKENS with runner_id: {runner_id}")
             else:
@@ -2199,7 +2209,7 @@ class SnowflakeConnector(DatabaseConnector):
                     cursor.execute(select_active_llm_query)
                     active_llm = cursor.fetchone()
 
-                    if active_llm == 'cortex':
+                    if active_llm[0] == 'cortex':
                         cortex_active = True
                     else:
                         cortex_active = False
@@ -2214,16 +2224,16 @@ class SnowflakeConnector(DatabaseConnector):
                                 LLM_KEY = source.LLM_KEY,
                                 ACTIVE = source.ACTIVE
                         WHEN NOT MATCHED THEN
-                            INSERT (RUNNER_ID, LLM_KEY, LLM_TYPE, ACTIVE)
-                            VALUES (source.RUNNER_ID, source.LLM_KEY, source.LLM_TYPE, source.ACTIVE);
+                            INSERT (RUNNER_ID, LLM_KEY, LLM_TYPE, ACTIVE, LLM_ENDPOINT)
+                            VALUES (source.RUNNER_ID, source.LLM_KEY, source.LLM_TYPE, source.ACTIVE, null);
                     """
 
                     # if a new install, set cortex to default LLM if available
                     test_cortex_available = self.check_cortex_available()
                     if test_cortex_available == True:
-                        cursor.execute(merge_cortex_row_query, (runner_id,'cortex_no_key_needed', 'cortex', cortex_active,))
+                        cursor.execute(merge_cortex_row_query, (runner_id,'cortex_no_key_needed', 'cortex', cortex_active))
                     else:
-                        cursor.execute(insert_initial_row_query, (runner_id,None,None,False,))
+                        cursor.execute(merge_cortex_row_query, (runner_id,None,None,False))
                     self.client.commit()
                     print(f"Merged cortex row into {self.genbot_internal_project_and_schema}.LLM_TOKENS with runner_id: {runner_id}")
 
@@ -2238,6 +2248,28 @@ class SnowflakeConnector(DatabaseConnector):
             if cursor is not None:
                 cursor.close()
    
+        # Check if LLM_ENDPOINT column exists in LLM_TOKENS table
+        check_llm_endpoint_query = f"DESCRIBE TABLE {self.genbot_internal_project_and_schema}.LLM_TOKENS;"
+        try:
+            cursor = self.client.cursor()
+            cursor.execute(check_llm_endpoint_query)
+            columns = [col[0] for col in cursor.fetchall()]
+            
+            if "LLM_ENDPOINT" not in columns:
+                # Add LLM_ENDPOINT column if it doesn't exist
+                alter_table_query = f"ALTER TABLE {self.genbot_internal_project_and_schema}.LLM_TOKENS ADD COLUMN LLM_ENDPOINT VARCHAR(16777216);"
+                cursor.execute(alter_table_query)
+                self.client.commit()
+                logger.info(
+                    f"Column 'LLM_ENDPOINT' added to table {self.genbot_internal_project_and_schema}.LLM_TOKENS."
+                )
+        except Exception as e:
+            logger.error(
+                f"An error occurred while checking or altering table {self.genbot_internal_project_and_schema}.LLM_TOKENS to add LLM_ENDPOINT column: {e}"
+            )
+        finally:
+            if cursor is not None:
+                cursor.close()
 
         slack_tokens_table_check_query = (
             f"SHOW TABLES LIKE 'SLACK_APP_CONFIG_TOKENS' IN SCHEMA {self.schema};"
@@ -4064,40 +4096,36 @@ $$
 
     def db_get_llm_key(self, project_id=None, dataset_name=None):
         """
-        Retrieves the LLM key and type for the given runner_id.
+        Retrieves all LLM keys, types, and endpoints for the current runner.
+
+        Args:
+            project_id: Unused, kept for interface compatibility.
+            dataset_name: Unused, kept for interface compatibility.
 
         Returns:
-            list: A list of tuples, each containing an LLM key and LLM type.
+            list: A list of structs containing LLM key, type, and endpoint.
         """
         runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
-        logger.info("in getllmkey")
-        # Query to select the LLM key and type from the llm_tokens table
         query = f"""
-            SELECT llm_key, llm_type
+            SELECT llm_key, llm_type, llm_endpoint
             FROM {self.genbot_internal_project_and_schema}.llm_tokens
             WHERE runner_id = %s
         """
-        logger.info(f"query: {query}")
         try:
-            cursor = self.connection.cursor()
-            cursor.execute(query, (runner_id,))
-            results = cursor.fetchall()
-            logger.info(f"results: {results}")
-            cursor.close()
-
+            with self.connection.cursor() as cursor:
+                cursor.execute(query, (runner_id,))
+                results = cursor.fetchall()
+                
             if results:
-                llm_keys_and_types = [(row[0], row[1]) for row in results]
-                return llm_keys_and_types
+                return [llm_keys_and_types_struct(llm_type=result[1], llm_key=result[0], llm_endpoint=result[2]) for result in results]
             else:
-                # Log an error if no LLM key was found for the runner_id
+                logger.info("No LLM tokens found for runner_id: %s", runner_id)
                 return []
         except Exception as e:
-            logger.info(
-                "LLM_TOKENS table not yet created, returning empty list, try again later."
-            )
+            logger.error("Error retrieving LLM tokens: %s", str(e))
             return []
         
-    def db_get_active_llm_key(self):
+    def db_get_active_llm_key(self) -> list[llm_keys_and_types_struct]:
         """
         Retrieves the active LLM key and type for the given runner_id.
 
@@ -4108,7 +4136,7 @@ $$
         logger.info("in getllmkey")
         # Query to select the LLM key and type from the llm_tokens table
         query = f"""
-            SELECT llm_key, llm_type
+            SELECT llm_key, llm_type, llm_endpoint
             FROM {self.genbot_internal_project_and_schema}.llm_tokens
             WHERE runner_id = %s and active = True
         """
@@ -4120,27 +4148,32 @@ $$
             cursor.close()
 
             if result:
-                return result[0], result[1]  # Return llm_key and llm_type as a tuple
+                return llm_keys_and_types_struct(llm_type=result[1], llm_key=result[0], llm_endpoint=result[2])
             else:
-                return None, None  # Return None if no result found
+                return llm_keys_and_types_struct()  # Return None if no result found
         except Exception as e:
             print(
                 "Error getting data from LLM_TOKENS table: ", e
             )
-            return None, None
+            return llm_keys_and_types_struct()
 
-    def db_set_llm_key(self, llm_key, llm_type):
+    def db_set_llm_key(self, llm_key, llm_type, llm_endpoint):
         """
         Updates the llm_tokens table with the provided LLM key and type.
 
         Args:
             llm_key (str): The LLM key.
             llm_type (str): The type of LLM (e.g., 'openai', 'reka').
+            llm_endpoint (str): endpoint for LLM like azure openai
         """
         runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
 
         try:
-            update_query = f""" UPDATE  {self.genbot_internal_project_and_schema}.llm_tokens SET ACTIVE = FALSE """
+            update_query = f"""
+    UPDATE  {self.genbot_internal_project_and_schema}.llm_tokens 
+    SET ACTIVE = FALSE 
+    WHERE RUNNER_ID = '{runner_id}'
+    """
             cursor = self.connection.cursor()
             cursor.execute(update_query)
             self.connection.commit()
@@ -4153,17 +4186,17 @@ $$
         query = f"""
             MERGE INTO  {self.genbot_internal_project_and_schema}.llm_tokens USING (SELECT 1 AS one) ON (runner_id = %s and llm_type = '{llm_type}')
             WHEN MATCHED THEN
-                UPDATE SET llm_key = %s, llm_type = %s, active = TRUE
+                UPDATE SET llm_key = %s, llm_type = %s, active = TRUE, llm_endpoint = %s
             WHEN NOT MATCHED THEN
-                INSERT (runner_id, llm_key, llm_type, active)
-                VALUES (%s, %s, %s, TRUE)
+                INSERT (runner_id, llm_key, llm_type, active, llm_endpoint)
+                VALUES (%s, %s, %s, TRUE, %s)
         """
 
         try:
             if llm_key:
                 cursor = self.connection.cursor()
                 cursor.execute(
-                    query, (runner_id, llm_key, llm_type, runner_id, llm_key, llm_type)
+                    query, (runner_id, llm_key, llm_type, llm_endpoint, runner_id, llm_key, llm_type, llm_endpoint)
                 )
                 self.connection.commit()
                 affected_rows = cursor.rowcount
@@ -5155,8 +5188,7 @@ $$
                 "error": "OpenAI key is required to generate images, but one was not found to be available."
             }
 
-        openai.api_key = os.getenv("OPENAI_API_KEY")
-        client = openai.OpenAI(api_key=openai.api_key)
+        client = get_openai_client()
 
         # Generate the image using DALL-E 3
         try:
@@ -7030,8 +7062,7 @@ $$
 
                     print('snowpark escallation using model: ', openai_model)
                     try:
-                        openai_api_key = os.getenv("OPENAI_API_KEY")
-                        client = OpenAI(api_key=openai_api_key)
+                        client = get_openai_client()
                         response = client.chat.completions.create(
                             model=openai_model,
                             messages=[
@@ -7046,8 +7077,7 @@ $$
                             openai_model = os.getenv("OPENAI_MODEL_NAME","gpt-4o")
                             print('retry snowpark escallation using model: ', openai_model)
                             try:
-                                openai_api_key = os.getenv("OPENAI_API_KEY")
-                                client = OpenAI(api_key=openai_api_key)
+                                client = get_openai_client()
                                 response = client.chat.completions.create(
                                     model=openai_model,
                                     messages=[

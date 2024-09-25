@@ -8,6 +8,7 @@ from core.bot_os_input import BotOsInputAdapter, BotOsInputMessage, BotOsOutputM
 from collections import deque
 import json
 import time
+import base64
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +64,17 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
         metadata["user_id"] = self.bot_id.get('user_id', 'Unknown User ID')
         metadata["user_name"] = self.bot_id.get('user_name', 'Unknown User')
         metadata["user_email"] = self.bot_id.get('user_id', 'Unknown Email')
-        return BotOsInputMessage(thread_id=event.get('thread_id'), msg=event.get('msg'), metadata=metadata)
+
+        file = json.loads(event.get('file', '{}'))
+        files = []
+        if file:
+            file_path = f"./downloaded_files/{event.get('thread_id')}/{file['filename']}"
+            os.makedirs(f"./downloaded_files/{event.get('thread_id')}", exist_ok=True)
+            with open(file_path, 'wb') as f:
+                f.write(base64.b64decode(file['content']))
+            files.append(file_path)
+
+        return BotOsInputMessage(thread_id=event.get('thread_id'), msg=event.get('msg'), metadata=metadata, files=files)
 
  
 
@@ -130,7 +141,7 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
 
 
 
-    def submit(self, input, thread_id, bot_id):
+    def submit(self, input, thread_id, bot_id, file={}):
         
         if type(bot_id) == str:
             bot_id = json.loads(bot_id)
@@ -138,7 +149,7 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
         uu = str(uuid.uuid4())
         # self.proxy_messages_in.append({"msg": input, "uuid": uu, "thread_id": thread_id, "bot_id": bot_id})
         
-        self.add_event({"msg": input, "thread_id": thread_id, "uuid": uu, "bot_id": bot_id})
+        self.add_event({"msg": input, "thread_id": thread_id, "uuid": uu, "bot_id": bot_id, "file": file})
         #UDFBotOsInputAdapter.db_connector.db_insert_llm_results(uu, "")
         self.pending_map[uu] = True
         return uu

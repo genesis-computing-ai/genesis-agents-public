@@ -60,6 +60,10 @@ database_tool_functions = [
                         "description": "The maximum number of rows to return.  This can be up to 100. The default is 20.",
                         "default": 20,
                     },
+                    "note_id": {
+                        "type": "string",
+                        "description": "The note_id of the note that contains the query to run.  This is an optional field.  If it is provided, the query will be saved in the note.  Use the note contents instead of the query parameter.",
+                    },
                 },
                 "required": ["query", "connection", "max_rows"],
             },
@@ -386,8 +390,8 @@ notebook_manager_functions = [
                     "action": {
                         "type": "string",
                         "description": """
-                        The action to perform on a note: CREATE, UPDATE, DELETE 
-                        LIST returns a list of all notes, SHOW shows full instructions and details for a note,
+                        The action to perform on a note: CREATE, UPDATE, DELETE, CREATE_NOTE_CONFIG, UPDATE_NOTE_CONFIG, DELETE_NOTE_CONFIG
+                        LIST returns a list of all notes, SHOW shows all fields of a note,
                         or TIME to get current system time.""",
                     },
                     "bot_id": {
@@ -404,17 +408,7 @@ notebook_manager_functions = [
                     },
                     "note_definition": {
                         "type": "object",
-                        "description": "The details of the note, required for create and update actions.",
-                        "properties": {
-                            "note_definition": {
-                                "type": "string",
-                                "description": "The body of the note",
-                            },
-                        },
-                        "required": [
-                           "note_id",
-                           "note_description",
-                        ],
+                        "description": "The body of the note",
                     },
                 },
                 "required": ["action", "bot_id"],
@@ -701,7 +695,7 @@ autonomous_tools = {}
 #process_runner_tools = {"_run_process": "tool_belt.run_process"}
 process_manager_tools = {"_manage_processes": "tool_belt.manage_processes"}
 process_scheduler_tools = {"_process_scheduler": "db_adapter.process_scheduler"}
-notebook_manager_tools = {"_run_notebook": "tool_belt.run_notebook"}
+notebook_manager_tools = {"_manage_notebook": "tool_belt.manage_notebook"}
 
 
 def bind_semantic_copilot(data_connection_info):

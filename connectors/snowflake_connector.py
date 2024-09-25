@@ -1648,7 +1648,7 @@ AND   RUNNER_ID = '{runner_id}'
             if cursor is not None:
                 cursor.close()
 
-    def load_default_processes(self, cursor, table):
+    def load_default_processes_and_notebook(self, cursor):
         folder_path = 'default_processes'
         self.process_data = pd.DataFrame()
         
@@ -1701,7 +1701,7 @@ AND   RUNNER_ID = '{runner_id}'
                 if process_default['TIMESTAMP'].tzinfo is None:
                     process_default['TIMESTAMP'] = process_default['TIMESTAMP'].tz_localize(pytz.UTC)
 
-                if result[1] == process_id and db_timestamp < process_default['TIMESTAMP']:
+                if process_default['PROCESS_ID'] == process_id and db_timestamp < process_default['TIMESTAMP']:
                     # Remove old process
                     query = f"DELETE FROM {self.schema}.PROCESSES WHERE PROCESS_ID = %s"
                     cursor.execute(query, (process_id,))
@@ -1714,15 +1714,39 @@ AND   RUNNER_ID = '{runner_id}'
 
                 insert_values = []
                 for key in process_columns:
-                    if key == 'FUNCTION_ID':
+                    if key.lower() == 'process_id':
                         insert_values.append(process_id)
-                    elif key == 'TIMESTAMP':
+                    elif key.lower() == 'timestamp':
                         insert_values.append(timestamp_str)
+                    elif key.lower() == 'process_instructions':
+                        # Note - remove this line and uncomment below 
+                        insert_values.append(process_default['PROCESS_INSTRUCTIONS'])
+
+                        # Check to see if the process_instructions are already in a note in the BOT_NOTEBOOK table
+                        check_exist_query = f"SELECT * FROM {self.schema}.BOT_NOTEBOOK WHERE bot_id = %s AND note_definition = %s"
+                        cursor.execute(check_exist_query, (process_default['BOT_ID'], process_default['PROCESS_INSTRUCTIONS']))
+                        result = cursor.fetchone()
+
+                        if False and result is None:
+                            # Use this code to insert the process_instructions into the BOT_NOTEBOOK table
+                            characters = string.ascii_letters + string.digits
+                            process_default['NOTE_ID'] = process_default['BOT_ID'] + '_' + ''.join(random.choice(characters) for i in range(10))
+                            note_type = 'process'
+                            insert_query = f"""
+                                INSERT INTO {self.schema}.BOT_NOTEBOOK (bot_id, note_definition, note_type, note_id)
+                                VALUES (%s, %s, %s, %s)
+                            """
+                            cursor.execute(insert_query, (process_default['BOT_ID'], process_default['PROCESS_INSTRUCTIONS'], note_type, process_default['NOTE_ID']))
+                            self.client.commit()
+
+                            insert_values.append(process_default['NOTE_ID'])
+                            print(f"Note_id {process_default['NOTE_ID']} inserted successfully for process {process_id}")
                     else:
                         val = process_default.get(key, '') if process_default.get(key, '') is not None else ''
                         if pd.isna(val):
                             val = ''
                         insert_values.append(val)
+
                 insert_query = f"INSERT INTO {self.schema}.PROCESSES ({', '.join(process_columns)}) VALUES ({placeholders})"
                 cursor.execute(insert_query, insert_values) 
                 if updated_process:
@@ -1825,64 +1849,6 @@ AND   RUNNER_ID = '{runner_id}'
 
     def ensure_table_exists(self):
         import core.bot_os_tool_descriptions
-
-        # Create BOT_NOTEBOOK table if it doesn't exist
-        bot_notebook_table_check_query = f"SHOW TABLES LIKE 'BOT_NOTEBOOK' IN SCHEMA {self.schema};"
-        cursor = self.client.cursor()
-        cursor.execute(bot_notebook_table_check_query)
-        
-        if not cursor.fetchone():
-            create_bot_notebook_table_ddl = f"""
-            CREATE OR REPLACE TABLE {self.schema}.BOT_NOTEBOOK (
-                TIMESTAMP TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                BOT_ID VARCHAR(16777216),
-                NOTE_ID VARCHAR(16777216),
-                NOTE_TYPE VARCHAR(16777216),
-                NOTE_DEFINITION VARCHAR(16777216),
-                DESCRIPTION VARCHAR(16777216),
-            );
-            """
-            cursor.execute(create_bot_notebook_table_ddl)
-            self.client.commit()
-            print(f"Table {self.schema}.BOT_NOTEBOOK created successfully.")
-        else:
-            print(f"Table {self.schema}.BOT_NOTEBOOK already exists.")
-        
-        table = f"{self.schema}.BOT_NOTEBOOK"
-        self.load_default_notebook(cursor, table)
-
-        # NOTEBOOK_HISTORY TABLE
-        notebook_history_table_check_query = (
-            f"SHOW TABLES LIKE 'NOTEBOOK_HISTORY' IN SCHEMA {self.schema};"
-        )
-        # Check if the processes table exists
-        try:
-            cursor = self.client.cursor()
-            cursor.execute(notebook_history_table_check_query)
-            if not cursor.fetchone():
-                notebook_history_table_ddl = f"""
-                CREATE TABLE {self.process_history_table_name} (
-                    timestamp TIMESTAMP NOT NULL,
-                    note_id STRING NOT NULL,
-                    work_done_summary STRING,
-                    note_status STRING,
-                    updated_note_learnings STRING,
-                    report_message STRING,
-                    done_flag BOOLEAN,
-                    needs_help_flag BOOLEAN,
-                    note_clarity_comments STRING
-                );
-                """
-                cursor.execute(notebook_history_table_ddl)
-                self.client.commit()
-                print(f"Table {self.notebook_history_table_name} created.")
-            else:
-                check_query = f"DESCRIBE TABLE {self.notebook_history_table_name};"
-                print(f"Table {self.notebook_history_table_name} already exists.")
-        except Exception as e:
-            print(
-                f"An error occurred while checking or creating table {self.notebook_history_table_name}: {e}"
-            )
 
         # Create BOT_FUNCTIONS table if it doesn't exist
         bot_functions_table_check_query = f"SHOW TABLES LIKE 'BOT_FUNCTIONS' IN SCHEMA {self.schema};"
@@ -2928,9 +2894,68 @@ AND   RUNNER_ID = '{runner_id}'
                 f"An error occurred while checking or creating table {self.knowledge_table_name}: {e}"
             )
 
+        # Create BOT_NOTEBOOK table if it doesn't exist
+        bot_notebook_table_check_query = f"SHOW TABLES LIKE 'BOT_NOTEBOOK' IN SCHEMA {self.schema};"
+        cursor = self.client.cursor()
+        cursor.execute(bot_notebook_table_check_query)
+        
+        if not cursor.fetchone():
+            create_bot_notebook_table_ddl = f"""
+            CREATE OR REPLACE TABLE {self.schema}.BOT_NOTEBOOK (
+                TIMESTAMP TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                BOT_ID VARCHAR(16777216),
+                NOTE_ID VARCHAR(16777216),
+                NOTE_TYPE VARCHAR(16777216),
+                NOTE_DEFINITION VARCHAR(16777216),
+                NOTE_PARAMS VARCHAR(16777216),
+                DESCRIPTION VARCHAR(16777216)
+            );
+            """
+            cursor.execute(create_bot_notebook_table_ddl)
+            self.client.commit()
+            print(f"Table {self.schema}.BOT_NOTEBOOK created successfully.")
+        else:
+            print(f"Table {self.schema}.BOT_NOTEBOOK already exists.")
+        
+        table = f"{self.schema}.BOT_NOTEBOOK"
+        # self.load_default_notebook(cursor, table)
+
+        # NOTEBOOK_HISTORY TABLE
+        notebook_history_table_check_query = (
+            f"SHOW TABLES LIKE 'NOTEBOOK_HISTORY' IN SCHEMA {self.schema};"
+        )
+        # Check if the processes table exists
+        try:
+            cursor = self.client.cursor()
+            cursor.execute(notebook_history_table_check_query)
+            if not cursor.fetchone():
+                notebook_history_table_ddl = f"""
+                CREATE OR REPLACE TABLE {self.schema}.NOTEBOOK_HISTORY (
+                    timestamp TIMESTAMP NOT NULL,
+                    note_id STRING NOT NULL,
+                    work_done_summary STRING,
+                    note_status STRING,
+                    updated_note_learnings STRING,
+                    report_message STRING,
+                    done_flag BOOLEAN,
+                    needs_help_flag BOOLEAN,
+                    note_clarity_comments STRING
+                );
+                """
+                cursor.execute(notebook_history_table_ddl)
+                self.client.commit()
+                print(f"Table NOTEBOOK_HISTORY created.")
+            else:
+                check_query = f"DESCRIBE TABLE {self.schema}.NOTEBOOK_HISTORY;"
+                print(f"Table NOTEBOOK_HISTORY already exists.")
+        except Exception as e:
+            print(
+                f"An error occurred while checking or creating table NOTEBOOK_HISTORY: {e}"
+            )
+
         # PROCESSES TABLE
         processes_table_check_query = (
-                    f"SHOW TABLES LIKE 'PROCESSES' IN SCHEMA {self.schema};"
+            f"SHOW TABLES LIKE 'PROCESSES' IN SCHEMA {self.schema};"
         )
 
         try:
@@ -2943,8 +2968,8 @@ AND   RUNNER_ID = '{runner_id}'
                     PROCESS_ID VARCHAR(16777216) NOT NULL PRIMARY KEY,
                     BOT_ID VARCHAR(16777216),
                     PROCESS_NAME VARCHAR(16777216) NOT NULL,
-                    PROCESS_INSTRUCTIONS VARCHAR(16777216),
-                    PROCESS_CONFIG VARCHAR(16777216)     
+                    NOTE_ID VARCHAR(16777216) NOT NULL,
+                    PROCESS_CONFIG VARCHAR(16777216),
                 );
                 """
                 cursor.execute(create_process_table_ddl)
@@ -2953,16 +2978,10 @@ AND   RUNNER_ID = '{runner_id}'
             else:
                 print(f"Table {self.schema}.PROCESSES exists.")
 
-            table = f"{self.schema}.PROCESSES"
-            self.load_default_processes(cursor, table)
-
         except Exception as e:
             print(
                 f"An error occurred while checking or creating the PROCESSES table: {e}"
             )
-        finally:
-            if cursor is not None:
-                cursor.close()
     
         # Check if PROCESS_CONFIG column exists in PROCESSES table
         describe_table_query = f"DESCRIBE TABLE {self.schema}.PROCESSES;"
@@ -2972,26 +2991,38 @@ AND   RUNNER_ID = '{runner_id}'
             cursor.execute(describe_table_query)
             table_description = cursor.fetchall()
             
-            column_exists = any(row[0].upper() == 'PROCESS_CONFIG' for row in table_description)
+            process_config_exists = any(row[0].upper() == 'PROCESS_CONFIG' for row in table_description)
+            note_id_exists = any(row[0].upper() == 'NOTE_ID' for row in table_description)
+            process_instructions_exists = any(row[0].upper() == 'PROCESS_INSTRUCTIONS' for row in table_description)
             
-            if not column_exists:
+            if not process_config_exists or not note_id_exists:
                 # Add PROCESS_CONFIG column if it doesn't exist
                 add_column_query = f"""
                 ALTER TABLE {self.schema}.PROCESSES
-                ADD COLUMN PROCESS_CONFIG VARCHAR(16777216);
                 """
+                if not process_config_exists:
+                    add_column_query += "ADD COLUMN PROCESS_CONFIG VARCHAR(16777216)"
+                    if note_id_exists:
+                        add_column_query += ","
+                if not note_id_exists:
+                    add_column_query += "ADD COLUMN NOTE_ID VARCHAR(16777216)"
+                # if process_instructions_exists:
+                #     add_column_query += ",DROP COLUMN PROCESS_INSTRUCTIONS"
+            
                 cursor.execute(add_column_query)
                 self.client.commit()
-                print("PROCESS_CONFIG column added to PROCESSES table.")
+                if not process_config_exists:
+                    print("PROCESS_CONFIG column added to PROCESSES table.")
+                if not note_id_exists:
+                    print("NOTE_ID column added to PROCESSES table.")
+                
             else:
                 print("PROCESS_CONFIG column already exists in PROCESSES table.")
         except Exception as e:
             print(f"An error occurred while checking or adding PROCESS_CONFIG column: {e}")
-        finally:
-            if cursor is not None:
-                cursor.close()
-    
 
+        self.load_default_processes_and_notebook(cursor)
+    
         # PROCESS_HISTORY TABLE
         process_history_table_check_query = (
             f"SHOW TABLES LIKE 'PROCESS_HISTORY' IN SCHEMA {self.schema};"
@@ -3171,7 +3202,7 @@ AND   RUNNER_ID = '{runner_id}'
 
         cursor = self.client.cursor()
 
-        # run python code stored procedurr
+        # run python code stored procedure
         proc_name = 'execute_snowpark_code'
         stored_proc_ddl =   f"""CREATE OR REPLACE PROCEDURE {self.schema}.{proc_name}( code STRING )
 RETURNS STRING
@@ -3756,6 +3787,7 @@ $$
         bot_id=None,
         connection=None,
         thread_id=None,
+        note_id = None,
     ):
         import core.global_flags as global_flags
         """
@@ -3770,6 +3802,12 @@ $$
         :return: A list of dictionaries representing the rows returned by the query.
         """
         userquery = False
+
+        if note_id is not None:
+            get_note_query = f"SELECT QUERY FROM {self.schema}.BOT_NOTEBOOK WHERE NOTE_ID = '{note_id}'"
+            cursor = self.connection.cursor()
+            cursor.execute(get_note_query)
+            query = cursor.fetchone()[0]
 
         # Replace all <!Q!>s with single quotes in the query
         if '<!Q!>' in query:

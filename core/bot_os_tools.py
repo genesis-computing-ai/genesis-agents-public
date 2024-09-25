@@ -914,10 +914,10 @@ In your response back to run_process, provide a detailed description of what you
         cursor = db_adapter.client.cursor()
         try:
             if bot_id == "all":
-                list_query = f"SELECT note_id, bot_id FROM {db_adapter.schema}.NOTEBOOK" if db_adapter.schema else f"SELECT note_id, bot_id FROM NOTEBOOK"
+                list_query = f"SELECT note_id, bot_id FROM {db_adapter.schema}.BOT_NOTEBOOK" if db_adapter.schema else f"SELECT note_id, bot_id FROM BOT_NOTEBOOK"
                 cursor.execute(list_query)
             else:
-                list_query = f"SELECT note_id, bot_id FROM {db_adapter.schema}.NOTEBOOK WHERE upper(bot_id) = upper(%s)" if db_adapter.schema else f"SELECT note_id, bot_id FROM NOTEBOOK WHERE upper(bot_id) = upper(%s)"
+                list_query = f"SELECT note_id, bot_id FROM {db_adapter.schema}.BOT_NOTEBOOK WHERE upper(bot_id) = upper(%s)" if db_adapter.schema else f"SELECT note_id, bot_id FROM BOT_NOTEBOOK WHERE upper(bot_id) = upper(%s)"
                 cursor.execute(list_query, (bot_id,))
             notes = cursor.fetchall()
             note_list = []
@@ -967,7 +967,7 @@ In your response back to run_process, provide a detailed description of what you
             return {}
 
     def manage_notebook(
-        self, action, bot_id=None, note_id=None, note_definition=None, thread_id=None, note_config=None
+        self, action, bot_id=None, note_id=None, note_definition=None, thread_id=None, note_type=None
     ):
         """
         Manages processs in the NOTEBOOK table with actions to create, delete, or update a note.
@@ -984,12 +984,12 @@ In your response back to run_process, provide a detailed description of what you
 
         required_fields_create = [
             "note_id",
-            "note_instructions",
+            "note_definition",
         ]
 
         required_fields_update = [
             "note_id",
-            "note_instructions",
+            "note_definition",
         ]
 
         if action == "TIME":
@@ -1001,49 +1001,49 @@ In your response back to run_process, provide a detailed description of what you
         cursor = db_adapter.client.cursor()
 
         try:
-            # if action in ["UPDATE_NOTE_CONFIG", "CREATE_NOTE_CONFIG", "DELETE_NOTE_CONFIG"]:
-            #     process_config = '' if action == "DELETE_NOTE_CONFIG" else note_config
-            #     update_query = f"""
-            #         UPDATE {db_adapter.schema}.NOTEBOOK
-            #         SET NOTE_CONFIG = %(note_config)s
-            #         WHERE NOTE_ID = %(note_id)s
-            #     """
-            #     cursor.execute(
-            #         update_query,
-            #         {"note_config": note_config, "note_id": note_id},
-            #     )
-            #     db_adapter.client.commit()
+            if action in ["UPDATE_NOTE_CONFIG", "CREATE_NOTE_CONFIG", "DELETE_NOTE_CONFIG"]:
+                note_config = '' if action == "DELETE_NOTE_CONFIG" else note_config
+                update_query = f"""
+                    UPDATE {db_adapter.schema}.NOTEBOOK
+                    SET NOTE_CONFIG = %(note_config)s
+                    WHERE NOTE_ID = %(note_id)s
+                """
+                cursor.execute(
+                    update_query,
+                    {"note_config": note_config, "note_id": note_id},
+                )
+                db_adapter.client.commit()
 
-            #     return {
-            #         "Success": True,
-            #         "Message": f"note_config updated or deleted",
-            #         "note_id": note_id,
-            #     }
+                return {
+                    "Success": True,
+                    "Message": f"note_config updated or deleted",
+                    "note_id": note_id,
+                }
             
             if action == "CREATE" or action == "CREATE_CONFIRMED":
                 # Check for dupe name
-                sql = f"SELECT * FROM {db_adapter.schema}.PROCESSES WHERE bot_id = %s and note_id = %s"
-                cursor.execute(sql, (bot_id, note_definition['note_id']))
+                sql = f"SELECT * FROM {db_adapter.schema}.BOT_NOTEBOOK WHERE bot_id = %s and note_id = %s"
+                cursor.execute(sql, (bot_id, note_id))
 
                 record = cursor.fetchone()
 
                 if record:
                     return {
                         "Success": False,
-                        "Error": f"Process with name {note_definition['note_id']} already exists.  Please choose a different name."
+                        "Error": f"Note with id {note_id} already exists for bot {bot_id}.  Please choose a different id."
                     }
                 
             if action == "UPDATE" or action == 'UPDATE_CONFIRMED':
                 # Check for dupe name
                 sql = f"SELECT * FROM {db_adapter.schema}.NOTEBOOK WHERE bot_id = %s and note_id = %s"
-                cursor.execute(sql, (bot_id, note_definition['note_id']))
+                cursor.execute(sql, (bot_id, note_id))
 
                 record = cursor.fetchone()
 
                 if record and '_golden' in record[1]:
                     return {
                         "Success": False,
-                        "Error": f"Process with name {note_definition['note_id']} is a system note and can not be updated.  Suggest making a copy with a new name."
+                        "Error": f"Note with id {note_id} is a system note and can not be updated.  Suggest making a copy with a new name."
                     }
 
             if action == "CREATE" or action == "UPDATE":
@@ -1059,34 +1059,39 @@ In your response back to run_process, provide a detailed description of what you
                 #         "Error": f"Process with name {process_details['process_name']}.  Please choose a different name."
                 #     }
             
-                # Send process_instructions to 2nd LLM to check it and format nicely
-                tidy_note_instructions = f"""
-                Below is a note that has been submitted by a user.  Please review it to insure it is something
-                that will make sense to the run_note tool.  If not, make changes so it is organized into clear
-                steps.  Make sure that it is tidy, legible and properly formatted. 
+                # Send process_instructions to 2nd LLM to check it and format nicely if note type 'process'
+                note_field_name = 'Instructions'
+                confirm_notification_prefix = ''
+                if note_type == 'process':
+                    tidy_note_definition = f"""
+                    Below is a note that has been submitted by a user.  Please review it to insure it is something
+                    that will make sense to the run_process tool.  If not, make changes so it is organized into clear
+                    steps.  Make sure that it is tidy, legible and properly formatted. 
 
-                Do not create multiple options for the instructions, as whatever you return will be used immediately.
-                Return the updated and tidy note.  If there is an issue with the note, return an error message.
+                    Do not create multiple options for the instructions, as whatever you return will be used immediately.
+                    Return the updated and tidy instructions.  If there is an issue with the instructions, return an error message.
 
-                If the note wants to send an email to a default email, or says to send an email but doesn't specify
-                a recipient address, note that the SYS$DEFAULT_EMAIL is currently set to {self.sys_default_email}.
-                Include the notation of SYS$DEFAULT_EMAIL in the instructions instead of the actual address, unless 
-                the instructions specify a different specific email address.
+                    If the note wants to send an email to a default email, or says to send an email but doesn't specify
+                    a recipient address, note that the SYS$DEFAULT_EMAIL is currently set to {self.sys_default_email}.
+                    Include the notation of SYS$DEFAULT_EMAIL in the instructions instead of the actual address, unless 
+                    the instructions specify a different specific email address.
 
-                The note is as follows:\n {note_definition['note_id']}
-                """
+                    The note is as follows:\n {note_definition}
+                    """
 
-                tidy_note_instructions = "\n".join(
-                    line.lstrip() for line in tidy_note_instructions.splitlines()
-                )
+                    tidy_note_instructions = "\n".join(
+                        line.lstrip() for line in tidy_note_definition.splitlines()
+                    )
 
-                note_definition['note_id'] = self.chat_completion(tidy_note_instructions, self.db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, note_id=note_id)
+                    note_definition = self.chat_completion(tidy_note_definition, self.db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, note_id=note_id)
+                    note_field_name = "Cleaned up instructions"
+                    confirm_notification_prefix = "I've run the note definition through a cleanup step."
 
             if action == "CREATE":
                 return {
                     "Success": False,
-                    "Cleaned up instructions": note_definition['note_id'],
-                    "Confirmation_Needed": "I've run the note definition through a cleanup step.  Please reconfirm these instructions and all the other note_definitions with the user, then call this function again with the action CREATE_CONFIRMED to actually create the note.",
+                    note_field_name: note_definition,
+                    "Confirmation_Needed": confirm_notification_prefix + "Please reconfirm these instructions and all the other note_definitions with the user, then call this function again with the action CREATE_CONFIRMED to actually create the note.",
                     "Next Step": "If you're ready to create this note, call this function again with action CREATE_CONFIRMED instead of CREATE"
                 #    "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}",
                 }
@@ -1094,7 +1099,7 @@ In your response back to run_process, provide a detailed description of what you
             if action == "UPDATE":
                 return {
                     "Success": False,
-                    "Cleaned up instructions": note_definition['note_id'],
+                    note_field_name: note_definition,
                     "Confirmation_Needed": "I've run the note definition through a cleanup step.  Please reconfirm these instructions and all the other note details with the user, then call this function again with the action UPDATE_CONFIRMED to actually update the note.",
                     "Next Step": "If you're ready to update this note, call this function again with action UPDATE_CONFIRMED instead of UPDATE"
                 #    "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}",
@@ -1123,31 +1128,30 @@ In your response back to run_process, provide a detailed description of what you
 
         if action == "LIST":
             print("Running get notebook list")
-            return self.get_note_list(bot_id if bot_id is not None else "all")
+            return self.get_notebook_list(bot_id if bot_id is not None else "all")
 
         if action == "SHOW":
-            print("Running show process info")
+            print("Running show notebook info")
             if bot_id is None:
                 return {"Success": False, "Error": "bot_id is required for SHOW action"}
-            if process_id is None and 'process_name' not in note_definition:
-                if note_definition is None or ('process_name' not in note_definition and 'process_id' not in note_definition):
-                    return {"Success": False, "Error": "Either process_name or process_id is required in process_details for SHOW action"}
+            if note_id is None:
+                return {"Success": False, "Error": "note_id is required for SHOW action"}
             
-            if process_id is not None or 'process_id' in note_definition:
-                if process_id is None:
-                    process_id = note_definition['note_id']
-                return self.get_process_info(bot_id=bot_id, process_id=process_id)
+            if note_id is not None or 'note_id' in note_definition:
+                if note_id is None:
+                    note_id = note_definition['note_id']
+                return self.get_process_info(bot_id=bot_id, note_id=note_id)
             else:
-                process_name = note_definition['note_id']
-                return self.get_process_info(bot_id=bot_id, process_name=process_name)
+                note_name = note_definition['note_id']
+                return self.get_process_info(bot_id=bot_id, note_name=note_name)
 
-        process_id_created = False
-        if process_id is None:
+        note_id_created = False
+        if note_id is None:
             if action == "CREATE":
-                process_id = f"{bot_id}_{''.join(random.choices(string.ascii_letters + string.digits, k=6))}"
-                process_id_created = True
+                note_id = f"{bot_id}_{''.join(random.choices(string.ascii_letters + string.digits, k=6))}"
+                note_id_created = True
             else:
-                return {"Success": False, "Error": f"Missing process_id field"}
+                return {"Success": False, "Error": f"Missing note_id field"}
 
         if action in ["CREATE", "UPDATE"] and not note_definition:
             return {
@@ -1208,25 +1212,24 @@ In your response back to run_process, provide a detailed description of what you
                     random_suffix = "".join(
                     random.choices(string.ascii_letters + string.digits, k=6)
                      )
-                    process_id_with_suffix = process_id + "_" + random_suffix
+                    note_id_with_suffix = note_id + "_" + random_suffix
                 else:
-                    process_id_with_suffix = process_id
+                    note_id_with_suffix = note_id
                 cursor.execute(
                     insert_query,
                     {
                         **note_definition,
-                        "process_id": process_id_with_suffix,
+                        "note_id": note_id_with_suffix,
                         "bot_id": bot_id,
                     },
                 )
-                # Get process_name from process_details if available, otherwise set to "Unknown"
-                process_name = note_definition.get('process_name', "Unknown")
+
                 db_adapter.client.commit()
                 return {
                     "Success": True,
                     "Message": f"note successfully created.",
                     "note_id": note_id_with_suffix,
-                    "Suggestion": "Now that the process is created, remind the user of the note_id, and offer to test it using run_process, and if there are any issues you can later on UPDATE the note using manage_notes to clarify anything needed.  OFFER to test it, but don't just test it unless the user agrees.  ",
+                    "Suggestion": "Now that the note is created, remind the user of the note_id and offer to test it using the correct runner, either sql, python in snowpark, or process, and if there are any issues you can later on UPDATE the note using manage_notes to clarify anything needed.  OFFER to test it, but don't just test it unless the user agrees.  ",
                     "Reminder": "If you are asked to test the note, use _run_note function to each step, don't skip ahead since you already know what the steps are, pretend you don't know what the note is and let run_note give you one step at a time!",
                 }
 

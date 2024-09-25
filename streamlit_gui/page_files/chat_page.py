@@ -102,6 +102,13 @@ def chat_page():
                 time.sleep(0.5)
 
     def emulate_write_stream(text_generator):
+        '''
+        Emulate the behavior of st.write_stream, with the ability to automatically render objects and HTML-formatted text
+
+        st.write_stream will not automatically render html-formatted text and arbitrary objects in the same way that st.write will.
+        This means that if e.g. the bot sends back HTML-formatted text, st.write_stream will render the raw text (e.g. "<html>..").
+        So as a workaround we use container.write, which auto-formats HTML and other objects in the same way that st.write does.
+        '''
         result = ""
         container = st.empty()
         for chunk in text_generator:

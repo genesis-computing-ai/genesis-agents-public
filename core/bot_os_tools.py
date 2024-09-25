@@ -345,7 +345,7 @@ class ToolBelt:
         to_addr_list = [addr.strip("'\"") for addr in to_addr_list if addr]
 
         if not to_addr_list:
-            return (' {"Success": False, "Error": "No valid email addresses provided."}')
+            return {"Success": False, "Error": "No valid email addresses provided."}
 
         # Replace SYS$DEFAULT_EMAIL with the actual system default email
         to_addr_list = [self.get_sys_email() if addr == 'SYS$DEFAULT_EMAIL' else addr for addr in to_addr_list]

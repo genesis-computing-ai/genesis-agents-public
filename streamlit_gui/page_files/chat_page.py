@@ -4,7 +4,8 @@ import uuid
 from utils import get_bot_details, get_slack_tokens, get_slack_tokens_cached, get_metadata, get_metadata2, submit_to_udf_proxy, get_response_from_udf_proxy
 import re
 import os
-
+import random
+import base64
 
 def file_to_html(bot_id, thread_id, file_path):    
     file_name = os.path.basename(file_path)    
@@ -26,6 +27,8 @@ def chat_page():
         st.session_state.session_message_uuids = {}
     if 'stream_files' not in st.session_state:
         st.session_state.stream_files = set()
+    if 'uploader_key' not in st.session_state:
+        st.session_state['uploader_key'] = random.randint(0, 1 << 32)
 
     def get_chat_history(thread_id):
         return st.session_state.get(f"messages_{thread_id}", [])
@@ -188,15 +191,20 @@ def chat_page():
             return {}
         
 
-    def submit_button(prompt, chatmessage, intro_prompt=False, fast_mode_override=False):
+    def submit_button(prompt, chatmessage, intro_prompt=False, fast_mode_override=False, file={}):
         current_thread_id = st.session_state["current_thread_id"]
         messages = get_chat_history(current_thread_id)
 
         if not intro_prompt:
             # Display user message in chat message container
             with chatmessage:
+                if file:
+                    st.write(file['filename'])
                 st.markdown(prompt,unsafe_allow_html=True)
+                
             # Add user message to chat history
+            if file:
+                messages.append({"role": "user", "content": file['filename']})
             messages.append({"role": "user", "content": prompt})
 
         # Check if fast mode is selected in the sidebar
@@ -212,6 +220,7 @@ def chat_page():
             input_text=prompt,
             thread_id=current_thread_id,
             bot_id=selected_bot_id,
+            file= file
         )
 
        # Store the request_id for this session
@@ -365,6 +374,10 @@ def chat_page():
                         
                         # Trigger a rerun to update the UI
                         st.rerun()
+                if not st.session_state.NativeMode:
+                    uploaded_file = st.file_uploader("FILE UPLOADER", key=st.session_state['uploader_key'])
+                else:
+                    uploaded_file = None
 
                 st.markdown("#### Active Chat Sessions:")
                 
@@ -525,10 +538,16 @@ def chat_page():
                     pending_request_id = st.session_state.session_message_uuids[selected_thread_id]
                     handle_pending_request(selected_thread_id, pending_request_id)
 
-                # React to user input
+                # React to user input                
                 if selected_thread_id:
-                    if prompt := st.chat_input("What is up?", key=f"chat_input_{selected_thread_id}"):
-                        submit_button(prompt, st.chat_message("user"), False)
+                    if prompt := st.chat_input("What is up?", key=f"chat_input_{selected_thread_id}"):     
+                        file = {}
+                        if uploaded_file:
+                            bytes_data = base64.b64encode(uploaded_file.read()).decode()
+                            st.session_state['uploader_key'] = random.randint(0, 1 << 32)
+                            file = {'filename': uploaded_file.name, 'content': bytes_data}
+                        submit_button(prompt, st.chat_message("user"), False, file=file)
+                    
 
                 # Generate initial message and bot introduction only for new sessions
                 if not st.session_state[f"messages_{selected_thread_id}"]:

@@ -210,7 +210,7 @@ def get_metadata(metadata_type):
         else:
             raise Exception(f"Failed to get metadata: {response.text}")
 
-def submit_to_udf_proxy(input_text, thread_id, bot_id):
+def submit_to_udf_proxy(input_text, thread_id, bot_id, file={}):
     user_info = st.experimental_user.to_dict()
     primary_user = {
         "user_id": user_info.get("email", "Unknown User ID"),
@@ -224,7 +224,7 @@ def submit_to_udf_proxy(input_text, thread_id, bot_id):
             prefix = st.session_state.get('prefix', '')
             sql = f"select {prefix}.submit_udf(?, ?, ?)".format(prefix)
             session = get_session()
-            data = session.sql(sql, (input_text, thread_id, json.dumps(primary_user))).collect()
+            data = session.sql(sql, (input_text, thread_id, json.dumps(primary_user), json.dumps(file))).collect()
             response = data[0][0]
             return response
         except Exception as e:
@@ -232,7 +232,7 @@ def submit_to_udf_proxy(input_text, thread_id, bot_id):
     else:
         url = f"http://127.0.0.1:8080/udf_proxy/submit_udf"
         headers = {"Content-Type": "application/json"}
-        data = json.dumps({"data": [[1, input_text, thread_id, primary_user]]})
+        data = json.dumps({"data": [[1, input_text, thread_id, primary_user, json.dumps(file)]]})
         response = requests.post(url, headers=headers, data=data)
         if response.status_code == 200:
             return response.json()["data"][0][1]

@@ -118,7 +118,11 @@ def llm_config():
                         "-> Please refresh this browser page to chat with your bots!"
                     )
                     st.session_state.clear()
-                    st.session_state.show_openai_config = False
+                    st.cache_data.clear()
+                    st.cache_resource.clear()
+                    get_bot_details.clear()
+                    if llm_model in ["OpenAI"]:
+                        st.session_state.show_openai_config = False
                     
             if cur_key == "<existing key present on server>":
                 st.write("Reload this page to chat with your apps.")

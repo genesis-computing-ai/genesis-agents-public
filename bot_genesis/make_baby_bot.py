@@ -310,10 +310,10 @@ def rotate_slack_token(config_token, refresh_token):
             # Return the new tokens
             return new_config_token, new_refresh_token
         else:
-            logger.error(f"Failed to rotate token: {response_data.get('error')}")
+            print(f"Failed to rotate token: {response_data.get('error')}")
             return None, None 
     else:
-        logger.error(f"Failed to rotate token, status code: {response.status_code}")
+        print(f"Failed to rotate token, status code: {response.status_code}")
         return None, None 
 
 

@@ -79,11 +79,12 @@ class BotOsServer:
         if self.slack_active:
             t, r = get_slack_config_tokens()
             tok, ref = rotate_slack_token(t, r)
-            print(
-                f"Slack Bot Config Token REFRESHED {self.last_slack_token_rotate_time}"
-            )
-            print(f"     New Slack token: {tok[:8]}...{tok[-8:]}")
-            print(f"     New Slack refresh token: {ref[:8]}...{ref[-8:]}")
+            if tok is not None and ref is not None:
+                print(
+                    f"Slack Bot Config Token REFRESHED {self.last_slack_token_rotate_time}"
+                )
+            else:
+                print('Slack refresh token failed, token is None')
 
     def add_session(self, session: BotOsSession, replace_existing=False):
         print("At add_Session, replace_existing is ", replace_existing)
@@ -120,9 +121,11 @@ class BotOsServer:
         # TODO REMOVE THE OTHER ROTATER CALL
         # Print a confirmation message with the current time
         self.last_slack_token_rotate_time = datetime.datetime.now()
-        print(f"Slack Bot Config Token REFRESHED {self.last_slack_token_rotate_time}")
-        print(f"     New Slack token: {tok[:8]}...{tok[-8:]}")
-        print(f"     New Slack refresh token: {ref[:8]}...{ref[-8:]}")
+        if tok is not None and ref is not None:
+            print(f"Slack Bot Config Token REFRESHED {self.last_slack_token_rotate_time}")
+        else:
+            print('Slack token refreshed failed, None result.')
+
 
     def get_running_instances(self):
         executor = self.scheduler._lookup_executor("default")

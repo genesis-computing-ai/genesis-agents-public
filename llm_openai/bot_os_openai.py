@@ -246,8 +246,12 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       if len(my_assistants) == 0 and update_existing:
          vector_store_name = self.bot_id + '_vectorstore'
          self.vector_store = self.create_vector_store(vector_store_name=vector_store_name, files=files)
-         self.tool_resources = {"file_search": {"vector_store_ids": [self.vector_store]}}
-         if True or hasattr(files, 'urls') and files.urls is not None:
+         if self.vector_store is not None:
+            tool_resources = {"file_search": {"vector_store_ids": [vector_store]}}
+            self.tool_resources = {"file_search": {"vector_store_ids": [self.vector_store]}}
+         else:
+            self.tool_resources = {} 
+         try:
             self.assistant = self.client.beta.assistants.create(
             name=name,
             instructions=instructions,
@@ -257,7 +261,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
             tool_resources=self.tool_resources,
             temperature=0.0
             )
-         else:
+         except:
             my_tools = [tool for tool in my_tools if tool.get('type') != 'file_search']
             self.assistant = self.client.beta.assistants.create(
                name=name,
@@ -287,9 +291,13 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
             vector_store_name = self.bot_id + '_vectorstore'
             if skip_vectors == False:
                self.vector_store = self.create_vector_store(vector_store_name=vector_store_name, files=files)
-               self.tool_resources = {"file_search": {"vector_store_ids": [self.vector_store]}}
+               if self.vector_store is not None:
+                  self.tool_resources = {"file_search": {"vector_store_ids": [self.vector_store]}}
+               else:
+                  self.tool_resources = {}
             else:
                self.tool_resources = {"file_search": {"vector_store_ids": [vector_store_id]}}
+            
             if True or hasattr(files, 'urls') and files.urls is not None:
                try:
                   self.client.beta.assistants.update(self.assistant.id,
@@ -476,7 +484,12 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
    def create_vector_store(self, vector_store_name: str, files: list=None, plain_files: list=None, for_bot= None):
       # Create a vector store with the given name
-      vector_store = self.client.beta.vector_stores.create(name=vector_store_name)
+
+      try:
+         vector_store = self.client.beta.vector_stores.create(name=vector_store_name)
+      except Exception as e:
+         logger.error(f"Error creating vector store '{vector_store_name}': {e}")
+         return None
       
       return self.update_vector_store(vector_store.id, files, plain_files, for_bot=for_bot)
 
@@ -863,7 +876,10 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
    #                  bot_tools.insert(0, {"type": "file_search"})
                   vector_store_name = json.loads(function_call_details[0][1]).get('bot_id',None) + '_vectorstore'
                   vector_store = self.create_vector_store(vector_store_name=vector_store_name, files=None, plain_files=updated_files_list, for_bot = target_bot)
-                  tool_resources = {"file_search": {"vector_store_ids": [vector_store]}}
+                  if vector_store is not None:
+                     tool_resources = {"file_search": {"vector_store_ids": [vector_store]}}
+                  else:
+                     tool_resources = {}
                else:
                 #  bot_tools = [tool for tool in bot_tools if tool.get('type') != 'file_search']
                   tool_resources = {}

@@ -149,7 +149,7 @@ def make_session(
             logger.error(
                 f'Failed to create Slack adapter with the provided configuration for bot {bot_config["bot_name"]} '
             )
-            return None, None, None, None
+      #      return None, None, None, None
 
     # tools
     available_tools = get_available_tools()

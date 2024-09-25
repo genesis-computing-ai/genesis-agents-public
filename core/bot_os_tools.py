@@ -76,6 +76,9 @@ logger = logging.getLogger(__name__)
 
 genesis_source = os.getenv("GENESIS_SOURCE", default="Snowflake")
 
+# We use this URL to include the genesis logo in snowflake-generated emails.
+# TODO: use a permanent URL under the genesiscomputing.ai domain
+GENESIS_LOGO_URL = "https://i0.wp.com/genesiscomputing.ai/wp-content/uploads/2024/05/Genesis-Computing-Logo-White.png"
 
 # module level
 belts = 0
@@ -286,7 +289,15 @@ class ToolBelt:
         finally:
             cursor.close()
 
-    def send_email(self, to_addr_list: list, subject: str, body: str, thread_id: str = None, bot_id: str = None):
+    def send_email(self, 
+                   to_addr_list: list, 
+                   subject: str, 
+                   body: str, 
+                   thread_id: str = None, 
+                   bot_id: str = None,
+                   mime_type: str = 'text/plain',
+                   include_genesis_logo: bool = True
+                   ):
         """
         Send an email using Snowflake's SYSTEM$SEND_EMAIL function.
 
@@ -296,10 +307,16 @@ class ToolBelt:
             body (str): The body content of the email.
             thread_id (str, optional): The thread ID for the current operation.
             bot_id (str, optional): The bot ID for the current operation.
+            mime_type (str, optional): The MIME type of the email body. Accepts 'text/plain' or 'text/html'. Defaults to 'text/plain'.
+            include_genesis_logo (bool, optional): Whether to include the Genesis logo in an text/html email. Defaults to True. Ignored for all other mime types
 
         Returns:
             dict: The result of the query execution.
         """
+
+        # Validate mime_type
+        if mime_type not in ['text/plain', 'text/html']:
+            raise ValueError(f"mime_type must be either 'text/plain' or 'text/html', got {mime_type}")
 
         # Check if to_addr_list is a string representation of a list
         if isinstance(to_addr_list, str):
@@ -319,37 +336,76 @@ class ToolBelt:
             except Exception:
                 # If parsing fails, split by comma
                 to_addr_list = [addr.strip() for addr in to_addr_list.split(',')]
-        
+
         # Ensure to_addr_list is a list
         if not isinstance(to_addr_list, list):
             to_addr_list = [to_addr_list]
-        
+
         # Remove any empty strings and strip quotes from each address
         to_addr_list = [addr.strip("'\"") for addr in to_addr_list if addr]
-    
+
         if not to_addr_list:
             return {"Success": False, "Error": "No valid email addresses provided."}
-    
+
         # Replace SYS$DEFAULT_EMAIL with the actual system default email
         to_addr_list = [self.get_sys_email() if addr == 'SYS$DEFAULT_EMAIL' else addr for addr in to_addr_list]
-    
+
         # Join the email addresses with commas
         to_addr_string = ', '.join(to_addr_list)
 
-        # add body title
-        body = f'🤖 This is an automated message from the Genesis Computing Native Application. Bot: {bot_id}🤖.\n\n' + body
-        
-        # Remove any instances of $$ from to_addr_string, subject and body
-        to_addr_string = to_addr_string.replace('$$', '')
+        # Build an 'origin line' to make it clear where this message is coming from. Prepend to body below
+        # NOTE: conisder making this a footer?
+        origin_line = f'🤖 This is an automated message from the Genesis Computing Native Application.'
+        if bot_id is not None:
+            origin_line += f' Bot: {bot_id}.'
+        origin_line += '🤖\n\n'
+
+        # Cleanup the body. Force the body to HTML if the mime_type is text/html. Prepend origin line
         body = body.replace('\\n','\n')
-        # Fix double-backslashed unicode escape sequences in the body
+        if mime_type == 'text/html':
+            soup = BeautifulSoup(body, "html.parser")
+            html_body = str(soup)
 
+            # Check if the string already contains <html> and <body> tags
+            if soup.body is None:
+                html_body = f"<body>{html_body}</body>"
+                
+            if soup.html is None:
+                html_body = f"<html>{html_body}</html>"
+            soup = BeautifulSoup(html_body, "html.parser")
+
+            assert soup.body is not None
+
+            # Insert the origin message at the beginning of the body
+            origin_elem = soup.new_tag('p')
+            origin_elem.string = origin_line
+            soup.body.insert(0, origin_elem)            
+
+            # Insert the Genesis logo at the top if include_genesis_logo is True
+            if include_genesis_logo:
+                link_tag = soup.new_tag('a', href="https://genesiscomputing.ai/")
+                logo_tag = soup.new_tag('img', src=GENESIS_LOGO_URL, style="margin-right:10px; height:50px;", alt="Genesis Computing")
+                link_tag.insert(0, logo_tag)
+                # Ensure the logo is on its own line
+                logo_container = soup.new_tag('div', style="text-align:left; margin-bottom:1px;")
+                logo_container.insert(0, link_tag)
+                soup.body.insert(0, logo_container)
+                
+            body = str(soup)
+            
+        elif mime_type == 'text/plain':
+            # For plain text, just prepend the bot message
+            body = origin_line + body
+
+        else:
+            assert False, "Unreachable code"
+
+        # Remove any instances of $$ from to_addr_string, subject and body
         # Fix double-backslashed unicode escape sequences in the body
+        to_addr_string = to_addr_string.replace('$$', '')
         import re
-
         def unescape_unicode(match):
             return chr(int(match.group(1), 16))
-
         body = re.sub(r'\\u([0-9a-fA-F]{4})', unescape_unicode, body)
         if len(subject) == 0:
             subject = "Email from Genesis Bot"
@@ -363,7 +419,8 @@ class ToolBelt:
             'genesis_email_int',
             $${to_addr_string}$$,
             $${subject}$$,
-            $${body}$$
+            $${body}$$,
+            $${mime_type}$$
         );
         """
         
@@ -1161,7 +1218,7 @@ In your response back to run_process, provide a detailed description of what you
             print("Running show process info")
             if bot_id is None:
                 return {"Success": False, "Error": "bot_id is required for SHOW action"}
-            if process_id is None and 'process_name' not in process_details:
+            if process_id is None:
                 if process_details is None or ('process_name' not in process_details and 'process_id' not in process_details):
                     return {"Success": False, "Error": "Either process_name or process_id is required in process_details for SHOW action"}
             

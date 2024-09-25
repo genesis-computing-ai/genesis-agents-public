@@ -34,7 +34,7 @@ def chat_page():
         st.session_state[f"messages_{thread_id}"] = messages
         
 
-        # Display assistant response in chat message container
+    # Display assistant response in chat message container
     def response_generator(in_resp=None, request_id=None, selected_bot_id=None):
         previous_response = ""
         while True:
@@ -101,6 +101,22 @@ def chat_page():
             if len(response)>=1 and ord(response[-1]) == 128172:
                 time.sleep(0.5)
 
+    def emulate_write_stream(text_generator):
+        '''
+        Emulate the behavior of st.write_stream, with the ability to automatically render objects and HTML-formatted text
+
+        st.write_stream will not automatically render html-formatted text and arbitrary objects in the same way that st.write will.
+        This means that if e.g. the bot sends back HTML-formatted text, st.write_stream will render the raw text (e.g. "<html>..").
+        So as a workaround we use container.write, which auto-formats HTML and other objects in the same way that st.write does.
+        '''
+        result = ""
+        container = st.empty()
+        for chunk in text_generator:
+            result += chunk
+            container.write(result, unsafe_allow_html=True)
+        return result            
+    
+
     def handle_pending_request(thread_id, request_id ):
         messages = get_chat_history(thread_id)
         
@@ -134,7 +150,9 @@ def chat_page():
             st.session_state.stop_streaming = False
 
         with st.chat_message("assistant", avatar=bot_avatar_image_url):
-            response = st.write_stream(response_generator(None,request_id=request_id, selected_bot_id=selected_bot_id))
+            
+            #response = st.write_stream(response_generator(None,request_id=request_id, selected_bot_id=selected_bot_id))
+            response = emulate_write_stream(response_generator(None,request_id=request_id, selected_bot_id=selected_bot_id))
         
         st.session_state.stop_streaming = False
 
@@ -230,7 +248,8 @@ def chat_page():
             st.session_state.stop_streaming = False
 
         with st.chat_message("assistant", avatar=bot_avatar_image_url):
-            response = st.write_stream(response_generator(in_resp,request_id=request_id, selected_bot_id=selected_bot_id))
+            #response = st.write_stream(response_generator(in_resp,request_id=request_id, selected_bot_id=selected_bot_id))
+            response = emulate_write_stream(response_generator(in_resp,request_id=request_id, selected_bot_id=selected_bot_id))
         st.session_state.stop_streaming = False
 
         # Initialize last_response if it doesn't exist

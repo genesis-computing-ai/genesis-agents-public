@@ -78,7 +78,7 @@ import core.global_flags as global_flags
 
     
 
-print("****** GENBOT VERSION 0.200-DEV*******")
+print("****** GENBOT VERSION 0.201-DEV*******")
 
 runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
 multbot_mode = True
@@ -732,10 +732,10 @@ def configure_llm():
         llm_key = input_rows[0][2]
         llm_endpoint = input_rows[0][3]
 
-        if not llm_key or not llm_type or not llm_endpoint:
+        if not llm_key or not llm_type:
             response = {
                 "Success": False,
-                "Message": "Missing LLM API Key or LLM Model Name or LLM Endpoint.",
+                "Message": "Missing LLM API Key or LLM Model Name",
             }
             llm_key = None
             llm_type = None
@@ -788,6 +788,15 @@ def configure_llm():
             os.environ["BOT_OS_DEFAULT_LLM_ENGINE"] = llm_type.lower()
             default_llm_engine = llm_type
             llm_api_key_struct.llm_key = llm_key
+            llm_api_key_struct.llm_type = llm_type
+            llm_api_key_struct.llm_endpoint = llm_endpoint
+
+            set_key_result = set_llm_key(
+                llm_key=llm_key,
+                llm_type=llm_type,
+                llm_endpoint=llm_endpoint,
+            )
+
             if llm_api_key_struct.llm_key is not None:
                 try:
                     sessions, api_app_id_to_session_map, bot_id_to_udf_adapter_map, SystemVariables.bot_id_to_slack_adapter_map = create_sessions(
@@ -831,11 +840,7 @@ def configure_llm():
 
             # Assuming 'babybot' is an instance of a class that has the 'set_llm_key' method
             # and it has been instantiated and imported above in the code.
-            set_key_result = set_llm_key(
-                llm_key=llm_key,
-                llm_type=llm_type,
-                llm_endpoint=llm_endpoint,
-            )
+
             if set_key_result:
                 response = {
                     "Success": True,

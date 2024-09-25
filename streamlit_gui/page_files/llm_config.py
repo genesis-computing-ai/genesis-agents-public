@@ -1,6 +1,6 @@
 import streamlit as st
 import time 
-from utils import get_bot_details, get_metadata, configure_llm, check_eai_status, get_references, upgrade_services
+from utils import get_bot_details, get_metadata, configure_llm, check_eai_status, get_references, upgrade_services, get_bot_details
 
 
 def llm_config():
@@ -124,6 +124,9 @@ def llm_config():
                         "-> Please refresh this browser page to chat with your bots!"
                     )
                     st.session_state.clear()
+                    st.cache_data.clear()
+                    st.cache_resource.clear()
+                    get_bot_details.clear()
                     st.session_state.show_openai_config = False
                     
             if cur_key == "<existing key present on server>":

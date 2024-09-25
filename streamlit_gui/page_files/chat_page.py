@@ -212,9 +212,13 @@ def chat_page():
         # Get the LLM configuration for the active bot
         llm_configuration = get_llm_configuration(selected_bot_id)
 
-        if intro_prompt or (('fast_mode' in st.session_state and st.session_state.fast_mode) and llm_configuration != 'openai'):
+        if (intro_prompt or ('fast_mode' in st.session_state and st.session_state.fast_mode)) and llm_configuration.lower() == 'cortex':
             #st.success("fast mode")
-            prompt += "<<!!FAST_MODE!!>>"
+            if prompt is not None:
+                prompt += "<<!!FAST_MODE!!>>"
+
+        if prompt is None:
+            prompt = 'hello'
 
         request_id = submit_to_udf_proxy(
             input_text=prompt,
@@ -293,8 +297,8 @@ def chat_page():
         return
 
     if bot_details == {"Success": False, "Message": "Needs LLM Type and Key"}:
-        from llm_config import llm_config
-        llm_config()
+        st.session_state["radio"] = "LLM Model & Key"
+        st.rerun()
     else:
         try:
             # get bot details
@@ -476,6 +480,8 @@ def chat_page():
                 selected_bot_index = bot_names.index(selected_bot_name)
                 selected_bot_id = bot_ids[selected_bot_index]
                 selected_bot_intro_prompt = bot_intro_prompts[selected_bot_index]
+                if selected_bot_intro_prompt is None:
+                    selected_bot_intro_prompt = 'Briefly introduce yourself and suggest a next step to the user.'
 
                 selected_bot_id = bot_ids[selected_bot_index]
                 llm_configuration = get_llm_configuration(selected_bot_id)

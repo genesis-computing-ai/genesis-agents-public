@@ -163,38 +163,6 @@ $$
 $$)
 ;
 
--- CREATE OR REPLACE PROCEDURE core.grant_callback(privileges array)
---   RETURNS STRING
---   LANGUAGE SQL
---   AS $$
---   BEGIN
---    IF (ARRAY_CONTAINS('CREATE COMPUTE POOL'::VARIANT, privileges)) THEN
---     LET pool STRING := NULL;
---     EXECUTE IMMEDIATE 'SHOW COMPUTE POOLS';
---     SELECT "name" INTO pool FROM TABLE(RESULT_SCAN(LAST_QUERY_ID())) LIMIT 1;
---     IF (NOT :pool) THEN
---         //create compute pool
---         CREATE COMPUTE POOL IF NOT EXISTS GENESIS_POOL 
---         MIN_NODES=1 MAX_NODES=1 INSTANCE_FAMILY='CPU_X64_S' AUTO_SUSPEND_SECS=3600 INITIALLY_SUSPENDED=FALSE;
-
---         GRANT OPERATE ON COMPUTE POOL GENESIS_POOL TO APPLICATION ROLE APP_PUBLIC;
---     END IF;
---    END IF;
---    IF (ARRAY_CONTAINS('CREATE WAREHOUSE'::VARIANT, privileges)) THEN
-
---       //create warehouse
---       CREATE WAREHOUSE IF NOT EXISTS APP_XSMALL
---       MIN_CLUSTER_COUNT=1 MAX_CLUSTER_COUNT=1
---       WAREHOUSE_SIZE=XSMALL AUTO_RESUME = TRUE AUTO_SUSPEND = 60;
-
---       GRANT USAGE, OPERATE ON WAREHOUSE APP_XSMALL TO APPLICATION ROLE APP_PUBLIC;
-
---       CALL CORE.INITIALIZE_APP_INSTANCE('APP1','GENESIS_POOL',FALSE,'APP_XSMALL');
-      
---    END IF;
---    RETURN 'DONE';
---  END;
---  $$;
 
  CREATE OR REPLACE PROCEDURE core.grant_callback(privileges array)
   RETURNS STRING
@@ -330,17 +298,26 @@ BEGIN
         ' ';
 
     LET x INTEGER := 0;
-    LET stmt VARCHAR := 'SELECT "name" as SERVICE_NAME, "schema_name" AS SCHEMA_NAME FROM TABLE(RESULT_SCAN(LAST_QUERY_ID()))';
+    LET stmt VARCHAR := 'SELECT "name" as SERVICE_NAME, "schema_name" AS SCHEMA_NAME, "external_access_integrations" AS EAI_NAME FROM TABLE(RESULT_SCAN(LAST_QUERY_ID()))';
     EXECUTE IMMEDIATE 'SHOW SERVICES IN SCHEMA ' ||:INSTANCE_NAME;
     LET RS1 RESULTSET := (EXECUTE IMMEDIATE :stmt);
     LET c1 CURSOR FOR RS1;
     FOR rec IN c1 DO
-          IF (EAI) THEN
+        LET eai_ref BOOLEAN := (
+          select iff(SYSTEM$GET_ALL_REFERENCES('consumer_external_access') = '[ ]',FALSE,TRUE)
+        );
+          IF (EAI AND eai_ref) THEN
             EXECUTE IMMEDIATE
               'ALTER SERVICE IF EXISTS '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
               ' SET ' ||
               ' QUERY_WAREHOUSE = '||:WH_NAME||
               ' EXTERNAL_ACCESS_INTEGRATIONS = (REFERENCE(''consumer_external_access''))';
+          ELSEIF (EAI AND NOT eai_ref AND rec.EAI_NAME IS NOT NULL) THEN
+            EXECUTE IMMEDIATE
+              'ALTER SERVICE IF EXISTS '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
+              ' SET ' ||
+              ' QUERY_WAREHOUSE = '||:WH_NAME||
+              ' EXTERNAL_ACCESS_INTEGRATIONS = (GENESIS_EAI)';              
           ELSE
             EXECUTE IMMEDIATE
               'ALTER SERVICE IF EXISTS '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
@@ -348,7 +325,6 @@ BEGIN
               ' QUERY_WAREHOUSE = '||:WH_NAME;
           END IF;
 
-      --  EXECUTE IMMEDIATE 'CALL APP.WAIT_FOR_STARTUP(\''||rec.schema_name||'\',\''||rec.service_name||'\',300)';
       x := x + 1;
     END FOR;
 
@@ -504,14 +480,24 @@ $$
       SELECT REGEXP_REPLACE(VALUE
         ,'{{app_db_sch}}',lower(:APP_DATABASE)||'.'||lower(:INSTANCE_NAME)) AS VALUE
       FROM APP.YAML WHERE NAME=:SERVICE_NAME);
+  LET eai_ref BOOLEAN := (
+        select iff(SYSTEM$GET_ALL_REFERENCES('consumer_external_access') = '[ ]',FALSE,TRUE)
+  );
 
-
-  IF (EAI) THEN
+  IF (EAI AND eai_ref) THEN
     EXECUTE IMMEDIATE
       'CREATE SERVICE IF NOT EXISTS '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
       ' IN COMPUTE POOL  '|| :POOL_NAME ||
       ' FROM SPECIFICATION  '||chr(36)||chr(36)||'\n'|| :spec ||'\n'||chr(36)||chr(36) ||
-      ' EXTERNAL_ACCESS_INTEGRATIONS = (REFERENCE(''consumer_external_access''))';
+      ' EXTERNAL_ACCESS_INTEGRATIONS = (REFERENCE(''consumer_external_access''))' ||
+      ' QUERY_WAREHOUSE = '||:WAREHOUSE_NAME;
+  ELSEIF (EAI AND NOT eai_ref) THEN
+      EXECUTE IMMEDIATE
+      'CREATE SERVICE IF NOT EXISTS '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
+      ' IN COMPUTE POOL  '|| :POOL_NAME ||
+      ' FROM SPECIFICATION  '||chr(36)||chr(36)||'\n'|| :spec ||'\n'||chr(36)||chr(36) ||
+      ' EXTERNAL_ACCESS_INTEGRATIONS = (GENESIS_EAI)' ||
+      ' QUERY_WAREHOUSE = '||:WAREHOUSE_NAME;
   ELSE
     EXECUTE IMMEDIATE
       'CREATE SERVICE IF NOT EXISTS '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
@@ -605,12 +591,24 @@ $$
         ,'{{app_db_sch}}',lower(:APP_DATABASE)||'.'||lower(:INSTANCE_NAME)) AS VALUE
       FROM APP.YAML WHERE NAME=:SERVICE_NAME);
 
-  IF (EAI) THEN
+  LET eai_ref BOOLEAN := (
+        select iff(SYSTEM$GET_ALL_REFERENCES('consumer_external_access') = '[ ]',FALSE,TRUE)
+  );
+
+  IF (EAI AND eai_ref) THEN
     EXECUTE IMMEDIATE
       'CREATE SERVICE IF NOT EXISTS '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
       ' IN COMPUTE POOL  '|| :POOL_NAME ||
       ' FROM SPECIFICATION  '||chr(36)||chr(36)||'\n'|| :spec ||'\n'||chr(36)||chr(36) ||
-      ' EXTERNAL_ACCESS_INTEGRATIONS = (REFERENCE(''consumer_external_access''))';
+      ' EXTERNAL_ACCESS_INTEGRATIONS = (REFERENCE(''consumer_external_access''))' ||
+      ' QUERY_WAREHOUSE = '||:WAREHOUSE_NAME;
+  ELSEIF (EAI AND NOT eai_ref) THEN
+      EXECUTE IMMEDIATE
+      'CREATE SERVICE IF NOT EXISTS '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
+      ' IN COMPUTE POOL  '|| :POOL_NAME ||
+      ' FROM SPECIFICATION  '||chr(36)||chr(36)||'\n'|| :spec ||'\n'||chr(36)||chr(36) ||
+      ' EXTERNAL_ACCESS_INTEGRATIONS = (GENESIS_EAI)' ||
+      ' QUERY_WAREHOUSE = '||:WAREHOUSE_NAME;
   ELSE
     EXECUTE IMMEDIATE
       'CREATE SERVICE IF NOT EXISTS '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
@@ -643,12 +641,24 @@ $$
         ,'{{app_db_sch}}',lower(:APP_DATABASE)||'.'||lower(:INSTANCE_NAME)) AS VALUE
       FROM APP.YAML WHERE NAME=:SERVICE_NAME);
 
-  IF (EAI) THEN
+  LET eai_ref BOOLEAN := (
+        select iff(SYSTEM$GET_ALL_REFERENCES('consumer_external_access') = '[ ]',FALSE,TRUE)
+  );
+
+  IF (EAI AND eai_ref) THEN
     EXECUTE IMMEDIATE
       'CREATE SERVICE IF NOT EXISTS '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
       ' IN COMPUTE POOL  '|| :POOL_NAME ||
       ' FROM SPECIFICATION  '||chr(36)||chr(36)||'\n'|| :spec ||'\n'||chr(36)||chr(36) ||
-      ' EXTERNAL_ACCESS_INTEGRATIONS = (REFERENCE(''consumer_external_access''))';
+      ' EXTERNAL_ACCESS_INTEGRATIONS = (REFERENCE(''consumer_external_access''))' ||
+      ' QUERY_WAREHOUSE = '||:WAREHOUSE_NAME;
+  ELSEIF (EAI AND NOT eai_ref) THEN
+      EXECUTE IMMEDIATE
+      'CREATE SERVICE IF NOT EXISTS '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
+      ' IN COMPUTE POOL  '|| :POOL_NAME ||
+      ' FROM SPECIFICATION  '||chr(36)||chr(36)||'\n'|| :spec ||'\n'||chr(36)||chr(36) ||
+      ' EXTERNAL_ACCESS_INTEGRATIONS = (GENESIS_EAI)' ||
+      ' QUERY_WAREHOUSE = '||:WAREHOUSE_NAME;
   ELSE
     EXECUTE IMMEDIATE
       'CREATE SERVICE IF NOT EXISTS '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
@@ -681,12 +691,24 @@ $$
         ,'{{app_db_sch}}',lower(:APP_DATABASE)||'.'||lower(:INSTANCE_NAME)) AS VALUE
       FROM APP.YAML WHERE NAME=:SERVICE_NAME);
 
-  IF (EAI) THEN
+  LET eai_ref BOOLEAN := (
+        select iff(SYSTEM$GET_ALL_REFERENCES('consumer_external_access') = '[ ]',FALSE,TRUE)
+  );
+
+  IF (EAI AND eai_ref) THEN
     EXECUTE IMMEDIATE
       'CREATE SERVICE IF NOT EXISTS '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
       ' IN COMPUTE POOL  '|| :POOL_NAME ||
       ' FROM SPECIFICATION  '||chr(36)||chr(36)||'\n'|| :spec ||'\n'||chr(36)||chr(36) ||
-      ' EXTERNAL_ACCESS_INTEGRATIONS = (REFERENCE(''consumer_external_access''))';
+      ' EXTERNAL_ACCESS_INTEGRATIONS = (REFERENCE(''consumer_external_access''))' ||
+      ' QUERY_WAREHOUSE = '||:WAREHOUSE_NAME;
+  ELSEIF (EAI AND NOT eai_ref) THEN
+      EXECUTE IMMEDIATE
+      'CREATE SERVICE IF NOT EXISTS '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
+      ' IN COMPUTE POOL  '|| :POOL_NAME ||
+      ' FROM SPECIFICATION  '||chr(36)||chr(36)||'\n'|| :spec ||'\n'||chr(36)||chr(36) ||
+      ' EXTERNAL_ACCESS_INTEGRATIONS = (GENESIS_EAI)' ||
+      ' QUERY_WAREHOUSE = '||:WAREHOUSE_NAME;
   ELSE
     EXECUTE IMMEDIATE
       'CREATE SERVICE IF NOT EXISTS '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
@@ -938,7 +960,7 @@ $$;
 
 GRANT USAGE ON PROCEDURE CORE.UPGRADE_SERVICES(BOOLEAN) TO APPLICATION ROLE APP_PUBLIC;
 
-CALL CORE.UPGRADE_SERVICES(FALSE);
+CALL CORE.UPGRADE_SERVICES(TRUE);
 
 
 CREATE OR REPLACE PROCEDURE CORE.TEST_BILLING_EVENT()

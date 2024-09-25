@@ -26,6 +26,7 @@ def llm_config():
     
     llm_info = get_metadata("llm_info")
     llm_types = []
+    active_llm_type = None
     if len(llm_info) > 0:
         # Check which llm_type has active = true
         active_llm_type = [llm["llm_type"] for llm in llm_info if llm["active"]]
@@ -123,11 +124,13 @@ def llm_config():
                     st.success(
                         "-> Please refresh this browser page to chat with your bots!"
                     )
-                 #   st.session_state.clear()
+                    # st.session_state.clear()
                     st.cache_data.clear()
                     st.cache_resource.clear()
                     get_bot_details.clear()
-                    st.session_state.show_openai_config = False
+                    if llm_model in ["OpenAI"]:
+                        st.session_state.show_openai_config = False
+
                     
             if cur_key == "<existing key present on server>":
                 st.write("Reload this page to chat with your apps.")

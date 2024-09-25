@@ -265,8 +265,8 @@ def chat_page():
         return
 
     if bot_details == {"Success": False, "Message": "Needs LLM Type and Key"}:
-        from llm_config import llm_config
-        llm_config()
+        st.session_state["radio"] = "LLM Model & Key"
+        st.rerun()
     else:
         try:
             # get bot details

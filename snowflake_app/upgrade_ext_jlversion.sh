@@ -19,9 +19,8 @@ DIRECTORY_PATH=${1:-~/}
 # Ensure the directory path does not end with a slash
 DIRECTORY_PATH=${DIRECTORY_PATH%/}
 
-DIRECTORY_PATH=/Users/justin/Documents/Code
-
 cp ./streamlit_gui/main.py ./streamlit_gui/Genesis.py
+DIRECTORY_PATH=/Users/justin/Documents/Code
 
 # Login to image repo
 snow spcs image-registry token --connection GENESIS-EXT-PROVIDER --format=JSON

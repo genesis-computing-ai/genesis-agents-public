@@ -74,16 +74,33 @@ class KnowledgeServer:
                         continue
                     
                 query = f"""
+
                         WITH BOTS AS (SELECT BOT_SLACK_USER_ID, 
                             CONCAT('{{"user_id": "', BOT_SLACK_USER_ID, '", "user_name": "', BOT_NAME, '", "user_email": "Unknown Email"}}') as PRIMARY_USER 
-                            FROM {self.db_connector.bot_servicing_table_name})
-                        SELECT COUNT(DISTINCT M.PRIMARY_USER) AS CNT FROM {self.db_connector.message_log_table_name} M
+                            FROM  {self.db_connector.bot_servicing_table_name}),
+                          BOTS2 AS (SELECT BOT_SLACK_USER_ID, 
+                            CONCAT('{{"user_id": "', BOT_SLACK_USER_ID, '", "user_name": "', BOT_NAME, '"}}') as PRIMARY_USER 
+                            FROM  {self.db_connector.bot_servicing_table_name})
+                        SELECT count(DISTINCT M.PRIMARY_USER) as CNT FROM {self.db_connector.message_log_table_name} M
                         LEFT JOIN BOTS ON M.PRIMARY_USER = BOTS.PRIMARY_USER
-                        WHERE THREAD_ID = '{thread_id}' AND BOT_SLACK_USER_ID IS NULL;"""
+                        LEFT JOIN BOTS2 ON M.PRIMARY_USER = BOTS2.PRIMARY_USER
+                        WHERE THREAD_ID = '{thread_id}'
+                        AND  BOTS.BOT_SLACK_USER_ID IS NULL AND  BOTS2.BOT_SLACK_USER_ID IS NULL
+                        and m.primary_user <> '{{"user_id": "Unknown User ID", "user_name": "Unknown User"}}';
+
+"""
+                        # WITH BOTS AS (SELECT BOT_SLACK_USER_ID, 
+                        #     CONCAT('{{"user_id": "', BOT_SLACK_USER_ID, '", "user_name": "', BOT_NAME, '", "user_email": "Unknown Email"}}') as PRIMARY_USER 
+                        #     FROM {self.db_connector.bot_servicing_table_name})
+                        # SELECT COUNT(DISTINCT M.PRIMARY_USER) AS CNT FROM {self.db_connector.message_log_table_name} M
+                        # LEFT JOIN BOTS ON M.PRIMARY_USER = BOTS.PRIMARY_USER
+                        # WHERE THREAD_ID = '{thread_id}' AND BOT_SLACK_USER_ID IS NULL
+                        # and m.primary_user <> '{{"user_id": "Unknown User ID", "user_name": "Unknown User"}}';"""
                 count_non_bot_users = self.db_connector.run_query(query)
                 # this is needed to exclude channels with more than one user
 
                 if count_non_bot_users and count_non_bot_users[0]["CNT"] != 1:
+                    print(f"Skipped {thread_id}, {count_non_bot_users[0]['CNT']} non-bot-users is not 1")
                     continue
 
                 with self.condition:
@@ -230,7 +247,7 @@ class KnowledgeServer:
 
                     self.user_queue.put((primary_user, bot_id, response))
             except Exception as e:
-                print(f"Encountered errors while inserting into {self.db_connector.knowledge_table_name} row: {e}")
+                print(f"Encountered errors processing knowledge for thread {thread_id}, {self.db_connector.knowledge_table_name} row: {e}")
             
             with self.thread_set_lock:
                 self.thread_set.remove(thread_id)

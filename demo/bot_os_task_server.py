@@ -67,7 +67,7 @@ os.environ['TASK_MODE'] = 'true'
 os.environ['SHOW_COST'] = 'false'
 ########################################
 
-print("****** GENBOT VERSION 0.183 *******")
+print("****** GENBOT VERSION 0.184 *******")
 print("****** TASK AUTOMATION SERVER *******")
 runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
 print("Runner ID: ", runner_id)
@@ -213,7 +213,7 @@ def get_llm_api_key(db_adapter=None):
 
         if llm_api_key_struct.llm_key is None and llm_api_key_struct.llm_key != 'cortex_no_key_needed':
         #   print('No LLM Key Available in ENV var or Snowflake database, sleeping 20 seconds before retry.', flush=True)
-            time.sleep(120)
+            time.sleep(180)
         else:
             print(f"Using {llm_type} for task server ")
         

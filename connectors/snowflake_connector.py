@@ -185,12 +185,12 @@ class SnowflakeConnector(DatabaseConnector):
                     self.default_llm_engine = 'cortex'
                     
                     self.llm_api_key = 'cortex_no_key_needed'
-                    print('\nCortex LLM is Available via REST and successfully tested')
+                    print('Cortex LLM is Available via REST and successfully tested')
                     return True
                 else:
                     os.environ["CORTEX_MODE"] = "False"
                     os.environ["CORTEX_AVAILABLE"] = 'False'
-                    print('\nCortex LLM is not available via REST ')
+                    print('Cortex LLM is not available via REST ')
                     return False
             except Exception as e:
                 print('Cortex LLM Not available via REST, exception on test: ',e)
@@ -276,13 +276,13 @@ class SnowflakeConnector(DatabaseConnector):
         if os.getenv("CORTEX_OFF", "").upper() == "TRUE":
             print('CORTEX OFF ENV VAR SET -- SIMULATING NO CORTEX')
             return False
-        response, status_code  = self.cortex_chat_completion("Hi there")
+        response, status_code  = self.cortex_chat_completion("Hi there", test=True)
         if status_code != 200:
            # print(f"Failed to connect to Cortex API. Status code: {status_code} RETRY 1")
-            response, status_code  = self.cortex_chat_completion("Hi there")
+            response, status_code  = self.cortex_chat_completion("Hi there", test=True)
             if status_code != 200:
              #   print(f"Failed to connect to Cortex API. Status code: {status_code} RETRY 2")
-                response, status_code  = self.cortex_chat_completion("Hi there")
+                response, status_code  = self.cortex_chat_completion("Hi there",test=True)
                 if status_code != 200:
               #      print(f"Failed to connect to Cortex API. Status code: {status_code} FAILED AFTER 3 TRIES")
                     return False
@@ -295,7 +295,7 @@ class SnowflakeConnector(DatabaseConnector):
             os.environ['CORTEX_AVAILABLE'] = 'False'
             return False
 
-    def cortex_chat_completion(self, prompt, system=None):
+    def cortex_chat_completion(self, prompt, system=None, test=False):
         if system:
             newarray = [{"role": "user", "content": system}, {"role": "user", "content": prompt} ]
         else:
@@ -317,7 +317,8 @@ class SnowflakeConnector(DatabaseConnector):
                 "stream": True,
             }
 
-            print(f"snowflake_connector calling cortex {self.llm_engine} via REST API, content est tok len=",len(str(newarray))/4)
+            if not test:
+                print(f"snowflake_connector calling cortex {self.llm_engine} via REST API, content est tok len=",len(str(newarray))/4)
 
             response = requests.post(url, json=request_data, stream=True, headers=headers)
 

@@ -25,7 +25,7 @@ print("   ╱         ╲   ")
 print("  G E N E S I S ")
 print("    B o t O S")
 print(" ---- KNOWLEDGE SERVER----")
-print('Knowledge Start Version 0.183',flush=True)
+print('Knowledge Start Version 0.184',flush=True)
 
 
 
@@ -203,7 +203,7 @@ class KnowledgeServer:
                     print('Skipped thread ',knowledge_thread_id,' knowledge unparseable')
             else:
                 system = "You are a Knowledge Explorer to extract, synthesize, and inject knowledge that bots learn from doing their jobs"
-                res, status_code  = self.db_connector.cortex_chat_completion(content, system)
+                res, status_code  = self.db_connector.cortex_chat_completion(content, system=system)
                 response = ast.literal_eval(res.split("```")[1])
                 
                 
@@ -304,7 +304,7 @@ class KnowledgeServer:
                 else:
                     system = f"Use the following raw knowledge information about the interaction of the user and the bot, \
                                     summarize what we learned about the {prompt} in bullet point."
-                    response, status_code  = self.db_connector.cortex_chat_completion(content, system)                    
+                    response, status_code  = self.db_connector.cortex_chat_completion(content, system=system)                    
                     new_knowledge[item] = response
 
 

@@ -120,7 +120,7 @@ class BotOsServer:
 
         # TODO REMOVE THE OTHER ROTATER CALL
         # Print a confirmation message with the current time
-        self.last_slack_token_rotate_time = datetime.datetime.now()
+       
         if tok is not None and ref is not None:
             print(f"Slack Bot Config Token REFRESHED {self.last_slack_token_rotate_time}")
         else:
@@ -183,7 +183,7 @@ class BotOsServer:
                     emb_size = os.environ['EMBEDDING_SIZE']
                 except:
                     pass
-                if BotOsServer.run_count % 10 == 0:
+                if BotOsServer.cycle_count % 10 == 0:
                     sys.stdout.write(
                         f"--- {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} bot_os_server runners: {insts} / max 100, emb_size: {emb_size} (cycle = {BotOsServer.cycle_count})\n"
                     )
@@ -235,23 +235,18 @@ class BotOsServer:
             except Exception as e:
                 traceback.print_exc()
 
-        # Check if its time for Slack token totation
+        # Check if its time for Slack token totation, every 6 hours
         if (
             self.slack_active
             and (
                 datetime.datetime.now() - self.last_slack_token_rotate_time
             ).total_seconds()
-            > 1800
+            > 21600
         ):
+            self.last_slack_token_rotate_time = datetime.datetime.now()
             self._rotate_slack_tokens()
 
-    #        if  (datetime.datetime.now() - self.last_dbconnection_refresh).total_seconds() > 60:
-    #            print('[TEMP MESSAGE FROM BOT_SERVER EVERY 60 SEC] Refreshing Snowflake Tokens...')
-    #            self.last_dbconnection_refresh = datetime.datetime.now()
-    #            for session in self.sessions:
-    #                db_connector = session.get_database_connector()
-    #                if isinstance(db_connector, SnowflakeConnector):
-    #                    db_connector.refresh_tokens()
+
     def run(self, *args, **kwargs):
         # Start the Flask application
         self.app.run(*args, **kwargs)

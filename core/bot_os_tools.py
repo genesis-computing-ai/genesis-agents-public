@@ -914,17 +914,22 @@ In your response back to run_process, provide a detailed description of what you
         cursor = db_adapter.client.cursor()
         try:
             if bot_id == "all":
-                list_query = f"SELECT note_id, bot_id FROM {db_adapter.schema}.BOT_NOTEBOOK" if db_adapter.schema else f"SELECT note_id, bot_id FROM BOT_NOTEBOOK"
+                list_query = f"SELECT * FROM {db_adapter.schema}.BOT_NOTEBOOK" if db_adapter.schema else f"SELECT note_id, bot_id FROM BOT_NOTEBOOK"
                 cursor.execute(list_query)
             else:
-                list_query = f"SELECT note_id, bot_id FROM {db_adapter.schema}.BOT_NOTEBOOK WHERE upper(bot_id) = upper(%s)" if db_adapter.schema else f"SELECT note_id, bot_id FROM BOT_NOTEBOOK WHERE upper(bot_id) = upper(%s)"
+                list_query = f"SELECT * FROM {db_adapter.schema}.BOT_NOTEBOOK WHERE upper(bot_id) = upper(%s)" if db_adapter.schema else f"SELECT note_id, bot_id FROM BOT_NOTEBOOK WHERE upper(bot_id) = upper(%s)"
                 cursor.execute(list_query, (bot_id,))
             notes = cursor.fetchall()
             note_list = []
             for note in notes:
                 note_dict = {
-                    "note_id": notes[0],
-                    "bot_id": notes[1]
+                    "timestamp": note[0],
+                    "bot_id": note[1],
+                    "note_id": note[2],
+                    'note_name': note[3],
+                    'note_type': note[4],
+                    'note_content': note[5],
+                    'note_params': note[6]
                 }
                 note_list.append(note_dict)
             return {"Success": True, "notes": note_list}
@@ -1252,16 +1257,15 @@ In your response back to run_process, provide a detailed description of what you
             elif action == "UPDATE":
                 update_query = f"""
                     UPDATE {db_adapter.schema}.BOT_NOTEBOOK
-                    SET timestamp = CURRENT_TIMESTAMP, note_id={note_id}, bot_id={bot_id}, note_name={note_name}, note_content={note_content}, note_params={note_params}
-                    WHERE note_id = %(note_id)s
+                    SET timestamp = CURRENT_TIMESTAMP, note_id='{note_id}', bot_id='{bot_id}', note_name='{note_name}', note_content='{note_content}', note_params='{note_params}', note_type='{note_type}'
+                    WHERE note_id = '{note_id}'
                 """ if db_adapter.schema else f"""
                     UPDATE BOT_NOTEBOOK
-                    SET timestamp = CURRENT_TIMESTAMP, note_id={note_id}, bot_id={bot_id}, note_name={note_name}, note_content={note_content}, note_params={note_params}
-                    WHERE note_id = %(note_id)s
+                    SET timestamp = CURRENT_TIMESTAMP, note_id='{note_id}', bot_id='{bot_id}', note_name='{note_name}', note_content='{note_content}', note_params='{note_params}', note_type='{note_type}'
+                    WHERE note_id = '{note_id}'
                 """
                 cursor.execute(
-                    update_query,
-                    {**note_content, "note_id": note_id},
+                    update_query
                 )
                 db_adapter.client.commit()
                 return {

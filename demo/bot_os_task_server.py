@@ -67,7 +67,7 @@ os.environ['TASK_MODE'] = 'true'
 os.environ['SHOW_COST'] = 'false'
 ########################################
 
-print("****** GENBOT VERSION 0.175 *******")
+print("****** GENBOT VERSION 0.183 *******")
 print("****** TASK AUTOMATION SERVER *******")
 runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
 print("Runner ID: ", runner_id)
@@ -150,12 +150,47 @@ except Exception as e:
 
 ngrok_active = False
 
+#old
+if False:
+    print(f"Checking LLM key...")
+    def get_llm_api_key():
+        from core.bot_os_llm import LLMKeyHandler 
+        logger.info('Getting LLM API Key...')
+        api_key_from_env = False
+        llm_type = os.getenv("BOT_OS_DEFAULT_LLM_ENGINE", "openai")
+        llm_api_key = None
+
+        i = 0
+        c = 0
+
+        while llm_api_key == None:
+
+            i = i + 1
+            if i > 100:
+                c += 1
+                print(f'Waiting on LLM key... (cycle {c})')
+                i = 0 
+            # llm_type = None
+            llm_key_handler = LLMKeyHandler()
+            logger.info('Getting LLM API Key...')
+
+            api_key_from_env, llm_api_key = llm_key_handler.get_llm_key_from_db()
+
+            if llm_api_key is None and llm_api_key != 'cortex_no_key_needed':
+            #   print('No LLM Key Available in ENV var or Snowflake database, sleeping 20 seconds before retry.', flush=True)
+                time.sleep(20)
+            else:
+                logger.info(f"Using {llm_type} for task server ")
+
+    llm_api_key = get_llm_api_key()
+
+
 # new llm stuff
 logger.info('Getting LLM API Key...')
 
 def get_llm_api_key(db_adapter=None):
     from core.bot_os_llm import LLMKeyHandler 
-    logger.info('Getting LLM API Key...')
+    print('Getting LLM API Key...')
     api_key_from_env = False
     llm_type = os.getenv("BOT_OS_DEFAULT_LLM_ENGINE", "openai")
     llm_api_key_struct = None
@@ -172,17 +207,17 @@ def get_llm_api_key(db_adapter=None):
             i = 0 
         # llm_type = None
         llm_key_handler = LLMKeyHandler(db_adapter=db_adapter)
-        logger.info('Getting LLM API Key...')
+       # print('Getting LLM API Key...')
 
         not_used_api_key_from_env, llm_api_key_struct = llm_key_handler.get_llm_key_from_db()
 
         if llm_api_key_struct.llm_key is None and llm_api_key_struct.llm_key != 'cortex_no_key_needed':
         #   print('No LLM Key Available in ENV var or Snowflake database, sleeping 20 seconds before retry.', flush=True)
-            time.sleep(20)
+            time.sleep(120)
         else:
-            logger.info(f"Using {llm_api_key_struct.llm_type} for task server ")
+            print(f"Using {llm_type} for task server ")
         
-        return llm_api_key_struct
+    return llm_api_key, llm_type
 
 llm_api_key_struct = get_llm_api_key(db_adapter)
 
@@ -1677,6 +1712,6 @@ while True:
     except Exception as e:
         print("Task Loop Exception!!!!")
         print(f"Error: {e}")
-        print('Starting loop again in 60 seconds...')
+        print('Starting loop again in 180 seconds...')
         logger.error(f"Task Loop Exception: {e}", exc_info=True)
-        time.sleep(60)
+        time.sleep(180)

@@ -9,7 +9,25 @@ from openai import OpenAI
 from datetime import datetime, timedelta
 import ast
 
-from llm_openai.openai_utils import get_openai_client
+print("     ┌───────┐     ")
+print("    ╔═════════╗    ")
+print("   ║  ◉   ◉  ║   ")
+print("  ║    ───    ║  ")
+print(" ╚═══════════╝ ")
+print("     ╱     ╲     ")
+print("    ╱│  ◯  │╲    ")
+print("   ╱ │_____│ ╲   ")
+print("      │   │      ")
+print("      │   │      ")
+print("     ╱     ╲     ")
+print("    ╱       ╲    ")
+print("   ╱         ╲   ")
+print("  G E N E S I S ")
+print("    B o t O S")
+print(" ---- KNOWLEDGE SERVER----")
+print('Knowledge Start Version 0.183',flush=True)
+
+
 
 refresh_seconds = os.getenv("KNOWLEDGE_REFRESH_SECONDS", 60)
 refresh_seconds = int(refresh_seconds)
@@ -94,7 +112,7 @@ class KnowledgeServer:
                 current_time = datetime.now()
                 time_difference = current_time - bot_active_time_dt
 
-                print(f"\nBOTS ACTIVE TIME: {result[0]} | CURRENT TIME: {current_time} | TIME DIFFERENCE: {time_difference} | producer", flush=True)
+                print(f"BOTS ACTIVE TIME: {result[0]} | CURRENT TIME: {current_time} | TIME DIFFERENCE: {time_difference} | producer", flush=True)
 
                 if time_difference < timedelta(minutes=5):
                     wake_up = True
@@ -104,7 +122,7 @@ class KnowledgeServer:
         while True:
             with self.condition:
                 if self.thread_queue.empty():
-                    print("Queue is empty, consumer is waiting...")
+                    #print("Queue is empty, consumer is waiting...")
                     self.condition.wait()
                 thread = self.thread_queue.get()
                 self.condition.notify()
@@ -223,7 +241,7 @@ class KnowledgeServer:
 
         while True:
             if self.user_queue.empty():
-                print("Queue is empty, refiner is waiting...")
+                #print("Queue is empty, refiner is waiting...")
                 time.sleep(refresh_seconds)
                 continue
             primary_user, bot_id, knowledge = self.user_queue.get()

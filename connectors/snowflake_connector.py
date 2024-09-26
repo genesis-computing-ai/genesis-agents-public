@@ -273,15 +273,18 @@ class SnowflakeConnector(DatabaseConnector):
  
 
     def test_cortex_via_rest(self):
+        if os.getenv("CORTEX_OFF", "").upper() == "TRUE":
+            print('CORTEX OFF ENV VAR SET -- SIMULATING NO CORTEX')
+            return False
         response, status_code  = self.cortex_chat_completion("Hi there")
         if status_code != 200:
-            print(f"Failed to connect to Cortex API. Status code: {status_code} RETRY 1")
+           # print(f"Failed to connect to Cortex API. Status code: {status_code} RETRY 1")
             response, status_code  = self.cortex_chat_completion("Hi there")
             if status_code != 200:
-                print(f"Failed to connect to Cortex API. Status code: {status_code} RETRY 2")
+             #   print(f"Failed to connect to Cortex API. Status code: {status_code} RETRY 2")
                 response, status_code  = self.cortex_chat_completion("Hi there")
                 if status_code != 200:
-                    print(f"Failed to connect to Cortex API. Status code: {status_code} FAILED AFTER 3 TRIES")
+              #      print(f"Failed to connect to Cortex API. Status code: {status_code} FAILED AFTER 3 TRIES")
                     return False
 
         if len(response) > 2:

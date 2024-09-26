@@ -71,11 +71,11 @@ def get_llm_api_key(db_adapter):
 
         if llm_api_key_struct.llm_key is None and llm_api_key_struct.llm_key != 'cortex_no_key_needed':
         #   print('No LLM Key Available in ENV var or Snowflake database, sleeping 20 seconds before retry.', flush=True)
-            time.sleep(20)
+            time.sleep(120)
         else:
             logger.info(f"Using {llm_type} for harvester ")
         
-        return llm_api_key_struct
+    return llm_api_key, llm_type
 
 llm_api_key_struct = get_llm_api_key(harvester_db_connector)
 
@@ -144,7 +144,7 @@ print("   ╱         ╲   ")
 print("  G E N E S I S ")
 print("    B o t O S")
 print(" ---- HARVESTER----")
-print('Harvester Start Version 0.153',flush=True)
+print('Harvester Start Version 0.183',flush=True)
 
 
 while True:

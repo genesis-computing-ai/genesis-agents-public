@@ -186,8 +186,10 @@ class BotOsSession:
 
         self.next_messages = []
         self.bot_id = bot_id
-        self.last_table_update = datetime.datetime.now()
         self.schema =  os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "None").upper()
+        self.last_table_update = datetime.datetime.now() - datetime.timedelta(seconds=61)
+        self.update_bots_active_table()
+
 
      #   sanitized_bot_id = re.sub(r"[^a-zA-Z0-9]", "", self.bot_id)
     #    thread_maps_filename = f"./thread_maps_{sanitized_bot_id}.pickle"

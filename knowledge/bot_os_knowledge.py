@@ -40,6 +40,7 @@ else:
 
 logger.info('Getting LLM API Key...')
 def get_llm_api_key(db_adapter=None):
+    from datetime import datetime, timedelta
     from core.bot_os_llm import LLMKeyHandler 
     logger.info('Getting LLM API Key...')
     api_key_from_env = False
@@ -50,6 +51,30 @@ def get_llm_api_key(db_adapter=None):
     c = 0
 
     while llm_api_key_struct == None:
+
+        refresh_seconds = 180
+        wake_up = False
+        while not wake_up:
+
+            try:
+                cursor = db_adapter.client.cursor()
+                check_bot_active = f"DESCRIBE TABLE {db_adapter.schema}.BOTS_ACTIVE"
+                cursor.execute(check_bot_active)
+                result = cursor.fetchone()
+
+                bot_active_time_dt = datetime.strptime(result[0], '%Y-%m-%d %H:%M:%S %Z')
+                current_time = datetime.now()
+                time_difference = current_time - bot_active_time_dt
+
+                print(f"BOTS ACTIVE TIME: {result[0]} | CURRENT TIME: {current_time} | TIME DIFFERENCE: {time_difference} | knowledge server", flush=True)
+
+                if time_difference < timedelta(minutes=5):
+                    wake_up = True
+                else:
+                    time.sleep(refresh_seconds)
+            except:
+                print('Waiting for BOTS_ACTIVE table to be created...')
+                time.sleep(refresh_seconds)
 
         i = i + 1
         if i > 100:

@@ -25,7 +25,7 @@ print("   ╱         ╲   ")
 print("  G E N E S I S ")
 print("    B o t O S")
 print(" ---- KNOWLEDGE SERVER----")
-print('Knowledge Start Version 0.184',flush=True)
+print('Knowledge Start Version 0.185',flush=True)
 
 
 

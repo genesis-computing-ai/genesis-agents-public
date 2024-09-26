@@ -67,7 +67,7 @@ os.environ['TASK_MODE'] = 'true'
 os.environ['SHOW_COST'] = 'false'
 ########################################
 
-print("****** GENBOT VERSION 0.184 *******")
+print("****** GENBOT VERSION 0.185 *******")
 print("****** TASK AUTOMATION SERVER *******")
 runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
 print("Runner ID: ", runner_id)
@@ -187,6 +187,8 @@ if False:
 
 # new llm stuff
 logger.info('Getting LLM API Key...')
+# api_key_from_env, llm_api_key = llm_key_handler.get_llm_key_from_db()
+
 
 def get_llm_api_key(db_adapter=None):
     from core.bot_os_llm import LLMKeyHandler 
@@ -198,7 +200,34 @@ def get_llm_api_key(db_adapter=None):
     i = 0
     c = 0
 
-    while llm_api_key_struct == None:
+
+
+
+    while llm_api_key == None:
+
+        refresh_seconds = 180
+        wake_up = False
+        while not wake_up:
+
+            try:
+                cursor = db_adapter.client.cursor()
+                check_bot_active = f"DESCRIBE TABLE {db_adapter.schema}.BOTS_ACTIVE"
+                cursor.execute(check_bot_active)
+                result = cursor.fetchone()
+
+                bot_active_time_dt = datetime.strptime(result[0], '%Y-%m-%d %H:%M:%S %Z')
+                current_time = datetime.now()
+                time_difference = current_time - bot_active_time_dt
+
+                print(f"BOTS ACTIVE TIME: {result[0]} | CURRENT TIME: {current_time} | TIME DIFFERENCE: {time_difference} | task server", flush=True)
+
+                if time_difference < timedelta(minutes=5):
+                    wake_up = True
+                else:
+                    time.sleep(refresh_seconds)
+            except:
+                print('Waiting for BOTS_ACTIVE table to be created...')
+                time.sleep(refresh_seconds)
 
         i = i + 1
         if i > 100:

@@ -60,6 +60,10 @@ database_tool_functions = [
                         "description": "The maximum number of rows to return.  This can be up to 100. The default is 20.",
                         "default": 20,
                     },
+                    "note_id": {
+                        "type": "string",
+                        "description": "The note_id of the note that contains the query to run.  This is an optional field.  If it is provided, the query will be saved in the note.  Use the note contents instead of the query parameter.",
+                    },
                 },
                 "required": ["query", "connection", "max_rows"],
             },
@@ -374,6 +378,53 @@ process_scheduler_functions = [
 # depreciated
 autonomous_functions = []
 
+notebook_manager_functions = [
+    {
+        "type": "function",
+        "function": {
+            "name": "_manage_notebook",
+            "description": "Manages notes for bots, including creating, updating, listing and deleting notes, allowing bots to manage notebook.  Remember that this is not used to create new bots",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "action": {
+                        "type": "string",
+                        "description": """
+                        The action to perform on a note: CREATE, UPDATE, DELETE, CREATE_NOTE_CONFIG, UPDATE_NOTE_CONFIG, DELETE_NOTE_CONFIG
+                        LIST returns a list of all notes, SHOW shows all fields of a note,
+                        or TIME to get current system time.""",
+                    },
+                    "bot_id": {
+                        "type": "string",
+                        "description": "The identifier of the bot that is having its processes managed.",
+                    },
+                    "note_id": {
+                        "type": "string",
+                        "description": "The unique identifier of the note, create as bot_id_<random 6 character string>. MAKE SURE TO DOUBLE-CHECK THAT YOU ARE USING THE CORRECT note_id ON UPDATES AND DELETES!  Required for CREATE, UPDATE, and DELETE.",
+                    },
+                    "note_name": {
+                        "type": "string",
+                        "description": "Human reable unique name for the note.",
+                    },
+                    "note_type": {
+                        "type": "string",
+                        "description": "The type of note.  Should be 'process', 'snowpark_python', or 'sql'"
+                    },
+                    "note_content": {
+                        "type": "string",
+                        "description": "The body of the note",
+                    },
+                    "note_params": {
+                        "type": "string",
+                        "description": "Parameters that are used by the note",
+                    },
+                },
+                "required": ["action", "bot_id", "note_id", "note_name", "note_type", "note_content"],
+            },
+        },
+    }
+]
+
 process_manager_functions = [
     {
         "type": "function",
@@ -652,6 +703,7 @@ autonomous_tools = {}
 #process_runner_tools = {"_run_process": "tool_belt.run_process"}
 process_manager_tools = {"_manage_processes": "tool_belt.manage_processes"}
 process_scheduler_tools = {"_process_scheduler": "db_adapter.process_scheduler"}
+notebook_manager_tools = {"_manage_notebook": "tool_belt.manage_notebook"}
 
 
 def bind_semantic_copilot(data_connection_info):

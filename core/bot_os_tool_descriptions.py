@@ -215,4 +215,8 @@ tools_data = [
         "process_scheduler_tools",
         "Tools to set schedules to automatically run processes.",
     ),
+    (
+        "notebook_manager_tools",
+        "Tools to manage bot notebook.",
+    ),
 ]

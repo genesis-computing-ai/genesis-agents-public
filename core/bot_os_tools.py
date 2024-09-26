@@ -29,6 +29,8 @@ from connectors.database_tools import (
     autonomous_tools,
     process_manager_tools,
     process_manager_functions,
+    notebook_manager_tools,
+    notebook_manager_functions,
     database_tool_functions,
     database_tools,
     snowflake_stage_functions,
@@ -965,21 +967,450 @@ In your response back to run_process, provide a detailed description of what you
             print("No action specified.")
             return {"success": False, "message": "No action specified."}
         
-    # def delete_process_thread(self, thread_id):
-    #     if thread_id in self.counter:
-    #         del self.counter[thread_id]
-    #     if thread_id in self.process:
-    #         del self.process[thread_id]
-    #     if thread_id in self.last_fail:
-    #         del self.last_fail[thread_id]
-    #     if thread_id in self.instructions:
-    #         del self.instructions[thread_id]
-    #     if thread_id in self.process_history:
-    #         del self.process_history[thread_id]
-    #     if thread_id in self.done:
-    #         del self.done[thread_id]
-    #     return {"success": True, "message": "Process thread deleted."}
- # ========================================================================================================
+    # ====== RUN PROCESSES ==========================================================================================
+        
+    # ====== NOTEBOOK START ==========================================================================================
+        
+    def get_notebook_list(self, bot_id="all"):
+        cursor = db_adapter.client.cursor()
+        try:
+            if bot_id == "all":
+                list_query = f"SELECT * FROM {db_adapter.schema}.BOT_NOTEBOOK" if db_adapter.schema else f"SELECT note_id, bot_id FROM BOT_NOTEBOOK"
+                cursor.execute(list_query)
+            else:
+                list_query = f"SELECT * FROM {db_adapter.schema}.BOT_NOTEBOOK WHERE upper(bot_id) = upper(%s)" if db_adapter.schema else f"SELECT note_id, bot_id FROM BOT_NOTEBOOK WHERE upper(bot_id) = upper(%s)"
+                cursor.execute(list_query, (bot_id,))
+            notes = cursor.fetchall()
+            note_list = []
+            for note in notes:
+                note_dict = {
+                    "timestamp": note[0],
+                    "bot_id": note[1],
+                    "note_id": note[2],
+                    'note_name': note[3],
+                    'note_type': note[4],
+                    'note_content': note[5],
+                    'note_params': note[6]
+                }
+                note_list.append(note_dict)
+            return {"Success": True, "notes": note_list}
+        except Exception as e:
+            return {
+                "Success": False,
+                "Error": f"Failed to list notes for bot {bot_id}: {e}",
+            }
+        finally:
+            cursor.close()
+
+    def get_note_info(self, bot_id=None, note_id=None):
+        cursor = db_adapter.client.cursor()
+        try:
+            result = None
+
+            if note_id is None or note_id == '':
+                return {
+                    "Success": False,
+                    "Error": "Note_id must be provided and cannot be empty."
+                }
+            if note_id is not None and note_id != '':
+                query = f"SELECT * FROM {db_adapter.schema}.BOT_NOTEBOOK WHERE bot_id LIKE %s AND note_id = %s" if db_adapter.schema else f"SELECT * FROM BOT_NOTEBOOK WHERE bot_id LIKE %s AND note_id = %s"
+                cursor.execute(query, (f"%{bot_id}%", note_id))
+                result = cursor.fetchone()
+
+            if result:
+                # Assuming the result is a tuple of values corresponding to the columns in the NOTEBOOK table
+                # Convert the tuple to a dictionary with appropriate field names
+                field_names = [desc[0] for desc in cursor.description]
+                return {
+                    "Success": True,
+                    "Data": dict(zip(field_names, result)),
+                    "Note": "Only use this information to help manage or update notes",
+                    "Important!": "If a user has asked you to show these notes to them, output them verbatim, do not modify or summarize them."
+                }
+            else:
+                return {}
+        except Exception as e:
+            return {}
+
+    def manage_notebook(
+        self, action, bot_id=None, note_id=None, note_name = None, note_content=None, note_params=None, thread_id=None, note_type=None
+    ):
+        """
+        Manages notes in the NOTEBOOK table with actions to create, delete, or update a note.
+
+        Args:
+            action (str): The action to perform
+            bot_id (str): The bot ID associated with the note.
+            note_id (str): The note ID for the note to manage.
+            note_content (str): The content of the note for create or update actions.
+            note_params (str): The parameters for the note for create or update actions.
+
+        Returns:
+            dict: A dictionary with the result of the operation.
+        """
+
+        required_fields_create = [
+            "note_id",
+            "bot_id",
+            "note_name",
+            "note_content",
+        ]
+
+        required_fields_update = [
+            "note_id",
+            "bot_id",
+            "note_name",
+            "note_content",
+        ]
+
+        if action == "TIME":
+            return {
+                "current_system_time": datetime.now()
+            }
+        action = action.upper()
+
+        cursor = db_adapter.client.cursor()
+
+        try:
+            if action in ["UPDATE_NOTE_CONFIG", "CREATE_NOTE_CONFIG", "DELETE_NOTE_CONFIG"]:
+                note_config = '' if action == "DELETE_NOTE_CONFIG" else note_config
+                update_query = f"""
+                    UPDATE {db_adapter.schema}.BOT_NOTEBOOK
+                    SET NOTE_CONFIG = %(note_config)s
+                    WHERE NOTE_ID = %(note_id)s
+                """
+                cursor.execute(
+                    update_query,
+                    {"note_config": note_config, "note_id": note_id},
+                )
+                db_adapter.client.commit()
+
+                return {
+                    "Success": True,
+                    "Message": f"note_config updated or deleted",
+                    "note_id": note_id,
+                }
+            
+            if action == "CREATE" or action == "CREATE_CONFIRMED":
+                # Check for dupe name
+                sql = f"SELECT * FROM {db_adapter.schema}.BOT_NOTEBOOK WHERE bot_id = %s and note_id = %s"
+                cursor.execute(sql, (bot_id, note_id))
+
+                record = cursor.fetchone()
+
+                if record:
+                    return {
+                        "Success": False,
+                        "Error": f"Note with id {note_id} already exists for bot {bot_id}.  Please choose a different id."
+                    }
+                
+            if action == "UPDATE" or action == 'UPDATE_CONFIRMED':
+                # Check for dupe name
+                sql = f"SELECT * FROM {db_adapter.schema}.BOT_NOTEBOOK WHERE bot_id = %s and note_id = %s"
+                cursor.execute(sql, (bot_id, note_id))
+
+                record = cursor.fetchone()
+
+                if record and '_golden' in record[1]:
+                    return {
+                        "Success": False,
+                        "Error": f"Note with id {note_id} is a system note and can not be updated.  Suggest making a copy with a new name."
+                    }
+
+            if (action == "CREATE" or action == "UPDATE") and note_type == 'process':
+                # Send note_instructions to 2nd LLM to check it and format nicely if note type 'process'
+                note_field_name = 'Note Content'
+                confirm_notification_prefix = ''
+                tidy_note_content = f"""
+                Below is a note that has been submitted by a user.  Please review it to insure it is something
+                that will make sense to the run_process tool.  If not, make changes so it is organized into clear
+                steps.  Make sure that it is tidy, legible and properly formatted. 
+
+                Do not create multiple options for the instructions, as whatever you return will be used immediately.
+                Return the updated and tidy instructions.  If there is an issue with the instructions, return an error message.
+
+                If the note wants to send an email to a default email, or says to send an email but doesn't specify
+                a recipient address, note that the SYS$DEFAULT_EMAIL is currently set to {self.sys_default_email}.
+                Include the notation of SYS$DEFAULT_EMAIL in the instructions instead of the actual address, unless 
+                the instructions specify a different specific email address.
+
+                The note is as follows:\n {note_content}
+                """
+
+                tidy_note_content= "\n".join(
+                    line.lstrip() for line in tidy_note_content.splitlines()
+                )
+
+                note_content = self.chat_completion(tidy_note_content, self.db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, note_id=note_id)
+
+            if action == "CREATE":
+                return {
+                    "Success": False,
+                    "Fields": {"note_id": note_id, "note_name": note_name, "bot_id": bot_id, "note content": note_content, "note_params:": note_params},
+                    "Confirmation_Needed": "Please reconfirm the field values with the user, then call this function again with the action CREATE_CONFIRMED to actually create the note.",
+                    "Next Step": "If you're ready to create this note, call this function again with action CREATE_CONFIRMED instead of CREATE"
+                #    "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}",
+                }
+
+            if action == "UPDATE":
+                return {
+                    "Success": False,
+                    "Fields": {"note_id": note_id, "note_name": note_name, "bot_id": bot_id, "note content": note_content, "note_param:": note_params},
+                    "Confirmation_Needed": "Please reconfirm this content and all the other note field values with the user, then call this function again with the action UPDATE_CONFIRMED to actually update the note.",
+                    "Next Step": "If you're ready to update this note, call this function again with action UPDATE_CONFIRMED instead of UPDATE"
+                #    "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}",
+                }
+
+        except Exception as e:
+            return {"Success": False, "Error": f"Error connecting to LLM: {e}"}
+
+        
+        if action == "CREATE_CONFIRMED":
+            action = "CREATE"
+        if action == "UPDATE_CONFIRMED":
+            action = "UPDATE"
+
+        if action == "DELETE":
+            return {
+                "Success": False,
+                "Confirmation_Needed": "Please reconfirm that you are deleting the correct note_id, and double check with the user they want to delete this note, then call this function again with the action DELETE_CONFIRMED to actually delete the note.  Call with LIST to double-check the note_id if you aren't sure that its right.",
+            }
+
+        if action == "DELETE_CONFIRMED":
+            action = "DELETE"
+
+        if action not in ["CREATE", "DELETE", "UPDATE", "LIST", "SHOW"]:
+            return {"Success": False, "Error": "Invalid action specified. Should be CREATE, DELETE, UPDATE, LIST, or SHOW."}
+
+        if action == "LIST":
+            print("Running get notebook list")
+            return self.get_notebook_list(bot_id if bot_id is not None else "all")
+
+        if action == "SHOW":
+            print("Running show notebook info")
+            if bot_id is None:
+                return {"Success": False, "Error": "bot_id is required for SHOW action"}
+            if note_id is None:
+                return {"Success": False, "Error": "note_id is required for SHOW action"}
+            
+            if note_id is not None:
+                if note_id is None:
+                    note_id = note_content['note_id']
+                return self.get_note_info(bot_id=bot_id, note_id=note_id)
+            else:
+                note_name = note_content['note_id']
+                return self.get_note_info(bot_id=bot_id, note_name=note_name)
+
+        note_id_created = False
+        if note_id is None:
+            if action == "CREATE":
+                note_id = f"{bot_id}_{''.join(random.choices(string.ascii_letters + string.digits, k=6))}"
+                note_id_created = True
+            else:
+                return {"Success": False, "Error": f"Missing note_id field"}
+
+        if action in ["CREATE", "UPDATE"] and not note_content:
+            return {
+                "Success": False,
+                "Error": "Note Content must be provided for CREATE or UPDATE action.",
+            }
+
+        # if action in ["CREATE"] and any(
+        #     field not in note_content for field in required_fields_create
+        # ):
+        #     missing_fields = [
+        #         field
+        #         for field in required_fields_create
+        #         if field not in note_content
+        #     ]
+        #     return {
+        #         "Success": False,
+        #         "Error": f"Missing required note content: {', '.join(missing_fields)}",
+        #     }
+
+        # if action in ["UPDATE"] and any(
+        #     field not in note_content for field in required_fields_update
+        # ):
+        #     missing_fields = [
+        #         field
+        #         for field in required_fields_update
+        #         if field not in note_content
+        #     ]
+        #     return {
+        #         "Success": False,
+        #         "Error": f"Missing required note content: {', '.join(missing_fields)}",
+        #     }
+
+        # if bot_id is None:
+        #     return {
+        #         "Success": False,
+        #         "Error": "The 'bot_id' field is required."
+        #     }
+    
+        try:
+            if action == "CREATE":
+                insert_query = f"""
+                    INSERT INTO {db_adapter.schema}.BOT_NOTEBOOK (
+                        timestamp, note_id, bot_id, note_name, note_content, note_params
+                    ) VALUES (
+                        current_timestamp(), %(note_id)s, %(bot_id)s, %(note_name)s, %(note_content)s, %(note_params)s
+                    )
+                """ if db_adapter.schema else f"""
+                    INSERT INTO BOT_NOTEBOOK (
+                        timestamp, note_id, bot_id, note_name, note_content, note_params
+                    ) VALUES (
+                        current_timestamp(), %(note_id)s, %(bot_id)s, %(note_name)s, %(note_content)s, %(note_params)s
+                    )
+                """
+                
+                insert_query= "\n".join(
+                    line.lstrip() for line in insert_query.splitlines()
+                )
+                # Generate 6 random alphanumeric characters
+                if note_id_created == False:
+                    random_suffix = "".join(
+                    random.choices(string.ascii_letters + string.digits, k=6)
+                     )
+                    note_id_with_suffix = note_id + "_" + random_suffix
+                else:
+                    note_id_with_suffix = note_id
+                cursor.execute(
+                    insert_query,
+                    {
+                        "note_id": note_id_with_suffix,
+                        "bot_id": bot_id,
+                        "note_name": note_name,
+                        "note_content": note_content,
+                        "note_params": note_params,
+                    },
+                )
+
+                db_adapter.client.commit()
+                return {
+                    "Success": True,
+                    "Message": f"note successfully created.",
+                    "Note Id": note_id_with_suffix,
+                    "Suggestion": "Now that the note is created, remind the user of the note_id and offer to test it using the correct runner, either sql, python in snowpark, or process, and if there are any issues you can later on UPDATE the note using manage_notes to clarify anything needed.  OFFER to test it, but don't just test it unless the user agrees.  ",
+                    "Reminder": "If you are asked to test the note, use _run_note function to each step, don't skip ahead since you already know what the steps are, pretend you don't know what the note is and let run_note give you one step at a time!",
+                }
+
+            elif action == "DELETE":
+                delete_query = f"""
+                    DELETE FROM {db_adapter.schema}.BOT_NOTEBOOK
+                    WHERE note_id = %s
+                """ if db_adapter.schema else f"""
+                    DELETE FROM NOTEBOOK
+                    WHERE note_id = %s
+                """
+                cursor.execute(delete_query, (note_id))
+
+                return {
+                    "Success": True,
+                    "Message": f"note deleted",
+                    "note_id": note_id,
+                }
+            # else:
+            #     return {
+            #         "Success": False,
+            #         "Error": f"note with note_id {note_id} not found",
+            #     }
+
+            elif action == "UPDATE":
+                update_query = f"""
+                    UPDATE {db_adapter.schema}.BOT_NOTEBOOK
+                    SET timestamp = CURRENT_TIMESTAMP, note_id='{note_id}', bot_id='{bot_id}', note_name='{note_name}', note_content='{note_content}', note_params='{note_params}', note_type='{note_type}'
+                    WHERE note_id = '{note_id}'
+                """ if db_adapter.schema else f"""
+                    UPDATE BOT_NOTEBOOK
+                    SET timestamp = CURRENT_TIMESTAMP, note_id='{note_id}', bot_id='{bot_id}', note_name='{note_name}', note_content='{note_content}', note_params='{note_params}', note_type='{note_type}'
+                    WHERE note_id = '{note_id}'
+                """
+                cursor.execute(
+                    update_query
+                )
+                db_adapter.client.commit()
+                return {
+                    "Success": True,
+                    "Message": f"note successfully updated",
+                    "Note id": note_id,
+                    "Suggestion": "Now that the note is updated, offer to test it using run_note, and if there are any issues you can later on UPDATE the note again using manage_notebook to clarify anything needed.  OFFER to test it, but don't just test it unless the user agrees.",
+                    "Reminder": "If you are asked to test the note, use _run_note function to each step, don't skip ahead since you already know what the steps are, pretend you don't know what the note is and let run_note give you one step at a time!",
+                }
+
+            return {"Success": True, "Message": f"note update or delete confirmed."}
+        except Exception as e:
+            return {"Success": False, "Error": str(e)}
+
+        finally:
+            cursor.close()
+
+    def insert_notebook_history(
+        self,
+        note_id,
+        work_done_summary,
+        note_status,
+        updated_note_learnings,
+        report_message="",
+        done_flag=False,
+        needs_help_flag="N",
+        note_clarity_comments="",
+    ):
+        """
+        Inserts a row into the NOTEBOOK_HISTORY table.
+
+        Args:
+            note_id (str): The unique identifier for the note.
+            work_done_summary (str): A summary of the work done.
+            note_status (str): The status of the note.
+            updated_note_learnings (str): Any new learnings from the note.
+            report_message (str): The message to report about the note.
+            done_flag (bool): Flag indicating if the note is done.
+            needs_help_flag (bool): Flag indicating if help is needed.
+            note_clarity_comments (str): Comments on the clarity of the note.
+        """
+        insert_query = f"""
+            INSERT INTO {db_adapter.schema}.NOTEBOOK_HISTORY (
+                note_id, work_done_summary, note_status, updated_note_learnings, 
+                report_message, done_flag, needs_help_flag, note_clarity_comments
+            ) VALUES (
+                %s, %s, %s, %s, %s, %s, %s, %s
+            )
+        """ if db_adapter.schema else f"""
+            INSERT INTO NOTEBOOK_HISTORY (
+                note_id, work_done_summary, note_status, updated_note_learnings, 
+                report_message, done_flag, needs_help_flag, note_clarity_comments
+            ) VALUES (
+                %s, %s, %s, %s, %s, %s, %s, %s
+            )
+        """
+        try:
+            cursor = db_adapter.client.cursor()
+            cursor.execute(
+                insert_query,
+                (
+                    note_id,
+                    work_done_summary,
+                    note_status,
+                    updated_note_learnings,
+                    report_message,
+                    done_flag,
+                    needs_help_flag,
+                    note_clarity_comments,
+                ),
+            )
+            db_adapter.client.commit()
+            cursor.close()
+            print(
+                f"Notebook history row inserted successfully for note_id: {note_id}"
+            )
+        except Exception as e:
+            print(f"An error occurred while inserting the notebook history row: {e}")
+            if cursor is not None:
+                cursor.close()
+
+ # ====== NOTEBOOK END ==========================================================================================
+
+ # ====== PROCESSES START ========================================================================================
 
     def get_processes_list(self, bot_id="all"):
         cursor = db_adapter.client.cursor()
@@ -1457,7 +1888,7 @@ In your response back to run_process, provide a detailed description of what you
             if cursor is not None:
                 cursor.close()
 
-    # ========================================================================================================
+    # ====== PROCESSES END ====================================================================================
     
 if genesis_source == "BigQuery":
     credentials_path = os.getenv(
@@ -1550,6 +1981,10 @@ def get_tools(which_tools, db_adapter, slack_adapter_local=None, include_slack=T
             tools.extend(process_scheduler_functions)
             available_functions_load.update(process_scheduler_tools)
             function_to_tool_map[tool_name] = process_scheduler_functions
+        elif tool_name == "notebook_manager_tools":
+            tools.extend(notebook_manager_functions)
+            available_functions_load.update(notebook_manager_tools)
+            function_to_tool_map[tool_name] = notebook_manager_functions
         elif tool_name == "webpage_downloader":
             tools.extend(webpage_downloader_functions)
             available_functions_load.update(webpage_downloader_tools)

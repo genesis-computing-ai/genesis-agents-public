@@ -402,16 +402,24 @@ notebook_manager_functions = [
                         "type": "string",
                         "description": "The unique identifier of the note, create as bot_id_<random 6 character string>. MAKE SURE TO DOUBLE-CHECK THAT YOU ARE USING THE CORRECT note_id ON UPDATES AND DELETES!  Required for CREATE, UPDATE, and DELETE.",
                     },
+                    "note_name": {
+                        "type": "string",
+                        "description": "Human reable unique name for the note.",
+                    },
                     "note_type": {
                         "type": "string",
                         "description": "The type of note.  Should be 'process', 'snowpark_python', or 'sql'"
                     },
-                    "note_definition": {
-                        "type": "object",
+                    "note_content": {
+                        "type": "string",
                         "description": "The body of the note",
                     },
+                    "note_params": {
+                        "type": "string",
+                        "description": "Parameters that are used by the note",
+                    },
                 },
-                "required": ["action", "bot_id"],
+                "required": ["action", "bot_id", "note_id", "note_name", "note_type", "note_content"],
             },
         },
     }

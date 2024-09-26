@@ -1723,7 +1723,7 @@ AND   RUNNER_ID = '{runner_id}'
                         insert_values.append(process_default['PROCESS_INSTRUCTIONS'])
 
                         # Check to see if the process_instructions are already in a note in the BOT_NOTEBOOK table
-                        check_exist_query = f"SELECT * FROM {self.schema}.BOT_NOTEBOOK WHERE bot_id = %s AND note_definition = %s"
+                        check_exist_query = f"SELECT * FROM {self.schema}.BOT_NOTEBOOK WHERE bot_id = %s AND note_content = %s"
                         cursor.execute(check_exist_query, (process_default['BOT_ID'], process_default['PROCESS_INSTRUCTIONS']))
                         result = cursor.fetchone()
 
@@ -1733,7 +1733,7 @@ AND   RUNNER_ID = '{runner_id}'
                             process_default['NOTE_ID'] = process_default['BOT_ID'] + '_' + ''.join(random.choice(characters) for i in range(10))
                             note_type = 'process'
                             insert_query = f"""
-                                INSERT INTO {self.schema}.BOT_NOTEBOOK (bot_id, note_definition, note_type, note_id)
+                                INSERT INTO {self.schema}.BOT_NOTEBOOK (bot_id, note_content, note_type, note_id)
                                 VALUES (%s, %s, %s, %s)
                             """
                             cursor.execute(insert_query, (process_default['BOT_ID'], process_default['PROCESS_INSTRUCTIONS'], note_type, process_default['NOTE_ID']))
@@ -2905,8 +2905,9 @@ AND   RUNNER_ID = '{runner_id}'
                 TIMESTAMP TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 BOT_ID VARCHAR(16777216),
                 NOTE_ID VARCHAR(16777216),
+                NOTE_NAME VARCHAR(16777216),
                 NOTE_TYPE VARCHAR(16777216),
-                NOTE_DEFINITION VARCHAR(16777216),
+                NOTE_CONTENT VARCHAR(16777216),
                 NOTE_PARAMS VARCHAR(16777216),
                 DESCRIPTION VARCHAR(16777216)
             );

@@ -2208,7 +2208,6 @@ AND   RUNNER_ID = '{runner_id}'
             if cursor is not None:
                 cursor.close()
 
-
         llm_config_table_check_query = (f"SHOW TABLES LIKE 'LLM_TOKENS' IN SCHEMA {self.schema};")
         try:
             runner_id = os.getenv("RUNNER_ID", "jl-local-runner") 

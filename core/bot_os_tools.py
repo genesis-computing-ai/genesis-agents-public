@@ -1318,25 +1318,25 @@ In your response back to run_process, provide a detailed description of what you
             elif action == "UPDATE":
                 update_query = f"""
                     UPDATE {db_adapter.schema}.BOT_NOTEBOOK
-                    SET timestamp = CURRENT_TIMESTAMP, note_id='{note_id}', bot_id='{bot_id}', note_name='{note_name}', note_content='{note_content}', note_params='{note_params}', note_type='{note_type}'
-                    WHERE note_id = '{note_id}'
-                """ if db_adapter.schema else f"""
+                    SET timestamp = CURRENT_TIMESTAMP, note_id=%s, bot_id=%s, note_name=%s, note_content=%s, note_params=%s, note_type=%s
+                    WHERE note_id = %s
+                """ if db_adapter.schema else """
                     UPDATE BOT_NOTEBOOK
-                    SET timestamp = CURRENT_TIMESTAMP, note_id='{note_id}', bot_id='{bot_id}', note_name='{note_name}', note_content='{note_content}', note_params='{note_params}', note_type='{note_type}'
-                    WHERE note_id = '{note_id}'
+                    SET timestamp = CURRENT_TIMESTAMP, note_id=%s, bot_id=%s, note_name=%s, note_content=%s, note_params=%s, note_type=%s
+                    WHERE note_id = %s
                 """
                 cursor.execute(
-                    update_query
+                    update_query,
+                    (note_id, bot_id, note_name, note_content, note_params, note_type, note_id)
                 )
                 db_adapter.client.commit()
                 return {
                     "Success": True,
-                    "Message": f"note successfully updated",
+                    "Message": "note successfully updated",
                     "Note id": note_id,
-                    "Suggestion": "Now that the note is updated, offer to test it using run_note, and if there are any issues you can later on UPDATE the note again using manage_notebook to clarify anything needed.  OFFER to test it, but don't just test it unless the user agrees.",
+                    "Suggestion": "Now that the note is updated, offer to test it using run_note, and if there are any issues you can later on UPDATE the note again using manage_notebook to clarify anything needed. OFFER to test it, but don't just test it unless the user agrees.",
                     "Reminder": "If you are asked to test the note, use _run_note function to each step, don't skip ahead since you already know what the steps are, pretend you don't know what the note is and let run_note give you one step at a time!",
                 }
-
             return {"Success": True, "Message": f"note update or delete confirmed."}
         except Exception as e:
             return {"Success": False, "Error": str(e)}

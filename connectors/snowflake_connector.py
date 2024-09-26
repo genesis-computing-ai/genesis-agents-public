@@ -2263,7 +2263,7 @@ AND   RUNNER_ID = '{runner_id}'
                         logger.info(
                             f"Column 'ACTIVE' added to table {self.genbot_internal_project_and_schema}.LLM_TOKENS."
                         )
-                        update_query = f"UPDATE {self.genbot_internal_project_and_schema}.LLM_TOKENS SET ACTIVE=TRUE WHERE LLM_TYPE='OpenAI'"
+                        update_query = f"UPDATE {self.genbot_internal_project_and_schema}.LLM_TOKENS SET ACTIVE=TRUE WHERE lower(LLM_TYPE)='openai'"
                         cursor.execute(update_query)
                         self.client.commit()
                     
@@ -2271,7 +2271,11 @@ AND   RUNNER_ID = '{runner_id}'
                     cursor.execute(select_active_llm_query)
                     active_llm = cursor.fetchone()
 
-                    if active_llm[0] == 'cortex':
+                    if active_llm is None:
+                        test_cortex_available = self.check_cortex_available()
+                        if test_cortex_available:
+                            active_llm = 'cortex'
+                    if active_llm == 'cortex':
                         cortex_active = True
                     else:
                         cortex_active = False
@@ -2293,11 +2297,11 @@ AND   RUNNER_ID = '{runner_id}'
                     # if a new install, set cortex to default LLM if available
                     test_cortex_available = self.check_cortex_available()
                     if test_cortex_available == True:
-                        cursor.execute(merge_cortex_row_query, (runner_id,'cortex_no_key_needed', 'cortex', cortex_active))
-                    else:
-                        cursor.execute(merge_cortex_row_query, (runner_id,None,None,False))
-                    self.client.commit()
-                    print(f"Merged cortex row into {self.genbot_internal_project_and_schema}.LLM_TOKENS with runner_id: {runner_id}")
+                        cursor.execute(merge_cortex_row_query, (runner_id,'cortex_no_key_needed', 'cortex', cortex_active,))
+                   # else:
+                   #     cursor.execute(insert_initial_row_query, (runner_id,None,None,False,))
+                        self.client.commit()
+                        print(f"Merged cortex row into {self.genbot_internal_project_and_schema}.LLM_TOKENS with runner_id: {runner_id}")
 
                 except Exception as e:
                     print(
@@ -4259,7 +4263,7 @@ $$
             logger.error("Error retrieving LLM tokens: %s", str(e))
             return []
         
-    def db_get_active_llm_key(self) -> list[llm_keys_and_types_struct]:
+    def db_get_active_llm_key(self, i = -1):
         """
         Retrieves the active LLM key and type for the given runner_id.
 
@@ -4286,10 +4290,14 @@ $$
             else:
                 return llm_keys_and_types_struct()  # Return None if no result found
         except Exception as e:
-            print(
-                "Error getting data from LLM_TOKENS table: ", e
-            )
-            return llm_keys_and_types_struct()
+            if "identifier 'ACTIVE" in e.msg:
+                if i == 0:
+                    print('Waiting on upgrade of LLM_TOKENS table with ACTIVE column in primary service...')
+            else:
+                print(
+                    "Error getting data from LLM_TOKENS table: ", e
+                )
+            return None, None
 
     def db_set_llm_key(self, llm_key, llm_type, llm_endpoint):
         """

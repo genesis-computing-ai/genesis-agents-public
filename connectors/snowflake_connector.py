@@ -2908,7 +2908,7 @@ AND   RUNNER_ID = '{runner_id}'
                 NOTE_NAME VARCHAR(16777216),
                 NOTE_TYPE VARCHAR(16777216),
                 NOTE_CONTENT VARCHAR(16777216),
-                NOTE_PARAMS VARCHAR(16777216),
+                NOTE_PARAMS VARCHAR(16777216)
             );
             """
             cursor.execute(create_bot_notebook_table_ddl)

@@ -228,8 +228,7 @@ class KnowledgeServer:
             try:
                 if response is not None:
                     # Ensure the timestamp is in the correct format for Snowflake
-                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    timestamp = thread["TIMESTAMP"]
+                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")                    
                     if type(msg_log[-1]["TIMESTAMP"]) != str:
                         last_timestamp = msg_log[-1]["TIMESTAMP"].strftime("%Y-%m-%d %H:%M:%S")
                     else:

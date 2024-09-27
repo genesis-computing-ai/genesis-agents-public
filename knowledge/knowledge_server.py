@@ -9,7 +9,25 @@ from openai import OpenAI
 from datetime import datetime, timedelta
 import ast
 
-from llm_openai.openai_utils import get_openai_client
+print("     ┌───────┐     ")
+print("    ╔═════════╗    ")
+print("   ║  ◉   ◉  ║   ")
+print("  ║    ───    ║  ")
+print(" ╚═══════════╝ ")
+print("     ╱     ╲     ")
+print("    ╱│  ◯  │╲    ")
+print("   ╱ │_____│ ╲   ")
+print("      │   │      ")
+print("      │   │      ")
+print("     ╱     ╲     ")
+print("    ╱       ╲    ")
+print("   ╱         ╲   ")
+print("  G E N E S I S ")
+print("    B o t O S")
+print(" ---- KNOWLEDGE SERVER----")
+print('Knowledge Start Version 0.185',flush=True)
+
+
 
 refresh_seconds = os.getenv("KNOWLEDGE_REFRESH_SECONDS", 60)
 refresh_seconds = int(refresh_seconds)
@@ -56,16 +74,33 @@ class KnowledgeServer:
                         continue
                     
                 query = f"""
+
                         WITH BOTS AS (SELECT BOT_SLACK_USER_ID, 
                             CONCAT('{{"user_id": "', BOT_SLACK_USER_ID, '", "user_name": "', BOT_NAME, '", "user_email": "Unknown Email"}}') as PRIMARY_USER 
-                            FROM {self.db_connector.bot_servicing_table_name})
-                        SELECT COUNT(DISTINCT M.PRIMARY_USER) AS CNT FROM {self.db_connector.message_log_table_name} M
+                            FROM  {self.db_connector.bot_servicing_table_name}),
+                          BOTS2 AS (SELECT BOT_SLACK_USER_ID, 
+                            CONCAT('{{"user_id": "', BOT_SLACK_USER_ID, '", "user_name": "', BOT_NAME, '"}}') as PRIMARY_USER 
+                            FROM  {self.db_connector.bot_servicing_table_name})
+                        SELECT count(DISTINCT M.PRIMARY_USER) as CNT FROM {self.db_connector.message_log_table_name} M
                         LEFT JOIN BOTS ON M.PRIMARY_USER = BOTS.PRIMARY_USER
-                        WHERE THREAD_ID = '{thread_id}' AND BOT_SLACK_USER_ID IS NULL;"""
+                        LEFT JOIN BOTS2 ON M.PRIMARY_USER = BOTS2.PRIMARY_USER
+                        WHERE THREAD_ID = '{thread_id}'
+                        AND  BOTS.BOT_SLACK_USER_ID IS NULL AND  BOTS2.BOT_SLACK_USER_ID IS NULL
+                        and m.primary_user <> '{{"user_id": "Unknown User ID", "user_name": "Unknown User"}}';
+
+"""
+                        # WITH BOTS AS (SELECT BOT_SLACK_USER_ID, 
+                        #     CONCAT('{{"user_id": "', BOT_SLACK_USER_ID, '", "user_name": "', BOT_NAME, '", "user_email": "Unknown Email"}}') as PRIMARY_USER 
+                        #     FROM {self.db_connector.bot_servicing_table_name})
+                        # SELECT COUNT(DISTINCT M.PRIMARY_USER) AS CNT FROM {self.db_connector.message_log_table_name} M
+                        # LEFT JOIN BOTS ON M.PRIMARY_USER = BOTS.PRIMARY_USER
+                        # WHERE THREAD_ID = '{thread_id}' AND BOT_SLACK_USER_ID IS NULL
+                        # and m.primary_user <> '{{"user_id": "Unknown User ID", "user_name": "Unknown User"}}';"""
                 count_non_bot_users = self.db_connector.run_query(query)
                 # this is needed to exclude channels with more than one user
 
                 if count_non_bot_users and count_non_bot_users[0]["CNT"] != 1:
+                    print(f"Skipped {thread_id}, {count_non_bot_users[0]['CNT']} non-bot-users is not 1")
                     continue
 
                 with self.condition:
@@ -94,7 +129,7 @@ class KnowledgeServer:
                 current_time = datetime.now()
                 time_difference = current_time - bot_active_time_dt
 
-                print(f"\nBOTS ACTIVE TIME: {result[0]} | CURRENT TIME: {current_time} | TIME DIFFERENCE: {time_difference} | producer", flush=True)
+                print(f"BOTS ACTIVE TIME: {result[0]} | CURRENT TIME: {current_time} | TIME DIFFERENCE: {time_difference} | producer", flush=True)
 
                 if time_difference < timedelta(minutes=5):
                     wake_up = True
@@ -104,7 +139,7 @@ class KnowledgeServer:
         while True:
             with self.condition:
                 if self.thread_queue.empty():
-                    print("Queue is empty, consumer is waiting...")
+                    #print("Queue is empty, consumer is waiting...")
                     self.condition.wait()
                 thread = self.thread_queue.get()
                 self.condition.notify()
@@ -185,7 +220,7 @@ class KnowledgeServer:
                     print('Skipped thread ',knowledge_thread_id,' knowledge unparseable')
             else:
                 system = "You are a Knowledge Explorer to extract, synthesize, and inject knowledge that bots learn from doing their jobs"
-                res, status_code  = self.db_connector.cortex_chat_completion(content, system)
+                res, status_code  = self.db_connector.cortex_chat_completion(content, system=system)
                 response = ast.literal_eval(res.split("```")[1])
                 
                 
@@ -212,7 +247,7 @@ class KnowledgeServer:
 
                     self.user_queue.put((primary_user, bot_id, response))
             except Exception as e:
-                print(f"Encountered errors while inserting into {self.db_connector.knowledge_table_name} row: {e}")
+                print(f"Encountered errors processing knowledge for thread {thread_id}, {self.db_connector.knowledge_table_name} row: {e}")
             
             with self.thread_set_lock:
                 self.thread_set.remove(thread_id)
@@ -223,7 +258,7 @@ class KnowledgeServer:
 
         while True:
             if self.user_queue.empty():
-                print("Queue is empty, refiner is waiting...")
+                #print("Queue is empty, refiner is waiting...")
                 time.sleep(refresh_seconds)
                 continue
             primary_user, bot_id, knowledge = self.user_queue.get()
@@ -286,7 +321,7 @@ class KnowledgeServer:
                 else:
                     system = f"Use the following raw knowledge information about the interaction of the user and the bot, \
                                     summarize what we learned about the {prompt} in bullet point."
-                    response, status_code  = self.db_connector.cortex_chat_completion(content, system)                    
+                    response, status_code  = self.db_connector.cortex_chat_completion(content, system=system)                    
                     new_knowledge[item] = response
 
 

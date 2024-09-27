@@ -389,9 +389,9 @@ class SchemaExplorer:
                 if crawl_flag:
                     harvesting_databases.append(database)
                     schemas.extend([database["database_name"]+"."+schema for schema in self.get_active_schemas(database)])
-                    print(f'Checking a Database for new or changed objects (cycle#: {self.run_number}, refresh every: {database["refresh_interval"]}) {cur_time}', flush=True)
-                else: 
-                    print(f'Skipping a Database, not in current refresh cycle (cycle#: {self.run_number}, refresh every: {database["refresh_interval"]} {cur_time})', flush=True)
+              #      print(f'Checking a Database for new or changed objects (cycle#: {self.run_number}, refresh every: {database["refresh_interval"]}) {cur_time}', flush=True)
+              #  else: 
+              #      print(f'Skipping a Database, not in current refresh cycle (cycle#: {self.run_number}, refresh every: {database["refresh_interval"]} {cur_time})', flush=True)
 
             summaries = {}
             total_processed = 0

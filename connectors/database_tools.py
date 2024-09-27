@@ -141,7 +141,12 @@ database_tool_functions = [
                     "packages": {
                         "type": "string",
                         "description": "A comma-separated list of required non-default Python packages to be pip installed for code execution (do not include any standard python libraries).",
+                    },
+                    "note_id": {
+                        "type": "string",
+                        "description": "An id for a note in the notebook table.  The note_id will be used to look up the python code from the note content in lieu of the code field.  A note_id will take precendent over the code field, that is, if the note_id is not empty, the contents of the note will be run instead of the content of the code field."
                     }
+
                 },
                 "required": ["code", "purpose"],
             },

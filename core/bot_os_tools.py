@@ -650,6 +650,10 @@ to SYS$DEFAULT_EMAIL, replace it with {self.sys_default_email}.
 Start by returning the first step of the process instructions below.
 Simply return the first instruction on what needs to be done first without removing or changing any details.
 
+Also, if the instructions include a reference to note, don't look up the note contents, just pass on the note_id.  The note contents will be unpacked
+by whatever tool is used depending on the type of note, either run_query if the note is of type sql or run_snowpark_sql if the note is of
+type python
+
 Process Instructions:
 {process['PROCESS_INSTRUCTIONS']}
 """ 
@@ -672,8 +676,11 @@ Hey **@{process['BOT_ID']}**
 {first_step}
 
 Execute this instruction now and then pass your response to the _run_process tool as a parameter called previous_response and an action of GET_NEXT_STEP.  
-Execute the instructions you were given without asking for permission.
-Do not ever verify anything with the user, unless you need to get a specific input from the user to be able to continue the process.
+Execute the instructions you were given without asking for permission.  Do not ever verify anything with the user, unless you need to get a specific input 
+from the user to be able to continue the process.
+
+Also, it you are asked to run either sql or snowpark_python from a given note_id, do not look up the note contents, just pass the note_id to the
+appropriate tool where the note will be handled.
 """
             if self.sys_default_email:
                 self.instructions[thread_id][process_id] += f"""
@@ -1290,7 +1297,7 @@ In your response back to run_process, provide a detailed description of what you
                     "Success": True,
                     "Message": f"note successfully created.",
                     "Note Id": note_id_with_suffix,
-                    "Suggestion": "Now that the note is created, remind the user of the note_id and offer to test it using the correct runner, either sql, python in snowpark, or process, and if there are any issues you can later on UPDATE the note using manage_notes to clarify anything needed.  OFFER to test it, but don't just test it unless the user agrees.  ",
+                    "Suggestion": "Now that the note is created, remind the user of the note_id and offer to test it using the correct runner, either sql, snowpark_python, or process, and if there are any issues you can later on UPDATE the note using manage_notes to clarify anything needed.  OFFER to test it, but don't just test it unless the user agrees.  ",
                     "Reminder": "If you are asked to test the note, use _run_note function to each step, don't skip ahead since you already know what the steps are, pretend you don't know what the note is and let run_note give you one step at a time!",
                 }
 

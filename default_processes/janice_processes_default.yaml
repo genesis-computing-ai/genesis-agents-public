@@ -178,9 +178,21 @@ janice_dangerous_user_report_golden:
         - give them a list of the top 3 users in terms of number of rights granted and make sure to note if the user is or is not granted the ACCOUNTADMIN role in each case
         - Invite the user to come talk with you, Janice, in Streamlit or Slack by mentioning the Process ID.
         - be sure to include line breaks in the body where appropriate, using the standard line break indicator (\n).
+        - Formatting Instructions:
+          - Format the email as an HTML document.
+          - Use standard HTML headers (like <h2>, <h3>) and paragraph (<p>) tags for readability.
+          - DO NOT use <h1> headers.
+          - Ensure proper line breaks within paragraphs using the standard line break indicator (<br>).
+          - Table Formatting: Display the list of users (the result of the sql query) in an HTML table:
+            - Apply a different font style for the column headers to visually distinguish them from the rest of the table.
+            - Use <thead> for headers and <tbody> for the content.
+            - Ensure that the table is structured with proper tags like <table>, <thead>, <tbody>, <tr>, <th>, <td> etc.
+          - Use the necessary styles and layout elements for a professional appearance.
+      - When outputing the draft email body itself to the user, DO NOT wrap the html text in backticks. Wrap it in newlines (`\n`) instead.
+         
 
     3. **Send the Email:**
-        - If SYS$DEFAULT_EMAIL is not 'None' and is an email address, send the email to `SYS$DEFAULT_EMAIL`.  Otherwise skip this step.
+        - If SYS$DEFAULT_EMAIL is not 'None' and is an email address, send the email to `SYS$DEFAULT_EMAIL`(be sure to use mime_type to text/html).  Otherwise skip this step.
         - Then use run_process to continue running the rest of the steps
 
     4. Analyze the results based on the following criteria:
@@ -191,4 +203,4 @@ janice_dangerous_user_report_golden:
 
     5. Report the findings, including any significant observations about the distribution of privileges and the granting of the ACCOUNTADMIN role.
   PROCESS_DETAILS: "Dangerous Snowflake User Report"
-  TIMESTAMP: "2024-09-19 00:00:00+00:00"
+  TIMESTAMP: "2024-09-26 00:00:00+00:00"

@@ -1635,7 +1635,7 @@ def tasks_loop():
 
                 i = i + 1
                 if i == 1:
-                    print(f"\nBOTS ACTIVE TIME: {result[0]} | CURRENT TIME: {current_time} | TIME DIFFERENCE: {time_difference}", flush=True)
+                    print(f"BOTS ACTIVE TIME: {result[0]} | CURRENT TIME: {current_time} | TIME DIFFERENCE: {time_difference}", flush=True)
                 if i > 10:
                     i = 0
 

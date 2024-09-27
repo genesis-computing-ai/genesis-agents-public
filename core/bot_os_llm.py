@@ -31,7 +31,7 @@ class LLMKeyHandler:
         api_key_from_env = False
         llm_api_key = None
         llm_type = self.default_llm_engine
-
+        llm_endpoint = None
         # check for Openai Env Override
         if llm_type.lower() == "openai":
             llm_api_key = os.getenv("OPENAI_API_KEY", None)

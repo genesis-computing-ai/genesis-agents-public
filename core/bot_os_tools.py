@@ -701,6 +701,8 @@ And keep them informed while you are running the process about what you are up t
             else:
                 self.instructions[thread_id][process_id] += """
 This process is being run in low verbosity mode. Do not directly repeat the first_step instructions to the user, just perform the steps as instructed.
+Also, it you are asked to run either sql or snowpark_python from a given note_id, do not look up the note contents, just pass the note_id to the
+appropriate tool where the note will be handled.
 """
             self.instructions[thread_id][process_id] += f"""
 In your response back to _run_process, provide a DETAILED description of what you did, what result you achieved, and why you believe this to have successfully completed the step.
@@ -778,6 +780,8 @@ was not sufficient, and any suggestions you have on how to succeed on the next t
 "**success**" (no explanation needed) to continue to the next step.  At this point its ok to give the bot the benefit of the doubt to avoid
 going in circles.  By the way the current system time is {datetime.now()}. 
 
+
+
 Process Config: {self.process_config[thread_id][process_id]}
 
 Full Process Instructions: {process['PROCESS_INSTRUCTIONS']}
@@ -799,6 +803,9 @@ If you are very seriously concerned that the step may not have been correctly pe
 DETAILED EXPLAINATION as to why it did not pass and what your concern is, and any suggestions you have on how to succeed on the next try.  
 If the response seems like it is likely correct, return only the text string "**success**" (no explanation needed) to continue to the next step.  If the process is complete,
 tell the process to stop running.  Remember, proceed under your own direction and do not ask the user for permission to proceed.
+
+Remember, if you are asked to run either sql or snowpark_python from a given note_id, do not look up the note contents, just pass the note_id to the
+appropriate tool where the note will be handled.
 
 Process Config: 
 {self.process_config[thread_id][process_id]}
@@ -931,6 +938,9 @@ Hey **@{process['BOT_ID']}**, here is the next step of the process.
 
 {next_step}
 
+If you are asked to run either sql or snowpark_python from a given note_id, do not look up the note contents, just pass the note_id to the
+appropriate tool where the note will be handled.
+
 Execute these instructions now and then pass your response to the run_process tool as a parameter called previous_response and an action of GET_NEXT_STEP. 
 If you are told to run another process in these instructions, actually run it using _run_process before calling GET_NEXT_STEP for this process, do not just pretend to run it.
 If need to terminate the process early, call with action of END_PROCESS. 
@@ -943,6 +953,8 @@ For example if you are going to call a tool to perform this step, first tell the
                 else:
                     self.instructions[thread_id][process_id] += """
 This process is being run in low verbosity mode, so do not generate a lot of text while running this process. Just do whats required, call the right tools, etc.
+Also, it you are asked to run either sql or snowpark_python from a given note_id, do not look up the note contents, just pass the note_id to the
+appropriate tool where the note will be handled.
                             """
                 self.instructions[thread_id][process_id] += f"""
 Don't stop to verify anything with the user unless specifically told to.

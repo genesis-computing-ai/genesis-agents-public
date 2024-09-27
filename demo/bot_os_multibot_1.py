@@ -86,6 +86,16 @@ multbot_mode = True
 global_flags.runner_id = runner_id
 global_flags.multibot_mode = True
 
+# Check if the index_size_file exists and delete it if it does
+index_file_path = './tmp/'
+index_size_file = os.path.join(index_file_path, 'index_size.txt')
+if os.path.exists(index_size_file):
+    try:
+        os.remove(index_size_file)
+        print(f"Deleted {index_size_file} (this is expected on local test runs)")
+    except Exception as e:
+        print(f"Error deleting {index_size_file}: {e}")
+
 def get_udf_endpoint_url(endpoint_name="udfendpoint"):
 
     alt_service_name = os.getenv("ALT_SERVICE_NAME", None)

@@ -317,7 +317,7 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
             memories = []
 
             if len(self.metadata_mapping) <= 1:
-                logger.info('getting fresh stuff')
+              #  logger.info('getting fresh stuff')
                 self.index, self.metadata_mapping = load_or_create_embeddings_index(self.meta_database_connector.metadata_table_name, refresh=True)
 
             if database and schema:

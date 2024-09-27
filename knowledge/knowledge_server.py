@@ -8,6 +8,7 @@ import sys
 from openai import OpenAI
 from datetime import datetime, timedelta
 import ast
+from llm_openai.openai_utils import get_openai_client 
 
 print("     ┌───────┐     ")
 print("    ╔═════════╗    ")
@@ -44,10 +45,8 @@ class KnowledgeServer:
         self.condition = threading.Condition()
         self.thread_set = set()
         self.thread_set_lock = threading.Lock()
-        if llm_type == 'OpenAI':
-            llm_type = 'openai'
-        self.llm_type = llm_type
-        if llm_type == 'openai' or llm_type == 'OpenAI':
+        self.llm_type = llm_type.lower()
+        if llm_type == 'openai':
             self.openai_api_key = os.getenv("OPENAI_API_KEY")
             self.client = get_openai_client() 
             self.model = os.getenv("OPENAI_KNOWLEDGE_MODEL", os.getenv('OPENAI_MODEL_NAME',"gpt-4o"))
@@ -159,7 +158,7 @@ class KnowledgeServer:
             query = f"""SELECT DISTINCT(knowledge_thread_id) FROM {self.db_connector.knowledge_table_name}
                         WHERE thread_id = '{thread_id}';"""
             knowledge_thread_id = self.db_connector.run_query(query)
-            if knowledge_thread_id and ( self.llm_type == 'openai' or self.llm_type == 'OpenAI'):
+            if knowledge_thread_id and self.llm_type == 'openai':
                 knowledge_thread_id = knowledge_thread_id[0]["KNOWLEDGE_THREAD_ID"]
                 content = f"""Find a new batch of conversations between the user and agent and update 4 requested information in the original prompt and return it in JSON format:
                              Conversation:
@@ -190,7 +189,7 @@ class KnowledgeServer:
                              'tool_learning': STRING,
                              'data_learning': STRING}}
                         """
-                if self.llm_type == 'openai' or self.llm_type == 'OpenAI':
+                if self.llm_type == 'openai':
                     knowledge_thread_id = self.client.beta.threads.create().id
                     self.client.beta.threads.messages.create(
                         thread_id=knowledge_thread_id, content=content, role="user"
@@ -198,7 +197,7 @@ class KnowledgeServer:
                 else: # cortex
                     knowledge_thread_id = ''
             response = None
-            if (self.llm_type == 'openai' or self.llm_type == 'OpenAI') and knowledge_thread_id is not None:
+            if self.llm_type == 'openai' and knowledge_thread_id is not None:
                 run = self.client.beta.threads.runs.create(
                     thread_id=knowledge_thread_id, assistant_id=self.assistant.id
                 )
@@ -304,7 +303,7 @@ class KnowledgeServer:
                     content = f"""This is the new raw knowledge:
                                 {raw_knowledge}
                             """
-                if self.llm_type == 'openai' or self.llm_type == 'OpenAI':
+                if self.llm_type == 'openai':
                     response = self.client.chat.completions.create(
                         model=self.model,
                         messages=[

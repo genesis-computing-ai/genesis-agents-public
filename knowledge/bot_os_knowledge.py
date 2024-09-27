@@ -45,15 +45,15 @@ def get_llm_api_key(db_adapter=None):
     logger.info('Getting LLM API Key...')
     api_key_from_env = False
     llm_type = os.getenv("BOT_OS_DEFAULT_LLM_ENGINE", "openai")
-    llm_api_key_struct = None
+    llm_key_struct = None
 
     i = 0
     c = 0
 
-    while llm_api_key_struct == None:
+    while llm_key_struct == None:
 
         refresh_seconds = 180
-        wake_up = False
+        wake_up = True
         while not wake_up:
 
             try:
@@ -85,19 +85,18 @@ def get_llm_api_key(db_adapter=None):
         llm_key_handler = LLMKeyHandler(db_adapter)
         logger.info('Getting LLM API Key...')
 
-        api_key_from_env, llm_api_key, llm_type = llm_key_handler.get_llm_key_from_db(i=i)
+        api_key_from_env, llm_key_struct = llm_key_handler.get_llm_key_from_db(i=i)
 
-        if llm_api_key_struct.llm_key is None and llm_api_key_struct.llm_key != 'cortex_no_key_needed':
+        if llm_key_struct.llm_key is None and llm_key_struct.llm_key != 'cortex_no_key_needed':
         #   print('No LLM Key Available in ENV var or Snowflake database, sleeping 20 seconds before retry.', flush=True)
             time.sleep(180)
         else:
             print(f"Using {llm_type} for Knowledge Server")
     
-    return llm_api_key_struct
+    return llm_key_struct
 
 
-llm_api_key_struct = get_llm_api_key(knowledge_db_connector)
-
+llm_key_struct = get_llm_api_key(knowledge_db_connector)
 
 ### END LLM KEY STUFF
 logger.info('Out of LLM section .. calling ensure_table_exists -- ')
@@ -124,5 +123,5 @@ print(" ---- KNOWLEDGE SERVER ----")
 
 
 if __name__ == "__main__":    
-    knowledge = KnowledgeServer(knowledge_db_connector, llm_api_key_struct.llm_type, maxsize=10)
+    knowledge = KnowledgeServer(knowledge_db_connector, llm_key_struct.llm_type, maxsize=10)
     knowledge.start_threads()

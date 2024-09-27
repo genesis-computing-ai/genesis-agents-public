@@ -77,7 +77,7 @@ class LLMKeyHandler:
         return api_key_from_env, llm_keys_and_types_struct(llm_api_key=llm_api_key, llm_type=llm_type, llm_endpoint=llm_endpoint)
 
 
-    def get_llm_key_from_db(self, db_connector=None) -> tuple[bool, llm_keys_and_types_struct]:
+    def get_llm_key_from_db(self, db_connector=None, i=-1):
         import json 
 
         if db_connector:
@@ -160,7 +160,7 @@ class LLMKeyHandler:
                 llm_key = openai_key
                 os.environ["OPENAI_API_KEY"] = llm_key
             else:
-                print("No OpenAI key found in environment or database. LLM functionality may be limited.")
+                print("No OpenAI key found in environment or database and cortex not available. LLM functionality may be limited.")
                 llm_key = None
             
             os.environ["CORTEX_MODE"] = "False"

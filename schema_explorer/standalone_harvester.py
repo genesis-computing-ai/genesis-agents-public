@@ -58,6 +58,30 @@ def get_llm_api_key(db_adapter):
 
     while llm_api_key_struct == None:
 
+        refresh_seconds = 180
+        wake_up = False
+        while not wake_up:
+
+            try:
+                cursor = db_adapter.client.cursor()
+                check_bot_active = f"DESCRIBE TABLE {db_adapter.schema}.BOTS_ACTIVE"
+                cursor.execute(check_bot_active)
+                result = cursor.fetchone()
+
+                bot_active_time_dt = datetime.strptime(result[0], '%Y-%m-%d %H:%M:%S %Z')
+                current_time = datetime.now()
+                time_difference = current_time - bot_active_time_dt
+
+                print(f"BOTS ACTIVE TIME: {result[0]} | CURRENT TIME: {current_time} | TIME DIFFERENCE: {time_difference} | harvester", flush=True)
+
+                if time_difference < timedelta(minutes=5):
+                    wake_up = True
+                else:
+                    time.sleep(refresh_seconds)
+            except:
+                print('Waiting for BOTS_ACTIVE table to be created...')
+                time.sleep(refresh_seconds)
+
         i = i + 1
         if i > 100:
             c += 1
@@ -71,11 +95,11 @@ def get_llm_api_key(db_adapter):
 
         if llm_api_key_struct.llm_key is None and llm_api_key_struct.llm_key != 'cortex_no_key_needed':
         #   print('No LLM Key Available in ENV var or Snowflake database, sleeping 20 seconds before retry.', flush=True)
-            time.sleep(20)
+            time.sleep(180)
         else:
             logger.info(f"Using {llm_type} for harvester ")
         
-        return llm_api_key_struct
+    return llm_api_key, llm_type
 
 llm_api_key_struct = get_llm_api_key(harvester_db_connector)
 
@@ -144,7 +168,7 @@ print("   ╱         ╲   ")
 print("  G E N E S I S ")
 print("    B o t O S")
 print(" ---- HARVESTER----")
-print('Harvester Start Version 0.153',flush=True)
+print('Harvester Start Version 0.185',flush=True)
 
 
 while True:

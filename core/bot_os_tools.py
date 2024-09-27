@@ -512,7 +512,7 @@ class ToolBelt:
             default_email = result[0][0] if result else None
             return default_email
         except Exception as e:
-            print(f"Error getting sys email: {e}")
+         #  print(f"Error getting sys email: {e}")
             return None
 
     def run_process(

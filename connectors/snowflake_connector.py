@@ -185,12 +185,12 @@ class SnowflakeConnector(DatabaseConnector):
                     self.default_llm_engine = 'cortex'
                     
                     self.llm_api_key = 'cortex_no_key_needed'
-                    print('\nCortex LLM is Available via REST and successfully tested')
+                    print('Cortex LLM is Available via REST and successfully tested')
                     return True
                 else:
                     os.environ["CORTEX_MODE"] = "False"
                     os.environ["CORTEX_AVAILABLE"] = 'False'
-                    print('\nCortex LLM is not available via REST ')
+                    print('Cortex LLM is not available via REST ')
                     return False
             except Exception as e:
                 print('Cortex LLM Not available via REST, exception on test: ',e)
@@ -273,15 +273,18 @@ class SnowflakeConnector(DatabaseConnector):
  
 
     def test_cortex_via_rest(self):
-        response, status_code  = self.cortex_chat_completion("Hi there")
+        if os.getenv("CORTEX_OFF", "").upper() == "TRUE":
+            print('CORTEX OFF ENV VAR SET -- SIMULATING NO CORTEX')
+            return False
+        response, status_code  = self.cortex_chat_completion("Hi there", test=True)
         if status_code != 200:
-            print(f"Failed to connect to Cortex API. Status code: {status_code} RETRY 1")
-            response, status_code  = self.cortex_chat_completion("Hi there")
+           # print(f"Failed to connect to Cortex API. Status code: {status_code} RETRY 1")
+            response, status_code  = self.cortex_chat_completion("Hi there", test=True)
             if status_code != 200:
-                print(f"Failed to connect to Cortex API. Status code: {status_code} RETRY 2")
-                response, status_code  = self.cortex_chat_completion("Hi there")
+             #   print(f"Failed to connect to Cortex API. Status code: {status_code} RETRY 2")
+                response, status_code  = self.cortex_chat_completion("Hi there",test=True)
                 if status_code != 200:
-                    print(f"Failed to connect to Cortex API. Status code: {status_code} FAILED AFTER 3 TRIES")
+              #      print(f"Failed to connect to Cortex API. Status code: {status_code} FAILED AFTER 3 TRIES")
                     return False
 
         if len(response) > 2:
@@ -292,7 +295,7 @@ class SnowflakeConnector(DatabaseConnector):
             os.environ['CORTEX_AVAILABLE'] = 'False'
             return False
 
-    def cortex_chat_completion(self, prompt, system=None):
+    def cortex_chat_completion(self, prompt, system=None, test=False):
         if system:
             newarray = [{"role": "user", "content": system}, {"role": "user", "content": prompt} ]
         else:
@@ -314,7 +317,8 @@ class SnowflakeConnector(DatabaseConnector):
                 "stream": True,
             }
 
-            print(f"snowflake_connector calling cortex {self.llm_engine} via REST API, content est tok len=",len(str(newarray))/4)
+            if not test:
+                print(f"snowflake_connector calling cortex {self.llm_engine} via REST API, content est tok len=",len(str(newarray))/4)
 
             response = requests.post(url, json=request_data, stream=True, headers=headers)
 
@@ -2208,7 +2212,6 @@ AND   RUNNER_ID = '{runner_id}'
             if cursor is not None:
                 cursor.close()
 
-
         llm_config_table_check_query = (f"SHOW TABLES LIKE 'LLM_TOKENS' IN SCHEMA {self.schema};")
         try:
             runner_id = os.getenv("RUNNER_ID", "jl-local-runner") 
@@ -2263,7 +2266,7 @@ AND   RUNNER_ID = '{runner_id}'
                         logger.info(
                             f"Column 'ACTIVE' added to table {self.genbot_internal_project_and_schema}.LLM_TOKENS."
                         )
-                        update_query = f"UPDATE {self.genbot_internal_project_and_schema}.LLM_TOKENS SET ACTIVE=TRUE WHERE LLM_TYPE='OpenAI'"
+                        update_query = f"UPDATE {self.genbot_internal_project_and_schema}.LLM_TOKENS SET ACTIVE=TRUE WHERE lower(LLM_TYPE)='openai'"
                         cursor.execute(update_query)
                         self.client.commit()
                     
@@ -2271,7 +2274,11 @@ AND   RUNNER_ID = '{runner_id}'
                     cursor.execute(select_active_llm_query)
                     active_llm = cursor.fetchone()
 
-                    if active_llm[0] == 'cortex':
+                    if active_llm is None:
+                        test_cortex_available = self.check_cortex_available()
+                        if test_cortex_available:
+                            active_llm = 'cortex'
+                    if active_llm == 'cortex':
                         cortex_active = True
                     else:
                         cortex_active = False
@@ -2293,11 +2300,11 @@ AND   RUNNER_ID = '{runner_id}'
                     # if a new install, set cortex to default LLM if available
                     test_cortex_available = self.check_cortex_available()
                     if test_cortex_available == True:
-                        cursor.execute(merge_cortex_row_query, (runner_id,'cortex_no_key_needed', 'cortex', cortex_active))
-                    else:
-                        cursor.execute(merge_cortex_row_query, (runner_id,None,None,False))
-                    self.client.commit()
-                    print(f"Merged cortex row into {self.genbot_internal_project_and_schema}.LLM_TOKENS with runner_id: {runner_id}")
+                        cursor.execute(merge_cortex_row_query, (runner_id,'cortex_no_key_needed', 'cortex', cortex_active,))
+                   # else:
+                   #     cursor.execute(insert_initial_row_query, (runner_id,None,None,False,))
+                        self.client.commit()
+                        print(f"Merged cortex row into {self.genbot_internal_project_and_schema}.LLM_TOKENS with runner_id: {runner_id}")
 
                 except Exception as e:
                     print(
@@ -4259,7 +4266,7 @@ $$
             logger.error("Error retrieving LLM tokens: %s", str(e))
             return []
         
-    def db_get_active_llm_key(self) -> list[llm_keys_and_types_struct]:
+    def db_get_active_llm_key(self, i = -1):
         """
         Retrieves the active LLM key and type for the given runner_id.
 
@@ -4286,10 +4293,14 @@ $$
             else:
                 return llm_keys_and_types_struct()  # Return None if no result found
         except Exception as e:
-            print(
-                "Error getting data from LLM_TOKENS table: ", e
-            )
-            return llm_keys_and_types_struct()
+            if "identifier 'ACTIVE" in e.msg:
+                if i == 0:
+                    print('Waiting on upgrade of LLM_TOKENS table with ACTIVE column in primary service...')
+            else:
+                print(
+                    "Error getting data from LLM_TOKENS table: ", e
+                )
+            return None, None
 
     def db_set_llm_key(self, llm_key, llm_type, llm_endpoint):
         """

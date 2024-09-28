@@ -7474,7 +7474,7 @@ result = 'Table FAKE_CUST created successfully.'
         return result
     
 
-    def run_python_code(self, purpose: str, code: str, packages: str = None, thread_id=None, bot_id=None
+    def run_python_code(self, purpose: str, code: str = None, packages: str = None, thread_id=None, bot_id=None, note_id=None
     # solid examples:
     # use snowpark to create 5 rows of synthetic customer data using faker, return it in json
     # ... save 100 rows of synthetic data like this to a table called CUSTFAKE1 in your workspace
@@ -7490,6 +7490,13 @@ result = 'Table FAKE_CUST created successfully.'
                     print(f"Temporary stored procedure {proc_name} dropped successfully.")
                 except Exception as e:
                     print(f"Error dropping temporary stored procedure {proc_name}: {e}")
+
+        if note_id is not None:
+            get_note_query = f"SELECT note_content FROM {self.schema}.BOT_NOTEBOOK WHERE NOTE_ID = '{note_id}'"
+            cursor = self.connection.cursor()
+            cursor.execute(get_note_query)
+            code = cursor.fetchone()[0]
+        
         if bot_id not in ['eva-x1y2z3', 'MrsEliza-3348b2', os.getenv("O1_OVERRIDE_BOT","")]:
             if '\\n' in code:
                 if '\n' not in code.replace('\\n', ''):

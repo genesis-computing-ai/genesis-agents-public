@@ -71,37 +71,7 @@ class KnowledgeServer:
                         self.thread_set.add(thread_id)
                     else:
                         continue
-                    
-                query = f"""
-
-                        WITH BOTS AS (SELECT BOT_SLACK_USER_ID, 
-                            CONCAT('{{"user_id": "', BOT_SLACK_USER_ID, '", "user_name": "', BOT_NAME, '", "user_email": "Unknown Email"}}') as PRIMARY_USER 
-                            FROM  {self.db_connector.bot_servicing_table_name}),
-                          BOTS2 AS (SELECT BOT_SLACK_USER_ID, 
-                            CONCAT('{{"user_id": "', BOT_SLACK_USER_ID, '", "user_name": "', BOT_NAME, '"}}') as PRIMARY_USER 
-                            FROM  {self.db_connector.bot_servicing_table_name})
-                        SELECT count(DISTINCT M.PRIMARY_USER) as CNT FROM {self.db_connector.message_log_table_name} M
-                        LEFT JOIN BOTS ON M.PRIMARY_USER = BOTS.PRIMARY_USER
-                        LEFT JOIN BOTS2 ON M.PRIMARY_USER = BOTS2.PRIMARY_USER
-                        WHERE THREAD_ID = '{thread_id}'
-                        AND  BOTS.BOT_SLACK_USER_ID IS NULL AND  BOTS2.BOT_SLACK_USER_ID IS NULL
-                        and m.primary_user <> '{{"user_id": "Unknown User ID", "user_name": "Unknown User"}}';
-
-"""
-                        # WITH BOTS AS (SELECT BOT_SLACK_USER_ID, 
-                        #     CONCAT('{{"user_id": "', BOT_SLACK_USER_ID, '", "user_name": "', BOT_NAME, '", "user_email": "Unknown Email"}}') as PRIMARY_USER 
-                        #     FROM {self.db_connector.bot_servicing_table_name})
-                        # SELECT COUNT(DISTINCT M.PRIMARY_USER) AS CNT FROM {self.db_connector.message_log_table_name} M
-                        # LEFT JOIN BOTS ON M.PRIMARY_USER = BOTS.PRIMARY_USER
-                        # WHERE THREAD_ID = '{thread_id}' AND BOT_SLACK_USER_ID IS NULL
-                        # and m.primary_user <> '{{"user_id": "Unknown User ID", "user_name": "Unknown User"}}';"""
-                count_non_bot_users = self.db_connector.run_query(query)
-                # this is needed to exclude channels with more than one user
-
-                if count_non_bot_users and count_non_bot_users[0]["CNT"] != 1:
-                    print(f"Skipped {thread_id}, {count_non_bot_users[0]['CNT']} non-bot-users is not 1")
-                    continue
-
+                
                 with self.condition:
                     if self.thread_queue.full():
                         print("Queue is full, producer is waiting...")
@@ -152,75 +122,101 @@ class KnowledgeServer:
 
             msg_log = self.db_connector.query_timestamp_message_log(thread_id, last_timestamp, max_rows=50)
 
-            messages = [f"{msg['MESSAGE_TYPE']}: {msg['MESSAGE_PAYLOAD']}" for msg in msg_log if "'EMBEDDING': " not in msg['MESSAGE_PAYLOAD']]
-            messages = "\n".join(messages)[:200_000] # limit to 200k char for now
+            non_bot_users_query = f"""
+                WITH BOTS AS (SELECT BOT_SLACK_USER_ID, 
+                    CONCAT('{{"user_id": "', BOT_SLACK_USER_ID, '", "user_name": "', BOT_NAME, '", "user_email": "Unknown Email"}}') as PRIMARY_USER 
+                    FROM  {self.db_connector.bot_servicing_table_name}),
+                    BOTS2 AS (SELECT BOT_SLACK_USER_ID, 
+                    CONCAT('{{"user_id": "', BOT_SLACK_USER_ID, '", "user_name": "', BOT_NAME, '"}}') as PRIMARY_USER 
+                    FROM  {self.db_connector.bot_servicing_table_name})
+                SELECT count(DISTINCT M.PRIMARY_USER) as CNT FROM {self.db_connector.message_log_table_name} M
+                LEFT JOIN BOTS ON M.PRIMARY_USER = BOTS.PRIMARY_USER
+                LEFT JOIN BOTS2 ON M.PRIMARY_USER = BOTS2.PRIMARY_USER
+                WHERE THREAD_ID = '{thread_id}'
+                AND  BOTS.BOT_SLACK_USER_ID IS NULL AND  BOTS2.BOT_SLACK_USER_ID IS NULL
+                and m.primary_user <> '{{"user_id": "Unknown User ID", "user_name": "Unknown User"}}';
+                """
+                # this is needed to exclude channels with more than one user
+            count_non_bot_users = self.db_connector.run_query(non_bot_users_query)
+                
 
-            query = f"""SELECT DISTINCT(knowledge_thread_id) FROM {self.db_connector.knowledge_table_name}
-                        WHERE thread_id = '{thread_id}';"""
-            knowledge_thread_id = self.db_connector.run_query(query)
-            if knowledge_thread_id and self.llm_type == 'openai':
-                knowledge_thread_id = knowledge_thread_id[0]["KNOWLEDGE_THREAD_ID"]
-                content = f"""Find a new batch of conversations between the user and agent and update 4 requested information in the original prompt and return it in JSON format:
-                             Conversation:
-                             {messages}
-                        """
-                try:
-                    print('openai create ', knowledge_thread_id)
-                    self.client.beta.threads.messages.create(
-                        thread_id=knowledge_thread_id, content=content, role="user"
-                    )
-                except Exception as e:
-                    print('openai create exception ', e)
-                    knowledge_thread_id = None
+            if count_non_bot_users and count_non_bot_users[0]["CNT"] != 1:
+                print(f"Skipped {thread_id}, {count_non_bot_users[0]['CNT']} non-bot-users is not 1")
+                response = {'thread_summary': 'Skipped due to empty non-bot-users', 
+                                'user_learning': 'Skipped due to empty non-bot-users',
+                                'tool_learning': 'Skipped due to empty non-bot-users',
+                                'data_learning': 'Skipped due to empty non-bot-users'}
+                
             else:
-                content = f"""Given the following conversations between the user and agent, analyze them and extract the 4 requested information:
-                             Conversation:
-                             {messages}
-                            
-                             Requested information:
-                            - thread_summary: Extract summary of the conversation                                                       
-                            - user_learning: Extract what you learned about this user, their preferences, and interests                            
-                            - tool_learning: For any tools you called in this thread, what did you learn about how to best use them or call them
-                            - data_learning: For any data you analyzed, what did you learn about the data that was not obvious from the metadata that you were provided by search_metadata.                             
+                messages = [f"{msg['MESSAGE_TYPE']}: {msg['MESSAGE_PAYLOAD']}" for msg in msg_log if "'EMBEDDING': " not in msg['MESSAGE_PAYLOAD']]
+                messages = "\n".join(messages)[:200_000] # limit to 200k char for now
 
-                            Expected output in JSON:
-                            {{'thread_summary': STRING, 
-                             'user_learning': STRING,
-                             'tool_learning': STRING,
-                             'data_learning': STRING}}
-                        """
-                if self.llm_type == 'openai':
-                    knowledge_thread_id = self.client.beta.threads.create().id
-                    self.client.beta.threads.messages.create(
-                        thread_id=knowledge_thread_id, content=content, role="user"
+                query = f"""SELECT DISTINCT(knowledge_thread_id) FROM {self.db_connector.knowledge_table_name}
+                            WHERE thread_id = '{thread_id}';"""
+                knowledge_thread_id = self.db_connector.run_query(query)
+                if knowledge_thread_id and self.llm_type == 'openai':
+                    knowledge_thread_id = knowledge_thread_id[0]["KNOWLEDGE_THREAD_ID"]
+                    content = f"""Find a new batch of conversations between the user and agent and update 4 requested information in the original prompt and return it in JSON format:
+                                Conversation:
+                                {messages}
+                            """
+                    try:
+                        print('openai create ', knowledge_thread_id)
+                        self.client.beta.threads.messages.create(
+                            thread_id=knowledge_thread_id, content=content, role="user"
+                        )
+                    except Exception as e:
+                        print('openai create exception ', e)
+                        knowledge_thread_id = None
+                else:
+                    content = f"""Given the following conversations between the user and agent, analyze them and extract the 4 requested information:
+                                Conversation:
+                                {messages}
+                                
+                                Requested information:
+                                - thread_summary: Extract summary of the conversation                                                       
+                                - user_learning: Extract what you learned about this user, their preferences, and interests                            
+                                - tool_learning: For any tools you called in this thread, what did you learn about how to best use them or call them
+                                - data_learning: For any data you analyzed, what did you learn about the data that was not obvious from the metadata that you were provided by search_metadata.                             
+
+                                Expected output in JSON:
+                                {{'thread_summary': STRING, 
+                                'user_learning': STRING,
+                                'tool_learning': STRING,
+                                'data_learning': STRING}}
+                            """
+                    if self.llm_type == 'openai':
+                        knowledge_thread_id = self.client.beta.threads.create().id
+                        self.client.beta.threads.messages.create(
+                            thread_id=knowledge_thread_id, content=content, role="user"
+                        )
+                    else: # cortex
+                        knowledge_thread_id = ''
+                response = None
+                if self.llm_type == 'openai' and knowledge_thread_id is not None:
+                    run = self.client.beta.threads.runs.create(
+                        thread_id=knowledge_thread_id, assistant_id=self.assistant.id
                     )
-                else: # cortex
-                    knowledge_thread_id = ''
-            response = None
-            if self.llm_type == 'openai' and knowledge_thread_id is not None:
-                run = self.client.beta.threads.runs.create(
-                    thread_id=knowledge_thread_id, assistant_id=self.assistant.id
-                )
-                while not self.client.beta.threads.runs.retrieve(
-                    thread_id=knowledge_thread_id, run_id=run.id
-                ).completed_at:
-                    time.sleep(1)
+                    while not self.client.beta.threads.runs.retrieve(
+                        thread_id=knowledge_thread_id, run_id=run.id
+                    ).completed_at:
+                        time.sleep(1)
 
-                raw_knowledge = (
-                    self.client.beta.threads.messages.list(knowledge_thread_id)
-                    .data[0]
-                    .content[0]
-                    .text.value
-                )
-                try:                
-                    response = json.loads(raw_knowledge)
-                except:
-                    response = None
-                    print('Skipped thread ',knowledge_thread_id,' knowledge unparseable')
-            else:
-                system = "You are a Knowledge Explorer to extract, synthesize, and inject knowledge that bots learn from doing their jobs"
-                res, status_code  = self.db_connector.cortex_chat_completion(content, system=system)
-                response = ast.literal_eval(res.split("```")[1])
+                    raw_knowledge = (
+                        self.client.beta.threads.messages.list(knowledge_thread_id)
+                        .data[0]
+                        .content[0]
+                        .text.value
+                    )
+                    try:                
+                        response = json.loads(raw_knowledge)
+                    except:
+                        response = None
+                        print('Skipped thread ',knowledge_thread_id,' knowledge unparseable')
+                else:
+                    system = "You are a Knowledge Explorer to extract, synthesize, and inject knowledge that bots learn from doing their jobs"
+                    res, status_code  = self.db_connector.cortex_chat_completion(content, system=system)
+                    response = ast.literal_eval(res.split("```")[1])
                 
                 
 

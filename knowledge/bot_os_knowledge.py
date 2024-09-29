@@ -123,5 +123,5 @@ print(" ---- KNOWLEDGE SERVER ----")
 
 
 if __name__ == "__main__":    
-    knowledge = KnowledgeServer(knowledge_db_connector, llm_key_struct.llm_type, maxsize=10)
+    knowledge = KnowledgeServer(knowledge_db_connector, llm_key_struct.llm_type, maxsize=20)
     knowledge.start_threads()

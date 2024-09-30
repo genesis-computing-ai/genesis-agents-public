@@ -2976,7 +2976,7 @@ AND   RUNNER_ID = '{runner_id}'
                     BOT_ID VARCHAR(16777216),
                     PROCESS_NAME VARCHAR(16777216) NOT NULL,
                     NOTE_ID VARCHAR(16777216) NOT NULL,
-                    PROCESS_CONFIG VARCHAR(16777216),
+                    PROCESS_CONFIG VARCHAR(16777216)
                 );
                 """
                 cursor.execute(create_process_table_ddl)

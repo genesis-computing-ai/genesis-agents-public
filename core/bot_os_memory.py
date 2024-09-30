@@ -320,6 +320,12 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
               #  logger.info('getting fresh stuff')
                 self.index, self.metadata_mapping = load_or_create_embeddings_index(self.meta_database_connector.metadata_table_name, refresh=True)
 
+            try:
+                if self.metadata_mapping == ['empty_index']:
+                    return "There is no data harvested, the search index is empty. Tell the user to use the Genesis Streamlit GUI to grant access to their data to Genesis."
+            except:
+                pass
+
             if database and schema:
                 query += " "+database+'.'+schema
             elif schema:

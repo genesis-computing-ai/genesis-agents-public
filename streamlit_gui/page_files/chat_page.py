@@ -1,11 +1,12 @@
 import streamlit as st
 import time
 import uuid
-from utils import get_bot_details, get_slack_tokens, get_slack_tokens_cached, get_metadata, get_metadata_cached, get_metadata2, submit_to_udf_proxy, get_response_from_udf_proxy
+from utils import get_bot_details, get_slack_tokens, get_metadata_cached, get_slack_tokens_cached, get_metadata, get_metadata2, submit_to_udf_proxy, get_response_from_udf_proxy
 import re
 import os
-import random
+import numpy as np
 import base64
+import random
 
 def file_to_html(bot_id, thread_id, file_path):    
     file_name = os.path.basename(file_path)    
@@ -16,8 +17,24 @@ def file_to_html(bot_id, thread_id, file_path):
         href = f'<a href="data:application/octet-stream;base64,{file_byte}" download="{file_name}">{file_name}</a>'
     return href
 
-bot_images = get_metadata_cached("bot_images")
-bot_avatar_images = [bot["bot_avatar_image"] for bot in bot_images]
+# bot_images = get_metadata_cached("bot_images")
+# bot_avatar_images = [bot["bot_avatar_image"] for bot in bot_images]
+# from PIL import Image
+# import io
+
+# @st.cache_data(ttl=3600)  # Cache the result for 1 hour
+# def resize_image(image_bytes, size=(64, 64)):
+#     img = Image.open(io.BytesIO(image_bytes))
+#     img = img.resize(size, Image.LANCZOS)
+#     buffered = io.BytesIO()
+#     img.save(buffered, format="PNG")
+#     return base64.b64encode(buffered.getvalue()).decode()
+
+# # Resize bot avatar images
+# bot_avatar_images = [
+#     resize_image(base64.b64decode(img)) if img else None
+#     for img in bot_avatar_images
+# ]
 
 
 def chat_page():
@@ -152,22 +169,21 @@ def chat_page():
         if "stop_streaming" not in st.session_state:
             st.session_state.stop_streaming = False
 
-        with st.chat_message("assistant", avatar=bot_avatar_image_url):
-            
-            #response = st.write_stream(response_generator(None,request_id=request_id, selected_bot_id=selected_bot_id))
-            response = emulate_write_stream(response_generator(None,request_id=request_id, selected_bot_id=selected_bot_id))
+        with st.chat_message("assistant", avatar= '🤖'):
+            response = st.write_stream(response_generator(None,request_id=request_id, selected_bot_id=selected_bot_id))
+            response = emulate_write_stream(response_generator(None,request_id=request_id, selected_bot_id=selected_bot_id))            
         
         st.session_state.stop_streaming = False
 
         # Add the response to the chat history
-        messages.append({"role": "assistant", "content": response,  "avatar": bot_avatar_image_url})
+        messages.append({"role": "assistant", "content": response,  "avatar": '🤖'})
 
         while st.session_state.stream_files:
             file_path = st.session_state.stream_files.pop()
             file = file_to_html(selected_bot_id, thread_id, file_path)
-            with st.chat_message("assistant", avatar=bot_avatar_image_url):
+            with st.chat_message("assistant", avatar='🤖'):
                 st.markdown(file , unsafe_allow_html=True)
-            messages.append({"role": "assistant", "content": file,  "avatar": bot_avatar_image_url})
+            messages.append({"role": "assistant", "content": file,  "avatar": '🤖'})
 
         save_chat_history(thread_id, messages)
 
@@ -260,9 +276,8 @@ def chat_page():
         if "stop_streaming" not in st.session_state:
             st.session_state.stop_streaming = False
 
-        with st.chat_message("assistant", avatar=bot_avatar_image_url):
-            #response = st.write_stream(response_generator(in_resp,request_id=request_id, selected_bot_id=selected_bot_id))
-            response = emulate_write_stream(response_generator(in_resp,request_id=request_id, selected_bot_id=selected_bot_id))
+        with st.chat_message("assistant", avatar='🤖'):
+            response = st.write_stream(response_generator(in_resp,request_id=request_id, selected_bot_id=selected_bot_id))
         st.session_state.stop_streaming = False
 
         # Initialize last_response if it doesn't exist
@@ -272,14 +287,14 @@ def chat_page():
         if st.session_state["last_response"] == "":
             st.session_state["last_response"] = response
 
-        messages.append({"role": "assistant","content": response,"avatar": bot_avatar_image_url})
+        messages.append({"role": "assistant","content": response,"avatar": '🤖'})
 
         while st.session_state.stream_files:
             file_path = st.session_state.stream_files.pop()
             file = file_to_html(selected_bot_id, current_thread_id, file_path)
-            with st.chat_message("assistant", avatar=bot_avatar_image_url):
+            with st.chat_message("assistant", avatar='🤖'):
                 st.markdown(file , unsafe_allow_html=True)
-            messages.append({"role": "assistant", "content": file,  "avatar": bot_avatar_image_url})
+            messages.append({"role": "assistant", "content": file,  "avatar": '🤖'})
 
         save_chat_history(current_thread_id, messages)
 
@@ -295,6 +310,7 @@ def chat_page():
     except Exception as e:
         bot_details = {"Success": False, "Message": "Genesis Server Offline"}
         return
+    
 
     if bot_details == {"Success": False, "Message": "Needs LLM Type and Key"}:
         st.session_state["radio"] = "LLM Model & Key"
@@ -334,6 +350,7 @@ def chat_page():
                 st.session_state[f"messages_{new_thread_id}"] = []
 
             # Sidebar content
+
             with st.sidebar:
                 if len(bot_names) > 0:
               #      st.markdown("### Start a New Chat")
@@ -347,7 +364,6 @@ def chat_page():
                         with col2:
                             st.markdown('<span id="button-after"></span>', unsafe_allow_html=True)
                             refresh = st.form_submit_button("🔄 Bots")
-
                     if refresh:
                         get_bot_details.clear()
                         get_llm_configuration.clear()
@@ -384,7 +400,7 @@ def chat_page():
                     uploaded_file = None
 
                 st.markdown("#### Active Chat Sessions:")
-                
+
                 # Initialize active_sessions in session state if it doesn't exist
                 if 'active_sessions' not in st.session_state:
                     st.session_state.active_sessions = []
@@ -514,16 +530,18 @@ def chat_page():
 
             # Main content area       
 
+            encoded_bot_avatar_image_array = None
             if len(bot_names) > 0:
 
                 # get avatar images
-                bot_avatar_image_url = None
-                if len(bot_images) > 0:                    
-                    selected_bot_image_index = bot_names.index(selected_bot_name) if selected_bot_name in bot_names else -1
-                    if selected_bot_image_index >= 0:
-                        encoded_bot_avatar_image = bot_avatar_images[selected_bot_image_index]
-                        if encoded_bot_avatar_image:
-                            bot_avatar_image_url = f"data:image/png;base64,{encoded_bot_avatar_image}"
+                # bot_avatar_image_url = None
+                # if len(bot_images) > 0:                    
+                #     selected_bot_image_index = bot_names.index(selected_bot_name) if selected_bot_name in bot_names else -1
+                #     if selected_bot_image_index >= 0:
+                #         encoded_bot_avatar_image = bot_avatar_images[selected_bot_image_index]
+                #         if encoded_bot_avatar_image:
+                #             encoded_bot_avatar_image_bytes = base64.b64decode(encoded_bot_avatar_image)
+                #             bot_avatar_image_url = f"data:image/png;base64,{encoded_bot_avatar_image}"
 
                 # Initialize chat history if it doesn't exist for the current thread
                 if selected_thread_id and f"messages_{selected_thread_id}" not in st.session_state:
@@ -532,8 +550,8 @@ def chat_page():
                 # Display chat messages from history
                 if selected_thread_id:
                     for message in st.session_state[f"messages_{selected_thread_id}"]:
-                        if message["role"] == "assistant" and bot_avatar_image_url:
-                            with st.chat_message(message["role"], avatar=bot_avatar_image_url):
+                        if message["role"] == "assistant" :
+                            with st.chat_message(message["role"], avatar='🤖'):
                                 st.markdown(message["content"],unsafe_allow_html=True)
                         else:
                             with st.chat_message(message["role"]):

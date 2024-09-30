@@ -17,24 +17,24 @@ def file_to_html(bot_id, thread_id, file_path):
         href = f'<a href="data:application/octet-stream;base64,{file_byte}" download="{file_name}">{file_name}</a>'
     return href
 
-# bot_images = get_metadata_cached("bot_images")
-# bot_avatar_images = [bot["bot_avatar_image"] for bot in bot_images]
-# from PIL import Image
-# import io
+bot_images = get_metadata_cached("bot_images")
+bot_avatar_images = [bot["bot_avatar_image"] for bot in bot_images]
+from PIL import Image
+import io
 
-# @st.cache_data(ttl=3600)  # Cache the result for 1 hour
-# def resize_image(image_bytes, size=(64, 64)):
-#     img = Image.open(io.BytesIO(image_bytes))
-#     img = img.resize(size, Image.LANCZOS)
-#     buffered = io.BytesIO()
-#     img.save(buffered, format="PNG")
-#     return base64.b64encode(buffered.getvalue()).decode()
+@st.cache_data(ttl=10800)  # Cache the result for 3 hours
+def resize_image(image_bytes, size=(64, 64)):
+    img = Image.open(io.BytesIO(image_bytes))
+    img = img.resize(size, Image.LANCZOS)
+    buffered = io.BytesIO()
+    img.save(buffered, format="PNG")
+    return base64.b64encode(buffered.getvalue()).decode()
 
-# # Resize bot avatar images
-# bot_avatar_images = [
-#     resize_image(base64.b64decode(img)) if img else None
-#     for img in bot_avatar_images
-# ]
+# Resize bot avatar images
+bot_avatar_images = [
+    resize_image(base64.b64decode(img)) if img else None
+    for img in bot_avatar_images
+]
 
 
 def chat_page():
@@ -169,7 +169,7 @@ def chat_page():
         if "stop_streaming" not in st.session_state:
             st.session_state.stop_streaming = False
 
-        with st.chat_message("assistant", avatar= '🤖'):
+        with st.chat_message("assistant", avatar= bot_avatar_image_url):
             response = st.write_stream(response_generator(None,request_id=request_id, selected_bot_id=selected_bot_id))
             response = emulate_write_stream(response_generator(None,request_id=request_id, selected_bot_id=selected_bot_id))            
         
@@ -181,7 +181,7 @@ def chat_page():
         while st.session_state.stream_files:
             file_path = st.session_state.stream_files.pop()
             file = file_to_html(selected_bot_id, thread_id, file_path)
-            with st.chat_message("assistant", avatar='🤖'):
+            with st.chat_message("assistant", avatar=bot_avatar_image_url):
                 st.markdown(file , unsafe_allow_html=True)
             messages.append({"role": "assistant", "content": file,  "avatar": '🤖'})
 
@@ -276,7 +276,7 @@ def chat_page():
         if "stop_streaming" not in st.session_state:
             st.session_state.stop_streaming = False
 
-        with st.chat_message("assistant", avatar='🤖'):
+        with st.chat_message("assistant", avatar=bot_avatar_image_url):
             response = st.write_stream(response_generator(in_resp,request_id=request_id, selected_bot_id=selected_bot_id))
         st.session_state.stop_streaming = False
 
@@ -287,14 +287,14 @@ def chat_page():
         if st.session_state["last_response"] == "":
             st.session_state["last_response"] = response
 
-        messages.append({"role": "assistant","content": response,"avatar": '🤖'})
+        messages.append({"role": "assistant","content": response,"avatar": bot_avatar_image_url})
 
         while st.session_state.stream_files:
             file_path = st.session_state.stream_files.pop()
             file = file_to_html(selected_bot_id, current_thread_id, file_path)
-            with st.chat_message("assistant", avatar='🤖'):
+            with st.chat_message("assistant", avatar=bot_avatar_image_url):
                 st.markdown(file , unsafe_allow_html=True)
-            messages.append({"role": "assistant", "content": file,  "avatar": '🤖'})
+            messages.append({"role": "assistant", "content": file,  "avatar": bot_avatar_image_url})
 
         save_chat_history(current_thread_id, messages)
 
@@ -531,17 +531,18 @@ def chat_page():
             # Main content area       
 
             encoded_bot_avatar_image_array = None
+            bot_avatar_image_url = None
             if len(bot_names) > 0:
 
                 # get avatar images
-                # bot_avatar_image_url = None
-                # if len(bot_images) > 0:                    
-                #     selected_bot_image_index = bot_names.index(selected_bot_name) if selected_bot_name in bot_names else -1
-                #     if selected_bot_image_index >= 0:
-                #         encoded_bot_avatar_image = bot_avatar_images[selected_bot_image_index]
-                #         if encoded_bot_avatar_image:
-                #             encoded_bot_avatar_image_bytes = base64.b64decode(encoded_bot_avatar_image)
-                #             bot_avatar_image_url = f"data:image/png;base64,{encoded_bot_avatar_image}"
+                bot_avatar_image_url = None
+                if len(bot_images) > 0:                    
+                    selected_bot_image_index = bot_names.index(selected_bot_name) if selected_bot_name in bot_names else -1
+                    if selected_bot_image_index >= 0:
+                        encoded_bot_avatar_image = bot_avatar_images[selected_bot_image_index]
+                        if encoded_bot_avatar_image:
+                            encoded_bot_avatar_image_bytes = base64.b64decode(encoded_bot_avatar_image)
+                            bot_avatar_image_url = f"data:image/png;base64,{encoded_bot_avatar_image}"
 
                 # Initialize chat history if it doesn't exist for the current thread
                 if selected_thread_id and f"messages_{selected_thread_id}" not in st.session_state:
@@ -550,8 +551,8 @@ def chat_page():
                 # Display chat messages from history
                 if selected_thread_id:
                     for message in st.session_state[f"messages_{selected_thread_id}"]:
-                        if message["role"] == "assistant" :
-                            with st.chat_message(message["role"], avatar='🤖'):
+                        if message["role"] == "assistant" and bot_avatar_image_url is not None:
+                            with st.chat_message(message["role"], avatar=bot_avatar_image_url):
                                 st.markdown(message["content"],unsafe_allow_html=True)
                         else:
                             with st.chat_message(message["role"]):

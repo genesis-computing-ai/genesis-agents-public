@@ -2975,6 +2975,7 @@ AND   RUNNER_ID = '{runner_id}'
                     PROCESS_ID VARCHAR(16777216) NOT NULL PRIMARY KEY,
                     BOT_ID VARCHAR(16777216),
                     PROCESS_NAME VARCHAR(16777216) NOT NULL,
+                    PROCESS_INSTRUCTIONS VARCHAR(16777216),
                     NOTE_ID VARCHAR(16777216) NOT NULL,
                     PROCESS_CONFIG VARCHAR(16777216)
                 );

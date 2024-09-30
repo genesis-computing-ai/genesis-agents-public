@@ -73,6 +73,7 @@ from core.bot_os_tool_descriptions import (
     webpage_downloader_functions,
     webpage_downloader_tools,
 )
+from core.bot_os_llm import BotLlmEngineEnum
 
 logger = logging.getLogger(__name__)
 
@@ -200,10 +201,13 @@ class ToolBelt:
             
             
         if not model:
-            if os.getenv("BOT_OS_DEFAULT_LLM_ENGINE",'').lower() == 'openai':
+            engine = BotLlmEngineEnum(os.getenv("BOT_OS_DEFAULT_LLM_ENGINE"))
+            if engine is BotLlmEngineEnum.openai:
                 model = 'openai'
-            else:
-                model = 'cortex'
+            else:                
+                model = 'cortex'            
+        assert model in ("openai", "cortex")
+        # TODO: handle other engine types, use BotLlmEngineEnum instead of strings
 
         if model == 'openai':
                     api_key = os.getenv("OPENAI_API_KEY")

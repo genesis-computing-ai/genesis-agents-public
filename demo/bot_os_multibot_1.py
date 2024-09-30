@@ -738,7 +738,7 @@ def configure_llm():
         message = request.json
         input_rows = message["data"]
 
-        llm_type = input_rows[0][1]
+        llm_type = input_rows[0][1] # llm type means llm engine (e.g. 'cortex', 'openai')
         llm_key = input_rows[0][2]
         llm_endpoint = input_rows[0][3]
 

@@ -27,6 +27,8 @@ from core.bot_os_defaults import (
     STUART_INTRO_PROMPT,
 )
 
+from core.bot_os_llm import BotLlmEngineEnum
+
 # from database_connector import DatabaseConnector
 from threading import Lock
 import base64
@@ -638,8 +640,9 @@ class SqliteConnector(DatabaseConnector):
                 # os.environ["CORTEX_AVAILABLE"] = 'False'
                 # os.getenv("BOT_OS_DEFAULT_LLM_ENGINE") == 'openai | cortex'
                 # os.getenv("CORTEX_FIREWORKS_OVERRIDE", "False").lower() 
-
-                if os.getenv("BOT_OS_DEFAULT_LLM_ENGINE") == 'openai':
+                default_eng_override = os.getenv("BOT_OS_DEFAULT_LLM_ENGINE")
+                default_llm_engine = BotLlmEngineEnum(default_eng_override) if default_eng_override else None
+                if default_llm_engine is BotLlmEngineEnum.openai:
                     api_key = os.getenv("OPENAI_API_KEY")
                     if not api_key:
                         print("OpenAI API key is not set in the environment variables.")

@@ -35,6 +35,8 @@ from core.bot_os_defaults import (
     LOADER_SPROC
 )
 
+from core.bot_os_llm import BotLlmEngineEnum
+
 # from database_connector import DatabaseConnector
 from threading import Lock
 import base64
@@ -92,6 +94,9 @@ class SnowflakeConnector(DatabaseConnector):
         self.schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "GENESIS_INTERNAL")
 
         if os.getenv("CORTEX_MODEL", None) is not None:
+            # TODO: rename self.llm_engine to self.llm_model_name.
+            # (in the rest of the code we typically we use the term 'engine' for the provider's name
+            # (e.g. openai, cortex))
             self.llm_engine =  os.getenv("CORTEX_MODEL", None)
         else:
             self.llm_engine = 'llama3.1-405b'
@@ -182,7 +187,7 @@ class SnowflakeConnector(DatabaseConnector):
 
                 if cortex_test == True:
                     os.environ["CORTEX_AVAILABLE"] = 'True'
-                    self.default_llm_engine = 'cortex'
+                    self.default_llm_engine = BotLlmEngineEnum.cortex
                     
                     self.llm_api_key = 'cortex_no_key_needed'
                     print('Cortex LLM is Available via REST and successfully tested')
@@ -4309,10 +4314,13 @@ $$
 
         Args:
             llm_key (str): The LLM key.
-            llm_type (str): The type of LLM (e.g., 'openai', 'reka').
+            llm_type (str|BotLlmEngineEnum): The type of LLM (e.g., 'openai', 'reka').
             llm_endpoint (str): endpoint for LLM like azure openai
         """
         runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
+
+        # validate llm_type; use the str value for the rest of this method
+        llm_type = BotLlmEngineEnum(llm_type).value # use the str value (e.g. 'openai)
 
         try:
             update_query = f"""
@@ -4419,6 +4427,9 @@ $$
 
         available_tools_string = json.dumps(available_tools)
         files_string = json.dumps(files)
+
+        # validate certain params
+        bot_implementation = BotLlmEngineEnum(bot_implementation).value if bot_implementation
 
         try:
             cursor = self.connection.cursor()
@@ -4660,6 +4671,9 @@ $$
             dict: A dictionary with the result of the operation, indicating success or failure.
         """
 
+        # validate inputs
+        bot_implementation = BotLlmEngineEnum(bot_implementation).value if bot_implementation
+
         # Query to update the bot implementation in the database
         update_query = f"""
             UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
@@ -4697,7 +4711,7 @@ $$
                     "success": False,
                     "error": f"No bots found to update.  Possibly wrong bot_id. Please use list_all_bots to get the correct bot_id."
                 }
-            logger.info(f"Successfully updated bot_implementation for bot_id: {bot_id}")
+            logger.info(f"Successfully updated bot_implementation for bot_id: {bot_id} to {bot_implementation}")
 
             # trigger the changed bot to reload its session
             os.environ[f'RESET_BOT_SESSION_{bot_id}'] = 'True'
@@ -4914,6 +4928,8 @@ $$
             files (json-embedded list): A list of files to include with the bot.
             bot_implementation (str): openai or cortex or ...
         """
+        # validate inputs
+        bot_implementation = BotLlmEngineEnum(bot_implementation).value if bot_implementation
 
         update_query = f"""
             UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
@@ -7196,17 +7212,34 @@ $$
             return "default_filename.ann", "default_metadata.json"
 
     def chat_completion_for_escallation(self, message):
-#        self.write_message_log_row(db_adapter, bot_id, bot_name, thread_id, 'Supervisor Prompt', message, message_metadata)
+        #self.write_message_log_row(db_adapter, bot_id, bot_name, thread_id, 'Supervisor Prompt', message, message_metadata)
+        return_msg = None
+        default_env_override = os.getenv("BOT_OS_DEFAULT_LLM_ENGINE")
+        bot_os_llm_engine = BotLlmEngineEnum(default_env_override) if default_env_override else None
+        if bot_os_llm_engine is BotLlmEngineEnum.openai:
+            api_key = os.getenv("OPENAI_API_KEY")
+            if not api_key:
+                print("OpenAI API key is not set in the environment variables.")
+                return None
 
-        if os.getenv("BOT_OS_DEFAULT_LLM_ENGINE",'').lower() == 'openai':
-                    api_key = os.getenv("OPENAI_API_KEY")
-                    if not api_key:
-                        print("OpenAI API key is not set in the environment variables.")
-                        return None
+            openai_model = os.getenv("OPENAI_MODEL_SUPERVISOR",os.getenv("OPENAI_MODEL_NAME","gpt-4o"))
 
-                    openai_model = os.getenv("OPENAI_MODEL_SUPERVISOR",os.getenv("OPENAI_MODEL_NAME","gpt-4o"))
-
-                    print('snowpark escallation using model: ', openai_model)
+            print('snowpark escallation using model: ', openai_model)
+            try:
+                client = get_openai_client()
+                response = client.chat.completions.create(
+                    model=openai_model,
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": message,
+                        },
+                    ],
+                )
+            except Exception as e:
+                if os.getenv("OPENAI_MODEL_SUPERVISOR", None) is not None:
+                    openai_model = os.getenv("OPENAI_MODEL_NAME","gpt-4o")
+                    print('retry snowpark escallation using model: ', openai_model)
                     try:
                         client = get_openai_client()
                         response = client.chat.completions.create(
@@ -7218,31 +7251,16 @@ $$
                                 },
                             ],
                         )
-                    except Exception as e:
-                        if os.getenv("OPENAI_MODEL_SUPERVISOR", None) is not None:
-                            openai_model = os.getenv("OPENAI_MODEL_NAME","gpt-4o")
-                            print('retry snowpark escallation using model: ', openai_model)
-                            try:
-                                client = get_openai_client()
-                                response = client.chat.completions.create(
-                                    model=openai_model,
-                                    messages=[
-                                        {
-                                            "role": "user",
-                                            "content": message,
-                                        },
-                                    ],
-                                )
-                            except Exception as e:   
-                                print(f"Error occurred while calling OpenAI API with snowpark escallation model {openai_model}: {e}")
-                                return None
-                        else:
-                            print(f"Error occurred while calling OpenAI API: {e}")
-                            return None
+                    except Exception as e:   
+                        print(f"Error occurred while calling OpenAI API with snowpark escallation model {openai_model}: {e}")
+                        return None
+                else:
+                    print(f"Error occurred while calling OpenAI API: {e}")
+                    return None
 
-                    return_msg = response.choices[0].message.content
+            return_msg = response.choices[0].message.content
         else: 
-            if os.getenv("BOT_OS_DEFAULT_LLM_ENGINE").lower() == 'cortex':
+            if bot_os_llm_engine is BotLlmEngineEnum.cortex:
                 response, status_code = self.cortex_chat_completion(message)
                 if status_code != 200:
                     print(f"Error occurred while calling Cortex API: {response}")
@@ -7252,8 +7270,6 @@ $$
         return return_msg
 
     def escallate_for_advice(self, purpose, code, result, packages):
-
-        #if os.getenv("BOT_OS_DEFAULT_LLM_ENGINE",'').lower() == 'openai' and os.getenv("OPENAI_MODEL_SUPERVISOR",None) is not None:
         if True:
 
             if packages is None or packages == '':

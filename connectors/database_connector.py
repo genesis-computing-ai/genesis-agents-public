@@ -1,6 +1,6 @@
 class llm_keys_and_types_struct:    
     def __init__(self, llm_type=None, llm_key=None, llm_endpoint=None):
-        self.llm_type = llm_type
+        self.llm_type = llm_type # a str like 'cortex', 'openai', etc. TODO: use BotLlmEngineEnum
         self.llm_key  = llm_key
         self.llm_endpoint = llm_endpoint if llm_endpoint is not None else ''
 

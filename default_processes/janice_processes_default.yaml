@@ -39,10 +39,16 @@ janice_monitor_unused_tables_golden:
          - A list of the 3 biggest unused tables.
          - Mention that there are more unused tables.
          - Invite the user to come talk with you, Janice, in Streamlit or Slack by mentioning the Process ID.
-         - Be sure to include line breaks in the body where appropriate, using the standard line break indicator (`\n`).
+       - Formatting Instructions:
+         - Format the email as an HTML document unless expicilty instructed otherwise.
+         - Use standard HTML headers (like <h2>, <h3>) and paragraph (<p>) tags for readability.
+         - DO NOT use <h1> headers.
+         - Ensure proper line breaks within paragraphs using the standard line break indicator (<br>).         
+         - Use the necessary styles and layout elements for a professional appearance.
+       - When outputing the draft email body itself to the user, DO NOT wrap the html text in backticks. Wrap it in newlines (`\n`) instead.
 
     3. **Send the Email:**
-       - If SYS$DEFAULT_EMAIL is not 'None' and is an email address, send the email to `SYS$DEFAULT_EMAIL`.  Otherwise skip this step.
+       - If SYS$DEFAULT_EMAIL is not 'None' and is an email address, send the email to `SYS$DEFAULT_EMAIL`, otherwise skip this step. If sending an email, use mime_type='text/html' unless expicilty instructed to use other formats.
 
     ## Conclusion
     This process helps in identifying unused data tables and communicates cost-saving opportunities to stakeholders effectively.
@@ -51,7 +57,7 @@ janice_monitor_unused_tables_golden:
     - Subject: (Catchy subject line with emojis)
     - Body: (Email body following the specified guidelines)
   PROCESS_DETAILS: "Monitor Unused Data Tables"
-  TIMESTAMP: "2024-09-18 00:00:00+00:00"
+  TIMESTAMP: "2024-09-30 00:00:00+00:00"
 
 janice_top_warehouses_spillage_golden:
   BOT_ID: "Janice"
@@ -83,13 +89,24 @@ janice_top_warehouses_spillage_golden:
       - Include in the email body:
         - An explanation of what it means when a warehouse has bytes spilled to local and remote storage.
         - An explanation of how average queuing time impacts performance.
-        - A list of the top 3 warehouses that are spilling to local and remote storage along with their average queue times from your analysis.
+        - A table of the top 3 warehouses that are spilling to local and remote storage along with their average queue times from your analysis.
         - Mention that there may be more warehouses experiencing spillage.
         - Invite the user to come talk with you, Janice, in Streamlit or Slack by mentioning the Process ID.
-        - Ensure line breaks are included in the body where appropriate, using the standard line break indicator (\n).
+      - Formatting Instructions:
+        - Format the email as an HTML document unless expicilty instructed otherwise.
+        - Use standard HTML headers (like <h2>, <h3>) and paragraph (<p>) tags for readability.
+        - DO NOT use <h1> headers.
+        - Ensure proper line breaks within paragraphs using the standard line break indicator (<br>).
+        - Table Formatting: Display the list of users (the result of the sql query) in an HTML table:
+          - Apply a different font style for the column headers to visually distinguish them from the rest of the table.
+          - Use <thead> for headers and <tbody> for the content.
+          - Ensure that the table is structured with proper tags like <table>, <thead>, <tbody>, <tr>, <th>, <td> etc.
+        - Use the necessary styles and layout elements for a professional appearance.
+      - When outputing the draft email body itself to the user, DO NOT wrap the html text in backticks. Wrap it in newlines (`\n`) instead.
+
 
     4. **Send the Email:**
-        - If SYS$DEFAULT_EMAIL is not 'None' and is an email address, send the email to `SYS$DEFAULT_EMAIL`.  Otherwise skip this step.
+        - If SYS$DEFAULT_EMAIL is not 'None' and is an email address, send the email to `SYS$DEFAULT_EMAIL`, otherwise skip this step. If sending an email, use mime_type='text/html' unless expicilty instructed to use other formats.        
 
     ## Conclusion
     This process helps in identifying performance issues related to data spillage and queuing times, enabling stakeholders to optimize warehouse configurations for better performance.
@@ -117,7 +134,7 @@ janice_top_warehouses_spillage_golden:
       Janice
       
   PROCESS_DETAILS: "Top 3 Warehouses Affected by Spillage and Queuing"
-  TIMESTAMP: "2024-09-18 00:00:00+00:00"
+  TIMESTAMP: "2024-09-30 00:00:00+00:00"
 
 janice_check_MFA_use_golden:
   BOT_ID: "Janice"
@@ -134,12 +151,24 @@ janice_check_MFA_use_golden:
       - Draft an email with a catchy but serious sounding subject line including tone appropriate Unicode emojis about ensuring data safety through using MFA
       - Include in the email body:
         - a breif explanation of the benefits of MFA for authentication
-        - give them a list of some of the data you found which includes the percentage of users who currently have passwords using "PASSWORD_USERS" from the query results, the percentage of users who have passwords that also currently use MFA using "PASSWORD_USERS_MFA" from the query results, the percentage of users with admin access that use passwords without MFA using "ADMIN_PASSWORD_NO_MFA" from the query results.
+        - give them a table of some of the data you found which includes the percentage of users who currently have passwords using "PASSWORD_USERS" from the query results, the percentage of users who have passwords that also currently use MFA using "PASSWORD_USERS_MFA" from the query results, the percentage of users with admin access that use passwords without MFA using "ADMIN_PASSWORD_NO_MFA" from the query results.
         - Invite the user to come talk with you, Janice, in Streamlit or Slack by mentioning the Process ID.
-        - be sure to include line breaks in the body where appropriate, using the standard line break indicator (\n).
+      - Formatting Instructions:
+        - Format the email as an HTML document unless expicilty instructed otherwise.
+        - Use standard HTML headers (like <h2>, <h3>) and paragraph (<p>) tags for readability.
+        - DO NOT use <h1> headers.
+        - Ensure proper line breaks within paragraphs using the standard line break indicator (<br>).
+        - Table Formatting: Display the list of users (the result of the sql query) in an HTML table:
+          - Apply a different font style for the column headers to visually distinguish them from the rest of the table.
+          - Use <thead> for headers and <tbody> for the content.
+          - Ensure that the table is structured with proper tags like <table>, <thead>, <tbody>, <tr>, <th>, <td> etc.
+        - Use the necessary styles and layout elements for a professional appearance.
+        - When outputing the draft email body itself to the user, DO NOT wrap the html text in backticks. Wrap it in newlines (`\n`) instead.
 
-    3. **Send the Email:**
-        - If SYS$DEFAULT_EMAIL is not 'None' and is an email address, send the email to `SYS$DEFAULT_EMAIL`.  Otherwise skip this step.
+
+
+    3. **Send the Email:**        
+        - If SYS$DEFAULT_EMAIL is not 'None' and is an email address, send the email to `SYS$DEFAULT_EMAIL`, otherwise skip this step. If sending an email, use mime_type='text/html' unless expicilty instructed to use other formats.        
         - Then use run_process to continue running the rest of the steps
 
     4. **Generate Report and Recommendations**:
@@ -158,7 +187,7 @@ janice_check_MFA_use_golden:
 
     ### End of Process
   PROCESS_DETAILS: "Check MFA Use in Snowflake"
-  TIMESTAMP: "2024-09-19 00:00:00+00:00"
+  TIMESTAMP: "2024-09-30 00:00:00+00:00"
 
 janice_dangerous_user_report_golden:
   BOT_ID: "Janice"
@@ -179,7 +208,7 @@ janice_dangerous_user_report_golden:
         - Invite the user to come talk with you, Janice, in Streamlit or Slack by mentioning the Process ID.
         - be sure to include line breaks in the body where appropriate, using the standard line break indicator (\n).
         - Formatting Instructions:
-          - Format the email as an HTML document.
+          - Format the email as an HTML document unless expicilty instructed otherwise.
           - Use standard HTML headers (like <h2>, <h3>) and paragraph (<p>) tags for readability.
           - DO NOT use <h1> headers.
           - Ensure proper line breaks within paragraphs using the standard line break indicator (<br>).
@@ -192,7 +221,7 @@ janice_dangerous_user_report_golden:
          
 
     3. **Send the Email:**
-        - If SYS$DEFAULT_EMAIL is not 'None' and is an email address, send the email to `SYS$DEFAULT_EMAIL`(be sure to use mime_type to text/html).  Otherwise skip this step.
+        - If SYS$DEFAULT_EMAIL is not 'None' and is an email address, send the email to `SYS$DEFAULT_EMAIL`, otherwise skip this step. If sending an email, use mime_type='text/html' unless expicilty instructed to use other formats.        
         - Then use run_process to continue running the rest of the steps
 
     4. Analyze the results based on the following criteria:
@@ -203,4 +232,4 @@ janice_dangerous_user_report_golden:
 
     5. Report the findings, including any significant observations about the distribution of privileges and the granting of the ACCOUNTADMIN role.
   PROCESS_DETAILS: "Dangerous Snowflake User Report"
-  TIMESTAMP: "2024-09-26 00:00:00+00:00"
+  TIMESTAMP: "2024-09-30 00:00:00+00:00"

@@ -30,6 +30,7 @@ streamlit_new/*
 rsa_key.p8
 rsa_key.pub
 .venv/*
+.env*
 requirements_orig.txt
 .vscode/*
 

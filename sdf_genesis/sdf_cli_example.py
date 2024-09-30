@@ -1,8 +1,12 @@
 from dagster_sdf import SdfCliResource
 from pathlib import Path
 import json
+import glob
+import os
 
-sdf_workspace_dir = Path.cwd().joinpath('sdf_workspaces', 'sdf_genesis')  
+import yaml
+
+sdf_workspace_dir = Path.cwd().joinpath('sdf_genesis')  
 target_dir = sdf_workspace_dir.joinpath("sdftarget-thread-123")
 target_dir.mkdir(parents=True, exist_ok=True)
 log_file = str(target_dir.joinpath("log.json"))
@@ -13,7 +17,7 @@ assets = sdf_cli.cli(["compile", "--save", "info-schema", "--log-level", "info",
                       "--log-file", log_file,
                       #"--target-dir", str(target_dir),
                       "--query", """
-SELECT domain_id2 FROM tech__innovation_essentials.cybersyn.domain_characteristics WHERE domain_id ILIKE '%.ai'  AND relationship_type = 'successful_http_response_status'  AND value = 'true'  AND relationship_end_date IS NULL
+SELECT domain_id FROM tech__innovation_essentials.cybersyn.domain_characteristics WHERE domain_id ILIKE '%.ai'  AND relationship_type = 'successful_http_response_status'  AND value = 'true'  AND relationship_end_date IS NULL
 """]).stream()
 
 try:
@@ -22,6 +26,14 @@ try:
         #print(asset)
         assets_list.append(asset)
     print(assets_list)
+
+    sdf_dagster_out_dir = sdf_workspace_dir.joinpath('sdf_dagster_out')
+    for subdir in os.listdir(sdf_dagster_out_dir):
+        query_sdf_file = glob.glob(str(sdf_dagster_out_dir.joinpath(subdir, 'sdftarget', 'dbg', 'table', 'sdf_genesis', 'pub', 'query.sdf.yml')))
+        if query_sdf_file:
+            with open(query_sdf_file[0], 'r') as f:
+                query_sdf_data = yaml.safe_load(f)
+                print(query_sdf_data)
 except Exception as e:
     print(e)
     with open(log_file, 'r') as f:

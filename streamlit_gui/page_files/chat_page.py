@@ -16,7 +16,7 @@ def file_to_html(bot_id, thread_id, file_path):
         href = f'<a href="data:application/octet-stream;base64,{file_byte}" download="{file_name}">{file_name}</a>'
     return href
 
-bot_images = get_metadata("bot_images")
+bot_images = get_metadata_cached("bot_images")
 bot_avatar_images = [bot["bot_avatar_image"] for bot in bot_images]
 
 

@@ -2,6 +2,10 @@ import streamlit as st
 from utils import check_status, get_session, get_references, get_metadata, get_slack_tokens, get_slack_tokens_cached
 import time
 import base64
+from streamlit import config 
+# Set minCachedMessageSize to 500 MB to disable forward message cache: 
+config.set_option("global.minCachedMessageSize", 500 * 1e6)
+
 
 # Set Streamlit to wide mode
 st.set_page_config(layout="wide")

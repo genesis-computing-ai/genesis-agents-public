@@ -1,7 +1,7 @@
 import streamlit as st
 import time
 import uuid
-from utils import get_bot_details, get_slack_tokens, get_slack_tokens_cached, get_metadata, get_metadata2, submit_to_udf_proxy, get_response_from_udf_proxy
+from utils import get_bot_details, get_slack_tokens, get_slack_tokens_cached, get_metadata, get_metadata_cached, get_metadata2, submit_to_udf_proxy, get_response_from_udf_proxy
 import re
 import os
 import random

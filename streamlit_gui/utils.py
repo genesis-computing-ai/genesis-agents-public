@@ -190,6 +190,9 @@ def get_metadata2(metadata_type):
         else:
             raise Exception(f"Failed to get metadata: {response.text}")
 
+@st.cache_data(ttl=10800)  # Cache for 3 hours (3 * 60 * 60 seconds)
+def get_metadata_cached(metadata_type):
+    return get_metadata(metadata_type)
 
 def get_metadata(metadata_type):
     if st.session_state.NativeMode:

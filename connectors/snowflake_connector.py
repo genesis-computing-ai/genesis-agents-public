@@ -4429,7 +4429,7 @@ $$
         files_string = json.dumps(files)
 
         # validate certain params
-        bot_implementation = BotLlmEngineEnum(bot_implementation).value if bot_implementation
+        bot_implementation = BotLlmEngineEnum(bot_implementation).value if bot_implementation else None
 
         try:
             cursor = self.connection.cursor()
@@ -4672,7 +4672,7 @@ $$
         """
 
         # validate inputs
-        bot_implementation = BotLlmEngineEnum(bot_implementation).value if bot_implementation
+        bot_implementation = BotLlmEngineEnum(bot_implementation).value if bot_implementation else None
 
         # Query to update the bot implementation in the database
         update_query = f"""
@@ -4929,7 +4929,7 @@ $$
             bot_implementation (str): openai or cortex or ...
         """
         # validate inputs
-        bot_implementation = BotLlmEngineEnum(bot_implementation).value if bot_implementation
+        bot_implementation = BotLlmEngineEnum(bot_implementation).value if bot_implementation else None
 
         update_query = f"""
             UPDATE {project_id}.{dataset_name}.{bot_servicing_table}

@@ -200,15 +200,13 @@ def get_llm_api_key(db_adapter=None):
     i = 0
     c = 0
 
-
-
-
     while llm_api_key == None:
 
         refresh_seconds = 180
         wake_up = False
         while not wake_up:
 
+            ii = 0
             try:
                 cursor = db_adapter.client.cursor()
                 check_bot_active = f"DESCRIBE TABLE {db_adapter.schema}.BOTS_ACTIVE"
@@ -219,7 +217,10 @@ def get_llm_api_key(db_adapter=None):
                 current_time = datetime.now()
                 time_difference = current_time - bot_active_time_dt
 
-                print(f"BOTS ACTIVE TIME: {result[0]} | CURRENT TIME: {current_time} | TIME DIFFERENCE: {time_difference} | task server", flush=True)
+                ii += 1
+                if ii >= 30:
+                    print(f"BOTS ACTIVE TIME: {result[0]} | CURRENT TIME: {current_time} | TIME DIFFERENCE: {time_difference} | task server", flush=True)
+                    ii = 0
 
                 if time_difference < timedelta(minutes=5):
                     wake_up = True
@@ -1636,7 +1637,7 @@ def tasks_loop():
                 i = i + 1
                 if i == 1:
                     print(f"BOTS ACTIVE TIME: {result[0]} | CURRENT TIME: {current_time} | TIME DIFFERENCE: {time_difference}", flush=True)
-                if i > 10:
+                if i > 30:
                     i = 0
 
                 if time_difference < timedelta(minutes=5):

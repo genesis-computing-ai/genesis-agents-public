@@ -397,13 +397,13 @@ class SlackBotAdapter(BotOsInputAdapter):
             if os.getenv("THINKING_TOGGLE", "true").lower() != "false":
                 if msg.strip().lower() in ["stop", "!stop"]:
                     m = '_stopping..._'
-                    print(f"**** Stopping {self.bot_name} {thread_ts} msg={msg}")
+                    print(f"**** Stopping {self.bot_name} {thread_ts} msg len={len(msg)}")
                     stopping_message = self.slack_app.client.chat_postMessage(
                         channel=channel, thread_ts=thread_ts, text=m
                     )
                     thinking_ts = stopping_message["ts"]
                 else:
-                    print(f"**** Thinking {self.bot_name} {thread_ts} msg={msg}")
+                    print(f"**** Thinking {self.bot_name} {thread_ts} msg len={len(msg)}")
                     thinking_message = self.slack_app.client.chat_postMessage(
                         channel=channel, thread_ts=thread_ts, text="_thinking..._"
                     )

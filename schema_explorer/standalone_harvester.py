@@ -61,6 +61,7 @@ def get_llm_api_key(db_adapter):
         refresh_seconds = 180
         wake_up = False
         while not wake_up:
+            ii = 0
 
             try:
                 cursor = db_adapter.client.cursor()
@@ -72,7 +73,10 @@ def get_llm_api_key(db_adapter):
                 current_time = datetime.now()
                 time_difference = current_time - bot_active_time_dt
 
-                print(f"BOTS ACTIVE TIME: {result[0]} | CURRENT TIME: {current_time} | TIME DIFFERENCE: {time_difference} | harvester", flush=True)
+                ii += 1
+                if ii >= 30:
+                    print(f"BOTS ACTIVE TIME: {result[0]} | CURRENT TIME: {current_time} | TIME DIFFERENCE: {time_difference} | producer", flush=True)
+                    ii = 0
 
                 if time_difference < timedelta(minutes=5):
                     wake_up = True
@@ -210,9 +214,9 @@ while True:
         current_time = datetime.now()
         time_difference = current_time - bot_active_time_dt
         i = i + 1
-        if i == 1:
+        if i >= 30:
             print(f"BOTS ACTIVE TIME: {result[0]} | CURRENT TIME: {current_time} | TIME DIFFERENCE: {time_difference}", flush=True)
-        if i > 10:
+        if i > 30:
             i = 0
 
         if time_difference < timedelta(minutes=5):

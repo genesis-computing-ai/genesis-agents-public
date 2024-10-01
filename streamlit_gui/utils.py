@@ -190,10 +190,25 @@ def get_metadata2(metadata_type):
         else:
             raise Exception(f"Failed to get metadata: {response.text}")
 
-@st.cache_data(ttl=10800)  # Cache for 3 hours (3 * 60 * 60 seconds)
+@st.cache_data(ttl=3600)  # Cache the result for 1 hour
 def get_metadata_cached(metadata_type):
-    return get_metadata(metadata_type)
-
+    if st.session_state.NativeMode:
+        session = get_session()
+        prefix = st.session_state.get('prefix', '')
+        sql = f"select {prefix}.get_metadata('{metadata_type}') "
+        data = session.sql(sql).collect()
+        response = data[0][0]
+        response = json.loads(response)
+        return response
+    else:
+        url = "http://127.0.0.1:8080/udf_proxy/get_metadata"
+        headers = {"Content-Type": "application/json"}
+        data = json.dumps({"data": [[0, metadata_type]]})
+        response = requests.post(url, headers=headers, data=data)
+        if response.status_code == 200:
+            return response.json()["data"][0][1]
+        else:
+            raise Exception(f"Failed to get metadata: {response.text}")
 def get_metadata(metadata_type):
     if st.session_state.NativeMode:
         session = get_session()

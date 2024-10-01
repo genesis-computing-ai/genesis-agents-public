@@ -80,12 +80,13 @@ class KnowledgeServer:
                     print(f"Produced {thread_id}")
                     self.condition.notify()
 
-            sys.stdout.write(
-                f"Pausing KnowledgeServer Producer for {refresh_seconds} seconds before next check.\n"
-            )
-            sys.stdout.flush()
+         #   sys.stdout.write(
+         #       f"Pausing KnowledgeServer Producer for {refresh_seconds} seconds before next check.\n"
+         #   )
+         #   sys.stdout.flush()
 
             wake_up = False
+            i = 0
             while not wake_up:
                 time.sleep(refresh_seconds)
 
@@ -98,7 +99,10 @@ class KnowledgeServer:
                 current_time = datetime.now()
                 time_difference = current_time - bot_active_time_dt
 
-                print(f"BOTS ACTIVE TIME: {result[0]} | CURRENT TIME: {current_time} | TIME DIFFERENCE: {time_difference} | producer", flush=True)
+                i += 1
+                if i >= 30:
+                    print(f"BOTS ACTIVE TIME: {result[0]} | CURRENT TIME: {current_time} | TIME DIFFERENCE: {time_difference} | producer", flush=True)
+                    i = 0
 
                 if time_difference < timedelta(minutes=5):
                     wake_up = True

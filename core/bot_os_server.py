@@ -183,7 +183,7 @@ class BotOsServer:
                     emb_size = os.environ['EMBEDDING_SIZE']
                 except:
                     pass
-                if BotOsServer.cycle_count % 30 == 0:
+                if BotOsServer.cycle_count % 60 == 0:
                     sys.stdout.write(
                         f"--- {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} bot_os_server runners: {insts} / max 100, emb_size: {emb_size} (cycle = {BotOsServer.cycle_count})\n"
                     )

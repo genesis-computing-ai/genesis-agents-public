@@ -9,6 +9,8 @@ from openai import OpenAI
 from datetime import datetime, timedelta
 import ast
 from llm_openai.openai_utils import get_openai_client 
+import pandas as pd
+import re
 
 print("     ┌───────┐     ")
 print("    ╔═════════╗    ")
@@ -80,10 +82,7 @@ class KnowledgeServer:
                     print(f"Produced {thread_id}")
                     self.condition.notify()
 
-         #   sys.stdout.write(
-         #       f"Pausing KnowledgeServer Producer for {refresh_seconds} seconds before next check.\n"
-         #   )
-         #   sys.stdout.flush()
+            # print(f"Pausing KnowledgeServer Producer for {refresh_seconds} seconds before next check.\n", flush=True )
 
             wake_up = False
             i = 0
@@ -332,15 +331,73 @@ class KnowledgeServer:
                 print(f"Encountered errors while inserting into {self.db_connector.user_bot_table_name} row: {e}")
 
 
+    def tool_knowledge(self):
+        while True:            
+            cutoff = (datetime.now() - timedelta(minutes=10)).strftime("%Y-%m-%d %H:%M:%S")
+            query = f"""
+                    WITH K AS (SELECT COALESCE(max(last_timestamp),  DATE('2000-01-01')) as last_timestamp FROM {self.db_connector.tool_knowledge_table_name})
+                    SELECT * FROM {self.db_connector.message_log_table_name}, K           
+                    WHERE timestamp > K.last_timestamp AND timestamp < TO_TIMESTAMP('{cutoff}')
+                    AND MESSAGE_TYPE LIKE 'Tool%'
+                    ORDER by timestamp;
+                    """
+            tools = self.db_connector.run_query(query, max_rows=100)
+            if tools:
+                last_timestamp = max([row['TIMESTAMP'] for row in tools])
+                groups = {}
+                for row in tools:
+                    if row['MESSAGE_TYPE'] == 'Tool Call':
+                        function_name = row['MESSAGE_PAYLOAD'].split('(', 1)[0]
+                        if 'action' in row['MESSAGE_PAYLOAD']:
+                            action = re.findall('"action":"(.+?)"', row['MESSAGE_PAYLOAD'])
+                            if action:
+                                function_name += '_' + action[0]
+                        function_params = row['MESSAGE_PAYLOAD']
+                    else:
+                        if "'success': False" in row['MESSAGE_PAYLOAD']: continue
+                        groups.setdefault(function_name, [])
+                        groups[function_name].append(f'{function_params}:\n\n' + row['MESSAGE_PAYLOAD'][:200])
+                
+                for function_name, function_content in groups.items():
+                    if function_content:                
+                        messages = '\n\n'.join(function_content)
+                        system = 'Given the following outputs from a tool call summerize how this tool is used for future reference'
+                        content = f"""
+                                    Function Name:
+                                    {function_name}
+                                    
+                                    Function Outputs:
+                                    {messages}
+                                """
+                        if self.llm_type == 'openai':
+                            response = self.client.chat.completions.create(
+                                model=self.model,
+                                messages=[{"role": "system", "content": system},
+                                        {"role": "user", "content": content}]
+                            )
+                            response = response.choices[0].message.content
+                        else:
+                            response, status_code  = self.db_connector.cortex_chat_completion(content, system=system)                    
+                        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")                
+                        self.db_connector.run_insert(self.db_connector.tool_knowledge_table_name, timestamp=timestamp, 
+                                                    last_timestamp=last_timestamp, tool = function_name, summary=response)
+            else:
+                print(f"Pausing Tool Knowledge for {refresh_seconds} seconds before next check.", flush=True )
+                time.sleep(refresh_seconds)
+
+
     def start_threads(self):
         producer_thread = threading.Thread(target=self.producer)
         consumer_thread = threading.Thread(target=self.consumer)
-        refiner_thread = threading.Thread(target=self.refiner)
+        refiner_thread  = threading.Thread(target=self.refiner)
+        tool_thread     = threading.Thread(target=self.tool_knowledge)
 
         producer_thread.start()
         consumer_thread.start()
         refiner_thread.start()
+        tool_thread.start()
 
         producer_thread.join()
         consumer_thread.join()
         refiner_thread.join()
+        tool_thread.join()

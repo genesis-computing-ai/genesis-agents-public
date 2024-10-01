@@ -116,62 +116,24 @@ class SnowflakeConnector(DatabaseConnector):
             self.project_id = db
 
         self.genbot_internal_harvest_table = os.getenv("GENESIS_INTERNAL_HARVEST_RESULTS_TABLE", "harvest_results" )
-        self.genbot_internal_harvest_control_table = os.getenv("GENESIS_INTERNAL_HARVEST_CONTROL_TABLE", "harvest_control")
-        self.genbot_internal_message_log = os.getenv("GENESIS_INTERNAL_MESSAGE_LOG_TABLE", "MESSAGE_LOG")
-        self.genbot_internal_knowledge_table = os.getenv("GENESIS_INTERNAL_KNOWLEDGE_TABLE", "KNOWLEDGE")
+        self.genbot_internal_harvest_control_table = os.getenv("GENESIS_INTERNAL_HARVEST_CONTROL_TABLE", "harvest_control")         
         self.genbot_internal_processes_table = os.getenv("GENESIS_INTERNAL_PROCESSES_TABLE", "PROCESSES" )
-        self.genbot_internal_process_history_table = os.getenv("GENESIS_INTERNAL_PROCESS_HISTORY_TABLE", "PROCESS_HISTORY" )
-        self.genbot_internal_user_bot_table = os.getenv("GENESIS_INTERNAL_USER_BOT_TABLE", "USER_BOT")
+        self.genbot_internal_process_history_table = os.getenv("GENESIS_INTERNAL_PROCESS_HISTORY_TABLE", "PROCESS_HISTORY" )        
         self.app_share_schema = "APP_SHARE"
 
         # print("genbot_internal_project_and_schema: ", self.genbot_internal_project_and_schema)
-        self.metadata_table_name = (
-            self.genbot_internal_project_and_schema
-            + "."
-            + self.genbot_internal_harvest_table
-        )
-        self.harvest_control_table_name = (
-            self.genbot_internal_project_and_schema
-            + "."
-            + self.genbot_internal_harvest_control_table
-        )
-        self.message_log_table_name = (
-            self.genbot_internal_project_and_schema
-            + "."
-            + self.genbot_internal_message_log
-        )
-        self.knowledge_table_name = (
-            self.genbot_internal_project_and_schema
-            + "."
-            + self.genbot_internal_knowledge_table
-        )
-        self.processes_table_name = (
-            self.genbot_internal_project_and_schema
-            + "."
-            + self.genbot_internal_processes_table
-        )
-        self.process_history_table_name = (
-            self.genbot_internal_project_and_schema
-            + "."
-            + self.genbot_internal_process_history_table
-        )
-        self.user_bot_table_name = (
-            self.genbot_internal_project_and_schema
-            + "."
-            + self.genbot_internal_user_bot_table
-        )
-        self.slack_tokens_table_name = (
-            self.genbot_internal_project_and_schema + "." + "SLACK_APP_CONFIG_TOKENS"
-        )
-        self.available_tools_table_name = (
-            self.genbot_internal_project_and_schema + "." + "AVAILABLE_TOOLS"
-        )
-        self.bot_servicing_table_name = (
-            self.genbot_internal_project_and_schema + "." + "BOT_SERVICING"
-        )
-        self.ngrok_tokens_table_name = (
-            self.genbot_internal_project_and_schema + "." + "NGROK_TOKENS"
-        )
+        self.metadata_table_name = self.genbot_internal_project_and_schema+ "."+ self.genbot_internal_harvest_table
+        self.harvest_control_table_name = self.genbot_internal_project_and_schema + "."+ self.genbot_internal_harvest_control_table
+        self.message_log_table_name = self.genbot_internal_project_and_schema+ "."+ os.getenv("GENESIS_INTERNAL_MESSAGE_LOG_TABLE", "MESSAGE_LOG")
+        self.knowledge_table_name = self.genbot_internal_project_and_schema+ "."+ os.getenv("GENESIS_INTERNAL_KNOWLEDGE_TABLE", "KNOWLEDGE")
+        self.processes_table_name = self.genbot_internal_project_and_schema+ "."+ self.genbot_internal_processes_table
+        self.process_history_table_name = self.genbot_internal_project_and_schema+ "."+ self.genbot_internal_process_history_table
+        self.user_bot_table_name = self.genbot_internal_project_and_schema+ "."+ os.getenv("GENESIS_INTERNAL_USER_BOT_TABLE", "USER_BOT")
+        self.tool_knowledge_table_name = self.genbot_internal_project_and_schema+ "."+ os.getenv("GENESIS_INTERNAL_TOOL_KNOWLEDGE_TABLE", "TOOL_KNOWLEDGE")
+        self.slack_tokens_table_name = self.genbot_internal_project_and_schema + "." + "SLACK_APP_CONFIG_TOKENS"
+        self.available_tools_table_name = self.genbot_internal_project_and_schema + "." + "AVAILABLE_TOOLS"
+        self.bot_servicing_table_name = self.genbot_internal_project_and_schema + "." + "BOT_SERVICING"
+        self.ngrok_tokens_table_name = self.genbot_internal_project_and_schema + "." + "NGROK_TOKENS"
         self.images_table_name = self.app_share_schema + "." + "IMAGES"
 
     def check_cortex_available(self):
@@ -3069,14 +3031,30 @@ AND   RUNNER_ID = '{runner_id}'
                 f"An error occurred while checking or creating table {self.process_history_table_name}: {e}"
             )
 
-        # USER BOT TABLE
-        user_bot_table_check_query = (
-            f"SHOW TABLES LIKE 'USER_BOT' IN SCHEMA {self.schema};"
-        )
-        # Check if the chat knowledge table exists
         try:
             cursor = self.client.cursor()
-            cursor.execute(user_bot_table_check_query)
+            cursor.execute(f"SHOW TABLES LIKE 'TOOL_KNOWLEDGE' IN SCHEMA {self.schema};")
+            if not cursor.fetchone():
+                user_bot_table_ddl = f"""
+                CREATE TABLE IF NOT EXISTS {self.tool_knowledge_table_name} (
+                    timestamp TIMESTAMP NOT NULL,
+                    last_timestamp TIMESTAMP NOT NULL,                    
+                    tool STRING NOT NULL, 
+                    summary STRING NOT NULL                    
+                );
+                """
+                cursor.execute(user_bot_table_ddl)
+                self.client.commit()
+                print(f"Table {self.tool_knowledge_table_name} created.")
+            else:
+                check_query = f"DESCRIBE TABLE {self.tool_knowledge_table_name};"
+                print(f"Table {self.tool_knowledge_table_name} already exists.")
+        except Exception as e:
+            print(f"An error occurred while checking or creating table {self.user_bot_table_name}: {e}")
+
+        try:
+            cursor = self.client.cursor()
+            cursor.execute(f"SHOW TABLES LIKE 'USER_BOT' IN SCHEMA {self.schema};")
             if not cursor.fetchone():
                 user_bot_table_ddl = f"""
                 CREATE TABLE IF NOT EXISTS {self.user_bot_table_name} (
@@ -3095,9 +3073,7 @@ AND   RUNNER_ID = '{runner_id}'
                 check_query = f"DESCRIBE TABLE {self.user_bot_table_name};"
                 print(f"Table {self.user_bot_table_name} already exists.")
         except Exception as e:
-            print(
-                f"An error occurred while checking or creating table {self.user_bot_table_name}: {e}"
-            )
+            print(f"An error occurred while checking or creating table {self.user_bot_table_name}: {e}")
 
         # HARVEST CONTROL TABLE
         hc_table_id = self.genbot_internal_harvest_control_table

@@ -10,7 +10,7 @@ config.set_option("global.minCachedMessageSize", 500 * 1e6)
 # Set Streamlit to wide mode
 st.set_page_config(layout="wide")
 
-st.session_state.app_name = "GENESIS_BOTS_ALPHA"
+st.session_state.app_name = "GENESIS_BOTS"
 st.session_state.prefix = st.session_state.app_name + ".app1"
 st.session_state.core_prefix = st.session_state.app_name + ".CORE"
 

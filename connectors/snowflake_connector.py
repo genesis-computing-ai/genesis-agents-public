@@ -5589,10 +5589,9 @@ $$
             if p is not None:
                 query = f'PUT file://{file_path} @"{database}"."{schema}"."{stage}"/{p} overwrite=TRUE AUTO_COMPRESS=FALSE'
             else:
-                query = f'PUT file://{file_path} @"{database}"."{schema}"."{stage}" overwrite=TRUE AUTO_COMPRESS=FALSE'
-            return self.run_query(query)
-        except Exception as e:
-            try:
+                query = f'PUT file://{file_path} @"{database}"."{schema}"."{stage}" overwrite=TRUE AUTO_COMPRESS=FALSE'     
+            res = self.run_query(query)
+            if isinstance(res, dict) and 'Success' in res and res['Success'] is False:
                 database = database.upper()
                 schema = schema.upper()
                 stage = stage.upper()
@@ -5601,10 +5600,12 @@ $$
                     query = f'PUT file://{file_path} @"{database}"."{schema}"."{stage}"/{p} overwrite=TRUE AUTO_COMPRESS=FALSE'
                 else:
                     query = f'PUT file://{file_path} @"{database}"."{schema}"."{stage}" overwrite=TRUE AUTO_COMPRESS=FALSE'
-                return self.run_query(query)
-            except Exception as e:
-                logger.error(f"Error adding file to stage: {e}")
-                return {"success": False, "error": str(e)}
+                res = self.run_query(query)
+                return res
+            return res
+        except Exception as e:
+            logger.error(f"Error adding file to stage: {e}")
+            return {"success": False, "error": str(e)}
 
     def read_file_from_stage(
         self,

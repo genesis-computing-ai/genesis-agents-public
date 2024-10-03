@@ -247,7 +247,7 @@ def get_llm_api_key(db_adapter=None):
         else:
             print(f"Using {llm_type} for task server ")
         
-    return llm_api_key, llm_type
+    return llm_api_key_struct.llm_key, llm_type
 
 llm_api_key_struct = get_llm_api_key(db_adapter)
 

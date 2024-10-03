@@ -156,7 +156,7 @@ def configure_llm(llm_model_name, llm_api_key, llm_base_url):
     if st.session_state.NativeMode:
         prefix = st.session_state.get('prefix', '')
         session = get_session()
-        sql = f"select {prefix}.configure_llm('{llm_model_name}', '{llm_api_key}', '{llm_base_url}) "
+        sql = f"select {prefix}.configure_llm('{llm_model_name}', '{llm_api_key}', '{llm_base_url}') "
         data = session.sql(sql).collect()
         response = data[0][0]
         return json.loads(response)

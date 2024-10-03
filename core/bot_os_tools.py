@@ -1607,6 +1607,10 @@ In your response back to run_process, provide a detailed description of what you
                 Do not create multiple options for the instructions, as whatever you return will be used immediately.
                 Return the updated and tidy process.  If there is an issue with the process, return an error message.
 
+                If the process contains either sql or snowpark_python code, extract the code and create a new note with
+                your manage_notebook tool.  Then replace the code in the process with the note_id of the new note.  Do not
+                include the note contents in the process, just include an instruction to run the note with the note_id.
+
                 If the process wants to send an email to a default email, or says to send an email but doesn't specify
                 a recipient address, note that the SYS$DEFAULT_EMAIL is currently set to {self.sys_default_email}.
                 Include the notation of SYS$DEFAULT_EMAIL in the instructions instead of the actual address, unless 

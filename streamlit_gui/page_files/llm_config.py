@@ -49,7 +49,7 @@ def llm_config():
         cur_key = ""
 
     st.header("LLM Model & API Key Setup")
-    if cur_key == "" and active_llm_type is not None:
+    if cur_key == "" and active_llm_type is not None and len(active_llm_type) > 0:
         st.success(
             f"You already have an LLM active: **{active_llm_type[0]}**. If you want to change it, you can do so below."
         )
@@ -57,7 +57,7 @@ def llm_config():
     st.write(
         "Genesis Bots can optionally use OpenAI LLMs, in addition to Snowflake Cortex. To add or update a key for these models, enter it below. If you have not yet assigned the External Access Integration to Genesis, click the Assign EAI to Genesis button and then you can enter your LLM Key."
     )
-    if cur_key == "" and active_llm_type is not None:
+    if cur_key == "" and active_llm_type is not None and len(active_llm_type) > 0:
         st.markdown("**Currently Stored LLMs**")
         st.markdown(
             """

@@ -259,7 +259,7 @@ if st.session_state.show_email_config == False and st.session_state.show_openai_
 elif st.session_state.show_modal:
     # Show modal if the session state allows
     show_modal()
-
+# st.success(st.session_state.data)
 if st.session_state.data:
     pages = {
         "Chat with Bots": lambda: __import__('page_files.chat_page').chat_page.chat_page(),

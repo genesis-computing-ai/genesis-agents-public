@@ -2244,7 +2244,7 @@ AND   RUNNER_ID = '{runner_id}'
 
                     if active_llm is None:
                         test_cortex_available = self.check_cortex_available()
-                        if test_cortex_available:
+                        if test_cortex_available == True:
                             active_llm = 'cortex'
                     if active_llm == 'cortex':
                         cortex_active = True

@@ -116,7 +116,7 @@ if 'show_openai_config' not in st.session_state:
     openai_set = False
     if len(llm_info) > 0:
         # Check if openai exists
-        openai_set = [True for llm in llm_info if llm["llm_type"] == 'OpenAI']
+        openai_set = [True for llm in llm_info if llm["llm_type"].lower() == 'openai']
         openai_set = openai_set[0] if openai_set else False       
     if openai_set == False:
         st.session_state.show_openai_config = True

@@ -34,6 +34,12 @@ def llm_config():
             active_marker = chr(10003) if llm["active"] else ""
             llm_types.append({"LLM Type": llm["llm_type"], "Active": active_marker})
 
+        # Create a dictionary for find-and-replace mapping
+        replace_map = {"openai": "OpenAI", "cortex": "Cortex"}
+        # Iterate over llm_types and replace the values in the 'LLM Type' key
+        for llm in llm_types:
+            llm["LLM Type"] = replace_map.get(llm["LLM Type"], llm["LLM Type"])
+
     cur_key = ""
 
     if bot_details == {"Success": False, "Message": "Needs LLM Type and Key"}:
@@ -73,15 +79,16 @@ def llm_config():
             st.rerun()
     else:
 
-        llm_model = st.selectbox("Choose LLM Model:", ["OpenAI", "cortex"])
+        llm_model = st.selectbox("Choose LLM Model:", ["OpenAI", "Cortex"])
+        llm_model_value = llm_model.lower()
         llm_api_endpoint = ""
 
-        if llm_model in ["OpenAI"]:
-            selected_key = [llm["llm_key"] for llm in llm_info if llm["llm_type"] == llm_model]
+        if llm_model_value == "openai":
+            selected_key = [llm["llm_key"] for llm in llm_info if llm["llm_type"] == llm_model_value]
             if selected_key:
                 cur_key = selected_key[0][:3] + "*" * (len(selected_key[0]) - 7) + selected_key[0][-4:] if len(selected_key[0]) > 10 else selected_key[0]
             llm_api_key = st.text_input("Enter OpenAI or Azure OpenAI API Key:", value=cur_key)
-            selected_endpoint = [llm["llm_endpoint"] for llm in llm_info if llm["llm_type"] == llm_model]
+            selected_endpoint = [llm["llm_endpoint"] for llm in llm_info if llm["llm_type"] == llm_model_value]
             if selected_endpoint:
                 cur_endpoint = selected_endpoint[0]
             else:
@@ -101,7 +108,7 @@ def llm_config():
             st.write("One moment while I validate the key and launch the bots...")
             if "***" in llm_api_key: # if it was hidden replace with real key
                 llm_api_key = selected_key[0]
-            config_response = configure_llm(llm_model, llm_api_key, llm_api_endpoint)
+            config_response = configure_llm(llm_model.lower(), llm_api_key, llm_api_endpoint)
             if config_response["Success"] is False:
                 resp = config_response["Message"]
                 st.error(f"Failed to set LLM token: {resp}")

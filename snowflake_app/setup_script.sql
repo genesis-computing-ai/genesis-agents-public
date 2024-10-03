@@ -274,8 +274,12 @@ BEGIN
     
     REVOKE USAGE ON FUNCTION APP1.configure_slack_app_token(varchar, varchar) FROM APPLICATION ROLE APP_PUBLIC;
     
-    REVOKE USAGE ON FUNCTION APP1.configure_llm(varchar, varchar, varchar) FROM APPLICATION ROLE APP_PUBLIC;
-    
+    --REVOKE USAGE ON FUNCTION APP1.configure_llm(varchar, varchar, varchar) FROM APPLICATION ROLE APP_PUBLIC;
+    EXECUTE IMMEDIATE
+      'drop FUNCTION if exists '|| :INSTANCE_NAME ||'.configure_llm (varchar, varchar)';
+    EXECUTE IMMEDIATE
+      'CREATE or replace FUNCTION '|| :INSTANCE_NAME ||'.configure_llm (llm_type varchar, api_key varchar, llm_base_url varchar)  RETURNS varchar SERVICE='|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||' ENDPOINT=udfendpoint AS '||chr(39)||'/udf_proxy/configure_llm'||chr(39);
+
     REVOKE USAGE ON FUNCTION APP1.submit_udf(varchar, varchar, varchar) FROM APPLICATION ROLE APP_PUBLIC;
     
     REVOKE USAGE ON FUNCTION APP1.lookup_udf(varchar, varchar) FROM APPLICATION ROLE APP_PUBLIC;

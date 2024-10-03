@@ -975,6 +975,7 @@ AND   RUNNER_ID = '{runner_id}'
             return False
         
     def check_logging_status(self):
+        #TODO only if native mode
         query = f"""
         CALL {self.project_id}.CORE.CHECK_APPLICATION_SHARING()
         """

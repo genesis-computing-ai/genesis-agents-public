@@ -27,18 +27,19 @@ def llm_config():
     llm_info = get_metadata("llm_info")
     llm_types = []
     active_llm_type = None
+
+    # Create a dictionary for find-and-replace mapping to create user friendly names
+    replace_map = {"openai": "OpenAI", "cortex": "Cortex"}
+    # Iterate over llm_types and replace the values in the 'LLM Type' key
+    for llm in llm_info:
+        llm["llm_type"] = replace_map.get(llm["llm_type"], llm["llm_type"])
+
     if len(llm_info) > 0:
         # Check which llm_type has active = true
         active_llm_type = [llm["llm_type"] for llm in llm_info if llm["active"]]
         for llm in llm_info:
             active_marker = chr(10003) if llm["active"] else ""
             llm_types.append({"LLM Type": llm["llm_type"], "Active": active_marker})
-
-        # Create a dictionary for find-and-replace mapping
-        replace_map = {"openai": "OpenAI", "cortex": "Cortex"}
-        # Iterate over llm_types and replace the values in the 'LLM Type' key
-        for llm in llm_types:
-            llm["LLM Type"] = replace_map.get(llm["LLM Type"], llm["LLM Type"])
 
     cur_key = ""
 
@@ -48,7 +49,7 @@ def llm_config():
         cur_key = ""
 
     st.header("LLM Model & API Key Setup")
-    if cur_key == "" and active_llm_type is not None:
+    if cur_key == "" and active_llm_type is not None and len(active_llm_type) > 0:
         st.success(
             f"You already have an LLM active: **{active_llm_type[0]}**. If you want to change it, you can do so below."
         )
@@ -56,7 +57,7 @@ def llm_config():
     st.write(
         "Genesis Bots can optionally use OpenAI LLMs, in addition to Snowflake Cortex. To add or update a key for these models, enter it below. If you have not yet assigned the External Access Integration to Genesis, click the Assign EAI to Genesis button and then you can enter your LLM Key."
     )
-    if cur_key == "" and active_llm_type is not None:
+    if cur_key == "" and active_llm_type is not None and len(active_llm_type) > 0:
         st.markdown("**Currently Stored LLMs**")
         st.markdown(
             """
@@ -120,7 +121,7 @@ def llm_config():
                 cur_key = ""
             else:
                 st.session_state.disable_submit = True
-                st.success("API key validated!")
+                st.success(f"{llm_model} LLM validated!")
 
             if config_response["Success"]:
                 with st.spinner("Getting active bot details..."):

@@ -2,9 +2,9 @@ import streamlit as st
 from utils import check_status, get_session, get_references, get_metadata, get_slack_tokens, get_slack_tokens_cached
 import time
 import base64
-#from streamlit import config 
+from streamlit import config 
 # Set minCachedMessageSize to 500 MB to disable forward message cache: 
-#config.set_option("global.minCachedMessageSize", 500 * 1e6)
+config.set_option("global.minCachedMessageSize", 500 * 1e6)
 
 
 # Set Streamlit to wide mode
@@ -259,7 +259,7 @@ if st.session_state.show_email_config == False and st.session_state.show_openai_
 elif st.session_state.show_modal:
     # Show modal if the session state allows
     show_modal()
-
+# st.success(st.session_state.data)
 if st.session_state.data:
     pages = {
         "Chat with Bots": lambda: __import__('page_files.chat_page').chat_page.chat_page(),

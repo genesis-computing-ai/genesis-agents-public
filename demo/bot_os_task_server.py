@@ -200,7 +200,7 @@ def get_llm_api_key(db_adapter=None):
     i = 0
     c = 0
 
-    while llm_api_key == None:
+    while llm_api_key_struct == None:
 
         refresh_seconds = 180
         wake_up = False

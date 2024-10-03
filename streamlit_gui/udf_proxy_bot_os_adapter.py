@@ -65,7 +65,9 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
         metadata["user_name"] = self.bot_id.get('user_name', 'Unknown User')
         metadata["user_email"] = self.bot_id.get('user_id', 'Unknown Email')
 
-        file = json.loads(event.get('file', '{}'))
+        file = event.get('file', '{}')
+        if type(file) == str:
+            file = json.loads(file)
         files = []
         if file:
             file_path = f"./downloaded_files/{event.get('thread_id')}/{file['filename']}"

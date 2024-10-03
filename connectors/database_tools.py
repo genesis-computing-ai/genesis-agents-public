@@ -527,7 +527,7 @@ snowflake_stage_functions = [
                 "properties": {
                     "database": {
                         "type": "string",
-                        "description": "The name of the database.",
+                        "description": "The name of the database. Use your WORKSPACE database unless told to use something else.",
                     },
                     "schema": {
                         "type": "string",

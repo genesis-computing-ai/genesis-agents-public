@@ -5514,6 +5514,11 @@ $$
             dict: A dictionary with the result of the operation.
         """
 
+        # Remove double quotes from database, schema, and stage if present
+        database = database.strip('"') if database else None
+        schema = schema.strip('"') if schema else None
+        stage = stage.strip('"') if stage else None
+
         try:
             if file_content is None:
                 file_name = file_name.replace("serverlocal:", "")
@@ -5587,8 +5592,19 @@ $$
                 query = f'PUT file://{file_path} @"{database}"."{schema}"."{stage}" overwrite=TRUE AUTO_COMPRESS=FALSE'
             return self.run_query(query)
         except Exception as e:
-            logger.error(f"Error adding file to stage: {e}")
-            return {"success": False, "error": str(e)}
+            try:
+                database = database.upper()
+                schema = schema.upper()
+                stage = stage.upper()
+                p = os.path.dirname(file_name) if "/" in file_name else None
+                if p is not None:
+                    query = f'PUT file://{file_path} @"{database}"."{schema}"."{stage}"/{p} overwrite=TRUE AUTO_COMPRESS=FALSE'
+                else:
+                    query = f'PUT file://{file_path} @"{database}"."{schema}"."{stage}" overwrite=TRUE AUTO_COMPRESS=FALSE'
+                return self.run_query(query)
+            except Exception as e:
+                logger.error(f"Error adding file to stage: {e}")
+                return {"success": False, "error": str(e)}
 
     def read_file_from_stage(
         self,

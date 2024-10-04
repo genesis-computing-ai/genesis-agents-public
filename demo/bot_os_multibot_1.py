@@ -739,8 +739,12 @@ def configure_llm():
         input_rows = message["data"]
 
         llm_type = input_rows[0][1] # llm type means llm engine (e.g. 'cortex', 'openai')
-        llm_key = input_rows[0][2]
-        llm_endpoint = input_rows[0][3]
+        llm_key_endpoint = input_rows[0][2].split('|')
+        llm_key = llm_key_endpoint[0]  
+        llm_endpoint = llm_key_endpoint[1] 
+
+        # llm_key = input_rows[0][2]
+        # llm_endpoint = input_rows[0][3]
 
         if not llm_key or not llm_type:
             response = {

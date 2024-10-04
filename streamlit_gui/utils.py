@@ -156,14 +156,14 @@ def configure_llm(llm_model_name, llm_api_key, llm_base_url):
     if st.session_state.NativeMode:
         prefix = st.session_state.get('prefix', '')
         session = get_session()
-        sql = f"select {prefix}.configure_llm('{llm_model_name}', '{llm_api_key}', '{llm_base_url}') "
+        sql = f"select {prefix}.configure_llm('{llm_model_name}', '{llm_api_key}|{llm_base_url}') "
         data = session.sql(sql).collect()
         response = data[0][0]
         return json.loads(response)
     else:
         url = "http://127.0.0.1:8080/udf_proxy/configure_llm"
         headers = {"Content-Type": "application/json"}
-        data = json.dumps({"data": [[0, llm_model_name, llm_api_key, llm_base_url]]})
+        data = json.dumps({"data": [[0, llm_model_name, llm_api_key+'|'+llm_base_url]]})
         response = requests.post(url, headers=headers, data=data)
         if response.status_code == 200:
             return response.json()["data"][0][1]

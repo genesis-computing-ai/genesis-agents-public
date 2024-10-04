@@ -234,7 +234,7 @@ CREATE OR REPLACE PROCEDURE core.get_config_for_ref(ref_name STRING)
           RETURN '{
             "type": "CONFIGURATION",
             "payload":{
-              "host_ports":["api.openai.com", "slack.com", "www.slack.com", "wss-primary.slack.com", "wss-backup.slack.com", "wss-primary.slack.com", "wss-backup.slack.com", "slack-files.com", "oaidalleapiprodscus.blob.core.windows.net", "downloads.slack-edge.com", "files-edge.slack.com", "files-origin.slack.com", "files.slack.com", "global-upload-edge.slack.com", "universal-upload-edge.slack.com", "cognitiveservices.azure.com", "openai.azure.com"],
+              "host_ports":["api.openai.com", "slack.com", "www.slack.com", "wss-primary.slack.com", "wss-backup.slack.com", "wss-primary.slack.com", "wss-backup.slack.com", "slack-files.com", "oaidalleapiprodscus.blob.core.windows.net", "downloads.slack-edge.com", "files-edge.slack.com", "files-origin.slack.com", "files.slack.com", "global-upload-edge.slack.com", "universal-upload-edge.slack.com", "cognitiveservices.azure.com", "openai.azure.com", "genesis-azureopenai-1.openai.azure.com"],
               "allowed_secrets": "NONE"}}';
       END CASE;
   RETURN '';

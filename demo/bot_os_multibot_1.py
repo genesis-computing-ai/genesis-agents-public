@@ -774,16 +774,16 @@ def configure_llm():
             if (llm_type.lower() == "openai"):
                 os.environ["OPENAI_API_KEY"] = llm_key
                 os.environ["AZURE_OPENAI_API_ENDPOINT"] = llm_endpoint
-
+                print(f"key: {llm_key}, endpoint: {llm_endpoint}")
                 try:
                     client = get_openai_client()
-
+                    print(f"client: {client}")
                     completion = client.chat.completions.create(
                         model="gpt-4o",
                         messages=[{"role": "user", "content": "What is 1+1?"}],
                     )
                     # Success!  Update model and keys
-
+                    print(f"completion: {completion}")
                 except Exception as e:
                     if "Connection" in str(e):
                         check_eai = " - please ensure the External Access Integration is setup properly."

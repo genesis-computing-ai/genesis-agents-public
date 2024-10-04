@@ -776,7 +776,7 @@ AND   RUNNER_ID = '{runner_id}'
             if object_type == 'EAI':
                 
                 create_function_query = f"""
-CREATE FUNCTION IF NOT EXISTS {self.project_id}.CORE.CHECK_URL_STATUS(site string)
+CREATE OR REPLACE FUNCTION {self.project_id}.CORE.CHECK_URL_STATUS(site string)
 RETURNS STRING
 LANGUAGE PYTHON
 RUNTIME_VERSION = 3.11

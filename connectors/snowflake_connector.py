@@ -769,6 +769,32 @@ AND   RUNNER_ID = '{runner_id}'
             err = f"An error occurred while getting llm info: {e}"
             return {"Success": False, "Error": err}
 
+    def set_endpoint(self, endpoint_name):
+        try:
+            #   SELECT ''AZURE'' TYPE, ''genesis-azureopenai-1'' ENDPOINT';
+            # Insert or update the endpoint. default to Azure type now
+            upsert_query = f"""
+            MERGE INTO {self.genbot_internal_project_and_schema}.CUSTOM_ENDPOINTS t
+            USING (SELECT %s AS type, %s AS endpoint) s
+            ON (t.TYPE = s.type)
+            WHEN MATCHED THEN
+                UPDATE SET t.ENDPOINT = s.endpoint
+            WHEN NOT MATCHED THEN
+                INSERT (TYPE,ENDPOINT) VALUES (s.type,s.endpoint)
+            """
+
+            cursor = self.client.cursor()
+            cursor.execute(upsert_query, ('AZURE', endpoint_name,))
+
+        # Commit the changes
+            self.client.commit()
+
+            json_data = json.dumps([{'Success': True}])
+            return {"Success": True, "Data": json_data}
+        except Exception as e:
+            err = f"An error occurred while inserting custom endpoint: {e}"
+            return {"Success": False, "Data": err}
+
 
     def eai_test(self, object_type, site):
         try:
@@ -2344,6 +2370,35 @@ $$;
         except Exception as e:
             print(
                 f"An error occurred while checking or creating table {self.slack_tokens_table_name}: {e}"
+            )
+        finally:
+            if cursor is not None:
+                cursor.close()
+
+        endpoints_table_check_query = (
+            f"SHOW TABLES LIKE 'CUSTOM_ENDPOINTS' IN SCHEMA {self.schema};"
+        )
+        try:
+            cursor = self.client.cursor()
+            cursor.execute(endpoints_table_check_query)
+            if not cursor.fetchone():
+                endpoints_table_ddl = f"""
+                CREATE OR REPLACE TABLE {self.genbot_internal_project_and_schema}.CUSTOM_ENDPOINTS (
+                    TYPE VARCHAR(16777216),
+                    ENDPOINT VARCHAR(16777216)
+                );
+                """
+                cursor.execute(endpoints_table_ddl)
+                self.client.commit()
+                print(f"Table CUSTOM_ENDPOINTS created.")
+
+            else:
+                print(
+                    f"Table CUSTOM_ENDPOINTS already exists."
+                )  
+        except Exception as e:
+            print(
+                f"An error occurred while checking or creating table CUSTOM_ENDPOINTS: {e}"
             )
         finally:
             if cursor is not None:

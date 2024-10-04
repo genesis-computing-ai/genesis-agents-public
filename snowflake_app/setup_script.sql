@@ -223,23 +223,63 @@ CREATE OR REPLACE PROCEDURE CORE.REGISTER_SINGLE_REFERENCE(ref_name STRING, oper
 
 GRANT USAGE ON PROCEDURE CORE.REGISTER_SINGLE_REFERENCE(STRING, STRING, STRING) TO APPLICATION ROLE APP_PUBLIC;
 
+
+
 CREATE OR REPLACE PROCEDURE core.get_config_for_ref(ref_name STRING)
     RETURNS STRING
     LANGUAGE SQL
     AS
     $$
+    DECLARE 
+      azure_ep VARCHAR;
     BEGIN
       CASE (ref_name)
         WHEN 'CONSUMER_EXTERNAL_ACCESS' THEN
+          SELECT ENDPOINT || '.openai.azure.com' INTO azure_ep
+          FROM APP1.CUSTOM_ENDPOINTS WHERE TYPE = 'AZURE';
+
+          IF (azure_ep = '.openai.azure.com') THEN
+              azure_ep := 'openai.azure.com';
+          END IF;
           RETURN '{
             "type": "CONFIGURATION",
             "payload":{
-              "host_ports":["api.openai.com", "slack.com", "www.slack.com", "wss-primary.slack.com", "wss-backup.slack.com", "wss-primary.slack.com", "wss-backup.slack.com", "slack-files.com", "oaidalleapiprodscus.blob.core.windows.net", "downloads.slack-edge.com", "files-edge.slack.com", "files-origin.slack.com", "files.slack.com", "global-upload-edge.slack.com", "universal-upload-edge.slack.com", "cognitiveservices.azure.com", "openai.azure.com", "genesis-azureopenai-1.openai.azure.com"],
+              "host_ports":["api.openai.com", "slack.com", "www.slack.com", "wss-primary.slack.com", "wss-backup.slack.com", "wss-primary.slack.com", "wss-backup.slack.com", "slack-files.com", "oaidalleapiprodscus.blob.core.windows.net", "downloads.slack-edge.com", "files-edge.slack.com", "files-origin.slack.com", "files.slack.com", "global-upload-edge.slack.com", "universal-upload-edge.slack.com", "cognitiveservices.azure.com", "openai.azure.com", "' || :azure_ep || '"],
               "allowed_secrets": "NONE"}}';
       END CASE;
   RETURN '';
   END;
   $$;
+
+
+-- CREATE OR REPLACE PROCEDURE core.get_config_for_ref(ref_name STRING)
+--     RETURNS STRING
+--     LANGUAGE SQL
+--     AS
+-- $$
+-- DECLARE 
+--   azure_ep VARCHAR;
+-- BEGIN
+--     IF ref_name = 'CONSUMER_EXTERNAL_ACCESS' THEN
+--         SELECT ENDPOINT || '.openai.azure.com' INTO azure_ep
+--         FROM APP1.CUSTOM_ENDPOINTS WHERE TYPE = 'AZURE';
+
+--         IF azure_ep = '.openai.azure.com' THEN
+--             azure_ep := 'openai.azure.com';
+--         END IF;
+
+--         RETURN '{
+--             "type": "CONFIGURATION",
+--             "payload":{
+--                 "host_ports":["api.openai.com", "slack.com", "www.slack.com", "wss-primary.slack.com", "wss-backup.slack.com", "wss-primary.slack.com", "wss-backup.slack.com", "slack-files.com", "oaidalleapiprodscus.blob.core.windows.net", "downloads.slack-edge.com", "files-edge.slack.com", "files-origin.slack.com", "files.slack.com", "global-upload-edge.slack.com", "universal-upload-edge.slack.com", "cognitiveservices.azure.com", "openai.azure.com", "' || azure_ep || '"],
+--                 "allowed_secrets": "NONE"
+--             }
+--         }';
+--     ELSE
+--         RETURN '';
+--     END IF;
+-- END;
+-- $$;
 
 GRANT USAGE ON PROCEDURE core.get_config_for_ref(string) TO APPLICATION ROLE APP_PUBLIC;
 
@@ -747,7 +787,6 @@ BEGIN
  
   EXECUTE IMMEDIATE 'CREATE STAGE IF NOT EXISTS '||:INSTANCE_NAME||'.'||'WORKSPACE DIRECTORY = ( ENABLE = true ) ENCRYPTION = (TYPE = '||CHR(39)||'SNOWFLAKE_SSE'||chr(39)||')';
   EXECUTE IMMEDIATE 'GRANT READ ON STAGE '||:INSTANCE_NAME||'.'||'WORKSPACE TO APPLICATION ROLE APP_PUBLIC';
-
 
   CALL APP.CREATE_SERVER_SERVICE(:INSTANCE_NAME,'GENESISAPP_SERVICE_SERVICE',:POOL_NAME, :EAI, :WAREHOUSE_NAME, :v_current_database);
   CALL APP.CREATE_HARVESTER_SERVICE(:INSTANCE_NAME,'GENESISAPP_HARVESTER_SERVICE',:POOL_NAME, :EAI, :WAREHOUSE_NAME, :v_current_database);

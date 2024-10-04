@@ -1,0 +1,3921 @@
+from snowflake.connector import connect
+
+import os
+import json
+import logging
+from datetime import datetime
+import uuid
+import os
+import time
+import hashlib
+import time
+import requests
+import pandas as pd
+import pytz
+import sys
+import pkgutil
+
+from llm_openai.openai_utils import get_openai_client
+
+from ..database_connector import DatabaseConnector, llm_keys_and_types_struct
+from .sematic_model_utils import *
+from .stage_utils import *
+from .ensure_table_exists import ensure_table_exists
+
+from core.bot_os_llm import BotLlmEngineEnum
+
+# from database_connector import DatabaseConnector
+from threading import Lock
+import base64
+import requests
+import re
+from tqdm import tqdm
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.WARN, format="%(asctime)s - %(levelname)s - %(message)s"
+)
+
+from snowflake.connector import SnowflakeConnection
+
+class SnowflakeConnector(DatabaseConnector):
+    def __init__(self, connection_name, bot_database_creds=None):
+        super().__init__(connection_name)
+        # print('Snowflake connector entry...')
+
+        account, database, user, password, warehouse, role = [None] * 6
+
+        if bot_database_creds:
+            account = bot_database_creds.get("account")
+            database = bot_database_creds.get("database")
+            user = bot_database_creds.get("user")
+            password = bot_database_creds.get("pwd")
+            warehouse = bot_database_creds.get("warehouse")
+            role = bot_database_creds.get("role")
+
+        # used to get the default value if not none, otherwise get env var. allows local mode to work with bot credentials
+        def get_env_or_default(value, env_var):
+            return value if value is not None else os.getenv(env_var)
+
+        self.account = get_env_or_default(account, "SNOWFLAKE_ACCOUNT_OVERRIDE")
+        self.user = get_env_or_default(user, "SNOWFLAKE_USER_OVERRIDE")
+        self.password = get_env_or_default(password, "SNOWFLAKE_PASSWORD_OVERRIDE")
+        self.database = get_env_or_default(database, "SNOWFLAKE_DATABASE_OVERRIDE")
+        self.warehouse = get_env_or_default(warehouse, "SNOWFLAKE_WAREHOUSE_OVERRIDE")
+        self.role = get_env_or_default(role, "SNOWFLAKE_ROLE_OVERRIDE")        
+        self.source_name = "Snowflake"
+
+        self.default_data = pd.DataFrame()
+
+        # print('Calling _create_connection...')
+        self.token_connection = False
+        self.connection: SnowflakeConnection = self._create_connection()
+
+        self.semantic_models_map = {}
+
+        self.client = self.connection
+        self.schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "GENESIS_INTERNAL")
+
+        if os.getenv("CORTEX_MODEL", None) is not None:
+            # TODO: rename self.llm_engine to self.llm_model_name.
+            # (in the rest of the code we typically we use the term 'engine' for the provider's name
+            # (e.g. openai, cortex))
+            self.llm_engine =  os.getenv("CORTEX_MODEL", None)
+        else:
+            self.llm_engine = 'llama3.1-405b'
+
+        # self.client = self._create_client()
+        self.genbot_internal_project_and_schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "None")
+        if self.genbot_internal_project_and_schema == "None":
+            # Todo remove, internal note
+            print("ENV Variable GENESIS_INTERNAL_DB_SCHEMA is not set.")
+        if self.genbot_internal_project_and_schema is not None:
+            self.genbot_internal_project_and_schema = (self.genbot_internal_project_and_schema.upper() )
+
+        if self.database:
+            self.project_id = self.database
+        else:
+            db, sch = self.genbot_internal_project_and_schema.split('.')
+            self.project_id = db
+
+        self.genbot_internal_harvest_table = os.getenv("GENESIS_INTERNAL_HARVEST_RESULTS_TABLE", "harvest_results" )
+        self.genbot_internal_harvest_control_table = os.getenv("GENESIS_INTERNAL_HARVEST_CONTROL_TABLE", "harvest_control")         
+        self.genbot_internal_processes_table = os.getenv("GENESIS_INTERNAL_PROCESSES_TABLE", "PROCESSES" )
+        self.genbot_internal_process_history_table = os.getenv("GENESIS_INTERNAL_PROCESS_HISTORY_TABLE", "PROCESS_HISTORY" )        
+        self.app_share_schema = "APP_SHARE"
+
+        # print("genbot_internal_project_and_schema: ", self.genbot_internal_project_and_schema)
+        self.metadata_table_name = self.genbot_internal_project_and_schema+ "."+ self.genbot_internal_harvest_table
+        self.harvest_control_table_name = self.genbot_internal_project_and_schema + "."+ self.genbot_internal_harvest_control_table
+        self.message_log_table_name = self.genbot_internal_project_and_schema+ "."+ os.getenv("GENESIS_INTERNAL_MESSAGE_LOG_TABLE", "MESSAGE_LOG")
+        self.knowledge_table_name = self.genbot_internal_project_and_schema+ "."+ os.getenv("GENESIS_INTERNAL_KNOWLEDGE_TABLE", "KNOWLEDGE")
+        self.processes_table_name = self.genbot_internal_project_and_schema+ "."+ self.genbot_internal_processes_table
+        self.process_history_table_name = self.genbot_internal_project_and_schema+ "."+ self.genbot_internal_process_history_table
+        self.user_bot_table_name = self.genbot_internal_project_and_schema+ "."+ os.getenv("GENESIS_INTERNAL_USER_BOT_TABLE", "USER_BOT")
+        self.tool_knowledge_table_name = self.genbot_internal_project_and_schema+ "."+ os.getenv("GENESIS_INTERNAL_TOOL_KNOWLEDGE_TABLE", "TOOL_KNOWLEDGE")
+        self.slack_tokens_table_name = self.genbot_internal_project_and_schema + "." + "SLACK_APP_CONFIG_TOKENS"
+        self.available_tools_table_name = self.genbot_internal_project_and_schema + "." + "AVAILABLE_TOOLS"
+        self.bot_servicing_table_name = self.genbot_internal_project_and_schema + "." + "BOT_SERVICING"
+        self.ngrok_tokens_table_name = self.genbot_internal_project_and_schema + "." + "NGROK_TOKENS"
+        self.images_table_name = self.app_share_schema + "." + "IMAGES"
+
+    def ensure_table_exists(self):
+        ensure_table_exists(self)
+
+    # def process_scheduler(self,action, bot_id, task_id=None, task_details=None, thread_id=None, history_rows=10):
+    #     process_scheduler(self, action, bot_id, task_id=None, task_details=None, thread_id=None, history_rows=10)
+
+    def check_cortex_available(self):
+        if os.environ.get("CORTEX_AVAILABLE", 'False') in ['False', '']:
+            os.environ["CORTEX_AVAILABLE"] = 'False'
+        if os.getenv("CORTEX_VIA_COMPLETE",'False') in ['False', '']:
+            os.environ["CORTEX_VIA_COMPLETE"] = 'False'
+
+        if self.source_name == "Snowflake" and os.getenv("CORTEX_AVAILABLE", "False").lower() == 'false':
+            try:
+
+                cortex_test = self.test_cortex_via_rest()
+
+                if cortex_test == True:
+                    os.environ["CORTEX_AVAILABLE"] = 'True'
+                    self.default_llm_engine = BotLlmEngineEnum.cortex
+                    
+                    self.llm_api_key = 'cortex_no_key_needed'
+                    print('Cortex LLM is Available via REST and successfully tested')
+                    return True
+                else:
+                    os.environ["CORTEX_MODE"] = "False"
+                    os.environ["CORTEX_AVAILABLE"] = 'False'
+                    print('Cortex LLM is not available via REST ')
+                    return False
+            except Exception as e:
+                print('Cortex LLM Not available via REST, exception on test: ',e)
+                return False 
+        if self.source_name == "Snowflake" and os.getenv("CORTEX_AVAILABLE", "False").lower() == 'true':
+            return True
+        else:
+            return False
+
+    def test_cortex(self):
+        newarray = [{"role": "user", "content": "hi there"} ]
+        new_array_str = json.dumps(newarray)
+
+        print(f"snowflake_connector test calling cortex {self.llm_engine} via SQL, content est tok len=",len(new_array_str)/4)
+
+        context_limit = 128000 * 4 #32000 * 4
+        cortex_query = f"""
+                        select SNOWFLAKE.CORTEX.COMPLETE('{self.llm_engine}', %s) as completion;
+        """
+        try:
+            cursor = self.connection.cursor()
+            start_time = time.time()
+            try:
+                cursor.execute(cortex_query, (new_array_str,))
+            except Exception as e:
+                if 'unknown model' in e.msg:
+                    print(f'Model {self.llm_engine} not available in this region, trying llama3.1-70b')
+                    self.llm_engine = 'llama3.1-70b'        
+                    cortex_query = f"""
+                        select SNOWFLAKE.CORTEX.COMPLETE('{self.llm_engine}', %s) as completion; """
+                    cursor.execute(cortex_query, (new_array_str,))
+                    print('Ok that worked, changing CORTEX_MODEL ENV VAR to llama3.1-70b')
+                    os.environ['CORTEX_MODEL'] = 'llama3.1-70b'
+                    os.environ['CORTEX_AVAILABLE'] = 'True'
+                else:
+                    #TODO remove llmkey handler from this file
+                    os.environ['CORTEX_MODE'] = 'False'
+                    os.environ['CORTEX_AVAILABLE'] = 'False'
+                    raise(e)
+            self.connection.commit()
+            elapsed_time = time.time() - start_time
+            result = cursor.fetchone()
+            completion = result[0] if result else None
+
+            if completion == True:
+                print(f"snowflake_connector test call result: ",completion)
+                return True
+            else:
+                print("Cortex complete failed to return a result")
+                return False
+        except Exception as e:
+            print('cortex not available, query error: ',e)
+            self.connection.rollback()
+            os.environ['CORTEX_MODE'] = 'False'
+            os.environ['CORTEX_AVAILABLE'] = 'False'
+            return False
+ 
+    def test_cortex_via_rest(self):
+        if os.getenv("CORTEX_OFF", "").upper() == "TRUE":
+            print('CORTEX OFF ENV VAR SET -- SIMULATING NO CORTEX')
+            return False
+        response, status_code  = self.cortex_chat_completion("Hi there", test=True)
+        if status_code != 200:
+           # print(f"Failed to connect to Cortex API. Status code: {status_code} RETRY 1")
+            response, status_code  = self.cortex_chat_completion("Hi there", test=True)
+            if status_code != 200:
+             #   print(f"Failed to connect to Cortex API. Status code: {status_code} RETRY 2")
+                response, status_code  = self.cortex_chat_completion("Hi there",test=True)
+                if status_code != 200:
+              #      print(f"Failed to connect to Cortex API. Status code: {status_code} FAILED AFTER 3 TRIES")
+                    return False
+
+        if len(response) > 2:
+            os.environ['CORTEX_AVAILABLE'] = 'True'
+            return True
+        else:
+            os.environ['CORTEX_MODE'] = 'False'
+            os.environ['CORTEX_AVAILABLE'] = 'False'
+            return False
+
+    def cortex_chat_completion(self, prompt, system=None, test=False):
+        if system:
+            newarray = [{"role": "user", "content": system}, {"role": "user", "content": prompt} ]
+        else:
+            newarray = [{"role": "user", "content": prompt} ]
+        
+        try:
+            SNOWFLAKE_HOST = self.client.host
+            REST_TOKEN = self.client.rest.token
+            url=f"https://{SNOWFLAKE_HOST}/api/v2/cortex/inference:complete"
+            headers = {
+                "Accept": "text/event-stream",
+                "Content-Type": "application/json",
+                "Authorization": f'Snowflake Token="{REST_TOKEN}"',
+            }
+        
+            request_data = {
+                "model": self.llm_engine,
+                "messages": newarray,
+                "stream": True,
+            }
+
+            if not test:
+                print(f"snowflake_connector calling cortex {self.llm_engine} via REST API, content est tok len=",len(str(newarray))/4)
+
+            response = requests.post(url, json=request_data, stream=True, headers=headers)
+
+            if response.status_code == 400 and 'unknown model' in response.text:
+                self.llm_engine = os.getenv("CORTEX_FAST_MODEL_NAME", "llama3.1-70b")
+                print(f"Model not found. Switching to {self.llm_engine}")
+                request_data["model"] = self.llm_engine
+                response = requests.post(url, json=request_data, stream=True, headers=headers)
+                if response.status_code != 200:
+                    print(f'cortex {self.llm_engine} and {os.getenv("CORTEX_FAST_MODEL_NAME", "llama3.1-70b")} not avail: ',response.status_code, response.text)
+                    return False, False
+                else:
+                    os.environ["CORTEX_MODEL"] = "llama3.1-70b"
+                    self.llm_engine = os.environ["CORTEX_MODEL"]
+
+            curr_resp = ''
+            for line in response.iter_lines():
+                if line:
+                    try:
+                        decoded_line = line.decode('utf-8')
+                        if not decoded_line.strip():
+                     #       print("Received an empty line.")
+                            continue
+                        if decoded_line.startswith("data: "):
+                            decoded_line = decoded_line[len("data: "):]
+                        event_data = json.loads(decoded_line)
+                        if 'choices' in event_data:
+                            d = event_data['choices'][0]['delta'].get('content','')
+                            curr_resp += d
+                  #          print(d, end='', flush=True)
+                    except json.JSONDecodeError as e:
+                        print(f"Error decoding JSON: {e}")
+                        continue
+
+            return curr_resp, response.status_code
+        
+        except Exception as e:
+            print ("Bottom of function -- Error calling Cortex Rest API, ",e, flush=True)
+            return False, False
+
+    def _create_snowpark_connection(self):
+        try:
+            from snowflake.snowpark import Session
+            from snowflake.cortex import Complete
+
+            connection_parameters = {
+                "account": os.getenv("SNOWFLAKE_ACCOUNT_OVERRIDE"),
+                "user": os.getenv("SNOWFLAKE_USER_OVERRIDE"),
+                "password": os.getenv("SNOWFLAKE_PASSWORD_OVERRIDE"),
+                "role": os.getenv("SNOWFLAKE_ROLE_OVERRIDE", "PUBLIC"),  # optional
+                "warehouse": os.getenv(
+                    "SNOWFLAKE_WAREHOUSE_OVERRIDE", "XSMALL"
+                ),  # optional
+                "database": os.getenv(
+                    "SNOWFLAKE_DATABASE_OVERRIDE", "GENESIS_TEST"
+                ),  # optional
+                "schema": os.getenv(
+                    "GENESIS_INTERNAL_DB_SCHEMA", "GENESIS_TEST.GENESIS_JL"
+                ),  # optional
+            }
+
+            sp_session = Session.builder.configs(connection_parameters).create()
+
+        except Exception as e:
+            print(f"Cortex not available: {e}")
+            sp_session = None
+        return sp_session
+
+    def _cortex_complete(self, model="reka-flash", prompt=None):
+        try:
+            from snowflake.cortex import Complete
+
+            result = Complete(model, str(prompt))
+        except Exception as e:
+            print(f"Cortex not available: {e}")
+            self.sp_session = None
+            result = None
+        return result
+
+    def sha256_hash_hex_string(self, input_string):
+        # Encode the input string to bytes, then create a SHA256 hash and convert it to a hexadecimal string
+        return hashlib.sha256(input_string.encode()).hexdigest()
+
+    def get_harvest_control_data_as_json(self, thread_id=None):
+        """
+        Retrieves all the data from the harvest control table and returns it as a JSON object.
+
+        Returns:
+            JSON object: All the data from the harvest control table.
+        """
+
+        try:
+            query = f"SELECT * FROM {self.harvest_control_table_name}"
+            cursor = self.connection.cursor()
+            cursor.execute(query)
+            columns = [col[0] for col in cursor.description]
+
+            # Fetch all results
+            data = cursor.fetchall()
+
+            # Convert the query results to a list of dictionaries
+            rows = [dict(zip(columns, row)) for row in data]
+
+            # Convert the list of dictionaries to a JSON object
+            json_data = json.dumps(
+                rows, default=str
+            )  # default=str to handle datetime and other non-serializable types
+
+            cursor.close()
+            return {"Success": True, "Data": json_data}
+
+        except Exception as e:
+            err = f"An error occurred while retrieving the harvest control data: {e}"
+            return {"Success": False, "Error": err}
+
+    # snowed
+    # SEE IF THIS WAY OF DOING BIND VARS WORKS, if so do it everywhere
+    def set_harvest_control_data(
+        self,
+        source_name,
+        database_name,
+        initial_crawl_complete=False,
+        refresh_interval=1,
+        schema_exclusions=None,
+        schema_inclusions=None,
+        status="Include",
+        thread_id=None,
+    ):
+        """
+        Inserts or updates a row in the harvest control table using MERGE statement with explicit parameters for Snowflake.
+
+        Args:
+            source_name (str): The source name for the harvest control data.
+            database_name (str): The database name for the harvest control data.
+            initial_crawl_complete (bool): Flag indicating if the initial crawl is complete. Defaults to False.
+            refresh_interval (int): The interval at which the data is refreshed. Defaults to 1.
+            schema_exclusions (list): A list of schema names to exclude. Defaults to an empty list.
+            schema_inclusions (list): A list of schema names to include. Defaults to an empty list.
+            status (str): The status of the harvest control. Defaults to 'Include'.
+        """
+        try:
+            # Set default values for schema_exclusions and schema_inclusions if None
+            if schema_exclusions is None:
+                schema_exclusions = []
+            if schema_inclusions is None:
+                schema_inclusions = []
+            # Confirm the database and schema names are correct and match the case
+            # First, get the list of databases and check the case
+            databases = self.get_visible_databases()
+            if database_name not in databases:
+                return {
+                    "Success": False,
+                    "Error": f"Database {database_name} does not exist.",
+                }
+            # Now, get the list of schemas in the database and check the case
+            schemas = self.get_schemas(database_name)
+            if schema_exclusions:
+                for schema in schema_exclusions:
+                    if schema.upper() not in (s.upper() for s in schemas):
+                        return {
+                            "Success": False,
+                            "Error": f"Schema exclusion {schema} does not exist in database {database_name}.",
+                        }
+            if schema_inclusions:
+                for schema in schema_inclusions:
+                    if schema.upper() not in (s.upper() for s in schemas):
+                        return {
+                            "Success": False,
+                            "Error": f"Schema inclusion {schema} does not exist in database {database_name}.",
+                        }
+            # Ensure the case of the database and schema names matches that returned by the get_databases and get_schemas functions
+            database_name = next(
+                (db for db in databases if db.upper() == database_name.upper()),
+                database_name,
+            )
+            schema_exclusions = [
+                next((sch for sch in schemas if sch.upper() == schema.upper()), schema)
+                for schema in schema_exclusions
+            ]
+            schema_inclusions = [
+                next((sch for sch in schemas if sch.upper() == schema.upper()), schema)
+                for schema in schema_inclusions
+            ]
+
+            # Prepare the MERGE statement for Snowflake
+            merge_statement = f"""
+            MERGE INTO {self.harvest_control_table_name} T
+            USING (SELECT %(source_name)s AS source_name, %(database_name)s AS database_name) S
+            ON T.source_name = S.source_name AND T.database_name = S.database_name
+            WHEN MATCHED THEN
+              UPDATE SET
+                initial_crawl_complete = %(initial_crawl_complete)s,
+                refresh_interval = %(refresh_interval)s,
+                schema_exclusions = %(schema_exclusions)s,
+                schema_inclusions = %(schema_inclusions)s,
+                status = %(status)s
+            WHEN NOT MATCHED THEN
+              INSERT (source_name, database_name, initial_crawl_complete, refresh_interval, schema_exclusions, schema_inclusions, status)
+              VALUES (%(source_name)s, %(database_name)s, %(initial_crawl_complete)s, %(refresh_interval)s, %(schema_exclusions)s, %(schema_inclusions)s, %(status)s)
+            """
+
+            # Execute the MERGE statement
+            self.client.cursor().execute(
+                merge_statement,
+                {
+                    "source_name": source_name,
+                    "database_name": database_name,
+                    "initial_crawl_complete": initial_crawl_complete,
+                    "refresh_interval": refresh_interval,
+                    "schema_exclusions": str(schema_exclusions),
+                    "schema_inclusions": str(schema_inclusions),
+                    "status": status,
+                },
+            )
+
+            return {
+                "Success": True,
+                "Message": "Harvest control data set successfully.",
+            }
+
+        except Exception as e:
+            err = f"An error occurred while setting the harvest control data: {e}"
+            return {"Success": False, "Error": err}
+
+    def remove_harvest_control_data(self, source_name, database_name, thread_id=None):
+        """
+        Removes a row from the harvest control table based on the source_name and database_name.
+
+        Args:
+            source_name (str): The source name of the row to remove.
+            database_name (str): The database name of the row to remove.
+        """
+        try:
+            # TODO test!! Construct the query to exclude the row
+            query = f"""
+            UPDATE {self.harvest_control_table_name}
+            SET STATUS = 'Exclude'
+            WHERE UPPER(source_name) = UPPER(%s) AND UPPER(database_name) = UPPER(%s) AND STATUS = 'Include'
+            """
+            # Execute the query
+            cursor = self.client.cursor()
+            cursor.execute(query, (source_name, database_name))
+            affected_rows = cursor.rowcount
+
+            if affected_rows == 0:
+                return {
+                    "Success": False,
+                    "Message": "No harvest records were found for that source and database. You should check the source_name and database_name with the get_harvest_control_data tool ?",
+                }
+            else:
+                return {
+                    "Success": True,
+                    "Message": f"Harvest control data removed successfully. {affected_rows} rows affected.",
+                }
+
+        except Exception as e:
+            err = f"An error occurred while removing the harvest control data: {e}"
+            return {"Success": False, "Error": err}
+
+    def remove_metadata_for_database(self, source_name, database_name, thread_id=None):
+        """
+        Removes rows from the metadata table based on the source_name and database_name.
+
+        Args:
+            source_name (str): The source name of the rows to remove.
+            database_name (str): The database name of the rows to remove.
+        """
+        try:
+            # Construct the query to delete the rows
+            delete_query = f"""
+            DELETE FROM {self.metadata_table_name}
+            WHERE source_name = %s AND database_name = %s
+            """
+            # Execute the query
+            cursor = self.client.cursor()
+            cursor.execute(delete_query, (source_name, database_name))
+            affected_rows = cursor.rowcount
+
+            return {
+                "Success": True,
+                "Message": f"Metadata rows removed successfully. {affected_rows} rows affected.",
+            }
+
+        except Exception as e:
+            err = f"An error occurred while removing the metadata rows: {e}"
+            return {"Success": False, "Error": err}
+
+    def get_available_databases(self, thread_id=None):
+        """
+        Retrieves a list of databases and their schemas that are not currently being harvested per the harvest_control table.
+
+        Returns:
+            dict: A dictionary with a success flag and either a list of available databases with their schemas or an error message.
+        """
+        try:
+            # Get the list of visible databases
+            visible_databases_result = self.get_visible_databases_json()
+            if not visible_databases_result:
+                return {
+                    "Success": False,
+                    "Message": "An error occurred while retrieving visible databases",
+                }
+
+            visible_databases = visible_databases_result
+            # Filter out databases that are currently being harvested
+            query = f"""
+            SELECT DISTINCT database_name
+            FROM {self.harvest_control_table_name}
+            WHERE status = 'Include'
+            """
+            cursor = self.client.cursor()
+            cursor.execute(query)
+            harvesting_databases = {row[0] for row in cursor.fetchall()}
+
+            available_databases = []
+            for database in visible_databases:
+                if database not in harvesting_databases:
+                    # Get the list of schemas for the database
+                    schemas_result = self.get_schemas(database)
+                    if schemas_result:
+                        available_databases.append(
+                            {"DatabaseName": database, "Schemas": schemas_result}
+                        )
+
+            if not available_databases:
+                return {
+                    "Success": False,
+                    "Message": "No available databases to display.",
+                }
+
+            return {"Success": True, "Data": json.dumps(available_databases)}
+
+        except Exception as e:
+            err = f"An error occurred while retrieving available databases: {e}"
+            return {"Success": False, "Error": err}
+
+    def get_visible_databases_json(self, thread_id=None):
+        """
+        Retrieves a list of all visible databases.
+
+        Returns:
+            list: A list of visible database names.
+        """
+        try:
+            query = "SHOW DATABASES"
+            cursor = self.client.cursor()
+            cursor.execute(query)
+            results = cursor.fetchall()
+
+            databases = [
+                row[1] for row in results
+            ]  # Assuming the database name is in the second column
+
+            return {"Success": True, "Databases": databases}
+
+        except Exception as e:
+            err = f"An error occurred while retrieving visible databases: {e}"
+            return {"Success": False, "Error": err}
+
+    def get_shared_schemas(self, database_name):
+        try:
+            query = f"SELECT DISTINCT SCHEMA_NAME FROM {self.metadata_table_name} where DATABASE_NAME = '{database_name}'"
+            cursor = self.client.cursor()
+            cursor.execute(query)
+            schemas = cursor.fetchall()
+            schema_list = [schema[0] for schema in schemas]
+            # for schema in schema_list:
+            #     print(f"can we see baseball and f1?? {schema}")
+            return schema_list
+
+        except Exception as e:
+            err = f"An error occurred while retrieving shared schemas: {e}"
+            return "Error: {err}"
+        
+    def get_bot_images(self, thread_id=None):
+        """
+        Retrieves a list of all bot avatar images.
+
+        Returns:
+            list: A list of bot names and bot avatar images.
+        """
+        try:
+            query = f"SELECT BOT_NAME, BOT_AVATAR_IMAGE FROM {self.bot_servicing_table_name} "
+            cursor = self.client.cursor()
+            cursor.execute(query)
+            bots = cursor.fetchall()
+            columns = [col[0].lower() for col in cursor.description]
+            bot_list = [dict(zip(columns, bot)) for bot in bots]
+            # Check the total payload size
+            payload_size = sum(len(str(bot).encode('utf-8')) for bot in bot_list)
+            # If payload size exceeds 16MB (16 * 1024 * 1024 bytes) (with buffer for JSON) remove rows from the bottom
+            while payload_size > 15.9 * 1000 * 1000 and len(bot_list) > 0:
+                bot_list.pop()
+                payload_size = sum(len(str(bot).encode('utf-8')) for bot in bot_list)
+            json_data = json.dumps(
+                bot_list, default=str
+            )  # default=str to handle datetime and other non-serializable types
+
+            return {"Success": True, "Data": json_data}
+
+        except Exception as e:
+            err = f"An error occurred while retrieving bot images: {e}"
+            return {"Success": False, "Error": err}
+
+    def get_llm_info(self, thread_id=None):
+        """
+        Retrieves a list of all llm types and keys.
+
+        Returns:
+            list: A list of llm keys, llm types, and the active switch.
+        """
+        try:
+            runner_id = os.getenv("RUNNER_ID", "jl-local-runner") 
+            query = f"""
+        SELECT LLM_TYPE, ACTIVE, LLM_KEY, LLM_ENDPOINT 
+        FROM {self.genbot_internal_project_and_schema}.LLM_TOKENS 
+        WHERE LLM_KEY is not NULL
+        AND   RUNNER_ID = '{runner_id}'
+        """
+            cursor = self.client.cursor()
+            cursor.execute(query)
+            llm_info = cursor.fetchall()
+            columns = [col[0].lower() for col in cursor.description]
+            llm_list = [dict(zip(columns, llm)) for llm in llm_info]
+            json_data = json.dumps(
+                llm_list, default=str
+            )  # default=str to handle datetime and other non-serializable types
+
+            return {"Success": True, "Data": json_data}
+
+        except Exception as e:
+            err = f"An error occurred while getting llm info: {e}"
+            return {"Success": False, "Error": err}
+
+    def eai_test(self, object_type, site):
+        try:
+
+            if object_type == 'EAI':
+                
+                create_function_query = f"""
+                    CREATE FUNCTION IF NOT EXISTS {self.project_id}.CORE.CHECK_URL_STATUS(site string)
+                    RETURNS STRING
+                    LANGUAGE PYTHON
+                    RUNTIME_VERSION = 3.11
+                    HANDLER = 'get_status'
+                    EXTERNAL_ACCESS_INTEGRATIONS = (REFERENCE('consumer_external_access'))
+                    PACKAGES = ('requests')
+                    AS
+                    $$
+                    import requests
+
+                    def get_status(site):
+                        if site == 'slack':
+                            url = "https://slack.com"  # Replace with the allowed URL
+                        elif site == 'openai':
+                            url = "https://api.openai.com/v1/models"  # Replace with the allowed URL
+                        else:
+                            return f"Invalid site: {{site}}"
+
+                        try:
+                            # Make an HTTP GET request to the allowed URL
+                            response = requests.get(url, timeout=10)
+                            
+                            # Check if the status code is 200
+                            if response.status_code == 200 or response.status_code == 401:
+                                return "Success"
+                            else:
+                                return f"Invalid URL, status code: {{response.status_code}}"
+                        
+                        except requests.exceptions.RequestException as e:
+                            # Catch and return any exceptions
+                            return f"Error: {{str(e)}}"
+                    $$;
+                """
+                try:
+                    cursor = self.client.cursor()
+                    cursor.execute(create_function_query)
+
+                    if site:
+                        function_test_success = False
+                        select_query = f"select {self.project_id}.CORE.CHECK_URL_STATUS('{site}')"
+                        cursor.execute(select_query)
+                        eai_test_result = cursor.fetchone()
+
+                        if 'Success' in eai_test_result:
+                            function_test_success = True
+                except Exception as e:
+                    print(f"An error occurred while creating/testing EAI test function: {e}")
+                    function_test_success = True
+
+                # check for existing EAI assigned to services
+                show_query = f"show services in application {self.project_id}"
+                cursor.execute(show_query)
+                check_eai_query = """
+                                    SELECT f.VALUE::string FROM table(result_scan(-1)) a, 
+                                    LATERAL FLATTEN(input => parse_json(a."external_access_integrations")) AS f 
+                                    WHERE "name" = 'GENESISAPP_SERVICE_SERVICE'; 
+                                """
+
+                cursor.execute(check_eai_query)
+                check_eai_result = cursor.fetchone()
+
+                if check_eai_result:
+                    function_success = True
+
+        except Exception as e:
+            err = f"An error occurred while creating/testing EAI test function: {e}"
+            return {"Success": False, "Error": err}
+        
+        # '[{"system$send_email": true}]'
+
+        if function_success == True or function_test_success == True:
+            json_data = json.dumps([{'Success': True}])
+            return {"Success": True, "Data": json_data}
+        else:
+            return {"Success": False, "Error": "something failed"}
+
+    def send_test_email(self, email_addr, thread_id=None):
+        """
+        Tests sending an email and stores the email address in a table.
+
+        Returns:
+            json: success or failure.
+        """
+        try:
+
+            query = f"""
+                CALL SYSTEM$SEND_EMAIL(
+                    'genesis_email_int',
+                    $${email_addr}$$,
+                    $${'Test Email'}$$,
+                    $${'Test Email from Genesis Server'}$$
+                );
+                """
+
+            cursor = self.client.cursor()
+            cursor.execute(query)
+            email_result = cursor.fetchall()
+
+            columns = [col[0].lower() for col in cursor.description]
+            email_result = [dict(zip(columns, row)) for row in email_result]
+            json_data = json.dumps(
+                email_result, default=str
+            )  # default=str to handle datetime and other non-serializable types
+
+            # Check if DEFAULT_EMAIL table exists using SHOW TABLES LIKE
+            check_table_query = f"""
+            SHOW TABLES LIKE 'DEFAULT_EMAIL' IN {self.genbot_internal_project_and_schema}
+            """
+            cursor.execute(check_table_query)
+            table_exists = cursor.fetchone() is not None
+
+            if not table_exists:
+                # Create the table if it doesn't exist
+                create_table_query = f"""
+                CREATE TABLE {self.genbot_internal_project_and_schema}.DEFAULT_EMAIL (
+                    DEFAULT_EMAIL VARCHAR(255)
+                )
+                """
+                cursor.execute(create_table_query)
+
+            # Insert or update the default email
+                upsert_query = f"""
+                MERGE INTO {self.genbot_internal_project_and_schema}.DEFAULT_EMAIL t
+                USING (SELECT %s AS email) s
+                ON (1=1)
+                WHEN MATCHED THEN
+                    UPDATE SET t.DEFAULT_EMAIL = s.email
+                WHEN NOT MATCHED THEN
+                    INSERT (DEFAULT_EMAIL) VALUES (s.email)
+                """
+                cursor.execute(upsert_query, (email_addr,))
+
+            # Commit the changes
+                self.client.commit()
+
+            return {"Success": True, "Data": json_data}
+
+        except Exception as e:
+            err = f"An error occurred while sending test email: {e}"
+            return {"Success": False, "Error": err}
+
+    def get_harvest_summary(self, thread_id=None):
+        """
+        Executes a query to retrieve a summary of the harvest results, including the source name, database name, schema name,
+        role used for crawl, last crawled timestamp, and the count of objects crawled, grouped and ordered by the source name,
+        database name, schema name, and role used for crawl.
+
+        Returns:
+            list: A list of dictionaries, each containing the harvest summary for a group.
+        """
+        query = f"""
+        SELECT source_name, database_name, schema_name, role_used_for_crawl, 
+               MAX(last_crawled_timestamp) AS last_change_ts, COUNT(*) AS objects_crawled 
+        FROM {self.metadata_table_name}
+        GROUP BY source_name, database_name, schema_name, role_used_for_crawl
+        ORDER BY source_name, database_name, schema_name, role_used_for_crawl;
+        """
+        try:
+            cursor = self.client.cursor()
+            cursor.execute(query)
+            results = cursor.fetchall()
+
+            # Convert the query results to a list of dictionaries
+            summary = [
+                dict(zip([column[0] for column in cursor.description], row))
+                for row in results
+            ]
+
+            json_data = json.dumps(
+                summary, default=str
+            )  # default=str to handle datetime and other non-serializable types
+
+            return {"Success": True, "Data": json_data}
+
+        except Exception as e:
+            err = f"An error occurred while retrieving the harvest summary: {e}"
+            return {"Success": False, "Error": err}
+
+    def table_summary_exists(self, qualified_table_name):
+        query = f"""
+        SELECT COUNT(*)
+        FROM {self.metadata_table_name}
+        WHERE qualified_table_name = %s
+        """
+        try:
+            cursor = self.client.cursor()
+            cursor.execute(query, (qualified_table_name,))
+            result = cursor.fetchone()
+
+            return result[0] > 0  # Returns True if a row exists, False otherwise
+        except Exception as e:
+            print(f"An error occurred while checking if the table summary exists: {e}")
+            return False
+        
+    def check_logging_status(self):
+        query = f"""
+        CALL {self.project_id}.CORE.CHECK_APPLICATION_SHARING()
+        """
+        try:
+            cursor = self.client.cursor()
+            cursor.execute(query)
+            result = cursor.fetchone()
+
+            return result[0]  # Returns True, False otherwise
+        except Exception as e:
+            print(f"An error occurred while checking logging status: {e}")
+            return False
+
+    def insert_chat_history_row(
+        self,
+        timestamp,
+        bot_id=None,
+        bot_name=None,
+        thread_id=None,
+        message_type=None,
+        message_payload=None,
+        message_metadata=None,
+        tokens_in=None,
+        tokens_out=None,
+        files=None,
+        channel_type=None,
+        channel_name=None,
+        primary_user=None,
+        task_id=None,
+    ):
+        """
+        Inserts a single row into the chat history table using Snowflake's streaming insert.
+
+        :param timestamp: TIMESTAMP field, format should be compatible with Snowflake.
+        :param bot_id: STRING field representing the bot's ID.
+        :param bot_name: STRING field representing the bot's name.
+        :param thread_id: STRING field representing the thread ID, can be NULL.
+        :param message_type: STRING field representing the type of message.
+        :param message_payload: STRING field representing the message payload, can be NULL.
+        :param message_metadata: STRING field representing the message metadata, can be NULL.
+        :param tokens_in: INTEGER field representing the number of tokens in, can be NULL.
+        :param tokens_out: INTEGER field representing the number of tokens out, can be NULL.
+        :param files: STRING field representing the list of files, can be NULL.
+        :param channel_type: STRING field representing Slack_channel, Slack_DM, Streamlit, can be NULL.
+        :param channel_name: STRING field representing Slack channel name, or the name of the user the DM, can be NULL.
+        :param primary_user: STRING field representing the who sent the original message, can be NULL.
+        :param task_id: STRING field representing the task, can be NULL.
+        """
+        from datetime import datetime
+        cursor = None
+        if files is None:
+            files = []
+        files_str = str(files)
+        if files_str == "":
+            files_str = "<no files>"
+        try:
+            # Ensure the timestamp is in the correct format for Snowflake
+            formatted_timestamp = (
+                timestamp.strftime("%Y-%m-%d %H:%M:%S")
+                if isinstance(timestamp, datetime)
+                else timestamp
+            )
+            if isinstance(message_metadata, dict):
+                message_metadata = json.dumps(message_metadata)
+
+            insert_query = f"""
+            INSERT INTO {self.message_log_table_name} 
+                (timestamp, bot_id, bot_name, thread_id, message_type, message_payload, message_metadata, tokens_in, tokens_out, files, channel_type, channel_name, primary_user, task_id)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """
+            cursor = self.client.cursor()
+            cursor.execute(
+                insert_query,
+                (
+                    formatted_timestamp,
+                    bot_id,
+                    bot_name,
+                    thread_id,
+                    message_type,
+                    message_payload,
+                    message_metadata,
+                    tokens_in,
+                    tokens_out,
+                    files_str,
+                    channel_type,
+                    channel_name,
+                    primary_user,
+                    task_id,
+                ),
+            )
+            self.client.commit()
+        except Exception as e:
+            print(
+                f"Encountered errors while inserting into chat history table row: {e}"
+            )
+        finally:
+            if cursor is not None:
+                cursor.close()
+
+    def get_current_time_with_timezone(self):
+        from datetime import datetime
+        current_time = datetime.now().astimezone()
+        return current_time.strftime("%Y-%m-%d %H:%M:%S %Z")
+
+    def db_insert_llm_results(self, uu, message):
+        """
+        Inserts a row into the LLM_RESULTS table.
+
+        Args:
+            uu (str): The unique identifier for the result.
+            message (str): The message to store.
+        """
+        insert_query = f"""
+            INSERT INTO {self.schema}.LLM_RESULTS (uu, message, created)
+            VALUES (%s, %s, CURRENT_TIMESTAMP)
+        """
+        cursor = None
+        try:
+            cursor = self.client.cursor()
+            cursor.execute(insert_query, (uu, message))
+            self.client.commit()
+            cursor.close()
+            print(f"LLM result row inserted successfully for uu: {uu}")
+        except Exception as e:
+            print(f"An error occurred while inserting the LLM result row: {e}")
+            if cursor is not None:
+                cursor.close()
+
+    def db_update_llm_results(self, uu, message):
+        """
+        Inserts a row into the LLM_RESULTS table.
+
+        Args:
+            uu (str): The unique identifier for the result.
+            message (str): The message to store.
+        """
+        update_query = f"""
+            UPDATE {self.schema}.LLM_RESULTS
+            SET message = %s
+            WHERE uu = %s
+        """
+        cursor = None
+        try:
+            cursor = self.client.cursor()
+            cursor.execute(update_query, (message, uu))
+            self.client.commit()
+            cursor.close()
+        #     print(f"LLM result row inserted successfully for uu: {uu}")
+        except Exception as e:
+            print(f"An error occurred while inserting the LLM result row: {e}")
+            if cursor is not None:
+                cursor.close()
+
+    def db_get_llm_results(self, uu):
+        """
+        Retrieves a row from the LLM_RESULTS table using the uu.
+
+        Args:
+            uu (str): The unique identifier for the result.
+        """
+        select_query = f"""
+            SELECT message
+            FROM {self.schema}.LLM_RESULTS
+            WHERE uu = %s
+        """
+        cursor = None
+        try:
+            cursor = self.client.cursor()
+            cursor.execute(select_query, (uu,))
+            result = cursor.fetchone()
+            cursor.close()
+            if result is not None:
+                return result[0]
+            else:
+                return ''
+        except Exception as e:
+            print(f"An error occurred while retrieving the LLM result: {e}")
+            if cursor is not None:
+                cursor.close()
+
+    def db_clean_llm_results(self):
+        """
+        Removes rows from the LLM_RESULTS table that are over 10 minutes old.
+        """
+        delete_query = f"""
+            DELETE FROM {self.schema}.LLM_RESULTS
+            WHERE CURRENT_TIMESTAMP - created > INTERVAL '10 MINUTES'
+        """
+        cursor = None
+        try:
+            cursor = self.client.cursor()
+            cursor.execute(delete_query)
+            self.client.commit()
+            cursor.close()
+            print(
+                "LLM result rows older than 10 minutes have been successfully deleted."
+            )
+        except Exception as e:
+            print(f"An error occurred while deleting old LLM result rows: {e}")
+            if cursor is not None:
+                cursor.close()
+
+    def insert_table_summary(
+        self,
+        database_name,
+        schema_name,
+        table_name,
+        ddl,
+        ddl_short,
+        summary,
+        sample_data_text,
+        complete_description="",
+        crawl_status="Completed",
+        role_used_for_crawl="Default",
+        embedding=None,
+        memory_uuid=None,
+        ddl_hash=None,
+    ):
+        qualified_table_name = f'"{database_name}"."{schema_name}"."{table_name}"'
+        if not memory_uuid:
+            memory_uuid = str(uuid.uuid4())
+        last_crawled_timestamp = datetime.utcnow().isoformat(" ")
+        if not ddl_hash:
+            ddl_hash = self.sha256_hash_hex_string(ddl)
+
+        # Assuming role_used_for_crawl is stored in self.connection_info["client_email"]
+        role_used_for_crawl = self.role
+
+        # if cortex mode, load embedding_native else load embedding column
+        if os.environ.get("CORTEX_MODE", 'False') == 'True':
+            embedding_target = 'embedding_native'
+        else:
+            embedding_target = 'embedding'
+
+        # Convert embedding list to string format if not None
+        embedding_str = (",".join(str(e) for e in embedding) if embedding is not None else None)
+
+        # Construct the MERGE SQL statement with placeholders for parameters
+        merge_sql = f"""
+        MERGE INTO {self.metadata_table_name} USING (
+            SELECT
+                %(source_name)s AS source_name,
+                %(qualified_table_name)s AS qualified_table_name,
+                %(memory_uuid)s AS memory_uuid,
+                %(database_name)s AS database_name,
+                %(schema_name)s AS schema_name,
+                %(table_name)s AS table_name,
+                %(complete_description)s AS complete_description,
+                %(ddl)s AS ddl,
+                %(ddl_short)s AS ddl_short,
+                %(ddl_hash)s AS ddl_hash,
+                %(summary)s AS summary,
+                %(sample_data_text)s AS sample_data_text,
+                %(last_crawled_timestamp)s AS last_crawled_timestamp,
+                %(crawl_status)s AS crawl_status,
+                %(role_used_for_crawl)s AS role_used_for_crawl,
+                %(embedding)s AS {embedding_target}
+        ) AS new_data
+        ON {self.metadata_table_name}.qualified_table_name = new_data.qualified_table_name
+        WHEN MATCHED THEN UPDATE SET
+            source_name = new_data.source_name,
+            memory_uuid = new_data.memory_uuid,
+            database_name = new_data.database_name,
+            schema_name = new_data.schema_name,
+            table_name = new_data.table_name,
+            complete_description = new_data.complete_description,
+            ddl = new_data.ddl,
+            ddl_short = new_data.ddl_short,
+            ddl_hash = new_data.ddl_hash,
+            summary = new_data.summary,
+            sample_data_text = new_data.sample_data_text,
+            last_crawled_timestamp = TO_TIMESTAMP_NTZ(new_data.last_crawled_timestamp),
+            crawl_status = new_data.crawl_status,
+            role_used_for_crawl = new_data.role_used_for_crawl,
+            {embedding_target} = ARRAY_CONSTRUCT(new_data.{embedding_target})
+        WHEN NOT MATCHED THEN INSERT (
+            source_name, qualified_table_name, memory_uuid, database_name, schema_name, table_name,
+            complete_description, ddl, ddl_short, ddl_hash, summary, sample_data_text, last_crawled_timestamp,
+            crawl_status, role_used_for_crawl, {embedding_target}
+        ) VALUES (
+            new_data.source_name, new_data.qualified_table_name, new_data.memory_uuid, new_data.database_name,
+            new_data.schema_name, new_data.table_name, new_data.complete_description, new_data.ddl, new_data.ddl_short,
+            new_data.ddl_hash, new_data.summary, new_data.sample_data_text, TO_TIMESTAMP_NTZ(new_data.last_crawled_timestamp),
+            new_data.crawl_status, new_data.role_used_for_crawl, ARRAY_CONSTRUCT(new_data.{embedding_target})
+        );
+        """
+
+        # Set up the query parameters
+        query_params = {
+            "source_name": self.source_name,
+            "qualified_table_name": qualified_table_name,
+            "memory_uuid": memory_uuid,
+            "database_name": database_name,
+            "schema_name": schema_name,
+            "table_name": table_name,
+            "complete_description": complete_description,
+            "ddl": ddl,
+            "ddl_short": ddl_short,
+            "ddl_hash": ddl_hash,
+            "summary": summary,
+            "sample_data_text": sample_data_text,
+            "last_crawled_timestamp": last_crawled_timestamp,
+            "crawl_status": crawl_status,
+            "role_used_for_crawl": role_used_for_crawl,
+            "embedding": embedding_str,
+        }
+
+        for param, value in query_params.items():
+            # print(f'{param}: {value}')
+            if value is None:
+                # print(f'{param} is null')
+                query_params[param] = "NULL"
+
+        # Execute the MERGE statement with parameters
+        try:
+            # print("merge sql: ",merge_sql)
+            cursor = self.client.cursor()
+            cursor.execute(merge_sql, query_params)
+            self.client.commit()
+        except Exception as e:
+            print(f"An error occurred while executing the MERGE statement: {e}")
+        finally:
+            if cursor is not None:
+                cursor.close()
+
+    # make sure this is returning whats expected (array vs string)
+    def get_table_ddl(self, database_name: str, schema_name: str, table_name=None):
+        """
+        Fetches the DDL statements for tables within a specific schema in Snowflake.
+        Optionally, fetches the DDL for a specific table if table_name is provided.
+
+        :param database_name: The name of the database.
+        :param schema_name: The name of the schema.
+        :param table_name: Optional. The name of a specific table.
+        :return: A dictionary with table names as keys and DDL statements as values, or a single DDL string if table_name is provided.
+        """
+        if table_name:
+            query = f"SHOW TABLES LIKE '{table_name}' IN SCHEMA {database_name}.{schema_name};"
+            cursor = self.client.cursor()
+            cursor.execute(query)
+            result = cursor.fetchone()
+            if result:
+                # Fetch the DDL for the specific table
+                query_ddl = f"SELECT GET_DDL('TABLE', '{result[1]}')"
+                cursor.execute(query_ddl)
+                ddl_result = cursor.fetchone()
+                return {table_name: ddl_result[0]}
+            else:
+                return {}
+        else:
+            query = f"SHOW TABLES IN SCHEMA {database_name}.{schema_name};"
+            cursor = self.client.cursor()
+            cursor.execute(query)
+            tables = cursor.fetchall()
+            ddls = {}
+            for table in tables:
+                # Fetch the DDL for each table
+                query_ddl = f"SELECT GET_DDL('TABLE', '{table[1]}')"
+                cursor.execute(query_ddl)
+                ddl_result = cursor.fetchone()
+                ddls[table[1]] = ddl_result[0]
+            return ddls
+
+    def check_cached_metadata(
+        self, database_name: str, schema_name: str, table_name: str
+    ):
+        try:
+            if database_name and schema_name and table_name:
+                query = f"SELECT IFF(count(*)>0,TRUE,FALSE) from APP_SHARE.HARVEST_RESULTS where DATABASE_NAME = '{database_name}' AND SCHEMA_NAME = '{schema_name}' AND TABLE_NAME = '{table_name}';"
+                cursor = self.client.cursor()
+                cursor.execute(query)
+                result = cursor.fetchone()
+                return result[0]
+            else:
+                return "a required parameter was not entered"
+        except Exception as e:
+            if os.environ.get('GENESIS_LOCAL_RUNNER', '').upper() != 'TRUE':
+                print(f"Error checking cached metadata: {e}")
+            return False
+
+    def get_metadata_from_cache(
+        self, database_name: str, schema_name: str, table_name: str
+    ):
+        metadata_table_id = self.metadata_table_name
+        try:
+            if schema_name == "INFORMATION_SCHEMA":
+                db_name_filter = "PLACEHOLDER_DB_NAME"
+            else:
+                db_name_filter = database_name
+
+            query = f"""SELECT SOURCE_NAME, replace(QUALIFIED_TABLE_NAME,'PLACEHOLDER_DB_NAME','{database_name}') QUALIFIED_TABLE_NAME, '{database_name}' DATABASE_NAME, MEMORY_UUID, SCHEMA_NAME, TABLE_NAME, REPLACE(COMPLETE_DESCRIPTION,'PLACEHOLDER_DB_NAME','{database_name}') COMPLETE_DESCRIPTION, REPLACE(DDL,'PLACEHOLDER_DB_NAME','{database_name}') DDL, REPLACE(DDL_SHORT,'PLACEHOLDER_DB_NAME','{database_name}') DDL_SHORT, 'SHARED_VIEW' DDL_HASH, REPLACE(SUMMARY,'PLACEHOLDER_DB_NAME','{database_name}') SUMMARY, SAMPLE_DATA_TEXT, LAST_CRAWLED_TIMESTAMP, CRAWL_STATUS, ROLE_USED_FOR_CRAWL 
+                from APP_SHARE.HARVEST_RESULTS 
+                where DATABASE_NAME = '{db_name_filter}' AND SCHEMA_NAME = '{schema_name}' AND TABLE_NAME = '{table_name}';"""
+
+            # insert_cached_metadata_query = f"""
+            #     INSERT INTO {metadata_table_id}
+            #     SELECT SOURCE_NAME, QUALIFIED_TABLE_NAME,  DATABASE_NAME, MEMORY_UUID, SCHEMA_NAME, TABLE_NAME, COMPLETE_DESCRIPTION, DDL, DDL_SHORT, DDL_HASH, SUMMARY, SAMPLE_DATA_TEXT, LAST_CRAWLED_TIMESTAMP, CRAWL_STATUS, ROLE_USED_FOR_CRAWL, EMBEDDING
+            #     FROM APP_SHARE.HARVEST_RESULTS h
+            #     WHERE DATABASE_NAME = '{database_name}' AND SCHEMA_NAME = '{schema_name}' AND TABLE_NAME = '{table_name}'
+            #     AND NOT EXISTS (SELECT 1 FROM {metadata_table_id} m WHERE m.DATABASE_NAME = '{database_name}' and m.SCHEMA_NAME = '{schema_name}' and m.TABLE_NAME = '{table_name}');
+            # """
+            cursor = self.client.cursor()
+            cursor.execute(query)
+            results = cursor.fetchall()
+            columns = [col[0].lower() for col in cursor.description]
+            cached_metadata = [dict(zip(columns, row)) for row in results]
+            cursor.close()
+            return cached_metadata
+
+            print(
+                f"Retrieved cached rows from {metadata_table_id} for {database_name}.{schema_name}.{table_name}"
+            )
+        except Exception as e:
+            print(
+                f"Cached rows from APP_SHARE.HARVEST_RESULTS NOT retrieved from {metadata_table_id} for {database_name}.{schema_name}.{table_name} due to erorr {e}"
+            )
+
+    # snowed
+
+    # snowed
+    def refresh_connection(self):
+        if self.token_connection:
+            self.connection = self._create_connection()
+
+    # def connection(self) -> snowflake.connector.SnowflakeConnection:
+
+    #     if os.path.isfile("/snowflake/session/token"):
+    #         creds = {
+    #             "host": os.getenv("SNOWFLAKE_HOST"),
+    #             "port": os.getenv("SNOWFLAKE_PORT"),
+    #             "protocol": "https",
+    #             "account": os.getenv("SNOWFLAKE_ACCOUNT"),
+    #             "authenticator": "oauth",
+    #             "token": open("/snowflake/session/token", "r").read(),
+    #             "warehouse": os.getenv("SNOWFLAKE_WAREHOUSE"),
+    #             "database": os.getenv("SNOWFLAKE_DATABASE"),
+    #             "schema": os.getenv("SNOWFLAKE_SCHEMA"),
+    #             "client_session_keep_alive": True,
+    #         }
+    #     else:
+    #         creds = {
+    #             "account": os.getenv("SNOWFLAKE_ACCOUNT"),
+    #             "user": os.getenv("SNOWFLAKE_USER"),
+    #             "password": os.getenv("SNOWFLAKE_PASSWORD"),
+    #             "warehouse": os.getenv("SNOWFLAKE_WAREHOUSE"),
+    #             "database": os.getenv("SNOWFLAKE_DATABASE"),
+    #             "schema": os.getenv("SNOWFLAKE_SCHEMA"),
+    #             "client_session_keep_alive": True,
+    #         }
+
+    #     connection = snowflake.connector.connect(**creds)
+    #     return connection
+
+
+    def _create_connection(self):
+        # Snowflake token testing
+        self.token_connection = False
+        #  logger.warn('Creating connection..')
+        SNOWFLAKE_ACCOUNT = os.getenv("SNOWFLAKE_ACCOUNT", self.account)
+        SNOWFLAKE_HOST = os.getenv("SNOWFLAKE_HOST", None)
+        logger.info("Checking possible SPCS ENV vars -- Account, Host: %s, %s", SNOWFLAKE_ACCOUNT, SNOWFLAKE_HOST,)
+
+        logger.info("SNOWFLAKE_HOST: %s", os.getenv("SNOWFLAKE_HOST"))
+        logger.info("SNOWFLAKE_ACCOUNT: %s", os.getenv("SNOWFLAKE_ACCOUNT"))
+        logger.info("SNOWFLAKE_PORT: %s", os.getenv("SNOWFLAKE_PORT"))
+        #  logger.warn('SNOWFLAKE_WAREHOUSE: %s', os.getenv('SNOWFLAKE_WAREHOUSE'))
+        logger.info("SNOWFLAKE_DATABASE: %s", os.getenv("SNOWFLAKE_DATABASE"))
+        logger.info("SNOWFLAKE_SCHEMA: %s", os.getenv("SNOWFLAKE_SCHEMA"))
+
+        if (SNOWFLAKE_ACCOUNT and SNOWFLAKE_HOST and os.getenv("SNOWFLAKE_PASSWORD_OVERRIDE", None) == None):
+            # token based connection from SPCS
+            with open("/snowflake/session/token", "r") as f:
+                snowflake_token = f.read()
+            print(f"Natapp Connection: SPCS Snowflake token found, length: {len(snowflake_token)}", flush=True)
+            self.token_connection = True
+            #   logger.warn('Snowflake token mode (SPCS)...')
+            if os.getenv("SNOWFLAKE_SECURE", "TRUE").upper() == "FALSE":
+                #        logger.info('insecure mode')
+                return connect(
+                    host=os.getenv("SNOWFLAKE_HOST"),
+                    #        port = os.getenv('SNOWFLAKE_PORT'),
+                    protocol="https",
+                    database=os.getenv("SNOWFLAKE_DATABASE"),
+                    schema=os.getenv("SNOWFLAKE_SCHEMA"),
+                    account=os.getenv("SNOWFLAKE_ACCOUNT"),
+                    token=snowflake_token,
+                    authenticator="oauth",
+                    insecure_mode=True,
+                    client_session_keep_alive=True,
+                )
+
+            else:
+                #        logger.info('secure mode')
+                return connect(
+                    host=os.getenv("SNOWFLAKE_HOST"),
+                    #         port = os.getenv('SNOWFLAKE_PORT'),
+                    #         protocol = 'https',
+                    database=os.getenv("SNOWFLAKE_DATABASE"),
+                    schema=os.getenv("SNOWFLAKE_SCHEMA"),
+                    account=os.getenv("SNOWFLAKE_ACCOUNT"),
+                    token=snowflake_token,
+                    authenticator="oauth",
+                    client_session_keep_alive=True,
+                )
+
+        print("Creating Snowflake regular connection...")
+        # self.token_connection = False
+
+        if os.getenv("SNOWFLAKE_SECURE", "TRUE").upper() == "FALSE":
+            return connect(
+                user=self.user,
+                password=self.password,
+                account=self.account,
+                warehouse=self.warehouse,
+                database=self.database,
+                role=self.role,
+                insecure_mode=True,
+                client_session_keep_alive=True,
+            )
+        else:
+            return connect(
+                user=self.user,
+                password=self.password,
+                account=self.account,
+                warehouse=self.warehouse,
+                database=self.database,
+                role=self.role,
+                client_session_keep_alive=True,
+            )
+
+    # snowed
+    def connector_type(self):
+        return "snowflake"
+
+    def get_databases(self, thread_id=None):
+        databases = []
+        # query = (
+        #     "SELECT source_name, database_name, schema_inclusions, schema_exclusions, status, refresh_interval, initial_crawl_complete FROM "
+        #     + self.harvest_control_table_name
+        # )
+        if os.environ.get("CORTEX_MODE", 'False') == 'True':
+            embedding_column = 'embedding_native'
+        else:
+            embedding_column = 'embedding'
+
+        # query = (
+        #     f"""SELECT c.source_name, c.database_name, c.schema_inclusions, c.schema_exclusions, c.status, c.refresh_interval, MAX(CASE WHEN c.initial_crawl_complete = FALSE THEN FALSE ELSE CASE WHEN c.initial_crawl_complete = TRUE AND r.{embedding_column} IS NULL THEN FALSE ELSE TRUE END END) AS initial_crawl_complete 
+        #       FROM {self.harvest_control_table_name} c LEFT OUTER JOIN {self.metadata_table_name} r ON c.source_name = r.source_name AND c.database_name = r.database_name 
+        #       GROUP BY c.source_name,c.database_name,c.schema_inclusions,c.schema_exclusions,c.status, c.refresh_interval, c.initial_crawl_complete
+        #     """
+        # )
+
+        query = (
+            f"""SELECT c.source_name,  c.database_name, c.schema_inclusions,  c.schema_exclusions, c.status,  c.refresh_interval, 
+                    MAX(CASE WHEN c.initial_crawl_complete = FALSE THEN FALSE WHEN embedding_count < total_count THEN FALSE ELSE TRUE END) AS initial_crawl_complete 
+                FROM (
+                    SELECT c.source_name,  c.database_name, c.schema_inclusions, c.schema_exclusions,  c.status,  c.refresh_interval,  COUNT(r.{embedding_column}) AS embedding_count,  COUNT(*) AS total_count, c.initial_crawl_complete
+                    FROM {self.genbot_internal_project_and_schema}.harvest_control c LEFT OUTER JOIN {self.genbot_internal_project_and_schema}.harvest_results r ON c.source_name = r.source_name AND c.database_name = r.database_name 
+                    GROUP BY c.source_name, c.database_name, c.schema_inclusions, c.schema_exclusions, c.status, c.refresh_interval, c.initial_crawl_complete) AS c
+                GROUP BY source_name, database_name, schema_inclusions, schema_exclusions, status, refresh_interval
+            """
+        )
+        cursor = self.connection.cursor()
+        cursor.execute(query)
+        results = cursor.fetchall()
+        columns = [col[0].lower() for col in cursor.description]
+        databases = [dict(zip(columns, row)) for row in results]
+        cursor.close()
+
+        return databases
+
+    def get_visible_databases(self, thread_id=None):
+        schemas = []
+        query = "SHOW DATABASES"
+        cursor = self.connection.cursor()
+        cursor.execute(query)
+        for row in cursor:
+            schemas.append(row[1])  # Assuming the schema name is in the second column
+        cursor.close()
+        return schemas
+
+    def get_schemas(self, database, thread_id=None):
+        schemas = []
+        try:
+            query = f'SHOW SCHEMAS IN DATABASE "{database}"'
+            cursor = self.connection.cursor()
+            cursor.execute(query)
+            for row in cursor:
+                schemas.append(row[1])  # Assuming the schema name is in the second column
+            cursor.close()
+        except Exception as e:
+            # print(f"error getting schemas for {database}: {e}")
+            return schemas
+        return schemas
+
+    def get_tables(self, database, schema, thread_id=None):
+        tables = []
+        try:
+            query = f'SHOW TABLES IN "{database}"."{schema}"'
+            cursor = self.connection.cursor()
+            cursor.execute(query)
+            for row in cursor:
+                tables.append(
+                    {"table_name": row[1], "object_type": "TABLE"}
+                )  # Assuming the table name is in the second column and DDL in the third
+            cursor.close()
+            query = f'SHOW VIEWS IN "{database}"."{schema}"'
+            cursor = self.connection.cursor()
+            cursor.execute(query)
+            for row in cursor:
+                tables.append(
+                    {"table_name": row[1], "object_type": "VIEW"}
+                )  # Assuming the table name is in the second column and DDL in the third
+            cursor.close()
+        except Exception as e:
+            # print(f"error getting tables for {database}.{schema}: {e}")
+            return tables
+        return tables
+
+    def get_columns(self, database, schema, table):
+        columns = []
+        try:
+            query = f'SHOW COLUMNS IN "{database}"."{schema}"."{table}"'
+            cursor = self.connection.cursor()
+            cursor.execute(query)
+            for row in cursor:
+                columns.append(row[2])  # Assuming the column name is in the first column
+            cursor.close()
+        except Exception as e:
+            return columns
+        return columns
+
+    def alt_get_ddl(self,table_name = None):
+        #print(table_name) 
+        describe_query = f"DESCRIBE TABLE {table_name};"
+        try:
+            describe_result = self.run_query(query=describe_query, max_rows=1000, max_rows_override=True)
+        except:
+            return None 
+        
+        ddl_statement = "CREATE TABLE " + table_name + " (\n"
+        for column in describe_result:
+            column_name = column['name']
+            column_type = column['type']
+            nullable = " NOT NULL" if not column['null?'] else ""
+            default = f" DEFAULT {column['default']}" if column['default'] is not None else ""
+            comment = f" COMMENT '{column['comment']}'" if 'comment' in column and column['comment'] is not None else ""
+            key = ""
+            if column.get('primary_key', False):
+                key = " PRIMARY KEY"
+            elif column.get('unique_key', False):
+                key = " UNIQUE"
+            ddl_statement += f"    {column_name} {column_type}{nullable}{default}{key}{comment},\n"
+        ddl_statement = ddl_statement.rstrip(',\n') + "\n);"
+        #print(ddl_statement)
+        return ddl_statement
+
+    def get_sample_data(self, database, schema_name: str, table_name: str):
+        """
+        Fetches 10 rows of sample data from a specific table in Snowflake.
+
+        :param database: The name of the database.
+        :param schema_name: The name of the schema.
+        :param table_name: The name of the table.
+        :return: A list of dictionaries representing rows of sample data.
+        """
+        query = f'SELECT * FROM "{database}"."{schema_name}"."{table_name}" LIMIT 10'
+        cursor = self.connection.cursor()
+        cursor.execute(query)
+        columns = [col[0] for col in cursor.description]
+        sample_data = [dict(zip(columns, row)) for row in cursor]
+        cursor.close()
+        return sample_data
+
+    def create_bot_workspace(self, workspace_schema_name):
+        try:
+
+            query = f"CREATE SCHEMA IF NOT EXISTS {workspace_schema_name}"
+            cursor = self.client.cursor()
+            cursor.execute(query)
+            self.client.commit()
+            logger.info(f"Workspace schema {workspace_schema_name} verified or created")
+            query = f"CREATE STAGE IF NOT EXISTS {workspace_schema_name}.MY_STAGE"
+            cursor = self.client.cursor()
+            cursor.execute(query)
+            self.client.commit()
+            logger.info(f"Workspace stage {workspace_schema_name}.MY_STAGE verified or created")
+        except Exception as e:
+            logger.error(f"Failed to create bot workspace {workspace_schema_name}: {e}")
+
+    def grant_all_bot_workspace(self, workspace_schema_name):
+        try:
+
+            query = f"GRANT ALL PRIVILEGES ON SCHEMA {workspace_schema_name} TO APPLICATION ROLE APP_PUBLIC; "
+            cursor = self.client.cursor()
+            cursor.execute(query)
+            self.client.commit()
+
+            query = f"GRANT SELECT ON ALL TABLES IN SCHEMA {workspace_schema_name} TO APPLICATION ROLE APP_PUBLIC; "
+            cursor = self.client.cursor()
+            cursor.execute(query)
+            self.client.commit()
+
+            query = f"GRANT SELECT ON ALL VIEWS IN SCHEMA {workspace_schema_name} TO APPLICATION ROLE APP_PUBLIC; "
+            cursor = self.client.cursor()
+            cursor.execute(query)
+            self.client.commit()
+
+            query = f"GRANT SELECT ON ALL STAGES IN SCHEMA {workspace_schema_name} TO APPLICATION ROLE APP_PUBLIC; "
+            cursor = self.client.cursor()
+            cursor.execute(query)
+            self.client.commit()
+
+            logger.info(
+                f"Workspace {workspace_schema_name} objects granted to APP_PUBLIC"
+            )
+        except Exception as e:
+            if not os.getenv("GENESIS_LOCAL_RUNNER", "False").lower() == "true":
+                logger.warning("Local runner environment variable is not set. Skipping grant operations.")
+
+    # handle the job_config stuff ...
+    def run_query(
+        self,
+        query=None,
+        max_rows=-1,
+        max_rows_override=False,
+        job_config=None,
+        bot_id=None,
+        connection=None,
+        thread_id=None,
+        note_id = None,
+    ):
+        import core.global_flags as global_flags
+        """
+        Runs a query on Snowflake, supporting parameterized queries.
+
+        :param query: The SQL query to execute.
+        :param query_params: The parameters for the SQL query.
+        :param max_rows: The maximum number of rows to return.
+        :param max_rows_override: If True, allows more than the default maximum rows to be returned.
+        :param job_config: Configuration for the job, not used in this method.
+        :raises: Exception if job_config is provided.
+        :return: A list of dictionaries representing the rows returned by the query.
+        """
+        userquery = False
+
+        if note_id is not None:
+            get_note_query = f"SELECT note_content FROM {self.schema}.BOT_NOTEBOOK WHERE NOTE_ID = '{note_id}'"
+            cursor = self.connection.cursor()
+            cursor.execute(get_note_query)
+            query = cursor.fetchone()[0]
+
+        # Replace all <!Q!>s with single quotes in the query
+        if '<!Q!>' in query:
+            query = query.replace('<!Q!>', "'")
+
+        if query.startswith("USERQUERY::"):
+            userquery = True
+            if max_rows == -1:
+                max_rows = 20
+            query = query[len("USERQUERY::"):]
+        else:
+            if max_rows == -1:
+                max_rows = 100
+
+       # print("run query: ", query)
+
+       # if userquery and not query.endswith(';'):
+       #     return {
+       #      "success": False,
+        #     "Error:": "Error! Query must end with a semicolon.  Add a ; to the end and RUN THIS TOOL AGAIN NOW!"
+        #    }
+
+        if bot_id is not None:
+            bot_llm = os.getenv("BOT_LLM_" + bot_id, "unknown")
+        else:
+            bot_llm = 'unknown'
+        
+
+   #     if not query.endswith('!END_QUERY'):
+   #         return {
+   #             "Success": False,
+   #             "Error": "Truncated query!  You did not generate a full and complete query.  Query must have a '!END_QUERY' tag at the end!. You often do this when there are quotes or single quotes in the query string for some reason.",
+   #             "Query You Sent": query + " <-- see there is no !END_QUERY here!",
+   #             'Hint': 'You should UTF8 encode the query, include the FULL query, and finish with !END_QUERY'
+    #        }
+    #    else:
+    #        if query.endswith('!END_QUERY'):
+    #            query = query[:-len('!END_QUERY')].strip()
+
+        if isinstance(max_rows, str):
+            try:
+                max_rows = int(max_rows)
+            except ValueError:
+                raise ValueError(
+                    "max_rows should be an integer or a string that can be converted to an integer."
+                )
+
+        if job_config is not None:
+            raise Exception("Job configuration is not supported in this method.")
+
+        if max_rows > 100 and not max_rows_override:
+            max_rows = 100
+
+        #   print('running query ... ', query)
+        cursor = self.connection.cursor()
+
+        if userquery and bot_llm == 'cortex' and "\\'" in query:
+            query = query.replace("\\'","'")
+
+        if userquery and bot_llm == 'cortex' and not query.endswith(';'):
+            return { "Success": False,
+                     "Error": "Your query is missing a ; semicolon on the end, or was cut off in your tool call",
+                     "Query you sent": query,
+                     "Action needed": "Resubmit your complete query, including a semicolon at the end;"
+}
+
+        try:
+            #   if query_params:
+            #       cursor.execute(query, query_params)
+            #   else:
+            cursor.execute(query)
+
+            if bot_id is not None:
+                
+                workspace_schema_name = f"{global_flags.project_id}.{bot_id.replace(r'[^a-zA-Z0-9]', '_').replace('-', '_').replace('.', '_')}_WORKSPACE".upper()
+                # call grant_all_bot_workspace()
+                if bot_id is not None and (
+                    "CREATE" in query.upper()
+                    and workspace_schema_name.upper() in query.upper()
+                ):
+                    self.grant_all_bot_workspace(workspace_schema_name)
+
+        except Exception as e:
+
+            if e.errno == 390114 or 'Authentication token has expired' in e.msg:
+                print('Snowflake token expired, re-authenticating...')
+                self.connection: SnowflakeConnection = self._create_connection()
+                self.client = self.connection
+                cursor = self.connection.cursor()
+                try:
+                    cursor.execute(query)
+                    if bot_id is not None:
+                        workspace_schema_name = f"{global_flags.project_id}.{bot_id.replace(r'[^a-zA-Z0-9]', '_').replace('-', '_').replace('.', '_')}_WORKSPACE".upper()
+                        # call grant_all_bot_workspace()
+                        if bot_id is not None and (
+                            "CREATE" in query.upper()
+                            and workspace_schema_name.upper() in query.upper()
+                        ):
+                            self.grant_all_bot_workspace(workspace_schema_name)
+                except Exception as e:
+                    pass
+
+            if "does not exist or not authorized" in str(e):
+                print(
+                    "run query: len:",
+                    len(query),
+                    "\ncaused object or access rights error: ",
+                    e,
+                    " Provided suggestions.",
+                )
+                cursor.close()
+                return {
+                    "Success": False,
+                    "Error": str(e),
+                    "Suggestion": """You have tried to query an object with an incorrect name of one that is not granted to APPLICATION GENESIS_BOTS.
+            To fix this: 
+            1. Make sure you are referencing correct objects that you learned about via search_metadata, or otherwise are sure actually exists
+            2. Explain the error and show the SQL you tried to run to the user, they may be able to help 
+            3. Tell the user that IF they know for sure that this is a valid object, that they may need to run this in a Snowflake worksheet:
+              "CALL GENESIS_LOCAL_DB.SETTINGS.grant_schema_usage_and_select_to_app('<insert database name here>','GENESIS_BOTS');"
+              This will grant the you access to the data in the database.  
+            4. Suggest to the user that the table may have been recreated since it was originally granted, or may be recreated each day as part of an ETL job.  In that case it must be re-granted after each recreation.
+            5. NOTE: You do not have the PUBLIC role or any other role, all object you are granted must be granted TO APPLICATION GENESIS_BOTS, or be granted by grant_schema_usage_and_select_to_app as shown above.
+            """,
+                }
+            
+            print("run query: len=", len(query), "\ncaused error: ", e)
+            cursor.close()
+            return {"Success": False, "Error": str(e)}
+
+        #    print('getting results:')
+        try:
+
+            results = cursor.fetchmany(max(1,max_rows))
+            columns = [col[0] for col in cursor.description]
+
+            sample_data = [dict(zip(columns, row)) for row in results]
+         #   print('query results: ',sample_data)
+
+            # Replace occurrences of triple backticks with triple single quotes in sample data
+            sample_data = [
+                {
+                    key: (
+                        value.replace("```", "\`\`\`")
+                        if isinstance(value, str)
+                        else value
+                    )
+                    for key, value in row.items()
+                }
+                for row in sample_data
+            ]
+        except Exception as e:
+            print("run query: ", query, "\ncaused error: ", e)
+            cursor.close()
+            raise e
+
+        # print('returning result: ', sample_data)
+        cursor.close()
+
+        return sample_data
+
+        self.connection: SnowflakeConnection = self._create_connection()
+
+        self.semantic_models_map = {}
+
+        self.client = self.connection
+
+    def db_list_all_bots(
+        self,
+        project_id,
+        dataset_name,
+        bot_servicing_table,
+        runner_id=None,
+        full=False,
+        slack_details=False,
+        with_instructions=False,
+    ):
+        """
+        Returns a list of all the bots being served by the system, including their runner IDs, names, instructions, tools, etc.
+
+        Returns:
+            list: A list of dictionaries, each containing details of a bot.
+        """
+        # Get the database schema from environment variables
+
+        # Convert with_instructions to boolean if it's a string
+        if isinstance(with_instructions, str):
+            with_instructions = with_instructions.lower() == 'true'
+
+        if full:
+            select_str = "api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instructions, runner_id, slack_app_token, slack_app_level_key, slack_signing_secret, slack_channel_id, available_tools, udf_active, slack_active, files, bot_implementation, bot_intro_prompt, bot_avatar_image, slack_user_allow"
+        else:
+            if slack_details:
+                select_str = "runner_id, bot_id, bot_name, bot_instructions, available_tools, bot_slack_user_id, api_app_id, auth_url, udf_active, slack_active, files, bot_implementation, bot_intro_prompt, slack_user_allow"
+            else:
+                select_str = "runner_id, bot_id, bot_name, bot_instructions, available_tools, bot_slack_user_id, api_app_id, auth_url, udf_active, slack_active, files, bot_implementation, bot_intro_prompt"
+        if not with_instructions and not full:
+            select_str = select_str.replace("bot_instructions, ", "")
+        # Remove bot_instructions if not requested
+        if not with_instructions and not full:
+            select_str = select_str.replace("bot_instructions, ", "")
+            select_str = select_str.replace(", bot_intro_prompt", "")
+
+        # Query to select all bots from the BOT_SERVICING table
+        if runner_id is None:
+            select_query = f"""
+            SELECT {select_str}
+            FROM {project_id}.{dataset_name}.{bot_servicing_table}
+            """
+        else:
+            select_query = f"""
+            SELECT {select_str}
+            FROM {project_id}.{dataset_name}.{bot_servicing_table}
+            WHERE runner_id = '{runner_id}'
+            """
+
+        try:
+            # Execute the query and fetch all bot records
+            cursor = self.connection.cursor()
+            cursor.execute(select_query)
+            bots = cursor.fetchall()
+            columns = [col[0].lower() for col in cursor.description]
+            bot_list = [dict(zip(columns, bot)) for bot in bots]
+            cursor.close()
+            # logger.info(f"Retrieved list of all bots being served by the system.")
+            return bot_list
+        except Exception as e:
+            logger.error(f"Failed to retrieve list of all bots with error: {e}")
+            raise e
+
+    def db_save_slack_config_tokens(
+        self,
+        slack_app_config_token,
+        slack_app_config_refresh_token,
+        project_id,
+        dataset_name,
+    ):
+        """
+        Saves the slack app config token and refresh token for the given runner_id to Snowflake.
+
+        Args:
+            runner_id (str): The unique identifier for the runner.
+            slack_app_config_token (str): The slack app config token to be saved.
+            slack_app_config_refresh_token (str): The slack app config refresh token to be saved.
+        """
+
+        runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
+
+        # Query to insert or update the slack app config tokens
+        query = f"""
+            MERGE INTO {project_id}.{dataset_name}.slack_app_config_tokens USING (
+                SELECT %s AS runner_id
+            ) AS src
+            ON src.runner_id = slack_app_config_tokens.runner_id
+            WHEN MATCHED THEN
+                UPDATE SET slack_app_config_token = %s, slack_app_config_refresh_token = %s
+            WHEN NOT MATCHED THEN
+                INSERT (runner_id, slack_app_config_token, slack_app_config_refresh_token)
+                VALUES (src.runner_id, %s, %s)
+        """
+
+        # Execute the query
+        try:
+            cursor = self.client.cursor()
+            cursor.execute(
+                query,
+                (
+                    runner_id,
+                    slack_app_config_token,
+                    slack_app_config_refresh_token,
+                    slack_app_config_token,
+                    slack_app_config_refresh_token,
+                ),
+            )
+            self.client.commit()
+            logger.info(f"Slack config tokens updated for runner_id: {runner_id}")
+        except Exception as e:
+            logger.error(
+                f"Failed to update Slack config tokens for runner_id: {runner_id} with error: {e}"
+            )
+            raise e
+
+    def db_get_slack_config_tokens(self, project_id, dataset_name):
+        """
+        Retrieves the current slack access keys for the given runner_id from Snowflake.
+
+        Args:
+            runner_id (str): The unique identifier for the runner.
+
+        Returns:
+            tuple: A tuple containing the slack app config token and the slack app config refresh token.
+        """
+
+        runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
+
+        # Query to retrieve the slack app config tokens
+        query = f"""
+            SELECT slack_app_config_token, slack_app_config_refresh_token
+            FROM {project_id}.{dataset_name}.slack_app_config_tokens
+            WHERE runner_id = '{runner_id}'
+        """
+
+        # Execute the query and fetch the results
+        try:
+            cursor = self.client.cursor()
+            cursor.execute(query)
+            result = cursor.fetchone()
+            if result:
+                slack_app_config_token, slack_app_config_refresh_token = result
+                return slack_app_config_token, slack_app_config_refresh_token
+            else:
+                # Log an error if no tokens were found for the runner_id
+                logger.error(f"No Slack config tokens found for runner_id: {runner_id}")
+                return None, None
+        except Exception as e:
+            logger.error(f"Failed to retrieve Slack config tokens with error: {e}")
+            raise
+
+    def db_get_ngrok_auth_token(self, project_id, dataset_name):
+        """
+        Retrieves the ngrok authentication token and related information for the given runner_id from Snowflake.
+
+        Args:
+            runner_id (str): The unique identifier for the runner.
+
+        Returns:
+            tuple: A tuple containing the ngrok authentication token, use domain flag, and domain.
+        """
+
+        runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
+
+        # Query to retrieve the ngrok auth token and related information
+        query = f"""
+            SELECT ngrok_auth_token, ngrok_use_domain, ngrok_domain
+            FROM {project_id}.{dataset_name}.ngrok_tokens
+            WHERE runner_id = %s
+        """
+
+        # Execute the query and fetch the results
+        try:
+            cursor = self.client.cursor()
+            cursor.execute(query, (runner_id,))
+            result = cursor.fetchone()
+            cursor.close()
+
+            # Extract tokens from the result
+            if result:
+                ngrok_token, ngrok_use_domain, ngrok_domain = result
+                return ngrok_token, ngrok_use_domain, ngrok_domain
+            else:
+                # Log an error if no tokens were found for the runner_id
+                logger.error(
+                    f"No Ngrok config token found in database for runner_id: {runner_id}"
+                )
+                return None, None, None
+        except Exception as e:
+            logger.error(f"Failed to retrieve Ngrok config token with error: {e}")
+            raise
+
+    def db_set_ngrok_auth_token(
+        self,
+        ngrok_auth_token,
+        ngrok_use_domain="N",
+        ngrok_domain="",
+        project_id=None,
+        dataset_name=None,
+    ):
+        """
+        Updates the ngrok_tokens table with the provided ngrok authentication token, use domain flag, and domain.
+
+        Args:
+            ngrok_auth_token (str): The ngrok authentication token.
+            ngrok_use_domain (str): Flag indicating whether to use a custom domain.
+            ngrok_domain (str): The custom domain to use if ngrok_use_domain is 'Y'.
+        """
+        runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
+
+        # Query to merge the ngrok tokens, inserting if the row doesn't exist
+        query = f"""
+            MERGE INTO {project_id}.{dataset_name}.ngrok_tokens USING (SELECT 1 AS one) ON (runner_id = %s)
+            WHEN MATCHED THEN
+                UPDATE SET ngrok_auth_token = %s,
+                           ngrok_use_domain = %s,
+                           ngrok_domain = %s
+            WHEN NOT MATCHED THEN
+                INSERT (runner_id, ngrok_auth_token, ngrok_use_domain, ngrok_domain)
+                VALUES (%s, %s, %s, %s)
+        """
+
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute(
+                query,
+                (
+                    runner_id,
+                    ngrok_auth_token,
+                    ngrok_use_domain,
+                    ngrok_domain,
+                    runner_id,
+                    ngrok_auth_token,
+                    ngrok_use_domain,
+                    ngrok_domain,
+                ),
+            )
+            self.connection.commit()
+            affected_rows = cursor.rowcount
+            cursor.close()
+
+            if affected_rows > 0:
+                logger.info(f"Updated ngrok tokens for runner_id: {runner_id}")
+                return True
+            else:
+                logger.error(f"No rows updated for runner_id: {runner_id}")
+                return False
+        except Exception as e:
+            logger.error(
+                f"Failed to update ngrok tokens for runner_id: {runner_id} with error: {e}"
+            )
+            return False
+
+    def db_get_llm_key(self, project_id=None, dataset_name=None):
+        """
+        Retrieves all LLM keys, types, and endpoints for the current runner.
+
+        Args:
+            project_id: Unused, kept for interface compatibility.
+            dataset_name: Unused, kept for interface compatibility.
+
+        Returns:
+            list: A list of structs containing LLM key, type, and endpoint.
+        """
+        runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
+        query = f"""
+            SELECT llm_key, llm_type, llm_endpoint
+            FROM {self.genbot_internal_project_and_schema}.llm_tokens
+            WHERE runner_id = %s
+        """
+        try:
+            with self.connection.cursor() as cursor:
+                cursor.execute(query, (runner_id,))
+                results = cursor.fetchall()
+                
+            if results:
+                return [llm_keys_and_types_struct(llm_type=result[1], llm_key=result[0], llm_endpoint=result[2]) for result in results]
+            else:
+                logger.info("No LLM tokens found for runner_id: %s", runner_id)
+                return []
+        except Exception as e:
+            logger.error("Error retrieving LLM tokens: %s", str(e))
+            return []
+        
+    def db_get_active_llm_key(self, i = -1):
+        """
+        Retrieves the active LLM key and type for the given runner_id.
+
+        Returns:
+            list: A list of tuples, each containing an LLM key and LLM type.
+        """
+        runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
+        logger.info("in getllmkey")
+        # Query to select the LLM key and type from the llm_tokens table
+        query = f"""
+            SELECT llm_key, llm_type, llm_endpoint
+            FROM {self.genbot_internal_project_and_schema}.llm_tokens
+            WHERE runner_id = %s and active = True
+        """
+        logger.info(f"query: {query}")
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute(query, (runner_id,))
+            result = cursor.fetchone()  # Fetch a single result
+            cursor.close()
+
+            if result:
+                return llm_keys_and_types_struct(llm_type=result[1], llm_key=result[0], llm_endpoint=result[2])
+            else:
+                return llm_keys_and_types_struct()  # Return None if no result found
+        except Exception as e:
+            if "identifier 'ACTIVE" in e.msg:
+                if i == 0:
+                    print('Waiting on upgrade of LLM_TOKENS table with ACTIVE column in primary service...')
+            else:
+                print(
+                    "Error getting data from LLM_TOKENS table: ", e
+                )
+            return None, None
+
+    def db_set_llm_key(self, llm_key, llm_type, llm_endpoint):
+        """
+        Updates the llm_tokens table with the provided LLM key and type.
+
+        Args:
+            llm_key (str): The LLM key.
+            llm_type (str|BotLlmEngineEnum): The type of LLM (e.g., 'openai', 'reka').
+            llm_endpoint (str): endpoint for LLM like azure openai
+        """
+        runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
+
+        # validate llm_type; use the str value for the rest of this method
+        llm_type = BotLlmEngineEnum(llm_type).value # use the str value (e.g. 'openai)
+
+        try:
+            update_query = f"""
+    UPDATE  {self.genbot_internal_project_and_schema}.llm_tokens 
+    SET ACTIVE = FALSE 
+    WHERE RUNNER_ID = '{runner_id}'
+    """
+            cursor = self.connection.cursor()
+            cursor.execute(update_query)
+            self.connection.commit()
+        except Exception as e:
+            logger.error(
+                f"Failed to deactivate current active LLM with error: {e}"
+            )
+
+        # Query to merge the LLM tokens, inserting if the row doesn't exist
+        query = f"""
+            MERGE INTO  {self.genbot_internal_project_and_schema}.llm_tokens USING (SELECT 1 AS one) ON (runner_id = %s and llm_type = '{llm_type}')
+            WHEN MATCHED THEN
+                UPDATE SET llm_key = %s, llm_type = %s, active = TRUE, llm_endpoint = %s
+            WHEN NOT MATCHED THEN
+                INSERT (runner_id, llm_key, llm_type, active, llm_endpoint)
+                VALUES (%s, %s, %s, TRUE, %s)
+        """
+
+        try:
+            if llm_key:
+                cursor = self.connection.cursor()
+                cursor.execute(
+                    query, (runner_id, llm_key, llm_type, llm_endpoint, runner_id, llm_key, llm_type, llm_endpoint)
+                )
+                self.connection.commit()
+                affected_rows = cursor.rowcount
+                cursor.close()
+
+                if affected_rows > 0:
+                    logger.info(f"Updated LLM key for runner_id: {runner_id}")
+                    return True
+                else:
+                    logger.error(f"No rows updated for runner_id: {runner_id}")
+                    return False
+            else:
+                print("key variable is empty and was not stored in the database")
+        except Exception as e:
+            logger.error(
+                f"Failed to update LLM key for runner_id: {runner_id} with error: {e}"
+            )
+            return False
+
+    def db_insert_new_bot(
+        self,
+        api_app_id,
+        bot_slack_user_id,
+        bot_id,
+        bot_name,
+        bot_instructions,
+        runner_id,
+        slack_signing_secret,
+        slack_channel_id,
+        available_tools,
+        auth_url,
+        auth_state,
+        client_id,
+        client_secret,
+        udf_active,
+        slack_active,
+        files,
+        bot_implementation,
+        bot_avatar_image,
+        bot_intro_prompt,
+        slack_user_allow,
+        project_id,
+        dataset_name,
+        bot_servicing_table,
+    ):
+        """
+        Inserts a new bot configuration into the BOT_SERVICING table.
+
+        Args:
+            api_app_id (str): The API application ID for the bot.
+            bot_slack_user_id (str): The Slack user ID for the bot.
+            bot_id (str): The unique identifier for the bot.
+            bot_name (str): The name of the bot.
+            bot_instructions (str): Instructions for the bot's operation.
+            runner_id (str): The identifier for the runner that will manage this bot.
+            slack_signing_secret (str): The Slack signing secret for the bot.
+            slack_channel_id (str): The Slack channel ID where the bot will operate.
+            available_tools (json): A JSON of tools the bot has access to.
+            files (json): A JSON of files to include with the bot.
+            bot_implementation (str): cortex or openai or ...
+            bot_intro_prompt: Default prompt for a bot introductory greeting
+            bot_avatar_image: Default GenBots avatar image
+        """
+
+        insert_query = f"""
+            INSERT INTO {project_id}.{dataset_name}.{bot_servicing_table} (
+                api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instructions, runner_id, 
+                slack_signing_secret, slack_channel_id, available_tools, auth_url, auth_state, client_id, client_secret, udf_active, slack_active,
+                files, bot_implementation, bot_intro_prompt, bot_avatar_image
+            ) VALUES (
+                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+            )
+        """
+
+        available_tools_string = json.dumps(available_tools)
+        files_string = json.dumps(files)
+
+        # validate certain params
+        bot_implementation = BotLlmEngineEnum(bot_implementation).value if bot_implementation else None
+
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute(
+                insert_query,
+                (
+                    api_app_id,
+                    bot_slack_user_id,
+                    bot_id,
+                    bot_name,
+                    bot_instructions,
+                    runner_id,
+                    slack_signing_secret,
+                    slack_channel_id,
+                    available_tools_string,
+                    auth_url,
+                    auth_state,
+                    client_id,
+                    client_secret,
+                    udf_active,
+                    slack_active,
+                    files_string,
+                    bot_implementation,
+                    bot_intro_prompt,
+                    bot_avatar_image,
+                ),
+            )
+            self.connection.commit()
+            print(f"Successfully inserted new bot configuration for bot_id: {bot_id}")
+
+            if not slack_user_allow:
+                slack_user_allow_update_query = f"""
+                    UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
+                    SET slack_user_allow = parse_json(%s)
+                    WHERE upper(bot_id) = upper(%s)
+                    """
+                slack_user_allow_value = '["!BLOCK_ALL"]'
+                try:
+                    cursor.execute(
+                        slack_user_allow_update_query, (slack_user_allow_value, bot_id)
+                    )
+                    self.connection.commit()
+                    print(
+                        f"Updated slack_user_allow for bot_id: {bot_id} to block all users."
+                    )
+                except Exception as e:
+                    print(
+                        f"Failed to update slack_user_allow for bot_id: {bot_id} with error: {e}"
+                    )
+                    raise e
+
+        except Exception as e:
+            print(
+                f"Failed to insert new bot configuration for bot_id: {bot_id} with error: {e}"
+            )
+            raise e
+
+    def db_update_bot_tools(
+        self,
+        project_id=None,
+        dataset_name=None,
+        bot_servicing_table=None,
+        bot_id=None,
+        updated_tools_str=None,
+        new_tools_to_add=None,
+        already_present=None,
+        updated_tools=None,
+    ):
+        import core.global_flags as global_flags
+        # Query to update the available_tools in the database
+        update_query = f"""
+            UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
+            SET available_tools = %s
+            WHERE upper(bot_id) = upper(%s)
+        """
+
+        # Execute the update query
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute(update_query, (updated_tools_str, bot_id))
+            self.connection.commit()
+            logger.info(f"Successfully updated available_tools for bot_id: {bot_id}")
+
+            if "DATABASE_TOOLS" in updated_tools_str.upper():
+                workspace_schema_name = f"{global_flags.project_id}.{bot_id.replace(r'[^a-zA-Z0-9]', '_').replace('-', '_')}_WORKSPACE".upper()
+                self.create_bot_workspace(workspace_schema_name)
+                self.grant_all_bot_workspace(workspace_schema_name)
+                # TODO add instructions?
+
+            return {
+                "success": True,
+                "added": new_tools_to_add,
+                "already_present": already_present,
+                "all_bot_tools": updated_tools,
+            }
+
+        except Exception as e:
+            logger.error(f"Failed to add new tools to bot_id: {bot_id} with error: {e}")
+            return {"success": False, "error": str(e)}
+
+    def db_update_bot_files(
+        self,
+        project_id=None,
+        dataset_name=None,
+        bot_servicing_table=None,
+        bot_id=None,
+        updated_files_str=None,
+        current_files=None,
+        new_file_ids=None,
+    ):
+        # Query to update the files in the database
+        update_query = f"""
+            UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
+            SET files = %s
+            WHERE upper(bot_id) = upper(%s)
+        """
+        # Execute the update query
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute(update_query, (updated_files_str, bot_id))
+            self.connection.commit()
+            logger.info(f"Successfully updated files for bot_id: {bot_id}")
+
+            return {
+                "success": True,
+                "message": f"File IDs {json.dumps(new_file_ids)} added to or removed from bot_id: {bot_id}.",
+                "current_files_list": current_files,
+            }
+
+        except Exception as e:
+            logger.error(
+                f"Failed to add or remove new file to bot_id: {bot_id} with error: {e}"
+            )
+            return {"success": False, "error": str(e)}
+
+    def db_update_slack_app_level_key(
+        self, project_id, dataset_name, bot_servicing_table, bot_id, slack_app_level_key
+    ):
+        """
+        Updates the SLACK_APP_LEVEL_KEY field in the BOT_SERVICING table for a given bot_id.
+
+        Args:
+            project_id (str): The project identifier.
+            dataset_name (str): The dataset name.
+            bot_servicing_table (str): The bot servicing table name.
+            bot_id (str): The unique identifier for the bot.
+            slack_app_level_key (str): The new Slack app level key to be set for the bot.
+
+        Returns:
+            dict: A dictionary with the result of the operation, indicating success or failure.
+        """
+        update_query = f"""
+            UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
+            SET SLACK_APP_LEVEL_KEY = %s
+            WHERE upper(bot_id) = upper(%s)
+        """
+
+        # Execute the update query
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute(update_query, (slack_app_level_key, bot_id))
+            self.connection.commit()
+            logger.info(
+                f"Successfully updated SLACK_APP_LEVEL_KEY for bot_id: {bot_id}"
+            )
+
+            return {
+                "success": True,
+                "message": f"SLACK_APP_LEVEL_KEY updated for bot_id: {bot_id}.",
+            }
+
+        except Exception as e:
+            logger.error(
+                f"Failed to update SLACK_APP_LEVEL_KEY for bot_id: {bot_id} with error: {e}"
+            )
+            return {"success": False, "error": str(e)}
+
+    def db_update_bot_instructions(
+        self,
+        project_id,
+        dataset_name,
+        bot_servicing_table,
+        bot_id,
+        instructions,
+        runner_id,
+    ):
+
+        # Query to update the bot instructions in the database
+        update_query = f"""
+            UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
+            SET bot_instructions = %s
+            WHERE upper(bot_id) = upper(%s) AND runner_id = %s
+        """
+
+        # Execute the update query
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute(update_query, (instructions, bot_id, runner_id))
+            self.connection.commit()
+            logger.info(f"Successfully updated bot_instructions for bot_id: {bot_id}")
+            bot_details = self.db_get_bot_details(
+                project_id, dataset_name, bot_servicing_table, bot_id
+            )
+
+            return {
+                "success": True,
+                "Message": f"Successfully updated bot_instructions for bot_id: {bot_id}.",
+                "new_instructions": instructions,
+                "new_bot_details": bot_details,
+            }
+
+        except Exception as e:
+            logger.error(
+                f"Failed to update bot_instructions for bot_id: {bot_id} with error: {e}"
+            )
+            return {"success": False, "error": str(e)}
+
+    def db_update_bot_implementation(
+        self,
+        project_id,
+        dataset_name,
+        bot_servicing_table,
+        bot_id,
+        bot_implementation,
+        runner_id,
+        thread_id = None):
+        """
+        Updates the implementation type for a specific bot in the database.
+
+        Args:
+            project_id (str): The project ID where the bot servicing table is located.
+            dataset_name (str): The dataset name where the bot servicing table is located.
+            bot_servicing_table (str): The name of the table where bot details are stored.
+            bot_id (str): The unique identifier for the bot.
+            bot_implementation (str): The new implementation type to be set for the bot.
+            runner_id (str): The runner ID associated with the bot.
+
+        Returns:
+            dict: A dictionary with the result of the operation, indicating success or failure.
+        """
+
+        # validate inputs
+        bot_implementation = BotLlmEngineEnum(bot_implementation).value if bot_implementation else None
+
+        # Query to update the bot implementation in the database
+        update_query = f"""
+            UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
+            SET bot_implementation = %s
+            WHERE upper(bot_id) = upper(%s) AND runner_id = %s
+        """
+
+        # Check if bot_id is valid
+        valid_bot_query = f"""
+            SELECT COUNT(*)
+            FROM {project_id}.{dataset_name}.{bot_servicing_table}
+            WHERE upper(bot_id) = upper(%s)
+        """
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute(valid_bot_query, (bot_id,))
+            result = cursor.fetchone()
+            if result[0] == 0:
+                return {
+                    "success": False,
+                    "error": f"Invalid bot_id: {bot_id}. Please use list_all_bots to get the correct bot_id."
+                }
+        except Exception as e:
+            logger.error(f"Error checking bot_id validity for bot_id: {bot_id} with error: {e}")
+            return {"success": False, "error": str(e)}
+
+        # Execute the update query
+        try:
+            cursor = self.connection.cursor()
+            res = cursor.execute(update_query, (bot_implementation, bot_id, runner_id))
+            self.connection.commit()
+            result = cursor.fetchone()
+            if result[0] == 0 and result[1] == 0:
+                return {
+                    "success": False,
+                    "error": f"No bots found to update.  Possibly wrong bot_id. Please use list_all_bots to get the correct bot_id."
+                }
+            logger.info(f"Successfully updated bot_implementation for bot_id: {bot_id} to {bot_implementation}")
+
+            # trigger the changed bot to reload its session
+            os.environ[f'RESET_BOT_SESSION_{bot_id}'] = 'True'
+
+
+            return {
+                "success": True,
+                "message": f"bot_implementation updated for bot_id: {bot_id}.",
+            }
+
+        except Exception as e:
+            logger.error(
+                f"Failed to update bot_implementation for bot_id: {bot_id} with error: {e}"
+            )
+            return {"success": False, "error": str(e)}
+
+    def db_update_slack_allow_list(
+        self,
+        project_id,
+        dataset_name,
+        bot_servicing_table,
+        bot_id,
+        slack_user_allow_list,
+        thread_id=None,
+    ):
+        """
+        Updates the SLACK_USER_ALLOW list for a bot in the database.
+
+        Args:
+            bot_id (str): The unique identifier for the bot.
+            slack_user_allow_list (list): The updated list of Slack user IDs allowed for the bot.
+
+        Returns:
+            dict: A dictionary with the result of the operation, indicating success or failure.
+        """
+
+        # Query to update the SLACK_USER_ALLOW list in the database
+        update_query = f"""
+            UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
+            SET SLACK_USER_ALLOW = parse_json(%s)
+            WHERE upper(bot_id) = upper(%s)
+        """
+
+        # Convert the list to a format suitable for database storage (e.g., JSON string)
+        slack_user_allow_list_str = json.dumps(slack_user_allow_list)
+        if slack_user_allow_list == []:
+            update_query = f"""
+            UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
+            SET SLACK_USER_ALLOW = null
+            WHERE upper(bot_id) = upper(%s)
+               """
+
+        # Execute the update query
+        try:
+            cursor = self.connection.cursor()
+            if slack_user_allow_list != []:
+                cursor.execute(update_query, (slack_user_allow_list_str, bot_id))
+            else:
+                cursor.execute(update_query, (bot_id))
+            self.connection.commit()
+            logger.info(
+                f"Successfully updated SLACK_USER_ALLOW list for bot_id: {bot_id}"
+            )
+
+            return {
+                "success": True,
+                "message": f"SLACK_USER_ALLOW list updated for bot_id: {bot_id}.",
+            }
+
+        except Exception as e:
+            logger.error(
+                f"Failed to update SLACK_USER_ALLOW list for bot_id: {bot_id} with error: {e}"
+            )
+            return {"success": False, "error": str(e)}
+
+    def db_get_bot_access(self, bot_id):
+
+        # Query to select bot access list
+        select_query = f"""
+            SELECT slack_user_allow
+            FROM {self.bot_servicing_table_name}
+            WHERE upper(bot_id) = upper(%s)
+        """
+
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute(select_query, (bot_id,))
+            result = cursor.fetchone()
+            cursor.close()
+            if result:
+                # Assuming the result is a tuple, we convert it to a dictionary using the column names
+                columns = [desc[0].lower() for desc in cursor.description]
+                bot_details = dict(zip(columns, result))
+                return bot_details
+            else:
+                logger.error(f"No details found for bot_id: {bot_id}")
+                return None
+        except Exception as e:
+            logger.exception(
+                f"Failed to retrieve details for bot_id: {bot_id} with error: {e}"
+            )
+            return None
+
+    def db_get_bot_details(self, project_id, dataset_name, bot_servicing_table, bot_id):
+        """
+        Retrieves the details of a bot based on the provided bot_id from the BOT_SERVICING table.
+
+        Args:
+            bot_id (str): The unique identifier for the bot.
+
+        Returns:
+            dict: A dictionary containing the bot details if found, otherwise None.
+        """
+
+        # Query to select the bot details
+        select_query = f"""
+            SELECT *
+            FROM {project_id}.{dataset_name}.{bot_servicing_table}
+            WHERE upper(bot_id) = upper(%s)
+        """
+
+        try:
+            cursor = self.connection.cursor()
+            # print(select_query, bot_id)
+
+            cursor.execute(select_query, (bot_id,))
+            result = cursor.fetchone()
+            cursor.close()
+            if result:
+                # Assuming the result is a tuple, we convert it to a dictionary using the column names
+                columns = [desc[0].lower() for desc in cursor.description]
+                bot_details = dict(zip(columns, result))
+                return bot_details
+            else:
+                logger.error(f"No details found for bot_id: {bot_id}")
+                return None
+        except Exception as e:
+            logger.exception(
+                f"Failed to retrieve details for bot_id: {bot_id} with error: {e}"
+            )
+            return None
+        
+    def db_get_bot_database_creds(self, project_id, dataset_name, bot_servicing_table, bot_id):
+        """
+        Retrieves the database credentials for a bot based on the provided bot_id from the BOT_SERVICING table.
+
+        Args:
+            bot_id (str): The unique identifier for the bot.
+
+        Returns:
+            dict: A dictionary containing the bot details if found, otherwise None.
+        """
+
+        # Query to select the bot details
+        select_query = f"""
+            SELECT bot_id, database_credentials
+
+                        FROM {project_id}.{dataset_name}.{bot_servicing_table}
+            WHERE upper(bot_id) = upper(%s)
+        """
+
+        try:
+            cursor = self.connection.cursor()
+            # print(select_query, bot_id)
+
+            cursor.execute(select_query, (bot_id,))
+            result = cursor.fetchone()
+            cursor.close()
+            if result:
+                # Assuming the result is a tuple, we convert it to a dictionary using the column names
+                columns = [desc[0].lower() for desc in cursor.description]
+                bot_details = dict(zip(columns, result))
+                return bot_details
+            else:
+                logger.error(f"No details found for bot_id: {bot_id}")
+                return None
+        except Exception as e:
+            logger.exception(
+                f"Failed to retrieve details for bot_id: {bot_id} with error: {e}"
+            )
+            return None
+
+    def db_update_existing_bot(
+        self,
+        api_app_id,
+        bot_id,
+        bot_slack_user_id,
+        client_id,
+        client_secret,
+        slack_signing_secret,
+        auth_url,
+        auth_state,
+        udf_active,
+        slack_active,
+        files,
+        bot_implementation,
+        project_id,
+        dataset_name,
+        bot_servicing_table,
+    ):
+        """
+        Updates an existing bot configuration in the BOT_SERVICING table with new values for the provided parameters.
+
+        Args:
+            bot_id (str): The unique identifier for the bot.
+            bot_slack_user_id (str): The Slack user ID for the bot.
+            client_id (str): The client ID for the bot.
+            client_secret (str): The client secret for the bot.
+            slack_signing_secret (str): The Slack signing secret for the bot.
+            auth_url (str): The authorization URL for the bot.
+            auth_state (str): The authorization state for the bot.
+            udf_active (str): Indicates if the UDF feature is active for the bot.
+            slack_active (str): Indicates if the Slack feature is active for the bot.
+            files (json-embedded list): A list of files to include with the bot.
+            bot_implementation (str): openai or cortex or ...
+        """
+        # validate inputs
+        bot_implementation = BotLlmEngineEnum(bot_implementation).value if bot_implementation else None
+
+        update_query = f"""
+            UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
+            SET API_APP_ID = %s, BOT_SLACK_USER_ID = %s, CLIENT_ID = %s, CLIENT_SECRET = %s,
+                SLACK_SIGNING_SECRET = %s, AUTH_URL = %s, AUTH_STATE = %s,
+                UDF_ACTIVE = %s, SLACK_ACTIVE = %s, FILES = %s, BOT_IMPLEMENTATION = %s
+            WHERE upper(BOT_ID) = upper(%s)
+        """
+
+        try:
+            self.client.cursor().execute(
+                update_query,
+                (
+                    api_app_id,
+                    bot_slack_user_id,
+                    client_id,
+                    client_secret,
+                    slack_signing_secret,
+                    auth_url,
+                    auth_state,
+                    udf_active,
+                    slack_active,
+                    files,
+                    bot_implementation,
+                    bot_id,
+                ),
+            )
+            self.client.commit()
+            print(
+                f"Successfully updated existing bot configuration for bot_id: {bot_id}"
+            )
+        except Exception as e:
+            print(
+                f"Failed to update existing bot configuration for bot_id: {bot_id} with error: {e}"
+            )
+            raise e
+
+    def db_update_bot_details(
+        self,
+        bot_id,
+        bot_slack_user_id,
+        slack_app_token,
+        project_id,
+        dataset_name,
+        bot_servicing_table,
+    ):
+        """
+        Updates the BOT_SERVICING table with the new bot_slack_user_id and slack_app_token for the given bot_id.
+
+        Args:
+            bot_id (str): The unique identifier for the bot.
+            bot_slack_user_id (str): The new Slack user ID for the bot.
+            slack_app_token (str): The new Slack app token for the bot.
+        """
+
+        update_query = f"""
+            UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
+            SET BOT_SLACK_USER_ID = %s, SLACK_APP_TOKEN = %s
+            WHERE upper(BOT_ID) = upper(%s)
+        """
+
+        try:
+            self.client.cursor().execute(
+                update_query, (bot_slack_user_id, slack_app_token, bot_id)
+            )
+            self.client.commit()
+            logger.info(
+                f"Successfully updated bot servicing details for bot_id: {bot_id}"
+            )
+        except Exception as e:
+            logger.error(
+                f"Failed to update bot servicing details for bot_id: {bot_id} with error: {e}"
+            )
+            raise e
+
+    def db_get_available_tools(self, project_id, dataset_name):
+        """
+        Retrieves the list of available tools and their descriptions from the Snowflake table.
+
+        Returns:
+            list of dict: A list of dictionaries, each containing the tool name and description.
+        """
+
+        # Query to select the available tools
+        select_query = f"""
+            SELECT tool_name, tool_description
+            FROM {project_id}.{dataset_name}.available_tools
+        """
+
+        try:
+            cursor = self.client.cursor()
+            cursor.execute(select_query)
+            results = cursor.fetchall()
+            tools_list = [
+                {"tool_name": result[0], "tool_description": result[1]}
+                for result in results
+            ]
+            return tools_list
+        except Exception as e:
+            logger.exception(f"Failed to retrieve available tools with error: {e}")
+            return []
+
+    def db_add_or_update_available_tool(
+        self, tool_name, tool_description, project_id, dataset_name
+    ):
+        """
+        Adds a new tool or updates an existing tool in the available_tools table with the provided name and description.
+
+        Args:
+            tool_name (str): The name of the tool to add or update.
+            tool_description (str): The description of the tool to add or update.
+        Returns:
+            dict: A dictionary containing the result of the operation.
+        """
+        # Query to merge (upsert) tool into the available_tools table
+        merge_query = f"""
+            MERGE INTO {project_id}.{dataset_name}.available_tools USING (
+                SELECT %s AS tool_name, %s AS tool_description
+            ) AS source ON target.tool_name = source.tool_name
+            WHEN MATCHED THEN
+                UPDATE SET tool_description = source.tool_description
+            WHEN NOT MATCHED THEN
+                INSERT (tool_name, tool_description)
+                VALUES (source.tool_name, source.tool_description)
+        """
+
+        # Execute the merge query
+        try:
+            cursor = self.client.cursor()
+            cursor.execute(merge_query, (tool_name, tool_description))
+            self.client.commit()
+            logger.info(f"Successfully added or updated tool: {tool_name}")
+            return {
+                "success": True,
+                "message": f"Tool '{tool_name}' added or updated successfully.",
+            }
+        except Exception as e:
+            logger.error(f"Failed to add or update tool: {tool_name} with error: {e}")
+            return {"success": False, "error": str(e)}
+
+    def db_delete_bot(self, project_id, dataset_name, bot_servicing_table, bot_id):
+        """
+        Deletes a bot from the bot_servicing table in Snowflake based on the bot_id.
+
+        Args:
+            project_id (str): The project identifier.
+            dataset_name (str): The dataset name.
+            bot_servicing_table (str): The bot servicing table name.
+            bot_id (str): The bot identifier to delete.
+        """
+
+        # Query to delete the bot from the database table
+        delete_query = f"""
+            DELETE FROM {project_id}.{dataset_name}.{bot_servicing_table}
+            WHERE upper(bot_id) = upper(%s)
+        """
+
+        # Execute the delete query
+        try:
+            cursor = self.client.cursor()
+            cursor.execute(delete_query, (bot_id,))
+            self.client.commit()
+            logger.info(
+                f"Successfully deleted bot with bot_id: {bot_id} from the database."
+            )
+        except Exception as e:
+            logger.error(
+                f"Failed to delete bot with bot_id: {bot_id} from the database with error: {e}"
+            )
+            raise e
+
+    def db_get_slack_active_bots(
+        self, runner_id, project_id, dataset_name, bot_servicing_table
+    ):
+        """
+        Retrieves a list of active bots on Slack for a given runner from the bot_servicing table in Snowflake.
+
+        Args:
+            runner_id (str): The runner identifier.
+            project_id (str): The project identifier.
+            dataset_name (str): The dataset name.
+            bot_servicing_table (str): The bot servicing table name.
+
+        Returns:
+            list: A list of dictionaries containing bot_id, api_app_id, and slack_app_token.
+        """
+
+        # Query to select the bots from the BOT_SERVICING table
+        select_query = f"""
+            SELECT bot_id, api_app_id, slack_app_token
+            FROM {project_id}.{dataset_name}.{bot_servicing_table}
+            WHERE runner_id = %s AND slack_active = 'Y'
+        """
+
+        try:
+            cursor = self.client.cursor()
+            cursor.execute(select_query, (runner_id,))
+            bots = cursor.fetchall()
+            columns = [col[0].lower() for col in cursor.description]
+            bot_list = [dict(zip(columns, bot)) for bot in bots]
+            cursor.close()
+
+            return bot_list
+        except Exception as e:
+            logger.error(f"Failed to get list of bots active on slack for a runner {e}")
+            raise e
+
+    def db_get_default_avatar(self):
+        """
+        Returns the default GenBots avatar image from the shared images view.
+
+        Args:
+            None
+        """
+
+        # Query to select the default bot image data from the database table
+        select_query = f"""
+            SELECT encoded_image_data
+            FROM {self.images_table_name}
+            WHERE UPPER(bot_name) = UPPER('Default')
+        """
+
+        # Execute the select query
+        try:
+            cursor = self.client.cursor()
+            cursor.execute(select_query)
+            result = cursor.fetchone()
+
+            return result[0]
+            logger.info(
+                f"Successfully selected default image data from the shared schema."
+            )
+        except Exception as e:
+            logger.error(
+                f"Failed to select default image data from the shared with error: {e}"
+            )
+
+    def image_generation(self, prompt, thread_id=None):
+
+        import openai, requests, os
+
+        """
+        Generates an image using OpenAI's DALL-E 3 based on the given prompt and saves it to the local downloaded_files folder.
+
+        Args:
+            prompt (str): The prompt to generate the image from.
+            thread_id (str): The unique identifier for the thread to save the image in the correct location.
+
+        Returns:
+            str: The file path of the saved image.
+        """
+
+        if thread_id is None:
+            import random
+            import string
+
+            thread_id = "".join(
+                random.choices(string.ascii_letters + string.digits, k=10)
+            )
+
+        # Ensure the OpenAI API key is set in your environment variables
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            print("imagegen OpenAI API key is not set in the environment variables.")
+            return {
+                "success": False,
+                "error": "OpenAI key is required to generate images, but one was not found to be available."
+            }
+
+        client = get_openai_client()
+
+        # Generate the image using DALL-E 3
+        try:
+            response = client.images.generate(
+                model="dall-e-3",
+                prompt=prompt,
+                size="1024x1024",
+                quality="standard",
+                n=1,
+            )
+            image_url = response.data[0].url
+            if not image_url:
+                print("imagegen Failed to generate image with DALL-E 3.")
+                return None
+
+            try:
+                # Download the image from the URL
+                image_response = requests.get(image_url)
+                print("imagegen getting image from ", image_url)
+                image_response.raise_for_status()
+                image_bytes = image_response.content
+            except Exception as e:
+                result = {
+                    "success": False,
+                    "error": e,
+                    "solution": """Tell the user to ask their admin run this to allow the Genesis server to access generated images:\n
+                    CREATE OR REPLACE NETWORK RULE GENESIS_LOCAL_DB.SETTINGS.GENESIS_RULE
+                    MODE = EGRESS TYPE = HOST_PORT
+                    VALUE_LIST = ('api.openai.com', 'slack.com', 'www.slack.com', 'wss-primary.slack.com',
+                    'wss-backup.slack.com',  'wss-primary.slack.com:443','wss-backup.slack.com:443', 'slack-files.com',
+                    'oaidalleapiprodscus.blob.core.windows.net:443', 'downloads.slack-edge.com', 'files-edge.slack.com',
+                    'files-origin.slack.com', 'files.slack.com', 'global-upload-edge.slack.com','universal-upload-edge.slack.com');
+
+
+                    CREATE OR REPLACE EXTERNAL ACCESS INTEGRATION GENESIS_EAI
+                    ALLOWED_NETWORK_RULES = (GENESIS_LOCAL_DB.SETTINGS.GENESIS_RULE) ENABLED = true;
+
+                    GRANT USAGE ON INTEGRATION GENESIS_EAI TO APPLICATION   IDENTIFIER($APP_DATABASE);""",
+                }
+                return result
+
+            # Create a sanitized filename from the first 50 characters of the prompt
+            sanitized_prompt = "".join(e if e.isalnum() else "_" for e in prompt[:50])
+            file_path = f"./downloaded_files/{thread_id}/{sanitized_prompt}.png"
+            # Save the image to the local downloaded_files folder
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            with open(file_path, "wb") as image_file:
+                image_file.write(image_bytes)
+
+            print(f"imagegen Image generated and saved to {file_path}")
+
+            result = {
+                "success": True,
+                "result": f'Image generated and saved to server. Output a link like this so the user can see it [description of image](sandbox:/mnt/data/{sanitized_prompt}.png)',
+                "prompt": prompt,
+            }
+
+            return result
+        except Exception as e:
+            print(f"imagegen Error generating image with DALL-E 3: {e}")
+            return None
+
+    def image_analysis(
+        self,
+        query=None,
+        openai_file_id: str = None,
+        file_name: str = None,
+        thread_id=None,
+    ):
+        """
+        Analyzes an image using OpenAI's GPT-4 Turbo Vision.
+
+        Args:
+            query (str): The prompt or question about the image.
+            openai_file_id (str): The OpenAI file ID of the image to analyze.
+            file_name (str): The name of the image file to analyze.
+            thread_id (str): The unique identifier for the thread.
+
+        Returns:
+            dict: A dictionary with the result of the image analysis.
+        """
+        # Ensure the OpenAI API key is set in your environment variables
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            return {
+                "success": False,
+                "message": "OpenAI API key is not set in the environment variables.",
+            }
+
+        # Attempt to find the file using the provided method
+        if file_name is not None and "/" in file_name:
+            file_name = file_name.split("/")[-1]
+        if openai_file_id is not None and "/" in openai_file_id:
+            openai_file_id = openai_file_id.split("/")[-1]
+
+        file_path = f"./downloaded_files/{thread_id}/" + file_name
+        existing_location = f"./downloaded_files/{thread_id}/{openai_file_id}"
+
+        if os.path.isfile(existing_location) and (file_path != existing_location):
+            with open(existing_location, "rb") as source_file:
+                with open(file_path, "wb") as dest_file:
+                    dest_file.write(source_file.read())
+
+        if not os.path.isfile(file_path):
+            logger.error(f"File not found: {file_path}")
+            return {
+                "success": False,
+                "error": "File not found. Please provide a valid file path.",
+            }
+
+        # Function to encode the image
+        def encode_image(image_path):
+            with open(image_path, "rb") as image_file:
+                return base64.b64encode(image_file.read()).decode("utf-8")
+
+        # Getting the base64 string
+        base64_image = encode_image(file_path)
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}",
+        }
+
+        # Use the provided query or a default one if not provided
+        prompt = query if query else "What’s in this image?"
+
+        openai_model_name = os.getenv("OPENAI_MODEL_NAME", "gpt-4o")
+
+        payload = {
+            "model": openai_model_name,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{base64_image}"
+                            },
+                        },
+                    ],
+                }
+            ],
+            "max_tokens": 300,
+        }
+
+        response = requests.post(
+            "https://api.openai.com/v1/chat/completions", headers=headers, json=payload
+        )
+
+        if response.status_code == 200:
+            return {
+                "success": True,
+                "data": response.json()["choices"][0]["message"]["content"],
+            }
+        else:
+            return {
+                "success": False,
+                "error": f"OpenAI API call failed with status code {response.status_code}: {response.text}",
+            }
+
+    # Assuming self.connection is an instance of SnowflakeConnector
+    # with methods run_query() for executing queries and logger is a logging instance.
+    # Test instance creation and calling list_stage method
+
+    def db_remove_bot_tools(
+        self,
+        project_id=None,
+        dataset_name=None,
+        bot_servicing_table=None,
+        bot_id=None,
+        updated_tools_str=None,
+        tools_to_be_removed=None,
+        invalid_tools=None,
+        updated_tools=None,
+    ):
+
+        # Query to update the available_tools in the database
+        update_query = f"""
+                UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
+                SET available_tools = %s
+                WHERE upper(bot_id) = upper(%s)
+            """
+
+        # Execute the update query
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute(update_query, (updated_tools_str, bot_id))
+            self.connection.commit()
+            logger.info(f"Successfully updated available_tools for bot_id: {bot_id}")
+
+            return {
+                "success": True,
+                "removed": tools_to_be_removed,
+                "invalid tools": invalid_tools,
+                "all_bot_tools": updated_tools,
+            }
+
+        except Exception as e:
+            logger.error(
+                f"Failed to remove tools from bot_id: {bot_id} with error: {e}"
+            )
+            return {"success": False, "error": str(e)}
+
+    def extract_knowledge(self, primary_user, bot_id):
+
+        query = f"""SELECT * FROM {self.user_bot_table_name} 
+                    WHERE primary_user = '{primary_user}' AND BOT_ID = '{bot_id}'
+                    ORDER BY TIMESTAMP DESC
+                    LIMIT 1;"""
+        knowledge = self.run_query(query)
+        if knowledge:
+            return knowledge[0]
+        return []
+
+    def query_threads_message_log(self, cutoff):
+        query = f"""
+                WITH K AS (SELECT thread_id, max(last_timestamp) as last_timestamp FROM {self.knowledge_table_name}
+                    GROUP BY thread_id),
+                M AS (SELECT thread_id, max(timestamp) as timestamp, COUNT(*) as c FROM {self.message_log_table_name} 
+                    WHERE PRIMARY_USER IS NOT NULL 
+                    GROUP BY thread_id
+                    HAVING c > 3)
+                SELECT M.thread_id, timestamp as timestamp, COALESCE(K.last_timestamp, DATE('2000-01-01')) as last_timestamp FROM M
+                LEFT JOIN K on M.thread_id = K.thread_id
+                WHERE timestamp > COALESCE(K.last_timestamp, DATE('2000-01-01')) AND timestamp < TO_TIMESTAMP('{cutoff}') order by timestamp;"""
+        return self.run_query(query)
+
+    def query_timestamp_message_log(self, thread_id, last_timestamp, max_rows=50):
+        query = f"""SELECT * FROM {self.message_log_table_name} 
+                        WHERE timestamp > TO_TIMESTAMP('{last_timestamp}') AND
+                        thread_id = '{thread_id}'
+                        ORDER BY TIMESTAMP;"""
+        msg_log = self.run_query(query, max_rows=max_rows)
+        return msg_log
+
+    def run_insert(self, table, **kwargs):
+        keys = ', '.join(kwargs.keys())
+        
+        insert_query = f"""
+            INSERT INTO {table} ({keys}) VALUES ({', '.join(['%s']*len(kwargs))});
+            """
+        cursor = self.client.cursor()
+        cursor.execute(insert_query, tuple(kwargs.values()))
+        # Get the results from the query
+        results = cursor.fetchall()
+        
+        # Check if there are any results
+        if results:
+            # Process the results if needed
+            # For example, you might want to return them or do something with them
+            return results
+        else:
+            # If no results, you might want to return None or an empty list
+            return None
+        self.client.commit()
+        cursor.close()
+
+    def fetch_embeddings(self, table_id):
+        # Initialize Snowflake connector
+
+        # Initialize variables
+        batch_size = 100
+        offset = 0
+        total_fetched = 0
+
+        # Initialize lists to store results
+        embeddings = []
+        table_names = []
+        # update to use embedding_native column if cortex mode
+
+        # First, get the total number of rows to set up the progress bar
+        total_rows_query_openai = f"SELECT COUNT(*) as total FROM {table_id} WHERE embedding IS NOT NULL"
+        total_rows_query_native = f"SELECT COUNT(*) as total FROM {table_id} WHERE embedding_native IS NOT NULL"
+        missing_native_count = f"SELECT COUNT(*) as total FROM {table_id} WHERE embedding_native is NULL and embedding is NULL and "
+          
+        cursor = self.connection.cursor()
+        cursor.execute(total_rows_query_openai)
+        total_rows_result_openai = cursor.fetchone()
+        total_rows_openai = total_rows_result_openai[0]
+        cursor.execute(total_rows_query_native)
+        total_rows_result_native = cursor.fetchone()
+        total_rows_native = total_rows_result_native[0]
+
+
+
+        if total_rows_openai >= total_rows_native:
+            embedding_column = 'embedding'
+        else:
+            embedding_column = 'embedding_native'
+
+        total_rows = max(total_rows_openai, total_rows_native)
+
+        with tqdm(total=total_rows, desc="Fetching embeddings") as pbar:
+
+            while True:
+                # Modify the query to include LIMIT and OFFSET
+                query = f"SELECT qualified_table_name, {embedding_column} FROM {table_id} WHERE {embedding_column} IS NOT NULL LIMIT {batch_size} OFFSET {offset}"
+    #            print('fetch query ',query)
+
+                cursor.execute(query)
+                rows = cursor.fetchall()
+
+                # Temporary lists to hold batch results
+                temp_embeddings = []
+                temp_table_names = []
+
+                for row in rows:
+                    try:
+                        temp_embeddings.append(json.loads('['+row[1][5:-3]+']'))
+                        temp_table_names.append(row[0])
+                        # print('temp_embeddings len: ',len(temp_embeddings))
+                        # print('temp table_names: ',temp_table_names)
+                    except:
+                        try:
+                            temp_embeddings.append(json.loads('['+row[1][5:-10]+']'))
+                            temp_table_names.append(row[0])
+                        except:
+                            print('Cant load array from Snowflake')
+                    # Assuming qualified_table_name is the first column
+
+                # Check if the batch was empty and exit the loop if so
+                if not temp_embeddings:
+                    break
+
+                # Append batch results to the main lists
+                embeddings.extend(temp_embeddings)
+                table_names.extend(temp_table_names)
+
+                # Update counters and progress bar
+                fetched = len(temp_embeddings)
+                total_fetched += fetched
+                pbar.update(fetched)
+
+                if fetched < batch_size:
+                    # If less than batch_size rows were fetched, it's the last batch
+                    break
+
+                # Increase the offset for the next batch
+                offset += batch_size
+
+        cursor.close()
+    #   print('table names ',table_names)
+    #   print('embeddings len ',len(embeddings))
+        return table_names, embeddings
+
+    def generate_filename_from_last_modified(self, table_id):
+
+        database, schema, table = table_id.split('.')
+
+        try:
+            # Fetch the maximum LAST_CRAWLED_TIMESTAMP from the harvest_results table
+            query = f"SELECT MAX(LAST_CRAWLED_TIMESTAMP) AS last_crawled_time FROM {database}.{schema}.HARVEST_RESULTS"
+            cursor = self.connection.cursor()
+
+            cursor.execute(query)
+            bots = cursor.fetchall()
+            if bots is not None:
+                columns = [col[0].lower() for col in cursor.description]
+                result = [dict(zip(columns, bot)) for bot in bots]
+            else:
+                result = None
+            cursor.close()
+
+
+            # Ensure we have a valid result and last_crawled_time is not None
+            if not result or result[0]['last_crawled_time'] is None:
+                raise ValueError("No data crawled - This is expected on fresh install.")
+                return('NO_DATA_CRAWLED')
+                #raise ValueError("Table last crawled timestamp is None. Unable to generate filename.")
+
+            # The `last_crawled_time` attribute should be a datetime object. Format it.
+            last_crawled_time = result[0]['last_crawled_time']
+            timestamp_str = last_crawled_time.strftime("%Y%m%dT%H%M%S") + "Z"
+
+            # Create the filename with the .ann extension
+            filename = f"{timestamp_str}.ann"
+            metafilename = f"{timestamp_str}.json"
+            return filename, metafilename
+        except Exception as e:
+            # Handle errors: for example, table not found, or API errors
+            #print(f"An error occurred: {e}, possibly no data yet harvested, using default name for index file.")
+            # Return a default filename or re-raise the exception based on your use case
+            return "default_filename.ann", "default_metadata.json"
+
+    def chat_completion_for_escallation(self, message):
+        #self.write_message_log_row(db_adapter, bot_id, bot_name, thread_id, 'Supervisor Prompt', message, message_metadata)
+        return_msg = None
+        default_env_override = os.getenv("BOT_OS_DEFAULT_LLM_ENGINE")
+        bot_os_llm_engine = BotLlmEngineEnum(default_env_override) if default_env_override else None
+        if bot_os_llm_engine is BotLlmEngineEnum.openai:
+            api_key = os.getenv("OPENAI_API_KEY")
+            if not api_key:
+                print("OpenAI API key is not set in the environment variables.")
+                return None
+
+            openai_model = os.getenv("OPENAI_MODEL_SUPERVISOR",os.getenv("OPENAI_MODEL_NAME","gpt-4o"))
+
+            print('snowpark escallation using model: ', openai_model)
+            try:
+                client = get_openai_client()
+                response = client.chat.completions.create(
+                    model=openai_model,
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": message,
+                        },
+                    ],
+                )
+            except Exception as e:
+                if os.getenv("OPENAI_MODEL_SUPERVISOR", None) is not None:
+                    openai_model = os.getenv("OPENAI_MODEL_NAME","gpt-4o")
+                    print('retry snowpark escallation using model: ', openai_model)
+                    try:
+                        client = get_openai_client()
+                        response = client.chat.completions.create(
+                            model=openai_model,
+                            messages=[
+                                {
+                                    "role": "user",
+                                    "content": message,
+                                },
+                            ],
+                        )
+                    except Exception as e:   
+                        print(f"Error occurred while calling OpenAI API with snowpark escallation model {openai_model}: {e}")
+                        return None
+                else:
+                    print(f"Error occurred while calling OpenAI API: {e}")
+                    return None
+
+            return_msg = response.choices[0].message.content
+        else: 
+            if bot_os_llm_engine is BotLlmEngineEnum.cortex:
+                response, status_code = self.cortex_chat_completion(message)
+                if status_code != 200:
+                    print(f"Error occurred while calling Cortex API: {response}")
+                    return None
+                return_msg = response
+            
+        return return_msg
+
+    def escallate_for_advice(self, purpose, code, result, packages):
+        if True:
+
+            if packages is None or packages == '':
+                packages_list = 'No packages specified'
+            else:
+                packages_list = packages
+            message = f"""A less smart AI bot is trying to write code to run in Snowflake Snowpark
+
+### PURPOSE OF CODE: This is the task they are trying to accomplish:
+
+{purpose}
+
+### PACKAGES LIST: The bot said these non-standard python packages would be used and they were indeed successfully installed:
+
+{packages_list}
+
+### CODE: The bot wrote this code:
+
+{code}
+
+### RESULT: The result of trying to run it is:
+
+{result}
+
+### GENERAL SNOWPARK TIPS: Here are some general tips on how to use Snowpark in this environment:
+
+1. If you want to access a file, first save it to stage, and then access it at its stage path, not just /tmp.
+2. Be sure to return the result in the global scope at the end of your code.
+3. If you want to return a file, save it to /tmp (not root) then base64 encode it and respond like this: image_bytes = base64.b64encode(image_bytes).decode('utf-8')
+   result = {{ 'type': 'base64file', 'filename': file_name, 'content': image_bytes}}.
+4. Do not create a new Snowpark session, use the 'session' variable that is already available to you. 
+5. Use regular loops not list comprehension
+6. If packages are missing, make sure they are included in the PACKAGES list. Many such as matplotlib, pandas, etc are supported.
+
+
+### SNOWPARK EXAMPLE: Here is an example of successfully using Snowpark for a different task that may be helpful to you:
+
+from snowflake.snowpark.types import StructType, StructField, StringType, IntegerType
+from snowflake.snowpark.functions import udf, col
+
+# Define the stage path
+stage_file_path = '@GENESIS_BOTS.JANICE_7G8H9J_WORKSPACE.MY_STAGE/state.py'
+
+# Create a schema for reading the CSV file
+schema = StructType([
+    StructField("value", StringType(), True)
+])
+
+# Read the CSV file from the stage
+file_df = session.read.schema(schema).option("COMPRESSION", "NONE").csv(stage_file_path)
+
+# Define a Python function to count characters
+def count_characters(text):
+    return len(text) if text else 0
+
+# Register the UDF to be used in the Snowpark
+count_characters_udf = udf(count_characters, return_type=IntegerType(), input_types=[StringType()])
+
+# Apply the UDF to calculate the total number of characters
+character_counts = file_df.withColumn("char_count", count_characters_udf(col("value")))
+
+# Sum all character counts
+total_chars = character_counts.agg({{"char_count": "sum"}}).collect()[0][0]
+
+# Return the total number of characters
+result = total_chars
+"""
+
+            message += """
+            
+### SNOWPARK EXAMPLE: Here is an example of successfully using Snowpark for a different task (drawing a) that may be helpful to you:
+
+import matplotlib.pyplot as plt
+
+# Load data from the Snowflake table into a Snowpark DataFrame
+df = session.table('GENESIS_BOTS.JANICE_7G8H9J_WORKSPACE.RANDOM_TRIPLES')
+
+# Collect the data to local for plotting
+rows = df.collect()
+x = [row['X'] for row in rows]
+y = [row['Y'] for row in rows]
+z = [row['Z'] for row in rows]
+
+# Create bubble chart
+plt.figure(figsize=(10, 6))
+plt.scatter(x, y, s=[size * 10 for size in z], alpha=0.5, c=z, cmap='viridis')
+plt.colorbar(label='Z Value')
+plt.title('Bubble Chart of Random Triples')
+plt.xlabel('X Value')
+plt.ylabel('Y Value')
+plt.grid(True)
+
+# Save the chart as an image file
+plt.savefig('/tmp/bubble_chart.png')
+
+# Encode and return image
+import base64
+with open('/tmp/bubble_chart.png', 'rb') as image_file:
+    image_bytes = base64.b64encode(image_file.read()).decode('utf-8')
+
+result = {'type': 'base64file', 'filename': 'bubble_chart.png', 'content': image_bytes}
+"""
+
+            message  +=  """
+            
+### SNOWPARK EXAMPLE: Here is an example of successfully using Snowpark for a different task (generating data and saving to a table) that may be helpful to you:
+
+import numpy as np
+
+# Generate random triples without the unnecessary parameter
+random_triples = [{'x': int(np.random.randint(1, 1001)),
+                   'y': int(np.random.randint(1, 1001)),
+                   'z': int(np.random.randint(1, 21))} for _ in range(500)]
+
+# Create a Snowpark DataFrame from the random triples
+df = session.create_dataframe(random_triples, schema=['x', 'y', 'z'])
+
+# Define the table name
+table_name = 'GENESIS_BOTS.JANICE_7G8H9J_WORKSPACE.RANDOM_TRIPLES'
+
+# Write the DataFrame to a Snowflake table
+df.write.mode('overwrite').save_as_table(table_name)
+
+# Return the result indicating success
+result = {'message': 'Table created successfully', 'full_table_name': table_name}
+"""
+
+            if 'is not defined' in result["Error"]:
+                message += """
+                
+### NOTE ON IMPORTS: If you def functions in your code, include any imports needed by the function inside the function, as the imports outside function won't convey. For example:
+
+import math
+
+def calc_area_of_circle(radius):
+    import math  # import again here as otherwise it wont work
+
+    area = math.pi * radius ** 2
+    return round(area, 2)
+
+result = f'The area of a circle of radius 1 is {calc_area_of_circle(1)} using pi as {math.pi}'
+"""
+
+            if 'csv' in code:
+                message += """
+                
+### SNOWPARK CSV EXAMPLE: I see you may be trying to handle CSV files. If useful here's an example way to handle CSVs in Snowpark:
+
+from snowflake.snowpark.functions import col
+
+stage_name = "<fully qualified location>"
+file_path = "<csv file name>"
+
+# Read the CSV file from the stage into a DataFrame
+df = session.read.option("field_delimiter", ",").csv(f"@{stage_name}/{file_path}")
+
+# Define the table name where you want to save the data
+table_name = "<fully qualified output table name with your workspace database and schema specified>"
+
+# Save the DataFrame to the specified table
+df.write.mode("overwrite").save_as_table(table_name)
+
+# Verify that the data was saved
+result_df = session.table(table_name)
+row_count = result_df.count()
+
+result = f'Table {table_name} created, row_count {row_count}.  If the CSV had a header, they are in the first row of the table and can be handled with post-processing SQL to apply them as column names and then remove that row.'"""
+
+            if 'Faker' in code or 'faker' in code:
+                message += """
+
+### SNOWPARK FAKER EXAMPLE: Here is an example of how to import and use Faker thay may be helpful to you to fix this error:
+from faker import Faker
+
+# Create fake data
+fake = Faker()
+data = []
+
+# use a regular for loop, NOT list comprehension
+for i in range(20):
+    data.append({'name': fake.name(), 'email': fake.email(), 'address': fake.address()})
+
+# Drop existing table if it exists
+session.sql('DROP TABLE IF EXISTS GENESIS_BOTS.<workspace schema here>.FAKE_CUST').collect()
+
+# Create a new dataframe from the fake data
+dataframe = session.createDataFrame(data, schema=['name', 'email', 'address'])
+
+# Write the dataframe to the table
+dataframe.write.saveAsTable('<your workspace db.schema>.FAKE_CUST', mode='overwrite')
+
+# Set the result message
+result = 'Table FAKE_CUST created successfully.'
+"""
+
+            message += """\n\n### YOUR ACTION: So, now, please provide suggestions to the bot on how to fix this code so that it runs successfully in Snowflake Snowpark.\n"""
+
+            
+            potential_result = self.chat_completion_for_escallation(message=message)
+            #print(potential_result)
+            return potential_result
+
+        else:
+            return None
+
+
+    def add_hints(self, purpose, result, code, packages):
+
+        if isinstance(result, str) and result.startswith('Error:'):
+            result = {"Error": result}
+
+        if isinstance(result, dict) and 'Error' in result:
+            potential_result = self.escallate_for_advice(purpose, code, result, packages)
+            if potential_result is not None:
+               # result = potential_result
+                result['Suggestion'] = potential_result
+               # return potential_result
+
+        return result
+    
+
+    def run_python_code(self, purpose: str, code: str = None, packages: str = None, thread_id=None, bot_id=None, note_id=None
+    # solid examples:
+    # use snowpark to create 5 rows of synthetic customer data using faker, return it in json
+    # ... save 100 rows of synthetic data like this to a table called CUSTFAKE1 in your workspace
+) -> str:
+        import ast 
+        import os 
+
+        def cleanup(proc_name):         # Drop the temporary stored procedure if it was created
+            if proc_name is not None and proc_name != 'EXECUTE_SNOWPARK_CODE':
+                drop_proc_query = f"DROP PROCEDURE IF EXISTS {self.schema}.{proc_name}(STRING)"
+                try:
+                    self.run_query(drop_proc_query)
+                    print(f"Temporary stored procedure {proc_name} dropped successfully.")
+                except Exception as e:
+                    print(f"Error dropping temporary stored procedure {proc_name}: {e}")
+
+        if note_id is not None:
+            get_note_query = f"SELECT note_content FROM {self.schema}.BOT_NOTEBOOK WHERE NOTE_ID = '{note_id}'"
+            cursor = self.connection.cursor()
+            cursor.execute(get_note_query)
+            code = cursor.fetchone()[0]
+        
+        if bot_id not in ['eva-x1y2z3', 'MrsEliza-3348b2', os.getenv("O1_OVERRIDE_BOT","")]:
+            if '\\n' in code:
+                if '\n' not in code.replace('\\n', ''):
+                    code = code.replace('\\n','\n')                
+                    code = code.replace('\\n','\n')
+            code = code.replace("'\\\'","\'")
+        # Check if code contains Session.builder
+        if "Session.builder" in code:
+            return {
+                "success": False,
+                "error": "You don't need to make a new snowpark session. Use the session already provided in the session variable without recreating it.",
+                "reminder": """Also be sure to return the result in the global scope at the end of your code. And if you want to return a file, save it to /tmp (not root) then base64 encode it and respond like this: image_bytes = base64.b64encode(image_bytes).decode('utf-8')\nresult = { 'type': 'base64file', 'filename': file_name, 'content': image_bytes}."""
+            }
+        if "plt.show" in code:
+            return {
+                "success": False,
+                "error": "You can't use plt.show, instead save and return a base64 encoded file.",
+                "reminder": """Also be sure to return the result in the global scope at the end of your code. And if you want to return a file, save it to /tmp (not root) then base64 encode it and respond like this: image_bytes = base64.b64encode(image_bytes).decode('utf-8')\nresult = { 'type': 'base64file', 'filename': file_name, 'content': image_bytes}."""
+            }
+        if "@MY_STAGE" in code:
+            import core.global_flags as global_flags
+            workspace_schema_name = f"{global_flags.project_id}.{bot_id.replace(r'[^a-zA-Z0-9]', '_').replace('-', '_')}_WORKSPACE".upper()
+            code = code.replace('@MY_STAGE',f'@{workspace_schema_name}.MY_STAGE')
+        if "sandbox:/mnt/data" in code:
+            import core.global_flags as global_flags
+            workspace_schema_name = f"{global_flags.project_id}.{bot_id.replace(r'[^a-zA-Z0-9]', '_').replace('-', '_')}_WORKSPACE".upper()
+            return {
+                "success": False,
+                "error": "You can't reference files in sandbox:/mnt/data, instead add them to your stage and reference them in the stage.",
+                "your_stage": workspace_schema_name+".MY_STAGE",
+                "reminder": """Also be sure to return the result in the global scope at the end of your code. And if you want to return a file, save it to /tmp (not root) then base64 encode it and respond like this: image_bytes = base64.b64encode(image_bytes).decode('utf-8')\nresult = { 'type': 'base64file', 'filename': file_name, 'content': image_bytes}."""
+            }
+        # Check if libraries are provided
+        proc_name = 'EXECUTE_SNOWPARK_CODE'
+        if packages == '':
+            packages = None
+        if packages is not None:
+            # Split the libraries string into a list
+            if ' ' in packages and ',' not in packages:
+                packages = packages.replace(' ', ',')
+            library_list = [lib.strip() for lib in packages.split(',') if lib.strip() not in ['snowflake-snowpark-python', 'snowflake.snowpark','snowflake','base64','pandas']]
+            # Remove any Python standard packages from the library_list
+            standard_libs = {name for _, name, _ in pkgutil.iter_modules() if name in sys.stdlib_module_names}
+            library_list = [lib for lib in library_list if lib not in standard_libs]
+
+            # Create a new stored procedure with the specified libraries
+            libraries_str = ', '.join(f"'{lib}'" for lib in library_list)
+            import uuid
+# 'matplotlib', 'scikit-learn'
+            if (libraries_str is None or libraries_str != ''):
+                proc_name = f"sp_{uuid.uuid4().hex}"
+                old_new_stored_proc_ddl = f"""CREATE OR REPLACE PROCEDURE {self.schema}.{proc_name}(
+    code STRING
+)
+RETURNS STRING
+LANGUAGE PYTHON
+RUNTIME_VERSION = '3.'
+PACKAGES = ('snowflake-snowpark-python', 'pandas', {libraries_str})
+HANDLER = 'run'
+AS
+$$
+import snowflake.snowpark as snowpark
+import pandas as pd
+
+def run(session: snowpark.Session, code: str) -> str:
+    local_vars = {{}}
+    local_vars["session"] = session
+    
+    exec(code, globals(), local_vars)
+
+    if 'result' in local_vars:
+        return str(local_vars['result'])
+    else:
+        return "Error: 'result' is not defined in the executed code"
+$$;"""
+
+                new_stored_proc_ddl =   f"""CREATE OR REPLACE PROCEDURE {self.schema}.{proc_name}( code STRING )
+RETURNS STRING
+LANGUAGE PYTHON
+RUNTIME_VERSION = '3.11'
+PACKAGES = ('snowflake-snowpark-python', 'pandas', {libraries_str})
+HANDLER = 'run'
+AS
+$$
+import snowflake.snowpark as snowpark
+import re, importlib
+
+def run(session: snowpark.Session, code: str) -> str:
+    # Normalize line endings
+    code = code.replace('\\\\r\\\\n', '\\\\n').replace('\\\\r', '\\\\n')
+
+    # Find all import statements, including 'from ... import ...'
+    import_statements = re.findall(r'^\\s*(import\\s+.*|from\\s+.*\\s+import\\s+.*)$', code, re.MULTILINE)
+    # Additional regex to find 'from ... import ... as ...' statements
+    import_statements += re.findall(r'^from\\s+(\\S+)\\s+import\\s+(\\S+)\\s+as\\s+(\\S+)', code, re.MULTILINE)
+     
+    global_vars = globals().copy()
+
+    # Handle imports
+    for import_statement in import_statements:
+        try:
+            exec(import_statement, global_vars)
+        except ImportError as e:
+            return f"Error: Unable to import - {{str(e)}}"
+
+    local_vars = {{}}
+    local_vars["session"] = local_vars["session"] = session
+    
+    try:
+        # Remove import statements from the code before execution
+        code_without_imports = re.sub(r'^\\s*(import\\s+.*|from\\s+.*\\s+import\\s+.*)$', '', code, flags=re.MULTILINE)
+        exec(code_without_imports, global_vars, local_vars)
+        
+        if 'result' in local_vars:
+            return local_vars['result']
+        else:
+            return "Error: 'result' is not defined in the executed code"
+    except Exception as e:
+        return f"Error: {{str(e)}}"
+$$
+"""
+                
+                # Execute the new stored procedure creation
+                result = self.run_query(new_stored_proc_ddl)
+
+                # Check if the result is a list and if Success is False
+                if isinstance(result, dict) and 'Success' in result and result['Success'] == False:
+                    result['reminder'] = 'You do not need to specify standard python packages in the packages parameter'
+                    return result
+
+                # Update the stored procedure call to use the new procedure
+                stored_proc_call = f"CALL {self.schema}.{proc_name}($${code}$$)"
+            else:
+                stored_proc_call = f"CALL {self.schema}.execute_snowpark_code($${code}$$)"
+
+        else:
+            # Use the default stored procedure if no libraries are specified
+            stored_proc_call = f"CALL {self.schema}.execute_snowpark_code($${code}$$)"
+       
+        result = self.run_query(stored_proc_call)
+
+
+        if isinstance(result, list):
+            result_json = result
+            # Check if result is a list and has at least one element
+            if isinstance(result, list) and len(result) > 0:
+                # Check if 'EXECUTE_SNOWPARK_CODE' key exists in the first element
+                proc_name = proc_name.upper()
+                if proc_name in result[0]:
+                    # If it exists, use its value as the result
+                    result = result[0][proc_name]
+                    # Try to parse the result as JSON
+                    try:
+                        result_json = ast.literal_eval(result)
+                    except Exception as e:
+                        # If it's not valid JSON, keep the original string
+                        cleanup(proc_name)
+                        result_json = result
+                else:
+                    # If 'EXECUTE_SNOWPARK_CODE' doesn't exist, use the entire result as is
+                    cleanup(proc_name)
+                    result_json = result
+            else:
+                # If result is not a list or is empty, use it as is
+                cleanup(proc_name)
+                result_json = result
+                
+            # Check if 'type' and 'filename' are in the JSON
+            if isinstance(result_json, dict) and 'type' in result_json and 'filename' in result_json:
+                if result_json['type'] == 'base64file':
+                    import base64
+                    import os
+                    
+                    # Create the directory if it doesn't exist
+                    os.makedirs(f'./downloaded_files/{thread_id}', exist_ok=True)
+                    
+                    # Decode the base64 content
+                    file_content = base64.b64decode(result_json['content'])
+                    
+                    # Save the file
+                    file_path = f'./downloaded_files/{thread_id}/{result_json["filename"]}'
+                    with open(file_path, 'wb') as file:
+                        file.write(file_content)
+                    
+                    print(f"File saved to {file_path}")
+                    result = {
+                        "success": True,
+                        "result": f'Snowpark output a file. Output a link like this so the user can see it [description of file](sandbox:/mnt/data/{result_json["filename"]})'
+                    }
+                    cleanup(proc_name)
+                    if bot_id not in ['eva-x1y2z3', 'MrsEliza-3348b2', os.getenv("O1_OVERRIDE_BOT","")]:
+                        result = self.add_hints(purpose, result, code, packages)
+                    return result
+            
+                # If conditions are not met, return the original result
+                if bot_id not in ['eva-x1y2z3', 'MrsEliza-3348b2', os.getenv("O1_OVERRIDE_BOT","")]:
+                    result_json = self.add_hints(purpose, result_json, code, packages)
+                cleanup(proc_name)
+                return result_json
+            
+            cleanup(proc_name)
+            if bot_id not in ['eva-x1y2z3', 'MrsEliza-3348b2', os.getenv("O1_OVERRIDE_BOT","")]:
+                result_json = self.add_hints(purpose, result_json, code, packages)
+            return result_json
+    
+        # Check if result is a dictionary and contains 'Error'
+ 
+        cleanup(proc_name)
+        if bot_id not in ['eva-x1y2z3', 'MrsEliza-3348b2', os.getenv("O1_OVERRIDE_BOT","")]:
+            result = self.add_hints(purpose, result, code, packages)
+        return result
+
+

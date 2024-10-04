@@ -2,7 +2,7 @@ from annoy import AnnoyIndex
 import csv, json
 from google.cloud import bigquery
 from google.oauth2 import service_account
-from connectors.snowflake_connector import SnowflakeConnector
+from connectors.snowflake_connector.snowflake_connector import SnowflakeConnector
 from connectors.sqlite_connector import SqliteConnector
 from connectors.bigquery_connector import BigQueryConnector
 import tempfile

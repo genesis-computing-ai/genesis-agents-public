@@ -12,7 +12,7 @@ import re
 import sys
 import spacy
 from connectors.bigquery_connector import BigQueryConnector
-from connectors.snowflake_connector import SnowflakeConnector
+from connectors.snowflake_connector.snowflake_connector import SnowflakeConnector
 from connectors.sqlite_connector import SqliteConnector
 from llm_openai.openai_utils import get_openai_client
 from  schema_explorer.embeddings_index_handler import load_or_create_embeddings_index

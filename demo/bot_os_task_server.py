@@ -20,7 +20,7 @@ from core.bot_os_memory import BotOsKnowledgeAnnoy_Metadata
 from core.bot_os_server import BotOsServer
 from apscheduler.schedulers.background import BackgroundScheduler
 from connectors.bigquery_connector import BigQueryConnector
-from connectors.snowflake_connector import SnowflakeConnector
+from connectors.snowflake_connector.snowflake_connector import SnowflakeConnector
 from connectors.sqlite_connector import SqliteConnector
 from core.bot_os_tools import get_tools
 from slack.slack_bot_os_adapter import SlackBotAdapter
@@ -45,7 +45,7 @@ from bot_genesis.make_baby_bot import (
 
 # from auto_ngrok.auto_ngrok import launch_ngrok_and_update_bots
 from core.bot_os_task_input_adapter import TaskBotOsInputAdapter
-from connectors.snowflake_connector import SnowflakeConnector
+from connectors.snowflake_connector.snowflake_connector import SnowflakeConnector
 
 from demo.sessions_creator import create_sessions, make_session
 from auto_ngrok.auto_ngrok import launch_ngrok_and_update_bots
@@ -115,6 +115,62 @@ else:
 if not os.getenv("TEST_TASK_MODE", "false").lower() == "true":
     db_adapter.ensure_table_exists()
 
+def insert_task_history(
+        self,
+        task_id,
+        work_done_summary,
+        task_status,
+        updated_task_learnings,
+        report_message="",
+        done_flag=False,
+        needs_help_flag="N",
+        task_clarity_comments="",
+    ):
+        """
+        Inserts a row into the TASK_HISTORY table.
+
+        Args:
+            task_id (str): The unique identifier for the task.
+            work_done_summary (str): A summary of the work done.
+            task_status (str): The status of the task.
+            updated_task_learnings (str): Any new learnings from the task.
+            report_message (str): The message to report about the task.
+            done_flag (bool): Flag indicating if the task is done.
+            needs_help_flag (bool): Flag indicating if help is needed.
+            task_clarity_comments (str): Comments on the clarity of the task.
+        """
+        insert_query = f"""
+            INSERT INTO {self.schema}.TASK_HISTORY (
+                task_id, work_done_summary, task_status, updated_task_learnings, 
+                report_message, done_flag, needs_help_flag, task_clarity_comments
+            ) VALUES (
+                %s, %s, %s, %s, %s, %s, %s, %s
+            )
+        """
+        cursor = None
+        try:
+            cursor = self.client.cursor()
+            cursor.execute(
+                insert_query,
+                (
+                    task_id,
+                    work_done_summary,
+                    task_status,
+                    updated_task_learnings,
+                    report_message,
+                    done_flag,
+                    needs_help_flag,
+                    task_clarity_comments,
+                ),
+            )
+            self.client.commit()
+            cursor.close()
+            print(f"Task history row inserted successfully for task_id: {task_id}")
+        except Exception as e:
+            print(f"An error occurred while inserting the task history row: {e}")
+            if cursor is not None:
+                cursor.close()
+                
 def get_udf_endpoint_url(endpoint_name="udfendpoint"):
     alt_service_name = os.getenv("ALT_SERVICE_NAME", None)
     #TODO logic may break when getting data cubes endpoint and alt_service_name is set
@@ -722,118 +778,6 @@ def configure_ngrok_token():
     logger.debug(f"Sending response: {response_var.json}")
     return response_var
 
-
-# @app.route("/udf_proxy/configure_llm", methods=["POST"])
-# def configure_llm():
-
-#     from openai import OpenAI, OpenAIError
-
-#     global llm_api_key, default_llm_engine, sessions, api_app_id_to_session_map, bot_id_to_udf_adapter_map, server
-#     try:
-
-#         message = request.json
-#         input_rows = message["data"]
-
-#         default_llm_engine_candidate = input_rows[0][1]
-#         llm_api_key_candidate = input_rows[0][2]
-
-#         if not llm_api_key_candidate or not llm_api_key_candidate:
-#             response = {
-#                 "Success": False,
-#                 "Message": "Missing LLM API Key or LLM Model Name.",
-#             }
-#             llm_api_key_candidate = None
-#             default_llm_engine_candidate = None
-
-#         if api_key_from_env:
-#             response = {
-#                 "Success": False,
-#                 "Message": "LLM type and API key are set in an environment variable and can not be set or changed using this method.",
-#             }
-#             llm_api_key_candidate = None
-#             default_llm_engine_candidate = None
-
-#         if default_llm_engine_candidate is not None:
-#             if default_llm_engine_candidate.lower() == "openai":
-#                 try:
-#                     client = OpenAI(api_key=llm_api_key_candidate)
-
-#                     completion = client.chat.completions.create(
-#                         model="gpt-4o",
-#                         messages=[{"role": "user", "content": "What is 1+1?"}],
-#                     )
-#                     # Success!  Update model and keys
-#                     if llm_api_key != llm_api_key_candidate:
-#                         default_llm_engine = default_llm_engine_candidate
-#                         llm_api_key = llm_api_key_candidate
-#                     else:
-#                         default_llm_engine_candidate = None
-
-#                 except OpenAIError as e:
-#                     response = {"Success": False, "Message": str(e)}
-#                     llm_api_key_candidate = None
-
-#         if llm_api_key_candidate is not None:
-#             data_cubes_ingress_url = get_udf_endpoint_url("streamlitdatacubes")
-#             data_cubes_ingress_url = data_cubes_ingress_url if data_cubes_ingress_url else "localhost:8501"
-#             logger.warning(f"data_cubes_ingress_url(2) set to {data_cubes_ingress_url}")
-#             if (
-#                 llm_api_key_candidate is not None
-#                 and default_llm_engine.lower() == "openai"
-#             ):
-#                 os.environ["OPENAI_API_KEY"] = llm_api_key_candidate
-#             if (
-#                 llm_api_key_candidate is not None
-#                 and default_llm_engine.lower() == "reka"
-#             ):
-#                 os.environ["REKA_API_KEY"] = llm_api_key_candidate
-#             (
-#                 sessions,
-#                 api_app_id_to_session_map,
-#                 bot_id_to_udf_adapter_map,
-#                 bot_id_to_slack_adapter_map,
-#             ) = create_sessions(
-#                 db_adapter,
-#                 bot_id_to_udf_adapter_map,
-#                 stream_mode=False,
-#                 data_cubes_ingress_url=data_cubes_ingress_url,
-#             )
-#             server = BotOsServer(
-#                 app,
-#                 sessions=sessions,
-#                 scheduler=scheduler,
-#                 scheduler_seconds_interval=2,
-#                 slack_active=global_flags.slack_active,
-#             )
-#             set_remove_pointers(server, api_app_id_to_session_map)
-
-#             # Assuming 'babybot' is an instance of a class that has the 'set_llm_key' method
-#             # and it has been instantiated and imported above in the code.
-#             set_key_result = set_llm_key(
-#                 llm_key=llm_api_key,
-#                 llm_type=default_llm_engine,
-#             )
-#             if set_key_result:
-#                 response = {
-#                     "Success": True,
-#                     "Message": "LLM API Key and Model Name configured successfully.",
-#                 }
-#             else:
-#                 response = {
-#                     "Success": False,
-#                     "Message": "Failed to set LLM API Key and Model Name.",
-#                 }
-#     except Exception as e:
-#         response = {"Success": False, "Message": str(e)}
-
-#     output_rows = [[input_rows[0][0], response]]
-
-#     response_var = make_response({"data": output_rows})
-#     response_var.headers["Content-type"] = "application/json"
-#     logger.debug(f"Sending response: {response_var.json}")
-#     return response_var
-
-
 scheduler = BackgroundScheduler(
     {
         "apscheduler.job_defaults.max_instances": 40,
@@ -1161,7 +1105,7 @@ def submit_task(session=None, bot_id=None, task=None):
 
 def task_log_and_update(bot_id, task_id, task_result):
 
-    db_adapter.insert_task_history(
+    insert_task_history(
         task_id=task_id,
         work_done_summary=task_result["work_done_summary"],
         task_status=task_result["task_status"],
@@ -1507,7 +1451,7 @@ def tasks_loop():
                                 "task_active": False,
                             },
                         )
-                        db_adapter.insert_task_history(
+                        insert_task_history(
                             task_id=task_id,
                             work_done_summary="Task failed to respond with a proper JSON after 3 tries.",
                             task_status="Inactive after retries",

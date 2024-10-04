@@ -11,7 +11,7 @@ try:
     session = get_active_session()
     NativeMode = True
 except:
-    from connectors.snowflake_connector import SnowflakeConnector
+    from connectors.snowflake_connector.snowflake_connector import SnowflakeConnector
     snowflake_connector = SnowflakeConnector(connection_name='Snowflake')
 
 def run_query(sql:str, max_rows:int):

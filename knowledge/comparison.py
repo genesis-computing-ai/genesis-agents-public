@@ -12,7 +12,7 @@ from openai import OpenAI
 from dotenv import load_dotenv
 load_dotenv()
 
-from connectors.snowflake_connector import SnowflakeConnector
+from connectors.snowflake_connector.snowflake_connector import SnowflakeConnector
 
 knowledge_db_connector = SnowflakeConnector(connection_name='Snowflake')
 

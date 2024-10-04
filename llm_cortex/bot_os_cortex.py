@@ -16,7 +16,7 @@ from decimal import Decimal
 
 from openai import OpenAI
 
-from connectors.snowflake_connector import SnowflakeConnector
+from connectors.snowflake_connector.snowflake_connector import SnowflakeConnector
 from core.bot_os_assistant_base import BotOsAssistantInterface, execute_function
 
 import logging

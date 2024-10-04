@@ -14,13 +14,12 @@ pandas==2.2.2
 pyarrow==17.0.0
 pytest
 pyyaml==6.0.1
-#selenium
+# selenium
 simplejson==3.19.2
 slack_bolt
 spacy
 streamlit==1.35.0
-streamlit_autorefresh
-# ^^ this may also need a version for compat reasons
+streamlit_autorefresh  # ^^ this may also need a version for compat reasons
 urllib3==1.26.19
 #ngrok
 snowflake_connector_python==3.11.0

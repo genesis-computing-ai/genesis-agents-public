@@ -1,7 +1,7 @@
 from flask import Blueprint, request, render_template, make_response
 import uuid
 import os
-from connectors.snowflake_connector import SnowflakeConnector
+from connectors.snowflake_connector.snowflake_connector import SnowflakeConnector
 from connectors.sqlite_connector import SqliteConnector
 import logging
 from core.bot_os_input import BotOsInputAdapter, BotOsInputMessage, BotOsOutputMessage

@@ -29,7 +29,7 @@ class LLMKeyHandler:
                 self.db_adapter = SqliteConnector(connection_name="Sqlite")
                 self.connection = 'Sqlite'
             elif self.genesis_source == 'Snowflake':    
-                from connectors.snowflake_connector import SnowflakeConnector  # avoid circular imports as this is a core module
+                from connectors.snowflake_connector.snowflake_connector import SnowflakeConnector  # avoid circular imports as this is a core module
                 self.db_adapter = SnowflakeConnector(connection_name='Snowflake')
                 self.connection = 'Snowflake'
             else:

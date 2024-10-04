@@ -3,7 +3,7 @@ import logging
 import os, json, requests, uuid
 from connectors.bigquery_connector import BigQueryConnector
 from connectors.database_connector import llm_keys_and_types_struct
-from connectors.snowflake_connector import SnowflakeConnector
+from connectors.snowflake_connector.snowflake_connector import SnowflakeConnector
 from connectors.sqlite_connector import SqliteConnector
 
 from google.cloud import bigquery

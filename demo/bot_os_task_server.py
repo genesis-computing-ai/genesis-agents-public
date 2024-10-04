@@ -20,7 +20,7 @@ from core.bot_os_memory import BotOsKnowledgeAnnoy_Metadata
 from core.bot_os_server import BotOsServer
 from apscheduler.schedulers.background import BackgroundScheduler
 from connectors.bigquery_connector import BigQueryConnector
-from connectors.snowflake_connector import SnowflakeConnector
+from connectors.snowflake_connector.snowflake_connector import SnowflakeConnector
 from connectors.sqlite_connector import SqliteConnector
 from core.bot_os_tools import get_tools
 from slack.slack_bot_os_adapter import SlackBotAdapter
@@ -45,7 +45,7 @@ from bot_genesis.make_baby_bot import (
 
 # from auto_ngrok.auto_ngrok import launch_ngrok_and_update_bots
 from core.bot_os_task_input_adapter import TaskBotOsInputAdapter
-from connectors.snowflake_connector import SnowflakeConnector
+from connectors.snowflake_connector.snowflake_connector import SnowflakeConnector
 
 from demo.sessions_creator import create_sessions, make_session
 from auto_ngrok.auto_ngrok import launch_ngrok_and_update_bots

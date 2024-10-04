@@ -1,4 +1,4 @@
 from .database_connector import DatabaseConnector
 from .bigquery_connector import BigQueryConnector
-from .snowflake_connector import SnowflakeConnector
+from .snowflake_connector.snowflake_connector import SnowflakeConnector
 from .bot_snowflake_connector import bot_credentials

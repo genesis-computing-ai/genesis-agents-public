@@ -1,6 +1,6 @@
 import json
 import os
-from connectors.snowflake_connector import SnowflakeConnector
+from connectors.snowflake_connector.snowflake_connector import SnowflakeConnector
 from connectors.sqlite_connector import SqliteConnector
 
 genesis_source = os.getenv("GENESIS_SOURCE", default="Snowflake")

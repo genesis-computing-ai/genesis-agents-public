@@ -21,7 +21,7 @@ from core.bot_os_memory import BotOsKnowledgeAnnoy_Metadata
 from core.bot_os_server import BotOsServer
 from apscheduler.schedulers.background import BackgroundScheduler
 from connectors.bigquery_connector import BigQueryConnector
-from connectors.snowflake_connector import SnowflakeConnector
+from connectors.snowflake_connector.snowflake_connector import SnowflakeConnector
 from connectors.sqlite_connector import SqliteConnector
 from embed.embed_openbb import openbb_query
 from llm_openai.openai_utils import get_openai_client

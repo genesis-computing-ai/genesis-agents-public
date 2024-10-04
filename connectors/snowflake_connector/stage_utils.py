@@ -1,5 +1,13 @@
 import os
-import logger
+import random
+import re
+import string
+
+import logging
+logger = logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.WARN, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 def add_file_to_stage(
     self,
@@ -191,7 +199,7 @@ def update_file_in_stage(
         dict: A dictionary with the result of the operation.
     """
     try:
-
+        from .snowflake_connector import SnowflakeConnector  # Move import here
         if "/" in file_name:
             file_name = file_name.split("/")[-1]
 
@@ -258,6 +266,7 @@ def delete_file_from_stage(
     
 def test_stage_functions():
     # Create a test instance of SnowflakeConnector
+    from .snowflake_connector import SnowflakeConnector 
     test_connector = SnowflakeConnector("Snowflake")
 
     # Call the list_stage method with the specified parameters

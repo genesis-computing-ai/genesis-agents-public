@@ -3,18 +3,13 @@ from snowflake.connector import connect
 import os
 import json
 import logging
-from itertools import islice
 from datetime import datetime
 import uuid
 import os
 import time
 import hashlib
-import yaml, time, random, string
-import snowflake.connector
-import random, string
+import time
 import requests
-from openai import OpenAI
-import glob
 import pandas as pd
 import pytz
 import sys
@@ -22,18 +17,7 @@ import pkgutil
 
 from llm_openai.openai_utils import get_openai_client
 
-from .database_connector import DatabaseConnector, llm_keys_and_types_struct
-from core.bot_os_defaults import (
-    BASE_EVE_BOT_INSTRUCTIONS,
-    ELIZA_DATA_ANALYST_INSTRUCTIONS,
-    STUART_DATA_STEWARD_INSTRUCTIONS,
-    JANICE_JANITOR_INSTRUCTIONS,
-    EVE_INTRO_PROMPT,
-    ELIZA_INTRO_PROMPT,
-    STUART_INTRO_PROMPT,
-    JANICE_INTRO_PROMPT,
-    LOADER_SPROC
-)
+from ..database_connector import DatabaseConnector, llm_keys_and_types_struct
 
 from core.bot_os_llm import BotLlmEngineEnum
 
@@ -44,15 +28,15 @@ import requests
 import re
 from tqdm import tqdm
 
-from .ensure_table_exists import *
 from .process_scheduler import *
+from .sematic_model_utils import *
+from .stage_utils import *
+from .ensure_table_exists import ensure_table_exists
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
     level=logging.WARN, format="%(asctime)s - %(levelname)s - %(message)s"
 )
-
-_semantic_lock = Lock()
 
 from snowflake.connector import SnowflakeConnection
 
@@ -136,6 +120,12 @@ class SnowflakeConnector(DatabaseConnector):
         self.bot_servicing_table_name = self.genbot_internal_project_and_schema + "." + "BOT_SERVICING"
         self.ngrok_tokens_table_name = self.genbot_internal_project_and_schema + "." + "NGROK_TOKENS"
         self.images_table_name = self.app_share_schema + "." + "IMAGES"
+
+    def ensure_table_exists(self):
+        ensure_table_exists(self)
+
+    def process_scheduler(self,action, bot_id, task_id=None, task_details=None, thread_id=None, history_rows=10):
+        process_scheduler(self,action, bot_id, task_id=None, task_details=None, thread_id=None, history_rows=10)
 
     def check_cortex_available(self):
         if os.environ.get("CORTEX_AVAILABLE", 'False') in ['False', '']:
@@ -999,6 +989,7 @@ AND   RUNNER_ID = '{runner_id}'
         :param primary_user: STRING field representing the who sent the original message, can be NULL.
         :param task_id: STRING field representing the task, can be NULL.
         """
+        from datetime import datetime
         cursor = None
         if files is None:
             files = []
@@ -1049,115 +1040,8 @@ AND   RUNNER_ID = '{runner_id}'
             if cursor is not None:
                 cursor.close()
 
-    # ========================================================================================================
-
-    def get_processes_list(self, bot_id="all"):
-        cursor = self.client.cursor()
-        try:
-            if bot_id == "all":
-                list_query = f"SELECT process_id, bot_id, process_name FROM {self.schema}.PROCESSES"
-                cursor.execute(list_query)
-            else:
-                list_query = f"SELECT process_id, bot_id, process_name FROM {self.schema}.PROCESSES WHERE upper(bot_id) = upper(%s)"
-                cursor.execute(list_query, (bot_id,))
-            processs = cursor.fetchall()
-            process_list = []
-            for process in processs:
-                process_dict = {
-                    "process_id": process[0],
-                    "bot_id": process[1],
-                    "process_name": process[2],
-#                    "process_details": process[4],
-                  #  "process_instructions": process[3],
-            #        "process_reporting_instructions": process[5],
-                }
-                process_list.append(process_dict)
-            return {"Success": True, "processes": process_list}
-        except Exception as e:
-            return {
-                "Success": False,
-                "Error": f"Failed to list processs for bot {bot_id}: {e}",
-            }
-        finally:
-            cursor.close()
-
-    def get_process_info(self, bot_id, process_name):
-        cursor = self.client.cursor()
-        try:
-            query = f"SELECT * FROM {self.schema}.PROCESSES WHERE bot_id like %s AND process_name LIKE %s"
-            cursor.execute(query, (f"%{bot_id}%", f"%{process_name}%",))
-            result = cursor.fetchone()
-            if result:
-                # Assuming the result is a tuple of values corresponding to the columns in the PROCESSES table
-                # Convert the tuple to a dictionary with appropriate field names
-                field_names = [desc[0] for desc in cursor.description]
-                return dict(zip(field_names, result))
-            else:
-                return {}
-        except Exception as e:
-            return {}
-
-
-    def insert_process_history(
-        self,
-        process_id,
-        work_done_summary,
-        process_status,
-        updated_process_learnings,
-        report_message="",
-        done_flag=False,
-        needs_help_flag="N",
-        process_clarity_comments="",
-    ):
-        """
-        Inserts a row into the PROCESS_HISTORY table.
-
-        Args:
-            process_id (str): The unique identifier for the process.
-            work_done_summary (str): A summary of the work done.
-            process_status (str): The status of the process.
-            updated_process_learnings (str): Any new learnings from the process.
-            report_message (str): The message to report about the process.
-            done_flag (bool): Flag indicating if the process is done.
-            needs_help_flag (bool): Flag indicating if help is needed.
-            process_clarity_comments (str): Comments on the clarity of the process.
-        """
-        insert_query = f"""
-            INSERT INTO {self.schema}.PROCESS_HISTORY (
-                process_id, work_done_summary, process_status, updated_process_learnings, 
-                report_message, done_flag, needs_help_flag, process_clarity_comments
-            ) VALUES (
-                %s, %s, %s, %s, %s, %s, %s, %s
-            )
-        """
-        try:
-            cursor = self.client.cursor()
-            cursor.execute(
-                insert_query,
-                (
-                    process_id,
-                    work_done_summary,
-                    process_status,
-                    updated_process_learnings,
-                    report_message,
-                    done_flag,
-                    needs_help_flag,
-                    process_clarity_comments,
-                ),
-            )
-            self.client.commit()
-            cursor.close()
-            print(
-                f"Process history row inserted successfully for process_id: {process_id}"
-            )
-        except Exception as e:
-            print(f"An error occurred while inserting the process history row: {e}")
-            if cursor is not None:
-                cursor.close()
-
-    # ========================================================================================================
-
     def get_current_time_with_timezone(self):
+        from datetime import datetime
         current_time = datetime.now().astimezone()
         return current_time.strftime("%Y-%m-%d %H:%M:%S %Z")
 
@@ -1258,205 +1142,6 @@ AND   RUNNER_ID = '{runner_id}'
             print(f"An error occurred while deleting old LLM result rows: {e}")
             if cursor is not None:
                 cursor.close()
-
-    def load_default_processes_and_notebook(self, cursor):
-        folder_path = 'default_processes'
-        self.process_data = pd.DataFrame()
-        
-        files = glob.glob(os.path.join(folder_path, '*'))
-
-        for filename in files:
-            with open(filename, 'r') as file:
-                yaml_data = yaml.safe_load(file)
-            
-            data = pd.DataFrame.from_dict(yaml_data, orient='index')
-            data.reset_index(inplace=True)
-            data.rename(columns={'index': 'PROCESS_ID'}, inplace=True)
-
-            self.process_defaults = pd.concat([self.process_data, data], ignore_index=True)
-
-        # Ensure TIMESTAMP column is timezone-aware
-        self.process_defaults['TIMESTAMP'] = pd.to_datetime(self.process_defaults['TIMESTAMP'], format='ISO8601', utc=True)
-
-        updated_process = False
-
-        for _, process_default in self.process_defaults.iterrows():
-            process_id = process_default['PROCESS_ID']
-            # if process_default['TIMESTAMP'] is not None and not pd.isna(process_default['TIMESTAMP']):
-            if type(process_default['TIMESTAMP']) is not str and process_default['TIMESTAMP'] is not None and not pd.isna(process_default['TIMESTAMP']):
-                # Ensure row['TIMESTAMP'] is timezone-aware
-                if process_default['TIMESTAMP'].tzinfo is None:
-                    process_default['TIMESTAMP'] = process_default['TIMESTAMP'].tz_localize(pytz.UTC)
-                timestamp_str = process_default['TIMESTAMP'].strftime('%Y-%m-%d %H:%M:%S')
-            else:
-                timestamp_str = None
-
-            query = f"SELECT * FROM {self.schema}.PROCESSES WHERE PROCESS_ID = %s"
-            cursor.execute(query, (process_id,))
-            result = cursor.fetchone()
-            process_columns = [desc[0] for desc in cursor.description]
-
-            updated_process = False
-            process_found = False
-            if result is not None:
-                process_found = True
-                db_timestamp = result[process_columns.index('TIMESTAMP')] if len(result) > 0 else None
-
-                # Ensure db_timestamp is timezone-aware
-                if db_timestamp is None or db_timestamp == '':
-                    db_timestamp = datetime.now(pytz.UTC)
-                elif db_timestamp.tzinfo is None:
-                    db_timestamp = db_timestamp.replace(tzinfo=pytz.UTC)
-
-                # Ensure row['TIMESTAMP'] is timezone-aware
-                if process_default['TIMESTAMP'].tzinfo is None:
-                    process_default['TIMESTAMP'] = process_default['TIMESTAMP'].tz_localize(pytz.UTC)
-
-                if process_default['PROCESS_ID'] == process_id and db_timestamp < process_default['TIMESTAMP']:
-                    # Remove old process
-                    query = f"DELETE FROM {self.schema}.PROCESSES WHERE PROCESS_ID = %s"
-                    cursor.execute(query, (process_id,))
-                    updated_process = True
-                elif result[process_columns.index('PROCESS_ID')] == process_id:
-                    continue
-
-            if process_found == False or (process_found==True and updated_process==True):
-                placeholders = ', '.join(['%s'] * len(process_columns))
-
-                insert_values = []
-                for key in process_columns:
-                    if key.lower() == 'process_id':
-                        insert_values.append(process_id)
-                    elif key.lower() == 'timestamp':
-                        insert_values.append(timestamp_str)
-                    elif key.lower() == 'process_instructions':
-                        # Note - remove this line and uncomment below 
-                        insert_values.append(process_default['PROCESS_INSTRUCTIONS'])
-
-                        # Check to see if the process_instructions are already in a note in the BOT_NOTEBOOK table
-                        check_exist_query = f"SELECT * FROM {self.schema}.BOT_NOTEBOOK WHERE bot_id = %s AND note_content = %s"
-                        cursor.execute(check_exist_query, (process_default['BOT_ID'], process_default['PROCESS_INSTRUCTIONS']))
-                        result = cursor.fetchone()
-
-                        if False and result is None:
-                            # Use this code to insert the process_instructions into the BOT_NOTEBOOK table
-                            characters = string.ascii_letters + string.digits
-                            process_default['NOTE_ID'] = process_default['BOT_ID'] + '_' + ''.join(random.choice(characters) for i in range(10))
-                            note_type = 'process'
-                            insert_query = f"""
-                                INSERT INTO {self.schema}.BOT_NOTEBOOK (bot_id, note_content, note_type, note_id)
-                                VALUES (%s, %s, %s, %s)
-                            """
-                            cursor.execute(insert_query, (process_default['BOT_ID'], process_default['PROCESS_INSTRUCTIONS'], note_type, process_default['NOTE_ID']))
-                            self.client.commit()
-
-                            insert_values.append(process_default['NOTE_ID'])
-                            print(f"Note_id {process_default['NOTE_ID']} inserted successfully for process {process_id}")
-                    else:
-                        val = process_default.get(key, '') if process_default.get(key, '') is not None else ''
-                        if pd.isna(val):
-                            val = ''
-                        insert_values.append(val)
-
-                insert_query = f"INSERT INTO {self.schema}.PROCESSES ({', '.join(process_columns)}) VALUES ({placeholders})"
-                cursor.execute(insert_query, insert_values) 
-                if updated_process:
-                    print(f"Process {process_id} updated successfully.")
-                    updated_process = False
-                else:
-                    print(f"Process {process_id} inserted successfully.")
-            else:
-                print(f"Process {process_id} already in PROCESSES and it is up to date.")
-        cursor.close()
-
-    def load_default_functions(self, cursor, table):
-        folder_path = 'default_functions'
-        self.function_data = pd.DataFrame()
-        
-        files = glob.glob(os.path.join(folder_path, '*'))
-
-        for filename in files:
-            with open(filename, 'r') as file:
-                yaml_data = yaml.safe_load(file)
-            
-            data = pd.DataFrame.from_dict(yaml_data, orient='index')
-            data.reset_index(inplace=True)
-            data.rename(columns={'index': 'FUNCTION_ID'}, inplace=True)
-
-            self.function_defaults = pd.concat([self.function_data, data], ignore_index=True)
-
-        # Ensure TIMESTAMP column is timezone-aware
-        self.function_defaults['TIMESTAMP'] = pd.to_datetime(self.function_defaults['TIMESTAMP'], format='ISO8601', utc=True)
-
-        updated_process = False
-
-        for _, function_default in self.function_defaults.iterrows():
-            function_id = function_default['FUNCTION_ID']
-            # if function_default['TIMESTAMP'] is not None  and not pd.isna(function_default['TIMESTAMP']):
-            if type(function_default['TIMESTAMP']) is not str and function_default['TIMESTAMP'] is not None  and not pd.isna(function_default['TIMESTAMP']):
-               # Ensure row['TIMESTAMP'] is timezone-aware
-               if function_default['TIMESTAMP'].tzinfo is None:
-                   function_default['TIMESTAMP'] = function_default['TIMESTAMP'].tz_localize(pytz.UTC)
-               timestamp_str = function_default['TIMESTAMP'].strftime('%Y-%m-%d %H:%M:%S')
-            else:
-               timestamp_str = None
-            timestamp_str = None
-
-            query = f"SELECT * FROM {self.schema}.BOT_FUNCTIONS WHERE FUNCTION_ID = %s"
-            cursor.execute(query, (function_id,))
-            result = cursor.fetchone()
-            function_columns = [desc[0] for desc in cursor.description]
-
-            if "TIMESTAMP" not in function_columns:
-                add_column_query = f"""ALTER TABLE {self.schema}.BOT_FUNCTIONS ADD COLUMN TIMESTAMP TIMESTAMP;"""
-                cursor.execute(add_column_query)
-
-            if result is not None:
-                timestamp_index = function_columns.index('TIMESTAMP') if 'TIMESTAMP' in function_columns else None
-                db_timestamp = result[timestamp_index] if timestamp_index is not None else None
-
-                # Ensure db_timestamp is timezone-aware
-                if db_timestamp is None:
-                    db_timestamp = datetime.now(pytz.UTC)
-                elif db_timestamp.tzinfo is None:
-                    db_timestamp = db_timestamp.replace(tzinfo=pytz.UTC)
-
-                # Ensure row['TIMESTAMP'] is timezone-aware
-                if function_default['TIMESTAMP'].tzinfo is None:
-                    function_default['TIMESTAMP'] = function_default['TIMESTAMP'].tz_localize(pytz.UTC)
-
-                if result[function_columns.index('FUNCTION_ID')] == function_id and db_timestamp < function_default['TIMESTAMP']:
-                    # Remove old process
-                    query = f"DELETE FROM {self.schema}.BOT_FUNCTIONS WHERE FUNCTION_ID = %s"
-                    cursor.execute(query, (function_id,))
-                    updated_process = True
-                elif result[function_columns.index('FUNCTION_ID')] == function_id:
-                    continue
-
-            placeholders = ', '.join(['%s'] * len(function_columns))
-
-            insert_values = []
-            for key in function_columns:
-                if key == 'FUNCTION_ID':
-                    insert_values.append(function_id)
-                elif key == 'TIMESTAMP':
-                    insert_values.append(timestamp_str)
-                else:
-                    val = function_default.get(key, '') if function_default.get(key, '') is not None else ''
-                    if pd.isna(val):
-                        val = ''
-                    insert_values.append(val)
-            insert_query = f"INSERT INTO {self.schema}.BOT_FUNCTIONS ({', '.join(function_columns)}) VALUES ({placeholders})"
-            cursor.execute(insert_query, insert_values) 
-            if updated_process:
-                print(f"Function {function_id} updated successfully.")
-                updated_process = False
-            else:
-                print(f"Function {function_id} inserted successfully.")
-        cursor.close()
-
-    def load_default_notebook(self, cursor, table):
-        pass
 
     def insert_table_summary(
         self,

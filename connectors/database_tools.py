@@ -2,7 +2,7 @@ import json
 import os
 from core.bot_os_memory import BotOsKnowledgeAnnoy_Metadata, BotOsKnowledgeBase
 from connectors.bigquery_connector import BigQueryConnector
-from connectors.snowflake_connector import SnowflakeConnector
+from connectors.snowflake_connector.snowflake_connector import SnowflakeConnector
 from connectors.sqlite_connector import SqliteConnector
 from connectors.database_connector import DatabaseConnector
 from connectors.bot_snowflake_connector import bot_credentials

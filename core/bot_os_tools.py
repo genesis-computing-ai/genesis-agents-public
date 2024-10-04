@@ -15,7 +15,7 @@ from jinja2 import Template
 from bot_genesis.make_baby_bot import MAKE_BABY_BOT_DESCRIPTIONS, make_baby_bot_tools
 from connectors import database_tools
 from connectors.bigquery_connector import BigQueryConnector
-from connectors.snowflake_connector import SnowflakeConnector
+from connectors.snowflake_connector.snowflake_connector import SnowflakeConnector
 from connectors.sqlite_connector import SqliteConnector
 from llm_openai.openai_utils import get_openai_client
 from slack.slack_tools import slack_tools, slack_tools_descriptions

@@ -1,8 +1,10 @@
+import random
+import string
+import datetime
+
 def process_scheduler(
         self, action, bot_id, task_id=None, task_details=None, thread_id=None, history_rows=10
     ):
-        import random
-        import string
 
         """
         Manages tasks in the TASKS table with actions to create, delete, or update a task.

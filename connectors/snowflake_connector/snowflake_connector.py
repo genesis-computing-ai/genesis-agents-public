@@ -18,6 +18,9 @@ import pkgutil
 from llm_openai.openai_utils import get_openai_client
 
 from ..database_connector import DatabaseConnector, llm_keys_and_types_struct
+from .sematic_model_utils import *
+from .stage_utils import *
+from .ensure_table_exists import ensure_table_exists
 
 from core.bot_os_llm import BotLlmEngineEnum
 
@@ -27,11 +30,6 @@ import base64
 import requests
 import re
 from tqdm import tqdm
-
-from .process_scheduler import *
-from .sematic_model_utils import *
-from .stage_utils import *
-from .ensure_table_exists import ensure_table_exists
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -124,8 +122,8 @@ class SnowflakeConnector(DatabaseConnector):
     def ensure_table_exists(self):
         ensure_table_exists(self)
 
-    def process_scheduler(self,action, bot_id, task_id=None, task_details=None, thread_id=None, history_rows=10):
-        process_scheduler(self,action, bot_id, task_id=None, task_details=None, thread_id=None, history_rows=10)
+    # def process_scheduler(self,action, bot_id, task_id=None, task_details=None, thread_id=None, history_rows=10):
+    #     process_scheduler(self, action, bot_id, task_id=None, task_details=None, thread_id=None, history_rows=10)
 
     def check_cortex_available(self):
         if os.environ.get("CORTEX_AVAILABLE", 'False') in ['False', '']:
@@ -157,29 +155,6 @@ class SnowflakeConnector(DatabaseConnector):
             return True
         else:
             return False
-
-            # if os.environ["CORTEX_AVAILABLE"] == 'False' or os.getenv("CORTEX_VIA_COMPLETE",'False').lower() == 'true':
-            #     try:
-            #         cortex_test = self.test_cortex()
-
-            #         if cortex_test == True:
-            #             os.environ["CORTEX_AVAILABLE"] = 'True'
-            #             os.environ["CORTEX_VIA_COMPLETE"] = 'True'
-            #             # os.environ["CORTEX_MODE"] = "True"
-            #             self.default_llm_engine = 'cortex'
-            #             self.llm_api_key = 'cortex_no_key_needed'
-            #             print('Cortex LLM is Available via SQL COMPLETE() and successfully tested')
-            #             return True
-            #         else:
-            #             os.environ["CORTEX_MODE"] = "False"
-            #             os.environ["CORTEX_AVAILABLE"] = 'False'
-            #             return False
-            #     except Exception as e:
-            #         print('Cortex LLM Not available via SQL COMPLETE(), exception on test: ',e)
-            #         return False
-            # else:
-            #     return True
-
 
     def test_cortex(self):
         newarray = [{"role": "user", "content": "hi there"} ]
@@ -229,7 +204,6 @@ class SnowflakeConnector(DatabaseConnector):
             os.environ['CORTEX_AVAILABLE'] = 'False'
             return False
  
-
     def test_cortex_via_rest(self):
         if os.getenv("CORTEX_OFF", "").upper() == "TRUE":
             print('CORTEX OFF ENV VAR SET -- SIMULATING NO CORTEX')
@@ -681,30 +655,6 @@ class SnowflakeConnector(DatabaseConnector):
             err = f"An error occurred while retrieving bot images: {e}"
             return {"Success": False, "Error": err}
 
-    def get_email(self):
-        """
-        Retrieves the email address if set.
-
-        Returns:
-            list: An email address, if set.
-        """
-        try:
-            query = f"SELECT DEFAULT_EMAIL FROM {self.genbot_internal_project_and_schema}.DEFAULT_EMAIL"
-            cursor = self.client.cursor()
-            cursor.execute(query)
-            email_info = cursor.fetchall()
-            columns = [col[0].lower() for col in cursor.description]
-            email_list = [dict(zip(columns, email)) for email in email_info]
-            json_data = json.dumps(
-                email_list, default=str
-            )  # default=str to handle datetime and other non-serializable types
-
-            return {"Success": True, "Data": json_data}
-
-        except Exception as e:
-            err = f"An error occurred while getting email address: {e}"
-            return {"Success": False, "Error": err}
-
     def get_llm_info(self, thread_id=None):
         """
         Retrieves a list of all llm types and keys.
@@ -715,11 +665,11 @@ class SnowflakeConnector(DatabaseConnector):
         try:
             runner_id = os.getenv("RUNNER_ID", "jl-local-runner") 
             query = f"""
-SELECT LLM_TYPE, ACTIVE, LLM_KEY, LLM_ENDPOINT 
-FROM {self.genbot_internal_project_and_schema}.LLM_TOKENS 
-WHERE LLM_KEY is not NULL
-AND   RUNNER_ID = '{runner_id}'
-"""
+        SELECT LLM_TYPE, ACTIVE, LLM_KEY, LLM_ENDPOINT 
+        FROM {self.genbot_internal_project_and_schema}.LLM_TOKENS 
+        WHERE LLM_KEY is not NULL
+        AND   RUNNER_ID = '{runner_id}'
+        """
             cursor = self.client.cursor()
             cursor.execute(query)
             llm_info = cursor.fetchall()
@@ -734,7 +684,6 @@ AND   RUNNER_ID = '{runner_id}'
         except Exception as e:
             err = f"An error occurred while getting llm info: {e}"
             return {"Success": False, "Error": err}
-
 
     def eai_test(self, object_type, site):
         try:
@@ -818,9 +767,6 @@ AND   RUNNER_ID = '{runner_id}'
             return {"Success": True, "Data": json_data}
         else:
             return {"Success": False, "Error": "something failed"}
-
-        
-
 
     def send_test_email(self, email_addr, thread_id=None):
         """
@@ -1396,7 +1342,6 @@ AND   RUNNER_ID = '{runner_id}'
 
 
     def _create_connection(self):
-
         # Snowflake token testing
         self.token_connection = False
         #  logger.warn('Creating connection..')
@@ -3038,157 +2983,6 @@ AND   RUNNER_ID = '{runner_id}'
             logger.error(
                 f"Failed to select default image data from the shared with error: {e}"
             )
-
-    def semantic_copilot(
-        self, prompt="What data is available?", semantic_model=None, prod=True
-    ):
-        # Parse the semantic_model into its components and validate
-        database, schema = self.genbot_internal_project_and_schema.split(".")
-        stage = "SEMANTIC_MODELS" if prod else "SEMANTIC_MODELS_DEV"
-        model = semantic_model
-        database, schema, stage, model = [
-            f'"{part}"' if not part.startswith('"') else part
-            for part in [database, schema, stage, model]
-        ]
-        if not all(
-            part.startswith('"') and part.endswith('"')
-            for part in [database, schema, stage, model]
-        ):
-            error_message = 'All five components of semantic_model must be enclosed in double quotes. For example "!SEMANTIC"."DB"."SCH"."STAGE"."model.yaml'
-            logger.error(error_message)
-            return {"success": False, "error": error_message}
-
-        # model = model_parts[4]
-        database_v, schema_v, stage_v, model_v = [
-            part.strip('"') for part in [database, schema, stage, model]
-        ]
-        if "." not in model_v:
-            model_v += ".yaml"
-
-        request_body = {
-            "role": "user",
-            "content": [{"type": "text", "text": prompt}],
-            "modelPath": model_v,
-        }
-        HOST = self.connection.host
-        num_retry, max_retries = 0, 3
-        while num_retry <= 10:
-            num_retry += 1
-            #    logger.warning('Checking REST token...')
-            rest_token = self.connection.rest.token
-            if rest_token:
-                print("REST token length: %d", len(rest_token))
-            else:
-                print("REST token is not available")
-            try:
-                resp = requests.post(
-                    (
-                        f"https://{HOST}/api/v2/databases/{database_v}/"
-                        f"schemas/{schema_v}/copilots/{stage_v}/chats/-/messages"
-                    ),
-                    json=request_body,
-                    headers={
-                        "Authorization": f'Snowflake Token="{rest_token}"',
-                        "Content-Type": "application/json",
-                    },
-                )
-            except Exception as e:
-                logger.warning(f"Response status exception: {e}")
-            logger.info("Response status code: %d", resp.status_code)
-            logger.info("Request URL: %s", resp.url)
-            if resp.status_code == 500:
-                logger.warning("Semantic Copilot Server error (500), retrying...")
-                continue  # This will cause the loop to start from the beginning
-            if resp.status_code == 404:
-                logger.error(
-                    f"Semantic API 404 Not Found: The requested resource does not exist. Called URL={resp.url} Semantic model={database}.{schema}.{stage}.{model}"
-                )
-                return {
-                    "success": False,
-                    "error": f"Either the semantic API is not enabled, or no semantic model was found at {database}.{schema}.{stage}.{model}",
-                }
-            if resp.status_code < 400:
-                response_payload = resp.json()
-
-                logger.info(f"Response payload: {response_payload}")
-                # Parse out the final message from copilot
-                final_copilot_message = "No response"
-                # Extract the content of the last copilot response and format it as JSON
-                if "messages" in response_payload:
-                    copilot_messages = response_payload["messages"]
-                    if copilot_messages and isinstance(copilot_messages, list):
-                        final_message = copilot_messages[
-                            -1
-                        ]  # Get the last message in the list
-                        if final_message["role"] == "copilot":
-                            copilot_content = final_message.get("content", [])
-                            if copilot_content and isinstance(copilot_content, list):
-                                # Construct a JSON object with the copilot's last response
-                                final_copilot_message = {
-                                    "messages": [
-                                        {
-                                            "role": final_message["role"],
-                                            "content": copilot_content,
-                                        }
-                                    ]
-                                }
-                                logger.info(
-                                    f"Final copilot message as JSON: {final_copilot_message}"
-                                )
-                return {"success": True, "data": final_copilot_message}
-            else:
-                logger.warning("Response content: %s", resp.content)
-                return {
-                    "success": False,
-                    "error": f"Request failed with status {resp.status_code}: {resp.content}, URL: {resp.url}, Payload: {request_body}",
-                }
-
-    # snow = SnowflakeConnector(connection_name='Snowflake')
-    # snow.ensure_table_exists()
-    # snow.get_databases()
-    def list_stage_contents(
-        self,
-        database: str = None,
-        schema: str = None,
-        stage: str = None,
-        pattern: str = None,
-        thread_id=None,
-    ):
-        """
-        List the contents of a given Snowflake stage.
-
-        Args:
-            database (str): The name of the database.
-            schema (str): The name of the schema.
-            stage (str): The name of the stage.
-            pattern (str): Optional pattern to match file names.
-
-        Returns:
-            list: A list of files in the stage.
-        """
-
-        if pattern:
-            # Convert wildcard pattern to regex pattern
-            pattern = pattern.replace(".*", "*")
-            pattern = pattern.replace("*", ".*")
-
-            if pattern.startswith("/"):
-                pattern = pattern[1:]
-            pattern = f"'{pattern}'"
-        try:
-            query = f'LIST @"{database}"."{schema}"."{stage}"'
-            if pattern:
-                query += f" PATTERN = {pattern}"
-            ret = self.run_query(query, max_rows=50, max_rows_override=True)
-            if isinstance(ret, dict) and "does not exist or not authorized" in ret.get(
-                "Error", ""
-            ):
-                query = query.upper()
-                ret = self.run_query(query, max_rows=50, max_rows_override=True)
-            return ret
-
-        except Exception as e:
-            return {"success": False, "error": str(e)}
 
     def image_generation(self, prompt, thread_id=None):
 

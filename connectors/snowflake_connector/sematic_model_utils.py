@@ -3,6 +3,7 @@ import yaml
 import random
 import string
 import datetime
+import requests
 from threading import Lock
 
 logger = logging.getLogger(__name__)
@@ -1230,3 +1231,107 @@ def list_semantic_models(self, prod=None, thread_id=None):
         return {"Success": True, "ProdModels": prod_models, "DevModels": dev_models}
     except Exception as e:
         return {"Success": False, "Error": str(e)}
+
+def semantic_copilot(
+    self, prompt="What data is available?", semantic_model=None, prod=True
+):
+    # Parse the semantic_model into its components and validate
+    database, schema = self.genbot_internal_project_and_schema.split(".")
+    stage = "SEMANTIC_MODELS" if prod else "SEMANTIC_MODELS_DEV"
+    model = semantic_model
+    database, schema, stage, model = [
+        f'"{part}"' if not part.startswith('"') else part
+        for part in [database, schema, stage, model]
+    ]
+    if not all(
+        part.startswith('"') and part.endswith('"')
+        for part in [database, schema, stage, model]
+    ):
+        error_message = 'All five components of semantic_model must be enclosed in double quotes. For example "!SEMANTIC"."DB"."SCH"."STAGE"."model.yaml'
+        logger.error(error_message)
+        return {"success": False, "error": error_message}
+
+    # model = model_parts[4]
+    database_v, schema_v, stage_v, model_v = [
+        part.strip('"') for part in [database, schema, stage, model]
+    ]
+    if "." not in model_v:
+        model_v += ".yaml"
+
+    request_body = {
+        "role": "user",
+        "content": [{"type": "text", "text": prompt}],
+        "modelPath": model_v,
+    }
+    HOST = self.connection.host
+    num_retry, max_retries = 0, 3
+    while num_retry <= 10:
+        num_retry += 1
+        #    logger.warning('Checking REST token...')
+        rest_token = self.connection.rest.token
+        if rest_token:
+            print("REST token length: %d", len(rest_token))
+        else:
+            print("REST token is not available")
+        try:
+            resp = requests.post(
+                (
+                    f"https://{HOST}/api/v2/databases/{database_v}/"
+                    f"schemas/{schema_v}/copilots/{stage_v}/chats/-/messages"
+                ),
+                json=request_body,
+                headers={
+                    "Authorization": f'Snowflake Token="{rest_token}"',
+                    "Content-Type": "application/json",
+                },
+            )
+        except Exception as e:
+            logger.warning(f"Response status exception: {e}")
+        logger.info("Response status code: %d", resp.status_code)
+        logger.info("Request URL: %s", resp.url)
+        if resp.status_code == 500:
+            logger.warning("Semantic Copilot Server error (500), retrying...")
+            continue  # This will cause the loop to start from the beginning
+        if resp.status_code == 404:
+            logger.error(
+                f"Semantic API 404 Not Found: The requested resource does not exist. Called URL={resp.url} Semantic model={database}.{schema}.{stage}.{model}"
+            )
+            return {
+                "success": False,
+                "error": f"Either the semantic API is not enabled, or no semantic model was found at {database}.{schema}.{stage}.{model}",
+            }
+        if resp.status_code < 400:
+            response_payload = resp.json()
+
+            logger.info(f"Response payload: {response_payload}")
+            # Parse out the final message from copilot
+            final_copilot_message = "No response"
+            # Extract the content of the last copilot response and format it as JSON
+            if "messages" in response_payload:
+                copilot_messages = response_payload["messages"]
+                if copilot_messages and isinstance(copilot_messages, list):
+                    final_message = copilot_messages[
+                        -1
+                    ]  # Get the last message in the list
+                    if final_message["role"] == "copilot":
+                        copilot_content = final_message.get("content", [])
+                        if copilot_content and isinstance(copilot_content, list):
+                            # Construct a JSON object with the copilot's last response
+                            final_copilot_message = {
+                                "messages": [
+                                    {
+                                        "role": final_message["role"],
+                                        "content": copilot_content,
+                                    }
+                                ]
+                            }
+                            logger.info(
+                                f"Final copilot message as JSON: {final_copilot_message}"
+                            )
+            return {"success": True, "data": final_copilot_message}
+        else:
+            logger.warning("Response content: %s", resp.content)
+            return {
+                "success": False,
+                "error": f"Request failed with status {resp.status_code}: {resp.content}, URL: {resp.url}, Payload: {request_body}",
+            }

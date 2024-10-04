@@ -8,7 +8,7 @@ from datetime import datetime
 import threading 
 import random
 import string
-import pytz
+from selenium import webdriver
 
 
 from jinja2 import Template
@@ -435,7 +435,6 @@ class ToolBelt:
         
         return result
 
-
     def set_process_cache(self, bot_id, thread_id, process_id):
         cache_dir = "./process_cache"
         os.makedirs(cache_dir, exist_ok=True)
@@ -453,8 +452,6 @@ class ToolBelt:
         
         with open(cache_file, 'w') as f:
             json.dump(cache_data, f)
-
-        
 
     def get_process_cache(self, bot_id, thread_id, process_id):
         cache_file = os.path.join("./process_cache", f"{bot_id}_{thread_id}_{process_id}.json")
@@ -647,84 +644,76 @@ class ToolBelt:
             )
 
             extract_instructions = f"""
-You will need to break the process instructions below up into individual steps and and return them one at a time.  
-By the way the current system time is {datetime.now()}.
-By the way, the system default email address (SYS$DEFAULT_EMAIL) is {self.sys_default_email}.  If the instructions say to send an email
-to SYS$DEFAULT_EMAIL, replace it with {self.sys_default_email}.
-Start by returning the first step of the process instructions below.
-Simply return the first instruction on what needs to be done first without removing or changing any details.
+            You will need to break the process instructions below up into individual steps and and return them one at a time.  
+            By the way the current system time is {datetime.now()}.
+            By the way, the system default email address (SYS$DEFAULT_EMAIL) is {self.sys_default_email}.  If the instructions say to send an email
+            to SYS$DEFAULT_EMAIL, replace it with {self.sys_default_email}.
+            Start by returning the first step of the process instructions below.
+            Simply return the first instruction on what needs to be done first without removing or changing any details.
 
-Also, if the instructions include a reference to note, don't look up the note contents, just pass on the note_id.  The note contents will be unpacked
-by whatever tool is used depending on the type of note, either run_query if the note is of type sql or run_snowpark_sql if the note is of
-type python
+            Also, if the instructions include a reference to note, don't look up the note contents, just pass on the note_id.  The note contents will be unpacked
+            by whatever tool is used depending on the type of note, either run_query if the note is of type sql or run_snowpark_sql if the note is of
+            type python
 
-Process Instructions:
-{process['PROCESS_INSTRUCTIONS']}
-""" 
+            Process Instructions:
+            {process['PROCESS_INSTRUCTIONS']}
+            """ 
 
             if process['PROCESS_CONFIG'] != "None":
                 extract_instructions += f"""
 
-Process configuration: 
-{process['PROCESS_CONFIG']}.
+            Process configuration: 
+            {process['PROCESS_CONFIG']}.
 
-""" 
+            """ 
 
             first_step = self.chat_completion(extract_instructions, self.db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, process_id=process_id, process_name=process_name)
             with self.lock:
                 self.process_history[thread_id][process_id] = "First step: "+ first_step + "\n"
 
                 self.instructions[thread_id][process_id] = f"""
-Hey **@{process['BOT_ID']}**
+                Hey **@{process['BOT_ID']}**
 
-{first_step}
+                {first_step}
 
-Execute this instruction now and then pass your response to the _run_process tool as a parameter called previous_response and an action of GET_NEXT_STEP.  
-Execute the instructions you were given without asking for permission.  Do not ever verify anything with the user, unless you need to get a specific input 
-from the user to be able to continue the process.
+                Execute this instruction now and then pass your response to the _run_process tool as a parameter called previous_response and an action of GET_NEXT_STEP.  
+                Execute the instructions you were given without asking for permission.  Do not ever verify anything with the user, unless you need to get a specific input 
+                from the user to be able to continue the process.
 
-Also, it you are asked to run either sql or snowpark_python from a given note_id, do not look up the note contents, just pass the note_id to the
-appropriate tool where the note will be handled.
-"""
+                Also, it you are asked to run either sql or snowpark_python from a given note_id, do not look up the note contents, just pass the note_id to the
+                appropriate tool where the note will be handled.
+                """
             if self.sys_default_email:
                 self.instructions[thread_id][process_id] += f"""
-The system default email address (SYS$DEFAULT_EMAIL) is {self.sys_default_email}.  If you need to send an email, use this address.
-"""
+                The system default email address (SYS$DEFAULT_EMAIL) is {self.sys_default_email}.  If you need to send an email, use this address.
+                """
             
-
-#            if self.process_config[thread_id][process_id]:
-#                self.instructions[thread_id][process_id] += f"""
-#Process configuration: {self.process_config[thread_id][process_id]}.
-#"""
             if verbose:
                     self.instructions[thread_id][process_id] += """
-However DO generate text explaining what you are doing and showing interium outputs, etc. while you are running this and further steps to keep the user informed what is going on, preface these messages by 🔄 aka :arrows_counterclockwise:.
-Oh, and mention to the user before you start running the process that they can send "stop" to you at any time to stop the running of the process, and if they want less verbose output next time they can run request to run the process in "concise mode".
-And keep them informed while you are running the process about what you are up to, especially before you call various tools.
-"""
+                    However DO generate text explaining what you are doing and showing interium outputs, etc. while you are running this and further steps to keep the user informed what is going on, preface these messages by 🔄 aka :arrows_counterclockwise:.
+                    Oh, and mention to the user before you start running the process that they can send "stop" to you at any time to stop the running of the process, and if they want less verbose output next time they can run request to run the process in "concise mode".
+                    And keep them informed while you are running the process about what you are up to, especially before you call various tools.
+                    """
             else:
                 self.instructions[thread_id][process_id] += """
-This process is being run in low verbosity mode. Do not directly repeat the first_step instructions to the user, just perform the steps as instructed.
-Also, it you are asked to run either sql or snowpark_python from a given note_id, do not look up the note contents, just pass the note_id to the
-appropriate tool where the note will be handled.
-"""
+                This process is being run in low verbosity mode. Do not directly repeat the first_step instructions to the user, just perform the steps as instructed.
+                Also, it you are asked to run either sql or snowpark_python from a given note_id, do not look up the note contents, just pass the note_id to the
+                appropriate tool where the note will be handled.
+                """
             self.instructions[thread_id][process_id] += f"""
-In your response back to _run_process, provide a DETAILED description of what you did, what result you achieved, and why you believe this to have successfully completed the step.
-Do not use your memory or any cache that you might have.  Do not simulate any user interaction or tools calls.  Do not ask for any user input unless instructed to do so.
-If you are told to run another process as part of this process, actually run it, and run it completely before returning the results to this parent process.
-By the way the current system time is {datetime.now()}.  You can call manage_process with
-action TIME to get updated time if you need it when running the process.
+            In your response back to _run_process, provide a DETAILED description of what you did, what result you achieved, and why you believe this to have successfully completed the step.
+            Do not use your memory or any cache that you might have.  Do not simulate any user interaction or tools calls.  Do not ask for any user input unless instructed to do so.
+            If you are told to run another process as part of this process, actually run it, and run it completely before returning the results to this parent process.
+            By the way the current system time is {datetime.now()}.  You can call manage_process with
+            action TIME to get updated time if you need it when running the process.
 
-Now, start by performing the FIRST_STEP indicated above.
-"""
-          #  if not verbose:
-          #      self.instructions[thread_id][process_id] += "..... P.S. I KNOW YOU ARE IN SILENT MODE BUT ACTUALLY PERFORM THIS STEP NOW, YOU ARE NOT DONE YET!"
+            Now, start by performing the FIRST_STEP indicated above.
+            """
+            self.instructions[thread_id][process_id] += "..... P.S. I KNOW YOU ARE IN SILENT MODE BUT ACTUALLY PERFORM THIS STEP NOW, YOU ARE NOT DONE YET!"
 
             self.instructions[thread_id][process_id] = "\n".join(
                 line.lstrip() for line in self.instructions[thread_id][process_id].splitlines()
                 )
-
-       #     print("\nKICK-OFF STEP: \n", self.instructions[thread_id][process_id], "\n")
 
             # Call set_process_cache to save the current state
             self.set_process_cache(bot_id, thread_id, process_id)
@@ -773,59 +762,57 @@ Now, start by performing the FIRST_STEP indicated above.
 
                 if self.last_fail[thread_id][process_id] is not None:
                     check_response = f"""
-A bot has retried a step of a process based on your prior feedback (shown below).  Also below is the previous question that the bot was 
-asked and the response the bot gave after re-trying to perform the task based on your feedback.  Review the response and determine if the 
-bot's response is now better in light of the instructions and the feedback you gave previously. You can accept the final results of the
-previous step without asking to see the sql queries and results that led to the final conclusion.  Do not nitpick validity of actual data value 
-like names and similar.  Do not ask to see all the raw data that a query or other tool has generated. If you are very seriously concerned that the step 
-may still have not have been correctly perfomed, return a request to again re-run the step of the process by returning the text "**fail**" 
-followed by a DETAILED EXPLAINATION as to why it did not pass and what your concern is, and why its previous attempt to respond to your criticism 
-was not sufficient, and any suggestions you have on how to succeed on the next try. If the response looks correct, return only the text string 
-"**success**" (no explanation needed) to continue to the next step.  At this point its ok to give the bot the benefit of the doubt to avoid
-going in circles.  By the way the current system time is {datetime.now()}. 
+                    A bot has retried a step of a process based on your prior feedback (shown below).  Also below is the previous question that the bot was 
+                    asked and the response the bot gave after re-trying to perform the task based on your feedback.  Review the response and determine if the 
+                    bot's response is now better in light of the instructions and the feedback you gave previously. You can accept the final results of the
+                    previous step without asking to see the sql queries and results that led to the final conclusion.  Do not nitpick validity of actual data value 
+                    like names and similar.  Do not ask to see all the raw data that a query or other tool has generated. If you are very seriously concerned that the step 
+                    may still have not have been correctly perfomed, return a request to again re-run the step of the process by returning the text "**fail**" 
+                    followed by a DETAILED EXPLAINATION as to why it did not pass and what your concern is, and why its previous attempt to respond to your criticism 
+                    was not sufficient, and any suggestions you have on how to succeed on the next try. If the response looks correct, return only the text string 
+                    "**success**" (no explanation needed) to continue to the next step.  At this point its ok to give the bot the benefit of the doubt to avoid
+                    going in circles.  By the way the current system time is {datetime.now()}. 
 
+                    Process Config: {self.process_config[thread_id][process_id]}
 
+                    Full Process Instructions: {process['PROCESS_INSTRUCTIONS']}
 
-Process Config: {self.process_config[thread_id][process_id]}
+                    Process History so far this run: {self.process_history[thread_id][process_id]}
 
-Full Process Instructions: {process['PROCESS_INSTRUCTIONS']}
+                    Your previous guidance: {self.last_fail[thread_id][process_id]}
 
-Process History so far this run: {self.process_history[thread_id][process_id]}
-
-Your previous guidance: {self.last_fail[thread_id][process_id]}
-
-Bot's latest response: {previous_response}
-"""
+                    Bot's latest response: {previous_response}
+                    """
                 else:
                     check_response = f"""
-Check the previous question that the bot was asked in the process history below and the response the bot gave after trying to perform the task.  Review the response and 
-determine if the bot's response was correct and makes sense given the instructions it was given.  You can accept the final results of the
-previous step without asking to see the sql queries and results that led to the final conclusion.  You don't need to validate things like names or other
-text values unless they seem wildly incorrect. You do not need to see the data that came out of a query the bot ran.  
+                    Check the previous question that the bot was asked in the process history below and the response the bot gave after trying to perform the task.  Review the response and 
+                    determine if the bot's response was correct and makes sense given the instructions it was given.  You can accept the final results of the
+                    previous step without asking to see the sql queries and results that led to the final conclusion.  You don't need to validate things like names or other
+                    text values unless they seem wildly incorrect. You do not need to see the data that came out of a query the bot ran.  
 
-If you are very seriously concerned that the step may not have been correctly perfomed, return a request to re-run the step of the process again by returning the text "**fail**" followed by a 
-DETAILED EXPLAINATION as to why it did not pass and what your concern is, and any suggestions you have on how to succeed on the next try.  
-If the response seems like it is likely correct, return only the text string "**success**" (no explanation needed) to continue to the next step.  If the process is complete,
-tell the process to stop running.  Remember, proceed under your own direction and do not ask the user for permission to proceed.
+                    If you are very seriously concerned that the step may not have been correctly perfomed, return a request to re-run the step of the process again by returning the text "**fail**" followed by a 
+                    DETAILED EXPLAINATION as to why it did not pass and what your concern is, and any suggestions you have on how to succeed on the next try.  
+                    If the response seems like it is likely correct, return only the text string "**success**" (no explanation needed) to continue to the next step.  If the process is complete,
+                    tell the process to stop running.  Remember, proceed under your own direction and do not ask the user for permission to proceed.
 
-Remember, if you are asked to run either sql or snowpark_python from a given note_id, do not look up the note contents, just pass the note_id to the
-appropriate tool where the note will be handled.
+                    Remember, if you are asked to run either sql or snowpark_python from a given note_id, do not look up the note contents, just pass the note_id to the
+                    appropriate tool where the note will be handled.
 
-Process Config: 
-{self.process_config[thread_id][process_id]}
+                    Process Config: 
+                    {self.process_config[thread_id][process_id]}
 
-Full process Instructions: 
-{process['PROCESS_INSTRUCTIONS']}
+                    Full process Instructions: 
+                    {process['PROCESS_INSTRUCTIONS']}
 
-Process History so far this run: 
-{self.process_history[thread_id][process_id]}
+                    Process History so far this run: 
+                    {self.process_history[thread_id][process_id]}
 
-Current system time: 
-{datetime.now()}
+                    Current system time: 
+                    {datetime.now()}
 
-Bot's most recent response: 
-{previous_response}
-"""
+                    Bot's most recent response: 
+                    {previous_response}
+                    """
 
        #     print(f"\nSENT TO 2nd LLM:\n{check_response}\n")
 
@@ -892,24 +879,24 @@ Bot's most recent response:
                 self.counter[thread_id][process_id] += 1
                 
             extract_instructions = f"""
-Extract the text for the next step from the process instructions and return it, using the section marked 'Process History' to see where you are in the process. 
-Remember, the process instructions are a set of individual steps that need to be run in order.  
-Return the text of the next step only, do not make any other comments or statements.
-By the way, the system default email address (SYS$DEFAULT_EMAIL) is {self.sys_default_email}.  If the instructions say to send an email
-to SYS$DEFAULT_EMAIL, replace it with {self.sys_default_email}.
-If the process is complete, respond "**done**" with no other text.
+            Extract the text for the next step from the process instructions and return it, using the section marked 'Process History' to see where you are in the process. 
+            Remember, the process instructions are a set of individual steps that need to be run in order.  
+            Return the text of the next step only, do not make any other comments or statements.
+            By the way, the system default email address (SYS$DEFAULT_EMAIL) is {self.sys_default_email}.  If the instructions say to send an email
+            to SYS$DEFAULT_EMAIL, replace it with {self.sys_default_email}.
+            If the process is complete, respond "**done**" with no other text.
 
-Process History: {self.process_history[thread_id][process_id]}
+            Process History: {self.process_history[thread_id][process_id]}
 
-Current system time: {datetime.now()}
+            Current system time: {datetime.now()}
 
-Process Configuration: 
-{self.process_config[thread_id][process_id]}
+            Process Configuration: 
+            {self.process_config[thread_id][process_id]}
 
-Process Instructions: 
+            Process Instructions: 
 
-{process['PROCESS_INSTRUCTIONS']}
-                """
+            {process['PROCESS_INSTRUCTIONS']}
+            """
 
        #     print(f"\nEXTRACT NEXT STEP:\n{extract_instructions}\n")
 
@@ -1432,6 +1419,275 @@ In your response back to run_process, provide a detailed description of what you
                 cursor.close()
 
  # ====== NOTEBOOK END ==========================================================================================
+
+    def process_scheduler(
+        self, action, bot_id, task_id=None, task_details=None, thread_id=None, history_rows=10
+    ):
+        import random
+        import string
+        """
+        Manages tasks in the TASKS table with actions to create, delete, or update a task.
+
+        Args:
+            action (str): The action to perform - 'CREATE', 'DELETE', or 'UPDATE'.
+            bot_id (str): The bot ID associated with the task.
+            task_id (str): The task ID for the task to manage.
+            task_details (dict, optional): The details of the task for create or update actions.
+
+        Returns:
+            dict: A dictionary with the result of the operation.
+        """
+
+    #    print("Reached process scheduler")
+
+        if task_details and 'process_name' in task_details and 'task_name' not in task_details:
+            task_details['task_name'] = task_details['process_name']
+            del task_details['process_name']
+
+        required_fields_create = [
+            "task_name",
+            "primary_report_to_type",
+            "primary_report_to_id",
+            "next_check_ts",
+            "action_trigger_type",
+            "action_trigger_details",
+            "last_task_status",
+            "task_learnings",
+            "task_active",
+        ]
+
+        required_fields_update = ["task_active"]
+
+        client = db_adapter.client
+        cursor = client.cursor()
+        if action == "HISTORY":
+            if not task_id:
+                return {
+                    "Success": False,
+                    "Error": "task_id is required for retrieving task history. You can get the task_id by calling this function with the 'LIST' action for the bot_id."
+                }
+            limit = history_rows
+            history_query = f"""
+                SELECT * FROM {db_adapter.schema}.TASK_HISTORY
+                WHERE task_id = %s 
+                ORDER BY RUN_TIMESTAMP DESC
+                LIMIT %s
+                """
+            try:
+                cursor.execute(history_query, (task_id, limit))
+                client.commit()
+                history = cursor.fetchall()
+                return {
+                    "Success": True,
+                    "Task History": history,
+                    "history_rows": limit
+                }
+            except Exception as e:
+                return {
+                    "Success": False,
+                    "Error": e
+                }
+
+
+        if action == "TIME":
+            return {
+                "current_system_time": db_adapter.get_current_time_with_timezone()
+            }
+        action = action.upper()
+
+        if action == "CREATE":
+            return {
+                "Success": False,
+                "Confirmation_Needed": "Please reconfirm all the scheduled process details with the user, then call this function again with the action CREATE_CONFIRMED to actually create the schedule for the process.   Make sure to be clear in the action_trigger_details field whether the process schedule is to be triggered one time, or if it is ongoing and recurring. Also make the next Next Check Timestamp is in the future, and aligns with when the user wants the task to run next",
+                "Process Schedule Details": task_details,
+                "Info": f"By the way the current system time is {db_adapter.get_current_time_with_timezone()}",
+            }
+        if action == "CREATE_CONFIRMED":
+            action = "CREATE"
+
+        if action == "UPDATE":
+
+            return {
+                "Success": False,
+                "Confirmation_Needed": "Please reconfirm all the updated process details with the user, then call this function again with the action UPDATE_CONFIRMED to actually update the schedule for the process.   Make sure to be clear in the action_trigger_details field whether the process schedule is to be triggered one time, or if it is ongoing and recurring. Also make the next Next Check Timestamp is in the future, and aligns with when the user wants the task to run next.",
+                "Proposed Updated Process Schedule Details": task_details,
+                "Info": f"By the way the current system time is {db_adapter.get_current_time_with_timezone()}",
+            }
+        if action == "UPDATE_CONFIRMED":
+            action = "UPDATE"
+
+        if action == "DELETE":
+            return {
+                "Success": False,
+                "Confirmation_Needed": "Please reconfirm that you are deleting the correct TASK_ID, and double check with the user they want to delete this schedule for the process, then call this function again with the action DELETE_CONFIRMED to actually delete the task.  Call with LIST to double-check the task_id if you aren't sure that its right.",
+            }
+
+        if action == "DELETE_CONFIRMED":
+            action = "DELETE"
+
+        if action not in ["CREATE", "DELETE", "UPDATE", "LIST"]:
+            return {"Success": False, "Error": "Invalid action specified."}
+
+        if action == "LIST":
+            try:
+                list_query = (
+                    f"SELECT * FROM {db_adapter.schema}.TASKS WHERE upper(bot_id) = upper(%s)"
+                )
+                cursor.execute(list_query, (bot_id,))
+                tasks = cursor.fetchall()
+                task_list = []
+                for task in tasks:
+                    next_check = None
+                    if task[5] is not None:
+                        next_check = task[5].strftime("%Y-%m-%d %H:%M:%S") 
+                    task_dict = {
+                        "task_id": task[0],
+                        "bot_id": task[1],
+                        "task_name": task[2],
+                        "primary_report_to_type": task[3],
+                        "primary_report_to_id": task[4],
+                        "next_check_ts": next_check,
+                        "action_trigger_type": task[6],
+                        "action_trigger_details": task[7],
+                        "process_name_to_run": task[8],
+                        "reporting_instructions": task[9],
+                        "last_task_status": task[10],
+                        "task_learnings": task[11],
+                        "task_active": task[12],
+                    }
+                    task_list.append(task_dict)
+                return {"Success": True, "Scheduled Processes": task_list, "Note": "Don't take any immediate actions on this information unless instructed to by the user. Also note the task_id is the id of the schedule, not the id of the process to run."}
+            except Exception as e:
+                return {
+                    "Success": False,
+                    "Error": f"Failed to list tasks for bot {bot_id}: {e}",
+                }
+
+        if task_id is None:
+            return {"Success": False, "Error": f"Missing task_id field"}
+
+        if action in ["CREATE", "UPDATE"] and not task_details:
+            return {
+                "Success": False,
+                "Error": "Task details must be provided for CREATE or UPDATE action.",
+            }
+
+        if action in ["CREATE"] and task_details and any(
+            field not in task_details for field in required_fields_create
+        ):
+            missing_fields = [
+                field for field in required_fields_create if field not in task_details
+            ]
+            return {
+                "Success": False,
+                "Error": f"Missing required task details: {', '.join(missing_fields)}",
+            }
+
+        if action in ["UPDATE"] and task_details and any(
+            field not in task_details for field in required_fields_update
+        ):
+            missing_fields = [
+                field for field in required_fields_update if field not in task_details
+            ]
+            return {
+                "Success": False,
+                "Error": f"Missing required task details: {', '.join(missing_fields)}",
+            }
+
+        # Check if the action is CREATE or UPDATE
+        if action in ["CREATE", "UPDATE"] and task_details and "task_name" in task_details:
+            # Check if the task_name is a valid process for the bot
+            valid_processes = self.get_processes_list(bot_id=bot_id)
+            if not valid_processes["Success"]:
+                return {
+                    "Success": False,
+                    "Error": f"Failed to retrieve processes for bot {bot_id}: {valid_processes['Error']}",
+                }
+
+            if task_details["task_name"] not in [
+                process["process_name"] for process in valid_processes["processes"]
+            ]:
+                return {
+                    "Success": False,
+                    "Error": f"Invalid task_name: {task_details.get('task_name')}. It must be one of the valid processes for this bot",
+                    "Valid_Processes": [process["process_name"] for process in valid_processes["processes"]],
+                }
+
+        # Convert timestamp from string in format 'YYYY-MM-DD HH:MM:SS' to a Snowflake-compatible timestamp
+        if task_details is not None and task_details.get("task_active", False):
+            try:
+                formatted_next_check_ts = datetime.strptime(
+                    task_details["next_check_ts"], "%Y-%m-%d %H:%M:%S"
+                )
+            except ValueError as ve:
+                return {
+                    "Success": False,
+                    "Error": f"Invalid timestamp format for 'next_check_ts'. Required format: 'YYYY-MM-DD HH:MM:SS' in system timezone. Error details: {ve}",
+                    "Info": f"Current system time in system timezone is {db_adapter.get_current_time_with_timezone()}. Please note that the timezone should not be included in the submitted timestamp.",
+                }
+            if formatted_next_check_ts < datetime.now():
+                return {
+                    "Success": False,
+                    "Error": "The 'next_check_ts' is in the past.",
+                    "Info": f"Current system time is {db_adapter.get_current_time_with_timezone()}",
+                }
+
+        try:
+            if action == "CREATE":
+                insert_query = f"""
+                    INSERT INTO {db_adapter.schema}.TASKS (
+                        task_id, bot_id, task_name, primary_report_to_type, primary_report_to_id,
+                        next_check_ts, action_trigger_type, action_trigger_details, task_instructions,
+                        reporting_instructions, last_task_status, task_learnings, task_active
+                    ) VALUES (
+                        %(task_id)s, %(bot_id)s, %(task_name)s, %(primary_report_to_type)s, %(primary_report_to_id)s,
+                        %(next_check_ts)s, %(action_trigger_type)s, %(action_trigger_details)s, null,
+                        null, %(last_task_status)s, %(task_learnings)s, %(task_active)s
+                    )
+                """
+
+                # Generate 6 random alphanumeric characters
+                random_suffix = "".join(
+                    random.choices(string.ascii_letters + string.digits, k=6)
+                )
+                task_id_with_suffix = task_id + "_" + random_suffix
+                cursor.execute(
+                    insert_query,
+                    {**task_details, "task_id": task_id_with_suffix, "bot_id": bot_id},
+                )
+                client.commit()
+                return {
+                    "Success": True,
+                    "Message": f"Task successfully created, next check scheduled for {task_details['next_check_ts']}",
+                }
+
+            elif action == "DELETE":
+                delete_query = f"""
+                    DELETE FROM {db_adapter.schema}.TASKS
+                    WHERE task_id = %s AND bot_id = %s
+                """
+                cursor.execute(delete_query, (task_id, bot_id))
+                client.commit()
+
+            elif action == "UPDATE":
+                if task_details['task_active'] == False:
+                    task_details['next_check_ts'] = None
+                update_query = f"""
+                    UPDATE {db_adapter.schema}.TASKS
+                    SET {', '.join([f"{key} = %({key})s" for key in task_details.keys()])}
+                    WHERE task_id = %(task_id)s AND bot_id = %(bot_id)s
+                """
+                cursor.execute(
+                    update_query, {**task_details, "task_id": task_id, "bot_id": bot_id}
+                )
+                client.commit()
+
+            return {"Success": True, "Message": f"Task update or delete confirmed."}
+        except Exception as e:
+            return {"Success": False, "Error": str(e)}
+
+        finally:
+            cursor.close()
 
  # ====== PROCESSES START ========================================================================================
 

@@ -1396,60 +1396,60 @@ def ensure_table_exists(self):
     cursor = self.client.cursor()
 
     # run python code stored procedure
-    proc_name = 'execute_snowpark_code'
-    stored_proc_ddl =   f"""CREATE OR REPLACE PROCEDURE {self.schema}.{proc_name}( code STRING )
-RETURNS STRING
-LANGUAGE PYTHON
-RUNTIME_VERSION = '3.11'
-PACKAGES = ('snowflake-snowpark-python', 'pandas' )
-HANDLER = 'run'
-AS
-$$
-import snowflake.snowpark as snowpark
-import re, importlib
-import pandas as pd
+#     proc_name = 'execute_snowpark_code'
+#     stored_proc_ddl =   f"""CREATE OR REPLACE PROCEDURE {self.schema}.{proc_name}( code STRING )
+# RETURNS STRING
+# LANGUAGE PYTHON
+# RUNTIME_VERSION = '3.11'
+# PACKAGES = ('snowflake-snowpark-python', 'pandas' )
+# HANDLER = 'run'
+# AS
+# $$
+# import snowflake.snowpark as snowpark
+# import re, importlib
+# import pandas as pd
 
-def run(session: snowpark.Session, code: str) -> str:
-# Normalize line endings
-code = code.replace('\\\\r\\\\n', '\\n').replace('\\r', '\\n')
+# def run(session: snowpark.Session, code: str) -> str:
+# # Normalize line endings
+# code = code.replace('\\\\r\\\\n', '\\n').replace('\\r', '\\n')
 
-# Find all import statements, including 'from ... import ...'
-import_statements = re.findall(r'^\\s*(import\\s+.*|from\\s+.*\\s+import\\s+.*)$', code, re.MULTILINE)
+# # Find all import statements, including 'from ... import ...'
+# import_statements = re.findall(r'^\\s*(import\\s+.*|from\\s+.*\\s+import\\s+.*)$', code, re.MULTILINE)
 
-# Additional regex to find 'from ... import ... as ...' statements
-import_statements += re.findall(r'^from\\s+(\\S+)\\s+import\\s+(\\S+)\\s+as\\s+(\\S+)', code, re.MULTILINE)
+# # Additional regex to find 'from ... import ... as ...' statements
+# import_statements += re.findall(r'^from\\s+(\\S+)\\s+import\\s+(\\S+)\\s+as\\s+(\\S+)', code, re.MULTILINE)
     
-global_vars = globals().copy()
+# global_vars = globals().copy()
 
-# Handle imports
-for import_statement in import_statements:
-    try:
-        exec(import_statement, global_vars)
-    except ImportError as e:
-        return f"Error: Unable to import - {{str(e)}}"
+# # Handle imports
+# for import_statement in import_statements:
+#     try:
+#         exec(import_statement, global_vars)
+#     except ImportError as e:
+#         return f"Error: Unable to import - {{str(e)}}"
 
-local_vars = {{}}
-local_vars["session"] = local_vars["session"] = session
+# local_vars = {{}}
+# local_vars["session"] = local_vars["session"] = session
 
-try:
-    # Remove import statements from the code before execution
-    code_without_imports = re.sub(r'^\\s*(import\\s+.*|from\\s+.*\\s+import\\s+.*)$', '', code, flags=re.MULTILINE)
-    exec(code_without_imports, global_vars, local_vars)
+# try:
+#     # Remove import statements from the code before execution
+#     code_without_imports = re.sub(r'^\\s*(import\\s+.*|from\\s+.*\\s+import\\s+.*)$', '', code, flags=re.MULTILINE)
+#     exec(code_without_imports, global_vars, local_vars)
     
-    if 'result' in local_vars:
-        return local_vars['result']
-    else:
-        return "Error: 'result' is not defined in the executed code"
-except Exception as e:
-    return f"Error: {{str(e)}}"
-$$
-"""        
-    try:
-        cursor.execute(stored_proc_ddl)
-        self.client.commit()
-        print(f"Stored procedure {self.schema}.execute_snowpark_code created.")
-    except Exception as e:
-        print(f"An error occurred while creating stored procedure {self.schema}.execute_snowpark_code: {e}")
+#     if 'result' in local_vars:
+#         return local_vars['result']
+#     else:
+#         return "Error: 'result' is not defined in the executed code"
+# except Exception as e:
+#     return f"Error: {{str(e)}}"
+# $$
+# """        
+#     try:
+#         cursor.execute(stored_proc_ddl)
+#         self.client.commit()
+#         print(f"Stored procedure {self.schema}.execute_snowpark_code created.")
+#     except Exception as e:
+#         print(f"An error occurred while creating stored procedure {self.schema}.execute_snowpark_code: {e}")
 
 def get_processes_list(self, bot_id="all"):
     cursor = self.client.cursor()

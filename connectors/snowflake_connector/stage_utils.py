@@ -386,3 +386,47 @@ def test_stage_functions():
         print("'tostage.txt' has been successfully deleted from the stage.")
     else:
         print("Error: 'tostage.txt' is still present in the stage.")
+
+def list_stage_contents(
+        self,
+        database: str = None,
+        schema: str = None,
+        stage: str = None,
+        pattern: str = None,
+        thread_id=None,
+    ):
+        """
+        List the contents of a given Snowflake stage.
+
+        Args:
+            database (str): The name of the database.
+            schema (str): The name of the schema.
+            stage (str): The name of the stage.
+            pattern (str): Optional pattern to match file names.
+
+        Returns:
+            list: A list of files in the stage.
+        """
+
+        if pattern:
+            # Convert wildcard pattern to regex pattern
+            pattern = pattern.replace(".*", "*")
+            pattern = pattern.replace("*", ".*")
+
+            if pattern.startswith("/"):
+                pattern = pattern[1:]
+            pattern = f"'{pattern}'"
+        try:
+            query = f'LIST @"{database}"."{schema}"."{stage}"'
+            if pattern:
+                query += f" PATTERN = {pattern}"
+            ret = self.run_query(query, max_rows=50, max_rows_override=True)
+            if isinstance(ret, dict) and "does not exist or not authorized" in ret.get(
+                "Error", ""
+            ):
+                query = query.upper()
+                ret = self.run_query(query, max_rows=50, max_rows_override=True)
+            return ret
+
+        except Exception as e:
+            return {"success": False, "error": str(e)}

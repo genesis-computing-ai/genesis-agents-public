@@ -352,7 +352,7 @@ BEGIN
               ' SET ' ||
               ' QUERY_WAREHOUSE = '||:WH_NAME||
               ' EXTERNAL_ACCESS_INTEGRATIONS = (REFERENCE(''consumer_external_access''))';
-          ELSEIF (EAI AND NOT eai_ref AND rec.EAI_NAME IS NOT NULL) THEN
+          ELSEIF (EAI AND rec.EAI_NAME IS NOT NULL AND NOT eai_ref) THEN
             EXECUTE IMMEDIATE
               'ALTER SERVICE IF EXISTS '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
               ' SET ' ||

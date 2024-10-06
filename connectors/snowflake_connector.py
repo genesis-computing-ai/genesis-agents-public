@@ -2264,6 +2264,11 @@ $$;
                         cursor.execute(update_query)
                         self.client.commit()
                     
+                    #update case to lower for llm_type. Can remove after release_202410b.
+                    update_case_query = f"""UPDATE {self.genbot_internal_project_and_schema}.LLM_TOKENS SET LLM_TYPE = LOWER(LLM_TYPE)"""
+                    cursor.execute(update_case_query)
+                    self.client.commit()
+                    
                     select_active_llm_query = f"""SELECT LLM_TYPE FROM {self.genbot_internal_project_and_schema}.LLM_TOKENS WHERE ACTIVE = TRUE;"""
                     cursor.execute(select_active_llm_query)
                     active_llm = cursor.fetchone()

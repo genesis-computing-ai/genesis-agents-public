@@ -1556,7 +1556,7 @@ def insert_process_history(
             cursor.close()
 
 def load_default_processes_and_notebook(self, cursor):
-        folder_path = 'default_processes'
+        folder_path = 'golden_processes'
         self.process_data = pd.DataFrame()
         
         files = glob.glob(os.path.join(folder_path, '*'))

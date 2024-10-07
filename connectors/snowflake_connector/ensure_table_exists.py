@@ -1242,7 +1242,8 @@ def ensure_table_exists(self):
             user_bot_table_ddl = f"""
             CREATE TABLE IF NOT EXISTS {self.tool_knowledge_table_name} (
                 timestamp TIMESTAMP NOT NULL,
-                last_timestamp TIMESTAMP NOT NULL,                    
+                last_timestamp TIMESTAMP NOT NULL,  
+                bot_id STRING NOT NULL,                  
                 tool STRING NOT NULL, 
                 summary STRING NOT NULL                    
             );
@@ -1254,7 +1255,30 @@ def ensure_table_exists(self):
             check_query = f"DESCRIBE TABLE {self.tool_knowledge_table_name};"
             print(f"Table {self.tool_knowledge_table_name} already exists.")
     except Exception as e:
-        print(f"An error occurred while checking or creating table {self.user_bot_table_name}: {e}")
+        print(f"An error occurred while checking or creating table {self.tool_knowledge_table_name}: {e}")
+
+    try:
+        cursor = self.client.cursor()
+        cursor.execute(f"SHOW TABLES LIKE 'DATA_KNOWLEDGE' IN SCHEMA {self.schema};")
+        if not cursor.fetchone():
+            user_bot_table_ddl = f"""
+            CREATE TABLE IF NOT EXISTS {self.data_knowledge_table_name} (
+                timestamp TIMESTAMP NOT NULL,
+                last_timestamp TIMESTAMP NOT NULL,  
+                bot_id STRING NOT NULL,                  
+                dataset STRING NOT NULL, 
+                summary STRING NOT NULL                    
+            );
+            """
+            cursor.execute(user_bot_table_ddl)
+            self.client.commit()
+            print(f"Table {self.data_knowledge_table_name} created.")
+        else:
+            check_query = f"DESCRIBE TABLE {self.data_knowledge_table_name};"
+            print(f"Table {self.data_knowledge_table_name} already exists.")
+    except Exception as e:
+        print(f"An error occurred while checking or creating table {self.data_knowledge_table_name}: {e}")
+
 
     try:
         cursor = self.client.cursor()

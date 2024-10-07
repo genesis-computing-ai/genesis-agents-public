@@ -358,12 +358,13 @@ class KnowledgeServer:
                             if action:
                                 function_name += '_' + action[0]
                         function_params = row['MESSAGE_PAYLOAD']
+                        bot_id = row['BOT_ID']
                     else:
                         if "'success': False" in row['MESSAGE_PAYLOAD']: continue
-                        groups.setdefault(function_name, [])
-                        groups[function_name].append(f'{function_params}:\n\n' + row['MESSAGE_PAYLOAD'][:200])
+                        groups.setdefault((bot_id, function_name), [])
+                        groups[(bot_id, function_name)].append(f'{function_params}:\n\n' + row['MESSAGE_PAYLOAD'][:200])
                 
-                for function_name, function_content in groups.items():
+                for (bot_id, function_name), function_content in groups.items():
                     if function_content:                
                         messages = '\n\n'.join(function_content)
                         system = 'Given the following outputs from a tool call summerize how this tool is used for future reference'
@@ -385,24 +386,86 @@ class KnowledgeServer:
                             response, status_code  = self.db_connector.cortex_chat_completion(content, system=system)                    
                         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")                
                         self.db_connector.run_insert(self.db_connector.tool_knowledge_table_name, timestamp=timestamp, 
-                                                    last_timestamp=last_timestamp, tool = function_name, summary=response)
+                                                    last_timestamp=last_timestamp, bot_id=bot_id, tool = function_name, summary=response)
             else:
                 print(f"Pausing Tool Knowledge for {refresh_seconds} seconds before next check.", flush=True )
                 time.sleep(refresh_seconds)
 
+    def data_knowledge(self):
+        while True:            
+            cutoff = (datetime.now() - timedelta(minutes=10)).strftime("%Y-%m-%d %H:%M:%S")
+            query = f"""
+                    WITH K AS (SELECT COALESCE(max(last_timestamp),  DATE('2000-01-01')) as last_timestamp FROM {self.db_connector.data_knowledge_table_name})
+                    SELECT * FROM {self.db_connector.message_log_table_name}, K           
+                    WHERE timestamp > K.last_timestamp AND timestamp < TO_TIMESTAMP('{cutoff}')
+                    AND MESSAGE_TYPE LIKE 'Tool%'
+                    ORDER by timestamp;
+                    """
+            tools = self.db_connector.run_query(query, max_rows=100)
+            if tools:
+                last_timestamp = max([row['TIMESTAMP'] for row in tools])
+                groups = {}
+                for row in tools:
+                    if row['MESSAGE_TYPE'] == 'Tool Call':
+                        if 'run_query' in row['MESSAGE_PAYLOAD']:                            
+                            run_query = True
+                        else:
+                            run_query - False
+                            continue
+                        func_args = json.loads(row['MESSAGE_METADATA'])['func_args']
+                        dataset = re.findall('from (.+?) ', func_args.lower().replace('\\','',))
+                        if dataset:
+                            dataset = dataset[0]
+                        else:
+                            dataset = ''
+                        bot_id = row['BOT_ID']
+                    else:
+                        if "'success': False" in row['MESSAGE_PAYLOAD']: continue
+                        groups.setdefault((bot_id, dataset), [])
+                        groups[(bot_id, dataset)].append(f'{func_args}:\n\n' + row['MESSAGE_PAYLOAD'][:200])
+                
+                for (bot_id, dataset), function_content in groups.items():
+                    if function_content:                
+                        messages = '\n\n'.join(function_content)
+                        system = 'Given the following outputs from a database call summerize how this table is used for future reference'
+                        content = f"""
+                                    Dataset Name:
+                                    {dataset}
+                                    
+                                    Query Outputs:
+                                    {messages}
+                                """
+                        if self.llm_type == 'openai':
+                            response = self.client.chat.completions.create(
+                                model=self.model,
+                                messages=[{"role": "system", "content": system},
+                                        {"role": "user", "content": content}]
+                            )
+                            response = response.choices[0].message.content
+                        else:
+                            response, status_code  = self.db_connector.cortex_chat_completion(content, system=system)                    
+                        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")                
+                        self.db_connector.run_insert(self.db_connector.data_knowledge_table_name, timestamp=timestamp, 
+                                                    last_timestamp=last_timestamp, bot_id=bot_id, dataset = dataset, summary=response)
+            else:
+                print(f"Pausing Data Knowledge for {refresh_seconds} seconds before next check.", flush=True )
+                time.sleep(refresh_seconds)
 
     def start_threads(self):
         producer_thread = threading.Thread(target=self.producer)
         consumer_thread = threading.Thread(target=self.consumer)
         refiner_thread  = threading.Thread(target=self.refiner)
         tool_thread     = threading.Thread(target=self.tool_knowledge)
+        data_thread     = threading.Thread(target=self.data_knowledge)
 
         producer_thread.start()
         consumer_thread.start()
         refiner_thread.start()
         tool_thread.start()
+        data_thread.start()
 
         producer_thread.join()
         consumer_thread.join()
         refiner_thread.join()
         tool_thread.join()
+        data_thread.join()

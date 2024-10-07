@@ -16,7 +16,7 @@ formula1_analysis_example:
       - If the user agrees, use the manage process tool with the SHOW action to get the full process instructions and output them verbatim to the user.
       - If the user does not agree, end the process and suggest another task that can be performed next.
   PROCESS_DETAILS: "Example of Analyzing the Formula 1 Demo Data"
-  TIMESTAMP: "2024-09-20 00:00:00+00:00"
+  TIMESTAMP: "2024-10-04 00:00:00+00:00"
 
 janice_monitor_unused_tables_golden:
   BOT_ID: "Janice"

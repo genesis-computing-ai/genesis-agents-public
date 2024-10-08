@@ -22,6 +22,28 @@ logging.basicConfig(
     level=logging.WARN, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
+def remove_deprecated_tables(self):
+    # Remove BOT_FUNCTIONS is it exists
+    bot_functions_table_check_query = f"SHOW TABLES LIKE 'BOT_FUNCTIONS' IN SCHEMA {self.schema};"
+    cursor = self.client.cursor()
+    cursor.execute(bot_functions_table_check_query)
+
+    if cursor.fetchone():
+        query = f"DROP TABLE {self.schema}.BOT_FUNCTIONS"
+        cursor.execute(query)
+
+    # REMOVE BOT_NOTEBOOK if it exists
+    delete_bot_notebook_table_ddl = f"""
+    DROP TABLE IF EXISTS {self.schema}.BOT_NOTEBOOK;
+    """
+    with self.client.cursor() as cursor:
+        cursor.execute(delete_bot_notebook_table_ddl)
+        self.client.commit()
+        cursor.close()
+    print(f"Table {self.schema}.BOT_NOTEBOOK renamed NOTEBOOK.")
+
+    return
+
 def ensure_table_exists(self):
     import core.bot_os_tool_descriptions
 
@@ -1425,7 +1447,7 @@ def make_date_tz_aware(date, tz='UTC'):
     return date_str
 
 def load_default_processes_and_notebook(self, cursor):
-        folder_path = 'golden_processes'
+        folder_path = 'golden_defaults/golden_processes'
         self.process_data = pd.DataFrame()
         
         files = glob.glob(os.path.join(folder_path, '*'))
@@ -1561,7 +1583,7 @@ def upgrade_timestamp_columns(self, table_name):
     return
 
 def load_default_notes(self, cursor):
-        folder_path = 'golden_notes'
+        folder_path = 'golden_defaults/golden_notes'
         self.notes_data = pd.DataFrame()
         
         files = glob.glob(os.path.join(folder_path, '*'))

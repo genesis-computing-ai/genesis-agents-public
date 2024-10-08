@@ -20,7 +20,7 @@ from llm_openai.openai_utils import get_openai_client
 from ..database_connector import DatabaseConnector, llm_keys_and_types_struct
 from .sematic_model_utils import *
 from .stage_utils import *
-from .ensure_table_exists import ensure_table_exists
+from .ensure_table_exists import ensure_table_exists, remove_deprecated_tables
 
 from core.bot_os_llm import BotLlmEngineEnum
 
@@ -122,6 +122,9 @@ class SnowflakeConnector(DatabaseConnector):
 
     def ensure_table_exists(self):
         ensure_table_exists(self)
+    
+    def remove_deprecated_tables(self):
+        remove_deprecated_tables(self)
 
     # def process_scheduler(self,action, bot_id, task_id=None, task_details=None, thread_id=None, history_rows=10):
     #     process_scheduler(self, action, bot_id, task_id=None, task_details=None, thread_id=None, history_rows=10)

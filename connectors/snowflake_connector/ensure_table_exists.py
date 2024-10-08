@@ -25,129 +25,6 @@ logging.basicConfig(
 def ensure_table_exists(self):
     import core.bot_os_tool_descriptions
 
-    # Create BOT_FUNCTIONS table if it doesn't exist
-    bot_functions_table_check_query = f"SHOW TABLES LIKE 'BOT_FUNCTIONS' IN SCHEMA {self.schema};"
-    cursor = self.client.cursor()
-    cursor.execute(bot_functions_table_check_query)
-    
-    if not cursor.fetchone():
-        create_bot_functions_table_ddl = f"""
-        CREATE OR REPLACE TABLE {self.schema}.BOT_FUNCTIONS (
-            BOT_ID VARCHAR(16777216),
-            FUNCTION_ID VARCHAR(16777216),
-            FUNCTION_TYPE VARCHAR(16777216),
-            FUNCTION_DEFINITION VARCHAR(16777216),
-            DESCRIPTION VARCHAR(16777216),
-            TIMESTAMP TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-        """
-        cursor.execute(create_bot_functions_table_ddl)
-        self.client.commit()
-        print(f"Table {self.schema}.BOT_FUNCTIONS created successfully.")
-    else:
-        print(f"Table {self.schema}.BOT_FUNCTIONS already exists.")
-    
-    table = f"{self.schema}.BOT_FUNCTIONS"
-    load_default_functions(self, cursor)
-
-    # Check if the run_dynamic_snowpark procedure already exists
-    check_snowpark_query = f"""
-    SHOW PROCEDURES LIKE 'RUN_PROCESS_SNOWPARK' IN SCHEMA {self.schema}
-    """
-    cursor = self.client.cursor()
-    cursor.execute(check_snowpark_query)
-    procedure_exists = cursor.fetchone() is not None
-    cursor.close()
-
-    if procedure_exists:
-        print(f"Procedure RUN_PROCESS_SNOWPARK already exists in schema {self.schema}.")
-    else:
-        # Create the run_dynamic_sql procedure if it doesn't exist
-        create_procedure_query ="""
-        CREATE OR REPLACE PROCEDURE """+self.schema+""".RUN_PROCESS_SNOWPARK(statement_id VARCHAR)
-        RETURNS VARIANT
-        LANGUAGE JAVASCRIPT
-        EXECUTE AS OWNER
-        AS
-        $$
-            
-        $$;
-        """
-        
-        try:
-            cursor = self.client.cursor()
-            cursor.execute(create_procedure_query)
-            self.client.commit()
-            print("Procedure run_dynamic_snowpark created or replaced successfully.")
-        except Exception as e:
-            print(f"An error occurred while creating or replacing the run_dynamic_snowpark procedure: {e}")
-        finally:
-            if cursor:
-                cursor.close()
-
-
-    # Check if the run_dynamic_sql procedure already exists
-    check_procedure_query = f"""
-    SHOW PROCEDURES LIKE 'RUN_PROCESS_SQL' IN SCHEMA {self.schema}
-    """
-    cursor = self.client.cursor()
-    cursor.execute(check_procedure_query)
-    procedure_exists = cursor.fetchone() is not None
-    cursor.close()
-
-    if procedure_exists:
-        print(f"Procedure RUN_PROCESS_SQL already exists in schema {self.schema}.")
-    else:
-        # Create the run_dynamic_sql procedure if it doesn't exist
-        create_procedure_query ="""
-        CREATE OR REPLACE PROCEDURE """+self.schema+""".RUN_PROCESS_SQL(statement_id VARCHAR)
-        RETURNS VARIANT
-        LANGUAGE JAVASCRIPT
-        EXECUTE AS OWNER
-        AS
-        $$
-            // Get the SQL statement from the SQL_STATEMENTS table
-            var sql_command = `SELECT FUNCTION_DEFINITION FROM """+self.schema+"""."BOT_FUNCTIONS" WHERE FUNCTION_ID = :1`;
-            var stmt = snowflake.createStatement({sqlText: sql_command, binds: [STATEMENT_ID]});
-            var result_set = stmt.execute();
-            
-            if (result_set.next()) {
-                var dynamic_sql = result_set.getColumnValue(1);  // Retrieve the SQL_TEXT
-                
-                // Execute the dynamic SQL
-                var dynamic_stmt = snowflake.createStatement({sqlText: dynamic_sql});
-                var dynamic_result_set = dynamic_stmt.execute();
-                
-                // Collect the results of the dynamic SQL query
-                var results = [];
-                while (dynamic_result_set.next()) {
-                    var row = {};
-                    for (var i = 1; i <= dynamic_result_set.getColumnCount(); i++) {
-                        row[dynamic_result_set.getColumnName(i)] = dynamic_result_set.getColumnValue(i);
-                    }
-                    results.push(row);
-                }
-                
-                // Return the results
-                return results;
-            } else {
-                return "SQL statement not found for the given ID.";
-            }
-        $$;
-        """
-        
-        try:
-            cursor = self.client.cursor()
-            cursor.execute(create_procedure_query)
-            self.client.commit()
-            print("Procedure run_dynamic_sql created or replaced successfully.")
-        except Exception as e:
-            print(f"An error occurred while creating or replacing the run_dynamic_sql procedure: {e}")
-        finally:
-            if cursor:
-                cursor.close()
-
-
     # Maintain bots_active table 
     # Get the current timestamp
     current_timestamp = self.get_current_time_with_timezone()
@@ -169,7 +46,6 @@ def ensure_table_exists(self):
     finally:
         if cursor:
             cursor.close()
-
 
     streamlitdc_url = os.getenv("DATA_CUBES_INGRESS_URL", None)
     print(f"streamlit data cubes ingress URL: {streamlitdc_url}")
@@ -1095,8 +971,7 @@ def ensure_table_exists(self):
     else:
         print(f"Table {self.schema}.BOT_NOTEBOOK already exists.")
     
-    table = f"{self.schema}.BOT_NOTEBOOK"
-    # self.load_default_notebook(cursor, table)
+    load_default_notes(self, cursor)
 
     # NOTEBOOK_HISTORY TABLE
     notebook_history_table_check_query = (
@@ -1419,62 +1294,6 @@ def ensure_table_exists(self):
 
     cursor = self.client.cursor()
 
-    # run python code stored procedure
-#     proc_name = 'execute_snowpark_code'
-#     stored_proc_ddl =   f"""CREATE OR REPLACE PROCEDURE {self.schema}.{proc_name}( code STRING )
-# RETURNS STRING
-# LANGUAGE PYTHON
-# RUNTIME_VERSION = '3.11'
-# PACKAGES = ('snowflake-snowpark-python', 'pandas' )
-# HANDLER = 'run'
-# AS
-# $$
-# import snowflake.snowpark as snowpark
-# import re, importlib
-# import pandas as pd
-
-# def run(session: snowpark.Session, code: str) -> str:
-# # Normalize line endings
-# code = code.replace('\\\\r\\\\n', '\\n').replace('\\r', '\\n')
-
-# # Find all import statements, including 'from ... import ...'
-# import_statements = re.findall(r'^\\s*(import\\s+.*|from\\s+.*\\s+import\\s+.*)$', code, re.MULTILINE)
-
-# # Additional regex to find 'from ... import ... as ...' statements
-# import_statements += re.findall(r'^from\\s+(\\S+)\\s+import\\s+(\\S+)\\s+as\\s+(\\S+)', code, re.MULTILINE)
-    
-# global_vars = globals().copy()
-
-# # Handle imports
-# for import_statement in import_statements:
-#     try:
-#         exec(import_statement, global_vars)
-#     except ImportError as e:
-#         return f"Error: Unable to import - {{str(e)}}"
-
-# local_vars = {{}}
-# local_vars["session"] = local_vars["session"] = session
-
-# try:
-#     # Remove import statements from the code before execution
-#     code_without_imports = re.sub(r'^\\s*(import\\s+.*|from\\s+.*\\s+import\\s+.*)$', '', code, flags=re.MULTILINE)
-#     exec(code_without_imports, global_vars, local_vars)
-    
-#     if 'result' in local_vars:
-#         return local_vars['result']
-#     else:
-#         return "Error: 'result' is not defined in the executed code"
-# except Exception as e:
-#     return f"Error: {{str(e)}}"
-# $$
-# """        
-#     try:
-#         cursor.execute(stored_proc_ddl)
-#         self.client.commit()
-#         print(f"Stored procedure {self.schema}.execute_snowpark_code created.")
-#     except Exception as e:
-#         print(f"An error occurred while creating stored procedure {self.schema}.execute_snowpark_code: {e}")
-
 def get_processes_list(self, bot_id="all"):
     cursor = self.client.cursor()
     try:
@@ -1491,9 +1310,6 @@ def get_processes_list(self, bot_id="all"):
                 "process_id": process[0],
                 "bot_id": process[1],
                 "process_name": process[2],
-#                    "process_details": process[4],
-                #  "process_instructions": process[3],
-        #        "process_reporting_instructions": process[5],
             }
             process_list.append(process_dict)
         return {"Success": True, "processes": process_list}
@@ -1689,9 +1505,9 @@ def load_default_processes_and_notebook(self, cursor):
                 print(f"Process {process_id} already in PROCESSES and it is up to date.")
         cursor.close()
 
-def load_default_functions(self, cursor):
-        folder_path = 'default_functions'
-        self.function_data = pd.DataFrame()
+def load_default_notes(self, cursor):
+        folder_path = 'golden_defaults/golden_notes'
+        self.notes_data = pd.DataFrame()
         
         files = glob.glob(os.path.join(folder_path, '*'))
 
@@ -1701,38 +1517,37 @@ def load_default_functions(self, cursor):
             
             data = pd.DataFrame.from_dict(yaml_data, orient='index')
             data.reset_index(inplace=True)
-            data.rename(columns={'index': 'FUNCTION_ID'}, inplace=True)
+            data.rename(columns={'index': 'NOTE_ID'}, inplace=True)
 
-            self.function_defaults = pd.concat([self.function_data, data], ignore_index=True)
+            self.note_defaults = pd.concat([self.notes_data, data], ignore_index=True)
 
         # Ensure TIMESTAMP column is timezone-aware
-        self.function_defaults['TIMESTAMP'] = pd.to_datetime(self.function_defaults['TIMESTAMP'], format='ISO8601', utc=True)
+        self.note_defaults['TIMESTAMP'] = pd.to_datetime(self.note_defaults['TIMESTAMP'], format='ISO8601', utc=True)
 
         updated_process = False
 
-        for _, function_default in self.function_defaults.iterrows():
-            function_id = function_default['FUNCTION_ID']
-            # if function_default['TIMESTAMP'] is not None  and not pd.isna(function_default['TIMESTAMP']):
-            if type(function_default['TIMESTAMP']) is not str and function_default['TIMESTAMP'] is not None  and not pd.isna(function_default['TIMESTAMP']):
+        for _, note_default in self.note_defaults.iterrows():
+            note_id = note_default['NOTE_ID']
+            if type(note_default['TIMESTAMP']) is not str and note_default['TIMESTAMP'] is not None  and not pd.isna(note_default['TIMESTAMP']):
                # Ensure row['TIMESTAMP'] is timezone-aware
-               if function_default['TIMESTAMP'].tzinfo is None:
-                   function_default['TIMESTAMP'] = function_default['TIMESTAMP'].tz_localize(pytz.UTC)
-               timestamp_str = function_default['TIMESTAMP'].strftime('%Y-%m-%d %H:%M:%S')
+               if note_default['TIMESTAMP'].tzinfo is None:
+                   note_default['TIMESTAMP'] = note_default['TIMESTAMP'].tz_localize(pytz.UTC)
+               timestamp_str = note_default['TIMESTAMP'].strftime('%Y-%m-%d %H:%M:%S')
             else:
                timestamp_str = None
             timestamp_str = None
 
-            query = f"SELECT * FROM {self.schema}.BOT_FUNCTIONS WHERE FUNCTION_ID = %s"
-            cursor.execute(query, (function_id,))
+            query = f"SELECT * FROM {self.schema}.BOT_NOTEBOOK WHERE NOTE_ID = %s"
+            cursor.execute(query, (note_id,))
             result = cursor.fetchone()
-            function_columns = [desc[0] for desc in cursor.description]
+            notebook_columns = [desc[0] for desc in cursor.description]
 
-            if "TIMESTAMP" not in function_columns:
-                add_column_query = f"""ALTER TABLE {self.schema}.BOT_FUNCTIONS ADD COLUMN TIMESTAMP TIMESTAMP;"""
+            if "TIMESTAMP" not in notebook_columns:
+                add_column_query = f"""ALTER TABLE {self.schema}.BOT_NOTEBOOK ADD COLUMN TIMESTAMP TIMESTAMP;"""
                 cursor.execute(add_column_query)
 
             if result is not None:
-                timestamp_index = function_columns.index('TIMESTAMP') if 'TIMESTAMP' in function_columns else None
+                timestamp_index = notebook_columns.index('TIMESTAMP') if 'TIMESTAMP' in notebook_columns else None
                 db_timestamp = result[timestamp_index] if timestamp_index is not None else None
 
                 # Ensure db_timestamp is timezone-aware
@@ -1742,38 +1557,47 @@ def load_default_functions(self, cursor):
                     db_timestamp = db_timestamp.replace(tzinfo=pytz.UTC)
 
                 # Ensure row['TIMESTAMP'] is timezone-aware
-                if function_default['TIMESTAMP'].tzinfo is None:
-                    function_default['TIMESTAMP'] = function_default['TIMESTAMP'].tz_localize(pytz.UTC)
+                if note_default['TIMESTAMP'].tzinfo is None:
+                    note_default['TIMESTAMP'] = note_default['TIMESTAMP'].tz_localize(pytz.UTC)
 
-                if result[function_columns.index('FUNCTION_ID')] == function_id and db_timestamp < function_default['TIMESTAMP']:
+                if result[notebook_columns.index('NOTE_ID')] == note_id and db_timestamp < note_default['TIMESTAMP']:
                     # Remove old process
-                    query = f"DELETE FROM {self.schema}.BOT_FUNCTIONS WHERE FUNCTION_ID = %s"
-                    cursor.execute(query, (function_id,))
+                    query = f"DELETE FROM {self.schema}.BOT_NOTEBOOK WHERE NOTE_ID = %s"
+                    cursor.execute(query, (note_id,))
                     updated_process = True
-                elif result[function_columns.index('FUNCTION_ID')] == function_id:
+                elif result[notebook_columns.index('NOTE_ID')] == note_id:
                     continue
 
-            placeholders = ', '.join(['%s'] * len(function_columns))
+            placeholders = ', '.join(['%s'] * len(notebook_columns))
 
             insert_values = []
-            for key in function_columns:
-                if key == 'FUNCTION_ID':
-                    insert_values.append(function_id)
+            for key in notebook_columns:
+                if key == 'NOTE_ID':
+                    insert_values.append(note_id)
                 elif key == 'TIMESTAMP':
                     insert_values.append(timestamp_str)
                 else:
-                    val = function_default.get(key, '') if function_default.get(key, '') is not None else ''
+                    val = note_default.get(key, '') if note_default.get(key, '') is not None else ''
                     if pd.isna(val):
                         val = ''
                     insert_values.append(val)
-            insert_query = f"INSERT INTO {self.schema}.BOT_FUNCTIONS ({', '.join(function_columns)}) VALUES ({placeholders})"
+            insert_query = f"INSERT INTO {self.schema}.BOT_NOTEBOOK ({', '.join(notebook_columns)}) VALUES ({placeholders})"
             cursor.execute(insert_query, insert_values) 
             if updated_process:
-                print(f"Function {function_id} updated successfully.")
+                print(f"Note {note_id} updated successfully.")
                 updated_process = False
             else:
-                print(f"Function {function_id} inserted successfully.")
+                print(f"Note {note_id} inserted successfully.")
         cursor.close()
 
-def load_default_notebook(self, cursor, table):
-        pass
+def remove_deprecated_tables(self):
+    # Remove BOT_FUNCTIONS is it exists
+    bot_functions_table_check_query = f"SHOW TABLES LIKE 'BOT_FUNCTIONS' IN SCHEMA {self.schema};"
+    cursor = self.client.cursor()
+    cursor.execute(bot_functions_table_check_query)
+
+    if cursor.fetchone():
+        query = f"DROP TABLE {self.schema}.BOT_FUNCTIONS"
+        cursor.execute(query)
+
+    return

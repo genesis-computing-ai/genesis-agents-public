@@ -22,7 +22,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from connectors.bigquery_connector import BigQueryConnector
 from connectors.snowflake_connector.snowflake_connector import SnowflakeConnector
 from connectors.sqlite_connector import SqliteConnector
-from core.bot_os_tools import get_tools
+from core.bot_os_tools import get_tools, ToolBelt
 from slack.slack_bot_os_adapter import SlackBotAdapter
 from bot_genesis.make_baby_bot import (
     make_baby_bot,
@@ -114,6 +114,8 @@ else:
 # Initialize the BigQueryConnector with your connection info
 if not os.getenv("TEST_TASK_MODE", "false").lower() == "true":
     db_adapter.ensure_table_exists()
+
+tool_belt = ToolBelt(db_adapter)
 
 def insert_task_history(
         self,
@@ -1120,7 +1122,7 @@ def task_log_and_update(bot_id, task_id, task_result):
         task_active = False
     else:
         task_active = True
-    db_adapter.process_scheduler(
+    tool_belt.process_scheduler(
         action="UPDATE_CONFIRMED",
         bot_id=bot_id,
         task_id=task_id,
@@ -1204,7 +1206,7 @@ def tasks_loop():
             bot_id = session.bot_id
             if os.getenv("TEST_TASK_MODE", "false").lower() == "true":
                 print('test task mode - looking for tasks for bot ',bot_id)
-            tasks = db_adapter.process_scheduler(action="LIST", bot_id=bot_id, task_id=None)
+            tasks = tool_belt.process_scheduler(action="LIST", bot_id=bot_id, task_id=None)
            # if os.getenv("TEST_TASK_MODE", "false").lower() == "true":
            #     print('test task mode - tasks are: ',tasks)
             if tasks.get("Success"):
@@ -1258,7 +1260,7 @@ def tasks_loop():
             )
             response_map = input_adapter.response_map
             bot_id = session.bot_id
-            tasks = db_adapter.process_scheduler(action="LIST", bot_id=bot_id, task_id=None)
+            tasks = tool_belt.process_scheduler(action="LIST", bot_id=bot_id, task_id=None)
             processed_tasks = []
             for task_id, response in response_map.items():
 
@@ -1435,7 +1437,7 @@ def tasks_loop():
                         
                         processed_tasks.append(task_id)
 
-                        db_adapter.process_scheduler(
+                        tool_belt.process_scheduler(
                             action="UPDATE_CONFIRMED",
                             bot_id=bot_id,
                             task_id=task_id,

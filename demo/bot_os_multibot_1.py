@@ -155,6 +155,7 @@ if os.getenv("TEST_MODE", "false").lower() == "true":
     print("TEST_MODE - ensure table exists skipped")
     print("()()()()()()()()()()()()()")
 else:    
+    db_adapter.remove_deprecated_tables()
     db_adapter.ensure_table_exists()
 
 bot_id_to_udf_adapter_map = {}

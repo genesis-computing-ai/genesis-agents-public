@@ -948,15 +948,6 @@ def ensure_table_exists(self):
             f"An error occurred while checking or creating table {self.knowledge_table_name}: {e}"
         )
 
-    # Remove BOT_FUNCTIONS is it exists
-    bot_functions_table_check_query = f"SHOW TABLES LIKE 'BOT_FUNCTIONS' IN SCHEMA {self.schema};"
-    cursor = self.client.cursor()
-    cursor.execute(bot_functions_table_check_query)
-
-    if cursor.fetchone():
-        query = f"DROP TABLE {self.schema}.BOT_FUNCTIONS"
-        cursor.execute(query)
-
     # Create BOT_NOTEBOOK table if it doesn't exist
     bot_notebook_table_check_query = f"SHOW TABLES LIKE 'BOT_NOTEBOOK' IN SCHEMA {self.schema};"
     cursor = self.client.cursor()
@@ -1381,7 +1372,7 @@ def insert_process_history(
             cursor.close()
 
 def load_default_processes_and_notebook(self, cursor):
-        folder_path = 'golden_defaults/golden_processes'
+        folder_path = 'golden_processes'
         self.process_data = pd.DataFrame()
         
         files = glob.glob(os.path.join(folder_path, '*'))
@@ -1574,3 +1565,15 @@ def load_default_notes(self, cursor):
             else:
                 print(f"Note {note_id} inserted successfully.")
         cursor.close()
+
+def remove_deprecated_tables(self):
+    # Remove BOT_FUNCTIONS is it exists
+    bot_functions_table_check_query = f"SHOW TABLES LIKE 'BOT_FUNCTIONS' IN SCHEMA {self.schema};"
+    cursor = self.client.cursor()
+    cursor.execute(bot_functions_table_check_query)
+
+    if cursor.fetchone():
+        query = f"DROP TABLE {self.schema}.BOT_FUNCTIONS"
+        cursor.execute(query)
+
+    return

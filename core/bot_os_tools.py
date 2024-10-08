@@ -985,10 +985,10 @@ In your response back to run_process, provide a detailed description of what you
         cursor = db_adapter.client.cursor()
         try:
             if bot_id == "all":
-                list_query = f"SELECT * FROM {db_adapter.schema}.BOT_NOTEBOOK" if db_adapter.schema else f"SELECT note_id, bot_id FROM BOT_NOTEBOOK"
+                list_query = f"SELECT * FROM {db_adapter.schema}.NOTEBOOK" if db_adapter.schema else f"SELECT note_id, bot_id FROM NOTEBOOK"
                 cursor.execute(list_query)
             else:
-                list_query = f"SELECT * FROM {db_adapter.schema}.BOT_NOTEBOOK WHERE upper(bot_id) = upper(%s)" if db_adapter.schema else f"SELECT note_id, bot_id FROM BOT_NOTEBOOK WHERE upper(bot_id) = upper(%s)"
+                list_query = f"SELECT * FROM {db_adapter.schema}.NOTEBOOK WHERE upper(bot_id) = upper(%s)" if db_adapter.schema else f"SELECT note_id, bot_id FROM NOTEBOOK WHERE upper(bot_id) = upper(%s)"
                 cursor.execute(list_query, (bot_id,))
             notes = cursor.fetchall()
             note_list = []
@@ -1023,7 +1023,7 @@ In your response back to run_process, provide a detailed description of what you
                     "Error": "Note_id must be provided and cannot be empty."
                 }
             if note_id is not None and note_id != '':
-                query = f"SELECT * FROM {db_adapter.schema}.BOT_NOTEBOOK WHERE bot_id LIKE %s AND note_id = %s" if db_adapter.schema else f"SELECT * FROM BOT_NOTEBOOK WHERE bot_id LIKE %s AND note_id = %s"
+                query = f"SELECT * FROM {db_adapter.schema}.NOTEBOOK WHERE bot_id LIKE %s AND note_id = %s" if db_adapter.schema else f"SELECT * FROM NOTEBOOK WHERE bot_id LIKE %s AND note_id = %s"
                 cursor.execute(query, (f"%{bot_id}%", note_id))
                 result = cursor.fetchone()
 
@@ -1085,7 +1085,7 @@ In your response back to run_process, provide a detailed description of what you
             if action in ["UPDATE_NOTE_CONFIG", "CREATE_NOTE_CONFIG", "DELETE_NOTE_CONFIG"]:
                 note_config = '' if action == "DELETE_NOTE_CONFIG" else note_config
                 update_query = f"""
-                    UPDATE {db_adapter.schema}.BOT_NOTEBOOK
+                    UPDATE {db_adapter.schema}.NOTEBOOK
                     SET NOTE_CONFIG = %(note_config)s
                     WHERE NOTE_ID = %(note_id)s
                 """
@@ -1103,7 +1103,7 @@ In your response back to run_process, provide a detailed description of what you
             
             if action == "CREATE" or action == "CREATE_CONFIRMED":
                 # Check for dupe name
-                sql = f"SELECT * FROM {db_adapter.schema}.BOT_NOTEBOOK WHERE bot_id = %s and note_id = %s"
+                sql = f"SELECT * FROM {db_adapter.schema}.NOTEBOOK WHERE bot_id = %s and note_id = %s"
                 cursor.execute(sql, (bot_id, note_id))
 
                 record = cursor.fetchone()
@@ -1116,7 +1116,7 @@ In your response back to run_process, provide a detailed description of what you
                 
             if action == "UPDATE" or action == 'UPDATE_CONFIRMED':
                 # Check for dupe name
-                sql = f"SELECT * FROM {db_adapter.schema}.BOT_NOTEBOOK WHERE bot_id = %s and note_id = %s"
+                sql = f"SELECT * FROM {db_adapter.schema}.NOTEBOOK WHERE bot_id = %s and note_id = %s"
                 cursor.execute(sql, (bot_id, note_id))
 
                 record = cursor.fetchone()
@@ -1228,13 +1228,13 @@ In your response back to run_process, provide a detailed description of what you
         try:
             if action == "CREATE":
                 insert_query = f"""
-                    INSERT INTO {db_adapter.schema}.BOT_NOTEBOOK (
+                    INSERT INTO {db_adapter.schema}.NOTEBOOK (
                         created_at, updated_at, note_id, bot_id, note_name, note_content, note_params
                     ) VALUES (
                         current_timestamp(), current_timestamp(), %(note_id)s, %(bot_id)s, %(note_name)s, %(note_content)s, %(note_params)s
                     )
                 """ if db_adapter.schema else f"""
-                    INSERT INTO BOT_NOTEBOOK (
+                    INSERT INTO NOTEBOOK (
                         created_at, updated_at, note_id, bot_id, note_name, note_content, note_params
                     ) VALUES (
                         current_timestamp(), current_timestamp(), %(note_id)s, %(bot_id)s, %(note_name)s, %(note_content)s, %(note_params)s
@@ -1274,7 +1274,7 @@ In your response back to run_process, provide a detailed description of what you
 
             elif action == "DELETE":
                 delete_query = f"""
-                    DELETE FROM {db_adapter.schema}.BOT_NOTEBOOK
+                    DELETE FROM {db_adapter.schema}.NOTEBOOK
                     WHERE note_id = %s
                 """ if db_adapter.schema else f"""
                     DELETE FROM NOTEBOOK
@@ -1295,11 +1295,11 @@ In your response back to run_process, provide a detailed description of what you
 
             elif action == "UPDATE":
                 update_query = f"""
-                    UPDATE {db_adapter.schema}.BOT_NOTEBOOK
+                    UPDATE {db_adapter.schema}.NOTEBOOK
                     SET updated_at = CURRENT_TIMESTAMP, note_id=%s, bot_id=%s, note_name=%s, note_content=%s, note_params=%s, note_type=%s
                     WHERE note_id = %s
                 """ if db_adapter.schema else """
-                    UPDATE BOT_NOTEBOOK
+                    UPDATE NOTEBOOK
                     SET updated_at = CURRENT_TIMESTAMP, note_id=%s, bot_id=%s, note_name=%s, note_content=%s, note_params=%s, note_type=%s
                     WHERE note_id = %s
                 """

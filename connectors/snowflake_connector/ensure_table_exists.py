@@ -26,23 +26,33 @@ def ensure_table_exists(self):
     import core.bot_os_tool_descriptions
 
     # Remove depricated BOT_FUNCTIONS table if it exists
-    create_bot_functions_table_ddl = f"""
+    delete_bot_functions_table_ddl = f"""
     DROP TABLE IF EXISTS {self.schema}.BOT_FUNCTIONS;
     """
-    cursor = self.client.cursor()
-    cursor.execute(create_bot_functions_table_ddl)
-    self.client.commit()
-    cursor.close()
+    with self.client.cursor() as cursor:
+        cursor.execute(delete_bot_functions_table_ddl)
+        result = self.client.commit()
+        cursor.close()
+
     print(f"Table {self.schema}.BOT_FUNCTIONS is depricated and was dropped from workspace if it existed.")
+
+    delete_bot_notebook_table_ddl = f"""
+    DROP TABLE IF EXISTS {self.schema}.BOT_NOTEBOOK;
+    """
+    with self.client.cursor() as cursor:
+        cursor.execute(delete_bot_notebook_table_ddl)
+        result = self.client.commit()
+        cursor.close()
+    print(f"Table {self.schema}.BOT_NOTEBOOK renamed NOTEBOOK.")
     
     # Check if the run_dynamic_snowpark procedure already exists
     check_snowpark_query = f"""
     SHOW PROCEDURES LIKE 'RUN_PROCESS_SNOWPARK' IN SCHEMA {self.schema}
     """
-    cursor = self.client.cursor()
-    cursor.execute(check_snowpark_query)
-    procedure_exists = cursor.fetchone() is not None
-    cursor.close()
+    with self.client.cursor() as cursor:
+        cursor.execute(check_snowpark_query)
+        procedure_exists = cursor.fetchone() is not None
+        cursor.close()
 
     if procedure_exists:
         print(f"Procedure RUN_PROCESS_SNOWPARK already exists in schema {self.schema}.")
@@ -60,9 +70,9 @@ def ensure_table_exists(self):
         """
         
         try:
-            cursor = self.client.cursor()
-            cursor.execute(create_procedure_query)
-            self.client.commit()
+            with self.client.cursor() as cursor:
+                cursor.execute(create_procedure_query)
+                self.client.commit()
             print("Procedure run_dynamic_snowpark created or replaced successfully.")
         except Exception as e:
             print(f"An error occurred while creating or replacing the run_dynamic_snowpark procedure: {e}")
@@ -75,10 +85,10 @@ def ensure_table_exists(self):
     check_procedure_query = f"""
     SHOW PROCEDURES LIKE 'RUN_PROCESS_SQL' IN SCHEMA {self.schema}
     """
-    cursor = self.client.cursor()
-    cursor.execute(check_procedure_query)
-    procedure_exists = cursor.fetchone() is not None
-    cursor.close()
+    with self.client.cursor() as cursor:
+        cursor.execute(check_procedure_query)
+        procedure_exists = cursor.fetchone() is not None
+        cursor.close()
 
     if procedure_exists:
         print(f"Procedure RUN_PROCESS_SQL already exists in schema {self.schema}.")
@@ -122,9 +132,9 @@ def ensure_table_exists(self):
         """
         
         try:
-            cursor = self.client.cursor()
-            cursor.execute(create_procedure_query)
-            self.client.commit()
+            with self.client.cursor() as cursor:
+                cursor.execute(create_procedure_query)
+                self.client.commit()
             print("Procedure run_dynamic_sql created or replaced successfully.")
         except Exception as e:
             print(f"An error occurred while creating or replacing the run_dynamic_sql procedure: {e}")
@@ -145,9 +155,11 @@ def ensure_table_exists(self):
     """
     
     try:
-        cursor = self.client.cursor()
-        cursor.execute(create_bots_active_table_query)
-        self.client.commit()
+        with self.client.cursor() as cursor:
+            cursor.execute(create_bots_active_table_query)
+            self.client.commit()
+            cursor.execute(create_bots_active_table_query)
+            self.client.commit()
         print(f"Table {self.schema}.bots_active created or replaced successfully with timestamp: {timestamp_str}")
     except Exception as e:
         print(f"An error occurred while creating or replacing the bots_active table: {e}")
@@ -163,8 +175,8 @@ def ensure_table_exists(self):
         f"SHOW TABLES LIKE 'LLM_RESULTS' IN SCHEMA {self.schema};"
     )
     try:
-        cursor = self.client.cursor()
-        cursor.execute(llm_results_table_check_query)
+        with self.client.cursor() as cursor:
+            cursor.execute(llm_results_table_check_query)
     except Exception as e:
         print(f"Unable to execute 'SHOW TABLES' query: {e}\nQuery attempted: {llm_results_table_check_query}")
         raise Exception(f"Unable to execute 'SHOW TABLES' query: {e}\nQuery attempted: {llm_results_table_check_query}")
@@ -1057,14 +1069,14 @@ def ensure_table_exists(self):
             f"An error occurred while checking or creating table {self.knowledge_table_name}: {e}"
         )
 
-    # Create BOT_NOTEBOOK table if it doesn't exist
-    bot_notebook_table_check_query = f"SHOW TABLES LIKE 'BOT_NOTEBOOK' IN SCHEMA {self.schema};"
+    # Create NOTEBOOK table if it doesn't exist
+    bot_notebook_table_check_query = f"SHOW TABLES LIKE 'NOTEBOOK' IN SCHEMA {self.schema};"
     cursor = self.client.cursor()
     cursor.execute(bot_notebook_table_check_query)
     
     if not cursor.fetchone():
         create_bot_notebook_table_ddl = f"""
-        CREATE OR REPLACE TABLE {self.schema}.BOT_NOTEBOOK (
+        CREATE OR REPLACE TABLE {self.schema}.NOTEBOOK (
             CREATED_AT TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             UPDATED_AT TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             BOT_ID VARCHAR(16777216),
@@ -1077,10 +1089,12 @@ def ensure_table_exists(self):
         """
         cursor.execute(create_bot_notebook_table_ddl)
         self.client.commit()
-        print(f"Table {self.schema}.BOT_NOTEBOOK created successfully.")
+        print(f"Table {self.schema}.NOTEBOOK created successfully.")
     else:
-        print(f"Table {self.schema}.BOT_NOTEBOOK already exists.")
-        check_for_depricated_timestamp_columns(self, 'BOT_NOTEBOOK')
+        print(f"Table {self.schema}.NOTEBOOK already exists.")
+        upgrade_timestamp_columns(self, 'NOTEBOOK')
+
+    load_default_notes(self, cursor)
 
     # NOTEBOOK_HISTORY TABLE
     notebook_history_table_check_query = (
@@ -1141,7 +1155,7 @@ def ensure_table_exists(self):
             print(f"Table {self.schema}.PROCESSES created successfully.")
         else:
             print(f"Table {self.schema}.PROCESSES exists.")
-            check_for_depricated_timestamp_columns(self, 'PROCESSES')
+            upgrade_timestamp_columns(self, 'PROCESSES')
 
     except Exception as e:
         print(
@@ -1485,20 +1499,23 @@ def insert_process_history(
         if cursor is not None:
             cursor.close()
 
-def make_date_tz_aware(date):
+def make_date_tz_aware(date, tz='UTC'):
     """
     Makes a date object timezone-aware.
 
     Args:
         date (datetime): The date to make timezone-aware.
+        tz (str): The timezone to use.
 
     Returns:
-        datetime: The date object with timezone information.
+        datetime: The date string with timezone information.
     """
     if type(date) is not str and date is not None and not pd.isna(date):
         # Ensure row['CREATED_AT'] is timezone-aware
         if date.tzinfo is None:
-            date = date.tz_localize(pytz.UTC)
+            date = date.tz_localize(pytz.timezone(tz))
+        else:
+            date = date.astimezone(pytz.timezone(tz))
         date_str = date.strftime('%Y-%m-%d %H:%M:%S')
     else:
         date_str = None
@@ -1549,10 +1566,6 @@ def load_default_processes_and_notebook(self, cursor):
                 elif db_timestamp.tzinfo is None:
                     db_timestamp = db_timestamp.replace(tzinfo=pytz.UTC)
 
-                # Ensure row['UPDATED_AT'] is timezone-aware
-                # if process_default['UPDATED_AT'].tzinfo is None:
-                #     process_default['UPDATED_AT'] = process_default['UPDATED_AT'].tz_localize(pytz.UTC)
-
                 if process_default['PROCESS_ID'] == process_id and db_timestamp < process_default['TIMESTAMP']:
                     # Remove old process
                     query = f"DELETE FROM {self.schema}.PROCESSES WHERE PROCESS_ID = %s"
@@ -1570,24 +1583,22 @@ def load_default_processes_and_notebook(self, cursor):
                         insert_values.append(process_id)
                     elif key.lower() == 'timestamp' or key.lower() == 'updated_at' or key.lower() == 'created_at':
                         insert_values.append(timestamp_str)
-                    # elif key.lower() == 'created_at':
-                    #     continue
                     elif key.lower() == 'process_instructions':
                         # Note - remove this line and uncomment below 
                         insert_values.append(process_default['PROCESS_INSTRUCTIONS'])
 
-                        # Check to see if the process_instructions are already in a note in the BOT_NOTEBOOK table
-                        check_exist_query = f"SELECT * FROM {self.schema}.BOT_NOTEBOOK WHERE bot_id = %s AND note_content = %s"
+                        # Check to see if the process_instructions are already in a note in the NOTEBOOK table
+                        check_exist_query = f"SELECT * FROM {self.schema}.NOTEBOOK WHERE bot_id = %s AND note_content = %s"
                         cursor.execute(check_exist_query, (process_default['BOT_ID'], process_default['PROCESS_INSTRUCTIONS']))
                         result = cursor.fetchone()
 
                         if False and result is None:
-                            # Use this code to insert the process_instructions into the BOT_NOTEBOOK table
+                            # Use this code to insert the process_instructions into the NOTEBOOK table
                             characters = string.ascii_letters + string.digits
                             process_default['NOTE_ID'] = process_default['BOT_ID'] + '_' + ''.join(random.choice(characters) for i in range(10))
                             note_type = 'process'
                             insert_query = f"""
-                                INSERT INTO {self.schema}.BOT_NOTEBOOK (bot_id, note_content, note_type, note_id)
+                                INSERT INTO {self.schema}.NOTEBOOK (bot_id, note_content, note_type, note_id)
                                 VALUES (%s, %s, %s, %s)
                             """
                             cursor.execute(insert_query, (process_default['BOT_ID'], process_default['PROCESS_INSTRUCTIONS'], note_type, process_default['NOTE_ID']))
@@ -1612,37 +1623,113 @@ def load_default_processes_and_notebook(self, cursor):
                 print(f"Process {process_id} already in PROCESSES and it is up to date.")
         cursor.close()
 
-def check_for_depricated_timestamp_columns(self, table_name):
-    cursor = self.client.cursor()
+def upgrade_timestamp_columns(self, table_name):
     try:
-        check_for_old_timestamp_columns_query = f"DESCRIBE TABLE {self.schema}.{table_name};"
-        cursor.execute(check_for_old_timestamp_columns_query)
-        columns = [col[0] for col in cursor.fetchall()]
-    
-        if "CREATED_AT" not in columns and "UPDATED_AT" not in columns:
-            alter_table_query = f"ALTER TABLE {self.schema}.{table_name} ADD COLUMN \"CREATED_AT\" TIMESTAMP, \"UPDATED_AT\" TIMESTAMP;"
-            cursor.execute(alter_table_query)
-            self.client.commit()
-            print(f"Table {table_name} updated with new columns.")
+        with self.client.cursor() as cursor:
+            check_for_old_timestamp_columns_query = f"DESCRIBE TABLE {self.schema}.{table_name};"
+            cursor.execute(check_for_old_timestamp_columns_query)
+            columns = [col[0] for col in cursor.fetchall()]
+        
+            if "CREATED_AT" not in columns and "UPDATED_AT" not in columns:
+                alter_table_query = f"ALTER TABLE {self.schema}.{table_name} ADD COLUMN \"CREATED_AT\" TIMESTAMP, \"UPDATED_AT\" TIMESTAMP;"
+                cursor.execute(alter_table_query)
+                self.client.commit()
+                print(f"Table {table_name} updated with new columns.")
 
-        if "TIMESTAMP" in columns:
-            # Copy contents of TIMESTAMP to CREATED_AT
-            copy_timestamp_to_created_at_query = f"""
-            UPDATE {self.schema}.{table_name}
-            SET CREATED_AT = TIMESTAMP, UPDATED_AT = TIMESTAMP
-            WHERE CREATED_AT IS NULL;
-            """
+            if "TIMESTAMP" in columns:
+                # Copy contents of TIMESTAMP to CREATED_AT
+                copy_timestamp_to_created_at_query = f"""
+                UPDATE {self.schema}.{table_name}
+                SET CREATED_AT = TIMESTAMP, UPDATED_AT = TIMESTAMP
+                WHERE CREATED_AT IS NULL;
+                """
 
-            cursor.execute(copy_timestamp_to_created_at_query)
-            self.client.commit()
-            
-            # Drop TIMESTAMP column
-            drop_timestamp_query = f"ALTER TABLE {self.schema}.{table_name} DROP COLUMN TIMESTAMP;"
-            cursor.execute(drop_timestamp_query)
-            self.client.commit()
-            print(f"TIMESTAMP column dropped from {table_name}.")
+                cursor.execute(copy_timestamp_to_created_at_query)
+                self.client.commit()
+                
+                # Drop TIMESTAMP column
+                drop_timestamp_query = f"ALTER TABLE {self.schema}.{table_name} DROP COLUMN TIMESTAMP;"
+                cursor.execute(drop_timestamp_query)
+                self.client.commit()
+                print(f"TIMESTAMP column dropped from {table_name}.")
 
     except Exception as e:
         print(f"An error occurred while checking or adding new timestamp columns: {e}")
 
     return
+
+def load_default_notes(self, cursor):
+        folder_path = 'golden_notes'
+        self.notes_data = pd.DataFrame()
+        
+        files = glob.glob(os.path.join(folder_path, '*'))
+
+        for filename in files:
+            with open(filename, 'r') as file:
+                yaml_data = yaml.safe_load(file)
+            
+            data = pd.DataFrame.from_dict(yaml_data, orient='index')
+            data.reset_index(inplace=True)
+            data.rename(columns={'index': 'NOTE_ID'}, inplace=True)
+
+            self.note_defaults = pd.concat([self.notes_data, data], ignore_index=True)
+
+        # Ensure TIMESTAMP column is timezone-aware
+        self.note_defaults['TIMESTAMP'] = pd.to_datetime(self.note_defaults['TIMESTAMP'], format='ISO8601', utc=True)
+
+        updated_note = False
+
+        for _, note_default in self.note_defaults.iterrows():
+            note_id = note_default['NOTE_ID']
+            timestamp_str = make_date_tz_aware(note_default['TIMESTAMP'])
+
+            query = f"SELECT * FROM {self.schema}.NOTEBOOK WHERE NOTE_ID = %s"
+            cursor.execute(query, (note_id,))
+            result = cursor.fetchone()
+            notebook_columns = [desc[0] for desc in cursor.description]
+
+            # ONE-TIME FIX - MAKE SURE TABLE HAS CREATED_AT AND UPDATED_AT COLUMNS
+            upgrade_timestamp_columns(self, 'NOTEBOOK')
+            
+            updated_note = False
+            note_found = False
+            if result is not None:
+                note_found = True
+                timestamp_index = notebook_columns.index('UPDATED_AT') if 'UPDATED_AT' in notebook_columns else None
+                db_timestamp = result[timestamp_index] if len(result) > 0 else None
+
+                # Ensure db_timestamp is timezone-aware
+                if db_timestamp is None:
+                    db_timestamp = datetime.now(pytz.UTC)
+                elif db_timestamp.tzinfo is None:
+                    db_timestamp = db_timestamp.replace(tzinfo=pytz.UTC)
+
+                if result[notebook_columns.index('NOTE_ID')] == note_id and db_timestamp < note_default['TIMESTAMP']:
+                    # Remove old process
+                    query = f"DELETE FROM {self.schema}.NOTEBOOK WHERE NOTE_ID = %s"
+                    cursor.execute(query, (note_id,))
+                    updated_note = True
+                elif result[notebook_columns.index('NOTE_ID')] == note_id:
+                    continue
+
+            placeholders = ', '.join(['%s'] * len(notebook_columns))
+
+            insert_values = []
+            for key in notebook_columns:
+                if key == 'NOTE_ID':
+                    insert_values.append(note_id)
+                elif key.lower() == 'updated_at' or key.lower() == 'created_at':
+                    insert_values.append(timestamp_str)
+                else:
+                    val = note_default.get(key, '') if note_default.get(key, '') is not None else ''
+                    if pd.isna(val):
+                        val = ''
+                    insert_values.append(val)
+            insert_query = f"INSERT INTO {self.schema}.NOTEBOOK ({', '.join(notebook_columns)}) VALUES ({placeholders})"
+            cursor.execute(insert_query, insert_values) 
+            if updated_note:
+                print(f"Note {note_id} updated successfully.")
+                updated_note = False
+            else:
+                print(f"Note {note_id} inserted successfully.")
+        cursor.close()

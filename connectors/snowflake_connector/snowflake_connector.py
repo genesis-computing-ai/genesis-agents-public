@@ -1634,7 +1634,7 @@ class SnowflakeConnector(DatabaseConnector):
         userquery = False
 
         if note_id is not None:
-            get_note_query = f"SELECT note_content FROM {self.schema}.BOT_NOTEBOOK WHERE NOTE_ID = '{note_id}'"
+            get_note_query = f"SELECT note_content FROM {self.schema}.NOTEBOOK WHERE NOTE_ID = '{note_id}'"
             cursor = self.connection.cursor()
             cursor.execute(get_note_query)
             query = cursor.fetchone()[0]
@@ -3701,7 +3701,7 @@ result = 'Table FAKE_CUST created successfully.'
                     print(f"Error dropping temporary stored procedure {proc_name}: {e}")
 
         if note_id is not None:
-            get_note_query = f"SELECT note_content FROM {self.schema}.BOT_NOTEBOOK WHERE NOTE_ID = '{note_id}'"
+            get_note_query = f"SELECT note_content FROM {self.schema}.NOTEBOOK WHERE NOTE_ID = '{note_id}'"
             cursor = self.connection.cursor()
             cursor.execute(get_note_query)
             code = cursor.fetchone()[0]

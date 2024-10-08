@@ -985,10 +985,10 @@ In your response back to run_process, provide a detailed description of what you
         cursor = db_adapter.client.cursor()
         try:
             if bot_id == "all":
-                list_query = f"SELECT * FROM {db_adapter.schema}.BOT_NOTEBOOK" if db_adapter.schema else f"SELECT note_id, bot_id FROM BOT_NOTEBOOK"
+                list_query = f"SELECT * FROM {db_adapter.schema}.NOTEBOOK" if db_adapter.schema else f"SELECT note_id, bot_id FROM NOTEBOOK"
                 cursor.execute(list_query)
             else:
-                list_query = f"SELECT * FROM {db_adapter.schema}.BOT_NOTEBOOK WHERE upper(bot_id) = upper(%s)" if db_adapter.schema else f"SELECT note_id, bot_id FROM BOT_NOTEBOOK WHERE upper(bot_id) = upper(%s)"
+                list_query = f"SELECT * FROM {db_adapter.schema}.NOTEBOOK WHERE upper(bot_id) = upper(%s)" if db_adapter.schema else f"SELECT note_id, bot_id FROM NOTEBOOK WHERE upper(bot_id) = upper(%s)"
                 cursor.execute(list_query, (bot_id,))
             notes = cursor.fetchall()
             note_list = []
@@ -1023,7 +1023,7 @@ In your response back to run_process, provide a detailed description of what you
                     "Error": "Note_id must be provided and cannot be empty."
                 }
             if note_id is not None and note_id != '':
-                query = f"SELECT * FROM {db_adapter.schema}.BOT_NOTEBOOK WHERE bot_id LIKE %s AND note_id = %s" if db_adapter.schema else f"SELECT * FROM BOT_NOTEBOOK WHERE bot_id LIKE %s AND note_id = %s"
+                query = f"SELECT * FROM {db_adapter.schema}.NOTEBOOK WHERE bot_id LIKE %s AND note_id = %s" if db_adapter.schema else f"SELECT * FROM NOTEBOOK WHERE bot_id LIKE %s AND note_id = %s"
                 cursor.execute(query, (f"%{bot_id}%", note_id))
                 result = cursor.fetchone()
 
@@ -1085,7 +1085,7 @@ In your response back to run_process, provide a detailed description of what you
             if action in ["UPDATE_NOTE_CONFIG", "CREATE_NOTE_CONFIG", "DELETE_NOTE_CONFIG"]:
                 note_config = '' if action == "DELETE_NOTE_CONFIG" else note_config
                 update_query = f"""
-                    UPDATE {db_adapter.schema}.BOT_NOTEBOOK
+                    UPDATE {db_adapter.schema}.NOTEBOOK
                     SET NOTE_CONFIG = %(note_config)s
                     WHERE NOTE_ID = %(note_id)s
                 """
@@ -1103,7 +1103,7 @@ In your response back to run_process, provide a detailed description of what you
             
             if action == "CREATE" or action == "CREATE_CONFIRMED":
                 # Check for dupe name
-                sql = f"SELECT * FROM {db_adapter.schema}.BOT_NOTEBOOK WHERE bot_id = %s and note_id = %s"
+                sql = f"SELECT * FROM {db_adapter.schema}.NOTEBOOK WHERE bot_id = %s and note_id = %s"
                 cursor.execute(sql, (bot_id, note_id))
 
                 record = cursor.fetchone()
@@ -1116,7 +1116,7 @@ In your response back to run_process, provide a detailed description of what you
                 
             if action == "UPDATE" or action == 'UPDATE_CONFIRMED':
                 # Check for dupe name
-                sql = f"SELECT * FROM {db_adapter.schema}.BOT_NOTEBOOK WHERE bot_id = %s and note_id = %s"
+                sql = f"SELECT * FROM {db_adapter.schema}.NOTEBOOK WHERE bot_id = %s and note_id = %s"
                 cursor.execute(sql, (bot_id, note_id))
 
                 record = cursor.fetchone()
@@ -1224,52 +1224,20 @@ In your response back to run_process, provide a detailed description of what you
                 "Success": False,
                 "Error": "Note Content must be provided for CREATE or UPDATE action.",
             }
-
-        # if action in ["CREATE"] and any(
-        #     field not in note_content for field in required_fields_create
-        # ):
-        #     missing_fields = [
-        #         field
-        #         for field in required_fields_create
-        #         if field not in note_content
-        #     ]
-        #     return {
-        #         "Success": False,
-        #         "Error": f"Missing required note content: {', '.join(missing_fields)}",
-        #     }
-
-        # if action in ["UPDATE"] and any(
-        #     field not in note_content for field in required_fields_update
-        # ):
-        #     missing_fields = [
-        #         field
-        #         for field in required_fields_update
-        #         if field not in note_content
-        #     ]
-        #     return {
-        #         "Success": False,
-        #         "Error": f"Missing required note content: {', '.join(missing_fields)}",
-        #     }
-
-        # if bot_id is None:
-        #     return {
-        #         "Success": False,
-        #         "Error": "The 'bot_id' field is required."
-        #     }
     
         try:
             if action == "CREATE":
                 insert_query = f"""
-                    INSERT INTO {db_adapter.schema}.BOT_NOTEBOOK (
-                        timestamp, note_id, bot_id, note_name, note_content, note_params
+                    INSERT INTO {db_adapter.schema}.NOTEBOOK (
+                        created_at, updated_at, note_id, bot_id, note_name, note_content, note_params
                     ) VALUES (
-                        current_timestamp(), %(note_id)s, %(bot_id)s, %(note_name)s, %(note_content)s, %(note_params)s
+                        current_timestamp(), current_timestamp(), %(note_id)s, %(bot_id)s, %(note_name)s, %(note_content)s, %(note_params)s
                     )
                 """ if db_adapter.schema else f"""
-                    INSERT INTO BOT_NOTEBOOK (
-                        timestamp, note_id, bot_id, note_name, note_content, note_params
+                    INSERT INTO NOTEBOOK (
+                        created_at, updated_at, note_id, bot_id, note_name, note_content, note_params
                     ) VALUES (
-                        current_timestamp(), %(note_id)s, %(bot_id)s, %(note_name)s, %(note_content)s, %(note_params)s
+                        current_timestamp(), current_timestamp(), %(note_id)s, %(bot_id)s, %(note_name)s, %(note_content)s, %(note_params)s
                     )
                 """
                 
@@ -1306,7 +1274,7 @@ In your response back to run_process, provide a detailed description of what you
 
             elif action == "DELETE":
                 delete_query = f"""
-                    DELETE FROM {db_adapter.schema}.BOT_NOTEBOOK
+                    DELETE FROM {db_adapter.schema}.NOTEBOOK
                     WHERE note_id = %s
                 """ if db_adapter.schema else f"""
                     DELETE FROM NOTEBOOK
@@ -1327,12 +1295,12 @@ In your response back to run_process, provide a detailed description of what you
 
             elif action == "UPDATE":
                 update_query = f"""
-                    UPDATE {db_adapter.schema}.BOT_NOTEBOOK
-                    SET timestamp = CURRENT_TIMESTAMP, note_id=%s, bot_id=%s, note_name=%s, note_content=%s, note_params=%s, note_type=%s
+                    UPDATE {db_adapter.schema}.NOTEBOOK
+                    SET updated_at = CURRENT_TIMESTAMP, note_id=%s, bot_id=%s, note_name=%s, note_content=%s, note_params=%s, note_type=%s
                     WHERE note_id = %s
                 """ if db_adapter.schema else """
-                    UPDATE BOT_NOTEBOOK
-                    SET timestamp = CURRENT_TIMESTAMP, note_id=%s, bot_id=%s, note_name=%s, note_content=%s, note_params=%s, note_type=%s
+                    UPDATE NOTEBOOK
+                    SET updated_at = CURRENT_TIMESTAMP, note_id=%s, bot_id=%s, note_name=%s, note_content=%s, note_params=%s, note_type=%s
                     WHERE note_id = %s
                 """
                 cursor.execute(
@@ -1835,7 +1803,7 @@ In your response back to run_process, provide a detailed description of what you
 
                 record = cursor.fetchone()
 
-                if record and '_golden' in record[1]:
+                if record and '_golden' in record[2]:  # process_id 
                     return {
                         "Success": False,
                         "Error": f"Process with name {process_details['process_name']} is a system process and can not be updated.  Suggest making a copy with a new name."
@@ -1994,15 +1962,15 @@ In your response back to run_process, provide a detailed description of what you
             if action == "CREATE":
                 insert_query = f"""
                     INSERT INTO {db_adapter.schema}.PROCESSES (
-                        timestamp, process_id, bot_id, process_name, process_instructions
+                        created_at, updated_at, process_id, bot_id, process_name, process_instructions
                     ) VALUES (
-                        current_timestamp(), %(process_id)s, %(bot_id)s, %(process_name)s, %(process_instructions)s
+                        current_timestamp(), current_timestamp(), %(process_id)s, %(bot_id)s, %(process_name)s, %(process_instructions)s
                     )
                 """ if db_adapter.schema else f"""
                     INSERT INTO PROCESSES (
-                        timestamp, process_id, bot_id, process_name, process_instructions
+                        created_at, updated_at, process_id, bot_id, process_name, process_instructions
                     ) VALUES (
-                        current_timestamp(), %(process_id)s, %(bot_id)s, %(process_name)s, %(process_instructions)s
+                        current_timestamp(),current_timestamp(), %(process_id)s, %(bot_id)s, %(process_name)s, %(process_instructions)s
                     )
                 """
 
@@ -2080,11 +2048,13 @@ In your response back to run_process, provide a detailed description of what you
             elif action == "UPDATE":
                 update_query = f"""
                     UPDATE {db_adapter.schema}.PROCESSES
-                    SET {', '.join([f"{key} = %({key})s" for key in process_details.keys()])}
+                    SET {', '.join([f"{key} = %({key})s" for key in process_details.keys()])},
+                    updated_at = current_timestamp()
                     WHERE process_id = %(process_id)s
                 """ if db_adapter.schema else f"""
                     UPDATE PROCESSES
-                    SET {', '.join([f"{key} = %({key})s" for key in process_details.keys()])}
+                    SET {', '.join([f"{key} = %({key})s" for key in process_details.keys()])},
+                    updated_at = current_timestamp()
                     WHERE process_id = %(process_id)s
                 """
                 cursor.execute(

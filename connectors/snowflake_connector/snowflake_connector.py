@@ -3687,11 +3687,7 @@ result = 'Table FAKE_CUST created successfully.'
         return result
     
 
-    def run_python_code(self, purpose: str, code: str = None, packages: str = None, thread_id=None, bot_id=None, note_id=None
-    # solid examples:
-    # use snowpark to create 5 rows of synthetic customer data using faker, return it in json
-    # ... save 100 rows of synthetic data like this to a table called CUSTFAKE1 in your workspace
-) -> str:
+    def run_python_code(self, purpose: str = None, code: str = None, packages: str = None, thread_id=None, bot_id=None, note_id=None, return_base64 = False) -> str:
         import ast 
         import os 
 
@@ -3704,7 +3700,7 @@ result = 'Table FAKE_CUST created successfully.'
                 except Exception as e:
                     print(f"Error dropping temporary stored procedure {proc_name}: {e}")
 
-        if note_id is not None:
+        if note_id is not None and note_id != '':
             get_note_query = f"SELECT note_content FROM {self.schema}.NOTEBOOK WHERE NOTE_ID = '{note_id}'"
             cursor = self.connection.cursor()
             cursor.execute(get_note_query)
@@ -3895,10 +3891,22 @@ $$
                         file.write(file_content)
                     
                     print(f"File saved to {file_path}")
-                    result = {
-                        "success": True,
-                        "result": f'Snowpark output a file. Output a link like this so the user can see it [description of file](sandbox:/mnt/data/{result_json["filename"]})'
-                    }
+
+                    if return_base64:
+                        result = {
+                            "success": True,
+                            "base64_object": {
+                                "filename": result_json["filename"],
+                                "content": result_json["content"]
+                            },
+                            "result": "An image or graph has been successfully displayed to the user."
+                        # "result": f'Snowpark output a file. Output a link like this so the user can see it [description of file](sandbox:/mnt/data/{result_json["filename"]})'
+                        }
+                    else:
+                          result = {
+                            "success": True,
+                            "result": f'Snowpark output a file. Output a link like this so the user can see it [description of file](sandbox:/mnt/data/{result_json["filename"]})'
+                            }
                     cleanup(proc_name)
                     if bot_id not in ['eva-x1y2z3', 'MrsEliza-3348b2', os.getenv("O1_OVERRIDE_BOT","")]:
                         result = self.add_hints(purpose, result, code, packages)

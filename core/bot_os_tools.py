@@ -1269,7 +1269,6 @@ In your response back to run_process, provide a detailed description of what you
                     "Message": f"note successfully created.",
                     "Note Id": note_id_with_suffix,
                     "Suggestion": "Now that the note is created, remind the user of the note_id and offer to test it using the correct runner, either sql, snowpark_python, or process, and if there are any issues you can later on UPDATE the note using manage_notes to clarify anything needed.  OFFER to test it, but don't just test it unless the user agrees.  ",
-                    "Reminder": "If you are asked to test the note, use _run_note function to each step, don't skip ahead since you already know what the steps are, pretend you don't know what the note is and let run_note give you one step at a time!",
                 }
 
             elif action == "DELETE":
@@ -1313,7 +1312,6 @@ In your response back to run_process, provide a detailed description of what you
                     "Message": "note successfully updated",
                     "Note id": note_id,
                     "Suggestion": "Now that the note is updated, offer to test it using run_note, and if there are any issues you can later on UPDATE the note again using manage_notebook to clarify anything needed. OFFER to test it, but don't just test it unless the user agrees.",
-                    "Reminder": "If you are asked to test the note, use _run_note function to each step, don't skip ahead since you already know what the steps are, pretend you don't know what the note is and let run_note give you one step at a time!",
                 }
             return {"Success": True, "Message": f"note update or delete confirmed."}
         except Exception as e:

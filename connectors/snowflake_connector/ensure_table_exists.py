@@ -6,6 +6,7 @@ import yaml
 import pytz
 import pandas as pd
 import glob
+import json
 
 from core.bot_os_defaults import (
     BASE_EVE_BOT_INSTRUCTIONS,

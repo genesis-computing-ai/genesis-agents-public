@@ -57,10 +57,12 @@ def one_time_db_fixes(self):
         for bot in bots:
             bot_name, tools = bot
             if tools:
-                tools_list = tools.split(',')
+                tools_list = json.loads(tools)
+                # tools_list = tools.split(',')
                 if 'notebook_manager_tools' not in tools_list:
                     tools_list.append('notebook_manager_tools')
-                    updated_tools = ','.join(tools_list)
+                    updated_tools = json.dumps(tools_list)
+                    # updated_tools = ','.join(tools_list)
                     update_query = f"""
                     UPDATE {self.schema}.BOT_SERVICING
                     SET AVAILABLE_TOOLS = %s

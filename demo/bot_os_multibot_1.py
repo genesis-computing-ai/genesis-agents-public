@@ -407,6 +407,9 @@ def get_metadata():
             result = db_adapter.send_test_email(email) 
         elif metadata_type.startswith('get_email'):
             result = db_adapter.get_email() 
+        elif metadata_type.startswith('set_endpoint '):
+            endpoint = metadata_type.split('set_endpoint ')[1].strip()
+            result = db_adapter.set_endpoint(endpoint)
         elif metadata_type.startswith('logging_status'):
             status = db_adapter.check_logging_status()
             result = {"Success": True, "Data": status}  

@@ -6,17 +6,21 @@ from utils import get_bot_details, get_metadata, configure_llm, check_eai_status
 def llm_config():
     if "eai_available" not in st.session_state:
         st.session_state.eai_available = False
-        
+    if "set_endpoint" not in st.session_state:
+        st.session_state.set_endpoint = False    
+
     if st.session_state.eai_available == False:
         ref = get_references("consumer_external_access")
-        # check for custom EAI
-        eai_status = check_eai_status('openai')
+        eai_status = False
+        if ref:
+            # check for custom EAI
+            eai_status = check_eai_status('openai')
         if not ref and eai_status == False:
             if st.session_state.NativeMode:
-                import snowflake.permissions as permissions
-                permissions.request_reference("consumer_external_access")
+                st.session_state.set_endpoint = False 
         else:
             # eai_status = check_eai_status('openai')
+            st.session_state.set_endpoint = True
             st.session_state.eai_available = eai_status
             if eai_status == True:
                 st.write(f"External Access Integration available")
@@ -71,7 +75,16 @@ def llm_config():
         )
         st.dataframe(llm_types, use_container_width=False) 
     if st.session_state.eai_available == False and st.session_state.NativeMode:
-
+        if st.session_state.set_endpoint == False:
+            endpoint = st.text_input("(optional) Enter Azure API endpoint for your organziation (e.g. genesis-azureopenai-1):")
+            if st.button("Create External Access Integration", key="addendpoint"):
+                set_endpoint = get_metadata(f"set_endpoint {endpoint}")
+                # st.success(f"Successfully added endpoint {endpoint}")
+                if isinstance(set_endpoint, list) and len(set_endpoint) > 0:
+                    if 'Success' in set_endpoint[0] and set_endpoint[0]['Success']==True:
+                # if set_endpoint == True:
+                        import snowflake.permissions as permissions
+                        permissions.request_reference("consumer_external_access")
 
         if st.button("Assign EAI to Genesis", key="assigneai"):
             upgrade_result = upgrade_services(True)

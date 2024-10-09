@@ -72,7 +72,7 @@ def one_time_db_fixes(self):
             else:
                 update_query = f"""
                 UPDATE {self.schema}.BOT_SERVICING
-                SET AVAILABLE_TOOLS = 'notebook_manager_tools'
+                SET AVAILABLE_TOOLS = '[notebook_manager_tools]'
                 WHERE NAME = %s
                 """
                 cursor.execute(update_query, (bot_name,))

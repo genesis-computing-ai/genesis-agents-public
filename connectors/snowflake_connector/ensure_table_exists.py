@@ -50,7 +50,7 @@ def one_time_db_fixes(self):
 
     if cursor.fetchone():
         # Fetch all existing bots
-        fetch_bots_query = f"SELECT NAME, TOOLS FROM {self.schema}.BOT_SERVICING;"
+        fetch_bots_query = f"SELECT BOT_NAME, AVAILABLE_TOOLS FROM {self.schema}.BOT_SERVICING;"
         cursor.execute(fetch_bots_query)
         bots = cursor.fetchall()
 
@@ -64,7 +64,7 @@ def one_time_db_fixes(self):
                     update_query = f"""
                     UPDATE {self.schema}.BOT_SERVICING
                     SET AVAILABLE_TOOLS = %s
-                    WHERE NAME = %s
+                    WHERE BOT_NAME = %s
                     """
                     cursor.execute(update_query, (updated_tools, bot_name))
             else:
@@ -133,8 +133,9 @@ def ensure_table_exists(self):
                 INDEX uu_idx (uu)
             );
             """
-            cursor.execute(create_llm_results_table_ddl)
-            self.client.commit()
+            with self.client.cursor() as cursor:
+                cursor.execute(create_llm_results_table_ddl)
+                self.client.commit()
             print(f"Table {self.schema}.LLM_RESULTS created as Hybrid Table successfully.")
         else:
             print(f"Table {self.schema}.LLM_RESULTS already exists.")

@@ -689,45 +689,73 @@ class SnowflakeConnector(DatabaseConnector):
             err = f"An error occurred while getting llm info: {e}"
             return {"Success": False, "Error": err}
 
+
+    def set_endpoint(self, endpoint_name):
+        try:
+            #   SELECT ''AZURE'' TYPE, ''genesis-azureopenai-1'' ENDPOINT';
+            # Insert or update the endpoint. default to Azure type now
+            upsert_query = f"""
+            MERGE INTO {self.genbot_internal_project_and_schema}.CUSTOM_ENDPOINTS t
+            USING (SELECT %s AS type, %s AS endpoint) s
+            ON (t.TYPE = s.type)
+            WHEN MATCHED THEN
+                UPDATE SET t.ENDPOINT = s.endpoint
+            WHEN NOT MATCHED THEN
+                INSERT (TYPE,ENDPOINT) VALUES (s.type,s.endpoint)
+            """
+
+            cursor = self.client.cursor()
+            cursor.execute(upsert_query, ('AZURE', endpoint_name,))
+
+        # Commit the changes
+            self.client.commit()
+
+            json_data = json.dumps([{'Success': True}])
+            return {"Success": True, "Data": json_data}
+        except Exception as e:
+            err = f"An error occurred while inserting custom endpoint: {e}"
+            return {"Success": False, "Data": err}
+
+
     def eai_test(self, object_type, site):
         try:
 
             if object_type == 'EAI':
                 
                 create_function_query = f"""
-                    CREATE FUNCTION IF NOT EXISTS {self.project_id}.CORE.CHECK_URL_STATUS(site string)
-                    RETURNS STRING
-                    LANGUAGE PYTHON
-                    RUNTIME_VERSION = 3.11
-                    HANDLER = 'get_status'
-                    EXTERNAL_ACCESS_INTEGRATIONS = (REFERENCE('consumer_external_access'))
-                    PACKAGES = ('requests')
-                    AS
-                    $$
-                    import requests
+CREATE OR REPLACE FUNCTION {self.project_id}.CORE.CHECK_URL_STATUS(site string)
+RETURNS STRING
+LANGUAGE PYTHON
+RUNTIME_VERSION = 3.11
+HANDLER = 'get_status'
+EXTERNAL_ACCESS_INTEGRATIONS = (REFERENCE('consumer_external_access'))
+PACKAGES = ('requests')
+AS
+$$
+import requests
 
-                    def get_status(site):
-                        if site == 'slack':
-                            url = "https://slack.com"  # Replace with the allowed URL
-                        elif site == 'openai':
-                            url = "https://api.openai.com/v1/models"  # Replace with the allowed URL
-                        else:
-                            return f"Invalid site: {{site}}"
+def get_status(site):
+    if site == 'slack':
+        url = "https://slack.com"  # Replace with the allowed URL
+    elif site == 'openai':
+        url = "https://api.openai.com/v1/models"  # Replace with the allowed URL
+    else:
+        return f"Invalid site: {{site}}"
 
-                        try:
-                            # Make an HTTP GET request to the allowed URL
-                            response = requests.get(url, timeout=10)
-                            
-                            # Check if the status code is 200
-                            if response.status_code == 200 or response.status_code == 401:
-                                return "Success"
-                            else:
-                                return f"Invalid URL, status code: {{response.status_code}}"
-                        
-                        except requests.exceptions.RequestException as e:
-                            # Catch and return any exceptions
-                            return f"Error: {{str(e)}}"
-                    $$;
+    try:
+        # Make an HTTP GET request to the allowed URL
+        response = requests.get(url, timeout=10)
+        
+        # Check if the status code is 200
+        if response.status_code == 200 or response.status_code == 401:
+            return "Success"
+        else:
+            return f"Invalid URL, status code: {{response.status_code}}"
+    
+    except requests.exceptions.RequestException as e:
+        # Catch and return any exceptions
+        return f"Error: {{str(e)}}"
+$$;
                 """
                 try:
                     cursor = self.client.cursor()
@@ -772,6 +800,7 @@ class SnowflakeConnector(DatabaseConnector):
         else:
             return {"Success": False, "Error": "something failed"}
 
+        
     def send_test_email(self, email_addr, thread_id=None):
         """
         Tests sending an email and stores the email address in a table.

@@ -6,6 +6,7 @@ import yaml
 import pytz
 import pandas as pd
 import glob
+import json
 
 from core.bot_os_defaults import (
     BASE_EVE_BOT_INSTRUCTIONS,
@@ -22,7 +23,7 @@ logging.basicConfig(
     level=logging.WARN, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
-def remove_deprecated_tables(self):
+def one_time_db_fixes(self):
     # Remove BOT_FUNCTIONS is it exists
     bot_functions_table_check_query = f"SHOW TABLES LIKE 'BOT_FUNCTIONS' IN SCHEMA {self.schema};"
     cursor = self.client.cursor()
@@ -41,6 +42,45 @@ def remove_deprecated_tables(self):
         self.client.commit()
         cursor.close()
     print(f"Table {self.schema}.BOT_NOTEBOOK renamed NOTEBOOK.")
+
+    # Add manage_notebook_tool to existing bots
+    bots_table_check_query = f"SHOW TABLES LIKE 'BOT_SERVICING' IN SCHEMA {self.schema};"
+    cursor = self.client.cursor()
+    cursor.execute(bots_table_check_query)
+
+    if cursor.fetchone():
+        # Fetch all existing bots
+        fetch_bots_query = f"SELECT BOT_NAME, AVAILABLE_TOOLS FROM {self.schema}.BOT_SERVICING;"
+        cursor.execute(fetch_bots_query)
+        bots = cursor.fetchall()
+
+        for bot in bots:
+            bot_name, tools = bot
+            if tools:
+                tools_list = json.loads(tools)
+                if 'notebook_manager_tools' not in tools_list:
+                    tools_list.append('notebook_manager_tools')
+                    updated_tools = '["' + '","'.join(tools_list) + '"]'
+                    update_query = f"""
+                    UPDATE {self.schema}.BOT_SERVICING
+                    SET AVAILABLE_TOOLS = %s
+                    WHERE BOT_NAME = %s
+                    """
+                    cursor.execute(update_query, (updated_tools, bot_name))
+            else:
+                update_query = f"""
+                UPDATE {self.schema}.BOT_SERVICING
+                SET AVAILABLE_TOOLS = '[notebook_manager_tools]'
+                WHERE BOT_NAME = %s
+                """
+                cursor.execute(update_query, (bot_name,))
+
+        self.client.commit()
+        print("Added notebook_manager_tools to all existing bots.")
+    else:
+        print("BOT_SERVICING table does not exist. Skipping tool addition.")
+
+    cursor.close()
 
     return
 

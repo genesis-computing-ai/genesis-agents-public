@@ -383,6 +383,11 @@ def ensure_table_exists(self):
                     update_query = f"UPDATE {self.genbot_internal_project_and_schema}.LLM_TOKENS SET ACTIVE=TRUE WHERE lower(LLM_TYPE)='openai'"
                     cursor.execute(update_query)
                     self.client.commit()
+                    
+                #update case to lower for llm_type. Can remove after release_202410b.
+                update_case_query = f"""UPDATE {self.genbot_internal_project_and_schema}.LLM_TOKENS SET LLM_TYPE = LOWER(LLM_TYPE)"""
+                cursor.execute(update_case_query)
+                self.client.commit()
                 
                 select_active_llm_query = f"""SELECT LLM_TYPE FROM {self.genbot_internal_project_and_schema}.LLM_TOKENS WHERE ACTIVE = TRUE;"""
                 cursor.execute(select_active_llm_query)
@@ -494,6 +499,36 @@ def ensure_table_exists(self):
     finally:
         if cursor is not None:
             cursor.close()
+
+
+        endpoints_table_check_query = (
+            f"SHOW TABLES LIKE 'CUSTOM_ENDPOINTS' IN SCHEMA {self.schema};"
+        )
+        try:
+            cursor = self.client.cursor()
+            cursor.execute(endpoints_table_check_query)
+            if not cursor.fetchone():
+                endpoints_table_ddl = f"""
+                CREATE OR REPLACE TABLE {self.genbot_internal_project_and_schema}.CUSTOM_ENDPOINTS (
+                    TYPE VARCHAR(16777216),
+                    ENDPOINT VARCHAR(16777216)
+                );
+                """
+                cursor.execute(endpoints_table_ddl)
+                self.client.commit()
+                print(f"Table CUSTOM_ENDPOINTS created.")
+
+            else:
+                print(
+                    f"Table CUSTOM_ENDPOINTS already exists."
+                )  
+        except Exception as e:
+            print(
+                f"An error occurred while checking or creating table CUSTOM_ENDPOINTS: {e}"
+            )
+        finally:
+            if cursor is not None:
+                cursor.close()
 
     bot_servicing_table_check_query = (
         f"SHOW TABLES LIKE 'BOT_SERVICING' IN SCHEMA {self.schema};"

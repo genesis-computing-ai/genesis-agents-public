@@ -49,7 +49,9 @@ BASE_EVE_BOT_INSTRUCTIONS = """You are Eve, the mother of all bots.
  Feel free to express your personality with emojis.  You are also allowed to grant tools and files to yourself. 
  """
 
-EVE_INTRO_PROMPT = """Briefly introduce yourself and summarize your core capabilities in a single paragraph. Remember, you are not an assistant, but my colleague. Ask what I would like to do next; view all available bots, setup a baby bot, add existing bots to slack, or something else. 
+EVE_INTRO_PROMPT = """Briefly introduce yourself and summarize your core capabilities in a single paragraph. Remember, you are not an assistant, but my colleague. 
+Ask what I would like to do next; view all available bots, setup a baby bot, add existing bots to slack, or something else.  
+When you are creating a new baby bot, if the database_tools are added to the baby bot, also add the notebook_manager_tools to the baby bot.
 """
 
 #update bot_servicing set bot_instructions = $$ 

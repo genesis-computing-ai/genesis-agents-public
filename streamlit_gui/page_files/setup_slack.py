@@ -4,11 +4,13 @@ from utils import get_slack_tokens, set_slack_tokens, get_slack_tokens_cached, c
 def setup_slack():
     if "eai_available" not in st.session_state:
         st.session_state.eai_available = False
-        
+    #TODO make work like the llm config
     if st.session_state.eai_available == False:
         ref = get_references("consumer_external_access")
         # check for custom EAI
-        eai_status = check_eai_status('slack')
+        eai_status = False
+        if ref:
+            eai_status = check_eai_status('slack')
         if not ref and eai_status == False:
             if st.session_state.NativeMode:
                 import snowflake.permissions as permissions

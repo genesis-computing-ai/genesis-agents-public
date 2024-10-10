@@ -72,6 +72,8 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         self.stop_result_map = {}
         self.thread_fast_mode_map = {}
         self.first_message_map = {}
+        self.thread_tool_call_counter = {}
+        self.thread_tool_call_counter_failsafe = {}
 
     # Create a map to store thread history
         self.thread_history = {}
@@ -769,6 +771,13 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
 
         if thread_id in self.thread_busy_list:
             print('Cortex thread busy but putting message anyway')
+        else:
+            if thread_id in self.thread_tool_call_counter:
+                del self.thread_tool_call_counter[thread_id]
+            if thread_id in self.thread_tool_call_counter_failsafe:
+                del self.thread_tool_call_counter_failsafe[thread_id]
+            
+
 #            if not(message_payload.endswith(') says: !stop') or message_payload =='!stop'):
 #                print('bot_os_cortex add_message thread is busy, returning new message to queue')
 #                return False
@@ -948,7 +957,41 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
 
 # <|python_tag|><function>_run_query>{"query": "SELECT COUNT(ID) FROM "SPIDER_DATA"."BASEBALL"."HOME_GAME"", "connection": "Snowflake", "max_rows": "100"}</function>
 
+        # Check if thread_id is in self.thread_tool_call_counter
 
+        # TODO add the counter reset on add_message
+
+        if thread_id not in self.thread_tool_call_counter:
+            self.thread_tool_call_counter[thread_id] = 1
+        else:
+            self.thread_tool_call_counter[thread_id] += 1
+        if thread_id not in self.thread_tool_call_counter_failsafe:
+            self.thread_tool_call_counter_failsafe[thread_id] = 1
+        else:
+            self.thread_tool_call_counter_failsafe[thread_id] += 1
+
+        # Check if the counter is > 8
+        if self.thread_tool_call_counter[thread_id] > 22:
+            print("bot_os_cortex runaway_error_22")
+            return
+        if self.thread_tool_call_counter_failsafe[thread_id] > 102:
+            print("bot_os_cortex runaway_error_102")
+            return
+
+        if self.thread_tool_call_counter[thread_id] > 20:
+            error_message = "Error: more than 20 successive tool calls have occurred on this thread. The user needs to send a new message before any more tool calls will be processed."
+            cb_closure = self._generate_callback_closure(thread_id, timestamp, message_metadata)
+            print("bot_os_cortex runaway_error_20 ",error_message)
+            cb_closure(error_message)
+            return
+        if self.thread_tool_call_counter_failsafe[thread_id] > 100:
+            error_message = "Error: more than 100 successive tool calls have occurred on this thread during a process run without input from a user. The user needs to send a new message before any more tool calls will be processed.  This is a failsafe against looping or runaway processes."
+            cb_closure = self._generate_callback_closure(thread_id, timestamp, message_metadata)
+            print("bot_os_cortex runaway_error_100 ",error_message)
+            cb_closure(error_message)
+            return
+        
+        # If the counter is > 10, take no action
         start_tag = '<function='
         end_tag = '</function>'
         start_index = message_payload.find(start_tag) 
@@ -1097,6 +1140,10 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             function_name = func_call_details.get('function_name')
             if function_name == '_run_process':
                 message_object['process_flag'] = 'TRUE'
+            if function_name == '_run_process':
+                if isinstance(results_json, dict) and ('success' in results_json and results_json['success']) or ('Success' in results_json and results_json['Success']):
+                    if thread_id in self.thread_tool_call_counter:
+                        del self.thread_tool_call_counter[thread_id]
             if function_name in ['remove_tools_from_bot','add_new_tools_to_bot', 'add_bot_files', 'update_bot_instructions', 'remove_bot_files']:
                 try:
                     results_json = json.loads(results)

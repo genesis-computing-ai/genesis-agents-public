@@ -155,7 +155,7 @@ if os.getenv("TEST_MODE", "false").lower() == "true":
     print("TEST_MODE - ensure table exists skipped")
     print("()()()()()()()()()()()()()")
 else:    
-    db_adapter.one_time_db_fixes()
+   # db_adapter.remove_deprecated_tables()
     db_adapter.ensure_table_exists()
 
 bot_id_to_udf_adapter_map = {}
@@ -407,9 +407,6 @@ def get_metadata():
             result = db_adapter.send_test_email(email) 
         elif metadata_type.startswith('get_email'):
             result = db_adapter.get_email() 
-        elif metadata_type.startswith('set_endpoint '):
-            endpoint = metadata_type.split('set_endpoint ')[1].strip()
-            result = db_adapter.set_endpoint(endpoint)
         elif metadata_type.startswith('logging_status'):
             status = db_adapter.check_logging_status()
             result = {"Success": True, "Data": status}  
@@ -1154,7 +1151,7 @@ scheduler.start()
 
 ngrok_active = launch_ngrok_and_update_bots(update_endpoints=global_flags.slack_active)
 
-SERVICE_HOST = os.getenv("SERVER_HOST", "0.0.0.0")
+SERVICE_HOST = os.getenv("SERVER_HOST", "127.0.0.1")
 
 logging.getLogger("werkzeug").setLevel(logging.WARN)
 

@@ -106,6 +106,10 @@ class ToolBelt:
 
     # Function to make HTTP request and get the entire content
     def get_webpage_content(self, url):
+        response = requests.get(url)
+        response.raise_for_status()
+        return response.content  # Return the entire content
+
         from selenium import webdriver
         from selenium.webdriver.common.by import By
         from selenium.webdriver.chrome.service import Service
@@ -123,7 +127,7 @@ class ToolBelt:
         current_file_path = os.path.abspath(__file__)
         print(current_file_path)
 
-        service = Service('../../chromedriver')  
+        #service = Service('../../chromedriver')  
         # driver = webdriver.Chrome(service=service, options=chrome_options)
         driver = webdriver.Chrome(options=chrome_options)
 
@@ -918,6 +922,7 @@ class ToolBelt:
                     "success": True,
                     "process_complete": True,
                     "message": f"Congratulations, the process {process_name} is complete.",
+                    "proccess_success_step": True,
                     "reminder": f"If you were running this as a subprocess inside another process, be sure to continue the parent process."
                 }
 

@@ -20,7 +20,7 @@ from llm_openai.openai_utils import get_openai_client
 from ..database_connector import DatabaseConnector, llm_keys_and_types_struct
 from .sematic_model_utils import *
 from .stage_utils import *
-from .ensure_table_exists import ensure_table_exists, one_time_db_fixes
+from .ensure_table_exists import ensure_table_exists, one_time_db_fixes, get_process_info, get_processes_list
 
 from core.bot_os_llm import BotLlmEngineEnum
 
@@ -125,6 +125,12 @@ class SnowflakeConnector(DatabaseConnector):
     
     def one_time_db_fixes(self):
         one_time_db_fixes(self)
+
+    def get_processes_list(self, bot_id='all'):
+        get_processes_list(self, bot_id)
+
+    def get_process_info(self, bot_id, process_name):
+        get_process_info(self, bot_id, process_name)
 
     # def process_scheduler(self,action, bot_id, task_id=None, task_details=None, thread_id=None, history_rows=10):
     #     process_scheduler(self, action, bot_id, task_id=None, task_details=None, thread_id=None, history_rows=10)

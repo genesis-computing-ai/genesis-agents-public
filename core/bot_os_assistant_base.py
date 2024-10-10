@@ -84,7 +84,6 @@ def execute_function_blocking(
     else:
         return f"Error function {func_name} does not exist"
 
-
 import tempfile
 import os
 

@@ -98,6 +98,7 @@ class ToolBelt:
         self.last_fail= {}
         self.fail_count = {}
         self.lock = threading.Lock()
+        self.recurse_level = 1
         global belts
         belts = belts + 1 
 
@@ -529,6 +530,7 @@ class ToolBelt:
         bot_name=None
     ):
       #  print(f"Running processes Action: {action} | process_id: {process_id or 'None'} | Thread ID: {thread_id or 'None'}")
+        self.recurse_level = 0
 
         if process_id is not None and process_id == '':
             process_id = None
@@ -651,9 +653,14 @@ class ToolBelt:
             Start by returning the first step of the process instructions below.
             Simply return the first instruction on what needs to be done first without removing or changing any details.
 
-            Also, if the instructions include a reference to note, don't look up the note contents, just pass on the note_id.  The note contents will be unpacked
-            by whatever tool is used depending on the type of note, either run_query if the note is of type sql or run_snowpark_sql if the note is of
-            type python
+            Also, if the instructions include a reference to note, don't look up the note contents, just pass on the note_id or note_name.  
+            The note contents will be unpacked by whatever tool is used depending on the type of note, either run_query if the note is of 
+            type sql or run_snowpark_sql if the note is of type python.
+
+            If a step of the instructions says to run another process, return '>> RECURSE' and the process name or process id as the first step 
+            and then call _run_process with the action KICKOFF_PROCESS to get the first step of the next process to run.  Continue this process until 
+            you have completed all the steps.  If you are asked to run another process as part of this process, follow the same instructions.  Do this
+            up to ten times.
 
             Process Instructions:
             {process['PROCESS_INSTRUCTIONS']}
@@ -668,6 +675,24 @@ class ToolBelt:
             """ 
 
             first_step = self.chat_completion(extract_instructions, self.db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, process_id=process_id, process_name=process_name)
+            
+            # Check if the first step contains ">>RECURSE"
+            if ">> RECURSE" in first_step or ">>RECURSE" in first_step:
+                self.recurse_level += 1
+                # Extract the process name or ID
+                process_to_run = first_step.split(">>RECURSE")[1].strip() if ">>RECURSE" in first_step else first_step.split(">> RECURSE")[1].strip()
+
+                # Prepare the instruction for the bot to run the nested process
+                first_step = f"""
+                Use the _run_process tool to run the process '{process_to_run}' with the following parameters:
+                - action: KICKOFF_PROCESS
+                - process_name: {process_to_run}
+                - bot_id: {bot_id}
+                - silent_mode: {silent_mode}
+                
+                After the nested process completes, continue with the next step of this process.
+                """
+            
             with self.lock:
                 self.process_history[thread_id][process_id] = "First step: "+ first_step + "\n"
 
@@ -680,8 +705,8 @@ class ToolBelt:
                 Execute the instructions you were given without asking for permission.  Do not ever verify anything with the user, unless you need to get a specific input 
                 from the user to be able to continue the process.
 
-                Also, it you are asked to run either sql or snowpark_python from a given note_id, do not look up the note contents, just pass the note_id to the
-                appropriate tool where the note will be handled.
+                Also, if you are asked to run either sql or snowpark_python from a given note_id, make sure you examine the note_type field and use the appropriate tool for
+                the note type.  Only pass the note_id, not the code itself, to the appropriate tool where the note will be handled.
                 """
             if self.sys_default_email:
                 self.instructions[thread_id][process_id] += f"""
@@ -697,8 +722,8 @@ class ToolBelt:
             else:
                 self.instructions[thread_id][process_id] += """
                 This process is being run in low verbosity mode. Do not directly repeat the first_step instructions to the user, just perform the steps as instructed.
-                Also, it you are asked to run either sql or snowpark_python from a given note_id, do not look up the note contents, just pass the note_id to the
-                appropriate tool where the note will be handled.
+                Also, if you are asked to run either sql or snowpark_python from a given note_id, make sure you examine the note_type field and use the appropriate tool for
+                the note type.  Only pass the note_id, not the code itself, to the appropriate tool where the note will be handled.
                 """
             self.instructions[thread_id][process_id] += f"""
             In your response back to _run_process, provide a DETAILED description of what you did, what result you achieved, and why you believe this to have successfully completed the step.
@@ -795,8 +820,8 @@ class ToolBelt:
                     If the response seems like it is likely correct, return only the text string "**success**" (no explanation needed) to continue to the next step.  If the process is complete,
                     tell the process to stop running.  Remember, proceed under your own direction and do not ask the user for permission to proceed.
 
-                    Remember, if you are asked to run either sql or snowpark_python from a given note_id, do not look up the note contents, just pass the note_id to the
-                    appropriate tool where the note will be handled.
+                    Remember, if you are asked to run either sql or snowpark_python from a given note_id, make sure you examine the note_type field and use the appropriate tool for
+                    the note type.  Only pass the note_id, not the code itself, to the appropriate tool where the note will be handled.
 
                     Process Config: 
                     {self.process_config[thread_id][process_id]}
@@ -884,6 +909,12 @@ class ToolBelt:
             Return the text of the next step only, do not make any other comments or statements.
             By the way, the system default email address (SYS$DEFAULT_EMAIL) is {self.sys_default_email}.  If the instructions say to send an email
             to SYS$DEFAULT_EMAIL, replace it with {self.sys_default_email}.
+
+            If a step of the instructions says to run another process, return '>>RECURSE' and the process name or process id as the first step 
+            and then call _run_process with the action KICKOFF_PROCESS to get the first step of the next process to run.  Continue this process until 
+            you have completed all the steps.  If you are asked to run another process as part of this process, follow the same instructions.  Do this
+            up to ten times.
+
             If the process is complete, respond "**done**" with no other text.
 
             Process History: {self.process_history[thread_id][process_id]}
@@ -924,33 +955,56 @@ class ToolBelt:
     #        print(f"\n{next_step}\n")
 
             with self.lock:
-                self.instructions[thread_id][process_id] = f"""
-Hey **@{process['BOT_ID']}**, here is the next step of the process.
-
-{next_step}
-
-If you are asked to run either sql or snowpark_python from a given note_id, do not look up the note contents, just pass the note_id to the
-appropriate tool where the note will be handled.
-
-Execute these instructions now and then pass your response to the run_process tool as a parameter called previous_response and an action of GET_NEXT_STEP. 
-If you are told to run another process in these instructions, actually run it using _run_process before calling GET_NEXT_STEP for this process, do not just pretend to run it.
-If need to terminate the process early, call with action of END_PROCESS. 
+                if ">> RECURSE" in next_step or ">>RECURSE" in next_step:
+                    self.recurse_level += 1
+                    # Extract the process name or ID
+                    process_to_run = next_step.split(">>RECURSE")[1].strip() if ">>RECURSE" in next_step else next_step.split(">> RECURSE")[1].strip()
+                    
+                    # Prepare the instruction for the bot to run the nested process
+                    next_step = f"""
+                    Use the _run_process tool to run the process '{process_to_run}' with the following parameters:
+                    - action: KICKOFF_PROCESS
+                    - process_name: {process_to_run}
+                    - bot_id: {bot_id}
+                    - silent_mode: {silent_mode}
+                    
+                    After the nested process completes, continue with the next step of this process.
                     """
+
+                    print(f"RECURSE found.  Running process {process_to_run} on level {self.recurse_level}")
+
+                    return {
+                        "success": True,
+                        "message": next_step,
+                    }   
+
+                self.instructions[thread_id][process_id] = f"""
+                Hey **@{process['BOT_ID']}**, here is the next step of the process.
+
+                {next_step}
+
+                If you are asked to run either sql or snowpark_python from a given note_id, make sure you examine the note_type field and use the appropriate tool for
+                the note type.  Only pass the note_id, not the code itself, to the appropriate tool where the note will be handled.
+
+                Execute these instructions now and then pass your response to the run_process tool as a parameter called previous_response and an action of GET_NEXT_STEP. 
+                If you are told to run another process in these instructions, actually run it using _run_process before calling GET_NEXT_STEP for this process, do not just pretend to run it.
+                If need to terminate the process early, call with action of END_PROCESS. 
+                """
                 if verbose:
                     self.instructions[thread_id][process_id] += """
-Tell the user what you are going to do in this step and showing interium outputs, etc. while you are running this and further steps to keep the user informed what is going on.
-For example if you are going to call a tool to perform this step, first tell the user what you're going to do.
-                    """
+                Tell the user what you are going to do in this step and showing interium outputs, etc. while you are running this and further steps to keep the user informed what is going on.
+                For example if you are going to call a tool to perform this step, first tell the user what you're going to do.
+                """
                 else:
                     self.instructions[thread_id][process_id] += """
-This process is being run in low verbosity mode, so do not generate a lot of text while running this process. Just do whats required, call the right tools, etc.
-Also, it you are asked to run either sql or snowpark_python from a given note_id, do not look up the note contents, just pass the note_id to the
-appropriate tool where the note will be handled.
-                            """
+                This process is being run in low verbosity mode, so do not generate a lot of text while running this process. Just do whats required, call the right tools, etc.
+                Also, it you are asked to run either sql or snowpark_python from a given note_id, make sure you examine the note_type field and use the appropriate tool for
+                the note type.  Only pass the note_id, not the code itself, to the appropriate tool where the note will be handled.
+                """
                 self.instructions[thread_id][process_id] += f"""
-Don't stop to verify anything with the user unless specifically told to.
-By the way the current system time id: {datetime.now()}.
-In your response back to run_process, provide a detailed description of what you did, what result you achieved, and why you believe this to have successfully completed the step.
+                Don't stop to verify anything with the user unless specifically told to.
+                By the way the current system time id: {datetime.now()}.
+                In your response back to run_process, provide a detailed description of what you did, what result you achieved, and why you believe this to have successfully completed the step.
                 """
 
        #     print(f"\nEXTRACTED NEXT STEP: \n{self.instructions[thread_id][process_id]}\n")
@@ -967,11 +1021,17 @@ In your response back to run_process, provide a detailed description of what you
             }
 
         elif action == "END_PROCESS":
-            print(f"Received END_PROCESS action for process {process_name}.")
+            print(f"Received END_PROCESS action for process {process_name} on level {self.recurse_level}")
+
             with self.lock:
                 self.done[thread_id][process_id] = True
+
             self.clear_process_cache(bot_id, thread_id, process_id)
             print(f'Process cache cleared for bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}')
+
+            self.recurse_level -= 1
+            print(f"Returning to recursion level {self.recurse_level}")
+
             return {"success": True, "message": f'The process {process_name} has finished.  You may now end the process.'}
         else:
             print("No action specified.")
@@ -1121,7 +1181,7 @@ In your response back to run_process, provide a detailed description of what you
 
                 record = cursor.fetchone()
 
-                if record and '_golden' in record[1]:
+                if record and '_golden' in record[2]:
                     return {
                         "Success": False,
                         "Error": f"Note with id {note_id} is a system note and can not be updated.  Suggest making a copy with a new name."
@@ -1268,7 +1328,7 @@ In your response back to run_process, provide a detailed description of what you
                     "Success": True,
                     "Message": f"note successfully created.",
                     "Note Id": note_id_with_suffix,
-                    "Suggestion": "Now that the note is created, remind the user of the note_id and offer to test it using the correct runner, either sql, snowpark_python, or process, and if there are any issues you can later on UPDATE the note using manage_notes to clarify anything needed.  OFFER to test it, but don't just test it unless the user agrees.  ",
+                    "Suggestion": "Now that the note is created, remind the user of the note_id and offer to test it using the correct runner, either sql, snowpark_python, or process, depending on the type set in the note_type field, and if there are any issues you can later on UPDATE the note using manage_notes to clarify anything needed.  OFFER to test it, but don't just test it unless the user agrees.  ",
                 }
 
             elif action == "DELETE":
@@ -1830,7 +1890,8 @@ In your response back to run_process, provide a detailed description of what you
                 Return the updated and tidy process.  If there is an issue with the process, return an error message.
 
                 If the process contains either sql or snowpark_python code, extract the code and create a new note with
-                your manage_notebook tool.  Then replace the code in the process with the note_id of the new note.  Do not
+                your manage_notebook tool, maing sure to specify the note_type field as either 'sql or 'snowpark_python'.  
+                Then replace the code in the process with the note_id of the new note.  Do not
                 include the note contents in the process, just include an instruction to run the note with the note_id.
 
                 If the process wants to send an email to a default email, or says to send an email but doesn't specify

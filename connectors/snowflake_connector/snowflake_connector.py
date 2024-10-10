@@ -20,7 +20,7 @@ from llm_openai.openai_utils import get_openai_client
 from ..database_connector import DatabaseConnector, llm_keys_and_types_struct
 from .sematic_model_utils import *
 from .stage_utils import *
-from .ensure_table_exists import ensure_table_exists, one_time_db_fixes
+from .ensure_table_exists import ensure_table_exists, one_time_db_fixes, get_process_info, get_processes_list
 
 from core.bot_os_llm import BotLlmEngineEnum
 
@@ -125,6 +125,12 @@ class SnowflakeConnector(DatabaseConnector):
     
     def one_time_db_fixes(self):
         one_time_db_fixes(self)
+
+    def get_processes_list(self, bot_id='all'):
+        get_processes_list(self, bot_id)
+
+    def get_process_info(self, bot_id, process_name):
+        get_process_info(self, bot_id, process_name)
 
     # def process_scheduler(self,action, bot_id, task_id=None, task_details=None, thread_id=None, history_rows=10):
     #     process_scheduler(self, action, bot_id, task_id=None, task_details=None, thread_id=None, history_rows=10)
@@ -1644,7 +1650,15 @@ class SnowflakeConnector(DatabaseConnector):
             get_note_query = f"SELECT note_content FROM {self.schema}.NOTEBOOK WHERE NOTE_ID = '{note_id}' OR NOTE_NAME = '{note_name}'"
             cursor = self.connection.cursor()
             cursor.execute(get_note_query)
-            query = cursor.fetchone()[0]
+            query = cursor.fetchone()
+        
+        if query is None:
+                 return {
+                "success": False,
+                "error": "Note not found.",
+                 }
+        
+        query = query[0]
 
         # Replace all <!Q!>s with single quotes in the query
         if '<!Q!>' in query:
@@ -3706,11 +3720,19 @@ result = 'Table FAKE_CUST created successfully.'
         if note_id is not None or note_name is not None:
             note_id = '' if note_id is None else note_id
             note_name = '' if note_name is None else note_name
-            get_note_query = f"SELECT note_content FROM {self.schema}.NOTEBOOK WHERE NOTE_ID = '{note_id}' OR NOTE_NAME = '{note_name}'"
+            get_note_query = f"SELECT note_content, note_params FROM {self.schema}.NOTEBOOK WHERE NOTE_ID = '{note_id}' OR NOTE_NAME = '{note_name}'"
             cursor = self.connection.cursor()
             cursor.execute(get_note_query)
-            code = cursor.fetchone()[0]
-        
+            code = cursor.fetchone()
+
+            if code is None:
+                 return {
+                "success": False,
+                "error": "Note not found.",
+                 }
+            
+            code = code[0]
+            
         if bot_id not in ['eva-x1y2z3', 'MrsEliza-3348b2', os.getenv("O1_OVERRIDE_BOT","")]:
             if '\\n' in code:
                 if '\n' not in code.replace('\\n', ''):

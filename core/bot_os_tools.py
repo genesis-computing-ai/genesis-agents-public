@@ -1121,7 +1121,7 @@ In your response back to run_process, provide a detailed description of what you
 
                 record = cursor.fetchone()
 
-                if record and '_golden' in record[1]:
+                if record and '_golden' in record[2]:
                     return {
                         "Success": False,
                         "Error": f"Note with id {note_id} is a system note and can not be updated.  Suggest making a copy with a new name."

@@ -14,6 +14,7 @@ def get_session():
             return get_active_session()
         except:
             st.session_state.NativeMode = False
+            st.session_state.eai_available = True
   #  st.write('NativeMode', NativeMode)
     return None
 

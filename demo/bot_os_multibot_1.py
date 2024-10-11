@@ -1155,7 +1155,7 @@ scheduler.start()
 
 ngrok_active = launch_ngrok_and_update_bots(update_endpoints=global_flags.slack_active)
 
-SERVICE_HOST = os.getenv("SERVER_HOST", "127.0.0.1")
+SERVICE_HOST = os.getenv("SERVER_HOST", "0.0.0.0")
 
 logging.getLogger("werkzeug").setLevel(logging.WARN)
 

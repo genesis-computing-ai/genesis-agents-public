@@ -1679,7 +1679,15 @@ $$;
             get_note_query = f"SELECT note_content FROM {self.schema}.NOTEBOOK WHERE NOTE_ID = '{note_id}' OR NOTE_NAME = '{note_name}'"
             cursor = self.connection.cursor()
             cursor.execute(get_note_query)
-            query = cursor.fetchone()[0]
+            query = cursor.fetchone()
+        
+        if query is None:
+                 return {
+                "success": False,
+                "error": "Note not found.",
+                 }
+        
+        query = query[0]
 
         # Replace all <!Q!>s with single quotes in the query
         if '<!Q!>' in query:
@@ -3749,11 +3757,19 @@ result = 'Table FAKE_CUST created successfully.'
         if note_id is not None or note_name is not None:
             note_id = '' if note_id is None else note_id
             note_name = '' if note_name is None else note_name
-            get_note_query = f"SELECT note_content FROM {self.schema}.NOTEBOOK WHERE NOTE_ID = '{note_id}' OR NOTE_NAME = '{note_name}'"
+            get_note_query = f"SELECT note_content, note_params FROM {self.schema}.NOTEBOOK WHERE NOTE_ID = '{note_id}' OR NOTE_NAME = '{note_name}'"
             cursor = self.connection.cursor()
             cursor.execute(get_note_query)
-            code = cursor.fetchone()[0]
-        
+            code = cursor.fetchone()
+
+            if code is None:
+                 return {
+                "success": False,
+                "error": "Note not found.",
+                 }
+            
+            code = code[0]
+            
         if bot_id not in ['eva-x1y2z3', 'MrsEliza-3348b2', os.getenv("O1_OVERRIDE_BOT","")]:
             if '\\n' in code:
                 if '\n' not in code.replace('\\n', ''):

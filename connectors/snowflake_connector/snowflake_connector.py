@@ -3264,15 +3264,23 @@ $$;
             )
             return {"success": False, "error": str(e)}
 
-    def extract_knowledge(self, primary_user, bot_id):
+    def extract_knowledge(self, primary_user, bot_id, k = 1):
 
         query = f"""SELECT * FROM {self.user_bot_table_name} 
                     WHERE primary_user = '{primary_user}' AND BOT_ID = '{bot_id}'
                     ORDER BY TIMESTAMP DESC
-                    LIMIT 1;"""
+                    LIMIT {k};"""
         knowledge = self.run_query(query)
         if knowledge:
-            return knowledge[0]
+            if k == 1:
+                return knowledge[0]
+            else:
+                keys = ['USER_LEARNING', 'TOOL_LEARNING', 'DATA_LEARNING']
+                output = {key: '' for key in keys}
+                for row in knowledge:
+                    for key in keys:
+                            output[key] += '\n\n{}:\n{}'.format(row['TIMESTAMP'].strftime('%Y-%m-%d %H:%M'), row[key])
+                return output
         return []
 
     def query_threads_message_log(self, cutoff):

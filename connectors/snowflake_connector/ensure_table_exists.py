@@ -32,16 +32,17 @@ def one_time_db_fixes(self):
     if cursor.fetchone():
         query = f"DROP TABLE {self.schema}.BOT_FUNCTIONS"
         cursor.execute(query)
+        print(f"Table {self.schema}.BOT_FUNCTIONS dropped.")
 
     # REMOVE BOT_NOTEBOOK if it exists
-    delete_bot_notebook_table_ddl = f"""
-    DROP TABLE IF EXISTS {self.schema}.BOT_NOTEBOOK;
-    """
-    with self.client.cursor() as cursor:
-        cursor.execute(delete_bot_notebook_table_ddl)
-        self.client.commit()
-        cursor.close()
-    print(f"Table {self.schema}.BOT_NOTEBOOK renamed NOTEBOOK.")
+    bot_functions_table_check_query = f"SHOW TABLES LIKE 'BOT_NOTEBOOK' IN SCHEMA {self.schema};"
+    cursor = self.client.cursor()
+    cursor.execute(bot_functions_table_check_query)
+
+    if cursor.fetchone():
+        query = f"DROP TABLE {self.schema}.BOT_NOTEBOOK"
+        cursor.execute(query)
+        print(f"Table {self.schema}.BOT_NOTEBOOK renamed NOTEBOOK.")
 
     # Add manage_notebook_tool to existing bots
     bots_table_check_query = f"SHOW TABLES LIKE 'BOT_SERVICING' IN SCHEMA {self.schema};"

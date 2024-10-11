@@ -19,7 +19,7 @@ from llm_openai.openai_utils import get_openai_client
 
 from ..database_connector import DatabaseConnector, llm_keys_and_types_struct
 from .sematic_model_utils import *
-from .stage_utils import *
+from .stage_utils import add_file_to_stage, read_file_from_stage, update_file_in_stage, delete_file_from_stage, list_stage_contents, test_stage_functions
 from .ensure_table_exists import ensure_table_exists, one_time_db_fixes, get_process_info, get_processes_list
 
 from core.bot_os_llm import BotLlmEngineEnum
@@ -131,6 +131,24 @@ class SnowflakeConnector(DatabaseConnector):
 
     def get_process_info(self, bot_id, process_name):
         get_process_info(self, bot_id, process_name)
+
+    def add_file_to_stage(self,database,schema,stage,openai_file_id,file_name,file_content,thread_id):
+        add_file_to_stage(self,database,schema,stage,openai_file_id,file_name,file_content,thread_id)
+
+    def read_file_from_stage(self, database, schema, stage, file_name, return_contents,is_binary,for_bot,thread_id):
+        read_file_from_stage(self, database, schema, stage, file_name, return_contents, is_binary, for_bot, thread_id)
+
+    def update_file_in_stage(self,database, schema, stage, file_name, thread_id):
+        update_file_in_stage(self, database, schema, stage, file_name, thread_id)
+    
+    def delete_file_from_stage(self, database, schema, stage,file_name, thread_id):
+        delete_file_from_stage(self, database, schema, stage,file_name, thread_id)
+
+    def list_stage_contents(self, database, schema, stage, pattern, thread_id):
+        list_stage_contents(self, database, schema, stage, pattern, thread_id)
+
+    def test_stage_functions():
+        test_stage_functions()
 
     # def process_scheduler(self,action, bot_id, task_id=None, task_details=None, thread_id=None, history_rows=10):
     #     process_scheduler(self, action, bot_id, task_id=None, task_details=None, thread_id=None, history_rows=10)

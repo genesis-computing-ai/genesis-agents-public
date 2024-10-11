@@ -779,7 +779,7 @@ def configure_llm():
             if (llm_type.lower() == "openai"):
                 os.environ["OPENAI_API_KEY"] = llm_key
                 os.environ["AZURE_OPENAI_API_ENDPOINT"] = llm_endpoint
-                print(f"key: {llm_key}, endpoint: {llm_endpoint}")
+                # print(f"key: {llm_key}, endpoint: {llm_endpoint}")
                 try:
                     client = get_openai_client()
                     print(f"client: {client}")

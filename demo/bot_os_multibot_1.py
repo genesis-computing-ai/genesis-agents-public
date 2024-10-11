@@ -155,7 +155,7 @@ if os.getenv("TEST_MODE", "false").lower() == "true":
     print("TEST_MODE - ensure table exists skipped")
     print("()()()()()()()()()()()()()")
 else:    
-   # db_adapter.remove_deprecated_tables()
+    print("NOT RUNNING TEST MODE - APPLYING ONE TIME DB FIXES AND CREATING TABLES")
     db_adapter.one_time_db_fixes()
     db_adapter.ensure_table_exists()
 

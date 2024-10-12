@@ -2,6 +2,8 @@ import os
 import sys 
 import json
 from snowflake.connector import connect
+import uuid
+import datetime
 
 
 def _create_connection_target():
@@ -43,7 +45,7 @@ def _create_connection_source():
         role=role
     ) 
 
-def insert_table_summary( database_name, schema_name, table_name, ddl, ddl_short, summary, sample_data_text, complete_description="", crawl_status="Completed", role_used_for_crawl="Default", embedding=None):
+def insert_table_summary(self, database_name, schema_name, table_name, ddl, ddl_short, summary, sample_data_text, complete_description="", crawl_status="Completed", role_used_for_crawl="Default", embedding=None):
 
         qualified_table_name = f'"{database_name}"."{schema_name}"."{table_name}"'
         memory_uuid = str(uuid.uuid4())
@@ -58,7 +60,7 @@ def insert_table_summary( database_name, schema_name, table_name, ddl, ddl_short
 
         # Construct the MERGE SQL statement with placeholders for parameters
         merge_sql = f"""
-        MERGE INTO {metadata_table_name} USING (
+        MERGE INTO {self.metadata_table_name} USING (
             SELECT
                 %(source_name)s AS source_name,
                 %(qualified_table_name)s AS qualified_table_name,
@@ -77,7 +79,7 @@ def insert_table_summary( database_name, schema_name, table_name, ddl, ddl_short
                 %(role_used_for_crawl)s AS role_used_for_crawl,
                 %(embedding)s AS embedding
         ) AS new_data
-        ON {metadata_table_name}.qualified_table_name = new_data.qualified_table_name
+        ON {self.metadata_table_name}.qualified_table_name = new_data.qualified_table_name
         WHEN MATCHED THEN UPDATE SET
             source_name = new_data.source_name,
             memory_uuid = new_data.memory_uuid,
@@ -108,7 +110,7 @@ def insert_table_summary( database_name, schema_name, table_name, ddl, ddl_short
 
         # Set up the query parameters
         query_params = {
-            'source_name': source_name,
+            'source_name': self.source_name,
             'qualified_table_name': qualified_table_name,
             'memory_uuid': memory_uuid,
             'database_name': database_name,
@@ -135,9 +137,9 @@ def insert_table_summary( database_name, schema_name, table_name, ddl, ddl_short
         # Execute the MERGE statement with parameters
         try:
             #print("merge sql: ",merge_sql)
-            cursor = client.cursor()
+            cursor = self.client.cursor()
             cursor.execute(merge_sql, query_params)
-            client.commit()
+            self.client.commit()
         except Exception as e:
             print(f"An error occurred while executing the MERGE statement: {e}")
         finally:

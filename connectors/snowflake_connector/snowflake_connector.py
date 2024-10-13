@@ -1657,6 +1657,16 @@ $$;
             cursor.execute(query)
             self.client.commit()
 
+            query = f"GRANT EXCUTE ON ALL FUNCTIONS IN SCHEMA {workspace_schema_name} TO APPLICATION ROLE APP_PUBLIC; "
+            cursor = self.client.cursor()
+            cursor.execute(query)
+            self.client.commit()
+
+            query = f"GRANT EXECUTE ON ALL PROCEDURES IN SCHEMA {workspace_schema_name} TO APPLICATION ROLE APP_PUBLIC; "
+            cursor = self.client.cursor()
+            cursor.execute(query)
+            self.client.commit()
+
             logger.info(
                 f"Workspace {workspace_schema_name} objects granted to APP_PUBLIC"
             )
@@ -1722,9 +1732,12 @@ $$;
 
         if bot_id is not None:
             bot_llm = os.getenv("BOT_LLM_" + bot_id, "unknown")
+            workspace_schema_name = f"{bot_id.replace(r'[^a-zA-Z0-9]', '_').replace('-', '_').replace('.', '_')}_WORKSPACE".upper() 
+            workspace_full_schema_name = f"{global_flags.project_id}.{workspace_schema_name}"
         else:
             bot_llm = 'unknown'
-        
+            workspace_full_schema_name = None
+            workspace_schema_name = None
 
    #     if not query.endswith('!END_QUERY'):
    #         return {
@@ -1770,15 +1783,9 @@ $$;
             #   else:
             cursor.execute(query)
 
-            if bot_id is not None:
-                
-                workspace_schema_name = f"{global_flags.project_id}.{bot_id.replace(r'[^a-zA-Z0-9]', '_').replace('-', '_').replace('.', '_')}_WORKSPACE".upper()
-                # call grant_all_bot_workspace()
-                if bot_id is not None and (
-                    "CREATE" in query.upper()
-                    and workspace_schema_name.upper() in query.upper()
-                ):
-                    self.grant_all_bot_workspace(workspace_schema_name)
+            # call grant_all_bot_workspace()
+            if bot_id is not None and ("CREATE" in query.upper() and workspace_schema_name.upper() in query.upper()):
+                self.grant_all_bot_workspace(workspace_full_schema_name)
 
         except Exception as e:
 
@@ -1789,14 +1796,9 @@ $$;
                 cursor = self.connection.cursor()
                 try:
                     cursor.execute(query)
-                    if bot_id is not None:
-                        workspace_schema_name = f"{global_flags.project_id}.{bot_id.replace(r'[^a-zA-Z0-9]', '_').replace('-', '_').replace('.', '_')}_WORKSPACE".upper()
-                        # call grant_all_bot_workspace()
-                        if bot_id is not None and (
-                            "CREATE" in query.upper()
-                            and workspace_schema_name.upper() in query.upper()
-                        ):
-                            self.grant_all_bot_workspace(workspace_schema_name)
+                    # call grant_all_bot_workspace()
+                    if bot_id is not None and ("CREATE" in query.upper() and workspace_schema_name.upper() in query.upper()):
+                        self.grant_all_bot_workspace(workspace_full_schema_name)
                 except Exception as e:
                     pass
 

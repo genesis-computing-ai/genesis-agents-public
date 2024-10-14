@@ -19,7 +19,7 @@ from llm_openai.openai_utils import get_openai_client
 
 from ..database_connector import DatabaseConnector, llm_keys_and_types_struct
 from .sematic_model_utils import *
-from .stage_utils import *
+from .stage_utils import add_file_to_stage, read_file_from_stage, update_file_in_stage, delete_file_from_stage, list_stage_contents, test_stage_functions
 from .ensure_table_exists import ensure_table_exists, one_time_db_fixes, get_process_info, get_processes_list
 
 from core.bot_os_llm import BotLlmEngineEnum
@@ -131,6 +131,24 @@ class SnowflakeConnector(DatabaseConnector):
 
     def get_process_info(self, bot_id, process_name):
         get_process_info(self, bot_id, process_name)
+
+    def add_file_to_stage(self,database,schema,stage,openai_file_id,file_name,file_content,thread_id):
+        add_file_to_stage(self,database,schema,stage,openai_file_id,file_name,file_content,thread_id)
+
+    def read_file_from_stage(self, database, schema, stage, file_name, return_contents,is_binary,for_bot,thread_id):
+        read_file_from_stage(self, database, schema, stage, file_name, return_contents, is_binary, for_bot, thread_id)
+
+    def update_file_in_stage(self,database, schema, stage, file_name, thread_id):
+        update_file_in_stage(self, database, schema, stage, file_name, thread_id)
+    
+    def delete_file_from_stage(self, database, schema, stage,file_name, thread_id):
+        delete_file_from_stage(self, database, schema, stage,file_name, thread_id)
+
+    def list_stage_contents(self, database, schema, stage, pattern, thread_id):
+        list_stage_contents(self, database, schema, stage, pattern, thread_id)
+
+    def test_stage_functions():
+        test_stage_functions()
 
     # def process_scheduler(self,action, bot_id, task_id=None, task_details=None, thread_id=None, history_rows=10):
     #     process_scheduler(self, action, bot_id, task_id=None, task_details=None, thread_id=None, history_rows=10)
@@ -1639,6 +1657,16 @@ $$;
             cursor.execute(query)
             self.client.commit()
 
+            query = f"GRANT EXCUTE ON ALL FUNCTIONS IN SCHEMA {workspace_schema_name} TO APPLICATION ROLE APP_PUBLIC; "
+            cursor = self.client.cursor()
+            cursor.execute(query)
+            self.client.commit()
+
+            query = f"GRANT EXECUTE ON ALL PROCEDURES IN SCHEMA {workspace_schema_name} TO APPLICATION ROLE APP_PUBLIC; "
+            cursor = self.client.cursor()
+            cursor.execute(query)
+            self.client.commit()
+
             logger.info(
                 f"Workspace {workspace_schema_name} objects granted to APP_PUBLIC"
             )
@@ -1712,9 +1740,12 @@ $$;
 
         if bot_id is not None:
             bot_llm = os.getenv("BOT_LLM_" + bot_id, "unknown")
+            workspace_schema_name = f"{bot_id.replace(r'[^a-zA-Z0-9]', '_').replace('-', '_').replace('.', '_')}_WORKSPACE".upper() 
+            workspace_full_schema_name = f"{global_flags.project_id}.{workspace_schema_name}"
         else:
             bot_llm = 'unknown'
-        
+            workspace_full_schema_name = None
+            workspace_schema_name = None
 
    #     if not query.endswith('!END_QUERY'):
    #         return {
@@ -1760,15 +1791,9 @@ $$;
             #   else:
             cursor.execute(query)
 
-            if bot_id is not None:
-                
-                workspace_schema_name = f"{global_flags.project_id}.{bot_id.replace(r'[^a-zA-Z0-9]', '_').replace('-', '_').replace('.', '_')}_WORKSPACE".upper()
-                # call grant_all_bot_workspace()
-                if bot_id is not None and (
-                    "CREATE" in query.upper()
-                    and workspace_schema_name.upper() in query.upper()
-                ):
-                    self.grant_all_bot_workspace(workspace_schema_name)
+            # call grant_all_bot_workspace()
+            if bot_id is not None and ("CREATE" in query.upper() and workspace_schema_name.upper() in query.upper()):
+                self.grant_all_bot_workspace(workspace_full_schema_name)
 
         except Exception as e:
 
@@ -1779,14 +1804,9 @@ $$;
                 cursor = self.connection.cursor()
                 try:
                     cursor.execute(query)
-                    if bot_id is not None:
-                        workspace_schema_name = f"{global_flags.project_id}.{bot_id.replace(r'[^a-zA-Z0-9]', '_').replace('-', '_').replace('.', '_')}_WORKSPACE".upper()
-                        # call grant_all_bot_workspace()
-                        if bot_id is not None and (
-                            "CREATE" in query.upper()
-                            and workspace_schema_name.upper() in query.upper()
-                        ):
-                            self.grant_all_bot_workspace(workspace_schema_name)
+                    # call grant_all_bot_workspace()
+                    if bot_id is not None and ("CREATE" in query.upper() and workspace_schema_name.upper() in query.upper()):
+                        self.grant_all_bot_workspace(workspace_full_schema_name)
                 except Exception as e:
                     pass
 

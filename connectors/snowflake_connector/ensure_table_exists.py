@@ -89,18 +89,19 @@ def one_time_db_fixes(self):
 
 def ensure_table_exists(self):
     import core.bot_os_tool_descriptions
+    from core.bot_os_artifacts import SnowflakeStageArtifactsStore
 
-    # Maintain bots_active table 
+    # Maintain bots_active table
     # Get the current timestamp
     current_timestamp = self.get_current_time_with_timezone()
-    
+
     # Format the timestamp as a string
     timestamp_str = current_timestamp
     # Create or replace the bots_active table with the current timestamp
     create_bots_active_table_query = f"""
     CREATE OR REPLACE TABLE {self.schema}.bots_active ("{timestamp_str}" STRING);
     """
-    
+
     try:
         with self.client.cursor() as cursor:
             cursor.execute(create_bots_active_table_query)
@@ -116,7 +117,7 @@ def ensure_table_exists(self):
 
     streamlitdc_url = os.getenv("DATA_CUBES_INGRESS_URL", None)
     print(f"streamlit data cubes ingress URL: {streamlitdc_url}")
-            
+
     llm_results_table_check_query = (
         f"SHOW TABLES LIKE 'LLM_RESULTS' IN SCHEMA {self.schema};"
     )
@@ -329,7 +330,7 @@ def ensure_table_exists(self):
 
     llm_config_table_check_query = (f"SHOW TABLES LIKE 'LLM_TOKENS' IN SCHEMA {self.schema};")
     try:
-        runner_id = os.getenv("RUNNER_ID", "jl-local-runner") 
+        runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
         cursor = self.client.cursor()
         cursor.execute(llm_config_table_check_query)
         if not cursor.fetchone():
@@ -347,7 +348,7 @@ def ensure_table_exists(self):
             print(f"Table {self.genbot_internal_project_and_schema}.LLM_TOKENS created.")
 
             # Insert a row with the current runner_id and cortex as the active LLM key and type
-            
+
             insert_initial_row_query = f"""
                 INSERT INTO {self.genbot_internal_project_and_schema}.LLM_TOKENS
                 SELECT
@@ -372,7 +373,7 @@ def ensure_table_exists(self):
             try:
                 cursor.execute(check_query)
                 columns = [col[0] for col in cursor.fetchall()]
-                
+
                 if "ACTIVE" not in columns:
                     cortex_active = False
                     alter_table_query = f"ALTER TABLE {self.genbot_internal_project_and_schema}.LLM_TOKENS ADD COLUMN ACTIVE BOOLEAN;"
@@ -384,12 +385,12 @@ def ensure_table_exists(self):
                     update_query = f"UPDATE {self.genbot_internal_project_and_schema}.LLM_TOKENS SET ACTIVE=TRUE WHERE lower(LLM_TYPE)='openai'"
                     cursor.execute(update_query)
                     self.client.commit()
-                    
+
                 #update case to lower for llm_type. Can remove after release_202410b.
                 update_case_query = f"""UPDATE {self.genbot_internal_project_and_schema}.LLM_TOKENS SET LLM_TYPE = LOWER(LLM_TYPE)"""
                 cursor.execute(update_case_query)
                 self.client.commit()
-                
+
                 select_active_llm_query = f"""SELECT LLM_TYPE FROM {self.genbot_internal_project_and_schema}.LLM_TOKENS WHERE ACTIVE = TRUE;"""
                 cursor.execute(select_active_llm_query)
                 active_llm = cursor.fetchone()
@@ -402,7 +403,7 @@ def ensure_table_exists(self):
                     cortex_active = True
                 else:
                     cortex_active = False
-            
+
                 merge_cortex_row_query = f"""
                     MERGE INTO {self.genbot_internal_project_and_schema}.LLM_TOKENS AS target
                     USING (SELECT %s AS RUNNER_ID, %s AS LLM_KEY, %s AS LLM_TYPE, %s AS ACTIVE) AS source
@@ -443,7 +444,7 @@ def ensure_table_exists(self):
         cursor = self.client.cursor()
         cursor.execute(check_llm_endpoint_query)
         columns = [col[0] for col in cursor.fetchall()]
-        
+
         if "LLM_ENDPOINT" not in columns:
             # Add LLM_ENDPOINT column if it doesn't exist
             alter_table_query = f"ALTER TABLE {self.genbot_internal_project_and_schema}.LLM_TOKENS ADD COLUMN LLM_ENDPOINT VARCHAR(16777216);"
@@ -522,7 +523,7 @@ def ensure_table_exists(self):
             else:
                 print(
                     f"Table CUSTOM_ENDPOINTS already exists."
-                )  
+                )
         except Exception as e:
             print(
                 f"An error occurred while checking or creating table CUSTOM_ENDPOINTS: {e}"
@@ -655,7 +656,7 @@ def ensure_table_exists(self):
             #     f"Inserted initial Eliza row into {self.bot_servicing_table_name} with runner_id: {runner_id}"
             # )
 
-            
+
 
         #          runner_id = os.getenv('RUNNER_ID', 'jl-local-runner')
         #          bot_id = 'Stuart-'
@@ -1055,7 +1056,7 @@ def ensure_table_exists(self):
     bot_notebook_table_check_query = f"SHOW TABLES LIKE 'NOTEBOOK' IN SCHEMA {self.schema};"
     cursor = self.client.cursor()
     cursor.execute(bot_notebook_table_check_query)
-    
+
     if not cursor.fetchone():
         create_bot_notebook_table_ddl = f"""
         CREATE OR REPLACE TABLE {self.schema}.NOTEBOOK (
@@ -1146,16 +1147,16 @@ def ensure_table_exists(self):
 
     # Check if PROCESS_CONFIG column exists in PROCESSES table
     describe_table_query = f"DESCRIBE TABLE {self.schema}.PROCESSES;"
-    
+
     try:
         cursor = self.client.cursor()
         cursor.execute(describe_table_query)
         table_description = cursor.fetchall()
-        
+
         process_config_exists = any(row[0].upper() == 'PROCESS_CONFIG' for row in table_description)
         note_id_exists = any(row[0].upper() == 'NOTE_ID' for row in table_description)
         process_instructions_exists = any(row[0].upper() == 'PROCESS_INSTRUCTIONS' for row in table_description)
-        
+
         if not process_config_exists or not note_id_exists:
             # Add PROCESS_CONFIG column if it doesn't exist
             add_column_query = f"""
@@ -1169,14 +1170,14 @@ def ensure_table_exists(self):
                 add_column_query += "ADD COLUMN NOTE_ID VARCHAR(16777216)"
             # if process_instructions_exists:
             #     add_column_query += ",DROP COLUMN PROCESS_INSTRUCTIONS"
-        
+
             cursor.execute(add_column_query)
             self.client.commit()
             if not process_config_exists:
                 print("PROCESS_CONFIG column added to PROCESSES table.")
             if not note_id_exists:
                 print("NOTE_ID column added to PROCESSES table.")
-            
+
         else:
             print("PROCESS_CONFIG column already exists in PROCESSES table.")
     except Exception as e:
@@ -1392,14 +1393,22 @@ def ensure_table_exists(self):
             except Exception as e:
                 print(
                     f"An error occurred while checking or altering table {metadata_table_id}: {e}"
-                )                    
+                )
             print(f"Table {metadata_table_id} already exists.")
     except Exception as e:
         print(
             f"An error occurred while checking or creating table {metadata_table_id}: {e}"
         )
 
-    cursor = self.client.cursor()
+
+    # Ensure the Artifact storage exist.
+    af = SnowflakeStageArtifactsStore(self)
+    created = af.create_storage_if_needed()
+    if created:
+        print(f"Artifact storage @{af.stage_qualified_name} created")
+    else:
+        print(f"Artifact storage @{af.stage_qualified_name} already exists")
+
 
 def get_processes_list(self, bot_id="all"):
     cursor = self.client.cursor()
@@ -1528,13 +1537,13 @@ def make_date_tz_aware(date, tz='UTC'):
 def load_default_processes_and_notebook(self, cursor):
         folder_path = 'golden_defaults/golden_processes'
         self.process_data = pd.DataFrame()
-        
+
         files = glob.glob(os.path.join(folder_path, '*'))
 
         for filename in files:
             with open(filename, 'r') as file:
                 yaml_data = yaml.safe_load(file)
-            
+
             data = pd.DataFrame.from_dict(yaml_data, orient='index')
             data.reset_index(inplace=True)
             data.rename(columns={'index': 'PROCESS_ID'}, inplace=True)
@@ -1587,7 +1596,7 @@ def load_default_processes_and_notebook(self, cursor):
                     elif key.lower() == 'timestamp' or key.lower() == 'updated_at' or key.lower() == 'created_at':
                         insert_values.append(timestamp_str)
                     elif key.lower() == 'process_instructions':
-                        # Note - remove this line and uncomment below 
+                        # Note - remove this line and uncomment below
                         insert_values.append(process_default['PROCESS_INSTRUCTIONS'])
 
                         # Check to see if the process_instructions are already in a note in the NOTEBOOK table
@@ -1616,7 +1625,7 @@ def load_default_processes_and_notebook(self, cursor):
                         insert_values.append(val)
 
                 insert_query = f"INSERT INTO {self.schema}.PROCESSES ({', '.join(process_columns)}) VALUES ({placeholders})"
-                cursor.execute(insert_query, insert_values) 
+                cursor.execute(insert_query, insert_values)
                 if updated_process:
                     print(f"Process {process_id} updated successfully.")
                     updated_process = False
@@ -1632,7 +1641,7 @@ def upgrade_timestamp_columns(self, table_name):
             check_for_old_timestamp_columns_query = f"DESCRIBE TABLE {self.schema}.{table_name};"
             cursor.execute(check_for_old_timestamp_columns_query)
             columns = [col[0] for col in cursor.fetchall()]
-        
+
             if "CREATED_AT" not in columns and "UPDATED_AT" not in columns:
                 alter_table_query = f"ALTER TABLE {self.schema}.{table_name} ADD COLUMN \"CREATED_AT\" TIMESTAMP, \"UPDATED_AT\" TIMESTAMP;"
                 cursor.execute(alter_table_query)
@@ -1649,7 +1658,7 @@ def upgrade_timestamp_columns(self, table_name):
 
                 cursor.execute(copy_timestamp_to_created_at_query)
                 self.client.commit()
-                
+
                 # Drop TIMESTAMP column
                 drop_timestamp_query = f"ALTER TABLE {self.schema}.{table_name} DROP COLUMN TIMESTAMP;"
                 cursor.execute(drop_timestamp_query)
@@ -1664,13 +1673,13 @@ def upgrade_timestamp_columns(self, table_name):
 def load_default_notes(self, cursor):
         folder_path = 'golden_defaults/golden_notes'
         self.notes_data = pd.DataFrame()
-        
+
         files = glob.glob(os.path.join(folder_path, '*'))
 
         for filename in files:
             with open(filename, 'r') as file:
                 yaml_data = yaml.safe_load(file)
-            
+
             data = pd.DataFrame.from_dict(yaml_data, orient='index')
             data.reset_index(inplace=True)
             data.rename(columns={'index': 'NOTE_ID'}, inplace=True)
@@ -1693,7 +1702,7 @@ def load_default_notes(self, cursor):
 
             # ONE-TIME FIX - MAKE SURE TABLE HAS CREATED_AT AND UPDATED_AT COLUMNS
             upgrade_timestamp_columns(self, 'NOTEBOOK')
-            
+
             updated_note = False
             note_found = False
             if result is not None:
@@ -1729,7 +1738,7 @@ def load_default_notes(self, cursor):
                         val = ''
                     insert_values.append(val)
             insert_query = f"INSERT INTO {self.schema}.NOTEBOOK ({', '.join(notebook_columns)}) VALUES ({placeholders})"
-            cursor.execute(insert_query, insert_values) 
+            cursor.execute(insert_query, insert_values)
             if updated_note:
                 print(f"Note {note_id} updated successfully.")
                 updated_note = False

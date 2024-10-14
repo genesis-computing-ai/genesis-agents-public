@@ -174,14 +174,14 @@ class SnowflakeStageArtifactsStore(ArtifactsStoreBase):
         return str(Path(artifact_id).with_suffix(self.METADATA_FILE_EXTRA_SUFFIX))
 
 
-    def is_stage_exists(self):
+    def does_storage_exist(self):
         stage_check_query = f"SHOW STAGES LIKE '{self.STAGE_NAME}' IN SCHEMA {self._sfconn.genbot_internal_project_and_schema};"
         with self._get_sql_cursor() as cursor:
             cursor.execute(stage_check_query)  # Corrected variable name
             return bool(cursor.fetchone())
 
 
-    def create_stage_if_needed(self, replace_if_exists: bool = False) -> bool:
+    def create_storage_if_needed(self, replace_if_exists: bool = False) -> bool:
         """
         Ensures the existence of a Snowflake stage for artifact storage. If the stage already exists,
         it can optionally be replaced based on the `replace_if_exists` flag.
@@ -193,7 +193,7 @@ class SnowflakeStageArtifactsStore(ArtifactsStoreBase):
             bool: True if the stage was created or replaced, False if the stage already existed and was not replaced.
         """
         stage_ddl_prefix = None
-        if self.is_stage_exists():
+        if self.does_storage_exist():
             if replace_if_exists:
                 print(f"Stage @{self._stage_qualified_name} already exists but {replace_if_exists=}. Will replace Stage")
                 stage_ddl_prefix = "CREATE OR REPLACE STAGE"

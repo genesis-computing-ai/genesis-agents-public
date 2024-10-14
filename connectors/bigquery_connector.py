@@ -387,7 +387,7 @@ class BigQueryConnector(DatabaseConnector):
 
         qualified_table_name = f"{database_name}.{schema_name}.{table_name}"
         memory_uuid = str(uuid.uuid4())
-        last_crawled_timestamp = datetime.utcnow().isoformat(" ")
+        last_crawled_timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat(" ")
         ddl_hash = self.sha256_hash_hex_string(ddl)
 
         # Assuming role_used_for_crawl is stored in self.connection_info["client_email"]

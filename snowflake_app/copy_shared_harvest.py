@@ -3,7 +3,7 @@ import sys
 import json
 from snowflake.connector import connect
 import uuid
-import datetime
+from datetime import datetime
 
 
 def _create_connection_target():
@@ -49,7 +49,7 @@ def insert_table_summary(self, database_name, schema_name, table_name, ddl, ddl_
 
         qualified_table_name = f'"{database_name}"."{schema_name}"."{table_name}"'
         memory_uuid = str(uuid.uuid4())
-        last_crawled_timestamp = datetime.utcnow().isoformat(" ")
+        last_crawled_timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat(" ")
         ddl_hash = self.sha256_hash_hex_string(ddl)
 
         # Assuming role_used_for_crawl is stored in self.connection_info["client_email"]

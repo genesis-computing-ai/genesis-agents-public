@@ -1168,7 +1168,7 @@ $$;
         qualified_table_name = f'"{database_name}"."{schema_name}"."{table_name}"'
         if not memory_uuid:
             memory_uuid = str(uuid.uuid4())
-        last_crawled_timestamp = datetime.utcnow().isoformat(" ")
+        last_crawled_timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat(" ")
         if not ddl_hash:
             ddl_hash = self.sha256_hash_hex_string(ddl)
 

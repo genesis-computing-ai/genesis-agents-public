@@ -30,6 +30,9 @@ import base64
 import requests
 import re
 from tqdm import tqdm
+from textwrap import dedent
+
+
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -62,7 +65,7 @@ class SnowflakeConnector(DatabaseConnector):
         self.password = get_env_or_default(password, "SNOWFLAKE_PASSWORD_OVERRIDE")
         self.database = get_env_or_default(database, "SNOWFLAKE_DATABASE_OVERRIDE")
         self.warehouse = get_env_or_default(warehouse, "SNOWFLAKE_WAREHOUSE_OVERRIDE")
-        self.role = get_env_or_default(role, "SNOWFLAKE_ROLE_OVERRIDE")        
+        self.role = get_env_or_default(role, "SNOWFLAKE_ROLE_OVERRIDE")
         self.source_name = "Snowflake"
 
         self.default_data = pd.DataFrame()
@@ -99,9 +102,9 @@ class SnowflakeConnector(DatabaseConnector):
             self.project_id = db
 
         self.genbot_internal_harvest_table = os.getenv("GENESIS_INTERNAL_HARVEST_RESULTS_TABLE", "harvest_results" )
-        self.genbot_internal_harvest_control_table = os.getenv("GENESIS_INTERNAL_HARVEST_CONTROL_TABLE", "harvest_control")         
+        self.genbot_internal_harvest_control_table = os.getenv("GENESIS_INTERNAL_HARVEST_CONTROL_TABLE", "harvest_control")
         self.genbot_internal_processes_table = os.getenv("GENESIS_INTERNAL_PROCESSES_TABLE", "PROCESSES" )
-        self.genbot_internal_process_history_table = os.getenv("GENESIS_INTERNAL_PROCESS_HISTORY_TABLE", "PROCESS_HISTORY" )        
+        self.genbot_internal_process_history_table = os.getenv("GENESIS_INTERNAL_PROCESS_HISTORY_TABLE", "PROCESS_HISTORY" )
         self.app_share_schema = "APP_SHARE"
 
         # print("genbot_internal_project_and_schema: ", self.genbot_internal_project_and_schema)
@@ -122,7 +125,7 @@ class SnowflakeConnector(DatabaseConnector):
 
     def ensure_table_exists(self):
         ensure_table_exists(self)
-    
+
     def one_time_db_fixes(self):
         one_time_db_fixes(self)
 
@@ -167,7 +170,7 @@ class SnowflakeConnector(DatabaseConnector):
                 if cortex_test == True:
                     os.environ["CORTEX_AVAILABLE"] = 'True'
                     self.default_llm_engine = BotLlmEngineEnum.cortex
-                    
+
                     self.llm_api_key = 'cortex_no_key_needed'
                     print('Cortex LLM is Available via REST and successfully tested')
                     return True
@@ -178,7 +181,7 @@ class SnowflakeConnector(DatabaseConnector):
                     return False
             except Exception as e:
                 print('Cortex LLM Not available via REST, exception on test: ',e)
-                return False 
+                return False
         if self.source_name == "Snowflake" and os.getenv("CORTEX_AVAILABLE", "False").lower() == 'true':
             return True
         else:
@@ -202,7 +205,7 @@ class SnowflakeConnector(DatabaseConnector):
             except Exception as e:
                 if 'unknown model' in e.msg:
                     print(f'Model {self.llm_engine} not available in this region, trying llama3.1-70b')
-                    self.llm_engine = 'llama3.1-70b'        
+                    self.llm_engine = 'llama3.1-70b'
                     cortex_query = f"""
                         select SNOWFLAKE.CORTEX.COMPLETE('{self.llm_engine}', %s) as completion; """
                     cursor.execute(cortex_query, (new_array_str,))
@@ -231,7 +234,7 @@ class SnowflakeConnector(DatabaseConnector):
             os.environ['CORTEX_MODE'] = 'False'
             os.environ['CORTEX_AVAILABLE'] = 'False'
             return False
- 
+
     def test_cortex_via_rest(self):
         if os.getenv("CORTEX_OFF", "").upper() == "TRUE":
             print('CORTEX OFF ENV VAR SET -- SIMULATING NO CORTEX')
@@ -260,7 +263,7 @@ class SnowflakeConnector(DatabaseConnector):
             newarray = [{"role": "user", "content": system}, {"role": "user", "content": prompt} ]
         else:
             newarray = [{"role": "user", "content": prompt} ]
-        
+
         try:
             SNOWFLAKE_HOST = self.client.host
             REST_TOKEN = self.client.rest.token
@@ -270,7 +273,7 @@ class SnowflakeConnector(DatabaseConnector):
                 "Content-Type": "application/json",
                 "Authorization": f'Snowflake Token="{REST_TOKEN}"',
             }
-        
+
             request_data = {
                 "model": self.llm_engine,
                 "messages": newarray,
@@ -314,7 +317,7 @@ class SnowflakeConnector(DatabaseConnector):
                         continue
 
             return curr_resp, response.status_code
-        
+
         except Exception as e:
             print ("Bottom of function -- Error calling Cortex Rest API, ",e, flush=True)
             return False, False
@@ -652,7 +655,7 @@ class SnowflakeConnector(DatabaseConnector):
         except Exception as e:
             err = f"An error occurred while retrieving shared schemas: {e}"
             return "Error: {err}"
-        
+
     def get_bot_images(self, thread_id=None):
         """
         Retrieves a list of all bot avatar images.
@@ -691,7 +694,7 @@ class SnowflakeConnector(DatabaseConnector):
             list: A list of llm keys, llm types, and the active switch.
         """
         try:
-            runner_id = os.getenv("RUNNER_ID", "jl-local-runner") 
+            runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
             query = f"""
         SELECT LLM_TYPE, ACTIVE, LLM_KEY, LLM_ENDPOINT 
         FROM {self.genbot_internal_project_and_schema}.LLM_TOKENS 
@@ -745,7 +748,7 @@ class SnowflakeConnector(DatabaseConnector):
         try:
 
             if object_type == 'EAI':
-                
+
                 create_function_query = f"""
 CREATE OR REPLACE FUNCTION {self.project_id}.CORE.CHECK_URL_STATUS(site string)
 RETURNS STRING
@@ -815,7 +818,7 @@ $$;
         except Exception as e:
             err = f"An error occurred while creating/testing EAI test function: {e}"
             return {"Success": False, "Error": err}
-        
+
         # '[{"system$send_email": true}]'
 
         if function_success == True or function_test_success == True:
@@ -824,7 +827,7 @@ $$;
         else:
             return {"Success": False, "Error": "something failed"}
 
-        
+
     def send_test_email(self, email_addr, thread_id=None):
         """
         Tests sending an email and stores the email address in a table.
@@ -942,7 +945,7 @@ $$;
         except Exception as e:
             print(f"An error occurred while checking if the table summary exists: {e}")
             return False
-        
+
     def check_logging_status(self):
         query = f"""
         CALL {self.project_id}.CORE.CHECK_APPLICATION_SHARING()
@@ -1490,8 +1493,8 @@ $$;
             embedding_column = 'embedding'
 
         # query = (
-        #     f"""SELECT c.source_name, c.database_name, c.schema_inclusions, c.schema_exclusions, c.status, c.refresh_interval, MAX(CASE WHEN c.initial_crawl_complete = FALSE THEN FALSE ELSE CASE WHEN c.initial_crawl_complete = TRUE AND r.{embedding_column} IS NULL THEN FALSE ELSE TRUE END END) AS initial_crawl_complete 
-        #       FROM {self.harvest_control_table_name} c LEFT OUTER JOIN {self.metadata_table_name} r ON c.source_name = r.source_name AND c.database_name = r.database_name 
+        #     f"""SELECT c.source_name, c.database_name, c.schema_inclusions, c.schema_exclusions, c.status, c.refresh_interval, MAX(CASE WHEN c.initial_crawl_complete = FALSE THEN FALSE ELSE CASE WHEN c.initial_crawl_complete = TRUE AND r.{embedding_column} IS NULL THEN FALSE ELSE TRUE END END) AS initial_crawl_complete
+        #       FROM {self.harvest_control_table_name} c LEFT OUTER JOIN {self.metadata_table_name} r ON c.source_name = r.source_name AND c.database_name = r.database_name
         #       GROUP BY c.source_name,c.database_name,c.schema_inclusions,c.schema_exclusions,c.status, c.refresh_interval, c.initial_crawl_complete
         #     """
         # )
@@ -1577,13 +1580,13 @@ $$;
         return columns
 
     def alt_get_ddl(self,table_name = None):
-        #print(table_name) 
+        #print(table_name)
         describe_query = f"DESCRIBE TABLE {table_name};"
         try:
             describe_result = self.run_query(query=describe_query, max_rows=1000, max_rows_override=True)
         except:
-            return None 
-        
+            return None
+
         ddl_statement = "CREATE TABLE " + table_name + " (\n"
         for column in describe_result:
             column_name = column['name']
@@ -1790,7 +1793,6 @@ $$;
             #       cursor.execute(query, query_params)
             #   else:
             cursor.execute(query)
-
             # call grant_all_bot_workspace()
             if bot_id is not None and ("CREATE" in query.upper() and workspace_schema_name.upper() in query.upper()):
                 self.grant_all_bot_workspace(workspace_full_schema_name)
@@ -1833,7 +1835,7 @@ $$;
             5. NOTE: You do not have the PUBLIC role or any other role, all object you are granted must be granted TO APPLICATION GENESIS_BOTS, or be granted by grant_schema_usage_and_select_to_app as shown above.
             """,
                 }
-            
+
             print("run query: len=", len(query), "\ncaused error: ", e)
             cursor.close()
             return {"Success": False, "Error": str(e)}
@@ -2149,7 +2151,7 @@ $$;
             with self.connection.cursor() as cursor:
                 cursor.execute(query, (runner_id,))
                 results = cursor.fetchall()
-                
+
             if results:
                 return [llm_keys_and_types_struct(llm_type=result[1], llm_key=result[0], llm_endpoint=result[2]) for result in results]
             else:
@@ -2158,7 +2160,7 @@ $$;
         except Exception as e:
             logger.error("Error retrieving LLM tokens: %s", str(e))
             return []
-        
+
     def db_get_active_llm_key(self, i = -1):
         """
         Retrieves the active LLM key and type for the given runner_id.
@@ -2740,7 +2742,7 @@ $$;
                 f"Failed to retrieve details for bot_id: {bot_id} with error: {e}"
             )
             return None
-        
+
     def db_get_bot_database_creds(self, project_id, dataset_name, bot_servicing_table, bot_id):
         """
         Retrieves the database credentials for a bot based on the provided bot_id from the BOT_SERVICING table.
@@ -3334,7 +3336,7 @@ $$;
 
     def run_insert(self, table, **kwargs):
         keys = ', '.join(kwargs.keys())
-        
+
         insert_query = f"""
             INSERT INTO {table} ({keys}) VALUES ({', '.join(['%s']*len(kwargs))});
             """
@@ -3342,7 +3344,7 @@ $$;
         cursor.execute(insert_query, tuple(kwargs.values()))
         # Get the results from the query
         results = cursor.fetchall()
-        
+
         # Check if there are any results
         if results:
             # Process the results if needed
@@ -3371,7 +3373,7 @@ $$;
         total_rows_query_openai = f"SELECT COUNT(*) as total FROM {table_id} WHERE embedding IS NOT NULL"
         total_rows_query_native = f"SELECT COUNT(*) as total FROM {table_id} WHERE embedding_native IS NOT NULL"
         missing_native_count = f"SELECT COUNT(*) as total FROM {table_id} WHERE embedding_native is NULL and embedding is NULL and "
-          
+
         cursor = self.connection.cursor()
         cursor.execute(total_rows_query_openai)
         total_rows_result_openai = cursor.fetchone()
@@ -3521,7 +3523,7 @@ $$;
                                 },
                             ],
                         )
-                    except Exception as e:   
+                    except Exception as e:
                         print(f"Error occurred while calling OpenAI API with snowpark escallation model {openai_model}: {e}")
                         return None
                 else:
@@ -3529,14 +3531,14 @@ $$;
                     return None
 
             return_msg = response.choices[0].message.content
-        else: 
+        else:
             if bot_os_llm_engine is BotLlmEngineEnum.cortex:
                 response, status_code = self.cortex_chat_completion(message)
                 if status_code != 200:
                     print(f"Error occurred while calling Cortex API: {response}")
                     return None
                 return_msg = response
-            
+
         return return_msg
 
     def escallate_for_advice(self, purpose, code, result, packages):
@@ -3569,7 +3571,7 @@ $$;
 1. If you want to access a file, first save it to stage, and then access it at its stage path, not just /tmp.
 2. Be sure to return the result in the global scope at the end of your code.
 3. If you want to return a file, save it to /tmp (not root) then base64 encode it and respond like this: image_bytes = base64.b64encode(image_bytes).decode('utf-8')
-   result = {{ 'type': 'base64file', 'filename': file_name, 'content': image_bytes}}.
+   result = {{ 'type': 'base64file', 'filename': file_name, 'content': image_bytes, 'mime_type': <mime_type>}}.
 4. Do not create a new Snowpark session, use the 'session' variable that is already available to you. 
 5. Use regular loops not list comprehension
 6. If packages are missing, make sure they are included in the PACKAGES list. Many such as matplotlib, pandas, etc are supported.
@@ -3737,7 +3739,7 @@ result = 'Table FAKE_CUST created successfully.'
 
             message += """\n\n### YOUR ACTION: So, now, please provide suggestions to the bot on how to fix this code so that it runs successfully in Snowflake Snowpark.\n"""
 
-            
+
             potential_result = self.chat_completion_for_escallation(message=message)
             #print(potential_result)
             return potential_result
@@ -3759,11 +3761,30 @@ result = 'Table FAKE_CUST created successfully.'
                # return potential_result
 
         return result
-    
 
-    def run_python_code(self, purpose: str = None, code: str = None, packages: str = None, thread_id=None, bot_id=None, note_id=None, note_name = None, return_base64 = False) -> str:
-        import ast 
-        import os 
+    def run_python_code(self,
+                        purpose: str = None,
+                        code: str = None,
+                        packages: str = None,
+                        thread_id=None,
+                        bot_id=None,
+                        note_id=None,
+                        note_name = None,
+                        return_base64 = False,
+                        save_artifacts=False) -> str:
+        # IMPORTANT: keep the description/parameters of this method in sync with the tool description given to the bots (see database_tools.py)
+
+        # Some solid examples to make bots invoke this:
+        # use snowpark to create 5 rows of synthetic customer data using faker, return it in json
+        # ... save 100 rows of synthetic data like this to a table called CUSTFAKE1 in your workspace
+        #
+        # use snowpark python to generate a txt file containing the words "hello world". DO NOT save as an artifact.
+        # use snowpark python to geneate a plot of the sin() function for all degrees from 0 to 180. DO NOT save as an artifact. Do not return a path to /tmp - instead, return a base64 encoded content as instrcuted in the function description
+        # use snowpark python to geneate a plot of the sin() function for all degrees  from 0 to 180. Use save_artifact=True. Do not return a path to /tmp - instead, return a base64 encoded content as instrcuted in the function description
+        # use snowpark python code to generate an chart that plots the result of the following query as a timeseries: query SNOWFLAKE_SAMPLE_DATA.TPCH_SF10.ORDERS table and count the number of orders per date in the last 30 available dates. use save_artifact=false
+
+        import ast
+        import os
 
         def cleanup(proc_name):         # Drop the temporary stored procedure if it was created
             if proc_name is not None and proc_name != 'EXECUTE_SNOWPARK_CODE':
@@ -3781,7 +3802,7 @@ result = 'Table FAKE_CUST created successfully.'
             cursor = self.connection.cursor()
             cursor.execute(get_note_query)
             code = cursor.fetchone()
-
+            
             if code is None:
                  return {
                 "success": False,
@@ -3793,7 +3814,7 @@ result = 'Table FAKE_CUST created successfully.'
         if bot_id not in ['eva-x1y2z3', 'MrsEliza-3348b2', os.getenv("O1_OVERRIDE_BOT","")]:
             if '\\n' in code:
                 if '\n' not in code.replace('\\n', ''):
-                    code = code.replace('\\n','\n')                
+                    code = code.replace('\\n','\n')
                     code = code.replace('\\n','\n')
             code = code.replace("'\\\'","\'")
         # Check if code contains Session.builder
@@ -3801,13 +3822,17 @@ result = 'Table FAKE_CUST created successfully.'
             return {
                 "success": False,
                 "error": "You don't need to make a new snowpark session. Use the session already provided in the session variable without recreating it.",
-                "reminder": """Also be sure to return the result in the global scope at the end of your code. And if you want to return a file, save it to /tmp (not root) then base64 encode it and respond like this: image_bytes = base64.b64encode(image_bytes).decode('utf-8')\nresult = { 'type': 'base64file', 'filename': file_name, 'content': image_bytes}."""
+                "reminder": "Also be sure to return the result in the global scope at the end of your code. "
+                            "And if you want to return a file, save it to /tmp (not root) then base64 encode it and respond like this: "
+                                 "image_bytes = base64.b64encode(image_bytes).decode('utf-8')\nresult = { 'type': 'base64file', 'filename': file_name, 'content': image_bytes}."
             }
         if "plt.show" in code:
             return {
                 "success": False,
                 "error": "You can't use plt.show, instead save and return a base64 encoded file.",
-                "reminder": """Also be sure to return the result in the global scope at the end of your code. And if you want to return a file, save it to /tmp (not root) then base64 encode it and respond like this: image_bytes = base64.b64encode(image_bytes).decode('utf-8')\nresult = { 'type': 'base64file', 'filename': file_name, 'content': image_bytes}."""
+                "reminder": "Also be sure to return the result in the global scope at the end of your code. "
+                            "And if you want to return a file, save it to /tmp (not root) then base64 encode it and respond like this: "
+                                 "image_bytes = base64.b64encode(image_bytes).decode('utf-8')\nresult = { 'type': 'base64file', 'filename': file_name, 'content': image_bytes}."
             }
         if "@MY_STAGE" in code:
             import core.global_flags as global_flags
@@ -3820,7 +3845,9 @@ result = 'Table FAKE_CUST created successfully.'
                 "success": False,
                 "error": "You can't reference files in sandbox:/mnt/data, instead add them to your stage and reference them in the stage.",
                 "your_stage": workspace_schema_name+".MY_STAGE",
-                "reminder": """Also be sure to return the result in the global scope at the end of your code. And if you want to return a file, save it to /tmp (not root) then base64 encode it and respond like this: image_bytes = base64.b64encode(image_bytes).decode('utf-8')\nresult = { 'type': 'base64file', 'filename': file_name, 'content': image_bytes}."""
+                "reminder": "Also be sure to return the result in the global scope at the end of your code. "
+                            "And if you want to return a file, save it to /tmp (not root) then base64 encode it and respond like this: "
+                                 "image_bytes = base64.b64encode(image_bytes).decode('utf-8')\nresult = { 'type': 'base64file', 'filename': file_name, 'content': image_bytes}."
             }
         # Check if libraries are provided
         proc_name = 'EXECUTE_SNOWPARK_CODE'
@@ -3838,80 +3865,84 @@ result = 'Table FAKE_CUST created successfully.'
             # Create a new stored procedure with the specified libraries
             libraries_str = ', '.join(f"'{lib}'" for lib in library_list)
             import uuid
-# 'matplotlib', 'scikit-learn'
+            # 'matplotlib', 'scikit-learn'
             if (libraries_str is None or libraries_str != ''):
                 proc_name = f"sp_{uuid.uuid4().hex}"
-                old_new_stored_proc_ddl = f"""CREATE OR REPLACE PROCEDURE {self.schema}.{proc_name}(
-    code STRING
-)
-RETURNS STRING
-LANGUAGE PYTHON
-RUNTIME_VERSION = '3.'
-PACKAGES = ('snowflake-snowpark-python', 'pandas', {libraries_str})
-HANDLER = 'run'
-AS
-$$
-import snowflake.snowpark as snowpark
-import pandas as pd
+                old_new_stored_proc_ddl = dedent(
+                    f"""
+                    CREATE OR REPLACE PROCEDURE {self.schema}.{proc_name}(
+                        code STRING
+                    )
+                    RETURNS STRING
+                    LANGUAGE PYTHON
+                    RUNTIME_VERSION = '3.'
+                    PACKAGES = ('snowflake-snowpark-python', 'pandas', {libraries_str})
+                    HANDLER = 'run'
+                    AS
+                    $$
+                    import snowflake.snowpark as snowpark
+                    import pandas as pd
 
-def run(session: snowpark.Session, code: str) -> str:
-    local_vars = {{}}
-    local_vars["session"] = session
-    
-    exec(code, globals(), local_vars)
+                    def run(session: snowpark.Session, code: str) -> str:
+                        local_vars = {{}}
+                        local_vars["session"] = session
+                        
+                        exec(code, globals(), local_vars)
 
-    if 'result' in local_vars:
-        return str(local_vars['result'])
-    else:
-        return "Error: 'result' is not defined in the executed code"
-$$;"""
+                        if 'result' in local_vars:
+                            return str(local_vars['result'])
+                        else:
+                            return "Error: 'result' is not defined in the executed code"
+                    $$;""")
 
-                new_stored_proc_ddl =   f"""CREATE OR REPLACE PROCEDURE {self.schema}.{proc_name}( code STRING )
-RETURNS STRING
-LANGUAGE PYTHON
-RUNTIME_VERSION = '3.11'
-PACKAGES = ('snowflake-snowpark-python', 'pandas', {libraries_str})
-HANDLER = 'run'
-AS
-$$
-import snowflake.snowpark as snowpark
-import re, importlib
+                new_stored_proc_ddl = dedent(
+                    f"""
+                    CREATE OR REPLACE PROCEDURE {self.schema}.{proc_name}( code STRING )
+                    RETURNS STRING
+                    LANGUAGE PYTHON
+                    RUNTIME_VERSION = '3.11'
+                    PACKAGES = ('snowflake-snowpark-python', 'pandas', {libraries_str})
+                    HANDLER = 'run'
+                    AS
+                    $$
+                    import snowflake.snowpark as snowpark
+                    import re, importlib
 
-def run(session: snowpark.Session, code: str) -> str:
-    # Normalize line endings
-    code = code.replace('\\\\r\\\\n', '\\\\n').replace('\\\\r', '\\\\n')
+                    def run(session: snowpark.Session, code: str) -> str:
+                        # Normalize line endings
+                        code = code.replace('\\\\r\\\\n', '\\\\n').replace('\\\\r', '\\\\n')
 
-    # Find all import statements, including 'from ... import ...'
-    import_statements = re.findall(r'^\\s*(import\\s+.*|from\\s+.*\\s+import\\s+.*)$', code, re.MULTILINE)
-    # Additional regex to find 'from ... import ... as ...' statements
-    import_statements += re.findall(r'^from\\s+(\\S+)\\s+import\\s+(\\S+)\\s+as\\s+(\\S+)', code, re.MULTILINE)
-     
-    global_vars = globals().copy()
+                        # Find all import statements, including 'from ... import ...'
+                        import_statements = re.findall(r'^\\s*(import\\s+.*|from\\s+.*\\s+import\\s+.*)$', code, re.MULTILINE)
+                        # Additional regex to find 'from ... import ... as ...' statements
+                        import_statements += re.findall(r'^from\\s+(\\S+)\\s+import\\s+(\\S+)\\s+as\\s+(\\S+)', code, re.MULTILINE)
+                        
+                        global_vars = globals().copy()
 
-    # Handle imports
-    for import_statement in import_statements:
-        try:
-            exec(import_statement, global_vars)
-        except ImportError as e:
-            return f"Error: Unable to import - {{str(e)}}"
+                        # Handle imports
+                        for import_statement in import_statements:
+                            try:
+                                exec(import_statement, global_vars)
+                            except ImportError as e:
+                                return f"Error: Unable to import - {{str(e)}}"
 
-    local_vars = {{}}
-    local_vars["session"] = local_vars["session"] = session
-    
-    try:
-        # Remove import statements from the code before execution
-        code_without_imports = re.sub(r'^\\s*(import\\s+.*|from\\s+.*\\s+import\\s+.*)$', '', code, flags=re.MULTILINE)
-        exec(code_without_imports, global_vars, local_vars)
-        
-        if 'result' in local_vars:
-            return local_vars['result']
-        else:
-            return "Error: 'result' is not defined in the executed code"
-    except Exception as e:
-        return f"Error: {{str(e)}}"
-$$
-"""
-                
+                        local_vars = {{}}
+                        local_vars["session"] = local_vars["session"] = session
+                        
+                        try:
+                            # Remove import statements from the code before execution
+                            code_without_imports = re.sub(r'^\\s*(import\\s+.*|from\\s+.*\\s+import\\s+.*)$', '', code, flags=re.MULTILINE)
+                            exec(code_without_imports, global_vars, local_vars)
+                            
+                            if 'result' in local_vars:
+                                return local_vars['result']
+                            else:
+                                return "Error: 'result' is not defined in the executed code"
+                        except Exception as e:
+                            return f"Error: {{str(e)}}"
+                    $$
+                    """)
+
                 # Execute the new stored procedure creation
                 result = self.run_query(new_stored_proc_ddl)
 
@@ -3928,7 +3959,7 @@ $$
         else:
             # Use the default stored procedure if no libraries are specified
             stored_proc_call = f"CALL {self.schema}.execute_snowpark_code($${code}$$)"
-       
+
         result = self.run_query(stored_proc_call)
 
 
@@ -3956,59 +3987,83 @@ $$
                 # If result is not a list or is empty, use it as is
                 cleanup(proc_name)
                 result_json = result
-                
+
             # Check if 'type' and 'filename' are in the JSON
             if isinstance(result_json, dict) and 'type' in result_json and 'filename' in result_json:
+                mime_type = result_json.get("mime_type") # may be missing
                 if result_json['type'] == 'base64file':
                     import base64
                     import os
-                    
+
                     # Create the directory if it doesn't exist
                     os.makedirs(f'./downloaded_files/{thread_id}', exist_ok=True)
-                    
+
                     # Decode the base64 content
                     file_content = base64.b64decode(result_json['content'])
-                    
-                    # Save the file
-                    file_path = f'./downloaded_files/{thread_id}/{result_json["filename"]}'
-                    with open(file_path, 'wb') as file:
-                        file.write(file_content)
-                    
-                    print(f"File saved to {file_path}")
 
-                    if return_base64:
+                    if save_artifacts:
+                        # Use the artifacts infra to create an artifact from this content
+                        from core.bot_os_artifacts import SnowflakeStageArtifactsStore
+                        af = SnowflakeStageArtifactsStore(self)
+                        mime_type = mime_type or 'image/png' # right now we assume png is the defualt for type=base64file
+                        metadata = dict(mime_type=mime_type,
+                                        thread_id=thread_id,
+                                        bot_id=bot_id)
+                        aid = af.create_artifact_from_content(file_content, metadata, content_filename=result_json["filename"])
+                        print(f"Artifact {aid} created for output from python code named {result_json['filename']}")
+                        artifact_url = af.get_signed_url_for_artifact(aid)
                         result = {
                             "success": True,
-                            "base64_object": {
-                                "filename": result_json["filename"],
-                                "content": result_json["content"]
-                            },
-                            "result": "An image or graph has been successfully displayed to the user."
-                        # "result": f'Snowpark output a file. Output a link like this so the user can see it [description of file](sandbox:/mnt/data/{result_json["filename"]})'
+                            "result": f"Output from snowpark is a file, which can be later refernced using artifact_id={aid}. "
+                                      f"The descriptive name of the file is `{result_json['filename']}`. "
+                                      f"The mime type of the file is {mime_type}. "
+                                      f"Output a link to this file so the user can see it, using the following formatting rules:"
+                                      f" (i) If responding to the user in plain text mode, use Slack-compatible markdown like this: '[descriptive name of the file]({artifact_url}) <artifact: {aid}>'. "
+                                      f" (ii) If responding to the user in HTML mode, use the most relevant html tag mased on the mime_type (e.g. for image files, use the <img> tag), followed by '<sub>artifact: {aid}</sub>'"
                         }
                     else:
-                          result = {
-                            "success": True,
-                            "result": f'Snowpark output a file. Output a link like this so the user can see it [description of file](sandbox:/mnt/data/{result_json["filename"]})'
+                        # Save the file
+                        file_path = f'./downloaded_files/{thread_id}/{result_json["filename"]}'
+                        with open(file_path, 'wb') as file:
+                            file.write(file_content)
+                        print(f"File saved to {file_path}")
+                        if return_base64:
+                            result = {
+                                "success": True,
+                                "base64_object": {
+                                    "filename": result_json["filename"],
+                                    "content": result_json["content"]
+                                },
+                                "result": "An image or graph has been successfully displayed to the user."
                             }
+                        else:
+                            result = {
+                                "success": True,
+                                #"result": f'Snowpark output a file. Output a link like this so the user can see it [description of file](sandbox:/mnt/data/{result_json["filename"]})'
+                                "result": f"Output from snowpark is a file. "
+                                          f"The descriptive name of the file is `{result_json['filename']}`. "
+                                          f"Output a link to this file so the user can see it, using the following formatting rules:"
+                                          f" (i) If responding to the user in plain text mode, use markdown like this: '[descriptive name of the file](sandbox:/mnt/data/{result_json['filename']})'. "
+                                          f" (ii) If responding to the user in HTML mode, use the most relevant HTML tag to refrence this resource using the url 'sandbox:/mnt/data/{result_json['filename']}' "
+                                }
                     cleanup(proc_name)
                     if bot_id not in ['eva-x1y2z3', 'MrsEliza-3348b2', os.getenv("O1_OVERRIDE_BOT","")]:
                         result = self.add_hints(purpose, result, code, packages)
                     return result
-            
+
                 # If conditions are not met, return the original result
                 if bot_id not in ['eva-x1y2z3', 'MrsEliza-3348b2', os.getenv("O1_OVERRIDE_BOT","")]:
                     result_json = self.add_hints(purpose, result_json, code, packages)
                 cleanup(proc_name)
                 return result_json
-            
+
             cleanup(proc_name)
             if bot_id not in ['eva-x1y2z3', 'MrsEliza-3348b2', os.getenv("O1_OVERRIDE_BOT","")]:
                 result_json = self.add_hints(purpose, result_json, code, packages)
             return result_json
-    
+
         # Check if result is a dictionary and contains 'Error'
- 
+
         cleanup(proc_name)
         if bot_id not in ['eva-x1y2z3', 'MrsEliza-3348b2', os.getenv("O1_OVERRIDE_BOT","")]:
             result = self.add_hints(purpose, result, code, packages)

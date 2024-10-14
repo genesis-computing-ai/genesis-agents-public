@@ -125,7 +125,9 @@ database_tool_functions = [
         "type": "function",
         "function": {
             "name": "_run_snowpark_python",
-            "description": "Executes a string of Python snowflake snowpark code using a precreated and provided 'session', do not create a new session.  Use this instead of code_interpreter when directed to use snowpark, or when you want to run python that can directly interact with the user's snowflake session, tables, and stages.", 
+            "description": "Executes a string of Python snowflake snowpark code using a precreated and provided 'session', do not create a new session. "
+                           "Use this instead of code_interpreter when directed to use snowpark, or when you want to run python that can directly interact "
+                           "with the user's snowflake session, tables, and stages.",
             #this function has an existing snowflake session inside that you can use called session so do not try to create a new session or connection.",
             "parameters": {
                 "type": "object",
@@ -136,7 +138,18 @@ database_tool_functions = [
                     },
                     "code": {
                         "type": "string",
-                        "description": """The Python code to execute in Snowflake Snowpark. The snowpark 'session' is already created and ready for your code's use, do NOT create a new session. Run queries inside of Snowpark versus inserting a lot of static data in the code. Use the full names of any stages with database and schema. If you want to access a file, first save it to stage, and then access it at its stage path, not just /tmp. Always set 'result' variable at the end of the code execution in the global scope to what you want to return. To return a file, save it to /tmp (not root) then base64 encode it and respond like this: image_bytes = base64.b64encode(image_bytes).decode('utf-8')\nresult = { 'type': 'base64file', 'filename': file_name, 'content': image_bytes}. Be sure to properly escape any double quotes in the code.""",
+                        "description": "The Python code to execute in Snowflake Snowpark. "
+                                       "The snowpark 'session' is already created and ready for your code's use, do NOT create a new session. "
+                                       "Run queries inside of Snowpark versus inserting a lot of static data in the code. "
+                                       "Use the full names of any stages with database and schema. "
+                                       "If you want to access a file, first save it to stage, and then access it at its stage path, not just /tmp. "
+                                       "Always set 'result' variable at the end of the code execution in the global scope to what you want to return. "
+                                       "DO NOT return a path to a file. Instead, return the file content by first saving the content to /tmp (not root) then base64-encode it and respond like this: "
+                                           "image_bytes = base64.b64encode(image_bytes).decode('utf-8')\nresult = { 'type': 'base64file', 'filename': file_name, 'content': image_bytes, mime_type: <mime_type>}. "
+                                       "Be sure to properly escape any double quotes in the code.",
+                                       #
+                                       # NOTE: keep the above instructions in sync with escalate_for_advice()
+                                       #
                     },
                     "packages": {
                         "type": "string",
@@ -144,9 +157,20 @@ database_tool_functions = [
                     },
                     "note_id": {
                         "type": "string",
-                        "description": "An id for a note in the notebook table.  The note_id will be used to look up the python code from the note content in lieu of the code field.  A note_id will take precendent over the code field, that is, if the note_id is not empty, the contents of the note will be run instead of the content of the code field."
-                    }
-
+                        "description": "An id for a note in the notebook table.  "
+                                       "The note_id will be used to look up the python code from the note content in lieu of the code field. "
+                                       "A note_id will take precendent over the code field, that is, if the note_id is not empty, "
+                                       "the contents of the note will be run instead of the content of the code field."
+                    },
+                    "save_artifacts": {
+                        "type": "boolean",
+                        "description": "A flag determining whether to save any output from the executed python code (encoded as a base64 string) as an 'artifact'. "
+                                       "When this flag is set, the result will contain a Snowflake-signed URL to access the file from a web browser. "
+                                       "The result will also contain a permanent `artifact_id` that can be used to by the user and you to refer to this output at a later point. "
+                                       "When this flag is not set, any output from the python code will be saved to a local file and the result will contain a path to that file. "
+                                       "This local file should not be considered accessible by outside systems. "
+                                       "Set this flag to true by default, unless you are generating an ephemeral or temporary result"
+                    },
                 },
                 "required": ["code", "purpose"],
             },
@@ -739,19 +763,19 @@ def bind_run_query(data_connection_info: list):
     def _run_query(query: str, connection: str, max_rows: int = 20, bot_id: str = None):
         if connection == "Snowflake":
             # if a bot has a snowflake user and connection use it
-            bot_creds = bot_credentials(bot_id=bot_id) 
+            bot_creds = bot_credentials(bot_id=bot_id)
             if bot_creds:
-                my_dc = [SnowflakeConnector("Snowflake", bot_creds)] 
+                my_dc = [SnowflakeConnector("Snowflake", bot_creds)]
             else:
-                my_dc = [SnowflakeConnector("Snowflake")]              
+                my_dc = [SnowflakeConnector("Snowflake")]
         elif connection == "BigQuery":
             my_dc = [BigQueryConnector(ci, "BigQuery") for ci in data_connection_info]
-        
+
         elif connection == 'Sqlite':
-            my_dc = [SqliteConnector("Snowflake")] 
+            my_dc = [SqliteConnector("Snowflake")]
         else:
             raise ValueError('Invalid Connection!')
-    
+
 
         for a in my_dc:
             # print(a.connection_name)  # FixMe: check the connection_name matches

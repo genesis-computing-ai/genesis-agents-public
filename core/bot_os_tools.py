@@ -5,7 +5,7 @@ import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 from datetime import datetime
-import threading 
+import threading
 import random
 import string
 from selenium import webdriver
@@ -100,7 +100,7 @@ class ToolBelt:
         self.lock = threading.Lock()
         self.recurse_level = 1
         global belts
-        belts = belts + 1 
+        belts = belts + 1
 
         self.sys_default_email = self.get_sys_email()
    #     print(belts)
@@ -128,11 +128,11 @@ class ToolBelt:
         current_file_path = os.path.abspath(__file__)
         print(current_file_path)
 
-        #service = Service('../../chromedriver')  
+        service = Service('../../chromedriver')
         # driver = webdriver.Chrome(service=service, options=chrome_options)
         driver = webdriver.Chrome(options=chrome_options)
 
-        driver.get(url)    
+        driver.get(url)
         try:
             WebDriverWait(driver, 10).until(
                 EC.presence_of_element_located((By.TAG_NAME, 'body'))
@@ -143,7 +143,7 @@ class ToolBelt:
 
         data = driver.page_source #find_element(By.XPATH, '//*[@id="data-id"]').text
         print(f"Data scraped from {url}: \n{data}\n")
-        return data  
+        return data
 
     # Function for parsing HTML content, extracting links, and then chunking the beautified content
     def parse_and_chunk_content(self, content, base_url, chunk_size=256 * 1024):
@@ -184,7 +184,7 @@ class ToolBelt:
             return response
         except Exception as e:
             return {"error": str(e)}
-    
+
     def chat_completion(self, message, db_adapter, bot_id = None, bot_name = None, thread_id=None, process_id="", process_name=""):
         process_name = "" if process_name is None else process_name
         process_id = "" if process_id is None else process_id
@@ -203,14 +203,14 @@ class ToolBelt:
         model = None
         if bot_id and bot_id in bot_llms:
             model = bot_llms[bot_id].get('current_llm')
-            
-            
+
+
         if not model:
             engine = BotLlmEngineEnum(os.getenv("BOT_OS_DEFAULT_LLM_ENGINE"))
             if engine is BotLlmEngineEnum.openai:
                 model = 'openai'
-            else:                
-                model = 'cortex'            
+            else:
+                model = 'cortex'
         assert model in ("openai", "cortex")
         # TODO: handle other engine types, use BotLlmEngineEnum instead of strings
 
@@ -260,13 +260,13 @@ class ToolBelt:
             else:
                 response, status_code = db_adapter.cortex_chat_completion(message)
                 return_msg = response
-        
+
         if return_msg is None:
             return_msg = 'Error Chat_completion, return_msg is none, llm_type = ',os.getenv("BOT_OS_DEFAULT_LLM_ENGINE").lower()
             print(return_msg)
 
         self.write_message_log_row(db_adapter, bot_id, bot_name, thread_id, 'Supervisor Response', return_msg, message_metadata)
-            
+
         return return_msg
 
     def write_message_log_row(self, db_adapter, bot_id="", bot_name="", thread_id="", message_type="", message_payload="", message_metadata={}):
@@ -289,7 +289,7 @@ class ToolBelt:
         """
         # print(f"Writing message log row: {timestamp}, {bot_id}, {bot_name}, {thread_id}, {message_type}, {message_payload}, {message_metadata}")
         values = (timestamp, bot_id, bot_name, thread_id, message_type, message_payload, json.dumps(message_metadata))
-        
+
         try:
             cursor = db_adapter.connection.cursor()
             cursor.execute(query, values)
@@ -300,11 +300,11 @@ class ToolBelt:
         finally:
             cursor.close()
 
-    def send_email(self, 
-                   to_addr_list: list, 
-                   subject: str, 
-                   body: str, 
-                   thread_id: str = None, 
+    def send_email(self,
+                   to_addr_list: list,
+                   subject: str,
+                   body: str,
+                   thread_id: str = None,
                    bot_id: str = None,
                    mime_type: str = 'text/plain',
                    include_genesis_logo: bool = True
@@ -380,7 +380,7 @@ class ToolBelt:
             # Check if the string already contains <html> and <body> tags
             if soup.body is None:
                 html_body = f"<body>{html_body}</body>"
-                
+
             if soup.html is None:
                 html_body = f"<html>{html_body}</html>"
             soup = BeautifulSoup(html_body, "html.parser")
@@ -390,7 +390,7 @@ class ToolBelt:
             # Insert the origin message at the beginning of the body
             origin_elem = soup.new_tag('p')
             origin_elem.string = origin_line
-            soup.body.insert(0, origin_elem)            
+            soup.body.insert(0, origin_elem)
 
             # Insert the Genesis logo at the top if include_genesis_logo is True
             if include_genesis_logo:
@@ -401,9 +401,9 @@ class ToolBelt:
                 logo_container = soup.new_tag('div', style="text-align:left; margin-bottom:1px;")
                 logo_container.insert(0, link_tag)
                 soup.body.insert(0, logo_container)
-                
+
             body = str(soup)
-            
+
         elif mime_type == 'text/plain':
             # For plain text, just prepend the bot message
             body = origin_line + body
@@ -434,17 +434,17 @@ class ToolBelt:
             $${mime_type}$$
         );
         """
-        
+
         # Execute the query using the database adapter's run_query method
         result = self.db_adapter.run_query(query, thread_id=thread_id, bot_id=bot_id)
-        
+
         return result
 
     def set_process_cache(self, bot_id, thread_id, process_id):
         cache_dir = "./process_cache"
         os.makedirs(cache_dir, exist_ok=True)
         cache_file = os.path.join(cache_dir, f"{bot_id}_{thread_id}_{process_id}.json")
-        
+
         cache_data = {
             "counter": self.counter.get(thread_id, {}).get(process_id),
             "last_fail": self.last_fail.get(thread_id, {}).get(process_id),
@@ -454,26 +454,26 @@ class ToolBelt:
             "done": self.done.get(thread_id, {}).get(process_id),
             "silent_mode":  self.silent_mode.get(thread_id, {}).get(process_id)
         }
-        
+
         with open(cache_file, 'w') as f:
             json.dump(cache_data, f)
 
     def get_process_cache(self, bot_id, thread_id, process_id):
         cache_file = os.path.join("./process_cache", f"{bot_id}_{thread_id}_{process_id}.json")
-        
+
         if os.path.exists(cache_file):
             with open(cache_file, 'r') as f:
                 cache_data = json.load(f)
-            
+
             with self.lock:
                 if thread_id not in self.counter:
                     self.counter[thread_id] = {}
                 self.counter[thread_id][process_id] = cache_data.get("counter")
-                
+
                 if thread_id not in self.last_fail:
                     self.last_fail[thread_id] = {}
                 self.last_fail[thread_id][process_id] = cache_data.get("last_fail")
-                
+
                 if thread_id not in self.fail_count:
                     self.fail_count[thread_id] = {}
                 self.fail_count[thread_id][process_id] = cache_data.get("fail_count")
@@ -481,34 +481,34 @@ class ToolBelt:
                 if thread_id not in self.instructions:
                     self.instructions[thread_id] = {}
                 self.instructions[thread_id][process_id] = cache_data.get("instructions")
-                
+
                 if thread_id not in self.process_history:
                     self.process_history[thread_id] = {}
                 self.process_history[thread_id][process_id] = cache_data.get("process_history")
-                
+
                 if thread_id not in self.done:
                     self.done[thread_id] = {}
                 self.done[thread_id][process_id] = cache_data.get("done")
-                
+
                 if thread_id not in self.silent_mode:
                     self.silent_mode[thread_id] = {}
                 self.silent_mode[thread_id][process_id] = cache_data.get("silent_mode", False)
-            
+
             return True
         return False
 
     def clear_process_cache(self, bot_id, thread_id, process_id):
         cache_file = os.path.join("./process_cache", f"{bot_id}_{thread_id}_{process_id}.json")
-        
+
         if os.path.exists(cache_file):
             os.remove(cache_file)
             return True
         return False
-    
+
     def get_current_time_with_timezone(self):
         current_time = datetime.now().astimezone()
         return current_time.strftime("%Y-%m-%d %H:%M:%S %Z")
-    
+
     def get_sys_email(self):
         cursor = db_adapter.client.cursor()
         try:
@@ -551,14 +551,14 @@ class ToolBelt:
                 "Success": False,
                 "Error": "Bot_id and either process_id or process_name are required parameters."
             }
-        
+
         # Convert verbose to boolean if it's a string
 
         # Invert silent_mode if it's a boolean
         silent_mode = concise_mode
         if isinstance(silent_mode, bool):
             verbose = not silent_mode
-        
+
         if isinstance(silent_mode, str):
             if silent_mode.upper() == 'TRUE':
                 silent_mode = True
@@ -570,7 +570,7 @@ class ToolBelt:
         # Ensure verbose is a boolean
         if not isinstance(silent_mode, bool):
             verbose = True
-        
+
         # Check if both process_name and process_id are None
         if process_name is None and process_id is None:
             return {
@@ -621,8 +621,8 @@ class ToolBelt:
                 return {
                     "Success": False,
                     "Message": f"Process not found. {bot_id} has no processes defined.",
-                }        
-        process = process['Data']       
+                }
+        process = process['Data']
         process_id = process['PROCESS_ID']
         process_name = process['PROCESS_NAME']
         process_config = process.get('PROCESS_CONFIG', '')
@@ -632,7 +632,7 @@ class ToolBelt:
 
         if action == "KICKOFF_PROCESS":
             print("Kickoff process.")
-            
+
             with self.lock:
                 self.counter[thread_id][process_id] = 1
          #       self.process[thread_id][process_id] = process
@@ -668,7 +668,7 @@ class ToolBelt:
 
             Process Instructions:
             {process['PROCESS_INSTRUCTIONS']}
-            """ 
+            """
 
             if process['PROCESS_CONFIG'] != "None":
                 extract_instructions += f"""
@@ -676,7 +676,7 @@ class ToolBelt:
             Process configuration: 
             {process['PROCESS_CONFIG']}.
 
-            """ 
+            """
 
             first_step = self.chat_completion(extract_instructions, self.db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, process_id=process_id, process_name=process_name)
             
@@ -716,7 +716,7 @@ class ToolBelt:
                 self.instructions[thread_id][process_id] += f"""
                 The system default email address (SYS$DEFAULT_EMAIL) is {self.sys_default_email}.  If you need to send an email, use this address.
                 """
-            
+
             if verbose:
                     self.instructions[thread_id][process_id] += """
                     However DO generate text explaining what you are doing and showing interium outputs, etc. while you are running this and further steps to keep the user informed what is going on, preface these messages by 🔄 aka :arrows_counterclockwise:.
@@ -752,7 +752,7 @@ class ToolBelt:
 
         elif action == "GET_NEXT_STEP":
             print("Entered GET NEXT STEP")
-            
+
             if thread_id not in self.counter and process_id not in self.counter[thread_id]:
                 return {
                     "Success": False,
@@ -767,7 +767,7 @@ class ToolBelt:
                 }
             # Print that the process cache has been loaded and the 3 params to get_process_cache
             print(f"Process cache loaded with params: bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}")
-                
+
             # Check if silent_mode is set for the thread and process
             verbose = True
             if thread_id in self.silent_mode and process_id in self.silent_mode[thread_id]:
@@ -858,7 +858,7 @@ class ToolBelt:
                     "success": False,
                     "message": "Process failed: The checking function didn't return a string."
                 }
-            
+
            # print("RUN 2nd LLM...")
 
     #        print(f"\nRESULT FROM 2nd LLM: {result}\n")
@@ -888,7 +888,7 @@ class ToolBelt:
 
                 else:
                     print(f"\nStep {self.counter[thread_id][process_id]} failed. Fail count={self.fail_count[thread_id][process_id]} > 5 failures on this step, stopping process...\n")
-                    
+
                     with self.lock:
                         self.done[thread_id][process_id] = True
                     self.clear_process_cache(bot_id, thread_id, process_id)
@@ -906,7 +906,7 @@ class ToolBelt:
                 self.fail_count[thread_id][process_id] = 0
       #          print(f"\nThis step passed.  Moving to next step\n")
                 self.counter[thread_id][process_id] += 1
-                
+
             extract_instructions = f"""
             Extract the text for the next step from the process instructions and return it, using the section marked 'Process History' to see where you are in the process. 
             Remember, the process instructions are a set of individual steps that need to be run in order.  
@@ -1041,11 +1041,11 @@ class ToolBelt:
         else:
             print("No action specified.")
             return {"success": False, "message": "No action specified."}
-        
+
     # ====== RUN PROCESSES ==========================================================================================
-        
+
     # ====== NOTEBOOK START ==========================================================================================
-        
+
     def get_notebook_list(self, bot_id="all"):
         cursor = db_adapter.client.cursor()
         try:
@@ -1165,7 +1165,7 @@ class ToolBelt:
                     "Message": f"note_config updated or deleted",
                     "note_id": note_id,
                 }
-            
+
             if action == "CREATE" or action == "CREATE_CONFIRMED":
                 # Check for dupe name
                 sql = f"SELECT * FROM {db_adapter.schema}.NOTEBOOK WHERE bot_id = %s and note_id = %s"
@@ -1178,7 +1178,7 @@ class ToolBelt:
                         "Success": False,
                         "Error": f"Note with id {note_id} already exists for bot {bot_id}.  Please choose a different id."
                     }
-                
+
             if action == "UPDATE" or action == 'UPDATE_CONFIRMED':
                 # Check for dupe name
                 sql = f"SELECT * FROM {db_adapter.schema}.NOTEBOOK WHERE bot_id = %s and note_id = %s"
@@ -1239,7 +1239,7 @@ class ToolBelt:
         except Exception as e:
             return {"Success": False, "Error": f"Error connecting to LLM: {e}"}
 
-        
+
         if action == "CREATE_CONFIRMED":
             action = "CREATE"
         if action == "UPDATE_CONFIRMED":
@@ -1267,7 +1267,7 @@ class ToolBelt:
                 return {"Success": False, "Error": "bot_id is required for SHOW action"}
             if note_id is None:
                 return {"Success": False, "Error": "note_id is required for SHOW action"}
-            
+
             if note_id is not None:
                 if note_id is None:
                     note_id = note_content['note_id']
@@ -1289,7 +1289,7 @@ class ToolBelt:
                 "Success": False,
                 "Error": "Note Content must be provided for CREATE or UPDATE action.",
             }
-    
+
         try:
             if action == "CREATE":
                 insert_query = f"""
@@ -1305,7 +1305,7 @@ class ToolBelt:
                         current_timestamp(), current_timestamp(), %(note_id)s, %(bot_id)s, %(note_name)s, %(note_content)s, %(note_params)s
                     )
                 """
-                
+
                 insert_query= "\n".join(
                     line.lstrip() for line in insert_query.splitlines()
                 )
@@ -1570,7 +1570,7 @@ class ToolBelt:
                 for task in tasks:
                     next_check = None
                     if task[5] is not None:
-                        next_check = task[5].strftime("%Y-%m-%d %H:%M:%S") 
+                        next_check = task[5].strftime("%Y-%m-%d %H:%M:%S")
                     task_dict = {
                         "task_id": task[0],
                         "bot_id": task[1],
@@ -1845,7 +1845,7 @@ class ToolBelt:
                     "Message": f"process_config updated or deleted",
                     "process_id": process_id,
                 }
-            
+
             if action == "CREATE" or action == "CREATE_CONFIRMED":
                 # Check for dupe name
                 sql = f"SELECT * FROM {db_adapter.schema}.PROCESSES WHERE bot_id = %s and process_name = %s"
@@ -1858,7 +1858,7 @@ class ToolBelt:
                         "Success": False,
                         "Error": f"Process with name {process_details['process_name']} already exists.  Please choose a different name."
                     }
-                
+
             if action == "UPDATE" or action == 'UPDATE_CONFIRMED':
                 # Check for dupe name
                 sql = f"SELECT * FROM {db_adapter.schema}.PROCESSES WHERE bot_id = %s and process_name = %s"
@@ -1866,7 +1866,7 @@ class ToolBelt:
 
                 record = cursor.fetchone()
 
-                if record and '_golden' in record[2]:  # process_id 
+                if record and '_golden' in record[2]:  # process_id
                     return {
                         "Success": False,
                         "Error": f"Process with name {process_details['process_name']} is a system process and can not be updated.  Suggest making a copy with a new name."
@@ -1884,7 +1884,7 @@ class ToolBelt:
                 #         "Success": False,
                 #         "Error": f"Process with name {process_details['process_name']}.  Please choose a different name."
                 #     }
-            
+
                 # Send process_instructions to 2nd LLM to check it and format nicely
                 tidy_process_instructions = f"""
                 Below is a process that has been submitted by a user.  Please review it to insure it is something
@@ -1938,7 +1938,7 @@ class ToolBelt:
         except Exception as e:
             return {"Success": False, "Error": f"Error connecting to LLM: {e}"}
 
-        
+
         if action == "CREATE_CONFIRMED":
             action = "CREATE"
         if action == "UPDATE_CONFIRMED":
@@ -1967,7 +1967,7 @@ class ToolBelt:
             if process_id is None:
                 if process_details is None or ('process_name' not in process_details and 'process_id' not in process_details):
                     return {"Success": False, "Error": "Either process_name or process_id is required in process_details for SHOW action"}
-            
+
             if process_id is not None or 'process_id' in process_details:
                 if process_id is None:
                     process_id = process_details['process_id']
@@ -2021,7 +2021,7 @@ class ToolBelt:
                 "Success": False,
                 "Error": "The 'bot_id' field is required."
             }
-    
+
         try:
             if action == "CREATE":
                 insert_query = f"""
@@ -2206,7 +2206,7 @@ class ToolBelt:
                 cursor.close()
 
     # ====== PROCESSES END ====================================================================================
-    
+
 if genesis_source == "BigQuery":
     credentials_path = os.getenv(
         "GOOGLE_APPLICATION_CREDENTIALS", default=".secrets/gcp.json"

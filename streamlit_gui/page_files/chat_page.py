@@ -1,21 +1,82 @@
 import streamlit as st
 import time
 import uuid
-from utils import get_bot_details, get_slack_tokens, get_metadata_cached, get_slack_tokens_cached, get_metadata, get_metadata2, submit_to_udf_proxy, get_response_from_udf_proxy
 import re
 import os
-import numpy as np
 import base64
 import random
+import requests
+import io
+from pathlib import Path
+from urllib.parse import urlsplit
+from PIL import Image
+from utils import (
+    get_bot_details,
+    get_slack_tokens,
+    get_metadata_cached,
+    get_slack_tokens_cached,
+    get_metadata,
+    get_metadata2,
+    submit_to_udf_proxy,
+    get_response_from_udf_proxy,
+)
 
-def file_to_html(bot_id, thread_id, file_path):    
-    file_name = os.path.basename(file_path)    
-    file_byte = get_metadata2('|'.join(('sandbox',bot_id, thread_id, file_name)))
-    if 'png' in file_name or not os.path.splitext(file_path)[1]:
-        href = f'<img src="data:image/png;base64,{file_byte}" style="max-width: 50%;display: block;">'    
+
+# def file_to_html(bot_id, thread_id, file_path):
+#     file_name = os.path.basename(file_path)
+#     file_byte = get_metadata2('|'.join(('sandbox',bot_id, thread_id, file_name)))
+#     if 'png' in file_name or not os.path.splitext(file_path)[1]:
+#         href = f'<img src="data:image/png;base64,{file_byte}" style="max-width: 50%;display: block;">'
+#     else:
+#         href = f'<a href="data:application/octet-stream;base64,{file_byte}" download="{file_name}">{file_name}</a>'
+#     return href
+
+
+def locate_url_markup(txt, replace_with=None):
+    """
+    Locate and optionally replace URL markup in a given text.
+
+    This function searches for patterns in the text that match the url or image markdown format 
+    '[description](url)' or '![description](url)]', where 'url' can be an HTTP, HTTPS, file, or 'sandbox" (internal) URL.
+    It returns a list of triplets containing the description, URL, and the 
+    original markup. Optionally, it can replace the found patterns with a specified 
+    replacement string.
+
+    Args:
+        txt (str): The input text containing potential URL markup.
+        replace_with (str, optional): A string to replace the found URL markup. 
+                                      Defaults to None, which means skip replacement.
+
+    Returns:
+        tuple: A 3-tuple containing 
+               (a) a list of triplets and the modified text.
+                   The triplets are in the form (description, URL, original (full) markup).
+               (b) the input text modified by replacing with 'replace_with' is provided.
+               (c) a boolean flag 'has_partial' indicating if the end of the text 
+                   *may* potentially look like a prefix of an incomplete URL markup
+    """
+    pattern = r'(!?\[([^\]]+)\]\(((http[s]?|file|sandbox):/+[^\)]+)\))'  # regex for strings of the form '[description](url)' and '![description](url)'
+                                                                         # TOOD: support other standard URL schemas (use urllib?)
+    matches = re.findall(pattern, txt)
+    triplets = [(match[1], match[2], match[0])
+                for match in matches]
+
+    # has_partial is true if the last line of the txt may potentially be a partial URL
+    i = txt.rfind('\n')
+    line = txt[i:] if i > 0 else txt
+    i = line.rfind('[')
+    if i < 0:
+        has_partial = False
     else:
-        href = f'<a href="data:application/octet-stream;base64,{file_byte}" download="{file_name}">{file_name}</a>'
-    return href
+        line = line[i:]
+        opened_sqr = line.count('[') > line.count(']')
+        opened_rnd = line.count('(') > line.count(')')
+        has_partial = opened_sqr or (line.count('(')) == 0 or opened_rnd
+
+    if matches and replace_with is not None:
+        txt = re.sub(pattern, replace_with, txt)
+    return triplets, txt, has_partial
+
 
 bot_images = get_metadata_cached("bot_images")
 bot_avatar_images = [bot["bot_avatar_image"] for bot in bot_images]
@@ -52,7 +113,6 @@ def chat_page():
 
     def save_chat_history(thread_id, messages):
         st.session_state[f"messages_{thread_id}"] = messages
-        
 
     # Display assistant response in chat message container
     def response_generator(in_resp=None, request_id=None, selected_bot_id=None):
@@ -69,25 +129,33 @@ def chat_page():
                 response = in_resp
                 in_resp = None
             if response != previous_response:
-                found_partial = False
-                full_files = re.findall(r"\n*\[.*\]\(sandbox:/mnt/data(?:/downloads)?/.*?\)", response) if 'sandbox' in response else []
-                partial_files = re.findall('\n*\[', response)                      
-                if full_files:     
-                    for file in full_files:     
-                        file_path = re.findall('\((.+)\)', file)
-                        if not file_path: 
-                            found_partial = True
-                            break
-                        response = response.replace(file, '')  
-                        st.session_state.stream_files.add(file_path[0])                  
-                elif partial_files:
-                    found_partial = True
-                
-                if found_partial:
+                #found_partial = False
+                file_markups, response, has_partial = locate_url_markup(response, replace_with="")
+                #full_files = re.findall(r"\n*\[.*\]\(sandbox:/mnt/data(?:/downloads)?/.*?\)", response) if 'sandbox' in response else []
+                #partial_files = re.findall('\n*\[', response)
+                #partial_files = re.findall(r'\n*\[(?![^\]]+\]\([^\)]+\))', response)
+                # if full_files:
+                #     for file in full_files:
+                #         file_path = re.findall('\((.+)\)', file)
+                #         if not file_path:
+                #             found_partial = True
+                #             break
+                #         response = response.replace(file, '')
+                #         st.session_state.stream_files.add(file_path[0])
+                # elif partial_files:
+                #     found_partial = True
+                # if found_partial:
+                #     continue
+                for file_markups in file_markups:
+                    desc, url, _ = file_markups # locate_url_markup returns triplets
+                    st.session_state.stream_files.add(url) # for later rendering
+                if has_partial:
+                    # We are (very) likely seeing the prefix of a URL, so fetch the next part
+                    # and parse it out (if any) before applying any parsing other logic
                     continue
-                
+
                 if response != "not found":
-                    if ( 
+                    if (
                         len(previous_response) > 10
                         and '...' in previous_response[-6:]
                         and chr(129520) in previous_response[-50:]
@@ -134,12 +202,74 @@ def chat_page():
         for chunk in text_generator:
             result += chunk
             container.write(result, unsafe_allow_html=True)
-        return result            
-    
+        return result
+
+
+    def render_url_markup(bot_id, thread_id, bot_avatar_image_url, message_avatar='🤖'):
+        '''
+        Special handling for url/file rendering: we want to make best effort to render the content of the file
+        itself inline in the chat container, if we know how to handle it. Otherwise we wrap it in a generic downloadable link.
+        '''
+        # Try to render any files pushed into  st.session_state.stream_files
+
+        messages = get_chat_history(thread_id)
+        while st.session_state.stream_files:
+            url = st.session_state.stream_files.pop()
+            url_parts = urlsplit(url)
+            file_content64 = None
+            known_img_types = {'png', 'jpg', 'jpeg', 'gif', 'svg'}
+            file_path = Path(url_parts.path)
+            image_format = None # set if files is a known image type
+            suffix = file_path.suffix
+            if suffix and suffix.startswith(".") and suffix[1:] in known_img_types:
+                # Guess the image format. We first look at the extension of the file and later fallback to the Content-Type header if available.
+                # This is because snowflake-signed URLs (used as links to artifacts) seems to always return type octet-stream (at least for AWS stages)
+                image_format = file_path.suffix[1:]
+
+            if url_parts.scheme == 'sandbox':
+                # special handling for the 'sandbox' URLs which are used for our internal app storage (./downloaded_files)
+                try:
+                    file_content64 = get_metadata2('|'.join(('sandbox',bot_id, thread_id, file_path.name)))
+                except:
+                    pass # best effort failed. fallback to a generic link (which is likely broken)
+            else:
+                # get the content using GET.
+                response = requests.get(url)
+                if response.status_code == 200:
+                    file_data = response.content
+                    # Encode to Base64
+                    file_content64 = base64.b64encode(file_data).decode('utf-8')
+                    if not image_format:
+                        # fallback to guessing the content type from the content-type
+                        ctype, csubtype = response.headers['Content-Type'].split('/')
+                        if ctype == "image" and csubtype in known_img_suffixes:
+                            image_format = csubtype
+
+            allow_html = False
+            markdown = None
+            if file_content64 is not None:
+                # we have the file content
+                if image_format:
+                    # For common image types, use <img>
+                    markdown = f'<img src="data:image/{image_format};base64,{file_content64}" style="max-width: 50%;display: block;">'
+                else:
+                    # for all others, use a generic href
+                    markdown = f'<a href="data:application/octet-stream;base64,{file_content64}" download="{file_path.name}">{file_path.name}</a>'
+                allow_html = True
+            else:
+                # not able to download the content. Leave it as a file markdown.
+                markdown = f'[{file_path.name}](url)'
+
+            # render
+            assert markdown is not None
+            with st.chat_message("assistant", avatar=bot_avatar_image_url):
+                st.markdown(markdown , unsafe_allow_html=allow_html)
+            messages.append({"role": "assistant", "content": markdown,  "avatar": message_avatar})
+
 
     def handle_pending_request(thread_id, request_id ):
         messages = get_chat_history(thread_id)
-        
+
         response = ""
         with st.spinner("Fetching pending response..."):
             i = 0
@@ -164,26 +294,21 @@ def chat_page():
             # st.error("Error reading the UDF response... reloading in 2 seconds...")
             time.sleep(2)
             st.rerun()
-        
+
         # Initialize stop flag in session state
         if "stop_streaming" not in st.session_state:
             st.session_state.stop_streaming = False
 
         with st.chat_message("assistant", avatar= bot_avatar_image_url):
-            response = st.write_stream(response_generator(None,request_id=request_id, selected_bot_id=selected_bot_id))
-            response = emulate_write_stream(response_generator(None,request_id=request_id, selected_bot_id=selected_bot_id))            
-        
+            response = emulate_write_stream(response_generator(None,request_id=request_id, selected_bot_id=selected_bot_id))
+
         st.session_state.stop_streaming = False
 
         # Add the response to the chat history
         messages.append({"role": "assistant", "content": response,  "avatar": '🤖'})
 
-        while st.session_state.stream_files:
-            file_path = st.session_state.stream_files.pop()
-            file = file_to_html(selected_bot_id, thread_id, file_path)
-            with st.chat_message("assistant", avatar=bot_avatar_image_url):
-                st.markdown(file , unsafe_allow_html=True)
-            messages.append({"role": "assistant", "content": file,  "avatar": '🤖'})
+        # render any file/url markups that were pushed into the session
+        render_url_markup(selected_bot_id, thread_id, bot_avatar_image_url, '🤖')
 
         save_chat_history(thread_id, messages)
 
@@ -191,7 +316,7 @@ def chat_page():
         del st.session_state.session_message_uuids[thread_id]
 
 
-    @st.cache_data(ttl=3000) 
+    @st.cache_data(ttl=3000)
     def get_llm_configuration(selected_bot_id):
 
         current_llm = 'unknown'
@@ -205,7 +330,7 @@ def chat_page():
         else:
             st.error(f"No LLM configuration found for bot with ID: {selected_bot_id}")
             return {}
-        
+
 
     def submit_button(prompt, chatmessage, intro_prompt=False, fast_mode_override=False, file={}):
         current_thread_id = st.session_state["current_thread_id"]
@@ -217,7 +342,7 @@ def chat_page():
                 if file:
                     st.write(file['filename'])
                 st.markdown(prompt,unsafe_allow_html=True)
-                
+
             # Add user message to chat history
             if file:
                 messages.append({"role": "user", "content": file['filename']})
@@ -246,7 +371,7 @@ def chat_page():
        # Store the request_id for this session
         st.session_state.session_message_uuids[current_thread_id] = request_id
         # Display success message with the request_id
- 
+
         response = ""
         with st.spinner("Thinking..."):
             i = 0
@@ -277,7 +402,7 @@ def chat_page():
             st.session_state.stop_streaming = False
 
         with st.chat_message("assistant", avatar=bot_avatar_image_url):
-            response = st.write_stream(response_generator(in_resp,request_id=request_id, selected_bot_id=selected_bot_id))
+            response = emulate_write_stream(response_generator(in_resp,request_id=request_id, selected_bot_id=selected_bot_id))
         st.session_state.stop_streaming = False
 
         # Initialize last_response if it doesn't exist
@@ -289,12 +414,8 @@ def chat_page():
 
         messages.append({"role": "assistant","content": response,"avatar": bot_avatar_image_url})
 
-        while st.session_state.stream_files:
-            file_path = st.session_state.stream_files.pop()
-            file = file_to_html(selected_bot_id, current_thread_id, file_path)
-            with st.chat_message("assistant", avatar=bot_avatar_image_url):
-                st.markdown(file , unsafe_allow_html=True)
-            messages.append({"role": "assistant", "content": file,  "avatar": bot_avatar_image_url})
+        # render any file/url markups that were pushed into the session
+        render_url_markup(selected_bot_id, current_thread_id, bot_avatar_image_url, bot_avatar_image_url)
 
         save_chat_history(current_thread_id, messages)
 
@@ -310,7 +431,7 @@ def chat_page():
     except Exception as e:
         bot_details = {"Success": False, "Message": "Genesis Server Offline"}
         return
-    
+
 
     if bot_details == {"Success": False, "Message": "Needs LLM Type and Key"}:
         st.session_state["radio"] = "LLM Model & Key"
@@ -335,7 +456,7 @@ def chat_page():
                 new_thread_id = str(uuid.uuid4())
                 st.session_state.current_thread_id = new_thread_id
                 new_session = f"🤖 {st.session_state.current_bot} ({new_thread_id[:8]})"
-                
+
                 # Initialize active_sessions if it doesn't exist
                 if 'active_sessions' not in st.session_state:
                     st.session_state.active_sessions = []
@@ -345,7 +466,7 @@ def chat_page():
                 if new_session not in st.session_state.active_sessions:
                     st.session_state.active_sessions.append(new_session)
 
-                
+
                 # Initialize chat history for the new thread
                 st.session_state[f"messages_{new_thread_id}"] = []
 
@@ -372,26 +493,26 @@ def chat_page():
                         # Create a new chat session for the selected bot
                         new_thread_id = str(uuid.uuid4())
                         new_session = f"🤖 {selected_bot} ({new_thread_id[:8]})"
-                            
+
                         # Add the new session to active_sessions
                         if 'active_sessions' not in st.session_state:
                             st.session_state.active_sessions = []
                         if new_session not in st.session_state.active_sessions:
                             st.session_state.active_sessions.append(new_session)
                             st.session_state.new_session_added = True
-                        
+
                         # Update the current thread ID and bot
                         st.session_state["current_thread_id"] = new_thread_id
                         st.session_state["current_bot"] = selected_bot
 
                         st.session_state.current_session = new_session
-                        
+
                         # Initialize chat history for the new thread
                         st.session_state[f"messages_{new_thread_id}"] = []
-                        
+
                         # Set the flag to trigger a rerun in main.py
                         st.session_state.new_session_added = True
-                        
+
                         # Trigger a rerun to update the UI
                         st.rerun()
                 if not st.session_state.NativeMode:
@@ -445,7 +566,7 @@ def chat_page():
                         unsafe_allow_html=True,
                     )
 
-                    
+
                     for session in st.session_state.active_sessions:
                         bot_name, thread_id = session.split(' (')
                         bot_name = bot_name.split('🤖 ')[1]
@@ -480,7 +601,7 @@ def chat_page():
                 # Ensure only one mode is active at a time
                 # Add toggle for fast mode
                 # Initialize fast_mode in session state if it doesn't exist
-  
+
                 # Check if a session is selected from the sidebar
                 if 'selected_session' in st.session_state:
                     selected_session = st.session_state.selected_session
@@ -514,7 +635,7 @@ def chat_page():
                 if not slack_active:
                     st.markdown("#### Genesis is best used on Slack!")
                     st.markdown("  ")
-     
+
                     if "radio" in st.session_state:
                         if st.session_state["radio"] != "Setup Slack Connection":
                             st.markdown('<span id="button-after"></span>', unsafe_allow_html=True)
@@ -528,7 +649,7 @@ def chat_page():
                             st.rerun()
 
 
-            # Main content area       
+            # Main content area
 
             encoded_bot_avatar_image_array = None
             bot_avatar_image_url = None
@@ -536,7 +657,7 @@ def chat_page():
 
                 # get avatar images
                 bot_avatar_image_url = None
-                if len(bot_images) > 0:                    
+                if len(bot_images) > 0:
                     selected_bot_image_index = bot_names.index(selected_bot_name) if selected_bot_name in bot_names else -1
                     if selected_bot_image_index >= 0:
                         encoded_bot_avatar_image = bot_avatar_images[selected_bot_image_index]
@@ -563,25 +684,25 @@ def chat_page():
                     pending_request_id = st.session_state.session_message_uuids[selected_thread_id]
                     handle_pending_request(selected_thread_id, pending_request_id)
 
-                # React to user input                
+                # React to user input
                 if selected_thread_id:
-                    if prompt := st.chat_input("What is up?", key=f"chat_input_{selected_thread_id}"):     
+                    if prompt := st.chat_input("What is up?", key=f"chat_input_{selected_thread_id}"):
                         file = {}
                         if uploaded_file:
                             bytes_data = base64.b64encode(uploaded_file.read()).decode()
                             st.session_state['uploader_key'] = random.randint(0, 1 << 32)
                             file = {'filename': uploaded_file.name, 'content': bytes_data}
                         submit_button(prompt, st.chat_message("user"), False, file=file)
-                    
+
 
                 # Generate initial message and bot introduction only for new sessions
                 if not st.session_state[f"messages_{selected_thread_id}"]:
                     submit_button(selected_bot_intro_prompt, st.empty(), True)
-                
+
       #          email_popup()
 
                 # Check if 'popup' exists in session state, if not, initialize it to False
-  
+
         except Exception as e:
             st.error(f"Error running Genesis GUI: {e}")
 

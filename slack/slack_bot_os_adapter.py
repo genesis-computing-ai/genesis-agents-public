@@ -72,7 +72,7 @@ class SlackBotAdapter(BotOsInputAdapter):
         self.thinking_msg_overide_map = {}
         self.in_markdown_map = {}
         self.finalized_threads = {}
-        self.split_at = 3700  # use 3700 normally 
+        self.split_at = 3700  # use 3700 normally
 
         self.events_lock = threading.Lock()
 
@@ -262,10 +262,10 @@ class SlackBotAdapter(BotOsInputAdapter):
         if user_id in self.user_info_cache:
             return self.user_info_cache[user_id]
         user_email     = user_info["user"].get('profile', {}).get('email', 'Unknown Email')
-        user_full_name = user_info["user"].get('profile', {}).get('real_name', 'Unknown User')  
+        user_full_name = user_info["user"].get('profile', {}).get('real_name', 'Unknown User')
         self.user_info_cache[user_id] = (user_full_name, user_email)
         return self.user_info_cache[user_id]
-    
+
 
     def get_input(
         self, thread_map=None, active=None, processing=None, done_map=None
@@ -339,7 +339,7 @@ class SlackBotAdapter(BotOsInputAdapter):
             if was_indic:
                 msg = "!stop"
             else:
-                return            
+                return
 
         if msg == "_thinking..._" or msg[:10] == ":toolbox: " or msg == '!NO_RESPONSE_REQUIRED':
             return None
@@ -613,13 +613,13 @@ class SlackBotAdapter(BotOsInputAdapter):
         postfix = ""
         pattern = re.compile(r'<\|python_tag\|>\{.*?\}')
         match = pattern.search(resp)
-        
+
         if match and resp.endswith('}'):
             postfix = "💬"
 
         pattern_function = re.compile(r'<function>(.*?)</function>(\{.*?\})$')
         match_function = pattern_function.search(resp)
-        
+
         if match_function and resp.endswith(match_function.group(2)):
             function_name = match_function.group(1)
             params = match_function.group(2)
@@ -629,17 +629,17 @@ class SlackBotAdapter(BotOsInputAdapter):
 
         pattern_function_call = re.compile(r'<function=(.*?)>\{.*?\}</function>')
         match_function_call = pattern_function_call.search(resp)
-        
+
         if not match_function_call:
-            # look for the other way of calling functions 
+            # look for the other way of calling functions
             pattern_function_call = re.compile(r'<\|python_tag\|>\{"type": "function", "name": "(.*?)", "parameters": \{.*?\}\}')
             match_function_call = pattern_function_call.search(resp)
-        
+
         if not match_function_call:
-            # look for the other way of calling functions 
+            # look for the other way of calling functions
             pattern_function_call = re.compile(r'<function=(.*?)>\{.*?\}')
             match_function_call = pattern_function_call.search(resp)
-        # make the tool calls prettier 
+        # make the tool calls prettier
         if match_function_call:
             function_name = match_function_call.group(1)
             function_name_pretty = re.sub(r'(_|^)([a-z])', lambda m: m.group(2).upper(), function_name).replace('_', ' ')
@@ -658,6 +658,76 @@ class SlackBotAdapter(BotOsInputAdapter):
                 resp = resp[:resp.rfind('...') + 3]  # Keep the '...' but remove everything after
 
         return resp
+
+
+    def _extract_local_file_markdowns(self, msg, message_thread_id) -> list(str):
+        """
+        Extracts file paths from non-Slack-compatible markdown links like [name](url) in the msg, which 
+        contain local path placeholders, and transforms them into actual local paths.
+
+        This function searches for specific patterns in the message that represent local file links 
+        like 'sandbox:", "./downloaded_files", etc. and converts these links into local file paths 
+        based on the message thread ID. 
+
+        Args:
+            msg (str): The message containing markdown links to files.
+            message_thread_id (str): The ID of the message thread, used to construct local paths.
+
+        Returns:
+            list: A list of unique local file paths extracted from the message.
+        """
+        local_paths = []
+
+        # Define patterns and their corresponding local path transformations
+        patterns = [
+            # typical image path using sandbox:
+            (r"\[.*?\]\((sandbox:/mnt/data(?:/downloads)?/.*?)\)",
+                lambda match: match.replace("sandbox:/mnt/data/downloads", f"./downloaded_files/{message_thread_id}").replace("sandbox:/mnt/data", f"./downloaded_files/{message_thread_id}")),
+            # 'task' path
+            (r"\[(.*?)\]\(./downloaded_files/thread_(.*?)/(.*?)\)",
+                lambda match: f"./downloaded_files/thread_{match[1]}/{match[2]}"),
+            # paths that use /mnt/data
+            (r"\[.*?\]\((sandbox:/mnt/data/downloaded_files/.*?)\)",
+                lambda match: match.replace("sandbox:/mnt/data", ".")),
+            # 'chart' patterns
+            (r"\(sandbox:/mnt/data/(.*?)\)\n2\. \[(.*?)\]",
+                lambda match: f"./downloaded_files/{message_thread_id}/{match}"),
+            # when using attachment:
+            (r"!\[.*?\]\(attachment://\.(.*?)\)",
+                lambda match: match),
+            # using thread id + file ## duplicate??
+            (r"!\[.*?\]\(\./downloaded_files/thread_(.*?)/(.+?)\)",
+                lambda match: f"./downloaded_files/thread_{match[0]}/{match[1]}")
+        ]
+
+        # match patterns and apply transformations
+        for pattern, path_transform in patterns:
+            compiled_pattern = re.compile(pattern)
+            matches = compiled_pattern.findall(msg)
+            for match in matches:
+                local_path = path_transform(match)
+                if local_path not in local_paths: # keep unique . TODO: use ordered set
+                    local_paths.append(local_path)
+        return local_paths
+
+
+    def _fix_external_url_markdowns(self, msg) -> str:
+        """
+        Transform urls markdown in non-Slack-compatible format like [name](url) into the URL format that 
+        Slack recognizes like <url|name>. Return transformed msg.
+        Args:
+            msg (str): The message containing markdown links to be transformed.
+            
+        Returns:
+            str: The message with all applicable markdown links converted to Slack's format.        
+        """
+        pattern = r'(!?\[([^\]]+)\]\(((http[s]?|file|mailto):/+[^\)]+)\))'  # regex for strings of the form '[description](url)' and '![description](url)'
+                                                                            # for well known urls schemes (exclude 'sandbox:' etc)
+                                                                            # TOOD: support other standard URL schemas (use urllib?)
+        new_msg = re.sub(pattern, r"<\3|\2>", msg)
+        return new_msg
+
+
 
     # abstract method from BotOsInputAdapter
     def handle_response(
@@ -712,7 +782,7 @@ class SlackBotAdapter(BotOsInputAdapter):
             #                print(f"    Last index: {last_index}")
                             if last_index != -1:
                                 msg = msg[last_index + len(l100):]
-                                trimmed=True                            
+                                trimmed=True
              #                   print(f"    Length of new trimmed msg: {len(msg)}")
                     if not trimmed:
                         msg_fixed = self.fix_fn_calls(msg)
@@ -731,7 +801,7 @@ class SlackBotAdapter(BotOsInputAdapter):
                             if last_index != -1:
                                 msg = msg_fixed[last_index + len(l100):]
                                 trimmed=True
-                        
+
                 #                print(f"    Length of new trimmed msg: {len(msg)}")
                     if not trimmed:
                  #       print("     Not trimmed based on last100, going to trim on current chunk start: ",current_chunk_start)
@@ -904,10 +974,10 @@ class SlackBotAdapter(BotOsInputAdapter):
                 if orig_thinking in self.thinking_msg_overide_map:
                     thinking_ts = self.thinking_msg_overide_map[orig_thinking]
 
- 
+
                 current_chunk_start =  self.chunk_start_map.get(orig_thinking,None)
                 msg = message.output.replace("\n 💬", " 💬")
-                
+
                 if current_chunk_start is not None:
 
                  #   print (' -0-0-0-0-0- IN the completion handler ready to trim if needed -0-0-0-0-0')
@@ -946,94 +1016,16 @@ class SlackBotAdapter(BotOsInputAdapter):
 
                 msg_trimmed = msg
 
-#                msg = message.output
+                # fix non-Slack-compatible markdown for external URLs
+                msg = self._fix_external_url_markdowns(msg)
 
+                # Extract local paths from the msg
+                local_paths = self._extract_local_file_markdowns(msg, message.thread_id)
+
+                files_in = list(set(message.files + local_paths)) # combine with messae.files and remove duplicates
+
+                #          print("Uploading files:", files_in)
                 thread_ts = message.input_metadata.get("thread_ts", None)
-
-
-
-                files_in = message.files
-                # Remove duplicates from the files_in array
-                files_in = list(set(files_in))
-
-                # Extract file paths from the message and add them to files_in array
-                image_pattern = re.compile(
-                    r"\[.*?\]\((sandbox:/mnt/data(?:/downloads)?/.*?)\)"
-                )
-                matches = image_pattern.findall(msg)
-                for match in matches:
-                    local_path = match.replace("sandbox:/mnt/data/downloads", f"./downloaded_files/{message.thread_id}").replace("sandbox:/mnt/data", f"./downloaded_files/{message.thread_id}")
-                    
-                    if local_path not in files_in:
-                        #      print(f"Pattern 0 found, attaching {local_path}")
-                        files_in.append(local_path)
-
-                # Extract file paths from the message and add them to files_in array
-                task_pattern = re.compile(
-                    r"\[(.*?)\]\(./downloaded_files/thread_(.*?)/(.*?)\)"
-                )
-                task_matches = task_pattern.findall(msg)
-                for task_match in task_matches:
-                    local_task_path = (
-                        f"./downloaded_files/thread_{task_match[1]}/{task_match[2]}"
-                    )
-                    if local_task_path not in files_in:
-                        files_in.append(local_task_path)
-
-                # Extract file paths from the message and add them to files_in array
-                image_pattern = re.compile(
-                    r"\[.*?\]\((sandbox:/mnt/data/downloaded_files/.*?)\)"
-                )
-                matches = image_pattern.findall(msg)
-                for match in matches:
-                    local_path = match.replace("sandbox:/mnt/data", ".")
-                    if local_path not in files_in:
-                        #      print(f"Pattern 1 found, attaching {local_path}")
-                        files_in.append(local_path)
-
-                # Extract file paths from the message and add them to files_in array
-                chart_pattern = re.compile(
-                    r"\(sandbox:/mnt/data/(.*?)\)\n2\. \[(.*?)\]"
-                )
-
-                chart_matches = chart_pattern.findall(msg)
-                for chart_match in chart_matches:
-                    local_chart_path = f"./downloaded_files/{message.thread_id}/{chart_match}"
-                    if local_chart_path not in files_in:
-                        #     print(f"Pattern 2 found, attaching {local_chart_path}")
-                        files_in.append(local_chart_path)
-
-                # Parse the message for the provided pattern and add to files_in
-                file_pattern = re.compile(r"!\[.*?\]\(attachment://\.(.*?)\)")
-                file_matches = file_pattern.findall(msg)
-                for file_match in file_matches:
-                    local_file_path = file_match
-                    if local_file_path not in files_in:
-                        files_in.append(local_file_path)
-                #             print(f"Pattern 3 found, attaching {local_file_path}")
-                local_pattern = re.compile(
-                    r"!\[.*?\]\(\./downloaded_files/thread_(.*?)/(.+?)\)"
-                )
-                local_pattern_matches = local_pattern.findall(msg)
-                for local_match in local_pattern_matches:
-                    local_path = (
-                        f"./downloaded_files/thread_{local_match[0]}/{local_match[1]}"
-                    )
-                    if local_path not in files_in:
-                        #         print(f"Pattern 4 found, attaching {local_path}")
-                        files_in.append(local_path)
-
-                #      print("Uploading files:", files_in)
-
-                # Find pattern [filename](sandbox://mnt/data/filename)
-                # sandbox_file_pattern = re.compile(r'\[([^\]]+)\]\(sandbox://mnt/data/([^\)]+)\)')
-                # sandbox_file_matches = sandbox_file_pattern.findall(msg)
-                # for filename, filepath in sandbox_file_matches:
-                #     local_path = f"./downloaded_files/{message.thread_id}/{filepath}"
-                #     if local_path not in files_in:
-                #         files_in.append(local_path)
-                #         print(f"Sandbox file pattern found, attaching {local_path}")
-
                 msg_files = self._upload_files(
                     files_in,
                     thread_ts=thread_ts,
@@ -1041,10 +1033,10 @@ class SlackBotAdapter(BotOsInputAdapter):
                 )
 
                 #          print("Result of files upload:", msg_files)
-
                 #          print("about to send to slack pre url fixes:", msg)
 
                 for msg_url in msg_files:
+                    # TODO: align the URL subsitution logic with _extract_local_file_markdowns
                     filename = msg_url.split("/")[-1]
                     msg_prime = msg
 
@@ -1061,14 +1053,14 @@ class SlackBotAdapter(BotOsInputAdapter):
                         r"\[(.*?)\]\(sandbox:/mnt/data/downloaded_files/thread_(.*?)/(.+?)\)"
                     )
                     msg = re.sub(thread_file_pattern, f"<{{msg_url}}|\\1>", msg)
-                    # Catch the external URL pattern and replace it with the correct URL
-                    external_url_pattern = re.compile(r"\[(.*?)\]\((https?://.*?)\)")
-                    msg = re.sub(external_url_pattern, f"<{{msg_url}}|\\1>", msg)
+
+
                     msg = msg.replace("{msg_url}", msg_url)
                     msg = msg.replace("[Download ", "[")
                     msg = re.sub(r"!\s*<", "<", msg)
                     if msg == msg_prime:
                         msg += " {" + msg_url + "}"
+
                 # Reformat the message if it contains a link in brackets followed by a URL in angle brackets
                 link_pattern = re.compile(r"\[(.*?)\]<(.+?)>")
                 msg = re.sub(link_pattern, r"<\2|\1>", msg)
@@ -1078,7 +1070,7 @@ class SlackBotAdapter(BotOsInputAdapter):
                     r"\[(.*?)\]\(sandbox:/mnt/data/downloaded_files/(.*?)/(.+?)\)"
                 )
                 msg = re.sub(pattern, r"<\2|\1>", msg)
-                
+
                 # Check for link blocks with a ! immediately before it and remove the !
                 link_block_pattern = re.compile(r"!\s*(<https?://[^|]+?\|[^>]+?>)")
                 msg = re.sub(link_block_pattern, r"\1", msg)
@@ -1300,7 +1292,7 @@ class SlackBotAdapter(BotOsInputAdapter):
     def send_slack_direct_message(
         self, slack_user_id: str, message: str, attachments=[], thread_id: str = None
     ):
-        
+
         # Remove angle brackets from slack_user_id if present
         if slack_user_id.startswith('<') and slack_user_id.endswith('>'):
             slack_user_id = slack_user_id[1:-1]
@@ -1323,7 +1315,7 @@ class SlackBotAdapter(BotOsInputAdapter):
             matches = image_pattern.findall(message)
             for match in matches:
                 local_path = match.replace("sandbox:/mnt/data/downloads", f"./downloaded_files/{thread_id}").replace("sandbox:/mnt/data", f"./downloaded_files/{thread_id}")
-                
+
                 if local_path not in files_in:
                     #      print(f"Pattern 0 found, attaching {local_path}")
                     files_in.append(local_path)
@@ -1394,11 +1386,11 @@ class SlackBotAdapter(BotOsInputAdapter):
 
         if channel_name.endswith('|'):
             channel_name = channel_name[:-1]
-            
+
         # Remove '#' from the beginning of the channel name if present
         if channel_name and channel_name.startswith('#'):
             channel_name = channel_name[1:]
-            
+
         if channel_name.lower() == 'general':
             return "Bots are not allowed to post to #general. Reconfirm what channel you are supposed to post to."
 
@@ -1410,7 +1402,7 @@ class SlackBotAdapter(BotOsInputAdapter):
         matches = image_pattern.findall(message)
         for match in matches:
             local_path = match.replace("sandbox:/mnt/data/downloads", f"./downloaded_files/{thread_id}").replace("sandbox:/mnt/data", f"./downloaded_files/{thread_id}")
-            
+
             if local_path not in files_in:
                 #      print(f"Pattern 0 found, attaching {local_path}")
                 files_in.append(local_path)
@@ -1434,7 +1426,7 @@ class SlackBotAdapter(BotOsInputAdapter):
                         }
 
                 return {
-                    
+
                     "success": True,
                     "message": f"Message sent to channel {channel_name} successfully (note, this is not #general)."
                 }

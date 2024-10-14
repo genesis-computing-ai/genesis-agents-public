@@ -1652,17 +1652,17 @@ $$;
             cursor.execute(query)
             self.client.commit()
 
-            query = f"GRANT SELECT ON ALL STAGES IN SCHEMA {workspace_schema_name} TO APPLICATION ROLE APP_PUBLIC; "
+            query = f"GRANT USAGE ON ALL STAGES IN SCHEMA {workspace_schema_name} TO APPLICATION ROLE APP_PUBLIC; "
             cursor = self.client.cursor()
             cursor.execute(query)
             self.client.commit()
 
-            query = f"GRANT EXCUTE ON ALL FUNCTIONS IN SCHEMA {workspace_schema_name} TO APPLICATION ROLE APP_PUBLIC; "
+            query = f"GRANT USAGE ON ALL FUNCTIONS IN SCHEMA {workspace_schema_name} TO APPLICATION ROLE APP_PUBLIC; "
             cursor = self.client.cursor()
             cursor.execute(query)
             self.client.commit()
 
-            query = f"GRANT EXECUTE ON ALL PROCEDURES IN SCHEMA {workspace_schema_name} TO APPLICATION ROLE APP_PUBLIC; "
+            query = f"GRANT USAGE ON ALL PROCEDURES IN SCHEMA {workspace_schema_name} TO APPLICATION ROLE APP_PUBLIC; "
             cursor = self.client.cursor()
             cursor.execute(query)
             self.client.commit()

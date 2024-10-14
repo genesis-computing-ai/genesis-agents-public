@@ -1712,13 +1712,13 @@ $$;
             cursor.execute(get_note_query)
             query = cursor.fetchone()
         
-        if query is None:
-                 return {
-                "success": False,
-                "error": "Note not found.",
-                 }
-        
-        query = query[0]
+            if query is None:
+                    return {
+                    "success": False,
+                    "error": "Note not found.",
+                    }
+            
+            query = query[0]
 
         # Replace all <!Q!>s with single quotes in the query
         if '<!Q!>' in query:

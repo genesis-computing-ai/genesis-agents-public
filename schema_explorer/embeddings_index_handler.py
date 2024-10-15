@@ -248,7 +248,11 @@ def make_and_save_index(table_id):
     # save with timestamp filename
     
     index_file_name, meta_file_name = emb_db_adapter.generate_filename_from_last_modified(table_id)
-    annoy_index.save(os.path.join(index_file_path,index_file_name))
+    try:
+        annoy_index.save(os.path.join(index_file_path,index_file_name))
+    except Exception as e:
+        print('I cannot save save annoy index', flush=True)
+        print(e)
 
     print(f"saving mappings to timestamped cached file... {os.path.join(index_file_path,meta_file_name)}")
     with open(os.path.join(index_file_path,meta_file_name), 'w') as f:
@@ -349,7 +353,11 @@ def load_or_create_embeddings_index(table_id, refresh=True):
                 if not os.path.exists(index_file_path):
                     os.makedirs(index_file_path)
                 copy_index_file_name, copy_meta_file_name = 'latest_cached_index.ann', 'latest_cached_metadata.json'
-                annoy_index.save(os.path.join(index_file_path,copy_index_file_name))
+                try:
+                    annoy_index.save(os.path.join(index_file_path,copy_index_file_name))
+                except Exception as e:
+                    print('I cannot save save annoy index', flush=True)
+                    print(e, flush=True)                
 
                 with open(os.path.join(index_file_path,copy_meta_file_name), 'w') as f:
                     json.dump(metadata_mapping, f)

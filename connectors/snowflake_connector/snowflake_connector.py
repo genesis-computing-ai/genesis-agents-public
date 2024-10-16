@@ -3311,7 +3311,7 @@ $$;
                     for key in keys:
                             output[key] += '\n\n{}:\n{}'.format(row['TIMESTAMP'].strftime('%Y-%m-%d %H:%M'), row[key])
                 return output
-        return []
+        return {}
 
     def query_threads_message_log(self, cutoff):
         query = f"""

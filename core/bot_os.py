@@ -434,8 +434,13 @@ class BotOsSession:
                         user_query = input_message.metadata['user_email']
                     else:
                         user_query = input_message.metadata.get('user_id', 'Unknown User ID')
-                    knowledge = self.log_db_connector.extract_knowledge(user_query, self.bot_id)
-                    print(f'bot_os {self.bot_id} knowledge injection, user len={len(primary_user)} len knowledge="{len(knowledge)}')
+                    if os.getenv("LAST_K_KNOWLEGE", "1").isdigit():
+                        last_k = int(os.getenv("LAST_K_KNOWLEGE", "1"))
+                    else:
+                        last_k = 1
+                    knowledge = self.log_db_connector.extract_knowledge(user_query, self.bot_id, k = last_k)
+                    knowledge_len = len(''.join([knowledge.get(key, '') for key in ['USER_LEARNING', 'TOOL_LEARNING', 'DATA_LEARNING']]))
+                    print(f'bot_os {self.bot_id} knowledge injection, user len={len(primary_user)} len knowledge={knowledge_len}')
                     if knowledge:
                         input_message.msg = f'''NOTE--Here are some things you know about this user from previous interactions, that may be helpful to this conversation:
                         

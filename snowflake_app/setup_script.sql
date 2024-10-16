@@ -35,6 +35,7 @@ $$
             CORTEX_MODEL: llama3.1-405b
             CORTEX_FAST_MODEL_NAME: llama3.1-70b
             USE_KNOWLEDGE: TRUE
+            LAST_K_KNOWLEGE: 5
         readinessProbe:
           port: 8080
           path: /healthcheck

@@ -402,7 +402,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                 else:
                     model = self.llm_engine
 
-                if not fast_mode and thread_id in self.thread_fast_mode_map:
+                if not fast_mode and thread_id in self.thread_fast_mode_map and self.thread_fast_mode_map[thread_id]:
                     model = os.getenv("CORTEX_FAST_MODEL_NAME", "llama3.1-70b")
             
                 if temperature is None:
@@ -746,12 +746,12 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         if thread_id in self.first_message_map:
             del self.first_message_map[thread_id]
             if input_message.metadata and 'thread_ts' in input_message.metadata:
-                fast_mode = True
-                self.thread_fast_mode_map[thread_id] = True
+                fast_mode = False
+              #  self.thread_fast_mode_map[thread_id] = False
                 #self.llm_engine = os.getenv("CORTEX_FAST_MODEL_NAME")
                 if os.getenv("CORTEX_MODEL",False) and os.getenv("CORTEX_FAST_MODEL_NAME",False) and os.getenv("CORTEX_MODEL") != os.getenv("CORTEX_FAST_MODEL_NAME"):
-                    print('cortex fast mode = true (set by default for a new slack-based thread)')               
-                    print(f'Switching from {os.getenv("CORTEX_MODEL")} to {os.getenv("CORTEX_FAST_MODEL_NAME")}')
+                    print('cortex fast mode = false (set by default for a new slack-based thread)')               
+                 #  print(f'Switching from {os.getenv("CORTEX_MODEL")} to {os.getenv("CORTEX_FAST_MODEL_NAME")}')
             #        input_message.msg  += ' [NOTE: Also in your response YOU MUST mention in passing that fast mode is active and remind me that I can send !fast off to switch to smart mode.]'
             # Check if channel is in input_message.metadata
             if input_message.metadata and 'channel' in input_message.metadata:

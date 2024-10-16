@@ -625,7 +625,7 @@ def chat_page():
 
                 if llm_configuration != 'openai':
                 # Create the toggle and update session state when changed
-                    fast_mode = st.toggle("Fast Mode", value=True, key='fast_mode')
+                    fast_mode = st.toggle("Fast Mode", value=False, key='fast_mode')
 
                     if fast_mode:
                         st.info("Using faster LLM: Llama3.1-70b")

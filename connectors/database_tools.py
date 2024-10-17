@@ -500,6 +500,11 @@ process_manager_functions = [
                                "type": "string",
                                "description": "Configuration string used by process when running.",
                            },
+                           "hidden":{
+                                "type": "boolean",
+                                "description": "If true, the process will not be shown in the list of processes.  This is used to create processes to test the bots functionality without showing them to the user.",
+                                "default": False,
+                            },
                         },
                         "required": [
                             "process_name",

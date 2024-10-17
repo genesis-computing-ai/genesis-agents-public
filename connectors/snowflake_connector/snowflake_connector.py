@@ -285,12 +285,12 @@ class SnowflakeConnector(DatabaseConnector):
 
             response = requests.post(url, json=request_data, stream=True, headers=headers)
 
-            if response.status_code == 400 and 'unknown model' in response.text:
+            if response.status_code in (200, 400) and response.text.startswith('{"message":"unknown model '):
                 self.llm_engine = os.getenv("CORTEX_FAST_MODEL_NAME", "llama3.1-70b")
                 print(f"Model not found. Switching to {self.llm_engine}")
                 request_data["model"] = self.llm_engine
                 response = requests.post(url, json=request_data, stream=True, headers=headers)
-                if response.status_code != 200:
+                if response.status_code != 200 or (response.status_code in (200, 400) and response.text.startswith('{"message":"unknown model ')):
                     print(f'cortex {self.llm_engine} and {os.getenv("CORTEX_FAST_MODEL_NAME", "llama3.1-70b")} not avail: ',response.status_code, response.text)
                     return False, False
                 else:

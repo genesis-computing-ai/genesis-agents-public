@@ -1726,10 +1726,10 @@ class ToolBelt:
         cursor = db_adapter.client.cursor()
         try:
             if bot_id == "all":
-                list_query = f"SELECT process_id, bot_id, process_name FROM {db_adapter.schema}.PROCESSES" if db_adapter.schema else f"SELECT process_id, bot_id, process_name FROM PROCESSES"
+                list_query = f"SELECT process_id, bot_id, process_name FROM {db_adapter.schema}.PROCESSES WHERE HIDDEN IS NULL OR HIDDEN = FALSE" if db_adapter.schema else f"SELECT process_id, bot_id, process_name FROM PROCESSES WHERE HIDDEN IS NULL OR HIDDEN = FALSE"
                 cursor.execute(list_query)
             else:
-                list_query = f"SELECT process_id, bot_id, process_name FROM {db_adapter.schema}.PROCESSES WHERE upper(bot_id) = upper(%s)" if db_adapter.schema else f"SELECT process_id, bot_id, process_name FROM PROCESSES WHERE upper(bot_id) = upper(%s)"
+                list_query = f"SELECT process_id, bot_id, process_name FROM {db_adapter.schema}.PROCESSES WHERE upper(bot_id) = upper(%s) AND HIDDEN IS NULL OR HIDDEN = FALSE" if db_adapter.schema else f"SELECT process_id, bot_id, process_name FROM PROCESSES WHERE upper(bot_id) = upper(%s) AND HIDDEN IS NULL OR HIDDEN = FALSE"
                 cursor.execute(list_query, (bot_id,))
             processs = cursor.fetchall()
             process_list = []

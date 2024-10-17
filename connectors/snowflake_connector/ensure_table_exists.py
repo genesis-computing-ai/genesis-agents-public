@@ -1130,7 +1130,8 @@ def ensure_table_exists(self):
                 PROCESS_NAME VARCHAR(16777216) NOT NULL,
                 PROCESS_INSTRUCTIONS VARCHAR(16777216),
                 NOTE_ID VARCHAR(16777216),
-                PROCESS_CONFIG VARCHAR(16777216)
+                PROCESS_CONFIG VARCHAR(16777216),
+                HIDDEN BOOLEAN
             );
             """
             cursor.execute(create_process_table_ddl)
@@ -1155,29 +1156,31 @@ def ensure_table_exists(self):
 
         process_config_exists = any(row[0].upper() == 'PROCESS_CONFIG' for row in table_description)
         note_id_exists = any(row[0].upper() == 'NOTE_ID' for row in table_description)
-        process_instructions_exists = any(row[0].upper() == 'PROCESS_INSTRUCTIONS' for row in table_description)
+        # process_instructions_exists = any(row[0].upper() == 'PROCESS_INSTRUCTIONS' for row in table_description)
+        hidden_exists = any(row[0].upper() == 'HIDDEN' for row in table_description)
 
-        if not process_config_exists or not note_id_exists:
-            # Add PROCESS_CONFIG column if it doesn't exist
-            add_column_query = f"""
-            ALTER TABLE {self.schema}.PROCESSES
-            """
+        if not process_config_exists or not note_id_exists or not hidden_exists:
+            add_column_query = f"ALTER TABLE {self.schema}.PROCESSES "
+
+            columns_to_add = []
             if not process_config_exists:
-                add_column_query += "ADD COLUMN PROCESS_CONFIG VARCHAR(16777216)"
-                if note_id_exists:
-                    add_column_query += ","
+                columns_to_add.append("ADD COLUMN PROCESS_CONFIG VARCHAR(16777216)")
             if not note_id_exists:
-                add_column_query += "ADD COLUMN NOTE_ID VARCHAR(16777216)"
-            # if process_instructions_exists:
-            #     add_column_query += ",DROP COLUMN PROCESS_INSTRUCTIONS"
+                columns_to_add.append("ADD COLUMN NOTE_ID VARCHAR(16777216)")
+            if not hidden_exists:
+                columns_to_add.append("ADD COLUMN HIDDEN BOOLEAN")
+
+            add_column_query += ", ".join(columns_to_add)
 
             cursor.execute(add_column_query)
             self.client.commit()
+
             if not process_config_exists:
                 print("PROCESS_CONFIG column added to PROCESSES table.")
             if not note_id_exists:
                 print("NOTE_ID column added to PROCESSES table.")
-
+            if not hidden_exists:
+                print("HIDDEN column added to PROCESSES table.")
         else:
             print("PROCESS_CONFIG column already exists in PROCESSES table.")
     except Exception as e:

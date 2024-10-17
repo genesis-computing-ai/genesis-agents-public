@@ -20,9 +20,7 @@ from core.bot_os_llm import LLMKeyHandler
 from core.bot_os_memory import BotOsKnowledgeAnnoy_Metadata
 from core.bot_os_server import BotOsServer
 from apscheduler.schedulers.background import BackgroundScheduler
-from connectors.bigquery_connector import BigQueryConnector
-from connectors.snowflake_connector.snowflake_connector import SnowflakeConnector
-from connectors.sqlite_connector import SqliteConnector
+from connectors import get_global_db_connector
 from embed.embed_openbb import openbb_query
 from llm_openai.openai_utils import get_openai_client
 from slack.slack_bot_os_adapter import SlackBotAdapter
@@ -76,7 +74,7 @@ import core.global_flags as global_flags
 # pdb_attach.listen(5679)  # Listen on port 5678.
 # $ python -m pdb_attach <PID> 5678
 
-    
+
 
 print("****** GENBOT VERSION 0.202-DEV*******")
 
@@ -131,30 +129,13 @@ dataset_name = db_schema[1]
 global_flags.genbot_internal_project_and_schema = genbot_internal_project_and_schema
 
 genesis_source = os.getenv("GENESIS_SOURCE", default="Snowflake")
-
-if genesis_source == "BigQuery":
-    credentials_path = os.getenv(
-        "GOOGLE_APPLICATION_CREDENTIALS", default=".secrets/gcp.json"
-    )
-    with open(credentials_path) as f:
-        connection_info = json.load(f)
-    # Initialize BigQuery client
-    db_adapter = BigQueryConnector(connection_info, "BigQuery")
-elif genesis_source == 'Sqlite':
-    db_adapter = SqliteConnector(connection_name="Sqlite")
-elif genesis_source == 'Snowflake':  # Initialize BigQuery client
-    print("Starting Snowflake connector...")
-    db_adapter = SnowflakeConnector(connection_name="Snowflake")
-    connection_info = {"Connection_Type": "Snowflake"}
-else:
-    raise ValueError('Invalid Source')
-    
+db_adapter = get_global_db_connector(genesis_source)
 
 if os.getenv("TEST_MODE", "false").lower() == "true":
     print("()()()()()()()()()()()()()")
     print("TEST_MODE - ensure table exists skipped")
     print("()()()()()()()()()()()()()")
-else:    
+else:
     print("NOT RUNNING TEST MODE - APPLYING ONE TIME DB FIXES AND CREATING TABLES")
     db_adapter.one_time_db_fixes()
     db_adapter.ensure_table_exists()
@@ -206,8 +187,8 @@ t, r = get_slack_config_tokens()
 global_flags.slack_active = test_slack_config_token()
 if global_flags.slack_active == 'token_expired':
     print('Slack Config Token Expired')
-    global_flags.slack_active = False 
-#global_flags.slack_active = True 
+    global_flags.slack_active = False
+#global_flags.slack_active = True
 
 print("...Slack Connector Active Flag: ", global_flags.slack_active)
 SystemVariables.bot_id_to_slack_adapter_map = {}
@@ -405,15 +386,15 @@ def get_metadata():
                 result = {"Success": False, "Message": result["Error"]}
         elif metadata_type.startswith('test_email '):
             email = metadata_type.split('test_email ')[1].strip()
-            result = db_adapter.send_test_email(email) 
+            result = db_adapter.send_test_email(email)
         elif metadata_type.startswith('get_email'):
-            result = db_adapter.get_email() 
+            result = db_adapter.get_email()
         elif metadata_type.startswith('set_endpoint '):
             endpoint = metadata_type.split('set_endpoint ')[1].strip()
             result = db_adapter.set_endpoint(endpoint)
         elif metadata_type.startswith('logging_status'):
             status = db_adapter.check_logging_status()
-            result = {"Success": True, "Data": status}  
+            result = {"Success": True, "Data": status}
         elif metadata_type.startswith('custom_config '):
             metadata_parts = metadata_type.split()
             if len(metadata_parts) == 3:
@@ -424,12 +405,12 @@ def get_metadata():
                 site = None
             else:
                 print("missing metadata")
-            result = db_adapter.eai_test(object_type=object_type, site=site)                
+            result = db_adapter.eai_test(object_type=object_type, site=site)
         elif 'sandbox' in metadata_type:
             _, bot_id, thread_id_in, file_name = metadata_type.split('|')
             print('****get_metadata, file_name', file_name)
             print('****get_metadata, thread_id_in', thread_id_in)
-            print('****get_metadata, bot_id', bot_id)            
+            print('****get_metadata, bot_id', bot_id)
             bots_udf_adapter = bot_id_to_udf_adapter_map.get(bot_id, None)
             print('****get_metadata, bots_udf_adapter', bots_udf_adapter)
             try:
@@ -440,9 +421,9 @@ def get_metadata():
                 print('****get_metadata, file_path', file_path, flush=True)
                 result = {"Success": True, "Data": json.dumps(file_to_bytes(file_path))}
                 print('result: Success len ', len(json.dumps(file_to_bytes(file_path))), flush=True)
-            except Exception as e: 
+            except Exception as e:
                 print('****get_metadata, thread_id_out exception ',e)
-                result = {"Success": False, "Error": e}            
+                result = {"Success": False, "Error": e}
         else:
             raise ValueError(
                 "Invalid metadata_type provided. Expected 'harvest_control' or 'harvest_summary' or 'available_databases'."
@@ -745,8 +726,8 @@ def configure_llm():
 
         llm_type = input_rows[0][1] # llm type means llm engine (e.g. 'cortex', 'openai')
         llm_key_endpoint = input_rows[0][2].split('|')
-        llm_key = llm_key_endpoint[0]  
-        llm_endpoint = llm_key_endpoint[1] 
+        llm_key = llm_key_endpoint[0]
+        llm_endpoint = llm_key_endpoint[1]
 
         # llm_key = input_rows[0][2]
         # llm_endpoint = input_rows[0][3]
@@ -766,7 +747,7 @@ def configure_llm():
         #      llm_type = None
         else:
         # if llm_type is not None:
-            
+
             data_cubes_ingress_url = get_udf_endpoint_url("streamlitdatacubes")
             data_cubes_ingress_url = data_cubes_ingress_url if data_cubes_ingress_url else "localhost:8501"
             logger.warning(f"data_cubes_ingress_url(2) set to {data_cubes_ingress_url}")
@@ -896,7 +877,7 @@ server = None
 if llm_api_key_struct is not None and llm_api_key_struct.llm_key is not None:
     BotOsServer.stream_mode = True
     server = BotOsServer(
-        app, sessions=sessions, scheduler=scheduler, scheduler_seconds_interval=1,    
+        app, sessions=sessions, scheduler=scheduler, scheduler_seconds_interval=1,
         slack_active=global_flags.slack_active,
          db_adapter=db_adapter,
                 bot_id_to_udf_adapter_map = bot_id_to_udf_adapter_map,

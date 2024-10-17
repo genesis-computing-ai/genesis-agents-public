@@ -439,7 +439,7 @@ class BotOsSession:
                     else:
                         last_k = 1
                     knowledge = self.log_db_connector.extract_knowledge(user_query, self.bot_id, k = last_k)
-                    knowledge_len = len(''.join([knowledge.get(key, '') for key in ['USER_LEARNING', 'TOOL_LEARNING', 'DATA_LEARNING']]))
+                    knowledge_len = len(''.join([knowledge.get(key, '') for key in ['USER_LEARNING', 'TOOL_LEARNING', 'DATA_LEARNING', 'HISTORY']]))
                     print(f'bot_os {self.bot_id} knowledge injection, user len={len(primary_user)} len knowledge={knowledge_len}')
                     if knowledge:
                         input_message.msg = f'''NOTE--Here are some things you know about this user from previous interactions, that may be helpful to this conversation:
@@ -449,6 +449,8 @@ User related: {knowledge['USER_LEARNING']}
 Tool use related: {knowledge['TOOL_LEARNING']}
 
 Data related: {knowledge['DATA_LEARNING']}
+
+{knowledge['HISTORY']}
 
 Now, with that as background...\n''' + input_message.msg
                         #input_message.metadata["user_knowledge"] = 'True'

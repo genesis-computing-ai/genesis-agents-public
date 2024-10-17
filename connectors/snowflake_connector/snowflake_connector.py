@@ -3299,18 +3299,23 @@ $$;
         query = f"""SELECT * FROM {self.user_bot_table_name} 
                     WHERE primary_user = '{primary_user}' AND BOT_ID = '{bot_id}'
                     ORDER BY TIMESTAMP DESC
-                    LIMIT {k};"""
+                    LIMIT 1;"""
         knowledge = self.run_query(query)
         if knowledge:
-            if k == 1:
-                return knowledge[0]
-            else:
-                keys = ['USER_LEARNING', 'TOOL_LEARNING', 'DATA_LEARNING']
-                output = {key: '' for key in keys}
-                for row in knowledge:
-                    for key in keys:
-                            output[key] += '\n\n{}:\n{}'.format(row['TIMESTAMP'].strftime('%Y-%m-%d %H:%M'), row[key])
-                return output
+            knowledge = knowledge[0]
+            knowledge['HISTORY'] = ''
+            if k > 1:
+                query = f"""SELECT * FROM {self.knowledge_table_name} 
+                        WHERE primary_user LIKE '%{primary_user}%' AND BOT_ID = '{bot_id}'
+                        ORDER BY LAST_TIMESTAMP DESC
+                        LIMIT {k};"""
+                history = self.run_query(query)
+                if history:
+                    output = ['By the way the current system date and time is {} and below are the summary of last {} conversations:'.format(self.get_current_time_with_timezone(), len(history))]
+                    for row in history:
+                        output.append('\n\n{}:\n{}'.format(row['LAST_TIMESTAMP'].strftime('%Y-%m-%d %H:%M'), row['THREAD_SUMMARY']))
+                knowledge['HISTORY'] += ''.join(output)                
+            return knowledge
         return {}
 
     def query_threads_message_log(self, cutoff):

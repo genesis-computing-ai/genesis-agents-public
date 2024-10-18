@@ -1621,6 +1621,8 @@ def load_default_processes_and_notebook(self, cursor):
 
                             insert_values.append(process_default['NOTE_ID'])
                             print(f"Note_id {process_default['NOTE_ID']} inserted successfully for process {process_id}")
+                    elif key.lower() == 'hidden':
+                        insert_values.append(False)
                     else:
                         val = process_default.get(key, '') if process_default.get(key, '') is not None else ''
                         if pd.isna(val):

@@ -3819,21 +3819,26 @@ result = 'Table FAKE_CUST created successfully.'
                 except Exception as e:
                     print(f"Error dropping temporary stored procedure {proc_name}: {e}")
 
-        if note_id is not None or note_name is not None:
-            note_id = '' if note_id is None else note_id
-            note_name = '' if note_name is None else note_name
-            get_note_query = f"SELECT note_content, note_params FROM {self.schema}.NOTEBOOK WHERE NOTE_ID = '{note_id}' OR NOTE_NAME = '{note_name}'"
-            cursor = self.connection.cursor()
-            cursor.execute(get_note_query)
-            code = cursor.fetchone()
+        try:
+            if note_id is not None or note_name is not None:
+                note_id = '' if note_id is None else note_id
+                note_name = '' if note_name is None else note_name
+                get_note_query = f"SELECT note_content, note_params FROM {self.schema}.NOTEBOOK WHERE NOTE_ID = '{note_id}' OR NOTE_NAME = '{note_name}'"
+                cursor = self.connection.cursor()
+                cursor.execute(get_note_query)
+                code = cursor.fetchone()
 
-            if code is None:
-                 return {
-                "success": False,
-                "error": "Note not found.",
-                 }
+                if code is None:
+                    raise IndexError("Code not found for this note.")
 
-            code = code[0]
+
+                code = code[0]
+        except IndexError:
+            print("Error: The list 'code' is empty or does not have an element at index 0.")
+            return {
+                    "success": False,
+                    "error": "Note was not found.",
+                    }
 
         if bot_id not in ['eva-x1y2z3', 'MrsEliza-3348b2', os.getenv("O1_OVERRIDE_BOT","")]:
             if '\\n' in code:

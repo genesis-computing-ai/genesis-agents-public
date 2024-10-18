@@ -312,7 +312,7 @@ class ToolBelt:
                    body: str,
                    thread_id: str = None,
                    bot_id: str = None,
-                   mime_type: str = 'text/plain',
+                   mime_type: str = 'text/html',
                    include_genesis_logo: bool = True
                    ):
         """
@@ -324,7 +324,7 @@ class ToolBelt:
             body (str): The body content of the email.
             thread_id (str, optional): The thread ID for the current operation.
             bot_id (str, optional): The bot ID for the current operation.
-            mime_type (str, optional): The MIME type of the email body. Accepts 'text/plain' or 'text/html'. Defaults to 'text/plain'.
+            mime_type (str, optional): The MIME type of the email body. Accepts 'text/plain' or 'text/html'. Defaults to 'text/html'.
             include_genesis_logo (bool, optional): Whether to include the Genesis logo in an text/html email. Defaults to True. Ignored for all other mime types
 
         Returns:

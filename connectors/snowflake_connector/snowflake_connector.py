@@ -3314,7 +3314,7 @@ $$;
                     output = ['By the way the current system date and time is {} and below are the summary of last {} conversations:'.format(self.get_current_time_with_timezone(), len(history))]
                     for row in history:
                         output.append('\n\n{}:\n{}'.format(row['LAST_TIMESTAMP'].strftime('%Y-%m-%d %H:%M'), row['THREAD_SUMMARY']))
-                knowledge['HISTORY'] += ''.join(output)                
+                knowledge['HISTORY'] += ''.join(output)
             return knowledge
         return {}
 
@@ -3776,7 +3776,26 @@ result = 'Table FAKE_CUST created successfully.'
                         note_id=None,
                         note_name = None,
                         return_base64 = False,
-                        save_artifacts=False) -> str:
+                        save_artifacts=True) -> str:
+        """
+        Executes a given Python code snippet within a Snowflake Snowpark environment, handling various
+        scenarios such as code retrieval from notes, package management, and result processing.
+
+        Parameters:
+        - purpose (str, optional): The intended purpose of the code execution.
+        - code (str, optional): The Python code to be executed.
+        - packages (str, optional): A comma-separated list of additional Python packages required.
+        - thread_id: Identifier for the current thread.
+        - bot_id: Identifier for the bot executing the code.
+        - note_id: Identifier for the note from which to retrieve code.
+        - note_name: Name of the note from which to retrieve code.
+        - return_base64 (bool, optional): Whether to return results as base64 encoded content.
+        - save_artifacts (bool, optional): Whether to save output as Artifacts (an arrifact_id will be included in the response)
+
+        Returns:
+        - str: The result JSON of the code execution, which may include error messages, file references,
+               and/or base64 encoded content.
+        """
         # IMPORTANT: keep the description/parameters of this method in sync with the tool description given to the bots (see database_tools.py)
 
         # Some solid examples to make bots invoke this:

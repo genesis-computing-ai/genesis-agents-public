@@ -115,7 +115,7 @@ process_runner_functions = [
                     },
                     "mime_type": {
                         "type": "string",
-                        "description": "The MIME type of the email body. Accepts 'text/plain' or 'text/html'. Defaults to 'text/plain'.",
+                        "description": "The MIME type of the email body. Accepts 'text/plain' or 'text/html'. Defaults to 'text/html'.",
                     }
                 },
                 "required": ["to_addr_list", "subject", "body"],

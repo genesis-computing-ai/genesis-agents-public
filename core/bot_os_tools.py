@@ -9,10 +9,15 @@ import threading
 import random
 import string
 from selenium import webdriver
-
+import logging
+import re
 
 from jinja2 import Template
-from bot_genesis.make_baby_bot import MAKE_BABY_BOT_DESCRIPTIONS, make_baby_bot_tools
+from bot_genesis.make_baby_bot import (
+    MAKE_BABY_BOT_DESCRIPTIONS,
+    make_baby_bot_tools,
+    get_bot_details,
+)
 from connectors import database_tools
 from connectors.bigquery_connector import BigQueryConnector
 from connectors.snowflake_connector.snowflake_connector import SnowflakeConnector
@@ -48,7 +53,6 @@ from development.integration_tools import (
     integration_tool_descriptions,
     integration_tools,
 )
-from bot_genesis.make_baby_bot import get_bot_details
 from core.bot_os import BotOsSession
 from core.bot_os_corpus import URLListFileCorpus
 from core.bot_os_defaults import (
@@ -61,6 +65,8 @@ from core.bot_os_input import BotOsInputAdapter, BotOsInputMessage, BotOsOutputM
 from core.bot_os_memory import BotOsKnowledgeAnnoy_Metadata
 
 from core.bot_os_tool_descriptions import process_runner_tools
+
+from core.bot_os_artifacts import ARTIFACT_ID_REGEX, get_artifacts_store
 
 
 # import sys
@@ -324,6 +330,33 @@ class ToolBelt:
         Returns:
             dict: The result of the query execution.
         """
+        def _strip_url_markdown(txt):
+            # a helper function to strip any URL markdown and leave only the URL part
+            # This is used in plain text mode, since we assume that the email rendering does not support markdown.
+            pattern = r'(!?\[([^\]]+)\]\(((http[s]?|file|sandbox|artifact):/+[^\)]+)\))'  # regex for strings of the form '[description](url)' and '![description](url)'
+            matches = re.findall(pattern, txt)
+            for match in matches:
+                txt = txt.replace(match[0], match[2])  # Replace the entire match with just the URL part, omitting description
+            return txt
+
+        def _externalize_artifact_urls(txt):
+            # a helper function that locates artifact references in the text (pseudo URLs that look like artifact:/<uuid>)
+            # and replaces them with their external-available URL
+            pattern = r'(?<=\W)(artifact:/('+ARTIFACT_ID_REGEX+r'))(?=\W)'
+            matches = re.findall(pattern, txt)
+
+            if matches:
+                af = get_artifacts_store(self.db_adapter)
+                for full_match, uuid in matches:
+                    try:
+                        external_url = af.get_signed_url_for_artifact(uuid)
+                    except Exception as e:
+                        # if we failed, leave this URL as-is. It will likely be a broken URL but in an obvious way.
+                        pass
+                    else:
+                        txt = txt.replace(full_match, external_url)
+
+            return txt
 
         # Validate mime_type
         if mime_type not in ['text/plain', 'text/html']:
@@ -371,8 +404,13 @@ class ToolBelt:
             origin_line += f' Bot: {bot_id}.'
         origin_line += '🤖\n\n'
 
-        # Cleanup the body. Force the body to HTML if the mime_type is text/html. Prepend origin line
+        # Cleanup the body.
         body = body.replace('\\n','\n')
+
+        # Handle artifact refs in the body - replace with external links
+        body = _externalize_artifact_urls(body)
+
+        # Force the body to HTML if the mime_type is text/html. Prepend origin line
         if mime_type == 'text/html':
             soup = BeautifulSoup(body, "html.parser")
             html_body = str(soup)
@@ -405,7 +443,8 @@ class ToolBelt:
             body = str(soup)
 
         elif mime_type == 'text/plain':
-            # For plain text, just prepend the bot message
+            # For plain text, strip URL markdowns, and prepend the bot message
+            body = _strip_url_markdown(body)
             body = origin_line + body
 
         else:
@@ -414,7 +453,7 @@ class ToolBelt:
         # Remove any instances of $$ from to_addr_string, subject and body
         # Fix double-backslashed unicode escape sequences in the body
         to_addr_string = to_addr_string.replace('$$', '')
-        import re
+
         def unescape_unicode(match):
             return chr(int(match.group(1), 16))
         body = re.sub(r'\\u([0-9a-fA-F]{4})', unescape_unicode, body)
@@ -439,6 +478,7 @@ class ToolBelt:
         result = self.db_adapter.run_query(query, thread_id=thread_id, bot_id=bot_id)
 
         return result
+
 
     def set_process_cache(self, bot_id, thread_id, process_id):
         cache_dir = "./process_cache"
@@ -679,7 +719,7 @@ class ToolBelt:
             """
 
             first_step = self.chat_completion(extract_instructions, self.db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, process_id=process_id, process_name=process_name)
-            
+
             # Check if the first step contains ">>RECURSE"
             if ">> RECURSE" in first_step or ">>RECURSE" in first_step:
                 self.recurse_level += 1
@@ -696,7 +736,7 @@ class ToolBelt:
                 
                 After the nested process completes, continue with the next step of this process.
                 """
-            
+
             with self.lock:
                 self.process_history[thread_id][process_id] = "First step: "+ first_step + "\n"
 
@@ -964,7 +1004,7 @@ class ToolBelt:
                     self.recurse_level += 1
                     # Extract the process name or ID
                     process_to_run = next_step.split(">>RECURSE")[1].strip() if ">>RECURSE" in next_step else next_step.split(">> RECURSE")[1].strip()
-                    
+
                     # Prepare the instruction for the bot to run the nested process
                     next_step = f"""
                     Use the _run_process tool to run the process '{process_to_run}' with the following parameters:
@@ -981,7 +1021,7 @@ class ToolBelt:
                     return {
                         "success": True,
                         "message": next_step,
-                    }   
+                    }
 
                 self.instructions[thread_id][process_id] = f"""
                 Hey **@{process['BOT_ID']}**, here is the next step of the process.

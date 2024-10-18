@@ -143,7 +143,7 @@ class SnowflakeConnector(DatabaseConnector):
 
     def update_file_in_stage(self,database, schema, stage, file_name, thread_id):
         update_file_in_stage(self, database, schema, stage, file_name, thread_id)
-    
+
     def delete_file_from_stage(self, database, schema, stage,file_name, thread_id):
         delete_file_from_stage(self, database, schema, stage,file_name, thread_id)
 
@@ -1711,13 +1711,13 @@ $$;
             cursor = self.connection.cursor()
             cursor.execute(get_note_query)
             query = cursor.fetchone()
-        
+
             if query is None:
                     return {
                     "success": False,
                     "error": "Note not found.",
                     }
-            
+
             query = query[0]
 
         # Replace all <!Q!>s with single quotes in the query
@@ -1743,7 +1743,7 @@ $$;
 
         if bot_id is not None:
             bot_llm = os.getenv("BOT_LLM_" + bot_id, "unknown")
-            workspace_schema_name = f"{bot_id.replace(r'[^a-zA-Z0-9]', '_').replace('-', '_').replace('.', '_')}_WORKSPACE".upper() 
+            workspace_schema_name = f"{bot_id.replace(r'[^a-zA-Z0-9]', '_').replace('-', '_').replace('.', '_')}_WORKSPACE".upper()
             workspace_full_schema_name = f"{global_flags.project_id}.{workspace_schema_name}"
         else:
             bot_llm = 'unknown'
@@ -3807,15 +3807,15 @@ result = 'Table FAKE_CUST created successfully.'
             cursor = self.connection.cursor()
             cursor.execute(get_note_query)
             code = cursor.fetchone()
-            
+
             if code is None:
                  return {
                 "success": False,
                 "error": "Note not found.",
                  }
-            
+
             code = code[0]
-            
+
         if bot_id not in ['eva-x1y2z3', 'MrsEliza-3348b2', os.getenv("O1_OVERRIDE_BOT","")]:
             if '\\n' in code:
                 if '\n' not in code.replace('\\n', ''):
@@ -4008,26 +4008,26 @@ result = 'Table FAKE_CUST created successfully.'
 
                     if save_artifacts:
                         # Use the artifacts infra to create an artifact from this content
-                        from core.bot_os_artifacts import SnowflakeStageArtifactsStore
-                        af = SnowflakeStageArtifactsStore(self)
+                        from core.bot_os_artifacts import get_artifacts_store
+                        af = get_artifacts_store(self)
                         mime_type = mime_type or 'image/png' # right now we assume png is the defualt for type=base64file
                         metadata = dict(mime_type=mime_type,
                                         thread_id=thread_id,
                                         bot_id=bot_id)
                         aid = af.create_artifact_from_content(file_content, metadata, content_filename=result_json["filename"])
                         print(f"Artifact {aid} created for output from python code named {result_json['filename']}")
-                        artifact_url = af.get_signed_url_for_artifact(aid)
+                        ###artifact_url = af.get_signed_url_for_artifact(aid)
                         result = {
                             "success": True,
-                            "result": f"Output from snowpark is a file, which can be later refernced using artifact_id={aid}. "
+                            "result": f"Output from snowpark is an artifact, which can be later refernced using artifact_id={aid}. "
                                       f"The descriptive name of the file is `{result_json['filename']}`. "
                                       f"The mime type of the file is {mime_type}. "
-                                      f"Output a link to this file so the user can see it, using the following formatting rules:"
-                                      f" (i) If responding to the user in plain text mode, use Slack-compatible markdown like this: '[descriptive name of the file]({artifact_url}) <artifact: {aid}>'. "
-                                      f" (ii) If responding to the user in HTML mode, use the most relevant html tag mased on the mime_type (e.g. for image files, use the <img> tag), followed by '<sub>artifact: {aid}</sub>'"
+                                      f"Output a refernce to the artifact using the following format: "
+                                      f" (i) If responding to the user in plain text mode, use markdown like this: '[{result_json['filename']}](artifact:/{aid})'. "
+                                      f" (ii) If responding to the user in HTML mode, use the most relevant HTML tag to refrence this resource using the url 'artifact:/{aid}' "
                         }
                     else:
-                        # Save the file
+                        # Save the file to 'sandbox'
                         file_path = f'./downloaded_files/{thread_id}/{result_json["filename"]}'
                         with open(file_path, 'wb') as file:
                             file.write(file_content)

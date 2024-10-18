@@ -3,12 +3,16 @@ from collections import deque
 import json
 import logging
 import requests
+import functools
+from pathlib import Path
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 import os, time
 from slack_bolt.adapter.flask import SlackRequestHandler
 from flask import jsonify, request
 from core.bot_os_input import BotOsInputAdapter, BotOsInputMessage, BotOsOutputMessage
+from core.bot_os_artifacts import ARTIFACT_ID_REGEX, get_artifacts_store
+from connectors import get_global_db_connector
 
 logger = logging.getLogger(__name__)
 import threading
@@ -180,6 +184,12 @@ class SlackBotAdapter(BotOsInputAdapter):
             # Run Slack app in a separate thread
             slack_thread = threading.Thread(target=run_slack_app)
             slack_thread.start()
+
+
+    @functools.cached_property
+    def db_connector(self):
+        return get_global_db_connector()
+
 
     def add_event(self, event):
         self.events.append(event)
@@ -565,19 +575,23 @@ class SlackBotAdapter(BotOsInputAdapter):
 
         return bot_input_message
 
+
     def _upload_files(self, files: list[str], thread_ts: str, channel: str = None):
+        """
+        Uploads a list of files to Slack and returns their URLs.
+
+        Args:
+            files (list[str]): A list of file paths to be uploaded.
+            thread_ts (str): The timestamp of the thread where the files are to be uploaded.
+            channel (str, optional): The Slack channel ID where the files are to be uploaded. Defaults to None.
+
+        Returns:
+            list: A list of "Slack URLs" for the uploaded files. If no files are provided, returns an empty list.
+        """
         if files:
             file_urls = []
             for file_path in files:
-                #    print(f"Uploading file: {file_path}")
                 try:
-                    #   with open(file_path, 'rb') as file_content:
-                    #  self.slack_app.client.files_upload(
-                    #      channels=channel,
-                    #      thread_ts=thread_ts,
-                    #      file=file_content,
-                    #      filename=os.path.basename(file_path)
-                    #  )
                     new_file = self.slack_app.client.files_upload_v2(
                         title=os.path.basename(file_path),
                         filename=os.path.basename(file_path),
@@ -591,6 +605,7 @@ class SlackBotAdapter(BotOsInputAdapter):
             return file_urls
         else:
             return []
+
 
     def _extract_slack_blocks(self, msg: str) -> list | None:
         extract_pattern = re.compile(r"```(?:json|slack)(.*?)```", re.DOTALL)
@@ -676,7 +691,7 @@ class SlackBotAdapter(BotOsInputAdapter):
         Returns:
             list: A list of unique local file paths extracted from the message.
         """
-        local_paths = []
+        local_paths = set()
 
         # Define patterns and their corresponding local path transformations
         patterns = [
@@ -706,9 +721,8 @@ class SlackBotAdapter(BotOsInputAdapter):
             matches = compiled_pattern.findall(msg)
             for match in matches:
                 local_path = path_transform(match)
-                if local_path not in local_paths: # keep unique . TODO: use ordered set
-                    local_paths.append(local_path)
-        return local_paths
+                local_paths.add(local_path)
+        return sorted(local_paths)
 
 
     def _fix_external_url_markdowns(self, msg) -> str:
@@ -727,6 +741,37 @@ class SlackBotAdapter(BotOsInputAdapter):
         new_msg = re.sub(pattern, r"<\3|\2>", msg)
         return new_msg
 
+
+    def _handle_artifacts_markdown(self, msg: str, message_thread_id: str) -> str:
+        """
+        Locate all markdown in the message of the format [description][artifact:/uuid], donwload thier data into 
+        local sandbox (under downloaded_files/{message_thread_id}/{downloaded file name}) and update the markdown the "sandbox convention" (e.g. 
+        '[description](sandbox:/mnt/data/{filename})'.)
+        
+        Args:
+            msg (str): The message containing artifact markdown links to be transformed.
+            
+        Returns:
+            str: The message with all applicable artifact markdown links converted.
+        """
+        artifact_pattern = re.compile(r'(\[([^\]]+)\]\(artifact:/(' + ARTIFACT_ID_REGEX + r')\))')
+        matches = artifact_pattern.findall(msg)
+
+        af = None
+        for full_match, description, uuid in matches:
+            af = af or get_artifacts_store(self.db_connector)
+            try:
+                # Download the artifact data into a local file
+                local_dir = f"downloaded_files/{message_thread_id}" # follow the conventions used by sandbox URLs.
+                Path(local_dir).mkdir(parents=True, exist_ok=True)
+                downloaded_filename = af.read_artifact(uuid, local_dir)
+            except Exception as e:
+                print(f"{self.__class__.__name__}: Failed to fetch data for artifact {uuid}. Error: {e}")
+            else:
+                # Update the markdown in the message to look like a sandbox URL
+                msg = msg.replace(full_match, f"[{description}](sandbox:/mnt/data/{downloaded_filename})")
+
+        return msg
 
 
     # abstract method from BotOsInputAdapter
@@ -1019,10 +1064,14 @@ class SlackBotAdapter(BotOsInputAdapter):
                 # fix non-Slack-compatible markdown for external URLs
                 msg = self._fix_external_url_markdowns(msg)
 
+                # Locate all artifact markdowns, save those artifacts to the local 'sandbox' and replace with sandbox markdown
+                # so that they will be handled with other local files below.
+                msg = self._handle_artifacts_markdown(msg, message.thread_id)
+
                 # Extract local paths from the msg
                 local_paths = self._extract_local_file_markdowns(msg, message.thread_id)
 
-                files_in = list(set(message.files + local_paths)) # combine with messae.files and remove duplicates
+                files_in = list(set(message.files + local_paths)) # combine with message.files and remove duplicates
 
                 #          print("Uploading files:", files_in)
                 thread_ts = message.input_metadata.get("thread_ts", None)
@@ -1032,33 +1081,26 @@ class SlackBotAdapter(BotOsInputAdapter):
                     channel=message.input_metadata.get("channel", self.channel_id),
                 )
 
-                #          print("Result of files upload:", msg_files)
-                #          print("about to send to slack pre url fixes:", msg)
-
+                # Replace the markdown of the uploaded files with the Slack-compatible markdown for links to the
+                # uploaded files
                 for msg_url in msg_files:
                     # TODO: align the URL subsitution logic with _extract_local_file_markdowns
                     filename = msg_url.split("/")[-1]
                     msg_prime = msg
 
-                    msg = re.sub(
-                        f"(?i)\(sandbox:/mnt/data/{filename}\)", f"<{{msg_url}}>", msg
-                    )
-                    alt_pattern = re.compile(
-                        r"\[(.*?)\]\(\./downloaded_files/thread_(.*?)/(.+?)\)"
-                    )
+                    msg = re.sub(f"(?i)\(sandbox:/mnt/data/{filename}\)", f"<{{msg_url}}>",
+                                 msg)
+                    alt_pattern = re.compile(r"\[(.*?)\]\(\./downloaded_files/thread_(.*?)/(.+?)\)" )
                     msg = re.sub(alt_pattern, f"<{{msg_url}}|\\1>", msg)
+
                     # Catch the pattern with thread ID and replace it with the correct URL
-
-                    thread_file_pattern = re.compile(
-                        r"\[(.*?)\]\(sandbox:/mnt/data/downloaded_files/thread_(.*?)/(.+?)\)"
-                    )
+                    thread_file_pattern = re.compile(r"\[(.*?)\]\(sandbox:/mnt/data/downloaded_files/thread_(.*?)/(.+?)\)")
                     msg = re.sub(thread_file_pattern, f"<{{msg_url}}|\\1>", msg)
-
 
                     msg = msg.replace("{msg_url}", msg_url)
                     msg = msg.replace("[Download ", "[")
                     msg = re.sub(r"!\s*<", "<", msg)
-                    if msg == msg_prime:
+                    if msg == msg_prime: # hans't changed?
                         msg += " {" + msg_url + "}"
 
                 # Reformat the message if it contains a link in brackets followed by a URL in angle brackets

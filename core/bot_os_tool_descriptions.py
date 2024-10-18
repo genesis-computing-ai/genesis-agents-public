@@ -111,7 +111,7 @@ process_runner_functions = [
                         "type": "string",
                         "description": "The body content of the email. "
                                        "When using mime_type='text/plain' you CAN use Slack-compatible markdown syntax. "
-                                       "When using mime_type='text/html' DO NOT use markdown. Use html tags instead.",
+                                       "When using mime_type='text/html' DO NOT use markdown. Use appropriate html tags instead.",
                     },
                     "mime_type": {
                         "type": "string",

@@ -17,27 +17,19 @@ from utils import (
     get_slack_tokens_cached,
     get_metadata,
     get_metadata2,
+    get_artifact,
     submit_to_udf_proxy,
     get_response_from_udf_proxy,
 )
 
 
-# def file_to_html(bot_id, thread_id, file_path):
-#     file_name = os.path.basename(file_path)
-#     file_byte = get_metadata2('|'.join(('sandbox',bot_id, thread_id, file_name)))
-#     if 'png' in file_name or not os.path.splitext(file_path)[1]:
-#         href = f'<img src="data:image/png;base64,{file_byte}" style="max-width: 50%;display: block;">'
-#     else:
-#         href = f'<a href="data:application/octet-stream;base64,{file_byte}" download="{file_name}">{file_name}</a>'
-#     return href
-
-
 def locate_url_markup(txt, replace_with=None):
     """
-    Locate and optionally replace URL markup in a given text.
+    Locate and optionally replace URL or pseudo-URL markup in a given text.
 
     This function searches for patterns in the text that match the url or image markdown format 
-    '[description](url)' or '![description](url)]', where 'url' can be an HTTP, HTTPS, file, or 'sandbox" (internal) URL.
+    '[description](url)' or '![description](url)]', where 'url' can be an HTTP, HTTPS, file, or 'sandbox'/'artifact' pseudo-URLs 
+    (used for speacial-case handling of file rendering).
     It returns a list of triplets containing the description, URL, and the 
     original markup. Optionally, it can replace the found patterns with a specified 
     replacement string.
@@ -49,14 +41,14 @@ def locate_url_markup(txt, replace_with=None):
 
     Returns:
         tuple: A 3-tuple containing 
-               (a) a list of triplets and the modified text.
-                   The triplets are in the form (description, URL, original (full) markup).
-               (b) the input text modified by replacing with 'replace_with' is provided.
-               (c) a boolean flag 'has_partial' indicating if the end of the text 
-                   *may* potentially look like a prefix of an incomplete URL markup
+            (a) a list of triplets and the modified text.
+                The triplets are in the form (description, URL, original (full) markup).
+            (b) the input text modified by replacing with 'replace_with' is provided.
+            (c) a boolean flag 'has_partial' indicating if the end of the text 
+                *may* potentially look like a prefix of an incomplete URL markup
     """
-    pattern = r'(!?\[([^\]]+)\]\(((http[s]?|file|sandbox):/+[^\)]+)\))'  # regex for strings of the form '[description](url)' and '![description](url)'
-                                                                         # TOOD: support other standard URL schemas (use urllib?)
+    pattern = r'(!?\[([^\]]+)\]\(((http[s]?|file|sandbox|artifact):/+[^\)]+)\))'  # regex for strings of the form '[description](url)' and '![description](url)'
+                                                                                  # TOOD: support other standard URL schemas (use urllib?)
     matches = re.findall(pattern, txt)
     triplets = [(match[1], match[2], match[0])
                 for match in matches]
@@ -129,24 +121,9 @@ def chat_page():
                 response = in_resp
                 in_resp = None
             if response != previous_response:
-                #found_partial = False
                 file_markups, response, has_partial = locate_url_markup(response, replace_with="")
-                #full_files = re.findall(r"\n*\[.*\]\(sandbox:/mnt/data(?:/downloads)?/.*?\)", response) if 'sandbox' in response else []
-                #partial_files = re.findall('\n*\[', response)
-                #partial_files = re.findall(r'\n*\[(?![^\]]+\]\([^\)]+\))', response)
-                # if full_files:
-                #     for file in full_files:
-                #         file_path = re.findall('\((.+)\)', file)
-                #         if not file_path:
-                #             found_partial = True
-                #             break
-                #         response = response.replace(file, '')
-                #         st.session_state.stream_files.add(file_path[0])
-                # elif partial_files:
-                #     found_partial = True
-                # if found_partial:
-                #     continue
                 for file_markups in file_markups:
+                    # push any file URLs or pseudo URLs (like 'sandbox', 'artifact' to session. It will be handled later.
                     desc, url, _ = file_markups # locate_url_markup returns triplets
                     st.session_state.stream_files.add(url) # for later rendering
                 if has_partial:
@@ -230,6 +207,17 @@ def chat_page():
                 # special handling for the 'sandbox' URLs which are used for our internal app storage (./downloaded_files)
                 try:
                     file_content64 = get_metadata2('|'.join(('sandbox',bot_id, thread_id, file_path.name)))
+                except:
+                    pass # best effort failed. fallback to a generic link (which is likely broken)
+            elif url_parts.scheme == 'artifact':
+                # special handling for the 'artifact' URLs which are used for our account-global permament artifact storage
+                try:
+                    metadata, file_content64 = get_artifact(file_path.name)
+                    mtype, msubtype = metadata['mime_type'].split("/")
+                    if msubtype in known_img_types:
+                        # Explicit mime type overrides guessed one
+                        image_format = msubtype
+                    # TODO: handle more mime types, not just images. (right now we fallback to a generic href with octet-stream)
                 except:
                     pass # best effort failed. fallback to a generic link (which is likely broken)
             else:

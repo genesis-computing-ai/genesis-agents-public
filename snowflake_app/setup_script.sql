@@ -95,7 +95,7 @@ $$
     serviceRoles:
     - name: GENESISAPP_HARVESTER_SERVICE_ROLE
       endpoints:
-      - udfendpoint          
+      - udfendpoint
 $$)
 ;
 
@@ -127,7 +127,7 @@ $$
     serviceRoles:
     - name: GENESISAPP_KNOWLEDGE_SERVICE_ROLE
       endpoints:
-      - udfendpoint          
+      - udfendpoint
 $$)
 ;
 
@@ -160,7 +160,7 @@ $$
     serviceRoles:
     - name: GENESISAPP_TASK_SERVICE_ROLE
       endpoints:
-      - udfendpoint          
+      - udfendpoint
 $$)
 ;
 
@@ -172,14 +172,14 @@ $$)
   BEGIN
    IF (ARRAY_CONTAINS('CREATE COMPUTE POOL'::VARIANT, privileges)) THEN
     BEGIN
-  
+
       //create compute pool
-      CREATE COMPUTE POOL IF NOT EXISTS GENESIS_POOL 
+      CREATE COMPUTE POOL IF NOT EXISTS GENESIS_POOL
       MIN_NODES=1 MAX_NODES=1 INSTANCE_FAMILY='CPU_X64_S' AUTO_SUSPEND_SECS=3600 INITIALLY_SUSPENDED=FALSE;
 
       GRANT OPERATE ON COMPUTE POOL GENESIS_POOL TO APPLICATION ROLE APP_PUBLIC;
 
-    EXCEPTION 
+    EXCEPTION
       WHEN STATEMENT_ERROR THEN
         RETURN 'ERROR ON GRANT';
     END;
@@ -194,7 +194,7 @@ $$)
       GRANT USAGE, OPERATE ON WAREHOUSE APP_XSMALL TO APPLICATION ROLE APP_PUBLIC;
 
       CALL CORE.INITIALIZE_APP_INSTANCE('APP1','GENESIS_POOL',FALSE,'APP_XSMALL');
-      
+
    END IF;
    RETURN 'DONE';
  END;
@@ -231,7 +231,7 @@ CREATE OR REPLACE PROCEDURE core.get_config_for_ref(ref_name STRING)
     LANGUAGE SQL
     AS
     $$
-    DECLARE 
+    DECLARE
       azure_ep VARCHAR;
     BEGIN
       CASE (ref_name)
@@ -258,7 +258,7 @@ CREATE OR REPLACE PROCEDURE core.get_config_for_ref(ref_name STRING)
 --     LANGUAGE SQL
 --     AS
 -- $$
--- DECLARE 
+-- DECLARE
 --   azure_ep VARCHAR;
 -- BEGIN
 --     IF ref_name = 'CONSUMER_EXTERNAL_ACCESS' THEN
@@ -310,25 +310,27 @@ BEGIN
     IF (:schema_exists) then
 
     REVOKE USAGE ON FUNCTION APP1.deploy_bot(varchar) FROM APPLICATION ROLE APP_PUBLIC;
-    
+
     DROP FUNCTION IF EXISTS APP1.configure_ngrok_token(varchar, varchar, varchar);
-    
+
     REVOKE USAGE ON FUNCTION APP1.configure_slack_app_token(varchar, varchar) FROM APPLICATION ROLE APP_PUBLIC;
-    
+
     REVOKE USAGE ON FUNCTION APP1.configure_llm(varchar, varchar) FROM APPLICATION ROLE APP_PUBLIC;
-    
+
     REVOKE USAGE ON FUNCTION APP1.submit_udf(varchar, varchar, varchar) FROM APPLICATION ROLE APP_PUBLIC;
-    
+
     REVOKE USAGE ON FUNCTION APP1.lookup_udf(varchar, varchar) FROM APPLICATION ROLE APP_PUBLIC;
-    
+
     REVOKE USAGE ON FUNCTION APP1.get_slack_endpoints() FROM APPLICATION ROLE APP_PUBLIC;
-    
+
     REVOKE USAGE ON FUNCTION APP1.list_available_bots() FROM APPLICATION ROLE APP_PUBLIC;
-    
+
     DROP FUNCTION IF EXISTS APP1.get_ngrok_tokens();
-    
+
     REVOKE USAGE ON FUNCTION APP1.get_metadata(varchar) FROM APPLICATION ROLE APP_PUBLIC;
-    
+
+    REVOKE USAGE ON FUNCTION APP1.get_artifact(varchar) FROM APPLICATION ROLE APP_PUBLIC;
+
       LET spec VARCHAR := (
             SELECT REGEXP_REPLACE(VALUE
               ,'{{app_db_sch}}',lower(current_database())||'.'||lower(:INSTANCE_NAME)) AS VALUE
@@ -358,7 +360,7 @@ BEGIN
               'ALTER SERVICE IF EXISTS '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
               ' SET ' ||
               ' QUERY_WAREHOUSE = '||:WH_NAME||
-              ' EXTERNAL_ACCESS_INTEGRATIONS = (GENESIS_EAI)';              
+              ' EXTERNAL_ACCESS_INTEGRATIONS = (GENESIS_EAI)';
           ELSE
             EXECUTE IMMEDIATE
               'ALTER SERVICE IF EXISTS '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
@@ -378,8 +380,8 @@ BEGIN
            'GRANT USAGE ON SERVICE '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||' TO APPLICATION ROLE APP_PUBLIC';
         EXECUTE IMMEDIATE
            'GRANT MONITOR ON SERVICE '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME || ' TO APPLICATION ROLE APP_PUBLIC';
-        EXECUTE IMMEDIATE 
-           'GRANT SERVICE ROLE '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME || '!' || :SERVICE_NAME || '_ROLE TO APPLICATION ROLE APP_PUBLIC';         
+        EXECUTE IMMEDIATE
+           'GRANT SERVICE ROLE '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME || '!' || :SERVICE_NAME || '_ROLE TO APPLICATION ROLE APP_PUBLIC';
 
       IF (UPDATE_HARVEST_METADATA) THEN
         -- Check if the APP1.HARVEST_RESULTS table exists and then delete specific rows from harvest_data
@@ -456,9 +458,9 @@ BEGIN
 
 --           EXECUTE IMMEDIATE 'DELETE FROM APP1.HARVEST_RESULTS WHERE DATABASE_NAME = ''' || :APP_NAME || ''' AND SCHEMA_NAME IN (''BASEBALL'', ''FORMULA_1'')';
 --           EXECUTE IMMEDIATE 'INSERT INTO APP1.HARVEST_RESULTS (SOURCE_NAME, QUALIFIED_TABLE_NAME, DATABASE_NAME, MEMORY_UUID, SCHEMA_NAME, TABLE_NAME, COMPLETE_DESCRIPTION, DDL, DDL_SHORT, DDL_HASH, SUMMARY, SAMPLE_DATA_TEXT, LAST_CRAWLED_TIMESTAMP, CRAWL_STATUS, ROLE_USED_FOR_CRAWL)
---                               SELECT SOURCE_NAME, replace(QUALIFIED_TABLE_NAME,''APP_NAME'',''' || :APP_NAME || ''') QUALIFIED_TABLE_NAME, ''' || :APP_NAME || ''' DATABASE_NAME, MEMORY_UUID, SCHEMA_NAME, TABLE_NAME, REPLACE(COMPLETE_DESCRIPTION,''APP_NAME'',''' || :APP_NAME || ''') COMPLETE_DESCRIPTION, REPLACE(DDL,''APP_NAME'',''' || :APP_NAME || ''') DDL, REPLACE(DDL_SHORT,''APP_NAME'',''' || :APP_NAME || ''') DDL_SHORT, ''SHARED_VIEW'' DDL_HASH, REPLACE(SUMMARY,''APP_NAME'',''' || :APP_NAME || ''') SUMMARY, SAMPLE_DATA_TEXT, LAST_CRAWLED_TIMESTAMP, CRAWL_STATUS, ROLE_USED_FOR_CRAWL 
+--                               SELECT SOURCE_NAME, replace(QUALIFIED_TABLE_NAME,''APP_NAME'',''' || :APP_NAME || ''') QUALIFIED_TABLE_NAME, ''' || :APP_NAME || ''' DATABASE_NAME, MEMORY_UUID, SCHEMA_NAME, TABLE_NAME, REPLACE(COMPLETE_DESCRIPTION,''APP_NAME'',''' || :APP_NAME || ''') COMPLETE_DESCRIPTION, REPLACE(DDL,''APP_NAME'',''' || :APP_NAME || ''') DDL, REPLACE(DDL_SHORT,''APP_NAME'',''' || :APP_NAME || ''') DDL_SHORT, ''SHARED_VIEW'' DDL_HASH, REPLACE(SUMMARY,''APP_NAME'',''' || :APP_NAME || ''') SUMMARY, SAMPLE_DATA_TEXT, LAST_CRAWLED_TIMESTAMP, CRAWL_STATUS, ROLE_USED_FOR_CRAWL
 --  FROM SHARED_HARVEST.HARVEST_RESULTS WHERE DATABASE_NAME = ''APP_NAME'' AND SCHEMA_NAME IN (''BASEBALL'', ''FORMULA_1'')';
-        END IF;      
+        END IF;
       END IF;
     END IF;
 
@@ -500,7 +502,7 @@ BEGIN
    CLOSE c1;
    wait := wait + 1;
    SELECT SYSTEM$WAIT(1);
- UNTIL ((service_status = 'READY') OR (service_status = 'FAILED' ) OR ((:max_wait-wait) <= 0))          
+ UNTIL ((service_status = 'READY') OR (service_status = 'FAILED' ) OR ((:max_wait-wait) <= 0))
  END REPEAT;
  IF (service_status != 'READY') THEN
    RAISE SERVICE_START_EXCEPTION;
@@ -551,17 +553,17 @@ $$
    'GRANT USAGE ON SERVICE '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||' TO APPLICATION ROLE APP_PUBLIC';
  EXECUTE IMMEDIATE
    'GRANT MONITOR ON SERVICE '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME || ' TO APPLICATION ROLE APP_PUBLIC';
- EXECUTE IMMEDIATE 
+ EXECUTE IMMEDIATE
    'GRANT SERVICE ROLE '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME || '!' || :SERVICE_NAME || '_ROLE TO APPLICATION ROLE APP_PUBLIC';
-  
+
  EXECUTE IMMEDIATE
    'CREATE or replace FUNCTION '|| :INSTANCE_NAME ||'.submit_udf (INPUT_TEXT VARCHAR, THREAD_ID VARCHAR, BOT_ID VARCHAR)  RETURNS varchar SERVICE='|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||' ENDPOINT=udfendpoint AS '||chr(39)||'/udf_proxy/submit_udf'||chr(39);
 
-  
+
  EXECUTE IMMEDIATE
    'CREATE or replace FUNCTION '|| :INSTANCE_NAME ||'.lookup_udf (UU VARCHAR, BOT_ID VARCHAR)  RETURNS varchar SERVICE='|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||' ENDPOINT=udfendpoint AS '||chr(39)||'/udf_proxy/lookup_udf'||chr(39);
 
-  
+
  EXECUTE IMMEDIATE
    'CREATE or replace FUNCTION '|| :INSTANCE_NAME ||'.get_slack_endpoints ()  RETURNS varchar SERVICE='|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||' ENDPOINT=udfendpoint AS '||chr(39)||'/udf_proxy/get_slack_tokens'||chr(39);
 
@@ -574,7 +576,11 @@ $$
 
  EXECUTE IMMEDIATE
    'CREATE or replace FUNCTION '|| :INSTANCE_NAME ||'.get_metadata (metadata_type varchar)  RETURNS varchar SERVICE='|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||' ENDPOINT=udfendpoint AS '||chr(39)||'/udf_proxy/get_metadata'||chr(39);
- 
+
+ EXECUTE IMMEDIATE
+   'CREATE or replace FUNCTION '|| :INSTANCE_NAME ||'.get_artifact (artifact_id varchar)  RETURNS varchar SERVICE='|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||' ENDPOINT=udfendpoint AS '||chr(39)||'/udf_proxy/get_artifact'||chr(39);
+
+
  EXECUTE IMMEDIATE
    'CREATE or replace FUNCTION '|| :INSTANCE_NAME ||'.configure_llm (llm_type varchar, api_key varchar)  RETURNS varchar SERVICE='|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||' ENDPOINT=udfendpoint AS '||chr(39)||'/udf_proxy/configure_llm'||chr(39);
 
@@ -586,11 +592,11 @@ $$
 
      EXECUTE IMMEDIATE
    'CREATE or replace FUNCTION '|| :INSTANCE_NAME ||'.deploy_bot (bot_id varchar)  RETURNS varchar SERVICE='|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||' ENDPOINT=udfendpoint AS '||chr(39)||'/udf_proxy/deploy_bot'||chr(39);
-  
+
 -- EXECUTE IMMEDIATE
 --   'GRANT USAGE ON FUNCTION '|| :INSTANCE_NAME ||'.deploy_bot ( varchar )  TO APPLICATION ROLE APP_PUBLIC';
 
- 
+
 --EXECUTE IMMEDIATE
 --   'GRANT USAGE ON FUNCTION '|| :INSTANCE_NAME ||'.configure_ngrok_token ( varchar, varchar, varchar)  TO APPLICATION ROLE APP_PUBLIC';
 
@@ -662,7 +668,7 @@ $$
    'GRANT USAGE ON SERVICE '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||' TO APPLICATION ROLE APP_PUBLIC';
  EXECUTE IMMEDIATE
    'GRANT MONITOR ON SERVICE '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME || ' TO APPLICATION ROLE APP_PUBLIC';
- EXECUTE IMMEDIATE 
+ EXECUTE IMMEDIATE
    'GRANT SERVICE ROLE '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME || '!' || :SERVICE_NAME || '_ROLE TO APPLICATION ROLE APP_PUBLIC';
 
  RETURN 'service created';
@@ -712,7 +718,7 @@ $$
    'GRANT USAGE ON SERVICE '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||' TO APPLICATION ROLE APP_PUBLIC';
  EXECUTE IMMEDIATE
    'GRANT MONITOR ON SERVICE '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME || ' TO APPLICATION ROLE APP_PUBLIC';
- EXECUTE IMMEDIATE 
+ EXECUTE IMMEDIATE
    'GRANT SERVICE ROLE '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME || '!' || :SERVICE_NAME || '_ROLE TO APPLICATION ROLE APP_PUBLIC';
 
  RETURN 'service created';
@@ -762,7 +768,7 @@ $$
    'GRANT USAGE ON SERVICE '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||' TO APPLICATION ROLE APP_PUBLIC';
  EXECUTE IMMEDIATE
    'GRANT MONITOR ON SERVICE '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME || ' TO APPLICATION ROLE APP_PUBLIC';
- EXECUTE IMMEDIATE 
+ EXECUTE IMMEDIATE
    'GRANT SERVICE ROLE '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME || '!' || :SERVICE_NAME || '_ROLE TO APPLICATION ROLE APP_PUBLIC';
 
  RETURN 'service created';
@@ -785,7 +791,7 @@ BEGIN
 
   EXECUTE IMMEDIATE 'CREATE SCHEMA '||:INSTANCE_NAME;
   EXECUTE IMMEDIATE 'GRANT USAGE ON SCHEMA '||:INSTANCE_NAME||' TO APPLICATION ROLE APP_PUBLIC';
- 
+
   EXECUTE IMMEDIATE 'CREATE STAGE IF NOT EXISTS '||:INSTANCE_NAME||'.'||'WORKSPACE DIRECTORY = ( ENABLE = true ) ENCRYPTION = (TYPE = '||CHR(39)||'SNOWFLAKE_SSE'||chr(39)||')';
   EXECUTE IMMEDIATE 'GRANT READ ON STAGE '||:INSTANCE_NAME||'.'||'WORKSPACE TO APPLICATION ROLE APP_PUBLIC';
 
@@ -794,9 +800,9 @@ BEGIN
   CALL APP.CREATE_KNOWLEDGE_SERVICE(:INSTANCE_NAME,'GENESISAPP_KNOWLEDGE_SERVICE',:POOL_NAME, :EAI, :WAREHOUSE_NAME, :v_current_database);
   CALL APP.CREATE_TASK_SERVICE(:INSTANCE_NAME,'GENESISAPP_TASK_SERVICE',:POOL_NAME, :EAI, :WAREHOUSE_NAME, :v_current_database);
   CALL APP.WAIT_FOR_STARTUP(:INSTANCE_NAME,'GENESISAPP_SERVICE_SERVICE',600);
-  
+
   RETURN :v_current_database||'.'||:INSTANCE_NAME||'.GENESISAPP_SERVICE_SERVICE';
-  
+
 END
 $$
 ;
@@ -813,10 +819,10 @@ BEGIN
   CREATE OR REPLACE TABLE APP1.DEFAULT_EMAIL (
     DEFAULT_EMAIL VARCHAR
   );
-  
+
   INSERT INTO APP1.DEFAULT_EMAIL (DEFAULT_EMAIL)
   VALUES (:default_email);
-  
+
   RETURN 'Default email set successfully to '||:default_email;
 END;
 $$
@@ -840,7 +846,7 @@ BEGIN
    EXECUTE IMMEDIATE 'INSERT INTO '||:INSTANCE_NAME||'.ENDPOINT SELECT "name","port","protocol","ingress_enabled","ingress_url" FROM TABLE(RESULT_SCAN(LAST_QUERY_ID()))';
  END FOR;
  LET RS3 RESULTSET := (EXECUTE IMMEDIATE 'SELECT name, port, protocol, ingress_enabled, ingress_url FROM '||:INSTANCE_NAME||'.ENDPOINT');
- RETURN TABLE(RS3); 
+ RETURN TABLE(RS3);
 END;
 $$
 ;
@@ -930,7 +936,7 @@ BEGIN
  LET c1 CURSOR FOR RS1;
  FOR rec IN c1 DO
    EXECUTE IMMEDIATE 'ALTER SERVICE IF EXISTS '||rec.schema_name||'.'||rec.service_name||' suspend';
-   SELECT SYSTEM$WAIT(5);   
+   SELECT SYSTEM$WAIT(5);
    EXECUTE IMMEDIATE 'ALTER SERVICE IF EXISTS '||rec.schema_name||'.'||rec.service_name||' resume';
    EXECUTE IMMEDIATE 'CALL APP.WAIT_FOR_STARTUP(\''||rec.schema_name||'\',\''||rec.service_name||'\',300)';
  END FOR;
@@ -956,9 +962,9 @@ BEGIN
   CALL APP.CREATE_KNOWLEDGE_SERVICE(:INSTANCE_NAME,'GENESISAPP_KNOWLEDGE_SERVICE',:POOL_NAME, :EAI, :APP_WAREHOUSE, :v_current_database);
   CALL APP.CREATE_TASK_SERVICE(:INSTANCE_NAME,'GENESISAPP_TASK_SERVICE',:POOL_NAME, :EAI, :APP_WAREHOUSE, :v_current_database);
   CALL APP.WAIT_FOR_STARTUP(:INSTANCE_NAME,'GENESISAPP_SERVICE_SERVICE',600);
-  
+
   RETURN :v_current_database||'.'||:INSTANCE_NAME||'.GENESISAPP_SERVICE_SERVICE';
-  
+
 END
 $$
 ;
@@ -983,9 +989,9 @@ DECLARE
 BEGIN
     -- Show warehouses and set the warehouse name
     LET RS RESULTSET := (EXECUTE IMMEDIATE 'SHOW WAREHOUSES');
-    SELECT "name" INTO :WAREHOUSE_NAME 
-    FROM TABLE(RESULT_SCAN(LAST_QUERY_ID())) 
-    WHERE "name" NOT IN ('SYSTEM$STREAMLIT_NOTEBOOK_WH','APP_XSMALL') 
+    SELECT "name" INTO :WAREHOUSE_NAME
+    FROM TABLE(RESULT_SCAN(LAST_QUERY_ID()))
+    WHERE "name" NOT IN ('SYSTEM$STREAMLIT_NOTEBOOK_WH','APP_XSMALL')
     LIMIT 1;
 
     -- Upgrade services
@@ -1010,7 +1016,7 @@ AS
 $$
 BEGIN
  EXECUTE IMMEDIATE 'SELECT SYSTEM$CREATE_BILLING_EVENT(\'TEST_BILL_EVENT\',\'\',CURRENT_TIMESTAMP(),CURRENT_TIMESTAMP(),10,\'\',\'\')';
- RETURN 'BILLED'; 
+ RETURN 'BILLED';
 END;
 $$
 ;
@@ -1035,10 +1041,10 @@ BEGIN
    EXECUTE IMMEDIATE 'INSERT INTO '||:INSTANCE_NAME||'.CONTAINER '||
                      '  SELECT \''||rec.schema_name||'.'||rec.service_name||'\'::varchar service_name'||
                      '         , value:containerName::varchar container_name, value:status::varchar status, value:message::varchar message '||
-                     '  FROM TABLE(FLATTEN(PARSE_JSON(SYSTEM$GET_SERVICE_STATUS(\''||rec.schema_name||'.'||rec.service_name||'\'))))'; 
+                     '  FROM TABLE(FLATTEN(PARSE_JSON(SYSTEM$GET_SERVICE_STATUS(\''||rec.schema_name||'.'||rec.service_name||'\'))))';
  END FOR;
  LET RS3 RESULTSET := (EXECUTE IMMEDIATE 'SELECT service_name, container_name, status, message FROM '||:INSTANCE_NAME||'.CONTAINER');
- RETURN TABLE(RS3); 
+ RETURN TABLE(RS3);
 END;
 $$
 ;
@@ -1060,7 +1066,7 @@ END;
 $$
 ;
 GRANT USAGE ON PROCEDURE CORE.GET_POOLS() TO APPLICATION ROLE APP_PUBLIC;
- 
+
 
 GRANT USAGE ON STREAMLIT CORE.GENESIS TO APPLICATION ROLE app_public;
 
@@ -1072,10 +1078,10 @@ AS
 $$
     // Prepare a statement using the provided SQL query
     var statement = snowflake.createStatement({sqlText: SQL_QUERY});
-    
+
     // Execute the statement
     var result_set = statement.execute();
-    
+
     // Initialize an array to hold each row's data
     var rows = [];
     
@@ -1083,13 +1089,13 @@ $$
     while (result_set.next()) {
         // Initialize an object to store the current row's data
         var row = {};
-        
+
         // Iterate over each column in the current row
         for (var colIdx = 1; colIdx <= result_set.getColumnCount(); colIdx++) {
             // Get the column name and value
             var columnName = result_set.getColumnName(colIdx);
             var columnValue = result_set.getColumnValue(colIdx);
-            
+
             // Add the column name and value to the current row's object
             row[columnName] = columnValue;
         }
@@ -1097,17 +1103,17 @@ $$
         // Add the current row's object to the rows array
         rows.push(row);
     }
-    
+
     // Convert the rows array to a JSON string
     var jsonResult = JSON.stringify(rows);
-    
+
     // Return the JSON string
     // Note: Snowflake automatically converts the returned string to a VARIANT (JSON) data type
     return JSON.parse(jsonResult);
 $$;
 
 GRANT USAGE ON PROCEDURE CORE.RUN_ARBITRARY(VARCHAR) TO APPLICATION ROLE app_public;
- 
+
 
 CREATE OR REPLACE PROCEDURE CORE.CREATE_MISSING_GRANT_VIEWS(INSTANCE_NAME STRING, APP_NAME STRING)
 RETURNS STRING
@@ -1171,7 +1177,7 @@ LANGUAGE SQL
 AS
 $$
     -- Execute the function to check if application sharing events are being shared with the provider
-    DECLARE 
+    DECLARE
       sharing_status STRING;
     BEGIN
       SELECT SYSTEM$IS_APPLICATION_SHARING_EVENTS_WITH_PROVIDER() INTO sharing_status;

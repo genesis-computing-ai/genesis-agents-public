@@ -1,30 +1,17 @@
+"""
+bot_os_artifacts.py
 
-# Notes:
-# -------
-# how I imagine a 'genertate an email with a chart' to work:
-# * The bot procces to follow would look something like:
-#    1) In current Snowflake account, run a SQL query to get the number of queries run daily in the last 10 days.
-#    2) Using snowpark python, run  a python code to run the query above and build a timeseries chart from the result plotting the
-#       query count against dates
-#    3) Send me an email linking to the chart explaining what the chart is showing.
-#
-# * first, the bot needs to figure out the SQL query
-# * then the bot will use the tool run_python_code (make sure it runs in snowpark not by the openai code tool!) to generte the image.
-# * we will need to teach it to store the output as an artifact (with an ID) and not to 'downloaded files'.
-# * Then, in order to wrap in an an HTML, the bot should get the external URL of that artifact, and use it in an <img> tag.
-#
-#   * Future: python codes can be 'artifacts' themsleves (with metadata describing entrypoints, test, etc) and can be executed later by a generic sproc
-#   * the execution of the code creates another artifact - an image artifact. This 'competes' witht the Notebook mechanism whcih is also meant to
-#     be used for stroign python, SQL, etc.
-#   * ?? can we wrap the 'generate chart' workflow as its own tool and teach the bot about it?
-#   * ?? Use the 'action' API as a wrapper over CRUD? seems to work better for Cortex? See example in ToolBelt.manage_notebook and notebook_manager_functions
-# Resources:
-#   Staging and URL access: https://docs.snowflake.com/en/user-guide/unstructured-intro
-#
+This module provides an interface for managing artifacts and their metadata within a Snowflake environment. 
+It defines an abstract base class `ArtifactsStoreBase` for CRUD operations on artifacts, and a concrete 
+implementation `SnowflakeStageArtifactsStore` that utilizes Snowflake stages for storage.
 
-# TODO next: (2024-10-02): debug the CRUD code. I never tested it. Try to load a test file from ./downloaded_files/*.png to the stage.
-#            Stick some code that tests it during the last stages of the initialization
+Key Features:
+    - Create, read, and list artifacts with associated metadata.
+    - Store artifacts in Snowflake stages with optional encryption.
+    - Generate signed URLs for secure access to artifacts.
+    - Ensure storage existence and manage stage creation or replacement.
 
+"""
 
 from typing import Any, Dict, List, Optional, Union, IO
 import os
@@ -39,68 +26,26 @@ import shutil
 import tempfile
 import functools
 
-
-# class ArtifactMetadata:
-#     def __init__(self,
-#                  mime_type: str,
-#                  friendly_name: Optional[str] = None,
-#                  description: Optional[str] = None,
-#                  tags: Optional[List[str]] = None):
-#         self._mime_type = mime_type
-#         self._friendly_name = friendly_name
-#         self._description = description
-#         self._tags = tags
-
-#     def to_dict(self) -> Dict[str, Any]:
-#         return {
-#             "mime_type": self._mime_type,
-#             "friendly_name": self._friendly_name,
-#             "description": self._description,
-#             "tags": self._tags
-#         }
-
-#     @classmethod
-#     def from_dict(cls, data: Dict[str, Any]) -> 'ArtifactMetadata':
-#         # TODO: validate input
-#         return cls(
-#             mime_type=data.get("mime_type"),
-#             friendly_name=data.get("friendly_name"),
-#             description=data.get("description"),
-#             tags=data.get("tags")
-#         )
-
-#     def to_json(self) -> str:
-#         return json.dumps(self.to_dict())
-
-#     @classmethod
-#     def from_json(cls, json_str: str) -> 'ArtifactMetadata':
-#         data = json.loads(json_str)
-#         return cls.from_dict(data)
-
-
-#     def __repr__(self) -> str:
-#         return f"{self.__class__.__name__}({json.dumps(self.to_dict(), indent=4)})"
-
+ARTIFACT_ID_REGEX = r'[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}' # regrex for matching a valid artifact UUID
 
 class ArtifactsStoreBase(ABC):
     '''
-    Provides a CRUD interface for artifacts and their metadata
+    Provides a Create+read interface for artifacts and their metadata
     '''
 
+    METADATA_IN_REQUIRED_FIELDS = {'mime_type'}
+    METADATA_OUT_EXPECTED_FIELDS = METADATA_IN_REQUIRED_FIELDS | {'basename', 'orig_path'}
+
     def create_artifact(self, content: Any, metadata: dict) -> str:
-        """
-        Create an artifact by uploading content to the artifact store and associating it with metadata.
-
-        Args:
-            content (Any): The content to be uploaded as an artifact. Can be a string or a file-like object.
-            metadata (dict-like): Metadata associated with the artifact, including name, description, and tags.
-
-        Returns:
-            str: A unique identifier for the created artifact.
-        """
         raise NotImplementedError("This is a pure abstract method and must be implemented by subclasses.")
 
-    def read_artifact(self, artifact_id: str) -> bytes:
+    def read_artifact(self, artifact_id: str, local_out_dir: str) -> str:
+        raise NotImplementedError("This is a pure abstract method and must be implemented by subclasses.")
+
+    def list_artifacts(self) -> List[Dict[str, Any]]:
+        raise NotImplementedError("This is a pure abstract method and must be implemented by subclasses.")
+
+    def create_artifact(self, content: Any, metadata: dict) -> str:
         raise NotImplementedError("This is a pure abstract method and must be implemented by subclasses.")
 
     def list_artifacts(self) -> List[Dict[str, Any]]:
@@ -139,7 +84,7 @@ class SnowflakeStageArtifactsStore(ArtifactsStoreBase):
     @functools.lru_cache(maxsize=1)
     def _get_metadata_named_format(self) -> str:
         """
-        Returns the name of a the file format for the metadata files (which are JSON files).
+        Returns the name of a the file format used in the internal Storage for the metadata files (which are JSON files).
         This method is memoized to ensure the file format is created only once per session.
 
         Returns:
@@ -235,8 +180,8 @@ class SnowflakeStageArtifactsStore(ArtifactsStoreBase):
             PermissionError: If the file cannot be read due to permission issues.
         """
         # Validate input
-        if 'mime_type' not in metadata:
-            raise ValueError("Metadata must contain a 'mime_type' key.")
+        if not self.METADATA_IN_REQUIRED_FIELDS.issubset(metadata.keys()):
+            raise ValueError(f"Missing keys in metadata: {self.METADATA_IN_REQUIRED_FIELDS - metadata.keys()}")
 
         # Check read permission on the file path
         file_path = Path(file_path)
@@ -244,6 +189,9 @@ class SnowflakeStageArtifactsStore(ArtifactsStoreBase):
             raise PermissionError(f"Read permission denied for file: {file_path}")
 
         # Create a unique filename using uuid4. Retain original suffix if exists.
+        # Having a meaningful suffix is reduntant since we have the mime type in the metadaa
+        # but having it helps with human maintenance (we know what the file contains) and
+        # allows us to guess the content type without fetching the metadata (for performance reasons)
         artifact_id = str(uuid4())
         file_extension = file_path.suffix
         target_filename = self._make_artifact_filename(artifact_id, file_path)
@@ -293,7 +241,7 @@ class SnowflakeStageArtifactsStore(ArtifactsStoreBase):
         which will later be presented to the user as part of the metadata.
 
         :param content: The content to be stored as an artifact.
-        :param metadata: A dictionary containing metadata for the artifact. Must include 'mine_type' key.
+        :param metadata: A dictionary containing metadata for the artifact. Must include 'mime_type' key.
         :param content_filename: The name to assign to the content, used as
                                  a file name in the metadata.
         :return: The unique identifier for the created artifact.
@@ -318,7 +266,21 @@ class SnowflakeStageArtifactsStore(ArtifactsStoreBase):
         return artifact_id
 
 
+    @functools.lru_cache(maxsize=100)
     def get_artifact_metadata(self, artifact_id) -> dict:
+        """
+        Retrieve the metadata for a given artifact as a dict
+
+        Args:
+            artifact_id: The unique identifier for the artifact whose metadata is to be retrieved.
+
+        Returns:
+            A dictionary containing the metadata of the artifact.
+            See METADATA_OUT_EXPECTED_FIELDS for a list of minimum expected fields.
+
+        Raises:
+            ValueError: If the metadata for this artifact_is is not found.
+        """
         if artifact_id is None:
             raise ValueError("artifact_id cannot be None")
 
@@ -335,6 +297,18 @@ class SnowflakeStageArtifactsStore(ArtifactsStoreBase):
 
 
     def get_signed_url_for_artifact(self, artifact_id):
+        """
+        Generate a signed URL for accessing an artifact from an external system. 
+
+        Args:
+            artifact_id: The unique identifier for the artifact.
+
+        Returns:
+            A signed URL string for accessing the artifact.
+
+        Raises:
+            ValueError: If the metadata from this artifac cannot be found or we failed to generate the signed URL.
+        """
         metadata = self.get_artifact_metadata(artifact_id)
         basename = metadata.get('basename')
         if not basename:
@@ -350,9 +324,45 @@ class SnowflakeStageArtifactsStore(ArtifactsStoreBase):
             return row[0]
 
 
-    def read_artifact(self, artifact_id: str) -> bytes:
-        pass
+    def read_artifact(self, artifact_id: str, local_out_dir) -> str:
+        """
+        Retrieve an artifact from the Snowflake stage and save it to a local directory.
+
+        Args:
+            artifact_id (str): The unique identifier for the artifact to be retrieved.
+            local_out_dir (str): The local directory path where the artifact will be saved.
+
+        Returns:
+            str: The basename of the file within the given sirectory.
+
+        Raises:
+            ValueError: If the artifact_id is None, or if the metadata is corrupted or missing.
+        """
+        if artifact_id is None:
+            raise ValueError("artifact_id cannot be None")
+
+        metadata = self.get_artifact_metadata(artifact_id)
+        basename = metadata.get('basename')
+        if not basename:
+            raise ValueError(f"Corrupted metadata for {artifact_id}. Missing basename attribute")
+        sql = f"GET @{self._stage_qualified_name}/{basename} file://{local_out_dir}"
+
+        # Execute the GET command
+        with self._get_sql_cursor() as cursor:
+            cursor.execute(sql)
+            row = cursor.fetchone()
+            if not row:
+                raise ValueError(f"Failed to retrieve artifact {artifact_id}")
+            return row[0]
 
 
     def list_artifacts(self) -> List[Dict[str, Any]]:
-        pass
+        raise NotImplementedError()
+
+
+def get_artifacts_store(db_adapter):
+    from connectors import SnowflakeConnector # avoid circular imports
+    if isinstance(db_adapter, SnowflakeConnector):
+        return SnowflakeStageArtifactsStore(db_adapter)
+    else:
+        raise NotImplementedError(f"No artifacts store is implemented for {db_adapter}")

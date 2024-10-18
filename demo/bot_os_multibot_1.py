@@ -5,6 +5,9 @@
 import json
 import os
 import requests, time
+import tempfile
+import base64
+from pathlib import Path
 from flask import Flask, request, jsonify, make_response
 from core.bot_os_tools import ToolBelt
 from core.bot_os import BotOsSession
@@ -19,6 +22,7 @@ from core.bot_os_input import BotOsInputMessage
 from core.bot_os_llm import LLMKeyHandler
 from core.bot_os_memory import BotOsKnowledgeAnnoy_Metadata
 from core.bot_os_server import BotOsServer
+from core.bot_os_artifacts import get_artifacts_store
 from apscheduler.schedulers.background import BackgroundScheduler
 from connectors import get_global_db_connector
 from embed.embed_openbb import openbb_query
@@ -44,8 +48,6 @@ from bot_genesis.make_baby_bot import (
     test_slack_config_token,
 )
 from auto_ngrok.auto_ngrok import launch_ngrok_and_update_bots
-from streamlit_gui.udf_proxy_bot_os_adapter import UDFBotOsInputAdapter
-# from llm_reka.bot_os_reka import BotOsAssistantReka
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 from apscheduler.executors.pool import ThreadPoolExecutor
@@ -53,6 +55,7 @@ import threading
 from core.system_variables import SystemVariables
 
 from demo.sessions_creator import create_sessions, make_session
+
 
 # for Cortex testing
 #os.environ['SIMPLE_MODE'] = 'true'
@@ -73,8 +76,6 @@ import core.global_flags as global_flags
 # import pdb_attach
 # pdb_attach.listen(5679)  # Listen on port 5678.
 # $ python -m pdb_attach <PID> 5678
-
-
 
 print("****** GENBOT VERSION 0.202-DEV*******")
 
@@ -221,7 +222,6 @@ app = Flask(__name__)
 # def submit_fn():
 #    return udf_adapter.submit_fn()
 
-
 @app.get("/healthcheck")
 def readiness_probe():
     return "I'm ready!"
@@ -352,8 +352,6 @@ def list_available_bots_fn():
     return response
 
 
-import base64
-from pathlib import Path
 def file_to_bytes(file_path):
     print('inside file_path')
     file_bytes = Path(file_path).read_bytes()
@@ -424,6 +422,17 @@ def get_metadata():
             except Exception as e:
                 print('****get_metadata, thread_id_out exception ',e)
                 result = {"Success": False, "Error": e}
+        elif metadata_type.lower().startswith("artifact"):
+            parts = metadata_type.split('|')
+            if len(parts) != 2:
+                raise ValueError(f"Invalid params for artifact metadata: expected 'artifact|<artifact_id>', got {metadata_type}")
+            _, artifact_id = parts
+            af = get_artifacts_store(db_adapter)
+            try:
+                m = af.get_artifact_metadata()
+                result = {"Success": True, "Metadata": m}
+            except Excpetion as e:
+                result = {"Success": False, "Error": e}
         else:
             raise ValueError(
                 "Invalid metadata_type provided. Expected 'harvest_control' or 'harvest_summary' or 'available_databases'."
@@ -442,6 +451,52 @@ def get_metadata():
     response.headers["Content-type"] = "application/json"
     logger.debug(f"Sending response: {response.json}")
     return response
+
+
+@app.route("/udf_proxy/get_artifact", methods=["POST"])
+def get_artifact_data():
+    """
+    Endpoint to retrieve artifact data and metadata.
+
+    It expects a JSON payload containing an 'artifact_id'. The function retrieves
+    the metadata and data of the specified artifact from the SnowflakeStageArtifactsStore.
+
+    Returns:
+        JSON response containing:
+        - Success: A boolean indicating the success of the operation.
+        - Metadata: The metadata of the artifact if successful.
+        - Data: The base64-encoded data of the artifact if successful.
+        - [Message]: An error message if the operation fails.
+    """
+    try:
+        message = request.json
+        artifact_id = message.get("artifact_id")
+        if not artifact_id:
+            return jsonify({"Success": False, "Message": "Missing 'artifact_id' parameter."}), 400
+
+        af = get_artifacts_store(db_adapter)
+        # Retrieve artifact metadata
+        metadata = af.get_artifact_metadata(artifact_id)
+        # Retrieve artifact data into a temporary file and encode it with base64
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            downloaded_filename = af.read_artifact(artifact_id, tmp_dir)
+            with open(Path(tmp_dir)/downloaded_filename, 'rb') as inp:
+                artifact_data = base64.b64encode(inp.read()).decode('utf-8')
+
+        response = {
+            "Success": True,
+            "Metadata": metadata,
+            "Data": artifact_data
+        }
+
+    except Exception as e:
+        response = {
+            "Success": False,
+            "Message": f"An error occurred while retrieving artifact data: {str(e)}"
+        }
+
+    return jsonify(response)
+
 
 
 @app.route("/udf_proxy/get_slack_tokens", methods=["POST"])

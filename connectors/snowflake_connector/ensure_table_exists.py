@@ -89,7 +89,7 @@ def one_time_db_fixes(self):
 
 def ensure_table_exists(self):
     import core.bot_os_tool_descriptions
-    from core.bot_os_artifacts import SnowflakeStageArtifactsStore
+    from core.bot_os_artifacts import get_artifacts_store
 
     # Maintain bots_active table
     # Get the current timestamp
@@ -1403,9 +1403,8 @@ def ensure_table_exists(self):
             f"An error occurred while checking or creating table {metadata_table_id}: {e}"
         )
 
-
     # Ensure the Artifact storage exist.
-    af = SnowflakeStageArtifactsStore(self)
+    af = get_artifacts_store(self)
     created = af.create_storage_if_needed()
     if created:
         print(f"Artifact storage @{af.stage_qualified_name} created")

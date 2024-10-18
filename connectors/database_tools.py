@@ -165,11 +165,10 @@ database_tool_functions = [
                     "save_artifacts": {
                         "type": "boolean",
                         "description": "A flag determining whether to save any output from the executed python code (encoded as a base64 string) as an 'artifact'. "
-                                       "When this flag is set, the result will contain a Snowflake-signed URL to access the file from a web browser. "
-                                       "The result will also contain a permanent `artifact_id` that can be used to by the user and you to refer to this output at a later point. "
+                                       "When this flag is set, the result will contain a UUID called 'artifact_id' for referencing the output in the future. "
+                                            # TODO: clarify that fetching artifacts is possible with a new tool when it is ready
                                        "When this flag is not set, any output from the python code will be saved to a local file and the result will contain a path to that file. "
                                        "This local file should not be considered accessible by outside systems. "
-                                       "Set this flag to true by default, unless you are generating an ephemeral or temporary result"
                     },
                 },
                 "required": ["code", "purpose"],

@@ -6,6 +6,8 @@ import datetime
 import pandas as pd
 import requests
 
+LOCAL_SERVER_URL = "http://127.0.0.1:8080/"
+
 def get_session():
 
     if st.session_state.NativeMode:
@@ -45,7 +47,7 @@ def provide_slack_level_key(bot_id=None, slack_app_level_key=None):
         response = json.loads(data[0][0])
         return response
     else:
-        url = "http://127.0.0.1:8080/udf_proxy/set_bot_app_level_key"
+        url = LOCAL_SERVER_URL + "udf_proxy/set_bot_app_level_key"
         headers = {"Content-Type": "application/json"}
         data = json.dumps({"data": [[0, bot_id, slack_app_level_key]]})
         response = requests.post(url, headers=headers, data=data)
@@ -71,7 +73,7 @@ def get_slack_tokens():
         response = json.loads(data[0][0])
         return response
     else:
-        url = "http://127.0.0.1:8080/udf_proxy/get_slack_tokens"
+        url = LOCAL_SERVER_URL + "udf_proxy/get_slack_tokens"
         headers = {"Content-Type": "application/json"}
         data = json.dumps({"data": [[0]]})
         response = requests.post(url, headers=headers, data=data)
@@ -89,7 +91,7 @@ def get_ngrok_tokens():
         response = json.loads(data[0][0])
         return response
     else:
-        url = "http://127.0.0.1:8080/udf_proxy/get_ngrok_tokens"
+        url = LOCAL_SERVER_URL + "udf_proxy/get_ngrok_tokens"
         headers = {"Content-Type": "application/json"}
         data = json.dumps({"data": [[0]]})
         response = requests.post(url, headers=headers, data=data)
@@ -107,7 +109,7 @@ def set_ngrok_token(ngrok_auth_token, ngrok_use_domain, ngrok_domain):
         response = json.loads(data[0][0])
         return response
     else:
-        url = "http://127.0.0.1:8080/udf_proxy/configure_ngrok_token"
+        url = LOCAL_SERVER_URL + "udf_proxy/configure_ngrok_token"
         headers = {"Content-Type": "application/json"}
         data = json.dumps({"data": [[0, ngrok_auth_token, ngrok_use_domain, ngrok_domain]]})
         response = requests.post(url, headers=headers, data=data)
@@ -125,7 +127,7 @@ def set_slack_tokens(slack_app_token, slack_app_refresh_token):
         response = json.loads(data[0][0])
         return response
     else:
-        url = "http://127.0.0.1:8080/udf_proxy/configure_slack_app_token"
+        url = LOCAL_SERVER_URL + "udf_proxy/configure_slack_app_token"
         headers = {"Content-Type": "application/json"}
         data = json.dumps({"data": [[0, slack_app_token, slack_app_refresh_token]]})
         response = requests.post(url, headers=headers, data=data)
@@ -144,7 +146,7 @@ def get_bot_details():
         response = json.loads(data[0][0])
         return response
     else:
-        url = "http://127.0.0.1:8080/udf_proxy/list_available_bots"
+        url = LOCAL_SERVER_URL + "udf_proxy/list_available_bots"
         headers = {"Content-Type": "application/json"}
         data = json.dumps({"data": [[0]]})
         response = requests.post(url, headers=headers, data=data)
@@ -162,7 +164,7 @@ def configure_llm(llm_model_name, llm_api_key, llm_base_url):
         response = data[0][0]
         return json.loads(response)
     else:
-        url = "http://127.0.0.1:8080/udf_proxy/configure_llm"
+        url = LOCAL_SERVER_URL + "udf_proxy/configure_llm"
         headers = {"Content-Type": "application/json"}
         data = json.dumps({"data": [[0, llm_model_name, llm_api_key+'|'+llm_base_url]]})
         response = requests.post(url, headers=headers, data=data)
@@ -171,6 +173,7 @@ def configure_llm(llm_model_name, llm_api_key, llm_base_url):
         else:
             raise Exception(f"Failed to configure LLM: {response.text}")
 
+
 def get_metadata2(metadata_type):
     if st.session_state.NativeMode:
         session = get_session()
@@ -178,11 +181,9 @@ def get_metadata2(metadata_type):
         sql = f"select {prefix}.get_metadata('{metadata_type}') "
         data = session.sql(sql).collect()
         response = data[0][0]
-      #  response = data[0][0]
-      #  response = json.loads(response)
         return response
     else:
-        url = "http://127.0.0.1:8080/udf_proxy/get_metadata"
+        url = LOCAL_SERVER_URL + "udf_proxy/get_metadata"
         headers = {"Content-Type": "application/json"}
         data = json.dumps({"data": [[0, metadata_type]]})
         response = requests.post(url, headers=headers, data=data)
@@ -190,6 +191,7 @@ def get_metadata2(metadata_type):
             return response.json()["data"][0][1]
         else:
             raise Exception(f"Failed to get metadata: {response.text}")
+
 
 @st.cache_data(ttl=3600)  # Cache the result for 1 hour
 def get_metadata_cached(metadata_type):
@@ -202,7 +204,7 @@ def get_metadata_cached(metadata_type):
         response = json.loads(response)
         return response
     else:
-        url = "http://127.0.0.1:8080/udf_proxy/get_metadata"
+        url = LOCAL_SERVER_URL + "udf_proxy/get_metadata"
         headers = {"Content-Type": "application/json"}
         data = json.dumps({"data": [[0, metadata_type]]})
         response = requests.post(url, headers=headers, data=data)
@@ -210,6 +212,8 @@ def get_metadata_cached(metadata_type):
             return response.json()["data"][0][1]
         else:
             raise Exception(f"Failed to get metadata: {response.text}")
+
+
 def get_metadata(metadata_type):
     if st.session_state.NativeMode:
         session = get_session()
@@ -220,7 +224,7 @@ def get_metadata(metadata_type):
         response = json.loads(response)
         return response
     else:
-        url = "http://127.0.0.1:8080/udf_proxy/get_metadata"
+        url = LOCAL_SERVER_URL + "udf_proxy/get_metadata"
         headers = {"Content-Type": "application/json"}
         data = json.dumps({"data": [[0, metadata_type]]})
         response = requests.post(url, headers=headers, data=data)
@@ -228,6 +232,50 @@ def get_metadata(metadata_type):
             return response.json()["data"][0][1]
         else:
             raise Exception(f"Failed to get metadata: {response.text}")
+
+
+def get_artifact(artifact_id):
+    """
+    Retrieve an artifact data and matadata, given an artifact_id.
+
+    Args:
+        artifact_id (str): The unique identifier for the artifact to be retrieved.
+
+    Returns:
+        A 2-tuple: (metadata json, base64 encoded data).
+
+    Raises:
+        Exception: If the artifact retrieval fails, an exception is raised with
+                   the error message from the server response.
+    """
+    if st.session_state.NativeMode:
+        raise NotImplementedError()
+        session = get_session()
+        prefix = st.session_state.get('prefix', '')
+        sql = f"select {prefix}.get_artifact('{artifact_id}')"
+        data = session.sql(sql).collect()
+        response = data[0][0]
+        payload = json.loads(response)
+        is_success = payload.get["Success"]
+        if is_success:
+            metadata = payload["Metadata"]
+            data = payload["Data"]
+            return metadata, data
+        else:
+            raise Exception(f"Failed to get artifact {artifact_id}: {payload.get('Error', 'No error details provided')}")
+    else:
+        url = LOCAL_SERVER_URL + "udf_proxy/get_artifact"
+        headers = {"Content-Type": "application/json"}
+        data = json.dumps({"artifact_id": artifact_id})
+        response = requests.post(url, headers=headers, data=data)
+        if response.status_code == 200:
+            payload = response.json()
+            metadata = payload["Metadata"]
+            data = payload["Data"]
+            return metadata, data
+        else:
+            raise Exception(f"Failed to get artifact {artifact_id}: {response.text}")
+
 
 def submit_to_udf_proxy(input_text, thread_id, bot_id, file={}):
     user_info = st.experimental_user.to_dict()
@@ -249,7 +297,7 @@ def submit_to_udf_proxy(input_text, thread_id, bot_id, file={}):
         except Exception as e:
             st.write("error on submit: ", e)
     else:
-        url = f"http://127.0.0.1:8080/udf_proxy/submit_udf"
+        url = LOCAL_SERVER_URL + "udf_proxy/submit_udf"
         headers = {"Content-Type": "application/json"}
         data = json.dumps({"data": [[1, input_text, thread_id, primary_user, json.dumps(file)]]})
         response = requests.post(url, headers=headers, data=data)
@@ -276,7 +324,7 @@ def get_response_from_udf_proxy(uu, bot_id):
             st.write("!! Exception on get_response_from_udf_proxy: ", e)
             return "!!EXCEPTION_NEEDS_RETRY!!"
     else:
-        url = f"http://127.0.0.1:8080/udf_proxy/lookup_udf"
+        url = LOCAL_SERVER_URL + "udf_proxy/lookup_udf"
         headers = {"Content-Type": "application/json"}
         data = json.dumps({"data": [[1, uu, bot_id]]})
         response = requests.post(url, headers=headers, data=data)
@@ -294,7 +342,7 @@ def deploy_bot(bot_id):
         response = json.loads(data[0][0])
         return response
     else:
-        url = "http://127.0.0.1:8080/udf_proxy/deploy_bot"
+        url = LOCAL_SERVER_URL + "udf_proxy/deploy_bot"
         headers = {"Content-Type": "application/json"}
         data = json.dumps({"data": [[0, bot_id]]})
         response = requests.post(url, headers=headers, data=data)
@@ -310,7 +358,7 @@ def upgrade_services(eai):
         upgrade_services_query = f"call {core_prefix}.UPGRADE_SERVICES({eai}) "
         upgrade_services_result = session.sql(upgrade_services_query).collect()
         return upgrade_services_result[0][0]
-    return None        
+    return None
 
 def check_eai_status(site):
     # session = get_session()
@@ -331,13 +379,13 @@ def get_references(reference_name):
             import snowflake.permissions as permissions
             ref_associations = permissions.get_reference_associations(reference_name)
         except Exception as e:
-            st.error(f"Error checking references: {e}")        
+            st.error(f"Error checking references: {e}")
     return ref_associations
-            
+
 
 def check_log_status():
-    try:            
+    try:
         log_status = get_metadata('log_status')
-        
+
     except Exception as e:
         st.error(f"Error checking log status: {e}")

@@ -351,20 +351,40 @@ def deploy_bot(bot_id):
         else:
             raise Exception(f"Failed to deploy bot: {response.text}")
 
-def upgrade_services(eai):
+def upgrade_services(eai_type, eai_name):
     session = get_session()
-    if session:
-        core_prefix = st.session_state.get('core_prefix', '')
-        upgrade_services_query = f"call {core_prefix}.UPGRADE_SERVICES({eai}) "
-        upgrade_services_result = session.sql(upgrade_services_query).collect()
-        return upgrade_services_result[0][0]
-    return None
+    try:
+        if eai_type and eai_name:
+            if session:
+                #TODO move to connecter?
+                core_prefix = st.session_state.get('core_prefix', '')
+                prefix = st.session_state.get('prefix', '')
+                # "reference('CONSUMER_EXTERNAL_ACCESS')"
+                update_eai_list_query = f"""
+                    MERGE INTO {prefix}.EAI_CONFIG AS target
+                    USING (SELECT '{eai_type}' AS EAI_TYPE, 'reference(''{eai_name}'')' AS EAI_NAME) AS source
+                    ON target.EAI_TYPE = source.EAI_TYPE
+                    WHEN MATCHED THEN
+                        UPDATE SET 
+                            target.EAI_NAME = source.EAI_NAME
+                    WHEN NOT MATCHED THEN
+                        INSERT (EAI_TYPE, EAI_NAME)
+                        VALUES (source.EAI_TYPE, source.EAI_NAME);
+                    """
+                update_eai_list_result = session.sql(update_eai_list_query).collect()
+
+            upgrade_services_query = f"call {core_prefix}.UPGRADE_SERVICES() "
+            upgrade_services_result = session.sql(upgrade_services_query).collect()
+            return upgrade_services_result[0][0]
+    except Exception as e:
+        st.error(f"Error updating EAI config table: {e}")
+    return None        
 
 def check_eai_status(site):
     # session = get_session()
     result = False
     try:
-        eai_result = get_metadata(f"custom_config EAI {site}")
+        eai_result = get_metadata(f"check_eai {site}")
         if isinstance(eai_result, list) and len(eai_result) > 0:
             if 'Success' in eai_result[0] and eai_result[0]['Success']==True:
                 result = True

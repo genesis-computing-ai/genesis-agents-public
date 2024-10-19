@@ -390,20 +390,21 @@ def get_metadata():
         elif metadata_type.startswith('set_endpoint '):
             endpoint = metadata_type.split('set_endpoint ')[1].strip()
             result = db_adapter.set_endpoint(endpoint)
+        elif metadata_type.startswith('set_model_name '):
+            model_name, embedding_model_name = metadata_type.split('set_model_name ')[1].split(' ')[:2]
+            # model_name = metadata_type.split('set_model_name ')[1].strip()
+            # embedding_model_name = metadata_type.split('set_model_name ')[1].strip()
+            result = db_adapter.set_model_name(model_name, embedding_model_name)
         elif metadata_type.startswith('logging_status'):
             status = db_adapter.check_logging_status()
             result = {"Success": True, "Data": status}
-        elif metadata_type.startswith('custom_config '):
+        elif metadata_type.startswith('check_eai '):
             metadata_parts = metadata_type.split()
-            if len(metadata_parts) == 3:
-                object_type = metadata_parts[1].strip()
-                site = metadata_parts[2].strip()
-            elif len(metadata_parts) == 2:
-                object_type = metadata_parts[1].strip()
-                site = None
+            if len(metadata_parts) == 2:
+                site = metadata_parts[1].strip()
             else:
                 print("missing metadata")
-            result = db_adapter.eai_test(object_type=object_type, site=site)
+            result = db_adapter.eai_test(site=site)                
         elif 'sandbox' in metadata_type:
             _, bot_id, thread_id_in, file_name = metadata_type.split('|')
             print('****get_metadata, file_name', file_name)

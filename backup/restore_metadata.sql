@@ -97,6 +97,6 @@ call GENESIS_BACKUP.PUBLIC.RESTORE_DATA('GENESIS_BOTS','GENESIS_BACKUP');
 
 // start compute pool and services
 alter compute pool GENESIS_POOL RESUME; -- if you paused the compute pool
-call GENESIS_BOTS.core.start_app_instance('APP1','GENESIS_POOL','GENESIS_EAI','XSMALL'); 
+call GENESIS_BOTS.core.start_app_instance('APP1','GENESIS_POOL','XSMALL'); 
 
 

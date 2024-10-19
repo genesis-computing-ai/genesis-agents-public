@@ -2,30 +2,34 @@ import streamlit as st
 from utils import get_slack_tokens, set_slack_tokens, get_slack_tokens_cached, check_eai_status, get_references, upgrade_services
 
 def setup_slack():
-    if "eai_available" not in st.session_state:
-        st.session_state.eai_available = False
-    #TODO make work like the llm config
-    if st.session_state.eai_available == False:
-        ref = get_references("consumer_external_access")
+    if "slack_eai_available" not in st.session_state:
+        st.session_state.slack_eai_available = False
+    if "eai_reference_name" not in st.session_state:
+        st.session_state.eai_reference_name = 'slack_external_access' 
+
+    if st.session_state.slack_eai_available == False:
+
         # check for custom EAI
         eai_status = False
-        if ref:
+        try:
             eai_status = check_eai_status('slack')
-        if not ref and eai_status == False:
+        except Exception as e:
+            st.write("Failed to check EAI status: ", e)
+
+        if eai_status == False:
             if st.session_state.NativeMode:
                 import snowflake.permissions as permissions
-                permissions.request_reference("consumer_external_access")
+                permissions.request_reference("slack_external_access")
         else:
-            # eai_status = check_eai_status('openai')
-            st.session_state.eai_available = eai_status
-            if eai_status == True:
-                st.write(f"External Access Integration available")
+            st.session_state.slack_eai_available = True
+            st.write(f"Slack External Access Integration available")
+            
 
     tokens = get_slack_tokens()
     get_slack_tokens_cached.clear()
 
     tok = tokens.get("Token", None)
-    ref = tokens.get("RefreshToken", None)
+    ref_tok = tokens.get("RefreshToken", None)
     slack_active = tokens.get("SlackActiveFlag", False)
 
     if slack_active:
@@ -39,16 +43,20 @@ def setup_slack():
     st.write(
         "By providing a Slack App Refresh Token, Genesis Bots can create, update, and remove Genesis Bots from your Slack environment. If you have not yet assigned the External Access Integration to Genesis, click the Assign EAI to Genesis button and then you can enter your Slack token."
     )
-    if st.session_state.eai_available == False:
+    if st.session_state.slack_eai_available == False:
 
         if st.button("Assign EAI to Genesis", key="assigneai"):
-            upgrade_result = upgrade_services(True)
-            st.success(f"Genesis Bots upgrade result: {upgrade_result}")
-            # st.session_state.clear()
-            
-            st.rerun()
+            if st.session_state.eai_reference_name:
+                eai_type = st.session_state.eai_reference_name.split('_')[0].upper()
+                upgrade_result = upgrade_services(eai_type, st.session_state.eai_reference_name)
+                st.success(f"Genesis Bots upgrade result: {upgrade_result}")
+                st.session_state.slack_eai_available = True
+                # st.session_state.clear()
+                
+                st.rerun()
+            else:
+                st.error("No EAI reference set")
     else:
-
 
         st.write(
             "Go to https://api.slack.com/apps and create an App Config Refresh Token, paste it below, and press Update. "
@@ -56,14 +64,14 @@ def setup_slack():
 
         if tok == "...":
             tok = ""
-        if ref == "...":
-            ref = ""
+        if ref_tok == "...":
+            ref_tok = ""
 
         if tok:
             slack_app_token = st.text_input("Slack App Token", value=tok)
         # Text input for Slack App Refresh Token
         slack_app_refresh_token = st.text_input(
-            "Slack App REFRESH Token", value=ref if ref else ""
+            "Slack App REFRESH Token", value=ref_tok if ref_tok else ""
         )
         if st.button("Update Slack Token"):
             # Call function to update tokens

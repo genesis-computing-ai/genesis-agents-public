@@ -6,7 +6,6 @@ import logging
 from datetime import datetime
 import uuid
 import os
-import time
 import hashlib
 import time
 import requests
@@ -296,6 +295,20 @@ class SnowflakeConnector(DatabaseConnector):
                 else:
                     os.environ["CORTEX_MODEL"] = "llama3.1-70b"
                     self.llm_engine = os.environ["CORTEX_MODEL"]
+
+
+
+            # if response.status_code == 400 and 'unknown model' in response.text:
+            #     self.llm_engine = os.getenv("CORTEX_FAST_MODEL_NAME", "llama3.1-70b")
+            #     print(f"Model not found. Switching to {self.llm_engine}")
+            #     request_data["model"] = self.llm_engine
+            #     response = requests.post(url, json=request_data, stream=True, headers=headers)
+            #     if response.status_code != 200:
+            #         print(f'cortex {self.llm_engine} and {os.getenv("CORTEX_FAST_MODEL_NAME", "llama3.1-70b")} not avail: ',response.status_code, response.text)
+            #         return False, False
+            #     else:
+            #         os.environ["CORTEX_MODEL"] = "llama3.1-70b"
+            #         self.llm_engine = os.environ["CORTEX_MODEL"]
 
             curr_resp = ''
             for line in response.iter_lines():
@@ -744,10 +757,42 @@ class SnowflakeConnector(DatabaseConnector):
             return {"Success": False, "Data": err}
 
 
-    def eai_test(self, object_type, site):
+    def set_model_name(self, model_name, embedding_model_name):
+        try:
+            
+            upsert_query = f"""
+            MERGE INTO {self.genbot_internal_project_and_schema}.LLM_TOKENS t
+            USING (SELECT %s AS llm_type, %s AS model_name, %s AS embedding_model_name) s
+            ON (t.LLM_TYPE = s.llm_type)
+            WHEN MATCHED THEN
+                UPDATE SET t.MODEL_NAME = s.model_name, t.EMBEDDING_MODEL_NAME = s.embedding_model_name
+            WHEN NOT MATCHED THEN
+                INSERT (MODEL_NAME,EMBEDDING_MODEL_NAME) VALUES (s.model_name,s.embedding_model_name)
+            """
+
+            cursor = self.client.cursor()
+            cursor.execute(upsert_query, ('openai', model_name, embedding_model_name,))
+
+        # Commit the changes
+            self.client.commit()
+
+            json_data = json.dumps([{'Success': True}])
+            return {"Success": True, "Data": json_data}
+        except Exception as e:
+            err = f"An error occurred while inserting model names: {e}"
+            return {"Success": False, "Data": err}
+
+    def eai_test(self, site):
         try:
 
-            if object_type == 'EAI':
+            eai_list_query = f"""CALL CORE.GET_EAI_LIST('{self.schema}')"""
+            cursor = self.client.cursor()
+            cursor.execute(eai_list_query)
+            eai_list = cursor.fetchone()
+            print(f"####DEBUG#### EAI_LIST: {eai_list}")
+            if not eai_list:
+                return {"Success": False, "Error": "Cannot check EAI status. No EAI set up."}
+            else:
 
                 create_function_query = f"""
 CREATE OR REPLACE FUNCTION {self.project_id}.CORE.CHECK_URL_STATUS(site string)
@@ -755,7 +800,7 @@ RETURNS STRING
 LANGUAGE PYTHON
 RUNTIME_VERSION = 3.11
 HANDLER = 'get_status'
-EXTERNAL_ACCESS_INTEGRATIONS = (REFERENCE('consumer_external_access'))
+EXTERNAL_ACCESS_INTEGRATIONS = ({eai_list[0]})
 PACKAGES = ('requests')
 AS
 $$
@@ -766,23 +811,28 @@ def get_status(site):
         url = "https://slack.com"  # Replace with the allowed URL
     elif site == 'openai':
         url = "https://api.openai.com/v1/models"  # Replace with the allowed URL
+    elif site == 'azureopenai':
+        url = "https://app.openai.azure.com"  # Replace with the allowed URL
+        return "Success"
     else:
+        # TODO allow custom endpoints to be tested
         return f"Invalid site: {{site}}"
-
+    
     try:
         # Make an HTTP GET request to the allowed URL
-        response = requests.get(url, timeout=10)
-        
-        # Check if the status code is 200
-        if response.status_code == 200 or response.status_code == 401:
-            return "Success"
+        # response = requests.get(url, timeout=10)
+        response = requests.options(url)
+        if response.ok:   # alternatively you can use response.status_code == 200
+            result = "Success"
         else:
-            return f"Invalid URL, status code: {{response.status_code}}"
-    
-    except requests.exceptions.RequestException as e:
-        # Catch and return any exceptions
-        return f"Error: {{str(e)}}"
-$$;
+            result = f"Failure"
+    except (requests.exceptions.HTTPError, requests.exceptions.ConnectionError) as e:
+        result = f"Failure - Unable to establish connection: {{e}}."
+    except Exception as e:
+        result = f"Failure - Unknown error occurred: {{e}}."      
+
+    return result
+    $$;
                 """
                 try:
                     cursor = self.client.cursor()
@@ -818,14 +868,14 @@ $$;
         except Exception as e:
             err = f"An error occurred while creating/testing EAI test function: {e}"
             return {"Success": False, "Error": err}
+    
+    # '[{"system$send_email": true}]'
 
-        # '[{"system$send_email": true}]'
-
-        if function_success == True or function_test_success == True:
+        if function_success == True and function_test_success == True:
             json_data = json.dumps([{'Success': True}])
             return {"Success": True, "Data": json_data}
         else:
-            return {"Success": False, "Error": "something failed"}
+            return {"Success": False, "Error": "EAI test failed or EAI not assigned to Genesis"}
 
 
     def send_test_email(self, email_addr, thread_id=None):
@@ -1623,6 +1673,8 @@ $$;
 
     def create_bot_workspace(self, workspace_schema_name):
         try:
+            
+            # query = f"CREATE OR ALTER VERSIONED SCHEMA {workspace_schema_name}"
 
             query = f"CREATE SCHEMA IF NOT EXISTS {workspace_schema_name}"
             cursor = self.client.cursor()
@@ -1748,7 +1800,7 @@ $$;
         else:
             bot_llm = 'unknown'
             workspace_full_schema_name = None
-            workspace_schema_name = None
+            workspace_schema_name = None        
 
    #     if not query.endswith('!END_QUERY'):
    #         return {
@@ -2172,7 +2224,7 @@ $$;
         logger.info("in getllmkey")
         # Query to select the LLM key and type from the llm_tokens table
         query = f"""
-            SELECT llm_key, llm_type, llm_endpoint
+            SELECT llm_key, llm_type, llm_endpoint, model_name, embedding_model_name
             FROM {self.genbot_internal_project_and_schema}.llm_tokens
             WHERE runner_id = %s and active = True
         """
@@ -2184,7 +2236,7 @@ $$;
             cursor.close()
 
             if result:
-                return llm_keys_and_types_struct(llm_type=result[1], llm_key=result[0], llm_endpoint=result[2])
+                return llm_keys_and_types_struct(llm_type=result[1], llm_key=result[0], llm_endpoint=result[2], model_name=result[3], embedding_model_name=result[4])
             else:
                 return llm_keys_and_types_struct()  # Return None if no result found
         except Exception as e:

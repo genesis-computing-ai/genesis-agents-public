@@ -88,7 +88,10 @@ else:
 
 
 if 'show_log_config' not in st.session_state:
-    check_status_result = get_metadata('logging_status')        
+    check_status_result = False
+    if st.session_state.NativeMode:
+        check_status_result = get_metadata('logging_status')   
+
     if check_status_result == False:
         st.session_state.show_log_config = True
         if st.session_state.NativeMode:
@@ -220,7 +223,7 @@ if st.session_state.NativeMode:
                                     # Execute the command and collect the results
                                     time.sleep(15)
                                     service_start_result = session.sql(
-                                        f"call {st.session_state.app_name}.core.start_app_instance('APP1','GENESIS_POOL',FALSE,'{st.session_state.wh_name}')"
+                                        f"call {st.session_state.app_name}.core.start_app_instance('APP1','GENESIS_POOL','{st.session_state.wh_name}')"
                                     ).collect()
                                     if service_start_result:
                                         service_status.text(

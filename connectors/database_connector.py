@@ -1,10 +1,13 @@
 import json
 
 class llm_keys_and_types_struct:    
-    def __init__(self, llm_type=None, llm_key=None, llm_endpoint=None):
+    def __init__(self, llm_type=None, llm_key=None, llm_endpoint=None, model_name=None, embedding_model_name=None):
         self.llm_type = llm_type # a str like 'cortex', 'openai', etc. TODO: use BotLlmEngineEnum
         self.llm_key  = llm_key
         self.llm_endpoint = llm_endpoint if llm_endpoint is not None else ''
+        self.model_name = model_name if model_name is not None else ''
+        self.embedding_model_name = embedding_model_name if embedding_model_name is not None else ''
+
 
 class DatabaseConnector:
     def __init__(self, connection_info=None, connection_name=None):

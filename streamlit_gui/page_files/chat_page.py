@@ -22,7 +22,6 @@ from utils import (
     get_response_from_udf_proxy,
 )
 
-
 def locate_url_markup(txt, replace_with=None):
     """
     Locate and optionally replace URL or pseudo-URL markup in a given text.
@@ -648,7 +647,8 @@ def chat_page():
                 if len(bot_images) > 0:
                     selected_bot_image_index = bot_names.index(selected_bot_name) if selected_bot_name in bot_names else -1
                     if selected_bot_image_index >= 0:
-                        encoded_bot_avatar_image = bot_avatar_images[selected_bot_image_index]
+                        # Use the default G logo image for all bots
+                        encoded_bot_avatar_image = bot_avatar_images[0]
                         if encoded_bot_avatar_image:
                             encoded_bot_avatar_image_bytes = base64.b64decode(encoded_bot_avatar_image)
                             bot_avatar_image_url = f"data:image/png;base64,{encoded_bot_avatar_image}"
@@ -693,7 +693,6 @@ def chat_page():
 
         except Exception as e:
             st.error(f"Error running Genesis GUI: {e}")
-
     # Add this at the end of the chat_page function to update the sidebar
     st.session_state.active_sessions = list(set(st.session_state.active_sessions))  # Remove duplicates
 

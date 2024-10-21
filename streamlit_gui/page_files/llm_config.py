@@ -36,12 +36,12 @@ def llm_config():
 
     # LLM selection and API key input
     llm_model = st.selectbox("Choose LLM Model:", ["Cortex", "OpenAI", "Azure OpenAI"])
-    st.session_state.llm_model_value = llm_model.lower().replace(' ', '')
+    st.session_state.llm_type = llm_model.lower().replace(' ', '')
     llm_api_key, llm_api_endpoint = "", ""
 
-    if st.session_state.llm_model_value == "openai":
+    if st.session_state.llm_type == "openai":
         llm_api_key = handle_openai_configuration()
-    elif st.session_state.llm_model_value == "azureopenai":
+    elif st.session_state.llm_type == "azureopenai":
         llm_api_key, llm_api_endpoint = handle_azure_openai_configuration()
     else:
         llm_api_key = 'cortex_no_key_needed'
@@ -99,11 +99,6 @@ def display_setup_messages(bot_details, active_llm_type, llm_types):
         st.dataframe(llm_types, use_container_width=False)
 
 def handle_openai_configuration():
-    # st.success(f"handle_openai_configuration")
-    # st.success(f"openai_eai_available: {st.session_state.openai_eai_available}")
-    # st.success(f"disable_create: {st.session_state.disable_create}")
-    # st.success(f"assign_disabled: {st.session_state.assign_disabled}")
-
     llm_api_key = ''
     if st.session_state.get("NativeMode", False) and not st.session_state.openai_eai_available:
         if st.button("Create External Access Integration", key="createeai", disabled=st.session_state.disable_create):
@@ -118,16 +113,10 @@ def handle_openai_configuration():
             if st.button("Assign EAI to Genesis"):
                 assign_eai_to_genesis()
     else:
-        # llm_api_key = get_masked_api_key('openai')
         llm_api_key = st.text_input("Enter OpenAI API Key:", value=llm_api_key, key="oaikey")
     return llm_api_key
 
 def handle_azure_openai_configuration():
-    # st.success(f"handle_azure_openai_configuration")
-    # st.success(f"azureopenai_eai_available: {st.session_state.azureopenai_eai_available}")
-    # st.success(f"disable_create: {st.session_state.disable_create}")
-    # st.success(f"assign_disabled: {st.session_state.assign_disabled}")
-
     llm_api_key, llm_api_endpoint = '',''
     if not st.session_state.azureopenai_eai_available or not st.session_state.get("NativeMode", False):
         endpoint = st.text_input("Enter Azure API endpoint for your organization (e.g., genesis-azureopenai-1):")
@@ -150,43 +139,32 @@ def handle_azure_openai_configuration():
                 if st.button("Assign EAI to Genesis"):
                     assign_eai_to_genesis()
     else:
-        # llm_api_key = get_masked_api_key('azureopenai')
         llm_api_key = st.text_input("Enter Azure OpenAI API Key:", value=llm_api_key, key="aoaikey")
         llm_api_endpoint = st.text_input("Enter Azure OpenAI API Endpoint (e.g., https://genesis-azureopenai-1.openai.azure.com):")
     return llm_api_key, llm_api_endpoint
 
-# def get_masked_api_key(llm_type):
-#     llm_info = get_metadata("llm_info")
-#     selected_key = next((llm["llm_key"] for llm in llm_info if llm["llm_type"] == llm_type), "")
-#     if selected_key and len(selected_key) > 10:
-#         return f"{selected_key[:3]}{'*' * (len(selected_key) - 7)}{selected_key[-4:]}"
-#     return selected_key
-
 def assign_eai_to_genesis():
-    # st.success(f"assign_eai_to_genesis")
-    # st.success(f"eai_reference_name: {st.session_state.eai_reference_name}")
-    # st.success(f"azureopenai_eai_available: {st.session_state.azureopenai_eai_available}")
-    # st.success(f"openai_eai_available: {st.session_state.openai_eai_available}")
-
     if st.session_state.eai_reference_name:
         eai_type = st.session_state.eai_reference_name.split('_')[0].upper()
         upgrade_result = upgrade_services(eai_type, st.session_state.eai_reference_name)
-        st.success(f"Genesis Bots upgrade result: {upgrade_result}")
-        st.session_state.update({
-            "assign_disabled": True,
-            f"{st.session_state.llm_model_value}_eai_available": True,
-            "disable_submit": False,
-        })
-        st.rerun()
+        if upgrade_result:
+            st.success(f"Genesis Bots upgrade result: {upgrade_result}")
+            st.session_state.update({
+                "assign_disabled": True,
+                f"{st.session_state.llm_type}_eai_available": True,
+                "disable_submit": False,
+            })
+            st.rerun()
+        else:
+            st.error("Upgrade services failed to return a valid response.")
     else:
         st.error("No EAI reference set")
 
 def process_llm_configuration(llm_api_key, llm_api_endpoint, llm_model):
-    # if "***" in llm_api_key:
-    #     llm_api_key = get_masked_api_key(st.session_state.llm_model_value)
-    if st.session_state.llm_model_value == 'azureopenai':
-        st.session_state.llm_model_value = 'openai'
-    config_response = configure_llm(st.session_state.llm_model_value, llm_api_key, llm_api_endpoint)
+    #set llm type to openai for azure openai to use same logic throughout application  
+    if st.session_state.llm_type == 'azureopenai':
+        st.session_state.llm_type = 'openai'
+    config_response = configure_llm(st.session_state.llm_type, llm_api_key, llm_api_endpoint)
     if config_response["Success"]:
         st.session_state.disable_submit = True
         st.success(f"{llm_model} LLM validated!")

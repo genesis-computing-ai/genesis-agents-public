@@ -296,20 +296,6 @@ class SnowflakeConnector(DatabaseConnector):
                     os.environ["CORTEX_MODEL"] = "llama3.1-70b"
                     self.llm_engine = os.environ["CORTEX_MODEL"]
 
-
-
-            # if response.status_code == 400 and 'unknown model' in response.text:
-            #     self.llm_engine = os.getenv("CORTEX_FAST_MODEL_NAME", "llama3.1-70b")
-            #     print(f"Model not found. Switching to {self.llm_engine}")
-            #     request_data["model"] = self.llm_engine
-            #     response = requests.post(url, json=request_data, stream=True, headers=headers)
-            #     if response.status_code != 200:
-            #         print(f'cortex {self.llm_engine} and {os.getenv("CORTEX_FAST_MODEL_NAME", "llama3.1-70b")} not avail: ',response.status_code, response.text)
-            #         return False, False
-            #     else:
-            #         os.environ["CORTEX_MODEL"] = "llama3.1-70b"
-            #         self.llm_engine = os.environ["CORTEX_MODEL"]
-
             curr_resp = ''
             for line in response.iter_lines():
                 if line:
@@ -757,10 +743,29 @@ class SnowflakeConnector(DatabaseConnector):
             return {"Success": False, "Data": err}
 
 
-    def set_model_name(self, model_name, embedding_model_name):
+    def update_model_params(self, model_name, embedding_model_name):
+        """
+        Updates or inserts the model and embedding model names for the LLM in the database.
+
+        This method performs a SQL MERGE operation to update the LLM model name and embedding model name
+        if a record with the same LLM type ('openai') exists, or inserts a new record if not.
+
+        Args:
+            model_name (str): The name of the LLM model to set or update.
+            embedding_model_name (str): The name of the embedding model to set or update.
+
+        Returns:
+            dict: A dictionary containing the success status and the resulting data. 
+                If successful, returns {"Success": True, "Data": json_data}, where `json_data` is 
+                a JSON string indicating success.
+                If an error occurs, returns {"Success": False, "Data": err}, where `err` contains the error message.
+
+        Raises:
+            Exception: If an error occurs during the SQL execution or database commit.
+        """
         try:
             
-            upsert_query = f"""
+            upsert_query = dedent(f"""
             MERGE INTO {self.genbot_internal_project_and_schema}.LLM_TOKENS t
             USING (SELECT %s AS llm_type, %s AS model_name, %s AS embedding_model_name) s
             ON (t.LLM_TYPE = s.llm_type)
@@ -768,12 +773,12 @@ class SnowflakeConnector(DatabaseConnector):
                 UPDATE SET t.MODEL_NAME = s.model_name, t.EMBEDDING_MODEL_NAME = s.embedding_model_name
             WHEN NOT MATCHED THEN
                 INSERT (MODEL_NAME,EMBEDDING_MODEL_NAME) VALUES (s.model_name,s.embedding_model_name)
-            """
+            """)
 
             cursor = self.client.cursor()
             cursor.execute(upsert_query, ('openai', model_name, embedding_model_name,))
 
-        # Commit the changes
+            # Commit the changes
             self.client.commit()
 
             json_data = json.dumps([{'Success': True}])
@@ -781,6 +786,9 @@ class SnowflakeConnector(DatabaseConnector):
         except Exception as e:
             err = f"An error occurred while inserting model names: {e}"
             return {"Success": False, "Data": err}
+        finally:
+            if cursor is not None:
+                cursor.close()
 
     def eai_test(self, site):
         try:
@@ -869,8 +877,6 @@ def get_status(site):
             err = f"An error occurred while creating/testing EAI test function: {e}"
             return {"Success": False, "Error": err}
     
-    # '[{"system$send_email": true}]'
-
         if function_success == True and function_test_success == True:
             json_data = json.dumps([{'Success': True}])
             return {"Success": True, "Data": json_data}
@@ -1674,7 +1680,7 @@ def get_status(site):
     def create_bot_workspace(self, workspace_schema_name):
         try:
             
-            # query = f"CREATE OR ALTER VERSIONED SCHEMA {workspace_schema_name}"
+            #TODO query = f"CREATE OR ALTER VERSIONED SCHEMA {workspace_schema_name}"
 
             query = f"CREATE SCHEMA IF NOT EXISTS {workspace_schema_name}"
             cursor = self.client.cursor()
@@ -1785,14 +1791,6 @@ def get_status(site):
             if max_rows == -1:
                 max_rows = 100
 
-       # print("run query: ", query)
-
-       # if userquery and not query.endswith(';'):
-       #     return {
-       #      "success": False,
-        #     "Error:": "Error! Query must end with a semicolon.  Add a ; to the end and RUN THIS TOOL AGAIN NOW!"
-        #    }
-
         if bot_id is not None:
             bot_llm = os.getenv("BOT_LLM_" + bot_id, "unknown")
             workspace_schema_name = f"{bot_id.replace(r'[^a-zA-Z0-9]', '_').replace('-', '_').replace('.', '_')}_WORKSPACE".upper()
@@ -1801,17 +1799,6 @@ def get_status(site):
             bot_llm = 'unknown'
             workspace_full_schema_name = None
             workspace_schema_name = None        
-
-   #     if not query.endswith('!END_QUERY'):
-   #         return {
-   #             "Success": False,
-   #             "Error": "Truncated query!  You did not generate a full and complete query.  Query must have a '!END_QUERY' tag at the end!. You often do this when there are quotes or single quotes in the query string for some reason.",
-   #             "Query You Sent": query + " <-- see there is no !END_QUERY here!",
-   #             'Hint': 'You should UTF8 encode the query, include the FULL query, and finish with !END_QUERY'
-    #        }
-    #    else:
-    #        if query.endswith('!END_QUERY'):
-    #            query = query[:-len('!END_QUERY')].strip()
 
         if isinstance(max_rows, str):
             try:

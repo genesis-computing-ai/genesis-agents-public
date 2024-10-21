@@ -2,6 +2,7 @@ import os
 import random
 import string
 from datetime import datetime
+from textwrap import dedent
 import yaml
 import pytz
 import pandas as pd
@@ -553,7 +554,7 @@ def ensure_table_exists(self):
                                             IFF(CHARINDEX('OPENAI',$${eai}$$)>0,'OPENAI','CUSTOM'))))""" for eai in eai_list if eai is not None])
 
             # Create the full merge statement
-            merge_statement = f"""
+            merge_statement = dedent(f"""
             MERGE INTO {self.genbot_internal_project_and_schema}.EAI_CONFIG AS tgt
             USING (
             {values_clause}
@@ -562,7 +563,7 @@ def ensure_table_exists(self):
             WHEN NOT MATCHED THEN
             INSERT (eai_type, eai_name)
             VALUES (src.eai_type, src.eai_name);
-            """
+            """)
 
             cursor.execute(merge_statement)
             self.client.commit()

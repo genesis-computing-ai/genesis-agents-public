@@ -394,7 +394,7 @@ def get_metadata():
             model_name, embedding_model_name = metadata_type.split('set_model_name ')[1].split(' ')[:2]
             # model_name = metadata_type.split('set_model_name ')[1].strip()
             # embedding_model_name = metadata_type.split('set_model_name ')[1].strip()
-            result = db_adapter.set_model_name(model_name, embedding_model_name)
+            result = db_adapter.update_model_params(model_name, embedding_model_name)
         elif metadata_type.startswith('logging_status'):
             status = db_adapter.check_logging_status()
             result = {"Success": True, "Data": status}

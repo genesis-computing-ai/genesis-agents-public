@@ -14,8 +14,32 @@ configuration:
   grant_callback: core.grant_callback
 references:
   - consumer_external_access:
-      label: "Default External Access Integration"
-      description: "This is required to access Slack and/or OpenAI"
+      label: "Consumer External Access Integration (legacy)"
+      description: "This allows access to Slack/OpenAI"
+      privileges:
+        - USAGE
+      object_type: EXTERNAL ACCESS INTEGRATION
+      register_callback: core.register_single_reference
+      configuration_callback: core.get_config_for_ref
+  - slack_external_access:
+      label: "Slack External Access Integration"
+      description: "This is required to access Slack"
+      privileges:
+        - USAGE
+      object_type: EXTERNAL ACCESS INTEGRATION
+      register_callback: core.register_single_reference
+      configuration_callback: core.get_config_for_ref
+  - openai_external_access:
+      label: "OpenAI External Access Integration"
+      description: "This is required to access OpenAI"
+      privileges:
+        - USAGE
+      object_type: EXTERNAL ACCESS INTEGRATION
+      register_callback: core.register_single_reference
+      configuration_callback: core.get_config_for_ref
+  - azure_openai_external_access:
+      label: "Azure OpenAI External Access Integration"
+      description: "This is required to access Azure OpenAI"
       privileges:
         - USAGE
       object_type: EXTERNAL ACCESS INTEGRATION

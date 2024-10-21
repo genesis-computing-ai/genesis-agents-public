@@ -2,6 +2,7 @@ import os
 import random
 import string
 from datetime import datetime
+from textwrap import dedent
 import yaml
 import pytz
 import pandas as pd
@@ -340,7 +341,9 @@ def ensure_table_exists(self):
                 LLM_KEY VARCHAR(16777216),
                 LLM_TYPE VARCHAR(16777216),
                 ACTIVE BOOLEAN,
-                LLM_ENDPOINT VARCHAR(16777216)
+                LLM_ENDPOINT VARCHAR(16777216),
+                MODEL_NAME VARCHAR(16777216),
+                EMBEDDING_MODEL_NAME VARCHAR(16777216)
             );
             """
             cursor.execute(llm_config_table_ddl)
@@ -356,7 +359,9 @@ def ensure_table_exists(self):
                     %s AS LLM_KEY,
                     %s AS LLM_TYPE,
                     %s AS ACTIVE,
-                    null as LLM_ENDPOINT;
+                    NULL AS LLM_ENDPOINT,
+                    NULL AS MODEL_NAME,
+                    NULL AS EMBEDDING_MODEL_NAME;
             """
 
             # if a new install, set cortex to default LLM if available
@@ -385,6 +390,14 @@ def ensure_table_exists(self):
                     update_query = f"UPDATE {self.genbot_internal_project_and_schema}.LLM_TOKENS SET ACTIVE=TRUE WHERE lower(LLM_TYPE)='openai'"
                     cursor.execute(update_query)
                     self.client.commit()
+
+                if "MODEL_NAME" not in columns:
+                    alter_table_query = f"ALTER TABLE {self.genbot_internal_project_and_schema}.LLM_TOKENS ADD COLUMN MODEL_NAME VARCHAR(16777216), EMBEDDING_MODEL_NAME VARCHAR(16777216);"
+                    cursor.execute(alter_table_query)
+                    self.client.commit()
+                    logger.info(
+                        f"Columns 'MODEL_NAME' and 'EMBEDDING_MODEL_NAME' added to table {self.genbot_internal_project_and_schema}.LLM_TOKENS."
+                    )
 
                 #update case to lower for llm_type. Can remove after release_202410b.
                 update_case_query = f"""UPDATE {self.genbot_internal_project_and_schema}.LLM_TOKENS SET LLM_TYPE = LOWER(LLM_TYPE)"""
@@ -501,6 +514,69 @@ def ensure_table_exists(self):
     finally:
         if cursor is not None:
             cursor.close()
+
+
+        eai_config_table_check_query = (
+            f"SHOW TABLES LIKE 'EAI_CONFIG' IN SCHEMA {self.schema};"
+        )
+        try:
+            cursor = self.client.cursor()
+            cursor.execute(eai_config_table_check_query)
+            if not cursor.fetchone():
+                eai_config_table_ddl = f"""
+                CREATE OR REPLACE TABLE {self.genbot_internal_project_and_schema}.EAI_CONFIG (
+                    EAI_TYPE VARCHAR(16777216),
+                    EAI_NAME VARCHAR(16777216)
+                );
+                """
+                cursor.execute(eai_config_table_ddl)
+                self.client.commit()
+                print(f"Table EAI_CONFIG created.")
+
+            else:
+                print(
+                    f"Table EAI_CONFIG already exists."
+                )  
+
+            #ensure eai_config table matches EAI assigned to services
+            get_eai_from_services_query = f" SHOW SERVICES IN APPLICATION {self.project_id}"
+            cursor.execute(get_eai_from_services_query)
+            # self.client.commit()
+            get_eai_from_services_query = f""" select DISTINCT REPLACE(rtrim(ltrim("external_access_integrations",'['),']'),'"','') EAI_LIST from TABLE(RESULT_SCAN(LAST_QUERY_ID()));"""
+            cursor.execute(get_eai_from_services_query)
+            self.client.commit()
+            eai_list = cursor.fetchone()
+            #TODO need to make logic more generic for custom EAIs
+            values_clause = " UNION ALL ".join([f"""SELECT '{eai}' AS EAI_NAME,  select CHARINDEX('AZURE_OPENAI',$${eai}$$),
+                                iff(charindex('CONSUMER',$${eai}$$)>0,'CONSUMER',
+                                    IFF(CHARINDEX('AZURE_OPENAI',$${eai}$$)>0,'AZURE_OPENAI',
+                                        IFF(CHARINDEX('SLACK',$${eai}$$)>0,'SLACK',
+                                            IFF(CHARINDEX('OPENAI',$${eai}$$)>0,'OPENAI','CUSTOM'))))""" for eai in eai_list if eai is not None])
+
+            # Create the full merge statement
+            merge_statement = dedent(f"""
+            MERGE INTO {self.genbot_internal_project_and_schema}.EAI_CONFIG AS tgt
+            USING (
+            {values_clause}
+            ) AS src
+            ON tgt.EAI_TYPE = src.eai_type
+            WHEN NOT MATCHED THEN
+            INSERT (eai_type, eai_name)
+            VALUES (src.eai_type, src.eai_name);
+            """)
+
+            cursor.execute(merge_statement)
+            self.client.commit()
+            print(
+                f"Updated EAI_CONFIG table from services"
+            )
+        except Exception as e:
+            print(
+                f"An error occurred while checking or creating table EAI_CONFIG: {e}"
+            )
+        finally:
+            if cursor is not None:
+                cursor.close()
 
 
         endpoints_table_check_query = (

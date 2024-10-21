@@ -159,6 +159,9 @@ class LLMKeyHandler:
                 os.environ["OPENAI_API_KEY"] = llm_key_struct.llm_key
                 os.environ["AZURE_OPENAI_API_ENDPOINT"] = llm_key_struct.llm_endpoint
                 os.environ["CORTEX_MODE"] = "False"
+                if llm_key_struct.llm_endpoint:
+                    os.environ["OPENAI_MODEL_NAME"] = llm_key_struct.model_name
+                    os.environ["OPENAI_HARVESTER_EMBEDDING_MODEL"] = llm_key_struct.embedding_model_name
             # elif (llm_type.lower() == "reka"):
             #     os.environ["REKA_API_KEY"] = llm_key
             #     os.environ["CORTEX_MODE"] = "False"

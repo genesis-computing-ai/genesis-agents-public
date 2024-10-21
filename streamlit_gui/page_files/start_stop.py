@@ -22,16 +22,6 @@ def start_stop():
     except Exception as e:
         st.session_state.wh_name = "<your warehouse name>"
 
-
-    try:
-        eai_result = session.sql(f"SHOW SERVICES IN APPLICATION {app_name}").collect()
-        if eai_result:
-            eai_df = pd.DataFrame([row.as_dict() for row in eai_result])
-            eai_names = eai_df["external_access_integrations"].tolist()
-            st.session_state.eai_name = eai_names[0].strip('[]').replace('"', '').strip()
-    except Exception as e:
-        st.session_state.eai_name = None
-
     st.write(
         "You can use the buttons to stop or start each service - or copy/paste the below commands to a worksheet to stop, start, and monitor the Genesis Server:"
     )
@@ -51,13 +41,8 @@ def start_stop():
     alter compute pool GENESIS_POOL RESUME; -- if you paused the compute pool
 
     """
-    if st.session_state.eai_name == None:
-        start_text = f"""
-    call {app_name}.core.start_app_instance('APP1','GENESIS_POOL',FALSE,'{st.session_state.wh_name}'); 
-    """
-    else:
-        start_text = f"""
-    call {app_name}.core.start_app_instance('APP1','GENESIS_POOL',TRUE,'{st.session_state.wh_name}'); 
+    start_text = f"""
+    call {app_name}.core.start_app_instance('APP1','GENESIS_POOL','{st.session_state.wh_name}'); 
     """
 
     st.code(start_stop_text + start_text, language="sql")

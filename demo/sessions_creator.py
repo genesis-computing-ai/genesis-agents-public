@@ -56,6 +56,9 @@ def _configure_openai_or_azure_openai(db_adapter:DatabaseConnector) -> bool:
     if llm_keys_and_types.llm_type.lower() == "openai":
             os.environ["OPENAI_API_KEY"] = llm_keys_and_types.llm_key
             os.environ["AZURE_OPENAI_API_ENDPOINT"] = llm_keys_and_types.llm_endpoint
+            if llm_keys_and_types.llm_endpoint:
+                os.environ["OPENAI_MODEL_NAME"] = llm_keys_and_types.model_name
+                os.environ["OPENAI_HARVESTER_EMBEDDING_MODEL"] = llm_keys_and_types.embedding_model_name
             return True
     return False
 

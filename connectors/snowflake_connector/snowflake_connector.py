@@ -1697,43 +1697,46 @@ def get_status(site):
 
     def grant_all_bot_workspace(self, workspace_schema_name):
         try:
+            if os.getenv("GENESIS_LOCAL_RUNNER", "False").lower() == "true":
+                grant_fragment = "PUBLIC"
+            else:
+                grant_fragment = "APPLICATION ROLE APP_PUBLIC"
 
-            query = f"GRANT ALL PRIVILEGES ON SCHEMA {workspace_schema_name} TO APPLICATION ROLE APP_PUBLIC; "
+            query = f"GRANT ALL PRIVILEGES ON SCHEMA {workspace_schema_name} TO {grant_fragment}; "
             cursor = self.client.cursor()
             cursor.execute(query)
             self.client.commit()
 
-            query = f"GRANT SELECT ON ALL TABLES IN SCHEMA {workspace_schema_name} TO APPLICATION ROLE APP_PUBLIC; "
+            query = f"GRANT SELECT ON ALL TABLES IN SCHEMA {workspace_schema_name} TO {grant_fragment}; "
             cursor = self.client.cursor()
             cursor.execute(query)
             self.client.commit()
 
-            query = f"GRANT SELECT ON ALL VIEWS IN SCHEMA {workspace_schema_name} TO APPLICATION ROLE APP_PUBLIC; "
+            query = f"GRANT SELECT ON ALL VIEWS IN SCHEMA {workspace_schema_name} TO {grant_fragment}; "
             cursor = self.client.cursor()
             cursor.execute(query)
             self.client.commit()
 
-            query = f"GRANT USAGE ON ALL STAGES IN SCHEMA {workspace_schema_name} TO APPLICATION ROLE APP_PUBLIC; "
+            query = f"GRANT USAGE ON ALL STAGES IN SCHEMA {workspace_schema_name} TO {grant_fragment}; "
             cursor = self.client.cursor()
             cursor.execute(query)
             self.client.commit()
 
-            query = f"GRANT USAGE ON ALL FUNCTIONS IN SCHEMA {workspace_schema_name} TO APPLICATION ROLE APP_PUBLIC; "
+            query = f"GRANT USAGE ON ALL FUNCTIONS IN SCHEMA {workspace_schema_name} TO {grant_fragment}; "
             cursor = self.client.cursor()
             cursor.execute(query)
             self.client.commit()
 
-            query = f"GRANT USAGE ON ALL PROCEDURES IN SCHEMA {workspace_schema_name} TO APPLICATION ROLE APP_PUBLIC; "
+            query = f"GRANT USAGE ON ALL PROCEDURES IN SCHEMA {workspace_schema_name} TO {grant_fragment}; "
             cursor = self.client.cursor()
             cursor.execute(query)
             self.client.commit()
 
             logger.info(
-                f"Workspace {workspace_schema_name} objects granted to APP_PUBLIC"
+                f"Workspace {workspace_schema_name} objects granted to {grant_fragment}"
             )
         except Exception as e:
-            if not os.getenv("GENESIS_LOCAL_RUNNER", "False").lower() == "true":
-                logger.warning("Local runner environment variable is not set. Skipping grant operations.")
+            logger.warning(f"Failed to grant workspace {workspace_schema_name} objects to {grant_fragment}: {e}")
 
     # handle the job_config stuff ...
     def run_query(

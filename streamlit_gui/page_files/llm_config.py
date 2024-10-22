@@ -124,7 +124,7 @@ def handle_azure_openai_configuration():
         azure_openai_embed_model = st.text_input("Enter Azure OpenAI Embedding Model Deployment Name (e.g., text-embedding-3-large):", value="text-embedding-3-large")
         if st.session_state.get("NativeMode", False):
             if st.button("Create External Access Integration", key="createaeai", disabled=st.session_state.disable_create):
-                set_endpoint = get_metadata(f"set_endpoint {endpoint}")
+                set_endpoint = get_metadata(f"set_endpoint Azure_OpenAI {endpoint} AZURE")
                 if set_endpoint and set_endpoint[0].get('Success'):
                     set_model_names = get_metadata(f"set_model_name {azure_openai_model} {azure_openai_embed_model}")
                     if set_model_names and set_model_names[0].get('Success'):

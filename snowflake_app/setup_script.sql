@@ -290,6 +290,7 @@ CREATE OR REPLACE PROCEDURE core.get_config_for_ref(ref_name STRING)
     $$
     DECLARE
       azure_ep VARCHAR;
+      custom_ep VARCHAR;
       ports VARCHAR;
     BEGIN
       CASE (ref_name)
@@ -318,7 +319,23 @@ CREATE OR REPLACE PROCEDURE core.get_config_for_ref(ref_name STRING)
             "type": "CONFIGURATION",
             "payload":{
               "host_ports":[' || ports || '],
-              "allowed_secrets": "NONE"}}';                            
+              "allowed_secrets": "NONE"}}';
+
+        WHEN 'CUSTOM_EXTERNAL_ACCESS' THEN
+          SELECT LISTAGG('"' || ENDPOINT || '"', ',') INTO custom_ep
+          FROM APP1.CUSTOM_ENDPOINTS 
+          WHERE TYPE = 'CUSTOM';
+
+          IF (LEN(custom_ep) > 0) THEN
+            RETURN '{
+              "type": "CONFIGURATION",
+              "payload":{
+                "host_ports":[' || custom_ep || '],
+                "allowed_secrets": "NONE"}}';
+          ELSE
+              RETURN '';
+          END IF;
+
       END CASE;
   RETURN '';
   END;

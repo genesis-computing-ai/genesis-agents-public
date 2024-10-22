@@ -715,23 +715,50 @@ class SnowflakeConnector(DatabaseConnector):
             err = f"An error occurred while getting llm info: {e}"
             return {"Success": False, "Error": err}
 
+    def get_endpoints(self):
+        """
+        Retrieves a list of all custom endpoints.
 
-    def set_endpoint(self, endpoint_name):
+        Returns:
+            list: A list of custom endpionts.
+        """
         try:
-            #   SELECT ''AZURE'' TYPE, ''genesis-azureopenai-1'' ENDPOINT';
-            # Insert or update the endpoint. default to Azure type now
-            upsert_query = f"""
-            MERGE INTO {self.genbot_internal_project_and_schema}.CUSTOM_ENDPOINTS t
-            USING (SELECT %s AS type, %s AS endpoint) s
-            ON (t.TYPE = s.type)
-            WHEN MATCHED THEN
-                UPDATE SET t.ENDPOINT = s.endpoint
-            WHEN NOT MATCHED THEN
-                INSERT (TYPE,ENDPOINT) VALUES (s.type,s.endpoint)
-            """
-
+            query = dedent(f"""
+                SELECT LISTAGG(ENDPOINT, ', ') WITHIN GROUP (ORDER BY ENDPOINT) AS ENDPOINTS, GROUP_NAME
+                FROM {self.genbot_internal_project_and_schema}.CUSTOM_ENDPOINTS 
+                WHERE TYPE = 'CUSTOM'
+                GROUP BY GROUP_NAME
+                ORDER BY GROUP_NAME
+                """)
             cursor = self.client.cursor()
-            cursor.execute(upsert_query, ('AZURE', endpoint_name,))
+            cursor.execute(query)
+            endpoints = cursor.fetchall()
+            columns = [col[0].lower() for col in cursor.description]
+            endpoint_list = [dict(zip(columns, endpoint)) for endpoint in endpoints]
+            json_data = json.dumps(
+                endpoint_list, default=str
+            )
+
+            return {"Success": True, "Data": json_data}
+
+        except Exception as e:
+            err = f"An error occurred while getting llm info: {e}"
+            return {"Success": False, "Error": err}
+
+
+    def set_endpoint(self, group_name, endpoint_name, type):
+        try:
+            insert_query = f"""INSERT INTO {self.genbot_internal_project_and_schema}.CUSTOM_ENDPOINTS (GROUP_NAME, ENDPOINT, TYPE)
+            SELECT %s AS group_name, %s AS endpoint, %s AS type
+            WHERE NOT EXISTS (
+                SELECT 1 
+                FROM {self.genbot_internal_project_and_schema}.CUSTOM_ENDPOINTS 
+                WHERE GROUP_NAME = %s 
+                AND ENDPOINT = %s
+                AND TYPE = %s
+            );"""
+            cursor = self.client.cursor()
+            cursor.execute(insert_query, (group_name, endpoint_name, type, group_name, endpoint_name, type,))
 
         # Commit the changes
             self.client.commit()

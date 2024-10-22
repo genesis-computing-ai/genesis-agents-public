@@ -271,6 +271,7 @@ if st.session_state.data:
         "Setup Slack Connection": lambda: __import__('page_files.setup_slack').setup_slack.setup_slack(),
         "Setup Custom Warehouse": lambda: __import__('page_files.config_wh').config_wh.config_wh(),
         "Grant Data Access": lambda: __import__('page_files.grant_data').grant_data.grant_data(),
+        "Setup Custom Endpoints": lambda: __import__('page_files.config_custom_eai').config_custom_eai.config_custom_eai(),
         "Harvester Status": lambda: __import__('page_files.db_harvester').db_harvester.db_harvester(),
         "Bot Configuration": lambda: __import__('page_files.bot_config').bot_config.bot_config(),
         "Server Stop-Start": lambda: __import__('page_files.start_stop').start_stop.start_stop(),

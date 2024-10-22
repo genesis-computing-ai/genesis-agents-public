@@ -387,9 +387,15 @@ def get_metadata():
             result = db_adapter.send_test_email(email)
         elif metadata_type.startswith('get_email'):
             result = db_adapter.get_email()
+        elif metadata_type.startswith('get_endpoints'):
+            result = db_adapter.get_endpoints()
         elif metadata_type.startswith('set_endpoint '):
-            endpoint = metadata_type.split('set_endpoint ')[1].strip()
-            result = db_adapter.set_endpoint(endpoint)
+            metadata_parts = metadata_type.split()
+            if len(metadata_parts) == 4:
+                group_name = metadata_parts[1].strip()
+                endpoint = metadata_parts[2].strip()
+                type = metadata_parts[3].strip()
+            result = db_adapter.set_endpoint(group_name, endpoint, type)
         elif metadata_type.startswith('set_model_name '):
             model_name, embedding_model_name = metadata_type.split('set_model_name ')[1].split(' ')[:2]
             # model_name = metadata_type.split('set_model_name ')[1].strip()
@@ -432,11 +438,11 @@ def get_metadata():
             try:
                 m = af.get_artifact_metadata()
                 result = {"Success": True, "Metadata": m}
-            except Excpetion as e:
+            except Exception as e:
                 result = {"Success": False, "Error": e}
         else:
             raise ValueError(
-                "Invalid metadata_type provided. Expected 'harvest_control' or 'harvest_summary' or 'available_databases'."
+                "Invalid metadata_type provided."
             )
 
         if result["Success"]:

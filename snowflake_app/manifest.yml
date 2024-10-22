@@ -45,6 +45,14 @@ references:
       object_type: EXTERNAL ACCESS INTEGRATION
       register_callback: core.register_single_reference
       configuration_callback: core.get_config_for_ref
+  - custom_external_access:
+      label: "Custom External Access Integration"
+      description: "This allows access to consumer custom endpoints, for API or webpage downloader tool access"
+      privileges:
+        - USAGE
+      object_type: EXTERNAL ACCESS INTEGRATION
+      register_callback: core.register_single_reference
+      configuration_callback: core.get_config_for_ref
 privileges:
   - BIND SERVICE ENDPOINT:
       description: "Allow access to application endpoints"

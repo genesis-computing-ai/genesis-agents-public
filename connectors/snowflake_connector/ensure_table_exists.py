@@ -586,12 +586,13 @@ def ensure_table_exists(self):
             cursor = self.client.cursor()
             cursor.execute(endpoints_table_check_query)
             if not cursor.fetchone():
-                endpoints_table_ddl = f"""
+                endpoints_table_ddl = dedent(f"""
                 CREATE OR REPLACE TABLE {self.genbot_internal_project_and_schema}.CUSTOM_ENDPOINTS (
-                    TYPE VARCHAR(16777216),
-                    ENDPOINT VARCHAR(16777216)
+                    GROUP_NAME VARCHAR(16777216),
+                    ENDPOINT VARCHAR(16777216),
+                    TYPE VARCHAR(16777216)
                 );
-                """
+                """)
                 cursor.execute(endpoints_table_ddl)
                 self.client.commit()
                 print(f"Table CUSTOM_ENDPOINTS created.")
@@ -600,6 +601,31 @@ def ensure_table_exists(self):
                 print(
                     f"Table CUSTOM_ENDPOINTS already exists."
                 )
+
+                check_endpoint_columns = f"DESCRIBE TABLE {self.genbot_internal_project_and_schema}.CUSTOM_ENDPOINTS;"
+                try:
+                    cursor = self.client.cursor()
+                    cursor.execute(check_endpoint_columns)
+                    columns = [col[0] for col in cursor.fetchall()]
+
+                    if "GROUP_NAME" not in columns:
+                        # Add LLM_ENDPOINT column if it doesn't exist
+                        alter_table_query = f"ALTER TABLE {self.genbot_internal_project_and_schema}.CUSTOM_ENDPOINTS ADD COLUMN GROUP_NAME VARCHAR(16777216);"
+                        cursor.execute(alter_table_query)
+                        self.client.commit()
+                        logger.info(
+                            f"Column 'GROUP_NAME' added to table {self.genbot_internal_project_and_schema}.CUSTOM_ENDPOINTS."
+                        )
+                except Exception as e:
+                    logger.error(
+                        f"An error occurred while checking or altering table {self.genbot_internal_project_and_schema}.CUSTOM_ENDPOINTS to add GROUP_NAME column: {e}"
+                    )
+                finally:
+                    if cursor is not None:
+                        cursor.close()
+
+
+
         except Exception as e:
             print(
                 f"An error occurred while checking or creating table CUSTOM_ENDPOINTS: {e}"

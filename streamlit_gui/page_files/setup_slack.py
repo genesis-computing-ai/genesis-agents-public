@@ -1,96 +1,85 @@
 import streamlit as st
-from utils import get_slack_tokens, set_slack_tokens, get_slack_tokens_cached, check_eai_status, get_references, upgrade_services
+from utils import (
+    get_references,
+    get_slack_tokens,
+    set_slack_tokens,
+    get_slack_tokens_cached,
+    check_eai_status,
+    upgrade_services,
+)
 
 def setup_slack():
-    if "slack_eai_available" not in st.session_state:
-        st.session_state.slack_eai_available = False
-    if "eai_reference_name" not in st.session_state:
-        st.session_state.eai_reference_name = 'slack_external_access' 
+    # Initialize session state variables
+    st.session_state.setdefault("slack_eai_available", False)
+    st.session_state.setdefault("eai_reference_name", "slack_external_access")
 
-    if st.session_state.slack_eai_available == False:
-
-        # check for custom EAI
-        eai_status = False
+    # Check if Slack External Access Integration (EAI) is available
+    if not st.session_state.slack_eai_available:
         try:
-            eai_status = check_eai_status('slack')
+            eai_status = check_eai_status("slack")
+            if eai_status:
+                st.session_state.slack_eai_available = True
+                st.success("Slack External Access Integration is available.")
+            else:
+                ref = get_references(st.session_state.eai_reference_name)
+                # Request EAI if not available and in Native Mode
+                if st.session_state.get("NativeMode", False) or not ref:
+                    import snowflake.permissions as permissions
+                    permissions.request_reference(st.session_state.eai_reference_name)
         except Exception as e:
-            st.write("Failed to check EAI status: ", e)
+            st.error(f"Failed to check EAI status: {e}")
 
-        if eai_status == False:
-            if st.session_state.NativeMode:
-                import snowflake.permissions as permissions
-                permissions.request_reference("slack_external_access")
-        else:
-            st.session_state.slack_eai_available = True
-            st.write(f"Slack External Access Integration available")
-            
-
+    # Fetch Slack tokens and clear cached tokens
     tokens = get_slack_tokens()
     get_slack_tokens_cached.clear()
 
-    tok = tokens.get("Token", None)
-    ref_tok = tokens.get("RefreshToken", None)
+    ref_tok = tokens.get("RefreshToken", "")
     slack_active = tokens.get("SlackActiveFlag", False)
 
+    # Display Slack Connector status
     if slack_active:
-        st.success("Slack Connector is Currently Active")
+        st.success("Slack Connector is currently active.")
     else:
-        st.warning(
-            "Slack Connector is not currently active, please complete the form below to activate."
-        )
+        st.warning("Slack Connector is not active. Please complete the form below to activate it.")
 
+    # Display page title and description
     st.title("Setup Slack Tokens")
-    st.write(
-        "By providing a Slack App Refresh Token, Genesis Bots can create, update, and remove Genesis Bots from your Slack environment. If you have not yet assigned the External Access Integration to Genesis, click the Assign EAI to Genesis button and then you can enter your Slack token."
-    )
-    if st.session_state.slack_eai_available == False:
+    st.write("""
+        By providing a Slack App Refresh Token, Genesis Bots can create, update, and remove bots from your Slack environment.
+        If you have not yet assigned the External Access Integration to Genesis, click the **Assign EAI to Genesis** button below.
+    """)
 
+    if not st.session_state.slack_eai_available:
         if st.button("Assign EAI to Genesis", key="assigneai"):
             if st.session_state.eai_reference_name:
-                eai_type = st.session_state.eai_reference_name.split('_')[0].upper()
+                eai_type = st.session_state.eai_reference_name.split("_")[0].upper()
                 upgrade_result = upgrade_services(eai_type, st.session_state.eai_reference_name)
                 st.success(f"Genesis Bots upgrade result: {upgrade_result}")
                 st.session_state.slack_eai_available = True
-                # st.session_state.clear()
-                
-                st.rerun()
+                st.experimental_rerun()
             else:
-                st.error("No EAI reference set")
+                st.error("No EAI reference set.")
     else:
+        st.write("Go to [Slack Apps](https://api.slack.com/apps) and create an App Config Refresh Token. Paste it below and press **Update**.")
 
-        st.write(
-            "Go to https://api.slack.com/apps and create an App Config Refresh Token, paste it below, and press Update. "
-        )
+        # Show text input for the Slack App Refresh Token
+        slack_app_refresh_token = st.text_input("Slack App Refresh Token", value=ref_tok)
 
-        if tok == "...":
-            tok = ""
-        if ref_tok == "...":
-            ref_tok = ""
-
-        if tok:
-            slack_app_token = st.text_input("Slack App Token", value=tok)
-        # Text input for Slack App Refresh Token
-        slack_app_refresh_token = st.text_input(
-            "Slack App REFRESH Token", value=ref_tok if ref_tok else ""
-        )
         if st.button("Update Slack Token"):
-            # Call function to update tokens
-            resp = set_slack_tokens("NOT NEEDED", slack_app_refresh_token)
-            t = resp.get("Token", "Error")
-            r = resp.get("Refresh", "Error")
-            if t == "Error":
-                st.error(f"Failed to update Slack tokens: {resp}")
+            if not slack_app_refresh_token:
+                st.error("Please provide the Slack App Refresh Token.")
             else:
-                # Clear the cache of get_slack_tokens_cached
-                get_slack_tokens_cached.clear()
-                st.success(
-                    "Slack tokens updated and refreshed successfully. Your new refreshed tokens are:"
-                )
-                st.json({"Token": t, "RefreshToken": r})
-                st.success(
-                    "These will be different than the ones you provided, as they have been rotated successfully for freshness."
-                )
-                st.success(
-                    "You can now activate your bots on Slack from the Bot Configuration page, on the left Nav."
-                )
-                st.session_state.show_slack_config = False
+                # Update tokens
+                resp = set_slack_tokens(token=None, refresh_token=slack_app_refresh_token)
+                t = resp.get("Token")
+                r = resp.get("RefreshToken")
+                if not t or not r:
+                    st.error(f"Failed to update Slack tokens: {resp}")
+                else:
+                    # Clear cached tokens
+                    get_slack_tokens_cached.clear()
+                    st.success("Slack tokens updated and refreshed successfully. Your new tokens are:")
+                    st.json({"Token": t, "RefreshToken": r})
+                    st.info("These tokens are refreshed for security purposes.")
+                    st.success("You can now activate your bots on Slack from the Bot Configuration page.")
+                    st.session_state.show_slack_config = False

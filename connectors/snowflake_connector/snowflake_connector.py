@@ -797,7 +797,6 @@ class SnowflakeConnector(DatabaseConnector):
             cursor = self.client.cursor()
             cursor.execute(eai_list_query)
             eai_list = cursor.fetchone()
-            print(f"####DEBUG#### EAI_LIST: {eai_list}")
             if not eai_list:
                 return {"Success": False, "Error": "Cannot check EAI status. No EAI set up."}
             else:
@@ -1679,14 +1678,19 @@ def get_status(site):
 
     def create_bot_workspace(self, workspace_schema_name):
         try:
-            if os.getenv("GENESIS_LOCAL_RUNNER", "False").lower() == "true":
-                query = f"CREATE SCHEMA IF NOT EXISTS {workspace_schema_name}"
-            else:
-                rename_query = f"ALTER SCHEMA IF EXISTS {workspace_schema_name} RENAME TO {workspace_schema_name}_OLD"
-                cursor = self.client.cursor()
-                cursor.execute(rename_query)
-                # logger.info(f"Workspace schema {workspace_schema_name} renamed to OLD_{workspace_schema_name}")
-                query = f"CREATE OR ALTER VERSIONED SCHEMA {workspace_schema_name}"
+            query = f"CREATE SCHEMA IF NOT EXISTS {workspace_schema_name}"
+            # if os.getenv("GENESIS_LOCAL_RUNNER", "False").lower() == "true":
+            #     query = f"CREATE SCHEMA IF NOT EXISTS {workspace_schema_name}"
+            # else:
+            #     try:
+            #         rename_query = f"ALTER SCHEMA IF EXISTS {workspace_schema_name} RENAME TO {workspace_schema_name}_OLD"
+            #         cursor = self.client.cursor()
+            #         cursor.execute(rename_query)
+            #         self.client.commit()
+            #     except Exception as e:
+            #         pass
+            #     # logger.info(f"Workspace schema {workspace_schema_name} renamed to OLD_{workspace_schema_name}")
+            #     query = f"CREATE OR ALTER VERSIONED SCHEMA {workspace_schema_name}"
             cursor = self.client.cursor()
             cursor.execute(query)
             self.client.commit()

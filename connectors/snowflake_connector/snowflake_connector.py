@@ -1755,6 +1755,7 @@ def get_status(site):
         thread_id=None,
         note_id = None,
         note_name = None,
+        note_type = None
     ):
         import core.global_flags as global_flags
         """
@@ -1770,21 +1771,29 @@ def get_status(site):
         """
         userquery = False
 
-        if note_id is not None or note_name is not None:
-            note_id = '' if note_id is None else note_id
-            note_name = '' if note_name is None else note_name
-            get_note_query = f"SELECT note_content FROM {self.schema}.NOTEBOOK WHERE NOTE_ID = '{note_id}' OR NOTE_NAME = '{note_name}'"
-            cursor = self.connection.cursor()
-            cursor.execute(get_note_query)
-            query = cursor.fetchone()
+        try:
+            if note_id is not None or note_name is not None:
+                if note_type != 'sql':
+                    raise ValueError("Note type must be 'sql' to run sql with the run_query tool.")
+                note_id = '' if note_id is None else note_id
+                note_name = '' if note_name is None else note_name
+                get_note_query = f"SELECT note_content FROM {self.schema}.NOTEBOOK WHERE NOTE_ID = '{note_id}' OR NOTE_NAME = '{note_name}'"
+                cursor = self.connection.cursor()
+                cursor.execute(get_note_query)
+                query = cursor.fetchone()
 
-            if query is None:
-                    return {
-                    "success": False,
-                    "error": "Note not found.",
-                    }
+                if query is None:
+                        return {
+                        "success": False,
+                        "error": "Note not found.",
+                        }
 
-            query = query[0]
+                query = query[0]
+        except ValueError as e:
+            return {
+                "success": False,
+                "error": str(e),
+            }
 
         # Replace all <!Q!>s with single quotes in the query
         if '<!Q!>' in query:
@@ -3822,6 +3831,7 @@ result = 'Table FAKE_CUST created successfully.'
                         bot_id=None,
                         note_id=None,
                         note_name = None,
+                        note_type = None,
                         return_base64 = False,
                         save_artifacts=True) -> str:
         """
@@ -3868,6 +3878,8 @@ result = 'Table FAKE_CUST created successfully.'
 
         try:
             if note_id is not None or note_name is not None:
+                if note_type != 'snowpark_python':
+                    raise ValueError("Note type must be 'snowpark_python' for running python code.")
                 note_id = '' if note_id is None else note_id
                 note_name = '' if note_name is None else note_name
                 get_note_query = f"SELECT note_content, note_params FROM {self.schema}.NOTEBOOK WHERE NOTE_ID = '{note_id}' OR NOTE_NAME = '{note_name}'"
@@ -3878,13 +3890,19 @@ result = 'Table FAKE_CUST created successfully.'
                 if code is None:
                     raise IndexError("Code not found for this note.")
 
-
                 code = code[0]
         except IndexError:
             print("Error: The list 'code' is empty or does not have an element at index 0.")
             return {
                     "success": False,
                     "error": "Note was not found.",
+                    }
+        
+        except ValueError:
+            print("Note type must be 'snowpark_python' for code retrieval.")
+            return {
+                    "success": False,
+                    "error": "Wrong tool called. Note type must be 'snowpark_python' to use this tool.",
                     }
 
         if bot_id not in ['eva-x1y2z3', 'MrsEliza-3348b2', os.getenv("O1_OVERRIDE_BOT","")]:

@@ -29,7 +29,7 @@ janice_monitor_unused_tables_golden:
 
     ## Process Steps:
     1. **Identify The Top 10 Largest Unused Tables Across All Databases:**
-       - Use the sql query in note_id janice_10_largest_queries to identify the 10 largest tables across all databases and schemas in the Snowflake account. Make
+       - Use the sql query in note_id janice_10_unused_tables to identify the 10 largest tables across all databases and schemas in the Snowflake account. Make
          sure to only use the token of the note_id.  Do not copy the sql code into the query.
        - Confirm with the supervisor that you have run the query and note the number of rows you received in response.
 

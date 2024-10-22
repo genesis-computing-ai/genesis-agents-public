@@ -1698,7 +1698,7 @@ def get_status(site):
     def grant_all_bot_workspace(self, workspace_schema_name):
         try:
             if os.getenv("GENESIS_LOCAL_RUNNER", "False").lower() == "true":
-                grant_fragment = "PUBLIC"
+                grant_fragment = "ROLE PUBLIC"
             else:
                 grant_fragment = "APPLICATION ROLE APP_PUBLIC"
 

@@ -73,7 +73,7 @@ def setup_slack():
                 st.error("Please provide both the Slack App Token and Refresh Token.")
             else:
                 # Update tokens
-                resp = set_slack_tokens(token=slack_app_token, refresh_token=slack_app_refresh_token)
+                resp = set_slack_tokens(slack_app_token=slack_app_token, slack_app_refresh_token=slack_app_refresh_token)
                 t = resp.get("Token")
                 r = resp.get("RefreshToken")
                 if not t or not r:

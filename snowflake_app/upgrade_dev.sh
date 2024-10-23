@@ -86,18 +86,21 @@ if [ "$patch_number" -eq 130 ]; then
     echo "WARNING: You will need to upgrade your version number before your next patch"
 fi
 
-snow sql -c GENESIS-DEV-CONSUMER-2 -q "alter application genesis_bots upgrade"
+if [ "$2" == "False" ]; then
+    snow sql -c GENESIS-DEV-PROVIDER -q "ALTER APPLICATION GENESISAPP_APP_PKG UPGRADE USING VERSION V0_8;"
+else
+    snow sql -c GENESIS-DEV-CONSUMER-2 -q "alter application genesis_bots upgrade"
 
-# snow sql -c GENESIS-DEV-CONSUMER-2 -q "show services"
+    # snow sql -c GENESIS-DEV-CONSUMER-2 -q "show services"
 
-snow sql -c GENESIS-DEV-CONSUMER-2 -q "call genesis_bots.core.run_arbitrary('grant all on warehouse app_xsmall to application role app_public;');"
-snow sql -c GENESIS-DEV-CONSUMER-2 -q "call genesis_bots.core.run_arbitrary('grant all on service GENESIS_BOTS.APP1.GENESISAPP_HARVESTER_SERVICE to application role app_public;');"
-snow sql -c GENESIS-DEV-CONSUMER-2 -q "call genesis_bots.core.run_arbitrary('grant all on service GENESIS_BOTS.APP1.GENESISAPP_KNOWLEDGE_SERVICE to application role app_public;');"
-snow sql -c GENESIS-DEV-CONSUMER-2 -q "call genesis_bots.core.run_arbitrary('grant all on service GENESIS_BOTS.APP1.GENESISAPP_TASK_SERVICE to application role app_public;');"
-snow sql -c GENESIS-DEV-CONSUMER-2 -q "call genesis_bots.core.run_arbitrary('grant all on service GENESIS_BOTS.APP1.GENESISAPP_SERVICE_SERVICE to application role app_public;');"
-snow sql -c GENESIS-DEV-CONSUMER-2 -q "call genesis_bots.core.run_arbitrary('grant all on all tables in schema GENESIS_BOTS.APP1 to application role app_public;');"
-snow sql -c GENESIS-DEV-CONSUMER-2 -q "call genesis_bots.core.run_arbitrary('grant all on schema GENESIS_BOTS.APP1 to application role app_public;');"
-snow sql -c GENESIS-DEV-CONSUMER-2 -q "show applications;"
+    snow sql -c GENESIS-DEV-CONSUMER-2 -q "call genesis_bots.core.run_arbitrary('grant all on warehouse app_xsmall to application role app_public;');"
+    snow sql -c GENESIS-DEV-CONSUMER-2 -q "call genesis_bots.core.run_arbitrary('grant all on service GENESIS_BOTS.APP1.GENESISAPP_HARVESTER_SERVICE to application role app_public;');"
+    snow sql -c GENESIS-DEV-CONSUMER-2 -q "call genesis_bots.core.run_arbitrary('grant all on service GENESIS_BOTS.APP1.GENESISAPP_KNOWLEDGE_SERVICE to application role app_public;');"
+    snow sql -c GENESIS-DEV-CONSUMER-2 -q "call genesis_bots.core.run_arbitrary('grant all on service GENESIS_BOTS.APP1.GENESISAPP_TASK_SERVICE to application role app_public;');"
+    snow sql -c GENESIS-DEV-CONSUMER-2 -q "call genesis_bots.core.run_arbitrary('grant all on service GENESIS_BOTS.APP1.GENESISAPP_SERVICE_SERVICE to application role app_public;');"
+    snow sql -c GENESIS-DEV-CONSUMER-2 -q "call genesis_bots.core.run_arbitrary('grant all on all tables in schema GENESIS_BOTS.APP1 to application role app_public;');"
+    snow sql -c GENESIS-DEV-CONSUMER-2 -q "call genesis_bots.core.run_arbitrary('grant all on schema GENESIS_BOTS.APP1 to application role app_public;');"
+    snow sql -c GENESIS-DEV-CONSUMER-2 -q "show applications;"
 
 echo "Upgrade complete"
 

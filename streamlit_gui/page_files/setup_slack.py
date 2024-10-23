@@ -21,11 +21,12 @@ def setup_slack():
                 st.session_state.slack_eai_available = True
                 st.success("Slack External Access Integration is available.")
             else:
-                ref = get_references(st.session_state.eai_reference_name)
                 # Request EAI if not available and in Native Mode
-                if st.session_state.get("NativeMode", False) or not ref:
-                    import snowflake.permissions as permissions
-                    permissions.request_reference(st.session_state.eai_reference_name)
+                if st.session_state.get("NativeMode", False) == True:
+                    ref = get_references(st.session_state.eai_reference_name)
+                    if not ref:
+                        import snowflake.permissions as permissions
+                        permissions.request_reference(st.session_state.eai_reference_name)
         except Exception as e:
             st.error(f"Failed to check EAI status: {e}")
 
@@ -33,6 +34,7 @@ def setup_slack():
     tokens = get_slack_tokens()
     get_slack_tokens_cached.clear()
 
+    tok = tokens.get("Token", "")
     ref_tok = tokens.get("RefreshToken", "")
     slack_active = tokens.get("SlackActiveFlag", False)
 
@@ -49,7 +51,7 @@ def setup_slack():
         If you have not yet assigned the External Access Integration to Genesis, click the **Assign EAI to Genesis** button below.
     """)
 
-    if not st.session_state.slack_eai_available:
+    if not st.session_state.slack_eai_available and st.session_state.get("NativeMode", False) == True:
         if st.button("Assign EAI to Genesis", key="assigneai"):
             if st.session_state.eai_reference_name:
                 eai_type = st.session_state.eai_reference_name.split("_")[0].upper()

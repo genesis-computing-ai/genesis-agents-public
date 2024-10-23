@@ -387,6 +387,8 @@ def get_metadata():
             result = db_adapter.send_test_email(email)
         elif metadata_type.startswith('get_email'):
             result = db_adapter.get_email()
+        elif metadata_type.startswith('check_eai_assigned'):
+            result = db_adapter.check_eai_assigned()
         elif metadata_type.startswith('get_endpoints'):
             result = db_adapter.get_endpoints()
         elif metadata_type.startswith('set_endpoint '):

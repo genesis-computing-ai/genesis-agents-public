@@ -715,6 +715,38 @@ class SnowflakeConnector(DatabaseConnector):
             err = f"An error occurred while getting llm info: {e}"
             return {"Success": False, "Error": err}
 
+        
+    def check_eai_assigned(self):
+        """
+        Retrieves the eai list if set.
+
+        Returns:
+            list: An eai list, if set.
+        """
+        try:
+            show_query = f"SHOW SERVICES IN SCHEMA {self.schema}"
+            cursor = self.client.cursor()
+            cursor.execute(show_query)
+
+            query = f"""SELECT DISTINCT UPPER("external_access_integrations") EAI_LIST FROM TABLE(RESULT_SCAN(LAST_QUERY_ID())) LIMIT 1"""
+            cursor = self.client.cursor()
+            cursor.execute(query)
+            eai_info = cursor.fetchone()
+            
+            # Ensure eai_info is not None
+            if eai_info:
+                columns = [col[0].lower() for col in cursor.description]
+                eai_list = [dict(zip(columns, eai_info))]  # Wrap eai_info in a list since fetchone returns a single row
+                json_data = json.dumps(eai_list)
+            else:
+                json_data = json.dumps([])  # Return an empty list if no results
+
+            return {"Success": True, "Data": json_data}
+
+        except Exception as e:
+            err = f"An error occurred while getting email address: {e}"
+            return {"Success": False, "Error": err}
+
     def get_endpoints(self):
         """
         Retrieves a list of all custom endpoints.
@@ -1705,19 +1737,19 @@ def get_status(site):
 
     def create_bot_workspace(self, workspace_schema_name):
         try:
-            query = f"CREATE SCHEMA IF NOT EXISTS {workspace_schema_name}"
-            # if os.getenv("GENESIS_LOCAL_RUNNER", "False").lower() == "true":
-            #     query = f"CREATE SCHEMA IF NOT EXISTS {workspace_schema_name}"
-            # else:
-            #     try:
-            #         rename_query = f"ALTER SCHEMA IF EXISTS {workspace_schema_name} RENAME TO {workspace_schema_name}_OLD"
-            #         cursor = self.client.cursor()
-            #         cursor.execute(rename_query)
-            #         self.client.commit()
-            #     except Exception as e:
-            #         pass
-            #     # logger.info(f"Workspace schema {workspace_schema_name} renamed to OLD_{workspace_schema_name}")
-            #     query = f"CREATE OR ALTER VERSIONED SCHEMA {workspace_schema_name}"
+            # query = f"CREATE SCHEMA IF NOT EXISTS {workspace_schema_name}"
+            if os.getenv("GENESIS_LOCAL_RUNNER", "False").lower() == "true":
+                query = f"CREATE SCHEMA IF NOT EXISTS {workspace_schema_name}"
+            else:
+                try:
+                    rename_query = f"ALTER SCHEMA IF EXISTS {workspace_schema_name} RENAME TO {workspace_schema_name}_OLD"
+                    cursor = self.client.cursor()
+                    cursor.execute(rename_query)
+                    self.client.commit()
+                except Exception as e:
+                    pass
+                # logger.info(f"Workspace schema {workspace_schema_name} renamed to OLD_{workspace_schema_name}")
+                query = f"CREATE OR ALTER VERSIONED SCHEMA {workspace_schema_name}"
             cursor = self.client.cursor()
             cursor.execute(query)
             self.client.commit()

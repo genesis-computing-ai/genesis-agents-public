@@ -4,17 +4,15 @@ from utils import (
     get_metadata,
     upgrade_services,
 )
+import json
 
 def check_eai_assigned():
-    eai_assigned = get_metadata("check_eai_assigned custom")
-    if eai_assigned == True:
+    eai_data = get_metadata("check_eai_assigned")
+    eai_str = eai_data[0]['eai_list'] 
+    if 'CUSTOM_EXTERNAL_ACCESS' in eai_str:
         st.session_state.disable_assign = True
     else:
         st.session_state.disable_assign = False
-
-        #     EXECUTE IMMEDIATE 'SHOW SERVICES IN SCHEMA ' || INSTANCE_NAME;
-        # SELECT DISTINCT UPPER(REPLACE(RTRIM(LTRIM("external_access_integrations", '['), ']'), '"', '')) INTO eai_services_list
-        # FROM TABLE(RESULT_SCAN(LAST_QUERY_ID())) LIMIT 1;
 
 def assign_eai_to_genesis():
     eai_type = 'CUSTOM'

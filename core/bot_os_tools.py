@@ -1885,6 +1885,19 @@ class ToolBelt:
                     "Message": f"process_config updated or deleted",
                     "process_id": process_id,
                 }
+            
+            if action in ["CREATE", "CREATE_CONFIRMED", "UPDATE", "UPDATE_CONFIRMED"]:
+                check_for_code_instructions = f"""Please examine the text below and return only the word 'SQL' if the text contains 
+                actual SQL code, not a reference to SQL code, or only the word 'PYTHON' if the text contains actual Python code, not a reference to Python code.  
+                If the text contains both, return only 'SQL + PYTHON'.  Do not return any other verbage.  If the text contains 
+                neither, return only the word 'NO CODE':\n {process_details['process_instructions']}"""
+                result = self.chat_completion(check_for_code_instructions, self.db_adapter)
+
+                if result != 'NO CODE':
+                    return {
+                        "Success": False,
+                        "Error": f"Processes may not contain {result} code.  Please remove the code and replace it with a note_id to the code in the note table.  Then replace the code in the process with the note_id of the new note.  Do not include the note contents in the process, just include an instruction to run the note with the note_id."
+                    }
 
             if action == "CREATE" or action == "CREATE_CONFIRMED":
                 # Check for dupe name

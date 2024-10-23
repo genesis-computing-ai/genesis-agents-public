@@ -101,6 +101,7 @@ else
     snow sql -c GENESIS-DEV-CONSUMER-2 -q "call genesis_bots.core.run_arbitrary('grant all on all tables in schema GENESIS_BOTS.APP1 to application role app_public;');"
     snow sql -c GENESIS-DEV-CONSUMER-2 -q "call genesis_bots.core.run_arbitrary('grant all on schema GENESIS_BOTS.APP1 to application role app_public;');"
     snow sql -c GENESIS-DEV-CONSUMER-2 -q "show applications;"
+fi
 
 echo "Upgrade complete"
 

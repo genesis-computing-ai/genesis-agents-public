@@ -560,6 +560,28 @@ class ToolBelt:
         except Exception as e:
          #  print(f"Error getting sys email: {e}")
             return None
+        
+    def clear_registers(self, thread_id):
+        # Initialize thread-specific data structures if not already present
+        with self.lock:
+            if thread_id not in self.counter:
+                self.counter[thread_id] = {}
+         #   if thread_id not in self.process:
+         #       self.process[thread_id] = {}
+            if thread_id not in self.last_fail:
+                self.last_fail[thread_id] = {}
+            if thread_id not in self.fail_count:
+                self.fail_count[thread_id] = {}
+            if thread_id not in self.instructions:
+                self.instructions[thread_id] = {}
+            if thread_id not in self.process_history:
+                self.process_history[thread_id] = {}
+            if thread_id not in self.done:
+                self.done[thread_id] = {}
+            if thread_id not in self.silent_mode:
+                self.silent_mode[thread_id] = {}
+            if thread_id not in self.process_config:
+                self.process_config[thread_id] = {}
 
     def run_process(
         self,
@@ -620,26 +642,7 @@ class ToolBelt:
 
         self.sys_default_email = self.get_sys_email()
 
-        # Initialize thread-specific data structures if not already present
-        with self.lock:
-            if thread_id not in self.counter:
-                self.counter[thread_id] = {}
-         #   if thread_id not in self.process:
-         #       self.process[thread_id] = {}
-            if thread_id not in self.last_fail:
-                self.last_fail[thread_id] = {}
-            if thread_id not in self.fail_count:
-                self.fail_count[thread_id] = {}
-            if thread_id not in self.instructions:
-                self.instructions[thread_id] = {}
-            if thread_id not in self.process_history:
-                self.process_history[thread_id] = {}
-            if thread_id not in self.done:
-                self.done[thread_id] = {}
-            if thread_id not in self.silent_mode:
-                self.silent_mode[thread_id] = {}
-            if thread_id not in self.process_config:
-                self.process_config[thread_id] = {}
+        self.clear_registers(thread_id)
 
         # Try to get process info from PROCESSES table
         process = self.get_process_info(bot_id, process_name=process_name, process_id=process_id)
@@ -683,6 +686,7 @@ class ToolBelt:
                 self.process_history[thread_id][process_id] = None
                 self.done[thread_id][process_id] = False
                 self.silent_mode[thread_id][process_id] = silent_mode
+                self.process_id = process_id
 
 
             print(
@@ -1071,6 +1075,10 @@ class ToolBelt:
             with self.lock:
                 self.done[thread_id][process_id] = True
 
+            self.clear_registers(thread_id)
+
+            self.process_id = None
+
             self.clear_process_cache(bot_id, thread_id, process_id)
             print(f'Process cache cleared for bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}')
 
@@ -1177,6 +1185,15 @@ class ToolBelt:
             "note_name",
             "note_content",
         ]
+
+        try:
+            if not self.done[thread_id][self.process_id]:
+                return {
+                    "Success": False,
+                    "Error": "You cannot run the notebook manager from within a process."
+                }
+        except KeyError as e:
+            pass
 
         if action == "TIME":
             return {

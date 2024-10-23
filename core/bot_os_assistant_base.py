@@ -162,7 +162,7 @@ def execute_function(
             s_arguments["thread_id"] = thread_id
             if func_name == '_run_process':
                 s_arguments["bot_id"] = bot_id
-            if func_name in {'_run_query', '_run_snowpark_python', '_send_email'} :
+            if func_name in {'_run_query', '_run_snowpark_python', '_send_email', '_manage_artifact'} :
                 s_arguments["bot_id"] = bot_id
                 if 'query' in s_arguments:
                     s_arguments['query'] = 'USERQUERY::' + s_arguments['query']

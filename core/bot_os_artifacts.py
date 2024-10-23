@@ -25,16 +25,28 @@ from uuid import uuid4
 import shutil
 import tempfile
 import functools
+import re
 
 ARTIFACT_ID_REGEX = r'[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}' # regrex for matching a valid artifact UUID
+
+def _validate_artifact_id_format(aid):
+    if isinstance(aid, str) and re.match(ARTIFACT_ID_REGEX, aid):
+        return True
+    return False
 
 class ArtifactsStoreBase(ABC):
     '''
     Provides a Create+read interface for artifacts and their metadata
     '''
 
-    METADATA_IN_REQUIRED_FIELDS = {'mime_type'}
-    METADATA_OUT_EXPECTED_FIELDS = METADATA_IN_REQUIRED_FIELDS | {'basename', 'orig_path'}
+    METADATA_IN_REQUIRED_FIELDS = {'mime_type',         # mime type of the artifact
+                                   'bot_id',            # Id of bot which created this artifact
+                                   'title_filename',    # A filename to use as a meaningful name for this artifact
+                                   'func_name',         # the name of the function whcih created this artifact
+                                   }
+    METADATA_OUT_EXPECTED_FIELDS = METADATA_IN_REQUIRED_FIELDS | {'basename',       # the basename of the file, as it is stored on the stage
+                                                                  'orig_path',      # the path of the original file loaded into the stage
+                                                                  }
 
     def create_artifact(self, content: Any, metadata: dict) -> str:
         raise NotImplementedError("This is a pure abstract method and must be implemented by subclasses.")
@@ -48,7 +60,7 @@ class ArtifactsStoreBase(ABC):
     def create_artifact(self, content: Any, metadata: dict) -> str:
         raise NotImplementedError("This is a pure abstract method and must be implemented by subclasses.")
 
-    def list_artifacts(self) -> List[Dict[str, Any]]:
+    def delete_artifacts(self, artifac_ids: List[str]) -> bool:
         raise NotImplementedError("This is a pure abstract method and must be implemented by subclasses.")
 
 
@@ -170,7 +182,7 @@ class SnowflakeStageArtifactsStore(ArtifactsStoreBase):
 
         Args:
             file_path (str or Path): The path to the file to be uploaded as an artifact.
-            metadata (dict): A dictionary containing metadata for the artifact. Must include a 'mime_type' key.
+            metadata (dict): A dictionary containing metadata for the artifact. See METADATA_IN_REQUIRED_FIELDS for list of manadory fields.
 
         Returns:
             str: A unique identifier for the created artifact.
@@ -281,8 +293,8 @@ class SnowflakeStageArtifactsStore(ArtifactsStoreBase):
         Raises:
             ValueError: If the metadata for this artifact_is is not found.
         """
-        if artifact_id is None:
-            raise ValueError("artifact_id cannot be None")
+        if not _validate_artifact_id_format(artifact_id):
+            raise ValueError(f"invalid articat id: {artifact_id}")
 
         metadata_filename = self._get_metadata_filename(artifact_id)
         file_format = self._get_metadata_named_format()
@@ -338,8 +350,8 @@ class SnowflakeStageArtifactsStore(ArtifactsStoreBase):
         Raises:
             ValueError: If the artifact_id is None, or if the metadata is corrupted or missing.
         """
-        if artifact_id is None:
-            raise ValueError("artifact_id cannot be None")
+        if not _validate_artifact_id_format(artifact_id):
+            raise ValueError(f"invalid articat id: {artifact_id}")
 
         metadata = self.get_artifact_metadata(artifact_id)
         basename = metadata.get('basename')
@@ -356,8 +368,69 @@ class SnowflakeStageArtifactsStore(ArtifactsStoreBase):
             return row[0]
 
 
-    def list_artifacts(self) -> List[Dict[str, Any]]:
-        raise NotImplementedError()
+    def delete_artifacts(self, artifac_ids: List[str]) -> List[str]:
+        """
+        Deletes artifacts from the Snowflake stage based on the provided list of artifact IDs.
+
+        Args:
+            artifac_ids (List[str]): A list of unique artifact identifiers to be deleted.
+
+        Returns:
+            List[str]: A list of artifact IDs that were successfully deleted. E.g. if the list is empty, no artifacts were deleted.
+
+        Raises:
+            ValueError: If any artifact ID has invalid format, or the deletion execition failed.
+        """
+        # TODO: support special fletring for deletion e.g. 'ALL' for deleting all artifacts, or a filter based on some metadata predicate.
+        # validate input
+        if not artifac_ids:
+            raise ValueError("The list of artifact IDs is empty.")
+        for aid in artifac_ids:
+            if not _validate_artifact_id_format(aid):
+                raise ValueError(f"Invalid artifact ID format: {aid}")
+
+        # delete one by one
+        succeeded = []
+        for aid in artifac_ids:
+            with self._get_sql_cursor() as cursor:
+                # Remove all files that begin with the aid name (Snowflake treats the path as a prefix filter)
+                # this will remove both the data file and metadata file
+                sql = f"REMOVE @{self._stage_qualified_name}/{aid}"
+                cursor.execute(sql)
+                row_count = cursor.rowcount
+                if row_count > 0:
+                    succeeded.append(aid)
+
+        # Clear the cache for get_artifact_metadata after deletion
+        if len(succeeded) > 0:
+            self.get_artifact_metadata.cache_clear()
+        return succeeded
+
+
+    def get_llm_artifact_ref_instructions(self, artifact_id: str) -> str:
+        """
+        Generate instructions for referencing an artifact in LLM responses.
+
+        Args:
+            artifact_id (str): The unique identifier of the artifact.
+
+        Returns:
+            str: Instructions for referencing the artifact in both text/plain and text/html formats.
+        """
+        metadata = self.get_artifact_metadata(artifact_id)
+        title = metadata['title_filename']
+        sanitized_title = re.sub(r'[^a-zA-Z0-9_\-:.]', '-', title)
+        mime_type = metadata['mime_type']
+
+        if mime_type in ("image/jpeg", "image/jpg", "image/png", "image/gif"):
+            html_format = f'<img src="artifact:/{artifact_id}" alt={sanitized_title} >'
+        elif mime_type == "text/html":
+            html_format = f'<iframe src="artifact:/{artifact_id}" frameborder="1">{title}</iframe>'
+        else:
+            html_format = f'<a href="artifact:/{artifact_id}" download="{sanitized_title}">Download {title}</a>'
+
+        return (f'(i) When replying to the user in text/plain format, use the following markdown: [{title}](artifact:/{artifact_id}) \n'
+                f'(ii) When replying to the user in text/html format, use the following markup: {html_format} \n')
 
 
 def get_artifacts_store(db_adapter):
@@ -366,3 +439,5 @@ def get_artifacts_store(db_adapter):
         return SnowflakeStageArtifactsStore(db_adapter)
     else:
         raise NotImplementedError(f"No artifacts store is implemented for {db_adapter}")
+
+

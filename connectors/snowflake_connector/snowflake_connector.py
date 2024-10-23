@@ -13,6 +13,7 @@ import pandas as pd
 import pytz
 import sys
 import pkgutil
+import inspect
 
 from llm_openai.openai_utils import get_openai_client
 
@@ -4168,18 +4169,19 @@ result = 'Table FAKE_CUST created successfully.'
                         mime_type = mime_type or 'image/png' # right now we assume png is the defualt for type=base64file
                         metadata = dict(mime_type=mime_type,
                                         thread_id=thread_id,
-                                        bot_id=bot_id)
+                                        bot_id=bot_id,
+                                        title_filename=result_json["filename"],
+                                        func_name=inspect.currentframe().f_code.co_name)
                         aid = af.create_artifact_from_content(file_content, metadata, content_filename=result_json["filename"])
                         print(f"Artifact {aid} created for output from python code named {result_json['filename']}")
-                        ###artifact_url = af.get_signed_url_for_artifact(aid)
+                        ref_notes = ref_notes = af.get_llm_artifact_ref_instructions(aid)
                         result = {
                             "success": True,
                             "result": f"Output from snowpark is an artifact, which can be later refernced using artifact_id={aid}. "
                                       f"The descriptive name of the file is `{result_json['filename']}`. "
                                       f"The mime type of the file is {mime_type}. "
                                       f"Output a refernce to the artifact using the following format: "
-                                      f" (i) If responding to the user in plain text mode, use markdown like this: '[{result_json['filename']}](artifact:/{aid})'. "
-                                      f" (ii) If responding to the user in HTML mode, use the most relevant HTML tag to refrence this resource using the url 'artifact:/{aid}' "
+                                      f"Note: {ref_notes}"
                         }
                     else:
                         # Save the file to 'sandbox'

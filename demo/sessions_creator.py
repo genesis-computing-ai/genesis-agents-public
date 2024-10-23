@@ -52,7 +52,7 @@ genesis_source = os.getenv("GENESIS_SOURCE", default="Snowflake")
 
 def _configure_openai_or_azure_openai(db_adapter:DatabaseConnector) -> bool:
     llm_keys_and_types = db_adapter.db_get_active_llm_key()
-    
+
     if llm_keys_and_types.llm_type.lower() == "openai":
             os.environ["OPENAI_API_KEY"] = llm_keys_and_types.llm_key
             os.environ["AZURE_OPENAI_API_ENDPOINT"] = llm_keys_and_types.llm_endpoint
@@ -178,7 +178,7 @@ def make_session(
     if not slack_enabled:
         bot_tools = [tool for tool in bot_tools if tool != "slack_tools"]
 
-    
+
     # ToolBelt seems to be a local variable that is used as a global variable by some tools
     tool_belt = ToolBelt(db_adapter)
 
@@ -206,7 +206,7 @@ def make_session(
         print('appended process list to prompt, len=', len(processes_found))
     instructions += BASE_BOT_INSTRUCTIONS_ADDENDUM
 
-    instructions += f'\nYour default database connecton is called "{genesis_source}".\n'
+    instructions += f'\nYour default database connection is called "{genesis_source}".\n'
 
     instructions += f'\nNote current settings:\nYour bot_id: {bot_config["bot_id"]}.\nRunner_id: {runner_id}'
     if bot_config["slack_active"] == "Y":
@@ -289,7 +289,7 @@ def make_session(
         if os.environ.get("CORTEX_OVERRIDE", "").lower() == "true":
             print(f'Cortex override for bot {bot_id} due to ENV VAR')
             bot_config["bot_implementation"] = "cortex"
-        
+
         llm_type = bot_config["bot_implementation"]
 
         # Handle Cortex implementation
@@ -359,10 +359,10 @@ def make_session(
             instructions = """
 
 # Tool Instructions 
-""" 
+"""
 #""" - Always execute python code in messages that you share.
 # - When looking for real time information use relevant functions if available else fallback to brave_search
-# 
+#
             instructions += """You have access to the following functions, only call them when needed to perform actions or lookup information that you do not already have:
 
 """ + json.dumps(tools) + """
@@ -415,16 +415,16 @@ Only respond with !NO_RESPONSE_REQUIRED if the message is directed to someone el
 Always respond to greetings and pleasantries like 'hi' etc, unless specifically directed at someone else.
 
 """
- 
+
    #         with open('./latest_instructions.txt', 'w') as file:
    #             file.write(instructions)
-        
+
     try:
         # logger.warning(f"GenBot {bot_id} instructions:::  {instructions}")
         # print(f'tools: {tools}')
         asst_impl = (
 #            assistant_implementation if stream_mode else None
-            assistant_implementation 
+            assistant_implementation
         )  # test this - may need separate BotOsSession call for stream mode
         print(f"assistant impl : {assistant_implementation}")
         session = BotOsSession(
@@ -452,7 +452,7 @@ Always respond to greetings and pleasantries like 'hi' etc, unless specifically 
             all_function_to_tool_map=all_function_to_tool_map,
             bot_id=bot_config["bot_id"],
             stream_mode=stream_mode,
-            tool_belt=tool_belt, 
+            tool_belt=tool_belt,
             skip_vectors=skip_vectors,
         )
     except Exception as e:
@@ -581,7 +581,7 @@ def create_sessions(
     #     cursor.close()
 
     #     bots_config.append(janice_config)
-        
+
     sessions = []
     api_app_id_to_session_map = {}
     bot_id_to_udf_adapter_map = {}
@@ -601,9 +601,9 @@ def create_sessions(
  #           continue
         if os.getenv("TEST_MODE", "false").lower() == "true":
             if bot_config.get("bot_name") != os.getenv("TEAMS_BOT", ""):
-                print("()()()()()()()()()()()()()()()")                
+                print("()()()()()()()()()()()()()()()")
                 print("Test Mode skipping all bots except ",os.getenv("TEAMS_BOT", ""))
-                print("()()()()()()()()()()()()()()()") 
+                print("()()()()()()()()()()()()()()()")
                 continue
         # JL TEMP REMOVE
         #       if bot_config["bot_id"] == "Eliza-lGxIAG":

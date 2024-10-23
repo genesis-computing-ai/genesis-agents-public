@@ -11,6 +11,7 @@ import string
 from selenium import webdriver
 import logging
 import re
+from typing import Optional
 
 from jinja2 import Template
 from bot_genesis.make_baby_bot import (
@@ -1506,7 +1507,52 @@ class ToolBelt:
             if cursor is not None:
                 cursor.close()
 
- # ====== NOTEBOOK END ==========================================================================================
+    # ====== NOTEBOOK END ==========================================================================================
+
+    # ====== ARTIFACTS BEGIN ==========================================================================================
+    def manage_artifact(self,
+                        action: str,
+                        artifact_id: Optional[str] = None,
+                        thread_id=None,  # ignored, saved for future use
+                        bot_id=None      # ignored, saved for future use
+                        ) -> str:
+        """
+        A wrapper for LLMs to access/manage artifacts by performing specified actions such as describing or deleting an artifact.
+
+        Args:
+            action (str): The action to perform on the artifact. Supported actions are 'DESCRIBE' and 'DELETE'.
+            artifact_id (Optional[str]): The unique identifier of the artifact. Required for certain actions.
+            thread_id: Reserved for future use.
+            bot_id: Reserved for future use.
+
+        Returns:
+            str: A dictionary containing the result of the action. E.g. for 'DESCRIBE', it includes the artifact metadata and a 
+                 note for the LLMs on how to format an artifact reference
+        """
+        af = get_artifacts_store(self.db_adapter)
+
+        action = action.upper()
+
+        if action == "DESCRIBE":
+            try:
+                metadata = af.get_artifact_metadata(artifact_id)
+            except Exception as e:
+                return {"Success": False,
+                        "Error": str(e)
+                        }
+            assert 'title_filename' in metadata.keys()  # listed in METADATA_IN_REQUIRED_FIELDS
+            ref_notes = af.get_llm_artifact_ref_instructions(artifact_id)
+            return {
+                "Success": True,
+                "Data": metadata,
+                "Note": ref_notes,
+            }
+
+        elif action == "DELETE":
+            raise NotImplementedError()  # TODO: implement this
+
+    # ====== ARTIFACTS END ==========================================================================================
+
 
     def process_scheduler(
         self, action, bot_id, task_id=None, task_details=None, thread_id=None, history_rows=10

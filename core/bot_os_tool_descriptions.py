@@ -92,7 +92,7 @@ process_runner_functions = [
         "type": "function",
         "function": {
             "name": "_send_email",
-            "description": "Sends an email",
+            "description": "Sends an email in either text/plain or text/html format. Prefer to use text/html.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -111,7 +111,7 @@ process_runner_functions = [
                         "type": "string",
                         "description": "The body content of the email. "
                                        "When using mime_type='text/plain' you CAN use Slack-compatible markdown syntax. "
-                                       "When using mime_type='text/html' DO NOT use markdown. Use appropriate html tags instead.",
+                                       "When using mime_type='text/html' DO NOT use markdown. Use appropriate html tags instead. Use this format as the default for most emails",
                     },
                     "mime_type": {
                         "type": "string",

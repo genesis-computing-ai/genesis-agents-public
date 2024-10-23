@@ -1803,22 +1803,24 @@ def get_status(site):
 
         try:
             if note_id is not None or note_name is not None:
-                if note_type != 'sql':
-                    raise ValueError("Note type must be 'sql' to run sql with the run_query tool.")
                 note_id = '' if note_id is None else note_id
                 note_name = '' if note_name is None else note_name
-                get_note_query = f"SELECT note_content FROM {self.schema}.NOTEBOOK WHERE NOTE_ID = '{note_id}' OR NOTE_NAME = '{note_name}'"
+                get_note_query = f"SELECT note_content, note_params, note_type FROM {self.schema}.NOTEBOOK WHERE NOTE_ID = '{note_id}' OR NOTE_NAME = '{note_name}'"
                 cursor = self.connection.cursor()
                 cursor.execute(get_note_query)
-                query = cursor.fetchone()
+                query_cursor = cursor.fetchone()
 
-                if query is None:
+                if query_cursor is None:
                         return {
                         "success": False,
                         "error": "Note not found.",
                         }
 
-                query = query[0]
+                query = query_cursor[0]
+                note_type = query_cursor[2]
+
+                if note_type != 'sql':
+                    raise ValueError("Note type must be 'sql' to run sql with the run_query tool.")
         except ValueError as e:
             return {
                 "success": False,
@@ -3908,19 +3910,21 @@ result = 'Table FAKE_CUST created successfully.'
 
         try:
             if note_id is not None or note_name is not None:
-                if note_type != 'snowpark_python':
-                    raise ValueError("Note type must be 'snowpark_python' for running python code.")
-                note_id = '' if note_id is None else note_id
                 note_name = '' if note_name is None else note_name
-                get_note_query = f"SELECT note_content, note_params FROM {self.schema}.NOTEBOOK WHERE NOTE_ID = '{note_id}' OR NOTE_NAME = '{note_name}'"
+                note_id = '' if note_id is None else note_id
+                get_note_query = f"SELECT note_content, note_params, note_type FROM {self.schema}.NOTEBOOK WHERE NOTE_ID = '{note_id}' OR NOTE_NAME = '{note_name}'"
                 cursor = self.connection.cursor()
                 cursor.execute(get_note_query)
-                code = cursor.fetchone()
+                code_cursor = cursor.fetchone()
 
-                if code is None:
+                if code_cursor is None:
                     raise IndexError("Code not found for this note.")
 
-                code = code[0]
+                code = code_cursor[0]
+                note_type = code_cursor[2]
+                
+                if note_type != 'snowpark_python':
+                    raise ValueError("Note type must be 'snowpark_python' for running python code.")
         except IndexError:
             print("Error: The list 'code' is empty or does not have an element at index 0.")
             return {

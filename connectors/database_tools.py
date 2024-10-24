@@ -450,16 +450,17 @@ process_manager_functions = [
         "type": "function",
         "function": {
             "name": "_manage_processes",
-            "description": "Manages processes for bots, including creating, updating, listing and deleting processes allowing bots to manage processes.  Remember that this is not used to create new bots",
+            "description": "Manages processes for bots, including creating, updating, listing and deleting processes allowing bots to manage processes.  It will also have an action to stop all currently running bots called stop_all_bots.  Remember that this is not used to create new bots",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "action": {
                         "type": "string",
                         "description": """
-                        The action to perform on a process: CREATE, UPDATE, DELETE, CREATE_PROCESS_CONFIG, UPDATE_PROCESS_CONFIG, DELETE_PROCESS_CONFIG.  
+                        The action to perform on a process: CREATE, UPDATE, DELETE, CREATE_PROCESS_CONFIG, UPDATE_PROCESS_CONFIG, DELETE_PROCESS_CONFIG, STOP_ALL_BOTS,  
                         LIST returns a list of all processes, SHOW shows full instructions and details for a process, SHOW_CONFIG shows the configuration for a process,
-                        or TIME to get current system time.  If you are trying to deactivate a schedule for a task, use _process_scheduler instead, don't just DELETE the porocess.""",
+                        STOP_ALL_BOTS will stop the processing of all bots, or TIME to get current system time.  
+                        If you are trying to deactivate a schedule for a task, use _process_scheduler instead, don't just DELETE the process.""",
                     },
                     "bot_id": {
                         "type": "string",

@@ -562,7 +562,7 @@ class ToolBelt:
          #  print(f"Error getting sys email: {e}")
             return None
         
-    def clear_registers(self, thread_id):
+    def clear_process_registers_by_thread(self, thread_id):
         # Initialize thread-specific data structures if not already present
         with self.lock:
             if thread_id not in self.counter:
@@ -583,6 +583,18 @@ class ToolBelt:
                 self.silent_mode[thread_id] = {}
             if thread_id not in self.process_config:
                 self.process_config[thread_id] = {}
+
+    def clear_all_process_registers(self, thread_id):
+        # Initialize thread-specific data structures if not already present
+        with self.lock:
+            self.counter = {}
+            self.last_fail = {}
+            self.fail_count = {}
+            self.instructions = {}
+            self.process_history = {}
+            self.done = {}
+            self.silent_mode = {}
+            self.process_config = {}
 
     def run_process(
         self,
@@ -643,7 +655,7 @@ class ToolBelt:
 
         self.sys_default_email = self.get_sys_email()
 
-        self.clear_registers(thread_id)
+        self.clear_process_registers_by_thread(thread_id)
 
         # Try to get process info from PROCESSES table
         process = self.get_process_info(bot_id, process_name=process_name, process_id=process_id)
@@ -1076,7 +1088,7 @@ class ToolBelt:
             with self.lock:
                 self.done[thread_id][process_id] = True
 
-            self.clear_registers(thread_id)
+            self.clear_process_registers_by_thread(thread_id)
 
             self.process_id = None
 
@@ -1890,7 +1902,7 @@ class ToolBelt:
         self, action, bot_id=None, process_id=None, process_details=None, thread_id=None, process_name=None, process_config=None
     ):
         """
-        Manages processs in the PROCESSES table with actions to create, delete, or update a process.
+        Manages processs in the PROCESSES table with actions to create, delete, update a process, or stop all processes
 
         Args:
             action (str): The action to perform
@@ -1921,11 +1933,19 @@ class ToolBelt:
             "process_instructions",
         ]
 
+        action = action.upper()
+
         if action == "TIME":
             return {
                 "current_system_time": datetime.now()
             }
-        action = action.upper()
+        
+        if action == 'STOP_ALL_PROCESSES':
+            self.clear_all_process_registers()
+            return {
+                "Success": True,
+                "Message": "All processes stopped (?)"
+            }
 
         cursor = db_adapter.client.cursor()
 

@@ -136,15 +136,15 @@ class SnowflakeConnector(DatabaseConnector):
         return get_process_info(self, bot_id, process_name)
 
     def add_file_to_stage(
-    self,
-    database: str = None,
-    schema: str = None,
-    stage: str = None,
-    openai_file_id: str = None,
-    file_name: str = None,
-    file_content: str = None,
-    thread_id=None,
-):
+        self,
+        database: str = None,
+        schema: str = None,
+        stage: str = None,
+        openai_file_id: str = None,
+        file_name: str = None,
+        file_content: str = None,
+        thread_id=None,
+    ):
         return add_file_to_stage(self,database,schema,stage,openai_file_id,file_name,file_content,thread_id)
 
     def read_file_from_stage(self, database, schema, stage, file_name, return_contents=True,is_binary=False,for_bot=None,thread_id=None):

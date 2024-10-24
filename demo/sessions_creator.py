@@ -196,7 +196,7 @@ def make_session(
     instructions = bot_config["bot_instructions"] + "\n"
 
     cursor = db_adapter.client.cursor()
-    query = f"SELECT process_name FROM {db_adapter.schema}.PROCESSES where bot_id = %s"
+    query = f"SELECT process_name, process_description FROM {db_adapter.schema}.PROCESSES where bot_id = %s"
     cursor.execute(query, (bot_id,))
     result = cursor.fetchall()
 

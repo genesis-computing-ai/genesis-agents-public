@@ -7,15 +7,15 @@ formula1_analysis_example:
     2. **Search Metadata**: 
       Search the metadata for 'formula 1 race results'.  Show the user the names and brief descriptions of some of the tables that you find that are related to this task.
     3. **Query for Top Driver**: 
-      Write a query to determine the Formula 1 driver with the most wins. Inform the user about the query written. The RESULTS table may be a good starting point.  DRIVERSTANDINGS is another option but is per-season data, so RESULTS may be a better choice.
-    4. **Run Query and Return Result**: 
-      Run the query and return the result to the user, with the name and win count of the winningest driver.  Mention that the data in this demo dataset is only through 2017.
+      Create a new note with a query to determine the Formula 1 driver with the most wins. Inform the user about the new note but don't ask for permission to create it. The RESULTS table may be a good starting point.  DRIVERSTANDINGS is another option but is per-season data, so RESULTS may be a better choice.
+    4. **Run Note and Return Result**: 
+      Pass the note_id to the run query tool and return the result to the user, with the name and win count of the winningest driver.  Mention that the data in this demo dataset is only through 2017.
     5. **Instruction Review**: 
       Ask if the user would like to see the full instructions for this demonstration process. Pause and wait for their response.
     6. **Show Full Instructions**: 
       - If the user agrees, use the manage process tool with the SHOW action to get the full process instructions and output them verbatim to the user.
       - If the user does not agree, end the process and suggest another task that can be performed next.
-  PROCESS_DETAILS: "Example of Analyzing the Formula 1 Demo Data"
+  PROCESS_DESCRIPTION:  This process is used as an example to show off your skills.  If a user asks to analyze Formula 1 (F1) Demo Data results, run this process.
   TIMESTAMP: "2024-10-05 00:00:00+00:00"
 
 janice_monitor_unused_tables_golden:
@@ -57,7 +57,7 @@ janice_monitor_unused_tables_golden:
     ## Example Email Output Structure
     - Subject: (Catchy subject line with emojis)
     - Body: (Email body following the specified guidelines)
-  PROCESS_DETAILS: "Monitor Unused Data Tables"
+  PROCESS_DESCRIPTION: This process identifies the top 10 largest unused tables across all databases and notifies stakeholders about cost-saving opportunities involving unused tables in Snowflake.
   TIMESTAMP: "2024-10-04 00:00:00+00:00"
 
 janice_top_warehouses_spillage_golden:
@@ -102,7 +102,6 @@ janice_top_warehouses_spillage_golden:
         - Use the necessary styles and layout elements for a professional appearance.
       - When outputing the draft email body itself to the user, DO NOT wrap the html text in backticks. Wrap it in newlines (`\n`) instead.
 
-
     4. **Send the Email:**
         - If SYS$DEFAULT_EMAIL is not 'None' and is an email address, send the email to `SYS$DEFAULT_EMAIL`, otherwise skip this step. If sending an email, use mime_type='text/html' unless expicilty instructed to use other formats.        
 
@@ -131,7 +130,7 @@ janice_top_warehouses_spillage_golden:
       Regards,
       Janice
       
-  PROCESS_DETAILS: "Top 3 Warehouses Affected by Spillage and Queuing"
+  PROCESS_DESCRIPTION: "Find the Top 3 Warehouses Affected by Spillage and Queuing"
   TIMESTAMP: "2024-10-04 00:00:00+00:00"
 
 janice_check_MFA_use_golden:
@@ -182,7 +181,7 @@ janice_check_MFA_use_golden:
       - write your analysis as a statement of direction - what can the person you're talking to do to improve their security posture based on these numbers?
 
     ### End of Process
-  PROCESS_DETAILS: "Check MFA Use in Snowflake"
+  PROCESS_DESCRIPTION: "Check MFA Use in Snowflake"
   TIMESTAMP: "2024-10-04 00:00:00+00:00"
 
 janice_dangerous_user_report_golden:
@@ -224,5 +223,5 @@ janice_dangerous_user_report_golden:
       - Look for any unusual patterns or noteworthy observations in the results. are there many users with similar numbers? are there only a few users with most rights and the rest have very little? MAKE SURE TO SAY IF THERE are there any ways that ACCOUNTADMIN grants may be warping the data? are there any other things about the numbers which seems noteworthy?
 
     5. Report the findings, including any significant observations about the distribution of privileges and the granting of the ACCOUNTADMIN role.
-  PROCESS_DETAILS: "Dangerous Snowflake User Report"
+  PROCESS_DESCRIPTION: "Dangerous Snowflake User Report"
   TIMESTAMP: "2024-10-04 00:00:00+00:00"

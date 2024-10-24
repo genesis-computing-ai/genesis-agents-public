@@ -1231,6 +1231,7 @@ def ensure_table_exists(self):
                 BOT_ID VARCHAR(16777216),
                 PROCESS_NAME VARCHAR(16777216) NOT NULL,
                 PROCESS_INSTRUCTIONS VARCHAR(16777216),
+                PROCESS_DESCRIPTION VARCHAR(16777216),
                 NOTE_ID VARCHAR(16777216),
                 PROCESS_CONFIG VARCHAR(16777216),
                 HIDDEN BOOLEAN
@@ -1260,8 +1261,9 @@ def ensure_table_exists(self):
         note_id_exists = any(row[0].upper() == 'NOTE_ID' for row in table_description)
         # process_instructions_exists = any(row[0].upper() == 'PROCESS_INSTRUCTIONS' for row in table_description)
         hidden_exists = any(row[0].upper() == 'HIDDEN' for row in table_description)
+        desc_exists = any(row[0].upper() == 'PROCESS_DESCRIPTION' for row in table_description)
 
-        if not process_config_exists or not note_id_exists or not hidden_exists:
+        if not process_config_exists or not note_id_exists or not hidden_exists or not desc_exists:
             add_column_query = f"ALTER TABLE {self.schema}.PROCESSES "
 
             columns_to_add = []
@@ -1271,6 +1273,8 @@ def ensure_table_exists(self):
                 columns_to_add.append("ADD COLUMN NOTE_ID VARCHAR(16777216)")
             if not hidden_exists:
                 columns_to_add.append("ADD COLUMN HIDDEN BOOLEAN")
+            if not desc_exists:
+                columns_to_add.append("ADD COLUMN PROCESS_DESCRIPTION VARCHAR(16777216)")
 
             add_column_query += ", ".join(columns_to_add)
 
@@ -1283,6 +1287,8 @@ def ensure_table_exists(self):
                 print("NOTE_ID column added to PROCESSES table.")
             if not hidden_exists:
                 print("HIDDEN column added to PROCESSES table.")
+            if not desc_exists:
+                print("PROCESS_DESCRIPTION column added to PROCESSES table.")
         else:
             print("PROCESS_CONFIG column already exists in PROCESSES table.")
     except Exception as e:

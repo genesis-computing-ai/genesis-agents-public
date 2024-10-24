@@ -64,7 +64,16 @@ def setup_slack():
     else:
         st.write("Go to [Slack Apps](https://api.slack.com/apps) and create an App Config Refresh Token. Paste it below and press **Update**.")
 
-        slack_app_token = st.text_input("Slack App Token", value=tok)
+        if tok == "...":
+            tok = ""
+        if ref == "...":
+            ref = ""
+
+        if tok:
+            slack_app_token = st.text_input("Slack App Token", value=tok)
+        else:
+            slack_app_token = "NOT NEEDED"
+
         # Show text input for the Slack App Refresh Token
         slack_app_refresh_token = st.text_input("Slack App Refresh Token", value=ref_tok)
 

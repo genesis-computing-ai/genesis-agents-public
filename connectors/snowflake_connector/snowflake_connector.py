@@ -124,34 +124,43 @@ class SnowflakeConnector(DatabaseConnector):
         self.images_table_name = self.app_share_schema + "." + "IMAGES"
 
     def ensure_table_exists(self):
-        ensure_table_exists(self)
+        return ensure_table_exists(self)
 
     def one_time_db_fixes(self):
-        one_time_db_fixes(self)
+        return one_time_db_fixes(self)
 
     def get_processes_list(self, bot_id='all'):
-        get_processes_list(self, bot_id)
+        return get_processes_list(self, bot_id)
 
     def get_process_info(self, bot_id, process_name):
-        get_process_info(self, bot_id, process_name)
+        return get_process_info(self, bot_id, process_name)
 
-    def add_file_to_stage(self,database,schema,stage,openai_file_id,file_name,file_content,thread_id):
-        add_file_to_stage(self,database,schema,stage,openai_file_id,file_name,file_content,thread_id)
+    def add_file_to_stage(
+        self,
+        database: str = None,
+        schema: str = None,
+        stage: str = None,
+        openai_file_id: str = None,
+        file_name: str = None,
+        file_content: str = None,
+        thread_id=None,
+    ):
+        return add_file_to_stage(self,database,schema,stage,openai_file_id,file_name,file_content,thread_id)
 
-    def read_file_from_stage(self, database, schema, stage, file_name, return_contents,is_binary,for_bot,thread_id):
-        read_file_from_stage(self, database, schema, stage, file_name, return_contents, is_binary, for_bot, thread_id)
+    def read_file_from_stage(self, database, schema, stage, file_name, return_contents=True,is_binary=False,for_bot=None,thread_id=None):
+        return read_file_from_stage(self, database, schema, stage, file_name, return_contents, is_binary, for_bot, thread_id)
 
     def update_file_in_stage(self,database, schema, stage, file_name, thread_id):
-        update_file_in_stage(self, database, schema, stage, file_name, thread_id)
+        return update_file_in_stage(self, database, schema, stage, file_name, thread_id)
 
     def delete_file_from_stage(self, database, schema, stage,file_name, thread_id):
-        delete_file_from_stage(self, database, schema, stage,file_name, thread_id)
+        return delete_file_from_stage(self, database=None, schema=None, stage=None,file_name=None, thread_id=None)
 
     def list_stage_contents(self, database, schema, stage, pattern, thread_id):
-        list_stage_contents(self, database, schema, stage, pattern, thread_id)
+        return list_stage_contents(self, database=None, schema=None, stage=None, pattern=None, thread_id=None)
 
     def test_stage_functions():
-        test_stage_functions()
+        return test_stage_functions()
 
     # def process_scheduler(self,action, bot_id, task_id=None, task_details=None, thread_id=None, history_rows=10):
     #     process_scheduler(self, action, bot_id, task_id=None, task_details=None, thread_id=None, history_rows=10)

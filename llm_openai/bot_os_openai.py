@@ -430,7 +430,8 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                   file_name=file,
                   for_bot=f'{for_bot}_BOT_DOCS',
                   thread_id=f'{for_bot}_BOT_DOCS',
-                  return_contents=False
+                  return_contents=False,
+                  is_binary=False
                   )
             if contents==file:
                local_file_path = new_file_location
@@ -1176,7 +1177,29 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
          failed_but_restarting_flag = False
          if thread_run["completed_at"] is None:
 
-            run = self.client.beta.threads.runs.retrieve(thread_id = thread_id, run_id = thread_run["run"])
+            try:
+               run = self.client.beta.threads.runs.retrieve(thread_id = thread_id, run_id = thread_run["run"])
+            except:
+               retry_count = 0
+               max_retries = 3
+               while retry_count < max_retries:
+                   try:
+                       run = self.client.beta.threads.runs.retrieve(thread_id=thread_id, run_id=thread_run["run"])
+                       break  # If successful, exit the retry loop
+                   except Exception as e:
+                       print(f"Error retrieving run (attempt {retry_count + 1}): {e}")
+                       retry_count += 1
+                       if retry_count < max_retries:
+                           time.sleep(5)  # Wait for 5 seconds before retrying
+                       else:
+                           print(f"Failed to retrieve run after {max_retries} attempts")
+                           try:
+                              self.thread_run_map[thread_id]["completed_at"] = 'Thread Error'
+                           except:
+                              pass
+                           raise  # Re-raise the last exception if all retries fail
+
+
            # print(run.status)
 
             if run.status == "failed":

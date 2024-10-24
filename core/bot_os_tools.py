@@ -1293,6 +1293,7 @@ class ToolBelt:
                     "Success": False,
                     "Fields": {"note_id": note_id, "note_name": note_name, "bot_id": bot_id, "note content": note_content, "note_params:": note_params},
                     "Confirmation_Needed": "Please reconfirm the field values with the user, then call this function again with the action CREATE_CONFIRMED to actually create the note.",
+                    "Suggestion": "If possible, for a sql or python note, suggest to the user that we test the sql or python before making the note to make sure it works properly",
                     "Next Step": "If you're ready to create this note, call this function again with action CREATE_CONFIRMED instead of CREATE"
                 #    "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}",
                 }
@@ -1302,6 +1303,7 @@ class ToolBelt:
                     "Success": False,
                     "Fields": {"note_id": note_id, "note_name": note_name, "bot_id": bot_id, "note content": note_content, "note_param:": note_params},
                     "Confirmation_Needed": "Please reconfirm this content and all the other note field values with the user, then call this function again with the action UPDATE_CONFIRMED to actually update the note.",
+                    "Suggestion": "If possible, for a sql or python note, suggest to the user that we test the sql or python before making the note to make sure it works properly",
                     "Next Step": "If you're ready to update this note, call this function again with action UPDATE_CONFIRMED instead of UPDATE"
                 #    "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}",
                 }
@@ -1979,6 +1981,7 @@ class ToolBelt:
                 if result != 'NO CODE':
                     return {
                         "Success": False,
+                        "Suggestion": "Explain to the user that any SQL or Python code needs to be first separately tested and stored as a 'note', which is a special way to store sql or python that will be used within processes. This helps keep the process instuctions themselves clean and makes processes run more reliably.",
                         "Error": f"Processes may not contain {result} code.  Please remove the code and replace it with a note_id to the code in the note table.  Then replace the code in the process with the note_id of the new note.  Do not include the note contents in the process, just include an instruction to run the note with the note_id."
                     }
 

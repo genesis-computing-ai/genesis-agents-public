@@ -3972,7 +3972,7 @@ result = 'Table FAKE_CUST created successfully.'
                     "error": "Wrong tool called. Note type must be 'snowpark_python' to use this tool.",
                     }
 
-        if bot_id not in ['eva-x1y2z3', 'MrsEliza-3348b2', os.getenv("O1_OVERRIDE_BOT","")]:
+        if (bot_id not in ['eva-x1y2z3', 'MrsEliza-3348b2', os.getenv("O1_OVERRIDE_BOT","")]) and (bot_id is not None and not bot_id.endswith('-o1or')):
             if '\\n' in code:
                 if '\n' not in code.replace('\\n', ''):
                     code = code.replace('\\n','\n')
@@ -4209,25 +4209,26 @@ result = 'Table FAKE_CUST created successfully.'
                                           f" (ii) If responding to the user in HTML mode, use the most relevant HTML tag to refrence this resource using the url 'sandbox:/mnt/data/{result_json['filename']}' "
                                 }
                     cleanup(proc_name)
-                    if bot_id not in ['eva-x1y2z3', 'MrsEliza-3348b2', os.getenv("O1_OVERRIDE_BOT","")]:
+                    if (bot_id not in ['eva-x1y2z3', 'MrsEliza-3348b2', os.getenv("O1_OVERRIDE_BOT","")]) and (bot_id is not None and not bot_id.endswith('-o1or')):
                         result = self.add_hints(purpose, result, code, packages)
                     return result
 
                 # If conditions are not met, return the original result
-                if bot_id not in ['eva-x1y2z3', 'MrsEliza-3348b2', os.getenv("O1_OVERRIDE_BOT","")]:
+                if (bot_id not in ['eva-x1y2z3', 'MrsEliza-3348b2', os.getenv("O1_OVERRIDE_BOT","")]) and (bot_id is not None and not bot_id.endswith('-o1or')):
                     result_json = self.add_hints(purpose, result_json, code, packages)
                 cleanup(proc_name)
                 return result_json
 
             cleanup(proc_name)
-            if bot_id not in ['eva-x1y2z3', 'MrsEliza-3348b2', os.getenv("O1_OVERRIDE_BOT","")]:
+            if (bot_id not in ['eva-x1y2z3', 'MrsEliza-3348b2', os.getenv("O1_OVERRIDE_BOT","")]) and (bot_id is not None and not bot_id.endswith('-o1or')):
+
                 result_json = self.add_hints(purpose, result_json, code, packages)
             return result_json
 
         # Check if result is a dictionary and contains 'Error'
 
         cleanup(proc_name)
-        if bot_id not in ['eva-x1y2z3', 'MrsEliza-3348b2', os.getenv("O1_OVERRIDE_BOT","")]:
+        if (bot_id not in ['eva-x1y2z3', 'MrsEliza-3348b2', os.getenv("O1_OVERRIDE_BOT","")]) and (bot_id is not None and not bot_id.endswith('-o1or')):
             result = self.add_hints(purpose, result, code, packages)
         return result
 

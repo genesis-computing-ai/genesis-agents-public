@@ -313,7 +313,8 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             if thread_id in self.thread_stop_map:
                 self.thread_stop_map.pop(thread_id)
             if ') says: !model' in last_user_message["content"] or last_user_message["content"]=='!model':
-                if self.bot_id in ['eva-x1y2z3', 'MrsEliza-3348b2', os.getenv("O1_OVERRIDE_BOT","")]:
+
+                if (self.bot_id in ['eva-x1y2z3', 'MrsEliza-3348b2', os.getenv("O1_OVERRIDE_BOT","")]) or (self.bot_id is not None and self.bot_id.endswith('-o1or')):
                     resp += f'\nThis bot is running on {os.getenv("OPENAI_O1_OVERRIDE_MODEL",os.getenv("OPENAI_MODEL_NAME","gpt-4o"))} in override mode.'
                 else:
                     if thread_id in self.thread_fast_mode_map or fast_mode:
@@ -357,7 +358,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                 
         if resp == '':
  
-            if self.bot_id in ['eva-x1y2z3', 'MrsEliza-3348b2', os.getenv("O1_OVERRIDE_BOT","")]:
+            if (self.bot_id in ['eva-x1y2z3', 'MrsEliza-3348b2', os.getenv("O1_OVERRIDE_BOT","")]) or (self.bot_id is not None and self.bot_id.endswith('-o1or')):
 
                 if os.getenv("BOT_OS_DEFAULT_LLM_ENGINE",'').lower() == 'openai':
                     api_key = os.getenv("OPENAI_API_KEY")

@@ -65,7 +65,7 @@ database_tool_functions = [
                         "description": "The note_id of the note that contains the query to run.  This is an optional field.  If it is provided, the query will be saved in the note.  Use the note contents instead of the query parameter.",
                     },
                 },
-                "required": ["query", "connection", "max_rows"],
+                "required": ["connection", "max_rows"],
             },
         },
     },

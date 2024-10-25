@@ -105,9 +105,11 @@ class ToolBelt:
         self.last_fail= {}
         self.fail_count = {}
         self.lock = threading.Lock()
+        self.recurse_stack = []
         self.recurse_level = 1
         global belts
         belts = belts + 1
+        self.process_id = {}
 
         self.sys_default_email = self.get_sys_email()
    #     print(belts)
@@ -610,6 +612,7 @@ class ToolBelt:
     ):
       #  print(f"Running processes Action: {action} | process_id: {process_id or 'None'} | Thread ID: {thread_id or 'None'}")
         self.recurse_level = 0
+        self.recurse_stack = {thread_id: thread_id, process_id: process_id}
 
         if process_id is not None and process_id == '':
             process_id = None
@@ -699,7 +702,7 @@ class ToolBelt:
                 self.process_history[thread_id][process_id] = None
                 self.done[thread_id][process_id] = False
                 self.silent_mode[thread_id][process_id] = silent_mode
-                self.process_id = process_id
+                self.process_id[thread_id] = process_id
 
 
             print(
@@ -740,6 +743,7 @@ class ToolBelt:
             # Check if the first step contains ">>RECURSE"
             if ">> RECURSE" in first_step or ">>RECURSE" in first_step:
                 self.recurse_level += 1
+                self.recurse_stack.append({thread_id: thread_id, process_id: process_id})
                 # Extract the process name or ID
                 process_to_run = first_step.split(">>RECURSE")[1].strip() if ">>RECURSE" in first_step else first_step.split(">> RECURSE")[1].strip()
 
@@ -1090,7 +1094,7 @@ class ToolBelt:
 
             self.clear_process_registers_by_thread(thread_id)
 
-            self.process_id = None
+            self.process_id[thread_id] = None
 
             self.clear_process_cache(bot_id, thread_id, process_id)
             print(f'Process cache cleared for bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}')
@@ -1212,7 +1216,7 @@ class ToolBelt:
         ]
 
         try:
-            if not self.done[thread_id][self.process_id]:
+            if not self.done[thread_id][self.process_id[thread_id]]:
                 return {
                     "Success": False,
                     "Error": "You cannot run the notebook manager from within a process."

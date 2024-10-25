@@ -16,7 +16,7 @@ formula1_analysis_example:
       - If the user agrees, use the manage process tool with the SHOW action to get the full process instructions and output them verbatim to the user.
       - If the user does not agree, end the process and suggest another task that can be performed next.
   PROCESS_DESCRIPTION:  This process is used as an example to show off your skills.  If a user asks to analyze Formula 1 (F1) Demo Data results, run this process.
-  TIMESTAMP: "2024-10-05 00:00:00+00:00"
+  TIMESTAMP: "2024-10-25 00:00:00+00:00"
 
 janice_monitor_unused_tables_golden:
   BOT_ID: "Janice"
@@ -58,7 +58,7 @@ janice_monitor_unused_tables_golden:
     - Subject: (Catchy subject line with emojis)
     - Body: (Email body following the specified guidelines)
   PROCESS_DESCRIPTION: This process identifies the top 10 largest unused tables across all databases and notifies stakeholders about cost-saving opportunities involving unused tables in Snowflake.
-  TIMESTAMP: "2024-10-04 00:00:00+00:00"
+  TIMESTAMP: "2024-10-25 00:00:00+00:00"
 
 janice_top_warehouses_spillage_golden:
   BOT_ID: "Janice"
@@ -131,7 +131,7 @@ janice_top_warehouses_spillage_golden:
       Janice
       
   PROCESS_DESCRIPTION: "Find the Top 3 Warehouses Affected by Spillage and Queuing"
-  TIMESTAMP: "2024-10-04 00:00:00+00:00"
+  TIMESTAMP: "2024-10-25 00:00:00+00:00"
 
 janice_check_MFA_use_golden:
   BOT_ID: "Janice"
@@ -182,7 +182,7 @@ janice_check_MFA_use_golden:
 
     ### End of Process
   PROCESS_DESCRIPTION: "Check MFA Use in Snowflake"
-  TIMESTAMP: "2024-10-04 00:00:00+00:00"
+  TIMESTAMP: "2024-10-25 00:00:00+00:00"
 
 janice_dangerous_user_report_golden:
   BOT_ID: "Janice"
@@ -224,4 +224,4 @@ janice_dangerous_user_report_golden:
 
     5. Report the findings, including any significant observations about the distribution of privileges and the granting of the ACCOUNTADMIN role.
   PROCESS_DESCRIPTION: "Dangerous Snowflake User Report"
-  TIMESTAMP: "2024-10-04 00:00:00+00:00"
+  TIMESTAMP: "2024-10-25 00:00:00+00:00"

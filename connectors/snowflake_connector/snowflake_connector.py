@@ -1866,11 +1866,18 @@ def get_status(site):
         """
         userquery = False
 
+        if (query is None and note_id is None) or (query is not None and note_id is not None):
+            return {
+                "success": False,
+                "error": "Either a query or a note_id must be provided, but not both, and not neither.",
+            }
+
+
         try:
             if note_id is not None or note_name is not None:
                 note_id = '' if note_id is None else note_id
                 note_name = '' if note_name is None else note_name
-                get_note_query = f"SELECT note_content, note_params, note_type FROM {self.schema}.NOTEBOOK WHERE NOTE_ID = '{note_id}' OR NOTE_NAME = '{note_name}'"
+                get_note_query = f"SELECT note_content, note_params, note_type FROM {self.schema}.NOTEBOOK WHERE NOTE_ID = '{note_id}'"
                 cursor = self.connection.cursor()
                 cursor.execute(get_note_query)
                 query_cursor = cursor.fetchone()
@@ -1885,7 +1892,7 @@ def get_status(site):
                 note_type = query_cursor[2]
 
                 if note_type != 'sql':
-                    raise ValueError("Note type must be 'sql' to run sql with the run_query tool.")
+                    raise ValueError(f"Note type must be 'sql' to run sql with the run_query tool.  This note is type: {note_type}")
         except ValueError as e:
             return {
                 "success": False,

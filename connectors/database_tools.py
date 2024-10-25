@@ -43,7 +43,7 @@ database_tool_functions = [
         "type": "function",
         "function": {
             "name": "_run_query",
-            "description": "Run a query against a database.  If you need to find tables to query, use search_metadata first to determine the right object names to query.",
+            "description": "Run a query against a database.  If you need to find tables to query, use search_metadata first to determine the right object names to query.  You need to specify either a SQL query OR a note_id.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -62,10 +62,10 @@ database_tool_functions = [
                     },
                     "note_id": {
                         "type": "string",
-                        "description": "The note_id of the note that contains the query to run.  This is an optional field.  If it is provided, the query will be saved in the note.  Use the note contents instead of the query parameter.",
+                        "description": "The note_id of the note that contains the query to run. Use this instead of a query when instructed to run a note_id.",
                     },
                 },
-                "required": ["query", "connection", "max_rows"],
+                "required": [ "connection", "max_rows"],
             },
         },
     },
@@ -127,7 +127,8 @@ database_tool_functions = [
             "name": "_run_snowpark_python",
             "description": "Executes a string of Python snowflake snowpark code using a precreated and provided 'session', do not create a new session. "
                            "Use this instead of code_interpreter when directed to use snowpark, or when you want to run python that can directly interact "
-                           "with the user's snowflake session, tables, and stages.  Results should only have a single object.  Multiple objects are not allowed.",
+                           "with the user's snowflake session, tables, and stages.  Results should only have a single object.  Multiple objects are not allowed."
+                           "Provide EITHER the 'code' field with the python code to run, or the 'note_id' field with the id of the note that contains the code you want to run.",
             #this function has an existing snowflake session inside that you can use called session so do not try to create a new session or connection.",
             "parameters": {
                 "type": "object",
@@ -171,7 +172,7 @@ database_tool_functions = [
                                        "This local file should not be considered accessible by outside systems. "
                     },
                 },
-                "required": ["code", "purpose"],
+                "required": [ "purpose"],
             },
         },
     },

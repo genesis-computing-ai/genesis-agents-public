@@ -196,13 +196,17 @@ def make_session(
     instructions = bot_config["bot_instructions"] + "\n"
 
     cursor = db_adapter.client.cursor()
-    query = f"SELECT process_name, process_description FROM {db_adapter.schema}.PROCESSES where bot_id = %s"
+    query = f"SELECT process_name, process_id, process_description FROM {db_adapter.schema}.PROCESSES where bot_id = %s"
     cursor.execute(query, (bot_id,))
     result = cursor.fetchall()
 
     if result:
+        process_info = ""
+        for row in result:
+            process_info += f"- Process ID: {row[1]}\n  Name: {row[0]}\n  Description: {row[2]}\n\n"
+        instructions += process_info
         processes_found = ', '.join([row[0] for row in result])
-        instructions += f"\n\nFYI, you have the following processes available: {processes_found}. They can be run with _run_process function if useful to your work. This list may not be up to date, you can use _manage_process for an up to date LIST.\n\n"
+        instructions += f"\n\nFYI, you have the following processes available:\n{process_info}.\nThey can be run with _run_process function if useful to your work. This list may not be up to date, you can use _manage_process for an up to date LIST.\n\n"
         print('appended process list to prompt, len=', len(processes_found))
     instructions += BASE_BOT_INSTRUCTIONS_ADDENDUM
 

@@ -1215,7 +1215,7 @@ class ToolBelt:
             if not self.done[thread_id][self.process_id]:
                 return {
                     "Success": False,
-                    "Error": "You cannot run the notebook manager from within a process."
+                    "Error": "You cannot run the notebook manager from within a process.  Instead run a sql note with run_query, or a python note using run_snowpark_python specifing the note_id."
                 }
         except KeyError as e:
             pass

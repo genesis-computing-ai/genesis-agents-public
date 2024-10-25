@@ -16,7 +16,7 @@ formula1_analysis_example:
       - If the user agrees, use the manage process tool with the SHOW action to get the full process instructions and output them verbatim to the user.
       - If the user does not agree, end the process and suggest another task that can be performed next.
   PROCESS_DESCRIPTION:  This process is used as an example to show off your skills.  If a user asks to analyze Formula 1 (F1) Demo Data results, run this process.
-  TIMESTAMP: "2024-10-25 00:00:00+00:00"
+  TIMESTAMP: "2024-10-25 02:00:00+00:00"
 
 janice_monitor_unused_tables_golden:
   BOT_ID: "Janice"
@@ -29,8 +29,7 @@ janice_monitor_unused_tables_golden:
 
     ## Process Steps:
     1. **Identify The Top 10 Largest Unused Tables Across All Databases:**
-       - Use your run query tool with note_id janice_10_unused_tables to identify the 10 largest unused tables across all databases and schemas in the Snowflake account. Make
-         sure you use only the note_id.  Do not copy the sql code into the query.
+       - Use your run query tool with note_id janice_10_unused_tables to identify the 10 largest unused tables across all databases and schemas in the Snowflake account. 
        - Confirm with the supervisor that you have run the query and note the number of rows you received in response.
 
     2. **Draft a Compelling Email:**
@@ -58,7 +57,7 @@ janice_monitor_unused_tables_golden:
     - Subject: (Catchy subject line with emojis)
     - Body: (Email body following the specified guidelines)
   PROCESS_DESCRIPTION: This process identifies the top 10 largest unused tables across all databases and notifies stakeholders about cost-saving opportunities involving unused tables in Snowflake.
-  TIMESTAMP: "2024-10-25 00:00:00+00:00"
+  TIMESTAMP: "2024-10-25 02:00:00+00:00"
 
 janice_top_warehouses_spillage_golden:
   BOT_ID: "Janice"
@@ -72,14 +71,12 @@ janice_top_warehouses_spillage_golden:
     ## Process Steps:
 
     1. **Identify The Top 3 Warehouses With Data Spilling:**
-      - Execute the SQL query in your notebook with note_id = 'janice_query_1' to identify the top 3 warehouses with data spilling in the Snowflake account. Make
-         sure to only use the token of the note_id.  Do not copy the sql code into the query.
-
+      - Use your run query tool with note_id janice_10_unused_tables to identify the 10 largest unused tables across all databases and schemas in the Snowflake account. Make
+         sure you use only the note_id.  Do not copy the sql code into the query.
       - Confirm with the supervisor that you have run the query and note the number of rows you received in response.
+      
     2. **Average Queuing Times Per Month:**
-      - Execute the SQL query in your notebook with note_id = 'janice_query_2' to identify the average queuing times per month. Make
-         sure to only use the token of the note_id.  Do not copy the sql code into the query.
-        
+      - Execute the SQL query in your notebook with note_id = 'janice_query_2' to identify the average queuing times per month.
       - Confirm with the supervisor that you have run the query and note the number of rows you received in response.
 
     3. **Draft a Compelling Email:**
@@ -102,8 +99,8 @@ janice_top_warehouses_spillage_golden:
         - Use the necessary styles and layout elements for a professional appearance.
       - When outputing the draft email body itself to the user, DO NOT wrap the html text in backticks. Wrap it in newlines (`\n`) instead.
 
-    4. **Send the Email:**
-        - If SYS$DEFAULT_EMAIL is not 'None' and is an email address, send the email to `SYS$DEFAULT_EMAIL`, otherwise skip this step. If sending an email, use mime_type='text/html' unless expicilty instructed to use other formats.        
+    4. **Send the Email, or Tell the User to Activate the Default Email:**
+        - If SYS$DEFAULT_EMAIL is not 'None' and is an email address, send the email to `SYS$DEFAULT_EMAIL`, otherwise don't send am email and instead tell the user they can set the Default Email in the Genesis Streamlit GUI to activate sending of emails. If sending an email, use mime_type='text/html' unless expicilty instructed to use other formats.        
 
     ## Conclusion
     This process helps in identifying performance issues related to data spillage and queuing times, enabling stakeholders to optimize warehouse configurations for better performance.
@@ -130,16 +127,15 @@ janice_top_warehouses_spillage_golden:
       Regards,
       Janice
       
-  PROCESS_DESCRIPTION: "Find the Top 3 Warehouses Affected by Spillage and Queuing"
-  TIMESTAMP: "2024-10-25 00:00:00+00:00"
+  PROCESS_DESCRIPTION: "Analyze and Identify Top 3 Snowflake Warehouses Experiencing Performance Issues Due to Data Spillage and Extended Queuing Times. This process involves querying Snowflake metadata to gather performance metrics, specifically focusing on bytes spilled to local and remote storage, as well as average queuing times. The analysis aims to pinpoint warehouses that may require configuration optimization to enhance overall system efficiency and reduce operational costs. The findings will be summarized in a detailed report, including specific warehouse names, spillage amounts, and queuing durations, to facilitate targeted improvements in the Snowflake environment."
+  TIMESTAMP: "2024-10-25 02:00:00+00:00"
 
 janice_check_MFA_use_golden:
   BOT_ID: "Janice"
   PROCESS_NAME: "Janice Check MFA Use"
   PROCESS_INSTRUCTIONS: |
     1. **Query to Retrieve User Data**:
-      - Run the SQL query in your notebook with a note_id of 'QUERY_3' to collect necessary data.  Make
-         sure to only use the token of the note_id.  Do not copy the sql code into the query.
+      - Use run_query function with note_id 'QUERY_3' to collect necessary data.
      
     2. **Draft a Compelling Email:**
       - As you write the email remember you're talking about security so the tone should be serious
@@ -160,10 +156,8 @@ janice_check_MFA_use_golden:
         - Use the necessary styles and layout elements for a professional appearance.
         - When outputing the draft email body itself to the user, DO NOT wrap the html text in backticks. Wrap it in newlines (`\n`) instead.
 
-
-
-    3. **Send the Email:**        
-        - If SYS$DEFAULT_EMAIL is not 'None' and is an email address, send the email to `SYS$DEFAULT_EMAIL`, otherwise skip this step. If sending an email, use mime_type='text/html' unless expicilty instructed to use other formats.        
+    3. **Send the Email, or Tell the User to Activate the Default Email:**
+        - If SYS$DEFAULT_EMAIL is not 'None' and is an email address, send the email to `SYS$DEFAULT_EMAIL`, otherwise don't send am email and instead tell the user they can set the Default Email in the Genesis Streamlit GUI to activate sending of emails. If sending an email, use mime_type='text/html' unless expicilty instructed to use other formats.        
         - Then use run_process to continue running the rest of the steps
 
     4. **Generate Report and Recommendations**:
@@ -181,15 +175,14 @@ janice_check_MFA_use_golden:
       - write your analysis as a statement of direction - what can the person you're talking to do to improve their security posture based on these numbers?
 
     ### End of Process
-  PROCESS_DESCRIPTION: "Check MFA Use in Snowflake"
-  TIMESTAMP: "2024-10-25 00:00:00+00:00"
+  PROCESS_DESCRIPTION: "Comprehensive analysis of Multi-Factor Authentication (MFA) usage patterns in Snowflake, including assessment of user types, admin privileges, and overall security posture. This process generates a detailed report with actionable recommendations for improving MFA adoption and enhancing account security."
+  TIMESTAMP: "2024-10-25 02:00:00+00:00"
 
 janice_dangerous_user_report_golden:
   BOT_ID: "Janice"
   PROCESS_NAME: "Janice Dangerous User Report"
   PROCESS_INSTRUCTIONS: |
-    1. Run the SQL query in your notebook with a note_id of 'QUERY_4' to gather data on user roles and privileges.  Make
-         sure to only use the token of the note_id.  Do not copy the sql code into the query.
+    1. Use run_query with note_id 'QUERY_4' to gather data on user roles and privileges. 
 
     2. **Draft a Compelling Email:**
       - As you write the email remember you are talking about security so the tone should be serious
@@ -211,9 +204,8 @@ janice_dangerous_user_report_golden:
           - Use the necessary styles and layout elements for a professional appearance.
       - When outputing the draft email body itself to the user, DO NOT wrap the html text in backticks. Wrap it in newlines (`\n`) instead.
          
-
-    3. **Send the Email:**
-        - If SYS$DEFAULT_EMAIL is not 'None' and is an email address, send the email to `SYS$DEFAULT_EMAIL`, otherwise skip this step. If sending an email, use mime_type='text/html' unless expicilty instructed to use other formats.        
+    3. **Send the Email, or Tell the User to Activate the Default Email:**
+        - If SYS$DEFAULT_EMAIL is not 'None' and is an email address, send the email to `SYS$DEFAULT_EMAIL`, otherwise don't send am email and instead tell the user they can set the Default Email in the Genesis Streamlit GUI to activate sending of emails. If sending an email, use mime_type='text/html' unless expicilty instructed to use other formats.        
         - Then use run_process to continue running the rest of the steps
 
     4. Analyze the results based on the following criteria:
@@ -223,5 +215,5 @@ janice_dangerous_user_report_golden:
       - Look for any unusual patterns or noteworthy observations in the results. are there many users with similar numbers? are there only a few users with most rights and the rest have very little? MAKE SURE TO SAY IF THERE are there any ways that ACCOUNTADMIN grants may be warping the data? are there any other things about the numbers which seems noteworthy?
 
     5. Report the findings, including any significant observations about the distribution of privileges and the granting of the ACCOUNTADMIN role.
-  PROCESS_DESCRIPTION: "Dangerous Snowflake User Report"
-  TIMESTAMP: "2024-10-25 00:00:00+00:00"
+  PROCESS_DESCRIPTION: "Comprehensive analysis and report on potentially dangerous Snowflake user privileges, focusing on users with excessive rights, widespread ACCOUNTADMIN role distribution, and overall security posture evaluation. This process includes running SQL queries to gather user role data, drafting a compelling email with findings, and providing actionable recommendations to improve account security and privilege management within the Snowflake environment."
+  TIMESTAMP: "2024-10-25 02:00:00+00:00"

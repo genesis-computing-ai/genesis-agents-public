@@ -589,14 +589,14 @@ class ToolBelt:
     def clear_all_process_registers(self, thread_id):
         # Initialize thread-specific data structures if not already present
         with self.lock:
-            self.counter = {}
-            self.last_fail = {}
-            self.fail_count = {}
-            self.instructions = {}
-            self.process_history = {}
-            self.done = {}
-            self.silent_mode = {}
-            self.process_config = {}
+            self.counter[thread_id] = {}
+            self.last_fail[thread_id]  = {}
+            self.fail_count[thread_id]  = {}
+            self.instructions[thread_id]  = {}
+            self.process_history[thread_id]  = {}
+            self.done[thread_id]  = {}
+            self.silent_mode[thread_id]  = {}
+            self.process_config[thread_id]  = {}
 
     def run_process(
         self,
@@ -1105,7 +1105,7 @@ class ToolBelt:
             return {"success": True, "message": f'The process {process_name} has finished.  You may now end the process.'}
         if action == 'STOP_ALL_PROCESSES':
             try:
-                self.clear_all_process_registers()
+                self.clear_all_process_registers(thread_id)
                 return {
                     "Success": True,
                     "Message": "All processes stopped (?)"

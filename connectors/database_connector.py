@@ -139,26 +139,4 @@ class DatabaseConnector:
     def db_get_active_llm_key(self) -> list[llm_keys_and_types_struct]:
         raise NotImplementedError("This method should be implemented by subclasses.")
 
-    def get_email(self):
-        """
-        Retrieves the email address if set.
 
-        Returns:
-            list: An email address, if set.
-        """
-        try:
-            query = f"SELECT DEFAULT_EMAIL FROM {self.genbot_internal_project_and_schema}.DEFAULT_EMAIL"
-            cursor = self.client.cursor()
-            cursor.execute(query)
-            email_info = cursor.fetchall()
-            columns = [col[0].lower() for col in cursor.description]
-            email_list = [dict(zip(columns, email)) for email in email_info]
-            json_data = json.dumps(
-                email_list, default=str
-            )  # default=str to handle datetime and other non-serializable types
-
-            return {"Success": True, "Data": json_data}
-
-        except Exception as e:
-            err = f"An error occurred while getting email address: {e}"
-            return {"Success": False, "Error": err}

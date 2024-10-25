@@ -87,7 +87,7 @@ if [ "$patch_number" -eq 130 ]; then
 fi
 
 if [ "$2" == "False" ]; then
-    snow sql -c GENESIS-DEV-PROVIDER -q "ALTER APPLICATION GENESISAPP_APP_PKG UPGRADE USING VERSION V0_8;"
+    snow sql -c GENESIS-DEV-PROVIDER -q "ALTER APPLICATION GENESIS_BOTS UPGRADE USING VERSION V0_8;"
 else
     snow sql -c GENESIS-DEV-CONSUMER-2 -q "alter application genesis_bots upgrade"
 

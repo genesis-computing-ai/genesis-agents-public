@@ -127,7 +127,7 @@ janice_top_warehouses_spillage_golden:
       Janice
       
   PROCESS_DESCRIPTION: "Analyze and Identify Top 3 Snowflake Warehouses Experiencing Performance Issues Due to Data Spillage and Extended Queuing Times. This process involves querying Snowflake metadata to gather performance metrics, specifically focusing on bytes spilled to local and remote storage, as well as average queuing times. The analysis aims to pinpoint warehouses that may require configuration optimization to enhance overall system efficiency and reduce operational costs. The findings will be summarized in a detailed report, including specific warehouse names, spillage amounts, and queuing durations, to facilitate targeted improvements in the Snowflake environment."
-  TIMESTAMP: "2024-10-25 02:00:00+00:00"
+  TIMESTAMP: "2024-10-25 03:00:00+00:00"
 
 janice_check_MFA_use_golden:
   BOT_ID: "Janice"

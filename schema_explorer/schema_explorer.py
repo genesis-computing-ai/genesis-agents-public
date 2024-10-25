@@ -429,7 +429,7 @@ class SchemaExplorer:
                     embedding_column = 'embedding'
                     
                 check_query = f"""
-                SELECT qualified_table_name, table_name, ddl_hash, last_crawled_timestamp, ddl, ddl_short, summary, sample_data_text, memory_uuid, (SUMMARY = '{{!placeholder}}') as needs_full,  {embedding_column} IS NULL as needs_embedding
+                SELECT qualified_table_name, table_name, ddl_hash, last_crawled_timestamp, ddl, ddl_short, summary, sample_data_text, memory_uuid, (SUMMARY = '{{!placeholder}}') as needs_full, NULLIF(COALESCE(ARRAY_TO_STRING({embedding_column}, ','), ''), '') IS NULL as needs_embedding
                 FROM {self.db_connector.metadata_table_name}
                 WHERE source_name = '{self.db_connector.source_name}'
                 AND database_name= '{db}' and schema_name = '{sch}';"""

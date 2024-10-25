@@ -45,7 +45,7 @@ from bot_genesis.make_baby_bot import (
 
 # from auto_ngrok.auto_ngrok import launch_ngrok_and_update_bots
 from core.bot_os_task_input_adapter import TaskBotOsInputAdapter
-from connectors.snowflake_connector.snowflake_connector import SnowflakeConnector
+# from connectors.snowflake_connector.snowflake_connector import SnowflakeConnector
 
 from demo.sessions_creator import create_sessions, make_session
 from auto_ngrok.auto_ngrok import launch_ngrok_and_update_bots

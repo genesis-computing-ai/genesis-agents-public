@@ -1099,6 +1099,18 @@ class ToolBelt:
             print(f"Returning to recursion level {self.recurse_level}")
 
             return {"success": True, "message": f'The process {process_name} has finished.  You may now end the process.'}
+        if action == 'STOP_ALL_PROCESSES':
+            try:
+                self.clear_all_process_registers()
+                return {
+                    "Success": True,
+                    "Message": "All processes stopped (?)"
+                }
+            except Exception as e:
+                return {
+                    "Success": False,
+                    "Error": f"Failed to stop all processes: {e}"
+                }
         else:
             print("No action specified.")
             return {"success": False, "message": "No action specified."}
@@ -1940,13 +1952,6 @@ class ToolBelt:
         if action == "TIME":
             return {
                 "current_system_time": datetime.now()
-            }
-        
-        if action == 'STOP_ALL_PROCESSES':
-            self.clear_all_process_registers()
-            return {
-                "Success": True,
-                "Message": "All processes stopped (?)"
             }
 
         cursor = db_adapter.client.cursor()

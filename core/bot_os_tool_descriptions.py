@@ -59,7 +59,7 @@ process_runner_functions = [
                     "action": {
                         "type": "string",
                         "description": """
-                        The action to perform: KICKOFF_PROCESS, GET_NEXT_STEP.  Either process_name or process_id must also be specified.
+                        The action to perform: KICKOFF_PROCESS, GET_NEXT_STEP, END_PROCESS, TIME, or STOP_ALL_PROCESSES.  Either process_name or process_id must also be specified.
                         """,
                     },
                     "process_name": {

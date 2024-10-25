@@ -547,11 +547,11 @@ def ensure_table_exists(self):
             self.client.commit()
             eai_list = cursor.fetchone()
             #TODO need to make logic more generic for custom EAIs
-            values_clause = " UNION ALL ".join([f"""SELECT '{eai}' AS EAI_NAME,  select CHARINDEX('AZURE_OPENAI',$${eai}$$),
+            values_clause = " UNION ALL ".join([f"""SELECT $${eai}$$ AS EAI_NAME, CHARINDEX('AZURE_OPENAI',$${eai}$$),
                                 iff(charindex('CONSUMER',$${eai}$$)>0,'CONSUMER',
                                     IFF(CHARINDEX('AZURE_OPENAI',$${eai}$$)>0,'AZURE_OPENAI',
                                         IFF(CHARINDEX('SLACK',$${eai}$$)>0,'SLACK',
-                                            IFF(CHARINDEX('OPENAI',$${eai}$$)>0,'OPENAI','CUSTOM'))))""" for eai in eai_list if eai is not None])
+                                            IFF(CHARINDEX('OPENAI',$${eai}$$)>0,'OPENAI','CUSTOM'))))  AS EAI_TYPE""" for eai in eai_list if eai is not None])
 
             # Create the full merge statement
             merge_statement = dedent(f"""
@@ -564,7 +564,7 @@ def ensure_table_exists(self):
             INSERT (eai_type, eai_name)
             VALUES (src.eai_type, src.eai_name);
             """)
-
+            # print(f"######DEBUG###### {merge_statement}")
             cursor.execute(merge_statement)
             self.client.commit()
             print(

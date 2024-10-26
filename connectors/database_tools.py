@@ -128,7 +128,8 @@ database_tool_functions = [
             "description": "Executes a string of Python snowflake snowpark code using a precreated and provided 'session', do not create a new session. "
                            "Use this instead of code_interpreter when directed to use snowpark, or when you want to run python that can directly interact "
                            "with the user's snowflake session, tables, and stages.  Results should only have a single object.  Multiple objects are not allowed."
-                           "Provide EITHER the 'code' field with the python code to run, or the 'note_id' field with the id of the note that contains the code you want to run.",
+                           "Provide EITHER the 'code' field with the python code to run, or the 'note_id' field with the id of the note that contains the code you want to run."
+                           "Do not ever attempt to load the code from the note.  If the note id is present, pass only id to the tool.  The tool will know how to get the code from the note.",
             #this function has an existing snowflake session inside that you can use called session so do not try to create a new session or connection.",
             "parameters": {
                 "type": "object",

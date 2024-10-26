@@ -1215,11 +1215,17 @@ class ToolBelt:
             "note_content",
         ]
 
+        if action not in ['CREATE','CREATE_CONFIRMED', 'UPDATE','UPDATE_CONFIRMED', 'DELETE', 'LIST', 'TIME']:
+            return {
+                "Success": False,
+                "Error": "Invalid action.  Manage Notebook tool only accepts actions of CREATE, CREATE_CONFIRMED, UPDATE, UPDATE_CONFIRMED, DELETE, LIST, or TIME."
+            }
+
         try:
             if not self.done[thread_id][self.process_id[thread_id]]:
                 return {
                     "Success": False,
-                    "Error": "You cannot run the notebook manager from within a process.  Instead run a sql note with run_query, or a python note using run_snowpark_python specifing the note_id."
+                    "Error": "You cannot run the notebook manager from within a process.  Please run this tool outside of a process."
                 }
         except KeyError as e:
             pass

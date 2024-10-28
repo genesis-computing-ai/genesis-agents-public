@@ -1268,14 +1268,14 @@ def ensure_table_exists(self):
 
             columns_to_add = []
             if not process_config_exists:
-                columns_to_add.append("ADD COLUMN PROCESS_CONFIG VARCHAR(16777216)")
+                columns_to_add.append(" PROCESS_CONFIG VARCHAR(16777216)")
             if not note_id_exists:
-                columns_to_add.append("ADD COLUMN NOTE_ID VARCHAR(16777216)")
+                columns_to_add.append(" NOTE_ID VARCHAR(16777216)")
             if not hidden_exists:
-                columns_to_add.append("ADD COLUMN HIDDEN BOOLEAN")
+                columns_to_add.append(" HIDDEN BOOLEAN")
             if not desc_exists:
-                columns_to_add.append("ADD COLUMN PROCESS_DESCRIPTION VARCHAR(16777216)")
-
+                columns_to_add.append(" PROCESS_DESCRIPTION VARCHAR(16777216)")
+            add_column_query += "ADD COLUMN "
             add_column_query += ", ".join(columns_to_add)
 
             cursor.execute(add_column_query)

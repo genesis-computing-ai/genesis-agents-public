@@ -14,7 +14,6 @@ import pytz
 import sys
 import pkgutil
 import inspect
-import functools
 
 from llm_openai.openai_utils import get_openai_client
 
@@ -162,18 +161,6 @@ class SnowflakeConnector(DatabaseConnector):
 
     def test_stage_functions():
         return test_stage_functions()
-
-
-    @functools.cached_property
-    def is_using_local_runner(self):
-        val = os.environ.get('GENESIS_LOCAL_RUNNER', None)
-        if val:
-            if val.lower() == 'true':
-                return True
-            else:
-                logger.warning(f"Ignoring invalid value for env var GENESIS_LOCAL_RUNNER = {val} (expected 'TRUE')")
-        return False
-
 
     # def process_scheduler(self,action, bot_id, task_id=None, task_details=None, thread_id=None, history_rows=10):
     #     process_scheduler(self, action, bot_id, task_id=None, task_details=None, thread_id=None, history_rows=10)
@@ -738,7 +725,7 @@ class SnowflakeConnector(DatabaseConnector):
             err = f"An error occurred while getting llm info: {e}"
             return {"Success": False, "Error": err}
 
-
+        
     def check_eai_assigned(self):
         """
         Retrieves the eai list if set.
@@ -755,7 +742,7 @@ class SnowflakeConnector(DatabaseConnector):
             cursor = self.client.cursor()
             cursor.execute(query)
             eai_info = cursor.fetchone()
-
+            
             # Ensure eai_info is not None
             if eai_info:
                 columns = [col[0].lower() for col in cursor.description]
@@ -846,7 +833,7 @@ class SnowflakeConnector(DatabaseConnector):
             Exception: If an error occurs during the SQL execution or database commit.
         """
         try:
-
+            
             upsert_query = dedent(f"""
             MERGE INTO {self.genbot_internal_project_and_schema}.LLM_TOKENS t
             USING (SELECT %s AS llm_type, %s AS model_name, %s AS embedding_model_name) s
@@ -957,7 +944,7 @@ def get_status(site):
         except Exception as e:
             err = f"An error occurred while creating/testing EAI test function: {e}"
             return {"Success": False, "Error": err}
-
+    
         if function_success == True and function_test_success == True:
             json_data = json.dumps([{'Success': True}])
             return {"Success": True, "Data": json_data}
@@ -1932,7 +1919,7 @@ def get_status(site):
         else:
             bot_llm = 'unknown'
             workspace_full_schema_name = None
-            workspace_schema_name = None
+            workspace_schema_name = None        
 
         if isinstance(max_rows, str):
             try:
@@ -2777,6 +2764,8 @@ def get_status(site):
 
             # trigger the changed bot to reload its session
             os.environ[f'RESET_BOT_SESSION_{bot_id}'] = 'True'
+
+
             return {
                 "success": True,
                 "message": f"bot_implementation updated for bot_id: {bot_id}.",
@@ -3226,36 +3215,6 @@ def get_status(site):
             logger.error(
                 f"Failed to select default image data from the shared with error: {e}"
             )
-
-
-    def db_get_endpoint_ingress_url(self, endpoint_name: str) -> str:
-        """
-        Retrieves the ingress URL for a specified endpoint registered within the Genesis (native) App service.
-        Call this method only when running in Native app mode.
-
-        Args:
-            endpoint_name (str, optional): The name of the endpoint to retrieve the ingress URL for. Defaults to None.
-
-        Returns:
-            str or None: The ingress URL of the specified endpoint if found, otherwise None.
-        """
-        alt_service_name = os.getenv("ALT_SERVICE_NAME", None)
-        if alt_service_name:
-            query1 = f"SHOW ENDPOINTS IN SERVICE {alt_service_name};"
-        else:
-            query1 = f"SHOW ENDPOINTS IN SERVICE {self.genbot_internal_project_and_schema}.GENESISAPP_SERVICE_SERVICE;"
-        try:
-            results = self.run_query(query1)
-            udf_endpoint_url = None
-            for endpoint in results:
-                if endpoint["name"] == endpoint_name:
-                    udf_endpoint_url = endpoint["ingress_url"]
-                    break
-            return udf_endpoint_url
-        except Exception as e:
-            logger.warning(f"Failed to get {endpoint_name} endpoint URL with error: {e}")
-            return None
-
 
     def image_generation(self, prompt, thread_id=None):
 
@@ -4035,7 +3994,7 @@ result = 'Table FAKE_CUST created successfully.'
 
                 code = code_cursor[0]
                 note_type = code_cursor[2]
-
+                
                 if note_type != 'snowpark_python':
                     raise ValueError("Note type must be 'snowpark_python' for running python code.")
         except IndexError:
@@ -4044,7 +4003,7 @@ result = 'Table FAKE_CUST created successfully.'
                     "success": False,
                     "error": "Note was not found.",
                     }
-
+        
         except ValueError:
             print("Note type must be 'snowpark_python' for code retrieval.")
             return {

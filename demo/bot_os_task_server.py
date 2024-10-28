@@ -106,7 +106,7 @@ if genesis_source == 'BigQuery':
     # Initialize BigQuery client
     db_adapter = BigQueryConnector(connection_info,'BigQuery')
 elif genesis_source ==  'Sqlite':
-    db_adapter = SqliteConnector(connection_name='Sqlite')
+    db_adapter = SqliteConnector(connection_name='Sqlite') 
 elif genesis_source == 'Snowflake':    # Initialize BigQuery client
     db_adapter = SnowflakeConnector(connection_name='Snowflake')
 else:
@@ -172,9 +172,8 @@ def insert_task_history(
             print(f"An error occurred while inserting the task history row: {e}")
             if cursor is not None:
                 cursor.close()
-
+                
 def get_udf_endpoint_url(endpoint_name="udfendpoint"):
-    # TODO: Duplicated code. Use the (newer) db_connector.db_get_endpoint_ingress_url
     alt_service_name = os.getenv("ALT_SERVICE_NAME", None)
     #TODO logic may break when getting data cubes endpoint and alt_service_name is set
     if alt_service_name:
@@ -213,7 +212,7 @@ ngrok_active = False
 if False:
     print(f"Checking LLM key...")
     def get_llm_api_key():
-        from core.bot_os_llm import LLMKeyHandler
+        from core.bot_os_llm import LLMKeyHandler 
         logger.info('Getting LLM API Key...')
         api_key_from_env = False
         llm_type = os.getenv("BOT_OS_DEFAULT_LLM_ENGINE", "openai")
@@ -228,7 +227,7 @@ if False:
             if i > 100:
                 c += 1
                 print(f'Waiting on LLM key... (cycle {c})')
-                i = 0
+                i = 0 
             # llm_type = None
             llm_key_handler = LLMKeyHandler()
             logger.info('Getting LLM API Key...')
@@ -250,7 +249,7 @@ logger.info('Getting LLM API Key...')
 
 
 def get_llm_api_key(db_adapter=None):
-    from core.bot_os_llm import LLMKeyHandler
+    from core.bot_os_llm import LLMKeyHandler 
     print('Getting LLM API Key...')
     api_key_from_env = False
     llm_type = os.getenv("BOT_OS_DEFAULT_LLM_ENGINE", "openai")
@@ -293,7 +292,7 @@ def get_llm_api_key(db_adapter=None):
         if i > 100:
             c += 1
             print(f'Waiting on LLM key... (cycle {c})')
-            i = 0
+            i = 0 
         # llm_type = None
         llm_key_handler = LLMKeyHandler(db_adapter=db_adapter)
        # print('Getting LLM API Key...')
@@ -305,7 +304,7 @@ def get_llm_api_key(db_adapter=None):
             time.sleep(180)
         else:
             print(f"Using {llm_type} for task server ")
-
+        
     return llm_api_key_struct
 
 llm_api_key_struct = get_llm_api_key(db_adapter)
@@ -1147,10 +1146,10 @@ def tasks_loop():
 
     def task_sort_key(task):
         return task["next_check_ts"]
-
+    
     if os.getenv("TEST_TASK_MODE", "false").lower() != "true":
         backup_bot_servicing()
-
+    
     i = 10
     cycle = 0
     while True:
@@ -1172,7 +1171,7 @@ def tasks_loop():
         all_bot_ids = [bot['bot_id'] for bot in all_bots_details]
 
         # global sessions
-
+        
         if os.getenv("TEST_TASK_MODE", "false").lower() != "true":
             add_sessions(all_bot_ids, all_bots_details, sessions)
 
@@ -1198,7 +1197,7 @@ def tasks_loop():
 
         # Assuming sessions is a list of session objects and sessions_to_recreate is a list of bot_ids
         # sessions = [session for session in sessions if session.bot_id not in sessions_to_recreate]
-
+        
         # if len(sessions_to_recreate) > 0:
         #     all_bots_details = get_all_bots_full_details(runner_id=runner_id)
         #     add_sessions(all_bot_ids, all_bots_details, sessions)
@@ -1246,7 +1245,7 @@ def tasks_loop():
                             )
         #  i = input('Check for done? >')
 
-        # for testing, make
+        # for testing, make 
 
         next_runs = []
         for session in active_sessions:
@@ -1435,7 +1434,7 @@ def tasks_loop():
                         print(
                             f"Task {task_id} has exceeded the maximum number of retries. Marking as inactive."
                         )
-
+                        
                         processed_tasks.append(task_id)
 
                         tool_belt.process_scheduler(
@@ -1533,7 +1532,7 @@ def tasks_loop():
         i = 0
         while not wake_up:
              # Check for a task within the next two minutes
-
+            
             seconds_until_next_check = None
 
             if len(skipped_tasks) > 0:
@@ -1556,7 +1555,7 @@ def tasks_loop():
                     if seconds_until_next_check is None or seconds_until_next_run < seconds_until_next_check:
                         seconds_until_next_check = seconds_until_next_run
                     print(f"Task due to run in {seconds_until_next_check:.2f} seconds.")
-                    #break
+                    #break               
 
             if seconds_until_next_check is not None:
                 wait_time = max(0, min(120, seconds_until_next_check))
@@ -1622,7 +1621,7 @@ def backup_bot_servicing():
     finally:
         cursor.close()
 
-
+    
 def find_replace_updated_bot_service(bot_id):
     query = f"""
         SELECT bs.*
@@ -1656,7 +1655,7 @@ def find_replace_updated_bot_service(bot_id):
 
             os.environ[f'RESET_BOT_SESSION_{bot_id}'] = 'True'
             return True
-
+        
     except Exception as e:
         print(f"Error: Failed to retrieve non-identical rows. {e}")
         return False
@@ -1675,7 +1674,7 @@ def add_sessions(all_bot_ids, all_bots_details, sessions):
                 no_slack = True
             else:
                 no_slack = False
-
+            
             # Add a new session for the bot with the appropriate no_slack flag
             add_bot_session(bot_id, no_slack=no_slack)
             print(f"New session added for bot_id: {bot_id} with no_slack={no_slack}")

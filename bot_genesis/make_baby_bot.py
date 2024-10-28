@@ -32,10 +32,10 @@ else:
     raise ValueError('Invalid Source')
 
 genbot_internal_project_and_schema = os.getenv('GENESIS_INTERNAL_DB_SCHEMA','None')
-if  genbot_internal_project_and_schema is None:
+if  genbot_internal_project_and_schema is None:       
     genbot_internal_project_and_schema = os.getenv('ELSA_INTERNAL_DB_SCHEMA','None')
 if genbot_internal_project_and_schema == 'None':
-    # Todo remove, internal note
+    # Todo remove, internal note 
     print("ENV Variable GENESIS_INTERNAL_DB_SCHEMA is not set.")
 if genbot_internal_project_and_schema is not None:
     genbot_internal_project_and_schema = genbot_internal_project_and_schema.upper()
@@ -46,7 +46,7 @@ bot_servicing_table = os.getenv('BOT_SERVICING_TABLE', 'BOT_SERVICING')
 
 def list_all_bots(runner_id=None, slack_details=False, with_instructions=False):
     return bb_db_connector.db_list_all_bots(project_id=project_id, dataset_name=dataset_name, bot_servicing_table=bot_servicing_table, runner_id=runner_id, full=False, slack_details=slack_details, with_instructions=with_instructions)
-
+ 
 def list_all_bots_wrap(runner_id=None, slack_details=False, with_instructions=False):
     result = bb_db_connector.db_list_all_bots(project_id=project_id, dataset_name=dataset_name, bot_servicing_table=bot_servicing_table, runner_id=runner_id, full=False, slack_details=slack_details, with_instructions=with_instructions)
     result = json.loads(json.dumps(result).replace('!NO_RESPONSE_REQUIRED', '(exclamation point)NO_RESPONSE_REQUIRED'))
@@ -54,7 +54,7 @@ def list_all_bots_wrap(runner_id=None, slack_details=False, with_instructions=Fa
 
 def get_all_bots_full_details(runner_id):
     return bb_db_connector.db_list_all_bots(project_id=project_id, dataset_name=dataset_name, bot_servicing_table=bot_servicing_table, runner_id=runner_id, full=True, with_instructions=True)
-
+ 
 def set_slack_config_tokens(slack_app_config_token, slack_app_config_refresh_token):
     #test
 
@@ -62,7 +62,7 @@ def set_slack_config_tokens(slack_app_config_token, slack_app_config_refresh_tok
         t, r = rotate_slack_token(slack_app_config_token,slack_app_config_refresh_token)
     except:
         return('Error','Refresh token invalid')
-
+    
     save_slack_config_tokens(t,r)
     return t,r
 
@@ -214,7 +214,7 @@ def generate_manifest_template_socket(bot_id, bot_name, request_url, redirect_ur
     Returns:
         dict: The updated manifest as a dictionary.
     """
-    manifest_template = {
+    manifest_template = {    
        "display_information": {
             "name": bot_name,
             "description": bot_id,
@@ -311,10 +311,10 @@ def rotate_slack_token(config_token, refresh_token):
             return new_config_token, new_refresh_token
         else:
             print(f"Failed to rotate token: {response_data.get('error')}")
-            return None, None
+            return None, None 
     else:
         print(f"Failed to rotate token, status code: {response.status_code}")
-        return None, None
+        return None, None 
 
 
 
@@ -408,8 +408,8 @@ def create_slack_bot_with_manifest(token, manifest):
     else:
         raise Exception(f"Failed to create Slack bot, status code: {response.status_code}")
 
-def insert_new_bot(api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instructions, runner_id, slack_signing_secret,
-                   slack_channel_id, available_tools, auth_url, auth_state, client_id, client_secret, udf_active,
+def insert_new_bot(api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instructions, runner_id, slack_signing_secret, 
+                   slack_channel_id, available_tools, auth_url, auth_state, client_id, client_secret, udf_active, 
                    slack_active, files, bot_implementation, bot_avatar_image, bot_intro_prompt="Hello, how can I help you?", slack_user_allow=True):
     """
     Inserts a new bot configuration into the BOT_SERVICING table.
@@ -431,11 +431,11 @@ def insert_new_bot(api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instruct
         bot_avatar_image: Default GenBots avatar image
     """
 
-    return bb_db_connector.db_insert_new_bot(api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instructions, runner_id, slack_signing_secret,
-                   slack_channel_id, available_tools, auth_url, auth_state, client_id, client_secret, udf_active,
+    return bb_db_connector.db_insert_new_bot(api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instructions, runner_id, slack_signing_secret, 
+                   slack_channel_id, available_tools, auth_url, auth_state, client_id, client_secret, udf_active, 
                    slack_active, files, bot_implementation, bot_avatar_image, bot_intro_prompt, slack_user_allow, project_id, dataset_name, bot_servicing_table)
 
-
+   
 
 modify_lock = threading.Lock()
 def modify_slack_allow_list(bot_id, action, user_name=None, user_identifier=None, thread_id=None, confirmed=None):
@@ -472,21 +472,21 @@ def modify_slack_allow_list(bot_id, action, user_name=None, user_identifier=None
 
         if not bot_slack_adapter:
             return {'success': False, 'error': 'No bots are yet deployed to Slack. Please try again once at least one bot is deployed.'}
-
+        
         if bot_details.get('slack_active','N') != 'Y':
             return {
                 'success': False,
                 'error': 'This bot is not yet deployed to Slack. If the user wants to deploy it, use the _deploy_to_slack function first. Confirm that with the user first though.'
             }
 
-
+        
         slack_user_allow_list = bot_details.get('slack_user_allow', None)
         if slack_user_allow_list is None:
             slack_user_allow_list = []
         else:
             slack_user_allow_list = json.loads(slack_user_allow_list)
         slack_user_allow_list = [user_id.strip('["]') for user_id in slack_user_allow_list]
-
+    
         if action == 'GRANT' and slack_user_allow_list == []:
             return {
                 'success': False,
@@ -519,7 +519,7 @@ def modify_slack_allow_list(bot_id, action, user_name=None, user_identifier=None
         if action == 'LIST':
             # List the current users in the SLACK_USER_ALLOW list with their full names
             user_details = []
-
+            
             for user_id in slack_user_allow_list:
                 user_info = bot_slack_adapter.slack_app.client.users_info(user=user_id)
                 if user_info.get('ok'):
@@ -628,7 +628,7 @@ def add_new_tools_to_bot(bot_id, new_tools):
         dict: A dictionary containing the tools that were added and those that were already present.
     """
     # Retrieve the current available tools for the bot
-
+    
     available_tools_list = bb_db_connector.db_get_available_tools(project_id=project_id, dataset_name=dataset_name)
     available_tool_names = [tool['tool_name'] for tool in available_tools_list]
     if isinstance(new_tools, str):
@@ -637,7 +637,7 @@ def add_new_tools_to_bot(bot_id, new_tools):
     invalid_tools = [tool for tool in new_tools if tool not in available_tool_names]
     if invalid_tools:
         return {"success": False, "error": f"The following tools are not available: {', '.join(invalid_tools)}. The available tools are {available_tool_names}."}
-
+    
     bot_details = get_bot_details(bot_id)
     if not bot_details:
         logger.error(f"Bot with ID {bot_id} not found.")
@@ -659,7 +659,7 @@ def add_new_tools_to_bot(bot_id, new_tools):
 
 def validate_potential_files(new_file_ids=None):
 
-
+   
     if isinstance(new_file_ids, str) and new_file_ids.lower() == 'null' or isinstance(new_file_ids, str) and new_file_ids.lower() == '[null]' or isinstance(new_file_ids, list) and new_file_ids == ['null']:
         new_file_ids = []
 
@@ -707,20 +707,20 @@ def validate_potential_files(new_file_ids=None):
         return {"success": False, "error": error_message}
     internal_stage =  f"{genbot_internal_project_and_schema}.BOT_FILES_STAGE"
     database, schema, stage_name = internal_stage.split('.')
-# if wildcard include it as pattern...
+# if wildcard include it as pattern... 
     try:
         stage_contents = bb_db_connector.list_stage_contents(database=database, schema=schema, stage=stage_name)
-    except Exception as e:
+    except Exception as e: 
         return {"success": False, "error": e}
     # Check if the file is in stage_contents
     stage_file_names = [file_info['name'].split('/', 1)[-1] for file_info in stage_contents]
     # Separate wildcard file_ids and normal file_ids
     wildcard_file_ids = [file_id for file_id in new_file_ids if file_id.endswith('/*')]
     normal_file_ids = [file_id for file_id in new_file_ids if not file_id.endswith('/*')]
-
+    
     # Check for missing normal files
     missing_files = [file_id.split('/')[-1] for file_id in normal_file_ids if file_id not in stage_file_names]
-
+    
     # Check for missing wildcard files
     for wildcard_file_id in wildcard_file_ids:
         stage_contents = bb_db_connector.list_stage_contents(database=database, schema=schema, stage=stage_name, pattern=wildcard_file_id)
@@ -784,7 +784,7 @@ def add_bot_files(bot_id, new_file_names=None, new_file_ids=None):
     updated_files_str = json.dumps(current_files)
 
     return bb_db_connector.db_update_bot_files(project_id=project_id, dataset_name=dataset_name, bot_servicing_table=bot_servicing_table, bot_id=bot_id, updated_files_str=updated_files_str, current_files=current_files, new_file_ids=new_file_ids)
-
+    
 def remove_bot_files(bot_id, file_ids_to_remove):
     """
     Removes a file ID from the existing files list for the bot and saves it to the database.
@@ -832,7 +832,7 @@ def remove_bot_files(bot_id, file_ids_to_remove):
                 "error": f"Files to remove {file_ids_to_remove} not found in current files list for bot",
                 "current_files_list": orig_files
             }
-
+    
     return bb_db_connector.db_update_bot_files(project_id=project_id, dataset_name=dataset_name, bot_servicing_table=bot_servicing_table, bot_id=bot_id, updated_files_str=updated_files_str, current_files=current_files, new_file_ids=file_ids_to_remove)
 
 
@@ -921,14 +921,14 @@ def update_slack_app_level_key(bot_id, slack_app_level_key):
     # First, test the Slack app level token to ensure it is valid
     token_test_result = test_slack_app_level_token(slack_app_level_key)
     bot_details = get_bot_details(bot_id)
-
+    
     if not bot_details:
         return {"success": False, "error": "Bot details not found for bot_id: {}.  Try using list_all_bots to look it up.".format(bot_id)}
     auth_url = bot_details.get('auth_url', 'No auth_url available')
-
+    
     if not token_test_result.get("success"):
         return token_test_result
-
+    
     if bot_details.get('bot_slack_user_id') == 'Pending_APP_LEVEL_TOKEN':
         update_bot_details(bot_id=bot_id, bot_slack_user_id='Pending_OAuth', slack_app_token=bot_details.get('slack_app_token', None))
 
@@ -962,12 +962,12 @@ def update_slack_app_level_key(bot_id, slack_app_level_key):
         return {"success": False, "error": str(e)}
 
 
-def update_existing_bot(api_app_id, bot_id, bot_slack_user_id, client_id, client_secret, slack_signing_secret,
+def update_existing_bot(api_app_id, bot_id, bot_slack_user_id, client_id, client_secret, slack_signing_secret, 
                         auth_url, auth_state, udf_active, slack_active, files, bot_implementation):
     files_json = json.dumps(files)
     if files_json == 'null':
         files_json = None
-    return bb_db_connector.db_update_existing_bot(api_app_id, bot_id, bot_slack_user_id, client_id, client_secret, slack_signing_secret,
+    return bb_db_connector.db_update_existing_bot(api_app_id, bot_id, bot_slack_user_id, client_id, client_secret, slack_signing_secret, 
                             auth_url, auth_state, udf_active, slack_active, files_json, bot_implementation, project_id, dataset_name, bot_servicing_table)
 
 
@@ -995,10 +995,10 @@ def get_default_avatar():
 def add_or_update_available_tool(tool_name, tool_description):
     return bb_db_connector.db_add_or_update_available_tool(tool_name=tool_name, tool_description=tool_description, project_id=project_id, dataset_name=dataset_name)
 
-def make_baby_bot(bot_id, bot_name, bot_instructions='You are a helpful bot.', available_tools=None, runner_id=None, slack_channel_id=None, confirmed=None, activate_slack='Y',
+def make_baby_bot(bot_id, bot_name, bot_instructions='You are a helpful bot.', available_tools=None, runner_id=None, slack_channel_id=None, confirmed=None, activate_slack='Y', 
                   files = "", bot_implementation = "openai",
                   update_existing=False, slack_access_open = True):
-
+    
     bot_implementation = bot_implementation.lower()
 
     try:
@@ -1060,7 +1060,7 @@ def make_baby_bot(bot_id, bot_name, bot_instructions='You are a helpful bot.', a
                 if confirmed.upper() == 'CONFIRMED':
                     confirm=True
 
-            # validate files
+            # validate files 
 
 
             if confirm == False:
@@ -1083,7 +1083,7 @@ def make_baby_bot(bot_id, bot_name, bot_instructions='You are a helpful bot.', a
                 return(conf)
 
             bot_avatar_image = get_default_avatar()
-
+        
         slack_active = test_slack_config_token()
         if slack_active == 'token_expired':
             t, r = get_slack_config_tokens()
@@ -1093,7 +1093,6 @@ def make_baby_bot(bot_id, bot_name, bot_instructions='You are a helpful bot.', a
 
 
         def get_udf_endpoint_url():
-            # TODO: Duplicated code. Use the (newer) db_connector.db_get_endpoint_ingress_url
             alt_service_name = os.getenv('ALT_SERVICE_NAME',None)
             if alt_service_name:
                 query1 = f"SHOW ENDPOINTS IN SERVICE {alt_service_name};"
@@ -1111,7 +1110,7 @@ def make_baby_bot(bot_id, bot_name, bot_instructions='You are a helpful bot.', a
         ep = get_udf_endpoint_url()
         logger.warning(f'Endpoint for service: {ep}')
 
-        if slack_active and activate_slack != 'N':
+        if slack_active and activate_slack != 'N':       
 
             ngrok_base_url = os.getenv('NGROK_BASE_URL')
             if not ngrok_base_url and ep == None:
@@ -1149,7 +1148,7 @@ def make_baby_bot(bot_id, bot_name, bot_instructions='You are a helpful bot.', a
             auth_state = str(uuid.uuid4())
             oauth_authorize_url+="&state="+auth_state
 
-            # TODO base this off whether slack has already been activated
+            # TODO base this off whether slack has already been activated 
             udf_active = 'Y'
             slack_active = 'Y'
 
@@ -1183,7 +1182,7 @@ def make_baby_bot(bot_id, bot_name, bot_instructions='You are a helpful bot.', a
                 slack_active=slack_active,
                 files=files,
                 bot_implementation=bot_implementation,
-            )
+            )            
         else:
             insert_new_bot(
                 api_app_id=app_id,
@@ -1211,12 +1210,12 @@ def make_baby_bot(bot_id, bot_name, bot_instructions='You are a helpful bot.', a
     #    print(oauth_authorize_url)
         if slack_active == 'Y':
         #    print("temp_debug: create success ", bot_id, bot_name)
-            return {"success": True,
+            return {"success": True, 
                     "Success": True,
                     "message": f"Created {bot_id} named {bot_name}. To complete the setup on Slack for this bot, tell the user there are two more steps, first is to go to: https://api.slack.com/apps/{app_id}/general Ask them to scroll to App Level Tokens, add a token called 'app_token' with scope 'connections-write', and provide the results back to this bot.  Then you, the bot, should call the update_app_level_key function to update the backend.  Once you and the user do that, I will give you an AUTH_URL for the user to click as the second step to complete the installation.",
                     "important note for the user": "Remind the user that this bot will be initially set to allow any user on the users Slack to talk to it.  You can use _modify_slack_allow_list function on behalf of the user to change the access to limit it to only select users once the bot has been activated on Slack."
                     }
-
+        
         else:
             return {"success": True, "message": f"Created {bot_id} named {bot_name}.  Tell the user that they can now press Refresh in the Bot Box on the left side of the screen, select this new bot, and then press 'Start New Chat'."}
 
@@ -1227,7 +1226,7 @@ def make_baby_bot(bot_id, bot_name, bot_instructions='You are a helpful bot.', a
 
 
 server_point = None
-map_point = None
+map_point = None 
 
 
 def deploy_to_slack(bot_id=None, thread_id=None):
@@ -1276,7 +1275,7 @@ def _remove_bot(bot_id, thread_id=None, confirmed=None):
     if not bot_details:
         logger.error(f"Bot with ID {bot_id} not found.")
         return {"success": False, "error": "Bot not found."}
-
+  
     if bot_details["bot_id"] == 'jl-local-eve-test-1' or bot_details["bot_id"] == 'jl-local-elsa-test-1':
         return {"success": False, "error": "Deleting local test Eve or Elsa not allowed."}
 
@@ -1290,14 +1289,14 @@ def _remove_bot(bot_id, thread_id=None, confirmed=None):
     # Retrieve the session using the API App ID from the map
     api_app_id = bot_details.get('api_app_id')
     session = map_point.get(api_app_id)
-
+   
     # If a session is found, attempt to remove it
     if session:
         server_point.remove_session(session)
         logger.info(f"Session {session} for bot with API App ID {api_app_id} has been removed.")
     else:
         logger.info(f"No session found for bot with API App ID {api_app_id} proceeding to delete from database and Slack.")
-
+ 
     bb_db_connector.db_delete_bot(project_id=project_id, dataset_name=dataset_name, bot_servicing_table=bot_servicing_table, bot_id=bot_id)
 
     # Rotate the Slack app configuration token before making the Slack API call
@@ -1705,7 +1704,6 @@ def update_bot_endpoints(new_base_url, runner_id=None):
         runner_id (str, optional): The runner_id to filter the bots. Defaults to the RUNNER_ID environment variable.
     """
     def get_udf_endpoint_url():
-        # TODO: Duplicated code. Use the (newer) db_connector.db_get_endpoint_ingress_url
         alt_service_name = os.getenv('ALT_SERVICE_NAME',None)
         if alt_service_name:
             query1 = f"SHOW ENDPOINTS IN SERVICE {alt_service_name};"
@@ -1733,7 +1731,7 @@ def update_bot_endpoints(new_base_url, runner_id=None):
             bot_id = bot.get('bot_id')
             api_app_id = bot.get('api_app_id')
             auth_url = bot.get('auth_url')
-
+ 
             ep = get_udf_endpoint_url()
             logger.warning(f'Endpoint for service: {ep}')
 
@@ -1752,7 +1750,7 @@ def update_bot_endpoints(new_base_url, runner_id=None):
                     logger.warning(f"Could not update endpoints for bot_id: {bot_id} with new base URL: {new_base_url}")
 
 
-
+            
     except Exception as e:
         logger.error(f"Failed to update bot endpoints with error: {e}")
         raise e
@@ -1824,13 +1822,13 @@ def remove_tools_from_bot(bot_id, remove_tools):
     available_tools_list = bb_db_connector.db_get_available_tools(project_id=project_id, dataset_name=dataset_name)
     available_tool_names = [tool['tool_name'] for tool in available_tools_list]
     print(bot_id, remove_tools)
-
+    
     if isinstance(remove_tools, str):
         remove_tools = json.loads(remove_tools.replace("'", '"'))
     invalid_tools = [tool for tool in remove_tools if tool not in available_tool_names]
     if invalid_tools:
         return {"success": False, "error": f"The following tools are not available: {', '.join(invalid_tools)}. The available tools are {available_tool_names}."}
-
+    
     bot_details = get_bot_details(bot_id)
     if not bot_details:
         logger.error(f"Bot with ID {bot_id} not found.")
@@ -1844,7 +1842,7 @@ def remove_tools_from_bot(bot_id, remove_tools):
     invalid_tools = [tool for tool in remove_tools if tool not in current_tools]
     if invalid_tools:
         return {"success": False, "error": f"The following tools are not assigned to the bot: {invalid_tools}. The the bot has these tools currently: {current_tools}."}
-
+    
     # Update the available_tools in the database
     updated_tools_str = json.dumps(updated_tools_list)
 
@@ -1852,12 +1850,12 @@ def remove_tools_from_bot(bot_id, remove_tools):
 
 
 def remove_bot_from_slack():
-    # STUB PLACEHOLDER
-
+    # STUB PLACEHOLDER 
+    
     query = '''update bot_servicing 
     set api_app_id = null, bot_slack_user_id = null, slack_app_token = null, slack_app_level_key = null, 
     slack_signing_secret = null, auth_url = null, auth_state = null, client_id = null, client_secret = null, 
     slack_active = 'N' 
-    where bot_id = 'Eve-s2Wjwi';'''
+    where bot_id = 'Eve-s2Wjwi';''' 
 
     pass

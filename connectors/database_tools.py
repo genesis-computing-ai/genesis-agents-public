@@ -173,7 +173,7 @@ database_tool_functions = [
                                        "This local file should not be considered accessible by outside systems. "
                     },
                 },
-                "required": ["purpose"],
+                "required": [ "purpose"],
             },
         },
     },

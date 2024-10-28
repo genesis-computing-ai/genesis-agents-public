@@ -3,7 +3,7 @@ import os
 import time
 import requests
 from bs4 import BeautifulSoup
-from urllib.parse import urljoin, urlunparse, urlencode
+from urllib.parse import urljoin
 from datetime import datetime
 import threading
 import random
@@ -313,8 +313,8 @@ class ToolBelt:
                    to_addr_list: list,
                    subject: str,
                    body: str,
-                   bot_id: str,
                    thread_id: str = None,
+                   bot_id: str = None,
                    mime_type: str = 'text/html',
                    include_genesis_logo: bool = True
                    ):
@@ -342,64 +342,12 @@ class ToolBelt:
                 txt = txt.replace(match[0], match[2])  # Replace the entire match with just the URL part, omitting description
             return txt
 
-        def construct_artifact_linkback(artifact_id):
-            """
-            Constructs a linkback URL for a given artifact ID. This URL should drop the user into the streamlit app
-            with a new chat that brings up the context of this artifact for futher exploration.
-            
-            Args:
-                artifact_id (str): The unique identifier of the artifact.
-
-            Returns:
-                a string to use as the link (in text or HTML, depending on mime_type)
-            """
-            # fetch the metadata
-            dbtr = self.db_adapter
-            artifacts_store = get_artifacts_store(dbtr)
-            try:
-                metadata = artifacts_store.get_artifact_metadata(artifact_id)
-            except Exception as e:
-                logger.error(f"Failed to get artifact metadata for {artifact_id}: {e}")
-                return None
-
-            # Resolve the bot_name from bot_id. We need this for the linkback URL since the streamlit app
-            # manages the bots by name, not by id.
-            # TODO: fix this as part of issue #89
-            proj, schema = dbtr.genbot_internal_project_and_schema.split('.')
-            bot_config = dbtr.db_get_bot_details(proj, schema, dbtr.bot_servicing_table_name.split(".")[-1], bot_id)
-            # Construct linkback URL
-            if dbtr.is_using_local_runner:
-                app_ingress_base_url = 'localhost:8501/' # TODO: avoid hard-coding port (but could not find an avail config to pick this up from)
-            else:
-                app_ingress_base_url = dbtr.db_get_endpoint_ingress_url("streamlit")
-            if not app_ingress_base_url:
-                return None
-            params = dict(bot_name=bot_config['bot_name'],
-                          action='show_artifact_context',  # IMPORTANT: keep this action name in sync with the action handling logic in the app.
-                          artifact_id=artifact_id,
-                          )
-            linkback_url = urlunparse((
-                "http",                    # scheme
-                app_ingress_base_url,      # netloc (host)
-                "",                        # path
-                "",                        # params
-                urlencode(params),  # query
-                ""                         # fragment
-            ))
-            if mime_type == "text/plain":
-                return f"{metadata['title_filename']}: {linkback_url}"
-            if mime_type == "text/html":
-                return f"<a href='{linkback_url}'>{metadata['title_filename']}</a>"
-            assert False # unreachable
-
         def _externalize_artifact_urls(txt):
             # a helper function that locates artifact references in the text (pseudo URLs that look like artifact:/<uuid>)
-            # and replaces those psuedo-URLS with an external URL (Snowflake-signed externalized URL)
-            # returns the modified text, along with the artifact_ids that were extraced from the text.
+            # and replaces them with their external-available URL
             pattern = r'(?<=\W)(artifact:/('+ARTIFACT_ID_REGEX+r'))(?=\W)'
             matches = re.findall(pattern, txt)
 
-            articat_ids = []
             if matches:
                 af = get_artifacts_store(self.db_adapter)
                 for full_match, uuid in matches:
@@ -410,8 +358,8 @@ class ToolBelt:
                         pass
                     else:
                         txt = txt.replace(full_match, external_url)
-                    articat_ids.append(uuid)
-            return txt, articat_ids
+
+            return txt
 
         # Validate mime_type
         if mime_type not in ['text/plain', 'text/html']:
@@ -463,11 +411,7 @@ class ToolBelt:
         body = body.replace('\\n','\n')
 
         # Handle artifact refs in the body - replace with external links
-        body, artifact_ids = _externalize_artifact_urls(body)
-
-        # build the artifact 'linkback' URLs footer (if any)
-        linkbacks = [construct_artifact_linkback(aid) for aid in artifact_ids]
-        linkbacks = [link for link in linkbacks if link is not None]  # remove any failures (best effort)
+        body = _externalize_artifact_urls(body)
 
         # Force the body to HTML if the mime_type is text/html. Prepend origin line
         if mime_type == 'text/html':
@@ -499,24 +443,12 @@ class ToolBelt:
                 logo_container.insert(0, link_tag)
                 soup.body.insert(0, logo_container)
 
-            # Insert linkback URLs at the bottom
-            if linkbacks:
-                footer_elem = soup.new_tag('p')
-                footer_elem.string = 'Click here to explore more: '
-                for link in linkbacks:
-                    footer_elem.append(BeautifulSoup(link, "html.parser"))
-                    footer_elem.append(' ')  # Add space between links
-                soup.body.append(footer_elem)
-
             body = str(soup)
 
         elif mime_type == 'text/plain':
             # For plain text, strip URL markdowns, and prepend the bot message
             body = _strip_url_markdown(body)
             body = origin_line + body
-            # append linkbacks
-            if linkbacks:
-                body += "\n\n'Click here to explore more: '" + ", ".join(linkbacks)
 
         else:
             assert False, "Unreachable code"
@@ -631,7 +563,7 @@ class ToolBelt:
         except Exception as e:
          #  print(f"Error getting sys email: {e}")
             return None
-
+        
     def clear_process_registers_by_thread(self, thread_id):
         # Initialize thread-specific data structures if not already present
         with self.lock:
@@ -2053,7 +1985,7 @@ class ToolBelt:
                     "Message": f"process_config updated or deleted",
                     "process_id": process_id,
                 }
-
+            
             if action in ["CREATE", "CREATE_CONFIRMED", "UPDATE", "UPDATE_CONFIRMED"]:
                 check_for_code_instructions = f"""Please examine the text below and return only the word 'SQL' if the text contains 
                 actual SQL code, not a reference to SQL code, or only the word 'PYTHON' if the text contains actual Python code, not a reference to Python code.  

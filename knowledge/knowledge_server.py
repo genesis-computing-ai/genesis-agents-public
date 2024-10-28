@@ -413,7 +413,7 @@ class KnowledgeServer:
                     if row['MESSAGE_TYPE'] == 'Tool Call':
                         if 'run_query' not in row['MESSAGE_PAYLOAD']:                            
                             continue
-                        func_args = json.loads(row['MESSAGE_METADATA'])['func_args']
+                        func_args = str(json.loads(row['MESSAGE_METADATA'])['func_args'])
                         dataset = re.findall('from (.+?) ', func_args.lower().replace('\\','',))
                         if dataset:
                             dataset = dataset[0]

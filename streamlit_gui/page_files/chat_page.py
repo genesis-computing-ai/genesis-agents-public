@@ -22,6 +22,7 @@ from utils import (
     get_response_from_udf_proxy,
 )
 
+
 def locate_url_markup(txt, replace_with=None):
     """
     Locate and optionally replace URL or pseudo-URL markup in a given text.
@@ -89,9 +90,14 @@ bot_avatar_images = [
 ]
 
 
-def chat_page():
-    # Add custom CSS to reduce whitespace even further
+def set_initial_chat_sesssion_data(bot_name, initial_prompt):
+    # TODO: doc me
+    st.session_state.initial_chat_session_data = dict(bot_name=bot_name, initial_prompt=initial_prompt)
 
+
+def chat_page():
+
+    # Add custom CSS to reduce whitespace even further
     if 'session_message_uuids' not in st.session_state:
         st.session_state.session_message_uuids = {}
     if 'stream_files' not in st.session_state:
@@ -319,7 +325,16 @@ def chat_page():
             return {}
 
 
-    def submit_button(prompt, chatmessage, intro_prompt=False, fast_mode_override=False, file={}):
+    def submit_button(prompt,
+                      chatmessage,
+                      intro_prompt=False,
+                      fast_mode_override=False,
+                      file=None, # or provide a dict {'filename' : file_name}
+                      ):
+        """ 
+        Submits a prompt into the current chat session 
+        """
+
         current_thread_id = st.session_state["current_thread_id"]
         messages = get_chat_history(current_thread_id)
 
@@ -409,6 +424,8 @@ def chat_page():
         if current_thread_id in st.session_state.session_message_uuids:
             del st.session_state.session_message_uuids[current_thread_id]
 
+
+    # --- Page rendering logic starts here -----
     try:
         # Initialize last_response if it doesn't exist
         if "last_response" not in st.session_state:
@@ -425,21 +442,46 @@ def chat_page():
         st.rerun()
     else:
         try:
+
+
             # get bot details
             bot_details.sort(key=lambda x: (not "Janice" in x["bot_name"], x["bot_name"]))
             bot_names = [bot["bot_name"] for bot in bot_details]
             bot_ids = [bot["bot_id"] for bot in bot_details]
-            bot_intro_prompts = [bot["bot_intro_prompt"] for bot in bot_details]
+            bot_intro_prompts_map = {bot["bot_name"]: bot["bot_intro_prompt"]
+                                     for bot in bot_details}
 
             # Fetch available bots
             available_bots = bot_names
 
-            # Set Eve as the default bot if it exists
-            default_bot = "Janice" if "Janice" in available_bots else available_bots[0] if available_bots else None
-
-            # Initialize current_bot and current_thread_id if they don't exist
+            # Initialize current_bot and current_thread_id if they don't exist.
+            # This is where we respect initial_chat_session_data (only once, if exists)
             if 'current_bot' not in st.session_state or 'current_thread_id' not in st.session_state:
-                st.session_state.current_bot = default_bot if default_bot else (bot_names[1] if len(bot_names) > 1 else bot_names[0])
+                # resolve initial bot name and intro prompt
+                initial_bot_name = None
+                initial_chat_session_data = st.session_state.get('initial_chat_session_data')
+                if initial_chat_session_data:
+                    # first, use the bot name in the initial session data, if it is valid
+                    # (initial session data is 'best effort' since name could have changed)
+                    initial_bot_name = initial_chat_session_data.get('bot_name')
+                    if initial_bot_name is None:
+                        # there was no initial bot name, or we used it already or we got an invalid initial bot name. Silently ignore
+                        pass
+                    else:
+                        # override the initial prompt for this bot, if provided
+                        intro_prompt = initial_chat_session_data.get('initial_prompt')
+                        if intro_prompt:
+                            bot_intro_prompts_map[initial_bot_name] = intro_prompt
+                    st.session_state.initial_chat_session_data = None # This effectively marks this initial session data as 'visited' (don't inspect again)
+                if not initial_bot_name and available_bots:
+                    # Set Eve as the default bot if it exists in our list
+                    initial_bot_name = "Eve" if "Eve" in available_bots else None
+                if not initial_bot_name:
+                    # Otherwise use bot_names[1] or fallaback to bot_names[0]  (legacy behavior?)
+                    initial_bot_name = bot_names[1] if len(bot_names) > 1 else bot_names[0]
+                assert initial_bot_name
+
+                st.session_state.current_bot = initial_bot_name
                 new_thread_id = str(uuid.uuid4())
                 st.session_state.current_thread_id = new_thread_id
                 new_session = f"🤖 {st.session_state.current_bot} ({new_thread_id[:8]})"
@@ -564,6 +606,7 @@ def chat_page():
                         #    st.write("session ", session, ' current session ',  st.session_state.get('current_session'))
                             session_display = f"&nbsp;&nbsp;&nbsp;⚡ {session[2:]}" if session == st.session_state.get('current_session') else f"&nbsp;&nbsp;&nbsp;{session}"
                             st.markdown('<span id="button-after"></span>', unsafe_allow_html=True)
+                            # Handle switching an active chat session
                             if st.button(session_display, key=f"btn_{thread_id}"):
                                 st.session_state.current_bot = bot_name
                                 st.session_state.selected_session = {
@@ -571,10 +614,11 @@ def chat_page():
                                     'thread_id': full_thread_id
                                 }
                                 st.session_state.current_session = session
-                                st.session_state.load_history = True
+                                st.session_state.load_history = True #unused?
                                 st.rerun()
                         with col2:
                             st.markdown('<span id="button-after"></span>', unsafe_allow_html=True)
+                            # Handle deletion of an existing chat session
                             if st.button("⨂", key=f"remove_{thread_id}"):
                                 st.session_state.active_sessions.remove(session)
                                 if f"messages_{full_thread_id}" in st.session_state:
@@ -603,11 +647,10 @@ def chat_page():
 
                 selected_bot_index = bot_names.index(selected_bot_name)
                 selected_bot_id = bot_ids[selected_bot_index]
-                selected_bot_intro_prompt = bot_intro_prompts[selected_bot_index]
-                if selected_bot_intro_prompt is None:
-                    selected_bot_intro_prompt = 'Briefly introduce yourself and suggest a next step to the user.'
 
-                selected_bot_id = bot_ids[selected_bot_index]
+                selected_bot_intro_prompt = (bot_intro_prompts_map[selected_bot_name]
+                                             or 'Briefly introduce yourself and suggest a next step to the user.')
+
                 llm_configuration = get_llm_configuration(selected_bot_id)
 
                 if llm_configuration != 'openai':
@@ -701,3 +744,4 @@ def chat_page():
         st.session_state.new_session_added = False
         st.success("new session added??")
         st.rerun()
+

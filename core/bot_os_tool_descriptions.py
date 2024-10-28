@@ -113,12 +113,17 @@ process_runner_functions = [
                                        "When using mime_type='text/plain' you CAN use Slack-compatible markdown syntax. "
                                        "When using mime_type='text/html' DO NOT use markdown. Use appropriate html tags instead. Use this format as the default for most emails",
                     },
+                    "bot_id": {
+                        "type": "string",
+                        "description": "The bot_id that invoked this tool",
+                    },
+
                     "mime_type": {
                         "type": "string",
                         "description": "The MIME type of the email body. Accepts 'text/plain' or 'text/html'. Defaults to 'text/html'.",
                     }
                 },
-                "required": ["to_addr_list", "subject", "body"],
+                "required": ["to_addr_list", "subject", "body", "bot_id"],
             },
         },
     },

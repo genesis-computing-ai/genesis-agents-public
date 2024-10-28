@@ -349,6 +349,8 @@ class KnowledgeServer:
             tools = self.db_connector.run_query(query, max_rows=100)
             if tools:
                 last_timestamp = max([row['TIMESTAMP'] for row in tools])
+                function_name = None
+                bot_id = None
                 groups = {}
                 for row in tools:
                     if row['MESSAGE_TYPE'] == 'Tool Call':
@@ -361,6 +363,7 @@ class KnowledgeServer:
                         bot_id = row['BOT_ID']
                     else:
                         if "'success': False" in row['MESSAGE_PAYLOAD']: continue
+                        if bot_id is None: continue
                         groups.setdefault((bot_id, function_name), [])
                         groups[(bot_id, function_name)].append(f'{function_params}:\n\n' + row['MESSAGE_PAYLOAD'][:200])
                 

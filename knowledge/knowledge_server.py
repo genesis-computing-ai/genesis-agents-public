@@ -408,6 +408,7 @@ class KnowledgeServer:
             if tools:
                 last_timestamp = max([row['TIMESTAMP'] for row in tools])
                 groups = {}
+                bot_id = None
                 for row in tools:
                     if row['MESSAGE_TYPE'] == 'Tool Call':
                         if 'run_query' in row['MESSAGE_PAYLOAD']:                            
@@ -424,6 +425,7 @@ class KnowledgeServer:
                         bot_id = row['BOT_ID']
                     else:
                         if "'success': False" in row['MESSAGE_PAYLOAD']: continue
+                        if bot_id is None: continue
                         groups.setdefault((bot_id, dataset), [])
                         groups[(bot_id, dataset)].append(f'{func_args}:\n\n' + row['MESSAGE_PAYLOAD'][:200])
                 

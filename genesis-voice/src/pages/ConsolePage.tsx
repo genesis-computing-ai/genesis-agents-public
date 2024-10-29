@@ -27,7 +27,9 @@ import { Table } from '../components/table/Table';
 import './ConsolePage.scss';
 import { isJsxOpeningLikeElement } from 'typescript';
 
-const LOCAL_RELAY_SERVER_URL: string = '/realtime';
+const LOCAL_RELAY_SERVER_URL_TOOLS: string = '/realtime';
+const LOCAL_RELAY_SERVER_URL: string = '';
+
 
 /**
  * Type for result from get_weather() function call
@@ -476,7 +478,7 @@ export function ConsolePage() {
     const callRemoteTool = async (toolName: string, params: any) => {
       try {
         console.log(`Attempting to run ${toolName}:`, params);
-        const response = await fetch('http://localhost:8080/realtime/genesis_tool', {
+        const response = await fetch('/realtime/genesis_tool', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

@@ -1,0 +1,44 @@
+#from connectors.snowflake_connector.snowflake_connector import SnowflakeConnector
+from snowflake.connector import SnowflakeConnection
+import os
+import time
+import uuid
+# Build a SnowflakeConnection from env variables
+conn = SnowflakeConnection(
+    account=os.getenv("SNOWFLAKE_ACCOUNT_OVERRIDE"),
+    user=os.getenv("SNOWFLAKE_USER_OVERRIDE"),
+    password=os.getenv("SNOWFLAKE_PASSWORD_OVERRIDE"),
+    database=os.getenv("SNOWFLAKE_DATABASE_OVERRIDE"),
+    warehouse=os.getenv("SNOWFLAKE_WAREHOUSE_OVERRIDE"),
+    role=os.getenv("SNOWFLAKE_ROLE_OVERRIDE")
+)
+
+# Execute the SQL code
+#grant_usage_1 = conn.cursor().execute("call genesis_bots.core.run_arbitrary('grant usage on function genesis_bots.app1.submit_udf(varchar, varchar, varchar) to application role app_public')")
+#grant_usage_2 = conn.cursor().execute("call genesis_bots.core.run_arbitrary('grant usage on function genesis_bots.app1.lookup_udf(varchar, varchar) to application role app_public')")
+cursor = conn.cursor()
+cursor.execute("""
+select genesis_bots.app1.submit_udf('tell me more about your capabilities', '', '{"bot_id": "Janice"}')
+""")
+thread_id_result = cursor.fetchone()    
+thread_id = thread_id_result[0] if thread_id_result else None
+
+time.sleep(10)
+
+cursor.execute(f"""
+select genesis_bots.app1.lookup_udf ('{thread_id}', 'Janice')
+""")
+response_result = cursor.fetchone()
+response = response_result[0] if response_result else None
+
+print(thread_id)
+print(response)
+
+# Check if the responses are valid
+if thread_id is not None and response is not None:
+    print("Responses are valid")
+    exit(0)
+else:
+    print("Responses are not valid")
+    exit(1)
+

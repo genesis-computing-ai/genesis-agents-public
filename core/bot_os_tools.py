@@ -1986,7 +1986,7 @@ class ToolBelt:
                     "process_id": process_id,
                 }
             
-            if action in ["CREATE", "CREATE_CONFIRMED", "UPDATE", "UPDATE_CONFIRMED"]:
+            if action in ["CREATE", "UPDATE"]:
                 check_for_code_instructions = f"""Please examine the text below and return only the word 'SQL' if the text contains 
                 actual SQL code, not a reference to SQL code, or only the word 'PYTHON' if the text contains actual Python code, not a reference to Python code.  
                 If the text contains both, return only 'SQL + PYTHON'.  Do not return any other verbage.  If the text contains 
@@ -1996,8 +1996,8 @@ class ToolBelt:
                 if result != 'NO CODE':
                     return {
                         "Success": False,
-                        "Suggestion": "Explain to the user that any SQL or Python code needs to be first separately tested and stored as a 'note', which is a special way to store sql or python that will be used within processes. This helps keep the process instuctions themselves clean and makes processes run more reliably.",
-                        "Error": f"Processes may not contain {result} code.  Please remove the code and replace it with a note_id to the code in the note table.  Then replace the code in the process with the note_id of the new note.  Do not include the note contents in the process, just include an instruction to run the note with the note_id."
+                        "Suggestion": "Explain to the user that any SQL or Python code should be separately tested and stored as a 'note', which is a special way to store sql or python that will be used within processes. This helps keep the process instuctions themselves clean and makes processes run more reliably.  If the user prefers not to create a note, the code may be added directly into the process, but this is not recommended.",
+                        "Error": f"Processes should not contain {result} code.  Ask the user of they would like to remove the code and replace it with a note_id to the code in the note table.  Then replace the code in the process with the note_id of the new note.  Do not include the note contents in the process, just include an instruction to run the note with the note_id.  If the user prefers not to create a note, the code may be added directly into the process, but this is not recommended."
                     }
 
             if action == "CREATE" or action == "CREATE_CONFIRMED":

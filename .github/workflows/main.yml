@@ -12,28 +12,30 @@ jobs:
         uses: actions/checkout@v2
 
       # Cache Python dependencies (including SnowCLI)
-      - name: Cache Python and SnowCLI dependencies
+      - name: Cache Python dependencies
         uses: actions/cache@v2
         with:
-          path: |
-            ~/.cache/pip  # Python packages cache
-            ~/.cache/snowcli  # Cache SnowCLI as well (if it has separate cache storage)
-          key: ${{ runner.os }}-pip-snowcli-${{ hashFiles('requirements.txt') }}
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
           restore-keys: |
             ${{ runner.os }}-pip-
-            ${{ runner.os }}-snowcli-
+
 
       - name: Set up Python and install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install snowflake-connector-python
-          pip install snowcli  # Install SnowCLI
+          pip install -r ./tests/requirements.txt
+
+      - name: Add user-level bin to PATH
+        run: echo "$HOME/.local/bin" >> $GITHUB_PATH
+
 
       # Create the ~/.snowflake directory and copy the config file
       - name: Set up Snowflake config
         run: |
-          mkdir -p ~/.snowflake  # Create the .snowflake directory in the home directory
-          cp ./tests/config.toml ~/.snowflake/config.toml  # Copy your config file from the repository to ~/.snowflake/config
+          mkdir -p ~/.snowcli
+          cp ./tests/config.toml ~/.snowcli/config.toml
+
           
       - name: Set up Snowflake credentials
         run: |

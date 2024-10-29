@@ -1,43 +1,53 @@
-name: Run Reg Test
+name: Run Snowflake Bash Script
 
 on:
-  workflow_dispatch: # Allows manual triggering of the workflow
+  workflow_dispatch:  # Allows manual trigger
 
 jobs:
-  run-snowflake-script:
+  build-and-push:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v2
+      - name: Deploy main repository to snowflake dev
+        uses: actions/checkout@v2
 
-    # Cache Python dependencies
-    - name: Cache Python dependencies
-      uses: actions/cache@v2
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-
+      # Cache Python dependencies (including SnowCLI)
+      - name: Cache Python and SnowCLI dependencies
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cache/pip  # Python packages cache
+            ~/.cache/snowcli  # Cache SnowCLI as well (if it has separate cache storage)
+          key: ${{ runner.os }}-pip-snowcli-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+            ${{ runner.os }}-snowcli-
 
-    - name: Set up Python
-      uses: actions/setup-python@v2
-      with:
-        python-version: '3.10'  # Specify the version of Python you want to use
+      - name: Set up Python and install dependencies
+        run: |
+          sudo apt-get update
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt  # Install Python dependencies from requirements.txt
+          pip install snowcli  # Install SnowCLI
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
+      # Create the ~/.snowflake directory and copy the config file
+      - name: Set up Snowflake config
+        run: |
+          mkdir -p ~/.snowflake  # Create the .snowflake directory in the home directory
+          cp ./tests/config.toml ~/.snowflake/config.toml  # Copy your config file from the repository to ~/.snowflake/config
+          
+      - name: Set up Snowflake credentials
+        run: |
+          mkdir -p ~/.keys
+          mkdir -p ~/.keys/dev_consumer
+          mkdir -p ~/.keys/dev_provider
+          # Save private key to file
+          echo "${{ secrets.SNOWFLAKE_CONSUMER_DEV_PRIVATE_KEY }}" > ~/.keys/dev_consumer/rsa_key.p8
+          echo "${{ secrets.SNOWFLAKE_PROVIDER_DEV_PRIVATE_KEY }}" > ~/.keys/dev_provider/rsa_key.p8
+          chmod 600 ~/.keys/dev_consumer/rsa_key.p8
+          chmod 600 ~/.keys/dev_provider/rsa_key.p8
 
-    - name: Run Snowflake Python script
-      env:
-        SNOWFLAKE_USER_OVERRIDE: ${{ secrets.SNOWFLAKE_USER_OVERRIDE }}
-        SNOWFLAKE_ACCOUNT_OVERRIDE: ${{ secrets.SNOWFLAKE_ACCOUNT_OVERRIDE }}
-        SNOWFLAKE_WAREHOUSE_OVERRIDE: ${{ secrets.SNOWFLAKE_WAREHOUSE_OVERRIDE }}
-        SNOWFLAKE_DATABASE_OVERRIDE: ${{ secrets.SNOWFLAKE_DATABASE_OVERRIDE }}
-        SNOWFLAKE_ROLE_OVERRIDE: ${{ secrets.SNOWFLAKE_ROLE_OVERRIDE }}
-        SNOWFLAKE_PRIVATE_KEY: ${{ secrets.SNOWFLAKE_PRIVATE_KEY }}
-        PRIVATE_KEY_PASSPHRASE: ${{ secrets.PRIVATE_KEY_PASSPHRASE }} # Only if you used a passphrase
-      run: |
-        python tests/hello_world_regtest_01.py
+      - name: Run bash script
+        run: |
+          # Run the bash script
+          bash ./snowflake_app/upgrade_dev_auto.sh

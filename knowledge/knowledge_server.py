@@ -11,6 +11,8 @@ import ast
 from llm_openai.openai_utils import get_openai_client 
 import pandas as pd
 import re
+import traceback
+
 
 print("     ┌───────┐     ")
 print("    ╔═════════╗    ")
@@ -249,7 +251,8 @@ class KnowledgeServer:
                     if not skipped_thread:
                         self.user_queue.put((primary_user, bot_id, response))
             except Exception as e:
-                print(f"Encountered errors processing knowledge for thread {thread_id}, {self.db_connector.knowledge_table_name} row: {e}")
+                print(f"Encountered errors processing knowledge for thread {thread_id}, {self.db_connector.knowledge_table_name} row: {e}", flush=True)
+                print(traceback.format_exc(), flush=True)
             
             with self.thread_set_lock:
                 self.thread_set.remove(thread_id)
@@ -333,7 +336,8 @@ class KnowledgeServer:
                                               user_learning=new_knowledge["USER_LEARNING"],tool_learning=new_knowledge["TOOL_LEARNING"],
                                               data_learning=new_knowledge["DATA_LEARNING"])
             except Exception as e:
-                print(f"Encountered errors while inserting into {self.db_connector.user_bot_table_name} row: {e}")
+                print(f"Encountered errors while inserting into {self.db_connector.user_bot_table_name} row: {e}", flush=True)
+                print(traceback.format_exc(), flush=True)
 
 
     def tool_knowledge(self):

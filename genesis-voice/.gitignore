@@ -17,6 +17,7 @@ build
 *.tar
 *.tgz
 *.bla
+*.env
 
 # misc
 .DS_Store

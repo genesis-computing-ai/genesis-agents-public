@@ -8,8 +8,6 @@
  * This will also require you to set OPENAI_API_KEY= in a `.env` file
  * You can run it with `npm run relay`, in parallel with `npm start`
  */
-const LOCAL_RELAY_SERVER_URL: string =
-  process.env.REACT_APP_LOCAL_RELAY_SERVER_URL || '';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Helmet } from 'react-helmet'; // Ensure react-helmet is imported
@@ -28,6 +26,8 @@ import { Table } from '../components/table/Table';
 
 import './ConsolePage.scss';
 import { isJsxOpeningLikeElement } from 'typescript';
+
+const LOCAL_RELAY_SERVER_URL: string = '/realtime';
 
 /**
  * Type for result from get_weather() function call
@@ -534,16 +534,20 @@ export function ConsolePage() {
 
     const fetchTools = async (): Promise<any[]> => {
       try {
-        const response = await fetch('http://localhost:8080/realtime/get_tools?bot_id=Janice');
+        const response = await fetch(`/realtime/tools?bot_id=Janice`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         const data = await response.json();
         if (data.success && Array.isArray(data.tools)) {
-          // Extract tool information from function objects
           return data.tools.map((toolFunc: any) => {
             let name = toolFunc.function?.name || '';
-            // Remove underscore from the beginning of the name if it exists
             if (name.startsWith('_')) {
               name = name.slice(1);
             }
@@ -562,7 +566,6 @@ export function ConsolePage() {
         return [];
       }
     };
-
 
     fetchTools().then(tools => {
       tools.forEach((tool: any, index: number) => {

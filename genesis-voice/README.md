@@ -1,5 +1,10 @@
 # OpenAI Realtime Console
 
+
+also:
+npm run relay
+
+
 The OpenAI Realtime Console is intended as an inspector and interactive API reference
 for the OpenAI Realtime API. It comes packaged with two utility libraries,
 [openai/openai-realtime-api-beta](https://github.com/openai/openai-realtime-api-beta)

@@ -1114,6 +1114,8 @@ def embed_openbb():
         default_bot_id=list(bot_id_to_udf_adapter_map.keys())[0],
     )
 
+# Example curl command:
+# curl -X GET "http://localhost:8080/realtime/get_tools?bot_id=Janice"
 @app.route("/realtime/get_tools", methods=["GET"])
 def get_session_tools():
     try:

@@ -1777,10 +1777,16 @@ def get_status(site):
                 query = f"CREATE SCHEMA IF NOT EXISTS {workspace_schema_name}"
             else:
                 try:
-                    rename_query = f"ALTER SCHEMA IF EXISTS {workspace_schema_name} RENAME TO {workspace_schema_name}_OLD"
+                    workspace_schema_check_query = (
+                        f"SHOW SCHEMAS LIKE '{workspace_schema_name}_OLD';"
+                    )
                     cursor = self.client.cursor()
-                    cursor.execute(rename_query)
-                    self.client.commit()
+                    cursor.execute(workspace_schema_check_query)
+                    if not cursor.fetchone():
+                        rename_query = f"ALTER SCHEMA IF EXISTS {workspace_schema_name} RENAME TO {workspace_schema_name}_OLD"
+                        cursor = self.client.cursor()
+                        cursor.execute(rename_query)
+                        self.client.commit()
                 except Exception as e:
                     pass
                 # logger.info(f"Workspace schema {workspace_schema_name} renamed to OLD_{workspace_schema_name}")

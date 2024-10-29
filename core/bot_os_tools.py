@@ -1215,7 +1215,7 @@ class ToolBelt:
             "note_content",
         ]
 
-        if action not in ['CREATE','CREATE_CONFIRMED', 'UPDATE','UPDATE_CONFIRMED', 'DELETE', 'LIST', 'TIME']:
+        if action not in ['CREATE','CREATE_CONFIRMED', 'UPDATE','UPDATE_CONFIRMED', 'DELETE', 'DELETE_CONFIRMED', 'LIST', 'TIME']:
             return {
                 "Success": False,
                 "Error": "Invalid action.  Manage Notebook tool only accepts actions of CREATE, CREATE_CONFIRMED, UPDATE, UPDATE_CONFIRMED, DELETE, LIST, or TIME."

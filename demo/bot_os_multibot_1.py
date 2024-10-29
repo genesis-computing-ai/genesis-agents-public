@@ -377,6 +377,8 @@ def get_metadata():
             result = db_adapter.get_bot_images()
         elif metadata_type == "llm_info":
             result = db_adapter.get_llm_info()
+        elif metadata_type == 'cortext_search_services':
+            result = db_adapter.get_cortext_search_service()
         elif metadata_type == "bot_llms":
             if "BOT_LLMS" in os.environ and os.environ["BOT_LLMS"]:
                 result = {"Success": True, "Data": os.environ["BOT_LLMS"]}

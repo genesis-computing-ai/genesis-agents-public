@@ -32,7 +32,9 @@ import re
 from tqdm import tqdm
 from textwrap import dedent
 
-
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.backends import default_backend
+import jwt
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -1837,6 +1839,139 @@ def get_status(site):
             )
         except Exception as e:
             logger.warning(f"Failed to grant workspace {workspace_schema_name} objects to {grant_fragment}: {e}")
+
+
+    def get_cortext_search_service(self):
+        """
+        Executes a query to retrieve a summary of the harvest results, including the source name, database name, schema name,
+        role used for crawl, last crawled timestamp, and the count of objects crawled, grouped and ordered by the source name,
+        database name, schema name, and role used for crawl.
+
+        Returns:
+            list: A list of dictionaries, each containing the harvest summary for a group.
+        """
+        query = f"""
+            SHOW CORTEX SEARCH SERVICES; 
+        """
+        try:
+            cursor = self.client.cursor()
+            cursor.execute(query)
+            results = cursor.fetchall()
+
+            # Convert the query results to a list of dictionaries
+            summary = [
+                dict(zip([column[0] for column in cursor.description], row))
+                for row in results
+            ]
+
+            json_data = json.dumps(
+                summary, default=str
+            )  # default=str to handle datetime and other non-serializable types
+
+            return {"Success": True, "Data": json_data}
+
+        except Exception as e:
+            err = f"An error occurred while retrieving the harvest summary: {e}"
+            return {"Success": False, "Error": err}
+
+    def cortex_search(self, 
+        query: str,
+        service_name: str='service',         
+        top_n: int=1,
+        thread_id=None):
+        try:
+
+            def generate_jwt_token(private_key_path, account, user, role="ACCOUNTADMIN"):                
+                # Uppercase account and user
+                account = account.upper()
+                user = user.upper()
+                qualified_username = account + "." + user
+
+                # Current time and token lifetime
+                now = datetime.datetime.now(datetime.timezone.utc)
+                lifetime = datetime.timedelta(minutes=59)
+
+                # Load the private key
+                password = os.getenv("PRIVATE_KEY_PASSWORD")
+                if password:
+                    password = password.encode()
+                with open(private_key_path, "rb") as key_file:
+                    private_key = serialization.load_pem_private_key(
+                        key_file.read(),
+                        password=password,  
+                        backend=default_backend()
+                    )
+
+
+                public_key_raw = private_key.public_key().public_bytes(serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo)
+                # Get the sha256 hash of the raw bytes.
+                sha256hash = hashlib.sha256()
+                sha256hash.update(public_key_raw)
+
+                # Base64-encode the value and prepend the prefix 'SHA256:'.
+                public_key_fp = 'SHA256:' + base64.b64encode(sha256hash.digest()).decode('utf-8')
+
+                # Payload for the token
+                payload = {
+                    "iss": qualified_username + '.' + public_key_fp,
+                    "sub": qualified_username,
+                    "iat": now,
+                    "exp": now + lifetime
+                }
+
+                print(payload)                
+
+                # Generate the JWT token
+                encoding_algorithm = "RS256"
+                token = jwt.encode(payload, key=private_key, algorithm=encoding_algorithm)
+
+                # Convert to string if necessary
+                if isinstance(token, bytes):
+                    token = token.decode('utf-8')
+
+                return token  
+
+            def make_api_request(jwt_token, api_endpoint, payload):
+                # Define headers
+                headers = {
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {jwt_token}",
+                    "Accept": "application/json",
+                    "User-Agent": "myApplicationName/1.0",
+                    "X-Snowflake-Authorization-Token-Type": "KEYPAIR_JWT"
+                }
+
+                # Make the POST request
+                response = requests.post(api_endpoint, headers=headers, json=payload)
+
+                print (response)
+                # Print the response status and data
+                print(f"Status Code: {response.status_code}")
+                print(f"Response: {response.json()}") 
+                return response
+            
+            schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA").split('.')[-1]
+            # service_name = 'HARVEST_SEARCH_SERVICE'.lower()
+            api_endpoint = f'https://{self.client.host}/api/v2/databases/{self.database}/schemas/{schema}/cortex-search-services/{service_name}:query'
+            
+                    
+            payload = {"query": query, "limit": top_n}
+            private_key_path = ".keys/rsa_key.p8"
+            account = os.getenv("SNOWFLAKE_ACCOUNT_OVERRIDE")
+            user = os.getenv("SNOWFLAKE_USER_OVERRIDE")
+                        
+            jwt_token = generate_jwt_token(private_key_path, account, user)
+            response = make_api_request(jwt_token, api_endpoint, payload)
+
+            return response.text, response.status_code
+        
+        except Exception as e:
+            print ("Bottom of function -- Error calling Cortex Search Rest API, ",e, flush=True)
+            return False, False
+
+
+
+        return 
 
     # handle the job_config stuff ...
     def run_query(

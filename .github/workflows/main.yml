@@ -1,9 +1,6 @@
 name: Run Reg Test
 
 on:
-  push:
-    branches:
-      - main  # Triggers on push to the main branch
   workflow_dispatch: # Allows manual triggering of the workflow
 
 jobs:

@@ -66,8 +66,8 @@ def setup_slack():
 
         if tok == "...":
             tok = ""
-        if ref == "...":
-            ref = ""
+        if ref_tok == "...":
+            ref_tok = ""
 
         if tok:
             slack_app_token = st.text_input("Slack App Token", value=tok)

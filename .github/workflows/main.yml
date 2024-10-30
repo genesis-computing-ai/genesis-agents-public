@@ -40,6 +40,8 @@ jobs:
         run: |
           echo "Contents of ~/.snowcli/config.toml:"
           cat ~/.snowcli/config.toml
+          chown $USER ~/.snowcli/config.toml
+          chmod 0600 ~/.snowcli/config.toml
 
       - name: Set up Snowflake credentials
         run: |

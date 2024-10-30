@@ -1194,10 +1194,10 @@ def genesis_tool():
         return jsonify({"success": False, "message": str(e)}), 500
 
 from flask import Flask, request, jsonify
-from flask_cors import CORS
+#from flask_cors import CORS
 
 
-CORS(app, resources={r"/*": {"origins": "http://localhost:*"}}) # This will enable CORS only for localhost
+#CORS(app, resources={r"/*": {"origins": "http://localhost:*"}}) # This will enable CORS only for localhost
 
 BotOsServer.stream_mode = True
 scheduler.start()

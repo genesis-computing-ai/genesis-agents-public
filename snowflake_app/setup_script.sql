@@ -36,9 +36,6 @@ $$
             CORTEX_FAST_MODEL_NAME: llama3.1-70b
             USE_KNOWLEDGE: TRUE
             LAST_K_KNOWLEGE: 5
-        readinessProbe:
-          port: 8080
-          path: /healthcheck
       endpoints:
       - name: udfendpoint
         port: 8080
@@ -51,7 +48,16 @@ $$
         public: true
       - name: debuggenesis
         port: 1234
-        public: false
+        public: true
+      - name: voicedemo
+        port: 3000
+        public: true
+      - name: voicerelay
+        port: 8081
+        public: true
+      - name: testapp
+        port: 8000
+        public: true
       logExporters:
         eventTableConfig:
           logLevel: INFO
@@ -62,6 +68,9 @@ $$
       - streamlit
       - streamlitdatacubes
       - debuggenesis
+      - voicedemo
+      - voicerelay
+      - testapp
 $$)
 ;
 

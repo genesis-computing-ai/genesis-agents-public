@@ -8,6 +8,8 @@
  * This will also require you to set OPENAI_API_KEY= in a `.env` file
  * You can run it with `npm run relay`, in parallel with `npm start`
  */
+const LOCAL_RELAY_SERVER_URL: string =
+  process.env.REACT_APP_LOCAL_RELAY_SERVER_URL || '';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Helmet } from 'react-helmet'; // Ensure react-helmet is imported
@@ -26,10 +28,6 @@ import { Table } from '../components/table/Table';
 
 import './ConsolePage.scss';
 import { isJsxOpeningLikeElement } from 'typescript';
-
-const LOCAL_RELAY_SERVER_URL_TOOLS: string = '/realtime';
-const LOCAL_RELAY_SERVER_URL: string = '';
-
 
 /**
  * Type for result from get_weather() function call
@@ -182,86 +180,60 @@ export function ConsolePage() {
    * Connect to conversation:
    * WavRecorder taks speech input, WavStreamPlayer output, client is API client
    */
-
-    /**
-   * Disconnect and reset conversation state
-   */
-    const disconnectConversation = useCallback(async () => {
-      setIsConnected(false);
-      setRealtimeEvents([]);
-      setItems([]);
-      setCoords({
-        lat: 37.775593,
-        lng: -122.418137,
-      });
-      setMarker(null);
-  
-      const client = clientRef.current;
-      client.disconnect();
-  
-      const wavRecorder = wavRecorderRef.current;
-      await wavRecorder.end();
-  
-      const wavStreamPlayer = wavStreamPlayerRef.current;
-      await wavStreamPlayer.interrupt();
-    }, []);
-
   const connectConversation = useCallback(async () => {
     const client = clientRef.current;
     const wavRecorder = wavRecorderRef.current;
     const wavStreamPlayer = wavStreamPlayerRef.current;
-  
-    try {
-      // Set state variables
-      startTimeRef.current = new Date().toISOString();
-      setIsConnected(false); // Start as false until we confirm connection
-      setRealtimeEvents([]);
-      setItems(client.conversation.getItems());
-  
-      // Connect to microphone
-      await wavRecorder.begin();
-  
-      // Connect to audio output
-      await wavStreamPlayer.connect();
-  
-      // Connect to realtime API and wait for connection
-      await client.connect();
-      
-      // Wait a moment to ensure connection is established
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Verify connection before proceeding
-      if (!client.isConnected()) {
-        throw new Error('Failed to establish connection');
-      }
-  
-      // Now that we're connected, update state and send initial message
-      setIsConnected(true);
-      
-      await client.sendUserMessageContent([
-        {
-          type: `input_text`,
-          text: `Hi, I'm Justin Langseth.`,
-        },
-      ]);
-  
-      if (client.getTurnDetectionType() === 'server_vad') {
-        await wavRecorder.record((data) => {
-          if (client.isConnected()) {
-            client.appendInputAudio(data.mono);
-          }
-        });
-      }
-    } catch (error) {
-      console.error('Connection error:', error);
-      await disconnectConversation();
-      // Optionally show error to user
-      alert('Failed to connect. Please try again.');
+
+    // Set state variables
+    startTimeRef.current = new Date().toISOString();
+    setIsConnected(true);
+    setRealtimeEvents([]);
+    setItems(client.conversation.getItems());
+
+    // Connect to microphone
+    await wavRecorder.begin();
+
+    // Connect to audio output
+    await wavStreamPlayer.connect();
+
+    // Connect to realtime API
+    await client.connect();
+    client.sendUserMessageContent([
+      {
+        type: `input_text`,
+        text: `Hi, I'm Justin Langseth.`,
+        // text: `For testing purposes, I want you to list ten car brands. Number each item, e.g. "one (or whatever number you are one): the item name".`
+      },
+    ]);
+
+    if (client.getTurnDetectionType() === 'server_vad') {
+      await wavRecorder.record((data) => client.appendInputAudio(data.mono));
     }
-  }, [disconnectConversation]);
+  }, []);
 
+  /**
+   * Disconnect and reset conversation state
+   */
+  const disconnectConversation = useCallback(async () => {
+    setIsConnected(false);
+    setRealtimeEvents([]);
+    setItems([]);
+    setCoords({
+      lat: 37.775593,
+      lng: -122.418137,
+    });
+    setMarker(null);
 
+    const client = clientRef.current;
+    client.disconnect();
 
+    const wavRecorder = wavRecorderRef.current;
+    await wavRecorder.end();
+
+    const wavStreamPlayer = wavStreamPlayerRef.current;
+    await wavStreamPlayer.interrupt();
+  }, []);
 
   const deleteConversationItem = useCallback(async (id: string) => {
     const client = clientRef.current;
@@ -272,35 +244,18 @@ export function ConsolePage() {
    * In push-to-talk mode, start recording
    * .appendInputAudio() for each sample
    */
-const startRecording = async () => {
-  try {
-    const client = clientRef.current;
-    if (!client.isConnected()) {
-      throw new Error('Client not connected');
-    }
-
+  const startRecording = async () => {
     setIsRecording(true);
+    const client = clientRef.current;
     const wavRecorder = wavRecorderRef.current;
     const wavStreamPlayer = wavStreamPlayerRef.current;
-    
     const trackSampleOffset = await wavStreamPlayer.interrupt();
     if (trackSampleOffset?.trackId) {
       const { trackId, offset } = trackSampleOffset;
       await client.cancelResponse(trackId, offset);
     }
-    
-    await wavRecorder.record((data) => {
-      if (client.isConnected()) {
-        client.appendInputAudio(data.mono);
-      }
-    });
-  } catch (error) {
-    console.error('Recording error:', error);
-    setIsRecording(false);
-    // Optionally show error to user
-    alert('Failed to start recording. Please try reconnecting.');
-  }
-};
+    await wavRecorder.record((data) => client.appendInputAudio(data.mono));
+  };
 
   /**
    * In push-to-talk mode, stop recording
@@ -579,20 +534,16 @@ const startRecording = async () => {
 
     const fetchTools = async (): Promise<any[]> => {
       try {
-        const response = await fetch(`/realtime/tools?bot_id=Janice`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          }
-        });
-
+        const response = await fetch('/realtime/get_tools?bot_id=Janice');
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         const data = await response.json();
         if (data.success && Array.isArray(data.tools)) {
+          // Extract tool information from function objects
           return data.tools.map((toolFunc: any) => {
             let name = toolFunc.function?.name || '';
+            // Remove underscore from the beginning of the name if it exists
             if (name.startsWith('_')) {
               name = name.slice(1);
             }
@@ -611,6 +562,7 @@ const startRecording = async () => {
         return [];
       }
     };
+
 
     fetchTools().then(tools => {
       tools.forEach((tool: any, index: number) => {
@@ -679,7 +631,7 @@ const startRecording = async () => {
 
     // Set VAD as the default turn detection type
     client.updateSession({ turn_detection: { type: 'server_vad' } });
-    client.updateSession({ voice: 'alloy' });
+    client.updateSession({ voice: 'shimmer' });
   
 
     return () => {
@@ -996,22 +948,6 @@ const startRecording = async () => {
         </div>
       </div>
       {/* Add Helmet to define or update CSP */}
-      <Helmet>
-        <meta
-          http-equiv="Content-Security-Policy"
-          content="
-       default-src 'self';
-       script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:;
-       style-src 'self' 'unsafe-inline';
-       img-src 'self' data:;
-       media-src 'self' blob:;
-       connect-src 'self' http://localhost:8080 wss://api.openai.com https://*.snowflakecomputing.app;
-       font-src 'self';
-       object-src 'none';
-       frame-src 'none';
-     "
-        />
-      </Helmet>
     </div>
   );
 }

@@ -268,6 +268,7 @@ if st.session_state.data:
         "Chat with Bots": lambda: __import__('page_files.chat_page').chat_page.chat_page(),
         "LLM Model & Key": lambda: __import__('page_files.llm_config').llm_config.llm_config(),
         "Setup Email Integration": lambda: __import__('page_files.config_email').config_email.setup_email(),
+        "Setup Cortex Search": lambda: __import__('page_files.config_cortex_search').config_cortex_search.setup_cortex_search(),
         "Setup Slack Connection": lambda: __import__('page_files.setup_slack').setup_slack.setup_slack(),
         "Setup Custom Warehouse": lambda: __import__('page_files.config_wh').config_wh.config_wh(),
         "Grant Data Access": lambda: __import__('page_files.grant_data').grant_data.grant_data(),

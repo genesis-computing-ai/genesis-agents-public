@@ -4,14 +4,14 @@ account = "dshrnxx-genesis-dev"
 user = "michael.rainey@genesiscomputing.ai"
 authenticator = "SNOWFLAKE_JWT"
 private_key_path = "~/.keys/dev_provider/rsa_key.p8"
-warehouse = APP_XSMALL
-role = ACCOUNTADMIN
+warehouse = "APP_XSMALL"
+role = "ACCOUNTADMIN"
 
 [connections.GENESIS-DEV-CONSUMER-2]
 account = "dshrnxx-genesis-dev-consumer"
 user = "michael.rainey@genesiscomputing.ai"
 authenticator = "SNOWFLAKE_JWT"
 private_key_path = "~/.keys/dev_consumer/rsa_key.p8"
-warehouse = APP_XSMALL
-database = GENESIS_BOTS
-role = ACCOUNTADMIN
+warehouse = "APP_XSMALL"
+database = "GENESIS_BOTS"
+role = "ACCOUNTADMIN"

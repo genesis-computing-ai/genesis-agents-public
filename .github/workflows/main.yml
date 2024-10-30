@@ -36,7 +36,11 @@ jobs:
           mkdir -p ~/.snowcli
           cp ./tests/config.toml ~/.snowcli/config.toml
 
-          
+      - name: Verify config.toml
+        run: |
+          echo "Contents of ~/.snowcli/config.toml:"
+          cat ~/.snowcli/config.toml
+
       - name: Set up Snowflake credentials
         run: |
           mkdir -p ~/.keys

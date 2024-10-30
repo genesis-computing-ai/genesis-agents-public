@@ -110,6 +110,7 @@ class ToolBelt:
         global belts
         belts = belts + 1
         self.process_id = {}
+        self.include_code = False
 
         self.sys_default_email = self.get_sys_email()
    #     print(belts)
@@ -1314,9 +1315,9 @@ class ToolBelt:
                 return {
                     "Success": False,
                     "Fields": {"note_id": note_id, "note_name": note_name, "bot_id": bot_id, "note content": note_content, "note_params:": note_params},
-                    "Confirmation_Needed": "Please reconfirm the field values with the user, then call this function again with the action CREATE_CONFIRMED to actually create the note.",
+                    "Confirmation_Needed": "Please reconfirm the field values with the user, then call this function again with the action CREATE_CONFIRMED to actually create the note.  If the user does not want to create a note, allow code in the process instructions",
                     "Suggestion": "If possible, for a sql or python note, suggest to the user that we test the sql or python before making the note to make sure it works properly",
-                    "Next Step": "If you're ready to create this note, call this function again with action CREATE_CONFIRMED instead of CREATE"
+                    "Next Step": "If you're ready to create this note or the user has chosen not to create a note, call this function again with action CREATE_CONFIRMED instead of CREATE.  If the user chooses to allow code in the process, allow them to do so and include the code directly in the process."
                 #    "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}",
                 }
 
@@ -1324,7 +1325,7 @@ class ToolBelt:
                 return {
                     "Success": False,
                     "Fields": {"note_id": note_id, "note_name": note_name, "bot_id": bot_id, "note content": note_content, "note_param:": note_params},
-                    "Confirmation_Needed": "Please reconfirm this content and all the other note field values with the user, then call this function again with the action UPDATE_CONFIRMED to actually update the note.",
+                    "Confirmation_Needed": "Please reconfirm this content and all the other note field values with the user, then call this function again with the action UPDATE_CONFIRMED to actually update the note.  If the user does not want to update the note, allow code in the process instructions",
                     "Suggestion": "If possible, for a sql or python note, suggest to the user that we test the sql or python before making the note to make sure it works properly",
                     "Next Step": "If you're ready to update this note, call this function again with action UPDATE_CONFIRMED instead of UPDATE"
                 #    "Info": f"By the way the current system time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}",
@@ -1363,8 +1364,6 @@ class ToolBelt:
                 return {"Success": False, "Error": "note_id is required for SHOW action"}
 
             if note_id is not None:
-                if note_id is None:
-                    note_id = note_content['note_id']
                 return self.get_note_info(bot_id=bot_id, note_id=note_id)
             else:
                 note_name = note_content['note_id']
@@ -1378,11 +1377,12 @@ class ToolBelt:
             else:
                 return {"Success": False, "Error": f"Missing note_id field"}
 
-        if action in ["CREATE", "UPDATE"] and not note_content:
-            return {
-                "Success": False,
-                "Error": "Note Content must be provided for CREATE or UPDATE action.",
-            }
+        # if action in ["CREATE", "UPDATE"] and not note_content:
+        # if action in ["CREATE", "UPDATE"]:
+        #     return {
+        #         "Success": False,
+        #         "Error": "Note Content must be provided for CREATE or UPDATE action.",
+        #     }
 
         try:
             if action == "CREATE":
@@ -1959,6 +1959,15 @@ class ToolBelt:
 
         action = action.upper()
 
+        if action == "ALLOW_CODE":
+            self.include_code = True
+            return {
+                "Success": True,
+                "Message": "User has confirmed that code will be allowed in the process instructions.",
+                "Suggestion": "Remind user that the provided code will be included directly in the process instructions, but best pratices are to create a note",
+                "Reminder": "  Allow code to be included in the process instructions.  Run manage_process with the action CREATE_CONFIRMED to create the process.",
+            }
+
         if action == "TIME":
             return {
                 "current_system_time": datetime.now()
@@ -1986,7 +1995,7 @@ class ToolBelt:
                     "process_id": process_id,
                 }
             
-            if action in ["CREATE", "UPDATE"]:
+            if action in ["CREATE", "UPDATE"] and not self.include_code:
                 check_for_code_instructions = f"""Please examine the text below and return only the word 'SQL' if the text contains 
                 actual SQL code, not a reference to SQL code, or only the word 'PYTHON' if the text contains actual Python code, not a reference to Python code.  
                 If the text contains both, return only 'SQL + PYTHON'.  Do not return any other verbage.  If the text contains 
@@ -1995,9 +2004,9 @@ class ToolBelt:
 
                 if result != 'NO CODE':
                     return {
-                        "Success": False,
-                        "Suggestion": "Explain to the user that any SQL or Python code should be separately tested and stored as a 'note', which is a special way to store sql or python that will be used within processes. This helps keep the process instuctions themselves clean and makes processes run more reliably.  If the user prefers not to create a note, the code may be added directly into the process, but this is not recommended.",
-                        "Error": f"Processes should not contain {result} code.  Ask the user of they would like to remove the code and replace it with a note_id to the code in the note table.  Then replace the code in the process with the note_id of the new note.  Do not include the note contents in the process, just include an instruction to run the note with the note_id.  If the user prefers not to create a note, the code may be added directly into the process, but this is not recommended."
+                        "Success": True,
+                        "Suggestion": "Explain to the user that any SQL or Python code should be separately tested and stored as a 'note', which is a special way to store sql or python that will be used within processes. This helps keep the process instuctions themselves clean and makes processes run more reliably.  Ask the user oif they would like to create a note.  If the user prefers not to create a note, the code may be added directly into the process, but this is not recommended.  If the user does not want to create a note, run CREATE_CONFIRMED to add the process with the code included.",
+                        "Reminder": f"Ask the user of they would like to remove the code and replace it with a note_id to the code in the note table.  Then replace the code in the process with the note_id of the new note.  Do not include the note contents in the process, just include an instruction to run the note with the note_id.  If the user prefers not to create a note, the code may be added directly into the process, but this is not recommended.   If the user prefers not to create a note, the code may be added directly into the process, but this is not recommended.  If the user does not want to create a note, run CREATE_CONFIRMED to add the process with the code included."
                     }
 
             if action == "CREATE" or action == "CREATE_CONFIRMED":
@@ -2046,12 +2055,19 @@ class ToolBelt:
                 steps.  Make sure that it is tidy, legible and properly formatted. 
 
                 Do not create multiple options for the instructions, as whatever you return will be used immediately.
-                Return the updated and tidy process.  If there is an issue with the process, return an error message.
+                Return the updated and tidy process.  If there is an issue with the process, return an error message."""
 
-                If the process contains either sql or snowpark_python code, extract the code and create a new note with
+                if not self.include_code:
+                    tidy_process_instructions = f"""
+
+                Since the process contains either sql or snowpark_python code, you will need to ask the user if they want 
+                to allow code in the process.  If they do, go ahead and allow the code to remain in the process.  
+                If they do not, extract the code and create a new note with
                 your manage_notebook tool, maing sure to specify the note_type field as either 'sql or 'snowpark_python'.  
                 Then replace the code in the process with the note_id of the new note.  Do not
-                include the note contents in the process, just include an instruction to run the note with the note_id.
+                include the note contents in the process, just include an instruction to run the note with the note_id."""
+                    
+                tidy_process_instructions = f"""
 
                 If the process wants to send an email to a default email, or says to send an email but doesn't specify
                 a recipient address, note that the SYS$DEFAULT_EMAIL is currently set to {self.sys_default_email}.
@@ -2123,8 +2139,8 @@ class ToolBelt:
                     return {"Success": False, "Error": "Either process_name or process_id is required in process_details for SHOW action"}
 
             if process_id is not None or 'process_id' in process_details:
-                if process_id is None:
-                    process_id = process_details['process_id']
+
+
                 return self.get_process_info(bot_id=bot_id, process_id=process_id)
             else:
                 process_name = process_details['process_name']

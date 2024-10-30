@@ -19,8 +19,8 @@ DIRECTORY_PATH=${1:-~/}
 DIRECTORY_PATH=${DIRECTORY_PATH%/}
 
 # Login to image repo
-snow spcs image-registry token --connection GENESIS-DEV-PROVIDER --format=JSON
-snow spcs image-registry token --connection GENESIS-DEV-PROVIDER --format=JSON | docker login dshrnxx-genesis-dev.registry.snowflakecomputing.com --username 0sessiontoken --password-stdin
+snow --config ~/.snowcli/config.toml spcs image-registry token --connection GENESIS-DEV-PROVIDER --format=JSON
+snow --config ~/.snowcli/config.toml spcs image-registry token --connection GENESIS-DEV-PROVIDER --format=JSON | docker login dshrnxx-genesis-dev.registry.snowflakecomputing.com --username 0sessiontoken --password-stdin
 
 # Copy main.py to sis_launch.py
 cp ./streamlit_gui/main.py ./streamlit_gui/Genesis.py
@@ -35,30 +35,30 @@ docker tag genesis_app:latest dshrnxx-genesis-dev.registry.snowflakecomputing.co
 docker push dshrnxx-genesis-dev.registry.snowflakecomputing.com/genesisapp_master/code_schema/service_repo/genesis_app:latest
 
 # Clear stage
-snow sql -c GENESIS-DEV-PROVIDER -q "RM @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE"
+snow --config ~/.snowcli/config.toml sql -c GENESIS-DEV-PROVIDER -q "RM @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE"
 
 # Upload streamlit files
-snow sql -c GENESIS-DEV-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/streamlit_gui/Genesis.py @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
-snow sql -c GENESIS-DEV-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/streamlit_gui/utils.py @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
-snow sql -c GENESIS-DEV-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/streamlit_gui/*.png @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
-snow sql -c GENESIS-DEV-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/streamlit_gui/*.yml @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
+snow --config ~/.snowcli/config.toml sql -c GENESIS-DEV-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/streamlit_gui/Genesis.py @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
+snow --config ~/.snowcli/config.toml sql -c GENESIS-DEV-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/streamlit_gui/utils.py @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
+snow --config ~/.snowcli/config.toml sql -c GENESIS-DEV-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/streamlit_gui/*.png @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
+snow --config ~/.snowcli/config.toml sql -c GENESIS-DEV-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/streamlit_gui/*.yml @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
 
 # Upload streamlit files
-snow sql -c GENESIS-DEV-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/streamlit_gui/.streamlit/config.toml @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit/.streamlit AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
+snow --config ~/.snowcli/config.toml sql -c GENESIS-DEV-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/streamlit_gui/.streamlit/config.toml @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit/.streamlit AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
 
 # Upload streamlit page files
-snow sql -c GENESIS-DEV-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/streamlit_gui/page_files/*.py @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit/page_files AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
+snow --config ~/.snowcli/config.toml sql -c GENESIS-DEV-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/streamlit_gui/page_files/*.py @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit/page_files AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
 
 # Upload SQL files
-snow sql -c GENESIS-DEV-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/snowflake_app/setup_script.sql @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
+snow --config ~/.snowcli/config.toml sql -c GENESIS-DEV-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/snowflake_app/setup_script.sql @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
 
 # Upload MD files
-snow sql -c GENESIS-DEV-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/snowflake_app/readme.md @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
+snow --config ~/.snowcli/config.toml sql -c GENESIS-DEV-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/snowflake_app/readme.md @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
 
 # Upload YML files
-snow sql -c GENESIS-DEV-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/snowflake_app/*.yml @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
+snow --config ~/.snowcli/config.toml sql -c GENESIS-DEV-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/snowflake_app/*.yml @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
 
-output=$(snow sql -c GENESIS-DEV-PROVIDER -q "ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG ADD PATCH FOR VERSION V0_8 USING @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE")
+output=$(snow --config ~/.snowcli/config.toml sql -c GENESIS-DEV-PROVIDER -q "ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG ADD PATCH FOR VERSION V0_8 USING @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE")
 
 # Output the result of the first command
 echo "First command output:"
@@ -77,7 +77,7 @@ if [ -z "$patch_number" ]; then
 fi
 
 # Run the second command with the extracted patch number
-snow sql -c GENESIS-DEV-PROVIDER -q "ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG SET DEFAULT RELEASE DIRECTIVE VERSION = V0_8 PATCH = $patch_number;"
+snow --config ~/.snowcli/config.toml sql -c GENESIS-DEV-PROVIDER -q "ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG SET DEFAULT RELEASE DIRECTIVE VERSION = V0_8 PATCH = $patch_number;"
 
 echo "Patch $patch_number has been set as the default release directive."
 
@@ -87,20 +87,20 @@ if [ "$patch_number" -eq 130 ]; then
 fi
 
 if [ "$2" == "False" ]; then
-    snow sql -c GENESIS-DEV-PROVIDER -q "ALTER APPLICATION GENESIS_BOTS UPGRADE USING VERSION V0_8;"
+    snow --config ~/.snowcli/config.toml sql -c GENESIS-DEV-PROVIDER -q "ALTER APPLICATION GENESIS_BOTS UPGRADE USING VERSION V0_8;"
 else
-    snow sql -c GENESIS-DEV-CONSUMER-2 -q "alter application genesis_bots upgrade"
+    snow --config ~/.snowcli/config.toml sql -c GENESIS-DEV-CONSUMER-2 -q "alter application genesis_bots upgrade"
 
     # snow sql -c GENESIS-DEV-CONSUMER-2 -q "show services"
 
-    snow sql -c GENESIS-DEV-CONSUMER-2 -q "call genesis_bots.core.run_arbitrary('grant all on warehouse app_xsmall to application role app_public;');"
-    snow sql -c GENESIS-DEV-CONSUMER-2 -q "call genesis_bots.core.run_arbitrary('grant all on service GENESIS_BOTS.APP1.GENESISAPP_HARVESTER_SERVICE to application role app_public;');"
-    snow sql -c GENESIS-DEV-CONSUMER-2 -q "call genesis_bots.core.run_arbitrary('grant all on service GENESIS_BOTS.APP1.GENESISAPP_KNOWLEDGE_SERVICE to application role app_public;');"
-    snow sql -c GENESIS-DEV-CONSUMER-2 -q "call genesis_bots.core.run_arbitrary('grant all on service GENESIS_BOTS.APP1.GENESISAPP_TASK_SERVICE to application role app_public;');"
-    snow sql -c GENESIS-DEV-CONSUMER-2 -q "call genesis_bots.core.run_arbitrary('grant all on service GENESIS_BOTS.APP1.GENESISAPP_SERVICE_SERVICE to application role app_public;');"
-    snow sql -c GENESIS-DEV-CONSUMER-2 -q "call genesis_bots.core.run_arbitrary('grant all on all tables in schema GENESIS_BOTS.APP1 to application role app_public;');"
-    snow sql -c GENESIS-DEV-CONSUMER-2 -q "call genesis_bots.core.run_arbitrary('grant all on schema GENESIS_BOTS.APP1 to application role app_public;');"
-    snow sql -c GENESIS-DEV-CONSUMER-2 -q "show applications;"
+    snow --config ~/.snowcli/config.toml sql -c GENESIS-DEV-CONSUMER-2 -q "call genesis_bots.core.run_arbitrary('grant all on warehouse app_xsmall to application role app_public;');"
+    snow --config ~/.snowcli/config.toml sql -c GENESIS-DEV-CONSUMER-2 -q "call genesis_bots.core.run_arbitrary('grant all on service GENESIS_BOTS.APP1.GENESISAPP_HARVESTER_SERVICE to application role app_public;');"
+    snow --config ~/.snowcli/config.toml sql -c GENESIS-DEV-CONSUMER-2 -q "call genesis_bots.core.run_arbitrary('grant all on service GENESIS_BOTS.APP1.GENESISAPP_KNOWLEDGE_SERVICE to application role app_public;');"
+    snow --config ~/.snowcli/config.toml sql -c GENESIS-DEV-CONSUMER-2 -q "call genesis_bots.core.run_arbitrary('grant all on service GENESIS_BOTS.APP1.GENESISAPP_TASK_SERVICE to application role app_public;');"
+    snow --config ~/.snowcli/config.toml sql -c GENESIS-DEV-CONSUMER-2 -q "call genesis_bots.core.run_arbitrary('grant all on service GENESIS_BOTS.APP1.GENESISAPP_SERVICE_SERVICE to application role app_public;');"
+    snow --config ~/.snowcli/config.toml sql -c GENESIS-DEV-CONSUMER-2 -q "call genesis_bots.core.run_arbitrary('grant all on all tables in schema GENESIS_BOTS.APP1 to application role app_public;');"
+    snow --config ~/.snowcli/config.toml sql -c GENESIS-DEV-CONSUMER-2 -q "call genesis_bots.core.run_arbitrary('grant all on schema GENESIS_BOTS.APP1 to application role app_public;');"
+    snow --config ~/.snowcli/config.toml sql -c GENESIS-DEV-CONSUMER-2 -q "show applications;"
 fi
 
 echo "Upgrade complete"

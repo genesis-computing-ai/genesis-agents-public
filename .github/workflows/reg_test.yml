@@ -1,14 +1,16 @@
-name: Run Snowflake Bash Script
+name: Run Regression Test
 
 on:
-  workflow_dispatch:  # Allows manual trigger
+  workflow_dispatch: # Allows manual triggering of the workflow
+
+  workflow_call:
 
 jobs:
-  build-and-push:
+  run-snowflake-script:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Deploy main repository to snowflake dev
+      - name: Checkout branch
         uses: actions/checkout@v2
 
       # Cache Python dependencies (including SnowCLI)
@@ -54,9 +56,10 @@ jobs:
           chmod 600 ~/.keys/dev_consumer/rsa_key.p8
           chmod 600 ~/.keys/dev_provider/rsa_key.p8
 
-      - name: Run bash script
+      - name: Run Snowflake Python script
         env:
           PRIVATE_KEY_PASSPHRASE: ${{ secrets.PRIVATE_KEY_PASSPHRASE }} # Only if you used a passphrase
         run: |
-          # Run the bash script
-          bash ./snowflake_app/upgrade_dev_auto.sh ${{ github.workspace }}
+          python tests/hello_world_regtest_01.py
+
+

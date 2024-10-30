@@ -55,6 +55,8 @@ jobs:
           chmod 600 ~/.keys/dev_provider/rsa_key.p8
 
       - name: Run bash script
+        env:
+          PRIVATE_KEY_PASSPHRASE: ${{ secrets.PRIVATE_KEY_PASSPHRASE }} # Only if you used a passphrase
         run: |
           # Run the bash script
           bash ./snowflake_app/upgrade_dev_auto.sh ${{ github.workspace }}

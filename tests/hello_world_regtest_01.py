@@ -78,8 +78,8 @@ else:
 # cursor.execute("""
 # select genesis_bots.app1.submit_udf('tell me more about your capabilities', '', '{"bot_id": "Janice"}')
 # """)
-thread_id = result.stdout   
-# thread_id = thread_id_result[0] if thread_id_result else None
+thread_id_result = result.stdout   
+thread_id = thread_id_result[0] if thread_id_result else None
 
 time.sleep(10)
 
@@ -111,8 +111,8 @@ else:
 # cursor.execute(f"""
 # select genesis_bots.app1.lookup_udf ('{thread_id}', 'Janice')
 # """)
-response = result.stdout
-# response = response_result[0] if response_result else None
+response_result = result.stdout
+response = response_result[0] if response_result else None
 
 print(thread_id)
 print(response)

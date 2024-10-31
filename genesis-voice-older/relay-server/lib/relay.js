@@ -32,7 +32,7 @@ export class RealtimeRelay {
 
     // Instantiate new client
     this.log(`Connecting with key "${this.apiKey.slice(0, 3)}..."`);
-    const client = new RealtimeClient({ apiKey: this.apiKey });
+    const client = new RealtimeClient({ apiKey: this.apiKey, dangerouslyAllowAPIKeyInBrowser: true  });
 
     // Relay: OpenAI Realtime API Event -> Browser Event
     client.realtime.on('server.*', (event) => {

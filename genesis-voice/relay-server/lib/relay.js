@@ -11,7 +11,7 @@ export class RealtimeRelay {
   listen(port) {
     this.wss = new WebSocketServer({ port });
     this.wss.on('connection', this.connectionHandler.bind(this));
-    this.log(`Listening on ws://localhost:${port}`);
+    this.log(`Listening yo on ws://localhost:${port}`);
   }
 
   async connectionHandler(ws, req) {
@@ -32,7 +32,7 @@ export class RealtimeRelay {
 
     // Instantiate new client
     this.log(`Connecting with key "${this.apiKey.slice(0, 3)}..."`);
-    const client = new RealtimeClient({ apiKey: this.apiKey });
+    const client = new RealtimeClient({ apiKey: this.apiKey, dangerouslyAllowAPIKeyInBrowser: true  });
 
     // Relay: OpenAI Realtime API Event -> Browser Event
     client.realtime.on('server.*', (event) => {

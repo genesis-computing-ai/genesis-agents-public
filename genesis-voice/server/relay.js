@@ -13,7 +13,7 @@ dotenv.config();
 
 const app = express();
 
-const port = process.env.PORT || 8081;
+const port = process.env.PORT || 8082;
 const BACKEND_URL = 'http://127.0.0.1:8080';
 
 

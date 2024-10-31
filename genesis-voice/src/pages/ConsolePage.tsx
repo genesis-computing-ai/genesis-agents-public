@@ -10,7 +10,7 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Helmet } from 'react-helmet'; // Ensure react-helmet is imported
+//import { Helmet } from 'react-helmet'; // Ensure react-helmet is imported
 
 import { RealtimeClient } from '@openai/realtime-api-beta';
 import { ItemType } from '@openai/realtime-api-beta/dist/lib/client.js';
@@ -28,7 +28,7 @@ import './ConsolePage.scss';
 import { isJsxOpeningLikeElement } from 'typescript';
 
 const LOCAL_RELAY_SERVER_URL_TOOLS: string = '/realtime';
-const LOCAL_RELAY_SERVER_URL: string = '';
+const LOCAL_RELAY_SERVER_URL: string = 'http://localhost:8081';
 
 
 /**
@@ -996,22 +996,7 @@ const startRecording = async () => {
         </div>
       </div>
       {/* Add Helmet to define or update CSP */}
-      <Helmet>
-        <meta
-          http-equiv="Content-Security-Policy"
-          content="
-       default-src 'self';
-       script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:;
-       style-src 'self' 'unsafe-inline';
-       img-src 'self' data:;
-       media-src 'self' blob:;
-       connect-src 'self' http://localhost:8080 wss://api.openai.com https://*.snowflakecomputing.app;
-       font-src 'self';
-       object-src 'none';
-       frame-src 'none';
-     "
-        />
-      </Helmet>
+
     </div>
   );
 }

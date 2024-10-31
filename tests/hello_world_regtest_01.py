@@ -50,7 +50,7 @@ sql_query = """select genesis_bots.app1.submit_udf('tell me more about your capa
 
 command = [
     'snow',
-    '--config-file', '~/.snowcli/config.toml',
+    '--config-file', '/home/runner/.snowcli/config.toml',
     'sql',
     '-c', 'GENESIS-DEV-CONSUMER-2',
     '-q', sql_query
@@ -88,7 +88,7 @@ sql_query = f"""select genesis_bots.app1.lookup_udf ('{thread_id}', 'Janice')"""
 
 command = [
     'snow',
-    '--config-file', '~/.snowcli/config.toml',
+    '--config-file', '/home/runner/.snowcli/config.toml',
     'sql',
     '-c', 'GENESIS-DEV-CONSUMER-2',
     '-q', sql_query

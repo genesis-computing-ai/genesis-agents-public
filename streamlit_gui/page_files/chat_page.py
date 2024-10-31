@@ -10,6 +10,8 @@ import io
 from pathlib import Path
 from urllib.parse import urlsplit
 from PIL import Image
+import html
+from textwrap import dedent
 from utils import (
     get_bot_details,
     get_slack_tokens,
@@ -21,6 +23,7 @@ from utils import (
     submit_to_udf_proxy,
     get_response_from_udf_proxy,
 )
+
 
 def locate_url_markup(txt, replace_with=None):
     """
@@ -88,10 +91,39 @@ bot_avatar_images = [
     for img in bot_avatar_images
 ]
 
+class ChatMessage:
+    def __init__(self, role: str, content: str, is_intro_prompt:bool=False, avatar=None):
+        assert role in ("assistant", "user")
+        self.role = role
+        self.content = content
+        self.is_intro_prompt = is_intro_prompt
+        self.avatar=avatar
+
+
+def set_initial_chat_sesssion_data(bot_name, initial_prompt, initial_message):
+    """
+    Sets the initial chat session data in the session state.
+
+    This function is used to initialize the chat session with a specific bot,
+    an initial prompt, and an initial bot message.
+
+    Args:
+        bot_name (str): The name of the bot to start the session with.
+        initial_prompt (str): The initial prompt to be used in the session.
+        initial_message (str): The initial message to be displayed in the chat as a bot message.
+    """
+    if initial_message:
+        # convert this into our message structure
+        initial_message = ChatMessage(role="assistant", content=initial_message)
+
+    st.session_state.initial_chat_session_data = dict(bot_name=bot_name,
+                                                      initial_prompt=initial_prompt,
+                                                      initial_message=initial_message)
+
 
 def chat_page():
-    # Add custom CSS to reduce whitespace even further
 
+    # Add custom CSS to reduce whitespace even further
     if 'session_message_uuids' not in st.session_state:
         st.session_state.session_message_uuids = {}
     if 'stream_files' not in st.session_state:
@@ -194,13 +226,20 @@ def chat_page():
             url_parts = urlsplit(url)
             file_content64 = None
             known_img_types = {'png', 'jpg', 'jpeg', 'gif', 'svg'}
+            known_txt_types = {'plain', 'html'}
+
             file_path = Path(url_parts.path)
             image_format = None # set if files is a known image type
+            text_format = None # set of file content is a known text format (plain or html)
             suffix = file_path.suffix
-            if suffix and suffix.startswith(".") and suffix[1:] in known_img_types:
-                # Guess the image format. We first look at the extension of the file and later fallback to the Content-Type header if available.
-                # This is because snowflake-signed URLs (used as links to artifacts) seems to always return type octet-stream (at least for AWS stages)
-                image_format = file_path.suffix[1:]
+            # Guess the file format. We first look at the extension of the file and later fallback to the Content-Type header or mime type if available.
+            # Note that snowflake-signed URLs (used as external links to artifacts) seems to always return type octet-stream (at least for AWS stages)
+            if suffix and suffix.startswith("."):
+                subtype = suffix[1:]
+                if subtype in known_img_types:
+                    image_format = subtype
+                elif subtype in known_txt_types:
+                    text_format = subtype
 
             if url_parts.scheme == 'sandbox':
                 # special handling for the 'sandbox' URLs which are used for our internal app storage (./downloaded_files)
@@ -214,9 +253,10 @@ def chat_page():
                     metadata, file_content64 = get_artifact(file_path.name)
                     mtype, msubtype = metadata['mime_type'].split("/")
                     if msubtype in known_img_types:
-                        # Explicit mime type overrides guessed one
                         image_format = msubtype
-                    # TODO: handle more mime types, not just images. (right now we fallback to a generic href with octet-stream)
+                    elif msubtype in known_txt_types:
+                        text_format = msubtype
+                    # TODO: handle more mime types, not just images or text. We fallback to a generic href with octet-stream)
                 except:
                     pass # best effort failed. fallback to a generic link (which is likely broken)
             else:
@@ -227,18 +267,40 @@ def chat_page():
                     # Encode to Base64
                     file_content64 = base64.b64encode(file_data).decode('utf-8')
                     if not image_format:
-                        # fallback to guessing the content type from the content-type
+                        # fallback to guessing the content type from the header
                         ctype, csubtype = response.headers['Content-Type'].split('/')
                         if ctype == "image" and csubtype in known_img_suffixes:
+                            image_format = csubtype
+                        elif ctype == "text" and csubtype in known_txt_types:
                             image_format = csubtype
 
             allow_html = False
             markdown = None
             if file_content64 is not None:
                 # we have the file content
+                assert (image_format is not None) ^ (text_format is not None) #Either image_format or text_format must be set, but not both.
                 if image_format:
                     # For common image types, use <img>
                     markdown = f'<img src="data:image/{image_format};base64,{file_content64}" style="max-width: 50%;display: block;">'
+                elif text_format:
+                    text_content = base64.b64decode(file_content64).decode('utf-8')
+                    if text_format == 'plain':
+                        markdown = f'<pre>{text_content}</pre>'
+                    else:
+                        #text_content = html.escape(text_content)
+                        html_content = dedent(f"""
+                            <div style="
+                                border: 3px solid #888888; /* Medium gray */;
+                                padding: 10px;
+                                border-radius: 5px;
+                                box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.1);
+                                padding: 15px;
+                            ">
+                            <p>
+                            {text_content}
+                            </div>
+                            """)
+                        markdown = html_content
                 else:
                     # for all others, use a generic href
                     markdown = f'<a href="data:application/octet-stream;base64,{file_content64}" download="{file_path.name}">{file_path.name}</a>'
@@ -251,7 +313,7 @@ def chat_page():
             assert markdown is not None
             with st.chat_message("assistant", avatar=bot_avatar_image_url):
                 st.markdown(markdown , unsafe_allow_html=allow_html)
-            messages.append({"role": "assistant", "content": markdown,  "avatar": message_avatar})
+            messages.append(ChatMessage(role="assistant", content=markdown, avatar=message_avatar))
 
 
     def handle_pending_request(thread_id, request_id ):
@@ -286,13 +348,13 @@ def chat_page():
         if "stop_streaming" not in st.session_state:
             st.session_state.stop_streaming = False
 
-        with st.chat_message("assistant", avatar= bot_avatar_image_url):
+        with st.chat_message("assistant", avatar=bot_avatar_image_url):
             response = emulate_write_stream(response_generator(None,request_id=request_id, selected_bot_id=selected_bot_id))
 
         st.session_state.stop_streaming = False
 
         # Add the response to the chat history
-        messages.append({"role": "assistant", "content": response,  "avatar": '🤖'})
+        messages.append(ChatMessage(role="assistant", content=response, avatar='🤖'))
 
         # render any file/url markups that were pushed into the session
         render_url_markup(selected_bot_id, thread_id, bot_avatar_image_url, '🤖')
@@ -319,21 +381,30 @@ def chat_page():
             return {}
 
 
-    def submit_button(prompt, chatmessage, intro_prompt=False, fast_mode_override=False, file={}):
+    def submit_button(prompt,
+                      chatmessage,
+                      intro_prompt=False,
+                      fast_mode_override=False,
+                      file=None, # or provide a dict {'filename' : file_name}
+                      ):
+        """ 
+        Submits a prompt into the current chat session 
+        """
+
         current_thread_id = st.session_state["current_thread_id"]
         messages = get_chat_history(current_thread_id)
-
         if not intro_prompt:
             # Display user message in chat message container
+            # Skipped for the intial intro prompt.
             with chatmessage:
                 if file:
                     st.write(file['filename'])
                 st.markdown(prompt,unsafe_allow_html=True)
 
-            # Add user message to chat history
-            if file:
-                messages.append({"role": "user", "content": file['filename']})
-            messages.append({"role": "user", "content": prompt})
+        # Add user message to chat history
+        if file:
+            messages.append(ChatMessage(role="user", content=file['filename'], is_intro_prompt=intro_prompt))
+        messages.append(ChatMessage(role="user", content=prompt, is_intro_prompt=intro_prompt))
 
         # Check if fast mode is selected in the sidebar
 
@@ -355,7 +426,7 @@ def chat_page():
             file= file
         )
 
-       # Store the request_id for this session
+        # Store the request_id for this session
         st.session_state.session_message_uuids[current_thread_id] = request_id
         # Display success message with the request_id
 
@@ -399,7 +470,7 @@ def chat_page():
         if st.session_state["last_response"] == "":
             st.session_state["last_response"] = response
 
-        messages.append({"role": "assistant","content": response,"avatar": bot_avatar_image_url})
+        messages.append(ChatMessage(role="assistant", content=response, avatar=bot_avatar_image_url))
 
         # render any file/url markups that were pushed into the session
         render_url_markup(selected_bot_id, current_thread_id, bot_avatar_image_url, bot_avatar_image_url)
@@ -409,6 +480,8 @@ def chat_page():
         if current_thread_id in st.session_state.session_message_uuids:
             del st.session_state.session_message_uuids[current_thread_id]
 
+
+    # --- Page rendering logic starts here -----
     try:
         # Initialize last_response if it doesn't exist
         if "last_response" not in st.session_state:
@@ -425,21 +498,49 @@ def chat_page():
         st.rerun()
     else:
         try:
+
+
             # get bot details
             bot_details.sort(key=lambda x: (not "Janice" in x["bot_name"], x["bot_name"]))
             bot_names = [bot["bot_name"] for bot in bot_details]
             bot_ids = [bot["bot_id"] for bot in bot_details]
-            bot_intro_prompts = [bot["bot_intro_prompt"] for bot in bot_details]
+            bot_intro_prompts_map = {bot["bot_name"]: bot["bot_intro_prompt"]
+                                     for bot in bot_details}
 
             # Fetch available bots
             available_bots = bot_names
 
-            # Set Eve as the default bot if it exists
-            default_bot = "Janice" if "Janice" in available_bots else available_bots[0] if available_bots else None
-
-            # Initialize current_bot and current_thread_id if they don't exist
+            # Initialize current_bot and current_thread_id if they don't exist.
+            # This is where we respect initial_chat_session_data (only once, if exists)
             if 'current_bot' not in st.session_state or 'current_thread_id' not in st.session_state:
-                st.session_state.current_bot = default_bot if default_bot else (bot_names[1] if len(bot_names) > 1 else bot_names[0])
+                # resolve initial bot name and intro prompt
+                initial_bot_name = None
+                initial_bot_message = None
+                initial_chat_session_data = st.session_state.get('initial_chat_session_data')
+                if initial_chat_session_data:
+                    # first, use the bot name in the initial session data, if it is valid
+                    # (initial session data is 'best effort' since name could have changed)
+                    initial_bot_name = initial_chat_session_data.get('bot_name')
+                    if initial_bot_name is None:
+                        # there was no initial bot name, or we used it already or we got an invalid initial bot name. Silently ignore
+                        pass
+                    else:
+                        # override the initial prompt, if provided
+                        intro_prompt = initial_chat_session_data.get('initial_prompt')
+                        if intro_prompt:
+                            bot_intro_prompts_map[initial_bot_name] = intro_prompt
+                        # set initial bot message, if provided
+                        initial_bot_message = initial_chat_session_data.get('initial_message')
+                    st.session_state.initial_chat_session_data = None # This effectively marks this initial session data as 'visited' (don't inspect again)
+                if not initial_bot_name and available_bots:
+                    # Set Eve as the default bot if it exists in our list
+                    initial_bot_name = "Eve" if "Eve" in available_bots else None
+                if not initial_bot_name:
+                    # Otherwise use bot_names[1] or fallaback to bot_names[0]  (legacy behavior?)
+                    initial_bot_name = bot_names[1] if len(bot_names) > 1 else bot_names[0]
+                assert initial_bot_name
+
+                st.session_state.current_bot = initial_bot_name
                 new_thread_id = str(uuid.uuid4())
                 st.session_state.current_thread_id = new_thread_id
                 new_session = f"🤖 {st.session_state.current_bot} ({new_thread_id[:8]})"
@@ -453,12 +554,11 @@ def chat_page():
                 if new_session not in st.session_state.active_sessions:
                     st.session_state.active_sessions.append(new_session)
 
-
                 # Initialize chat history for the new thread
-                st.session_state[f"messages_{new_thread_id}"] = []
+                st.session_state[f"messages_{new_thread_id}"] =  [initial_bot_message] if initial_bot_message else []
 
             # Sidebar content
-
+            # -------------------------------------------
             with st.sidebar:
                 if len(bot_names) > 0:
               #      st.markdown("### Start a New Chat")
@@ -564,6 +664,7 @@ def chat_page():
                         #    st.write("session ", session, ' current session ',  st.session_state.get('current_session'))
                             session_display = f"&nbsp;&nbsp;&nbsp;⚡ {session[2:]}" if session == st.session_state.get('current_session') else f"&nbsp;&nbsp;&nbsp;{session}"
                             st.markdown('<span id="button-after"></span>', unsafe_allow_html=True)
+                            # Handle switching an active chat session
                             if st.button(session_display, key=f"btn_{thread_id}"):
                                 st.session_state.current_bot = bot_name
                                 st.session_state.selected_session = {
@@ -571,10 +672,11 @@ def chat_page():
                                     'thread_id': full_thread_id
                                 }
                                 st.session_state.current_session = session
-                                st.session_state.load_history = True
+                                st.session_state.load_history = True #unused?
                                 st.rerun()
                         with col2:
                             st.markdown('<span id="button-after"></span>', unsafe_allow_html=True)
+                            # Handle deletion of an existing chat session
                             if st.button("⨂", key=f"remove_{thread_id}"):
                                 st.session_state.active_sessions.remove(session)
                                 if f"messages_{full_thread_id}" in st.session_state:
@@ -603,11 +705,10 @@ def chat_page():
 
                 selected_bot_index = bot_names.index(selected_bot_name)
                 selected_bot_id = bot_ids[selected_bot_index]
-                selected_bot_intro_prompt = bot_intro_prompts[selected_bot_index]
-                if selected_bot_intro_prompt is None:
-                    selected_bot_intro_prompt = 'Briefly introduce yourself and suggest a next step to the user.'
 
-                selected_bot_id = bot_ids[selected_bot_index]
+                selected_bot_intro_prompt = (bot_intro_prompts_map[selected_bot_name]
+                                             or 'Briefly introduce yourself and suggest a next step to the user.')
+
                 llm_configuration = get_llm_configuration(selected_bot_id)
 
                 if llm_configuration != 'openai':
@@ -636,8 +737,8 @@ def chat_page():
                             st.rerun()
 
 
-            # Main content area
-
+            # Main chat content area
+            # --------------------------------------------
             encoded_bot_avatar_image_array = None
             bot_avatar_image_url = None
             if len(bot_names) > 0:
@@ -653,39 +754,46 @@ def chat_page():
                             encoded_bot_avatar_image_bytes = base64.b64decode(encoded_bot_avatar_image)
                             bot_avatar_image_url = f"data:image/png;base64,{encoded_bot_avatar_image}"
 
-                # Initialize chat history if it doesn't exist for the current thread
-                if selected_thread_id and f"messages_{selected_thread_id}" not in st.session_state:
-                    st.session_state[f"messages_{selected_thread_id}"] = []
-
-                # Display chat messages from history
                 if selected_thread_id:
-                    for message in st.session_state[f"messages_{selected_thread_id}"]:
-                        if message["role"] == "assistant" and bot_avatar_image_url is not None:
-                            with st.chat_message(message["role"], avatar=bot_avatar_image_url):
-                                st.markdown(message["content"],unsafe_allow_html=True)
+                    # Initialize chat history if it doesn't exist for the current thread
+                    if f"messages_{selected_thread_id}" not in st.session_state:
+                        st.session_state[f"messages_{selected_thread_id}"] = []
+
+                    # Display chat messages from history
+                    messages = st.session_state[f"messages_{selected_thread_id}"]
+                    for message in messages:
+                        if message.is_intro_prompt:
+                            continue # intro prompts are hidden in the chat display
+                        if message.role == "assistant" and bot_avatar_image_url is not None:
+                            with st.chat_message(message.role, avatar=bot_avatar_image_url):
+                                st.markdown(message.content, unsafe_allow_html=True)
                         else:
-                            with st.chat_message(message["role"]):
-                                st.markdown(message["content"],unsafe_allow_html=True)
+                            with st.chat_message(message.role):
+                                st.markdown(message.content, unsafe_allow_html=True)
 
-                # Check if there's a pending request for the current session
-                if selected_thread_id and selected_thread_id in st.session_state.session_message_uuids:
-                    pending_request_id = st.session_state.session_message_uuids[selected_thread_id]
-                    handle_pending_request(selected_thread_id, pending_request_id)
+                    # Check if there's a pending request for the current session
+                    if selected_thread_id in st.session_state.session_message_uuids:
+                        pending_request_id = st.session_state.session_message_uuids[selected_thread_id]
+                        handle_pending_request(selected_thread_id, pending_request_id)
 
-                # React to user input
-                if selected_thread_id:
+                    # React to user input (this will append to `messages`)
                     if prompt := st.chat_input("What is up?", key=f"chat_input_{selected_thread_id}"):
                         file = {}
                         if uploaded_file:
                             bytes_data = base64.b64encode(uploaded_file.read()).decode()
                             st.session_state['uploader_key'] = random.randint(0, 1 << 32)
                             file = {'filename': uploaded_file.name, 'content': bytes_data}
-                        submit_button(prompt, st.chat_message("user"), False, file=file)
+                        submit_button(prompt,
+                                      st.chat_message("user"),
+                                      intro_prompt=False,
+                                      file=file)
 
-
-                # Generate initial message and bot introduction only for new sessions
-                if not st.session_state[f"messages_{selected_thread_id}"]:
-                    submit_button(selected_bot_intro_prompt, st.empty(), True)
+                    # Generate initial message and bot introduction only for sessions without an initial user prompts.
+                    intro_prompt_used = any(m.is_intro_prompt for m in messages[:4]) # dont bother checking beyond the first few messages
+                    if not intro_prompt_used:
+                        submit_button(selected_bot_intro_prompt,
+                                      st.empty(),
+                                      intro_prompt=True)
 
       #          email_popup()
 
@@ -701,3 +809,4 @@ def chat_page():
         st.session_state.new_session_added = False
         st.success("new session added??")
         st.rerun()
+

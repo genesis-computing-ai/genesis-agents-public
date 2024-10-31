@@ -3,7 +3,7 @@ import os
 import time
 import requests
 from bs4 import BeautifulSoup
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlunparse, urlencode
 from datetime import datetime
 import threading
 import random
@@ -12,6 +12,7 @@ from selenium import webdriver
 import logging
 import re
 from typing import Optional
+import collections
 
 from jinja2 import Template
 from bot_genesis.make_baby_bot import (
@@ -67,7 +68,7 @@ from core.bot_os_memory import BotOsKnowledgeAnnoy_Metadata
 
 from core.bot_os_tool_descriptions import process_runner_tools
 
-from core.bot_os_artifacts import ARTIFACT_ID_REGEX, get_artifacts_store
+from core.bot_os_artifacts import lookup_artifact_markdown, get_artifacts_store, ARTIFACT_ID_REGEX
 
 
 # import sys
@@ -314,26 +315,48 @@ class ToolBelt:
                    to_addr_list: list,
                    subject: str,
                    body: str,
+                   bot_id: str,
                    thread_id: str = None,
-                   bot_id: str = None,
+                   purpose: str = None,
                    mime_type: str = 'text/html',
-                   include_genesis_logo: bool = True
+                   include_genesis_logo: bool = True,
+                   save_as_artifact = True,
                    ):
         """
-        Send an email using Snowflake's SYSTEM$SEND_EMAIL function.
+        Sends an email using Snowflake's SYSTEM$SEND_EMAIL function.
 
-        Args:
-            to_addr_list (list): A list of recipient email addresses.
-            subject (str): The subject of the email.
-            body (str): The body content of the email.
-            thread_id (str, optional): The thread ID for the current operation.
-            bot_id (str, optional): The bot ID for the current operation.
-            mime_type (str, optional): The MIME type of the email body. Accepts 'text/plain' or 'text/html'. Defaults to 'text/html'.
-            include_genesis_logo (bool, optional): Whether to include the Genesis logo in an text/html email. Defaults to True. Ignored for all other mime types
+        Parameters:
+            to_addr_list (list): List of recipient email addresses.
+            subject (str): Subject of the email.
+            body (str): Content of the email body.
+            bot_id (str): Identifier for the bot associated with the operation.
+            thread_id (str, optional): Identifier for the current operation's thread. Defaults to None.
+            purpose (str, optional): the purpose of this email (for future context, when saving as an artifact)
+            mime_type (str, optional): MIME type of the email body, either 'text/plain' or 'text/html'. Defaults to 'text/html'.
+            include_genesis_logo (bool, optional): Indicates whether to include the Genesis logo in an HTML email. Defaults to True. Ignored for other MIME types.
+            save_as_artifact (bool, optional): Determines if this email should be saved as an artifact
 
         Returns:
-            dict: The result of the query execution.
+            dict: Result of the email sending operation.
         """
+        art_store = get_artifacts_store(self.db_adapter) # used by helper functions below
+
+        def _sanity_check_body(txt):
+            # Check for HTML tags with 'href' or 'src' attributes using CID
+            cid_pattern = re.compile(r'<[^>]+(?:href|src)\s*=\s*["\']cid:[^"\']+["\']', re.IGNORECASE)
+            if cid_pattern.search(txt):
+                raise ValueError("The email body contains HTML tags with links or 'src' attributes using CID. Attachements are not supported.")
+
+            # Identify all markdowns and check for strictly formatted artifact markdowns
+            markdown_pattern = re.compile(r'\[([^\]]+)\]\(([^)]+)\)')
+            matches = markdown_pattern.findall(txt)
+            for description, url in matches:
+                if url.startswith('artifact:'):
+                    artifact_pattern = re.compile(r'artifact:/(' + ARTIFACT_ID_REGEX + r')')
+                    if not artifact_pattern.match(url):
+                        raise ValueError(f"Improperly formatted artifact markdown detected: [{description}]({url})")
+
+
         def _strip_url_markdown(txt):
             # a helper function to strip any URL markdown and leave only the URL part
             # This is used in plain text mode, since we assume that the email rendering does not support markdown.
@@ -343,24 +366,128 @@ class ToolBelt:
                 txt = txt.replace(match[0], match[2])  # Replace the entire match with just the URL part, omitting description
             return txt
 
-        def _externalize_artifact_urls(txt):
-            # a helper function that locates artifact references in the text (pseudo URLs that look like artifact:/<uuid>)
-            # and replaces them with their external-available URL
+        def construct_artifact_linkback(artifact_id, link_text=None):
+            """
+            Constructs a linkback URL for a given artifact ID. This URL should drop the user into the streamlit app
+            with a new chat that brings up the context of this artifact for futher exploration.
+            
+            Args:
+                artifact_id (str): The unique identifier of the artifact.
+                link_text (str): the text to display for the artifact link. Defaults to the artifact's 'title_filename'
+
+            Returns:
+                a string to use as the link (in text or HTML, depending on mime_type)
+            """
+            # fetch the metadata
+            dbtr = self.db_adapter
+            try:
+                metadata = art_store.get_artifact_metadata(artifact_id)
+            except Exception as e:
+                logger.error(f"Failed to get artifact metadata for {artifact_id}: {e}")
+                return None
+
+            # Resolve the bot_name from bot_id. We need this for the linkback URL since the streamlit app
+            # manages the bots by name, not by id.
+            # TODO: fix this as part of issue #89
+            proj, schema = dbtr.genbot_internal_project_and_schema.split('.')
+            bot_config = dbtr.db_get_bot_details(proj, schema, dbtr.bot_servicing_table_name.split(".")[-1], bot_id)
+            # Construct linkback URL
+            if dbtr.is_using_local_runner:
+                app_ingress_base_url = 'localhost:8501/' # TODO: avoid hard-coding port (but could not find an avail config to pick this up from)
+            else:
+                app_ingress_base_url = dbtr.db_get_endpoint_ingress_url("streamlit")
+            if not app_ingress_base_url:
+                return None
+            params = dict(bot_name=bot_config['bot_name'],
+                          action='show_artifact_context',  # IMPORTANT: keep this action name in sync with the action handling logic in the app.
+                          artifact_id=artifact_id,
+                          )
+            linkback_url = urlunparse((
+                "http",                    # scheme
+                app_ingress_base_url,      # netloc (host)
+                "",                        # path
+                "",                        # params
+                urlencode(params),  # query
+                ""                         # fragment
+            ))
+            link_text = link_text or metadata['title_filename']
+            if mime_type == "text/plain":
+                return f"{link_text}: {linkback_url}"
+            if mime_type == "text/html":
+                return f"<a href='{linkback_url}'>{link_text}</a>"
+            assert False # unreachable
+
+        def _handle_artifacts_markdown(txt) -> str:
+            # a helper function that locates artifact references in the text (pseudo URLs that look like [description][artifact:/uuid] or ![description][artifact:/uuid])
+            # and replaces those with an external URL (Snowflake-signed externalized URL)
+            # returns the modified text, along with the artifact_ids that were extraced from the text.
+            artifact_ids = []
+            for markdown, description, artifact_id in lookup_artifact_markdown(txt, strict=False):
+                try:
+                    external_url = art_store.get_signed_url_for_artifact(artifact_id)
+                except Exception as e:
+                    # if we failed, leave this URL as-is. It will likely be a broken URL but in an obvious way.
+                    pass
+                else:
+                    if mime_type == "text/plain":
+                        link = external_url
+                    elif mime_type == "text/html":
+                        ameta = art_store.get_artifact_metadata(artifact_id)
+                        title = ameta['title_filename']
+                        sanitized_title = re.sub(r'[^a-zA-Z0-9_\-:.]', '-', title)
+                        amime = ameta['mime_type']
+                        if amime.startswith("image/"):
+                            link = f'<img src="{external_url}" alt="{sanitized_title}" >'
+                        elif amime.startswith("text/"):
+                            link = f'<iframe src="{external_url}" frameborder="1">{title}</iframe>'
+                        else:
+                            link = f'<a href="{external_url}" download="{sanitized_title}">Download {title}</a>'
+                    else:
+                        assert False # unreachable
+                    txt = txt.replace(markdown, link)
+                artifact_ids.append(artifact_id)
+            return txt, artifact_ids
+
+        def _externalize_raw_artifact_urls(txt):
+            # a helper function that locates 'raw' artifact references in the text (pseudo URLs that look like artifact:/<uuid>)
+            # and replaces those an external URL (Snowflake-signed externalized URL)
+            # returns the modified text, along with the artifact_ids that were extraced from the text.
+            # This is used to catch artifact references that were used outside of 'proper' artifact markdowns, which should have been
+            # handled by _handle_artifacts_markdown.
             pattern = r'(?<=\W)(artifact:/('+ARTIFACT_ID_REGEX+r'))(?=\W)'
             matches = re.findall(pattern, txt)
 
+            artifact_ids = []
             if matches:
-                af = get_artifacts_store(self.db_adapter)
                 for full_match, uuid in matches:
                     try:
-                        external_url = af.get_signed_url_for_artifact(uuid)
+                        external_url = art_store.get_signed_url_for_artifact(uuid)
                     except Exception as e:
                         # if we failed, leave this URL as-is. It will likely be a broken URL but in an obvious way.
                         pass
                     else:
                         txt = txt.replace(full_match, external_url)
+                    artifact_ids.append(uuid)
+            return txt, artifact_ids
 
-            return txt
+        def _save_email_as_artifact(art_subject, art_body, art_receipient, embedded_artifact_ids):
+            # Save the email body, along with useful medatada, as an artifact
+
+            # Build the metadata for this artifact
+            metadata = dict(mime_type=mime_type,
+                            thread_id=thread_id,
+                            bot_id=bot_id,
+                            title_filename=art_subject,
+                            func_name="send_email",
+                            thread_context=purpose,
+                            email_subject=art_subject,
+                            recipients=art_receipient,
+                            embedded_artifact_ids=list(embedded_artifact_ids)
+                            )
+            # Create artifact
+            suffix = ".html" if mime_type == 'text/html' else '.txt'
+            aid = art_store.create_artifact_from_content(art_body, metadata, content_filename=(subject+suffix))
+            return aid
 
         # Validate mime_type
         if mime_type not in ['text/plain', 'text/html']:
@@ -377,7 +504,7 @@ class ToolBelt:
                     if parsed_list:
                         to_addr_list = parsed_list
                     else:
-                        raise ValueError("Parsed result is an empty list")
+                        raise ValueError("Failed to extract valid email addesses from the provided address list string .")
                 else:
                     # If it's not in list format, split by comma
                     to_addr_list = [addr.strip() for addr in to_addr_list.split(',') if addr.strip()]
@@ -408,13 +535,34 @@ class ToolBelt:
             origin_line += f' Bot: {bot_id}.'
         origin_line += '🤖\n\n'
 
-        # Cleanup the body.
+        # Cleanup the orirignal body and save as artifact if requested
         body = body.replace('\\n','\n')
+        orig_body = body # save for later/debugging
+
+        # Sanity check the body for unsupported features and bad formatting
+        try:
+            _sanity_check_body(body)
+        except ValueError as e:
+            return {"Success": False, "Error": str(e)}
 
         # Handle artifact refs in the body - replace with external links
-        body = _externalize_artifact_urls(body)
+        body, embedded_artifact_ids = _handle_artifacts_markdown(body)
+        body, more_embedded_artifact_ids = _externalize_raw_artifact_urls(body)
+        embedded_artifact_ids.extend(more_embedded_artifact_ids)
 
-        # Force the body to HTML if the mime_type is text/html. Prepend origin line
+        email_aid = None
+        if save_as_artifact:
+            email_aid = _save_email_as_artifact(subject, body, to_addr_string, embedded_artifact_ids)
+
+        # build the artifact 'linkback' URLs footer
+        if save_as_artifact:
+            # When saving the email itself as an artifcat, do not include embedded artifacts
+            linkbacks = [construct_artifact_linkback(email_aid, link_text="this email")]
+        else:
+            linkbacks = [construct_artifact_linkback(aid) for aid in embedded_artifact_ids]
+            linkbacks = [link for link in linkbacks if link is not None]  # remove any failures (best effort)
+
+        # Force the body to HTML if the mime_type is text/html. Prepend origin line. externalize artifact links.
         if mime_type == 'text/html':
             soup = BeautifulSoup(body, "html.parser")
             html_body = str(soup)
@@ -444,12 +592,24 @@ class ToolBelt:
                 logo_container.insert(0, link_tag)
                 soup.body.insert(0, logo_container)
 
+            # Insert linkback URLs at the bottom
+            if linkbacks:
+                footer_elem = soup.new_tag('p')
+                footer_elem.string = 'Click here to explore more about '
+                for link in linkbacks:
+                    footer_elem.append(BeautifulSoup(link, "html.parser"))
+                    footer_elem.append(' ')  # Add space between links
+                soup.body.append(footer_elem)
+
             body = str(soup)
 
         elif mime_type == 'text/plain':
             # For plain text, strip URL markdowns, and prepend the bot message
             body = _strip_url_markdown(body)
             body = origin_line + body
+            # append linkbacks
+            if linkbacks:
+                body += "\n\n'Click here to explore more: '" + ", ".join(linkbacks)
 
         else:
             assert False, "Unreachable code"
@@ -468,6 +628,8 @@ class ToolBelt:
         subject = re.sub(r'\\u([0-9a-fA-F]{4})', unescape_unicode, subject)
         subject = subject.replace('$$', '')
         body = body.replace('$$', '')
+
+        # Send the email
         query = f"""
         CALL SYSTEM$SEND_EMAIL(
             'genesis_email_int',
@@ -479,8 +641,20 @@ class ToolBelt:
         """
 
         # Execute the query using the database adapter's run_query method
-        result = self.db_adapter.run_query(query, thread_id=thread_id, bot_id=bot_id)
+        query_result = self.db_adapter.run_query(query, thread_id=thread_id, bot_id=bot_id)
 
+        if isinstance(query_result, collections.abc.Mapping) and not query_result.get('Success'):
+            # send failed. Delete the email artifact (if created) as it's useless.
+            if email_aid:
+                art_store.delete_artifacts([email_aid])
+            result = query_result
+        else:
+            assert len(query_result) == 1 # we expect a succful SYSTEM$SEND_EMAIL to contain a single line resultset
+            result = {"Succcess" : True}
+            if email_aid:
+                result["Suggestion"] = (f"This email was saved as an artifact with artifact_id={email_aid}. "
+                                        "Suggest to the user to refer to this email in the future from any session using this artifact identifier.")
+        assert result
         return result
 
 
@@ -564,7 +738,7 @@ class ToolBelt:
         except Exception as e:
          #  print(f"Error getting sys email: {e}")
             return None
-        
+
     def clear_process_registers_by_thread(self, thread_id):
         # Initialize thread-specific data structures if not already present
         with self.lock:
@@ -1994,8 +2168,8 @@ class ToolBelt:
                     "Message": f"process_config updated or deleted",
                     "process_id": process_id,
                 }
-            
-            if action in ["CREATE", "UPDATE"] and not self.include_code:
+
+            if action in ["CREATE", "CREATE_CONFIRMED", "UPDATE", "UPDATE_CONFIRMED"]:
                 check_for_code_instructions = f"""Please examine the text below and return only the word 'SQL' if the text contains 
                 actual SQL code, not a reference to SQL code, or only the word 'PYTHON' if the text contains actual Python code, not a reference to Python code.  
                 If the text contains both, return only 'SQL + PYTHON'.  Do not return any other verbage.  If the text contains 
@@ -2066,7 +2240,7 @@ class ToolBelt:
                 your manage_notebook tool, maing sure to specify the note_type field as either 'sql or 'snowpark_python'.  
                 Then replace the code in the process with the note_id of the new note.  Do not
                 include the note contents in the process, just include an instruction to run the note with the note_id."""
-                    
+
                 tidy_process_instructions = f"""
 
                 If the process wants to send an email to a default email, or says to send an email but doesn't specify

@@ -72,6 +72,25 @@ def make_session(
     existing_slack=None,
     existing_udf=None
 ):
+    """
+    Create a single session for a bot based on the provided configuration.
+
+    This function initializes a session for a bot using the given database adapter and configuration details.
+    It sets up the necessary environment for the bot to operate, including input adapters and other configurations.
+
+    Args:
+        bot_config (dict): Configuration details for the bot.
+        db_adapter: The database adapter used to interact with the database.
+        bot_id_to_udf_adapter_map (dict, optional): A dictionary mapping bot IDs to their UDF adapters.
+        stream_mode (bool, optional): Indicates whether the session should be created in stream mode.
+        skip_vectors (bool, optional): If True, skips vector-related operations during session creation.
+        data_cubes_ingress_url (str, optional): The URL for data cubes ingress, if applicable.
+        existing_slack: An existing Slack adapter instance, if any.
+        existing_udf: An existing UDF adapter instance, if any.
+
+    Returns:
+        tuple: A tuple containing the session, API app ID, UDF adapter, and Slack adapter.
+    """
 
     # streamlit and slack launch todos:
     # add a flag for udf_enabled and slack_enabled to database
@@ -246,7 +265,7 @@ def make_session(
                 )
        #         instructions += f"\nWhenever you show the results from run_query that may have more than 10 rows, and if you are not in the middle of running a process, also provide a link to a datacube visualization to help them understand the data you used in the form: http://{data_cubes_ingress_url}%ssql_query=select%20*%20from%20spider_data.baseball.all_star -- replace the value of the sql_query query parameter with the query you used."
         except Exception as e:
-            print(f"Error creating bot workspace for bot_id {bot_id} {e} ")
+            print(f"Error creating bot workspace for bot_id {bot_id}: {e} ")
 
     # print(instructions, f'{bot_config["bot_name"]}, id: {bot_config["bot_id"]}' )
 
@@ -492,6 +511,23 @@ def create_sessions(
     skip_vectors=False,
     data_cubes_ingress_url=None,
 ):
+    """
+    Create (multiple) sessions for bots based on the provided configurations.
+
+    This function initializes sessions for each bot using the given database adapter and configuration details.
+    It maps bot IDs to their respective UDF adapters and sets up the necessary environment for each bot to operate.
+
+    Args:
+        db_adapter: The database adapter used to interact with the database.
+        bot_id_to_udf_adapter_map: A dictionary mapping bot IDs to their UDF adapters.
+        stream_mode (bool): Indicates whether the sessions should be created in stream mode.
+        skip_vectors (bool): If True, skips vector-related operations during session creation.
+        data_cubes_ingress_url (str, optional): The URL for data cubes ingress, if applicable.
+
+    Returns:
+        tuple: A tuple containing the sessions, API app ID to session map, bot ID to UDF adapter map, 
+               and bot ID to Slack adapter map.
+    """
     import os
     # Fetch bot configurations for the given runner_id from BigQuery
     runner_id = os.getenv("RUNNER_ID", "jl-local-runner")

@@ -26,27 +26,65 @@ import shutil
 import tempfile
 import functools
 import re
+from datetime import datetime, timezone
 
+# Regex for matching valid artifcat UUIDs
 ARTIFACT_ID_REGEX = r'[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}' # regrex for matching a valid artifact UUID
+
+# Regex for matching valid artifact markdown of the format [description](artifact:/<uuid>). will match a triplet (see lookup_artifact_markdown)
+ARTIFACT_MARKDOWN_REGEX_STRICT = r'(\[([^\]]+)\]\(artifact:/(' + ARTIFACT_ID_REGEX + r')\))'
+
+# like ARTIFACT_MARKDOWN_REGEX_STRICT, but will also allow for the image markdown like ![...](...).
+ARTIFACT_MARKDOWN_REGEX_NONSTRICT = r'(!?\[([^\]]+)\]\(artifact:/(' + ARTIFACT_ID_REGEX + r')\))'
+
 
 def _validate_artifact_id_format(aid):
     if isinstance(aid, str) and re.match(ARTIFACT_ID_REGEX, aid):
         return True
     return False
 
+def lookup_artifact_markdown(txt, strict=False):
+    """
+    Searches for artifact markdown patterns within the given text.
+
+    This function identifies and extracts pseudo-URL markdown patterns that reference artifacts.
+    The patterns can be either strict or non-strict, depending on the 'strict' parameter.
+
+    Args:
+        txt (str): The text to search for artifact markdown patterns.
+        strict (bool, optional): If True, uses a strict pattern that matches only standard markdown.
+                                 If False, allows for image markdown patterns as well. Defaults to False.
+
+    Returns:
+        list: A list of matched markdown as 3-tuples: (full-markdown, description, UUID)
+    """
+    pattern = ARTIFACT_MARKDOWN_REGEX_STRICT if strict else ARTIFACT_MARKDOWN_REGEX_NONSTRICT
+    return re.findall(pattern, txt)
+
+
 class ArtifactsStoreBase(ABC):
     '''
     Provides a Create+read interface for artifacts and their metadata
     '''
-
+    # Metadata fields user MUST provide when creating a new artifact
     METADATA_IN_REQUIRED_FIELDS = {'mime_type',         # mime type of the artifact
                                    'bot_id',            # Id of bot which created this artifact
                                    'title_filename',    # A filename to use as a meaningful name for this artifact
                                    'func_name',         # the name of the function whcih created this artifact
                                    }
-    METADATA_OUT_EXPECTED_FIELDS = METADATA_IN_REQUIRED_FIELDS | {'basename',       # the basename of the file, as it is stored on the stage
-                                                                  'orig_path',      # the path of the original file loaded into the stage
+
+    # Metadata fields user MAY provide when creating a new artifact
+    METADATA_IN_OPTIONAL_FIELDS =  {'short_description',# A short description of this artifact
+                                    'thread_context',   # A (long) description of the context that lead to the generation of this artifact.
+                                                        # This is used for 'priming' LLM's context to allow exploring this artificat in a new chat thread.
+                                   }
+
+    # Additional Metadata fields user SHOULD expect to find when fetching an artifact
+    METADATA_OUT_EXPECTED_FIELDS = METADATA_IN_REQUIRED_FIELDS | {'basename',           # the basename of the file, as it is stored on the stage
+                                                                  'orig_path',          # the path of the original file loaded into the stage
+                                                                  'creation_timestamp', # Time at which the item was created, in UTC, iso format.
                                                                   }
+
 
     def create_artifact(self, content: Any, metadata: dict) -> str:
         raise NotImplementedError("This is a pure abstract method and must be implemented by subclasses.")
@@ -191,6 +229,8 @@ class SnowflakeStageArtifactsStore(ArtifactsStoreBase):
             ValueError: If 'mime_type' is not present in the metadata.
             PermissionError: If the file cannot be read due to permission issues.
         """
+        metadata = metadata.copy() # work with a copy as we are modifying it below
+
         # Validate input
         if not self.METADATA_IN_REQUIRED_FIELDS.issubset(metadata.keys()):
             raise ValueError(f"Missing keys in metadata: {self.METADATA_IN_REQUIRED_FIELDS - metadata.keys()}")
@@ -208,8 +248,10 @@ class SnowflakeStageArtifactsStore(ArtifactsStoreBase):
         file_extension = file_path.suffix
         target_filename = self._make_artifact_filename(artifact_id, file_path)
         assert "basename" not in metadata
+        assert "creation_timestamp" not in metadata
         metadata["basename"] = str(target_filename)
         metadata["orig_path"] = str(file_path)
+        metadata["creation_timestamp"] = datetime.now(timezone.utc).isoformat()
 
         # Create a metadata file name by removing the original suffix (if any) and adding the special suffix
         metadata_filename = self._get_metadata_filename(artifact_id)
@@ -237,6 +279,7 @@ class SnowflakeStageArtifactsStore(ArtifactsStoreBase):
                 cursor.execute(metadata_query)
 
                 self._sfconn.client.commit()
+        print(f"New artifact created {artifact_id=}, by {metadata['func_name']} with title='{metadata['title_filename']}' ")
         return artifact_id
 
 
@@ -265,6 +308,8 @@ class SnowflakeStageArtifactsStore(ArtifactsStoreBase):
         # Create a temporary file with the same suffix and write the content to it
         # We want to retain the suffix as it is retained in the  artifact filename
         with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp_file:
+            if isinstance(content, str):
+                content = content.encode('utf-8')  # Convert string to bytes (tmp file is opened in w+b mode by default)
             temp_file.write(content)
             temp_file_path = temp_file.name
 
@@ -399,6 +444,7 @@ class SnowflakeStageArtifactsStore(ArtifactsStoreBase):
                 cursor.execute(sql)
                 row_count = cursor.rowcount
                 if row_count > 0:
+                    print(f"Deleted artifcat {aid}")
                     succeeded.append(aid)
 
         # Clear the cache for get_artifact_metadata after deletion
@@ -419,18 +465,22 @@ class SnowflakeStageArtifactsStore(ArtifactsStoreBase):
         """
         metadata = self.get_artifact_metadata(artifact_id)
         title = metadata['title_filename']
-        sanitized_title = re.sub(r'[^a-zA-Z0-9_\-:.]', '-', title)
-        mime_type = metadata['mime_type']
+        #sanitized_title = re.sub(r'[^a-zA-Z0-9_\-:.]', '-', title)
+        # mime_type = metadata['mime_type']
 
-        if mime_type in ("image/jpeg", "image/jpg", "image/png", "image/gif"):
-            html_format = f'<img src="artifact:/{artifact_id}" alt={sanitized_title} >'
-        elif mime_type == "text/html":
-            html_format = f'<iframe src="artifact:/{artifact_id}" frameborder="1">{title}</iframe>'
-        else:
-            html_format = f'<a href="artifact:/{artifact_id}" download="{sanitized_title}">Download {title}</a>'
+        # if mime_type in ("image/jpeg", "image/jpg", "image/png", "image/gif"):
+        #     html_format = f'<img src="artifact:/{artifact_id}" alt={sanitized_title} >'
+        # elif mime_type == "text/plain":
+        #     html_format = f'<pre>src="artifact:/{artifact_id}" frameborder="1">{title}</pre>'
+        # elif mime_type == "text/html":
+        #     html_format = f'<iframe src="artifact:/{artifact_id}" frameborder="1">{title}</iframe>'
+        # else:
+        #     html_format = f'<a href="artifact:/{artifact_id}" download="{sanitized_title}">Download {title}</a>'
 
-        return (f'(i) When replying to the user in text/plain format, use the following markdown: [{title}](artifact:/{artifact_id}) \n'
-                f'(ii) When replying to the user in text/html format, use the following markup: {html_format} \n')
+        # return (f'(i) When replying to the user in text/plain format, use the following markdown: [{title}](artifact:/{artifact_id}) \n'
+        #         f'(ii) When replying to the user in text/html format, use the following markup: {html_format} \n')
+        return ("Here is a markdown syntax you (assistant) can use to render this artifact when responding to the user in a chat or to embed this artifact in an email: [{title}](artifact:/{artifact_id}). "
+                "Strictly follow this markdown syntax. Note that this markdown cannot be used by the user. DO NOT suggest to the user to use this markdown. ")
 
 
 def get_artifacts_store(db_adapter):

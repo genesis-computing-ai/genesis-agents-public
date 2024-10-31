@@ -2,8 +2,62 @@ import streamlit as st
 from utils import check_status, get_session, get_references, get_metadata, get_slack_tokens, get_slack_tokens_cached
 import time
 import base64
-from streamlit import config 
-# Set minCachedMessageSize to 500 MB to disable forward message cache: 
+from streamlit import config
+from collections import namedtuple
+from textwrap import dedent
+
+PageDesc = namedtuple('_PageEntry', ['page_id', 'display_name', 'module_name', 'entry_func_name'])
+
+class Pages:
+    """
+    An internal helper structure serving as a poor man's page registry 
+
+    The 'all' attribute maps from page_id to its PageDesc entry
+    """
+    # Note: no validation checks (e.g. uniqueness) are done here
+    def __init__(self):
+        self.all = {} # maps page_id to a PageDesc object
+        self._by_display = {} # seconday (hidden) index
+
+
+    def add_page(self, *args, **kwargs):
+        entry = PageDesc(*args, **kwargs)
+        assert entry.page_id not in self.all # prevent duplicates
+        self.all[entry.page_id] = entry
+        self._by_display[entry.display_name] = entry
+
+
+    def lookup_pages(self, attr_name, attr_value):
+        if attr_name == 'page_id':
+            entry = self.all.get(attr_value)
+            res = [entry] if entry else []
+        elif attr_name == "display_name":
+            entry = self._by_display.get(attr_value)
+            res = [entry] if entry else []
+        else:
+            res = [x for x in self.all.values() if getattr(x, attr_name) == attr_value]
+        return res
+
+
+    def lookup_page(self, attr_name, attr_value):
+        res = self.lookup_pages(attr_name, attr_value)
+        if len(res) != 1:
+            raise ValueError(f"Page with {attr_name}={attr_value} not found")
+        return res[0]
+
+
+    def get_module(self, page_id):
+        desc = self.all[page_id]
+        return getattr(__import__(f'page_files.{desc.module_name}'), desc.module_name)
+
+
+    def dispatch_page(self, page_id):
+        desc = self.all[page_id]
+        func = getattr(self.get_module(page_id), desc.entry_func_name)
+        func()
+
+
+# Set minCachedMessageSize to 500 MB to disable forward message cache:
 config.set_option("global.minCachedMessageSize", 500 * 1e6)
 
 
@@ -76,7 +130,7 @@ if st.session_state.NativeMode:
      #   st.success('NativeMode2b '+str(service_status_result))
         if service_status_result is None:
             st.session_state["data"] = "Local Mode"
-            st.session_state.NativeMode = False 
+            st.session_state.NativeMode = False
         else:
             st.session_state["data"] = service_status_result
             session = get_session()
@@ -90,7 +144,7 @@ else:
 if 'show_log_config' not in st.session_state:
     check_status_result = False
     if st.session_state.NativeMode:
-        check_status_result = get_metadata('logging_status')   
+        check_status_result = get_metadata('logging_status')
 
     if check_status_result == False:
         st.session_state.show_log_config = True
@@ -103,7 +157,7 @@ if 'show_log_config' not in st.session_state:
 # Initialize session state for the modal
 if "show_modal" not in st.session_state:
     st.session_state.show_modal = True  # Default to showing the modal
-    
+
 # check for configured email
 if 'show_email_config' not in st.session_state:
     st.session_state.show_email_config = False
@@ -120,7 +174,7 @@ if 'show_openai_config' not in st.session_state:
     if len(llm_info) > 0:
         # Check if openai exists
         openai_set = [True for llm in llm_info if llm["llm_type"].lower() == 'openai']
-        openai_set = openai_set[0] if openai_set else False       
+        openai_set = openai_set[0] if openai_set else False
     if openai_set == False:
         st.session_state.show_openai_config = True
 
@@ -262,32 +316,29 @@ if st.session_state.show_email_config == False and st.session_state.show_openai_
 elif st.session_state.show_modal:
     # Show modal if the session state allows
     show_modal()
+
 # st.success(st.session_state.data)
 if st.session_state.data:
-    pages = {
-        "Chat with Bots": lambda: __import__('page_files.chat_page').chat_page.chat_page(),
-        "LLM Model & Key": lambda: __import__('page_files.llm_config').llm_config.llm_config(),
-        "Setup Email Integration": lambda: __import__('page_files.config_email').config_email.setup_email(),
-        "Setup Cortex Search": lambda: __import__('page_files.config_cortex_search').config_cortex_search.setup_cortex_search(),
-        "Setup Slack Connection": lambda: __import__('page_files.setup_slack').setup_slack.setup_slack(),
-        "Setup Custom Warehouse": lambda: __import__('page_files.config_wh').config_wh.config_wh(),
-        "Grant Data Access": lambda: __import__('page_files.grant_data').grant_data.grant_data(),
-        "Setup Custom Endpoints": lambda: __import__('page_files.config_custom_eai').config_custom_eai.config_custom_eai(),
-        "Harvester Status": lambda: __import__('page_files.db_harvester').db_harvester.db_harvester(),
-        "Bot Configuration": lambda: __import__('page_files.bot_config').bot_config.bot_config(),
-        "Server Stop-Start": lambda: __import__('page_files.start_stop').start_stop.start_stop(),
-        # "Setup Event Logging": lambda: __import__('page_files.config_logging').config_logging.config_logging(),
-        "Server Logs": lambda: __import__('page_files.show_server_logs').show_server_logs.show_server_logs(),
-        "Support and Community": lambda: __import__('page_files.support').support.support(),
-    }
+    pages = Pages()
 
-    if st.session_state.get("needs_keys", False):
-        del pages["Chat with Bots"]
+    if not st.session_state.get("needs_keys"):
+        pages.add_page('chat_page', 'Chat with Bots', 'chat_page', 'chat_page')
+    pages.add_page('llm_config', 'LLM Model & Key', 'llm_config', 'llm_config')
+    pages.add_page('config_email', 'Setup Email Integration', 'config_email', 'setup_email')
+    pages.add_page('config_cortex_search', 'Setup Cortex Search', 'config_cortex_search', 'setup_cortex_search')
+    pages.add_page('setup_slack', 'Setup Slack Connection', 'setup_slack', 'setup_slack')
+    pages.add_page('config_wh', 'Setup Custom Warehouse', 'config_wh', 'config_wh')
+    pages.add_page('grant_data', 'Grant Data Access', 'grant_data', 'grant_data')
+    pages.add_page('config_custom_eai', 'Setup Custom Endpoints', 'config_custom_eai', 'config_custom_eai')
+    pages.add_page('db_harvester', 'Harvester Status', 'db_harvester', 'db_harvester')
+    pages.add_page('bot_config', 'Bot Configuration', 'bot_config', 'bot_config')
+    pages.add_page('start_stop', 'Server Stop-Start', 'start_stop', 'start_stop')
+    # pages.add_page('config_logging', 'Setup Event Logging', 'config_logging', 'config_logging')
+    pages.add_page('show_server_logs', 'Server Logs', 'show_server_logs', 'show_server_logs')
+    pages.add_page('support', 'Support and Community', 'support', 'support')
 
 
 #    st.sidebar.subheader("**Genesis App**")
-
-
 
     # Get NativeMode from session state
     native_mode = st.session_state.get("NativeMode", False)
@@ -295,28 +346,69 @@ if st.session_state.data:
         render_image("Genesis-Computing-Logo-White.png", width=250)
     else:
         st.sidebar.image("./streamlit_gui/Genesis-Computing-Logo-White.png", width=250)
-    # Set the default selection to "Chat with Bots"
-    default_selection = "Chat with Bots" if "Chat with Bots" in pages else list(pages.keys())[0]
-    
-    # Use a dropdown for page selection
+
+    # Set the default selection page
+    selected_page_id = None
+
+    # Handle URL params which are used, for example, to drop user into a specific page or chat session.
+    # We expect a param named 'action' followd by action-specific params
+    url_params = st.query_params.to_dict()
+    if url_params:
+        action = url_params.pop('action', None)
+        if action == "show_artifact_context":
+            bot_name = url_params.pop('bot_name', None)
+            artifact_id = url_params.pop('artifact_id', None)
+            if bot_name and artifact_id:
+                # Force the selected page to the chat page and inject the initial bot_name and initial prompt
+                selected_page_id = 'chat_page'
+                module = pages.get_module(selected_page_id)
+                module.set_initial_chat_sesssion_data(
+                    bot_name=bot_name,
+                    initial_message="Fetching information about your request...",
+                    initial_prompt=dedent(f'''
+                        1.Briefly state your name, followed by 'let me help you explore an item previously generated by me...'. 
+                        2.Fetch metadata for {artifact_id=}.
+                        3.Using the artifact's metadata, describe its original purpose and the time it was generated.
+                        Refer to this artifact as the 'item'. DO NOT mention the artifact ID unless requested explicitly, as it is mosly used for internal references.
+                        4. Render the artifact's content by using its markdown notation and offer to help further explore this item.
+                        5. If the metadata indicates that this artifct contains other artifact, offer the user to explore the contained artifact. 
+                        ''')
+                )
+            else:
+                #TODO: handle missing  params
+                pass
+        else:
+            pass # silently ignore unrecognized requests
+        st.query_params.clear() # Always clear the URL once we inspected it. This will clear the user's browser URL.
+
+    if selected_page_id is None:
+        # If not forced by the URL, use the selection saved in session state; default selection to "Chat with Bots"
+        saved_selection = st.session_state.get("radio") # We save the Display name, not the id. TODO: refactor to use page ID (safer, stable, cleaner)
+        if saved_selection:
+            selected_page_id = pages.lookup_page("display_name", saved_selection).page_id # if it raises we have an internal logic error
+        else:
+            selected_page_id = "chat_page" if "chat_page" in pages.all else list(pages.all.keys())[0]
+    assert selected_page_id is not None
+
+    # Use a dropdown for page selection, Use page display names
     selection = st.sidebar.selectbox(
         "#### Menu:",  # Added ### to make it bigger in Markdown
-        list(pages.keys()),
-        index=list(pages.keys()).index(
-            st.session_state.get("radio", default_selection)
-        ),
+        [page.display_name for page in pages.all.values()],
+        index=list(pages.all).index(selected_page_id),
         key="page_selection"
     )
-    
+
     # Check if the selection has changed
     if "previous_selection" not in st.session_state or st.session_state.previous_selection != selection:
         st.session_state.previous_selection = selection
         st.session_state["radio"] = selection
         st.rerun()
 
-    if selection in pages:
-        pages[selection]()
-    
+    try:
+        page_desc = pages.lookup_page("display_name", selection) # TODO: again, refactor to use page IDs.
+        pages.dispatch_page(page_desc.page_id)
+    except ValueError:
+        pass
 
 else:
     pages = {

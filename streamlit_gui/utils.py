@@ -378,7 +378,7 @@ def upgrade_services(eai_type, eai_name):
             return upgrade_services_result[0][0]
     except Exception as e:
         st.error(f"Error updating EAI config table: {e}")
-    return None        
+    return None
 
 def check_eai_status(site):
     # session = get_session()

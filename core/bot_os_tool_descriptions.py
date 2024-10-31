@@ -92,7 +92,8 @@ process_runner_functions = [
         "type": "function",
         "function": {
             "name": "_send_email",
-            "description": "Sends an email in either text/plain or text/html format. Prefer to use text/html.",
+            "description": ("Sends an email in either text/plain or text/html format. Prefer to use text/html. DO NOT use attachments and such as CID as those are NOT supported. "
+                            "To embed an artifact in an email use the artifact markdown notation."),
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -113,12 +114,20 @@ process_runner_functions = [
                                        "When using mime_type='text/plain' you CAN use Slack-compatible markdown syntax. "
                                        "When using mime_type='text/html' DO NOT use markdown. Use appropriate html tags instead. Use this format as the default for most emails",
                     },
+                    "bot_id": {
+                        "type": "string",
+                        "description": "The bot_id that invoked this tool",
+                    },
+                    "purpose": {
+                        "type": "string",
+                        "description": "A short description of the purpose of this email. This is stored as metadata for this email.",
+                    },
                     "mime_type": {
                         "type": "string",
                         "description": "The MIME type of the email body. Accepts 'text/plain' or 'text/html'. Defaults to 'text/html'.",
                     }
                 },
-                "required": ["to_addr_list", "subject", "body"],
+                "required": ["to_addr_list", "subject", "body", "bot_id", "purpose"],
             },
         },
     },

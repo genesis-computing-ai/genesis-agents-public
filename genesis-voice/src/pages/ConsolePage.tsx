@@ -27,9 +27,14 @@ import { Table } from '../components/table/Table';
 import './ConsolePage.scss';
 import { isJsxOpeningLikeElement } from 'typescript';
 
-const LOCAL_RELAY_SERVER_URL_TOOLS: string = '/realtime';
-const LOCAL_RELAY_SERVER_URL: string = 'http://localhost:8081';
+// const LOCAL_RELAY_SERVER_URL_TOOLS: string = '/realtime';
+// const LOCAL_RELAY_SERVER_URL: string = 'http://localhost:8081';
 
+
+const LOCAL_RELAY_SERVER_URL_TOOLS: string = '/realtime';
+//const LOCAL_RELAY_SERVER_URL: string = 'http://localhost:8081/voice';  
+//const LOCAL_RELAY_SERVER_URL: string = '/voice';  
+const LOCAL_RELAY_SERVER_URL: string = '';
 
 /**
  * Type for result from get_weather() function call

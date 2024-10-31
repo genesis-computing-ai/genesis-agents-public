@@ -8,55 +8,65 @@ import httpProxy from 'http-proxy';
 import https from 'https';
 import http from 'http';
 import WebSocket from 'ws';
+import { RealtimeClient } from '@openai/realtime-api-beta';
 
 dotenv.config();
 
 const app = express();
-
 const port = process.env.PORT || 8082;
 const BACKEND_URL = 'http://127.0.0.1:8080';
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
+// Enhanced logging setup
+const log = {
+  info: (msg, data) => {
+    const timestamp = new Date().toISOString();
+    console.log(`[${timestamp}] 🟦 INFO:`, msg, data ? JSON.stringify(data, null, 2) : '');
+  },
+  error: (msg, err) => {
+    const timestamp = new Date().toISOString();
+    console.error(`[${timestamp}] 🟥 ERROR:`, msg, err);
+    if (err?.stack) console.error(err.stack);
+  },
+  debug: (msg, data) => {
+    const timestamp = new Date().toISOString();
+    console.log(`[${timestamp}] 🟨 DEBUG:`, msg, data ? JSON.stringify(data, null, 2) : '');
+  }
+};
 
+// Request logging middleware
+app.use((req, res, next) => {
+  log.info('Incoming HTTP Request', {
+    method: req.method,
+    url: req.url,
+    headers: req.headers,
+    query: req.query,
+    body: req.body
+  });
+  next();
+});
 
-// Create agents for both HTTP and HTTPS
+// Agents setup
 const httpsAgent = new https.Agent({
   rejectUnauthorized: false
 });
 
 const httpAgent = new http.Agent();
+const getAgent = (url) => url.startsWith('https') ? httpsAgent : httpAgent;
 
-// Helper function to get the appropriate agent based on URL
-const getAgent = (url) => {
-  return url.startsWith('https') ? httpsAgent : httpAgent;
-};
-
-// Enhanced logging
-const log = {
-  info: (msg, data) => console.log(`[${new Date().toISOString()}] INFO:`, msg, data || ''),
-  error: (msg, err) => console.error(`[${new Date().toISOString()}] ERROR:`, msg, err)
-};
-
-app.use(cors({
-  origin: true,
-  credentials: true
+// CORS and JSON middleware
+app.use(cors({ 
+  origin: true, 
+  credentials: true 
 }));
 
 app.use(express.json());
-
-// Request logging
-app.use((req, res, next) => {
-  log.info(`Incoming ${req.method} ${req.url}`, {
-    headers: req.headers,
-    query: req.query
-  });
-  next();
-});
 
 // Tools endpoint
 app.get('/realtime/tools', async (req, res) => {
   try {
     const url = `${BACKEND_URL}/realtime/get_tools?bot_id=Janice`;
-    log.info('Fetching tools from backend:', url);
+    log.debug('Fetching tools from backend:', { url });
     
     const response = await fetch(url, {
       agent: getAgent(url),
@@ -70,7 +80,7 @@ app.get('/realtime/tools', async (req, res) => {
     }
     
     const data = await response.json();
-    log.info('Tools fetched successfully');
+    log.debug('Tools fetch response:', data);
     res.json(data);
   } catch (error) {
     log.error('Failed to fetch tools', error);
@@ -86,7 +96,10 @@ app.get('/realtime/tools', async (req, res) => {
 app.post('/realtime/genesis_tool', async (req, res) => {
   try {
     const url = `${BACKEND_URL}/realtime/genesis_tool`;
-    log.info('Calling genesis_tool:', url);
+    log.debug('Calling genesis_tool:', {
+      url,
+      requestBody: req.body
+    });
     
     const response = await fetch(url, {
       method: 'POST',
@@ -103,7 +116,7 @@ app.post('/realtime/genesis_tool', async (req, res) => {
     }
     
     const data = await response.json();
-    log.info('Genesis tool called successfully');
+    log.debug('Genesis tool response:', data);
     res.json(data);
   } catch (error) {
     log.error('Failed to call genesis_tool', error);
@@ -124,114 +137,162 @@ app.get('/health', (req, res) => {
   });
 });
 
-// 404 handler
-app.use((req, res) => {
-  log.info(`404 - Not Found: ${req.method} ${req.url}`);
-  res.status(404).json({
-    error: 'Not Found',
-    message: `Endpoint ${req.method} ${req.url} not found`,
-    available_endpoints: [
-      'GET /health',
-      'GET /realtime/tools',
-      'POST /realtime/genesis_tool'
-    ]
-  });
-});
-
-// Error handler
-app.use((err, req, res, next) => {
-  log.error('Unhandled error', err);
-  res.status(500).json({ 
-    error: 'Internal Server Error',
-    message: err.message,
-    stack: err.stack
-  });
-});
-
 const server = createServer(app);
 
+// Create WebSocket server
+const wss = new WebSocketServer({ 
+  noServer: true,
+  clientTracking: true
+});
+
+// Add periodic logging of connection count
+setInterval(() => {
+  const clientCount = wss.clients ? wss.clients.size : 0;
+  if (clientCount > 0) {
+    log.info('Active WebSocket connections:', { count: clientCount });
+  }
+}, 5000);
+
+// Handle OpenAI realtime connections
+async function handleRealtimeConnection(ws, req) {
+  log.info('New WebSocket connection attempt', {
+    headers: req.headers,
+    url: req.url
+  });
+
+  if (!OPENAI_API_KEY) {
+    log.error('No OpenAI API key found');
+    ws.close();
+    return;
+  }
+
+  try {
+    // Create OpenAI client
+    log.debug('Creating OpenAI client');
+    const client = new RealtimeClient({ 
+      apiKey: OPENAI_API_KEY,
+      dangerouslyAllowAPIKeyInBrowser: true 
+    });
+
+    // Relay: OpenAI -> Browser
+    client.realtime.on('server.*', (event) => {
+      log.debug('Relaying from OpenAI to client:', { eventType: event.type });
+      ws.send(JSON.stringify(event));
+    });
+
+    client.realtime.on('close', () => {
+      log.info('OpenAI connection closed');
+      ws.close();
+    });
+
+    // Relay: Browser -> OpenAI
+    const messageQueue = [];
+    const messageHandler = (data) => {
+      try {
+        const event = JSON.parse(data);
+        log.debug('Relaying from client to OpenAI:', { eventType: event.type });
+        client.realtime.send(event.type, event);
+      } catch (e) {
+        log.error('Error parsing event from client:', e);
+      }
+    };
+
+    ws.on('message', (data) => {
+      if (!client.isConnected()) {
+        log.debug('Queueing message (client not connected yet)');
+        messageQueue.push(data);
+      } else {
+        messageHandler(data);
+      }
+    });
+
+    ws.on('close', () => {
+      log.info('WebSocket connection closed by client');
+      client.disconnect();
+    });
+
+    ws.on('error', (error) => {
+      log.error('WebSocket error:', error);
+    });
+
+    // Connect to OpenAI
+    log.debug('Attempting to connect to OpenAI...');
+    await client.connect();
+    log.info('Connected to OpenAI successfully');
+    
+    // Process queued messages
+    if (messageQueue.length) {
+      log.debug(`Processing ${messageQueue.length} queued messages`);
+      while (messageQueue.length) {
+        messageHandler(messageQueue.shift());
+      }
+    }
+  } catch (e) {
+    log.error('Error in handleRealtimeConnection:', e);
+    ws.close();
+  }
+}
+
+// Handle upgrade requests
+server.on('upgrade', (request, socket, head) => {
+  log.info('Received upgrade request', {
+    url: request.url,
+    headers: request.headers
+  });
+
+  try {
+    const pathname = new URL(request.url, `http://${request.headers.host}`).pathname;
+    log.debug(`Processing upgrade for pathname: ${pathname}`);
+
+    if (pathname === '/voice') {
+      log.info('Handling voice WebSocket upgrade');
+      wss.handleUpgrade(request, socket, head, (ws) => {
+        ws.isAlive = true;
+        ws.on('pong', () => {
+          ws.isAlive = true;
+        });
+        log.info('Voice WebSocket connection established');
+        wss.emit('connection', ws, request);
+      });
+    } else {
+      log.error(`Invalid WebSocket path: ${pathname}`);
+      socket.destroy();
+    }
+  } catch (error) {
+    log.error('Error in upgrade handler:', error);
+    socket.destroy();
+  }
+});
+
+// Add ping/pong to keep connections alive
+const interval = setInterval(() => {
+  wss.clients.forEach((ws) => {
+    if (ws.isAlive === false) {
+      log.info('Terminating inactive WebSocket connection');
+      return ws.terminate();
+    }
+    ws.isAlive = false;
+    ws.ping(() => {});
+  });
+}, 30000);
+
+wss.on('close', () => {
+  clearInterval(interval);
+});
+
+// Handle WebSocket connections
+wss.on('connection', handleRealtimeConnection);
+
+// Start server
 server.listen(port, '0.0.0.0', () => {
-  log.info('Relay server running', {
+  log.info('Combined relay server running', {
     port,
     backendUrl: BACKEND_URL,
     environment: process.env.NODE_ENV
   });
 });
 
-
-// Create WebSocket server
-const wss = new WebSocketServer({ server });
-
-// Handle WebSocket connections
-wss.on('connection', (ws, req) => {
-  log.info('WebSocket connection received', {
-    url: req.url,
-    headers: req.headers
-  });
-
-  // Extract the original query parameters
-  const originalUrl = req.url;
-  
-  // Create connection to OpenAI with the same path and query parameters
-  const openaiWs = new WebSocket('wss://api.openai.com:443' + originalUrl, {
-    headers: {
-      'Authorization': `Bearer ${'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'}`,
-      'Origin': 'https://api.openai.com',
-      'User-Agent': req.headers['user-agent'],
-      'Content-Type': 'application/json',
-    },
-    rejectUnauthorized: false // Only if needed for development
-  });
-
-  // Add more detailed logging
-  log.info('Connecting to OpenAI WebSocket', {
-    url: 'wss://api.openai.com:443' + originalUrl,
-    originalUrl: originalUrl
-  });
-
-  // Handle OpenAI connection
-  openaiWs.on('open', () => {
-    log.info('Connected to OpenAI WebSocket');
-  });
-
-  openaiWs.on('message', (data) => {
-    if (ws.readyState === WebSocket.OPEN) {
-      ws.send(data);
-    }
-  });
-
-  openaiWs.on('error', (error) => {
-    log.error('OpenAI WebSocket error', error);
-  });
-
-  openaiWs.on('close', () => {
-    log.info('OpenAI WebSocket closed');
-    if (ws.readyState === WebSocket.OPEN) {
-      ws.close();
-    }
-  });
-
-  // Handle client messages
-  ws.on('message', (data) => {
-    if (openaiWs.readyState === WebSocket.OPEN) {
-      openaiWs.send(data);
-    }
-  });
-
-  ws.on('close', () => {
-    log.info('Client WebSocket closed');
-    if (openaiWs.readyState === WebSocket.OPEN) {
-      openaiWs.close();
-    }
-  });
-
-  ws.on('error', (error) => {
-    log.error('Client WebSocket error', error);
-  });
-});
-
-
-// Handle process termination
+// Error handling
 process.on('SIGTERM', () => {
   log.info('Shutting down...');
   server.close(() => process.exit(0));
@@ -240,4 +301,3 @@ process.on('SIGTERM', () => {
 process.on('uncaughtException', (error) => {
   log.error('Uncaught Exception', error);
 });
-

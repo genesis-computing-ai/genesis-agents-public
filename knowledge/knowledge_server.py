@@ -240,10 +240,10 @@ class KnowledgeServer:
                         last_timestamp = msg_log[-1]["TIMESTAMP"]
                     bot_id = msg_log[-1]["BOT_ID"]
                     primary_user = msg_log[-1]["PRIMARY_USER"]
-                    thread_summary = response["thread_summary"]
-                    user_learning = response["user_learning"]
-                    tool_learning = response["tool_learning"]
-                    data_learning = response["data_learning"]
+                    thread_summary = response.get("thread_summary", '')
+                    user_learning = response.get("user_learning",'')
+                    tool_learning = response.get("tool_learning",'')
+                    data_learning = response.get("data_learning",'')
 
                     self.db_connector.run_insert(self.db_connector.knowledge_table_name, timestamp=timestamp,thread_id=thread_id,knowledge_thread_id=knowledge_thread_id,
                                                 primary_user=primary_user,bot_id=bot_id,last_timestamp=last_timestamp,thread_summary=thread_summary,

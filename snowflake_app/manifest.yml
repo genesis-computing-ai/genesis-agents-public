@@ -57,7 +57,7 @@ references:
       label: "Secret for Cortex Search Key Pair Auth private key"
       description: "This allows Corex Search to login via the user key pair auth"
       privileges:
-        - USAGE
+        - USAGE, READ
       object_type: SECRET
       register_callback: core.register_single_reference
 privileges:

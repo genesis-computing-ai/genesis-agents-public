@@ -27,6 +27,7 @@ import tempfile
 import functools
 import re
 from datetime import datetime, timezone
+from textwrap import dedent
 
 # Regex for matching valid artifcat UUIDs
 ARTIFACT_ID_REGEX = r'[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}' # regrex for matching a valid artifact UUID
@@ -109,6 +110,7 @@ class SnowflakeStageArtifactsStore(ArtifactsStoreBase):
     METADATA_FILE_EXTRA_SUFFIX = ".metadata.json"
     METADATA_FILE_NAMED_FORMAT = 'artifact_meta_json'
     SIGNED_URL_MAX_EXPIRATION_SECS = 604800
+    SIGNED_URL_WRAPPER_SPROC_NAME = 'GET_PRESIGNED_URL_WRAPPER'
 
     def __init__(self,
                  snowflake_connector # A SnowflakeConnector
@@ -119,6 +121,7 @@ class SnowflakeStageArtifactsStore(ArtifactsStoreBase):
 
         self._sfconn = snowflake_connector
         self._stage_qualified_name = f"{snowflake_connector.genbot_internal_project_and_schema}.{self.STAGE_NAME}"
+        self._signed_url_sproc_name = f"{snowflake_connector.genbot_internal_project_and_schema}.{self.SIGNED_URL_WRAPPER_SPROC_NAME}"
 
 
     @property
@@ -176,39 +179,70 @@ class SnowflakeStageArtifactsStore(ArtifactsStoreBase):
             return bool(cursor.fetchone())
 
 
-    def create_storage_if_needed(self, replace_if_exists: bool = False) -> bool:
+    def setup_db_objects(self, replace_if_exists: bool = False) -> bool:
         """
-        Ensures the existence of a Snowflake stage for artifact storage. If the stage already exists,
-        it can optionally be replaced based on the `replace_if_exists` flag.
+        Ensures the existence of a Snowflake stage and other supporting objects for artifact storage. If the objects already exists,
+        they can optionally be replaced based on the `replace_if_exists` flag.
 
         Args:
-            replace_if_exists (bool): If True, replaces the existing stage. Defaults to False.
-
-        Returns:
-            bool: True if the stage was created or replaced, False if the stage already existed and was not replaced.
+            replace_if_exists (bool): If True, replaces the existing stage and other objects. Defaults to False
         """
+        # Create new stage?
         stage_ddl_prefix = None
         if self.does_storage_exist():
             if replace_if_exists:
                 print(f"Stage @{self._stage_qualified_name} already exists but {replace_if_exists=}. Will replace Stage")
                 stage_ddl_prefix = "CREATE OR REPLACE STAGE"
             else:
-                print(f"Stage @{self._stage_qualified_name} already exists. (NoOp  since {replace_if_exists=}")
-                return False # exists and nothing to do
+                print(f"Stage @{self._stage_qualified_name} already exists. (No-op)")
         else:
             stage_ddl_prefix = "CREATE STAGE IF NOT EXISTS"
-        stage_ddl = stage_ddl_prefix + (f" {self._stage_qualified_name}"
-                                        f" ENCRYPTION = (TYPE = '{self.STAGE_ENCRYPTION_TYPE}')"
-                                        ##f" DIRECTORY = (ENABLE = TRUE)" # uncomment if you want to manage a DIRECTORY table
-                                        " ;")
+        if stage_ddl_prefix:
+            stage_ddl = stage_ddl_prefix + (f" {self._stage_qualified_name}"
+                                            f" ENCRYPTION = (TYPE = '{self.STAGE_ENCRYPTION_TYPE}')"
+                                            ##f" DIRECTORY = (ENABLE = TRUE)" # uncomment if you want to manage a DIRECTORY table
+                                            " ;")
+            with self._get_sql_cursor() as cursor:
+                cursor.execute(stage_ddl)
+                self._sfconn.client.commit()
+                print(f"Stage @{self._stage_qualified_name} created using '{stage_ddl_prefix.lower()}'")
 
-        # create (if needed, or replace)
+        # reate a wrapper sproce for GET_PRESIGNED_URL.
+        # We always create or replace to ensure latest version - this is a statless function).
+        # We need a wrapper that runs inside a snowflake host and not a native app host.
+        # See https://github.com/genesis-gh-jlangseth/genesis/issues/98
+        # We use a sproc and not a siple SQL function because snowflake expects the stage to be qualified
+        # with @ and will not allow creating it dynamically.
+        sproc_ddl = dedent(f''' 
+            CREATE OR REPLACE PROCEDURE {self._signed_url_sproc_name} (
+                STAGE_NAME STRING, 
+                FILE_PATH STRING, 
+                EXPIRATION FLOAT
+            )
+            RETURNS STRING
+            LANGUAGE JAVASCRIPT
+            EXECUTE AS OWNER
+            AS
+            $$
+                // Construct the SQL command for GET_PRESIGNED_URL
+                // Create the full reference to the stage using concatenation
+                var stage_reference = '@' + STAGE_NAME; // Prefix with '@' to form the stage reference
+                var sql_command = `SELECT GET_PRESIGNED_URL(${{stage_reference}}, '${{FILE_PATH}}', ${{EXPIRATION}}) AS presigned_url`;    
+                // Create the Snowflake statement and execute it
+                var statement1 = snowflake.createStatement({{sqlText: sql_command}});
+                var result_set = statement1.execute();    
+                // Retrieve the presigned URL from the result set
+                if (result_set.next()) {{
+                    return result_set.getColumnValue("PRESIGNED_URL");
+                }} else {{
+                    return null;
+                }}
+            $$;
+            ''')
         with self._get_sql_cursor() as cursor:
-            cursor.execute(stage_ddl)
+            cursor.execute(sproc_ddl)
             self._sfconn.client.commit()
-            print(f"Stage @{self._stage_qualified_name} created using '{stage_ddl_prefix.lower()}'")
-
-        return True
+            print(f"Created PROCEDURE {self._signed_url_sproc_name}")
 
 
     def create_artifact_from_file(self, file_path, metadata: dict):
@@ -352,7 +386,6 @@ class SnowflakeStageArtifactsStore(ArtifactsStoreBase):
                 raise ValueError(f"Invalid artifact_id {artifact_id}: Failed to fetch metadata")
             return json.loads(row[0])
 
-
     def get_signed_url_for_artifact(self, artifact_id):
         """
         Generate a signed URL for accessing an artifact from an external system. 
@@ -364,21 +397,26 @@ class SnowflakeStageArtifactsStore(ArtifactsStoreBase):
             A signed URL string for accessing the artifact.
 
         Raises:
-            ValueError: If the metadata from this artifac cannot be found or we failed to generate the signed URL.
+            ValueError: If the metadata for this artifact cannot be found or we failed to generate the signed URL.
         """
+        if not _validate_artifact_id_format(artifact_id):
+            raise ValueError(f"Invalid artifact id: {artifact_id}")
+
         metadata = self.get_artifact_metadata(artifact_id)
         basename = metadata.get('basename')
         if not basename:
             raise ValueError(f"Corrupted metadata for {artifact_id}. Missing basename attribute")
-        query = (f"SELECT GET_PRESIGNED_URL(@{self._stage_qualified_name},"
-                 f" '{basename}', "
-                 f" {self.SIGNED_URL_MAX_EXPIRATION_SECS});")
+
+        query = f"CALL {self._signed_url_sproc_name}('{self._stage_qualified_name}', '{basename}', {self.SIGNED_URL_MAX_EXPIRATION_SECS});"
         with self._get_sql_cursor() as cursor:
             cursor.execute(query)
             row = cursor.fetchone()
             if not row:
                 raise ValueError(f"Failed to create a signed URL for artifact {artifact_id}")
-            return row[0]
+
+            result = row[0]
+            print(f"Generated PRESIGNED_URL for artifact_id={artifact_id} using query={query}. Result: {result}")
+            return result
 
 
     def read_artifact(self, artifact_id: str, local_out_dir) -> str:

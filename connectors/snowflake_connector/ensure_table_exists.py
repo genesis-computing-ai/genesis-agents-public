@@ -536,7 +536,7 @@ def ensure_table_exists(self):
             else:
                 print(
                     f"Table EAI_CONFIG already exists."
-                )  
+                )
 
             #ensure eai_config table matches EAI assigned to services
             get_eai_from_services_query = f" SHOW SERVICES IN APPLICATION {self.project_id}"
@@ -1511,13 +1511,9 @@ def ensure_table_exists(self):
             f"An error occurred while checking or creating table {metadata_table_id}: {e}"
         )
 
-    # Ensure the Artifact storage exist.
+    # Setup artifact storage
     af = get_artifacts_store(self)
-    created = af.create_storage_if_needed()
-    if created:
-        print(f"Artifact storage @{af.stage_qualified_name} created")
-    else:
-        print(f"Artifact storage @{af.stage_qualified_name} already exists")
+    af.setup_db_objects(replace_if_exists=False)
 
 
 def get_processes_list(self, bot_id="all"):

@@ -464,7 +464,7 @@ class ToolBelt:
                         external_url = art_store.get_signed_url_for_artifact(uuid)
                     except Exception as e:
                         # if we failed, leave this URL as-is. It will likely be a broken URL but in an obvious way.
-                        pass
+                        print(f"ERROR externalizing URL for artifact {uuid} in email. Leaving as-is. Error = {e}")
                     else:
                         txt = txt.replace(full_match, external_url)
                     artifact_ids.append(uuid)

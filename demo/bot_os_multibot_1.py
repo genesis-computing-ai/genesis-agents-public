@@ -1164,6 +1164,7 @@ def genesis_tool():
         # Add return_base64=True parameter for _run_snowpark_python tool
         if tool_name == 'run_snowpark_python':
             params['return_base64'] = True
+            params['save_artifacts'] = False
 
         # Find the session for the bot_id
         session = next((s for s in sessions if s.bot_id == bot_id), None)

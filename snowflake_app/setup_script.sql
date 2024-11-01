@@ -39,10 +39,6 @@ $$
         readinessProbe:
           port: 8080
           path: /healthcheck
-        secrets:
-        - snowflakeSecret:
-          objectReference: 'private_key_secret'
-          directoryPath: '.keys/' 
       endpoints:
       - name: udfendpoint
         port: 8080

@@ -5,7 +5,7 @@ artifacts:
  readme: readme.md
  container_services:
    images:
-   - /genesisapp_master/code_schema/service_repo/genesis_app:latest
+   - /genesisapp_master/code_schema/service_repo/genesis_app:latest  
  extension_code: true
  default_streamlit: core.Genesis
 configuration:
@@ -60,7 +60,6 @@ references:
         - USAGE
       object_type: SECRET
       register_callback: core.register_single_reference
-      configuration_callback: core.get_config_for_ref
 privileges:
   - BIND SERVICE ENDPOINT:
       description: "Allow access to application endpoints"

@@ -1,6 +1,18 @@
 import streamlit as st
-from utils import get_session, get_metadata
+from utils import get_session, get_metadata, upgrade_services
 import pandas as pd
+
+def assign_to_genesis():
+    upgrade_result = upgrade_services()
+    if upgrade_result:
+        st.success(f"Genesis Bots upgrade result: {upgrade_result}")
+        st.session_state.update({
+            "private_key_secret": False,
+        })
+        st.rerun()
+    else:
+        st.error("Upgrade services failed to return a valid response.")
+
 
 def setup_cortex_search():
     
@@ -8,7 +20,9 @@ def setup_cortex_search():
     session = get_session()
     if not session:
         local = True
-    
+    if 'private_key_secret' not in st.session_state:
+        st.session_state['private_key_secret'] = False
+        
     st.title("Configure Cortex Search")
     
     st.markdown("""
@@ -52,6 +66,14 @@ def setup_cortex_search():
     #         st.error("Please provide private_key.")
     #     else:
     #         print(private_key)
+    if st.button('Add secret to Genesis'):
+        st.session_state['private_key_secret'] = True
+        import snowflake.permissions as permissions
+        permissions.request_reference("private_key_secret")
+    if st.session_state.disable_assign == False:
+        if st.button('Assign to Genesis'):
+            assign_to_genesis()
+            st.success('Services updated successfully!')
 
     st.markdown("""3. Below is the list of available Cortex Search Services:""", unsafe_allow_html=True)
 

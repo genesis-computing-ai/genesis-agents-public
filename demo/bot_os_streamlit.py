@@ -14,11 +14,13 @@ from connectors.database_tools import (
 
 # from slack.slack_bot_os_adapter import SlackBotAdapter
 from connectors.bigquery_connector import BigQueryConnector
-import logging
 import streamlit as st
 from streamlit_gui.old.streamlit_bot_os_app import BotInputStreamlit
 from openai import OpenAI
 from streamlit_autorefresh import st_autorefresh
+
+from core.logging_config import setup_logger
+logger = setup_logger(__name__)
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -54,7 +56,7 @@ if "initialized" not in st.session_state:
     a = bigquery_connector.run_query(
         "SELECT schema_name FROM INFORMATION_SCHEMA.SCHEMATA", max_rows=5
     )
-    print("database test: ", a)
+    logger.info("database test: ", a)
 
     app = Flask(__name__)
 

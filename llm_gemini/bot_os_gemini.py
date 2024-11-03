@@ -11,9 +11,8 @@ from google.generativeai import caching
 from connectors import database_tools
 from core.bot_os_assistant_base import BotOsAssistantInterface, execute_function
 from core.bot_os_input import BotOsInputMessage, BotOsOutputMessage
-import logging
-
-logger = logging.getLogger(__name__)
+from core.logging_config import setup_logger
+logger = setup_logger(__name__)
 
 class BotOsAssistantGemini(BotOsAssistantInterface):
     def __init__(self, name:str, instructions:str, 
@@ -87,7 +86,7 @@ class BotOsAssistantGemini(BotOsAssistantInterface):
         # Wait for all files to finish processing
         for file in files_to_upload:
             while file.state.name == 'PROCESSING':
-                print(f'Waiting for file {file.name} to be processed.')
+                logger.info(f'Waiting for file {file.name} to be processed.')
                 time.sleep(2)
                 file = genai.get_file(file.name)
         return files_to_upload
@@ -147,7 +146,7 @@ class BotOsAssistantGemini(BotOsAssistantInterface):
         for part in response.parts:
             if fn := part.function_call:
                 args = {key: val for key, val in fn.args.items()}
-                print(f'{{"function_name":"{fn.name}","arguments":{json.dumps(args)}}}')
+                logger.info(f'{{"function_name":"{fn.name}","arguments":{json.dumps(args)}}}')
                 timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S%f")
                 self._process_tool_call(thread_id, timestamp, fn.name, args, input_metadata)
             else:
@@ -215,7 +214,7 @@ def gemini_test():
 
     # Mock event callback
     def event_callback(model, message:BotOsOutputMessage):
-        print(f"Event callback triggered with model: {model} and message: {message.output}")
+        logger.info(f"Event callback triggered with model: {model} and message: {message.output}")
 
     # Create an instance of the class (assuming the class name is BotOsGemini)
     bot = BotOsAssistantGemini(name="test_gemini", instructions="you are a Genesis AI agent",

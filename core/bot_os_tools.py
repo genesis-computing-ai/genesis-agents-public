@@ -83,7 +83,8 @@ from core.bot_os_tool_descriptions import (
 )
 from core.bot_os_llm import BotLlmEngineEnum
 
-logger = logging.getLogger(__name__)
+from core.logging_config import setup_logger
+logger = setup_logger(__name__)
 
 genesis_source = os.getenv("GENESIS_SOURCE", default="Snowflake")
 
@@ -114,7 +115,7 @@ class ToolBelt:
         self.include_code = False
 
         self.sys_default_email = self.get_sys_email()
-   #     print(belts)
+   #     logger.info(belts)
 
     # Function to make HTTP request and get the entire content
     def get_webpage_content(self, url):
@@ -137,7 +138,7 @@ class ToolBelt:
         chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
 
         current_file_path = os.path.abspath(__file__)
-        print(current_file_path)
+        logger.info(current_file_path)
 
         service = Service('../../chromedriver')
         # driver = webdriver.Chrome(service=service, options=chrome_options)
@@ -149,11 +150,11 @@ class ToolBelt:
                 EC.presence_of_element_located((By.TAG_NAME, 'body'))
             )
         except Exception as e:
-            print("Error: ", e)
+            logger.info("Error: ", e)
             driver.quit()
 
         data = driver.page_source #find_element(By.XPATH, '//*[@id="data-id"]').text
-        print(f"Data scraped from {url}: \n{data}\n")
+        logger.info(f"Data scraped from {url}: \n{data}\n")
         return data
 
     # Function for parsing HTML content, extracting links, and then chunking the beautified content
@@ -228,12 +229,12 @@ class ToolBelt:
         if model == 'openai':
                     api_key = os.getenv("OPENAI_API_KEY")
                     if not api_key:
-                        print("OpenAI API key is not set in the environment variables.")
+                        logger.info("OpenAI API key is not set in the environment variables.")
                         return None
 
                     openai_model = os.getenv("OPENAI_MODEL_SUPERVISOR",os.getenv("OPENAI_MODEL_NAME","gpt-4o"))
 
-                    print('process supervisor using model: ', openai_model)
+                    logger.info('process supervisor using model: ', openai_model)
                     try:
                         client = get_openai_client()
                         response = client.chat.completions.create(
@@ -247,8 +248,8 @@ class ToolBelt:
                         )
                     except Exception as e:
                         if os.getenv("OPENAI_MODEL_SUPERVISOR", None) is not None:
-                            print(f"Error occurred while calling OpenAI API with supervisor model {openai_model}: {e}")
-                            print(f'Retrying with main model {os.getenv("OPENAI_MODEL_NAME","gpt-4o")}')
+                            logger.info(f"Error occurred while calling OpenAI API with supervisor model {openai_model}: {e}")
+                            logger.info(f'Retrying with main model {os.getenv("OPENAI_MODEL_NAME","gpt-4o")}')
                             openai_model = os.getenv("OPENAI_MODEL_NAME","gpt-4o")
                             response = client.chat.completions.create(
                                 model=openai_model,
@@ -260,13 +261,13 @@ class ToolBelt:
                                 ],
                             )
                         else:
-                            print(f"Error occurred while calling OpenAI API: {e}")
+                            logger.info(f"Error occurred while calling OpenAI API: {e}")
 
                     return_msg = response.choices[0].message.content
 
         elif model == 'cortex':
             if not db_adapter.check_cortex_available():
-                print("Cortex is not available.")
+                logger.info("Cortex is not available.")
                 return None
             else:
                 response, status_code = db_adapter.cortex_chat_completion(message)
@@ -274,7 +275,7 @@ class ToolBelt:
 
         if return_msg is None:
             return_msg = 'Error Chat_completion, return_msg is none, llm_type = ',os.getenv("BOT_OS_DEFAULT_LLM_ENGINE").lower()
-            print(return_msg)
+            logger.info(return_msg)
 
         self.write_message_log_row(db_adapter, bot_id, bot_name, thread_id, 'Supervisor Response', return_msg, message_metadata)
 
@@ -298,7 +299,7 @@ class ToolBelt:
             INSERT INTO {db_adapter.schema}.MESSAGE_LOG (timestamp, bot_id, bot_name, thread_id, message_type, message_payload, message_metadata)
             VALUES (%s, %s, %s, %s, %s, %s, %s)
         """
-        # print(f"Writing message log row: {timestamp}, {bot_id}, {bot_name}, {thread_id}, {message_type}, {message_payload}, {message_metadata}")
+        # logger.info(f"Writing message log row: {timestamp}, {bot_id}, {bot_name}, {thread_id}, {message_type}, {message_payload}, {message_metadata}")
         values = (timestamp, bot_id, bot_name, thread_id, message_type, message_payload, json.dumps(message_metadata))
 
         try:
@@ -306,7 +307,7 @@ class ToolBelt:
             cursor.execute(query, values)
             db_adapter.connection.commit()
         except Exception as e:
-            print(f"Error writing message log row: {e}")
+            logger.info(f"Error writing message log row: {e}")
             db_adapter.connection.rollback()
         finally:
             cursor.close()
@@ -464,7 +465,7 @@ class ToolBelt:
                         external_url = art_store.get_signed_url_for_artifact(uuid)
                     except Exception as e:
                         # if we failed, leave this URL as-is. It will likely be a broken URL but in an obvious way.
-                        print(f"ERROR externalizing URL for artifact {uuid} in email. Leaving as-is. Error = {e}")
+                        logger.info(f"ERROR externalizing URL for artifact {uuid} in email. Leaving as-is. Error = {e}")
                     else:
                         txt = txt.replace(full_match, external_url)
                     artifact_ids.append(uuid)
@@ -736,7 +737,7 @@ class ToolBelt:
             default_email = result[0][0] if result else None
             return default_email
         except Exception as e:
-         #  print(f"Error getting sys email: {e}")
+         #  logger.info(f"Error getting sys email: {e}")
             return None
 
     def clear_process_registers_by_thread(self, thread_id):
@@ -785,7 +786,7 @@ class ToolBelt:
         concise_mode=False,
         bot_name=None
     ):
-      #  print(f"Running processes Action: {action} | process_id: {process_id or 'None'} | Thread ID: {thread_id or 'None'}")
+      #  logger.info(f"Running processes Action: {action} | process_id: {process_id or 'None'} | Thread ID: {thread_id or 'None'}")
         self.recurse_level = 0
         self.recurse_stack = {thread_id: thread_id, process_id: process_id}
 
@@ -865,7 +866,7 @@ class ToolBelt:
             process['PROCESS_CONFIG'] = "None"
 
         if action == "KICKOFF_PROCESS":
-            print("Kickoff process.")
+            logger.info("Kickoff process.")
 
             with self.lock:
                 self.counter[thread_id][process_id] = 1
@@ -880,7 +881,7 @@ class ToolBelt:
                 self.process_id[thread_id] = process_id
 
 
-            print(
+            logger.info(
                 f"Process {process_name} has been kicked off."
             )
 
@@ -982,12 +983,12 @@ class ToolBelt:
 
             # Call set_process_cache to save the current state
             self.set_process_cache(bot_id, thread_id, process_id)
-        #    print(f'Process cached with bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}')
+        #    logger.info(f'Process cached with bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}')
 
             return {"Success": True, "Instructions": self.instructions[thread_id][process_id], "process_id": process_id}
 
         elif action == "GET_NEXT_STEP":
-            print("Entered GET NEXT STEP")
+            logger.info("Entered GET NEXT STEP")
 
             if thread_id not in self.counter and process_id not in self.counter[thread_id]:
                 return {
@@ -1002,7 +1003,7 @@ class ToolBelt:
                     "Message": f"Error: Process cache for {process_id} couldn't be loaded. Please retry from KICKOFF_PROCESS."
                 }
             # Print that the process cache has been loaded and the 3 params to get_process_cache
-            print(f"Process cache loaded with params: bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}")
+            logger.info(f"Process cache loaded with params: bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}")
 
             # Check if silent_mode is set for the thread and process
             verbose = True
@@ -1079,7 +1080,7 @@ class ToolBelt:
                     {previous_response}
                     """
 
-       #     print(f"\nSENT TO 2nd LLM:\n{check_response}\n")
+       #     logger.info(f"\nSENT TO 2nd LLM:\n{check_response}\n")
 
             result = self.chat_completion(check_response, self.db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, process_id=process_id, process_name = process_name)
 
@@ -1088,16 +1089,16 @@ class ToolBelt:
 
             if not isinstance(result, str):
                 self.set_process_cache(bot_id, thread_id, process_id)
-       #         print(f'Process cached with bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}')
+       #         logger.info(f'Process cached with bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}')
 
                 return {
                     "success": False,
                     "message": "Process failed: The checking function didn't return a string."
                 }
 
-           # print("RUN 2nd LLM...")
+           # logger.info("RUN 2nd LLM...")
 
-    #        print(f"\nRESULT FROM 2nd LLM: {result}\n")
+    #        logger.info(f"\nRESULT FROM 2nd LLM: {result}\n")
 
             if "**fail**" in result.lower():
                 with self.lock:
@@ -1105,9 +1106,9 @@ class ToolBelt:
                     self.fail_count[thread_id][process_id] += 1
                     self.process_history[thread_id][process_id] += "\nSupervisors concern: " + result
                 if self.fail_count[thread_id][process_id] <= 5:
-                    print(f"\nStep {self.counter[thread_id][process_id]} failed. Fail count={self.fail_count[thread_id][process_id]} Trying again up to 5 times...\n")
+                    logger.info(f"\nStep {self.counter[thread_id][process_id]} failed. Fail count={self.fail_count[thread_id][process_id]} Trying again up to 5 times...\n")
                     self.set_process_cache(bot_id, thread_id, process_id)
-             #       print(f'Process cached with bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}')
+             #       logger.info(f'Process cached with bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}')
 
                     return_dict = {
                         "success": False,
@@ -1123,7 +1124,7 @@ class ToolBelt:
                     return return_dict
 
                 else:
-                    print(f"\nStep {self.counter[thread_id][process_id]} failed. Fail count={self.fail_count[thread_id][process_id]} > 5 failures on this step, stopping process...\n")
+                    logger.info(f"\nStep {self.counter[thread_id][process_id]} failed. Fail count={self.fail_count[thread_id][process_id]} > 5 failures on this step, stopping process...\n")
 
                     with self.lock:
                         self.done[thread_id][process_id] = True
@@ -1132,7 +1133,7 @@ class ToolBelt:
                         del self.counter[thread_id][process_id]
                     except:
                         pass
-                    print(f'Process cache cleared for bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}')
+                    logger.info(f'Process cache cleared for bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}')
 
                     return {"success": "False", "message": f'The process {process_name} has failed due to > 5 repeated step completion failures.  Do not start this process again without user approval.'}
 
@@ -1140,7 +1141,7 @@ class ToolBelt:
             with self.lock:
                 self.last_fail[thread_id][process_id] = None
                 self.fail_count[thread_id][process_id] = 0
-      #          print(f"\nThis step passed.  Moving to next step\n")
+      #          logger.info(f"\nThis step passed.  Moving to next step\n")
                 self.counter[thread_id][process_id] += 1
 
             extract_instructions = f"""
@@ -1169,12 +1170,12 @@ class ToolBelt:
             {process['PROCESS_INSTRUCTIONS']}
             """
 
-       #     print(f"\nEXTRACT NEXT STEP:\n{extract_instructions}\n")
+       #     logger.info(f"\nEXTRACT NEXT STEP:\n{extract_instructions}\n")
 
-       #     print("RUN 2nd LLM...")
+       #     logger.info("RUN 2nd LLM...")
             next_step = self.chat_completion(extract_instructions, self.db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, process_id=process_id, process_name=process_name)
 
-      #      print(f"\nRESULT (NEXT_STEP_): {next_step}\n")
+      #      logger.info(f"\nRESULT (NEXT_STEP_): {next_step}\n")
 
             if next_step == '**done**' or next_step == '***done***' or next_step.strip().endswith('**done**'):
                 with self.lock:
@@ -1183,7 +1184,7 @@ class ToolBelt:
                     self.done[thread_id][process_id] = True
                 # Clear the process cache when the process is complete
                 self.clear_process_cache(bot_id, thread_id, process_id)
-                print(f'Process cache cleared for bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}')
+                logger.info(f'Process cache cleared for bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}')
 
                 return {
                     "success": True,
@@ -1193,7 +1194,7 @@ class ToolBelt:
                     "reminder": f"If you were running this as a subprocess inside another process, be sure to continue the parent process."
                 }
 
-    #        print(f"\n{next_step}\n")
+    #        logger.info(f"\n{next_step}\n")
 
             with self.lock:
                 if ">> RECURSE" in next_step or ">>RECURSE" in next_step:
@@ -1212,7 +1213,7 @@ class ToolBelt:
                     After the nested process completes, continue with the next step of this process.
                     """
 
-                    print(f"RECURSE found.  Running process {process_to_run} on level {self.recurse_level}")
+                    logger.info(f"RECURSE found.  Running process {process_to_run} on level {self.recurse_level}")
 
                     return {
                         "success": True,
@@ -1248,13 +1249,13 @@ class ToolBelt:
                 In your response back to run_process, provide a detailed description of what you did, what result you achieved, and why you believe this to have successfully completed the step.
                 """
 
-       #     print(f"\nEXTRACTED NEXT STEP: \n{self.instructions[thread_id][process_id]}\n")
+       #     logger.info(f"\nEXTRACTED NEXT STEP: \n{self.instructions[thread_id][process_id]}\n")
 
             with self.lock:
                 self.process_history[thread_id][process_id] += "\nNext step: " + next_step
 
             self.set_process_cache(bot_id, thread_id, process_id)
-            print(f'Process cached with bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}')
+            logger.info(f'Process cached with bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}')
 
             return {
                 "success": True,
@@ -1262,7 +1263,7 @@ class ToolBelt:
             }
 
         elif action == "END_PROCESS":
-            print(f"Received END_PROCESS action for process {process_name} on level {self.recurse_level}")
+            logger.info(f"Received END_PROCESS action for process {process_name} on level {self.recurse_level}")
 
             with self.lock:
                 self.done[thread_id][process_id] = True
@@ -1272,10 +1273,10 @@ class ToolBelt:
             self.process_id[thread_id] = None
 
             self.clear_process_cache(bot_id, thread_id, process_id)
-            print(f'Process cache cleared for bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}')
+            logger.info(f'Process cache cleared for bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}')
 
             self.recurse_level -= 1
-            print(f"Returning to recursion level {self.recurse_level}")
+            logger.info(f"Returning to recursion level {self.recurse_level}")
 
             return {"success": True, "message": f'The process {process_name} has finished.  You may now end the process.'}
         if action == 'STOP_ALL_PROCESSES':
@@ -1291,7 +1292,7 @@ class ToolBelt:
                     "Error": f"Failed to stop all processes: {e}"
                 }
         else:
-            print("No action specified.")
+            logger.info("No action specified.")
             return {"success": False, "message": "No action specified."}
 
     # ====== RUN PROCESSES ==========================================================================================
@@ -1527,11 +1528,11 @@ class ToolBelt:
             return {"Success": False, "Error": "Invalid action specified. Should be CREATE, DELETE, UPDATE, LIST, or SHOW."}
 
         if action == "LIST":
-            print("Running get notebook list")
+            logger.info("Running get notebook list")
             return self.get_notebook_list(bot_id if bot_id is not None else "all")
 
         if action == "SHOW":
-            print("Running show notebook info")
+            logger.info("Running show notebook info")
             if bot_id is None:
                 return {"Success": False, "Error": "bot_id is required for SHOW action"}
             if note_id is None:
@@ -1709,11 +1710,11 @@ class ToolBelt:
             )
             db_adapter.client.commit()
             cursor.close()
-            print(
+            logger.info(
                 f"Notebook history row inserted successfully for note_id: {note_id}"
             )
         except Exception as e:
-            print(f"An error occurred while inserting the notebook history row: {e}")
+            logger.info(f"An error occurred while inserting the notebook history row: {e}")
             if cursor is not None:
                 cursor.close()
 
@@ -1782,7 +1783,7 @@ class ToolBelt:
             dict: A dictionary with the result of the operation.
         """
 
-    #    print("Reached process scheduler")
+    #    logger.info("Reached process scheduler")
 
         if task_details and 'process_name' in task_details and 'task_name' not in task_details:
             task_details['task_name'] = task_details['process_name']
@@ -2301,11 +2302,11 @@ class ToolBelt:
             return {"Success": False, "Error": "Invalid action specified. Should be CREATE, DELETE, UPDATE, LIST, or SHOW."}
 
         if action == "LIST":
-            print("Running get processes list")
+            logger.info("Running get processes list")
             return self.get_processes_list(bot_id if bot_id is not None else "all")
 
         if action == "SHOW":
-            print("Running show process info")
+            logger.info("Running show process info")
             if bot_id is None:
                 return {"Success": False, "Error": "bot_id is required for SHOW action"}
             if process_id is None:
@@ -2541,11 +2542,11 @@ class ToolBelt:
             )
             db_adapter.client.commit()
             cursor.close()
-            print(
+            logger.info(
                 f"Process history row inserted successfully for process_id: {process_id}"
             )
         except Exception as e:
-            print(f"An error occurred while inserting the process history row: {e}")
+            logger.info(f"An error occurred while inserting the process history row: {e}")
             if cursor is not None:
                 cursor.close()
 
@@ -2618,7 +2619,7 @@ def get_tools(which_tools, db_adapter, slack_adapter_local=None, include_slack=T
             available_functions_load.update(image_tools)
             function_to_tool_map[tool_name] = image_functions
         elif tool_name == "snowflake_semantic_tools":
-            print('Note: Semantic Tools are currently disabled pending refactoring or removal.')
+            logger.info('Note: Semantic Tools are currently disabled pending refactoring or removal.')
             tools.extend(snowflake_semantic_functions)
             available_functions_load.update(snowflake_semantic_tools)
             function_to_tool_map[tool_name] = snowflake_semantic_functions
@@ -2677,23 +2678,23 @@ def get_tools(which_tools, db_adapter, slack_adapter_local=None, include_slack=T
                     func = getattr(module, func_name)
                 except:
                     func = module
-                # print("existing local: ",func)
+                # logger.info("existing local: ",func)
             elif module_path in globals():
                 module = globals()[module_path]
                 try:
                     func = getattr(module, func_name)
                 except:
                     func = module
-                # print("existing global: ",func)
+                # logger.info("existing global: ",func)
             else:
                 module = __import__(module_path, fromlist=[func_name])
                 func = getattr(module, func_name)
-                # print("imported: ",func)
+                # logger.info("imported: ",func)
             available_functions[name] = func
     # Insert additional code here if needed
 
     return tools, available_functions, function_to_tool_map
-    # print("imported: ",func)
+    # logger.info("imported: ",func)
 
 
 class BotOsDispatchInputAdapter(BotOsInputAdapter):
@@ -2764,7 +2765,7 @@ def dispatch_to_bots(task_template, args_array, dispatch_bot_id=None):
     while True:
         responses = adapter.check_tasks()
         if responses:
-            print(f"dispatch_to_bots - {responses}")
+            logger.info(f"dispatch_to_bots - {responses}")
             return responses
         time.sleep(1)
 
@@ -2824,7 +2825,7 @@ def make_session_for_dispatch(bot_config):
         db_adapter = SnowflakeConnector(connection_name="Snowflake")
         connection_info = {"Connection_Type": "Snowflake"}
 
-    print("---> CONNECTED TO DATABASE: ", genesis_source)
+    logger.info("---> CONNECTED TO DATABASE: ", genesis_source)
     tools, available_functions, function_to_tool_map = get_tools(
         bot_tools, db_adapter, include_slack=False
     )  # FixMe remove slack adapter if
@@ -2832,7 +2833,7 @@ def make_session_for_dispatch(bot_config):
     instructions = (
         bot_config["bot_instructions"] + "\n" + BASE_BOT_INSTRUCTIONS_ADDENDUM
     )
-    print(instructions, f'{bot_config["bot_name"]}, id: {bot_config["bot_id"]}')
+    logger.info(instructions, f'{bot_config["bot_name"]}, id: {bot_config["bot_id"]}')
 
     # TESTING UDF ADAPTER W/EVE and ELSA
     # add a map here to track botid to adapter mapping

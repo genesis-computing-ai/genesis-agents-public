@@ -1,5 +1,7 @@
 from annoy import AnnoyIndex
 import csv, json
+from core.logging_config import setup_logger
+logger = setup_logger(__name__)
 
 def load_embeddings_from_csv(csv_file_path):
     embeddings = []
@@ -18,7 +20,7 @@ def create_annoy_index(embeddings, n_trees=10):
     dimension = len(embeddings[0])  # tAssuming all embeddings have the same dimension
     index = AnnoyIndex(dimension, 'angular')  # Using angular distance
     for i, embedding in enumerate(embeddings):
-        print("indexing #", i)
+        logger.info("indexing #", i)
         index.add_item(i, embedding)
     index.build(n_trees)
     return index
@@ -26,7 +28,7 @@ def create_annoy_index(embeddings, n_trees=10):
 csv_file_path = './tmp/embedding_out_full.csv'  # Adjust if necessary
 embeddings, filenames = load_embeddings_from_csv(csv_file_path)
 
-print("indexing ",len(embeddings)," embeddings...")
+logger.info("indexing ",len(embeddings)," embeddings...")
 
 # Create the Annoy index
 annoy_index = create_annoy_index(embeddings)
@@ -38,5 +40,5 @@ annoy_index.save(index_file_path)
 with open('./tmp/mappings_full.json', 'w') as f:
     json.dump(filenames, f)
 
-print(f"Annoy index saved to {index_file_path}")
+logger.info(f"Annoy index saved to {index_file_path}")
 

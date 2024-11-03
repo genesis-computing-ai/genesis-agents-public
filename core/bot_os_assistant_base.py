@@ -1,14 +1,13 @@
 from abc import abstractmethod
 from collections import deque
 import json
-import logging
 import sys
 from multiprocessing import Process
 from core.bot_os_input import BotOsInputMessage, BotOsOutputMessage
 import dill
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.WARN)
+from core.logging_config import setup_logger
+logger = setup_logger(__name__)
 
 
 class BotOsAssistantInterface:
@@ -79,7 +78,7 @@ def execute_function_blocking(
             #   return(str(results))
             return results
         except Exception as e:
-            print(f"Error: {str(e)}")
+            logger.info(f"Error: {str(e)}")
             return f"caught exception {str(e)} trying to run {func_name}"
     else:
         return f"Error function {func_name} does not exist"
@@ -108,7 +107,7 @@ def create_func_wrapper(function, func_name):
 
     def run_task_with_exception_handling(args):
         try:
-            print(f"\nCREATE_FUNCTION_WRAPPER: function type = {type(function)}\n", flush=True)
+            logger.info(f"\nCREATE_FUNCTION_WRAPPER: function type = {type(function)}\n")
             function_serialized = dill.dumps(function)
             p = Process(
                 target=fork_function_call,
@@ -142,10 +141,10 @@ def execute_function(
     thread_id: str,
     bot_id: str,
 ):
-    print(f"fn execute_function - {func_name}")
+    logger.info(f"fn execute_function - {func_name}")
     function = available_functions.get(func_name, None)
     if function is None:
-        print(f"fn execute_function - _{func_name} (trying with added underscore)")
+        logger.info(f"fn execute_function - _{func_name} (trying with added underscore)")
         function = available_functions.get('_'+func_name, None)
         if function is not None:
             func_name = '_' + func_name

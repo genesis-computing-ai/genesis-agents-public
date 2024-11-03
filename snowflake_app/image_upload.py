@@ -4,6 +4,8 @@ import io
 import os
 import sys
 import base64
+from core.logging_config import setup_logger
+logger = setup_logger(__name__)
 
 # simple script to upload image files to a table
 
@@ -32,10 +34,10 @@ def create_schema_and_table(conn):
                 image_desc STRING
             );
         """)
-        print("Schema and table created successfully")
+        logger.info("Schema and table created successfully")
         cursor.close()
     except Exception as e:
-        print("Error creating schema and table: ", e)
+        logger.info("Error creating schema and table: ", e)
 
 
 # Function to insert image into Snowflake
@@ -63,11 +65,11 @@ def insert_image(image_name, image_path, bot_name, conn):
         """, (image_name, bot_name, binary_data, encoded_data, image_desc))
         conn.commit()
 
-        print(f"inserted {image_name}")
+        logger.info(f"inserted {image_name}")
         # Close cursor and connection
         cursor.close()
     except Exception as e:
-        print("error insert: ",e)
+        logger.info("error insert: ",e)
 
 
 # insert_image(sys.argv[1], sys.argv[2], sys.argv[3], conn)

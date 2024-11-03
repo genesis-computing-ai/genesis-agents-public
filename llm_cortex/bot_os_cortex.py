@@ -19,11 +19,12 @@ from openai import OpenAI
 from connectors.snowflake_connector.snowflake_connector import SnowflakeConnector
 from core.bot_os_assistant_base import BotOsAssistantInterface, execute_function
 
-import logging
+from core.logging_config import setup_logger
+logger = setup_logger(__name__)
 
 from core.bot_os_input import BotOsInputMessage, BotOsOutputMessage
 from llm_openai.openai_utils import get_openai_client
-logger = logging.getLogger(__name__)
+
 
 class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
 
@@ -99,7 +100,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                 process_flag = last_message['process_flag'] == "TRUE"
         
         if process_flag:
-            print(f"Process flag is set to TRUE for thread {thread_id}, will use Smart model")
+            logger.info(f"Process flag is set to TRUE for thread {thread_id}, will use Smart model")
 
         resp = ''
         curr_resp = ''
@@ -148,7 +149,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                                                                         input_metadata=json.loads(message_metadata)))
             return None 
 
-        print(self.bot_name, f"bot_os_cortex calling cortex {self.llm_engine} via SQL, content est tok len=",len(new_array_str)/4, flush=True)
+        logger.info(self.bot_name, f"bot_os_cortex calling cortex {self.llm_engine} via SQL, content est tok len=",len(new_array_str)/4)
 
         context_limit = 128000 * 4 #32000 * 4
         cortex_query = f"""
@@ -166,7 +167,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             result = cursor.fetchone()
             completion = result[0] if result else None
 
-            print(f"{completion} ({elapsed_time:.2f} seconds)")
+            logger.info(f"{completion} ({elapsed_time:.2f} seconds)")
             resp = completion
             curr_resp = completion
 
@@ -182,7 +183,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             return(curr_resp)
 
         except Exception as e:
-            print('query error: ',e)
+            logger.info('query error: ',e)
             self.client.connection.rollback()
  
     def fix_tool_calls(self, resp):
@@ -277,7 +278,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                 process_flag = last_message['process_flag'] == "TRUE"
         
         if process_flag == True and fast_mode == True:
-#            print(f"Process flag is set to TRUE for thread {thread_id}, forcing Smart model instead of Fast Mode")
+#            logger.info(f"Process flag is set to TRUE for thread {thread_id}, forcing Smart model instead of Fast Mode")
             fast_mode = False
 
         resp = ''
@@ -363,12 +364,12 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                 if os.getenv("BOT_OS_DEFAULT_LLM_ENGINE",'').lower() == 'openai':
                     api_key = os.getenv("OPENAI_API_KEY")
                     if not api_key:
-                        print("OpenAI API key is not set in the environment variables.")
+                        logger.info("OpenAI API key is not set in the environment variables.")
                         return None
 
                     openai_model = os.getenv("OPENAI_O1_OVERRIDE_MODEL",os.getenv("OPENAI_MODEL_NAME","gpt-4o"))
                     newarray[0]['role'] = 'user'
-                    print(f'**** OpenaAI o1 override for bot {self.bot_id} using model: {openai_model}')
+                    logger.info(f'**** OpenaAI o1 override for bot {self.bot_id} using model: {openai_model}')
                     try:
                         client = get_openai_client()
                         response = client.chat.completions.create(
@@ -376,7 +377,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                             messages=newarray,
                         )
                     except Exception as e:
-                        print(f"Error occurred while calling OpenAI API with snowpark escallation model {openai_model}: {e}")
+                        logger.info(f"Error occurred while calling OpenAI API with snowpark escallation model {openai_model}: {e}")
                         return None
                     
                     resp = self.thread_full_response.get(thread_id,None)
@@ -421,7 +422,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                     "stop": '</function>',
                 }
 
-                print(self.bot_name, f" bot_os_cortex calling cortex {model} via REST API, content est tok len=",len(str(newarray))/4, flush=True)
+                logger.info(self.bot_name, f" bot_os_cortex calling cortex {model} via REST API, content est tok len=",len(str(newarray))/4)
 
                 start_time = time.time()
 
@@ -439,7 +440,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                     # Dump the entire response object to a string
                     response_string = str(vars(response))
                     msg += f"\nFull response dump:\n{response_string}"
-                    print(f"Cortex Error: {msg}", flush=True)
+                    logger.info(f"Cortex Error: {msg}")
                     self.thread_history[thread_id] = [message for message in self.thread_history[thread_id] if not (message.get("role","") == "user" and message == last_user_message)]
                     if True or BotOsAssistantSnowflakeCortex.stream_mode == True:
                         if self.event_callback:
@@ -464,7 +465,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                                 if 'curr_resp' not in locals():
                                     curr_resp = ''
                                 resp += ' `stopped`'
-                                print('cortex thread stopped by user request')
+                                logger.info('cortex thread stopped by user request')
                                 gen_start_time = time.time()
                                 break
                             if isinstance(stop_timestamp, datetime.datetime) and (time.time() - stop_timestamp.timestamp()) > 30:
@@ -475,7 +476,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                             try:
                                 decoded_line = line.decode('utf-8')
                                 if not decoded_line.strip():
-                                    print("Received an empty line.")
+                                    logger.info("Received an empty line.")
                                     continue
                                 if decoded_line.startswith("data: "):
                                     decoded_line = decoded_line[len("data: "):]
@@ -530,13 +531,13 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                                     break
                                 
                             except json.JSONDecodeError as e:
-                                print(f"Error decoding JSON: {e}")
+                                logger.info(f"Error decoding JSON: {e}")
                                 continue
                             
                 if gen_start_time is not None:
                     elapsed_time = time.time() - start_time
                     gen_time = time.time() - gen_start_time
-                #  print(f"\nRequest to Cortex REST API completed in {elapsed_time:.2f} seconds total, {gen_time:.2f} seconds generating, time to gen start: {gen_start_time - start_time:.2f} seconds")
+                #  logger.info(f"\nRequest to Cortex REST API completed in {elapsed_time:.2f} seconds total, {gen_time:.2f} seconds generating, time to gen start: {gen_start_time - start_time:.2f} seconds")
 
         else:
             try:
@@ -547,10 +548,10 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                 curr_resp = resp 
 
         try:
-         #   print(json.dumps(usage))
+         #   logger.info(json.dumps(usage))
             response_tokens = usage['completion_tokens']
             tokens_per_second_gen = response_tokens / gen_time
-            print(f"Cortex {model} warmup: {gen_start_time - start_time:.2f} sec, tok/sec: {tokens_per_second_gen:.2f}")
+            logger.info(f"Cortex {model} warmup: {gen_start_time - start_time:.2f} sec, tok/sec: {tokens_per_second_gen:.2f}")
         except:
             pass
 
@@ -643,7 +644,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                                                                     messages=None, 
                                                                     input_metadata=json.loads(message_metadata)))
         try:
-            print(f"Cortex response: ", json.loads(response.content)["usage"])
+            logger.info(f"Cortex response: ", json.loads(response.content)["usage"])
         except:
             pass
 
@@ -739,7 +740,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                         os.makedirs(os.path.dirname(target_path), exist_ok=True)
                         # Copy the file to the target path
                         shutil.copy2(file, target_path)
-                        print(f"File copied from {file} to {target_path}")
+                        logger.info(f"File copied from {file} to {target_path}")
                     input_message.msg += f"\n<FILE: Note that the user attached a file {file_name}. It's stored on the server. If you need to use it, add it to stage and use snowpark to read it>"
                 else:
                     input_message.msg += f"\n<FILE_NOT_FOUND: Note that the user attached a file {file} but it was not found on the server>"
@@ -751,8 +752,8 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
               #  self.thread_fast_mode_map[thread_id] = False
                 #self.llm_engine = os.getenv("CORTEX_FAST_MODEL_NAME")
                 if os.getenv("CORTEX_MODEL",False) and os.getenv("CORTEX_FAST_MODEL_NAME",False) and os.getenv("CORTEX_MODEL") != os.getenv("CORTEX_FAST_MODEL_NAME"):
-                    print('cortex fast mode = false (set by default for a new slack-based thread)')               
-                 #  print(f'Switching from {os.getenv("CORTEX_MODEL")} to {os.getenv("CORTEX_FAST_MODEL_NAME")}')
+                    logger.info('cortex fast mode = false (set by default for a new slack-based thread)')               
+                 #  logger.info(f'Switching from {os.getenv("CORTEX_MODEL")} to {os.getenv("CORTEX_FAST_MODEL_NAME")}')
             #        input_message.msg  += ' [NOTE: Also in your response YOU MUST mention in passing that fast mode is active and remind me that I can send !fast off to switch to smart mode.]'
             # Check if channel is in input_message.metadata
             if input_message.metadata and 'channel' in input_message.metadata:
@@ -771,7 +772,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                 message_payload = '!NO_RESPONSE_REQUIRED'
 
         if thread_id in self.thread_busy_list:
-            print('Cortex thread busy but putting message anyway')
+            logger.info('Cortex thread busy but putting message anyway')
         else:
             if thread_id in self.thread_tool_call_counter:
                 del self.thread_tool_call_counter[thread_id]
@@ -780,7 +781,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             
 
 #            if not(message_payload.endswith(') says: !stop') or message_payload =='!stop'):
-#                print('bot_os_cortex add_message thread is busy, returning new message to queue')
+#                logger.info('bot_os_cortex add_message thread is busy, returning new message to queue')
 #                return False
         
         message_type = 'user'
@@ -839,16 +840,16 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         thread_id = thread_to_check["thread_id"]
         timestamp = thread_to_check["timestamp"]
         if thread_id in self.thread_busy_list:
-            print(f"BotOsAssistantSnowflakeCortex:check_runs - skipping thread {thread_to_check['thread_id']} as its busy in another run")
+            logger.info(f"BotOsAssistantSnowflakeCortex:check_runs - skipping thread {thread_to_check['thread_id']} as its busy in another run")
             return
         output = None
         if True:
             if thread_id not in self.thread_busy_list:
                 self.thread_busy_list.append(thread_id)
             else:
-                print(f"BotOsAssistantSnowflakeCortex:check_runs - skipping thread {thread_to_check['thread_id']} as its busy in another run")
+                logger.info(f"BotOsAssistantSnowflakeCortex:check_runs - skipping thread {thread_to_check['thread_id']} as its busy in another run")
                 return
-            print(f"BotOsAssistantSnowflakeCortex:check_runs - running now, thread {thread_id} ts {timestamp} ")
+            logger.info(f"BotOsAssistantSnowflakeCortex:check_runs - running now, thread {thread_id} ts {timestamp} ")
 
             thread = self.thread_history.get(thread_id, [])
             user_message = next((msg for msg in thread if (msg.get("message_type") == "user" or msg.get("message_type") == "ipython") and msg.get("timestamp") == timestamp.isoformat()), None)
@@ -856,9 +857,9 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             assistant_message = next((msg for msg in reversed(thread) if msg.get("message_type") == "assistant" and msg.get("timestamp") == timestamp.isoformat()), None)
             if assistant_message:
                 message_payload = assistant_message.get("content")
-              #  print(f"Assistant message found: {message_payload}")
+              #  logger.info(f"Assistant message found: {message_payload}")
             else:
-                print("No assistant message found in the thread with the specified timestamp.")
+                logger.info("No assistant message found in the thread with the specified timestamp.")
                 message_payload = None
             if user_message:
                 message_metadata = user_message.get('metadata')
@@ -881,7 +882,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
 
                     # handle this pattern: <function>_manage_processes</function>{"action": "LIST", "bot_id": "MrsEliza-3348b2"} (
 
-         #           print(f"Response for Thread ID {thread_id}, {timestamp}: {message_payload}")
+         #           logger.info(f"Response for Thread ID {thread_id}, {timestamp}: {message_payload}")
                     decoded_payload = html.unescape(message_payload)
 
                     # fix tool calls with a missing / in the close block
@@ -937,7 +938,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                     #self.active_runs.append(thread_to_check)
               #  logger.warn("BotOsAssistantSnowflakeCortex:check_runs - run complete")
             except Exception as e:
-                print(f"Error retrieving Assistant Response for Thread ID {thread_id} and model {self.llm_engine}: {e}")
+                logger.info(f"Error retrieving Assistant Response for Thread ID {thread_id} and model {self.llm_engine}: {e}")
 
         message_metadata_json = json.loads(message_metadata)
         primary_user = json.dumps({'user_id': message_metadata_json.get('user_id', 'Unknown User ID'), 
@@ -973,22 +974,22 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
 
         # Check if the counter is > 8
         if self.thread_tool_call_counter[thread_id] > 22:
-            print("bot_os_cortex runaway_error_22")
+            logger.info("bot_os_cortex runaway_error_22")
             return
         if self.thread_tool_call_counter_failsafe[thread_id] > 102:
-            print("bot_os_cortex runaway_error_102")
+            logger.info("bot_os_cortex runaway_error_102")
             return
 
         if self.thread_tool_call_counter[thread_id] > 20:
             error_message = "Error: more than 20 successive tool calls have occurred on this thread. The user needs to send a new message before any more tool calls will be processed."
             cb_closure = self._generate_callback_closure(thread_id, timestamp, message_metadata)
-            print("bot_os_cortex runaway_error_20 ",error_message)
+            logger.info("bot_os_cortex runaway_error_20 ",error_message)
             cb_closure(error_message)
             return
         if self.thread_tool_call_counter_failsafe[thread_id] > 100:
             error_message = "Error: more than 100 successive tool calls have occurred on this thread during a process run without input from a user. The user needs to send a new message before any more tool calls will be processed.  This is a failsafe against looping or runaway processes."
             cb_closure = self._generate_callback_closure(thread_id, timestamp, message_metadata)
-            print("bot_os_cortex runaway_error_100 ",error_message)
+            logger.info("bot_os_cortex runaway_error_100 ",error_message)
             cb_closure(error_message)
             return
         
@@ -1056,8 +1057,8 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             arguments = arguments_json
             if 'arguments_str' not in locals():
                 arguments_str = json.dumps(arguments)
-            print(f"Function to call: {function_to_call}")
-            print(f"Argument keys: {', '.join(arguments.keys())}", flush=True)
+            logger.info(f"Function to call: {function_to_call}")
+            logger.info(f"Argument keys: {', '.join(arguments.keys())}")
             meta = json.loads(message_metadata)
             primary_user = json.dumps({'user_id': meta.get('user_id', 'Unknown User ID'), 
                                     'user_name': meta.get('user_name', 'Unknown User'),
@@ -1070,7 +1071,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                                                         primary_user=primary_user)
             execute_function(function_to_call, json.dumps(arguments), self.available_functions, cb_closure, thread_id, self.bot_id)
         except json.JSONDecodeError as e:
-            print(f"Failed to decode tool call JSON: {e}")
+            logger.info(f"Failed to decode tool call JSON: {e}")
             cb_closure = self._generate_callback_closure(thread_id, timestamp, message_metadata)
             cb_closure(f"Failed to decode tool call JSON {tool_call_str}: {e}.  Did you make sure to escape any double quotes that are inside another")
         except Exception as e:
@@ -1163,11 +1164,11 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
 
         if isinstance(results_json, str) and results_json.strip() == "Error, your query was cut off.  Query must be complete and end with a semicolon.  Include the full query text, with an ; on the end and RUN THIS TOOL AGAIN NOW! Also replace all ' (single quotes) in the query with <!Q!>":
             hightemp = 0.6
-            print('Cortex query cut off, calling update threads with Hightemp')
+            logger.info('Cortex query cut off, calling update threads with Hightemp')
         else:
             hightemp = None
         if thread_id in self.last_stop_time_map and timestamp < self.last_stop_time_map[thread_id]:
-            print('bot_os_cortex _submit_tool_outputs stop message received, not rerunning thread with outputs')
+            logger.info('bot_os_cortex _submit_tool_outputs stop message received, not rerunning thread with outputs')
             self.stop_result_map[thread_id] = 'stopped'
         else:
             self.update_threads(thread_id, new_ts, message_metadata=message_metadata, temperature=hightemp, fast_mode=fast_mode)

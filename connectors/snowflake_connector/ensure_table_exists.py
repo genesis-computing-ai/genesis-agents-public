@@ -18,11 +18,8 @@ from core.bot_os_defaults import (
     JANICE_INTRO_PROMPT
 )
 
-import logging
-logger = logging.getLogger(__name__)
-logging.basicConfig(
-    level=logging.WARN, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+from core.logging_config import setup_logger
+logger = setup_logger(__name__)
 
 def one_time_db_fixes(self):
     # Remove BOT_FUNCTIONS is it exists
@@ -33,7 +30,7 @@ def one_time_db_fixes(self):
     if cursor.fetchone():
         query = f"DROP TABLE {self.schema}.BOT_FUNCTIONS"
         cursor.execute(query)
-        print(f"Table {self.schema}.BOT_FUNCTIONS dropped.")
+        logger.info(f"Table {self.schema}.BOT_FUNCTIONS dropped.")
 
     # REMOVE BOT_NOTEBOOK if it exists
     bot_functions_table_check_query = f"SHOW TABLES LIKE 'BOT_NOTEBOOK' IN SCHEMA {self.schema};"
@@ -43,7 +40,7 @@ def one_time_db_fixes(self):
     if cursor.fetchone():
         query = f"DROP TABLE {self.schema}.BOT_NOTEBOOK"
         cursor.execute(query)
-        print(f"Table {self.schema}.BOT_NOTEBOOK renamed NOTEBOOK.")
+        logger.info(f"Table {self.schema}.BOT_NOTEBOOK renamed NOTEBOOK.")
 
     # Add manage_notebook_tool to existing bots
     bots_table_check_query = f"SHOW TABLES LIKE 'BOT_SERVICING' IN SCHEMA {self.schema};"
@@ -80,9 +77,9 @@ def one_time_db_fixes(self):
                 cursor.execute(update_query, (bot_name,))
 
         self.client.commit()
-        print("Added notebook_manager_tools to all existing bots.")
+        logger.info("Added notebook_manager_tools to all existing bots.")
     else:
-        print("BOTS table does not exist. Skipping tool addition.")
+        logger.info("BOTS table does not exist. Skipping tool addition.")
 
     cursor.close()
 
@@ -109,15 +106,15 @@ def ensure_table_exists(self):
             self.client.commit()
             cursor.execute(create_bots_active_table_query)
             self.client.commit()
-        print(f"Table {self.schema}.bots_active created or replaced successfully with timestamp: {timestamp_str}")
+        logger.info(f"Table {self.schema}.bots_active created or replaced successfully with timestamp: {timestamp_str}")
     except Exception as e:
-        print(f"An error occurred while creating or replacing the bots_active table: {e}")
+        logger.info(f"An error occurred while creating or replacing the bots_active table: {e}")
     finally:
         if cursor:
             cursor.close()
 
     streamlitdc_url = os.getenv("DATA_CUBES_INGRESS_URL", None)
-    print(f"streamlit data cubes ingress URL: {streamlitdc_url}")
+    logger.info(f"streamlit data cubes ingress URL: {streamlitdc_url}")
 
     llm_results_table_check_query = (
         f"SHOW TABLES LIKE 'LLM_RESULTS' IN SCHEMA {self.schema};"
@@ -126,7 +123,7 @@ def ensure_table_exists(self):
         with self.client.cursor() as cursor:
             cursor.execute(llm_results_table_check_query)
     except Exception as e:
-        print(f"Unable to execute 'SHOW TABLES' query: {e}\nQuery attempted: {llm_results_table_check_query}")
+        logger.info(f"Unable to execute 'SHOW TABLES' query: {e}\nQuery attempted: {llm_results_table_check_query}")
         raise Exception(f"Unable to execute 'SHOW TABLES' query: {e}\nQuery attempted: {llm_results_table_check_query}")
     try:
         if not cursor.fetchone():
@@ -141,12 +138,12 @@ def ensure_table_exists(self):
             with self.client.cursor() as cursor:
                 cursor.execute(create_llm_results_table_ddl)
                 self.client.commit()
-            print(f"Table {self.schema}.LLM_RESULTS created as Hybrid Table successfully.")
+            logger.info(f"Table {self.schema}.LLM_RESULTS created as Hybrid Table successfully.")
         else:
-            print(f"Table {self.schema}.LLM_RESULTS already exists.")
+            logger.info(f"Table {self.schema}.LLM_RESULTS already exists.")
     except Exception as e:
         try:
-            print("Falling back to create non-hybrid table for LLM_RESULTS")
+            logger.info("Falling back to create non-hybrid table for LLM_RESULTS")
             create_llm_results_table_ddl = f"""
             CREATE OR REPLACE TABLE {self.schema}.LLM_RESULTS (
                 uu VARCHAR(40) PRIMARY KEY,
@@ -156,9 +153,9 @@ def ensure_table_exists(self):
             """
             cursor.execute(create_llm_results_table_ddl)
             self.client.commit()
-            print(f"Table {self.schema}.LLM_RESULTS created as Regular Table successfully.")
+            logger.info(f"Table {self.schema}.LLM_RESULTS created as Regular Table successfully.")
         except Exception as e:
-            print(  f"An error occurred while checking or creating the LLM_RESULTS table: {e}" )
+            logger.info(  f"An error occurred while checking or creating the LLM_RESULTS table: {e}" )
             pass
 
     finally:
@@ -188,11 +185,11 @@ def ensure_table_exists(self):
             """
             cursor.execute(create_tasks_table_ddl)
             self.client.commit()
-            print(f"Table {self.schema}.TASKS created successfully.")
+            logger.info(f"Table {self.schema}.TASKS created successfully.")
         else:
-            print(f"Table {self.schema}.TASKS already exists.")
+            logger.info(f"Table {self.schema}.TASKS already exists.")
     except Exception as e:
-        print(f"An error occurred while checking or creating the TASKS table: {e}")
+        logger.info(f"An error occurred while checking or creating the TASKS table: {e}")
     finally:
         if cursor is not None:
             cursor.close()
@@ -219,11 +216,11 @@ def ensure_table_exists(self):
             """
             cursor.execute(create_task_history_table_ddl)
             self.client.commit()
-            print(f"Table {self.schema}.TASK_HISTORY created successfully.")
+            logger.info(f"Table {self.schema}.TASK_HISTORY created successfully.")
         else:
-            print(f"Table {self.schema}.TASK_HISTORY already exists.")
+            logger.info(f"Table {self.schema}.TASK_HISTORY already exists.")
     except Exception as e:
-        print(
+        logger.info(
             f"An error occurred while checking or creating the TASK_HISTORY table: {e}"
         )
     finally:
@@ -243,11 +240,11 @@ def ensure_table_exists(self):
             """
             cursor.execute(semantic_stage_ddl)
             self.client.commit()
-            print(f"Stage {self.schema}.SEMANTIC_MODELS_DEV created.")
+            logger.info(f"Stage {self.schema}.SEMANTIC_MODELS_DEV created.")
         else:
-            print(f"Stage {self.schema}.SEMANTIC_MODELS_DEV already exists.")
+            logger.info(f"Stage {self.schema}.SEMANTIC_MODELS_DEV already exists.")
     except Exception as e:
-        print(
+        logger.info(
             f"An error occurred while checking or creating stage SEMANTIC_MODELS_DEV: {e}"
         )
     finally:
@@ -267,11 +264,11 @@ def ensure_table_exists(self):
             """
             cursor.execute(semantic_stage_ddl)
             self.client.commit()
-            print(f"Stage {self.schema}.SEMANTIC_MODELS created.")
+            logger.info(f"Stage {self.schema}.SEMANTIC_MODELS created.")
         else:
-            print(f"Stage {self.schema}.SEMANTIC_MODELS already exists.")
+            logger.info(f"Stage {self.schema}.SEMANTIC_MODELS already exists.")
     except Exception as e:
-        print(
+        logger.info(
             f"An error occurred while checking or creating stage SEMANTIC_MODELS: {e}"
         )
     finally:
@@ -293,13 +290,13 @@ def ensure_table_exists(self):
             """
             cursor.execute(udf_creation_ddl)
             self.client.commit()
-            print(f"UDF set_bot_app_level_key created in schema {self.schema}.")
+            logger.info(f"UDF set_bot_app_level_key created in schema {self.schema}.")
         else:
-            print(
+            logger.info(
                 f"UDF set_bot_app_level_key already exists in schema {self.schema}."
             )
     except Exception as e:
-        print(
+        logger.info(
             f"UDF not created in {self.schema} {e}.  This is expected in Local mode."
         )
 
@@ -314,15 +311,15 @@ def ensure_table_exists(self):
             """
             cursor.execute(bot_files_stage_ddl)
             self.client.commit()
-            print(
+            logger.info(
                 f"Stage {self.genbot_internal_project_and_schema}.BOT_FILES_STAGE created."
             )
         else:
-            print(
+            logger.info(
                 f"Stage {self.genbot_internal_project_and_schema}.BOT_FILES_STAGE already exists."
             )
     except Exception as e:
-        print(
+        logger.info(
             f"An error occurred while checking or creating stage BOT_FILES_STAGE: {e}"
         )
     finally:
@@ -348,7 +345,7 @@ def ensure_table_exists(self):
             """
             cursor.execute(llm_config_table_ddl)
             self.client.commit()
-            print(f"Table {self.genbot_internal_project_and_schema}.LLM_TOKENS created.")
+            logger.info(f"Table {self.genbot_internal_project_and_schema}.LLM_TOKENS created.")
 
             # Insert a row with the current runner_id and cortex as the active LLM key and type
 
@@ -371,9 +368,9 @@ def ensure_table_exists(self):
             else:
                 cursor.execute(insert_initial_row_query, (runner_id,None,None,False))
             self.client.commit()
-            print(f"Inserted initial row into {self.genbot_internal_project_and_schema}.LLM_TOKENS with runner_id: {runner_id}")
+            logger.info(f"Inserted initial row into {self.genbot_internal_project_and_schema}.LLM_TOKENS with runner_id: {runner_id}")
         else:
-            print(f"Table {self.genbot_internal_project_and_schema}.LLM_TOKENS already exists.")
+            logger.info(f"Table {self.genbot_internal_project_and_schema}.LLM_TOKENS already exists.")
             check_query = f"DESCRIBE TABLE {self.genbot_internal_project_and_schema}.LLM_TOKENS;"
             try:
                 cursor.execute(check_query)
@@ -438,15 +435,15 @@ def ensure_table_exists(self):
                 # else:
                 #     cursor.execute(insert_initial_row_query, (runner_id,None,None,False,))
                     self.client.commit()
-                    print(f"Merged cortex row into {self.genbot_internal_project_and_schema}.LLM_TOKENS with runner_id: {runner_id}")
+                    logger.info(f"Merged cortex row into {self.genbot_internal_project_and_schema}.LLM_TOKENS with runner_id: {runner_id}")
 
             except Exception as e:
-                print(
+                logger.info(
                     f"An error occurred while checking or altering table {self.genbot_internal_project_and_schema}.LLM_TOKENS to add ACTIVE column: {e}"
                 )
-            #               print(f"Table {self.schema}.LLM_TOKENS already exists.")
+            #               logger.info(f"Table {self.schema}.LLM_TOKENS already exists.")
     except Exception as e:
-        print(f"An error occurred while checking or creating table LLM_TOKENS: {e}")
+        logger.info(f"An error occurred while checking or creating table LLM_TOKENS: {e}")
     finally:
         if cursor is not None:
             cursor.close()
@@ -490,7 +487,7 @@ def ensure_table_exists(self):
             """
             cursor.execute(slack_tokens_table_ddl)
             self.client.commit()
-            print(f"Table {self.slack_tokens_table_name} created.")
+            logger.info(f"Table {self.slack_tokens_table_name} created.")
 
             # Insert a row with the current runner_id and NULL values for the tokens
             runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
@@ -500,15 +497,15 @@ def ensure_table_exists(self):
             """
             cursor.execute(insert_initial_row_query, (runner_id,))
             self.client.commit()
-            print(
+            logger.info(
                 f"Inserted initial row into {self.slack_tokens_table_name} with runner_id: {runner_id}"
             )
         else:
-            print(
+            logger.info(
                 f"Table {self.slack_tokens_table_name} already exists."
             )  # SLACK_APP_CONFIG_TOKENS
     except Exception as e:
-        print(
+        logger.info(
             f"An error occurred while checking or creating table {self.slack_tokens_table_name}: {e}"
         )
     finally:
@@ -531,10 +528,10 @@ def ensure_table_exists(self):
                 """
                 cursor.execute(eai_config_table_ddl)
                 self.client.commit()
-                print(f"Table EAI_CONFIG created.")
+                logger.info(f"Table EAI_CONFIG created.")
 
             else:
-                print(
+                logger.info(
                     f"Table EAI_CONFIG already exists."
                 )
 
@@ -564,14 +561,14 @@ def ensure_table_exists(self):
             INSERT (eai_type, eai_name)
             VALUES (src.eai_type, src.eai_name);
             """)
-            # print(f"######DEBUG###### {merge_statement}")
+            # logger.info(f"######DEBUG###### {merge_statement}")
             cursor.execute(merge_statement)
             self.client.commit()
-            print(
+            logger.info(
                 f"Updated EAI_CONFIG table from services"
             )
         except Exception as e:
-            print(
+            logger.info(
                 f"An error occurred while checking or creating table EAI_CONFIG: {e}"
             )
         finally:
@@ -595,10 +592,10 @@ def ensure_table_exists(self):
                 """)
                 cursor.execute(endpoints_table_ddl)
                 self.client.commit()
-                print(f"Table CUSTOM_ENDPOINTS created.")
+                logger.info(f"Table CUSTOM_ENDPOINTS created.")
 
             else:
-                print(
+                logger.info(
                     f"Table CUSTOM_ENDPOINTS already exists."
                 )
 
@@ -627,7 +624,7 @@ def ensure_table_exists(self):
 
 
         except Exception as e:
-            print(
+            logger.info(
                 f"An error occurred while checking or creating table CUSTOM_ENDPOINTS: {e}"
             )
         finally:
@@ -670,7 +667,7 @@ def ensure_table_exists(self):
             """
             cursor.execute(bot_servicing_table_ddl)
             self.client.commit()
-            print(f"Table {self.bot_servicing_table_name} created.")
+            logger.info(f"Table {self.bot_servicing_table_name} created.")
 
             # Insert a row with specified values and NULL for the rest
             runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
@@ -718,7 +715,7 @@ def ensure_table_exists(self):
                 ),
             )
             self.client.commit()
-            print(
+            logger.info(
                 f"Inserted initial Eve row into {self.bot_servicing_table_name} with runner_id: {runner_id}"
             )
 
@@ -754,7 +751,7 @@ def ensure_table_exists(self):
             #     ),
             # )
             # self.client.commit()
-            # print(
+            # logger.info(
             #     f"Inserted initial Eliza row into {self.bot_servicing_table_name} with runner_id: {runner_id}"
             # )
 
@@ -778,7 +775,7 @@ def ensure_table_exists(self):
         #          """
         #          cursor.execute(insert_initial_row_query, (runner_id, bot_id, bot_name, bot_instructions, available_tools, udf_active, slack_active, bot_intro_prompt))
         #          self.client.commit()
-        #          print(f"Inserted initial Stuart row into {self.bot_servicing_table_name} with runner_id: {runner_id}")
+        #          logger.info(f"Inserted initial Stuart row into {self.bot_servicing_table_name} with runner_id: {runner_id}")
 
         else:
             # Check if the 'ddl_short' column exists in the metadata table
@@ -790,7 +787,7 @@ def ensure_table_exists(self):
             """
             cursor.execute(update_query)
             self.client.commit()
-            print(
+            logger.info(
                 f"Updated 'vision_chat_analysis' to 'image_analysis' in AVAILABLE_TOOLS where applicable in {self.bot_servicing_table_name}."
             )
 
@@ -867,14 +864,14 @@ def ensure_table_exists(self):
                     )
 
             except Exception as e:
-                print(
+                logger.info(
                     f"An error occurred while checking or altering table {self.bot_servicing_table_name} to add BOT_IMPLEMENTATION column: {e}"
                 )
             except Exception as e:
-                print(
+                logger.info(
                     f"An error occurred while checking or altering table {metadata_table_id}: {e}"
                 )
-            print(f"Table {self.bot_servicing_table_name} already exists.")
+            logger.info(f"Table {self.bot_servicing_table_name} already exists.")
         # update bot servicing table bot avatars from shared images table
         insert_images_query = f"""UPDATE {self.bot_servicing_table_name} b SET BOT_AVATAR_IMAGE = a.ENCODED_IMAGE_DATA
         FROM (
@@ -888,7 +885,7 @@ def ensure_table_exists(self):
             f"Initial 'BOT_AVATAR_IMAGE' data inserted into table {self.bot_servicing_table_name}."
         )
     except Exception as e:
-        print(
+        logger.info(
             f"An error occurred while checking or creating table {self.bot_servicing_table_name}: {e}"
         )
     finally:
@@ -948,7 +945,7 @@ def ensure_table_exists(self):
             ),
         )
         self.client.commit()
-        print(f"Inserted initial Janice row into {self.bot_servicing_table_name} with runner_id: {runner_id}"
+        logger.info(f"Inserted initial Janice row into {self.bot_servicing_table_name} with runner_id: {runner_id}"
         )
         # add files to stage from local dir for Janice
         database, schema = self.genbot_internal_project_and_schema.split('.')
@@ -958,7 +955,7 @@ def ensure_table_exists(self):
 #                stage="BOT_FILES_STAGE",
 #                file_name="./default_files/janice/*",
 #            )
-#           print(result)
+#           logger.info(result)
 
     ngrok_tokens_table_check_query = (
         f"SHOW TABLES LIKE 'NGROK_TOKENS' IN SCHEMA {self.schema};"
@@ -977,7 +974,7 @@ def ensure_table_exists(self):
             """
             cursor.execute(ngrok_tokens_table_ddl)
             self.client.commit()
-            print(f"Table {self.ngrok_tokens_table_name} created.")
+            logger.info(f"Table {self.ngrok_tokens_table_name} created.")
 
             # Insert a row with the current runner_id and NULL values for the tokens and domain, 'N' for use_domain
             runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
@@ -987,13 +984,13 @@ def ensure_table_exists(self):
             """
             cursor.execute(insert_initial_row_query, (runner_id,))
             self.client.commit()
-            print(
+            logger.info(
                 f"Inserted initial row into {self.ngrok_tokens_table_name} with runner_id: {runner_id}"
             )
         else:
-            print(f"Table {self.ngrok_tokens_table_name} already exists.")
+            logger.info(f"Table {self.ngrok_tokens_table_name} already exists.")
     except Exception as e:
-        print(
+        logger.info(
             f"An error occurred while checking or creating table {self.ngrok_tokens_table_name}: {e}"
         )
     finally:
@@ -1006,7 +1003,7 @@ def ensure_table_exists(self):
     try:
         cursor = self.client.cursor()
         # cursor.execute(available_tools_table_check_query)
-        # print('!!!!!!!!!!!!!!! SKIPPING AVAILABLE TOOLS --- TASK TEST !!!!!!!!!!!!')
+        # logger.info('!!!!!!!!!!!!!!! SKIPPING AVAILABLE TOOLS --- TASK TEST !!!!!!!!!!!!')
         if os.getenv('TASK_TEST_MODE', 'False').lower() != 'true':
             available_tools_table_ddl = f"""
             CREATE OR REPLACE TABLE {self.available_tools_table_name} (
@@ -1016,7 +1013,7 @@ def ensure_table_exists(self):
             """
             cursor.execute(available_tools_table_ddl)
             self.client.commit()
-            print(
+            logger.info(
                 f"Table {self.available_tools_table_name} (re)created, this is expected on every run."
             )
 
@@ -1029,11 +1026,11 @@ def ensure_table_exists(self):
             for tool_name, tool_description in tools_data:
                 cursor.execute(insert_tools_query, (tool_name, tool_description))
             self.client.commit()
-            print(f"Inserted initial rows into {self.available_tools_table_name}")
+            logger.info(f"Inserted initial rows into {self.available_tools_table_name}")
         else:
-            print(f"Table {self.available_tools_table_name} already exists.")
+            logger.info(f"Table {self.available_tools_table_name} already exists.")
     except Exception as e:
-        print(
+        logger.info(
             f"An error occurred while checking or creating table {self.available_tools_table_name}: {e}"
         )
     finally:
@@ -1052,9 +1049,9 @@ def ensure_table_exists(self):
             """
             cursor.execute(insert_snowflake_semantic_tools_query)
             self.client.commit()
-            print("Inserted 'snowflake_semantic_tools' into available_tools table.")
+            logger.info("Inserted 'snowflake_semantic_tools' into available_tools table.")
     except Exception as e:
-        print(
+        logger.info(
             f"An error occurred while inserting 'snowflake_semantic_tools' into available_tools table: {e}"
         )
     finally:
@@ -1092,7 +1089,7 @@ def ensure_table_exists(self):
             """
             cursor.execute(chat_history_table_ddl)
             self.client.commit()
-            print(f"Table {self.message_log_table_name} created.")
+            logger.info(f"Table {self.message_log_table_name} created.")
         else:
             check_query = f"DESCRIBE TABLE {chat_history_table_id};"
             try:
@@ -1113,10 +1110,10 @@ def ensure_table_exists(self):
                             f"Column '{col}' added to table {chat_history_table_id}."
                         )
             except Exception as e:
-                print("Error adding column FILES to MESSAGE_LOG: ", e)
-            print(f"Table {self.message_log_table_name} already exists.")
+                logger.info("Error adding column FILES to MESSAGE_LOG: ", e)
+            logger.info(f"Table {self.message_log_table_name} already exists.")
     except Exception as e:
-        print(
+        logger.info(
             f"An error occurred while checking or creating table {self.message_log_table_name}: {e}"
         )
 
@@ -1145,12 +1142,12 @@ def ensure_table_exists(self):
             """
             cursor.execute(knowledge_table_ddl)
             self.client.commit()
-            print(f"Table {self.knowledge_table_name} created.")
+            logger.info(f"Table {self.knowledge_table_name} created.")
         else:
             check_query = f"DESCRIBE TABLE {self.knowledge_table_name};"
-            print(f"Table {self.knowledge_table_name} already exists.")
+            logger.info(f"Table {self.knowledge_table_name} already exists.")
     except Exception as e:
-        print(
+        logger.info(
             f"An error occurred while checking or creating table {self.knowledge_table_name}: {e}"
         )
 
@@ -1174,9 +1171,9 @@ def ensure_table_exists(self):
         """
         cursor.execute(create_bot_notebook_table_ddl)
         self.client.commit()
-        print(f"Table {self.schema}.NOTEBOOK created successfully.")
+        logger.info(f"Table {self.schema}.NOTEBOOK created successfully.")
     else:
-        print(f"Table {self.schema}.NOTEBOOK already exists.")
+        logger.info(f"Table {self.schema}.NOTEBOOK already exists.")
         upgrade_timestamp_columns(self, 'NOTEBOOK')
 
     load_default_notes(self, cursor)
@@ -1205,12 +1202,12 @@ def ensure_table_exists(self):
             """
             cursor.execute(notebook_history_table_ddl)
             self.client.commit()
-            print(f"Table NOTEBOOK_HISTORY created.")
+            logger.info(f"Table NOTEBOOK_HISTORY created.")
         else:
             check_query = f"DESCRIBE TABLE {self.schema}.NOTEBOOK_HISTORY;"
-            print(f"Table NOTEBOOK_HISTORY already exists.")
+            logger.info(f"Table NOTEBOOK_HISTORY already exists.")
     except Exception as e:
-        print(
+        logger.info(
             f"An error occurred while checking or creating table NOTEBOOK_HISTORY: {e}"
         )
 
@@ -1239,13 +1236,13 @@ def ensure_table_exists(self):
             """
             cursor.execute(create_process_table_ddl)
             self.client.commit()
-            print(f"Table {self.schema}.PROCESSES created successfully.")
+            logger.info(f"Table {self.schema}.PROCESSES created successfully.")
         else:
-            print(f"Table {self.schema}.PROCESSES exists.")
+            logger.info(f"Table {self.schema}.PROCESSES exists.")
             upgrade_timestamp_columns(self, 'PROCESSES')
 
     except Exception as e:
-        print(
+        logger.info(
             f"An error occurred while checking or creating the PROCESSES table: {e}"
         )
 
@@ -1282,17 +1279,17 @@ def ensure_table_exists(self):
             self.client.commit()
 
             if not process_config_exists:
-                print("PROCESS_CONFIG column added to PROCESSES table.")
+                logger.info("PROCESS_CONFIG column added to PROCESSES table.")
             if not note_id_exists:
-                print("NOTE_ID column added to PROCESSES table.")
+                logger.info("NOTE_ID column added to PROCESSES table.")
             if not hidden_exists:
-                print("HIDDEN column added to PROCESSES table.")
+                logger.info("HIDDEN column added to PROCESSES table.")
             if not desc_exists:
-                print("PROCESS_DESCRIPTION column added to PROCESSES table.")
+                logger.info("PROCESS_DESCRIPTION column added to PROCESSES table.")
         else:
-            print("PROCESS_CONFIG column already exists in PROCESSES table.")
+            logger.info("PROCESS_CONFIG column already exists in PROCESSES table.")
     except Exception as e:
-        print(f"An error occurred while checking or adding PROCESS_CONFIG column: {e}")
+        logger.info(f"An error occurred while checking or adding PROCESS_CONFIG column: {e}")
 
     load_default_processes_and_notebook(self, cursor)
 
@@ -1320,12 +1317,12 @@ def ensure_table_exists(self):
             """
             cursor.execute(process_history_table_ddl)
             self.client.commit()
-            print(f"Table {self.process_history_table_name} created.")
+            logger.info(f"Table {self.process_history_table_name} created.")
         else:
             check_query = f"DESCRIBE TABLE {self.process_history_table_name};"
-            print(f"Table {self.process_history_table_name} already exists.")
+            logger.info(f"Table {self.process_history_table_name} already exists.")
     except Exception as e:
-        print(
+        logger.info(
             f"An error occurred while checking or creating table {self.process_history_table_name}: {e}"
         )
 
@@ -1344,12 +1341,12 @@ def ensure_table_exists(self):
             """
             cursor.execute(user_bot_table_ddl)
             self.client.commit()
-            print(f"Table {self.tool_knowledge_table_name} created.")
+            logger.info(f"Table {self.tool_knowledge_table_name} created.")
         else:
             check_query = f"DESCRIBE TABLE {self.tool_knowledge_table_name};"
-            print(f"Table {self.tool_knowledge_table_name} already exists.")
+            logger.info(f"Table {self.tool_knowledge_table_name} already exists.")
     except Exception as e:
-        print(f"An error occurred while checking or creating table {self.tool_knowledge_table_name}: {e}")
+        logger.info(f"An error occurred while checking or creating table {self.tool_knowledge_table_name}: {e}")
 
     try:
         cursor = self.client.cursor()
@@ -1366,12 +1363,12 @@ def ensure_table_exists(self):
             """
             cursor.execute(user_bot_table_ddl)
             self.client.commit()
-            print(f"Table {self.data_knowledge_table_name} created.")
+            logger.info(f"Table {self.data_knowledge_table_name} created.")
         else:
             check_query = f"DESCRIBE TABLE {self.data_knowledge_table_name};"
-            print(f"Table {self.data_knowledge_table_name} already exists.")
+            logger.info(f"Table {self.data_knowledge_table_name} already exists.")
     except Exception as e:
-        print(f"An error occurred while checking or creating table {self.data_knowledge_table_name}: {e}")
+        logger.info(f"An error occurred while checking or creating table {self.data_knowledge_table_name}: {e}")
 
 
     try:
@@ -1390,12 +1387,12 @@ def ensure_table_exists(self):
             """
             cursor.execute(user_bot_table_ddl)
             self.client.commit()
-            print(f"Table {self.user_bot_table_name} created.")
+            logger.info(f"Table {self.user_bot_table_name} created.")
         else:
             check_query = f"DESCRIBE TABLE {self.user_bot_table_name};"
-            print(f"Table {self.user_bot_table_name} already exists.")
+            logger.info(f"Table {self.user_bot_table_name} already exists.")
     except Exception as e:
-        print(f"An error occurred while checking or creating table {self.user_bot_table_name}: {e}")
+        logger.info(f"An error occurred while checking or creating table {self.user_bot_table_name}: {e}")
 
     # HARVEST CONTROL TABLE
     hc_table_id = self.genbot_internal_harvest_control_table
@@ -1421,11 +1418,11 @@ def ensure_table_exists(self):
             """
             cursor.execute(hc_table_ddl)
             self.client.commit()
-            print(f"Table {hc_table_id} created.")
+            logger.info(f"Table {hc_table_id} created.")
         else:
-            print(f"Table {hc_table_id} already exists.")
+            logger.info(f"Table {hc_table_id} already exists.")
     except Exception as e:
-        print(
+        logger.info(
             f"An error occurred while checking or creating table {hc_table_id}: {e}"
         )
 
@@ -1463,7 +1460,7 @@ def ensure_table_exists(self):
             """
             cursor.execute(metadata_table_ddl)
             self.client.commit()
-            print(f"Table {metadata_table_id} created.")
+            logger.info(f"Table {metadata_table_id} created.")
 
             try:
                 insert_initial_metadata_query = f"""
@@ -1473,9 +1470,9 @@ def ensure_table_exists(self):
                 """
                 cursor.execute(insert_initial_metadata_query)
                 self.client.commit()
-                print(f"Inserted initial rows into {metadata_table_id}")
+                logger.info(f"Inserted initial rows into {metadata_table_id}")
             except Exception as e:
-                print(
+                logger.info(
                     f"Initial rows from APP_SHARE.HARVEST_RESULTS NOT ADDED into {metadata_table_id} due to erorr {e}"
                 )
 
@@ -1489,9 +1486,9 @@ def ensure_table_exists(self):
                     alter_table_query = f"ALTER TABLE {self.metadata_table_name} ADD COLUMN ddl_short STRING;"
                     cursor.execute(alter_table_query)
                     self.client.commit()
-                    print(f"Column 'ddl_short' added to table {metadata_table_id}.")
+                    logger.info(f"Column 'ddl_short' added to table {metadata_table_id}.")
             except Exception as e:
-                print(
+                logger.info(
                     f"An error occurred while checking or altering table {metadata_table_id}: {e}"
                 )
             # Check if the 'embedding_native' column exists in the metadata table
@@ -1500,14 +1497,14 @@ def ensure_table_exists(self):
                     alter_table_query = f"ALTER TABLE {self.metadata_table_name} ADD COLUMN embedding_native ARRAY;"
                     cursor.execute(alter_table_query)
                     self.client.commit()
-                    print(f"Column 'embedding_native' added to table {metadata_table_id}.")
+                    logger.info(f"Column 'embedding_native' added to table {metadata_table_id}.")
             except Exception as e:
-                print(
+                logger.info(
                     f"An error occurred while checking or altering table {metadata_table_id}: {e}"
                 )
-            print(f"Table {metadata_table_id} already exists.")
+            logger.info(f"Table {metadata_table_id} already exists.")
     except Exception as e:
-        print(
+        logger.info(
             f"An error occurred while checking or creating table {metadata_table_id}: {e}"
         )
 
@@ -1609,11 +1606,11 @@ def insert_process_history(
         )
         self.client.commit()
         cursor.close()
-        print(
+        logger.info(
             f"Process history row inserted successfully for process_id: {process_id}"
         )
     except Exception as e:
-        print(f"An error occurred while inserting the process history row: {e}")
+        logger.info(f"An error occurred while inserting the process history row: {e}")
         if cursor is not None:
             cursor.close()
 
@@ -1723,7 +1720,7 @@ def load_default_processes_and_notebook(self, cursor):
                             self.client.commit()
 
                             insert_values.append(process_default['NOTE_ID'])
-                            print(f"Note_id {process_default['NOTE_ID']} inserted successfully for process {process_id}")
+                            logger.info(f"Note_id {process_default['NOTE_ID']} inserted successfully for process {process_id}")
                     elif key.lower() == 'hidden':
                         insert_values.append(False)
                     else:
@@ -1735,12 +1732,12 @@ def load_default_processes_and_notebook(self, cursor):
                 insert_query = f"INSERT INTO {self.schema}.PROCESSES ({', '.join(process_columns)}) VALUES ({placeholders})"
                 cursor.execute(insert_query, insert_values)
                 if updated_process:
-                    print(f"Process {process_id} updated successfully.")
+                    logger.info(f"Process {process_id} updated successfully.")
                     updated_process = False
                 else:
-                    print(f"Process {process_id} inserted successfully.")
+                    logger.info(f"Process {process_id} inserted successfully.")
             else:
-                print(f"Process {process_id} already in PROCESSES and it is up to date.")
+                logger.info(f"Process {process_id} already in PROCESSES and it is up to date.")
         cursor.close()
 
 def upgrade_timestamp_columns(self, table_name):
@@ -1754,7 +1751,7 @@ def upgrade_timestamp_columns(self, table_name):
                 alter_table_query = f"ALTER TABLE {self.schema}.{table_name} ADD COLUMN \"CREATED_AT\" TIMESTAMP, \"UPDATED_AT\" TIMESTAMP;"
                 cursor.execute(alter_table_query)
                 self.client.commit()
-                print(f"Table {table_name} updated with new columns.")
+                logger.info(f"Table {table_name} updated with new columns.")
 
             if "TIMESTAMP" in columns:
                 # Copy contents of TIMESTAMP to CREATED_AT
@@ -1771,10 +1768,10 @@ def upgrade_timestamp_columns(self, table_name):
                 drop_timestamp_query = f"ALTER TABLE {self.schema}.{table_name} DROP COLUMN TIMESTAMP;"
                 cursor.execute(drop_timestamp_query)
                 self.client.commit()
-                print(f"TIMESTAMP column dropped from {table_name}.")
+                logger.info(f"TIMESTAMP column dropped from {table_name}.")
 
     except Exception as e:
-        print(f"An error occurred while checking or adding new timestamp columns: {e}")
+        logger.info(f"An error occurred while checking or adding new timestamp columns: {e}")
 
     return
 
@@ -1848,8 +1845,8 @@ def load_default_notes(self, cursor):
             insert_query = f"INSERT INTO {self.schema}.NOTEBOOK ({', '.join(notebook_columns)}) VALUES ({placeholders})"
             cursor.execute(insert_query, insert_values)
             if updated_note:
-                print(f"Note {note_id} updated successfully.")
+                logger.info(f"Note {note_id} updated successfully.")
                 updated_note = False
             else:
-                print(f"Note {note_id} inserted successfully.")
+                logger.info(f"Note {note_id} inserted successfully.")
         cursor.close()

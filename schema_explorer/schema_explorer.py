@@ -4,11 +4,11 @@ import simplejson as json
 from openai import OpenAI
 import random 
 #from concurrent.futures import ThreadPoolExecutor, as_completed
-import logging
 from datetime import datetime
 
 from llm_openai.openai_utils import get_openai_client
-
+from core.logging_config import setup_logger
+logger = setup_logger(__name__)
 # Assuming OpenAI SDK initialization
 
 class SchemaExplorer:
@@ -26,7 +26,7 @@ class SchemaExplorer:
             if os.getenv("CORTEX_EMBEDDING_AVAILABLE",'False') == 'False':
                 if self.test_cortex():
                     if self.test_cortex_embedding() == '':
-                        print("cortex not available and no OpenAI API key present. Use streamlit to add OpenAI key")
+                        logger.info("cortex not available and no OpenAI API key present. Use streamlit to add OpenAI key")
                         os.environ["CORTEX_EMBEDDING_AVAILABLE"] = 'False'
                     else:
                         os.environ["CORTEX_EMBEDDING_AVAILABLE"] = 'True'
@@ -74,7 +74,7 @@ class SchemaExplorer:
                     sample_data = self.db_connector.get_sample_data(database, schema, table)
                     sample_data_str = ""
                 except Exception as e:
-                    print(f"Error getting sample data: {e}", flush=True)
+                    logger.info(f"Error getting sample data: {e}")
                     sample_data = None
                     sample_data_str = "error"
             if sample_data:
@@ -84,11 +84,11 @@ class SchemaExplorer:
                     sample_data_str = "format error"
                 #sample_data_str = sample_data_str.replace("\n", " ")  # Replace newlines with spaces
    
-            #print('sample data string: ',sample_data_str)
+            #logger.info('sample data string: ',sample_data_str)
             self.store_table_summary(database, schema, table, ddl=ddl, ddl_short=ddl_short,summary=summary, sample_data=sample_data_str)
   
         except Exception as e:
-            print(f"Harvester Error for an object: {e}")
+            logger.info(f"Harvester Error for an object: {e}")
             self.store_table_summary(database, schema, table, summary="Harvester Error: {e}", ddl="Harvester Error", ddl_short="Harvester Error", sample_data="Harvester Error")
 
     def test_cortex(self):
@@ -96,7 +96,7 @@ class SchemaExplorer:
         newarray = [{"role": "user", "content": "hi there"} ]
         new_array_str = json.dumps(newarray)
 
-        print(f"schema_explorer test calling cortex {self.cortex_model} via SQL, content est tok len=",len(new_array_str)/4)
+        logger.info(f"schema_explorer test calling cortex {self.cortex_model} via SQL, content est tok len=",len(new_array_str)/4)
 
         # context_limit = 128000 * 4 #32000 * 4
         cortex_query = f"""
@@ -109,12 +109,12 @@ class SchemaExplorer:
                 cursor.execute(cortex_query, (new_array_str,))
             except Exception as e:
                 if 'unknown model' in e.msg:
-                    print(f'Model {self.cortex_model} not available in this region, trying mistral-7b')
+                    logger.info(f'Model {self.cortex_model} not available in this region, trying mistral-7b')
                     self.cortex_model = 'mistral-7b'        
                     cortex_query = f"""
                         select SNOWFLAKE.CORTEX.COMPLETE('{self.cortex_model}', %s) as completion; """
                     cursor.execute(cortex_query, (new_array_str,))
-                    print('Ok that worked, changing CORTEX_HARVESTER_MODEL ENV VAR to mistral-7b')
+                    logger.info('Ok that worked, changing CORTEX_HARVESTER_MODEL ENV VAR to mistral-7b')
                     os.environ['CORTEX_HARVESTER_MODEL'] = 'mistral-7b'
                 else:
                     raise(e)
@@ -123,11 +123,11 @@ class SchemaExplorer:
             result = cursor.fetchone()
             completion = result[0] if result else None
 
-            print(f"schema_explorer test call result: ",completion)
+            logger.info(f"schema_explorer test call result: ",completion)
 
             return True
         except Exception as e:
-            print('cortex not available, query error: ',e)
+            logger.info('cortex not available, query error: ',e)
             self.db_connector.connection.rollback()
             return False
              
@@ -142,22 +142,22 @@ class SchemaExplorer:
                 result_value = next(iter(embedding_result[0].values()))
                 if result_value:
                     # os.environ['CORTEX_EMBEDDING_MODEL'] = self.embedding_model
-                    print(f"Test result value len embedding: {len(result_value)}")            
+                    logger.info(f"Test result value len embedding: {len(result_value)}")            
             except Exception as e:
                 if 'unknown model' in e.msg:
-                    print(f'Model {self.embedding_model} not available in this region, trying snowflake-arctic-embed-m')
+                    logger.info(f'Model {self.embedding_model} not available in this region, trying snowflake-arctic-embed-m')
                     self.embedding_model = 'snowflake-arctic-embed-m'        
                     embedding_result = self.db_connector.run_query(f"SELECT SNOWFLAKE.CORTEX.EMBED_TEXT_768('{self.embedding_model}', '{test_message}');")
                     result_value = next(iter(embedding_result[0].values()))
                     if result_value:
-                        print(f"Test result value len embedding: {len(result_value)}")
-                        print('Ok that worked, changing CORTEX_EMBEDDING_MODEL ENV VAR to snowflake-arctic-embed-m')
+                        logger.info(f"Test result value len embedding: {len(result_value)}")
+                        logger.info('Ok that worked, changing CORTEX_EMBEDDING_MODEL ENV VAR to snowflake-arctic-embed-m')
                         os.environ['CORTEX_EMBEDDING_MODEL'] = 'snowflake-arctic-embed-m'
                 else:
                     raise(e)
 
         except Exception as e:
-            print('Cortex embed not available, query error: ',e)
+            logger.info('Cortex embed not available, query error: ',e)
             result_value = ""
         return result_value
 
@@ -184,7 +184,7 @@ class SchemaExplorer:
                     memory_content += f"\n\n<SAMPLE CSV DATA>\n{sample_data}\n</SAMPLE CSV DATA>"
                 complete_description = memory_content
             embedding = self.get_embedding(complete_description)  
-            # print("we got the embedding!")
+            # logger.info("we got the embedding!")
             #sample_data_text = json.dumps(sample_data)  # Assuming sample_data needs to be a JSON text.
 
             # Now using the modified method to insert the data into BigQuery
@@ -200,10 +200,10 @@ class SchemaExplorer:
                                                 memory_uuid=memory_uuid,
                                                 ddl_hash=ddl_hash)
             
-            print(f"Stored summary for an object in Harvest Results.")
+            logger.info(f"Stored summary for an object in Harvest Results.")
    
         except Exception as e:
-            print(f"Harvester Error for an object: {e}", flush=True)
+            logger.info(f"Harvester Error for an object: {e}")
             self.store_table_summary(database, schema, table, summary="Harvester Error: {e}", ddl="Harvester Error", ddl_short="Harvester Error", sample_data="Harvester Error")
    
         ## Assuming an instance of BotOsKnowledgeLocal named memory_system exists
@@ -221,15 +221,15 @@ class SchemaExplorer:
         if os.environ.get("CORTEX_MODE", 'False') == 'True':
             escaped_messages = str(messages).replace("'", '\\"')
             query = f"select snowflake.cortex.complete('{self.cortex_model}','{escaped_messages}');"
-            # print(query)
+            # logger.info(query)
             completion_result = self.db_connector.run_query(query)
             try:
                 result_value = next(iter(completion_result[0].values()))
                 if result_value:
                     result_value = str(result_value).replace("\`\`\`","'''")
-                    # print(f"Result value: {result_value}")
+                    # logger.info(f"Result value: {result_value}")
             except:
-                print('Cortext complete didnt work')
+                logger.info('Cortext complete didnt work')
                 result_value = ""
             return result_value
         else:
@@ -261,9 +261,9 @@ class SchemaExplorer:
 
                 result_value = next(iter(embedding_result[0].values()))
                 if result_value:
-                    print(f"Result value len embedding: {len(result_value)}")
+                    logger.info(f"Result value len embedding: {len(result_value)}")
             except:
-                print('Cortex embed text didnt work in schema explorer')
+                logger.info('Cortex embed text didnt work in schema explorer')
                 result_value = ""
             return result_value
         else:
@@ -274,25 +274,25 @@ class SchemaExplorer:
                 )
                 embedding = response.data[0].embedding
                 if embedding:
-                    print(f"Result value len embedding: {len(embedding)}")
+                    logger.info(f"Result value len embedding: {len(embedding)}")
             except:
-                print('Openai embed text didnt work in schema explorer')
+                logger.info('Openai embed text didnt work in schema explorer')
                 embedding = ""
             return embedding
 
     def explore_schemas(self):
         try:
             for schema in self.db_connector.get_schemas():
-            #    print(f"Schema: {schema}")
+            #    logger.info(f"Schema: {schema}")
                 tables = self.db_connector.get_tables(schema)
                 for table in tables:
-        #           print(f"  Table: {table}")
+        #           logger.info(f"  Table: {table}")
                     columns = self.db_connector.get_columns(schema, table)
                     for column in columns:
                         pass
-                #      print(f"    Column: {column}")
+                #      logger.info(f"    Column: {column}")
         except Exception as e:
-            print(f'Error running explore schemas Error: {e}',flush=True)
+            logger.info(f'Error running explore schemas Error: {e}')
 
     def generate_table_summary_prompt(self, database, schema, table, columns):
         prompt = f"Please provide a brief summary of a database table in the '{database}.{schema}' schema named '{table}'. This table includes the following columns: {', '.join(columns)}."
@@ -307,7 +307,7 @@ class SchemaExplorer:
             datasets = self.db_connector.get_schemas(database)  # Assume this method exists and returns a list of dataset IDs
             return datasets
         except Exception as e:
-            print(f'Error running get schemas Error: {e}',flush=True)
+            logger.info(f'Error running get schemas Error: {e}')
 
 
     def get_active_databases(self):
@@ -327,7 +327,7 @@ class SchemaExplorer:
             if len(inclusions) == 0:
                 schemas = self.db_connector.get_schemas(database["database_name"])
                 # get the app-shared schemas BASEBALL & FORMULA_1
-                # print(f"get schemas for database: {database['database_name']} == {self.db_connector.project_id}")
+                # logger.info(f"get schemas for database: {database['database_name']} == {self.db_connector.project_id}")
                 if database["database_name"] == self.db_connector.project_id:
                     shared_schemas = self.db_connector.get_shared_schemas(database["database_name"])
                     if shared_schemas:
@@ -344,7 +344,7 @@ class SchemaExplorer:
             schemas = [schema for schema in schemas if schema not in exclusions]
             return schemas
         except Exception as e:
-            print(f"error - {e}")
+            logger.info(f"error - {e}")
             return []
 
     def update_initial_crawl_flag(self, database_name, crawl_flag):
@@ -375,7 +375,7 @@ class SchemaExplorer:
             harvesting_databases = []
 
             for database in databases:
-                # print(f"checking db {database['database_name']} with initial crawl flag= {database['initial_crawl_complete']}")
+                # logger.info(f"checking db {database['database_name']} with initial crawl flag= {database['initial_crawl_complete']}")
                 crawl_flag = False
                 if (database["initial_crawl_complete"] == False):
                     crawl_flag = True
@@ -389,31 +389,31 @@ class SchemaExplorer:
                 if crawl_flag:
                     harvesting_databases.append(database)
                     schemas.extend([database["database_name"]+"."+schema for schema in self.get_active_schemas(database)])
-              #      print(f'Checking a Database for new or changed objects (cycle#: {self.run_number}, refresh every: {database["refresh_interval"]}) {cur_time}', flush=True)
+              #      logger.info(f'Checking a Database for new or changed objects (cycle#: {self.run_number}, refresh every: {database["refresh_interval"]}) {cur_time}')
               #  else: 
-              #      print(f'Skipping a Database, not in current refresh cycle (cycle#: {self.run_number}, refresh every: {database["refresh_interval"]} {cur_time})', flush=True)
+              #      logger.info(f'Skipping a Database, not in current refresh cycle (cycle#: {self.run_number}, refresh every: {database["refresh_interval"]} {cur_time})')
 
             summaries = {}
             total_processed = 0
         except Exception as e:
-            print(f'Error explore and summarize tables parallel Error: {e}',flush=True)
+            logger.info(f'Error explore and summarize tables parallel Error: {e}')
 
-        #print('checking schemas: ',schemas)
+        #logger.info('checking schemas: ',schemas)
 
         # todo, first build list of objects to harvest, then harvest them
 
         def process_dataset_step1(dataset, max_to_process = 1000):
-            #print("  Process_dataset: ",dataset)
+            #logger.info("  Process_dataset: ",dataset)
             # query to find new
             # tables, or those with changes to their DDL
 
- #           print('Checking a schema for new (not changed) objects.', flush=True)
+ #           logger.info('Checking a schema for new (not changed) objects.')
             if self.db_connector.source_name == 'Snowflake' or self.db_connector.source_name == 'Sqlite':
                 try:
                     potential_tables = self.db_connector.get_tables(dataset.split('.')[0], dataset.split('.')[1])
                 except Exception as e:
-                    print(f'Error running get potential tables Error: {e}',flush=True)
-                #print('potential tables: ',potential_tables)
+                    logger.info(f'Error running get potential tables Error: {e}')
+                #logger.info('potential tables: ',potential_tables)
                 non_indexed_tables = []
 
                 # Check all potential_tables at once using a single query with an IN clause
@@ -441,13 +441,13 @@ class SchemaExplorer:
                     needs_embedding = [(table['QUALIFIED_TABLE_NAME'], table['TABLE_NAME']) for table in existing_tables_info if table["NEEDS_EMBEDDING"]]
                     refresh_tables = [table for table in potential_tables if f'"{db}"."{sch}"."{table["table_name"]}"' in needs_updating]
                     # Print counts of each variable
-                    # print(f"{db}.{sch}")
+                    # logger.info(f"{db}.{sch}")
                     # for tb in existing_tables_info:
                     #     if tb['NEEDS_EMBEDDING']:
-                    #         print(f"{tb['QUALIFIED_TABLE_NAME']} needs embedding: {tb['NEEDS_EMBEDDING']}")
-                    # print(f"{check_query}")
+                    #         logger.info(f"{tb['QUALIFIED_TABLE_NAME']} needs embedding: {tb['NEEDS_EMBEDDING']}")
+                    # logger.info(f"{check_query}")
                 except Exception as e:
-                    print(f'Error running check query Error: {e}',flush=True)
+                    logger.info(f'Error running check query Error: {e}')
                     return None, None
                 
                 non_existing_tables.extend(refresh_tables)
@@ -455,11 +455,11 @@ class SchemaExplorer:
                     try:
                         table_name = table_info['table_name']
                         quoted_table_name = f'"{db}"."{sch}"."{table_name}"'
-                        # print(f"checking {table_name} which is {quoted_table_name}")
+                        # logger.info(f"checking {table_name} which is {quoted_table_name}")
                         if quoted_table_name not in existing_tables_set or quoted_table_name in needs_updating:
                             # Table is not in metadata table
                             # Check to see if it exists in the shared metadata table
-                            #print ("!!!! CACHING DIsABLED !!!! ", flush=True)
+                            #print ("!!!! CACHING DIsABLED !!!! ")
                             # get metadata from cache and add embeddings for all schemas, incl baseball and f1
                             if sch == 'INFORMATION_SCHEMA':
                                 shared_table_exists = self.db_connector.check_cached_metadata('PLACEHOLDER_DB_NAME', sch, table_name)
@@ -467,9 +467,9 @@ class SchemaExplorer:
                                 shared_table_exists = self.db_connector.check_cached_metadata(db, sch, table_name)
                             # shared_table_exists = False 
                             if shared_table_exists:
-                                # print ("!!!! CACHING Working !!!! ", flush=True)
+                                # print ("!!!! CACHING Working !!!! ")
                                 # Get the record from the shared metadata table with database name modified from placeholder
-                                print(f"Object cache hit for {table_name}",flush=True)
+                                logger.info(f"Object cache hit for {table_name}")
                                 get_from_cache_result = self.db_connector.get_metadata_from_cache(db, sch, table_name)
                                 for record in get_from_cache_result:
                                     database = record['database_name']
@@ -488,23 +488,23 @@ class SchemaExplorer:
                                 current_ddl = self.alt_get_ddl(table_name=quoted_table_name)
                                 current_ddl_hash = self.db_connector.sha256_hash_hex_string(current_ddl)
                                 new_table = {"qualified_table_name": quoted_table_name, "ddl_hash": current_ddl_hash, "ddl": current_ddl}
-                                print('Newly found object added to harvest array (no cache hit)', flush=True)
+                                logger.info('Newly found object added to harvest array (no cache hit)')
                                 non_indexed_tables.append(new_table)
 
                                 # store quick summary
-                                # print(f"is the table in the existing list?")
+                                # logger.info(f"is the table in the existing list?")
                                 if quoted_table_name not in existing_tables_set:
-                                    # print(f"yep, storing summary")
+                                    # logger.info(f"yep, storing summary")
                                     self.store_table_summary(database=db, schema=sch, table=table_name, ddl=current_ddl, ddl_short=current_ddl, summary="{!placeholder}", sample_data="")
 
                     except Exception as e:
-                        print(f'Error processing table in step1: {e}', flush=True)
+                        logger.info(f'Error processing table in step1: {e}')
 
                 for table_info in needs_embedding:
                     try:
                         quoted_table_name = table_info[0]
                         table_name = table_info[1]
-                        # print(f"embedding needed for {quoted_table_name}")
+                        # logger.info(f"embedding needed for {quoted_table_name}")
                         
                         for current_info in existing_tables_info:
                             if current_info["QUALIFIED_TABLE_NAME"] == quoted_table_name:
@@ -517,7 +517,7 @@ class SchemaExplorer:
                                 self.store_table_summary(database=db, schema=sch, table=table_name, ddl=current_ddl, ddl_short=ddl_short, summary=summary, sample_data=sample_data_text, memory_uuid=memory_uuid, ddl_hash=ddl_hash)
 
                     except Exception as e:
-                        print(f'Error processing table in step1 embedding refresh: {e}', flush=True)
+                        logger.info(f'Error processing table in step1 embedding refresh: {e}')
 
             return non_indexed_tables
         
@@ -525,26 +525,26 @@ class SchemaExplorer:
 
                 local_summaries = {}
                 if len(non_indexed_tables) > 0:
-                    print(f'starting indexing of {len(non_indexed_tables)} objects...', flush=True)
+                    logger.info(f'starting indexing of {len(non_indexed_tables)} objects...')
                 for row in non_indexed_tables:
                     try:
                         qualified_table_name = row.get('qualified_table_name',row)
-                        print("     -> An object", flush=True)
+                        logger.info("     -> An object")
                         database, schema, table = (part.strip('"') for part in qualified_table_name.split('.', 2))
 
                         # Proceed with generating the summary
                         columns = self.db_connector.get_columns(database, schema, table)
                         prompt = self.generate_table_summary_prompt(database, schema, table, columns)
                         summary = self.generate_summary(prompt)
-                        #print(summary)
+                        #logger.info(summary)
                         #embedding = self.get_embedding(summary)  
                         ddl = row.get('ddl',None)
                         ddl_short = self.get_ddl_short(ddl)
-                        #print(f"storing: database: {database}, schema: {schema}, table: {table}, summary len: {len(summary)}, ddl: {ddl}, ddl_short: {ddl_short} ", flush=True) 
-                        print('Storing summary for new object',flush=True)
+                        #logger.info(f"storing: database: {database}, schema: {schema}, table: {table}, summary len: {len(summary)}, ddl: {ddl}, ddl_short: {ddl_short} ") 
+                        logger.info('Storing summary for new object')
                         self.store_table_memory(database, schema, table, summary, ddl=ddl, ddl_short=ddl_short)
                     except Exception as e:
-                        print(f"Harvester Error on Object: {e}",flush=True)
+                        logger.info(f"Harvester Error on Object: {e}")
                         self.store_table_memory(database, schema, table, summary=f"Harvester Error: {e}", ddl="Harvester Error", ddl_short="Harvester Error")
 
                     
@@ -558,9 +558,9 @@ class SchemaExplorer:
         tables_for_full_processing = []
         random.shuffle(schemas)
         try:
-            print(f'Checking {len(schemas)} schemas for new (not changed) objects.', flush=True)
+            logger.info(f'Checking {len(schemas)} schemas for new (not changed) objects.')
         except Exception as e:
-            print(f'Error printing schema count log line. {e}', flush=True)
+            logger.info(f'Error printing schema count log line. {e}')
 
         for schema in schemas:
             tables_for_full_processing.extend(process_dataset_step1(schema))
@@ -582,5 +582,5 @@ class SchemaExplorer:
                         if total_processed >= max_to_process:
                             break
                 except Exception as exc:
-                    print(f'Dataset {dataset} generated an exception: {exc}', flush=True)
+                    logger.info(f'Dataset {dataset} generated an exception: {exc}')
 

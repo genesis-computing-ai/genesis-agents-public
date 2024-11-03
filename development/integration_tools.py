@@ -5,11 +5,11 @@ import os
 import re
 import sys
 import shutil
-import logging
 from datetime import datetime
 
 # Set up a logger for the module
-logger = logging.getLogger(__name__)
+from core.logging_config import setup_logger
+logger = setup_logger(__name__)
 
 # Create a timestamped backup of existing module
 def _backup_existing_module(module_path):
@@ -315,7 +315,7 @@ def test_code_tools(module_name, function_name):
     code = access_tool_code(f"{module_name}--{function_name}")
     if code["success"] == False:
         code = {"code":"""
-def generate_pdf_report(data_source_name, report_name):\n    print(f"{data_source_name} {report_name}")
+def generate_pdf_report(data_source_name, report_name):\n    logger.info(f"{data_source_name} {report_name}")
 def test_generate_pdf_report():\n    generate_pdf_report("source1", "reportA")
         """}
 

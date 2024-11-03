@@ -3,12 +3,12 @@ import os
 from openai import OpenAI
 import requests
 
+from core.logging_config import setup_logger
+logger = setup_logger(__name__)
+
 def encode_image(image_file):
     with open(image_file, "rb") as f:
         return base64.b64encode(f.read()).decode('utf-8')
-
-
-
 
 # Define the function to analyze the image using OpenAI's Chat API for Vision
 def vision_chat_analysis(openai_file_id, query, thread_id=None):
@@ -28,7 +28,7 @@ def vision_chat_analysis(openai_file_id, query, thread_id=None):
             if not os.path.isfile(existing_location):
                 a = (f"The file {existing_location} does not exist.\n")
             msg =  f"{a}Failed to encode image from file {existing_location}: {e}"
-            print(msg)
+            logger.info(msg)
             return msg 
 
 

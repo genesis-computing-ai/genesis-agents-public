@@ -6,6 +6,9 @@ import os
 
 import yaml
 
+from core.logging_config import setup_logger
+logger = setup_logger(__name__)
+
 sdf_workspace_dir = Path.cwd().joinpath('sdf_genesis')  
 target_dir = sdf_workspace_dir.joinpath("sdftarget-thread-123")
 target_dir.mkdir(parents=True, exist_ok=True)
@@ -23,9 +26,9 @@ SELECT domain_id FROM tech__innovation_essentials.cybersyn.domain_characteristic
 try:
     assets_list = []
     for asset in assets:
-        #print(asset)
+        #logger.info(asset)
         assets_list.append(asset)
-    print(assets_list)
+    logger.info(assets_list)
 
     sdf_dagster_out_dir = sdf_workspace_dir.joinpath('sdf_dagster_out')
     for subdir in os.listdir(sdf_dagster_out_dir):
@@ -33,11 +36,11 @@ try:
         if query_sdf_file:
             with open(query_sdf_file[0], 'r') as f:
                 query_sdf_data = yaml.safe_load(f)
-                print(query_sdf_data)
+                logger.info(query_sdf_data)
 except Exception as e:
-    print(e)
+    logger.info(e)
     with open(log_file, 'r') as f:
         log_data = [json.loads(line) for line in f.readlines()]
         error_rows = [row for row in log_data if row["_ll"] == "ERROR"]
-        print(error_rows)
+        logger.info(error_rows)
 

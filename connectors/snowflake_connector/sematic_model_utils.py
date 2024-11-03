@@ -1,4 +1,3 @@
-import logging
 import yaml
 import random
 import string
@@ -6,10 +5,8 @@ import datetime
 import requests
 from threading import Lock
 
-logger = logging.getLogger(__name__)
-logging.basicConfig(
-    level=logging.WARN, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+from core.logging_config import setup_logger
+logger = setup_logger(__name__)
 
 _semantic_lock = Lock()
 
@@ -48,7 +45,7 @@ def convert_model_to_yaml(self, json_model, thread_id=None):
         )
         return yaml_model
     except Exception as exc:
-        print(f"Error converting JSON to YAML: {exc}")
+        logger.info(f"Error converting JSON to YAML: {exc}")
         return None
 
 def convert_yaml_to_json(self, yaml_model, thread_id=None):
@@ -65,7 +62,7 @@ def convert_yaml_to_json(self, yaml_model, thread_id=None):
         json_model = yaml.safe_load(yaml_model)
         return json_model
     except yaml.YAMLError as exc:
-        print(f"Error converting YAML to JSON: {exc}")
+        logger.info(f"Error converting YAML to JSON: {exc}")
         return None
 
 def modify_semantic_model(
@@ -1129,7 +1126,7 @@ def deploy_semantic_model(
             file_name=yaml_file_name,
             file_content=semantic_yaml_str,
         )
-        print(
+        logger.info(
             f"Semantic YAML for model '{model_name}' saved to stage '{stage_name}'."
         )
     except Exception as e:
@@ -1270,9 +1267,9 @@ def semantic_copilot(
         #    logger.warning('Checking REST token...')
         rest_token = self.connection.rest.token
         if rest_token:
-            print("REST token length: %d", len(rest_token))
+            logger.info("REST token length: %d", len(rest_token))
         else:
-            print("REST token is not available")
+            logger.info("REST token is not available")
         try:
             resp = requests.post(
                 (

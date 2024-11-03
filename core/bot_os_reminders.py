@@ -58,9 +58,9 @@ class RemindersTest(BotOsRemindersBase):
             if action and action['type'] == 'callback':
                 self.callback_action_function(action.get('message', ''))
             self.reminders = self.reminders[self.reminders['id'] != reminder_id]
-            print(f"Marked reminder {reminder_id} as completed.")
+            logger.info(f"Marked reminder {reminder_id} as completed.")
         else:
-            print("Reminder not found.")
+            logger.info("Reminder not found.")
 
     def calculate_next_due_date(self, due_date, frequency):
         if frequency == 'every minute':
@@ -82,7 +82,7 @@ class RemindersTest(BotOsRemindersBase):
             return []
         due_reminders = self.reminders[(self.reminders['due_date'] <= current_time) | ((self.reminders['is_recurring']) & (self.reminders['next_due_date'] <= current_time))]
         for _, reminder in due_reminders.iterrows():
-            print(f"Reminder due: {reminder['text']}")
+            logger.info(f"Reminder due: {reminder['text']}")
             # Optionally, prepare reminder for completion or notify user/system
         # Return due reminders for further processing if necessary
         return due_reminders.to_dict('records')

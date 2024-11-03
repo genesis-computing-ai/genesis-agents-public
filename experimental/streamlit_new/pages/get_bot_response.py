@@ -1,7 +1,8 @@
 import streamlit as st
 import time
 from utils.snowflake_connector import submit_to_udf_proxy, get_response_from_udf_proxy
-
+from core.logging_config import setup_logger
+logger = setup_logger(__name__)
 
 def get_bot_response(session, run_mode, user_input, bot_id, in_resp):
 
@@ -19,7 +20,7 @@ def get_bot_response(session, run_mode, user_input, bot_id, in_resp):
             response = get_response_from_udf_proxy(
                 uu=request_id, bot_id=bot_id, session=session, run_mode=run_mode
             )
-            print(response)
+            logger.info(response)
             if response != "not found":
                 return response
             time.sleep(0.5)  # Short delay before checking again

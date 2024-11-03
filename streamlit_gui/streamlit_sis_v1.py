@@ -2,6 +2,9 @@ import streamlit as st
 import json
 import time
 
+from core.logging_config import setup_logger
+logger = setup_logger(__name__)
+
 app_name = "GENESIS_BOTS"
 prefix = app_name + ".app1"
 core_prefix = app_name + ".CORE"
@@ -33,7 +36,7 @@ def provide_slack_level_key(bot_id=None, slack_app_level_key=None):
     import requests
     import json
 
-    print(f"Snow Mode: {NativeMode}")
+    logger.info(f"Snow Mode: {NativeMode}")
     if NativeMode:
 
         sql = f"select {prefix}.set_bot_app_level_key('{bot_id}','{slack_app_level_key}') "
@@ -127,7 +130,7 @@ def set_ngrok_token(ngrok_auth_token, ngrok_use_domain, ngrok_domain):
     import requests
     import json
 
-    print(NativeMode)
+    logger.info(NativeMode)
     if NativeMode:
 
         sql = f"select {prefix}.configure_ngrok_token('{ngrok_auth_token}','{ngrok_use_domain}','{ngrok_domain}') "
@@ -587,7 +590,7 @@ def chat_page():
             time.sleep(2)
             st.experimental_rerun()
 
-        # print("out of thinking...")
+        # logger.info("out of thinking...")
         # st.write('oot - response for uu ',request_id,' |',response,'|')
 
         in_resp = response

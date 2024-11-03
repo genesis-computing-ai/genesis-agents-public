@@ -1,8 +1,7 @@
 import os
-
-
-
 from enum import Enum
+from core.logging_config import setup_logger
+logger = setup_logger(__name__)
 
 class BotLlmEngineEnum(Enum):
     '''
@@ -63,9 +62,9 @@ class LLMKeyHandler:
                 os.environ["CORTEX_HARVESTER_MODEL"] = "reka-flash"
                 os.environ["CORTEX_EMBEDDING_MODEL"] = 'e5-base-v2'
             else:
-                print("cortex not availabe and no llm key set - use streamlit to add a llm key")
+                logger.info("cortex not availabe and no llm key set - use streamlit to add a llm key")
         else:
-            print("cortex not available and no llm key set - set key in streamlit")
+            logger.info("cortex not available and no llm key set - set key in streamlit")
             return False, llm_api_key, llm_type
 
         self.default_llm_engine = BotLlmEngineEnum(llm_type)
@@ -75,15 +74,15 @@ class LLMKeyHandler:
             return False, llm_api_key, llm_type
         else:
             api_key_from_env = True
-            print(f"Default LLM set to {self.default_llm_engine} because ENV Var is present")
+            logger.info(f"Default LLM set to {self.default_llm_engine} because ENV Var is present")
     
         try:
             #  insert key into db
             if llm_api_key:
                 set_key_result = self.db_adapter.db_set_llm_key(llm_key=llm_api_key, llm_type=llm_type, llm_endpoint=llm_endpoint)
-                print(f"set llm key in database result: {set_key_result}")
+                logger.info(f"set llm key in database result: {set_key_result}")
         except Exception as e:
-            print(f"error updating llm key in database with error: {e}")
+            logger.info(f"error updating llm key in database with error: {e}")
 
         return api_key_from_env, llm_keys_and_types_struct(llm_key=llm_api_key, 
                                                            llm_type=llm_type.value, # this struct expects the llm type (engine) name
@@ -142,16 +141,16 @@ class LLMKeyHandler:
                 os.environ["CORTEX_EMBEDDING_MODEL"] = 'e5-base-v2'
                 os.environ["BOT_OS_DEFAULT_LLM_ENGINE"] = 'cortex' 
                 self.default_llm_engine = BotLlmEngineEnum.cortex
-                print('&& CORTEX OVERRIDE FROM ENV VAR &&')
+                logger.info('&& CORTEX OVERRIDE FROM ENV VAR &&')
                 return False, 'cortex_no_key_needed', "cortex"
             elif os.environ["CORTEX_OVERRIDE"] == "True" and not cortex_avail:
-                print("Cortex override set to True but Cortex is not available")
+                logger.info("Cortex override set to True but Cortex is not available")
 
 
         try:
             llm_key_struct = db_adapter.db_get_active_llm_key()
         except Exception as e:
-            print(f"Error retrieving LLM key from database: {e}")
+            logger.info(f"Error retrieving LLM key from database: {e}")
             return False, None, None
         
         if llm_key_struct.llm_key:
@@ -181,13 +180,13 @@ class LLMKeyHandler:
                     os.environ["CORTEX_EMBEDDING_MODEL"] = 'e5-base-v2'
                 else:
                     os.environ["CORTEX_MODE"] = "False"
-                    print("cortex not availabe and no llm key set")
+                    logger.info("cortex not availabe and no llm key set")
             api_key_from_env = False
         else:
             api_key_from_env, llm_key_struct = self.get_llm_key_from_env()
 
         if llm_key_struct.llm_type.lower() == "cortex" and not cortex_avail:
-            print("Cortex is not available. Falling back to OpenAI.")
+            logger.info("Cortex is not available. Falling back to OpenAI.")
             llm_key_struct.llm_type = "openai"
             # Attempt to get OpenAI key if it exists
             
@@ -205,13 +204,13 @@ class LLMKeyHandler:
                     llm_data = json.loads(llm_info["Data"])
                     openai_key = next((item["llm_key"] for item in llm_data if item["llm_type"].lower() == "openai"), None)
                 else:
-                    print(f"Error retrieving LLM info: {llm_info.get('Error')}")
+                    logger.info(f"Error retrieving LLM info: {llm_info.get('Error')}")
             
             if openai_key:
                 llm_key = openai_key
                 os.environ["OPENAI_API_KEY"] = llm_key
             else:
-                print("No OpenAI key found in environment or database and cortex not available. LLM functionality may be limited.")
+                logger.info("No OpenAI key found in environment or database and cortex not available. LLM functionality may be limited.")
                 llm_key = None
             
             os.environ["CORTEX_MODE"] = "False"

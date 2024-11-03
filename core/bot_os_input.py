@@ -1,6 +1,8 @@
 from __future__ import annotations
 from abc import abstractmethod
 from typing import Optional
+from core.logging_config import setup_logger
+logger = setup_logger(__name__)
 
 class BotOsInputMessage:
     def __init__(self, thread_id:str, msg:str, files:Optional(list) = None, metadata:Optional(dict) = None) -> None: # type: ignore
@@ -54,6 +56,6 @@ class BotInputAdapterCLI(BotOsInputAdapter):
         return BotOsInputMessage(thread_id=self.thread_id, msg=prompt, files=files)
 
     def handle_response(self, session_id:str, message:BotOsOutputMessage):
-        print(f"{session_id} - {message.thread_id} - {message.status} - {message.output}")
+        logger.info(f"{session_id} - {message.thread_id} - {message.status} - {message.output}")
         if self.prompt_on_response:
             self.next_message = input(f"[{self.thread_id}]> ") #FixMe do we need self.thread_id

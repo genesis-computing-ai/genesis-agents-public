@@ -1,5 +1,7 @@
 import asyncio
 from discord_adapter import DiscordBotAdapter  # Assuming you've named your file discord_bot_adapter.py
+from core.logging_config import setup_logger
+logger = setup_logger(__name__)
 
 async def main():
     bot_adapter = DiscordBotAdapter(
@@ -13,7 +15,7 @@ async def main():
     try:
         await bot_adapter.start_bot()
     except KeyboardInterrupt:
-        print("Bot is shutting down...")
+        logger.info("Bot is shutting down...")
     finally:
         # Perform any cleanup if necessary
         pass

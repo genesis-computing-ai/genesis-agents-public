@@ -17,9 +17,8 @@ from demo.sessions_creator import create_sessions, make_session
 
 from bot_genesis.make_baby_bot import (  get_bot_details ) 
 
-import logging
-
-logger = logging.getLogger(__name__)
+from core.logging_config import setup_logger
+logger = setup_logger(__name__)
 
 
 def _job_listener(event):
@@ -80,39 +79,39 @@ class BotOsServer:
             t, r = get_slack_config_tokens()
             tok, ref = rotate_slack_token(t, r)
             if tok is not None and ref is not None:
-                print(
+                logger.info(
                     f"Slack Bot Config Token REFRESHED {self.last_slack_token_rotate_time}"
                 )
             else:
-                print('Slack refresh token failed, token is None')
+                logger.info('Slack refresh token failed, token is None')
 
     def add_session(self, session: BotOsSession, replace_existing=False):
-        print("At add_Session, replace_existing is ", replace_existing)
+        logger.info("At add_Session, replace_existing is ", replace_existing)
         if replace_existing:
             # Attempt to remove sessions with the same name as the new session
             try:
-                print(self.sessions)
-                print(session.session_name)
+                logger.info(self.sessions)
+                logger.info(session.session_name)
                 self.sessions = [
                     s for s in self.sessions if s.session_name != session.session_name
                 ]
             except Exception as e:
-                print("add_session exception ", e)
+                logger.info("add_session exception ", e)
                 if self.sessions:
-                    print("sessions ", self.sessions)
+                    logger.info("sessions ", self.sessions)
                 else:
-                    print("no sessions")
+                    logger.info("no sessions")
         # Append the new session regardless of whether a matching session was found and removed
         if session != None:
-            print("Adding session ", session)
+            logger.info("Adding session ", session)
         else:
-            print("Session is None")
+            logger.info("Session is None")
         self.sessions.append(session)
 
     def remove_session(self, session):
 
         self.sessions = [s for s in self.sessions if s != session]
-        print(f"Session {session} has been removed.")
+        logger.info(f"Session {session} has been removed.")
 
     def _rotate_slack_tokens(self):
         t, r = get_slack_config_tokens()
@@ -122,9 +121,9 @@ class BotOsServer:
         # Print a confirmation message with the current time
        
         if tok is not None and ref is not None:
-            print(f"Slack Bot Config Token REFRESHED {self.last_slack_token_rotate_time}")
+            logger.info(f"Slack Bot Config Token REFRESHED {self.last_slack_token_rotate_time}")
         else:
-            print('Slack token refreshed failed, None result.')
+            logger.info('Slack token refreshed failed, None result.')
 
 
     def get_running_instances(self):
@@ -157,7 +156,7 @@ class BotOsServer:
         )
         # check new_session
         if new_session is None:
-            print("new_session is none")
+            logger.info("new_session is none")
             return "Error: Not Installed new session is none"
         if slack_adapter_local is not None and self.bot_id_to_slack_adapter_map is not None:
             self.bot_id_to_slack_adapter_map[bot_config["bot_id"]] = (
@@ -166,7 +165,7 @@ class BotOsServer:
         if udf_local_adapter is not None:
             self.bot_id_to_udf_adapter_map[bot_config["bot_id"]] = udf_local_adapter
         self.api_app_id_to_session_map[api_app_id] = new_session
-        #    print("about to add session ",new_session)
+        #    logger.info("about to add session ",new_session)
         self.add_session(new_session, replace_existing=True)
 
 
@@ -177,7 +176,7 @@ class BotOsServer:
             BotOsServer.cycle_count += 1
             insts = self.get_running_instances()
             if True or insts > 1:
-                # print(f"--- {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} bot_os_server runners: {insts} / max 100 (cycle = {BotOsServer.cycle_count})",flush=True)
+                # logger.info(f"--- {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} bot_os_server runners: {insts} / max 100 (cycle = {BotOsServer.cycle_count})")
                 emb_size = 'Unknown'
                 try:
                     emb_size = os.environ['EMBEDDING_SIZE']
@@ -191,12 +190,9 @@ class BotOsServer:
                 i = 0
             # self.clear_stuck_jobs(self.scheduler)
             if insts >= 90:
-                print("=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-", flush=True)
-                print(
-                    f"-!! Scheduler worker INSTANCES >= 90 at {insts} ... Clearing All Instances",
-                    flush=True,
-                )
-                print("=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-", flush=True)
+                logger.info("=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-")
+                logger.info(f"-!! Scheduler worker INSTANCES >= 90 at {insts} ... Clearing All Instances")
+                logger.info("=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-")
                 # Shut down the scheduler and terminate all jobs
                 # self.scheduler.shutdown(wait=False)
                 self.scheduler.remove_all_jobs()
@@ -207,16 +203,13 @@ class BotOsServer:
                     seconds=1,
                     id="bots",
                 )
-                print(
-                    "Scheduler restarted the job. All existing instances have been terminated.",
-                    flush=True,
-                )
+                logger.info( "Scheduler restarted the job. All existing instances have been terminated." )
 
                 # Restart the scheduler
                 # self.scheduler.start()
-                print("Scheduler has been restarted.", flush=True)
+                logger.info("Scheduler has been restarted.")
                 insts = self.get_running_instances()
-                print(f"-=-=- Scheduler instances: {insts} / 100", flush=True)
+                logger.info(f"-=-=- Scheduler instances: {insts} / 100")
         if BotOsSession.clear_access_cache == True:
             for s in self.sessions:
                 s.assistant_impl.user_allow_cache = {}
@@ -224,14 +217,14 @@ class BotOsServer:
         for s in self.sessions:
             try:
                 # import threading
-                # print(f"Thread ID: {threading.get_ident()} - starting execute cycle...")
+                # logger.info(f"Thread ID: {threading.get_ident()} - starting execute cycle...")
                 if os.getenv(f'RESET_BOT_SESSION_{s.bot_id}', 'False') == 'True':
-                    print(f"Resetting bot session for bot_id: {s.bot_id}", flush=True)
+                    logger.info(f"Resetting bot session for bot_id: {s.bot_id}")
                     os.environ[f'RESET_BOT_SESSION_{s.bot_id}'] = 'False'
                     self.reset_session(s.bot_id,s)
                 else:
                     s.execute()
-                # print(f"Thread ID: {threading.get_ident()} - ending execute cycle...")
+                # logger.info(f"Thread ID: {threading.get_ident()} - ending execute cycle...")
             except Exception as e:
                 traceback.print_exc()
 

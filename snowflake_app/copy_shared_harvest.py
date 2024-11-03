@@ -4,7 +4,8 @@ import json
 from snowflake.connector import connect
 import uuid
 from datetime import datetime
-
+from core.logging_config import setup_logger
+logger = setup_logger(__name__)
 
 def _create_connection_target():
     account = os.getenv('SNOWFLAKE_ACCOUNT_OVERRIDE_E')
@@ -129,19 +130,19 @@ def insert_table_summary(self, database_name, schema_name, table_name, ddl, ddl_
         }
 
         for param, value in query_params.items():
-            #print(f'{param}: {value}')
+            #logger.info(f'{param}: {value}')
             if value is None:
-               # print(f'{param} is null')
+               # logger.info(f'{param} is null')
                 query_params[param] = 'NULL'
 
         # Execute the MERGE statement with parameters
         try:
-            #print("merge sql: ",merge_sql)
+            #logger.info("merge sql: ",merge_sql)
             cursor = self.client.cursor()
             cursor.execute(merge_sql, query_params)
             self.client.commit()
         except Exception as e:
-            print(f"An error occurred while executing the MERGE statement: {e}")
+            logger.info(f"An error occurred while executing the MERGE statement: {e}")
         finally:
             if cursor is not None:
                 cursor.close()
@@ -161,11 +162,11 @@ if __name__ == "__main__":
         source_cursor.execute("SHOW TABLES LIKE 'HARVEST_RESULTS' IN SCHEMA GENESISAPP_MASTER.HARVEST_SHARE")
         result = source_cursor.fetchone()
         if result:
-            print("Table GENESISAPP_MASTER.HARVEST_SHARE.harvest_results exists in the source Snowflake.")
+            logger.info("Table GENESISAPP_MASTER.HARVEST_SHARE.harvest_results exists in the source Snowflake.")
         else:
-            print("Table GENESISAPP_MASTER.HARVEST_SHARE.harvest_results does not exist in the source Snowflake.")
+            logger.info("Table GENESISAPP_MASTER.HARVEST_SHARE.harvest_results does not exist in the source Snowflake.")
     except Exception as e:
-        print(f"An error occurred while checking for the table: {e}")
+        logger.info(f"An error occurred while checking for the table: {e}")
         source_conn.close()
         target_conn.close()
         raise e
@@ -177,14 +178,14 @@ if __name__ == "__main__":
         # Check if the database exists on the target, if not, create it
         target_cursor.execute("CREATE DATABASE IF NOT EXISTS GENESISAPP_MASTER")
         target_conn.commit()
-        print("Database GENESISAPP_MASTER ensured on target Snowflake.")
+        logger.info("Database GENESISAPP_MASTER ensured on target Snowflake.")
 
         # Check if the schema exists on the target, if not, create it
         target_cursor.execute("CREATE SCHEMA IF NOT EXISTS GENESISAPP_MASTER.HARVEST_SHARE")
         target_conn.commit()
-        print("Schema GENESISAPP_MASTER.HARVEST_SHARE ensured on target Snowflake.")
+        logger.info("Schema GENESISAPP_MASTER.HARVEST_SHARE ensured on target Snowflake.")
     except Exception as e:
-        print(f"An error occurred while ensuring the database and schema on the target: {e}")
+        logger.info(f"An error occurred while ensuring the database and schema on the target: {e}")
         source_conn.close()
         target_conn.close()
         raise e
@@ -215,9 +216,9 @@ if __name__ == "__main__":
             );
         """)
         target_conn.commit()
-        print("Table GENESISAPP_MASTER.HARVEST_SHARE.HARVEST_RESULTS ensured on target Snowflake.")
+        logger.info("Table GENESISAPP_MASTER.HARVEST_SHARE.HARVEST_RESULTS ensured on target Snowflake.")
     except Exception as e:
-        print(f"An error occurred while ensuring the table GENESISAPP_MASTER.HARVEST_SHARE.HARVEST_RESULTS on the target: {e}")
+        logger.info(f"An error occurred while ensuring the table GENESISAPP_MASTER.HARVEST_SHARE.HARVEST_RESULTS on the target: {e}")
         source_conn.close()
         target_conn.close()
         raise e
@@ -232,7 +233,7 @@ if __name__ == "__main__":
         i = 0
         for row in rows:
             i = i + 1
-            print(i, row[1])
+            logger.info(i, row[1])
             # Convert the last element in the row from string to array if it's not None
             if row[-1] is not None and isinstance(row[-1], str):
                 embedding_array = row[-1].split(',') if row[-1] else []
@@ -252,7 +253,7 @@ if __name__ == "__main__":
                     embedding = json.loads('[' + embedding_str[5:-10] + ']')
                 except json.JSONDecodeError:
                     # If both attempts fail, log an error and set the embedding to an empty list
-                    print(f"Cannot load array from Snowflake for row: {row}")
+                    logger.info(f"Cannot load array from Snowflake for row: {row}")
                     embedding = []
             # Replace the last element in the row with the actual list of floats
 
@@ -338,7 +339,7 @@ if __name__ == "__main__":
             # Execute the MERGE statement with the prepared data
             target_cursor.execute(merge_sql, insert_data)
         target_conn.commit()
-        print("Data copied from source to target for GENESISAPP_MASTER.HARVEST_SHARE.HARVEST_RESULTS.")
+        logger.info("Data copied from source to target for GENESISAPP_MASTER.HARVEST_SHARE.HARVEST_RESULTS.")
 
         # Check hashaggs of both tables to make sure they are identical
         try:
@@ -352,17 +353,17 @@ if __name__ == "__main__":
             target_hashagg = target_cursor.fetchone()[0]
 
             if source_hashagg == target_hashagg:
-                print("Hash aggregates of both tables are identical.")
+                logger.info("Hash aggregates of both tables are identical.")
             else:
-                print("Hash aggregates of both tables differ.")
+                logger.info("Hash aggregates of both tables differ.")
                 # Additional logic can be added here if action is needed when hash aggregates do not match
         except Exception as e:
-            print(f"An error occurred while comparing hash aggregates: {e}")
+            logger.info(f"An error occurred while comparing hash aggregates: {e}")
             raise e
 
             
     except Exception as e:
-        print(f"An error occurred while copying data: {e}")
+        logger.info(f"An error occurred while copying data: {e}")
         source_conn.close()
         target_conn.close()
         raise e

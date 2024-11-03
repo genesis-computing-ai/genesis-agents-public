@@ -1,5 +1,7 @@
 from dagster_sdf import SdfCliResource
 from pathlib import Path
+from core.logging_config import setup_logger
+logger = setup_logger(__name__)
 
 sdf_workspace_dir = Path.cwd().joinpath('sdf_workspaces', 'sdf_genesis')  # Set to the current working directory plus '/sdf_workspaces/sdf_genesis' at runtime
 sdf_cli = SdfCliResource(workspace_dir=sdf_workspace_dir)#, environment=environment)
@@ -8,7 +10,7 @@ def run_sdf_command(command: list[str]) -> list[str]:
     assets = sdf_cli.cli(command).stream()
     assets_list = []
     for asset in assets:
-        print(asset)
+        logger.info(asset)
         assets_list.append(asset)
     return assets_list
 
@@ -19,7 +21,7 @@ def create_or_replace_model(model_path: str, model_name: str, sql_str: str):
         with model_file_path.open('w') as model_file:
             model_file.write(sql_str)
         compile_output = run_sdf_command(["compile", "--save", "info-schema", "--log-level", "error", str(model_file_path)])
-        print(compile_output)
+        logger.info(compile_output)
         return f"Model {model_path}/{model_name}.sql produced this output from sdf compile:\n" + str(compile_output)
     except Exception as e:
         return str(e)
@@ -30,5 +32,5 @@ select 'Hello cruel world!' as message,
        'it is over' as message3,
        'Goodbye, goodbye, goodbye' as message4
 """)
-print(ret)
+logger.info(ret)
 

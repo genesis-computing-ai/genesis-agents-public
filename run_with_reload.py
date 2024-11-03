@@ -2,11 +2,13 @@ import time
 import subprocess
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
+from core.logging_config import setup_logger
+logger = setup_logger(__name__)
 
 class ChangeHandler(FileSystemEventHandler):
     def on_modified(self, event):
         if event.src_path.endswith('.py'):
-            print(f"File {event.src_path} has been modified. Restarting...")
+            logger.info(f"File {event.src_path} has been modified. Restarting...")
             self.restart_app()
 
     def restart_app(self):

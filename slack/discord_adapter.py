@@ -4,8 +4,8 @@ import asyncio
 import logging
 from core.bot_os_input import BotOsInputAdapter, BotOsInputMessage, BotOsOutputMessage
 
-logger = logging.getLogger(__name__)
-
+from core.logging_config import setup_logger
+logger = setup_logger(__name__)
 class DiscordBotAdapter(BotOsInputAdapter):
     def __init__(
         self,

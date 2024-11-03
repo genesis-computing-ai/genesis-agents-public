@@ -12,7 +12,8 @@ import hashlib
 import json
 from tqdm import tqdm
 
-logger = logging.getLogger(__name__)
+from core.logging_config import setup_logger
+logger = setup_logger(__name__)
 
 class BigQueryConnector(DatabaseConnector):
     def __init__(self, connection_info, connection_name):
@@ -21,24 +22,24 @@ class BigQueryConnector(DatabaseConnector):
         self.genbot_internal_project_and_schema = os.getenv('GENESIS_INTERNAL_DB_SCHEMA','None')
         if  self.genbot_internal_project_and_schema is None:       
             self.genbot_internal_project_and_schema = os.getenv('ELSA_INTERNAL_DB_SCHEMA','None')
-            print("!! Please switch from using ELSA_INTERNAL_DB_SCHEMA ENV VAR to GENESIS_INTERNAL_DB_SCHEMA !!")
+            logger.info("!! Please switch from using ELSA_INTERNAL_DB_SCHEMA ENV VAR to GENESIS_INTERNAL_DB_SCHEMA !!")
         if self.genbot_internal_project_and_schema == 'None':
             # Todo remove, internal note 
-            print("ENV Variable GENBOT_INTERNAL_DB_SCHEMA is not set.")
+            logger.info("ENV Variable GENBOT_INTERNAL_DB_SCHEMA is not set.")
         if self.genbot_internal_project_and_schema is not None:
            self.genbot_internal_project_and_schema = self.genbot_internal_project_and_schema.upper()
         self.genbot_internal_harvest_table = os.getenv('GENESIS_INTERNAL_HARVEST_RESULTS_TABLE','harvest_results')
         self.genbot_internal_harvest_control_table = os.getenv('GENESIS_INTERNAL_HARVEST_CONTROL_TABLE','harvest_control')
         self.genbot_internal_message_log = os.getenv('GENESIS_INTERNAL_MESSAGE_LOG_TABLE','message_log')
         
-        print("genbot_internal_project_and_schema: ", self.genbot_internal_project_and_schema)
+        logger.info("genbot_internal_project_and_schema: ", self.genbot_internal_project_and_schema)
         self.metadata_table_name = self.genbot_internal_project_and_schema+'.'+self.genbot_internal_harvest_table
         self.harvest_control_table_name = self.genbot_internal_project_and_schema+'.'+self.genbot_internal_harvest_control_table
         self.message_log_table_name = self.genbot_internal_project_and_schema+'.'+self.genbot_internal_message_log
         
-        print("harvest_control_table_name: ", self.harvest_control_table_name)
-        print("metadata_table_name: ", self.metadata_table_name)
-        print("message_log_table_name: ", self.genbot_internal_message_log)
+        logger.info("harvest_control_table_name: ", self.harvest_control_table_name)
+        logger.info("metadata_table_name: ", self.metadata_table_name)
+        logger.info("message_log_table_name: ", self.genbot_internal_message_log)
 
         self.project_id = connection_info["project_id"]
         # make sure harvester control and results tables are available, if not create them
@@ -275,10 +276,10 @@ class BigQueryConnector(DatabaseConnector):
 
         errors = self.client.insert_rows_json(table_id, row_to_insert)  # Make an API request.
         if errors == []:
-            #print("New row has been added.")
+            #logger.info("New row has been added.")
             pass
         else:
-            print("Encountered errors while inserting into chat history table row: {}".format(errors))
+            logger.info("Encountered errors while inserting into chat history table row: {}".format(errors))
 
     def ensure_table_exists(self):
 
@@ -301,11 +302,11 @@ class BigQueryConnector(DatabaseConnector):
         # Check if the chat history table exists
         try:
             self.client.get_table(table_chat_history)  # Make an API request.
-            print(f"Table {chat_history_table_id} already exists.")
+            logger.info(f"Table {chat_history_table_id} already exists.")
         except NotFound:
             # If the table does not exist, create it
             self.client.create_table(table_chat_history)  # Make an API request.
-            print(f"Table {chat_history_table_id} created.")
+            logger.info(f"Table {chat_history_table_id} created.")
 
 
         # HARVEST CONTROL TABLE
@@ -327,11 +328,11 @@ class BigQueryConnector(DatabaseConnector):
         # Check if the table exists
         try:
             self.client.get_table(table_hc)  # Make an API request.
-            print(f"Table {hc_table_id} already exists.")
+            logger.info(f"Table {hc_table_id} already exists.")
         except NotFound:
             # If the table does not exist, create it
             self.client.create_table(table_hc)  # Make an API request.
-            print(f"Table {hc_table_id} created.")
+            logger.info(f"Table {hc_table_id} created.")
             self.client.get_table(table_hc) 
 
             query = f"""
@@ -340,7 +341,7 @@ class BigQueryConnector(DatabaseConnector):
             """
             query_job = self.client.query(query)  # Make an API request.
             results = query_job.result()  # Wait for the job to complete.
-            print("insert base harvest control row: ",results)
+            logger.info("insert base harvest control row: ",results)
 
         # METADATA TABLE FOR HARVESTER RESULTS
         table_id = self.metadata_table_name
@@ -367,7 +368,7 @@ class BigQueryConnector(DatabaseConnector):
         # Check if the table exists
         try:
             self.client.get_table(table)  # Make an API request.
-            print(f"Table {table_id} already exists.")
+            logger.info(f"Table {table_id} already exists.")
         except NotFound:
             # If the table does not exist, create it
             self.client.create_table(table)  # Make an API request.
@@ -378,9 +379,9 @@ class BigQueryConnector(DatabaseConnector):
             """
             query_job = self.client.query(query)  # Make an API request.
             results = query_job.result()  # Wait for the job to complete.
-            print("index create results: ",results)
+            logger.info("index create results: ",results)
 
-            print(f"Table {table_id} created.")
+            logger.info(f"Table {table_id} created.")
             
 
     def insert_table_summary(self, database_name, schema_name, table_name, ddl, summary, sample_data_text, complete_description="", crawl_status="Completed", role_used_for_crawl="Default", embedding=None):
@@ -831,9 +832,9 @@ class BigQueryConnector(DatabaseConnector):
 
         try:
             self.run_query(query=insert_query, job_config=job_config)
-            print(f"Successfully inserted new bot configuration for bot_id: {bot_id}")
+            logger.info(f"Successfully inserted new bot configuration for bot_id: {bot_id}")
         except Exception as e:
-            print(f"Failed to insert new bot configuration for bot_id: {bot_id} with error: {e}")
+            logger.info(f"Failed to insert new bot configuration for bot_id: {bot_id} with error: {e}")
             raise e
         
 
@@ -1059,9 +1060,9 @@ class BigQueryConnector(DatabaseConnector):
 
         try:
             self.run_query(query=update_query, job_config=job_config)
-            print(f"Successfully updated existing bot configuration for bot_id: {bot_id}")
+            logger.info(f"Successfully updated existing bot configuration for bot_id: {bot_id}")
         except Exception as e:
-            print(f"Failed to update existing bot configuration for bot_id: {bot_id} with error: {e}")
+            logger.info(f"Failed to update existing bot configuration for bot_id: {bot_id} with error: {e}")
             raise e
 
     def db_update_bot_details(self, bot_id, bot_slack_user_id, slack_app_token, project_id, dataset_name, bot_servicing_table):
@@ -1220,7 +1221,7 @@ class BigQueryConnector(DatabaseConnector):
             return filename, metafilename
         except Exception as e:
             # Handle errors: for example, table not found, or API errors
-            #print(f"An error occurred: {e}")
+            #logger.info(f"An error occurred: {e}")
             # Return a default filename or re-raise the exception based on your use case
             return "default_filename.ann", "default_metadata.json"
         

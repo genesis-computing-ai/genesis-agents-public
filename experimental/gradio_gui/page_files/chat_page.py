@@ -2,11 +2,13 @@ import gradio as gr
 import time
 import uuid
 from utils import get_bot_details, submit_to_udf_proxy, get_response_from_udf_proxy
+from core.logging_config import setup_logger
+logger = setup_logger(__name__)
 
 def create_chat_interface():
     bot_details = get_bot_details()
     if not bot_details:
-        print("Warning: No bot details available. Using default bot.")
+        logger.info("Warning: No bot details available. Using default bot.")
         bot_details = [{"bot_id": "default", "bot_name": "Default Bot"}]
     
     bot_details.sort(key=lambda x: (not "Eve" in x["bot_name"], x["bot_name"]))

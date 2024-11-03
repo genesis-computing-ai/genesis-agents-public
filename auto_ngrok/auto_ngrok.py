@@ -1,6 +1,8 @@
 import os
 #from ngrok import ngrok
 from bot_genesis.make_baby_bot import update_bot_endpoints, get_ngrok_auth_token
+from core.logging_config import setup_logger
+logger = setup_logger(__name__)
 
 ngrok_from_env = False
 
@@ -33,14 +35,14 @@ def start_ngrok():
         try:
             listener = ngrok.forward(8080, authtoken=NGROK_AUTH_TOKEN)
         except:
-            print('NGROK not established')
+            logger.info('NGROK not established')
             return False
 
         # Output ngrok url to console
-        print(f"Ingress established at {listener.url()}")
+        logger.info(f"Ingress established at {listener.url()}")
         return(listener.url())
     else:
-        print('Error: NGROK_AUTH_TOKEN environment variable not set.')
+        logger.info('Error: NGROK_AUTH_TOKEN environment variable not set.')
         return False 
 
    

@@ -1,6 +1,5 @@
 import threading
 import time
-import logging
 import json
 import queue
 import os
@@ -12,7 +11,8 @@ from llm_openai.openai_utils import get_openai_client
 import pandas as pd
 import re
 import traceback
-
+from core.logging_config import setup_logger
+logger = setup_logger(__name__)
 
 print("     ┌───────┐     ")
 print("    ╔═════════╗    ")
@@ -37,7 +37,7 @@ print('Knowledge Start Version 0.185',flush=True)
 refresh_seconds = os.getenv("KNOWLEDGE_REFRESH_SECONDS", 60)
 refresh_seconds = int(refresh_seconds)
 
-print("waiting 60 seconds for other services to start first...", flush=True)
+logger.info("waiting 60 seconds for other services to start first...")
 time.sleep(60)
 
 class KnowledgeServer:
@@ -67,7 +67,7 @@ class KnowledgeServer:
             # join inside snowflake
             cutoff = (datetime.now() - timedelta(minutes=10)).strftime("%Y-%m-%d %H:%M:%S")
             threads = self.db_connector.query_threads_message_log(cutoff)
-            print(f"Producer found {len(threads)} threads", flush=True)
+            logger.info(f"Producer found {len(threads)} threads")
             for thread in threads:
                 thread_id = thread["THREAD_ID"]
                 with self.thread_set_lock:
@@ -78,13 +78,11 @@ class KnowledgeServer:
                 
                 with self.condition:
                     if self.thread_queue.full():
-                        print("Queue is full, producer is waiting...")
+                        logger.info("Queue is full, producer is waiting...")
                         self.condition.wait()
                     self.thread_queue.put(thread)
-                    print(f"Produced {thread_id}")
+                    logger.info(f"Produced {thread_id}")
                     self.condition.notify()
-
-            # print(f"Pausing KnowledgeServer Producer for {refresh_seconds} seconds before next check.\n", flush=True )
 
             wake_up = False
             i = 0
@@ -102,18 +100,18 @@ class KnowledgeServer:
 
                 i += 1
                 if i >= 30:
-                    print(f"BOTS ACTIVE TIME: {result[0]} | CURRENT TIME: {current_time} | TIME DIFFERENCE: {time_difference} | producer", flush=True)
+                    logger.info(f"BOTS ACTIVE TIME: {result[0]} | CURRENT TIME: {current_time} | TIME DIFFERENCE: {time_difference} | producer")
                     i = 0
 
                 if time_difference < timedelta(minutes=5):
                     wake_up = True
-    #                print("Bot is active")
+    #                logger.info("Bot is active")
 
     def consumer(self):
         while True:
             with self.condition:
                 if self.thread_queue.empty():
-                    #print("Queue is empty, consumer is waiting...")
+                    #logger.info("Queue is empty, consumer is waiting...")
                     self.condition.wait()
                 thread = self.thread_queue.get()
                 self.condition.notify()
@@ -146,7 +144,7 @@ class KnowledgeServer:
                 
             skipped_thread = False
             if count_non_bot_users and count_non_bot_users[0]["CNT"] != 1:
-                print(f"Skipped {thread_id}, {count_non_bot_users[0]['CNT']} non-bot-users is not 1")
+                logger.info(f"Skipped {thread_id}, {count_non_bot_users[0]['CNT']} non-bot-users is not 1")
                 response = {'thread_summary': 'Skipped due to empty or multiple non-bot-users', 
                             'user_learning' : 'Skipped due to empty or multiple non-bot-users',
                             'tool_learning' : 'Skipped due to empty or multiple non-bot-users',
@@ -167,12 +165,12 @@ class KnowledgeServer:
                                 {messages}
                             """
                     try:
-                        print('openai create ', knowledge_thread_id)
+                        logger.info('openai create ', knowledge_thread_id)
                         self.client.beta.threads.messages.create(
                             thread_id=knowledge_thread_id, content=content, role="user"
                         )
                     except Exception as e:
-                        print('openai create exception ', e)
+                        logger.info('openai create exception ', e)
                         knowledge_thread_id = None
                 else:
                     content = f"""Given the following conversations between the user and agent, analyze them and extract the 4 requested information:
@@ -217,7 +215,7 @@ class KnowledgeServer:
                     try:                
                         response = json.loads(raw_knowledge)
                     except:
-                        print('Skipped thread ',knowledge_thread_id,' knowledge unparseable')
+                        logger.info('Skipped thread ',knowledge_thread_id,' knowledge unparseable')
                         response = {'thread_summary': 'Skipped due to invalid summary generated by LLM', 
                             'user_learning' : 'Skipped due to invalid summary generated by LLM',
                             'tool_learning' : 'Skipped due to invalid summary generated by LLM',
@@ -251,29 +249,29 @@ class KnowledgeServer:
                     if not skipped_thread:
                         self.user_queue.put((primary_user, bot_id, response))
             except Exception as e:
-                print(f"Encountered errors processing knowledge for thread {thread_id}, {self.db_connector.knowledge_table_name} row: {e}", flush=True)
-                print(traceback.format_exc(), flush=True)
+                logger.info(f"Encountered errors processing knowledge for thread {thread_id}, {self.db_connector.knowledge_table_name} row: {e}")
+                logger.info(traceback.format_exc())
             
             with self.thread_set_lock:
                 self.thread_set.remove(thread_id)
-                print(f"Consumed {thread_id}")
+                logger.info(f"Consumed {thread_id}")
 
     def refiner(self):
 
 
         while True:
             if self.user_queue.empty():
-                #print("Queue is empty, refiner is waiting...")
+                #logger.info("Queue is empty, refiner is waiting...")
                 time.sleep(refresh_seconds)
                 continue
             primary_user, bot_id, knowledge = self.user_queue.get()
-            print('refining...', flush=True)
+            logger.info('refining...')
             if primary_user is not None:
                 try:
                     user_json = json.loads(primary_user)
                 except Exception as e:
-                    print('Error on user_json ',e)
-                    print('    primary user is ',primary_user,' switching to unknown user')
+                    logger.info('Error on user_json ',e)
+                    logger.info('    primary user is ',primary_user,' switching to unknown user')
                     primary_user = None
                     user_json = {'user_email': 'Unknown Email'}
             else:
@@ -336,8 +334,8 @@ class KnowledgeServer:
                                               user_learning=new_knowledge["USER_LEARNING"],tool_learning=new_knowledge["TOOL_LEARNING"],
                                               data_learning=new_knowledge["DATA_LEARNING"])
             except Exception as e:
-                print(f"Encountered errors while inserting into {self.db_connector.user_bot_table_name} row: {e}", flush=True)
-                print(traceback.format_exc(), flush=True)
+                logger.info(f"Encountered errors while inserting into {self.db_connector.user_bot_table_name} row: {e}")
+                logger.info(traceback.format_exc())
 
 
     def tool_knowledge(self):
@@ -395,7 +393,7 @@ class KnowledgeServer:
                         self.db_connector.run_insert(self.db_connector.tool_knowledge_table_name, timestamp=timestamp, 
                                                     last_timestamp=last_timestamp, bot_id=bot_id, tool = function_name, summary=response)
             else:
-                print(f"Pausing Tool Knowledge for {refresh_seconds} seconds before next check.", flush=True )
+                logger.info(f"Pausing Tool Knowledge for {refresh_seconds} seconds before next check.")
                 time.sleep(refresh_seconds)
 
     def data_knowledge(self):
@@ -454,7 +452,7 @@ class KnowledgeServer:
                         self.db_connector.run_insert(self.db_connector.data_knowledge_table_name, timestamp=timestamp, 
                                                     last_timestamp=last_timestamp, bot_id=bot_id, dataset = dataset, summary=response)
             else:
-                print(f"Pausing Data Knowledge for {refresh_seconds} seconds before next check.", flush=True )
+                logger.info(f"Pausing Data Knowledge for {refresh_seconds} seconds before next check.")
                 time.sleep(refresh_seconds)
 
     def start_threads(self):

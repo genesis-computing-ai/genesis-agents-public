@@ -28,6 +28,8 @@ import functools
 import re
 from datetime import datetime, timezone
 from textwrap import dedent
+from core.logging_config import setup_logger
+logger = setup_logger(__name__)
 
 # Regex for matching valid artifcat UUIDs
 ARTIFACT_ID_REGEX = r'[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}' # regrex for matching a valid artifact UUID
@@ -191,10 +193,10 @@ class SnowflakeStageArtifactsStore(ArtifactsStoreBase):
         stage_ddl_prefix = None
         if self.does_storage_exist():
             if replace_if_exists:
-                print(f"Stage @{self._stage_qualified_name} already exists but {replace_if_exists=}. Will replace Stage")
+                logger.info(f"Stage @{self._stage_qualified_name} already exists but {replace_if_exists=}. Will replace Stage")
                 stage_ddl_prefix = "CREATE OR REPLACE STAGE"
             else:
-                print(f"Stage @{self._stage_qualified_name} already exists. (No-op)")
+                logger.info(f"Stage @{self._stage_qualified_name} already exists. (No-op)")
         else:
             stage_ddl_prefix = "CREATE STAGE IF NOT EXISTS"
         if stage_ddl_prefix:
@@ -205,7 +207,7 @@ class SnowflakeStageArtifactsStore(ArtifactsStoreBase):
             with self._get_sql_cursor() as cursor:
                 cursor.execute(stage_ddl)
                 self._sfconn.client.commit()
-                print(f"Stage @{self._stage_qualified_name} created using '{stage_ddl_prefix.lower()}'")
+                logger.info(f"Stage @{self._stage_qualified_name} created using '{stage_ddl_prefix.lower()}'")
 
         # reate a wrapper sproce for GET_PRESIGNED_URL.
         # We always create or replace to ensure latest version - this is a statless function).
@@ -242,7 +244,7 @@ class SnowflakeStageArtifactsStore(ArtifactsStoreBase):
         with self._get_sql_cursor() as cursor:
             cursor.execute(sproc_ddl)
             self._sfconn.client.commit()
-            print(f"Created PROCEDURE {self._signed_url_sproc_name}")
+            logger.info(f"Created PROCEDURE {self._signed_url_sproc_name}")
 
 
     def create_artifact_from_file(self, file_path, metadata: dict):
@@ -313,7 +315,7 @@ class SnowflakeStageArtifactsStore(ArtifactsStoreBase):
                 cursor.execute(metadata_query)
 
                 self._sfconn.client.commit()
-        print(f"New artifact created {artifact_id=}, by {metadata['func_name']} with title='{metadata['title_filename']}' ")
+        logger.info(f"New artifact created {artifact_id=}, by {metadata['func_name']} with title='{metadata['title_filename']}' ")
         return artifact_id
 
 
@@ -415,7 +417,7 @@ class SnowflakeStageArtifactsStore(ArtifactsStoreBase):
                 raise ValueError(f"Failed to create a signed URL for artifact {artifact_id}")
 
             result = row[0]
-            print(f"Generated PRESIGNED_URL for artifact_id={artifact_id} using query={query}. Result: {result}")
+            logger.info(f"Generated PRESIGNED_URL for artifact_id={artifact_id} using query={query}. Result: {result}")
             return result
 
 
@@ -482,7 +484,7 @@ class SnowflakeStageArtifactsStore(ArtifactsStoreBase):
                 cursor.execute(sql)
                 row_count = cursor.rowcount
                 if row_count > 0:
-                    print(f"Deleted artifcat {aid}")
+                    logger.info(f"Deleted artifcat {aid}")
                     succeeded.append(aid)
 
         # Clear the cache for get_artifact_metadata after deletion

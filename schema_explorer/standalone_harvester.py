@@ -13,18 +13,16 @@ from connectors.sqlite_connector import SqliteConnector
 from schema_explorer import SchemaExplorer
 from core.bot_os_llm import LLMKeyHandler 
 #import schema_explorer.embeddings_index_handler as embeddings_handler
-import logging
-logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.WARN, format='%(asctime)s - %(levelname)s - %(message)s')
-
+from core.logging_config import setup_logger
+logger = setup_logger(__name__)
 genesis_source = os.getenv('GENESIS_SOURCE',default="BigQuery")
 
-print("waiting 60 seconds for other services to start first...", flush=True)
+logger.info("waiting 60 seconds for other services to start first...")
 if os.getenv('HARVEST_TEST', 'FALSE').upper() != 'TRUE':
     time.sleep(60)
 
 ### LLM KEY STUFF
-print('Starting harvester... ')
+logger.info('Starting harvester... ')
 logger.info('Starting harvester... ')
 
 logger.info('Starting DB connection...')
@@ -75,7 +73,7 @@ def get_llm_api_key(db_adapter):
 
                 ii += 1
                 if ii >= 30:
-                    print(f"BOTS ACTIVE TIME: {result[0]} | CURRENT TIME: {current_time} | TIME DIFFERENCE: {time_difference} | producer", flush=True)
+                    logger.info(f"BOTS ACTIVE TIME: {result[0]} | CURRENT TIME: {current_time} | TIME DIFFERENCE: {time_difference} | producer")
                     ii = 0
 
                 if time_difference < timedelta(minutes=5):
@@ -83,13 +81,13 @@ def get_llm_api_key(db_adapter):
                 else:
                     time.sleep(refresh_seconds)
             except:
-                print('Waiting for BOTS_ACTIVE table to be created...')
+                logger.info('Waiting for BOTS_ACTIVE table to be created...')
                 time.sleep(refresh_seconds)
 
         i = i + 1
         if i > 100:
             c += 1
-            print(f'Waiting on LLM key... (cycle {c})')
+            logger.info(f'Waiting on LLM key... (cycle {c})')
             i = 0 
         # llm_type = None
         llm_key_handler = LLMKeyHandler(db_adapter)
@@ -98,7 +96,7 @@ def get_llm_api_key(db_adapter):
         api_key_from_env, llm_api_key_struct = llm_key_handler.get_llm_key_from_db()
 
         if llm_api_key_struct.llm_key is None and llm_api_key_struct.llm_key != 'cortex_no_key_needed':
-        #   print('No LLM Key Available in ENV var or Snowflake database, sleeping 20 seconds before retry.', flush=True)
+        #   logger.info('No LLM Key Available in ENV var or Snowflake database, sleeping 20 seconds before retry.')
             time.sleep(180)
         else:
             logger.info(f"Using {llm_type} for harvester ")
@@ -120,7 +118,7 @@ schema_explorer = SchemaExplorer(harvester_db_connector,llm_api_key_struct.llm_k
 # 
 #databases = bigquery_connector.get_databases()
 # print all databases
-#print("Databases:", databases)
+#logger.info("Databases:", databases)
 
 
 # Check for new databases in Snowflake and add them to the harvest include list with schema_exclude of INFORMATION_SCHEMA
@@ -135,7 +133,7 @@ def update_harvest_control_with_new_databases(connector):
 
     for db in available_databases:
         if db not in controlled_databases and db not in {'GENESISAPP_APP_PKG_EXT', 'GENESISAPP_APP_PKG'}:
-            print(f"Adding new database to harvest control -- the system db is {internal_db}", flush=True)
+            logger.info(f"Adding new database to harvest control -- the system db is {internal_db}")
             schema_exclusions = ['INFORMATION_SCHEMA']
             if db.upper() == internal_db.upper():
                 schema_exclusions.append(internal_sch)
@@ -156,44 +154,44 @@ if os.getenv("HARVEST_TEST", "FALSE").upper() == "TRUE":
     refresh_seconds = 5
 
 
-print("    ┌───────┐     ")
-print("   ╔═════════╗    ")
-print("  ║   ◉   ◉   ║   ")
-print("  ║    ───    ║  ")
-print("  ╚═══════════╝ ")
-print("     ╱     ╲     ")
-print("    ╱│  ◯  │╲    ")
-print("   ╱ │_____│ ╲   ")
-print("      │   │      ")
-print("      │   │      ")
-print("     ╱     ╲     ")
-print("    ╱       ╲    ")
-print("   ╱         ╲   ")
-print("  G E N E S I S ")
-print("    B o t O S")
-print(" ---- HARVESTER----")
-print('Harvester Start Version 0.185',flush=True)
+logger.info("    ┌───────┐     ")
+logger.info("   ╔═════════╗    ")
+logger.info("  ║   ◉   ◉   ║   ")
+logger.info("  ║    ───    ║  ")
+logger.info("  ╚═══════════╝ ")
+logger.info("     ╱     ╲     ")
+logger.info("    ╱│  ◯  │╲    ")
+logger.info("   ╱ │_____│ ╲   ")
+logger.info("      │   │      ")
+logger.info("      │   │      ")
+logger.info("     ╱     ╲     ")
+logger.info("    ╱       ╲    ")
+logger.info("   ╱         ╲   ")
+logger.info("  G E N E S I S ")
+logger.info("    B o t O S")
+logger.info(" ---- HARVESTER----")
+logger.info('Harvester Start Version 0.185')
 
 
 while True:
     llm_api_key_struct = get_llm_api_key(harvester_db_connector)
     if genesis_source == 'Snowflake' and os.getenv('AUTO_HARVEST', 'TRUE').upper() == 'TRUE':
-        print('Checking for any newly granted databases to add to harvest...', flush=True)
+        logger.info('Checking for any newly granted databases to add to harvest...')
         update_harvest_control_with_new_databases(harvester_db_connector)
     
-    print(f"Checking for new tables... (once per {refresh_seconds} seconds)",flush=True)
+    logger.info(f"Checking for new tables... (once per {refresh_seconds} seconds)")
  #   sys.stdout.write(f"Checking for new tables... (once per {refresh_seconds} seconds)...\n")
  #   sys.stdout.flush()
     #embeddings_handler.load_or_create_embeddings_index(bigquery_connector.metadata_table_name, refresh=True)
-   # print('Checking if LLM API Key updated for harvester...')
+   # logger.info('Checking if LLM API Key updated for harvester...')
     llm_key_handler = LLMKeyHandler(harvester_db_connector)
     latest_llm_type = None
     api_key_from_env, latest_llm_api_key_struct = llm_key_handler.get_llm_key_from_db(harvester_db_connector)
     if latest_llm_api_key_struct.llm_type != llm_api_key_struct.llm_type:
-        print(f"Now using {latest_llm_api_key_struct.llm_type} instead of {llm_api_key_struct.llm_type} for harvester ")
+        logger.info(f"Now using {latest_llm_api_key_struct.llm_type} instead of {llm_api_key_struct.llm_type} for harvester ")
         
     schema_explorer.explore_and_summarize_tables_parallel()
-    #print("Checking Cached Annoy Index")
+    #logger.info("Checking Cached Annoy Index")
   #  logger.info(f"Checking for new semantic models... (once per {refresh_seconds} seconds)")
   #  schema_explorer.explore_semantic_models()
     #embeddings_handler.make_and_save_index(bigquery_connector.metadata_table_name)
@@ -215,10 +213,10 @@ while True:
         time_difference = current_time - bot_active_time_dt
         i = i + 1
         if i >= 30:
-            print(f"BOTS ACTIVE TIME: {result[0]} | CURRENT TIME: {current_time} | TIME DIFFERENCE: {time_difference}", flush=True)
+            logger.info(f"BOTS ACTIVE TIME: {result[0]} | CURRENT TIME: {current_time} | TIME DIFFERENCE: {time_difference}")
         if i > 30:
             i = 0
 
         if time_difference < timedelta(minutes=5):
             wake_up = True
-       #     print("Bot is active")
+       #     logger.info("Bot is active")

@@ -80,7 +80,34 @@ def one_time_db_fixes(self):
     else:
         logger.info("BOTS table does not exist. Skipping tool addition.")
 
-    cursor.close()
+    check_llm_endpoint_query = f"DESCRIBE TABLE {self.genbot_internal_project_and_schema}.BOT_SERVICING;"
+    try:
+        cursor = self.client.cursor()
+        cursor.execute(check_llm_endpoint_query)
+        columns = [col[0] for col in cursor.fetchall()]
+
+        if "TEAMS_ACTIVE" not in columns:
+            # Add LLM_ENDPOINT column if it doesn't exist
+            alter_table_query = f"ALTER TABLE {self.genbot_internal_project_and_schema}.BOT_SERVICING ADD COLUMN TEAMS_ACTIVE VARCHAR(16777216);"
+            cursor.execute(alter_table_query)
+            self.client.commit()
+            logger.info(
+                f"Column 'TEAMS_ACTIVE' added to table {self.genbot_internal_project_and_schema}.LLM_TOKENS."
+            )
+
+            set_to_false_query = f"UPDATE {self.genbot_internal_project_and_schema}.BOT_SERVICING SET TEAMS_ACTIVE = 'N';"
+            cursor.execute(set_to_false_query)
+            self.client.commit()
+            logger.info(
+                f"Column 'TEAMS_ACTIVE' set to 'N' for all rows in table {self.genbot_internal_project_and_schema}.BOT_SERVICING."
+            )
+    except Exception as e:
+        logger.error(
+            f"An error occurred while checking or altering table {self.genbot_internal_project_and_schema}.LLM_TOKENS to add LLM_ENDPOINT column: {e}"
+        )
+    finally:
+        if cursor is not None:
+            cursor.close()
 
     return
 
@@ -656,6 +683,7 @@ def ensure_table_exists(self):
                 CLIENT_SECRET VARCHAR(16777216),
                 UDF_ACTIVE VARCHAR(16777216),
                 SLACK_ACTIVE VARCHAR(16777216),
+                TEAMS_ACTIVE VARCHAR(16777216),
                 FILES VARCHAR(16777216),
                 BOT_IMPLEMENTATION VARCHAR(16777216),
                 BOT_INTRO_PROMPT VARCHAR(16777216),

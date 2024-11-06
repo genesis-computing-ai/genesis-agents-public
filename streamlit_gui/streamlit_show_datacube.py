@@ -1,8 +1,7 @@
 from decimal import Decimal
 import streamlit as st
 import pandas as pd
-from core.logging_config import setup_logger
-logger = setup_logger(__name__)
+from core.logging_config import logger
 # with st.echo():
 #     st.write(st.__version__)
 #     st.help(st.dataframe)

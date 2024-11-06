@@ -7,8 +7,7 @@ from mistralai.client import MistralClient
 from mistralai.models.chat_completion import ChatMessage
 
 
-from core.logging_config import setup_logger
-logger = setup_logger(__name__)
+from core.logging_config import logger
 
 from core.bot_os_input import BotOsInputMessage, BotOsOutputMessage
 

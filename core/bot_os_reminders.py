@@ -2,9 +2,7 @@ from abc import abstractmethod
 from datetime import datetime, timedelta
 import json
 import pandas as pd
-import logging
-
-logger = logging.getLogger(__name__)
+from core.logging_config import logger
 
 class BotOsRemindersBase:
     @abstractmethod

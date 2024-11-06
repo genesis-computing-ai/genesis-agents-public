@@ -13,8 +13,7 @@ import os
 from tqdm.auto import tqdm
 from datetime import datetime
 
-from core.logging_config import setup_logger
-logger = setup_logger(__name__)
+from core.logging_config import logger
 
 from llm_openai.openai_utils import get_openai_client
 
@@ -304,11 +303,7 @@ def search_and_display_results(search_term, annoy_index, metadata_mapping):
         logger.info(f"Match: {table_name}, Score: {idx[1]}")
 
 
-def load_or_create_embeddings_index(table_id, refresh=True):
-
-    import logging
-    logger = logging.getLogger(__name__)
-    logging.basicConfig(level=logging.WARN, format='%(asctime)s - %(levelname)s - %(message)s')
+def load_or_create_embeddings_index(table_id, refresh=True):    
 
     # if cortex_mode then 768 else
     if os.environ.get("CORTEX_MODE", 'False') == 'True':

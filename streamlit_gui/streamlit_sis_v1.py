@@ -2,8 +2,7 @@ import streamlit as st
 import json
 import time
 
-from core.logging_config import setup_logger
-logger = setup_logger(__name__)
+from core.logging_config import logger
 
 app_name = "GENESIS_BOTS"
 prefix = app_name + ".app1"

@@ -19,8 +19,7 @@ from streamlit_gui.old.streamlit_bot_os_app import BotInputStreamlit
 from openai import OpenAI
 from streamlit_autorefresh import st_autorefresh
 
-from core.logging_config import setup_logger
-logger = setup_logger(__name__)
+from core.logging_config import logger
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -35,12 +34,6 @@ def setup_adapter():
 streamlit_adapter = setup_adapter()
 
 if "initialized" not in st.session_state:
-
-    logger = logging.getLogger(__name__)
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s - %(levelname)s - %(filename)s - %(message)s",
-    )
 
     # Assuming your BigQuery credentials are stored in a JSON file
     # Update this path according to your environment variable setup

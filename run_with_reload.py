@@ -2,8 +2,7 @@ import time
 import subprocess
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
-from core.logging_config import setup_logger
-logger = setup_logger(__name__)
+from core.logging_config import logger
 
 class ChangeHandler(FileSystemEventHandler):
     def on_modified(self, event):

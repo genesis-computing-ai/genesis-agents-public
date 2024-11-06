@@ -3,8 +3,7 @@ import os
 import csv
 
 from llm_openai.openai_utils import get_openai_client
-from core.logging_config import setup_logger
-logger = setup_logger(__name__)
+from core.logging_config import logger
 
 client = get_openai_client()
 

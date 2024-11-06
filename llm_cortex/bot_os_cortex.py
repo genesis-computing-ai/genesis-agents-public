@@ -19,8 +19,7 @@ from openai import OpenAI
 from connectors.snowflake_connector.snowflake_connector import SnowflakeConnector
 from core.bot_os_assistant_base import BotOsAssistantInterface, execute_function
 
-from core.logging_config import setup_logger
-logger = setup_logger(__name__)
+from core.logging_config import logger
 
 from core.bot_os_input import BotOsInputMessage, BotOsOutputMessage
 from llm_openai.openai_utils import get_openai_client

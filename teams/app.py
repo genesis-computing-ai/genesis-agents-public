@@ -20,8 +20,7 @@ from botbuilder.schema import Activity, ActivityTypes
 from bots.echo_bot import EchoBot
 from config import DefaultConfig 
 
-from core.logging_config import setup_logger
-logger = setup_logger(__name__)
+from core.logging_config import logger
 
 #from bots import BOT
 

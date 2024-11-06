@@ -7,8 +7,7 @@ from connectors.sqlite_connector import SqliteConnector
 from connectors.database_connector import DatabaseConnector
 from connectors.bot_snowflake_connector import bot_credentials
 
-from core.logging_config import setup_logger
-logger = setup_logger(__name__)
+from core.logging_config import logger
 
 database_tool_functions = [
     {
@@ -824,12 +823,9 @@ def bind_search_metadata(knowledge_base_path):
         :return: The search result from find_memory.
         """
 
-        import logging
+        
 
-        logger = logging.getLogger(__name__)
-        logging.basicConfig(
-            level=logging.WARN, format="%(asctime)s - %(levelname)s - %(message)s"
-        )
+        from core.logging_config import logger
 
         # logger.info(f"Search metadata called with query: {query}, scope: {scope}, top_n: {top_n}, verbosity: {verbosity}")
         try:

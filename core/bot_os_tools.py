@@ -9,7 +9,7 @@ import threading
 import random
 import string
 from selenium import webdriver
-import logging
+
 import re
 from typing import Optional
 import collections
@@ -73,7 +73,7 @@ from core.bot_os_artifacts import lookup_artifact_markdown, get_artifacts_store,
 
 # import sys
 # sys.path.append('/Users/mglickman/helloworld/bot_os')  # Adjust the path as necessary
-import logging
+
 
 from core.bot_os_tool_descriptions import (
     process_runner_functions,
@@ -83,8 +83,7 @@ from core.bot_os_tool_descriptions import (
 )
 from core.bot_os_llm import BotLlmEngineEnum
 
-from core.logging_config import setup_logger
-logger = setup_logger(__name__)
+from core.logging_config import logger
 
 genesis_source = os.getenv("GENESIS_SOURCE", default="Snowflake")
 

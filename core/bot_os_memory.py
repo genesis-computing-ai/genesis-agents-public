@@ -16,8 +16,7 @@ from connectors.sqlite_connector import SqliteConnector
 from llm_openai.openai_utils import get_openai_client
 from  schema_explorer.embeddings_index_handler import load_or_create_embeddings_index
 
-from core.logging_config import setup_logger
-logger = setup_logger(__name__)
+from core.logging_config import logger
 class BotOsKnowledgeBase:
     @abstractmethod
     def find_memory(self, query:str, scope:str, top_n:int, verbosity:str) -> list[str]:

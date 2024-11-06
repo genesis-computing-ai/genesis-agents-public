@@ -1,8 +1,7 @@
 import streamlit as st
 import time
 from utils.snowflake_connector import submit_to_udf_proxy, get_response_from_udf_proxy
-from core.logging_config import setup_logger
-logger = setup_logger(__name__)
+from core.logging_config import logger
 
 def get_bot_response(session, run_mode, user_input, bot_id, in_resp):
 

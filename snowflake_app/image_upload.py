@@ -4,8 +4,7 @@ import io
 import os
 import sys
 import base64
-from core.logging_config import setup_logger
-logger = setup_logger(__name__)
+from core.logging_config import logger
 
 # simple script to upload image files to a table
 

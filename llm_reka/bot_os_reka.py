@@ -6,8 +6,7 @@ from core.bot_os_assistant_base import (
     execute_function_blocking,
 )
 import requests
-from core.logging_config import setup_logger
-logger = setup_logger(__name__)
+from core.logging_config import logger
 
 
 # You can either set the API key as below, or use the
@@ -46,7 +45,7 @@ def test_reka():
 
 from core.bot_os_input import BotOsInputMessage, BotOsOutputMessage
 
-logger = logging.getLogger(__name__)
+from core.logging_config import logger
 
 
 def _get_function_details(run):

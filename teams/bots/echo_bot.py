@@ -4,11 +4,9 @@
 from botbuilder.core import ActivityHandler, MessageFactory, TurnContext
 from botbuilder.schema import ChannelAccount, ConversationReference, Activity
 #from core.bot_os_input import BotOsInputAdapter, BotOsInputMessage, BotOsOutputMessage
-import logging
 import asyncio
 
-from core.logging_config import setup_logger
-logger = setup_logger(__name__)
+from core.logging_config import logger
 
 class EchoBot(ActivityHandler):
     def __init__(self, add_event = None, response_map = None):

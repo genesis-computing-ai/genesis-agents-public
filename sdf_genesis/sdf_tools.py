@@ -1,7 +1,6 @@
 from dagster_sdf import SdfCliResource
 from pathlib import Path
-from core.logging_config import setup_logger
-logger = setup_logger(__name__)
+from core.logging_config import logger
 
 sdf_workspace_dir = Path.cwd().joinpath('sdf_workspaces', 'sdf_genesis')  # Set to the current working directory plus '/sdf_workspaces/sdf_genesis' at runtime
 sdf_cli = SdfCliResource(workspace_dir=sdf_workspace_dir)#, environment=environment)

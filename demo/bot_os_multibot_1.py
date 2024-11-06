@@ -60,10 +60,8 @@ from demo.sessions_creator import create_sessions, make_session
 # for Cortex testing
 #os.environ['SIMPLE_MODE'] = 'true'
 
-import logging
 
-from core.logging_config import setup_logger
-logger = setup_logger(__name__)
+from core.logging_config import logger
 
 import core.global_flags as global_flags
 
@@ -1177,8 +1175,6 @@ scheduler.start()
 ngrok_active = launch_ngrok_and_update_bots(update_endpoints=global_flags.slack_active)
 
 SERVICE_HOST = os.getenv("SERVER_HOST", "0.0.0.0")
-
-logging.getLogger("werkzeug").setLevel(logging.WARN)
 
 # Initialize Slack Bolt app
 # tok = 'xapp-1-A06VCAXMAKA-6988391388305-458da01d3a1d9ea609d7727424db689eb402bc9e43d8aa8174a11e0ed02719e6'

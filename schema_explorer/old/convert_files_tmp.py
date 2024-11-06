@@ -5,8 +5,7 @@ import json
 import re
 import os
 from datetime import datetime
-from core.logging_config import setup_logger
-logger = setup_logger(__name__)
+from core.logging_config import logger
 
 # Setup BigQuery client
 client = bigquery.Client()

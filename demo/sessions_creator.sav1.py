@@ -30,10 +30,9 @@ from bot_genesis.make_baby_bot import (
 from streamlit_gui.udf_proxy_bot_os_adapter import UDFBotOsInputAdapter
 from core.bot_os_task_input_adapter import TaskBotOsInputAdapter
 
-import logging
 
-from core.logging_config import setup_logger
-logger = setup_logger(__name__)
+
+from core.logging_config import logger
 
 import core.global_flags as global_flags
 

@@ -1,8 +1,7 @@
 from __future__ import annotations
 from abc import abstractmethod
 from typing import Optional
-from core.logging_config import setup_logger
-logger = setup_logger(__name__)
+from core.logging_config import logger
 
 class BotOsInputMessage:
     def __init__(self, thread_id:str, msg:str, files:Optional(list) = None, metadata:Optional(dict) = None) -> None: # type: ignore

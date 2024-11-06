@@ -3,8 +3,7 @@ import os
 from openai import OpenAI
 import requests
 
-from core.logging_config import setup_logger
-logger = setup_logger(__name__)
+from core.logging_config import logger
 
 def encode_image(image_file):
     with open(image_file, "rb") as f:

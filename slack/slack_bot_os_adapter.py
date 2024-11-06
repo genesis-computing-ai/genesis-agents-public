@@ -1,7 +1,7 @@
 from __future__ import annotations  # for python 9 support of | type operator
 from collections import deque
 import json
-import logging
+
 import requests
 import functools
 from pathlib import Path
@@ -14,8 +14,7 @@ from core.bot_os_input import BotOsInputAdapter, BotOsInputMessage, BotOsOutputM
 from core.bot_os_artifacts import ARTIFACT_ID_REGEX, get_artifacts_store
 from connectors import get_global_db_connector
 
-from core.logging_config import setup_logger
-logger = setup_logger(__name__)
+from core.logging_config import logger
 import threading
 import random
 import re

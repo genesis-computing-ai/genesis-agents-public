@@ -6,8 +6,7 @@ import os
 
 import yaml
 
-from core.logging_config import setup_logger
-logger = setup_logger(__name__)
+from core.logging_config import logger
 
 sdf_workspace_dir = Path.cwd().joinpath('sdf_genesis')  
 target_dir = sdf_workspace_dir.joinpath("sdftarget-thread-123")

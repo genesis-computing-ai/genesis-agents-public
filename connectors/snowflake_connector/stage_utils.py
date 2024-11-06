@@ -3,8 +3,7 @@ import random
 import re
 import string
 
-from core.logging_config import setup_logger
-logger = setup_logger(__name__)
+from core.logging_config import logger
 
 def add_file_to_stage(
     self,

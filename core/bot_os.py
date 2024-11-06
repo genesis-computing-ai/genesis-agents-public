@@ -16,11 +16,10 @@ from core.bot_os_defaults import _BOT_OS_BUILTIN_TOOLS
 import core.global_flags as global_flags
 import pickle
 
-import logging
+
 import json
 
-from core.logging_config import setup_logger
-logger = setup_logger(__name__)
+from core.logging_config import logger
 
 
 class BotOsThread:

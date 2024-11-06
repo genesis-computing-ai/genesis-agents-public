@@ -1,8 +1,7 @@
 import os
 #from ngrok import ngrok
 from bot_genesis.make_baby_bot import update_bot_endpoints, get_ngrok_auth_token
-from core.logging_config import setup_logger
-logger = setup_logger(__name__)
+from core.logging_config import logger
 
 ngrok_from_env = False
 

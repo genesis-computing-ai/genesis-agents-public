@@ -11,8 +11,7 @@ from llm_openai.openai_utils import get_openai_client
 import pandas as pd
 import re
 import traceback
-from core.logging_config import setup_logger
-logger = setup_logger(__name__)
+from core.logging_config import logger
 
 print("     ┌───────┐     ")
 print("    ╔═════════╗    ")

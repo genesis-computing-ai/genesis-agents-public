@@ -12,8 +12,7 @@ from connectors.sqlite_connector import SqliteConnector
 from knowledge.knowledge_server import KnowledgeServer
 from core.bot_os_llm import LLMKeyHandler
 
-from core.logging_config import setup_logger
-logger = setup_logger(__name__)
+from core.logging_config import logger
 
 genesis_source = os.getenv('GENESIS_SOURCE', default="Snowflake")
 

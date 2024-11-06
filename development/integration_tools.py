@@ -8,8 +8,7 @@ import shutil
 from datetime import datetime
 
 # Set up a logger for the module
-from core.logging_config import setup_logger
-logger = setup_logger(__name__)
+from core.logging_config import logger
 
 # Create a timestamped backup of existing module
 def _backup_existing_module(module_path):

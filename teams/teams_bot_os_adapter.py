@@ -2,7 +2,7 @@ from flask import Blueprint, request, render_template, make_response, jsonify
 import uuid
 import os
 #from connectors.snowflake_connector import SnowflakeConnector
-import logging
+
 from core.bot_os_input import BotOsInputAdapter, BotOsInputMessage, BotOsOutputMessage
 from collections import deque
 import asyncio
@@ -11,7 +11,6 @@ from botbuilder.core import ActivityHandler, MessageFactory, TurnContext
 from teams.bots.echo_bot import EchoBot
 
 import json
-logger = logging.getLogger(__name__)
 
 import sys
 import traceback
@@ -28,8 +27,7 @@ from botbuilder.integration.aiohttp import CloudAdapter, ConfigurationBotFramewo
 from botbuilder.schema import Activity, ActivityTypes
 
 from teams.config import DefaultConfig 
-from core.logging_config import setup_logger
-logger = setup_logger(__name__)
+from core.logging_config import logger
 
 async def teams_on_error(context: TurnContext, error: Exception):
     # This check writes out errors to console log .vs. app insights.

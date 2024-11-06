@@ -5,7 +5,7 @@ from core.bot_os_assistant_base import BotOsAssistantInterface, execute_function
 from collections import deque
 import datetime
 import time 
-import logging
+
 import threading
 import core.global_flags as global_flags
 from core.bot_os_input import BotOsInputMessage, BotOsOutputMessage
@@ -23,8 +23,7 @@ import traceback
 from bot_genesis.make_baby_bot import (  get_bot_details )
 from llm_openai.openai_utils import get_openai_client 
 
-from core.logging_config import setup_logger
-logger = setup_logger(__name__)
+from core.logging_config import logger
 def _get_function_details(run):
       function_details = []
       if run.required_action and run.required_action.submit_tool_outputs:

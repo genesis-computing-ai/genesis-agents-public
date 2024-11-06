@@ -1,8 +1,8 @@
 from flask import Blueprint, request, render_template, make_response
 import uuid
-import logging
 
-logger = logging.getLogger(__name__)
+
+from core.logging_config import logger
 
 lookup_ui = Blueprint('lookup_fn', __name__)
 submit_ui = Blueprint('submit_fn', __name__)

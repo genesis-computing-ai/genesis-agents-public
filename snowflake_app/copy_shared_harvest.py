@@ -4,8 +4,7 @@ import json
 from snowflake.connector import connect
 import uuid
 from datetime import datetime
-from core.logging_config import setup_logger
-logger = setup_logger(__name__)
+from core.logging_config import logger
 
 def _create_connection_target():
     account = os.getenv('SNOWFLAKE_ACCOUNT_OVERRIDE_E')

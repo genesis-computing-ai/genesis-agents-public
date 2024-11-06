@@ -4,7 +4,7 @@ import requests
 import time
 from datetime import datetime, timedelta
 import sys
-import logging
+
 
 from flask import Flask, request, jsonify, make_response
 from core.bot_os import BotOsSession
@@ -51,8 +51,7 @@ from demo.sessions_creator import create_sessions, make_session
 from auto_ngrok.auto_ngrok import launch_ngrok_and_update_bots
 from core.system_variables import SystemVariables
 
-from core.logging_config import setup_logger
-logger = setup_logger(__name__)
+from core.logging_config import logger
 
 import core.global_flags as global_flags
 

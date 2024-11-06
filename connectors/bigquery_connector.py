@@ -4,7 +4,6 @@ from .database_connector import DatabaseConnector
 from google.cloud.exceptions import NotFound
 from itertools import islice
 from datetime import datetime
-import logging
 import uuid
 import os
 import time
@@ -12,8 +11,7 @@ import hashlib
 import json
 from tqdm import tqdm
 
-from core.logging_config import setup_logger
-logger = setup_logger(__name__)
+from core.logging_config import logger
 
 class BigQueryConnector(DatabaseConnector):
     def __init__(self, connection_info, connection_name):

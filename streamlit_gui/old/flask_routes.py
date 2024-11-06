@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify, make_response
 from demo.sessions_creator import create_sessions, make_session
 import requests
 import json
-import logging
+
 import os
 
 from core.bot_os_server import BotOsServer
@@ -23,10 +23,7 @@ from bot_genesis.make_baby_bot import (
 )
 from embed.embed_openbb import openbb_query
 
-logger = logging.getLogger(__name__)
-logging.basicConfig(
-    level=logging.WARN, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+from core.logging_config import logger
 
 import core.global_flags as global_flags
 

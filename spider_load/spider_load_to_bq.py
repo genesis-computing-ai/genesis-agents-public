@@ -4,8 +4,7 @@ import os
 from google.cloud import bigquery
 from google.cloud.bigquery import SchemaField
 from google.cloud.exceptions import NotFound
-from core.logging_config import setup_logger
-logger = setup_logger(__name__)
+from core.logging_config import logger
 
 def dataset_exists(bigquery_client, dataset_id):
     """Check if a BigQuery dataset exists."""

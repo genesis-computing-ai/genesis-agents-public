@@ -28,8 +28,7 @@ import functools
 import re
 from datetime import datetime, timezone
 from textwrap import dedent
-from core.logging_config import setup_logger
-logger = setup_logger(__name__)
+from core.logging_config import logger
 
 # Regex for matching valid artifcat UUIDs
 ARTIFACT_ID_REGEX = r'[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}' # regrex for matching a valid artifact UUID

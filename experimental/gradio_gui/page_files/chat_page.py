@@ -2,8 +2,7 @@ import gradio as gr
 import time
 import uuid
 from utils import get_bot_details, submit_to_udf_proxy, get_response_from_udf_proxy
-from core.logging_config import setup_logger
-logger = setup_logger(__name__)
+from core.logging_config import logger
 
 def create_chat_interface():
     bot_details = get_bot_details()

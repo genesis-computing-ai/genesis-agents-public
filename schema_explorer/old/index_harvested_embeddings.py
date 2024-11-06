@@ -1,7 +1,6 @@
 from annoy import AnnoyIndex
 import csv, json
-from core.logging_config import setup_logger
-logger = setup_logger(__name__)
+from core.logging_config import logger
 
 def load_embeddings_from_csv(csv_file_path):
     embeddings = []

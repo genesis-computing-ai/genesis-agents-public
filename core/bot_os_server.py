@@ -17,8 +17,7 @@ from demo.sessions_creator import create_sessions, make_session
 
 from bot_genesis.make_baby_bot import (  get_bot_details ) 
 
-from core.logging_config import setup_logger
-logger = setup_logger(__name__)
+from core.logging_config import logger
 
 
 def _job_listener(event):

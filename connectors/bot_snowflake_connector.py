@@ -2,8 +2,7 @@ import json
 import os
 from connectors.snowflake_connector.snowflake_connector import SnowflakeConnector
 from connectors.sqlite_connector import SqliteConnector
-from core.logging_config import setup_logger
-logger = setup_logger(__name__)
+from core.logging_config import logger
 genesis_source = os.getenv("GENESIS_SOURCE", default="Snowflake")
 
 

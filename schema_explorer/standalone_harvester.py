@@ -13,8 +13,7 @@ from connectors.sqlite_connector import SqliteConnector
 from schema_explorer import SchemaExplorer
 from core.bot_os_llm import LLMKeyHandler 
 #import schema_explorer.embeddings_index_handler as embeddings_handler
-from core.logging_config import setup_logger
-logger = setup_logger(__name__)
+from core.logging_config import logger
 genesis_source = os.getenv('GENESIS_SOURCE',default="BigQuery")
 
 logger.info("waiting 60 seconds for other services to start first...")

@@ -3,8 +3,7 @@ import uuid
 from core.bot_os_input import BotOsInputAdapter, BotOsInputMessage, BotOsOutputMessage
 from collections import deque
 
-from core.logging_config import setup_logger
-logger = setup_logger(__name__)
+from core.logging_config import logger
 
 class TaskBotOsInputAdapter(BotOsInputAdapter):
     def __init__(self):

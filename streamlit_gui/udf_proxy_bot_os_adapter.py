@@ -2,7 +2,7 @@ from flask import Blueprint, request, render_template, make_response
 import uuid
 import os
 from connectors import get_global_db_connector
-import logging
+
 from core.bot_os_input import BotOsInputAdapter, BotOsInputMessage, BotOsOutputMessage
 from collections import deque
 import json
@@ -10,7 +10,7 @@ import time
 import base64
 import functools
 
-logger = logging.getLogger(__name__)
+from core.logging_config import logger
 
 class UDFBotOsInputAdapter(BotOsInputAdapter):
 

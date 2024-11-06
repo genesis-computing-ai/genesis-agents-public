@@ -1,7 +1,6 @@
 
 import yaml, time, random, string
-from core.logging_config import setup_logger
-logger = setup_logger(__name__)
+from core.logging_config import logger
 
 def create_empty_semantic_model(model_name="", model_description=""):
     # Define the basic structure of the semantic model with an empty tables list

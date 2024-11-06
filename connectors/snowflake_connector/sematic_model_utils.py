@@ -5,8 +5,7 @@ import datetime
 import requests
 from threading import Lock
 
-from core.logging_config import setup_logger
-logger = setup_logger(__name__)
+from core.logging_config import logger
 
 _semantic_lock = Lock()
 

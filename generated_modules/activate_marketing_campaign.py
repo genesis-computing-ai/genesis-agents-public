@@ -1,6 +1,5 @@
 import json
-from core.logging_config import setup_logger
-logger = setup_logger(__name__)
+from core.logging_config import logger
 
 def activate_marketing_campaign(channel, segment_description, when_to_launch, budget):
     # Validate channel

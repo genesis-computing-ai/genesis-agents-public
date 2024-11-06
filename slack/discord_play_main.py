@@ -1,7 +1,6 @@
 import asyncio
 from discord_adapter import DiscordBotAdapter  # Assuming you've named your file discord_bot_adapter.py
-from core.logging_config import setup_logger
-logger = setup_logger(__name__)
+from core.logging_config import logger
 
 async def main():
     bot_adapter = DiscordBotAdapter(

@@ -1,7 +1,6 @@
 import re
 import os
-from core.logging_config import setup_logger
-logger = setup_logger(__name__)
+from core.logging_config import logger
 
 def replace_genesis_bots(input_file, output_file):
     with open(input_file, 'r') as file:

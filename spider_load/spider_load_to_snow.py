@@ -2,8 +2,7 @@ import sqlite3
 import glob
 import os
 from snowflake.connector import connect
-from core.logging_config import setup_logger
-logger = setup_logger(__name__)
+from core.logging_config import logger
 
 def _create_connection():
     account = os.getenv('SNOWFLAKE_ACCOUNT_OVERRIDE_E')

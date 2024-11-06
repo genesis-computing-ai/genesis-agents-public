@@ -1,5 +1,5 @@
 # make_baby_bot.py
-import logging
+
 import os, json, requests, uuid
 from connectors.bigquery_connector import BigQueryConnector
 from connectors.database_connector import llm_keys_and_types_struct
@@ -11,8 +11,7 @@ import threading
 
 from core.bot_os_corpus import URLListFileCorpus
 
-from core.logging_config import setup_logger
-logger = setup_logger(__name__)
+from core.logging_config import logger
 
 genesis_source = os.getenv('GENESIS_SOURCE',default="Snowflake")
 

@@ -18,8 +18,7 @@ from core.bot_os_defaults import (
     JANICE_INTRO_PROMPT
 )
 
-from core.logging_config import setup_logger
-logger = setup_logger(__name__)
+from core.logging_config import logger
 
 def one_time_db_fixes(self):
     # Remove BOT_FUNCTIONS is it exists

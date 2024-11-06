@@ -11,8 +11,7 @@ from google.generativeai import caching
 from connectors import database_tools
 from core.bot_os_assistant_base import BotOsAssistantInterface, execute_function
 from core.bot_os_input import BotOsInputMessage, BotOsOutputMessage
-from core.logging_config import setup_logger
-logger = setup_logger(__name__)
+from core.logging_config import logger
 
 class BotOsAssistantGemini(BotOsAssistantInterface):
     def __init__(self, name:str, instructions:str, 
@@ -205,12 +204,8 @@ class BotOsAssistantGemini(BotOsAssistantInterface):
 def gemini_test():
     import datetime
     import json
-    import logging
+    
     from connectors.database_tools import database_tool_functions
-
-    # Setup logging
-    logging.basicConfig(level=logging.INFO)
-    logger = logging.getLogger(__name__)
 
     # Mock event callback
     def event_callback(model, message:BotOsOutputMessage):

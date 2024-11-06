@@ -1,8 +1,7 @@
 import requests
 import tempfile
 import shutil
-from core.logging_config import setup_logger
-logger = setup_logger(__name__)
+from core.logging_config import logger
 
 class FileCorpus:
     def process(self):

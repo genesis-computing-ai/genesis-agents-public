@@ -5,7 +5,13 @@ RUN apt-get update && apt-get install gcc -y && apt-get install g++ -y && apt-ge
 RUN pip install --upgrade pip && \
     pip install -r requirements.txt
 RUN python3 -m spacy download en_core_web_md
-EXPOSE 8501 8080 8000 5678 1234
+EXPOSE 8501 8080 8000 5678 1234 3000 8081 8502 7681
+# Install Node.js 18.x and npm
+RUN apt-get update && apt-get install -y curl && \
+    curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
+    apt-get install -y nodejs && \
+    npm install -g npm@latest
+
 COPY llm_openai ./llm_openai
 COPY llm_reka ./llm_reka
 COPY llm_mistral ./llm_mistral
@@ -29,6 +35,9 @@ COPY embed ./embed
 COPY generated_modules ./generated_modules
 COPY entrypoint.sh /entrypoint.sh
 COPY teams ./teams
+COPY genesis-voice ./genesis-voice
+COPY nodetest ./nodetest
+
 RUN apt-get update && apt-get install -y procps
 RUN apt-get -y update && \
     apt-get -y install  \
@@ -39,7 +48,14 @@ RUN VER=$( curl --silent "https://api.github.com/repos/tsl0922/ttyd/releases/lat
     && curl -LO https://github.com/tsl0922/ttyd/releases/download/$VER/ttyd.x86_64 \
     && mv ttyd.* /usr/local/bin/ttyd \
     && chmod +x /usr/local/bin/ttyd
-    
+
+RUN apt-get update && \
+    apt-get install -y shellinabox && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* && \
+    echo "root:root" | chpasswd
+
 RUN chmod +x /entrypoint.sh
 HEALTHCHECK CMD curl --fail http://localhost:8501/_stcore/health
+
 ENTRYPOINT ["/entrypoint.sh"]

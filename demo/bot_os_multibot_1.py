@@ -95,6 +95,31 @@ if os.path.exists(index_size_file):
     except Exception as e:
         print(f"Error deleting {index_size_file}: {e}")
 
+
+
+def get_udf_endpoint_url(endpoint_name="udfendpoint"):
+
+    alt_service_name = os.getenv("ALT_SERVICE_NAME", None)
+    if alt_service_name:
+        query1 = f"SHOW ENDPOINTS IN SERVICE {alt_service_name};"
+    else:
+        query1 = f"SHOW ENDPOINTS IN SERVICE {project_id}.{dataset_name}.GENESISAPP_SERVICE_SERVICE;"
+    try:
+        logger.warning(f"Running query to check endpoints: {query1}")
+        results = db_adapter.run_query(query1)
+        udf_endpoint_url = next(
+            (
+                endpoint["ingress_url"]
+                for endpoint in results
+                if endpoint["name"] == endpoint_name
+            ),
+            None,
+        )
+        return udf_endpoint_url
+    except Exception as e:
+        logger.warning(f"Failed to get {endpoint_name} endpoint URL with error: {e}")
+        return None
+
 genbot_internal_project_and_schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "None")
 if genbot_internal_project_and_schema == "None":
     print("ENV Variable GENESIS_INTERNAL_DB_SCHEMA is not set.")
@@ -1090,6 +1115,37 @@ def embed_openbb():
         default_bot_id=list(bot_id_to_udf_adapter_map.keys())[0],
     )
 
+
+
+
+# Example curl command:
+# curl -X GET "http://localhost:8080/realtime/get_tools?bot_id=Janice"
+# Example curl command:
+# curl -X GET "http://localhost:8080/realtime/get_udf_endpoint?endpoint_name=udfendpoint"
+@app.route("/realtime/get_endpoint", methods=["GET"])
+def get_endpoint():
+    try:
+        endpoint_name = request.args.get("endpoint_name", "udfendpoint")
+        endpoint_url = get_udf_endpoint_url(endpoint_name)
+        
+        if endpoint_url:
+            return jsonify({
+                "success": True,
+                "endpoint_url": endpoint_url
+            }), 200
+        else:
+            return jsonify({
+                "success": False,
+                "message": f"Could not find endpoint URL for {endpoint_name}"
+            }), 404
+
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": f"Error getting endpoint URL: {str(e)}"
+        }), 500
+
+
 @app.route("/realtime/get_tools", methods=["GET"])
 def get_session_tools():
     try:
@@ -1138,6 +1194,7 @@ def genesis_tool():
         # Add return_base64=True parameter for _run_snowpark_python tool
         if tool_name == 'run_snowpark_python':
             params['return_base64'] = True
+            params['save_artifacts'] = False
 
         # Find the session for the bot_id
         session = next((s for s in sessions if s.bot_id == bot_id), None)
@@ -1168,10 +1225,10 @@ def genesis_tool():
         return jsonify({"success": False, "message": str(e)}), 500
 
 from flask import Flask, request, jsonify
-from flask_cors import CORS
+#from flask_cors import CORS
 
 
-CORS(app, resources={r"/*": {"origins": "http://localhost:*"}}) # This will enable CORS only for localhost
+#CORS(app, resources={r"/*": {"origins": "http://localhost:*"}}) # This will enable CORS only for localhost
 
 BotOsServer.stream_mode = True
 scheduler.start()

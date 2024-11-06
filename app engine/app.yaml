@@ -1,7 +1,7 @@
 runtime: python39
 instance_class: F4_1G
 env_variables:
-  OPENAI_API_KEY: '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'
+  OPENAI_API_KEY: 'sk-key'
   PYTHONPATH: '$PYTHONPATH:~/bot_os'
   GOOGLE_APPLICATION_CREDENTIALS: '.secrets/gcp.json'
   SLACK_APP_SIGNING_SECRET: 6fbb5139eef6d320ffbb386ea3738536

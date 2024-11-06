@@ -36,13 +36,13 @@ const log = {
 
 // Request logging middleware
 app.use((req, res, next) => {
-  log.info('Incoming HTTP Request', {
-    method: req.method,
-    url: req.url,
-    headers: req.headers,
-    query: req.query,
-    body: req.body
-  });
+ // log.info('Incoming HTTP Request', {
+ //   method: req.method,
+ //   url: req.url,
+ //   headers: req.headers,
+ //   query: req.query,
+ //   body: req.body
+ // });
   next();
 });
 
@@ -80,7 +80,7 @@ app.get('/realtime/tools', async (req, res) => {
     }
     
     const data = await response.json();
-    log.debug('Tools fetch response:', data);
+   // log.debug('Tools fetch response:', data);
     res.json(data);
   } catch (error) {
     log.error('Failed to fetch tools', error);
@@ -128,10 +128,10 @@ app.get('/realtime/get_endpoint', async (req, res) => {
 app.post('/realtime/genesis_tool', async (req, res) => {
   try {
     const url = `${BACKEND_URL}/realtime/genesis_tool`;
-    log.debug('Calling genesis_tool:', {
-      url,
-      requestBody: req.body
-    });
+  //  log.debug('Calling genesis_tool:', {
+  //    url,
+  //    requestBody: req.body
+   // });
     
     const response = await fetch(url, {
       method: 'POST',
@@ -148,7 +148,7 @@ app.post('/realtime/genesis_tool', async (req, res) => {
     }
     
     const data = await response.json();
-    log.debug('Genesis tool response:', data);
+   // log.debug('Genesis tool response:', data);
     res.json(data);
   } catch (error) {
     log.error('Failed to call genesis_tool', error);

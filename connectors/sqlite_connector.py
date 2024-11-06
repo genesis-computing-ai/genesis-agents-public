@@ -4,7 +4,6 @@ from tqdm import tqdm
 
 import os
 import json
-import logging
 from itertools import islice
 from datetime import datetime
 import uuid
@@ -39,10 +38,7 @@ from openai import OpenAI
 
 import core.bot_os_tool_descriptions
 
-logger = logging.getLogger(__name__)
-logging.basicConfig(
-    level=logging.WARN, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+from core.logging_config import logger
 
 _semantic_lock = Lock()
 
@@ -451,7 +447,7 @@ class SqliteConnector(DatabaseConnector):
 
             return result[0] > 0  # Returns True if a row exists, False otherwise
         except Exception as e:
-            print(f"An error occurred while checking if the table summary exists: {e}")
+            logger.info(f"An error occurred while checking if the table summary exists: {e}")
             return False
 
     def insert_chat_history_row(
@@ -528,7 +524,7 @@ class SqliteConnector(DatabaseConnector):
             )
             self.client.commit()
         except Exception as e:
-            print(
+            logger.info(
                 f"Encountered errors while inserting into chat history table row: {e}"
             )
         finally:
@@ -645,7 +641,7 @@ class SqliteConnector(DatabaseConnector):
                 if default_llm_engine is BotLlmEngineEnum.openai:
                     api_key = os.getenv("OPENAI_API_KEY")
                     if not api_key:
-                        print("OpenAI API key is not set in the environment variables.")
+                        logger.info("OpenAI API key is not set in the environment variables.")
                         return None
 
                     openai_api_key = os.getenv("OPENAI_API_KEY")
@@ -664,7 +660,7 @@ class SqliteConnector(DatabaseConnector):
 
            #     elif os.getenv("BOT_OS_DEFAULT_LLM_ENGINE") == 'cortex':
            #         if not self.check_cortex_available():
-           #             print("Cortex is not available.")
+           #             logger.info("Cortex is not available.")
            #             return None
            #         else:
            #             response, status_code = self.cortex_chat_completion(tidy_process_instructions)
@@ -709,11 +705,11 @@ class SqliteConnector(DatabaseConnector):
         cursor = self.client.cursor()
 
         if action == "LIST":
-            print("Running get processes list")
+            logger.info("Running get processes list")
             return self.get_processes_list("all")
 
         if action == "SHOW":
-            print("Running show process info")
+            logger.info("Running show process info")
             return self.get_process_info(bot_id)
 
         if process_id is None:
@@ -882,11 +878,11 @@ class SqliteConnector(DatabaseConnector):
             )
             self.client.commit()
             cursor.close()
-            print(
+            logger.info(
                 f"Process history row inserted successfully for process_id: {process_id}"
             )
         except Exception as e:
-            print(f"An error occurred while inserting the process history row: {e}")
+            logger.info(f"An error occurred while inserting the process history row: {e}")
             if cursor is not None:
                 cursor.close()
 
@@ -1157,9 +1153,9 @@ class SqliteConnector(DatabaseConnector):
             )
             self.client.commit()
             cursor.close()
-            print(f"Task history row inserted successfully for task_id: {task_id}")
+            logger.info(f"Task history row inserted successfully for task_id: {task_id}")
         except Exception as e:
-            print(f"An error occurred while inserting the task history row: {e}")
+            logger.info(f"An error occurred while inserting the task history row: {e}")
             if cursor is not None:
                 cursor.close()
 
@@ -1180,9 +1176,9 @@ class SqliteConnector(DatabaseConnector):
             cursor.execute(insert_query, (uu, message))
             self.client.commit()
             cursor.close()
-            print(f"LLM result row inserted successfully for uu: {uu}")
+            logger.info(f"LLM result row inserted successfully for uu: {uu}")
         except Exception as e:
-            print(f"An error occurred while inserting the LLM result row: {e}")
+            logger.info(f"An error occurred while inserting the LLM result row: {e}")
             if cursor is not None:
                 cursor.close()
 
@@ -1204,9 +1200,9 @@ class SqliteConnector(DatabaseConnector):
             cursor.execute(update_query, (message, uu))
             self.client.commit()
             cursor.close()
-        #     print(f"LLM result row inserted successfully for uu: {uu}")
+        #     logger.info(f"LLM result row inserted successfully for uu: {uu}")
         except Exception as e:
-            print(f"An error occurred while inserting the LLM result row: {e}")
+            logger.info(f"An error occurred while inserting the LLM result row: {e}")
             if cursor is not None:
                 cursor.close()
 
@@ -1232,7 +1228,7 @@ class SqliteConnector(DatabaseConnector):
             else:
                 return ''
         except Exception as e:
-            print(f"An error occurred while retrieving the LLM result: {e}")
+            logger.info(f"An error occurred while retrieving the LLM result: {e}")
             if cursor is not None:
                 cursor.close()
 
@@ -1249,11 +1245,11 @@ class SqliteConnector(DatabaseConnector):
             cursor.execute(delete_query)
             self.client.commit()
             cursor.close()
-            print(
+            logger.info(
                 "LLM result rows older than 10 minutes have been successfully deleted."
             )
         except Exception as e:
-            print(f"An error occurred while deleting old LLM result rows: {e}")
+            logger.info(f"An error occurred while deleting old LLM result rows: {e}")
             if cursor is not None:
                 cursor.close()
 
@@ -1261,7 +1257,7 @@ class SqliteConnector(DatabaseConnector):
         import core.bot_os_tool_descriptions
 
         streamlitdc_url = os.getenv("DATA_CUBES_INGRESS_URL", None)
-        print(f"streamlit data cubes ingress URL: {streamlitdc_url}")
+        logger.info(f"streamlit data cubes ingress URL: {streamlitdc_url}")
 
         llm_results_table_check_query = "SELECT name FROM sqlite_master WHERE type='table' and name like 'LLM_RESULTS'"
         try:
@@ -1277,11 +1273,11 @@ class SqliteConnector(DatabaseConnector):
                 """
                 cursor.execute(create_llm_results_table_ddl)
                 self.client.commit()
-                print(f"Table LLM_RESULTS created successfully.")
+                logger.info(f"Table LLM_RESULTS created successfully.")
             else:
-                print(f"Table LLM_RESULTS already exists.")
+                logger.info(f"Table LLM_RESULTS already exists.")
         except Exception as e:
-            print(
+            logger.info(
                 f"An error occurred while checking or creating the LLM_RESULTS table: {e}"
             )
         finally:
@@ -1312,14 +1308,14 @@ class SqliteConnector(DatabaseConnector):
                 """
                 cursor.execute(create_process_table_ddl)
                 self.client.commit()
-                print(f"Table {self.schema}.PROCESSES created successfully.")
+                logger.info(f"Table {self.schema}.PROCESSES created successfully.")
 
                 table = f"{self.schema}.PROCESSES"
                 self.load_default_processes(cursor, table, unique_process_ids)
             else:
-                print(f"Table {self.schema}.PROCESSES already exists.")
+                logger.info(f"Table {self.schema}.PROCESSES already exists.")
         except Exception as e:
-            print(
+            logger.info(
                 f"An error occurred while checking or creating the PROCESSES table: {e}"
             )
         finally:
@@ -1351,11 +1347,11 @@ class SqliteConnector(DatabaseConnector):
                 """
                 cursor.execute(create_tasks_table_ddl)
                 self.client.commit()
-                print(f"Table TASKS created successfully.")
+                logger.info(f"Table TASKS created successfully.")
             else:
-                print(f"Table TASKS already exists.")
+                logger.info(f"Table TASKS already exists.")
         except Exception as e:
-            print(f"An error occurred while checking or creating the TASKS table: {e}")
+            logger.info(f"An error occurred while checking or creating the TASKS table: {e}")
         finally:
             if cursor is not None:
                 cursor.close()
@@ -1380,11 +1376,11 @@ class SqliteConnector(DatabaseConnector):
                 """
                 cursor.execute(create_task_history_table_ddl)
                 self.client.commit()
-                print(f"Table TASK_HISTORY created successfully.")
+                logger.info(f"Table TASK_HISTORY created successfully.")
             else:
-                print(f"Table TASK_HISTORY already exists.")
+                logger.info(f"Table TASK_HISTORY already exists.")
         except Exception as e:
-            print(
+            logger.info(
                 f"An error occurred while checking or creating the TASK_HISTORY table: {e}"
             )
         finally:
@@ -1394,15 +1390,15 @@ class SqliteConnector(DatabaseConnector):
        
         try:
             os.makedirs(os.path.join(self.stages, 'SEMANTIC_MODELS_DEV'))
-            print(f"Stage SEMANTIC_MODELS_DEV created.")                
+            logger.info(f"Stage SEMANTIC_MODELS_DEV created.")                
         except Exception as e:
-            print(f"Stage SEMANTIC_MODELS_DEV already exists.")
+            logger.info(f"Stage SEMANTIC_MODELS_DEV already exists.")
        
         try:
             os.makedirs(os.path.join(self.stages, 'SEMANTIC_MODELS'))
-            print(f"Stage SEMANTIC_MODELS created.")
+            logger.info(f"Stage SEMANTIC_MODELS created.")
         except Exception as e:
-            print(f"Stage SEMANTIC_MODELS already exists.")
+            logger.info(f"Stage SEMANTIC_MODELS already exists.")
             
 
         udf_check_query = f"SHOW USER FUNCTIONS LIKE 'SET_BOT_APP_LEVEL_KEY' IN SCHEMA;"
@@ -1418,20 +1414,20 @@ class SqliteConnector(DatabaseConnector):
                 """
                 cursor.execute(udf_creation_ddl)
                 self.client.commit()
-                print(f"UDF set_bot_app_level_key created in schema ")
+                logger.info(f"UDF set_bot_app_level_key created in schema ")
             else:
-                print(
+                logger.info(
                     f"UDF set_bot_app_level_key already exists in schema "
                 )
         except Exception as e:
-            print(f"UDF not created in  {e}.  This is expected in Sqlite mode." )
+            logger.info(f"UDF not created in  {e}.  This is expected in Sqlite mode." )
 
 
         try:
             os.makedirs(os.path.join(self.stages, 'BOT_FILES_STAGE'))
-            print(f"Stage BOT_FILES_STAGE created.")
+            logger.info(f"Stage BOT_FILES_STAGE created.")
         except Exception as e:
-            print(f"Stage BOT_FILES_STAGE already exists.")
+            logger.info(f"Stage BOT_FILES_STAGE already exists.")
 
 
         llm_config_table_check_query = "SELECT name FROM sqlite_master WHERE type='table' and name like 'LLM_TOKENS'" 
@@ -1460,7 +1456,7 @@ class SqliteConnector(DatabaseConnector):
             else:
                 pass
         except Exception as e:
-            print(f"An error occurred while checking or creating table LLM_TOKENS: {e}")
+            logger.info(f"An error occurred while checking or creating table LLM_TOKENS: {e}")
         finally:
             if cursor is not None:
                 cursor.close()
@@ -1502,7 +1498,7 @@ class SqliteConnector(DatabaseConnector):
                 """
                 cursor.execute(slack_tokens_table_ddl)
                 self.client.commit()
-                print(f"Table {self.slack_tokens_table_name} created.")
+                logger.info(f"Table {self.slack_tokens_table_name} created.")
 
                 # Insert a row with the current runner_id and NULL values for the tokens
                 runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
@@ -1512,13 +1508,13 @@ class SqliteConnector(DatabaseConnector):
                 """
                 cursor.execute(insert_initial_row_query, (runner_id,))
                 self.client.commit()
-                print(
+                logger.info(
                     f"Inserted initial row into {self.slack_tokens_table_name} with runner_id: {runner_id}"
                 )
             else:
-                print(f"Table {self.slack_tokens_table_name} already exists.")
+                logger.info(f"Table {self.slack_tokens_table_name} already exists.")
         except Exception as e:
-            print(
+            logger.info(
                 f"An error occurred while checking or creating table {self.slack_tokens_table_name}: {e}"
             )
         finally:
@@ -1559,7 +1555,7 @@ class SqliteConnector(DatabaseConnector):
                 """
                 cursor.execute(bot_servicing_table_ddl)
                 self.client.commit()
-                print(f"Table {self.bot_servicing_table_name} created.")
+                logger.info(f"Table {self.bot_servicing_table_name} created.")
 
                 # Insert a row with specified values and NULL for the rest
                 runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
@@ -1594,7 +1590,7 @@ class SqliteConnector(DatabaseConnector):
                     ),
                 )
                 self.client.commit()
-                print(
+                logger.info(
                     f"Inserted initial Eve row into {self.bot_servicing_table_name} with runner_id: {runner_id}"
                 )
 
@@ -1630,7 +1626,7 @@ class SqliteConnector(DatabaseConnector):
                     ),
                 )
                 self.client.commit()
-                print(
+                logger.info(
                     f"Inserted initial Eliza row into {self.bot_servicing_table_name} with runner_id: {runner_id}"
                 )
 
@@ -1652,7 +1648,7 @@ class SqliteConnector(DatabaseConnector):
             #          """
             #          cursor.execute(insert_initial_row_query, (runner_id, bot_id, bot_name, bot_instructions, available_tools, udf_active, slack_active, bot_intro_prompt))
             #          self.client.commit()
-            #          print(f"Inserted initial Stuart row into {self.bot_servicing_table_name} with runner_id: {runner_id}")
+            #          logger.info(f"Inserted initial Stuart row into {self.bot_servicing_table_name} with runner_id: {runner_id}")
 
             else:
                 # Check if the 'ddl_short' column exists in the metadata table
@@ -1664,7 +1660,7 @@ class SqliteConnector(DatabaseConnector):
                     """
                 cursor.execute(update_query)
                 self.client.commit()
-                print(
+                logger.info(
                     f"Updated 'vision_chat_analysis' to 'image_analysis' in AVAILABLE_TOOLS where applicable in {self.bot_servicing_table_name}."
                 )
 
@@ -1739,14 +1735,14 @@ class SqliteConnector(DatabaseConnector):
                         )
 
                 except Exception as e:
-                    print(
+                    logger.info(
                         f"An error occurred while checking or altering table {self.bot_servicing_table_name} to add BOT_IMPLEMENTATION column: {e}"
                     )
                 except Exception as e:
-                    print(
+                    logger.info(
                         f"An error occurred while checking or altering table {metadata_table_id}: {e}"
                     )
-                print(f"Table {self.bot_servicing_table_name} already exists.")
+                logger.info(f"Table {self.bot_servicing_table_name} already exists.")
             # # update bot servicing table bot avatars from shared images table
             # insert_images_query = f"""            
             #     UPDATE  {self.bot_servicing_table_name}
@@ -1771,7 +1767,7 @@ class SqliteConnector(DatabaseConnector):
             #     f"Initial 'BOT_AVATAR_IMAGE' data inserted into table {self.bot_servicing_table_name}."
             # )
         except Exception as e:
-            print(
+            logger.info(
                 f"An error occurred while checking or creating table {self.bot_servicing_table_name}: {e}"
             )
         finally:
@@ -1793,7 +1789,7 @@ class SqliteConnector(DatabaseConnector):
                 """
                 cursor.execute(ngrok_tokens_table_ddl)
                 self.client.commit()
-                print(f"Table {self.ngrok_tokens_table_name} created.")
+                logger.info(f"Table {self.ngrok_tokens_table_name} created.")
 
                 # Insert a row with the current runner_id and NULL values for the tokens and domain, 'N' for use_domain
                 runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
@@ -1803,13 +1799,13 @@ class SqliteConnector(DatabaseConnector):
                 """
                 cursor.execute(insert_initial_row_query, (runner_id,))
                 self.client.commit()
-                print(
+                logger.info(
                     f"Inserted initial row into {self.ngrok_tokens_table_name} with runner_id: {runner_id}"
                 )
             else:
-                print(f"Table {self.ngrok_tokens_table_name} already exists.")
+                logger.info(f"Table {self.ngrok_tokens_table_name} already exists.")
         except Exception as e:
-            print(
+            logger.info(
                 f"An error occurred while checking or creating table {self.ngrok_tokens_table_name}: {e}"
             )
         finally:
@@ -1831,7 +1827,7 @@ class SqliteConnector(DatabaseConnector):
                     """
                 cursor.execute(available_tools_table_ddl)
                 self.client.commit()
-                print(
+                logger.info(
                     f"Table {self.available_tools_table_name} (re)created, this is expected on every run."
                 )
 
@@ -1844,11 +1840,11 @@ class SqliteConnector(DatabaseConnector):
                 for tool_name, tool_description in tools_data:
                     cursor.execute(insert_tools_query, (tool_name, tool_description))
                 self.client.commit()
-                print(f"Inserted initial rows into {self.available_tools_table_name}")
+                logger.info(f"Inserted initial rows into {self.available_tools_table_name}")
             else:
-                print(f"Table {self.available_tools_table_name} already exists.")
+                logger.info(f"Table {self.available_tools_table_name} already exists.")
         except Exception as e:
-            print(
+            logger.info(
                 f"An error occurred while checking or creating table {self.available_tools_table_name}: {e}"
             )
         finally:
@@ -1867,9 +1863,9 @@ class SqliteConnector(DatabaseConnector):
                 """
                 cursor.execute(insert_snowflake_semantic_tools_query)
                 self.client.commit()
-                print("Inserted 'snowflake_semantic_tools' into available_tools table.")
+                logger.info("Inserted 'snowflake_semantic_tools' into available_tools table.")
         except Exception as e:
-            print(
+            logger.info(
                 f"An error occurred while inserting 'snowflake_semantic_tools' into available_tools table: {e}"
             )
         finally:
@@ -1905,7 +1901,7 @@ class SqliteConnector(DatabaseConnector):
                 """
                 cursor.execute(chat_history_table_ddl)
                 self.client.commit()
-                print(f"Table {self.message_log_table_name} created.")
+                logger.info(f"Table {self.message_log_table_name} created.")
             else:                
                 check_query = f"PRAGMA table_info([{chat_history_table_id}]);"
                 try:
@@ -1926,10 +1922,10 @@ class SqliteConnector(DatabaseConnector):
                                 f"Column '{col}' added to table {chat_history_table_id}."
                             )
                 except Exception as e:
-                    print("Error adding column FILES to MESSAGE_LOG: ", e)
-                print(f"Table {self.message_log_table_name} already exists.")
+                    logger.info("Error adding column FILES to MESSAGE_LOG: ", e)
+                logger.info(f"Table {self.message_log_table_name} already exists.")
         except Exception as e:
-            print(
+            logger.info(
                 f"An error occurred while checking or creating table {self.message_log_table_name}: {e}"
             )
 
@@ -1956,12 +1952,12 @@ class SqliteConnector(DatabaseConnector):
                 """
                 cursor.execute(knowledge_table_ddl)
                 self.client.commit()
-                print(f"Table {self.knowledge_table_name} created.")
+                logger.info(f"Table {self.knowledge_table_name} created.")
             else:
                 check_query = f"DESCRIBE TABLE {self.knowledge_table_name};"
-                print(f"Table {self.knowledge_table_name} already exists.")
+                logger.info(f"Table {self.knowledge_table_name} already exists.")
         except Exception as e:
-            print(
+            logger.info(
                 f"An error occurred while checking or creating table {self.knowledge_table_name}: {e}"
             )
 
@@ -1984,12 +1980,12 @@ class SqliteConnector(DatabaseConnector):
                 """
                 cursor.execute(user_bot_table_ddl)
                 self.client.commit()
-                print(f"Table {self.user_bot_table_name} created.")
+                logger.info(f"Table {self.user_bot_table_name} created.")
             else:
                 check_query = f"DESCRIBE TABLE {self.user_bot_table_name};"
-                print(f"Table {self.user_bot_table_name} already exists.")
+                logger.info(f"Table {self.user_bot_table_name} already exists.")
         except Exception as e:
-            print(
+            logger.info(
                 f"An error occurred while checking or creating table {self.user_bot_table_name}: {e}"
             )
 
@@ -2015,11 +2011,11 @@ class SqliteConnector(DatabaseConnector):
                 """
                 cursor.execute(hc_table_ddl)
                 self.client.commit()
-                print(f"Table {hc_table_id} created.")
+                logger.info(f"Table {hc_table_id} created.")
             else:
-                print(f"Table {hc_table_id} already exists.")
+                logger.info(f"Table {hc_table_id} already exists.")
         except Exception as e:
-            print(
+            logger.info(
                 f"An error occurred while checking or creating table {hc_table_id}: {e}"
             )
 
@@ -2054,7 +2050,7 @@ class SqliteConnector(DatabaseConnector):
                 """
                 cursor.execute(metadata_table_ddl)
                 self.client.commit()
-                print(f"Table {metadata_table_id} created.")
+                logger.info(f"Table {metadata_table_id} created.")
 
                 try:
                     insert_initial_metadata_query = f"""
@@ -2064,9 +2060,9 @@ class SqliteConnector(DatabaseConnector):
                     """
                     cursor.execute(insert_initial_metadata_query)
                     self.client.commit()
-                    print(f"Inserted initial rows into {metadata_table_id}")
+                    logger.info(f"Inserted initial rows into {metadata_table_id}")
                 except Exception as e:
-                    print(
+                    logger.info(
                         f"Initial rows from APP_SHARE.HARVEST_RESULTS NOT ADDED into {metadata_table_id} due to erorr {e}"
                     )
 
@@ -2080,14 +2076,14 @@ class SqliteConnector(DatabaseConnector):
                         alter_table_query = f"ALTER TABLE {self.metadata_table_name} ADD COLUMN ddl_short STRING;"
                         cursor.execute(alter_table_query)
                         self.client.commit()
-                        print(f"Column 'ddl_short' added to table {metadata_table_id}.")
+                        logger.info(f"Column 'ddl_short' added to table {metadata_table_id}.")
                 except Exception as e:
-                    print(
+                    logger.info(
                         f"An error occurred while checking or altering table {metadata_table_id}: {e}"
                     )
-                print(f"Table {metadata_table_id} already exists.")
+                logger.info(f"Table {metadata_table_id} already exists.")
         except Exception as e:
-            print(
+            logger.info(
                 f"An error occurred while checking or creating table {metadata_table_id}: {e}"
             )
 
@@ -2112,11 +2108,11 @@ class SqliteConnector(DatabaseConnector):
                 """
                 cursor.execute(cortex_threads_input_table_ddl)
                 self.client.commit()
-                print(f"Table CORTEX_THREADS_INPUT created.")
+                logger.info(f"Table CORTEX_THREADS_INPUT created.")
             else:
-                print(f"Table CORTEX_THREADS_INPUT already exists.")
+                logger.info(f"Table CORTEX_THREADS_INPUT already exists.")
         except Exception as e:
-            print(
+            logger.info(
                 f"An error occurred while checking or creating table CORTEX_THREADS_INPUT: {e}"
             )
 
@@ -2141,11 +2137,11 @@ class SqliteConnector(DatabaseConnector):
                 """
                 cursor.execute(cortex_threads_output_table_ddl)
                 self.client.commit()
-                print(f"Table CORTEX_THREADS_OUTPUT created.")
+                logger.info(f"Table CORTEX_THREADS_OUTPUT created.")
             else:
-                print(f"Table CORTEX_THREADS_OUTPUT already exists.")
+                logger.info(f"Table CORTEX_THREADS_OUTPUT already exists.")
         except Exception as e:
-            print(
+            logger.info(
                 f"An error occurred while checking or creating table CORTEX_THREADS_OUTPUT: {e}"
             )
 
@@ -2158,9 +2154,9 @@ class SqliteConnector(DatabaseConnector):
                 cursor.executescript(baseball_table_query)
                 self.client.commit()
             else:
-                print(f"Baseball tables already exist.")
+                logger.info(f"Baseball tables already exist.")
         except Exception as e:
-            print(f"An error occurred while creating baseball tables: {e}")
+            logger.info(f"An error occurred while creating baseball tables: {e}")
 
     def insert_table_summary(
         self,
@@ -2209,7 +2205,7 @@ class SqliteConnector(DatabaseConnector):
                 crawl_status=crawl_status, role_used_for_crawl=role_used_for_crawl, **{embedding_target: json.dumps(embedding)})
        
         except Exception as e:
-            print(f"An error occurred while executing the MERGE statement: {e}")
+            logger.info(f"An error occurred while executing the MERGE statement: {e}")
 
 
     # make sure this is returning whats expected (array vs string)
@@ -2264,7 +2260,7 @@ class SqliteConnector(DatabaseConnector):
                 return "a required parameter was not entered"
         except Exception as e:
             if os.environ.get('GENESIS_LOCAL_RUNNER', '').upper() != 'TRUE':
-                print(f"Error checking cached metadata: {e}")
+                logger.info(f"Error checking cached metadata: {e}")
             return False
             
     def get_metadata_from_cache(
@@ -2296,11 +2292,11 @@ class SqliteConnector(DatabaseConnector):
             cursor.close()
             return cached_metadata
 
-            print(
+            logger.info(
                 f"Retrieved cached rows from {metadata_table_id} for {database_name}.{schema_name}.{table_name}"
             )
         except Exception as e:
-            print(
+            logger.info(
                 f"Cached rows from APP_SHARE.HARVEST_RESULTS NOT retrieved from {metadata_table_id} for {database_name}.{schema_name}.{table_name} due to erorr {e}"
             )
 
@@ -2407,7 +2403,7 @@ class SqliteConnector(DatabaseConnector):
                     client_session_keep_alive=True,
                 )
 
-        print("Creating Snowflake regular connection...")
+        logger.info("Creating Snowflake regular connection...")
         self.token_connection = False
 
         if os.getenv("SNOWFLAKE_SECURE", "TRUE").upper() == "FALSE":
@@ -2523,7 +2519,7 @@ class SqliteConnector(DatabaseConnector):
                 key = " UNIQUE"
             ddl_statement += f"    {column_name} {column_type}{nullable}{default}{key}{comment},\n"
         ddl_statement = ddl_statement.rstrip(',\n') + "\n);"
-        #print(ddl_statement)
+        #logger.info(ddl_statement)
         return ddl_statement
 
     def create_bot_workspace(self, workspace_schema_name):
@@ -2610,7 +2606,7 @@ class SqliteConnector(DatabaseConnector):
         if max_rows > 100 and not max_rows_override:
             max_rows = 100
 
-        #   print('running query ... ', query)
+        #   logger.info('running query ... ', query)
         cursor = self.client.cursor()
         try:
             #   if query_params:
@@ -2628,7 +2624,7 @@ class SqliteConnector(DatabaseConnector):
 
         except Exception as e:
             if "does not exist or not authorized" in str(e):
-                print(
+                logger.info(
                     "run query: len:",
                     len(query),
                     "\ncaused object or access rights error: ",
@@ -2650,11 +2646,11 @@ class SqliteConnector(DatabaseConnector):
             5. NOTE: You do not have the PUBLIC role or any other role, all object you are granted must be granted TO APPLICATION GENESIS_BOTS, or be granted by grant_schema_usage_and_select_to_app as shown above.
             """,
                 }
-            print("run query: len=", len(query), "\ncaused error: ", e)
+            logger.info("run query: len=", len(query), "\ncaused error: ", e)
             cursor.close()
             return {"Success": False, "Error": str(e)}
 
-        #    print('getting results:')
+        #    logger.info('getting results:')
         try:
             results = cursor.fetchmany(max_rows)
             columns = [col[0].upper() for col in cursor.description]
@@ -2666,11 +2662,11 @@ class SqliteConnector(DatabaseConnector):
                 for row in sample_data
             ]
         except Exception as e:
-            print("run query: ", query, "\ncaused error: ", e)
+            logger.info("run query: ", query, "\ncaused error: ", e)
             cursor.close()
             raise e
 
-        # print('returning result: ', sample_data)
+        # logger.info('returning result: ', sample_data)
         cursor.close()
 
         return sample_data
@@ -3118,7 +3114,7 @@ class SqliteConnector(DatabaseConnector):
                 ),
             )
             self.client.commit()
-            print(f"Successfully inserted new bot configuration for bot_id: {bot_id}")
+            logger.info(f"Successfully inserted new bot configuration for bot_id: {bot_id}")
 
             if not slack_user_allow:
                 slack_user_allow_update_query = f"""
@@ -3132,17 +3128,17 @@ class SqliteConnector(DatabaseConnector):
                         slack_user_allow_update_query, (slack_user_allow_value, bot_id)
                     )
                     self.client.commit()
-                    print(
+                    logger.info(
                         f"Updated slack_user_allow for bot_id: {bot_id} to block all users."
                     )
                 except Exception as e:
-                    print(
+                    logger.info(
                         f"Failed to update slack_user_allow for bot_id: {bot_id} with error: {e}"
                     )
                     raise e
 
         except Exception as e:
-            print(
+            logger.info(
                 f"Failed to insert new bot configuration for bot_id: {bot_id} with error: {e}"
             )
             raise e
@@ -3464,7 +3460,7 @@ class SqliteConnector(DatabaseConnector):
 
         try:
             cursor = self.client.cursor()
-            # print(select_query, bot_id)
+            # logger.info(select_query, bot_id)
 
             cursor.execute(select_query, (bot_id,))
             result = cursor.fetchone()
@@ -3545,11 +3541,11 @@ class SqliteConnector(DatabaseConnector):
                 ),
             )
             self.client.commit()
-            print(
+            logger.info(
                 f"Successfully updated existing bot configuration for bot_id: {bot_id}"
             )
         except Exception as e:
-            print(
+            logger.info(
                 f"Failed to update existing bot configuration for bot_id: {bot_id} with error: {e}"
             )
             raise e
@@ -3792,9 +3788,9 @@ class SqliteConnector(DatabaseConnector):
             #    logger.warning('Checking REST token...')
             rest_token = self.connection.rest.token
             if rest_token:
-                print("REST token length: %d", len(rest_token))
+                logger.info("REST token length: %d", len(rest_token))
             else:
-                print("REST token is not available")
+                logger.info("REST token is not available")
             try:
                 resp = requests.post(
                     (
@@ -3931,7 +3927,7 @@ class SqliteConnector(DatabaseConnector):
         # Ensure the OpenAI API key is set in your environment variables
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
-            print("imagegen OpenAI API key is not set in the environment variables.")
+            logger.info("imagegen OpenAI API key is not set in the environment variables.")
             return None
 
         client = get_openai_client()
@@ -3947,13 +3943,13 @@ class SqliteConnector(DatabaseConnector):
             )
             image_url = response.data[0].url
             if not image_url:
-                print("imagegen Failed to generate image with DALL-E 3.")
+                logger.info("imagegen Failed to generate image with DALL-E 3.")
                 return None
 
             try:
                 # Download the image from the URL
                 image_response = requests.get(image_url)
-                print("imagegen getting image from ", image_url)
+                logger.info("imagegen getting image from ", image_url)
                 image_response.raise_for_status()
                 image_bytes = image_response.content
             except Exception as e:
@@ -3984,7 +3980,7 @@ class SqliteConnector(DatabaseConnector):
             with open(file_path, "wb") as image_file:
                 image_file.write(image_bytes)
 
-            print(f"imagegen Image generated and saved to {file_path}")
+            logger.info(f"imagegen Image generated and saved to {file_path}")
 
             result = {
                 "success": True,
@@ -3994,7 +3990,7 @@ class SqliteConnector(DatabaseConnector):
 
             return result
         except Exception as e:
-            print(f"imagegen Error generating image with DALL-E 3: {e}")
+            logger.info(f"imagegen Error generating image with DALL-E 3: {e}")
             return None
 
     def image_analysis(
@@ -4384,7 +4380,7 @@ class SqliteConnector(DatabaseConnector):
             )
             return yaml_model
         except Exception as exc:
-            print(f"Error converting JSON to YAML: {exc}")
+            logger.info(f"Error converting JSON to YAML: {exc}")
             return None
 
     def convert_yaml_to_json(self, yaml_model, thread_id=None):
@@ -4401,7 +4397,7 @@ class SqliteConnector(DatabaseConnector):
             json_model = yaml.safe_load(yaml_model)
             return json_model
         except yaml.YAMLError as exc:
-            print(f"Error converting YAML to JSON: {exc}")
+            logger.info(f"Error converting YAML to JSON: {exc}")
             return None
 
     def modify_semantic_model(
@@ -5465,7 +5461,7 @@ class SqliteConnector(DatabaseConnector):
                 file_name=yaml_file_name,
                 file_content=semantic_yaml_str,
             )
-            print(
+            logger.info(
                 f"Semantic YAML for model '{model_name}' saved to stage '{stage_name}'."
             )
         except Exception as e:
@@ -5664,7 +5660,7 @@ class SqliteConnector(DatabaseConnector):
         # First, get the total number of rows to set up the progress bar
         total_rows_query = f"SELECT COUNT(*) as total FROM {table_id}"
         cursor = self.client.cursor()
-    # print('total rows query: ',total_rows_query)
+    # logger.info('total rows query: ',total_rows_query)
         cursor.execute(total_rows_query)
         total_rows_result = cursor.fetchone()
         total_rows = total_rows_result[0]
@@ -5673,7 +5669,7 @@ class SqliteConnector(DatabaseConnector):
             while True:
                 # Modify the query to include LIMIT and OFFSET
                 query = f"SELECT qualified_table_name, embedding FROM {table_id} LIMIT {batch_size} OFFSET {offset}"
-    #            print('fetch query ',query)
+    #            logger.info('fetch query ',query)
                 cursor.execute(query)
                 rows = cursor.fetchall()
 
@@ -5685,14 +5681,14 @@ class SqliteConnector(DatabaseConnector):
                     try:
                         temp_embeddings.append(json.loads('['+row[1][5:-3]+']'))
                         temp_table_names.append(row[0])
-    #                    print('temp_embeddings len: ',len(temp_embeddings))
-    #                    print('temp table_names: ',temp_table_names)
+    #                    logger.info('temp_embeddings len: ',len(temp_embeddings))
+    #                    logger.info('temp table_names: ',temp_table_names)
                     except:
                         try:
                             temp_embeddings.append(json.loads('['+row[1][5:-10]+']'))
                             temp_table_names.append(row[0])
                         except:
-                            print('Cant load array from Snowflake')
+                            logger.info('Cant load array from Snowflake')
                     # Assuming qualified_table_name is the first column
 
                 # Check if the batch was empty and exit the loop if so
@@ -5716,8 +5712,8 @@ class SqliteConnector(DatabaseConnector):
                 offset += batch_size
 
         cursor.close()
-    #   print('table names ',table_names)
-    #   print('embeddings len ',len(embeddings))
+    #   logger.info('table names ',table_names)
+    #   logger.info('embeddings len ',len(embeddings))
         return table_names, embeddings
 
     def generate_filename_from_last_modified(self, table_id):
@@ -5753,7 +5749,7 @@ class SqliteConnector(DatabaseConnector):
             return filename, metafilename
         except Exception as e:
             # Handle errors: for example, table not found, or API errors
-            #print(f"An error occurred: {e}, possibly no data yet harvested, using default name for index file.")
+            #logger.info(f"An error occurred: {e}, possibly no data yet harvested, using default name for index file.")
             # Return a default filename or re-raise the exception based on your use case
             return "default_filename.ann", "default_metadata.json"
 

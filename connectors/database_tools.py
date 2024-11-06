@@ -7,12 +7,7 @@ from connectors.sqlite_connector import SqliteConnector
 from connectors.database_connector import DatabaseConnector
 from connectors.bot_snowflake_connector import bot_credentials
 
-import logging
-
-logger = logging.getLogger(__name__)
-logging.basicConfig(
-    level=logging.WARN, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+from core.logging_config import logger
 
 database_tool_functions = [
     {
@@ -802,8 +797,8 @@ def bind_run_query(data_connection_info: list):
 
 
         for a in my_dc:
-            # print(a.connection_name)  # FixMe: check the connection_name matches
-            print("Query: len=", len(query), " Connection: ", connection, " Max rows: ", max_rows,)
+            # logger.info(a.connection_name)  # FixMe: check the connection_name matches
+            logger.info("Query: len=", len(query), " Connection: ", connection, " Max rows: ", max_rows,)
             logger.info(f"_run_query: {query}")
             results = a.run_query('USERQUERY::'+query, max_rows, bot_id=bot_id)
             return results
@@ -828,12 +823,9 @@ def bind_search_metadata(knowledge_base_path):
         :return: The search result from find_memory.
         """
 
-        import logging
+        
 
-        logger = logging.getLogger(__name__)
-        logging.basicConfig(
-            level=logging.WARN, format="%(asctime)s - %(levelname)s - %(message)s"
-        )
+        from core.logging_config import logger
 
         # logger.info(f"Search metadata called with query: {query}, scope: {scope}, top_n: {top_n}, verbosity: {verbosity}")
         try:
@@ -842,7 +834,7 @@ def bind_search_metadata(knowledge_base_path):
                     top_n = int(top_n)
                 except ValueError:
                     top_n = 8
-            print(
+            logger.info(
                 "Search metadata: query len=",
                 len(query),
                 " Top_n: ",

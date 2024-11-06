@@ -13,6 +13,8 @@ import os
 from tqdm.auto import tqdm
 from datetime import datetime
 
+from core.logging_config import logger
+
 from llm_openai.openai_utils import get_openai_client
 
 genesis_source = os.getenv('GENESIS_SOURCE',default="BigQuery")
@@ -52,7 +54,7 @@ def fetch_embeddings_from_snow(table_id):
     # First, get the total number of rows to set up the progress bar
     total_rows_query = f"SELECT COUNT(*) as total FROM {table_id}"
     cursor = emb_db_adapter.connection.cursor()
-   # print('total rows query: ',total_rows_query)
+   # logger.info('total rows query: ',total_rows_query)
     cursor.execute(total_rows_query)
     total_rows_result = cursor.fetchone()
     total_rows = total_rows_result[0]
@@ -66,7 +68,7 @@ def fetch_embeddings_from_snow(table_id):
                 embedding_column = 'embedding'
             # Modify the query to include LIMIT and OFFSET
             query = f"SELECT qualified_table_name, {embedding_column} FROM {table_id} LIMIT {batch_size} OFFSET {offset}"
-#            print('fetch query ',query)
+#            logger.info('fetch query ',query)
             cursor.execute(query)
             rows = cursor.fetchall()
 
@@ -78,14 +80,14 @@ def fetch_embeddings_from_snow(table_id):
                 try:
                     temp_embeddings.append(json.loads('['+row[1][5:-3]+']'))
                     temp_table_names.append(row[0])
-#                    print('temp_embeddings len: ',len(temp_embeddings))
-#                    print('temp table_names: ',temp_table_names)
+#                    logger.info('temp_embeddings len: ',len(temp_embeddings))
+#                    logger.info('temp table_names: ',temp_table_names)
                 except:
                     try:
                         temp_embeddings.append(json.loads('['+row[1][5:-10]+']'))
                         temp_table_names.append(row[0])
                     except:
-                        print('Cant load array from Snowflake')
+                        logger.info('Cant load array from Snowflake')
                   # Assuming qualified_table_name is the first column
 
             # Check if the batch was empty and exit the loop if so
@@ -109,8 +111,8 @@ def fetch_embeddings_from_snow(table_id):
             offset += batch_size
 
     cursor.close()
- #   print('table names ',table_names)
- #   print('embeddings len ',len(embeddings))
+ #   logger.info('table names ',table_names)
+ #   logger.info('embeddings len ',len(embeddings))
     return table_names, embeddings
 
 def fetch_embeddings_from_bq(table_id):
@@ -190,28 +192,28 @@ def load_embeddings_from_csv(csv_file_path):
 
 def create_annoy_index(embeddings, n_trees=10):
     
-   # print('creating index')
-   # print('len embeddings ',len(embeddings))
+   # logger.info('creating index')
+   # logger.info('len embeddings ',len(embeddings))
     dimension = max(len(embedding) for embedding in embeddings)
     # Find the longest embedding length
-   # print('dimension ',dimension)
+   # logger.info('dimension ',dimension)
 
     index = AnnoyIndex(dimension, 'angular')  # Using angular distance
-    #print('index 1 ',index)
+    #logger.info('index 1 ',index)
 
     try:
         with tqdm(total=len(embeddings), desc="Indexing embeddings") as pbar:
             for i, embedding in enumerate(embeddings):
-              #  print(i)
+              #  logger.info(i)
                 try:
                     index.add_item(i, embedding)
                 except Exception as e:
-                    print('embedding ',i,' failed, exception: ',e,' skipping...')
+                    logger.info('embedding ',i,' failed, exception: ',e,' skipping...')
                 pbar.update(1)
             index.build(n_trees)
     except Exception as e:
-        print('indexing exception: ',e)
-    #print('index 2 ',index)
+        logger.info('indexing exception: ',e)
+    #logger.info('index 2 ',index)
     return index
 
 
@@ -221,7 +223,7 @@ def make_and_save_index(table_id):
     
     table_names, embeddings = emb_db_adapter.fetch_embeddings(table_id)
     
-    print("indexing ",len(embeddings)," embeddings...", end="")
+    logger.info("indexing ",len(embeddings)," embeddings...", end="")
 
     if len(embeddings) == 0:
         embeddings = []
@@ -231,14 +233,14 @@ def make_and_save_index(table_id):
             embedding_size = 3072
         embeddings.append( [0.0] * embedding_size)
         table_names = ['empty_index']
-        print("0 Embeddings found in database, saving a dummy index with size ",embedding_size," vectors")
+        logger.info("0 Embeddings found in database, saving a dummy index with size ",embedding_size," vectors")
 
     try:
         annoy_index = create_annoy_index(embeddings)
     except Exception as e:
-        print('Error on create_index: ',e)
+        logger.info('Error on create_index: ',e)
 
-    print("saving index to file...")
+    logger.info("saving index to file...")
     
  
     # Save the index to a file
@@ -251,10 +253,10 @@ def make_and_save_index(table_id):
     try:
         annoy_index.save(os.path.join(index_file_path,index_file_name))
     except Exception as e:
-        print('I cannot save save annoy index', flush=True)
-        print(e)
+        logger.info('I cannot save save annoy index')
+        logger.info(e)
 
-    print(f"saving mappings to timestamped cached file... {os.path.join(index_file_path,meta_file_name)}")
+    logger.info(f"saving mappings to timestamped cached file... {os.path.join(index_file_path,meta_file_name)}")
     with open(os.path.join(index_file_path,meta_file_name), 'w') as f:
         json.dump(table_names, f)
 
@@ -262,16 +264,16 @@ def make_and_save_index(table_id):
     index_file_name, meta_file_name = 'latest_cached_index.ann', 'latest_cached_metadata.json'
     annoy_index.save(os.path.join(index_file_path,index_file_name))
 
-    print("saving mappings to default cached files...")
+    logger.info("saving mappings to default cached files...")
     with open(os.path.join(index_file_path,meta_file_name), 'w') as f:
         json.dump(table_names, f)
 
-    print(f"Annoy index saved to {os.path.join(index_file_path,index_file_name)}")
+    logger.info(f"Annoy index saved to {os.path.join(index_file_path,index_file_name)}")
     # Save the size of the embeddings to a file
     embedding_size = len(embeddings[0])
     with open(os.path.join(index_file_path, 'index_size.txt'), 'w') as f:
         f.write(str(embedding_size))
-    print(f"Embedding size ({embedding_size}) saved to {os.path.join(index_file_path, 'index_size.txt')}")
+    logger.info(f"Embedding size ({embedding_size}) saved to {os.path.join(index_file_path, 'index_size.txt')}")
 
     return annoy_index, table_names
 
@@ -298,14 +300,10 @@ def search_and_display_results(search_term, annoy_index, metadata_mapping):
     for idx in sorted_paired_data:
         table_name = metadata_mapping[idx[0]]
         content = ""
-        print(f"Match: {table_name}, Score: {idx[1]}")
+        logger.info(f"Match: {table_name}, Score: {idx[1]}")
 
 
-def load_or_create_embeddings_index(table_id, refresh=True):
-
-    import logging
-    logger = logging.getLogger(__name__)
-    logging.basicConfig(level=logging.WARN, format='%(asctime)s - %(levelname)s - %(message)s')
+def load_or_create_embeddings_index(table_id, refresh=True):    
 
     # if cortex_mode then 768 else
     if os.environ.get("CORTEX_MODE", 'False') == 'True':
@@ -325,10 +323,10 @@ def load_or_create_embeddings_index(table_id, refresh=True):
     if os.path.exists(index_size_file):
         with open(index_size_file, 'r') as f:
             embedding_size = int(f.read().strip())
-#        print(f"Embedding size ({embedding_size}) read from {index_size_file}")
+#        logger.info(f"Embedding size ({embedding_size}) read from {index_size_file}")
     # Set the EMBEDDING_SIZE environment variable
     os.environ['EMBEDDING_SIZE'] = str(embedding_size)
-   # print(f"EMBEDDING_SIZE environment variable set to: {os.environ['EMBEDDING_SIZE']}")
+   # logger.info(f"EMBEDDING_SIZE environment variable set to: {os.environ['EMBEDDING_SIZE']}")
 
     annoy_index = AnnoyIndex(embedding_size, 'angular')
 
@@ -339,7 +337,7 @@ def load_or_create_embeddings_index(table_id, refresh=True):
             try:
                 annoy_index.load(os.path.join(index_file_path,index_file_name))
             except Exception as e:
-                print('Error on annoy_index.load: ',e)
+                logger.info('Error on annoy_index.load: ',e)
            # logger.info(f'index  now {annoy_index}')
 
             # Load the metadata mapping
@@ -347,7 +345,7 @@ def load_or_create_embeddings_index(table_id, refresh=True):
             with open(os.path.join(index_file_path,meta_file_name), 'r') as f:
                 metadata_mapping = json.load(f)
           #      logger.info(f'metadata_mapping meta  {metadata_mapping}')
-          #      print('metadata_mapping meta  ',metadata_mapping)
+          #      logger.info('metadata_mapping meta  ',metadata_mapping)
 
             if refresh:                                
                 if not os.path.exists(index_file_path):
@@ -356,8 +354,8 @@ def load_or_create_embeddings_index(table_id, refresh=True):
                 try:
                     annoy_index.save(os.path.join(index_file_path,copy_index_file_name))
                 except Exception as e:
-                    print('I cannot save save annoy index', flush=True)
-                    print(e, flush=True)                
+                    logger.info('I cannot save save annoy index')
+                    logger.info(e)                
 
                 with open(os.path.join(index_file_path,copy_meta_file_name), 'w') as f:
                     json.dump(metadata_mapping, f)
@@ -369,22 +367,22 @@ def load_or_create_embeddings_index(table_id, refresh=True):
 
         except OSError:
          #   logger.error("Annoy Cache Manager: Refreshing locally cached Annoy index as Harvest Results table has changed due to harvester activity")
-            print("Annoy Cache Manager: Refreshing locally cached Annoy index as Harvest Results table has changed due to harvester activity")
+            logger.info("Annoy Cache Manager: Refreshing locally cached Annoy index as Harvest Results table has changed due to harvester activity")
             annoy_index, metadata_mapping = make_and_save_index(table_id)
     else:
        # logger.error("Annoy Cache Manager: Refreshing locally cached Annoy index as Harvest Results table has changed due to harvester activity")
-        print("Annoy Cache Manager: Refreshing locally cached Annoy index as Harvest Results table has changed due to harvester activity")
+        logger.info("Annoy Cache Manager: Refreshing locally cached Annoy index as Harvest Results table has changed due to harvester activity")
         annoy_index, metadata_mapping = make_and_save_index(table_id)
 
     logger.info(f'returning  {annoy_index},{metadata_mapping}')
-    # print('returning  ',annoy_index,metadata_mapping)
+    # logger.info('returning  ',annoy_index,metadata_mapping)
     return annoy_index, metadata_mapping
 #table_id = "hello-prototype.ELSA_INTERNAL.database_harvest"
 #annoy_index, metadata_mapping = load_or_create_embeddings_index(table_id)
 
 #while True:
 #    search_term = input("Enter your search term: ")
-#    print('\n\n')
+#    logger.info('\n\n')
 #    search_and_display_results(search_term, annoy_index, metadata_mapping)
 
 

@@ -2,7 +2,7 @@ from flask import Blueprint, request, render_template, make_response
 import uuid
 import os
 from connectors import get_global_db_connector
-import logging
+
 from core.bot_os_input import BotOsInputAdapter, BotOsInputMessage, BotOsOutputMessage
 from collections import deque
 import json
@@ -10,7 +10,7 @@ import time
 import base64
 import functools
 
-logger = logging.getLogger(__name__)
+from core.logging_config import logger
 
 class UDFBotOsInputAdapter(BotOsInputAdapter):
 
@@ -82,7 +82,7 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
         # Here you would implement how the Flask app should handle the response.
         # For example, you might send the response back to the client via a WebSocket
         # or store it in a database for later retrieval.
-        #print("UDF output: ",message.output, ' in_uuid ', in_uuid)
+        #logger.info("UDF output: ",message.output, ' in_uuid ', in_uuid)
 
         self.in_to_out_thread_map[message.input_metadata['thread_id']] = message.thread_id
         if in_uuid is not None:
@@ -112,12 +112,12 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
             # getting input in HTML form
             input_text = request.form.get("input")
             # display input and output
-            #print("lookup input: ", input_text )
+            #logger.info("lookup input: ", input_text )
             resp = "not found"
-            #print(response_map)
+            #logger.info(response_map)
             if input_text in self.response_map.keys():
                 resp = self.response_map[input_text]
-            #print("lookup resp: ", resp )
+            #logger.info("lookup resp: ", resp )
             return render_template("lookup_ui.html",
                 uuid_input=input_text,
                 response=resp)
@@ -231,11 +231,11 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
         #   ]}
 
         input_text = input_rows[0][1]
-        #print("lookup input: ", input_text )
+        #logger.info("lookup input: ", input_text )
         resp = "not found"
         if input_text in self.response_map.keys():
             resp =self.response_map[input_text]
-        #print("lookup resp: ", resp )
+        #logger.info("lookup resp: ", resp )
 
         output_rows = [[row[0], resp] for row in input_rows]
         #logger.info(f'Produced {len(output_rows)} rows')

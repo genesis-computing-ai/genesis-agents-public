@@ -20,6 +20,8 @@ from botbuilder.schema import Activity, ActivityTypes
 from bots.echo_bot import EchoBot
 from config import DefaultConfig 
 
+from core.logging_config import logger
+
 #from bots import BOT
 
 CONFIG = DefaultConfig()
@@ -34,7 +36,7 @@ async def on_error(context: TurnContext, error: Exception):
     # This check writes out errors to console log .vs. app insights.
     # NOTE: In production environment, you should consider logging this to Azure
     #       application insights.
-    print(f"\n [on_turn_error] unhandled error: {error}", file=sys.stderr)
+    logger.info(f"\n [on_turn_error] unhandled error: {error}", file=sys.stderr)
     traceback.print_exc()
 
     # Send a message to the user
@@ -118,7 +120,7 @@ async def websocket_handler(request):
             context = TurnContext(adapter, activity)
             await bot.on_turn(context)
         elif msg.type == web.WSMsgType.ERROR:
-            print(f'WebSocket connection closed with exception {ws.exception()}')
+            logger.info(f'WebSocket connection closed with exception {ws.exception()}')
 
     return ws
 

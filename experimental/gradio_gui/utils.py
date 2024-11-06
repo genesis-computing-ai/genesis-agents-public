@@ -2,6 +2,7 @@ import json
 import time
 import uuid
 import requests
+from core.logging_config import logger
 
 app_name = "GENESIS_BOTS"
 prefix = app_name + ".app1"
@@ -68,7 +69,7 @@ def get_bot_details():
     try:
         session = get_snowflake_session()
         if session is None:
-            print("Error: Unable to establish Snowflake session.")
+            logger.info("Error: Unable to establish Snowflake session.")
             return []  # Return an empty list if session is None
         
         sql = """
@@ -80,7 +81,7 @@ def get_bot_details():
         data = session.sql(sql).collect()
         return [{"bot_id": row["BOT_ID"], "bot_name": row["BOT_NAME"]} for row in data]
     except Exception as e:
-        print(f"Error in get_bot_details: {str(e)}")
+        logger.info(f"Error in get_bot_details: {str(e)}")
         return []  # Return an empty list in case of any error
 
 def submit_to_udf_proxy(input_text, thread_id, bot_id):
@@ -99,7 +100,7 @@ def submit_to_udf_proxy(input_text, thread_id, bot_id):
             response = data[0][0]
             return response
         except Exception as e:
-            print("error on submit: ", e)
+            logger.info("error on submit: ", e)
             NativeMode = False  # Switch to non-native mode if there's an error
 
     if not NativeMode:
@@ -113,7 +114,7 @@ def submit_to_udf_proxy(input_text, thread_id, bot_id):
             else:
                 return "Error: Unable to submit to UDF proxy"
         except requests.exceptions.RequestException as e:
-            print(f"Error connecting to local server: {e}")
+            logger.info(f"Error connecting to local server: {e}")
             return "Error: Unable to connect to the bot server. Please try again later."
 
 def get_response_from_udf_proxy(uu, bot_id):
@@ -128,7 +129,7 @@ def get_response_from_udf_proxy(uu, bot_id):
             response = data[0][0]
             return response
         except Exception as e:
-            print("!! Exception on get_response_from_udf_proxy: ", e)
+            logger.info("!! Exception on get_response_from_udf_proxy: ", e)
             NativeMode = False  # Switch to non-native mode if there's an error
     
     if not NativeMode:
@@ -142,7 +143,7 @@ def get_response_from_udf_proxy(uu, bot_id):
             else:
                 return "Error: Unable to get response from UDF proxy"
         except requests.exceptions.RequestException as e:
-            print(f"Error connecting to local server: {e}")
+            logger.info(f"Error connecting to local server: {e}")
             return "Error: Unable to connect to the bot server. Please try again later."
 
 # ... (keep other utility functions like deploy_bot, etc.)

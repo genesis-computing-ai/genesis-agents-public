@@ -7,10 +7,10 @@ from mistralai.client import MistralClient
 from mistralai.models.chat_completion import ChatMessage
 
 
-import logging
+from core.logging_config import logger
 
 from core.bot_os_input import BotOsInputMessage, BotOsOutputMessage
-logger = logging.getLogger(__name__)
+
 
 def _get_function_details(run):
       function_details = []
@@ -111,7 +111,7 @@ class BotOsAssistantMistral(BotOsAssistantInterface):
       token=os.getenv('SLACK_APP_TOKEN',default=None)
       for f in files:
          # add handler to download from URL and save to temp file for upload then cleanup
-         print("loading files")
+         logger.info("loading files")
          local_filename = self.download_file(f["url_private"])
          fo = open(local_filename,"rb")
          file = self.client.files.create(file=fo, purpose="assistants")
@@ -132,7 +132,7 @@ class BotOsAssistantMistral(BotOsAssistantInterface):
             messages=self.thread_messages_map[thread_id],
       )
 
-      print(chat_response.choices[0].message.content)
+      logger.info(chat_response.choices[0].message.content)
       self.thread_messages_map[thread_id].append(ChatMessage(role="assistant", content=chat_response.choices[0].message.content))
 
       self.recent_thread = {"thread_id": thread_id, "metadata": input_message.metadata,
@@ -158,7 +158,7 @@ class BotOsAssistantMistral(BotOsAssistantInterface):
          result = execute_function_blocking(function_call["tool_name"], function_call["parameters"], self.available_functions)
          
          resultstr = "```Tool Call: "+function_call["tool_name"]+" Parameters: "+str(function_call["parameters"])+" Response payload size: "+str(len(str(result)))+"```"
-         print(resultstr)
+         logger.info(resultstr)
 
          # now add tool result as a new input 
          new_event = BotOsInputMessage(thread_id=self.recent_thread["thread_id"], msg=str(result), 
@@ -180,6 +180,6 @@ def test():
 
         msg = BotOsInputMessage(thread,txt)
         m.add_message(msg)
-        m.check_runs(lambda a, e: print(e))
+        m.check_runs(lambda a, e: logger.info(e))
 
 test()

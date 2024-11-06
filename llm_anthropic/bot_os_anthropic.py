@@ -6,10 +6,10 @@ import requests
 import anthropic
 
 
-import logging
+from core.logging_config import logger
 
 from bot_os_input import BotOsInputMessage, BotOsOutputMessage
-logger = logging.getLogger(__name__)
+
 
 def _get_function_details(run):
       function_details = []
@@ -114,7 +114,7 @@ class BotOsAssistantAnthropic(BotOsAssistantInterface):
       token=os.getenv('SLACK_APP_TOKEN',default=None)
       for f in files:
          # add handler to download from URL and save to temp file for upload then cleanup
-         print("loading files")
+         logger.info("loading files")
          local_filename = self.download_file(f["url_private"])
          fo = open(local_filename,"rb")
          file = self.client.files.create(file=fo, purpose="assistants")
@@ -137,7 +137,7 @@ class BotOsAssistantAnthropic(BotOsAssistantInterface):
          messages=self.thread_messages_map[thread_id]
          )
 
-      print("Anthropic: ",chat_response.content)
+      logger.info("Anthropic: ",chat_response.content)
       self.thread_messages_map[thread_id].append({ "role": "assistant", "content": chat_response.content[0].text })
 
       self.recent_thread = {"thread_id": thread_id, "metadata": input_message.metadata,
@@ -161,9 +161,9 @@ class BotOsAssistantAnthropic(BotOsAssistantInterface):
 
       if function_call is not None:
          result = execute_function_blocking(function_call["tool_name"], function_call["parameters"], self.available_functions)
-         print(result)
+         logger.info(result)
          result_string = "```Tool Call: "+function_call["tool_name"]+" Parameters: "+str(function_call["parameters"])+" Response payload size: "+str(len(str(result)))+"```"
-         print(result_string)
+         logger.info(result_string)
          # ideally post this to slack as well to show tool call details
          
          # now add tool result as a new input 

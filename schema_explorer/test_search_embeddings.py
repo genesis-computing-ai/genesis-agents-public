@@ -5,6 +5,8 @@ import json
 
 from llm_openai.openai_utils import get_openai_client
 
+from core.logging_config import logger
+
 # Assuming the embedding size is known (e.g., 4096 for "text-embedding-3-large" model)
 embedding_size = 3072
 
@@ -40,10 +42,10 @@ def search_and_display_results(search_term):
     for idx in sorted_paired_data:
         table_name = metadata_mapping[idx[0]]
         content = ""
-        print(f"Match: {table_name}, Score: {idx[1]}, Content Preview: {content[:100]}\n")
+        logger.info(f"Match: {table_name}, Score: {idx[1]}, Content Preview: {content[:100]}\n")
 
 # Prompt the user for a search term
 while True:
     search_term = input("Enter your search term: ")
-    print('\n\n\n\n\n\n\n\n\n\n')
+    logger.info('\n\n\n\n\n\n\n\n\n\n')
     search_and_display_results(search_term)

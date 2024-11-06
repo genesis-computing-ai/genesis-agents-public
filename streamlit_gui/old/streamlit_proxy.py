@@ -3,7 +3,7 @@ from flask import Flask
 from flask import request
 from flask import make_response
 from flask import render_template
-import logging
+
 import os
 import sys
 from openai import OpenAI
@@ -89,16 +89,6 @@ messages_in = deque()
 
 response_map = {}
 
-def get_logger(logger_name):
-    logger = logging.getLogger(logger_name)
-    logger.setLevel(logging.DEBUG)
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setLevel(logging.DEBUG)
-    handler.setFormatter(
-        logging.Formatter(
-            '%(name)s [%(asctime)s] [%(levelname)s] %(message)s'))
-    logger.addHandler(handler)
-    return logger
 
 #conn = connection()
 

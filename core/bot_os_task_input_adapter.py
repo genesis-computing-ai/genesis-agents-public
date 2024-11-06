@@ -1,10 +1,9 @@
 from flask import Blueprint, request, render_template, make_response
 import uuid
-import logging
 from core.bot_os_input import BotOsInputAdapter, BotOsInputMessage, BotOsOutputMessage
 from collections import deque
 
-logger = logging.getLogger(__name__)
+from core.logging_config import logger
 
 class TaskBotOsInputAdapter(BotOsInputAdapter):
     def __init__(self):
@@ -33,8 +32,8 @@ class TaskBotOsInputAdapter(BotOsInputAdapter):
         # Here you would implement how the Flask app should handle the response.
         # For example, you might send the response back to the client via a WebSocket
         # or store it in a database for later retrieval.
-        #print("UDF output: ",message.output, ' in_uuid ', in_uuid)
-        print(f'TASK RESPONSE FOR {message.input_metadata}')
+        #logger.info("UDF output: ",message.output, ' in_uuid ', in_uuid)
+        logger.info(f'TASK RESPONSE FOR {message.input_metadata}')
         # save the response to a map, then process it from the main task loop        
         if 'task_meta' in message.input_metadata:
             self.response_map[message.input_metadata['task_meta']['task_id']] = message

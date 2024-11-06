@@ -1,5 +1,4 @@
 from abc import abstractmethod
-import logging
 from annoy import AnnoyIndex
 import json
 from openai import AzureOpenAI, OpenAI
@@ -17,10 +16,7 @@ from connectors.sqlite_connector import SqliteConnector
 from llm_openai.openai_utils import get_openai_client
 from  schema_explorer.embeddings_index_handler import load_or_create_embeddings_index
 
-logger = logging.getLogger(__name__)
-logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.WARN, format='%(asctime)s - %(levelname)s - %(message)s')
-
+from core.logging_config import logger
 class BotOsKnowledgeBase:
     @abstractmethod
     def find_memory(self, query:str, scope:str, top_n:int, verbosity:str) -> list[str]:
@@ -136,7 +132,7 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
             self.embedding_model = os.getenv("CORTEX_EMBEDDING_MODEL", 'e5-base-v2')
         else:
             self.embedding_model = os.getenv("OPENAI_HARVESTER_EMBEDDING_MODEL", 'text-embedding-3-large')
-            print("setting openai key in knowledge init")
+            logger.info("setting openai key in knowledge init")
             self.client = get_openai_client()
   
         #self.index, self.metadata_mapping = AnnoyIndexSingleton.get_index_and_metadata(self.meta_database_connector.metadata_table_name, vector_size, refresh=refresh)
@@ -172,9 +168,9 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
 
                 result_value = next(iter(embedding_result[0].values()))
                 if result_value:
-                    print(f"Result value len embedding: {len(result_value)}")
+                    logger.info(f"Result value len embedding: {len(result_value)}")
             except:
-                print('Cortex embed text didnt work in bot os memory')
+                logger.info('Cortex embed text didnt work in bot os memory')
                 result_value = ""
             return result_value
         else:
@@ -186,9 +182,9 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
                 )
                 embedding = response.data[0].embedding
                 if embedding:
-                    print(f"Result value len embedding: {len(embedding)}")
+                    logger.info(f"Result value len embedding: {len(embedding)}")
             except:
-                print('Openai embed text didnt work in bot os memory')
+                logger.info('Openai embed text didnt work in bot os memory')
                 embedding = ""
             return embedding
         
@@ -396,10 +392,10 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
      
 #            for row in content:
 #                try:
-##                    print(row["FULL_TABLE_NAME"][:200]+"...")
+##                    logger.info(row["FULL_TABLE_NAME"][:200]+"...")
 #                    logger.info(row["FULL_TABLE_NAME"][:200]+"...")
 #                except: 
-#                    print(row["ddl"][:200]+"...")
+#                    logger.info(row["ddl"][:200]+"...")
    
       #      content.append({"SEMANTIC_MODEL_NAME": '"!SEMANTIC"."GENESIS_TEST"."GENESIS_INTERNAL"."SEMANTIC_STAGE"."revenue.yaml"', 
       #                      'DESCRIPTION': 'This semantic model points to data related to revenue history and revenue forecast, including COGS and other related items.',
@@ -410,7 +406,7 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
                 content.append(msg)
             memories.append(content)
             try:
-                print(f'Search metadata: returned {len(memories[0])} objects')
+                logger.info(f'Search metadata: returned {len(memories[0])} objects')
             except:
                 pass
           #  logger.info(str(content))
@@ -419,12 +415,12 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
 
                 # Todo, get the memories in a single query with an IN list, and add error handling
             #    content = self.meta_database_connector.run_query("SELECT ddl, summary, sample_data_text as sample_data from hello-prototype.ELSA_INTERNAL.database_metadata where memory_file_name='"+file_name+"'")
-            #    print(f"Match in DB: {file_name}, Score: {idx[1]}, Content Preview: {content[:100]}\n")
+            #    logger.info(f"Match in DB: {file_name}, Score: {idx[1]}, Content Preview: {content[:100]}\n")
             #    memories.append(content[0])
 
                 #with open(self.base_directory_path+'/'+scope+'/'+file_name, 'r') as file:
                 #    content = file.read()
-                #    print(f"Match: {file_name}, Score: {idx[1]}, Content Preview: {content[:100]}\n")
+                #    logger.info(f"Match: {file_name}, Score: {idx[1]}, Content Preview: {content[:100]}\n")
                 #    memories.append(content)
 
             #return memories

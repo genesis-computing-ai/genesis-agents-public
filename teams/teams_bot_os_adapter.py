@@ -2,7 +2,7 @@ from flask import Blueprint, request, render_template, make_response, jsonify
 import uuid
 import os
 #from connectors.snowflake_connector import SnowflakeConnector
-import logging
+
 from core.bot_os_input import BotOsInputAdapter, BotOsInputMessage, BotOsOutputMessage
 from collections import deque
 import asyncio
@@ -11,7 +11,6 @@ from botbuilder.core import ActivityHandler, MessageFactory, TurnContext
 from teams.bots.echo_bot import EchoBot
 
 import json
-logger = logging.getLogger(__name__)
 
 import sys
 import traceback
@@ -28,12 +27,13 @@ from botbuilder.integration.aiohttp import CloudAdapter, ConfigurationBotFramewo
 from botbuilder.schema import Activity, ActivityTypes
 
 from teams.config import DefaultConfig 
+from core.logging_config import logger
 
 async def teams_on_error(context: TurnContext, error: Exception):
     # This check writes out errors to console log .vs. app insights.
     # NOTE: In production environment, you should consider logging this to Azure
     #       application insights.
-    print(f"\n [on_turn_error] unhandled error: {error}", file=sys.stderr)
+    logger.info(f"\n [on_turn_error] unhandled error: {error}", file=sys.stderr)
     traceback.print_exc()
 
     # Send a message to the user
@@ -143,7 +143,7 @@ class TeamsBotOsInputAdapter(BotOsInputAdapter):
             message_text = event.text
         #    self.id_to_turncontext_map[uu] = event_tc
         except Exception as e:
-            print('teams_bot_os_adapter get_input Error getting Input: ',e)
+            logger.info('teams_bot_os_adapter get_input Error getting Input: ',e)
             return None
         return BotOsInputMessage(thread_id=thread_id, msg=message_text, metadata=metadata)
     
@@ -160,7 +160,7 @@ class TeamsBotOsInputAdapter(BotOsInputAdapter):
             else:
                 self.response_map[in_uuid] = message.output
       #  event_tc = self.id_to_turncontext_map[in_uuid]
-        #print(message.output)
+        #logger.info(message.output)
         #self.return_result(event_tc, message)
        #MessageFactory.text(f"Response: {message.output}")
    

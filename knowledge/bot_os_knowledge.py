@@ -11,17 +11,14 @@ from connectors.snowflake_connector.snowflake_connector import SnowflakeConnecto
 from connectors.sqlite_connector import SqliteConnector
 from knowledge.knowledge_server import KnowledgeServer
 from core.bot_os_llm import LLMKeyHandler
-import logging
-logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.WARN, format='%(asctime)s - %(levelname)s - %(message)s')
+
+from core.logging_config import logger
 
 genesis_source = os.getenv('GENESIS_SOURCE', default="Snowflake")
 
-#print("waiting 60 seconds for other services to start first...", flush=True)
-#time.sleep(1)
 
 ### LLM KEY STUFF
-print('Starting Knowledge Server... ')
+logger.info('Starting Knowledge Server... ')
 logger.info('Starting Knowledge Server... ')
 
 logger.info('Starting DB connection...')
@@ -66,20 +63,20 @@ def get_llm_api_key(db_adapter=None):
                 current_time = datetime.now()
                 time_difference = current_time - bot_active_time_dt
 
-                print(f"BOTS ACTIVE TIME: {result[0]} | CURRENT TIME: {current_time} | TIME DIFFERENCE: {time_difference} | knowledge server", flush=True)
+                logger.info(f"BOTS ACTIVE TIME: {result[0]} | CURRENT TIME: {current_time} | TIME DIFFERENCE: {time_difference} | knowledge server")
 
                 if time_difference < timedelta(minutes=5):
                     wake_up = True
                 else:
                     time.sleep(refresh_seconds)
             except:
-                print('Waiting for BOTS_ACTIVE table to be created...')
+                logger.info('Waiting for BOTS_ACTIVE table to be created...')
                 time.sleep(refresh_seconds)
 
         i = i + 1
         if i > 100:
             c += 1
-            print(f'Waiting on LLM key... (cycle {c})')
+            logger.info(f'Waiting on LLM key... (cycle {c})')
             i = 0 
         # llm_type = None
         llm_key_handler = LLMKeyHandler(db_adapter)
@@ -88,10 +85,9 @@ def get_llm_api_key(db_adapter=None):
         api_key_from_env, llm_key_struct = llm_key_handler.get_llm_key_from_db(i=i)
 
         if llm_key_struct.llm_key is None and llm_key_struct.llm_key != 'cortex_no_key_needed':
-        #   print('No LLM Key Available in ENV var or Snowflake database, sleeping 20 seconds before retry.', flush=True)
             time.sleep(180)
         else:
-            print(f"Using {llm_type} for Knowledge Server")
+            logger.info(f"Using {llm_type} for Knowledge Server")
     
     return llm_key_struct
 

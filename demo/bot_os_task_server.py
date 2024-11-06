@@ -4,7 +4,7 @@ import requests
 import time
 from datetime import datetime, timedelta
 import sys
-import logging
+
 
 from flask import Flask, request, jsonify, make_response
 from core.bot_os import BotOsSession
@@ -51,10 +51,7 @@ from demo.sessions_creator import create_sessions, make_session
 from auto_ngrok.auto_ngrok import launch_ngrok_and_update_bots
 from core.system_variables import SystemVariables
 
-logger = logging.getLogger(__name__)
-logging.basicConfig(
-    level=logging.WARN, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+from core.logging_config import logger
 
 import core.global_flags as global_flags
 
@@ -67,26 +64,26 @@ os.environ['TASK_MODE'] = 'true'
 os.environ['SHOW_COST'] = 'false'
 ########################################
 
-print("****** GENBOT VERSION 0.185 *******")
-print("****** TASK AUTOMATION SERVER *******")
+logger.info("****** GENBOT VERSION 0.185 *******")
+logger.info("****** TASK AUTOMATION SERVER *******")
 runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
-print("Runner ID: ", runner_id)
+logger.info("Runner ID: ", runner_id)
 global_flags.runner_id = runner_id
 snowflake_secure_value = os.getenv("SNOWFLAKE_SECURE")
 # if snowflake_secure_value is not None:
-#    print("SNOWFLAKE_SECURE:", snowflake_secure_value)
+#    logger.info("SNOWFLAKE_SECURE:", snowflake_secure_value)
 #    logger.warning("SNOWFLAKE_SECURE: %s", snowflake_secure_value)
 # else:
-#   print("SNOWFLAKE_SECURE: not set")
+#   logger.info("SNOWFLAKE_SECURE: not set")
 #    logger.warning("SNOWFLAKE_SECURE: not set")
 
 # Check if TEST_TASK_MODE is false or not existent, then wait and print a message
 if not os.getenv("TEST_TASK_MODE", "false").lower() == "true":
-    print("waiting 60 seconds for other services to start first...", flush=True)
+    logger.info("waiting 60 seconds for other services to start first...")
     time.sleep(60)
 genbot_internal_project_and_schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "None")
 if genbot_internal_project_and_schema == "None":
-    print("ENV Variable GENESIS_INTERNAL_DB_SCHEMA is not set.")
+    logger.info("ENV Variable GENESIS_INTERNAL_DB_SCHEMA is not set.")
 if genbot_internal_project_and_schema is not None:
     genbot_internal_project_and_schema = genbot_internal_project_and_schema.upper()
 db_schema = genbot_internal_project_and_schema.split(".")
@@ -167,9 +164,9 @@ def insert_task_history(
             )
             self.client.commit()
             cursor.close()
-            print(f"Task history row inserted successfully for task_id: {task_id}")
+            logger.info(f"Task history row inserted successfully for task_id: {task_id}")
         except Exception as e:
-            print(f"An error occurred while inserting the task history row: {e}")
+            logger.info(f"An error occurred while inserting the task history row: {e}")
             if cursor is not None:
                 cursor.close()
 
@@ -211,7 +208,7 @@ ngrok_active = False
 
 #old
 if False:
-    print(f"Checking LLM key...")
+    logger.info(f"Checking LLM key...")
     def get_llm_api_key():
         from core.bot_os_llm import LLMKeyHandler
         logger.info('Getting LLM API Key...')
@@ -227,7 +224,7 @@ if False:
             i = i + 1
             if i > 100:
                 c += 1
-                print(f'Waiting on LLM key... (cycle {c})')
+                logger.info(f'Waiting on LLM key... (cycle {c})')
                 i = 0
             # llm_type = None
             llm_key_handler = LLMKeyHandler()
@@ -236,7 +233,7 @@ if False:
             api_key_from_env, llm_api_key = llm_key_handler.get_llm_key_from_db()
 
             if llm_api_key is None and llm_api_key != 'cortex_no_key_needed':
-            #   print('No LLM Key Available in ENV var or Snowflake database, sleeping 20 seconds before retry.', flush=True)
+            #   logger.info('No LLM Key Available in ENV var or Snowflake database, sleeping 20 seconds before retry.')
                 time.sleep(20)
             else:
                 logger.info(f"Using {llm_type} for task server ")
@@ -251,7 +248,7 @@ logger.info('Getting LLM API Key...')
 
 def get_llm_api_key(db_adapter=None):
     from core.bot_os_llm import LLMKeyHandler
-    print('Getting LLM API Key...')
+    logger.info('Getting LLM API Key...')
     api_key_from_env = False
     llm_type = os.getenv("BOT_OS_DEFAULT_LLM_ENGINE", "openai")
     llm_api_key_struct = None
@@ -278,7 +275,7 @@ def get_llm_api_key(db_adapter=None):
 
                 ii += 1
                 if ii >= 30:
-                    print(f"BOTS ACTIVE TIME: {result[0]} | CURRENT TIME: {current_time} | TIME DIFFERENCE: {time_difference} | task server", flush=True)
+                    logger.info(f"BOTS ACTIVE TIME: {result[0]} | CURRENT TIME: {current_time} | TIME DIFFERENCE: {time_difference} | task server")
                     ii = 0
 
                 if time_difference < timedelta(minutes=5):
@@ -286,25 +283,25 @@ def get_llm_api_key(db_adapter=None):
                 else:
                     time.sleep(refresh_seconds)
             except:
-                print('Waiting for BOTS_ACTIVE table to be created...')
+                logger.info('Waiting for BOTS_ACTIVE table to be created...')
                 time.sleep(refresh_seconds)
 
         i = i + 1
         if i > 100:
             c += 1
-            print(f'Waiting on LLM key... (cycle {c})')
+            logger.info(f'Waiting on LLM key... (cycle {c})')
             i = 0
         # llm_type = None
         llm_key_handler = LLMKeyHandler(db_adapter=db_adapter)
-       # print('Getting LLM API Key...')
+       # logger.info('Getting LLM API Key...')
 
         not_used_api_key_from_env, llm_api_key_struct = llm_key_handler.get_llm_key_from_db()
 
         if llm_api_key_struct.llm_key is None and llm_api_key_struct.llm_key != 'cortex_no_key_needed':
-        #   print('No LLM Key Available in ENV var or Snowflake database, sleeping 20 seconds before retry.', flush=True)
+        #   logger.info('No LLM Key Available in ENV var or Snowflake database, sleeping 20 seconds before retry.')
             time.sleep(180)
         else:
-            print(f"Using {llm_type} for task server ")
+            logger.info(f"Using {llm_type} for task server ")
 
     return llm_api_key_struct
 
@@ -319,7 +316,7 @@ if global_flags.slack_active == "token_expired":
     t, r = get_slack_config_tokens()
     tp, rp = rotate_slack_token(config_token=t, refresh_token=r)
     global_flags.slack_active = test_slack_config_token()
-print("...Slack Connector Active Flag: ", global_flags.slack_active)
+logger.info("...Slack Connector Active Flag: ", global_flags.slack_active)
 
 
 bot_id_to_udf_adapter_map = {}
@@ -803,7 +800,7 @@ def zaiper_handler():
     except:
         return "Missing API Key"
 
-    #   print("Zapier: ", api_key)
+    #   logger.info("Zapier: ", api_key)
     return {"Success": True, "Message": "Success"}
 
 
@@ -821,7 +818,7 @@ def bot_install_followup(bot_id=None, no_slack=False):
         except:
             return "Unknown bot install error"
 
-    # print(bot_id, 'code: ', code, 'state', state)
+    # logger.info(bot_id, 'code: ', code, 'state', state)
 
     # lookup via the bot map via bot_id
 
@@ -840,7 +837,7 @@ def bot_install_followup(bot_id=None, no_slack=False):
 
         # validate app_id
         if state != expected_state:
-            print("State error.. possible forgery")
+            logger.info("State error.. possible forgery")
             return "Error: Not Installed"
 
         # Define the URL for the OAuth request
@@ -886,25 +883,25 @@ def bot_install_followup(bot_id=None, no_slack=False):
         )
         # check new_session
         if new_session is None:
-            print("new_session is none")
+            logger.info("new_session is none")
             return "Error: Not Installed new session is none"
         if slack_adapter_local is not None:
             bot_id_to_slack_adapter_map[bot_config["bot_id"]] = slack_adapter_local
         if udf_local_adapter is not None:
             bot_id_to_udf_adapter_map[bot_config["bot_id"]] = udf_local_adapter
         api_app_id_to_session_map[api_app_id] = new_session
-        #   print("about to add session ",new_session)
+        #   logger.info("about to add session ",new_session)
         server.add_session(new_session, replace_existing=True)
 
         if no_slack:
-            print(
+            logger.info(
                 f"Genesis bot {bot_id} successfully installed and ready for use via Streamlit."
             )
         else:
             return f"Genesis bot {bot_id} successfully installed to Streamlit and Slack and ready for use."
     else:
         # Handle errors
-        print("Failed to exchange code for access token:", response.text)
+        logger.info("Failed to exchange code for access token:", response.text)
         return "Error: Not Installed"
 
 
@@ -956,7 +953,7 @@ def add_bot_session(bot_id=None, no_slack=False):
     logger.info("HERE 1")
     bot_details = get_bot_details(bot_id=bot_id)
 
-    # print(bot_id, 'code: ', code, 'state', state)
+    # logger.info(bot_id, 'code: ', code, 'state', state)
 
     # lookup via the bot map via bot_id
 
@@ -975,19 +972,19 @@ def add_bot_session(bot_id=None, no_slack=False):
         )
         # check new_session
         if new_session is None:
-            print("new_session is none")
+            logger.info("new_session is none")
             return "Error: Not Installed new session is none"
         if slack_adapter_local is not None:
             bot_id_to_slack_adapter_map[bot_config["bot_id"]] = slack_adapter_local
         if udf_local_adapter is not None:
             bot_id_to_udf_adapter_map[bot_config["bot_id"]] = udf_local_adapter
         api_app_id_to_session_map[api_app_id] = new_session
-        #   print("about to add session ",new_session)
+        #   logger.info("about to add session ",new_session)
         server.add_session(new_session, replace_existing=True)
         sessions.append(new_session)
 
         if no_slack:
-            print(
+            logger.info(
                 f"Genesis bot {bot_id} successfully installed and ready for use via Streamlit."
             )
         else:
@@ -1092,7 +1089,7 @@ def submit_task(session=None, bot_id=None, task=None):
     event = {"thread_id": None, "msg": prompt, "task_meta": task_meta}
 
     if find_replace_updated_bot_service(bot_id):
-        print(f"Definition for bot {bot_id} has changed and needs to be restarted.")
+        logger.info(f"Definition for bot {bot_id} has changed and needs to be restarted.")
         # add logic here to force re-load
 
     input_adapter = bot_id_to_udf_adapter_map.get(bot_id, None)
@@ -1158,7 +1155,7 @@ def tasks_loop():
         cycle += 1
         iteration_start_time = datetime.now()
         if i >= 10:
-            #   print(f'Checking tasks... cycle={cycle}, {iteration_start_time}', flush=True)
+            #   logger.info(f'Checking tasks... cycle={cycle}, {iteration_start_time}')
             sys.stdout.write(
                 f"Checking tasks... cycle={cycle}, {iteration_start_time}\n"
             )
@@ -1187,7 +1184,7 @@ def tasks_loop():
             < ten_minutes_ago
         ]
         for task in overdue_tasks:
-            print(
+            logger.info(
                 f"Task {task['task_id']} from bot {task['bot_id']} is overdue, running for more than 30 minutes, removing from queue. Can we cancel the run?."
             )
             pending_tasks.remove(task)
@@ -1206,10 +1203,10 @@ def tasks_loop():
         for session in active_sessions:
             bot_id = session.bot_id
             if os.getenv("TEST_TASK_MODE", "false").lower() == "true":
-                print('test task mode - looking for tasks for bot ',bot_id)
+                logger.info('test task mode - looking for tasks for bot ',bot_id)
             tasks = tool_belt.process_scheduler(action="LIST", bot_id=bot_id, task_id=None)
            # if os.getenv("TEST_TASK_MODE", "false").lower() == "true":
-           #     print('test task mode - tasks are: ',tasks)
+           #     logger.info('test task mode - tasks are: ',tasks)
             if tasks.get("Success"):
                 for task in [
                     t for t in tasks.get("Scheduled Processes", []) if t.get("task_active", False)
@@ -1217,7 +1214,7 @@ def tasks_loop():
               #      if os.getenv("TEST_TASK_MODE", "false").lower() == "true":
               #          if task['task_id'] != 'janiCortex-123456_monitor_unused_data_tables_6WIDsb_HDBgeH':
                #             continue
-                 #       print('test task mode - task is: ',task)
+                 #       logger.info('test task mode - task is: ',task)
                     # If an instance of the task is not alreday running, Process the task using the bot
                     if not any(
                         pending_task["task_id"] == task["task_id"]
@@ -1230,7 +1227,7 @@ def tasks_loop():
                             skipped_tasks.add(task)
                         if "bot_id" in task_result:
                             pending_tasks.append(task_result)
-                            print(f"Task {task['task_id']} has been started.")
+                            logger.info(f"Task {task['task_id']} has been started.")
                     else:
                         submitted_time = next(
                             (
@@ -1241,7 +1238,7 @@ def tasks_loop():
                             None,
                         )
                         if submitted_time:
-                            print(
+                            logger.info(
                                 f"Task {task['task_id']} from bot {bot_id} is already running. It has been running for {(datetime.now() - datetime.strptime(submitted_time, '%Y-%m-%d %H:%M:%S')).total_seconds() / 60:.2f} minutes."
                             )
         #  i = input('Check for done? >')
@@ -1265,7 +1262,7 @@ def tasks_loop():
             processed_tasks = []
             for task_id, response in response_map.items():
 
-                print(
+                logger.info(
                     f"Processing response for task {task_id}: output len: {len(response.output)}"
                 )
                 # Process the response for each task
@@ -1376,7 +1373,7 @@ def tasks_loop():
                         except Exception as e:
                             slack_adapter = None
                             task_creator_id = None
-                            print("Error finding task in process result to lookup slack user to notify: ",e)
+                            logger.info("Error finding task in process result to lookup slack user to notify: ",e)
                         # Send a direct message to the creator of the task
                         if (slack_adapter is not None) and task_creator_id:
                             help_message = f":exclamation: Task needs your help -- Task: {task_name} ({task_id}) for bot {bot_id} requires your attention.\n Issues/Suggestions: {task_response_data.get('task_clarity_comments', 'No suggestions provided.')}\nPlease discuss this with {bot_id}."
@@ -1394,15 +1391,15 @@ def tasks_loop():
                             slack_adapter.send_slack_direct_message(
                                 slack_user_id=task_creator_id, message=help_message
                             )
-                            print(
+                            logger.info(
                                 f"Sent help message to task creator {task_creator_id} for task {task_id}."
                             )
                         else:
-                            print(
+                            logger.info(
                                 f"Slack adapter not available to send help message for task {task_id}."
                             )
                     except Exception as e:
-                        print(f"Error seeking help for task {task_id} - {e}")
+                        logger.info(f"Error seeking help for task {task_id} - {e}")
 
                 if response_valid and task_response_data:
                     # Ensure next_run_time is at least 5 minutes from now
@@ -1412,7 +1409,7 @@ def tasks_loop():
                             task_response_data["next_run_time"] = (
                                 datetime.now() + timedelta(minutes=5)
                             ).strftime("%Y-%m-%d %H:%M:%S")
-                            print(
+                            logger.info(
                                 f"Changed next_run_time for task {task_id} from bot {bot_id} to ensure it's at least 5 minutes from now."
                             )
                         next_run_time = datetime.strptime(     task_response_data["next_run_time"], "%Y-%m-%d %H:%M:%S"   )
@@ -1422,7 +1419,7 @@ def tasks_loop():
 
                 if not response_valid:
                     # count retries stop after 3
-                    print(error_msg)
+                    logger.info(error_msg)
 
                     task_retry_attempts_map = task_retry_attempts_map or {}
                     if task_id not in task_retry_attempts_map:
@@ -1432,7 +1429,7 @@ def tasks_loop():
 
                     if task_retry_attempts_map[task_id] > 3:
                         # Make the task inactive after 3 retries
-                        print(
+                        logger.info(
                             f"Task {task_id} has exceeded the maximum number of retries. Marking as inactive."
                         )
 
@@ -1484,7 +1481,7 @@ def tasks_loop():
                                 except:
                                     thread = None
                         if thread == None:
-                            print('!!! Thread_id not found in response for callback')
+                            logger.info('!!! Thread_id not found in response for callback')
                         current_timestamp_str = datetime.now().strftime(
                             "%Y-%m-%d %H:%M:%S"
                         )
@@ -1524,7 +1521,7 @@ def tasks_loop():
         # if os.getenv("TEST_TASK_MODE", "false").lower() == "true":
         #    time_to_sleep = 0
         # else:
-        #     print('Waiting 60 seconds before checking tasks again...')
+        #     logger.info('Waiting 60 seconds before checking tasks again...')
 
         # for testing, set skipped_tasks[0]["next_check_ts"] to datetime.now() + timedelta(seconds=30)
         # skipped_tasks[0]["next_check_ts"] = datetime.now() + timedelta(seconds=30)
@@ -1543,19 +1540,19 @@ def tasks_loop():
                     seconds_until_next_check = (datetime.strptime(skipped_tasks[0]["next_check_ts"], '%Y-%m-%d %H:%M:%S %Z') - datetime.now()).total_seconds()
                 if seconds_until_next_check and seconds_until_next_check < 120:
                     wake_up = True
-                    print(f"Seconds until next check: {seconds_until_next_check:.2f}")
-                    print(f"Task {task['task_id']} is due to run soon.")
+                    logger.info(f"Seconds until next check: {seconds_until_next_check:.2f}")
+                    logger.info(f"Task {task['task_id']} is due to run soon.")
             if len(pending_tasks) > 0:
                 wake_up = True
             for next_run in next_runs:
                 if next_run < datetime.now() + timedelta(minutes=2):
                     wake_up = True
-                    print(f"A task is due to run soon.")
+                    logger.info(f"A task is due to run soon.")
                     next_runs.remove(next_run)
                     seconds_until_next_run = (next_run - datetime.now()).total_seconds()
                     if seconds_until_next_check is None or seconds_until_next_run < seconds_until_next_check:
                         seconds_until_next_check = seconds_until_next_run
-                    print(f"Task due to run in {seconds_until_next_check:.2f} seconds.")
+                    logger.info(f"Task due to run in {seconds_until_next_check:.2f} seconds.")
                     #break
 
             if seconds_until_next_check is not None:
@@ -1566,7 +1563,7 @@ def tasks_loop():
                     wait_time = 15
 
             if os.getenv("TEST_TASK_MODE", "false").lower() == "true":
-                print("TEST_TASK_MODE -> overriding sleep to 5 seconds...", flush=True)
+                logger.info("TEST_TASK_MODE -> overriding sleep to 5 seconds...")
                 wait_time = 5
                 wake_up = True
             time.sleep(wait_time)
@@ -1583,13 +1580,13 @@ def tasks_loop():
 
                 i = i + 1
                 if i == 1:
-                    print(f"BOTS ACTIVE TIME: {result[0]} | CURRENT TIME: {current_time} | TIME DIFFERENCE: {time_difference}", flush=True)
+                    logger.info(f"BOTS ACTIVE TIME: {result[0]} | CURRENT TIME: {current_time} | TIME DIFFERENCE: {time_difference}")
                 if i > 30:
                     i = 0
 
                 if time_difference < timedelta(minutes=5):
                     wake_up = True
-        #         print("Bot is active")
+        #         logger.info("Bot is active")
 
 
         # if time_to_sleep > 0:
@@ -1616,9 +1613,9 @@ def backup_bot_servicing():
     cursor = db_adapter.client.cursor()
     try:
         cursor.execute(backup_sql)
-        print("Debug: Table bot_servicing_backup created or replaced successfully.")
+        logger.info("Debug: Table bot_servicing_backup created or replaced successfully.")
     except Exception as e:
-        print(f"Error: Failed to create or replace table bot_servicing_backup. {e}")
+        logger.info(f"Error: Failed to create or replace table bot_servicing_backup. {e}")
     finally:
         cursor.close()
 
@@ -1641,7 +1638,7 @@ def find_replace_updated_bot_service(bot_id):
 
         # Copy the changed rows to bot_servicing_backup
         if non_identical_rows:
-            print("Debug: Retrieved non-identical rows successfully.")
+            logger.info("Debug: Retrieved non-identical rows successfully.")
             insert_query = f"""
                 INSERT INTO {db_adapter.schema}.bot_servicing_backup
                 SELECT * FROM {db_adapter.schema}.bot_servicing
@@ -1650,7 +1647,7 @@ def find_replace_updated_bot_service(bot_id):
             """
             cursor.execute(insert_query)
             db_adapter.client.commit()
-            print("Debug: Copied changed rows to bot_servicing_backup successfully.")
+            logger.info("Debug: Copied changed rows to bot_servicing_backup successfully.")
 
             bot_ids_to_update = [row[2] for row in non_identical_rows]
 
@@ -1658,7 +1655,7 @@ def find_replace_updated_bot_service(bot_id):
             return True
 
     except Exception as e:
-        print(f"Error: Failed to retrieve non-identical rows. {e}")
+        logger.info(f"Error: Failed to retrieve non-identical rows. {e}")
         return False
     finally:
         cursor.close()
@@ -1668,7 +1665,7 @@ def add_sessions(all_bot_ids, all_bots_details, sessions):
     for bot_id in all_bot_ids:
         if bot_id not in [session.bot_id for session in sessions]:
             bot_details = next(bot for bot in all_bots_details if bot['bot_id'] == bot_id)
-            print(f"New bot found: ID={bot_id}, Name={bot_details['bot_name']}. Adding to sessions.")
+            logger.info(f"New bot found: ID={bot_id}, Name={bot_details['bot_name']}. Adding to sessions.")
             # Determine the Slack status of the bot
             bot_details = next(bot for bot in all_bots_details if bot['bot_id'] == bot_id)
             if bot_details.get('bot_slack_user_id', False) == False:
@@ -1678,7 +1675,7 @@ def add_sessions(all_bot_ids, all_bots_details, sessions):
 
             # Add a new session for the bot with the appropriate no_slack flag
             add_bot_session(bot_id, no_slack=no_slack)
-            print(f"New session added for bot_id: {bot_id} with no_slack={no_slack}")
+            logger.info(f"New session added for bot_id: {bot_id} with no_slack={no_slack}")
     return
 
 
@@ -1687,8 +1684,8 @@ while True:
     try:
         tasks_loop()
     except Exception as e:
-        print("Task Loop Exception!!!!")
-        print(f"Error: {e}")
-        print('Starting loop again in 180 seconds...')
+        logger.info("Task Loop Exception!!!!")
+        logger.info(f"Error: {e}")
+        logger.info('Starting loop again in 180 seconds...')
         logger.error(f"Task Loop Exception: {e}", exc_info=True)
         time.sleep(180)

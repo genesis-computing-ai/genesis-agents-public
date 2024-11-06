@@ -1,5 +1,5 @@
 import json
-
+from core.logging_config import logger
 
 def activate_marketing_campaign(channel, segment_description, when_to_launch, budget):
     # Validate channel
@@ -52,7 +52,7 @@ def test_activate_marketing_campaign():
         meta_campaign['budget'],
     )
     assert result['status'] == 'activated'
-    print('Test passed: Meta Campaign activated successfully.')
+    logger.info('Test passed: Meta Campaign activated successfully.')
     
     # Add more tests for snap and tradedesk as needed
 

@@ -1,5 +1,6 @@
 import re
 import os
+from core.logging_config import logger
 
 def replace_genesis_bots(input_file, output_file):
     with open(input_file, 'r') as file:
@@ -32,7 +33,7 @@ for file in files_to_change:
 
     # Usage
     replace_genesis_bots(input_file, output_file)
-    print(f"Replacement complete. New file '{output_file}' created with GENESIS_COMMUNITY_POOL.")
+    logger.info(f"Replacement complete. New file '{output_file}' created with GENESIS_COMMUNITY_POOL.")
 
 # Define input and output file paths relative to the script directory
 files_to_change = ['connectors/snowflake_connector.py','snowflake_app/setup_script.sql','streamlit_gui/main.py','streamlit_gui/sis_launch.py','streamlit_gui/page_files/config_eai.py','streamlit_gui/page_files/start_service.py','streamlit_gui/page_files/start_stop.py']
@@ -42,4 +43,4 @@ for file in files_to_change:
 
     # Usage
     replace_genesis_bots_eai(input_file, output_file)
-    print(f"Replacement complete. New file '{output_file}' created with GENESIS_COMMUNITY_EAI.")
+    logger.info(f"Replacement complete. New file '{output_file}' created with GENESIS_COMMUNITY_EAI.")

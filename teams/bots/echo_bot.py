@@ -4,11 +4,9 @@
 from botbuilder.core import ActivityHandler, MessageFactory, TurnContext
 from botbuilder.schema import ChannelAccount, ConversationReference, Activity
 #from core.bot_os_input import BotOsInputAdapter, BotOsInputMessage, BotOsOutputMessage
-import logging
 import asyncio
 
-logger = logging.getLogger(__name__)
-
+from core.logging_config import logger
 
 class EchoBot(ActivityHandler):
     def __init__(self, add_event = None, response_map = None):
@@ -24,7 +22,7 @@ class EchoBot(ActivityHandler):
     ):
         for member in members_added:
             if member.id != turn_context.activity.recipient.id: 
-                #print(turn_context.activity.id) conversation ID? 
+                #logger.info(turn_context.activity.id) conversation ID? 
                 await turn_context.send_activity("Hello and welcome!")
                 MessageFactory.text(f"member id: {member.id}" )
                 MessageFactory.text(f"You said ffff: {turn_context.activity.recipient.id}")

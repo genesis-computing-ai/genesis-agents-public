@@ -9,12 +9,7 @@ from bot_os_server import BotOsServer
 from apscheduler.schedulers.background import BackgroundScheduler
 from slack.slack_bot_os_adapter import SlackBotAdapter
 from connectors.bigquery_connector import BigQueryConnector
-import logging
-
-logger = logging.getLogger(__name__)
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+from core.logging_config import logger
 
 # Assuming your BigQuery credentials are stored in a JSON file
 # Update this path according to your environment variable setup
@@ -30,7 +25,7 @@ bigquery_connector = BigQueryConnector(connection_info, "BigQuery")
 a = bigquery_connector.run_query(
     "SELECT schema_name FROM INFORMATION_SCHEMA.SCHEMATA", max_rows=5
 )
-print("database test: ", a)
+logger.info("database test: ", a)
 
 slack_adapter = SlackBotAdapter(
     token=os.getenv("SLACK_APP_TOKEN"),

@@ -16,13 +16,10 @@ from core.bot_os_defaults import _BOT_OS_BUILTIN_TOOLS
 import core.global_flags as global_flags
 import pickle
 
-import logging
+
 import json
 
-logger = logging.getLogger(__name__)
-logging.basicConfig(
-    level=logging.WARN, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+from core.logging_config import logger
 
 
 class BotOsThread:
@@ -44,7 +41,7 @@ class BotOsThread:
             ret = self.assistant_impl.add_message(message)
         #ret = self.assistant_impl.add_message(message)
         if ret == False:
-            print("thread add_message: false return, run already going")
+            logger.info("thread add_message: false return, run already going")
             return ret
 
     def handle_response(self, session_id: str, output_message: BotOsOutputMessage):
@@ -114,7 +111,7 @@ class BotOsSession:
         tool_belt=None,
         skip_vectors=False,
     ):
-      #  print(skip_vectors)
+      #  logger.info(skip_vectors)
         BotOsAssistantOpenAI.stream_mode = stream_mode
         BotOsAssistantSnowflakeCortex.stream_mode = stream_mode
         self.session_name = session_name
@@ -200,7 +197,7 @@ class BotOsSession:
         #        self.out_to_in_thread_map = maps.get("out_to_in", {})
 
     def create_thread(self, input_adapter) -> str:
-        print("create llm thread")
+        logger.info("create llm thread")
         logger.debug("create llm thread")
         thread = BotOsThread(self.assistant_impl, input_adapter)
         self.threads[thread.thread_id] = thread
@@ -222,7 +219,7 @@ class BotOsSession:
     ):  # thread_id:str, message:str, files=[]):
 
         if input_message.thread_id not in self.threads:
-            print(
+            logger.info(
                 f"{self.bot_name} bot_os add_message new_thread for {input_message.thread_id} not found in existing threads."
             )
             thread = BotOsThread(
@@ -233,11 +230,8 @@ class BotOsSession:
             self.threads[input_message.thread_id] = thread
         else:
             thread = self.threads[input_message.thread_id]
-        print(
-            f"{self.bot_name} bot_os add_message, len={len(input_message.msg)}",
-            flush=True,
-        )
-        # print(f"add_message: {self.bot_id} - {input_message.msg} size:{len(input_message.msg)}")
+        logger.info(f"{self.bot_name} bot_os add_message, len={len(input_message.msg)}")
+        # logger.info(f"add_message: {self.bot_id} - {input_message.msg} size:{len(input_message.msg)}")
         if "!reflect" in input_message.msg.lower():
             input_message.metadata["genesis_reflect"] = "True"
 
@@ -254,7 +248,7 @@ class BotOsSession:
             else:
                 streamlit_mode = False
             if streamlit_mode == False and self.assistant_impl.user_allow_cache.get(user_id, False) == False:
-                print(f"{self.bot_name} bot_os add_message non-cached access check for {self.bot_name} slack user: {user_id}", flush=True, )
+                logger.info(f"{self.bot_name} bot_os add_message non-cached access check for {self.bot_name} slack user: {user_id}")
                 slack_user_access = self.log_db_connector.db_get_bot_access( self.bot_id ).get("slack_user_allow")
                 if slack_user_access is not None:
                     allow_list = json.loads(slack_user_access)
@@ -278,7 +272,7 @@ class BotOsSession:
 
         ret = thread.add_message(input_message, event_callback=event_callback)
         if ret == False:
-            print("bot os session add false - thread already running")
+            logger.info("bot os session add false - thread already running")
             return False
         # logger.debug(f'added message {input_message.msg}')
 
@@ -294,7 +288,7 @@ class BotOsSession:
             and output_message.output != "!COMPLETE"
             and output_message.output != "!NEED_INPUT"
         ):
-            #  print(f'{self.bot_id} ****needs review: ',output_message.output)
+            #  logger.info(f'{self.bot_id} ****needs review: ',output_message.output)
             self.next_messages.append(
                 BotOsInputMessage(
                     thread_id=output_message.thread_id,
@@ -311,10 +305,7 @@ class BotOsSession:
             #            if len(txt) == 50:
             #                txt += '...'
             #try:
-                #print(
-                #    f"{self.bot_name} bot_os response, len={len(output_message.output)}",
-                 #   flush=True,
-                #)
+                #logger.info(f"{self.bot_name} bot_os response, len={len(output_message.output)}")
               #  if len(output_message.output) == 0:
               #      pass
            # except:
@@ -351,9 +342,9 @@ class BotOsSession:
             cursor = self.log_db_connector.connection.cursor()
             cursor.execute(create_bots_active_table_query)
             self.log_db_connector.connection.commit()
-            print(f"Table {self.schema}.bots_active created or replaced successfully with timestamp: {timestamp_str}")
+            logger.info(f"Table {self.schema}.bots_active created or replaced successfully with timestamp: {timestamp_str}")
         except Exception as e:
-            print(f"An error occurred while creating or replacing the bots_active table: {e}")
+            logger.info(f"An error occurred while creating or replacing the bots_active table: {e}")
         finally:
             if cursor:
                 cursor.close()
@@ -362,9 +353,9 @@ class BotOsSession:
     def execute(self):
         # self._health_check()
 
-        # print("execute ", self.session_name)
+        # logger.info("execute ", self.session_name)
         # if self.session_name == "DataManager-abc123":
-        #     print("\n")
+        #     logger.info("\n")
         #  if random.randint(0, 20) == 0:
         #      self._check_reminders()
         #      self._check_task_list()
@@ -377,18 +368,18 @@ class BotOsSession:
         ):
             BotOsSession.clear_access_cache = True
             self.assistant_impl.clear_access_cache = False
-      #  print('ex ',self.bot_name)
+      #  logger.info('ex ',self.bot_name)
 
         if self.next_messages:
             for message in self.next_messages:
-                print(f"bot os session add next message {ret}")
+                logger.info(f"bot os session add next message {ret}")
                 ret = self.add_message(message)
             self.next_messages.clear()
 
         self.assistant_impl.check_runs(self._validate_response)
-      #  print('ex2 ',self.bot_name)
+      #  logger.info('ex2 ',self.bot_name)
         for a in self.input_adapters:
-        #    print('ex3 ',self.bot_name)
+        #    logger.info('ex3 ',self.bot_name)
             input_message = a.get_input(
                 thread_map=self.in_to_out_thread_map,
                 active=self.assistant_impl.is_active(),
@@ -398,7 +389,7 @@ class BotOsSession:
             if input_message is None or input_message.msg == "":
                 continue
 
-         #   print(f"bot os session input message {input_message.msg}")
+         #   logger.info(f"bot os session input message {input_message.msg}")
 
 
             self.update_bots_active_table()
@@ -440,7 +431,7 @@ class BotOsSession:
                         last_k = 1
                     knowledge = self.log_db_connector.extract_knowledge(user_query, self.bot_id, k = last_k)
                     knowledge_len = len(''.join([knowledge.get(key, '') for key in ['USER_LEARNING', 'TOOL_LEARNING', 'DATA_LEARNING', 'HISTORY']]))
-                    print(f'bot_os {self.bot_id} knowledge injection, user len={len(primary_user)} len knowledge={knowledge_len}')
+                    logger.info(f'bot_os {self.bot_id} knowledge injection, user len={len(primary_user)} len knowledge={knowledge_len}')
                     if knowledge:
                         input_message.msg = f'''NOTE--Here are some things you know about this user from previous interactions, that may be helpful to this conversation:
                         
@@ -464,7 +455,7 @@ Now, with that as background...\n''' + input_message.msg
             if ret == False and input_message is not None:
                 is_bot = input_message.metadata.get("is_bot", "TRUE")
                 if is_bot == "FALSE":
-                    print(
+                    logger.info(
                         "bot os message from human - thread already running - put back on queue.."
                     )
                     try:
@@ -473,18 +464,18 @@ Now, with that as background...\n''' + input_message.msg
                             if 'added_back' not in input_message.metadata:
                                 input_message.metadata['added_back'] = 0
                             input_message.metadata['added_back'] = added_back_count + 1
-                            print(f"Message added back to queue. Attempt {added_back_count + 1} of 10")
+                            logger.info(f"Message added back to queue. Attempt {added_back_count + 1} of 10")
                         else:
-                            print(f"Message has been added back 20 times. Stopping further attempts.")
+                            logger.info(f"Message has been added back 20 times. Stopping further attempts.")
                          
                             continue
-                       # print(input_message.metadata["event_ts"])
+                       # logger.info(input_message.metadata["event_ts"])
                         a.add_back_event( input_message.metadata)
                         time.sleep(0.5)
                     except Exception as e:
                         pass
                 else:
-                    print(
+                    logger.info(
                         "bot os message from bot - thread already running - put back on queue.."
                     )
                     try:
@@ -493,12 +484,12 @@ Now, with that as background...\n''' + input_message.msg
                             if 'added_back' not in input_message.metadata:
                                 input_message.metadata['added_back'] = 0
                             input_message.metadata['added_back'] = added_back_count + 1
-                            print(f"Message added back to queue. Attempt {added_back_count + 1} of 10")
+                            logger.info(f"Message added back to queue. Attempt {added_back_count + 1} of 10")
                         else:
-                            print(f"Message has been added back 10 times. Stopping further attempts.")
+                            logger.info(f"Message has been added back 10 times. Stopping further attempts.")
                             
                             continue
-                        # print(input_message.metadata["event_ts"])
+                        # logger.info(input_message.metadata["event_ts"])
                         a.add_back_event( input_message.metadata)
                         time.sleep(0.5)
                     except Exception as e:

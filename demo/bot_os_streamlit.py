@@ -14,11 +14,12 @@ from connectors.database_tools import (
 
 # from slack.slack_bot_os_adapter import SlackBotAdapter
 from connectors.bigquery_connector import BigQueryConnector
-import logging
 import streamlit as st
 from streamlit_gui.old.streamlit_bot_os_app import BotInputStreamlit
 from openai import OpenAI
 from streamlit_autorefresh import st_autorefresh
+
+from core.logging_config import logger
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -34,12 +35,6 @@ streamlit_adapter = setup_adapter()
 
 if "initialized" not in st.session_state:
 
-    logger = logging.getLogger(__name__)
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s - %(levelname)s - %(filename)s - %(message)s",
-    )
-
     # Assuming your BigQuery credentials are stored in a JSON file
     # Update this path according to your environment variable setup
     credentials_path = os.getenv(
@@ -54,7 +49,7 @@ if "initialized" not in st.session_state:
     a = bigquery_connector.run_query(
         "SELECT schema_name FROM INFORMATION_SCHEMA.SCHEMATA", max_rows=5
     )
-    print("database test: ", a)
+    logger.info("database test: ", a)
 
     app = Flask(__name__)
 

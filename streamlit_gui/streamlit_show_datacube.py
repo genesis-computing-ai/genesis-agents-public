@@ -1,6 +1,7 @@
 from decimal import Decimal
 import streamlit as st
 import pandas as pd
+from core.logging_config import logger
 # with st.echo():
 #     st.write(st.__version__)
 #     st.help(st.dataframe)
@@ -79,7 +80,7 @@ def use_run_query(query, column_names:list=["*"], column_types:dict={}, group_by
     base_column_names = column_names
     base_group_by_columns = group_by_columns
 
-    #print(f"use_run_query - open_paths = {open_paths}")
+    #logger.info(f"use_run_query - open_paths = {open_paths}")
     
     # Initialize SnowflakeConnector
     #snowflake_connector = SnowflakeConnector(connection_name='Snowflake')
@@ -130,7 +131,7 @@ def use_run_query(query, column_names:list=["*"], column_types:dict={}, group_by
     
     final_query = f"{cte_query} {main_query}"#;"
     
-    print(final_query)
+    logger.info(final_query)
     # Use the run_query method from SnowflakeConnector to execute the final query
     result_set = run_query(final_query, max_rows=1000)
     # Handle case where result_set is a dict with Success key = False
@@ -206,7 +207,7 @@ def main():
             st.button("Reset", on_click=reset_cube)
         
         def data_change():
-            print(st.session_state["my_data_editor_key"])
+            logger.info(st.session_state["my_data_editor_key"])
             expanded_rows = st.session_state.get('open_paths', [])
 
             edited_rows = st.session_state["my_data_editor_key"].get('edited_rows', {})

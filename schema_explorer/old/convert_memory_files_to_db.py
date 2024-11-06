@@ -4,6 +4,8 @@ import json
 from datetime import datetime
 import re
 
+from core.logging_config import logger
+
 
 # Setup BigQuery client
 client = bigquery.Client()
@@ -108,9 +110,9 @@ def insert_rows_to_bigquery(files_directory):
             row_to_insert = process_file(file_path)
             errors = client.insert_rows_json(table_id, [row_to_insert])
             if errors == []:
-                print(f"New row has been added.")
+                logger.info(f"New row has been added.")
             else:
-                print(f"Encountered errors while inserting rows: {errors}")
+                logger.info(f"Encountered errors while inserting rows: {errors}")
 
 # Replace 'your_directory_path' with the actual path where your memory files are stored
 files_directory = './kb_vector/database_metadata'

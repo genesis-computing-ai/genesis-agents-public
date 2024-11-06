@@ -1,12 +1,12 @@
 from __future__ import annotations  # for python 9 support of | type operator
 from collections import deque
-import logging
+
 from slack_bolt import App
 import os, time
 from slack_bolt.adapter.flask import SlackRequestHandler
 from flask import jsonify, request
 from bot_os_input import BotOsInputAdapter, BotOsInputMessage, BotOsOutputMessage
-logger = logging.getLogger(__name__)
+from core.logging_config import logger
 from openai import OpenAI
 import os
 from typing import Callable

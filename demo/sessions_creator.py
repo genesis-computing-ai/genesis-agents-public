@@ -30,18 +30,15 @@ from bot_genesis.make_baby_bot import (
 from streamlit_gui.udf_proxy_bot_os_adapter import UDFBotOsInputAdapter
 from core.bot_os_task_input_adapter import TaskBotOsInputAdapter
 
-import logging
 
-logger = logging.getLogger(__name__)
-logging.basicConfig(
-    level=logging.WARN, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+
+from core.logging_config import logger
 
 import core.global_flags as global_flags
 
 genbot_internal_project_and_schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "None")
 if genbot_internal_project_and_schema == "None":
-    print("ENV Variable GENESIS_INTERNAL_DB_SCHEMA is not set.")
+    logger.info("ENV Variable GENESIS_INTERNAL_DB_SCHEMA is not set.")
 if genbot_internal_project_and_schema is not None:
     genbot_internal_project_and_schema = genbot_internal_project_and_schema.upper()
 db_schema = genbot_internal_project_and_schema.split(".")
@@ -132,7 +129,7 @@ def make_session(
 
             # Stream mode is for interactive bot serving, False means task server
             if stream_mode:
-                print(f"Making Slack adapter for bot_id: {bot_config['bot_id']} named {bot_config['bot_name']} with bot_user_id: {bot_config['bot_slack_user_id']}")
+                logger.info(f"Making Slack adapter for bot_id: {bot_config['bot_id']} named {bot_config['bot_name']} with bot_user_id: {bot_config['bot_slack_user_id']}")
                 slack_adapter_local = SlackBotAdapter(
                     token=bot_config[
                         "slack_app_token"
@@ -165,7 +162,7 @@ def make_session(
                 )  # Adjust field name if necessary
             input_adapters.append(slack_adapter_local)
         except:
-            print(
+            logger.info(
                 f'Failed to create Slack adapter with the provided configuration for bot {bot_config["bot_name"]} '
             )
             logger.error(
@@ -175,14 +172,14 @@ def make_session(
 
     # tools
     available_tools = get_available_tools()
-    print(f"Number of available tools: {len(available_tools)}")
+    logger.info(f"Number of available tools: {len(available_tools)}")
     # available_tools.append({'tool_name': "integration_tools", 'tool_description': 'integration tools'})
     # available_tools.append({'tool_name': "activate_marketing_campaign", 'tool_description': 'activate_marketing_campaign'})
     # available_tools.append({'tool_name': "send_email_via_webhook", 'tool_description': 'send_email_via_webhook'})
 
     if bot_config.get("available_tools", None) is not None:
         bot_tools = json.loads(bot_config["available_tools"])
-        print(f"Number of bot-specific tools: {len(bot_tools)}")
+        logger.info(f"Number of bot-specific tools: {len(bot_tools)}")
         # bot_tools.append({'tool_name': "integration_tools", 'tool_description': 'integration tools'})
         # bot_tools.append({'tool_name': "activate_marketing_campaign", 'tool_description': 'activate_marketing_campaign'})
         # bot_tools.append({'tool_name': "send_email_via_webhook", 'tool_description': 'send_email_via_webhook'})
@@ -191,7 +188,7 @@ def make_session(
 
     # Check if SIMPLE_MODE environment variable is set to 'true'
     bot_id = bot_config["bot_id"]
-    print(f"setting local bot id = {bot_id}")
+    logger.info(f"setting local bot id = {bot_id}")
 
     # remove slack tools if Slack is not enabled for this bot
     if not slack_enabled:
@@ -204,11 +201,11 @@ def make_session(
     tools, available_functions, function_to_tool_map = get_tools(
         bot_tools, slack_adapter_local=slack_adapter_local, db_adapter=db_adapter, tool_belt=tool_belt
     )
-    print(f"Number of available functions for bot {bot_id}: {len(available_functions)}")
+    logger.info(f"Number of available functions for bot {bot_id}: {len(available_functions)}")
     all_tools, all_functions, all_function_to_tool_map = get_tools(
         available_tools, slack_adapter_local=slack_adapter_local, db_adapter=db_adapter, tool_belt=tool_belt
     )
-    print(f"Number of all functions for bot {bot_id}: {len(all_functions)}")
+    logger.info(f"Number of all functions for bot {bot_id}: {len(all_functions)}")
 
     simple_mode = os.getenv("SIMPLE_MODE", "false").lower() == "true"
 
@@ -226,7 +223,7 @@ def make_session(
         instructions += process_info
         processes_found = ', '.join([row[0] for row in result])
         instructions += f"\n\nFYI, you have the following processes available:\n{process_info}.\nThey can be run with _run_process function if useful to your work. This list may not be up to date, you can use _manage_process for an up to date LIST.\n\n"
-        print('appended process list to prompt, len=', len(processes_found))
+        logger.info(f'appended process list to prompt, len={len(processes_found)}')
     instructions += BASE_BOT_INSTRUCTIONS_ADDENDUM
 
     instructions += f'\nYour default database connection is called "{genesis_source}".\n'
@@ -260,14 +257,14 @@ def make_session(
             db_adapter.grant_all_bot_workspace(workspace_schema_name)
             instructions += f"\nYou have a workspace schema created specifically for you named {workspace_schema_name} that the user can also access. You may use this schema for creating tables, views, and stages that are required when generating answers to data analysis questions. Only use this schema if asked to create an object. Always return the full location of the object.\nYour default stage is {workspace_schema_name}.MY_STAGE. "
             if data_cubes_ingress_url:
-                print(
+                logger.info(
                     f"Setting data_cubes_ingress_url for {bot_id}: {data_cubes_ingress_url}"
                 )
        #         instructions += f"\nWhenever you show the results from run_query that may have more than 10 rows, and if you are not in the middle of running a process, also provide a link to a datacube visualization to help them understand the data you used in the form: http://{data_cubes_ingress_url}%ssql_query=select%20*%20from%20spider_data.baseball.all_star -- replace the value of the sql_query query parameter with the query you used."
         except Exception as e:
-            print(f"Error creating bot workspace for bot_id {bot_id}: {e} ")
+            logger.info(f"Error creating bot workspace for bot_id {bot_id}: {e} ")
 
-    # print(instructions, f'{bot_config["bot_name"]}, id: {bot_config["bot_id"]}' )
+    # logger.info(instructions, f'{bot_config["bot_name"]}, id: {bot_config["bot_id"]}' )
 
     # TESTING UDF ADAPTER W/EVE and ELSA
     # add a map here to track botid to adapter mapping
@@ -305,12 +302,12 @@ def make_session(
 #    if stream_mode:
     assistant_implementation = None
     actual_llm = None
-    print(f"Bot implementation from bot config: {bot_config.get('bot_implementation', 'Not specified')}")
+    logger.info(f"Bot implementation from bot config: {bot_config.get('bot_implementation', 'Not specified')}")
 
     if "bot_implementation" in bot_config:
         # Override with Cortex if environment variable is set
         if os.environ.get("CORTEX_OVERRIDE", "").lower() == "true":
-            print(f'Cortex override for bot {bot_id} due to ENV VAR')
+            logger.info(f'Cortex override for bot {bot_id} due to ENV VAR')
             bot_config["bot_implementation"] = "cortex"
 
         llm_type = bot_config["bot_implementation"]
@@ -321,12 +318,12 @@ def make_session(
                 assistant_implementation = BotOsAssistantSnowflakeCortex
                 actual_llm = 'cortex'
             else:
-                print('Snowflake Cortex is not available. Falling back to OpenAI.')
+                logger.info('Snowflake Cortex is not available. Falling back to OpenAI.')
                 if _configure_openai_or_azure_openai(db_adapter=db_adapter):
                     assistant_implementation = BotOsAssistantOpenAI
                     actual_llm = 'openai'
                 else:
-                    print("OpenAI LLM key not set. Bot session cannot be created.")
+                    logger.info("OpenAI LLM key not set. Bot session cannot be created.")
 
         # Handle OpenAI implementation
         elif llm_type == "openai":
@@ -334,12 +331,12 @@ def make_session(
                 assistant_implementation = BotOsAssistantOpenAI
                 actual_llm = 'openai'
             else:
-                print("OpenAI LLM key not set. Attempting Cortex.")
+                logger.info("OpenAI LLM key not set. Attempting Cortex.")
                 if db_adapter.check_cortex_available():
                     assistant_implementation = BotOsAssistantSnowflakeCortex
                     actual_llm = 'cortex'
                 else:
-                    print('Snowflake Cortex is not available. No OpenAI key set. Bot session cannot be created.')
+                    logger.info('Snowflake Cortex is not available. No OpenAI key set. Bot session cannot be created.')
 
         # Handle default case
         else:
@@ -351,12 +348,12 @@ def make_session(
                 assistant_implementation = BotOsAssistantOpenAI
                 actual_llm = 'openai'
             else:
-                print('Bot implementation not specified, and no available LLM found. Please set LLM key in Streamlit.')
+                logger.info('Bot implementation not specified, and no available LLM found. Please set LLM key in Streamlit.')
 
         if assistant_implementation:
-            print(f"Using {actual_llm} for bot {bot_id}")
+            logger.info(f"Using {actual_llm} for bot {bot_id}")
         else:
-            print(f"No suitable LLM found for bot {bot_id}")
+            logger.info(f"No suitable LLM found for bot {bot_id}")
 
         # Updating an existing bot's preferred_llm
         bot_llms[bot_id] = {"current_llm": actual_llm, "preferred_llm": bot_config["bot_implementation"]}
@@ -444,12 +441,12 @@ Always respond to greetings and pleasantries like 'hi' etc, unless specifically 
 
     try:
         # logger.warning(f"GenBot {bot_id} instructions:::  {instructions}")
-        # print(f'tools: {tools}')
+        # logger.info(f'tools: {tools}')
         asst_impl = (
 #            assistant_implementation if stream_mode else None
             assistant_implementation
         )  # test this - may need separate BotOsSession call for stream mode
-        print(f"assistant impl : {assistant_implementation}")
+        logger.info(f"assistant impl : {assistant_implementation}")
         session = BotOsSession(
             bot_config["bot_id"],
             instructions=instructions + proactive_instructions + pre_validation,
@@ -479,7 +476,7 @@ Always respond to greetings and pleasantries like 'hi' etc, unless specifically 
             skip_vectors=skip_vectors,
         )
     except Exception as e:
-        print("Session creation exception: ", e)
+        logger.info("Session creation exception: ", e)
         raise (e)
     if os.getenv("BOT_BE_PROACTIVE", "FALSE").lower() == "true" and slack_adapter_local:
         if not slack_adapter_local.channel_id:
@@ -500,7 +497,7 @@ Always respond to greetings and pleasantries like 'hi' etc, unless specifically 
         "api_app_id"
     ]  # Adjust based on actual field name in bots_config
 
-    # print('here: session: ',session)
+    # logger.info('here: session: ',session)
     return session, api_app_id, udf_adapter_local, slack_adapter_local
 
 
@@ -543,7 +540,7 @@ def create_sessions(
     #     import os
 
     #     cursor = db_adapter.connection.cursor()
-    #     print("Janice bot not found in bots_config")
+    #     logger.info("Janice bot not found in bots_config")
 
     #     # Add Janice 2.0 to bots_config
     #     janice_config = {
@@ -641,14 +638,14 @@ def create_sessions(
  #           continue
         if os.getenv("TEST_MODE", "false").lower() == "true":
             if bot_config.get("bot_name") != os.getenv("TEAMS_BOT", ""):
-                print("()()()()()()()()()()()()()()()")
-                print("Test Mode skipping all bots except ",os.getenv("TEAMS_BOT", ""))
-                print("()()()()()()()()()()()()()()()")
+                logger.info("()()()()()()()()()()()()()()()")
+                logger.info("Test Mode skipping all bots except ",os.getenv("TEAMS_BOT", ""))
+                logger.info("()()()()()()()()()()()()()()()")
                 continue
         # JL TEMP REMOVE
         #       if bot_config["bot_id"] == "Eliza-lGxIAG":
         #           continue
-        print(f'\n🤖 Making session for bot {bot_config["bot_id"]}')
+        logger.info(f'\n🤖 Making session for bot {bot_config["bot_id"]}')
         new_session, api_app_id, udf_adapter_local, slack_adapter_local = make_session(
             bot_config=bot_config,
             db_adapter=db_adapter,

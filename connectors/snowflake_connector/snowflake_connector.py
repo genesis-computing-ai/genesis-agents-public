@@ -2,7 +2,6 @@ from snowflake.connector import connect
 
 import os
 import json
-import logging
 from datetime import datetime
 import uuid
 import os
@@ -37,17 +36,14 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.backends import default_backend
 import jwt
 
-logger = logging.getLogger(__name__)
-logging.basicConfig(
-    level=logging.WARN, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+from core.logging_config import logger
 
 from snowflake.connector import SnowflakeConnection
 
 class SnowflakeConnector(DatabaseConnector):
     def __init__(self, connection_name, bot_database_creds=None):
         super().__init__(connection_name)
-        # print('Snowflake connector entry...')
+        # logger.info('Snowflake connector entry...')
 
         account, database, user, password, warehouse, role = [None] * 6
 
@@ -73,7 +69,7 @@ class SnowflakeConnector(DatabaseConnector):
 
         self.default_data = pd.DataFrame()
 
-        # print('Calling _create_connection...')
+        # logger.info('Calling _create_connection...')
         self.token_connection = False
         self.connection: SnowflakeConnection = self._create_connection()
 
@@ -94,7 +90,7 @@ class SnowflakeConnector(DatabaseConnector):
         self.genbot_internal_project_and_schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "None")
         if self.genbot_internal_project_and_schema == "None":
             # Todo remove, internal note
-            print("ENV Variable GENESIS_INTERNAL_DB_SCHEMA is not set.")
+            logger.info("ENV Variable GENESIS_INTERNAL_DB_SCHEMA is not set.")
         if self.genbot_internal_project_and_schema is not None:
             self.genbot_internal_project_and_schema = (self.genbot_internal_project_and_schema.upper() )
 
@@ -110,7 +106,7 @@ class SnowflakeConnector(DatabaseConnector):
         self.genbot_internal_process_history_table = os.getenv("GENESIS_INTERNAL_PROCESS_HISTORY_TABLE", "PROCESS_HISTORY" )
         self.app_share_schema = "APP_SHARE"
 
-        # print("genbot_internal_project_and_schema: ", self.genbot_internal_project_and_schema)
+        # logger.info("genbot_internal_project_and_schema: ", self.genbot_internal_project_and_schema)
         self.metadata_table_name = self.genbot_internal_project_and_schema+ "."+ self.genbot_internal_harvest_table
         self.harvest_control_table_name = self.genbot_internal_project_and_schema + "."+ self.genbot_internal_harvest_control_table
         self.message_log_table_name = self.genbot_internal_project_and_schema+ "."+ os.getenv("GENESIS_INTERNAL_MESSAGE_LOG_TABLE", "MESSAGE_LOG")
@@ -196,15 +192,15 @@ class SnowflakeConnector(DatabaseConnector):
                     self.default_llm_engine = BotLlmEngineEnum.cortex
 
                     self.llm_api_key = 'cortex_no_key_needed'
-                    print('Cortex LLM is Available via REST and successfully tested')
+                    logger.info('Cortex LLM is Available via REST and successfully tested')
                     return True
                 else:
                     os.environ["CORTEX_MODE"] = "False"
                     os.environ["CORTEX_AVAILABLE"] = 'False'
-                    print('Cortex LLM is not available via REST ')
+                    logger.info('Cortex LLM is not available via REST ')
                     return False
             except Exception as e:
-                print('Cortex LLM Not available via REST, exception on test: ',e)
+                logger.info('Cortex LLM Not available via REST, exception on test: ',e)
                 return False
         if self.source_name == "Snowflake" and os.getenv("CORTEX_AVAILABLE", "False").lower() == 'true':
             return True
@@ -215,7 +211,7 @@ class SnowflakeConnector(DatabaseConnector):
         newarray = [{"role": "user", "content": "hi there"} ]
         new_array_str = json.dumps(newarray)
 
-        print(f"snowflake_connector test calling cortex {self.llm_engine} via SQL, content est tok len=",len(new_array_str)/4)
+        logger.info(f"snowflake_connector test calling cortex {self.llm_engine} via SQL, content est tok len=",len(new_array_str)/4)
 
         context_limit = 128000 * 4 #32000 * 4
         cortex_query = f"""
@@ -228,12 +224,12 @@ class SnowflakeConnector(DatabaseConnector):
                 cursor.execute(cortex_query, (new_array_str,))
             except Exception as e:
                 if 'unknown model' in e.msg:
-                    print(f'Model {self.llm_engine} not available in this region, trying llama3.1-70b')
+                    logger.info(f'Model {self.llm_engine} not available in this region, trying llama3.1-70b')
                     self.llm_engine = 'llama3.1-70b'
                     cortex_query = f"""
                         select SNOWFLAKE.CORTEX.COMPLETE('{self.llm_engine}', %s) as completion; """
                     cursor.execute(cortex_query, (new_array_str,))
-                    print('Ok that worked, changing CORTEX_MODEL ENV VAR to llama3.1-70b')
+                    logger.info('Ok that worked, changing CORTEX_MODEL ENV VAR to llama3.1-70b')
                     os.environ['CORTEX_MODEL'] = 'llama3.1-70b'
                     os.environ['CORTEX_AVAILABLE'] = 'True'
                 else:
@@ -247,13 +243,13 @@ class SnowflakeConnector(DatabaseConnector):
             completion = result[0] if result else None
 
             if completion == True:
-                print(f"snowflake_connector test call result: ",completion)
+                logger.info(f"snowflake_connector test call result: ",completion)
                 return True
             else:
-                print("Cortex complete failed to return a result")
+                logger.info("Cortex complete failed to return a result")
                 return False
         except Exception as e:
-            print('cortex not available, query error: ',e)
+            logger.info('cortex not available, query error: ',e)
             self.connection.rollback()
             os.environ['CORTEX_MODE'] = 'False'
             os.environ['CORTEX_AVAILABLE'] = 'False'
@@ -261,17 +257,17 @@ class SnowflakeConnector(DatabaseConnector):
 
     def test_cortex_via_rest(self):
         if os.getenv("CORTEX_OFF", "").upper() == "TRUE":
-            print('CORTEX OFF ENV VAR SET -- SIMULATING NO CORTEX')
+            logger.info('CORTEX OFF ENV VAR SET -- SIMULATING NO CORTEX')
             return False
         response, status_code  = self.cortex_chat_completion("Hi there", test=True)
         if status_code != 200:
-           # print(f"Failed to connect to Cortex API. Status code: {status_code} RETRY 1")
+           # logger.info(f"Failed to connect to Cortex API. Status code: {status_code} RETRY 1")
             response, status_code  = self.cortex_chat_completion("Hi there", test=True)
             if status_code != 200:
-             #   print(f"Failed to connect to Cortex API. Status code: {status_code} RETRY 2")
+             #   logger.info(f"Failed to connect to Cortex API. Status code: {status_code} RETRY 2")
                 response, status_code  = self.cortex_chat_completion("Hi there",test=True)
                 if status_code != 200:
-              #      print(f"Failed to connect to Cortex API. Status code: {status_code} FAILED AFTER 3 TRIES")
+              #      logger.info(f"Failed to connect to Cortex API. Status code: {status_code} FAILED AFTER 3 TRIES")
                     return False
 
         if len(response) > 2:
@@ -305,17 +301,17 @@ class SnowflakeConnector(DatabaseConnector):
             }
 
             if not test:
-                print(f"snowflake_connector calling cortex {self.llm_engine} via REST API, content est tok len=",len(str(newarray))/4)
+                logger.info(f"snowflake_connector calling cortex {self.llm_engine} via REST API, content est tok len=",len(str(newarray))/4)
 
             response = requests.post(url, json=request_data, stream=True, headers=headers)
 
             if response.status_code in (200, 400) and response.text.startswith('{"message":"unknown model '):
                 self.llm_engine = os.getenv("CORTEX_FAST_MODEL_NAME", "llama3.1-70b")
-                print(f"Model not found. Switching to {self.llm_engine}")
+                logger.info(f"Model not found. Switching to {self.llm_engine}")
                 request_data["model"] = self.llm_engine
                 response = requests.post(url, json=request_data, stream=True, headers=headers)
                 if response.status_code != 200 or (response.status_code in (200, 400) and response.text.startswith('{"message":"unknown model ')):
-                    print(f'cortex {self.llm_engine} and {os.getenv("CORTEX_FAST_MODEL_NAME", "llama3.1-70b")} not avail: ',response.status_code, response.text)
+                    logger.info(f'cortex {self.llm_engine} and {os.getenv("CORTEX_FAST_MODEL_NAME", "llama3.1-70b")} not avail: ',response.status_code, response.text)
                     return False, False
                 else:
                     os.environ["CORTEX_MODEL"] = "llama3.1-70b"
@@ -327,7 +323,7 @@ class SnowflakeConnector(DatabaseConnector):
                     try:
                         decoded_line = line.decode('utf-8')
                         if not decoded_line.strip():
-                     #       print("Received an empty line.")
+                     #       logger.info("Received an empty line.")
                             continue
                         if decoded_line.startswith("data: "):
                             decoded_line = decoded_line[len("data: "):]
@@ -335,15 +331,15 @@ class SnowflakeConnector(DatabaseConnector):
                         if 'choices' in event_data:
                             d = event_data['choices'][0]['delta'].get('content','')
                             curr_resp += d
-                  #          print(d, end='', flush=True)
+                  #          logger.info(d, end='')
                     except json.JSONDecodeError as e:
-                        print(f"Error decoding JSON: {e}")
+                        logger.info(f"Error decoding JSON: {e}")
                         continue
 
             return curr_resp, response.status_code
 
         except Exception as e:
-            print ("Bottom of function -- Error calling Cortex Rest API, ",e, flush=True)
+            logger.info("Bottom of function -- Error calling Cortex Rest API, ",e)
             return False, False
 
     def _create_snowpark_connection(self):
@@ -370,7 +366,7 @@ class SnowflakeConnector(DatabaseConnector):
             sp_session = Session.builder.configs(connection_parameters).create()
 
         except Exception as e:
-            print(f"Cortex not available: {e}")
+            logger.info(f"Cortex not available: {e}")
             sp_session = None
         return sp_session
 
@@ -380,7 +376,7 @@ class SnowflakeConnector(DatabaseConnector):
 
             result = Complete(model, str(prompt))
         except Exception as e:
-            print(f"Cortex not available: {e}")
+            logger.info(f"Cortex not available: {e}")
             self.sp_session = None
             result = None
         return result
@@ -673,7 +669,7 @@ class SnowflakeConnector(DatabaseConnector):
             schemas = cursor.fetchall()
             schema_list = [schema[0] for schema in schemas]
             # for schema in schema_list:
-            #     print(f"can we see baseball and f1?? {schema}")
+            #     logger.info(f"can we see baseball and f1?? {schema}")
             return schema_list
 
         except Exception as e:
@@ -938,7 +934,7 @@ def get_status(site):
                         if 'Success' in eai_test_result:
                             function_test_success = True
                 except Exception as e:
-                    print(f"An error occurred while creating/testing EAI test function: {e}")
+                    logger.info(f"An error occurred while creating/testing EAI test function: {e}")
                     function_test_success = True
 
                 # check for existing EAI assigned to services
@@ -1105,7 +1101,7 @@ def get_status(site):
 
             return result[0] > 0  # Returns True if a row exists, False otherwise
         except Exception as e:
-            print(f"An error occurred while checking if the table summary exists: {e}")
+            logger.info(f"An error occurred while checking if the table summary exists: {e}")
             return False
 
     def check_logging_status(self):
@@ -1119,7 +1115,7 @@ def get_status(site):
 
             return result[0]  # Returns True, False otherwise
         except Exception as e:
-            print(f"An error occurred while checking logging status: {e}")
+            logger.info(f"An error occurred while checking logging status: {e}")
             return False
 
     def insert_chat_history_row(
@@ -1201,7 +1197,7 @@ def get_status(site):
             )
             self.client.commit()
         except Exception as e:
-            print(
+            logger.info(
                 f"Encountered errors while inserting into chat history table row: {e}"
             )
         finally:
@@ -1231,9 +1227,9 @@ def get_status(site):
             cursor.execute(insert_query, (uu, message))
             self.client.commit()
             cursor.close()
-            print(f"LLM result row inserted successfully for uu: {uu}")
+            logger.info(f"LLM result row inserted successfully for uu: {uu}")
         except Exception as e:
-            print(f"An error occurred while inserting the LLM result row: {e}")
+            logger.info(f"An error occurred while inserting the LLM result row: {e}")
             if cursor is not None:
                 cursor.close()
 
@@ -1256,9 +1252,9 @@ def get_status(site):
             cursor.execute(update_query, (message, uu))
             self.client.commit()
             cursor.close()
-        #     print(f"LLM result row inserted successfully for uu: {uu}")
+        #     logger.info(f"LLM result row inserted successfully for uu: {uu}")
         except Exception as e:
-            print(f"An error occurred while inserting the LLM result row: {e}")
+            logger.info(f"An error occurred while inserting the LLM result row: {e}")
             if cursor is not None:
                 cursor.close()
 
@@ -1285,7 +1281,7 @@ def get_status(site):
             else:
                 return ''
         except Exception as e:
-            print(f"An error occurred while retrieving the LLM result: {e}")
+            logger.info(f"An error occurred while retrieving the LLM result: {e}")
             if cursor is not None:
                 cursor.close()
 
@@ -1303,11 +1299,11 @@ def get_status(site):
             cursor.execute(delete_query)
             self.client.commit()
             cursor.close()
-            print(
+            logger.info(
                 "LLM result rows older than 10 minutes have been successfully deleted."
             )
         except Exception as e:
-            print(f"An error occurred while deleting old LLM result rows: {e}")
+            logger.info(f"An error occurred while deleting old LLM result rows: {e}")
             if cursor is not None:
                 cursor.close()
 
@@ -1417,19 +1413,19 @@ def get_status(site):
         }
 
         for param, value in query_params.items():
-            # print(f'{param}: {value}')
+            # logger.info(f'{param}: {value}')
             if value is None:
-                # print(f'{param} is null')
+                # logger.info(f'{param} is null')
                 query_params[param] = "NULL"
 
         # Execute the MERGE statement with parameters
         try:
-            # print("merge sql: ",merge_sql)
+            # logger.info("merge sql: ",merge_sql)
             cursor = self.client.cursor()
             cursor.execute(merge_sql, query_params)
             self.client.commit()
         except Exception as e:
-            print(f"An error occurred while executing the MERGE statement: {e}")
+            logger.info(f"An error occurred while executing the MERGE statement: {e}")
         finally:
             if cursor is not None:
                 cursor.close()
@@ -1486,7 +1482,7 @@ def get_status(site):
                 return "a required parameter was not entered"
         except Exception as e:
             if os.environ.get('GENESIS_LOCAL_RUNNER', '').upper() != 'TRUE':
-                print(f"Error checking cached metadata: {e}")
+                logger.info(f"Error checking cached metadata: {e}")
             return False
 
     def get_metadata_from_cache(
@@ -1518,11 +1514,11 @@ def get_status(site):
             cursor.close()
             return cached_metadata
 
-            print(
+            logger.info(
                 f"Retrieved cached rows from {metadata_table_id} for {database_name}.{schema_name}.{table_name}"
             )
         except Exception as e:
-            print(
+            logger.info(
                 f"Cached rows from APP_SHARE.HARVEST_RESULTS NOT retrieved from {metadata_table_id} for {database_name}.{schema_name}.{table_name} due to erorr {e}"
             )
 
@@ -1582,7 +1578,7 @@ def get_status(site):
             # token based connection from SPCS
             with open("/snowflake/session/token", "r") as f:
                 snowflake_token = f.read()
-            print(f"Natapp Connection: SPCS Snowflake token found, length: {len(snowflake_token)}", flush=True)
+            logger.info(f"Natapp Connection: SPCS Snowflake token found, length: {len(snowflake_token)}")
             self.token_connection = True
             #   logger.warn('Snowflake token mode (SPCS)...')
             if os.getenv("SNOWFLAKE_SECURE", "TRUE").upper() == "FALSE":
@@ -1614,7 +1610,7 @@ def get_status(site):
                     client_session_keep_alive=True,
                 )
 
-        print("Creating Snowflake regular connection...")
+        logger.info("Creating Snowflake regular connection...")
         # self.token_connection = False
 
         if os.getenv("SNOWFLAKE_SECURE", "TRUE").upper() == "FALSE":
@@ -1700,7 +1696,7 @@ def get_status(site):
                 schemas.append(row[1])  # Assuming the schema name is in the second column
             cursor.close()
         except Exception as e:
-            # print(f"error getting schemas for {database}: {e}")
+            # logger.info(f"error getting schemas for {database}: {e}")
             return schemas
         return schemas
 
@@ -1724,7 +1720,7 @@ def get_status(site):
                 )  # Assuming the table name is in the second column and DDL in the third
             cursor.close()
         except Exception as e:
-            # print(f"error getting tables for {database}.{schema}: {e}")
+            # logger.info(f"error getting tables for {database}.{schema}: {e}")
             return tables
         return tables
 
@@ -1742,7 +1738,7 @@ def get_status(site):
         return columns
 
     def alt_get_ddl(self,table_name = None):
-        #print(table_name)
+        #logger.info(table_name)
         describe_query = f"DESCRIBE TABLE {table_name};"
         try:
             describe_result = self.run_query(query=describe_query, max_rows=1000, max_rows_override=True)
@@ -1763,7 +1759,7 @@ def get_status(site):
                 key = " UNIQUE"
             ddl_statement += f"    {column_name} {column_type}{nullable}{default}{key}{comment},\n"
         ddl_statement = ddl_statement.rstrip(',\n') + "\n);"
-        #print(ddl_statement)
+        #logger.info(ddl_statement)
         return ddl_statement
 
     def get_sample_data(self, database, schema_name: str, table_name: str):
@@ -1938,7 +1934,7 @@ def get_status(site):
                     "exp": now + lifetime
                 }
 
-                print(payload)
+                logger.info(payload)
 
                 # Generate the JWT token
                 encoding_algorithm = "RS256"
@@ -1965,8 +1961,8 @@ def get_status(site):
 
                 print (response)
                 # Print the response status and data
-                print(f"Status Code: {response.status_code}")
-                print(f"Response: {response.json()}")
+                logger.info(f"Status Code: {response.status_code}")
+                logger.info(f"Response: {response.json()}")
                 return response
 
             schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA").split('.')[-1]
@@ -1985,7 +1981,7 @@ def get_status(site):
             return response.text, response.status_code
 
         except Exception as e:
-            print ("Bottom of function -- Error calling Cortex Search Rest API, ",e, flush=True)
+            print ("Bottom of function -- Error calling Cortex Search Rest API, ",e)
             return False, False
 
 
@@ -2101,7 +2097,7 @@ def get_status(site):
         if max_rows > 100 and not max_rows_override:
             max_rows = 100
 
-        #   print('running query ... ', query)
+        #   logger.info('running query ... ', query)
         cursor = self.connection.cursor()
 
         if userquery and bot_llm == 'cortex' and "\\'" in query:
@@ -2126,7 +2122,7 @@ def get_status(site):
         except Exception as e:
 
             if e.errno == 390114 or 'Authentication token has expired' in e.msg:
-                print('Snowflake token expired, re-authenticating...')
+                logger.info('Snowflake token expired, re-authenticating...')
                 self.connection: SnowflakeConnection = self._create_connection()
                 self.client = self.connection
                 cursor = self.connection.cursor()
@@ -2139,7 +2135,7 @@ def get_status(site):
                     pass
 
             if "does not exist or not authorized" in str(e):
-                print(
+                logger.info(
                     "run query: len:",
                     len(query),
                     "\ncaused object or access rights error: ",
@@ -2163,18 +2159,18 @@ def get_status(site):
                             """),
                 }
 
-            print("run query: len=", len(query), "\ncaused error: ", e)
+            logger.info("run query: len=", len(query), "\ncaused error: ", e)
             cursor.close()
             return {"Success": False, "Error": str(e)}
 
-        #    print('getting results:')
+        #    logger.info('getting results:')
         try:
 
             results = cursor.fetchmany(max(1,max_rows))
             columns = [col[0] for col in cursor.description]
 
             sample_data = [dict(zip(columns, row)) for row in results]
-         #   print('query results: ',sample_data)
+         #   logger.info('query results: ',sample_data)
 
             # Replace occurrences of triple backticks with triple single quotes in sample data
             sample_data = [
@@ -2189,11 +2185,11 @@ def get_status(site):
                 for row in sample_data
             ]
         except Exception as e:
-            print("run query: ", query, "\ncaused error: ", e)
+            logger.info("run query: ", query, "\ncaused error: ", e)
             cursor.close()
             raise e
 
-        # print('returning result: ', sample_data)
+        # logger.info('returning result: ', sample_data)
         cursor.close()
 
         return sample_data
@@ -2512,9 +2508,9 @@ def get_status(site):
         except Exception as e:
             if "identifier 'ACTIVE" in e.msg:
                 if i == 0:
-                    print('Waiting on upgrade of LLM_TOKENS table with ACTIVE column in primary service...')
+                    logger.info('Waiting on upgrade of LLM_TOKENS table with ACTIVE column in primary service...')
             else:
-                print(
+                logger.info(
                     "Error getting data from LLM_TOKENS table: ", e
                 )
             return None, None
@@ -2574,7 +2570,7 @@ def get_status(site):
                     logger.error(f"No rows updated for runner_id: {runner_id}")
                     return False
             else:
-                print("key variable is empty and was not stored in the database")
+                logger.info("key variable is empty and was not stored in the database")
         except Exception as e:
             logger.error(
                 f"Failed to update LLM key for runner_id: {runner_id} with error: {e}"
@@ -2669,7 +2665,7 @@ def get_status(site):
                 ),
             )
             self.connection.commit()
-            print(f"Successfully inserted new bot configuration for bot_id: {bot_id}")
+            logger.info(f"Successfully inserted new bot configuration for bot_id: {bot_id}")
 
             if not slack_user_allow:
                 slack_user_allow_update_query = f"""
@@ -2683,17 +2679,17 @@ def get_status(site):
                         slack_user_allow_update_query, (slack_user_allow_value, bot_id)
                     )
                     self.connection.commit()
-                    print(
+                    logger.info(
                         f"Updated slack_user_allow for bot_id: {bot_id} to block all users."
                     )
                 except Exception as e:
-                    print(
+                    logger.info(
                         f"Failed to update slack_user_allow for bot_id: {bot_id} with error: {e}"
                     )
                     raise e
 
         except Exception as e:
-            print(
+            logger.info(
                 f"Failed to insert new bot configuration for bot_id: {bot_id} with error: {e}"
             )
             raise e
@@ -3044,7 +3040,7 @@ def get_status(site):
 
         try:
             cursor = self.connection.cursor()
-            # print(select_query, bot_id)
+            # logger.info(select_query, bot_id)
 
             cursor.execute(select_query, (bot_id,))
             result = cursor.fetchone()
@@ -3084,7 +3080,7 @@ def get_status(site):
 
         try:
             cursor = self.connection.cursor()
-            # print(select_query, bot_id)
+            # logger.info(select_query, bot_id)
 
             cursor.execute(select_query, (bot_id,))
             result = cursor.fetchone()
@@ -3167,11 +3163,11 @@ def get_status(site):
                 ),
             )
             self.client.commit()
-            print(
+            logger.info(
                 f"Successfully updated existing bot configuration for bot_id: {bot_id}"
             )
         except Exception as e:
-            print(
+            logger.info(
                 f"Failed to update existing bot configuration for bot_id: {bot_id} with error: {e}"
             )
             raise e
@@ -3432,7 +3428,7 @@ def get_status(site):
         # Ensure the OpenAI API key is set in your environment variables
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
-            print("imagegen OpenAI API key is not set in the environment variables.")
+            logger.info("imagegen OpenAI API key is not set in the environment variables.")
             return {
                 "success": False,
                 "error": "OpenAI key is required to generate images, but one was not found to be available."
@@ -3451,13 +3447,13 @@ def get_status(site):
             )
             image_url = response.data[0].url
             if not image_url:
-                print("imagegen Failed to generate image with DALL-E 3.")
+                logger.info("imagegen Failed to generate image with DALL-E 3.")
                 return None
 
             try:
                 # Download the image from the URL
                 image_response = requests.get(image_url)
-                print("imagegen getting image from ", image_url)
+                logger.info("imagegen getting image from ", image_url)
                 image_response.raise_for_status()
                 image_bytes = image_response.content
             except Exception as e:
@@ -3488,7 +3484,7 @@ def get_status(site):
             with open(file_path, "wb") as image_file:
                 image_file.write(image_bytes)
 
-            print(f"imagegen Image generated and saved to {file_path}")
+            logger.info(f"imagegen Image generated and saved to {file_path}")
 
             result = {
                 "success": True,
@@ -3498,7 +3494,7 @@ def get_status(site):
 
             return result
         except Exception as e:
-            print(f"imagegen Error generating image with DALL-E 3: {e}")
+            logger.info(f"imagegen Error generating image with DALL-E 3: {e}")
             return None
 
     def image_analysis(
@@ -3751,7 +3747,7 @@ def get_status(site):
             while True:
                 # Modify the query to include LIMIT and OFFSET
                 query = f"SELECT qualified_table_name, {embedding_column} FROM {table_id} WHERE {embedding_column} IS NOT NULL LIMIT {batch_size} OFFSET {offset}"
-    #            print('fetch query ',query)
+    #            logger.info('fetch query ',query)
 
                 cursor.execute(query)
                 rows = cursor.fetchall()
@@ -3764,14 +3760,14 @@ def get_status(site):
                     try:
                         temp_embeddings.append(json.loads('['+row[1][5:-3]+']'))
                         temp_table_names.append(row[0])
-                        # print('temp_embeddings len: ',len(temp_embeddings))
-                        # print('temp table_names: ',temp_table_names)
+                        # logger.info('temp_embeddings len: ',len(temp_embeddings))
+                        # logger.info('temp table_names: ',temp_table_names)
                     except:
                         try:
                             temp_embeddings.append(json.loads('['+row[1][5:-10]+']'))
                             temp_table_names.append(row[0])
                         except:
-                            print('Cant load array from Snowflake')
+                            logger.info('Cant load array from Snowflake')
                     # Assuming qualified_table_name is the first column
 
                 # Check if the batch was empty and exit the loop if so
@@ -3795,8 +3791,8 @@ def get_status(site):
                 offset += batch_size
 
         cursor.close()
-    #   print('table names ',table_names)
-    #   print('embeddings len ',len(embeddings))
+    #   logger.info('table names ',table_names)
+    #   logger.info('embeddings len ',len(embeddings))
         return table_names, embeddings
 
     def generate_filename_from_last_modified(self, table_id):
@@ -3834,7 +3830,7 @@ def get_status(site):
             return filename, metafilename
         except Exception as e:
             # Handle errors: for example, table not found, or API errors
-            #print(f"An error occurred: {e}, possibly no data yet harvested, using default name for index file.")
+            #logger.info(f"An error occurred: {e}, possibly no data yet harvested, using default name for index file.")
             # Return a default filename or re-raise the exception based on your use case
             return "default_filename.ann", "default_metadata.json"
 
@@ -3846,12 +3842,12 @@ def get_status(site):
         if bot_os_llm_engine is BotLlmEngineEnum.openai:
             api_key = os.getenv("OPENAI_API_KEY")
             if not api_key:
-                print("OpenAI API key is not set in the environment variables.")
+                logger.info("OpenAI API key is not set in the environment variables.")
                 return None
 
             openai_model = os.getenv("OPENAI_MODEL_SUPERVISOR",os.getenv("OPENAI_MODEL_NAME","gpt-4o"))
 
-            print('snowpark escallation using model: ', openai_model)
+            logger.info('snowpark escallation using model: ', openai_model)
             try:
                 client = get_openai_client()
                 response = client.chat.completions.create(
@@ -3866,7 +3862,7 @@ def get_status(site):
             except Exception as e:
                 if os.getenv("OPENAI_MODEL_SUPERVISOR", None) is not None:
                     openai_model = os.getenv("OPENAI_MODEL_NAME","gpt-4o")
-                    print('retry snowpark escallation using model: ', openai_model)
+                    logger.info('retry snowpark escallation using model: ', openai_model)
                     try:
                         client = get_openai_client()
                         response = client.chat.completions.create(
@@ -3879,10 +3875,10 @@ def get_status(site):
                             ],
                         )
                     except Exception as e:
-                        print(f"Error occurred while calling OpenAI API with snowpark escallation model {openai_model}: {e}")
+                        logger.info(f"Error occurred while calling OpenAI API with snowpark escallation model {openai_model}: {e}")
                         return None
                 else:
-                    print(f"Error occurred while calling OpenAI API: {e}")
+                    logger.info(f"Error occurred while calling OpenAI API: {e}")
                     return None
 
             return_msg = response.choices[0].message.content
@@ -3890,7 +3886,7 @@ def get_status(site):
             if bot_os_llm_engine is BotLlmEngineEnum.cortex:
                 response, status_code = self.cortex_chat_completion(message)
                 if status_code != 200:
-                    print(f"Error occurred while calling Cortex API: {response}")
+                    logger.info(f"Error occurred while calling Cortex API: {response}")
                     return None
                 return_msg = response
 
@@ -4096,7 +4092,7 @@ result = 'Table FAKE_CUST created successfully.'
 
 
             potential_result = self.chat_completion_for_escallation(message=message)
-            #print(potential_result)
+            #logger.info(potential_result)
             return potential_result
 
         else:
@@ -4167,9 +4163,9 @@ result = 'Table FAKE_CUST created successfully.'
                 drop_proc_query = f"DROP PROCEDURE IF EXISTS {self.schema}.{proc_name}(STRING)"
                 try:
                     self.run_query(drop_proc_query)
-                    print(f"Temporary stored procedure {proc_name} dropped successfully.")
+                    logger.info(f"Temporary stored procedure {proc_name} dropped successfully.")
                 except Exception as e:
-                    print(f"Error dropping temporary stored procedure {proc_name}: {e}")
+                    logger.info(f"Error dropping temporary stored procedure {proc_name}: {e}")
 
         try:
             if note_id is not None or note_name is not None:
@@ -4189,14 +4185,14 @@ result = 'Table FAKE_CUST created successfully.'
                 if note_type != 'snowpark_python':
                     raise ValueError("Note type must be 'snowpark_python' for running python code.")
         except IndexError:
-            print("Error: The list 'code' is empty or does not have an element at index 0.")
+            logger.info("Error: The list 'code' is empty or does not have an element at index 0.")
             return {
                     "success": False,
                     "error": "Note was not found.",
                     }
 
         except ValueError:
-            print("Note type must be 'snowpark_python' for code retrieval.")
+            logger.info("Note type must be 'snowpark_python' for code retrieval.")
             return {
                     "success": False,
                     "error": "Wrong tool called. Note type must be 'snowpark_python' to use this tool.",
@@ -4416,7 +4412,7 @@ result = 'Table FAKE_CUST created successfully.'
 
                         # Create artifact
                         aid = af.create_artifact_from_content(file_content, metadata, content_filename=result_json["filename"])
-                        print(f"Artifact {aid} created for output from python code named {result_json['filename']}")
+                        logger.info(f"Artifact {aid} created for output from python code named {result_json['filename']}")
                         ref_notes = ref_notes = af.get_llm_artifact_ref_instructions(aid)
                         result = {
                             "success": True,
@@ -4430,7 +4426,7 @@ result = 'Table FAKE_CUST created successfully.'
                         file_path = f'./downloaded_files/{thread_id}/{result_json["filename"]}'
                         with open(file_path, 'wb') as file:
                             file.write(file_content)
-                        print(f"File saved to {file_path}")
+                        logger.info(f"File saved to {file_path}")
                         if return_base64:
                             result = {
                                 "success": True,

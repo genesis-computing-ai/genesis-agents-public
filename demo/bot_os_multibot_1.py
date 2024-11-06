@@ -60,12 +60,8 @@ from demo.sessions_creator import create_sessions, make_session
 # for Cortex testing
 #os.environ['SIMPLE_MODE'] = 'true'
 
-import logging
 
-logger = logging.getLogger(__name__)
-logging.basicConfig(
-    level=logging.WARN, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+from core.logging_config import logger
 
 import core.global_flags as global_flags
 
@@ -77,7 +73,7 @@ import core.global_flags as global_flags
 # pdb_attach.listen(5679)  # Listen on port 5678.
 # $ python -m pdb_attach <PID> 5678
 
-print("****** GENBOT VERSION 0.202-DEV*******")
+logger.info("****** GENBOT VERSION 0.202-DEV*******")
 
 runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
 multbot_mode = True
@@ -91,9 +87,9 @@ index_size_file = os.path.join(index_file_path, 'index_size.txt')
 if os.path.exists(index_size_file):
     try:
         os.remove(index_size_file)
-        print(f"Deleted {index_size_file} (this is expected on local test runs)")
+        logger.info(f"Deleted {index_size_file} (this is expected on local test runs)")
     except Exception as e:
-        print(f"Error deleting {index_size_file}: {e}")
+        logger.info(f"Error deleting {index_size_file}: {e}")
 
 
 
@@ -122,7 +118,7 @@ def get_udf_endpoint_url(endpoint_name="udfendpoint"):
 
 genbot_internal_project_and_schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "None")
 if genbot_internal_project_and_schema == "None":
-    print("ENV Variable GENESIS_INTERNAL_DB_SCHEMA is not set.")
+    logger.info("ENV Variable GENESIS_INTERNAL_DB_SCHEMA is not set.")
 if genbot_internal_project_and_schema is not None:
     genbot_internal_project_and_schema = genbot_internal_project_and_schema.upper()
 db_schema = genbot_internal_project_and_schema.split(".")
@@ -135,11 +131,11 @@ genesis_source = os.getenv("GENESIS_SOURCE", default="Snowflake")
 db_adapter = get_global_db_connector(genesis_source)
 
 if os.getenv("TEST_MODE", "false").lower() == "true":
-    print("()()()()()()()()()()()()()")
-    print("TEST_MODE - ensure table exists skipped")
-    print("()()()()()()()()()()()()()")
+    logger.info("()()()()()()()()()()()()()")
+    logger.info("TEST_MODE - ensure table exists skipped")
+    logger.info("()()()()()()()()()()()()()")
 else:
-    print("NOT RUNNING TEST MODE - APPLYING ONE TIME DB FIXES AND CREATING TABLES")
+    logger.info("NOT RUNNING TEST MODE - APPLYING ONE TIME DB FIXES AND CREATING TABLES")
     db_adapter.one_time_db_fixes()
     db_adapter.ensure_table_exists()
 
@@ -148,14 +144,14 @@ llm_api_key_struct = None
 llm_key_handler = LLMKeyHandler(db_adapter=db_adapter)
 
 # set the system LLM type and key
-print('Checking LLM_TOKENS for saved LLM Keys:')
+logger.info('Checking LLM_TOKENS for saved LLM Keys:')
 try:
     api_key_from_env, llm_api_key_struct = llm_key_handler.get_llm_key_from_db()
 except Exception as e:
     logger.error(f"Failed to get LLM key from database: {e}")
     llm_api_key_struct = None
 
-print("---> CONNECTED TO DATABASE:: ", genesis_source)
+logger.info(f"---> CONNECTED TO DATABASE:: {genesis_source}")
 global_flags.source = genesis_source
 
 # while True:
@@ -173,7 +169,7 @@ if not db_adapter.is_using_local_runner:
     except Exception as e:
         logger.warning(f"Error on get_endpoints {e} ")
 data_cubes_ingress_url = data_cubes_ingress_url if data_cubes_ingress_url else "localhost:8501"
-print(f"Endpoints: {data_cubes_ingress_url=}; udf endpoint={ep}")
+logger.info(f"Endpoints: {data_cubes_ingress_url=}; udf endpoint={ep}")
 
 ngrok_active = False
 
@@ -188,11 +184,11 @@ ngrok_active = False
 t, r = get_slack_config_tokens()
 global_flags.slack_active = test_slack_config_token()
 if global_flags.slack_active == 'token_expired':
-    print('Slack Config Token Expired')
+    logger.info('Slack Config Token Expired')
     global_flags.slack_active = False
 #global_flags.slack_active = True
 
-print("...Slack Connector Active Flag: ", global_flags.slack_active)
+logger.info(f"...Slack Connector Active Flag: {global_flags.slack_active}")
 SystemVariables.bot_id_to_slack_adapter_map = {}
 
 if llm_api_key_struct is not None and llm_api_key_struct.llm_key is not None:
@@ -315,7 +311,7 @@ def lookup_udf():
 @app.route("/udf_proxy/list_available_bots", methods=["POST"])
 def list_available_bots_fn():
 
-    print('-> streamlit called list available bots',flush=True)
+    logger.info('-> streamlit called list available bots')
     message = request.json
     input_rows = message["data"]
     row = input_rows[0]
@@ -354,11 +350,11 @@ def list_available_bots_fn():
 
 
 def file_to_bytes(file_path):
-    print('inside file_path')
+    logger.info('inside file_path')
     file_bytes = Path(file_path).read_bytes()
-    print('inside file_path - after file_bytes')
+    logger.info('inside file_path - after file_bytes')
     encoded = base64.b64encode(file_bytes).decode()
-    print('inside file_path - after encoded')
+    logger.info('inside file_path - after encoded')
     return encoded
 
 @app.route("/udf_proxy/get_metadata", methods=["POST"])
@@ -414,25 +410,25 @@ def get_metadata():
             if len(metadata_parts) == 2:
                 site = metadata_parts[1].strip()
             else:
-                print("missing metadata")
+                logger.info("missing metadata")
             result = db_adapter.eai_test(site=site)
         elif 'sandbox' in metadata_type:
             _, bot_id, thread_id_in, file_name = metadata_type.split('|')
-            print('****get_metadata, file_name', file_name)
-            print('****get_metadata, thread_id_in', thread_id_in)
-            print('****get_metadata, bot_id', bot_id)
+            logger.info('****get_metadata, file_name', file_name)
+            logger.info('****get_metadata, thread_id_in', thread_id_in)
+            logger.info('****get_metadata, bot_id', bot_id)
             bots_udf_adapter = bot_id_to_udf_adapter_map.get(bot_id, None)
-            print('****get_metadata, bots_udf_adapter', bots_udf_adapter)
+            logger.info('****get_metadata, bots_udf_adapter', bots_udf_adapter)
             try:
-                print(f'**** in to out map: {bots_udf_adapter.in_to_out_thread_map}', flush=True)
+                logger.info(f'**** in to out map: {bots_udf_adapter.in_to_out_thread_map}')
                 thread_id_out = bots_udf_adapter.in_to_out_thread_map[thread_id_in]
-                print('****get_metadata, thread_id_out', thread_id_out)
+                logger.info('****get_metadata, thread_id_out', thread_id_out)
                 file_path = f'./downloaded_files/{thread_id_out}/{file_name}'
-                print('****get_metadata, file_path', file_path, flush=True)
+                logger.info('****get_metadata, file_path', file_path)
                 result = {"Success": True, "Data": json.dumps(file_to_bytes(file_path))}
-                print('result: Success len ', len(json.dumps(file_to_bytes(file_path))), flush=True)
+                logger.info('result: Success len ', len(json.dumps(file_to_bytes(file_path))))
             except Exception as e:
-                print('****get_metadata, thread_id_out exception ',e)
+                logger.info('****get_metadata, thread_id_out exception ',e)
                 result = {"Success": False, "Error": e}
         elif metadata_type.lower().startswith("artifact"):
             parts = metadata_type.split('|')
@@ -456,7 +452,7 @@ def get_metadata():
             output_rows = [[input_rows[0][0], {"Success": False, "Message": result["Error"]}]]
 
     except Exception as e:
-        print(f"***** error in metadata: {str(e)}")
+        logger.info(f"***** error in metadata: {str(e)}")
         output_rows = [[input_rows[0][0], {"Success": False, "Message": str(e)}]]
 
     response = make_response({"data": output_rows})
@@ -827,16 +823,16 @@ def configure_llm():
             if (llm_type.lower() == "openai"):
                 os.environ["OPENAI_API_KEY"] = llm_key
                 os.environ["AZURE_OPENAI_API_ENDPOINT"] = llm_endpoint
-                # print(f"key: {llm_key}, endpoint: {llm_endpoint}")
+                # logger.info(f"key: {llm_key}, endpoint: {llm_endpoint}")
                 try:
                     client = get_openai_client()
-                    print(f"client: {client}")
+                    logger.info(f"client: {client}")
                     completion = client.chat.completions.create(
                         model="gpt-4o",
                         messages=[{"role": "user", "content": "What is 1+1?"}],
                     )
                     # Success!  Update model and keys
-                    print(f"completion: {completion}")
+                    logger.info(f"completion: {completion}")
                 except Exception as e:
                     if "Connection" in str(e):
                         check_eai = " - please ensure the External Access Integration is setup properly."
@@ -962,7 +958,7 @@ def zaiper_handler():
     except:
         return "Missing API Key"
 
-    #  print("Zapier: ", api_key)
+    #  logger.info("Zapier: ", api_key)
     return {"Success": True, "Message": "Success"}
 
 
@@ -980,7 +976,7 @@ def bot_install_followup(bot_id=None, no_slack=False):
         except:
             return "Unknown bot install error"
 
-    # print(bot_id, 'code: ', code, 'state', state)
+    # logger.info(bot_id, 'code: ', code, 'state', state)
 
     # lookup via the bot map via bot_id
 
@@ -999,7 +995,7 @@ def bot_install_followup(bot_id=None, no_slack=False):
 
         # validate app_id
         if state != expected_state:
-            print("State error.. possible forgery")
+            logger.info("State error.. possible forgery")
             return "Error: Not Installed"
 
         # Define the URL for the OAuth request
@@ -1030,7 +1026,7 @@ def bot_install_followup(bot_id=None, no_slack=False):
     runner = os.getenv("RUNNER_ID", "jl-local-runner")
     data_cubes_ingress_url = db_adapter.db_get_endpoint_ingress_url("streamlitdatacubes")
     data_cubes_ingress_url = data_cubes_ingress_url if data_cubes_ingress_url else "localhost:8501"
-    print(f"data_cubes_ingress_url(3) set to {data_cubes_ingress_url}")
+    logger.info(f"data_cubes_ingress_url(3) set to {data_cubes_ingress_url}")
 
     if runner == bot_details["runner_id"]:
         bot_config = get_bot_details(bot_id=bot_id)
@@ -1045,7 +1041,7 @@ def bot_install_followup(bot_id=None, no_slack=False):
         )
         # check new_session
         if new_session is None:
-            print("new_session is none")
+            logger.info("new_session is none")
             return "Error: Not Installed new session is none"
         if slack_adapter_local is not None:
             SystemVariables.bot_id_to_slack_adapter_map[bot_config["bot_id"]] = (
@@ -1054,18 +1050,18 @@ def bot_install_followup(bot_id=None, no_slack=False):
         if udf_local_adapter is not None:
             bot_id_to_udf_adapter_map[bot_config["bot_id"]] = udf_local_adapter
         api_app_id_to_session_map[api_app_id] = new_session
-        #    print("about to add session ",new_session)
+        #    logger.info("about to add session ",new_session)
         server.add_session(new_session, replace_existing=True)
 
         if no_slack:
-            print(
+            logger.info(
                 f"Genesis bot {bot_id} successfully installed and ready for use via Streamlit."
             )
         else:
             return f"Genesis bot {bot_id} successfully installed to Streamlit and Slack and ready for use."
     else:
         # Handle errors
-        print("Failed to exchange code for access token:", response.text)
+        logger.info("Failed to exchange code for access token:", response.text)
         return "Error: Not Installed"
 
 
@@ -1237,8 +1233,6 @@ ngrok_active = launch_ngrok_and_update_bots(update_endpoints=global_flags.slack_
 
 SERVICE_HOST = os.getenv("SERVER_HOST", "0.0.0.0")
 
-logging.getLogger("werkzeug").setLevel(logging.WARN)
-
 # Initialize Slack Bolt app
 # tok = 'xapp-1-A06VCAXMAKA-6988391388305-458da01d3a1d9ea609d7727424db689eb402bc9e43d8aa8174a11e0ed02719e6'
 # @slack_app = App(token=tok)
@@ -1253,7 +1247,7 @@ logging.getLogger("werkzeug").setLevel(logging.WARN)
 
 # @slack_app.event("app_mention")
 # def mention_handler(event, say):
-#    print(event)
+#    logger.info(event)
 #  say('hi')
 
 
@@ -1264,7 +1258,7 @@ def run_flask_app():
 # def run_slack_app():
 #    handler = SocketModeHandler(slack_app, tok)
 #    handler.start()
-#    print('hi')
+#    logger.info('hi')
 
 
 # Run Slack app in a separate thread

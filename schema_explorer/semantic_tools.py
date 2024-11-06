@@ -1,5 +1,6 @@
 
 import yaml, time, random, string
+from core.logging_config import logger
 
 def create_empty_semantic_model(model_name="", model_description=""):
     # Define the basic structure of the semantic model with an empty tables list
@@ -26,7 +27,7 @@ def convert_model_to_yaml(json_model):
         yaml_model = yaml.dump(json_model, default_flow_style=False, sort_keys=False)
         return yaml_model
     except yaml.YAMLError as exc:
-        print(f"Error converting JSON to YAML: {exc}")
+        logger.info(f"Error converting JSON to YAML: {exc}")
         return None
 
 def convert_yaml_to_json(yaml_model):
@@ -43,7 +44,7 @@ def convert_yaml_to_json(yaml_model):
         json_model = yaml.safe_load(yaml_model)
         return json_model
     except yaml.YAMLError as exc:
-        print(f"Error converting YAML to JSON: {exc}")
+        logger.info(f"Error converting YAML to JSON: {exc}")
         return None
 
 
@@ -568,8 +569,8 @@ def suggest_improvements(semantic_model):
 #for _ in range(1):
 #    semantic_json = create_empty_semantic_model('Test Data')
 #    semantic_json = test_modify_semantic_model(semantic_json)
-#    print(convert_model_to_yaml(semantic_json))
-#    print('\nSuggestions:')
+#    logger.info(convert_model_to_yaml(semantic_json))
+#    logger.info('\nSuggestions:')
 #    suggestions = suggest_improvements(semantic_json)
 
 
@@ -650,9 +651,9 @@ def get_semantic_model(model_name, thread_id):
 
 
 
-#print("Test completed successfully.")
+#logger.info("Test completed successfully.")
 
 #yaml_model = convert_model_to_yaml(semantic_json)
-#print(yaml_model)
+#logger.info(yaml_model)
 
 

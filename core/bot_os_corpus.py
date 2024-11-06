@@ -1,6 +1,7 @@
 import requests
 import tempfile
 import shutil
+from core.logging_config import logger
 
 class FileCorpus:
     def process(self):
@@ -25,7 +26,7 @@ class URLListFileCorpus(FileCorpus):
                 file_path = unquote(url[7:])
                 return file_path #open(file_path, 'rb')
             except Exception as e:
-                print(f"Error opening {url}: {e}")
+                logger.info(f"Error opening {url}: {e}")
                 return None
         else:
             # For non-file URLs, proceed with download
@@ -36,7 +37,7 @@ class URLListFileCorpus(FileCorpus):
                         shutil.copyfileobj(r.raw, tmp_file)
                         return tmp_file #open(tmp_file.name, 'rb')
             except requests.RequestException as e:
-                print(f"Error downloading {url}: {e}")
+                logger.info(f"Error downloading {url}: {e}")
                 return None
             
     def process(self):
@@ -61,4 +62,4 @@ class LocalListFileCorpus(FileCorpus):
 
 #fc = URLListFileCorpus(["file:///Users/mglickman/Downloads/The%20Datapreneurs%20-%20Final%20v7.docx"])
 #files = fc.process()
-#print(files)
+#logger.info(files)

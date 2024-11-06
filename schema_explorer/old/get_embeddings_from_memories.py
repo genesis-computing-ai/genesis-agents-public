@@ -3,6 +3,7 @@ import os
 import csv
 
 from llm_openai.openai_utils import get_openai_client
+from core.logging_config import logger
 
 client = get_openai_client()
 
@@ -41,7 +42,7 @@ def process_files(source_folder):
             
             embedding = get_embedding(text_content)
             embeddings.append([filename, str(embedding)])
-            print(filename," processed")
+            logger.info(filename," processed")
     
     return embeddings
 

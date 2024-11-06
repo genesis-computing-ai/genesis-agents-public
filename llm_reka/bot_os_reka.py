@@ -6,7 +6,7 @@ from core.bot_os_assistant_base import (
     execute_function_blocking,
 )
 import requests
-import logging
+from core.logging_config import logger
 
 
 # You can either set the API key as below, or use the
@@ -17,7 +17,7 @@ reka.API_KEY = REKA_API_KEY
 
 def test_reka():
     response = reka.list_models()
-    print(response)
+    logger.info(response)
     # ['default', 'reka-edge', 'reka-flash']
 
     a = input(">")
@@ -36,16 +36,16 @@ def test_reka():
         #  stop_words=["```"],
     )
 
-    print(response)
-    print(response["text"])
-    print(response["metadata"])
+    logger.info(response)
+    logger.info(response["text"])
+    logger.info(response["metadata"])
 
 
 # test_reka()
 
 from core.bot_os_input import BotOsInputMessage, BotOsOutputMessage
 
-logger = logging.getLogger(__name__)
+from core.logging_config import logger
 
 
 def _get_function_details(run):
@@ -117,8 +117,8 @@ Do you understand? If so and you are ready, respond simply "I'm ready.".
         ##temperature=0.4,
         ##stop_words=["```"]
         # )
-        # print(response["text"])
-        # print(response["metadata"])
+        # logger.info(response["text"])
+        # logger.info(response["metadata"])
         # self.thread_messages_map[thread].append({"type": "model", "text": response["text"]})
         return thread
 
@@ -154,7 +154,7 @@ Do you understand? If so and you are ready, respond simply "I'm ready.".
         token = os.getenv("SLACK_APP_TOKEN", default=None)
         for f in files:
             # add handler to download from URL and save to temp file for upload then cleanup
-            print("loading files")
+            logger.info("loading files")
             local_filename = self.download_file(f["url_private"])
             fo = open(local_filename, "rb")
             file = self.client.files.create(file=fo, purpose="assistants")
@@ -185,8 +185,8 @@ Do you understand? If so and you are ready, respond simply "I'm ready.".
             {"type": "human", "text": input_message.msg}
         )
 
-        print(response["text"])
-        print(response["metadata"])
+        logger.info(response["text"])
+        logger.info(response["metadata"])
 
         self.thread_messages_map[thread_id].append(
             {"type": "model", "text": response["text"]}
@@ -241,7 +241,7 @@ Do you understand? If so and you are ready, respond simply "I'm ready.".
         function_call = None
         try:
             if "{" in recent_thread["response"] and "}" in recent_thread["response"]:
-                print("checking for function: ", recent_thread["response"])
+                logger.info("checking for function: ", recent_thread["response"])
                 clean_output = recent_thread["response"].replace("\\_", "_")
                 clean_output = clean_output.replace("```", "")
                 clean_output = clean_output.strip()
@@ -268,7 +268,7 @@ Do you understand? If so and you are ready, respond simply "I'm ready.".
                 + str(len(str(result)))
                 + "```"
             )
-            print(resultstr)
+            logger.info(resultstr)
 
             # now add tool result as a new input
             new_event = BotOsInputMessage(
@@ -299,4 +299,4 @@ def test():
 
         msg = BotOsInputMessage(thread, txt)
         m.add_message(msg)
-        m.check_runs(lambda a, e: print(e))
+        m.check_runs(lambda a, e: logger.info(e))

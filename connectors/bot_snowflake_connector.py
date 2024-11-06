@@ -2,7 +2,7 @@ import json
 import os
 from connectors.snowflake_connector.snowflake_connector import SnowflakeConnector
 from connectors.sqlite_connector import SqliteConnector
-
+from core.logging_config import logger
 genesis_source = os.getenv("GENESIS_SOURCE", default="Snowflake")
 
 
@@ -25,7 +25,7 @@ def bot_credentials(bot_id):
         genbot_internal_project_and_schema = os.getenv('GENESIS_INTERNAL_DB_SCHEMA','None')
         if genbot_internal_project_and_schema == 'None':
             # Todo remove, internal note 
-            print("ENV Variable GENESIS_INTERNAL_DB_SCHEMA is not set.")
+            logger.info("ENV Variable GENESIS_INTERNAL_DB_SCHEMA is not set.")
         if genbot_internal_project_and_schema is not None:
             genbot_internal_project_and_schema = genbot_internal_project_and_schema.upper()
         db_schema = genbot_internal_project_and_schema.split('.')
@@ -43,5 +43,5 @@ def bot_credentials(bot_id):
             bot_database_creds = json.loads(bot_database_creds)
     
     except Exception as e:
-        print(f"Error getting bot credentials for {bot_config['bot_id']} : {str(e)}")
+        logger.info(f"Error getting bot credentials for {bot_config['bot_id']} : {str(e)}")
     return bot_database_creds

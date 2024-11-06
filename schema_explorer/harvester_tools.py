@@ -1,9 +1,6 @@
 
 import json
 import os
-import logging
-
-logger = logging.getLogger(__name__)
 
 harvester_tools_functions = [
     {

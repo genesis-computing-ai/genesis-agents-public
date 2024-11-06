@@ -3,11 +3,7 @@ import random
 import re
 import string
 
-import logging
-logger = logging.getLogger(__name__)
-logging.basicConfig(
-    level=logging.WARN, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+from core.logging_config import logger
 
 def add_file_to_stage(
     self,
@@ -275,17 +271,17 @@ def test_stage_functions():
     )
 
     # Print the result
-    print(stage_list)
+    logger.info(stage_list)
 
     for file_info in stage_list:
         file_name = file_info["name"].split("/")[-1]  # Extract the file name
         file_size = file_info["size"]
         file_md5 = file_info["md5"]
         file_last_modified = file_info["last_modified"]
-        print(f"Reading file: {file_name}")
-        print(f"Size: {file_size} bytes")
-        print(f"MD5: {file_md5}")
-        print(f"Last Modified: {file_last_modified}")
+        logger.info(f"Reading file: {file_name}")
+        logger.info(f"Size: {file_size} bytes")
+        logger.info(f"MD5: {file_md5}")
+        logger.info(f"Last Modified: {file_last_modified}")
         file_content = test_connector.read_file_from_stage(
             database="GENESIS_TEST",
             schema="GENESIS_INTERNAL",
@@ -293,7 +289,7 @@ def test_stage_functions():
             file_name=file_name,
             return_contents=True,
         )
-        print(file_content)
+        logger.info(file_content)
 
         # Call the function to write 'tostage.txt' to the stage
     result = test_connector.add_file_to_stage(
@@ -302,7 +298,7 @@ def test_stage_functions():
         stage="SEMANTIC_STAGE",
         file_name="tostage.txt",
     )
-    print(result)
+    logger.info(result)
 
     # Read the 'tostage.txt' file from the stage
     tostage_content = test_connector.read_file_from_stage(
@@ -312,8 +308,8 @@ def test_stage_functions():
         file_name="tostage.txt",
         return_contents=True,
     )
-    print("Content of 'tostage.txt':")
-    print(tostage_content)
+    logger.info("Content of 'tostage.txt':")
+    logger.info(tostage_content)
 
     import random
     import string
@@ -330,7 +326,7 @@ def test_stage_functions():
     with open("./stage_files/tostage.txt", "a") as file:
         file.write(f"{random_str}\n")
 
-    print(f"Appended random string to 'tostage.txt': {random_str}")
+    logger.info(f"Appended random string to 'tostage.txt': {random_str}")
 
     # Upload the updated 'tostage.txt' to the stage
     update_result = test_connector.update_file_in_stage(
@@ -339,7 +335,7 @@ def test_stage_functions():
         stage="SEMANTIC_STAGE",
         file_name="tostage.txt",
     )
-    print(f"Update result for 'tostage.txt': {update_result}")
+    logger.info(f"Update result for 'tostage.txt': {update_result}")
 
     # Read the 'tostage.txt' file from the stage
     new_version_filename = test_connector.read_file_from_stage(
@@ -359,11 +355,11 @@ def test_stage_functions():
     if (
         lines[-2].strip() == random_str
     ):  # -2 because the last element is an empty string due to the trailing newline
-        print("The last line in the new version contains the random string.")
+        logger.info("The last line in the new version contains the random string.")
     else:
-        print("The second to last line is:", lines[-2])
-        print("The last line is:", lines[-1])
-        print("The last line in the new version does not contain the random string.")
+        logger.info("The second to last line is:", lines[-2])
+        logger.info("The last line is:", lines[-1])
+        logger.info("The last line in the new version does not contain the random string.")
     # Delete the 'tostage.txt' file from the stage
     delete_result = test_connector.delete_file_from_stage(
         database="GENESIS_TEST",
@@ -371,7 +367,7 @@ def test_stage_functions():
         stage="SEMANTIC_STAGE",
         file_name="tostage.txt",
     )
-    print(f"Delete result for 'tostage.txt': {delete_result}")
+    logger.info(f"Delete result for 'tostage.txt': {delete_result}")
 
     # Re-list the stage contents to confirm deletion of 'tostage.txt'
     stage_list_after_deletion = test_connector.list_stage_contents(
@@ -383,9 +379,9 @@ def test_stage_functions():
         file_info["name"].split("/")[-1] for file_info in stage_list_after_deletion
     ]
     if "tostage.txt" not in file_names_after_deletion:
-        print("'tostage.txt' has been successfully deleted from the stage.")
+        logger.info("'tostage.txt' has been successfully deleted from the stage.")
     else:
-        print("Error: 'tostage.txt' is still present in the stage.")
+        logger.info("Error: 'tostage.txt' is still present in the stage.")
 
 def list_stage_contents(
         self,

@@ -638,15 +638,9 @@ def create_sessions(
  #           continue
         if os.getenv("TEST_MODE", "false").lower() == "true":
             if bot_config.get("bot_name") != os.getenv("TEAMS_BOT", ""):
-<<<<<<< HEAD
-                logger.info("()()()()()()()()()()()()()()()")
-                logger.info("Test Mode skipping all bots except ",os.getenv("TEAMS_BOT", ""))
-                logger.info("()()()()()()()()()()()()()()()")
-=======
                 print("()()()()()()()()()()()()()()()")
                 print(f"Test Mode skipping bot {bot_config.get('bot_name')} except ",os.getenv("TEAMS_BOT", ""))
                 print("()()()()()()()()()()()()()()()")
->>>>>>> cf3d6de (Connect Teams Emulator to teams adapter)
                 continue
         # JL TEMP REMOVE
         #       if bot_config["bot_id"] == "Eliza-lGxIAG":

@@ -700,14 +700,19 @@ const startRecording = async () => {
     };
   }, []);
 
-  // Use useCallback to memoize the function
+  // ... earlier code ...
+
   const renderToolCallResult = useCallback((result: any, toolName: string) => {
-    console.log("Tool call result:", result);
+    // Only log once when result changes
+    useEffect(() => {
+      if (toolName === 'run_query' && Array.isArray(result)) {
+        console.log("Query result received:", result.length, "rows");
+      }
+    }, [result, toolName]);
 
     if (result && result.base64Image) {
-      // If there's a base64 image, set it to the graphImage state
       setGraphImage(result.base64Image);
-      return null; // Don't render anything here, it will be shown in the bottom panel
+      return null;
     }
 
     if (toolName === 'run_query' && Array.isArray(result)) {
@@ -717,7 +722,9 @@ const startRecording = async () => {
     } else {
       return <p>{String(result)}</p>;
     }
-  }, [setGraphImage]); // Include setGraphImage in the dependency array
+  }, [setGraphImage]);
+
+
 
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsResizing(true);

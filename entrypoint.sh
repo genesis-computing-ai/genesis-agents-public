@@ -5,16 +5,16 @@ set -e
 export TTYD_PORT=1234
 export WORKDIR=/tmp
 
-echo "Running shellinabox for debugging"
+#echo "Running shellinabox for debugging"
 
 #ttyd -p ${TTYD_PORT} -W bash &> ${WORKDIR}/ttyd.log &
 
-/usr/bin/shellinaboxd \
-    --port=1234 \
-    --disable-ssl \
-    --no-beep \
-    --service "/:LOGIN" \
-    --css /etc/shellinabox/options-enabled/00_White\ On\ Black.css &
+#/usr/bin/shellinaboxd \
+#    --port=1234 \
+#    --disable-ssl \
+#    --no-beep \
+#    --service "/:LOGIN" \
+#    --css /etc/shellinabox/options-enabled/00_White\ On\ Black.css &
 
 
 #ttyd -p 1234 \

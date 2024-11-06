@@ -14,6 +14,7 @@ import pytz
 import sys
 import pkgutil
 import inspect
+import functools
 
 from llm_openai.openai_utils import get_openai_client
 
@@ -163,6 +164,18 @@ class SnowflakeConnector(DatabaseConnector):
 
     def test_stage_functions():
         return test_stage_functions()
+
+
+    @functools.cached_property
+    def is_using_local_runner(self):
+        val = os.environ.get('GENESIS_LOCAL_RUNNER', None)
+        if val:
+            if val.lower() == 'true':
+                return True
+            else:
+                logger.warning(f"Ignoring invalid value for env var GENESIS_LOCAL_RUNNER = {val} (expected 'TRUE')")
+        return False
+
 
     # def process_scheduler(self,action, bot_id, task_id=None, task_details=None, thread_id=None, history_rows=10):
     #     process_scheduler(self, action, bot_id, task_id=None, task_details=None, thread_id=None, history_rows=10)
@@ -727,7 +740,7 @@ class SnowflakeConnector(DatabaseConnector):
             err = f"An error occurred while getting llm info: {e}"
             return {"Success": False, "Error": err}
 
-        
+
     def check_eai_assigned(self):
         """
         Retrieves the eai list if set.
@@ -744,7 +757,7 @@ class SnowflakeConnector(DatabaseConnector):
             cursor = self.client.cursor()
             cursor.execute(query)
             eai_info = cursor.fetchone()
-            
+
             # Ensure eai_info is not None
             if eai_info:
                 columns = [col[0].lower() for col in cursor.description]
@@ -835,7 +848,7 @@ class SnowflakeConnector(DatabaseConnector):
             Exception: If an error occurs during the SQL execution or database commit.
         """
         try:
-            
+
             upsert_query = dedent(f"""
             MERGE INTO {self.genbot_internal_project_and_schema}.LLM_TOKENS t
             USING (SELECT %s AS llm_type, %s AS model_name, %s AS embedding_model_name) s
@@ -946,7 +959,7 @@ def get_status(site):
         except Exception as e:
             err = f"An error occurred while creating/testing EAI test function: {e}"
             return {"Success": False, "Error": err}
-    
+
         if function_success == True and function_test_success == True:
             json_data = json.dumps([{'Success': True}])
             return {"Success": True, "Data": json_data}
@@ -976,7 +989,7 @@ def get_status(site):
         except Exception as e:
             err = f"An error occurred while getting email address: {e}"
             return {"Success": False, "Error": err}
-        
+
     def send_test_email(self, email_addr, thread_id=None):
         """
         Tests sending an email and stores the email address in a table.
@@ -1777,10 +1790,16 @@ def get_status(site):
                 query = f"CREATE SCHEMA IF NOT EXISTS {workspace_schema_name}"
             else:
                 try:
-                    rename_query = f"ALTER SCHEMA IF EXISTS {workspace_schema_name} RENAME TO {workspace_schema_name}_OLD"
+                    workspace_schema_check_query = (
+                        f"SHOW SCHEMAS LIKE '{workspace_schema_name}_OLD';"
+                    )
                     cursor = self.client.cursor()
-                    cursor.execute(rename_query)
-                    self.client.commit()
+                    cursor.execute(workspace_schema_check_query)
+                    if not cursor.fetchone():
+                        rename_query = f"ALTER SCHEMA IF EXISTS {workspace_schema_name} RENAME TO {workspace_schema_name}_OLD"
+                        cursor = self.client.cursor()
+                        cursor.execute(rename_query)
+                        self.client.commit()
                 except Exception as e:
                     pass
                 # logger.info(f"Workspace schema {workspace_schema_name} renamed to OLD_{workspace_schema_name}")
@@ -1874,14 +1893,14 @@ def get_status(site):
             err = f"An error occurred while retrieving the harvest summary: {e}"
             return {"Success": False, "Error": err}
 
-    def cortex_search(self, 
+    def cortex_search(self,
         query: str,
-        service_name: str='service',         
+        service_name: str='service',
         top_n: int=1,
         thread_id=None):
         try:
 
-            def generate_jwt_token(private_key_path, account, user, role="ACCOUNTADMIN"):                
+            def generate_jwt_token(private_key_path, account, user, role="ACCOUNTADMIN"):
                 # Uppercase account and user
                 account = account.upper()
                 user = user.upper()
@@ -1898,7 +1917,7 @@ def get_status(site):
                 with open(private_key_path, "rb") as key_file:
                     private_key = serialization.load_pem_private_key(
                         key_file.read(),
-                        password=password,  
+                        password=password,
                         backend=default_backend()
                     )
 
@@ -1919,7 +1938,7 @@ def get_status(site):
                     "exp": now + lifetime
                 }
 
-                print(payload)                
+                print(payload)
 
                 # Generate the JWT token
                 encoding_algorithm = "RS256"
@@ -1929,7 +1948,7 @@ def get_status(site):
                 if isinstance(token, bytes):
                     token = token.decode('utf-8')
 
-                return token  
+                return token
 
             def make_api_request(jwt_token, api_endpoint, payload):
                 # Define headers
@@ -1947,31 +1966,31 @@ def get_status(site):
                 print (response)
                 # Print the response status and data
                 print(f"Status Code: {response.status_code}")
-                print(f"Response: {response.json()}") 
+                print(f"Response: {response.json()}")
                 return response
-            
+
             schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA").split('.')[-1]
             # service_name = 'HARVEST_SEARCH_SERVICE'.lower()
             api_endpoint = f'https://{self.client.host}/api/v2/databases/{self.database}/schemas/{schema}/cortex-search-services/{service_name}:query'
-            
-                    
+
+
             payload = {"query": query, "limit": top_n}
             private_key_path = ".keys/rsa_key.p8"
             account = os.getenv("SNOWFLAKE_ACCOUNT_OVERRIDE")
             user = os.getenv("SNOWFLAKE_USER_OVERRIDE")
-                        
+
             jwt_token = generate_jwt_token(private_key_path, account, user)
             response = make_api_request(jwt_token, api_endpoint, payload)
 
             return response.text, response.status_code
-        
+
         except Exception as e:
             print ("Bottom of function -- Error calling Cortex Search Rest API, ",e, flush=True)
             return False, False
 
 
 
-        return 
+        return
 
     # handle the job_config stuff ...
     def run_query(
@@ -1987,18 +2006,30 @@ def get_status(site):
         note_name = None,
         note_type = None
     ):
-        import core.global_flags as global_flags
         """
-        Runs a query on Snowflake, supporting parameterized queries.
+        Executes a SQL query on Snowflake, with support for parameterized queries.
 
-        :param query: The SQL query to execute.
-        :param query_params: The parameters for the SQL query.
-        :param max_rows: The maximum number of rows to return.
-        :param max_rows_override: If True, allows more than the default maximum rows to be returned.
-        :param job_config: Configuration for the job, not used in this method.
-        :raises: Exception if job_config is provided.
-        :return: A list of dictionaries representing the rows returned by the query.
+        :param query: The SQL query string to be executed.
+        :param max_rows: The maximum number of rows to return. Defaults to 100 for non-user queries (special queries that starst with 'USERQUERY::' have a different default).
+        :param max_rows_override: If set to True, allows returning more than the default maximum rows.
+        :param job_config: Deprecated. Do not use.
+        :param bot_id: Identifier for the bot executing the query.
+        :param connection: The database connection object to use for executing the query.
+        :param thread_id: Identifier for the current thread.
+        :param note_id: Identifier for the note from which to retrieve the query.
+        :param note_name: Name of the note from which to retrieve the query.
+        :param note_type: The type of note, expected to be 'sql' for executing SQL queries.
+        :raises ValueError: If the note type is not 'sql'.
+        :return: A dictionary. 
+            In case of error the result will have the following fields
+                'Success' (bool) 
+                'Error' (str, if exception occured)
+                    "Query you sent" (str, on certain errors)
+                    "Action needed" (str, on certain errors)
+                    "Suggestion" (str, on certain errors)
+            In case of success, the result will be a list of dictionaries representing the resultset                        
         """
+        import core.global_flags as global_flags
         userquery = False
 
         if (query is None and note_id is None) or (query is not None and note_id is not None):
@@ -2054,7 +2085,7 @@ def get_status(site):
         else:
             bot_llm = 'unknown'
             workspace_full_schema_name = None
-            workspace_schema_name = None        
+            workspace_schema_name = None
 
         if isinstance(max_rows, str):
             try:
@@ -2119,16 +2150,17 @@ def get_status(site):
                 return {
                     "Success": False,
                     "Error": str(e),
-                    "Suggestion": """You have tried to query an object with an incorrect name of one that is not granted to APPLICATION GENESIS_BOTS.
-            To fix this: 
-            1. Make sure you are referencing correct objects that you learned about via search_metadata, or otherwise are sure actually exists
-            2. Explain the error and show the SQL you tried to run to the user, they may be able to help 
-            3. Tell the user that IF they know for sure that this is a valid object, that they may need to run this in a Snowflake worksheet:
-              "CALL GENESIS_LOCAL_DB.SETTINGS.grant_schema_usage_and_select_to_app('<insert database name here>','GENESIS_BOTS');"
-              This will grant the you access to the data in the database.  
-            4. Suggest to the user that the table may have been recreated since it was originally granted, or may be recreated each day as part of an ETL job.  In that case it must be re-granted after each recreation.
-            5. NOTE: You do not have the PUBLIC role or any other role, all object you are granted must be granted TO APPLICATION GENESIS_BOTS, or be granted by grant_schema_usage_and_select_to_app as shown above.
-            """,
+                    "Suggestion": dedent("""
+                            You have tried to query an object with an incorrect name of one that is not granted to APPLICATION GENESIS_BOTS.
+                            To fix this: 
+                            1. Make sure you are referencing correct objects that you learned about via search_metadata, or otherwise are sure actually exists
+                            2. Explain the error and show the SQL you tried to run to the user, they may be able to help 
+                            3. Tell the user that IF they know for sure that this is a valid object, that they may need to run this in a Snowflake worksheet:
+                                "CALL GENESIS_LOCAL_DB.SETTINGS.grant_schema_usage_and_select_to_app('<insert database name here>','GENESIS_BOTS');"
+                                This will grant the you access to the data in the database.  
+                            4. Suggest to the user that the table may have been recreated since it was originally granted, or may be recreated each day as part of an ETL job.  In that case it must be re-granted after each recreation.
+                            5. NOTE: You do not have the PUBLIC role or any other role, all object you are granted must be granted TO APPLICATION GENESIS_BOTS, or be granted by grant_schema_usage_and_select_to_app as shown above.
+                            """),
                 }
 
             print("run query: len=", len(query), "\ncaused error: ", e)
@@ -2166,11 +2198,6 @@ def get_status(site):
 
         return sample_data
 
-        self.connection: SnowflakeConnection = self._create_connection()
-
-        self.semantic_models_map = {}
-
-        self.client = self.connection
 
     def db_list_all_bots(
         self,
@@ -2899,8 +2926,6 @@ def get_status(site):
 
             # trigger the changed bot to reload its session
             os.environ[f'RESET_BOT_SESSION_{bot_id}'] = 'True'
-
-
             return {
                 "success": True,
                 "message": f"bot_implementation updated for bot_id: {bot_id}.",
@@ -3350,6 +3375,36 @@ def get_status(site):
             logger.error(
                 f"Failed to select default image data from the shared with error: {e}"
             )
+
+
+    def db_get_endpoint_ingress_url(self, endpoint_name: str) -> str:
+        """
+        Retrieves the ingress URL for a specified endpoint registered within the Genesis (native) App service.
+        Call this method only when running in Native app mode.
+
+        Args:
+            endpoint_name (str, optional): The name of the endpoint to retrieve the ingress URL for. Defaults to None.
+
+        Returns:
+            str or None: The ingress URL of the specified endpoint if found, otherwise None.
+        """
+        alt_service_name = os.getenv("ALT_SERVICE_NAME", None)
+        if alt_service_name:
+            query1 = f"SHOW ENDPOINTS IN SERVICE {alt_service_name};"
+        else:
+            query1 = f"SHOW ENDPOINTS IN SERVICE {self.genbot_internal_project_and_schema}.GENESISAPP_SERVICE_SERVICE;"
+        try:
+            results = self.run_query(query1)
+            udf_endpoint_url = None
+            for endpoint in results:
+                if endpoint["name"] == endpoint_name:
+                    udf_endpoint_url = endpoint["ingress_url"]
+                    break
+            return udf_endpoint_url
+        except Exception as e:
+            logger.warning(f"Failed to get {endpoint_name} endpoint URL with error: {e}")
+            return None
+
 
     def image_generation(self, prompt, thread_id=None):
 
@@ -4062,6 +4117,7 @@ result = 'Table FAKE_CUST created successfully.'
 
         return result
 
+
     def run_python_code(self,
                         purpose: str = None,
                         code: str = None,
@@ -4129,7 +4185,7 @@ result = 'Table FAKE_CUST created successfully.'
 
                 code = code_cursor[0]
                 note_type = code_cursor[2]
-                
+
                 if note_type != 'snowpark_python':
                     raise ValueError("Note type must be 'snowpark_python' for running python code.")
         except IndexError:
@@ -4138,7 +4194,7 @@ result = 'Table FAKE_CUST created successfully.'
                     "success": False,
                     "error": "Note was not found.",
                     }
-        
+
         except ValueError:
             print("Note type must be 'snowpark_python' for code retrieval.")
             return {
@@ -4340,12 +4396,25 @@ result = 'Table FAKE_CUST created successfully.'
                         # Use the artifacts infra to create an artifact from this content
                         from core.bot_os_artifacts import get_artifacts_store
                         af = get_artifacts_store(self)
+                        # Build the metadata for this artifact
                         mime_type = mime_type or 'image/png' # right now we assume png is the defualt for type=base64file
                         metadata = dict(mime_type=mime_type,
                                         thread_id=thread_id,
                                         bot_id=bot_id,
                                         title_filename=result_json["filename"],
-                                        func_name=inspect.currentframe().f_code.co_name)
+                                        func_name=inspect.currentframe().f_code.co_name,
+                                        )
+                        locl = locals()
+                        for inp_field, m_field in (('purpose', 'short_description'),
+                                                   ('code', 'python_code'),
+                                                   ('note_id', 'note_id'),
+                                                   ('note_name', 'note_name'),
+                                                   ('note_type', 'note_type')):
+                            v = locl.get(inp_field)
+                            if v:
+                                metadata[m_field] = v
+
+                        # Create artifact
                         aid = af.create_artifact_from_content(file_content, metadata, content_filename=result_json["filename"])
                         print(f"Artifact {aid} created for output from python code named {result_json['filename']}")
                         ref_notes = ref_notes = af.get_llm_artifact_ref_instructions(aid)
@@ -4354,7 +4423,6 @@ result = 'Table FAKE_CUST created successfully.'
                             "result": f"Output from snowpark is an artifact, which can be later refernced using artifact_id={aid}. "
                                       f"The descriptive name of the file is `{result_json['filename']}`. "
                                       f"The mime type of the file is {mime_type}. "
-                                      f"Output a refernce to the artifact using the following format: "
                                       f"Note: {ref_notes}"
                         }
                     else:

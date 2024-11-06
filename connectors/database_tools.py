@@ -201,7 +201,7 @@ database_tool_functions = [
                                        "This local file should not be considered accessible by outside systems. "
                     },
                 },
-                "required": [ "purpose"],
+                "required": ["purpose"],
             },
         },
     },
@@ -488,9 +488,10 @@ process_manager_functions = [
                     "action": {
                         "type": "string",
                         "description": """
-                        The action to perform on a process: CREATE, UPDATE, DELETE, CREATE_PROCESS_CONFIG, UPDATE_PROCESS_CONFIG, DELETE_PROCESS_CONFIG, 
+                        The action to perform on a process: CREATE, UPDATE, DELETE, CREATE_PROCESS_CONFIG, UPDATE_PROCESS_CONFIG, DELETE_PROCESS_CONFIG, ALLOW_CODE,
                         LIST returns a list of all processes, SHOW shows full instructions and details for a process, SHOW_CONFIG shows the configuration for a process,
-                        or TIME to get current system time.  If you are trying to deactivate a schedule for a task, use _process_scheduler instead, don't just DELETE the process.""",
+                        or TIME to get current system time.  If you are trying to deactivate a schedule for a task, use _process_scheduler instead, don't just DELETE the process.
+                        ALLOW_CODE is used to bypass the restriction that code must be added as a note""",
                     },
                     "bot_id": {
                         "type": "string",

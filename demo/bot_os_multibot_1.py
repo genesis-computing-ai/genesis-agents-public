@@ -164,17 +164,16 @@ global_flags.source = genesis_source
 
 
 
-
-# Call the function to show endpoints
-try:
-    ep = get_udf_endpoint_url(endpoint_name="udfendpoint")
-    data_cubes_ingress_url = get_udf_endpoint_url("streamlitdatacubes")
-    data_cubes_ingress_url = data_cubes_ingress_url if data_cubes_ingress_url else "localhost:8501"
-    logger.warning(f"data_cubes_ingress_url: {data_cubes_ingress_url}")
-    logger.warning(f"udf endpoint: {ep}")
-except Exception as e:
-    logger.warning(f"Error on get_endpoints {e} ")
-
+# Fetch endpoint URLs
+ep = data_cubes_ingress_url = None
+if not db_adapter.is_using_local_runner:
+    try:
+        ep = db_adapter.db_get_endpoint_ingress_url(endpoint_name="udfendpoint")
+        data_cubes_ingress_url = db_adapter.db_get_endpoint_ingress_url("streamlitdatacubes")
+    except Exception as e:
+        logger.warning(f"Error on get_endpoints {e} ")
+data_cubes_ingress_url = data_cubes_ingress_url if data_cubes_ingress_url else "localhost:8501"
+print(f"Endpoints: {data_cubes_ingress_url=}; udf endpoint={ep}")
 
 ngrok_active = False
 
@@ -416,7 +415,7 @@ def get_metadata():
                 site = metadata_parts[1].strip()
             else:
                 print("missing metadata")
-            result = db_adapter.eai_test(site=site)                
+            result = db_adapter.eai_test(site=site)
         elif 'sandbox' in metadata_type:
             _, bot_id, thread_id_in, file_name = metadata_type.split('|')
             print('****get_metadata, file_name', file_name)
@@ -816,7 +815,7 @@ def configure_llm():
         else:
         # if llm_type is not None:
 
-            data_cubes_ingress_url = get_udf_endpoint_url("streamlitdatacubes")
+            data_cubes_ingress_url = db_adapter.db_get_endpoint_ingress_url("streamlitdatacubes")
             data_cubes_ingress_url = data_cubes_ingress_url if data_cubes_ingress_url else "localhost:8501"
             logger.warning(f"data_cubes_ingress_url(2) set to {data_cubes_ingress_url}")
 
@@ -1029,7 +1028,7 @@ def bot_install_followup(bot_id=None, no_slack=False):
             )
 
     runner = os.getenv("RUNNER_ID", "jl-local-runner")
-    data_cubes_ingress_url = get_udf_endpoint_url("streamlitdatacubes")
+    data_cubes_ingress_url = db_adapter.db_get_endpoint_ingress_url("streamlitdatacubes")
     data_cubes_ingress_url = data_cubes_ingress_url if data_cubes_ingress_url else "localhost:8501"
     print(f"data_cubes_ingress_url(3) set to {data_cubes_ingress_url}")
 

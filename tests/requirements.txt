@@ -1,0 +1,2 @@
+snowflake-cli
+snowflake-connector-python

@@ -745,7 +745,7 @@ class SlackBotAdapter(BotOsInputAdapter):
     def _handle_artifacts_markdown(self, msg: str, message_thread_id: str) -> str:
         """
         Locate all markdown in the message of the format [description][artifact:/uuid], donwload thier data into 
-        local sandbox (under downloaded_files/{message_thread_id}/{downloaded file name}) and update the markdown the "sandbox convention" (e.g. 
+        local sandbox (under downloaded_files/{message_thread_id}/{downloaded file name}) and update the markdown to the "sandbox convention" (e.g. 
         '[description](sandbox:/mnt/data/{filename})'.)
         
         Args:
@@ -754,6 +754,7 @@ class SlackBotAdapter(BotOsInputAdapter):
         Returns:
             str: The message with all applicable artifact markdown links converted.
         """
+        # TODO: refactor to use core.bot_os_artifact.lookup_artifact_markdown
         artifact_pattern = re.compile(r'(\[([^\]]+)\]\(artifact:/(' + ARTIFACT_ID_REGEX + r')\))')
         matches = artifact_pattern.findall(msg)
 

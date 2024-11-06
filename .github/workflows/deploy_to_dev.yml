@@ -1,0 +1,65 @@
+name: Deploy to Dev Snowflake
+
+on:
+  workflow_dispatch:  # Allows manual trigger
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy main repository to snowflake dev
+        uses: actions/checkout@v2
+
+      # Cache Python dependencies (including SnowCLI)
+      - name: Cache Python dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+
+      - name: Set up Python and install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r ./tests/requirements.txt
+
+      - name: Add user-level bin to PATH
+        run: echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+
+      # Create the ~/.snowflake directory and copy the config file
+      - name: Set up Snowflake config
+        run: |
+          mkdir -p ~/.snowcli
+          cp ./tests/config.toml ~/.snowcli/config.toml
+
+      - name: Verify config.toml
+        run: |
+          echo "Contents of ~/.snowcli/config.toml:"
+          cat ~/.snowcli/config.toml
+          chown $USER ~/.snowcli/config.toml
+          chmod 0600 ~/.snowcli/config.toml
+
+      - name: Set up Snowflake credentials
+        run: |
+          mkdir -p ~/.keys
+          mkdir -p ~/.keys/dev_consumer
+          mkdir -p ~/.keys/dev_provider
+          # Save private key to file
+          echo "${{ secrets.SNOWFLAKE_CONSUMER_DEV_PRIVATE_KEY }}" > ~/.keys/dev_consumer/rsa_key.p8
+          echo "${{ secrets.SNOWFLAKE_PROVIDER_DEV_PRIVATE_KEY }}" > ~/.keys/dev_provider/rsa_key.p8
+          chmod 600 ~/.keys/dev_consumer/rsa_key.p8
+          chmod 600 ~/.keys/dev_provider/rsa_key.p8
+
+      - name: Run bash script
+        env:
+          PRIVATE_KEY_PASSPHRASE: ${{ secrets.PRIVATE_KEY_PASSPHRASE }} # Only if you used a passphrase
+        run: |
+          # Run the bash script
+          bash ./snowflake_app/upgrade_dev_auto.sh ${{ github.workspace }}
+      - name: Run Reg Tests Python
+        run: |
+          python tests/hello_world_regtest_01.py

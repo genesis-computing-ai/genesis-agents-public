@@ -1,0 +1,71 @@
+name: Run Regression Test
+
+on:
+  workflow_dispatch: # Allows manual triggering of the workflow
+
+  workflow_call:
+
+jobs:
+  run-snowflake-script:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v2
+
+      # Cache Python dependencies (including SnowCLI)
+      - name: Cache Python dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+
+      - name: Set up Python and install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r ./tests/requirements.txt
+
+      - name: Add user-level bin to PATH
+        run: echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+
+      # Create the ~/.snowflake directory and copy the config file
+      - name: Set up Snowflake config
+        run: |
+          mkdir -p ~/.snowcli
+          cp ./tests/config.toml ~/.snowcli/config.toml
+
+      - name: Verify config.toml
+        run: |
+          echo "Contents of ~/.snowcli/config.toml:"
+          cat ~/.snowcli/config.toml
+          chown $USER ~/.snowcli/config.toml
+          chmod 0600 ~/.snowcli/config.toml
+
+      - name: Set up Snowflake credentials
+        run: |
+          mkdir -p ~/.keys
+          mkdir -p ~/.keys/dev_consumer
+          mkdir -p ~/.keys/dev_provider
+          # Save private key to file
+          echo "${{ secrets.SNOWFLAKE_CONSUMER_DEV_PRIVATE_KEY }}" > ~/.keys/dev_consumer/rsa_key.p8
+          echo "${{ secrets.SNOWFLAKE_PROVIDER_DEV_PRIVATE_KEY }}" > ~/.keys/dev_provider/rsa_key.p8
+          chmod 600 ~/.keys/dev_consumer/rsa_key.p8
+          chmod 600 ~/.keys/dev_provider/rsa_key.p8
+
+      - name: Run Snowflake Python script
+        env:
+          SNOWFLAKE_ACCOUNT_OVERRIDE: ${{ secrets.SNOWFLAKE_ACCOUNT_OVERRIDE }} 
+          SNOWFLAKE_USER_OVERRIDE: ${{ secrets.SNOWFLAKE_USER_OVERRIDE }} 
+          SNOWFLAKE_WAREHOUSE_OVERRIDE: ${{ secrets.SNOWFLAKE_WAREHOUSE_OVERRIDE }} 
+          SNOWFLAKE_DATABASE_OVERRIDE: ${{ secrets.SNOWFLAKE_DATABASE_OVERRIDE }} 
+          SNOWFLAKE_ROLE_OVERRIDE: ${{ secrets.SNOWFLAKE_ROLE_OVERRIDE }} 
+          SNOWFLAKE_PRIVATE_KEY: ${{ secrets.SNOWFLAKE_PRIVATE_KEY }} 
+          PRIVATE_KEY_PASSPHRASE: ${{ secrets.PRIVATE_KEY_PASSPHRASE }} # Only if you used a passphrase
+        run: |
+          python tests/hello_world_regtest_01.py
+
+

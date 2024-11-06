@@ -223,6 +223,11 @@ app = Flask(__name__)
 def readiness_probe():
     return "I'm ready!"
 
+# @app.post("/api/messages")
+# def messages():
+#     message = request.json
+#     logger.debug(f"Received request: {message}")
+#     return message
 
 @app.post("/echo")
 def echo():

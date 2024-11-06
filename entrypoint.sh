@@ -65,15 +65,15 @@ else
 
     npm i
 
-    echo "Running Relay server"
+    echo "Running Relay server on 8081"
 
 
-    npm run relay &
+    PORT=8081 npm run relay &
 
-    echo "Running Voice server on 8502"
+    echo "Running Voice server on port 3000"
 
 
-    DANGEROUSLY_DISABLE_HOST_CHECK=true PORT=8502 npm start &
+    DANGEROUSLY_DISABLE_HOST_CHECK=true PORT=3000 npm start &
 
     cd ..
 

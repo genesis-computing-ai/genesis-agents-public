@@ -13,7 +13,7 @@ import { RealtimeClient } from '@openai/realtime-api-beta';
 dotenv.config();
 
 const app = express();
-const port = process.env.PORT || 8082;
+const port = process.env.PORT || 8081;
 const BACKEND_URL = 'http://127.0.0.1:8080';
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
@@ -87,6 +87,38 @@ app.get('/realtime/tools', async (req, res) => {
     res.status(500).json({ 
       error: error.message,
       url: `${BACKEND_URL}/realtime/get_tools?bot_id=Janice`,
+      stack: error.stack 
+    });
+  }
+});
+
+
+// Get endpoint URL
+app.get('/realtime/get_endpoint', async (req, res) => {
+  try {
+    const endpoint_name = req.query.endpoint_name || 'udfendpoint';
+    const url = `${BACKEND_URL}/realtime/get_endpoint?endpoint_name=${endpoint_name}`;
+    log.debug('Fetching endpoint:', { url });
+    
+    const response = await fetch(url, {
+      agent: getAgent(url),
+      headers: {
+        'Accept': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Backend responded with ${response.status}`);
+    }
+    
+    const data = await response.json();
+    log.debug('Endpoint fetch response:', data);
+    res.json(data);
+  } catch (error) {
+    log.error('Failed to fetch endpoint', error);
+    res.status(500).json({ 
+      error: error.message,
+      url: `${BACKEND_URL}/realtime/get_endpoint`,
       stack: error.stack 
     });
   }

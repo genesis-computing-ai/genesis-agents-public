@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "type": "module",
   "private": true,
-  "proxy": "http://localhost:8082",
+  "proxy": "http://127.0.0.1:8081",
   "dependencies": {
     "@openai/realtime-api-beta": "github:openai/openai-realtime-api-beta",
     "@testing-library/jest-dom": "^5.17.0",
@@ -36,7 +36,7 @@
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
-    "relay_orig": "OPENAI_API_KEY=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 NODE_ENV=production node relay-server/index.js",
+    "relay_orig": "NODE_ENV=production node relay-server/index.js",
     "relay": "NODE_ENV=production node server/relay.js",
     "relay:dev": "NODE_ENV=development node server/relay.js"
   },

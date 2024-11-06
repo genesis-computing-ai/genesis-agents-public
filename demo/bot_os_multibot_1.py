@@ -95,6 +95,8 @@ if os.path.exists(index_size_file):
     except Exception as e:
         print(f"Error deleting {index_size_file}: {e}")
 
+
+
 def get_udf_endpoint_url(endpoint_name="udfendpoint"):
 
     alt_service_name = os.getenv("ALT_SERVICE_NAME", None)
@@ -1114,8 +1116,37 @@ def embed_openbb():
         default_bot_id=list(bot_id_to_udf_adapter_map.keys())[0],
     )
 
+
+
+
 # Example curl command:
 # curl -X GET "http://localhost:8080/realtime/get_tools?bot_id=Janice"
+# Example curl command:
+# curl -X GET "http://localhost:8080/realtime/get_udf_endpoint?endpoint_name=udfendpoint"
+@app.route("/realtime/get_endpoint", methods=["GET"])
+def get_endpoint():
+    try:
+        endpoint_name = request.args.get("endpoint_name", "udfendpoint")
+        endpoint_url = get_udf_endpoint_url(endpoint_name)
+        
+        if endpoint_url:
+            return jsonify({
+                "success": True,
+                "endpoint_url": endpoint_url
+            }), 200
+        else:
+            return jsonify({
+                "success": False,
+                "message": f"Could not find endpoint URL for {endpoint_name}"
+            }), 404
+
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": f"Error getting endpoint URL: {str(e)}"
+        }), 500
+
+
 @app.route("/realtime/get_tools", methods=["GET"])
 def get_session_tools():
     try:

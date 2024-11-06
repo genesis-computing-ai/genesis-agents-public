@@ -99,15 +99,22 @@ export function ConsolePage() {
   const wavStreamPlayerRef = useRef<WavStreamPlayer>(
     new WavStreamPlayer({ sampleRate: 24000 })
   );
+  //const clientRef = useRef<RealtimeClient>(
+  //  new RealtimeClient(
+  //    LOCAL_RELAY_SERVER_URL
+  //      ? { url: LOCAL_RELAY_SERVER_URL }
+  //      : {
+  //          apiKey: apiKey,
+  //          dangerouslyAllowAPIKeyInBrowser: true,
+  //        }
+  //  )
+  //);
+
   const clientRef = useRef<RealtimeClient>(
-    new RealtimeClient(
-      LOCAL_RELAY_SERVER_URL
-        ? { url: LOCAL_RELAY_SERVER_URL }
-        : {
-            apiKey: apiKey,
-            dangerouslyAllowAPIKeyInBrowser: true,
-          }
-    )
+    new RealtimeClient({
+      apiKey: apiKey,
+      dangerouslyAllowAPIKeyInBrowser: true,
+    })
   );
 
   /**

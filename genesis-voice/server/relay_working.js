@@ -175,7 +175,7 @@ wss.on('connection', (ws, req) => {
   // Create connection to OpenAI with the same path and query parameters
   const openaiWs = new WebSocket('wss://api.openai.com:443' + originalUrl, {
     headers: {
-      'Authorization': `Bearer ${'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'}`,
+      'Authorization': `Bearer ${'key'}`,
       'Origin': 'https://api.openai.com',
       'User-Agent': req.headers['user-agent'],
       'Content-Type': 'application/json',

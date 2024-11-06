@@ -60,7 +60,7 @@ snow sql -c GENESIS-DEV-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/snowflak
 # Upload YML files
 snow sql -c GENESIS-DEV-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/snowflake_app/*.yml @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
 
-output=$(snow sql -c GENESIS-DEV-PROVIDER -q "ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG ADD PATCH FOR VERSION V0_8 USING @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE")
+output=$(snow sql -c GENESIS-DEV-PROVIDER -q "ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG ADD PATCH FOR VERSION V0_9 USING @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE")
 
 # Output the result of the first command
 echo "First command output:"
@@ -79,7 +79,7 @@ if [ -z "$patch_number" ]; then
 fi
 
 # Run the second command with the extracted patch number
-snow sql -c GENESIS-DEV-PROVIDER -q "ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG SET DEFAULT RELEASE DIRECTIVE VERSION = V0_8 PATCH = $patch_number;"
+snow sql -c GENESIS-DEV-PROVIDER -q "ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG SET DEFAULT RELEASE DIRECTIVE VERSION = V0_9 PATCH = $patch_number;"
 
 echo "Patch $patch_number has been set as the default release directive."
 
@@ -89,7 +89,7 @@ if [ "$patch_number" -eq 130 ]; then
 fi
 
 if [ "$2" == "False" ]; then
-    snow sql -c GENESIS-DEV-PROVIDER -q "ALTER APPLICATION GENESIS_BOTS UPGRADE USING VERSION V0_8;"
+    snow sql -c GENESIS-DEV-PROVIDER -q "ALTER APPLICATION GENESIS_BOTS UPGRADE USING VERSION V0_9;"
 else
     snow sql -c GENESIS-DEV-CONSUMER-2 -q "alter application genesis_bots upgrade"
 

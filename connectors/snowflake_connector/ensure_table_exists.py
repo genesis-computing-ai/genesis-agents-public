@@ -88,7 +88,10 @@ def one_time_db_fixes(self):
 
         if "TEAMS_ACTIVE" not in columns:
             # Add LLM_ENDPOINT column if it doesn't exist
-            alter_table_query = f"ALTER TABLE {self.genbot_internal_project_and_schema}.BOT_SERVICING ADD COLUMN TEAMS_ACTIVE VARCHAR(16777216);"
+            alter_table_query = f"""ALTER TABLE {self.genbot_internal_project_and_schema}.BOT_SERVICING ADD COLUMN TEAMS_ACTIVE VARCHAR(16777216),TEAMS_APP_ID VARCHAR(16777216),
+                TEAMS_APP_PASSWORD VARCHAR(16777216),
+                TEAMS_APP_TYPE VARCHAR(16777216),
+                TEAMS_APP_TENANT_ID VARCHAR(16777216);"""
             cursor.execute(alter_table_query)
             self.client.commit()
             logger.info(
@@ -677,6 +680,10 @@ def ensure_table_exists(self):
                 SLACK_APP_LEVEL_KEY VARCHAR(16777216),
                 SLACK_SIGNING_SECRET VARCHAR(16777216),
                 SLACK_CHANNEL_ID VARCHAR(16777216),
+                TEAMS_APP_ID VARCHAR(16777216),
+                TEAMS_APP_PASSWORD VARCHAR(16777216),
+                TEAMS_APP_TYPE VARCHAR(16777216),
+                TEAMS_APP_TENANT_ID VARCHAR(16777216),
                 AUTH_URL VARCHAR(16777216),
                 AUTH_STATE VARCHAR(16777216),
                 CLIENT_ID VARCHAR(16777216),

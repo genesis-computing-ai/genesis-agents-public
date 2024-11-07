@@ -21,7 +21,6 @@ from core.bot_os_tools import get_tools, ToolBelt
 from llm_cortex.bot_os_cortex import BotOsAssistantSnowflakeCortex
 from llm_openai.bot_os_openai import BotOsAssistantOpenAI
 from slack.slack_bot_os_adapter import SlackBotAdapter
-from teams.teams_bot_os_adapter import TeamsBotOsInputAdapter
 from bot_genesis.make_baby_bot import (
     get_available_tools,
     get_all_bots_full_details,
@@ -99,6 +98,7 @@ def make_session(
 
     udf_enabled = bot_config.get("udf_active", "Y") == "Y"
     slack_enabled = bot_config.get("slack_active", "Y") == "Y"
+    teams_enabled = bot_config.get("teams_active", "N") == "Y"
     runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
 
 #    if global_flags.slack_active is False and slack_enabled:
@@ -106,7 +106,7 @@ def make_session(
 
     input_adapters = []
 
-    if os.getenv("TEAMS_BOT") and bot_config["bot_name"] == os.getenv("TEAMS_BOT"):
+    if teams_enabled:
         from teams.teams_bot_os_adapter import TeamsBotOsInputAdapter
         teams_adapter_local = TeamsBotOsInputAdapter(
             bot_name=bot_config["bot_name"],

@@ -716,8 +716,8 @@ class SnowflakeConnector(DatabaseConnector):
         try:
             runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
             query = f"""
-        SELECT LLM_TYPE, ACTIVE, LLM_KEY, LLM_ENDPOINT 
-        FROM {self.genbot_internal_project_and_schema}.LLM_TOKENS 
+        SELECT LLM_TYPE, ACTIVE, LLM_KEY, LLM_ENDPOINT
+        FROM {self.genbot_internal_project_and_schema}.LLM_TOKENS
         WHERE LLM_KEY is not NULL
         AND   RUNNER_ID = '{runner_id}'
         """
@@ -778,7 +778,7 @@ class SnowflakeConnector(DatabaseConnector):
         try:
             query = dedent(f"""
                 SELECT LISTAGG(ENDPOINT, ', ') WITHIN GROUP (ORDER BY ENDPOINT) AS ENDPOINTS, GROUP_NAME
-                FROM {self.genbot_internal_project_and_schema}.CUSTOM_ENDPOINTS 
+                FROM {self.genbot_internal_project_and_schema}.CUSTOM_ENDPOINTS
                 WHERE TYPE = 'CUSTOM'
                 GROUP BY GROUP_NAME
                 ORDER BY GROUP_NAME
@@ -804,9 +804,9 @@ class SnowflakeConnector(DatabaseConnector):
             insert_query = f"""INSERT INTO {self.genbot_internal_project_and_schema}.CUSTOM_ENDPOINTS (GROUP_NAME, ENDPOINT, TYPE)
             SELECT %s AS group_name, %s AS endpoint, %s AS type
             WHERE NOT EXISTS (
-                SELECT 1 
-                FROM {self.genbot_internal_project_and_schema}.CUSTOM_ENDPOINTS 
-                WHERE GROUP_NAME = %s 
+                SELECT 1
+                FROM {self.genbot_internal_project_and_schema}.CUSTOM_ENDPOINTS
+                WHERE GROUP_NAME = %s
                 AND ENDPOINT = %s
                 AND TYPE = %s
             );"""
@@ -835,8 +835,8 @@ class SnowflakeConnector(DatabaseConnector):
             embedding_model_name (str): The name of the embedding model to set or update.
 
         Returns:
-            dict: A dictionary containing the success status and the resulting data. 
-                If successful, returns {"Success": True, "Data": json_data}, where `json_data` is 
+            dict: A dictionary containing the success status and the resulting data.
+                If successful, returns {"Success": True, "Data": json_data}, where `json_data` is
                 a JSON string indicating success.
                 If an error occurs, returns {"Success": False, "Data": err}, where `err` contains the error message.
 
@@ -904,7 +904,7 @@ def get_status(site):
     else:
         # TODO allow custom endpoints to be tested
         return f"Invalid site: {{site}}"
-    
+
     try:
         # Make an HTTP GET request to the allowed URL
         # response = requests.get(url, timeout=10)
@@ -916,7 +916,7 @@ def get_status(site):
     except (requests.exceptions.HTTPError, requests.exceptions.ConnectionError) as e:
         result = f"Failure - Unable to establish connection: {{e}}."
     except Exception as e:
-        result = f"Failure - Unknown error occurred: {{e}}."      
+        result = f"Failure - Unknown error occurred: {{e}}."
 
     return result
     $$;
@@ -941,9 +941,9 @@ def get_status(site):
                 show_query = f"show services in application {self.project_id}"
                 cursor.execute(show_query)
                 check_eai_query = """
-                                    SELECT f.VALUE::string FROM table(result_scan(-1)) a, 
-                                    LATERAL FLATTEN(input => parse_json(a."external_access_integrations")) AS f 
-                                    WHERE "name" = 'GENESISAPP_SERVICE_SERVICE'; 
+                                    SELECT f.VALUE::string FROM table(result_scan(-1)) a,
+                                    LATERAL FLATTEN(input => parse_json(a."external_access_integrations")) AS f
+                                    WHERE "name" = 'GENESISAPP_SERVICE_SERVICE';
                                 """
 
                 cursor.execute(check_eai_query)
@@ -1061,8 +1061,8 @@ def get_status(site):
             list: A list of dictionaries, each containing the harvest summary for a group.
         """
         query = f"""
-        SELECT source_name, database_name, schema_name, role_used_for_crawl, 
-               MAX(last_crawled_timestamp) AS last_change_ts, COUNT(*) AS objects_crawled 
+        SELECT source_name, database_name, schema_name, role_used_for_crawl,
+               MAX(last_crawled_timestamp) AS last_change_ts, COUNT(*) AS objects_crawled
         FROM {self.metadata_table_name}
         GROUP BY source_name, database_name, schema_name, role_used_for_crawl
         ORDER BY source_name, database_name, schema_name, role_used_for_crawl;
@@ -1171,7 +1171,7 @@ def get_status(site):
                 message_metadata = json.dumps(message_metadata)
 
             insert_query = f"""
-            INSERT INTO {self.message_log_table_name} 
+            INSERT INTO {self.message_log_table_name}
                 (timestamp, bot_id, bot_name, thread_id, message_type, message_payload, message_metadata, tokens_in, tokens_out, files, channel_type, channel_name, primary_user, task_id)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """
@@ -1495,8 +1495,8 @@ def get_status(site):
             else:
                 db_name_filter = database_name
 
-            query = f"""SELECT SOURCE_NAME, replace(QUALIFIED_TABLE_NAME,'PLACEHOLDER_DB_NAME','{database_name}') QUALIFIED_TABLE_NAME, '{database_name}' DATABASE_NAME, MEMORY_UUID, SCHEMA_NAME, TABLE_NAME, REPLACE(COMPLETE_DESCRIPTION,'PLACEHOLDER_DB_NAME','{database_name}') COMPLETE_DESCRIPTION, REPLACE(DDL,'PLACEHOLDER_DB_NAME','{database_name}') DDL, REPLACE(DDL_SHORT,'PLACEHOLDER_DB_NAME','{database_name}') DDL_SHORT, 'SHARED_VIEW' DDL_HASH, REPLACE(SUMMARY,'PLACEHOLDER_DB_NAME','{database_name}') SUMMARY, SAMPLE_DATA_TEXT, LAST_CRAWLED_TIMESTAMP, CRAWL_STATUS, ROLE_USED_FOR_CRAWL 
-                from APP_SHARE.HARVEST_RESULTS 
+            query = f"""SELECT SOURCE_NAME, replace(QUALIFIED_TABLE_NAME,'PLACEHOLDER_DB_NAME','{database_name}') QUALIFIED_TABLE_NAME, '{database_name}' DATABASE_NAME, MEMORY_UUID, SCHEMA_NAME, TABLE_NAME, REPLACE(COMPLETE_DESCRIPTION,'PLACEHOLDER_DB_NAME','{database_name}') COMPLETE_DESCRIPTION, REPLACE(DDL,'PLACEHOLDER_DB_NAME','{database_name}') DDL, REPLACE(DDL_SHORT,'PLACEHOLDER_DB_NAME','{database_name}') DDL_SHORT, 'SHARED_VIEW' DDL_HASH, REPLACE(SUMMARY,'PLACEHOLDER_DB_NAME','{database_name}') SUMMARY, SAMPLE_DATA_TEXT, LAST_CRAWLED_TIMESTAMP, CRAWL_STATUS, ROLE_USED_FOR_CRAWL
+                from APP_SHARE.HARVEST_RESULTS
                 where DATABASE_NAME = '{db_name_filter}' AND SCHEMA_NAME = '{schema_name}' AND TABLE_NAME = '{table_name}';"""
 
             # insert_cached_metadata_query = f"""
@@ -1658,11 +1658,11 @@ def get_status(site):
         # )
 
         query = (
-            f"""SELECT c.source_name,  c.database_name, c.schema_inclusions,  c.schema_exclusions, c.status,  c.refresh_interval, 
-                    MAX(CASE WHEN c.initial_crawl_complete = FALSE THEN FALSE WHEN embedding_count < total_count THEN FALSE ELSE TRUE END) AS initial_crawl_complete 
+            f"""SELECT c.source_name,  c.database_name, c.schema_inclusions,  c.schema_exclusions, c.status,  c.refresh_interval,
+                    MAX(CASE WHEN c.initial_crawl_complete = FALSE THEN FALSE WHEN embedding_count < total_count THEN FALSE ELSE TRUE END) AS initial_crawl_complete
                 FROM (
                     SELECT c.source_name,  c.database_name, c.schema_inclusions, c.schema_exclusions,  c.status,  c.refresh_interval,  COUNT(r.{embedding_column}) AS embedding_count,  COUNT(*) AS total_count, c.initial_crawl_complete
-                    FROM {self.genbot_internal_project_and_schema}.harvest_control c LEFT OUTER JOIN {self.genbot_internal_project_and_schema}.harvest_results r ON c.source_name = r.source_name AND c.database_name = r.database_name 
+                    FROM {self.genbot_internal_project_and_schema}.harvest_control c LEFT OUTER JOIN {self.genbot_internal_project_and_schema}.harvest_results r ON c.source_name = r.source_name AND c.database_name = r.database_name
                     GROUP BY c.source_name, c.database_name, c.schema_inclusions, c.schema_exclusions, c.status, c.refresh_interval, c.initial_crawl_complete) AS c
                 GROUP BY source_name, database_name, schema_inclusions, schema_exclusions, status, refresh_interval
             """
@@ -1819,7 +1819,7 @@ def get_status(site):
             else:
                 grant_fragment = "APPLICATION ROLE APP_PUBLIC"
 
-            query = f"GRANT ALL PRIVILEGES ON SCHEMA {workspace_schema_name} TO {grant_fragment}; "
+            query = f"GRANT USAGE ON SCHEMA {workspace_schema_name} TO {grant_fragment}; "
             cursor = self.client.cursor()
             cursor.execute(query)
             self.client.commit()
@@ -1866,7 +1866,7 @@ def get_status(site):
             list: A list of dictionaries, each containing the harvest summary for a group.
         """
         query = f"""
-            SHOW CORTEX SEARCH SERVICES; 
+            SHOW CORTEX SEARCH SERVICES;
         """
         try:
             cursor = self.client.cursor()
@@ -2016,14 +2016,14 @@ def get_status(site):
         :param note_name: Name of the note from which to retrieve the query.
         :param note_type: The type of note, expected to be 'sql' for executing SQL queries.
         :raises ValueError: If the note type is not 'sql'.
-        :return: A dictionary. 
+        :return: A dictionary.
             In case of error the result will have the following fields
-                'Success' (bool) 
+                'Success' (bool)
                 'Error' (str, if exception occured)
                     "Query you sent" (str, on certain errors)
                     "Action needed" (str, on certain errors)
                     "Suggestion" (str, on certain errors)
-            In case of success, the result will be a list of dictionaries representing the resultset                        
+            In case of success, the result will be a list of dictionaries representing the resultset
         """
         import core.global_flags as global_flags
         userquery = False
@@ -2148,12 +2148,12 @@ def get_status(site):
                     "Error": str(e),
                     "Suggestion": dedent("""
                             You have tried to query an object with an incorrect name of one that is not granted to APPLICATION GENESIS_BOTS.
-                            To fix this: 
+                            To fix this:
                             1. Make sure you are referencing correct objects that you learned about via search_metadata, or otherwise are sure actually exists
-                            2. Explain the error and show the SQL you tried to run to the user, they may be able to help 
+                            2. Explain the error and show the SQL you tried to run to the user, they may be able to help
                             3. Tell the user that IF they know for sure that this is a valid object, that they may need to run this in a Snowflake worksheet:
                                 "CALL GENESIS_LOCAL_DB.SETTINGS.grant_schema_usage_and_select_to_app('<insert database name here>','GENESIS_BOTS');"
-                                This will grant the you access to the data in the database.  
+                                This will grant the you access to the data in the database.
                             4. Suggest to the user that the table may have been recreated since it was originally granted, or may be recreated each day as part of an ETL job.  In that case it must be re-granted after each recreation.
                             5. NOTE: You do not have the PUBLIC role or any other role, all object you are granted must be granted TO APPLICATION GENESIS_BOTS, or be granted by grant_schema_usage_and_select_to_app as shown above.
                             """),
@@ -2531,8 +2531,8 @@ def get_status(site):
 
         try:
             update_query = f"""
-    UPDATE  {self.genbot_internal_project_and_schema}.llm_tokens 
-    SET ACTIVE = FALSE 
+    UPDATE  {self.genbot_internal_project_and_schema}.llm_tokens
+    SET ACTIVE = FALSE
     WHERE RUNNER_ID = '{runner_id}'
     """
             cursor = self.connection.cursor()
@@ -2624,7 +2624,7 @@ def get_status(site):
 
         insert_query = f"""
             INSERT INTO {project_id}.{dataset_name}.{bot_servicing_table} (
-                api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instructions, runner_id, 
+                api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instructions, runner_id,
                 slack_signing_secret, slack_channel_id, available_tools, auth_url, auth_state, client_id, client_secret, udf_active, slack_active,
                 files, bot_implementation, bot_intro_prompt, bot_avatar_image
             ) VALUES (
@@ -3642,7 +3642,7 @@ def get_status(site):
 
     def extract_knowledge(self, primary_user, bot_id, k = 1):
 
-        query = f"""SELECT * FROM {self.user_bot_table_name} 
+        query = f"""SELECT * FROM {self.user_bot_table_name}
                     WHERE primary_user = '{primary_user}' AND BOT_ID = '{bot_id}'
                     ORDER BY TIMESTAMP DESC
                     LIMIT 1;"""
@@ -3651,7 +3651,7 @@ def get_status(site):
             knowledge = knowledge[0]
             knowledge['HISTORY'] = ''
             if k > 1:
-                query = f"""SELECT * FROM {self.knowledge_table_name} 
+                query = f"""SELECT * FROM {self.knowledge_table_name}
                         WHERE primary_user LIKE '%{primary_user}%' AND BOT_ID = '{bot_id}'
                         ORDER BY LAST_TIMESTAMP DESC
                         LIMIT {k};"""
@@ -3668,8 +3668,8 @@ def get_status(site):
         query = f"""
                 WITH K AS (SELECT thread_id, max(last_timestamp) as last_timestamp FROM {self.knowledge_table_name}
                     GROUP BY thread_id),
-                M AS (SELECT thread_id, max(timestamp) as timestamp, COUNT(*) as c FROM {self.message_log_table_name} 
-                    WHERE PRIMARY_USER IS NOT NULL 
+                M AS (SELECT thread_id, max(timestamp) as timestamp, COUNT(*) as c FROM {self.message_log_table_name}
+                    WHERE PRIMARY_USER IS NOT NULL
                     GROUP BY thread_id
                     HAVING c > 3)
                 SELECT M.thread_id, timestamp as timestamp, COALESCE(K.last_timestamp, DATE('2000-01-01')) as last_timestamp FROM M
@@ -3678,7 +3678,7 @@ def get_status(site):
         return self.run_query(query)
 
     def query_timestamp_message_log(self, thread_id, last_timestamp, max_rows=50):
-        query = f"""SELECT * FROM {self.message_log_table_name} 
+        query = f"""SELECT * FROM {self.message_log_table_name}
                         WHERE timestamp > TO_TIMESTAMP('{last_timestamp}') AND
                         thread_id = '{thread_id}'
                         ORDER BY TIMESTAMP;"""
@@ -3923,7 +3923,7 @@ def get_status(site):
 2. Be sure to return the result in the global scope at the end of your code.
 3. If you want to return a file, save it to /tmp (not root) then base64 encode it and respond like this: image_bytes = base64.b64encode(image_bytes).decode('utf-8')
    result = {{ 'type': 'base64file', 'filename': file_name, 'content': image_bytes, 'mime_type': <mime_type>}}.
-4. Do not create a new Snowpark session, use the 'session' variable that is already available to you. 
+4. Do not create a new Snowpark session, use the 'session' variable that is already available to you.
 5. Use regular loops not list comprehension
 6. If packages are missing, make sure they are included in the PACKAGES list. Many such as matplotlib, pandas, etc are supported.
 
@@ -3962,7 +3962,7 @@ result = total_chars
 """
 
             message += """
-            
+
 ### SNOWPARK EXAMPLE: Here is an example of successfully using Snowpark for a different task (drawing a) that may be helpful to you:
 
 import matplotlib.pyplot as plt
@@ -3997,7 +3997,7 @@ result = {'type': 'base64file', 'filename': 'bubble_chart.png', 'content': image
 """
 
             message  +=  """
-            
+
 ### SNOWPARK EXAMPLE: Here is an example of successfully using Snowpark for a different task (generating data and saving to a table) that may be helpful to you:
 
 import numpy as np
@@ -4022,7 +4022,7 @@ result = {'message': 'Table created successfully', 'full_table_name': table_name
 
             if 'is not defined' in result["Error"]:
                 message += """
-                
+
 ### NOTE ON IMPORTS: If you def functions in your code, include any imports needed by the function inside the function, as the imports outside function won't convey. For example:
 
 import math
@@ -4038,7 +4038,7 @@ result = f'The area of a circle of radius 1 is {calc_area_of_circle(1)} using pi
 
             if 'csv' in code:
                 message += """
-                
+
 ### SNOWPARK CSV EXAMPLE: I see you may be trying to handle CSV files. If useful here's an example way to handle CSVs in Snowpark:
 
 from snowflake.snowpark.functions import col
@@ -4273,7 +4273,7 @@ result = 'Table FAKE_CUST created successfully.'
                     def run(session: snowpark.Session, code: str) -> str:
                         local_vars = {{}}
                         local_vars["session"] = session
-                        
+
                         exec(code, globals(), local_vars)
 
                         if 'result' in local_vars:
@@ -4303,7 +4303,7 @@ result = 'Table FAKE_CUST created successfully.'
                         import_statements = re.findall(r'^\\s*(import\\s+.*|from\\s+.*\\s+import\\s+.*)$', code, re.MULTILINE)
                         # Additional regex to find 'from ... import ... as ...' statements
                         import_statements += re.findall(r'^from\\s+(\\S+)\\s+import\\s+(\\S+)\\s+as\\s+(\\S+)', code, re.MULTILINE)
-                        
+
                         global_vars = globals().copy()
 
                         # Handle imports
@@ -4315,12 +4315,12 @@ result = 'Table FAKE_CUST created successfully.'
 
                         local_vars = {{}}
                         local_vars["session"] = local_vars["session"] = session
-                        
+
                         try:
                             # Remove import statements from the code before execution
                             code_without_imports = re.sub(r'^\\s*(import\\s+.*|from\\s+.*\\s+import\\s+.*)$', '', code, flags=re.MULTILINE)
                             exec(code_without_imports, global_vars, local_vars)
-                            
+
                             if 'result' in local_vars:
                                 return local_vars['result']
                             else:

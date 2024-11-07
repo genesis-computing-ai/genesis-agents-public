@@ -25,7 +25,7 @@ def _job_listener(event):
     if event.exception:
         logger.error(f"job crashed: {event.job_id}")
     else:
-        logger.info(f"job executed successfully: {event.job_id}")
+        logger.debug(f"job executed successfully: {event.job_id}")
 
 
 class BotOsServer:

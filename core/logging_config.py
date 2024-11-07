@@ -45,15 +45,18 @@ class PrintLikeLogger:
     def warning(self, *args, **kwargs):
         message = self._format_message(*args)
         self._logger.warning(message, extra=self._get_caller_info())
-        
+    
+    # Add alias for warn
+    warn = warning
+    
     def debug(self, *args, **kwargs):
         message = self._format_message(*args)
         self._logger.debug(message, extra=self._get_caller_info())
-        
+    
     def critical(self, *args, **kwargs):
         message = self._format_message(*args)
         self._logger.critical(message, extra=self._get_caller_info())
-        
+    
     def exception(self, *args, **kwargs):
         message = self._format_message(*args)
         self._logger.exception(message, extra=self._get_caller_info())

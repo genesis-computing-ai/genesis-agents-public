@@ -330,7 +330,7 @@ def load_or_create_embeddings_index(table_id, refresh=True):
 
     annoy_index = AnnoyIndex(embedding_size, 'angular')
 
-    logger.info(f'loadtry  {os.path.join(index_file_path,index_file_name)}')
+  #  logger.info(f'loadtry  {os.path.join(index_file_path,index_file_name)}')
     if os.path.exists(os.path.join(index_file_path,index_file_name)):
         try:
       #      logger.info(f'load  {index_file_path+index_file_name}')

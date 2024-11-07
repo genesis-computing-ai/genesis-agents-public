@@ -14,7 +14,7 @@ database_tool_functions = [
         "type": "function",
         "function": {
             "name": "cortex_search",
-            "description": "Cortex Search enables low-latency, high-quality “fuzzy” search over your Snowflake data. Use this tool to search a table with a text column",
+            "description": "Use this to search a cortex full text search index.  Do not use this to look for database metadata or tables, for that use search_metadata instead.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -24,17 +24,15 @@ database_tool_functions = [
                     },
                     "service_name": {
                         "type": "string",
-                        "description": "Name of the service",
+                        "description": "Name of the service. You must know this in advance and specify it exactly.",
                     },
                     "top_n": {
                         "type": "integer",
                         "description": "How many of the top results to return, max 25, default 15.  Use 15 to start.",
                         "default": 1,
                     },
-                    "database": {"type": "string", "description": "Optional, Use when you want to constrain the search to a specific database, only use this when you already know for sure the name of the database."},
-                    "schema": {"type": "string", "description": "Optional, Use to constrain the search to a specific schema, only use this when you already know for sure the name of the schema."},
                 },
-                "required": ["query"],
+                "required": ["query", "service_name"],
             },
         },
     },
@@ -42,7 +40,7 @@ database_tool_functions = [
         "type": "function",
         "function": {
             "name": "search_metadata",
-            "description": "Finds available data.  Searches metadata to find the top relevant tables or views in the users database. Use this if you don't already know which tables to query. If you already know the full table name, use get_full_table_details instead. (Note, this does not search stages).",
+            "description": "Finds available data.  Searches metadata to find the top relevant tables or views in the users database. It is highly recommended to use the DATABASE and SCHEMA paramaters to constrain the search when possible. Use this if you don't already know which tables to query. If you already know the full table name, use get_full_table_details instead. (Note, this does not search stages).",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -55,8 +53,8 @@ database_tool_functions = [
                         "description": "How many of the top results to return, max 25, default 15.  Use 15 to start.",
                         "default": 15,
                     },
-                    "database": {"type": "string", "description": "Optional, Use when you want to constrain the search to a specific database, only use this when you already know for sure the name of the database."},
-                    "schema": {"type": "string", "description": "Optional, Use to constrain the search to a specific schema, only use this when you already know for sure the name of the schema."},
+                    "database": {"type": "string", "description": "Use when you want to constrain the search to a specific database, this is highly recommended if you or the user knows the name of the database to focus on."},
+                    "schema": {"type": "string", "description": "Use to constrain the search to a specific schema. Use together with DATABASE. This is highly recommended if you or the user knows the name of the database and schema to focus on."},
                 },
                 "required": ["query"],
             },

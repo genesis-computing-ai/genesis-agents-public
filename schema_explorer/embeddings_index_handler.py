@@ -374,7 +374,7 @@ def load_or_create_embeddings_index(table_id, refresh=True):
         logger.info("Annoy Cache Manager: Refreshing locally cached Annoy index as Harvest Results table has changed due to harvester activity")
         annoy_index, metadata_mapping = make_and_save_index(table_id)
 
-    logger.info(f'returning  {annoy_index},{metadata_mapping}')
+  #  logger.info(f'returning  {annoy_index},{metadata_mapping}')
     # logger.info('returning  ',annoy_index,metadata_mapping)
     return annoy_index, metadata_mapping
 #table_id = "hello-prototype.ELSA_INTERNAL.database_harvest"

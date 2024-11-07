@@ -834,7 +834,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         try:
             thread_to_check = self.active_runs.popleft()
         except IndexError:
-            logger.info(f"BotOsAssistantSnowflakeCortex:check_runs - no active runs for: {self.bot_id}")
+       #     logger.info(f"BotOsAssistantSnowflakeCortex:check_runs - no active runs for: {self.bot_id}")
             return
         thread_id = thread_to_check["thread_id"]
         timestamp = thread_to_check["timestamp"]

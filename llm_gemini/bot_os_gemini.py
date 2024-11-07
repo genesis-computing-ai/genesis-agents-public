@@ -135,7 +135,7 @@ class BotOsAssistantGemini(BotOsAssistantInterface):
             # next_response = loop.run_until_complete(next_request())
             next_response = next_request()
         except IndexError:
-            logger.info(f"BotOsAssistantGemini:check_runs - no active runs for: {self.bot_id}")
+        #    logger.info(f"BotOsAssistantGemini:check_runs - no active runs for: {self.bot_id}")
             return
         
         response = next_response["response"]

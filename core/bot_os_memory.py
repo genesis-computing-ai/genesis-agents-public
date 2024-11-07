@@ -352,19 +352,19 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
             top_matches = self.index.get_nns_by_vector(embedding, run_n, include_distances=True)
 
             logger.info(f'top_matches len {len(top_matches)}')
-            logger.info(f'top_matches {top_matches}')
+       #     logger.info(f'top_matches {top_matches}')
 
-            logger.info(f'self index: {self.index}')
+        #    logger.info(f'self index: {self.index}')
 
             file_names = []
             for match in top_matches[0]:
-                logger.info(f'match: {match}')
-                logger.info(f'self.metadata_mapping: {self.metadata_mapping}')
-                logger.info(f'self.metadata_mapping[match]: {self.metadata_mapping[match]}')
+         #       logger.info(f'match: {match}')
+        #        logger.info(f'self.metadata_mapping: {self.metadata_mapping}')
+        #        logger.info(f'self.metadata_mapping[match]: {self.metadata_mapping[match]}')
                 file_name = self.metadata_mapping[match]
-                logger.info(f'filename: {file_name}')
+           #     logger.info(f'filename: {file_name}')
                 file_names.append(file_name)
-            logger.info(f'file names {file_names}')
+          #  logger.info(f'file names {file_names}')
 
             file_names_str = "'" + "', '".join(file_names) + "'"
             source_name_escaped = self.source_name.replace("'", "''")
@@ -383,11 +383,11 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
             if verbosity == "high":
       
                 q = f"SELECT qualified_table_name as full_table_name, ddl as DDL_FULL, sample_data_text as sample_data FROM {self.meta_database_connector.metadata_table_name} WHERE {where_statement} LIMIT {top_n}"
-                logger.info(q)
+            #    logger.info(q)
                 content = self.meta_database_connector.run_query(q)
             else:
                 q = f"SELECT qualified_table_name as full_table_name, ddl_short FROM {self.meta_database_connector.metadata_table_name} WHERE {where_statement} LIMIT {top_n}"
-                logger.info(q) 
+           #     logger.info(q) 
                 content = self.meta_database_connector.run_query(q)
      
 #            for row in content:

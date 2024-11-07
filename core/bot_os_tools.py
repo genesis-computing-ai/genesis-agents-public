@@ -196,7 +196,7 @@ class ToolBelt:
         except Exception as e:
             return {"error": str(e)}
 
-    def chat_completion(self, message, db_adapter, bot_id = None, bot_name = None, thread_id=None, process_id="", process_name=""):
+    def chat_completion(self, message, db_adapter, bot_id = None, bot_name = None, thread_id=None, process_id="", process_name="", note_id = None):
         process_name = "" if process_name is None else process_name
         process_id = "" if process_id is None else process_id
         message_metadata ={"process_id": process_id, "process_name": process_name}

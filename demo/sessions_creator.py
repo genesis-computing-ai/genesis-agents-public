@@ -58,6 +58,39 @@ def _configure_openai_or_azure_openai(db_adapter:DatabaseConnector) -> bool:
             return True
     return False
 
+def get_legacy_sessions(bot_id: str, db_adapter) -> dict:
+    """
+    Gets legacy thread_ts values for a bot by querying message_log table.
+    
+    Args:
+        bot_id (str): ID of the bot to query legacy threads for
+        db_adapter: Database adapter instance to execute query
+        
+    Returns:
+        dict: Dictionary mapping thread_ts to max timestamp
+    """
+    sql = f"""
+    select parse_json(message_metadata):thread_ts::varchar as thread_ts, max(timestamp) as max_ts 
+    from {db_adapter.genbot_internal_project_and_schema}.message_log 
+    where message_metadata is not null
+    and message_metadata like '%"thread_ts"%'
+    and message_metadata not like '%TextContentBlock%'
+    and bot_id = '{bot_id}'
+    group by bot_id, thread_ts
+    order by max_ts desc
+    limit 1000
+    """
+    threads = []
+    try:
+        results = db_adapter.run_query(sql)
+        for row in results:
+            threads.append(row['THREAD_TS'])
+    except Exception as e:
+        logger.error(f"Error getting legacy sessions for bot {bot_id}: {str(e)}")
+        threads = []
+
+    return threads
+
 def make_session(
     bot_config,
     db_adapter,
@@ -130,6 +163,7 @@ def make_session(
             # Stream mode is for interactive bot serving, False means task server
             if stream_mode:
                 logger.info(f"Making Slack adapter for bot_id: {bot_config['bot_id']} named {bot_config['bot_name']} with bot_user_id: {bot_config['bot_slack_user_id']}")
+                legacy_sessions = get_legacy_sessions(bot_config['bot_id'], db_adapter)
                 slack_adapter_local = SlackBotAdapter(
                     token=bot_config[
                         "slack_app_token"
@@ -143,6 +177,7 @@ def make_session(
                     bot_user_id=bot_config["bot_slack_user_id"],
                     bot_name=bot_config["bot_name"],
                     slack_app_level_token=app_level_token,
+                    legacy_sessions = legacy_sessions
                 )  # Adjust field name if necessary
             else:
                 slack_adapter_local = SlackBotAdapter(

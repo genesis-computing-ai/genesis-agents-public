@@ -56,6 +56,7 @@ class SlackBotAdapter(BotOsInputAdapter):
         bot_name: str = "Unknown",
         slack_app_level_token=None,
         bolt_app_active=True,
+        legacy_sessions=[]
     ) -> None:
         logger.debug("SlackBotAdapter")
         super().__init__()
@@ -77,6 +78,7 @@ class SlackBotAdapter(BotOsInputAdapter):
         self.in_markdown_map = {}
         self.finalized_threads = {}
         self.split_at = 3700  # use 3700 normally
+        self.legacy_sessions = legacy_sessions
 
         self.events_lock = threading.Lock()
 
@@ -367,12 +369,15 @@ class SlackBotAdapter(BotOsInputAdapter):
         tag = (f"<@{self.bot_user_id}>" in msg) # or (f"((invite:{self.bot_name}))" in msg)
         indic = ((self.bot_user_id, thread_ts) in thread_ts_dict)
         dmcheck = channel_type == "im" and msg != ""
+        legacy = thread_ts in self.legacy_sessions
         txt = msg[:50]
         if len(txt) == 50:
             txt += "..."
-        if tag or indic or dmcheck or was_indic:
+        if tag or indic or dmcheck or was_indic or legacy:
             logger.info(f"{self.bot_name} bot_os get_input for {self.bot_user_id} {tag},{indic},{dmcheck}")
             active_thread = True
+            if legacy:
+                self.legacy_sessions.remove(thread_ts)
             if (self.bot_user_id, thread_ts) not in thread_ts_dict and not was_indic:
                 #     logger.info(f'{uniq}     --ENGAGE/ADD>  Adding {thread_ts} to dict')
                 with meta_lock:
@@ -495,6 +500,7 @@ class SlackBotAdapter(BotOsInputAdapter):
             (event["ts"] != thread_ts)
             and (not indic and tag and not dmcheck)
             or (dmcheck and not indic)
+            or legacy
         ):
             # Retrieve the first and the last up to 20 messages from the thread
             conversation_history = self.slack_app.client.conversations_replies(

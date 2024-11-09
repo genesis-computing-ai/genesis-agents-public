@@ -786,7 +786,7 @@ class ToolBelt:
         bot_name=None
     ):
       #  logger.info(f"Running processes Action: {action} | process_id: {process_id or 'None'} | Thread ID: {thread_id or 'None'}")
-        self.recurse_level = 0
+      #         self.recurse_level = 0
         self.recurse_stack = {thread_id: thread_id, process_id: process_id}
 
         if process_id is not None and process_id == '':
@@ -2097,7 +2097,7 @@ class ToolBelt:
             return {}
 
     def manage_processes(
-        self, action, bot_id=None, process_id=None, process_details=None, thread_id=None, process_name=None, process_config=None
+        self, action, bot_id=None, process_id=None, process_instructions=None, thread_id=None, process_name=None, process_config=None, hidden=False
     ):
         """
         Manages processs in the PROCESSES table with actions to create, delete, update a process, or stop all processes
@@ -2112,14 +2112,25 @@ class ToolBelt:
             dict: A dictionary with the result of the operation.
         """
 
-        # If process_name is specified but not in process_details, add it to process_details
-        if process_name and process_details and 'process_name' not in process_details:
+        process_details = {}
+        if process_name:
             process_details['process_name'] = process_name
+        if process_instructions:
+            process_details['process_instructions'] = process_instructions
+        if process_config:
+            process_details['process_config'] = process_config
+        if hidden:
+            process_details['hidden'] = hidden
+
 
         # If process_name is specified but not in process_details, add it to process_details
-        if process_name and process_details==None:
-            process_details = {}
-            process_details['process_name'] = process_name
+        # if process_name and process_details and 'process_name' not in process_details:
+        #     process_details['process_name'] = process_name
+
+        # # If process_name is specified but not in process_details, add it to process_details
+        # if process_name and process_details==None:
+        #     process_details = {}
+        #     process_details['process_name'] = process_name
 
         required_fields_create = [
             "process_name",

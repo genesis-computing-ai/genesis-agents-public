@@ -477,7 +477,8 @@ process_manager_functions = [
             "description": "Manages processes for bots, including creating, updating, listing and deleting processes allowing bots to manage processes.  Remember that this is not used to create new bots",
             "parameters": {
                 "type": "object",
-                "properties": {
+                "properties":
+                {
                     "action": {
                         "type": "string",
                         "description": """
@@ -494,39 +495,25 @@ process_manager_functions = [
                         "type": "string",
                         "description": "The unique identifier of the process, create as bot_id_<random 6 character string>. MAKE SURE TO DOUBLE-CHECK THAT YOU ARE USING THE CORRECT process_id ON UPDATES AND DELETES!  Required for CREATE, UPDATE, and DELETE.",
                     },
-                    "process_details": {
-                        "type": "object",
-                        "description": "The details of the process, required for create and update actions.",
-                        "properties": {
-                            "process_name": {
-                                "type": "string",
-                                "description": "The name of the process. Required for SHOW.",
-                            },
-                       #     "process_details": {
-                       #         "type": "string",
-                       #         "description": "Details of the process",
-                       #     },
-                            "process_instructions": {
-                                "type": "string",
-                                "description": "DETAILED instructions for completing the process  Do NOT summarize or simplify instructions provided by a user.",
-                            },
-                           "process_config": {
-                               "type": "string",
-                               "description": "Configuration string used by process when running.",
-                           },
-                           "hidden":{
-                                "type": "boolean",
-                                "description": "If true, the process will not be shown in the list of processes.  This is used to create processes to test the bots functionality without showing them to the user.",
-                                "default": False,
-                            },
-                        },
-                        "required": [
-                            "process_name",
-                    #        "process_instructions",
-                        ],
+                    "process_name": {
+                        "type": "string",
+                        "description": "The name of the process. Required for SHOW.",
+                    },
+                    "process_instructions": {
+                        "type": "string",
+                        "description": "DETAILED instructions for completing the process  Do NOT summarize or simplify instructions provided by a user.",
+                    },
+                    "process_config": {
+                        "type": "string",
+                        "description": "Configuration string used by process when running.",
+                    },
+                    "hidden":{
+                        "type": "boolean",
+                        "description": "If true, the process will not be shown in the list of processes.  This is used to create processes to test the bots functionality without showing them to the user.",
+                        "default": False,
                     },
                 },
-                "required": ["action", "bot_id"],
+                "required": ["action", "bot_id", "process_instructions", "hidden"],
             },
         },
     }
@@ -821,7 +808,7 @@ def bind_search_metadata(knowledge_base_path):
         :return: The search result from find_memory.
         """
 
-        
+
 
         from core.logging_config import logger
 

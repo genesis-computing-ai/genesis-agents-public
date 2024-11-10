@@ -1008,7 +1008,6 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                                                           message_metadata={'tool_call_id':tool_output['tool_call_id']},
                                                           channel_type=meta.get("channel_type", None), channel_name=meta.get("channel", None),
                                                           primary_user=primary_user)
-
       except Exception as e:
          logger.error(f"submit_tool_outputs - caught exception: {e}")
 
@@ -1406,7 +1405,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                            callback_closure = self._generate_callback_closure(run, thread, tool_call_id, function_details, run.metadata)
                            self.callback_closures[tool_call_id] = callback_closure
                         except Exception as e:
-                           logger.info(f"Failed to generate callback closure for run {run.id}, thread {thread.id}, tool_call_id {tool_call_id} with error: {e}")
+                           logger.error(f"Failed to generate callback closure for run {run.id}, thread {thread.id}, tool_call_id {tool_call_id} with error: {e}")
                         self.running_tools[tool_call_id] = {"run_id": run.id, "thread_id": thread.id }
 
                         meta = run.metadata
@@ -1418,6 +1417,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                                                                      message_metadata={'tool_call_id':tool_call_id, 'func_name':func_name, 'func_args':func_args},
                                                                      channel_type=meta.get("channel_type", None), channel_name=meta.get("channel", None),
                                                                      primary_user=primary_user)
+                        logger.telemetry('execute_function:', thread_id, self.bot_id, 'openai', func_name, func_args)
                         func_args_dict = json.loads(func_args)
                         if "image_data" in func_args_dict: # FixMe: find a better way to convert file_id back to stored file
                            func_args_dict["image_data"] = self.file_storage.get(func_args_dict["image_data"].removeprefix('/mnt/data/'))
@@ -1647,7 +1647,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                except:
                   pass
                threads_completed[thread_id] = run.completed_at
-
+               logger.telemetry('add_message:', thread_id, self.bot_id, 'openai', run.usage.prompt_tokens, run.usage.completion_tokens)
          else:
             logger.debug(f"check_runs - {thread_id} - {run.status} - {run.completed_at} - {thread_run['completed_at']}")
 

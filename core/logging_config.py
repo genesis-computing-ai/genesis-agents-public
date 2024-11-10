@@ -27,6 +27,18 @@ def _setup_genesis_logger(name=GENESIS_LOGGER_NAME):
     level = os.environ.get('LOG_LEVEL', 'INFO')
     logger.setLevel(level)
 
+    # Define custom log level name and value
+    TELEMETRY_LEVEL = 25
+    logging.addLevelName(TELEMETRY_LEVEL, "TELEMETRY")
+
+    # Add a method to the Logger class to handle the custom level
+    def telemetry(self, message, *args, **kwargs):
+        if self.isEnabledFor(TELEMETRY_LEVEL):
+            self._log(TELEMETRY_LEVEL, message, args, **kwargs)
+
+    # Attach the custom method to the Logger class
+    logging.Logger.telemetry = telemetry
+
     if not logger.handlers:
         console_handler = logging.StreamHandler(sys.stdout)
         console_handler.setLevel(level)
@@ -79,6 +91,10 @@ class PrintLikeLogger:
     def exception(self, *args, **kwargs):
         message = self._format_message(*args)
         self._logger.exception(message, extra=self._get_caller_info())
+
+    def telemetry(self, *args, **kwargs):
+        message = self._format_message(*args)
+        self._logger.telemetry(message, extra=self._get_caller_info())
 
 _setup_root_logger()
 logger = PrintLikeLogger(_setup_genesis_logger())

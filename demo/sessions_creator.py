@@ -680,7 +680,8 @@ def create_sessions(
         # JL TEMP REMOVE
         #       if bot_config["bot_id"] == "Eliza-lGxIAG":
         #           continue
-        logger.info(f'\n🤖 Making session for bot {bot_config["bot_id"]}')
+        logger.info(f'🤖 Making session for bot {bot_config["bot_id"]}')        
+        logger.telemetry('add_session:', bot_config['bot_name'])
         new_session, api_app_id, udf_adapter_local, slack_adapter_local = make_session(
             bot_config=bot_config,
             db_adapter=db_adapter,

@@ -432,6 +432,7 @@ class BotOsSession:
                     knowledge = self.log_db_connector.extract_knowledge(user_query, self.bot_id, k = last_k)
                     knowledge_len = len(''.join([knowledge.get(key, '') for key in ['USER_LEARNING', 'TOOL_LEARNING', 'DATA_LEARNING', 'HISTORY']]))
                     logger.info(f'bot_os {self.bot_id} knowledge injection, user len={len(primary_user)} len knowledge={knowledge_len}')
+                    logger.telemetry('add_knowledge:', self.bot_id, 'openai', 'all_knowledge', knowledge_len)
                     if knowledge:
                         input_message.msg = f'''NOTE--Here are some things you know about this user from previous interactions, that may be helpful to this conversation:
                         

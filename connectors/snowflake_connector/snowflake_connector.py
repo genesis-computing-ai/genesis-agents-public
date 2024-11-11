@@ -822,6 +822,55 @@ class SnowflakeConnector(DatabaseConnector):
             err = f"An error occurred while inserting custom endpoint: {e}"
             return {"Success": False, "Data": err}
 
+    def get_jira_config_params(self):
+        """
+        Retrieves a list of all custom endpoints.
+
+        Returns:
+            list: A list of custom endpionts.
+        """
+        try:
+            query = dedent(f"""
+                SELECT JIRA_URL, JIRA_EMAIL, JIRA_API_KEY
+                FROM {self.genbot_internal_project_and_schema}.JIRA_API_CONFIG LIMIT 1
+                """)
+            cursor = self.client.cursor()
+            cursor.execute(query)
+            jira_params = cursor.fetchall()
+            columns = [col[0].lower() for col in cursor.description]
+            jira_params_list = [dict(zip(columns, param)) for param in jira_params]
+            json_data = json.dumps(
+                jira_params_list, default=str
+            )
+
+            return {"Success": True, "Data": json_data}
+
+        except Exception as e:
+            err = f"An error occurred while getting llm info: {e}"
+            return {"Success": False, "Error": err}
+
+    def set_jira_config_params(self, jira_url, jira_email, jira_api_key):
+        try:
+            insert_query = f"""INSERT INTO {self.genbot_internal_project_and_schema}.JIRA_API_CONFIG (JIRA_URL, JIRA_EMAIL, JIRA_API_KEY)
+            SELECT %s AS jira_url, %s AS jira_email, %s AS jira_api_key
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM {self.genbot_internal_project_and_schema}.JIRA_API_CONFIG
+                WHERE JIRA_URL = %s
+                AND JIRA_EMAIL = %s
+                AND JIRA_API_KEY = %s
+            );"""
+            cursor = self.client.cursor()
+            cursor.execute(insert_query, (jira_url, jira_email, jira_api_key, jira_url, jira_email, jira_api_key,))
+
+        # Commit the changes
+            self.client.commit()
+
+            json_data = json.dumps([{'Success': True}])
+            return {"Success": True, "Data": json_data}
+        except Exception as e:
+            err = f"An error occurred while inserting jira api config params: {e}"
+            return {"Success": False, "Data": err}
 
     def update_model_params(self, model_name, embedding_model_name):
         """

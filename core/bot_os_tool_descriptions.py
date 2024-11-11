@@ -223,4 +223,70 @@ tools_data = [
         "notebook_manager_tools",
         "Tools to manage bot notebook.",
     ),
+    (
+        "data_dev_tools",
+        "Tools to allow access to development APIs.",
+    ),
 ]
+
+data_dev_tools_functions = [
+    {
+        "type": "function",
+        "function": {
+            "name": "_jira_connector",
+            "description": "Interact with Jira to create, update, and query issues",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "action": {
+                        "type": "string",
+                        "description": """The action to perform: CREATE_ISSUE, UPDATE_ISSUE, GET_ISSUE, or SEARCH_ISSUES. If asked to assign or update a user, or search for issues by user, capture the user_name.
+                                        Do not capture description variable unless told to update or add a description or comment.
+                                        If looking for issues that are unassigned, set user_name to Unassigned.
+                        """,
+                    },
+                    "project_key": {
+                        "type": "string",
+                        "description": "The Jira project key (e.g., 'DATA', 'DEV')",
+                    },
+                    "summary": {
+                        "type": "string",
+                        "description": "Issue summary/title for CREATE_ISSUE action",
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "Detailed description or comment for CREATE_ISSUE or UPDATE_ISSUE actions. Use only the text entered by the user, do not auto create this field.",
+                    },
+                    "status": {
+                        "type": "string",
+                        "description": "Jira issue status to be updated exactly as requested for CREATE_ISSUE or UPDATE_ISSUE actions.",
+                    },
+                    "issue_key": {
+                        "type": "string",
+                        "description": "The Jira issue key for UPDATE_ISSUE or GET_ISSUE actions (e.g., 'DATA-123')",
+                    },
+                    "jql": {
+                        "type": "string",
+                        "description": "JQL query string for SEARCH_ISSUES action",
+                    },
+                    "user_name": {
+                        "type": "string",
+                        "description": "Jira user name for SEARCH_ISSUES, CREATE_ISSUE, or UPDATE_ISSUE actions",
+                    }
+                },
+                "required": ["action"],
+            },
+        },
+    }
+]
+
+data_dev_tools = {
+    "_jira_connector": "data_dev_tools.jira_connector._jira_connector"
+}
+
+tools_data.append(
+    (
+        "data_dev_tools",
+        "Tools for data development workflows including Jira integration",
+    )
+)

@@ -22,7 +22,7 @@ streamlit==1.35.0
 streamlit_autorefresh  # ^^ this may also need a version for compat reasons
 urllib3==1.26.19
 #ngrok
-snowflake_connector_python==3.11.0
+snowflake_connector_python==3.12.3
 reka-api
 #debugpy
 google-generativeai
@@ -31,5 +31,6 @@ sseclient
 botbuilder-integration-aiohttp>=4.15.0
 selenium==4.24.0
 dagster-sdf
+jira==3.8.0
 #flask_cors
 

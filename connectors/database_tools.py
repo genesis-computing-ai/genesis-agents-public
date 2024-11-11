@@ -40,7 +40,7 @@ database_tool_functions = [
         "type": "function",
         "function": {
             "name": "search_metadata",
-            "description": "Finds available data.  Searches metadata to find the top relevant tables or views in the users database. It is highly recommended to use the DATABASE and SCHEMA paramaters to constrain the search when possible. Use this if you don't already know which tables to query. If you already know the full table name, use get_full_table_details instead. (Note, this does not search stages).",
+            "description": "Finds available data.  Searches metadata to find the top relevant tables or views in the users database. If you know what DATABASE or DATABASE and SCHEMA to use, it is highly recommended to use the DATABASE and SCHEMA paramaters to constrain the search. If you don't know these, call without these paramaters first to get a sense of the overall data availability situation for your query, and then perhaps later focus on a single database and/or scheme if the user agrees, especially if there are results from multiple databases and/or schemas. Use this tool if you don't already know which specific table(s) to query. If you already know the full table name, use get_full_table_details instead. (Note, this tool does not search stages).",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -53,8 +53,8 @@ database_tool_functions = [
                         "description": "How many of the top results to return, max 25, default 15.  Use 15 to start.",
                         "default": 15,
                     },
-                    "database": {"type": "string", "description": "Use when you want to constrain the search to a specific database, this is highly recommended if you or the user knows the name of the database to focus on."},
-                    "schema": {"type": "string", "description": "Use to constrain the search to a specific schema. Use together with DATABASE. This is highly recommended if you or the user knows the name of the database and schema to focus on."},
+                    "database": {"type": "string", "description": "Use when you want to constrain the search to a specific database, this is highly recommended if you or the user knows the name of the database to focus on. But don't just use your workspace database by default unless the user agrees as you may miss out on data in other places."},
+                    "schema": {"type": "string", "description": "Use to constrain the search to a specific schema. Use together with DATABASE. This is highly recommended if you or the user knows the name of the database and schema to focus on.   But don't just use your workspace schema by default unless the user agrees as you may miss out on data in other places."},
                 },
                 "required": ["query"],
             },

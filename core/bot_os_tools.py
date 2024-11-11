@@ -80,6 +80,8 @@ from core.bot_os_tool_descriptions import (
     process_runner_tools,
     webpage_downloader_functions,
     webpage_downloader_tools,
+    data_dev_tools_functions,  # Add this line
+    data_dev_tools,  #
 )
 from core.bot_os_llm import BotLlmEngineEnum
 
@@ -370,7 +372,7 @@ class ToolBelt:
             """
             Constructs a linkback URL for a given artifact ID. This URL should drop the user into the streamlit app
             with a new chat that brings up the context of this artifact for futher exploration.
-            
+
             Args:
                 artifact_id (str): The unique identifier of the artifact.
                 link_text (str): the text to display for the artifact link. Defaults to the artifact's 'title_filename'
@@ -885,19 +887,19 @@ class ToolBelt:
             )
 
             extract_instructions = f"""
-            You will need to break the process instructions below up into individual steps and and return them one at a time.  
+            You will need to break the process instructions below up into individual steps and and return them one at a time.
             By the way the current system time is {datetime.now()}.
             By the way, the system default email address (SYS$DEFAULT_EMAIL) is {self.sys_default_email}.  If the instructions say to send an email
             to SYS$DEFAULT_EMAIL, replace it with {self.sys_default_email}.
             Start by returning the first step of the process instructions below.
             Simply return the first instruction on what needs to be done first without removing or changing any details.
 
-            Also, if the instructions include a reference to note, don't look up the note contents, just pass on the note_id or note_name.  
-            The note contents will be unpacked by whatever tool is used depending on the type of note, either run_query if the note is of 
+            Also, if the instructions include a reference to note, don't look up the note contents, just pass on the note_id or note_name.
+            The note contents will be unpacked by whatever tool is used depending on the type of note, either run_query if the note is of
             type sql or run_snowpark_sql if the note is of type python.
 
-            If a step of the instructions says to run another process, return '>> RECURSE' and the process name or process id as the first step 
-            and then call _run_process with the action KICKOFF_PROCESS to get the first step of the next process to run.  Continue this process until 
+            If a step of the instructions says to run another process, return '>> RECURSE' and the process name or process id as the first step
+            and then call _run_process with the action KICKOFF_PROCESS to get the first step of the next process to run.  Continue this process until
             you have completed all the steps.  If you are asked to run another process as part of this process, follow the same instructions.  Do this
             up to ten times.
 
@@ -908,7 +910,7 @@ class ToolBelt:
             if process['PROCESS_CONFIG'] != "None":
                 extract_instructions += f"""
 
-            Process configuration: 
+            Process configuration:
             {process['PROCESS_CONFIG']}.
 
             """
@@ -929,7 +931,7 @@ class ToolBelt:
                 - process_name: {process_to_run}
                 - bot_id: {bot_id}
                 - silent_mode: {silent_mode}
-                
+
                 After the nested process completes, continue with the next step of this process.
                 """
 
@@ -941,8 +943,8 @@ class ToolBelt:
 
                 {first_step}
 
-                Execute this instruction now and then pass your response to the _run_process tool as a parameter called previous_response and an action of GET_NEXT_STEP.  
-                Execute the instructions you were given without asking for permission.  Do not ever verify anything with the user, unless you need to get a specific input 
+                Execute this instruction now and then pass your response to the _run_process tool as a parameter called previous_response and an action of GET_NEXT_STEP.
+                Execute the instructions you were given without asking for permission.  Do not ever verify anything with the user, unless you need to get a specific input
                 from the user to be able to continue the process.
 
                 Also, if you are asked to run either sql or snowpark_python from a given note_id, make sure you examine the note_type field and use the appropriate tool for
@@ -1027,16 +1029,16 @@ class ToolBelt:
 
                 if self.last_fail[thread_id][process_id] is not None:
                     check_response = f"""
-                    A bot has retried a step of a process based on your prior feedback (shown below).  Also below is the previous question that the bot was 
-                    asked and the response the bot gave after re-trying to perform the task based on your feedback.  Review the response and determine if the 
+                    A bot has retried a step of a process based on your prior feedback (shown below).  Also below is the previous question that the bot was
+                    asked and the response the bot gave after re-trying to perform the task based on your feedback.  Review the response and determine if the
                     bot's response is now better in light of the instructions and the feedback you gave previously. You can accept the final results of the
-                    previous step without asking to see the sql queries and results that led to the final conclusion.  Do not nitpick validity of actual data value 
-                    like names and similar.  Do not ask to see all the raw data that a query or other tool has generated. If you are very seriously concerned that the step 
-                    may still have not have been correctly perfomed, return a request to again re-run the step of the process by returning the text "**fail**" 
-                    followed by a DETAILED EXPLAINATION as to why it did not pass and what your concern is, and why its previous attempt to respond to your criticism 
-                    was not sufficient, and any suggestions you have on how to succeed on the next try. If the response looks correct, return only the text string 
+                    previous step without asking to see the sql queries and results that led to the final conclusion.  Do not nitpick validity of actual data value
+                    like names and similar.  Do not ask to see all the raw data that a query or other tool has generated. If you are very seriously concerned that the step
+                    may still have not have been correctly perfomed, return a request to again re-run the step of the process by returning the text "**fail**"
+                    followed by a DETAILED EXPLAINATION as to why it did not pass and what your concern is, and why its previous attempt to respond to your criticism
+                    was not sufficient, and any suggestions you have on how to succeed on the next try. If the response looks correct, return only the text string
                     "**success**" (no explanation needed) to continue to the next step.  At this point its ok to give the bot the benefit of the doubt to avoid
-                    going in circles.  By the way the current system time is {datetime.now()}. 
+                    going in circles.  By the way the current system time is {datetime.now()}.
 
                     Process Config: {self.process_config[thread_id][process_id]}
 
@@ -1050,32 +1052,32 @@ class ToolBelt:
                     """
                 else:
                     check_response = f"""
-                    Check the previous question that the bot was asked in the process history below and the response the bot gave after trying to perform the task.  Review the response and 
+                    Check the previous question that the bot was asked in the process history below and the response the bot gave after trying to perform the task.  Review the response and
                     determine if the bot's response was correct and makes sense given the instructions it was given.  You can accept the final results of the
                     previous step without asking to see the sql queries and results that led to the final conclusion.  You don't need to validate things like names or other
-                    text values unless they seem wildly incorrect. You do not need to see the data that came out of a query the bot ran.  
+                    text values unless they seem wildly incorrect. You do not need to see the data that came out of a query the bot ran.
 
-                    If you are very seriously concerned that the step may not have been correctly perfomed, return a request to re-run the step of the process again by returning the text "**fail**" followed by a 
-                    DETAILED EXPLAINATION as to why it did not pass and what your concern is, and any suggestions you have on how to succeed on the next try.  
+                    If you are very seriously concerned that the step may not have been correctly perfomed, return a request to re-run the step of the process again by returning the text "**fail**" followed by a
+                    DETAILED EXPLAINATION as to why it did not pass and what your concern is, and any suggestions you have on how to succeed on the next try.
                     If the response seems like it is likely correct, return only the text string "**success**" (no explanation needed) to continue to the next step.  If the process is complete,
                     tell the process to stop running.  Remember, proceed under your own direction and do not ask the user for permission to proceed.
 
                     Remember, if you are asked to run either sql or snowpark_python from a given note_id, make sure you examine the note_type field and use the appropriate tool for
                     the note type.  Only pass the note_id, not the code itself, to the appropriate tool where the note will be handled.
 
-                    Process Config: 
+                    Process Config:
                     {self.process_config[thread_id][process_id]}
 
-                    Full process Instructions: 
+                    Full process Instructions:
                     {process['PROCESS_INSTRUCTIONS']}
 
-                    Process History so far this run: 
+                    Process History so far this run:
                     {self.process_history[thread_id][process_id]}
 
-                    Current system time: 
+                    Current system time:
                     {datetime.now()}
 
-                    Bot's most recent response: 
+                    Bot's most recent response:
                     {previous_response}
                     """
 
@@ -1144,14 +1146,14 @@ class ToolBelt:
                 self.counter[thread_id][process_id] += 1
 
             extract_instructions = f"""
-            Extract the text for the next step from the process instructions and return it, using the section marked 'Process History' to see where you are in the process. 
-            Remember, the process instructions are a set of individual steps that need to be run in order.  
+            Extract the text for the next step from the process instructions and return it, using the section marked 'Process History' to see where you are in the process.
+            Remember, the process instructions are a set of individual steps that need to be run in order.
             Return the text of the next step only, do not make any other comments or statements.
             By the way, the system default email address (SYS$DEFAULT_EMAIL) is {self.sys_default_email}.  If the instructions say to send an email
             to SYS$DEFAULT_EMAIL, replace it with {self.sys_default_email}.
 
-            If a step of the instructions says to run another process, return '>>RECURSE' and the process name or process id as the first step 
-            and then call _run_process with the action KICKOFF_PROCESS to get the first step of the next process to run.  Continue this process until 
+            If a step of the instructions says to run another process, return '>>RECURSE' and the process name or process id as the first step
+            and then call _run_process with the action KICKOFF_PROCESS to get the first step of the next process to run.  Continue this process until
             you have completed all the steps.  If you are asked to run another process as part of this process, follow the same instructions.  Do this
             up to ten times.
 
@@ -1161,10 +1163,10 @@ class ToolBelt:
 
             Current system time: {datetime.now()}
 
-            Process Configuration: 
+            Process Configuration:
             {self.process_config[thread_id][process_id]}
 
-            Process Instructions: 
+            Process Instructions:
 
             {process['PROCESS_INSTRUCTIONS']}
             """
@@ -1208,7 +1210,7 @@ class ToolBelt:
                     - process_name: {process_to_run}
                     - bot_id: {bot_id}
                     - silent_mode: {silent_mode}
-                    
+
                     After the nested process completes, continue with the next step of this process.
                     """
 
@@ -1227,9 +1229,9 @@ class ToolBelt:
                 If you are asked to run either sql or snowpark_python from a given note_id, make sure you examine the note_type field and use the appropriate tool for
                 the note type.  Only pass the note_id, not the code itself, to the appropriate tool where the note will be handled.
 
-                Execute these instructions now and then pass your response to the run_process tool as a parameter called previous_response and an action of GET_NEXT_STEP. 
+                Execute these instructions now and then pass your response to the run_process tool as a parameter called previous_response and an action of GET_NEXT_STEP.
                 If you are told to run another process in these instructions, actually run it using _run_process before calling GET_NEXT_STEP for this process, do not just pretend to run it.
-                If need to terminate the process early, call with action of END_PROCESS. 
+                If need to terminate the process early, call with action of END_PROCESS.
                 """
                 if verbose:
                     self.instructions[thread_id][process_id] += """
@@ -1466,14 +1468,14 @@ class ToolBelt:
                 tidy_note_content = f"""
                 Below is a note that has been submitted by a user.  Please review it to insure it is something
                 that will make sense to the run_process tool.  If not, make changes so it is organized into clear
-                steps.  Make sure that it is tidy, legible and properly formatted. 
+                steps.  Make sure that it is tidy, legible and properly formatted.
 
                 Do not create multiple options for the instructions, as whatever you return will be used immediately.
                 Return the updated and tidy instructions.  If there is an issue with the instructions, return an error message.
 
                 If the note wants to send an email to a default email, or says to send an email but doesn't specify
                 a recipient address, note that the SYS$DEFAULT_EMAIL is currently set to {self.sys_default_email}.
-                Include the notation of SYS$DEFAULT_EMAIL in the instructions instead of the actual address, unless 
+                Include the notation of SYS$DEFAULT_EMAIL in the instructions instead of the actual address, unless
                 the instructions specify a different specific email address.
 
                 The note is as follows:\n {note_content}
@@ -1679,14 +1681,14 @@ class ToolBelt:
         """
         insert_query = f"""
             INSERT INTO {db_adapter.schema}.NOTEBOOK_HISTORY (
-                note_id, work_done_summary, note_status, updated_note_learnings, 
+                note_id, work_done_summary, note_status, updated_note_learnings,
                 report_message, done_flag, needs_help_flag, note_clarity_comments
             ) VALUES (
                 %s, %s, %s, %s, %s, %s, %s, %s
             )
         """ if db_adapter.schema else f"""
             INSERT INTO NOTEBOOK_HISTORY (
-                note_id, work_done_summary, note_status, updated_note_learnings, 
+                note_id, work_done_summary, note_status, updated_note_learnings,
                 report_message, done_flag, needs_help_flag, note_clarity_comments
             ) VALUES (
                 %s, %s, %s, %s, %s, %s, %s, %s
@@ -1736,7 +1738,7 @@ class ToolBelt:
             bot_id: Reserved for future use.
 
         Returns:
-            str: A dictionary containing the result of the action. E.g. for 'DESCRIBE', it includes the artifact metadata and a 
+            str: A dictionary containing the result of the action. E.g. for 'DESCRIBE', it includes the artifact metadata and a
                  note for the LLMs on how to format an artifact reference
         """
         af = get_artifacts_store(self.db_adapter)
@@ -1813,7 +1815,7 @@ class ToolBelt:
             limit = history_rows
             history_query = f"""
                 SELECT * FROM {db_adapter.schema}.TASK_HISTORY
-                WHERE task_id = %s 
+                WHERE task_id = %s
                 ORDER BY RUN_TIMESTAMP DESC
                 LIMIT %s
                 """
@@ -2181,9 +2183,9 @@ class ToolBelt:
                 }
 
             if action in ["CREATE", "CREATE_CONFIRMED", "UPDATE", "UPDATE_CONFIRMED"]:
-                check_for_code_instructions = f"""Please examine the text below and return only the word 'SQL' if the text contains 
-                actual SQL code, not a reference to SQL code, or only the word 'PYTHON' if the text contains actual Python code, not a reference to Python code.  
-                If the text contains both, return only 'SQL + PYTHON'.  Do not return any other verbage.  If the text contains 
+                check_for_code_instructions = f"""Please examine the text below and return only the word 'SQL' if the text contains
+                actual SQL code, not a reference to SQL code, or only the word 'PYTHON' if the text contains actual Python code, not a reference to Python code.
+                If the text contains both, return only 'SQL + PYTHON'.  Do not return any other verbage.  If the text contains
                 neither, return only the word 'NO CODE':\n {process_details['process_instructions']}"""
                 result = self.chat_completion(check_for_code_instructions, self.db_adapter)
 
@@ -2237,7 +2239,7 @@ class ToolBelt:
                 tidy_process_instructions = f"""
                 Below is a process that has been submitted by a user.  Please review it to insure it is something
                 that will make sense to the run_process tool.  If not, make changes so it is organized into clear
-                steps.  Make sure that it is tidy, legible and properly formatted. 
+                steps.  Make sure that it is tidy, legible and properly formatted.
 
                 Do not create multiple options for the instructions, as whatever you return will be used immediately.
                 Return the updated and tidy process.  If there is an issue with the process, return an error message."""
@@ -2245,10 +2247,10 @@ class ToolBelt:
                 if not self.include_code:
                     tidy_process_instructions = f"""
 
-                Since the process contains either sql or snowpark_python code, you will need to ask the user if they want 
-                to allow code in the process.  If they do, go ahead and allow the code to remain in the process.  
+                Since the process contains either sql or snowpark_python code, you will need to ask the user if they want
+                to allow code in the process.  If they do, go ahead and allow the code to remain in the process.
                 If they do not, extract the code and create a new note with
-                your manage_notebook tool, maing sure to specify the note_type field as either 'sql or 'snowpark_python'.  
+                your manage_notebook tool, maing sure to specify the note_type field as either 'sql or 'snowpark_python'.
                 Then replace the code in the process with the note_id of the new note.  Do not
                 include the note contents in the process, just include an instruction to run the note with the note_id."""
 
@@ -2256,11 +2258,11 @@ class ToolBelt:
 
                 If the process wants to send an email to a default email, or says to send an email but doesn't specify
                 a recipient address, note that the SYS$DEFAULT_EMAIL is currently set to {self.sys_default_email}.
-                Include the notation of SYS$DEFAULT_EMAIL in the instructions instead of the actual address, unless 
+                Include the notation of SYS$DEFAULT_EMAIL in the instructions instead of the actual address, unless
                 the instructions specify a different specific email address.
 
-                If one of the steps of the process involves scheduling this process to run on a schedule, remove that step, 
-                and instead include a note separate from the cleaned up process that the user should instead use _process_scheduler 
+                If one of the steps of the process involves scheduling this process to run on a schedule, remove that step,
+                and instead include a note separate from the cleaned up process that the user should instead use _process_scheduler
                 to schedule the process after it has been created.
 
                 The process is as follows:\n {process_details['process_instructions']}
@@ -2522,14 +2524,14 @@ class ToolBelt:
         """
         insert_query = f"""
             INSERT INTO {db_adapter.schema}.PROCESS_HISTORY (
-                process_id, work_done_summary, process_status, updated_process_learnings, 
+                process_id, work_done_summary, process_status, updated_process_learnings,
                 report_message, done_flag, needs_help_flag, process_clarity_comments
             ) VALUES (
                 %s, %s, %s, %s, %s, %s, %s, %s
             )
         """ if db_adapter.schema else f"""
             INSERT INTO PROCESS_HISTORY (
-                process_id, work_done_summary, process_status, updated_process_learnings, 
+                process_id, work_done_summary, process_status, updated_process_learnings,
                 report_message, done_flag, needs_help_flag, process_clarity_comments
             ) VALUES (
                 %s, %s, %s, %s, %s, %s, %s, %s
@@ -2601,6 +2603,10 @@ def get_tools(which_tools, db_adapter, slack_adapter_local=None, include_slack=T
             tools.extend(integration_tool_descriptions)
             available_functions_load.update(integration_tools)
             function_to_tool_map[tool_name] = integration_tool_descriptions
+        elif tool_name == "data_dev_tools":
+            tools.extend(data_dev_tools_functions)
+            available_functions_load.update(data_dev_tools)
+            function_to_tool_map[tool_name] = data_dev_tools_functions
         elif include_slack and tool_name == "slack_tools":
             tools.extend(slack_tools_descriptions)
             available_functions_load.update(slack_tools)

@@ -188,40 +188,40 @@ $$)
     BEGIN
         EXECUTE IMMEDIATE 'SHOW SERVICES IN SCHEMA ' || INSTANCE_NAME;
         SELECT "name" INTO services_exist FROM TABLE(RESULT_SCAN(LAST_QUERY_ID())) LIMIT 1;
-    EXCEPTION 
+    EXCEPTION
       WHEN STATEMENT_ERROR THEN
        services_exist := '';
     END;
     IF (services_exist IS NOT NULL AND services_exist <> '') THEN
-    
+
         EXECUTE IMMEDIATE 'SHOW SERVICES IN SCHEMA ' || INSTANCE_NAME;
         SELECT DISTINCT UPPER(REPLACE(RTRIM(LTRIM("external_access_integrations", '['), ']'), '"', '')) INTO eai_services_list
         FROM TABLE(RESULT_SCAN(LAST_QUERY_ID())) LIMIT 1;
-        
+
     ELSE
         eai_list := '';
     END IF;
 
     BEGIN
         SELECT UPPER(LISTAGG(TRIM(EAI_NAME), ',')) INTO eai_stored_list
-        FROM APP1.EAI_CONFIG;  
-    EXCEPTION 
+        FROM APP1.EAI_CONFIG;
+    EXCEPTION
       WHEN STATEMENT_ERROR THEN
        eai_stored_list := '';
     END;
-    
+
     IF (eai_stored_list IS NOT NULL AND eai_stored_list <> '') THEN
-        
+
         IF (services_exist IS NULL OR services_exist = '') THEN
             eai_list := LTRIM(RTRIM(TRIM(ARRAY_TO_STRING(array_distinct(ARRAY_CAT(SPLIT(eai_services_list, ','), SPLIT(eai_stored_list, ','))), ',')), ','), ',');
         ELSE
             eai_list := LTRIM(RTRIM(TRIM(ARRAY_TO_STRING(array_distinct(SPLIT(eai_stored_list, ',')), ',')), ','), ',');
         END IF;
-        
+
     ELSEIF (services_exist IS NOT NULL AND services_exist <> '') THEN
         eai_list := LTRIM(RTRIM(TRIM(ARRAY_TO_STRING(array_distinct(SPLIT(eai_services_list, ',')), ',')), ','), ',');
     ELSE
-        eai_list := '';        
+        eai_list := '';
     END IF;
 
     eai_list := RTRIM(TRIM(eai_list),',');
@@ -259,7 +259,7 @@ $$)
       GRANT USAGE, OPERATE ON WAREHOUSE APP_XSMALL TO APPLICATION ROLE APP_PUBLIC;
 
       CALL CORE.INITIALIZE_APP_INSTANCE('APP1','GENESIS_POOL','APP_XSMALL');
-      
+
    END IF;
    RETURN 'DONE';
  END;
@@ -331,7 +331,7 @@ CREATE OR REPLACE PROCEDURE core.get_config_for_ref(ref_name STRING)
 
         WHEN 'CUSTOM_EXTERNAL_ACCESS' THEN
           SELECT LISTAGG('"' || ENDPOINT || '"', ',') INTO custom_ep
-          FROM APP1.CUSTOM_ENDPOINTS 
+          FROM APP1.CUSTOM_ENDPOINTS
           WHERE TYPE = 'CUSTOM';
 
           IF (LEN(custom_ep) > 0) THEN
@@ -409,7 +409,7 @@ BEGIN
         ' ';
 
     CALL CORE.GET_EAI_LIST(:INSTANCE_NAME) INTO :EAI_LIST;
-    
+
     LET x INTEGER := 0;
     LET stmt VARCHAR := 'SELECT "name" as SERVICE_NAME, "schema_name" AS SCHEMA_NAME FROM TABLE(RESULT_SCAN(LAST_QUERY_ID()))';
     EXECUTE IMMEDIATE 'SHOW SERVICES IN SCHEMA ' ||:INSTANCE_NAME;
@@ -421,7 +421,7 @@ BEGIN
               'ALTER SERVICE IF EXISTS '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
               ' SET ' ||
               ' QUERY_WAREHOUSE = '||:WH_NAME||
-              ' EXTERNAL_ACCESS_INTEGRATIONS = (' || :EAI_LIST || ')';  
+              ' EXTERNAL_ACCESS_INTEGRATIONS = (' || :EAI_LIST || ')';
         ELSE
           EXECUTE IMMEDIATE
             'ALTER SERVICE IF EXISTS '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
@@ -433,7 +433,7 @@ BEGIN
     END FOR;
 
     IF (x < 4) THEN
-      CALL APP.RECREATE_APP_INSTANCE(:INSTANCE_NAME, :C_POOL_NAME, :EAI_LIST, :WH_NAME);
+      CALL APP.RECREATE_APP_INSTANCE(:INSTANCE_NAME, :C_POOL_NAME, :WH_NAME);
     END IF;
 
 
@@ -441,8 +441,8 @@ BEGIN
         'GRANT USAGE ON SERVICE '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||' TO APPLICATION ROLE APP_PUBLIC';
     EXECUTE IMMEDIATE
         'GRANT MONITOR ON SERVICE '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME || ' TO APPLICATION ROLE APP_PUBLIC';
-    EXECUTE IMMEDIATE 
-        'GRANT SERVICE ROLE '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME || '!' || :SERVICE_NAME || '_ROLE TO APPLICATION ROLE APP_PUBLIC';         
+    EXECUTE IMMEDIATE
+        'GRANT SERVICE ROLE '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME || '!' || :SERVICE_NAME || '_ROLE TO APPLICATION ROLE APP_PUBLIC';
 
       IF (UPDATE_HARVEST_METADATA) THEN
         -- Check if the APP1.HARVEST_RESULTS table exists and then delete specific rows from harvest_data
@@ -459,29 +459,29 @@ BEGIN
           EXECUTE IMMEDIATE '
           MERGE INTO APP1.HARVEST_RESULTS AS target
           USING (
-              SELECT 
-                  SOURCE_NAME, 
-                  REPLACE(QUALIFIED_TABLE_NAME, ''APP_NAME'', ''' || :APP_NAME || ''') AS QUALIFIED_TABLE_NAME, 
-                  ''' || :APP_NAME || ''' AS DATABASE_NAME, 
-                  MEMORY_UUID, 
-                  SCHEMA_NAME, 
-                  TABLE_NAME, 
-                  REPLACE(COMPLETE_DESCRIPTION, ''APP_NAME'', ''' || :APP_NAME || ''') AS COMPLETE_DESCRIPTION, 
-                  REPLACE(DDL, ''APP_NAME'', ''' || :APP_NAME || ''') AS DDL, 
-                  REPLACE(DDL_SHORT, ''APP_NAME'', ''' || :APP_NAME || ''') AS DDL_SHORT, 
-                  ''SHARED_VIEW'' AS DDL_HASH, 
-                  REPLACE(SUMMARY, ''APP_NAME'', ''' || :APP_NAME || ''') AS SUMMARY, 
-                  SAMPLE_DATA_TEXT, 
-                  LAST_CRAWLED_TIMESTAMP, 
-                  CRAWL_STATUS, 
+              SELECT
+                  SOURCE_NAME,
+                  REPLACE(QUALIFIED_TABLE_NAME, ''APP_NAME'', ''' || :APP_NAME || ''') AS QUALIFIED_TABLE_NAME,
+                  ''' || :APP_NAME || ''' AS DATABASE_NAME,
+                  MEMORY_UUID,
+                  SCHEMA_NAME,
+                  TABLE_NAME,
+                  REPLACE(COMPLETE_DESCRIPTION, ''APP_NAME'', ''' || :APP_NAME || ''') AS COMPLETE_DESCRIPTION,
+                  REPLACE(DDL, ''APP_NAME'', ''' || :APP_NAME || ''') AS DDL,
+                  REPLACE(DDL_SHORT, ''APP_NAME'', ''' || :APP_NAME || ''') AS DDL_SHORT,
+                  ''SHARED_VIEW'' AS DDL_HASH,
+                  REPLACE(SUMMARY, ''APP_NAME'', ''' || :APP_NAME || ''') AS SUMMARY,
+                  SAMPLE_DATA_TEXT,
+                  LAST_CRAWLED_TIMESTAMP,
+                  CRAWL_STATUS,
                   ROLE_USED_FOR_CRAWL
               FROM SHARED_HARVEST.HARVEST_RESULTS
-              WHERE DATABASE_NAME = ''APP_NAME'' 
+              WHERE DATABASE_NAME = ''APP_NAME''
               AND SCHEMA_NAME IN (''BASEBALL'', ''FORMULA_1'')
           ) AS source
           ON target.QUALIFIED_TABLE_NAME = source.QUALIFIED_TABLE_NAME AND target.DDL = source.DDL
           WHEN MATCHED THEN
-              UPDATE SET 
+              UPDATE SET
                   target.SOURCE_NAME = source.SOURCE_NAME,
                   target.MEMORY_UUID = source.MEMORY_UUID,
                   target.SCHEMA_NAME = source.SCHEMA_NAME,
@@ -498,20 +498,20 @@ BEGIN
           WHEN NOT MATCHED THEN
               INSERT (SOURCE_NAME, QUALIFIED_TABLE_NAME, DATABASE_NAME, MEMORY_UUID, SCHEMA_NAME, TABLE_NAME, COMPLETE_DESCRIPTION, DDL, DDL_SHORT, DDL_HASH, SUMMARY, SAMPLE_DATA_TEXT, LAST_CRAWLED_TIMESTAMP, CRAWL_STATUS, ROLE_USED_FOR_CRAWL)
               VALUES (
-                  source.SOURCE_NAME, 
-                  source.QUALIFIED_TABLE_NAME, 
-                  source.DATABASE_NAME, 
-                  source.MEMORY_UUID, 
-                  source.SCHEMA_NAME, 
-                  source.TABLE_NAME, 
-                  source.COMPLETE_DESCRIPTION, 
-                  source.DDL, 
-                  source.DDL_SHORT, 
-                  source.DDL_HASH, 
-                  source.SUMMARY, 
-                  source.SAMPLE_DATA_TEXT, 
-                  source.LAST_CRAWLED_TIMESTAMP, 
-                  source.CRAWL_STATUS, 
+                  source.SOURCE_NAME,
+                  source.QUALIFIED_TABLE_NAME,
+                  source.DATABASE_NAME,
+                  source.MEMORY_UUID,
+                  source.SCHEMA_NAME,
+                  source.TABLE_NAME,
+                  source.COMPLETE_DESCRIPTION,
+                  source.DDL,
+                  source.DDL_SHORT,
+                  source.DDL_HASH,
+                  source.SUMMARY,
+                  source.SAMPLE_DATA_TEXT,
+                  source.LAST_CRAWLED_TIMESTAMP,
+                  source.CRAWL_STATUS,
                   source.ROLE_USED_FOR_CRAWL
               );
           ';
@@ -594,7 +594,7 @@ $$
       'CREATE SERVICE IF NOT EXISTS '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
       ' IN COMPUTE POOL  '|| :POOL_NAME ||
       ' FROM SPECIFICATION  '||chr(36)||chr(36)||'\n'|| :spec ||'\n'||chr(36)||chr(36) ||
-      ' EXTERNAL_ACCESS_INTEGRATIONS = (' || :EAI_LIST || '))' ||
+      ' EXTERNAL_ACCESS_INTEGRATIONS = (' || :EAI_LIST || ')' ||
       ' QUERY_WAREHOUSE = '||:WAREHOUSE_NAME;
   ELSE
     EXECUTE IMMEDIATE
@@ -702,7 +702,7 @@ $$
       'CREATE SERVICE IF NOT EXISTS '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
       ' IN COMPUTE POOL  '|| :POOL_NAME ||
       ' FROM SPECIFICATION  '||chr(36)||chr(36)||'\n'|| :spec ||'\n'||chr(36)||chr(36) ||
-      ' EXTERNAL_ACCESS_INTEGRATIONS = (' || :EAI_LIST || '))' ||
+      ' EXTERNAL_ACCESS_INTEGRATIONS = (' || :EAI_LIST || ')' ||
       ' QUERY_WAREHOUSE = '||:WAREHOUSE_NAME;
   ELSE
     EXECUTE IMMEDIATE
@@ -745,7 +745,7 @@ $$
       'CREATE SERVICE IF NOT EXISTS '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
       ' IN COMPUTE POOL  '|| :POOL_NAME ||
       ' FROM SPECIFICATION  '||chr(36)||chr(36)||'\n'|| :spec ||'\n'||chr(36)||chr(36) ||
-      ' EXTERNAL_ACCESS_INTEGRATIONS = (' || :EAI_LIST || '))' ||
+      ' EXTERNAL_ACCESS_INTEGRATIONS = (' || :EAI_LIST || ')' ||
       ' QUERY_WAREHOUSE = '||:WAREHOUSE_NAME;
   ELSE
     EXECUTE IMMEDIATE
@@ -788,7 +788,7 @@ $$
       'CREATE SERVICE IF NOT EXISTS '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
       ' IN COMPUTE POOL  '|| :POOL_NAME ||
       ' FROM SPECIFICATION  '||chr(36)||chr(36)||'\n'|| :spec ||'\n'||chr(36)||chr(36) ||
-      ' EXTERNAL_ACCESS_INTEGRATIONS = (' || :EAI_LIST || '))' ||
+      ' EXTERNAL_ACCESS_INTEGRATIONS = (' || :EAI_LIST || ')' ||
       ' QUERY_WAREHOUSE = '||:WAREHOUSE_NAME;
   ELSE
     EXECUTE IMMEDIATE
@@ -1109,7 +1109,7 @@ $$
 
     // Initialize an array to hold each row's data
     var rows = [];
-    
+
     // Iterate over each row in the result set
     while (result_set.next()) {
         // Initialize an object to store the current row's data
@@ -1124,7 +1124,7 @@ $$
             // Add the column name and value to the current row's object
             row[columnName] = columnValue;
         }
-        
+
         // Add the current row's object to the rows array
         rows.push(row);
     }
@@ -1150,37 +1150,37 @@ $$
     BEGIN
         SQL_COMMAND := 'CREATE VIEW IF NOT EXISTS CORE.MISSING_DATABASE_GRANTS AS
         select distinct ''"'' || REPLACE(replace(database_name,''"'',''''), ''.'', ''"."'') || ''"'' database_name from ' || APP_NAME || '.' || INSTANCE_NAME || '.HARVEST_RESULTS
-        where SPLIT_PART(replace(qualified_table_name,''"'',''''), ''.'', 1) <> ''SNOWFLAKE'' 
+        where SPLIT_PART(replace(qualified_table_name,''"'',''''), ''.'', 1) <> ''SNOWFLAKE''
         AND SPLIT_PART(replace(qualified_table_name,''"'',''''), ''.'', 2) NOT IN (''BASEBALL'', ''FORMULA_1'')
         minus
         select distinct  ''"'' || REPLACE(replace(name,''"'',''''), ''.'', ''"."'') || ''"'' database_name
-        from GENESIS_LOCAL_DB.GRANTS.GRANTS_TO_APP 
+        from GENESIS_LOCAL_DB.GRANTS.GRANTS_TO_APP
         where granted_on  in (''DATABASE'')
-        and SPLIT_PART(name, ''.'', 1) <> ''SNOWFLAKE'' 
+        and SPLIT_PART(name, ''.'', 1) <> ''SNOWFLAKE''
         AND SPLIT_PART(name, ''.'', 2) NOT IN (''BASEBALL'', ''FORMULA_1'') ';
         EXECUTE IMMEDIATE SQL_COMMAND;
 
         SQL_COMMAND := 'CREATE VIEW IF NOT EXISTS CORE.MISSING_SCHEMA_GRANTS AS
         select ''"'' || REPLACE(replace(database_name || ''.'' || schema_name,''"'',''''), ''.'', ''"."'') || ''"'' database_schema_name from ' || APP_NAME || '.' || INSTANCE_NAME || '.HARVEST_RESULTS
-        where SPLIT_PART(replace(qualified_table_name,''"'',''''), ''.'', 1) <> ''SNOWFLAKE'' 
+        where SPLIT_PART(replace(qualified_table_name,''"'',''''), ''.'', 1) <> ''SNOWFLAKE''
         AND SPLIT_PART(replace(qualified_table_name,''"'',''''), ''.'', 2) NOT IN (''BASEBALL'', ''FORMULA_1'')
         minus
         select distinct  ''"'' || REPLACE(replace(name,''"'',''''), ''.'', ''"."'') || ''"'' database_schema_name
-        from GENESIS_LOCAL_DB.GRANTS.GRANTS_TO_APP 
+        from GENESIS_LOCAL_DB.GRANTS.GRANTS_TO_APP
         where granted_on  in (''SCHEMA'')
-        and SPLIT_PART(name, ''.'', 1) <> ''SNOWFLAKE'' 
+        and SPLIT_PART(name, ''.'', 1) <> ''SNOWFLAKE''
         AND SPLIT_PART(name, ''.'', 2) NOT IN (''BASEBALL'', ''FORMULA_1'') ';
         EXECUTE IMMEDIATE SQL_COMMAND;
 
         SQL_COMMAND := 'CREATE VIEW IF NOT EXISTS CORE.MISSING_OBJECT_GRANTS AS
         select qualified_table_name  from ' || APP_NAME || '.' || INSTANCE_NAME || '.HARVEST_RESULTS
-        where SPLIT_PART(replace(qualified_table_name,''"'',''''), ''.'', 1) <> ''SNOWFLAKE'' 
+        where SPLIT_PART(replace(qualified_table_name,''"'',''''), ''.'', 1) <> ''SNOWFLAKE''
         AND SPLIT_PART(replace(qualified_table_name,''"'',''''), ''.'', 2) NOT IN (''BASEBALL'', ''FORMULA_1'')
         minus
         select distinct ''"'' || REPLACE(replace(name,''"'',''''), ''.'', ''"."'') || ''"'' qualified_table_name
-        from GENESIS_LOCAL_DB.GRANTS.GRANTS_TO_APP 
+        from GENESIS_LOCAL_DB.GRANTS.GRANTS_TO_APP
         where granted_on  not in (''DATABASE'',''SCHEMA'')
-        and SPLIT_PART(name, ''.'', 1) <> ''SNOWFLAKE'' 
+        and SPLIT_PART(name, ''.'', 1) <> ''SNOWFLAKE''
         AND SPLIT_PART(name, ''.'', 2) NOT IN (''BASEBALL'', ''FORMULA_1'') ';
         EXECUTE IMMEDIATE SQL_COMMAND;
 

@@ -29,7 +29,7 @@ if [ "$GENESIS_MODE" = "KNOWLEDGE" ]; then
     export PYTHONPATH=$PYTHONPATH:/src/app/
     export PYTHONPATH=$PYTHONPATH:/
 
-    python3 /src/app/knowledge/bot_os_knowledge.py 
+    python3 /src/app/knowledge/bot_os_knowledge.py
 
 elif [ "$GENESIS_MODE" = "HARVESTER" ]; then
     echo "Running Genesis Harvester"
@@ -38,7 +38,7 @@ elif [ "$GENESIS_MODE" = "HARVESTER" ]; then
     export PYTHONPATH=$PYTHONPATH:/src/app/
     export PYTHONPATH=$PYTHONPATH:/
 
-    python3 /src/app/schema_explorer/standalone_harvester.py 
+    python3 /src/app/schema_explorer/standalone_harvester.py
 
 elif [ "$GENESIS_MODE" = "TASK_SERVER" ]; then
     echo "Running Genesis Task Server"
@@ -47,7 +47,7 @@ elif [ "$GENESIS_MODE" = "TASK_SERVER" ]; then
     export PYTHONPATH=$PYTHONPATH:/src/app/
     export PYTHONPATH=$PYTHONPATH:/
 
-    python3 /src/app/demo/bot_os_task_server.py 
+    python3 /src/app/demo/bot_os_task_server.py
 
 else
 
@@ -63,7 +63,10 @@ else
 
     cd genesis-voice
 
-    npm i
+    # npm cache clean --force
+
+    # npm i
+    # npm install --verbose | tee /dev/stdout
 
     echo "Running Relay server on 8081"
 
@@ -80,11 +83,11 @@ else
 #    echo "Running Datacube Endpoint"
 
 
-#    streamlit run /src/app/streamlit_gui/streamlit_show_datacube.py --server.port=8502 --server.address=0.0.0.0 &    
+#    streamlit run /src/app/streamlit_gui/streamlit_show_datacube.py --server.port=8502 --server.address=0.0.0.0 &
 
     echo "Running Genesis Bot Server"
 
 
-    python3 /src/app/demo/bot_os_multibot_1.py 
+    python3 /src/app/demo/bot_os_multibot_1.py
 fi
 

@@ -650,8 +650,6 @@ def ensure_table_exists(self):
                     if cursor is not None:
                         cursor.close()
 
-
-
         except Exception as e:
             logger.info(
                 f"An error occurred while checking or creating table CUSTOM_ENDPOINTS: {e}"
@@ -659,6 +657,40 @@ def ensure_table_exists(self):
         finally:
             if cursor is not None:
                 cursor.close()
+
+
+        jira_api_table_check_query = (
+            f"SHOW TABLES LIKE 'JIRA_API_CONFIG' IN SCHEMA {self.schema};"
+        )
+        try:
+            cursor = self.client.cursor()
+            cursor.execute(jira_api_table_check_query)
+            if not cursor.fetchone():
+                jira_api_table_ddl = dedent(f"""
+                CREATE OR REPLACE TABLE {self.genbot_internal_project_and_schema}.JIRA_API_CONFIG(
+                    JIRA_URL VARCHAR(16777216),
+                    JIRA_EMAIL VARCHAR(16777216),
+                    JIRA_API_KEY VARCHAR(16777216)
+                );
+                """)
+                cursor.execute(jira_api_table_ddl)
+                self.client.commit()
+                print(f"Table JIRA_API_CONFIG created.")
+
+            else:
+                logger.info(
+                    f"Table JIRA_API_CONFIG already exists."
+                )
+
+        except Exception as e:
+            logger.error(
+                f"An error occurred while checking or creating table JIRA_API_CONFIG: {e}"
+            )
+        finally:
+            if cursor is not None:
+                cursor.close()
+
+
 
     bot_servicing_table_check_query = (
         f"SHOW TABLES LIKE 'BOT_SERVICING' IN SCHEMA {self.schema};"
@@ -718,7 +750,7 @@ def ensure_table_exists(self):
 
             insert_initial_row_query = f"""
             MERGE INTO {self.bot_servicing_table_name} AS target
-            USING (SELECT %s AS BOT_ID, %s AS RUNNER_ID, %s AS BOT_NAME, %s AS BOT_INSTRUCTIONS, 
+            USING (SELECT %s AS BOT_ID, %s AS RUNNER_ID, %s AS BOT_NAME, %s AS BOT_INSTRUCTIONS,
                             %s AS AVAILABLE_TOOLS, %s AS UDF_ACTIVE, %s AS SLACK_ACTIVE, %s AS BOT_INTRO_PROMPT) AS source
             ON target.BOT_ID = source.BOT_ID
             WHEN MATCHED THEN
@@ -732,7 +764,7 @@ def ensure_table_exists(self):
                     BOT_INTRO_PROMPT = source.BOT_INTRO_PROMPT
             WHEN NOT MATCHED THEN
                 INSERT (BOT_ID, RUNNER_ID, BOT_NAME, BOT_INSTRUCTIONS, AVAILABLE_TOOLS, UDF_ACTIVE, SLACK_ACTIVE, BOT_INTRO_PROMPT)
-                VALUES (source.BOT_ID, source.RUNNER_ID, source.BOT_NAME, source.BOT_INSTRUCTIONS, 
+                VALUES (source.BOT_ID, source.RUNNER_ID, source.BOT_NAME, source.BOT_INSTRUCTIONS,
                         source.AVAILABLE_TOOLS, source.UDF_ACTIVE, source.SLACK_ACTIVE, source.BOT_INTRO_PROMPT);
             """
             cursor.execute(
@@ -867,8 +899,8 @@ def ensure_table_exists(self):
                             UNION
                             SELECT 'JANICE' BOT_NAME, $${JANICE_INTRO_PROMPT}$$ BOT_INTRO_PROMPT
                             UNION
-                            SELECT 'STUART' BOT_NAME, $${STUART_INTRO_PROMPT}$$ BOT_INTRO_PROMPT                                
-                        ) ) a 
+                            SELECT 'STUART' BOT_NAME, $${STUART_INTRO_PROMPT}$$ BOT_INTRO_PROMPT
+                        ) ) a
                     WHERE upper(a.BOT_NAME) = upper(b.BOT_NAME)"""
                     cursor.execute(insert_initial_intros_query)
                     self.client.commit()
@@ -911,7 +943,7 @@ def ensure_table_exists(self):
         FROM (
                 SELECT P.ENCODED_IMAGE_DATA, P.BOT_NAME
                 FROM {self.images_table_name} P
-                WHERE UPPER(P.BOT_NAME) = 'DEFAULT' 
+                WHERE UPPER(P.BOT_NAME) = 'DEFAULT'
             ) a """
         cursor.execute(insert_images_query)
         self.client.commit()
@@ -948,7 +980,7 @@ def ensure_table_exists(self):
 
         insert_initial_row_query = f"""
         MERGE INTO {self.bot_servicing_table_name} AS target
-        USING (SELECT %s AS RUNNER_ID, %s AS BOT_ID, %s AS BOT_NAME, %s AS BOT_INSTRUCTIONS, 
+        USING (SELECT %s AS RUNNER_ID, %s AS BOT_ID, %s AS BOT_NAME, %s AS BOT_INSTRUCTIONS,
                         %s AS AVAILABLE_TOOLS, %s AS UDF_ACTIVE, %s AS SLACK_ACTIVE, %s AS BOT_INTRO_PROMPT) AS source
         ON target.BOT_ID = source.BOT_ID
         WHEN MATCHED THEN
@@ -962,7 +994,7 @@ def ensure_table_exists(self):
                 BOT_INTRO_PROMPT = source.BOT_INTRO_PROMPT
         WHEN NOT MATCHED THEN
             INSERT (RUNNER_ID, BOT_ID, BOT_NAME, BOT_INSTRUCTIONS, AVAILABLE_TOOLS, UDF_ACTIVE, SLACK_ACTIVE, BOT_INTRO_PROMPT)
-            VALUES (source.RUNNER_ID, source.BOT_ID, source.BOT_NAME, source.BOT_INSTRUCTIONS, 
+            VALUES (source.RUNNER_ID, source.BOT_ID, source.BOT_NAME, source.BOT_INSTRUCTIONS,
                     source.AVAILABLE_TOOLS, source.UDF_ACTIVE, source.SLACK_ACTIVE, source.BOT_INTRO_PROMPT);
         """
         cursor.execute(
@@ -1367,10 +1399,10 @@ def ensure_table_exists(self):
             user_bot_table_ddl = f"""
             CREATE TABLE IF NOT EXISTS {self.tool_knowledge_table_name} (
                 timestamp TIMESTAMP NOT NULL,
-                last_timestamp TIMESTAMP NOT NULL,  
-                bot_id STRING NOT NULL,                  
-                tool STRING NOT NULL, 
-                summary STRING NOT NULL                    
+                last_timestamp TIMESTAMP NOT NULL,
+                bot_id STRING NOT NULL,
+                tool STRING NOT NULL,
+                summary STRING NOT NULL
             );
             """
             cursor.execute(user_bot_table_ddl)
@@ -1389,10 +1421,10 @@ def ensure_table_exists(self):
             user_bot_table_ddl = f"""
             CREATE TABLE IF NOT EXISTS {self.data_knowledge_table_name} (
                 timestamp TIMESTAMP NOT NULL,
-                last_timestamp TIMESTAMP NOT NULL,  
-                bot_id STRING NOT NULL,                  
-                dataset STRING NOT NULL, 
-                summary STRING NOT NULL                    
+                last_timestamp TIMESTAMP NOT NULL,
+                bot_id STRING NOT NULL,
+                dataset STRING NOT NULL,
+                summary STRING NOT NULL
             );
             """
             cursor.execute(user_bot_table_ddl)
@@ -1413,7 +1445,7 @@ def ensure_table_exists(self):
             CREATE TABLE IF NOT EXISTS {self.user_bot_table_name} (
                 timestamp TIMESTAMP NOT NULL,
                 primary_user STRING,
-                bot_id STRING,                    
+                bot_id STRING,
                 user_learning STRING,
                 tool_learning STRING,
                 data_learning STRING
@@ -1499,7 +1531,7 @@ def ensure_table_exists(self):
             try:
                 insert_initial_metadata_query = f"""
                 INSERT INTO {metadata_table_id} (SOURCE_NAME, QUALIFIED_TABLE_NAME, DATABASE_NAME, MEMORY_UUID, SCHEMA_NAME, TABLE_NAME, COMPLETE_DESCRIPTION, DDL, DDL_SHORT, DDL_HASH, SUMMARY, SAMPLE_DATA_TEXT, LAST_CRAWLED_TIMESTAMP, CRAWL_STATUS, ROLE_USED_FOR_CRAWL)
-                SELECT SOURCE_NAME, replace(QUALIFIED_TABLE_NAME,'APP_NAME', CURRENT_DATABASE()) QUALIFIED_TABLE_NAME,  CURRENT_DATABASE() DATABASE_NAME, MEMORY_UUID, SCHEMA_NAME, TABLE_NAME, REPLACE(COMPLETE_DESCRIPTION,'APP_NAME', CURRENT_DATABASE()) COMPLETE_DESCRIPTION, REPLACE(DDL,'APP_NAME', CURRENT_DATABASE()) DDL, REPLACE(DDL_SHORT,'APP_NAME', CURRENT_DATABASE()) DDL_SHORT, 'SHARED_VIEW' DDL_HASH, REPLACE(SUMMARY,'APP_NAME', CURRENT_DATABASE()) SUMMARY, SAMPLE_DATA_TEXT, LAST_CRAWLED_TIMESTAMP, CRAWL_STATUS, ROLE_USED_FOR_CRAWL 
+                SELECT SOURCE_NAME, replace(QUALIFIED_TABLE_NAME,'APP_NAME', CURRENT_DATABASE()) QUALIFIED_TABLE_NAME,  CURRENT_DATABASE() DATABASE_NAME, MEMORY_UUID, SCHEMA_NAME, TABLE_NAME, REPLACE(COMPLETE_DESCRIPTION,'APP_NAME', CURRENT_DATABASE()) COMPLETE_DESCRIPTION, REPLACE(DDL,'APP_NAME', CURRENT_DATABASE()) DDL, REPLACE(DDL_SHORT,'APP_NAME', CURRENT_DATABASE()) DDL_SHORT, 'SHARED_VIEW' DDL_HASH, REPLACE(SUMMARY,'APP_NAME', CURRENT_DATABASE()) SUMMARY, SAMPLE_DATA_TEXT, LAST_CRAWLED_TIMESTAMP, CRAWL_STATUS, ROLE_USED_FOR_CRAWL
                 FROM APP_SHARE.HARVEST_RESULTS WHERE SCHEMA_NAME IN ('BASEBALL','FORMULA_1') AND DATABASE_NAME = 'APP_NAME'
                 """
                 cursor.execute(insert_initial_metadata_query)
@@ -1617,7 +1649,7 @@ def insert_process_history(
     """
     insert_query = f"""
         INSERT INTO {self.schema}.PROCESS_HISTORY (
-            process_id, work_done_summary, process_status, updated_process_learnings, 
+            process_id, work_done_summary, process_status, updated_process_learnings,
             report_message, done_flag, needs_help_flag, process_clarity_comments
         ) VALUES (
             %s, %s, %s, %s, %s, %s, %s, %s

@@ -198,10 +198,6 @@ tools_data = [
         "snowflake_stage_tools",
         "Read, update, write, list, and delete from Snowflake Stages including Snowflake Semantic Models.",
     ),
-    (
-        "snowflake_semantic_tools",
-        "Create and modify Snowflake Semantic Models",
-    ),
     ("image_tools", "Tools to interpret visual images and pictures"),
     (
         "autonomous_tools",

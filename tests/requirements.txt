@@ -1,2 +1,2 @@
 snowflake-cli
-snowflake-connector-python
+snowflake_connector_python==3.12.3

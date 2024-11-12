@@ -216,6 +216,8 @@ def set_issue_assigned_user(issue_name, user_name, thread_id=None):
                 if users:
                     account_id = users[0].accountId
                     issue.update(fields={"assignee": {"accountId": account_id}})
+                    reassign_output["success"] = True
+                    reassign_output["message"] = "User successfully assigned to the Jira issue"
                 else:
                    reassign_output["message"] = f"No user found"
 

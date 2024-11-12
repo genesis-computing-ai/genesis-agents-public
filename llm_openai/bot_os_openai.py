@@ -64,7 +64,7 @@ class StreamingEventHandler(AssistantEventHandler):
    
    @override
    def on_text_delta(self, delta, snapshot):
-       # logger.info(f"\nassistant on_text_delta > {delta.value}", end="")
+       # logger.info(f"\nassistant on_text_delta > {delta.value}")
 #       logger.info(f"{delta.value}")
       if self.run_id not in StreamingEventHandler.run_id_to_output_stream:
           StreamingEventHandler.run_id_to_output_stream[self.run_id] = ""
@@ -89,7 +89,7 @@ class StreamingEventHandler(AssistantEventHandler):
                if self.run_id in StreamingEventHandler.run_id_to_output_stream:
                   if not StreamingEventHandler.run_id_to_output_stream[self.run_id].endswith('\n'):
                      StreamingEventHandler.run_id_to_output_stream[self.run_id] += '\n'
-    #   logger.info(f"\nassistant on_message_created > {message}\n", end="")
+    #   logger.info(f"\nassistant on_message_created > {message}\n")
    @override
    def on_message_done(self, message: Message) -> None:
       if self.run_id not in StreamingEventHandler.run_id_to_messages:
@@ -121,12 +121,12 @@ class StreamingEventHandler(AssistantEventHandler):
 
    @override
    def on_message_delta(self, delta: MessageDelta, snapshot: Message) -> None:
-       # logger.info(f"\nassistant on_message_delta > {delta}\n", end="")
+       # logger.info(f"\nassistant on_message_delta > {delta}")
        pass
 
    def on_tool_call_created(self, tool_call):
        # 4
-       logger.info(f"\nassistant tool_call > {tool_call}\n", end="")
+       logger.info(f"\nassistant tool_call > {tool_call}")
        return
 
    @override

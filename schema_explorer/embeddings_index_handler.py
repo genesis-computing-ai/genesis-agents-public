@@ -223,7 +223,7 @@ def make_and_save_index(table_id):
     
     table_names, embeddings = emb_db_adapter.fetch_embeddings(table_id)
     
-    logger.info("indexing ",len(embeddings)," embeddings...", end="")
+    logger.info("indexing ",len(embeddings)," embeddings...")
 
     if len(embeddings) == 0:
         embeddings = []

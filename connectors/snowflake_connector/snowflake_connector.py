@@ -331,7 +331,7 @@ class SnowflakeConnector(DatabaseConnector):
                         if 'choices' in event_data:
                             d = event_data['choices'][0]['delta'].get('content','')
                             curr_resp += d
-                  #          logger.info(d, end='')
+                  #          logger.info(d)
                     except json.JSONDecodeError as e:
                         logger.info(f"Error decoding JSON: {e}")
                         continue

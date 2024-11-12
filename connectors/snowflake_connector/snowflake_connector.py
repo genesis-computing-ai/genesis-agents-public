@@ -2537,14 +2537,14 @@ def get_status(site):
             list: A list of tuples, each containing an LLM key and LLM type.
         """
         runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
-        logger.info("in getllmkey")
+        # logger.info("in getllmkey")
         # Query to select the LLM key and type from the llm_tokens table
         query = f"""
             SELECT llm_key, llm_type, llm_endpoint, model_name, embedding_model_name
             FROM {self.genbot_internal_project_and_schema}.llm_tokens
             WHERE runner_id = %s and active = True
         """
-        logger.info(f"query: {query}")
+        # logger.info(f"query: {query}")
         try:
             cursor = self.connection.cursor()
             cursor.execute(query, (runner_id,))

@@ -211,17 +211,13 @@ def set_issue_assigned_user(issue_name, user_name, thread_id=None):
             try:
                 # Update the assignee of the issue
                 issue = jira_connector.client.issue(issue_name)
-                issue.update(fields={"assignee": {"name": user_name}})
 
-                if issue.fields.assignee and issue.fields.assignee.name == user_name:
-                    print(f"Issue successfully reassigned to {user_name}")
-                    reassign_output["success"] = True
-                    reassign_output["message"] = f"Issue {issue_name} reassigned to {user_name}"
+                users = jira_connector.client.search_users(query=user_name)
+                if users:
+                    account_id = users[0].accountId
+                    issue.update(fields={"assignee": {"accountId": account_id}})
                 else:
-                    print("Assignee update did not take effect.")
-                    reassign_output["success"] = False
-                    reassign_output["message"] = f"Issue {issue_name} was not properly assigned to {user_name}"
-
+                   reassign_output["message"] = f"No user found"
 
             except Exception as e:
                 reassign_output["message"] = str(e)

@@ -257,8 +257,10 @@ def make_session(
             process_info += f"- Process ID: {row[1]}\n  Name: {row[0]}\n  Description: {row[2]}\n\n"
         instructions += process_info
         processes_found = ', '.join([row[0] for row in result])
-        instructions += f"\n\nFYI, you have the following processes available:\n{process_info}.\nThey can be run with _run_process function if useful to your work. This list may not be up to date, you can use _manage_process for an up to date LIST.\n\n"
+        instructions += f"\n\nFYI, here are some of the processes you have available:\n{process_info}.\nThey can be run with _run_process function if useful to your work. This list may not be up to date, you can use _manage_process with action LIST to get a full list, especially if you are asked to run a process that is not on this list.\n\n"
         logger.info(f'appended process list to prompt, len={len(processes_found)}')
+
+# TODO ADD INFO HERE 
     instructions += BASE_BOT_INSTRUCTIONS_ADDENDUM
 
     instructions += f'\nYour default database connection is called "{genesis_source}".\n'

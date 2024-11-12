@@ -475,11 +475,6 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
                     return [f"Schema '{schema}' not found in database '{database}'. Available schemas in {database}:{schema_options}"]
 
         
-        try:
-            if self.metadata_mapping == ['empty_index']:
-                return "There is no data harvested, the search index is empty. Tell the user to use the Genesis Streamlit GUI to grant access to their data to Genesis."
-        except:
-            pass
 
         # Check for exact table match first
         match = re.match(r'^"?([^"\.]+)"?\."?([^"\.]+)"?\."?([^"\.]+)"?$', query.strip())
@@ -526,7 +521,43 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
             filtered_entries = self.meta_database_connector.run_query(filtered_entries_query)
             
             if not filtered_entries:
-                return ["No tables found matching the specified criteria."]
+
+                # Get current tables in the schema from database
+                current_tables = self.meta_database_connector.get_tables(database, schema)
+                current_table_set = set(table['table_name'] for table in current_tables)
+
+                # Find tables that exist but aren't harvested
+                unharvested_tables = current_table_set 
+
+                # Add note about unharvested tables if any found
+                if unharvested_tables:
+                    unharvested_list = sorted(list(unharvested_tables))[:50]
+                    msg = (f'Note: Found {len(unharvested_list)} tables in {schema} schema that may not be harvested yet: '
+                          f'{", ".join(unharvested_list)}. '
+                          f'You can use get_full_table_details to get more information about these tables.')
+                    
+                    if len(unharvested_tables) > 50:
+                        msg += f' (and {len(unharvested_tables)-50} more)'
+                    content = []
+                    content.append(msg)
+
+                    if schema and schema.endswith('_WORKSPACE'):
+                        content.append("Note: You searched within a bot workspace schema. If you didn't find what you were looking for, try using search_metadata without specifying a database and schema to search more broadly.")
+
+                    return(content)
+
+                else:
+                    if schema and schema.endswith('_WORKSPACE'):
+                        return ["Note: You searched within a bot workspace schema and it was empty. If you didn't find what you were looking for, try using search_metadata without specifying a database and schema to search more broadly."]
+                    else:
+                        return ["No tables found matching the specified criteria."]
+
+
+        try:
+            if self.metadata_mapping == ['empty_index']:
+                return "There is no data harvested, the search index is empty. Tell the user to use the Genesis Streamlit GUI to grant access to their data to Genesis, or to specify a specfic DATABASE and SCHEMA that has already been granted to see what is in it."
+        except:
+            pass
 
         # Enhance query with context if provided
         enhanced_query = query

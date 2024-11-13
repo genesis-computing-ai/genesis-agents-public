@@ -3,14 +3,14 @@ from utils import get_session, upgrade_services, check_eai_status, get_reference
 import pandas as pd
 
 def config_wh():
-    
+
     session = get_session()
     if not session:
         st.error("Unable to connect to Snowflake. Please check your connection.")
         # return
-        pass 
-    st.title("Step 1: Configure Warehouse")
-    
+        pass
+    st.title("Configure Warehouse")
+
     st.markdown("""
     <style>
     .big-font {
@@ -32,18 +32,18 @@ def config_wh():
     """, unsafe_allow_html=True)
 
     st.markdown('<p class="big-font">Why do we need to configure a Warehouse?</p>', unsafe_allow_html=True)
-    
+
     st.markdown("""
     <div class="info-box">
-    Genesis Bots needs rights to use a Snowflake compute engine, known as a Virtual Warehouse, to run queries on Snowflake. By default, Genesis Bots created a Virtual Warehouse for use by the application. 
-    However, you can create your own custom warehouse or assign an existing warehouse for use by the application. 
+    Genesis Bots needs rights to use a Snowflake compute engine, known as a Virtual Warehouse, to run queries on Snowflake. By default, Genesis Bots created a Virtual Warehouse for use by the application.
+    However, you can create your own custom warehouse or assign an existing warehouse for use by the application.
     This step does not provide Genesis Bots with access to any of your data, just the ability to run SQL on Snowflake in general.
     You'll need to grant Genesis access to an existing Warehouse or create a new one for its use.
     </div>
     """, unsafe_allow_html=True)
 
     st.markdown('<p class="big-font">Configuration Steps</p>', unsafe_allow_html=True)
-    
+
     st.markdown("""
     Please open another Snowflake window/tab, go to Projects, and make a new Snowflake worksheet. Run these commands to grant Genesis access to an existing Warehouse or to make a new one for its use.
     """)
@@ -54,7 +54,7 @@ def config_wh():
 set APP_DATABASE = '{st.session_state.get("app_name", "")}';
 
 -- set warehouse name to use
-set APP_WAREHOUSE = '{st.session_state.get("wh_name", "XSMALL")}'; 
+set APP_WAREHOUSE = '{st.session_state.get("wh_name", "XSMALL")}';
 
 -- create the warehouse if needed
 CREATE WAREHOUSE IF NOT EXISTS IDENTIFIER($APP_WAREHOUSE)
@@ -88,7 +88,8 @@ GRANT USAGE ON WAREHOUSE  IDENTIFIER($APP_WAREHOUSE) TO APPLICATION  IDENTIFIER(
                     warehouse_names.remove('SYSTEM$STREAMLIT_NOTEBOOK_WH')
                 if 'APP_XSMALL' in warehouse_names:
                     warehouse_names.remove('APP_XSMALL')
-                
+                if 'APP_XSMALL_1' in warehouse_names:
+                    warehouse_names.remove('APP_XSMALL_1')
                 # Check if 'XSMALL' is in the list of warehouse names
                 if st.session_state.wh_name not in warehouse_names:
                     # Notify the user about the naming discrepancy and suggest setting APP_WAREHOUSE
@@ -111,8 +112,8 @@ GRANT USAGE ON WAREHOUSE  IDENTIFIER($APP_WAREHOUSE) TO APPLICATION  IDENTIFIER(
             upgrade_result = upgrade_services()
             st.success(f"Genesis Bots upgrade result: {upgrade_result}")
         except Exception as e:
-            st.error(f"Error upgrading services: {e}")       
-                               
+            st.error(f"Error upgrading services: {e}")
+
 
     st.info("If you need any assistance, please check our [documentation](https://genesiscomputing.ai/docs/) or join our [Slack community](https://communityinviter.com/apps/genesisbotscommunity/genesis-bots-community).")
 
@@ -121,7 +122,7 @@ GRANT USAGE ON WAREHOUSE  IDENTIFIER($APP_WAREHOUSE) TO APPLICATION  IDENTIFIER(
 # st.session_state.prefix = st.session_state.app_name + ".app1"
 # st.session_state.core_prefix = st.session_state.app_name + ".CORE"
 # st.session_state["wh_name"] = "XSMSALL"
-# import pandas as pd 
+# import pandas as pd
 # from snowflake.snowpark.context import get_active_session
 # session = get_active_session()
 # config_wh()

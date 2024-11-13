@@ -49,21 +49,39 @@ else:
 #grant_usage_2 = conn.cursor().execute("call genesis_bots.core.run_arbitrary('grant usage on function genesis_bots.app1.lookup_udf(varchar, varchar) to application role app_public')")
 cursor = conn.cursor()
 cursor.execute("""
-select genesis_bots.app1.submit_udf('tell me more about your capabilities', '', '{"bot_id": "Janice"}')
+select genesis_bots.app1.submit_udf('show me all of your processes', '', '{"bot_id": "Janice"}')
 """)
-thread_id_result = cursor.fetchone()    
+thread_id_result = cursor.fetchone()
 thread_id = thread_id_result[0] if thread_id_result else None
+print(f'Sending request to Janice - thread id: {thread_id}')
 
 time.sleep(10)
 
 cursor.execute(f"""
 select genesis_bots.app1.lookup_udf ('{thread_id}', 'Janice')
 """)
-response_result = cursor.fetchone()
-response = response_result[0] if response_result else None
 
-print(thread_id)
-print(response)
+max_attempts = 1000
+attempts = 0
+response_result = None
+
+while attempts < max_attempts and (response_result is None or response_result[0][-1] == '💬'):
+    cursor.execute(f"""
+    select genesis_bots.app1.lookup_udf ('{thread_id}', 'Janice')
+    """)
+
+    response_result = cursor.fetchone()
+    response = response_result[0] if response_result else None
+
+    # Check if the response is valid
+    if response_result is not None and response_result[0][-1] != '💬':
+        print("Response is valid")
+        print(thread_id)
+        print(response)
+        break
+
+    attempts += 1
+    time.sleep(1)
 
 # Check if the responses are valid
 if thread_id is not None and response is not None:

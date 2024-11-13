@@ -8,8 +8,8 @@ import json
 
 def check_eai_assigned():
     eai_data = get_metadata("check_eai_assigned")
-    eai_str = eai_data[0]['eai_list'] 
-    if 'CUSTOM_EXTERNAL_ACCESS' in eai_str:
+    eai_str = eai_data[0]['eai_list']
+    if eai_str and 'CUSTOM_EXTERNAL_ACCESS' in eai_str:
         st.session_state.disable_assign = True
     else:
         st.session_state.disable_assign = False
@@ -74,12 +74,12 @@ def config_custom_eai():
     if st.button('Generate EAI'):
         st.session_state['eai_generated'] = True
         import snowflake.permissions as permissions
-        permissions.request_reference("custom_external_access")        
+        permissions.request_reference("custom_external_access")
 
     # "Assign to Genesis" Button
     if st.session_state['eai_generated']:
         st.success('EAI generated successfully!')
-        check_eai_assigned() 
+        check_eai_assigned()
         if st.session_state.disable_assign == False:
             if st.button('Assign to Genesis'):
                 assign_eai_to_genesis()

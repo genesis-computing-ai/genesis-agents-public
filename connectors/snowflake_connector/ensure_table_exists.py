@@ -572,7 +572,7 @@ def ensure_table_exists(self):
             cursor.execute(get_eai_from_services_query)
             self.client.commit()
             eai_list = cursor.fetchone()
-            #TODO need to make logic more generic for custom EAIs
+
             values_clause = " UNION ALL ".join([f"""SELECT $${eai}$$ AS EAI_NAME, CHARINDEX('AZURE_OPENAI',$${eai}$$),
                                 iff(charindex('CONSUMER',$${eai}$$)>0,'CONSUMER',
                                     IFF(CHARINDEX('AZURE_OPENAI',$${eai}$$)>0,'AZURE_OPENAI',
@@ -580,22 +580,23 @@ def ensure_table_exists(self):
                                             IFF(CHARINDEX('OPENAI',$${eai}$$)>0,'OPENAI','CUSTOM'))))  AS EAI_TYPE""" for eai in eai_list if eai is not None])
 
             # Create the full merge statement
-            merge_statement = dedent(f"""
-            MERGE INTO {self.genbot_internal_project_and_schema}.EAI_CONFIG AS tgt
-            USING (
-            {values_clause}
-            ) AS src
-            ON tgt.EAI_TYPE = src.eai_type
-            WHEN NOT MATCHED THEN
-            INSERT (eai_type, eai_name)
-            VALUES (src.eai_type, src.eai_name);
-            """)
-            # logger.info(f"######DEBUG###### {merge_statement}")
-            cursor.execute(merge_statement)
-            self.client.commit()
-            logger.info(
-                f"Updated EAI_CONFIG table from services"
-            )
+            if values_clause:
+                merge_statement = dedent(f"""
+                MERGE INTO {self.genbot_internal_project_and_schema}.EAI_CONFIG AS tgt
+                USING (
+                {values_clause}
+                ) AS src
+                ON tgt.EAI_TYPE = src.eai_type
+                WHEN NOT MATCHED THEN
+                INSERT (eai_type, eai_name)
+                VALUES (src.eai_type, src.eai_name);
+                """)
+                # logger.info(f"######DEBUG###### {merge_statement}")
+                cursor.execute(merge_statement)
+                self.client.commit()
+                logger.info(
+                    f"Updated EAI_CONFIG table from services"
+                )
         except Exception as e:
             logger.info(
                 f"An error occurred while checking or creating table EAI_CONFIG: {e}"

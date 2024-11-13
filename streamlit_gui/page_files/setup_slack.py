@@ -84,7 +84,7 @@ def setup_slack():
                 # Update tokens
                 resp = set_slack_tokens(slack_app_token=slack_app_token, slack_app_refresh_token=slack_app_refresh_token)
                 t = resp.get("Token")
-                r = resp.get("RefreshToken")
+                r = resp.get("Refresh")
                 if not t or not r:
                     st.error(f"Failed to update Slack tokens: {resp}")
                 else:

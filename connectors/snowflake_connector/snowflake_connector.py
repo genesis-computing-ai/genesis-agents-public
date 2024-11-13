@@ -1831,24 +1831,24 @@ def get_status(site):
     def create_bot_workspace(self, workspace_schema_name):
         try:
             # query = f"CREATE SCHEMA IF NOT EXISTS {workspace_schema_name}"
-            if os.getenv("GENESIS_LOCAL_RUNNER", "False").lower() == "true":
-                query = f"CREATE SCHEMA IF NOT EXISTS {workspace_schema_name}"
-            else:
-                try:
-                    workspace_schema_check_query = (
-                        f"SHOW SCHEMAS LIKE '{workspace_schema_name}_OLD';"
-                    )
-                    cursor = self.client.cursor()
-                    cursor.execute(workspace_schema_check_query)
-                    if not cursor.fetchone():
-                        rename_query = f"ALTER SCHEMA IF EXISTS {workspace_schema_name} RENAME TO {workspace_schema_name}_OLD"
-                        cursor = self.client.cursor()
-                        cursor.execute(rename_query)
-                        self.client.commit()
-                except Exception as e:
-                    pass
-                # logger.info(f"Workspace schema {workspace_schema_name} renamed to OLD_{workspace_schema_name}")
-                query = f"CREATE OR ALTER VERSIONED SCHEMA {workspace_schema_name}"
+            # if os.getenv("GENESIS_LOCAL_RUNNER", "False").lower() == "true":
+            query = f"CREATE SCHEMA IF NOT EXISTS {workspace_schema_name}"
+            # else:
+            #     try:
+            #         workspace_schema_check_query = (
+            #             f"SHOW SCHEMAS LIKE '{workspace_schema_name}_OLD';"
+            #         )
+            #         cursor = self.client.cursor()
+            #         cursor.execute(workspace_schema_check_query)
+            #         if not cursor.fetchone():
+            #             rename_query = f"ALTER SCHEMA IF EXISTS {workspace_schema_name} RENAME TO {workspace_schema_name}_OLD"
+            #             cursor = self.client.cursor()
+            #             cursor.execute(rename_query)
+            #             self.client.commit()
+            #     except Exception as e:
+            #         pass
+            #     # logger.info(f"Workspace schema {workspace_schema_name} renamed to OLD_{workspace_schema_name}")
+            #     query = f"CREATE OR ALTER VERSIONED SCHEMA {workspace_schema_name}"
             cursor = self.client.cursor()
             cursor.execute(query)
             self.client.commit()

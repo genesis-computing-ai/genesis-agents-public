@@ -351,13 +351,13 @@ def deploy_bot(bot_id):
         else:
             raise Exception(f"Failed to deploy bot: {response.text}")
 
-def upgrade_services(eai_type, eai_name):
+def upgrade_services(eai_type=None, eai_name=None):
     session = get_session()
     try:
+        core_prefix = st.session_state.get('core_prefix', '')
         if eai_type and eai_name:
             if session:
                 #TODO move to connecter?
-                core_prefix = st.session_state.get('core_prefix', '')
                 prefix = st.session_state.get('prefix', '')
                 # "reference('CONSUMER_EXTERNAL_ACCESS')"
                 update_eai_list_query = f"""
@@ -365,7 +365,7 @@ def upgrade_services(eai_type, eai_name):
                     USING (SELECT '{eai_type}' AS EAI_TYPE, 'reference(''{eai_name}'')' AS EAI_NAME) AS source
                     ON target.EAI_TYPE = source.EAI_TYPE
                     WHEN MATCHED THEN
-                        UPDATE SET 
+                        UPDATE SET
                             target.EAI_NAME = source.EAI_NAME
                     WHEN NOT MATCHED THEN
                         INSERT (EAI_TYPE, EAI_NAME)
@@ -373,9 +373,9 @@ def upgrade_services(eai_type, eai_name):
                     """
                 update_eai_list_result = session.sql(update_eai_list_query).collect()
 
-            upgrade_services_query = f"call {core_prefix}.UPGRADE_SERVICES() "
-            upgrade_services_result = session.sql(upgrade_services_query).collect()
-            return upgrade_services_result[0][0]
+        upgrade_services_query = f"call {core_prefix}.UPGRADE_SERVICES() "
+        upgrade_services_result = session.sql(upgrade_services_query).collect()
+        return upgrade_services_result[0][0]
     except Exception as e:
         st.error(f"Error updating EAI config table: {e}")
     return None

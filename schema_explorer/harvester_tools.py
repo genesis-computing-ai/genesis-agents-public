@@ -97,7 +97,7 @@ harvester_tools_functions = [
         "type": "function",
         "function": {
             "name": "_get_visible_schemas",
-            "description": "Retrieves a list of schemas for a given database from the current source. Helps the user decide what schemas to include or exclude when configuring the harvester.",
+            "description": "Retrieves a list of schemas for a given database from the current source. Helps the user decide what schemas to include or exclude when configuring the harvester. This doesn't include any schemas that are bound by a data share, so it won't show GENESIS_BOTS.BASEBALL or GENESIS_BOTS.FORMULA_1.",
             "parameters": {
                 "type": "object",
                 "properties": {

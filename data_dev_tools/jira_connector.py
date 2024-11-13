@@ -29,6 +29,7 @@ def _jira_connector(action: str,
                    description: Optional[str] = None,
                    status: Optional[str] = None,
                    issue_key: Optional[str] = None,
+                   issue_type: Optional[str] = None,
                    jql: Optional[str] = None,
                    user_name: Optional[str] = None,
                    thread_id = None) -> Dict[str, Any]:
@@ -42,6 +43,7 @@ def _jira_connector(action: str,
         description: Detailed description for CREATE_ISSUE or UPDATE_ISSUE actions
         status: Jira issue status to be updated exactly as requested for CREATE_ISSUE or UPDATE_ISSUE actions
         issue_key: The Jira issue key for UPDATE_ISSUE or GET_ISSUE actions
+        issue_type: The Jira issue type for UPDATE_ISSUE or CREATE_ISSUE actions
         jql: JQL query string for SEARCH_ISSUES action
         user_name: Jira user name for SEARCH_ISSUES, CREATE_ISSUE, or UPDATE_ISSUE actions
 
@@ -52,6 +54,22 @@ def _jira_connector(action: str,
 
 
     action = action.upper()
+
+    if action == "CREATE_ISSUE":
+        success = False
+        if project_key and summary and description and issue_type:
+            result = create_issue(project_name=project_key, summary=summary, description=description, issue_type=issue_type)
+            if result:
+                success = True
+        else:
+            result = "Issue details not provided"
+
+        return {
+            "Success": success,
+            "Message": "Jira issue created successfully.",
+            "Suggestion": "Offer to perform another action",
+            "result": result,
+        }
 
     if action == "GET_ISSUE":
         success = False
@@ -191,6 +209,68 @@ def jira_api_connector():
         return jira_connector
     except Exception as e:
         return {"error connecting to JIRA": str(e)}
+
+def create_issue(project_name, issue_type, summary, description, thread_id=None):
+
+    try:
+        jira_connector = jira_api_connector()
+        jira = jira_connector.connect()
+
+        result_output = {
+            "issue_data": None,
+            "success": False,
+            "message": None,
+        }
+
+        if jira == True:
+
+            # Step 1: Validate the project
+            projects = jira_connector.client.projects()
+            project_keys = [project.key for project in projects]
+
+            if project_name not in project_keys:
+                result_output["message"] = f"Invalid project key: {project_name}"
+            else:
+                # Step 2: Validate the issue type for the project
+                issue_types = jira_connector.client.issue_types()
+                issue_type_names = [issue_type.name for issue_type in issue_types]
+
+                if issue_type not in issue_type_names:
+                    result_output["message"] = f"Invalid issue type: {issue_type}"
+                else:
+
+                    issue_dict = {
+                        'project': {'key': project_name},  # Replace 'PROJ' with your project key
+                        'summary': summary,
+                        'description': description,
+                        'issuetype': {'name': issue_type},  # Replace 'Task' with the appropriate issue type
+                    }
+
+                    new_issue = jira_connector.client.create_issue(fields=issue_dict)
+
+                    # Fetch details of the created issue to return as JSON
+                    issue_data = {
+                        "id": new_issue.id,
+                        "key": new_issue.key,
+                        "fields": {
+                            "summary": new_issue.fields.summary,
+                            "description": new_issue.fields.description,
+                            "status": new_issue.fields.status.name,
+                            "issuetype": new_issue.fields.issuetype.name,
+                        }
+                    }
+                    result_output["success"] = True
+                    result_output["message"] = "Issue successfully created"
+                    result_output["issue_data"] = issue_data
+
+            # Print or return the issue data as JSON
+            content_json = json.dumps(result_output, indent=4)
+
+        else:
+            content_json = {"Unable to get connection to jira api": str(e)}
+        return content_json
+    except Exception as e:
+        return {"error updating comment for issue": str(e)}
 
 
 def set_issue_assigned_user(issue_name, user_name, thread_id=None):

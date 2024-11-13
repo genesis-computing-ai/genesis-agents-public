@@ -261,6 +261,10 @@ data_dev_tools_functions = [
                         "type": "string",
                         "description": "The Jira issue key for UPDATE_ISSUE or GET_ISSUE actions (e.g., 'DATA-123')",
                     },
+                    "issue_type": {
+                        "type": "string",
+                        "description": "The Jira issue type for UPDATE_ISSUE or CREATE_ISSUE actions (e.g., 'Task')",
+                    },
                     "jql": {
                         "type": "string",
                         "description": "JQL query string for SEARCH_ISSUES action",

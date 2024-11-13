@@ -22,6 +22,10 @@ def llm_config():
     for key, value in session_defaults.items():
         st.session_state.setdefault(key, value)
 
+    # if st.session_state.NativeMode == False:
+    #     st.session_state.update({
+    #         "disable_submit": False,
+    #     })
     # Check External Access Integration status
     check_eai_availability('openai', 'openai_external_access')
     check_eai_availability('azureopenai', 'azure_openai_external_access')
@@ -42,8 +46,10 @@ def llm_config():
     if st.session_state.llm_type == "openai":
         llm_api_key = handle_openai_configuration()
     elif st.session_state.llm_type == "azureopenai":
+        st.session_state.disable_submit = True
         llm_api_key, llm_api_endpoint = handle_azure_openai_configuration()
     else:
+        st.session_state.disable_submit = False
         llm_api_key = 'cortex_no_key_needed'
 
     # Submit button
@@ -118,10 +124,11 @@ def handle_openai_configuration():
 
 def handle_azure_openai_configuration():
     llm_api_key, llm_api_endpoint = '',''
-    if not st.session_state.azureopenai_eai_available or not st.session_state.get("NativeMode", False):
+    if not st.session_state.azureopenai_eai_available or st.session_state.get("NativeMode", False) == False:
         endpoint = st.text_input("Enter Azure API endpoint for your organization (e.g., genesis-azureopenai-1):")
         azure_openai_model = st.text_input("Enter Azure OpenAI Model Deployment Name (e.g., gpt-4o):", value="gpt-4o")
         azure_openai_embed_model = st.text_input("Enter Azure OpenAI Embedding Model Deployment Name (e.g., text-embedding-3-large):", value="text-embedding-3-large")
+
         if st.session_state.get("NativeMode", False):
             if st.button("Create External Access Integration", key="createaeai", disabled=st.session_state.disable_create):
                 set_endpoint = get_metadata(f"set_endpoint Azure_OpenAI {endpoint} AZURE")
@@ -138,7 +145,21 @@ def handle_azure_openai_configuration():
             if not st.session_state.assign_disabled:
                 if st.button("Assign EAI to Genesis"):
                     assign_eai_to_genesis()
-    else:
+        else:
+            if st.button("Save Azure LLM Model Params", key="saveparams"):
+                set_endpoint = get_metadata(f"set_endpoint Azure_OpenAI {endpoint} AZURE")
+                if set_endpoint and set_endpoint[0].get('Success'):
+                    set_model_names = get_metadata(f"set_model_name {azure_openai_model} {azure_openai_embed_model}")
+                    if set_model_names and set_model_names[0].get('Success'):
+                        st.session_state.update({
+                            "disable_submit": False,
+                            "azureopenai_eai_available": True,
+                        })
+            llm_api_key = st.text_input("Enter Azure OpenAI API Key:", key="aoaikey1")
+            llm_api_endpoint = st.text_input("Enter Azure OpenAI API Endpoint (e.g., https://genesis-azureopenai-1.openai.azure.com):")
+
+
+    elif st.session_state.azureopenai_eai_available or st.session_state.get("NativeMode", False) == False:
         llm_api_key = st.text_input("Enter Azure OpenAI API Key:", value=llm_api_key, key="aoaikey")
         llm_api_endpoint = st.text_input("Enter Azure OpenAI API Endpoint (e.g., https://genesis-azureopenai-1.openai.azure.com):")
     return llm_api_key, llm_api_endpoint
@@ -161,7 +182,7 @@ def assign_eai_to_genesis():
         st.error("No EAI reference set")
 
 def process_llm_configuration(llm_api_key, llm_api_endpoint, llm_model):
-    #set llm type to openai for azure openai to use same logic throughout application  
+    #set llm type to openai for azure openai to use same logic throughout application
     if st.session_state.llm_type == 'azureopenai':
         st.session_state.llm_type = 'openai'
     config_response = configure_llm(st.session_state.llm_type, llm_api_key, llm_api_endpoint)

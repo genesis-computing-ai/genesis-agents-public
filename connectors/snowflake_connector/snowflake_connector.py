@@ -798,6 +798,20 @@ class SnowflakeConnector(DatabaseConnector):
             err = f"An error occurred while getting llm info: {e}"
             return {"Success": False, "Error": err}
 
+    def delete_endpoint_group(self, group_name):
+        try:
+            delete_query = f"""DELETE FROM {self.genbot_internal_project_and_schema}.CUSTOM_ENDPOINTS WHERE GROUP_NAME = %s);"""
+            cursor = self.client.cursor()
+            cursor.execute(delete_query, (group_name,))
+
+            # Commit the changes
+            self.client.commit()
+
+            json_data = json.dumps([{'Success': True}])
+            return {"Success": True, "Data": json_data}
+        except Exception as e:
+            err = f"An error occurred while deleting custom endpoint: {e}"
+            return {"Success": False, "Data": err}
 
     def set_endpoint(self, group_name, endpoint_name, type):
         try:

@@ -395,6 +395,13 @@ def get_metadata():
             result = db_adapter.check_eai_assigned()
         elif metadata_type.startswith('get_endpoints'):
             result = db_adapter.get_endpoints()
+        elif metadata_type.startswith('delete_endpoint_group '):
+            metadata_parts = metadata_type.split()
+            if len(metadata_parts) == 2:
+                group_name = metadata_parts[1].strip()
+            else:
+                logger.info("missing group name to delete")
+            result = db_adapter.delete_endpoint_group(group_name)
         elif metadata_type.startswith('set_endpoint '):
             metadata_parts = metadata_type.split()
             if len(metadata_parts) == 4:

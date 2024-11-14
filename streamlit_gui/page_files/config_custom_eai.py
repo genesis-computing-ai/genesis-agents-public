@@ -85,3 +85,14 @@ def config_custom_eai():
                 assign_eai_to_genesis()
                 st.success('Services updated successfully!')
 
+    # Dropdown and "Delete Group" button
+    st.header("Delete Group")
+    group_names = df['group_name'].tolist() if 'group_name' in df.columns else []
+    selected_group = st.selectbox("Select Group to Delete", group_names)
+
+    if st.button("Delete Group"):
+        # delete_group(selected_group)
+        delete_group = get_metadata(f"delete_endpoint_group {selected_group}")
+        if delete_group and delete_group[0].get('Success'):
+            st.success('Endpoint group deleted successfully!')
+            st.success('Click Generate EAI above to remove the endpoint from your network rule')

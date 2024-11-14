@@ -501,7 +501,8 @@ def chat_page():
 
 
             # get bot details
-            bot_details.sort(key=lambda x: (not "Janice" in x["bot_name"], x["bot_name"]))
+            # make sure Janice is first if exists
+            bot_details.sort(key=lambda bot: (not "Janice" in bot["bot_name"], bot["bot_name"]))
             bot_names = [bot["bot_name"] for bot in bot_details]
             bot_ids = [bot["bot_id"] for bot in bot_details]
             bot_intro_prompts_map = {bot["bot_name"]: bot["bot_intro_prompt"]
@@ -532,12 +533,8 @@ def chat_page():
                         # set initial bot message, if provided
                         initial_bot_message = initial_chat_session_data.get('initial_message')
                     st.session_state.initial_chat_session_data = None # This effectively marks this initial session data as 'visited' (don't inspect again)
-                if not initial_bot_name and available_bots:
-                    # Set Eve as the default bot if it exists in our list
-                    initial_bot_name = "Eve" if "Eve" in available_bots else None
-                if not initial_bot_name:
-                    # Otherwise use bot_names[1] or fallaback to bot_names[0]  (legacy behavior?)
-                    initial_bot_name = bot_names[1] if len(bot_names) > 1 else bot_names[0]
+                if not initial_bot_name and available_bots:                    
+                    initial_bot_name = bot_names[0]
                 assert initial_bot_name
 
                 st.session_state.current_bot = initial_bot_name

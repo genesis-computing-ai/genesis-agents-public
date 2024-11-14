@@ -1417,7 +1417,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                                                                      message_metadata={'tool_call_id':tool_call_id, 'func_name':func_name, 'func_args':func_args},
                                                                      channel_type=meta.get("channel_type", None), channel_name=meta.get("channel", None),
                                                                      primary_user=primary_user)
-                        logger.telemetry('execute_function:', thread_id, self.bot_id, 'openai', func_name, func_args)
+                        logger.telemetry('execute_function:', thread_id, self.bot_id, meta.get('user_email', 'Unknown Email'), os.getenv("BOT_OS_DEFAULT_LLM_ENGINE", ""), func_name, func_args)
                         func_args_dict = json.loads(func_args)
                         if "image_data" in func_args_dict: # FixMe: find a better way to convert file_id back to stored file
                            func_args_dict["image_data"] = self.file_storage.get(func_args_dict["image_data"].removeprefix('/mnt/data/'))
@@ -1647,7 +1647,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                except:
                   pass
                threads_completed[thread_id] = run.completed_at
-               logger.telemetry('add_message:', thread_id, self.bot_id, 'openai', run.usage.prompt_tokens, run.usage.completion_tokens)
+               logger.telemetry('add_answer:', thread_id, self.bot_id, meta.get('user_email', 'Unknown Email'), os.getenv("BOT_OS_DEFAULT_LLM_ENGINE", ""), run.usage.prompt_tokens, run.usage.completion_tokens)
          else:
             logger.debug(f"check_runs - {thread_id} - {run.status} - {run.completed_at} - {thread_run['completed_at']}")
 

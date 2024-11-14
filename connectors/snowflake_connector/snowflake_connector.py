@@ -963,7 +963,6 @@ def get_status(site):
         url = "https://api.openai.com/v1/models"  # Replace with the allowed URL
     elif site == 'azureopenai':
         url = "https://app.openai.azure.com"  # Replace with the allowed URL
-        return "Success"
     else:
         # TODO allow custom endpoints to be tested
         return f"Invalid site: {{site}}"

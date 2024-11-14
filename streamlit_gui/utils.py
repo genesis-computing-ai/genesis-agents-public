@@ -380,6 +380,17 @@ def upgrade_services(eai_type=None, eai_name=None):
         st.error(f"Error updating EAI config table: {e}")
     return None
 
+def check_eai_assigned(reference_name):
+    try:
+        eai_data = get_metadata("check_eai_assigned")
+        eai_str = eai_data[0].get('eai_list') if eai_data else None
+        if eai_str.upper() and reference_name.upper() in eai_str:
+            return True
+        else:
+            return False
+    except Exception as e:
+        st.error(f"Error checking eai assigned: {e}")
+
 def check_eai_status(site):
     # session = get_session()
     result = False

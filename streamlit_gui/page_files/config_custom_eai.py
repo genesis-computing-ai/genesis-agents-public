@@ -1,18 +1,11 @@
 import streamlit as st
 import pandas as pd
 from utils import (
+    check_eai_assigned,
     get_metadata,
     upgrade_services,
 )
 import json
-
-def check_eai_assigned():
-    eai_data = get_metadata("check_eai_assigned")
-    eai_str = eai_data[0]['eai_list']
-    if eai_str and 'CUSTOM_EXTERNAL_ACCESS' in eai_str:
-        st.session_state.disable_assign = True
-    else:
-        st.session_state.disable_assign = False
 
 def assign_eai_to_genesis():
     eai_type = 'CUSTOM'
@@ -79,7 +72,10 @@ def config_custom_eai():
     # "Assign to Genesis" Button
     if st.session_state['eai_generated']:
         st.success('EAI generated successfully!')
-        check_eai_assigned()
+        if check_eai_assigned('CUSTOM_EXTERNAL_ACCESS'):
+            st.session_state.disable_assign = True
+        else:
+            st.session_state.disable_assign = False
         if st.session_state.disable_assign == False:
             if st.button('Assign to Genesis'):
                 assign_eai_to_genesis()

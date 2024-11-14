@@ -1,6 +1,7 @@
 import streamlit as st
 import time
 from utils import (
+    check_eai_assigned,
     get_bot_details,
     get_metadata,
     configure_llm,
@@ -22,10 +23,6 @@ def llm_config():
     for key, value in session_defaults.items():
         st.session_state.setdefault(key, value)
 
-    # if st.session_state.NativeMode == False:
-    #     st.session_state.update({
-    #         "disable_submit": False,
-    #     })
     # Check External Access Integration status
     check_eai_availability('openai', 'openai_external_access')
     check_eai_availability('azureopenai', 'azure_openai_external_access')
@@ -46,7 +43,8 @@ def llm_config():
     if st.session_state.llm_type == "openai":
         llm_api_key = handle_openai_configuration()
     elif st.session_state.llm_type == "azureopenai":
-        st.session_state.disable_submit = True
+        if st.session_state.azureopenai_eai_available == False:
+            st.session_state.disable_submit = True
         llm_api_key, llm_api_endpoint = handle_azure_openai_configuration()
     else:
         st.session_state.disable_submit = False
@@ -59,7 +57,7 @@ def llm_config():
 
 def check_eai_availability(llm_type, reference_name):
     if not st.session_state.get(f"{llm_type}_eai_available", False):
-        if check_eai_status(llm_type) or st.session_state.NativeMode == False:
+        if check_eai_status(llm_type) or check_eai_assigned(reference_name) or st.session_state.NativeMode == False:
             st.session_state.update({
                 f"{llm_type}_eai_available": True,
                 "eai_reference_name": reference_name,

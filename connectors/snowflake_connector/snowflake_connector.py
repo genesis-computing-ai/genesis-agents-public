@@ -800,7 +800,7 @@ class SnowflakeConnector(DatabaseConnector):
 
     def delete_endpoint_group(self, group_name):
         try:
-            delete_query = f"""DELETE FROM {self.genbot_internal_project_and_schema}.CUSTOM_ENDPOINTS WHERE GROUP_NAME = %s);"""
+            delete_query = f"""DELETE FROM {self.genbot_internal_project_and_schema}.CUSTOM_ENDPOINTS WHERE GROUP_NAME = %s;"""
             cursor = self.client.cursor()
             cursor.execute(delete_query, (group_name,))
 

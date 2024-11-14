@@ -91,8 +91,10 @@ def config_custom_eai():
     selected_group = st.selectbox("Select Group to Delete", group_names)
 
     if st.button("Delete Group"):
-        # delete_group(selected_group)
-        delete_group = get_metadata(f"delete_endpoint_group {selected_group}")
-        if delete_group and delete_group[0].get('Success'):
-            st.success('Endpoint group deleted successfully!')
-            st.success('Click Generate EAI above to remove the endpoint from your network rule')
+        if selected_group:
+            delete_group = get_metadata(f"delete_endpoint_group {selected_group}")
+            if delete_group and delete_group[0].get('Success'):
+                st.success('Endpoint group deleted successfully!')
+                st.success('Click Generate EAI above to remove the endpoint from your network rule')
+            else:
+                st.error('Error deleting group')

@@ -267,7 +267,7 @@ data_dev_tools_functions = [
                     },
                     "priority": {
                         "type": "string",
-                        "description": "Optional - The Jira issue priority or CREATE_ISSUE or UPDATE_ISSUE actions (e.g. 'Low','High','Highest')",
+                        "description": "The Jira issue priority or CREATE_ISSUE or UPDATE_ISSUE actions (e.g. 'Low','High','Highest')",
                     },
                     "jql": {
                         "type": "string",

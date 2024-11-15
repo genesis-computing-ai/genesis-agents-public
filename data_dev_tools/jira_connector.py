@@ -45,7 +45,7 @@ def _jira_connector(action: str,
         status: Jira issue status to be updated exactly as requested for CREATE_ISSUE or UPDATE_ISSUE actions
         issue_key: The Jira issue key for UPDATE_ISSUE or GET_ISSUE actions
         issue_type: The Jira issue type for UPDATE_ISSUE or CREATE_ISSUE actions
-        priority: Optional - The Jira issue priority (e.g. 'Low','High','Highest') for CREATE_ISSUE or UPDATE_ISSUE actions
+        priority: The Jira issue priority (e.g. 'Low','High','Highest') for CREATE_ISSUE or UPDATE_ISSUE actions
         jql: JQL query string for SEARCH_ISSUES action
         user_name: Jira user name for SEARCH_ISSUES, CREATE_ISSUE, or UPDATE_ISSUE actions
 

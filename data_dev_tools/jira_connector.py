@@ -30,6 +30,7 @@ def _jira_connector(action: str,
                    status: Optional[str] = None,
                    issue_key: Optional[str] = None,
                    issue_type: Optional[str] = None,
+                   priority: Optional[str] = None,
                    jql: Optional[str] = None,
                    user_name: Optional[str] = None,
                    thread_id = None) -> Dict[str, Any]:
@@ -44,6 +45,7 @@ def _jira_connector(action: str,
         status: Jira issue status to be updated exactly as requested for CREATE_ISSUE or UPDATE_ISSUE actions
         issue_key: The Jira issue key for UPDATE_ISSUE or GET_ISSUE actions
         issue_type: The Jira issue type for UPDATE_ISSUE or CREATE_ISSUE actions
+        priority: Optional - The Jira issue priority (e.g. 'Low','High','Highest') for CREATE_ISSUE or UPDATE_ISSUE actions
         jql: JQL query string for SEARCH_ISSUES action
         user_name: Jira user name for SEARCH_ISSUES, CREATE_ISSUE, or UPDATE_ISSUE actions
 
@@ -58,7 +60,7 @@ def _jira_connector(action: str,
     if action == "CREATE_ISSUE":
         success = False
         if project_key and summary and description and issue_type:
-            result = create_issue(project_name=project_key, summary=summary, description=description, issue_type=issue_type)
+            result = create_issue(project_name=project_key, summary=summary, description=description, issue_type=issue_type, priority=priority)
             if result:
                 success = True
         else:
@@ -210,7 +212,7 @@ def jira_api_connector():
     except Exception as e:
         return {"error connecting to JIRA": str(e)}
 
-def create_issue(project_name, issue_type, summary, description, thread_id=None):
+def create_issue(project_name, issue_type, summary, description, priority=None, thread_id=None):
 
     try:
         jira_connector = jira_api_connector()
@@ -238,11 +240,31 @@ def create_issue(project_name, issue_type, summary, description, thread_id=None)
                 if issue_type not in issue_type_names:
                     result_output["message"] = f"Invalid issue type: {issue_type}"
                 else:
+                    if priority:
+                        # Fetch the available values for the Priority field from the issue metadata
+                        metadata = jira_connector.client.createmeta(projectKeys=project_name, issuetypeNames=issue_type, expand='projects.issuetypes.fields')
+                        fields = metadata['projects'][0]['issuetypes'][0]['fields']
+
+                        # Get allowed values for the Priority field
+                        priority_field = fields.get('priority')
+                        if priority_field and 'allowedValues' in priority_field:
+                            allowed_priorities = [p['name'] for p in priority_field['allowedValues']]
+
+                            # Check if the passed priority is valid
+                            if priority not in allowed_priorities:
+                                result_output["message"] = f"Invalid priority value: {priority}. Allowed values are: {allowed_priorities}"
+                                return json.dumps(result_output, indent=4)
+                        else:
+                            result_output["message"] = "Priority field is not available in this issue type or project."
+                            return json.dumps(result_output, indent=4)
+
+
 
                     issue_dict = {
                         'project': {'key': project_name},  # Replace 'PROJ' with your project key
                         'summary': summary,
                         'description': description,
+                        'priority': {'name': priority},
                         'issuetype': {'name': issue_type},  # Replace 'Task' with the appropriate issue type
                     }
 
@@ -256,6 +278,7 @@ def create_issue(project_name, issue_type, summary, description, thread_id=None)
                             "summary": new_issue.fields.summary,
                             "description": new_issue.fields.description,
                             "status": new_issue.fields.status.name,
+                            "priority": new_issue.fields.priority.name,
                             "issuetype": new_issue.fields.issuetype.name,
                         }
                     }

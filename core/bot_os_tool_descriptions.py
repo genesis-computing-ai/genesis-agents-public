@@ -265,6 +265,10 @@ data_dev_tools_functions = [
                         "type": "string",
                         "description": "The Jira issue type for UPDATE_ISSUE or CREATE_ISSUE actions (e.g., 'Task')",
                     },
+                    "priority": {
+                        "type": "string",
+                        "description": "Optional - The Jira issue priority or CREATE_ISSUE or UPDATE_ISSUE actions (e.g. 'Low','High','Highest')",
+                    },
                     "jql": {
                         "type": "string",
                         "description": "JQL query string for SEARCH_ISSUES action",

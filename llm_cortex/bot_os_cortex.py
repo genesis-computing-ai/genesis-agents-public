@@ -370,7 +370,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                     newarray[0]['role'] = 'user'
                     logger.info(f'**** OpenaAI o1 override for bot {self.bot_id} using model: {openai_model}')
                     try:
-                        client = get_openai_client()
+                        client = get_openai_client(use_external=True)
                         response = client.chat.completions.create(
                             model=openai_model,
                             messages=newarray,

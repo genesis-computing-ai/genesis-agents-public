@@ -219,10 +219,6 @@ tools_data = [
         "notebook_manager_tools",
         "Tools to manage bot notebook.",
     ),
-    (
-        "data_dev_tools",
-        "Tools to allow access to development APIs.",
-    ),
 ]
 
 data_dev_tools_functions = [
@@ -294,3 +290,246 @@ tools_data.append(
         "Tools for data development workflows including Jira integration",
     )
 )
+
+PROJECT_MANAGER_FUNCTIONS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "_manage_projects",
+            "description": "Manage projects that contain todo items with various actions like creating, updating, changing status, and listing projects",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "action": {
+                        "type": "string",
+                        "description": "Action to perform (CREATE, UPDATE, CHANGE_STATUS, LIST)",
+                        "enum": ["CREATE", "UPDATE", "CHANGE_STATUS", "LIST"]
+                    },
+                    "bot_id": {
+                        "type": "string",
+                        "description": "ID of the bot performing the action"
+                    },
+                    "project_id": {
+                        "type": "string",
+                        "description": "ID of the project (required for UPDATE and CHANGE_STATUS)"
+                    },
+                    "project_details": {
+                        "type": "object",
+                        "description": "Details for the project",
+                        "properties": {
+                            "project_name": {
+                                "type": "string",
+                                "description": "Name of the project"
+                            },
+                            "description": {
+                                "type": "string",
+                                "description": "Detailed description of the project"
+                            },
+                            "project_manager_bot_id": {
+                                "type": "string",
+                                "description": "ID of the bot managing the project"
+                            },
+                            "target_completion_date": {
+                                "type": "string",
+                                "description": "Target date for project completion (YYYY-MM-DD format)"
+                            },
+                            "new_status": {
+                                "type": "string",
+                                "description": "New status for the project (NEW, IN_PROGRESS, ON_HOLD, COMPLETED, CANCELLED)",
+                                "enum": ["NEW", "IN_PROGRESS", "ON_HOLD", "COMPLETED", "CANCELLED"]
+                            }
+                        }
+                    }
+                },
+                "required": ["action", "bot_id"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "_manage_todos",
+            "description": "Manage todo items within projects with various actions like creating, updating, changing status, and listing todos",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "action": {
+                        "type": "string",
+                        "description": "Action to perform (CREATE, UPDATE, CHANGE_STATUS, LIST)",
+                        "enum": ["CREATE", "UPDATE", "CHANGE_STATUS", "LIST"]
+                    },
+                    "bot_id": {
+                        "type": "string",
+                        "description": "ID of the bot performing the action"
+                    },
+                    "todo_id": {
+                        "type": "string",
+                        "description": "ID of the todo item (required for UPDATE and CHANGE_STATUS)"
+                    },
+                    "todo_details": {
+                        "type": "object",
+                        "description": "Details for the todo item",
+                        "properties": {
+                            "project_id": {
+                                "type": "string",
+                                "description": "ID of the project this todo belongs to (required for CREATE)"
+                            },
+                            "todo_name": {
+                                "type": "string",
+                                "description": "Name/title of the todo item"
+                            },
+                            "what_to_do": {
+                                "type": "string",
+                                "description": "Detailed description of what needs to be done"
+                            },
+                            "assigned_to_bot_id": {
+                                "type": "string",
+                                "description": "ID of the bot the todo is assigned to"
+                            },
+                            "new_status": {
+                                "type": "string",
+                                "description": "New status for the todo item (NEW, IN_PROGRESS, ON_HOLD, COMPLETED, CANCELLED)",
+                                "enum": ["NEW", "IN_PROGRESS", "ON_HOLD", "COMPLETED", "CANCELLED"]
+                            }
+                        }
+                    }
+                },
+                "required": ["action", "bot_id"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "_record_todo_work",
+            "description": "Record work progress on a todo item without changing its status. Use this to log incremental progress, intermediate results, or work updates.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "bot_id": {
+                        "type": "string",
+                        "description": "ID of the bot recording the work"
+                    },
+                    "todo_id": {
+                        "type": "string",
+                        "description": "ID of the todo item to record work for"
+                    },
+                    "work_description": {
+                        "type": "string",
+                        "description": "Detailed description of the work performed or progress made"
+                    },
+                    "work_results": {
+                        "type": "string",
+                        "description": "Optional results, output, or findings from the work performed"
+                    }
+                },
+                "required": ["bot_id", "todo_id", "work_description"]
+            }
+        }
+    }
+]
+
+project_manager_tools = {
+    "_manage_todos": "tool_belt.manage_todos",
+    "_manage_projects": "tool_belt.manage_projects",
+    "_record_todo_work": "tool_belt.record_todo_work"
+}
+
+tools_data.append(
+    (
+        "project_manager_tools",
+        "Tools for managing projects and their todo items including creating, updating, changing status and listing both projects and todos",
+    )
+)
+
+git_file_manager_functions = [
+    {
+        "type": "function",
+        "function": {
+            "name": "_git_action",
+            "description": "Manage files in a local Git repository including reading, writing, generating diffs, and committing changes",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "action": {
+                        "type": "string",
+                        "description": """
+                        The action to perform:
+                        - list_files: List all tracked files (optional: path)
+                        - read_file: Read file contents (requires: file_path)
+                        - write_file: Write content to file (requires: file_path, content; optional: commit_message)
+                        - generate_diff: Generate diff between contents (requires: old_content, new_content; optional: context_lines)
+                        - apply_diff: Apply a unified diff to a file (requires: file_path, diff_content; optional: commit_message)
+                        - commit: Commit changes (requires: message)
+                        - get_history: Get commit history (optional: file_path, max_count)
+                        - create_branch: Create new branch (requires: branch_name)
+                        - switch_branch: Switch to branch (requires: branch_name)
+                        - get_branch: Get current branch name
+                        - get_status: Get file status (optional: file_path)
+                        """,
+                        "enum": [
+                            "list_files", "read_file", "write_file", "generate_diff", 
+                            "apply_diff", "commit", "get_history", "create_branch", 
+                            "switch_branch", "get_branch", "get_status"
+                        ]
+                    },
+                    "file_path": {
+                        "type": "string",
+                        "description": "Path to the file within the repository"
+                    },
+                    "content": {
+                        "type": "string",
+                        "description": "Content to write to the file"
+                    },
+                    "commit_message": {
+                        "type": "string",
+                        "description": "Message to use when committing changes"
+                    },
+                    "old_content": {
+                        "type": "string",
+                        "description": "Original content for generating diff"
+                    },
+                    "new_content": {
+                        "type": "string",
+                        "description": "New content for generating diff"
+                    },
+                    "diff_content": {
+                        "type": "string",
+                        "description": "Unified diff content to apply to a file"
+                    },
+                    "branch_name": {
+                        "type": "string",
+                        "description": "Name of the branch to create or switch to"
+                    },
+                    "path": {
+                        "type": "string",
+                        "description": "Optional path filter for listing files"
+                    },
+                    "max_count": {
+                        "type": "integer",
+                        "description": "Maximum number of history entries to return",
+                        "default": 10
+                    },
+                    "context_lines": {
+                        "type": "integer",
+                        "description": "Number of context lines in generated diffs",
+                        "default": 3
+                    }
+                },
+                "required": ["action"]
+            }
+        }
+    }
+]
+
+git_file_manager_tools = {
+    "_git_action": "tool_belt.git_action"
+}
+
+tools_data.append(
+    (
+        "git_file_manager_tools",
+        "Tools for managing files in a local Git repository including reading, writing, generating and applying diffs, and managing commits"
+    )
+)
+

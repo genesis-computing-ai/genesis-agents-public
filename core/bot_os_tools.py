@@ -70,7 +70,6 @@ from core.bot_os_tool_descriptions import process_runner_tools
 
 from core.bot_os_artifacts import lookup_artifact_markdown, get_artifacts_store, ARTIFACT_ID_REGEX
 
-
 # import sys
 # sys.path.append('/Users/mglickman/helloworld/bot_os')  # Adjust the path as necessary
 
@@ -80,12 +79,18 @@ from core.bot_os_tool_descriptions import (
     process_runner_tools,
     webpage_downloader_functions,
     webpage_downloader_tools,
-    data_dev_tools_functions,  # Add this line
+    data_dev_tools_functions, 
     data_dev_tools,  #
+    PROJECT_MANAGER_FUNCTIONS,  
+    project_manager_tools,  
+    git_file_manager_functions, 
+    git_file_manager_tools,  
 )
 from core.bot_os_llm import BotLlmEngineEnum
 
 from core.logging_config import logger
+from core.bot_os_project_manager import ProjectManager
+from core.file_diff_handler import GitFileManager 
 
 genesis_source = os.getenv("GENESIS_SOURCE", default="Snowflake")
 
@@ -114,9 +119,46 @@ class ToolBelt:
         belts = belts + 1
         self.process_id = {}
         self.include_code = False
+        self.todos = ProjectManager(db_adapter)  # Initialize Todos instance
+        self.git_manager = GitFileManager()
 
         self.sys_default_email = self.get_sys_email()
    #     logger.info(belts)
+
+    def manage_todos(self, action, bot_id, todo_id=None, todo_details=None, thread_id=None):
+        """
+        Manages todos through various actions (CREATE, UPDATE, CHANGE_STATUS, LIST)
+        """
+        return self.todos.manage_todos(action=action, bot_id=bot_id, todo_id=todo_id, 
+                                     todo_details=todo_details, thread_id=thread_id)
+
+    def manage_projects(self, action, bot_id, project_id=None, project_details=None, thread_id=None):
+        """
+        Manages projects through various actions (CREATE, UPDATE, CHANGE_STATUS, LIST)
+        """
+        return self.todos.manage_projects(action=action, bot_id=bot_id, project_id=project_id,
+                                        project_details=project_details, thread_id=thread_id)
+
+    def record_todo_work(self, bot_id, todo_id, work_description, work_details=None, work_results=None, thread_id=None):
+        """
+        Records work progress on a todo item without changing its status
+        """
+        return self.todos.record_work(bot_id=bot_id, todo_id=todo_id, work_description=work_description,
+                                    work_results=work_results, thread_id=thread_id)
+
+
+    def git_action(self, action, **kwargs):
+        """
+        Wrapper for Git file management operations
+        
+        Args:
+            action: The git action to perform (list_files, read_file, write_file, etc.)
+            **kwargs: Additional arguments needed for the specific action
+        
+        Returns:
+            Dict containing operation result and any relevant data
+        """
+        return self.git_manager.git_action(action, **kwargs)
 
     # Function to make HTTP request and get the entire content
     def get_webpage_content(self, url):
@@ -2606,7 +2648,10 @@ def get_tools(which_tools, db_adapter, slack_adapter_local=None, include_slack=T
         elif tool_name == "data_dev_tools":
             tools.extend(data_dev_tools_functions)
             available_functions_load.update(data_dev_tools)
-            function_to_tool_map[tool_name] = data_dev_tools_functions
+        elif tool_name == "project_manager_tools" or tool_name == "todo_manager_tools":
+            tools.extend(PROJECT_MANAGER_FUNCTIONS)
+            available_functions_load.update(project_manager_tools)
+            function_to_tool_map[tool_name] = PROJECT_MANAGER_FUNCTIONS
         elif include_slack and tool_name == "slack_tools":
             tools.extend(slack_tools_descriptions)
             available_functions_load.update(slack_tools)
@@ -2663,6 +2708,10 @@ def get_tools(which_tools, db_adapter, slack_adapter_local=None, include_slack=T
             tools.extend(notebook_manager_functions)
             available_functions_load.update(notebook_manager_tools)
             function_to_tool_map[tool_name] = notebook_manager_functions
+        elif tool_name == "git_file_manager_tools":  # Add this section
+            tools.extend(git_file_manager_functions)
+            available_functions_load.update(git_file_manager_tools)
+            function_to_tool_map[tool_name] = git_file_manager_functions
         elif tool_name == "webpage_downloader":
             tools.extend(webpage_downloader_functions)
             available_functions_load.update(webpage_downloader_tools)
@@ -2892,3 +2941,5 @@ def make_session_for_dispatch(bot_config):
     #                       input_adapter=slack_adapter_local))
 
     return session  # , api_app_id, udf_adapter_local, slack_adapter_local
+
+

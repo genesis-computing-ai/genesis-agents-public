@@ -674,9 +674,9 @@ def create_sessions(
  #       if bot_config.get("bot_name") != 'Janice 2.0':
  #           continue
         if os.getenv("TEST_MODE", "false").lower() == "true":
-            if bot_config.get("bot_name") != os.getenv("TEAMS_BOT", ""):
+            if bot_config.get("bot_name") != os.getenv("TEST_BOT", ""):
                 print("()()()()()()()()()()()()()()()")
-                print(f"Test Mode skipping bot {bot_config.get('bot_name')} except ",os.getenv("TEAMS_BOT", ""))
+                print(f"Test Mode skipping bot {bot_config.get('bot_name')} except ",os.getenv("TEST_BOT", ""))
                 print("()()()()()()()()()()()()()()()")
                 continue
         # JL TEMP REMOVE

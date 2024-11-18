@@ -349,7 +349,7 @@ PROJECT_MANAGER_FUNCTIONS = [
         "type": "function",
         "function": {
             "name": "_manage_todos",
-            "description": "Manage todo items within projects with various actions like creating, updating, changing status, and listing todos",
+            "description": "Manage todo items with various actions.  When creating Todos try to include any dependencies on other todos where they exist, it is important to track those to make sure todos are done in the correct order.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -368,7 +368,7 @@ PROJECT_MANAGER_FUNCTIONS = [
                     },
                     "todo_details": {
                         "type": "object",
-                        "description": "Details for the todo item",
+                        "description": "Details for the todo item. For CREATE: requires project_id, todo_name, what_to_do, depends_on. For CHANGE_STATUS: requires only new_status.",
                         "properties": {
                             "project_id": {
                                 "type": "string",
@@ -376,19 +376,26 @@ PROJECT_MANAGER_FUNCTIONS = [
                             },
                             "todo_name": {
                                 "type": "string",
-                                "description": "Name/title of the todo item"
+                                "description": "Name of the todo item"
                             },
                             "what_to_do": {
                                 "type": "string",
-                                "description": "Detailed description of what needs to be done"
+                                "description": "Description of what needs to be done"
                             },
                             "assigned_to_bot_id": {
                                 "type": "string",
-                                "description": "ID of the bot the todo is assigned to"
+                                "description": "ID of the bot assigned to this todo"
+                            },
+                            "depends_on": {
+                                "type": ["string", "array", "null"],
+                                "description": "ID or array of IDs of todos that this todo depends on",
+                                "items": {
+                                    "type": "string"
+                                }
                             },
                             "new_status": {
                                 "type": "string",
-                                "description": "New status for the todo item (NEW, IN_PROGRESS, ON_HOLD, COMPLETED, CANCELLED)",
+                                "description": "New status for the todo (required for CHANGE_STATUS)",
                                 "enum": ["NEW", "IN_PROGRESS", "ON_HOLD", "COMPLETED", "CANCELLED"]
                             }
                         }
@@ -426,13 +433,138 @@ PROJECT_MANAGER_FUNCTIONS = [
                 "required": ["bot_id", "todo_id", "work_description"]
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "_manage_todo_dependencies",
+            "description": "Manage dependencies between todo items, allowing you to specify that one todo must be completed before another can start",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "action": {
+                        "type": "string",
+                        "description": "Action to perform (ADD or REMOVE)",
+                        "enum": ["ADD", "REMOVE"]
+                    },
+                    "bot_id": {
+                        "type": "string",
+                        "description": "ID of the bot performing the action"
+                    },
+                    "todo_id": {
+                        "type": "string",
+                        "description": "ID of the todo that has the dependency"
+                    },
+                    "depends_on_todo_id": {
+                        "type": "string",
+                        "description": "ID of the todo that needs to be completed first"
+                    }
+                },
+                "required": ["action", "bot_id", "todo_id", "depends_on_todo_id"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "_get_project_todos",
+            "description": "Get all todos associated with a specific project",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "bot_id": {
+                        "type": "string",
+                        "description": "ID of the bot requesting the todos"
+                    },
+                    "project_id": {
+                        "type": "string",
+                        "description": "ID of the project to get todos for"
+                    }
+                },
+                "required": ["bot_id", "project_id"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "_get_todo_dependencies",
+            "description": "Get all dependencies for a specific todo item",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "bot_id": {
+                        "type": "string",
+                        "description": "ID of the bot requesting the dependencies"
+                    },
+                    "todo_id": {
+                        "type": "string",
+                        "description": "ID of the todo to get dependencies for"
+                    },
+                    "include_reverse": {
+                        "type": "boolean",
+                        "description": "If true, also include todos that depend on this todo",
+                        "default": False
+                    }
+                },
+                "required": ["bot_id", "todo_id"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "_manage_project_assets",
+            "description": "Manage project assets including their descriptions and locations in the git system",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "action": {
+                        "type": "string",
+                        "description": "Action to perform (CREATE, UPDATE, DELETE, LIST)",
+                        "enum": ["CREATE", "UPDATE", "DELETE", "LIST"]
+                    },
+                    "bot_id": {
+                        "type": "string",
+                        "description": "ID of the bot performing the action"
+                    },
+                    "project_id": {
+                        "type": "string",
+                        "description": "ID of the project the asset belongs to"
+                    },
+                    "asset_id": {
+                        "type": "string",
+                        "description": "ID of the asset (required for UPDATE and DELETE actions)"
+                    },
+                    "asset_details": {
+                        "type": "object",
+                        "description": "Details for the asset (required for CREATE and UPDATE actions)",
+                        "properties": {
+                            "description": {
+                                "type": "string",
+                                "description": "Description of what the asset is for"
+                            },
+                            "git_path": {
+                                "type": "string",
+                                "description": "Path to the asset's location in the git system"
+                            }
+                        }
+                    }
+                },
+                "required": ["action", "bot_id", "project_id"]
+            }
+        }
     }
 ]
 
 project_manager_tools = {
     "_manage_todos": "tool_belt.manage_todos",
     "_manage_projects": "tool_belt.manage_projects",
-    "_record_todo_work": "tool_belt.record_todo_work"
+    "_record_todo_work": "tool_belt.record_todo_work",
+    "_manage_todo_dependencies": "tool_belt.manage_todo_dependencies",
+    "_get_project_todos": "tool_belt.get_project_todos",
+    "_get_todo_dependencies": "tool_belt.get_todo_dependencies",
+    "_manage_project_assets": "tool_belt.manage_project_assets"
 }
 
 tools_data.append(

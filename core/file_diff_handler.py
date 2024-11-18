@@ -22,8 +22,8 @@ class GitFileManager:
         """List all tracked files in the repository or specific path"""
         if path:
             full_path = os.path.join(self.repo_path, path)
-            return [item.path for item in self.repo.index.entries if item.path.startswith(path)]
-        return [item.path for item in self.repo.index.entries]
+            return [str(item[0]) for item in self.repo.index.entries.keys() if str(item[0]).startswith(path)]
+        return [str(item[0]) for item in self.repo.index.entries.keys()]
 
     def read_file(self, file_path: str) -> str:
         """Read contents of a file from the repository"""

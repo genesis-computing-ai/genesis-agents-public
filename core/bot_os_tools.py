@@ -146,6 +146,82 @@ class ToolBelt:
         return self.todos.record_work(bot_id=bot_id, todo_id=todo_id, work_description=work_description,
                                     work_results=work_results, thread_id=thread_id)
 
+    def get_project_todos(self, bot_id, project_id, thread_id=None):
+        """
+        Gets all todos for a specific project
+        
+        Args:
+            bot_id (str): The ID of the bot requesting the todos
+            project_id (str): The ID of the project
+            thread_id (str, optional): Thread ID for tracking
+        
+        Returns:
+            dict: Result containing todos or error message
+        """
+        return self.todos.get_project_todos(bot_id=bot_id, project_id=project_id)
+
+    def get_todo_dependencies(self, bot_id, todo_id, include_reverse=False, thread_id=None):
+        """
+        Gets dependencies for a specific todo
+        
+        Args:
+            bot_id (str): The ID of the bot requesting the dependencies
+            todo_id (str): The ID of the todo
+            include_reverse (bool): If True, also include todos that depend on this todo
+            thread_id (str, optional): Thread ID for tracking
+        
+        Returns:
+            dict: Result containing dependencies or error message
+        """
+        return self.todos.get_todo_dependencies(bot_id=bot_id, todo_id=todo_id, include_reverse=include_reverse)
+
+    def manage_todo_dependencies(self, action, bot_id, todo_id, depends_on_todo_id=None, thread_id=None):
+        """
+        Manages todo dependencies (add/remove)
+        
+        Args:
+            action (str): ADD or REMOVE dependency
+            bot_id (str): The ID of the bot performing the action
+            todo_id (str): The ID of the todo that has the dependency
+            depends_on_todo_id (str): The ID of the todo that needs to be completed first
+            thread_id (str, optional): Thread ID for tracking
+        
+        Returns:
+            dict: Result of the operation
+        """
+        return self.todos.manage_todo_dependencies(
+            action=action,
+            bot_id=bot_id,
+            todo_id=todo_id,
+            depends_on_todo_id=depends_on_todo_id
+        )
+
+    def manage_project_assets(self, action, bot_id, project_id, asset_id=None, asset_details=None, thread_id=None):
+        """
+        Manages project assets through various actions (CREATE, UPDATE, DELETE, LIST)
+        
+        Args:
+            action (str): The action to perform (CREATE, UPDATE, DELETE, LIST)
+            bot_id (str): The ID of the bot performing the action
+            project_id (str): The ID of the project the asset belongs to
+            asset_id (str, optional): The ID of the asset for updates/deletes
+            asset_details (dict, optional): Details for creating/updating an asset
+                {
+                    "description": str,
+                    "git_path": str
+                }
+            thread_id (str, optional): Thread ID for tracking
+        
+        Returns:
+            dict: Result containing operation status and any relevant data
+        """
+        return self.todos.manage_project_assets(
+            action=action,
+            bot_id=bot_id,
+            project_id=project_id,
+            asset_id=asset_id,
+            asset_details=asset_details
+        )
 
     def git_action(self, action, **kwargs):
         """

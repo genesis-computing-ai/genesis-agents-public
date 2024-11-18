@@ -64,7 +64,7 @@ os.environ['TASK_MODE'] = 'true'
 os.environ['SHOW_COST'] = 'false'
 ########################################
 
-logger.info("****** GENBOT VERSION 0.185 *******")
+logger.info("****** GENBOT VERSION 0.202 *******")
 logger.info("****** TASK AUTOMATION SERVER *******")
 runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
 logger.info("Runner ID: ", runner_id)
@@ -140,7 +140,7 @@ def insert_task_history(
         """
         insert_query = f"""
             INSERT INTO {self.schema}.TASK_HISTORY (
-                task_id, work_done_summary, task_status, updated_task_learnings, 
+                task_id, work_done_summary, task_status, updated_task_learnings,
                 report_message, done_flag, needs_help_flag, task_clarity_comments
             ) VALUES (
                 %s, %s, %s, %s, %s, %s, %s, %s
@@ -1012,7 +1012,7 @@ def generate_task_prompt(bot_id, task):
     Reporting instructions:
     {task_details['reporting_instructions']}
 
-    The user who gave you this task is: 
+    The user who gave you this task is:
     {task_details['primary_report_to_type']}: {task_details['primary_report_to_id']}
 
     Here is the last status you noted the last time you ran this task:
@@ -1026,11 +1026,11 @@ def generate_task_prompt(bot_id, task):
 
     Here is the current server time:
     {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-    
+
     Use the process runner tool to run the process named above and follow the instructions that it gives you. Call mulitple tools if needed to complete the task.
-    Do NOT create a new process, or a new schedule for an existing process. You are to execute the steps described above for this existing task. 
+    Do NOT create a new process, or a new schedule for an existing process. You are to execute the steps described above for this existing task.
     If you send an email or a slack direct message or slack channel message as part of the task, include at the end of the message and the user they can ask you about this scheduled process for more details: \n[This messages is from Genesis bot {bot_id} running process:{task_details['task_name']} on schedule_id:{task_details['task_id']}]
-    Do not call process_scheduler while performing this work. Only generate an image if specifically told to. 
+    Do not call process_scheduler while performing this work. Only generate an image if specifically told to.
     When you are DONE with this task and have FULLY completed it, return only a JSON document with these items, no other text:
 
     {{
@@ -1042,9 +1042,9 @@ def generate_task_prompt(bot_id, task):
         "needs_help_flag": <true if you need help from the administrator, are encountering repeated errors, etc., false if assistance is not needed before the next task run>,
         "task_clarity_comments": <state any problems you are having running the task, or any help you need, errors youre getting. omit this if task is clear and working properly>
         "next_run_time": <date_timestamp for when to run this task next in %Y-%m-%d %H:%M:%S format. Figure this out based on the information above. Omit this parameter if stop_task_flag is TRUE>
-    }} 
+    }}
 
-    If you respond back with anything other than a JSON document like the above, I will simply remind you of the required response format, as this thread is being supervised by an unattended runner. 
+    If you respond back with anything other than a JSON document like the above, I will simply remind you of the required response format, as this thread is being supervised by an unattended runner.
     Reminder: do not include any other text with your response, just the JSON document.
     """
 
@@ -1625,7 +1625,7 @@ def find_replace_updated_bot_service(bot_id):
         SELECT bs.*
         FROM {db_adapter.schema}.bot_servicing bs
         LEFT JOIN {db_adapter.schema}.bot_servicing_backup bsb
-        ON bs.bot_id = bsb.bot_id  
+        ON bs.bot_id = bsb.bot_id
         WHERE bs.bot_id = %s
         AND (bs.bot_instructions != bsb.bot_instructions
         OR bs.available_tools != bsb.available_tools

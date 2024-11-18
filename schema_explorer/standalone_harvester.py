@@ -11,7 +11,7 @@ from connectors.bigquery_connector import BigQueryConnector
 from connectors.snowflake_connector.snowflake_connector import SnowflakeConnector
 from connectors.sqlite_connector import SqliteConnector
 from schema_explorer import SchemaExplorer
-from core.bot_os_llm import LLMKeyHandler 
+from core.bot_os_llm import LLMKeyHandler
 #import schema_explorer.embeddings_index_handler as embeddings_handler
 from core.logging_config import logger
 genesis_source = os.getenv('GENESIS_SOURCE',default="BigQuery")
@@ -32,19 +32,19 @@ if genesis_source == 'BigQuery':
     # Initialize BigQuery client
     harvester_db_connector = BigQueryConnector(connection_info,'BigQuery')
 elif genesis_source ==  'Sqlite':
-    harvester_db_connector = SqliteConnector(connection_name='Sqlite') 
+    harvester_db_connector = SqliteConnector(connection_name='Sqlite')
 elif genesis_source == 'Snowflake':    # Initialize BigQuery client
     harvester_db_connector = SnowflakeConnector(connection_name='Snowflake')
 else:
     raise ValueError('Invalid Source')
 
-# from core.bot_os_llm import LLMKeyHandler 
+# from core.bot_os_llm import LLMKeyHandler
 # llm_key_handler = LLMKeyHandler()
 logger.info('Getting LLM API Key...')
 # api_key_from_env, llm_api_key = llm_key_handler.get_llm_key_from_db()
 
 def get_llm_api_key(db_adapter):
-    from core.bot_os_llm import LLMKeyHandler 
+    from core.bot_os_llm import LLMKeyHandler
     logger.info('Getting LLM API Key...')
     api_key_from_env = False
     llm_type = os.getenv("BOT_OS_DEFAULT_LLM_ENGINE", "openai")
@@ -87,7 +87,7 @@ def get_llm_api_key(db_adapter):
         if i > 100:
             c += 1
             logger.info(f'Waiting on LLM key... (cycle {c})')
-            i = 0 
+            i = 0
         # llm_type = None
         llm_key_handler = LLMKeyHandler(db_adapter)
         logger.info('Getting LLM API Key...')
@@ -99,7 +99,7 @@ def get_llm_api_key(db_adapter):
             time.sleep(180)
         else:
             logger.info(f"Using {llm_type} for harvester ")
-        
+
     return llm_api_key_struct
 
 llm_api_key_struct = get_llm_api_key(harvester_db_connector)
@@ -114,7 +114,7 @@ harvester_db_connector.ensure_table_exists()
 schema_explorer = SchemaExplorer(harvester_db_connector,llm_api_key_struct.llm_key)
 
 # Now, you can call methods on your schema_ex
-# 
+#
 #databases = bigquery_connector.get_databases()
 # print all databases
 #logger.info("Databases:", databases)
@@ -138,7 +138,7 @@ def update_harvest_control_with_new_databases(connector):
                 schema_exclusions.append(internal_sch)
                 schema_exclusions.append('CORE')
                 schema_exclusions.append('APP')
-                
+
             connector.set_harvest_control_data(
                 source_name='Snowflake',
                 database_name=db,
@@ -169,7 +169,7 @@ logger.info("   ╱         ╲   ")
 logger.info("  G E N E S I S ")
 logger.info("    B o t O S")
 logger.info(" ---- HARVESTER----")
-logger.info('Harvester Start Version 0.185')
+logger.info('****** GENBOT VERSION 0.202 *******')
 
 
 while True:
@@ -177,7 +177,7 @@ while True:
     if genesis_source == 'Snowflake' and os.getenv('AUTO_HARVEST', 'TRUE').upper() == 'TRUE':
         logger.info('Checking for any newly granted databases to add to harvest...')
         update_harvest_control_with_new_databases(harvester_db_connector)
-    
+
     logger.info(f"Checking for new tables... (once per {refresh_seconds} seconds)")
  #   sys.stdout.write(f"Checking for new tables... (once per {refresh_seconds} seconds)...\n")
  #   sys.stdout.flush()
@@ -188,7 +188,7 @@ while True:
     api_key_from_env, latest_llm_api_key_struct = llm_key_handler.get_llm_key_from_db(harvester_db_connector)
     if latest_llm_api_key_struct.llm_type != llm_api_key_struct.llm_type:
         logger.info(f"Now using {latest_llm_api_key_struct.llm_type} instead of {llm_api_key_struct.llm_type} for harvester ")
-        
+
     schema_explorer.explore_and_summarize_tables_parallel()
     #logger.info("Checking Cached Annoy Index")
   #  logger.info(f"Checking for new semantic models... (once per {refresh_seconds} seconds)")

@@ -7,7 +7,7 @@ import sys
 from openai import OpenAI
 from datetime import datetime, timedelta
 import ast
-from llm_openai.openai_utils import get_openai_client 
+from llm_openai.openai_utils import get_openai_client
 import pandas as pd
 import re
 import traceback
@@ -29,7 +29,7 @@ print("   ╱         ╲   ")
 print("  G E N E S I S ")
 print("    B o t O S")
 print(" ---- KNOWLEDGE SERVER----")
-print('Knowledge Start Version 0.185',flush=True)
+print('****** GENBOT VERSION 0.202 *******',flush=True)
 
 
 
@@ -51,7 +51,7 @@ class KnowledgeServer:
         self.llm_type = llm_type.lower()
         if llm_type == 'openai':
             self.openai_api_key = os.getenv("OPENAI_API_KEY")
-            self.client = get_openai_client() 
+            self.client = get_openai_client()
             self.model = os.getenv("OPENAI_KNOWLEDGE_MODEL", os.getenv('OPENAI_MODEL_NAME',"gpt-4o"))
             self.assistant = self.client.beta.assistants.create(
                 name="Knowledge Explorer",
@@ -62,7 +62,7 @@ class KnowledgeServer:
 
     def producer(self):
         while True:
-  
+
             # join inside snowflake
             cutoff = (datetime.now() - timedelta(minutes=10)).strftime("%Y-%m-%d %H:%M:%S")
             threads = self.db_connector.query_threads_message_log(cutoff)
@@ -74,7 +74,7 @@ class KnowledgeServer:
                         self.thread_set.add(thread_id)
                     else:
                         continue
-                
+
                 with self.condition:
                     if self.thread_queue.full():
                         logger.info("Queue is full, producer is waiting...")
@@ -125,11 +125,11 @@ class KnowledgeServer:
             msg_log = self.db_connector.query_timestamp_message_log(thread_id, last_timestamp, max_rows=50)
 
             non_bot_users_query = f"""
-                WITH BOTS AS (SELECT BOT_SLACK_USER_ID, 
-                    CONCAT('{{"user_id": "', BOT_SLACK_USER_ID, '", "user_name": "', BOT_NAME, '", "user_email": "Unknown Email"}}') as PRIMARY_USER 
+                WITH BOTS AS (SELECT BOT_SLACK_USER_ID,
+                    CONCAT('{{"user_id": "', BOT_SLACK_USER_ID, '", "user_name": "', BOT_NAME, '", "user_email": "Unknown Email"}}') as PRIMARY_USER
                     FROM  {self.db_connector.bot_servicing_table_name}),
-                    BOTS2 AS (SELECT BOT_SLACK_USER_ID, 
-                    CONCAT('{{"user_id": "', BOT_SLACK_USER_ID, '", "user_name": "', BOT_NAME, '"}}') as PRIMARY_USER 
+                    BOTS2 AS (SELECT BOT_SLACK_USER_ID,
+                    CONCAT('{{"user_id": "', BOT_SLACK_USER_ID, '", "user_name": "', BOT_NAME, '"}}') as PRIMARY_USER
                     FROM  {self.db_connector.bot_servicing_table_name})
                 SELECT count(DISTINCT M.PRIMARY_USER) as CNT FROM {self.db_connector.message_log_table_name} M
                 LEFT JOIN BOTS ON M.PRIMARY_USER = BOTS.PRIMARY_USER
@@ -140,16 +140,16 @@ class KnowledgeServer:
                 """
                 # this is needed to exclude channels with more than one user
             count_non_bot_users = self.db_connector.run_query(non_bot_users_query)
-                
+
             skipped_thread = False
             if count_non_bot_users and count_non_bot_users[0]["CNT"] != 1:
                 logger.info(f"Skipped {thread_id}, {count_non_bot_users[0]['CNT']} non-bot-users is not 1")
-                response = {'thread_summary': 'Skipped due to empty or multiple non-bot-users', 
+                response = {'thread_summary': 'Skipped due to empty or multiple non-bot-users',
                             'user_learning' : 'Skipped due to empty or multiple non-bot-users',
                             'tool_learning' : 'Skipped due to empty or multiple non-bot-users',
                             'data_learning' : 'Skipped due to empty or multiple non-bot-users'}
                 skipped_thread = True
-                
+
             else:
                 messages = [f"{msg['MESSAGE_TYPE']}: {msg['MESSAGE_PAYLOAD']}" for msg in msg_log if "'EMBEDDING': " not in msg['MESSAGE_PAYLOAD']]
                 messages = "\n".join(messages)[:200_000] # limit to 200k char for now
@@ -175,15 +175,15 @@ class KnowledgeServer:
                     content = f"""Given the following conversations between the user and agent, analyze them and extract the 4 requested information:
                                 Conversation:
                                 {messages}
-                                
+
                                 Requested information:
-                                - thread_summary: Extract summary of the conversation                                                       
-                                - user_learning: Extract what you learned about this user, their preferences, and interests                            
+                                - thread_summary: Extract summary of the conversation
+                                - user_learning: Extract what you learned about this user, their preferences, and interests
                                 - tool_learning: For any tools you called in this thread, what did you learn about how to best use them or call them
-                                - data_learning: For any data you analyzed, what did you learn about the data that was not obvious from the metadata that you were provided by search_metadata.                             
+                                - data_learning: For any data you analyzed, what did you learn about the data that was not obvious from the metadata that you were provided by search_metadata.
 
                                 Expected output in JSON:
-                                {{'thread_summary': STRING, 
+                                {{'thread_summary': STRING,
                                 'user_learning': STRING,
                                 'tool_learning': STRING,
                                 'data_learning': STRING}}
@@ -211,11 +211,11 @@ class KnowledgeServer:
                         .content[0]
                         .text.value
                     )
-                    try:                
+                    try:
                         response = json.loads(raw_knowledge)
                     except:
                         logger.info('Skipped thread ',knowledge_thread_id,' knowledge unparseable')
-                        response = {'thread_summary': 'Skipped due to invalid summary generated by LLM', 
+                        response = {'thread_summary': 'Skipped due to invalid summary generated by LLM',
                             'user_learning' : 'Skipped due to invalid summary generated by LLM',
                             'tool_learning' : 'Skipped due to invalid summary generated by LLM',
                             'data_learning' : 'Skipped due to invalid summary generated by LLM'}
@@ -224,13 +224,13 @@ class KnowledgeServer:
                     system = "You are a Knowledge Explorer to extract, synthesize, and inject knowledge that bots learn from doing their jobs"
                     res, status_code  = self.db_connector.cortex_chat_completion(content, system=system)
                     response = ast.literal_eval(res.split("```")[1])
-                
-                
+
+
 
             try:
                 if response is not None:
                     # Ensure the timestamp is in the correct format for Snowflake
-                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")                    
+                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     if type(msg_log[-1]["TIMESTAMP"]) != str:
                         last_timestamp = msg_log[-1]["TIMESTAMP"].strftime("%Y-%m-%d %H:%M:%S")
                     else:
@@ -250,7 +250,7 @@ class KnowledgeServer:
             except Exception as e:
                 logger.info(f"Encountered errors processing knowledge for thread {thread_id}, {self.db_connector.knowledge_table_name} row: {e}")
                 logger.info(traceback.format_exc())
-            
+
             with self.thread_set_lock:
                 self.thread_set.remove(thread_id)
                 logger.info(f"Consumed {thread_id}")
@@ -279,7 +279,7 @@ class KnowledgeServer:
                 user_query = user_json['user_email']
             else:
                 user_query = user_json.get('user_id', 'Unknown User ID')
-                
+
             query = f"""SELECT * FROM {self.db_connector.user_bot_table_name}
                         WHERE primary_user = '{user_query}' AND BOT_ID = '{bot_id}'
                         ORDER BY TIMESTAMP DESC
@@ -323,13 +323,13 @@ class KnowledgeServer:
                 else:
                     system = f"Use the following raw knowledge information about the interaction of the user and the bot, \
                                     summarize what we learned about the {prompt} in bullet point."
-                    response, status_code  = self.db_connector.cortex_chat_completion(content, system=system)                    
+                    response, status_code  = self.db_connector.cortex_chat_completion(content, system=system)
                     new_knowledge[item] = response
 
 
             try:
-                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")                
-                self.db_connector.run_insert(self.db_connector.user_bot_table_name, timestamp=timestamp, primary_user=user_query, bot_id=bot_id,                
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                self.db_connector.run_insert(self.db_connector.user_bot_table_name, timestamp=timestamp, primary_user=user_query, bot_id=bot_id,
                                               user_learning=new_knowledge["USER_LEARNING"],tool_learning=new_knowledge["TOOL_LEARNING"],
                                               data_learning=new_knowledge["DATA_LEARNING"])
             except Exception as e:
@@ -338,11 +338,11 @@ class KnowledgeServer:
 
 
     def tool_knowledge(self):
-        while True:            
+        while True:
             cutoff = (datetime.now() - timedelta(minutes=10)).strftime("%Y-%m-%d %H:%M:%S")
             query = f"""
                     WITH K AS (SELECT COALESCE(max(last_timestamp),  DATE('2000-01-01')) as last_timestamp FROM {self.db_connector.tool_knowledge_table_name})
-                    SELECT * FROM {self.db_connector.message_log_table_name}, K           
+                    SELECT * FROM {self.db_connector.message_log_table_name}, K
                     WHERE timestamp > K.last_timestamp AND timestamp < TO_TIMESTAMP('{cutoff}')
                     AND MESSAGE_TYPE LIKE 'Tool%'
                     ORDER by timestamp;
@@ -367,15 +367,15 @@ class KnowledgeServer:
                         if bot_id is None: continue
                         groups.setdefault((bot_id, function_name), [])
                         groups[(bot_id, function_name)].append(f'{function_params}:\n\n' + row['MESSAGE_PAYLOAD'][:200])
-                
+
                 for (bot_id, function_name), function_content in groups.items():
-                    if function_content:                
+                    if function_content:
                         messages = '\n\n'.join(function_content)
                         system = 'Given the following outputs from a tool call summerize how this tool is used for future reference'
                         content = f"""
                                     Function Name:
                                     {function_name}
-                                    
+
                                     Function Outputs:
                                     {messages}
                                 """
@@ -387,20 +387,20 @@ class KnowledgeServer:
                             )
                             response = response.choices[0].message.content
                         else:
-                            response, status_code  = self.db_connector.cortex_chat_completion(content, system=system)                    
-                        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")                
-                        self.db_connector.run_insert(self.db_connector.tool_knowledge_table_name, timestamp=timestamp, 
+                            response, status_code  = self.db_connector.cortex_chat_completion(content, system=system)
+                        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        self.db_connector.run_insert(self.db_connector.tool_knowledge_table_name, timestamp=timestamp,
                                                     last_timestamp=last_timestamp, bot_id=bot_id, tool = function_name, summary=response)
             else:
                 logger.info(f"Pausing Tool Knowledge for {refresh_seconds} seconds before next check.")
                 time.sleep(refresh_seconds)
 
     def data_knowledge(self):
-        while True:            
+        while True:
             cutoff = (datetime.now() - timedelta(minutes=10)).strftime("%Y-%m-%d %H:%M:%S")
             query = f"""
                     WITH K AS (SELECT COALESCE(max(last_timestamp),  DATE('2000-01-01')) as last_timestamp FROM {self.db_connector.data_knowledge_table_name})
-                    SELECT * FROM {self.db_connector.message_log_table_name}, K           
+                    SELECT * FROM {self.db_connector.message_log_table_name}, K
                     WHERE timestamp > K.last_timestamp AND timestamp < TO_TIMESTAMP('{cutoff}')
                     AND MESSAGE_TYPE LIKE 'Tool%'
                     ORDER by timestamp;
@@ -412,7 +412,7 @@ class KnowledgeServer:
                 bot_id = None
                 for row in tools:
                     if row['MESSAGE_TYPE'] == 'Tool Call':
-                        if 'run_query' not in row['MESSAGE_PAYLOAD']:                            
+                        if 'run_query' not in row['MESSAGE_PAYLOAD']:
                             continue
                         func_args = str(json.loads(row['MESSAGE_METADATA'])['func_args'])
                         dataset = re.findall('from (.+?) ', func_args.lower().replace('\\','',))
@@ -426,15 +426,15 @@ class KnowledgeServer:
                         if bot_id is None: continue
                         groups.setdefault((bot_id, dataset), [])
                         groups[(bot_id, dataset)].append(f'{func_args}:\n\n' + row['MESSAGE_PAYLOAD'][:200])
-                
+
                 for (bot_id, dataset), function_content in groups.items():
-                    if function_content:                
+                    if function_content:
                         messages = '\n\n'.join(function_content)
                         system = 'Given the following outputs from a database call summerize how this table is used for future reference'
                         content = f"""
                                     Dataset Name:
                                     {dataset}
-                                    
+
                                     Query Outputs:
                                     {messages}
                                 """
@@ -446,9 +446,9 @@ class KnowledgeServer:
                             )
                             response = response.choices[0].message.content
                         else:
-                            response, status_code  = self.db_connector.cortex_chat_completion(content, system=system)                    
-                        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")                
-                        self.db_connector.run_insert(self.db_connector.data_knowledge_table_name, timestamp=timestamp, 
+                            response, status_code  = self.db_connector.cortex_chat_completion(content, system=system)
+                        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        self.db_connector.run_insert(self.db_connector.data_knowledge_table_name, timestamp=timestamp,
                                                     last_timestamp=last_timestamp, bot_id=bot_id, dataset = dataset, summary=response)
             else:
                 logger.info(f"Pausing Data Knowledge for {refresh_seconds} seconds before next check.")

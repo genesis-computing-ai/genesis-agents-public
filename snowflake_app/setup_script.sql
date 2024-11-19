@@ -30,7 +30,7 @@ $$
             OPENAI_MODEL_NAME: gpt-4o
             OPENAI_MODEL_SUPERVISOR: gpt-4o
             OPENAI_O1_OVERRIDE_MODEL: o1-preview
-            O1_OVERRIDE_BOT: Armen2-ps73td
+            O1_OVERRIDE_BOT: Janice-dev
             OPENAI_FAST_MODEL_NAME: gpt-4o-mini
             CORTEX_MODEL: llama3.1-405b
             CORTEX_FAST_MODEL_NAME: llama3.1-70b

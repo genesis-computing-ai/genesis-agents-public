@@ -47,15 +47,20 @@ class GitFileManager:
             # Add to git
             self.repo.index.add([file_path])
 
-            # Commit if message provided
+            # Prepare response
+            result = {
+                "success": True,
+                "reminder": "If this file is related to any project, remember to record it as a project asset using _manage_project_assets"
+            }
+
+            # Add commit-specific message if applicable
             if commit_message:
                 self.commit_changes(commit_message)
-                return {"success": True, "message": "File written and changes committed successfully"}
+                result["message"] = "File written and changes committed successfully"
             else:
-                return {
-                    "success": True, 
-                    "message": "File written successfully. Remember to commit changes with git_action('commit', message='your message')"
-                }
+                result["message"] = "File written successfully. Remember to commit changes with git_action('commit', message='your message')"
+
+            return result
         except Exception as e:
             return {"success": False, "error": str(e)}
 

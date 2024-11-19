@@ -49,7 +49,7 @@ else:
 #grant_usage_2 = conn.cursor().execute("call genesis_bots.core.run_arbitrary('grant usage on function genesis_bots.app1.lookup_udf(varchar, varchar) to application role app_public')")
 cursor = conn.cursor()
 
-for test in ['first_test', 'second_test']:
+for test in ['first_test', 'second_test', 'third_test', 'fourth_test']:
     cursor.execute("""
     select genesis_bots.app1.submit_udf('run process """ + test + """', '', '{"bot_id": "Janice"}')
     """)
@@ -67,16 +67,17 @@ for test in ['first_test', 'second_test']:
     attempts = 0
     response_result = None
 
-    while attempts < max_attempts and (response_result is None or response_result[0][-1] == '💬'):
+    while attempts < max_attempts and (response_result is None or response_result[0] == "not found" or response_result[0][-1] == '💬'):
         cursor.execute(f"""
         select genesis_bots.app1.lookup_udf ('{thread_id}', 'Janice')
         """)
 
         response_result = cursor.fetchone()
         response = response_result[0] if response_result else None
+        print(response)
 
         # Check if the response is valid
-        if response_result is not None and response_result[0][-1] != '💬':
+        if response_result is not None and response_result[0] != "not found" and response_result[0][-1] != '💬':
             print("Response is valid")
             print(thread_id)
             print(response)

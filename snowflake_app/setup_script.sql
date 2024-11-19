@@ -307,7 +307,6 @@ CREATE OR REPLACE PROCEDURE CORE.REGISTER_SINGLE_REFERENCE(ref_name STRING, oper
 GRANT USAGE ON PROCEDURE CORE.REGISTER_SINGLE_REFERENCE(STRING, STRING, STRING) TO APPLICATION ROLE APP_PUBLIC;
 
 
-
 CREATE OR REPLACE PROCEDURE core.get_config_for_ref(ref_name STRING)
     RETURNS STRING
     LANGUAGE SQL
@@ -329,7 +328,7 @@ CREATE OR REPLACE PROCEDURE core.get_config_for_ref(ref_name STRING)
           RETURN '{
             "type": "CONFIGURATION",
             "payload":{
-              "host_ports":["api.openai.com"],
+              "host_ports":["api.openai.com", "oaidalleapiprodscus.blob.core.windows.net"],
               "allowed_secrets": "NONE"}}';
         WHEN 'AZURE_OPENAI_EXTERNAL_ACCESS' THEN
           SELECT ENDPOINT || '.openai.azure.com' INTO azure_ep
@@ -368,6 +367,22 @@ CREATE OR REPLACE PROCEDURE core.get_config_for_ref(ref_name STRING)
 
 GRANT USAGE ON PROCEDURE core.get_config_for_ref(string) TO APPLICATION ROLE APP_PUBLIC;
 
+CREATE OR REPLACE PROCEDURE core.get_config_for_secret(ref_name STRING)
+RETURNS STRING
+LANGUAGE SQL
+AS
+$$
+    BEGIN
+      IF (ref_name = 'PRIVATE_KEY_SECRET') THEN
+          -- EXECUTE IMMEDIATE 'CALL CORE.UPGRADE_SERVICES()';
+          RETURN 'SUCCESS';
+      END IF;
+    RETURN '';
+  END;
+  $$;
+
+GRANT USAGE ON PROCEDURE core.get_config_for_secret(string) TO APPLICATION ROLE APP_PUBLIC;
+
 
 
 CREATE OR REPLACE PROCEDURE APP.UPGRADE_APP(INSTANCE_NAME VARCHAR, SERVICE_NAME VARCHAR, UPDATE_HARVEST_METADATA BOOLEAN, APP_NAME VARCHAR, C_POOL_NAME VARCHAR, WAREHOUSE_NAME VARCHAR)
@@ -381,6 +396,7 @@ DECLARE
     harvest_excluded BOOLEAN;
     WH_NAME STRING;
     EAI_LIST STRING;
+    key_secret BOOLEAN;
 BEGIN
     IF (WAREHOUSE_NAME IS NULL) THEN
       WH_NAME := 'APP_XSMALL';
@@ -416,14 +432,48 @@ BEGIN
 
     -- REVOKE USAGE ON FUNCTION APP1.get_artifact(varchar) FROM APPLICATION ROLE APP_PUBLIC;
 
+    BEGIN
+        SELECT
+          CASE
+              WHEN ARRAY_SIZE(PARSE_JSON(SYSTEM$GET_ALL_REFERENCES('private_key_secret'))) > 0
+              THEN TRUE
+              ELSE FALSE
+          END AS has_references INTO key_secret;
+    EXCEPTION
+      WHEN STATEMENT_ERROR THEN
+       key_secret := FALSE;
+    END;
+
+    IF (key_secret = TRUE and SERVICE_NAME = 'GENESISAPP_SERVICE_SERVICE') THEN
+
+      // Add logic to check references for private_key_secret existence.
       LET spec VARCHAR := (
-            SELECT REGEXP_REPLACE(VALUE
-              ,'{{app_db_sch}}',lower(current_database())||'.'||lower(:INSTANCE_NAME)) AS VALUE
-            FROM APP.YAML WHERE NAME=:SERVICE_NAME);
+            SELECT REGEXP_REPLACE(
+              REGEXP_REPLACE(VALUE
+                        ,'{{app_db_sch}}',lower(current_database())||'.'||lower(:INSTANCE_NAME)),
+              '(\\s+image:\\s.+)',
+              '\\1\n        secrets:\n        - snowflakeSecret:\n            objectReference: \'private_key_secret\''
+          ) AS updated_spec
+          FROM APP.YAML
+          WHERE NAME=:SERVICE_NAME and VALUE LIKE '%image:%');
+
         EXECUTE IMMEDIATE
         'ALTER SERVICE IF EXISTS '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
         ' FROM SPECIFICATION  '||chr(36)||chr(36)||'\n'|| :spec ||'\n'||chr(36)||chr(36) ||
         ' ';
+    ELSE
+      LET spec VARCHAR := (
+            SELECT REGEXP_REPLACE(VALUE
+              ,'{{app_db_sch}}',lower(current_database())||'.'||lower(:INSTANCE_NAME)) AS VALUE
+            FROM APP.YAML WHERE NAME=:SERVICE_NAME);
+
+        EXECUTE IMMEDIATE
+        'ALTER SERVICE IF EXISTS '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
+        ' FROM SPECIFICATION  '||chr(36)||chr(36)||'\n'|| :spec ||'\n'||chr(36)||chr(36) ||
+        ' ';
+    END IF;
+
+
 
     CALL CORE.GET_EAI_LIST(:INSTANCE_NAME) INTO :EAI_LIST;
 

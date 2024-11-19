@@ -1918,7 +1918,7 @@ def get_status(site):
             logger.warning(f"Failed to grant workspace {workspace_schema_name} objects to {grant_fragment}: {e}")
 
 
-    def get_cortext_search_service(self):
+    def get_cortex_search_service(self):
         """
         Executes a query to retrieve a summary of the harvest results, including the source name, database name, schema name,
         role used for crawl, last crawled timestamp, and the count of objects crawled, grouped and ordered by the source name,

@@ -33,4 +33,5 @@ selenium==4.24.0
 dagster-sdf
 jira==3.8.0
 #flask_cors
-
+anthropic
+boto3

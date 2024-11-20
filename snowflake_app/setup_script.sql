@@ -21,6 +21,9 @@ $$
       containers:
       - name: genesis
         image: /genesisapp_master/code_schema/service_repo/genesis_app:latest
+        volumeMounts:
+        - name: bot_git
+          mountPath: /opt/bot_git
         env:
             RUNNER_ID: snowflake-1
             GENESIS_INTERNAL_DB_SCHEMA: {{app_db_sch}}
@@ -40,6 +43,9 @@ $$
         readinessProbe:
             port: 8080
             path: /healthcheck
+      volumes:
+      - name: bot_git
+        source: "@bot_git"
       endpoints:
       - name: udfendpoint
         port: 8080
@@ -94,6 +100,9 @@ $$
             SNOWFLAKE_SECURE: FALSE
             GENESIS_INTERNAL_DB_SCHEMA: {{app_db_sch}}
             GENESIS_SOURCE: Snowflake
+      volumes:
+      - name: bot_git
+        source: "@bot_git"
       endpoints:
       - name: udfendpoint
         port: 8080
@@ -147,6 +156,9 @@ $$
       containers:
       - name: genesis-task-server
         image: /genesisapp_master/code_schema/service_repo/genesis_app:latest
+        volumeMounts:
+        - name: bot_git
+          mountPath: /opt/bot_git
         env:
             GENESIS_MODE: TASK_SERVER
             AUTO_HARVEST: TRUE
@@ -897,6 +909,9 @@ BEGIN
 
   EXECUTE IMMEDIATE 'CREATE STAGE IF NOT EXISTS '||:INSTANCE_NAME||'.'||'WORKSPACE DIRECTORY = ( ENABLE = true ) ENCRYPTION = (TYPE = '||CHR(39)||'SNOWFLAKE_SSE'||chr(39)||')';
   EXECUTE IMMEDIATE 'GRANT READ ON STAGE '||:INSTANCE_NAME||'.'||'WORKSPACE TO APPLICATION ROLE APP_PUBLIC';
+
+  EXECUTE IMMEDIATE 'CREATE OR REPLACE STAGE '||:INSTANCE_NAME||'.'||'BOT_GIT DIRECTORY = ( ENABLE = true ) ENCRYPTION = (TYPE = '||CHR(39)||'SNOWFLAKE_SSE'||chr(39)||')';
+  EXECUTE IMMEDIATE 'GRANT READ ON STAGE '||:INSTANCE_NAME||'.'||'BOT_GIT TO APPLICATION ROLE APP_PUBLIC';
 
   CALL APP.CREATE_SERVER_SERVICE(:INSTANCE_NAME,'GENESISAPP_SERVICE_SERVICE',:POOL_NAME,:WAREHOUSE_NAME, :v_current_database);
   CALL APP.CREATE_HARVESTER_SERVICE(:INSTANCE_NAME,'GENESISAPP_HARVESTER_SERVICE',:POOL_NAME, :WAREHOUSE_NAME, :v_current_database);

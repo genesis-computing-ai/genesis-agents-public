@@ -11,7 +11,13 @@ RUN apt-get update && apt-get install -y curl && \
     curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
     apt-get install -y nodejs && \
     npm install -g npm@latest
-
+# Install git
+RUN apt-get update && \
+    apt-get install -y git && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+# Verify git is accessible from Python
+RUN python3 -c "import subprocess; subprocess.run(['git', '--version'], check=True)"
 COPY llm_openai ./llm_openai
 COPY llm_reka ./llm_reka
 COPY llm_mistral ./llm_mistral

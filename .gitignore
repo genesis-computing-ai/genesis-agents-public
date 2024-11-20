@@ -45,3 +45,5 @@ sdf_genesis/sdf_dagster_out/*
 
 # Put all the ad-hoc personal stuff (scripts, files, notes) here
 .personal/
+bot_git/
+./bot_git/

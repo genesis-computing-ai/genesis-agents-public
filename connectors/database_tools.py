@@ -569,20 +569,20 @@ snowflake_stage_functions = [
                         "type": "string",
                         "description": "The name of the stage to add the file to. Use your WORKSPACE stage unless told to use something else.",
                     },
-                    "openai_file_id": {
-                        "type": "string",
-                        "description": "A valid OpenAI FileID referencing the file to be loaded to stage.",
-                    },
+   #                 "openai_file_id": {
+   #                     "type": "string",
+   #                     "description": "A valid OpenAI FileID referencing the file to be loaded to stage.",
+    #                },
                     "file_name": {
                         "type": "string",
-                        "description": "The original filename of the file, human-readable, NOT file-xxxx. Can optionally include a relative path, such as bot_1_files/file_name.txt",
+                        "description": "The original filename of the file, human-readable. Can optionally include a relative path, such as bot_1_files/file_name.txt",
                     },
                 },
                 "required": [
                     "database",
                     "schema",
                     "stage",
-                    "openai_file_id",
+            #        "openai_file_id",
                     "file_name",
                 ],
             },

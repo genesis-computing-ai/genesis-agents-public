@@ -115,6 +115,7 @@ class BotOsSession:
         BotOsAssistantOpenAI.stream_mode = stream_mode
         BotOsAssistantSnowflakeCortex.stream_mode = stream_mode
         self.session_name = session_name
+        self.tool_belt = tool_belt
 
         self.task_test_mode = os.getenv("TEST_TASK_MODE", "false").lower() == "true"
 

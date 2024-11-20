@@ -9,6 +9,11 @@ import threading
 import random
 import string
 from selenium import webdriver
+import json
+from typing import Optional, Dict, Any
+import time, uuid
+import jsonschema
+
 
 import re
 from typing import Optional
@@ -70,7 +75,6 @@ from core.bot_os_tool_descriptions import process_runner_tools
 
 from core.bot_os_artifacts import lookup_artifact_markdown, get_artifacts_store, ARTIFACT_ID_REGEX
 
-
 # import sys
 # sys.path.append('/Users/mglickman/helloworld/bot_os')  # Adjust the path as necessary
 
@@ -80,12 +84,18 @@ from core.bot_os_tool_descriptions import (
     process_runner_tools,
     webpage_downloader_functions,
     webpage_downloader_tools,
-    data_dev_tools_functions,  # Add this line
+    data_dev_tools_functions, 
     data_dev_tools,  #
+    PROJECT_MANAGER_FUNCTIONS,  
+    project_manager_tools,  
+    git_file_manager_functions, 
+    git_file_manager_tools,  
 )
 from core.bot_os_llm import BotLlmEngineEnum
 
 from core.logging_config import logger
+from core.bot_os_project_manager import ProjectManager
+from core.file_diff_handler import GitFileManager 
 
 genesis_source = os.getenv("GENESIS_SOURCE", default="Snowflake")
 
@@ -114,9 +124,298 @@ class ToolBelt:
         belts = belts + 1
         self.process_id = {}
         self.include_code = False
+        self.todos = ProjectManager(db_adapter)  # Initialize Todos instance
+        self.git_manager = GitFileManager()
+        self.server = None  # Will be set later
 
         self.sys_default_email = self.get_sys_email()
    #     logger.info(belts)
+
+    def set_server(self, server):
+        """Set the server instance for this toolbelt"""
+        self.server = server
+
+    def delegate_work(
+            # todo, add system prompt override, add tool limits, have delegated jobs skip the thread knowledge injection, etc.
+            # dont save to llm results table for a delegation
+            # allow work and tool calls from downstream bots to optionally filter back up to show up in slack while they are working (maybe with a summary like o1 does of whats happening)
+        self,
+        prompt: str,
+        target_bot_id: Optional[str] = None,
+        target_bot_name: Optional[str] = None,
+        max_retries: int = 3,
+        timeout_seconds: int = 300,
+        thread_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Internal method that implements the delegation logic.
+        Creates a new thread with target bot and waits for JSON response.
+        """
+
+        if target_bot_id is None and target_bot_name is None:
+            return {
+                "success": False,
+                "error": "Either target_bot_id or target_bot_name must be provided"
+            }
+        if self.server is None:
+            return {
+                "success": False,
+                "error": "ToolBelt server reference not set. Cannot delegate work."
+            }
+        
+        try:
+            # Get target session
+            target_session = None
+            for session in self.server.sessions:
+                if (target_bot_id is not None and session.bot_id.upper() == target_bot_id.upper()) or (target_bot_name is not None and session.bot_name.upper() == target_bot_name.upper()):
+                    target_session = session
+                    break
+                    
+            if not target_session:
+                # Get list of valid bot IDs and names
+                valid_bots = [
+                    {
+                        "id": session.bot_id,
+                        "name": session.bot_name
+                    }
+                    for session in self.server.sessions
+                ]
+
+                return {
+                    "success": False,
+                    "error": f"Could not find target bot with ID: {target_bot_id}. Valid bots are: {valid_bots}"
+                }
+
+            # Create new thread
+            # Find the UDFBotOsInputAdapter
+            udf_adapter = None
+            for adapter in target_session.input_adapters:
+                if adapter.__class__.__name__ == "UDFBotOsInputAdapter":
+                    udf_adapter = adapter
+                    break
+            
+            if udf_adapter is None:
+                raise ValueError("No UDFBotOsInputAdapter found in target session")
+                
+         #   thread_id = target_session.create_thread(udf_adapter)
+            # Add initial message
+            # Define a generic JSON schema that all delegated tasks should conform to
+            expected_json_schema = {
+                "type": "object",
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "enum": ["success", "error", "partial"],
+                        "description": "The status of the task execution"
+                    },
+                    "message": {
+                        "type": "string",
+                        "description": "A human readable message describing the result"
+                    },
+                    "data": {
+                        "type": "object",
+                        "description": "The actual result data from executing the task"
+                    },
+                    "errors": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "description": "Any errors that occurred during execution"
+                    }
+                },
+                "required": ["status", "message", "data"]
+            }
+            validation_prompt = f"""
+            Please complete the following task and respond ONLY with a JSON object matching this schema:
+            {json.dumps(expected_json_schema, indent=2)}
+
+            Task:
+            {prompt}
+            """
+            
+            # Create thread ID for this task
+            thread_id = str(uuid.uuid4())
+            # Generate and store UUID for thread tracking
+            uu = udf_adapter.submit(
+                input=validation_prompt,
+                thread_id=thread_id,
+                bot_id={},
+                file={}
+            )
+
+            # Wait for response with timeout
+            start_time = time.time()
+            attempts = 0
+            
+            while attempts < max_retries and (time.time() - start_time) < timeout_seconds:
+                # Check if response available
+                response = udf_adapter.lookup_udf(uu)
+                # Check if response ends with chat emoji
+                if response and response.strip().endswith("💬"):
+                    time.sleep(1)
+                    continue
+                if response:
+                    try:
+                        # Extract the last JSON object from the response string
+                        # Try to find JSON in code blocks first
+                        json_matches = re.findall(r'```json\n(.*?)\n```', response, re.DOTALL)
+                        if not json_matches:
+                            # If no code blocks, try to find any JSON object in the response
+                            json_matches = re.findall(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', response)
+                        if json_matches:
+                            result = json.loads(json_matches[-1])  # Get last JSON match
+                        else:
+                            # Try parsing the whole response as JSON if no code blocks found
+                            result = json.loads(response)
+                            
+                        # Validate against schema
+                        jsonschema.validate(result, expected_json_schema)
+                        return {
+                            "success": True,
+                            "result": result
+                        }
+                    except (json.JSONDecodeError, jsonschema.ValidationError):
+                        # Invalid JSON or schema mismatch - retry
+                        attempts += 1
+                        if attempts < max_retries:
+                            # Send retry prompt
+                            retry_prompt = f"""
+                            Your previous response was not in the correct JSON format.
+                            Please try again and respond ONLY with a JSON object matching this schema:
+                            {json.dumps(expected_json_schema, indent=2)}
+                            """
+                            uu = udf_adapter.submit(
+                                input=retry_prompt,
+                                thread_id=thread_id,
+                                bot_id={},
+                                file={}
+                            )
+                
+                time.sleep(1)
+                
+            return {
+                "success": False,
+                "error": f"Failed to get valid JSON response after {attempts} attempts"
+            }
+                
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Error delegating work: {str(e)}"
+            }
+
+
+    def manage_todos(self, action, bot_id, todo_id=None, todo_details=None, thread_id=None):
+        """
+        Manages todos through various actions (CREATE, UPDATE, CHANGE_STATUS, LIST)
+        """
+        return self.todos.manage_todos(action=action, bot_id=bot_id, todo_id=todo_id, 
+                                     todo_details=todo_details, thread_id=thread_id)
+
+    def manage_projects(self, action, bot_id, project_id=None, project_details=None, thread_id=None):
+        """
+        Manages projects through various actions (CREATE, UPDATE, CHANGE_STATUS, LIST)
+        """
+        return self.todos.manage_projects(action=action, bot_id=bot_id, project_id=project_id,
+                                        project_details=project_details, thread_id=thread_id)
+
+    def record_todo_work(self, bot_id, todo_id, work_description, work_details=None, work_results=None, thread_id=None):
+        """
+        Records work progress on a todo item without changing its status
+        """
+        return self.todos.record_work(bot_id=bot_id, todo_id=todo_id, work_description=work_description,
+                                    work_results=work_results, thread_id=thread_id)
+
+    def get_project_todos(self, bot_id, project_id, thread_id=None):
+        """
+        Gets all todos for a specific project
+        
+        Args:
+            bot_id (str): The ID of the bot requesting the todos
+            project_id (str): The ID of the project
+            thread_id (str, optional): Thread ID for tracking
+        
+        Returns:
+            dict: Result containing todos or error message
+        """
+        return self.todos.get_project_todos(bot_id=bot_id, project_id=project_id)
+
+    def get_todo_dependencies(self, bot_id, todo_id, include_reverse=False, thread_id=None):
+        """
+        Gets dependencies for a specific todo
+        
+        Args:
+            bot_id (str): The ID of the bot requesting the dependencies
+            todo_id (str): The ID of the todo
+            include_reverse (bool): If True, also include todos that depend on this todo
+            thread_id (str, optional): Thread ID for tracking
+        
+        Returns:
+            dict: Result containing dependencies or error message
+        """
+        return self.todos.get_todo_dependencies(bot_id=bot_id, todo_id=todo_id, include_reverse=include_reverse)
+
+    def manage_todo_dependencies(self, action, bot_id, todo_id, depends_on_todo_id=None, thread_id=None):
+        """
+        Manages todo dependencies (add/remove)
+        
+        Args:
+            action (str): ADD or REMOVE dependency
+            bot_id (str): The ID of the bot performing the action
+            todo_id (str): The ID of the todo that has the dependency
+            depends_on_todo_id (str): The ID of the todo that needs to be completed first
+            thread_id (str, optional): Thread ID for tracking
+        
+        Returns:
+            dict: Result of the operation
+        """
+        return self.todos.manage_todo_dependencies(
+            action=action,
+            bot_id=bot_id,
+            todo_id=todo_id,
+            depends_on_todo_id=depends_on_todo_id
+        )
+
+    def manage_project_assets(self, action, bot_id, project_id, asset_id=None, asset_details=None, thread_id=None):
+        """
+        Manages project assets through various actions (CREATE, UPDATE, DELETE, LIST)
+        
+        Args:
+            action (str): The action to perform (CREATE, UPDATE, DELETE, LIST)
+            bot_id (str): The ID of the bot performing the action
+            project_id (str): The ID of the project the asset belongs to
+            asset_id (str, optional): The ID of the asset for updates/deletes
+            asset_details (dict, optional): Details for creating/updating an asset
+                {
+                    "description": str,
+                    "git_path": str
+                }
+            thread_id (str, optional): Thread ID for tracking
+        
+        Returns:
+            dict: Result containing operation status and any relevant data
+        """
+        return self.todos.manage_project_assets(
+            action=action,
+            bot_id=bot_id,
+            project_id=project_id,
+            asset_id=asset_id,
+            asset_details=asset_details
+        )
+
+    def git_action(self, action, **kwargs):
+        """
+        Wrapper for Git file management operations
+        
+        Args:
+            action: The git action to perform (list_files, read_file, write_file, etc.)
+            **kwargs: Additional arguments needed for the specific action
+        
+        Returns:
+            Dict containing operation result and any relevant data
+        """
+        return self.git_manager.git_action(action, **kwargs)
 
     # Function to make HTTP request and get the entire content
     def get_webpage_content(self, url):
@@ -2603,10 +2902,17 @@ def get_tools(which_tools, db_adapter, slack_adapter_local=None, include_slack=T
             tools.extend(integration_tool_descriptions)
             available_functions_load.update(integration_tools)
             function_to_tool_map[tool_name] = integration_tool_descriptions
+        elif tool_name == "bot_dispatch_tools":
+            tools.extend(BOT_DISPATCH_DESCRIPTIONS)
+            available_functions_load.update(bot_dispatch_tools)
+            function_to_tool_map[tool_name] = BOT_DISPATCH_DESCRIPTIONS
         elif tool_name == "data_dev_tools":
             tools.extend(data_dev_tools_functions)
             available_functions_load.update(data_dev_tools)
-            function_to_tool_map[tool_name] = data_dev_tools_functions
+        elif tool_name == "project_manager_tools" or tool_name == "todo_manager_tools":
+            tools.extend(PROJECT_MANAGER_FUNCTIONS)
+            available_functions_load.update(project_manager_tools)
+            function_to_tool_map[tool_name] = PROJECT_MANAGER_FUNCTIONS
         elif include_slack and tool_name == "slack_tools":
             tools.extend(slack_tools_descriptions)
             available_functions_load.update(slack_tools)
@@ -2634,11 +2940,11 @@ def get_tools(which_tools, db_adapter, slack_adapter_local=None, include_slack=T
             tools.extend(image_functions)
             available_functions_load.update(image_tools)
             function_to_tool_map[tool_name] = image_functions
-        elif tool_name == "snowflake_semantic_tools":
-            logger.info('Note: Semantic Tools are currently disabled pending refactoring or removal.')
-            tools.extend(snowflake_semantic_functions)
-            available_functions_load.update(snowflake_semantic_tools)
-            function_to_tool_map[tool_name] = snowflake_semantic_functions
+    #    elif tool_name == "snowflake_semantic_tools":
+    #        logger.info('Note: Semantic Tools are currently disabled pending refactoring or removal.')
+    #        tools.extend(snowflake_semantic_functions)
+    #        available_functions_load.update(snowflake_semantic_tools)
+    #        function_to_tool_map[tool_name] = snowflake_semantic_functions
         elif tool_name == "snowflake_stage_tools":
             tools.extend(snowflake_stage_functions)
             available_functions_load.update(snowflake_stage_tools)
@@ -2663,6 +2969,10 @@ def get_tools(which_tools, db_adapter, slack_adapter_local=None, include_slack=T
             tools.extend(notebook_manager_functions)
             available_functions_load.update(notebook_manager_tools)
             function_to_tool_map[tool_name] = notebook_manager_functions
+        elif tool_name == "git_file_manager_tools":  # Add this section
+            tools.extend(git_file_manager_functions)
+            available_functions_load.update(git_file_manager_tools)
+            function_to_tool_map[tool_name] = git_file_manager_functions
         elif tool_name == "webpage_downloader":
             tools.extend(webpage_downloader_functions)
             available_functions_load.update(webpage_downloader_tools)
@@ -2788,39 +3098,46 @@ def dispatch_to_bots(task_template, args_array, dispatch_bot_id=None):
 
 BOT_DISPATCH_DESCRIPTIONS = [
     {
-        "type": "function",
+        "type": "function", 
         "function": {
-            "name": "dispatch_to_bots",
-            "description": 'Specify an arry of templated natual language tasks you want to execute in parallel to a set of bots like you. for example, "Who is the president of {{ country_name }}". Never use this tool for arrays with < 2 items.',
+            "name": "_delegate_work",
+            "description": "Delegates a task to another bot (or self) and waits for a JSON response. Use this when you need to delegate work to another bot.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "task_template": {
+                    "prompt": {
                         "type": "string",
-                        "description": "Jinja template for the tasks you want to farm out to other bots",
+                        "description": "The instruction or prompt to send to the target bot"
                     },
-                    "args_array": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": 'Arguments you want to fill in for each jinja template variable of the form [{"country_name": "france"}, {"country_name": "spain"}]',
+                    "target_bot_id": {
+                        "type": "string",
+                        "description": "ID of target bot to delegate to. Provider either target_bot_id or target_bot_name "
                     },
+                    "target_bot_name": {
+                        "type": "string",
+                        "description": "Name of target bot to delegate to, or null to use bot ID instead"
+                    },
+                    "max_retries": {
+                        "type": "integer",
+                        "description": "Maximum number of retry attempts (1-10), defaults to 3",
+                        "minimum": 1,
+                        "maximum": 10,
+                        "default": 3
+                    },
+                    "timeout_seconds": {
+                        "type": "integer", 
+                        "description": "Maximum seconds to wait for response, defaults to 300",
+                        "minimum": 1,
+                        "default": 300
+                    }
                 },
-                "required": ["task_template", "args_array"],
-                "bot_id": {
-                    "type": "string",
-                    "description": "The unique identifier for an existing bot you are aware of to dispatch the tasks to. Should be the bot_name dash a 6 letter alphanumeric random code, for example mybot-w73hxg. Pass None to dispatch to yourself.",
-                },
-            },
-        },
+                "required": ["prompt"]  # Only prompt is required, others have defaults
+            }
+        }
     }
 ]
-# "bot_id": {
-#     "type": "string",
-#     "description": "The unique identifier for an existing bot you are aware of to dispatch the tasks to. Should be the bot_name dash a 6 letter alphanumeric random code, for example mybot-w73hxg."
-# }
 
-
-bot_dispatch_tools = {"dispatch_to_bots": "core.bot_os_tools.dispatch_to_bots"}
+bot_dispatch_tools = {"_delegate_work": "tool_belt.delegate_work"}
 
 
 def make_session_for_dispatch(bot_config):
@@ -2892,3 +3209,5 @@ def make_session_for_dispatch(bot_config):
     #                       input_adapter=slack_adapter_local))
 
     return session  # , api_app_id, udf_adapter_local, slack_adapter_local
+
+

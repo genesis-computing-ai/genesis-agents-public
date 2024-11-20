@@ -459,6 +459,12 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
             database_list = "\n- " + "\n- ".join([db[0] for db in databases])            
             return [f"Please specify both database and schema if you want to filter by schema. This helps avoid confusion with similarly named schemas across different databases.\n\nAvailable databases:{database_list}"]
         # Validate database if specified
+        if database and not schema:
+            # Get list of available databases
+            schemas = self.meta_database_connector.run_query("SHOW SCHEMAS")
+            schema_list = "\n- " + "\n- ".join([db[0] for db in schemas])            
+            return [f"Please specify both schema and database if you want to filter by database. \nSome of the available schemas in this database are: {database_list}. Note that this list may not be comprehensive as it does not include shared schemas such as the genesis default example data on baseball and formula1."]
+        # Validate database if specified
         if database:
             databases = self.meta_database_connector.run_query("SHOW DATABASES")
             database_list = [db['name'] for db in databases]
@@ -467,14 +473,13 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
                 return [f"Database '{database}' not found. Available databases:{database_options}"]
             
             # If schema specified, validate it exists in this database
-            if schema:
-                schemas = self.meta_database_connector.run_query(f"SHOW SCHEMAS IN DATABASE {database}")
-                schema_list = [s['name'] for s in schemas]
-                if schema.upper() not in [s.upper() for s in schema_list]:
-                    schema_options = "\n- " + "\n- ".join(schema_list)
-                    return [f"Schema '{schema}' not found in database '{database}'. Available schemas in {database}:{schema_options}"]
+    #        if schema:
+    #            schemas = self.meta_database_connector.run_query(f"SHOW SCHEMAS IN DATABASE {database}")
+    #            schema_list = [s['name'] for s in schemas]
+    #            if schema.upper() not in [s.upper() for s in schema_list]:
+    #                schema_options = "\n- " + "\n- ".join(schema_list)
+    #i'd lik                return [f"Schema '{schema}' not found in database '{database}'. Available schemas in {database}:{schema_options}"]
 
-        
 
         # Check for exact table match first
         match = re.match(r'^"?([^"\.]+)"?\."?([^"\.]+)"?\."?([^"\.]+)"?$', query.strip())

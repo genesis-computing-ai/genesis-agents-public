@@ -72,7 +72,7 @@ def add_file_to_stage(
                 logger.error(f"File not found: {file_path}")
                 return {
                     "success": False,
-                    "error": f"Needs user review: Please first save and RETURN THE FILE *AS A FILE* to the user for their review, and once confirmed by the user, call this function again referencing the SAME OPENAI_FILE_ID THAT YOU RETURNED TO THE USER to save it to stage.",
+                    "error": f"File needs to be returned first: Please first save and RETURN THE FILE *AS A FILE* (not just as inline text), and show it to the user.  Then ask them to ask you to proceed, so you can call this function again referencing the SAME FILE_NAME THAT YOU RETURNED to actually save it to stage.",
                 }
 
         else:

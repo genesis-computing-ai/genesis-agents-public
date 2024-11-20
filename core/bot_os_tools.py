@@ -138,6 +138,7 @@ class ToolBelt:
     def delegate_work(
             # todo, add system prompt override, add tool limits, have delegated jobs skip the thread knowledge injection, etc.
             # dont save to llm results table for a delegation
+            # cancel the delegated run if timeout expires or if stop message is sent to local thread
             # allow work and tool calls from downstream bots to optionally filter back up to show up in slack while they are working (maybe with a summary like o1 does of whats happening)
         self,
         prompt: str,

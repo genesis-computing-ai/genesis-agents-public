@@ -138,12 +138,12 @@ class ToolBelt:
     def delegate_work(
             # todo, add system prompt override, add tool limits, have delegated jobs skip the thread knowledge injection, etc.
             # dont save to llm results table for a delegation
+            # see if they have a better time finding other bots now
             # cancel the delegated run if timeout expires or if stop message is sent to local thread
             # allow work and tool calls from downstream bots to optionally filter back up to show up in slack while they are working (maybe with a summary like o1 does of whats happening)
         self,
         prompt: str,
-        target_bot_id: Optional[str] = None,
-        target_bot_name: Optional[str] = None,
+        target_bot: Optional[str] = None,
         max_retries: int = 3,
         timeout_seconds: int = 300,
         thread_id: Optional[str] = None
@@ -153,11 +153,7 @@ class ToolBelt:
         Creates a new thread with target bot and waits for JSON response.
         """
 
-        if target_bot_id is None and target_bot_name is None:
-            return {
-                "success": False,
-                "error": "Either target_bot_id or target_bot_name must be provided"
-            }
+ 
         if self.server is None:
             return {
                 "success": False,
@@ -168,7 +164,7 @@ class ToolBelt:
             # Get target session
             target_session = None
             for session in self.server.sessions:
-                if (target_bot_id is not None and session.bot_id.upper() == target_bot_id.upper()) or (target_bot_name is not None and session.bot_name.upper() == target_bot_name.upper()):
+                if (target_bot is not None and session.bot_id.upper() == target_bot.upper()) or (target_bot is not None and session.bot_name.upper() == target_bot.upper()):
                     target_session = session
                     break
 
@@ -215,7 +211,7 @@ class ToolBelt:
                     },
                     "data": {
                         "type": "object",
-                        "description": "The actual result data from executing the task"
+                        "description": "The actual result data from executing the task, if applicable"
                     },
                     "errors": {
                         "type": "array",
@@ -225,7 +221,7 @@ class ToolBelt:
                         "description": "Any errors that occurred during execution"
                     }
                 },
-                "required": ["status", "message", "data"]
+                "required": ["status", "message"]
             }
             validation_prompt = f"""
             Please complete the following task and respond ONLY with a JSON object matching this schema:
@@ -295,10 +291,26 @@ class ToolBelt:
 
                 time.sleep(1)
 
-            return {
-                "success": False,
-                "error": f"Failed to get valid JSON response after {attempts} attempts"
-            }
+            # If we've timed out, send stop command
+            if (time.time() - start_time) >= timeout_seconds:
+                # Send stop command to same thread
+                udf_adapter.submit(
+                    input="!stop",
+                    thread_id=thread_id,
+                    bot_id={},
+                    file={}
+                )
+
+            if (time.time() - start_time) >= timeout_seconds:
+                return {
+                    "success": False, 
+                    "error": f"Timed out after {timeout_seconds} seconds waiting for valid JSON response"
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": f"Failed to get valid JSON response after {attempts} failed attempts"
+                }
 
         except Exception as e:
             return {
@@ -3110,13 +3122,9 @@ BOT_DISPATCH_DESCRIPTIONS = [
                         "type": "string",
                         "description": "The instruction or prompt to send to the target bot"
                     },
-                    "target_bot_id": {
+                    "target_bot": {
                         "type": "string",
-                        "description": "ID of target bot to delegate to. Provider either target_bot_id or target_bot_name "
-                    },
-                    "target_bot_name": {
-                        "type": "string",
-                        "description": "Name of target bot to delegate to, or null to use bot ID instead"
+                        "description": "Bot ID or name of target bot to delegate to. If you dont know the exact ID or name, call with target_bot_id 'UNKNOWN' to get a list of active bots."
                     },
                     "max_retries": {
                         "type": "integer",

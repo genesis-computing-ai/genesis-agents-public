@@ -10,8 +10,8 @@ from typing import List, Dict, Optional, Union
 class GitFileManager:
     def __init__(self, repo_path: str = "./bot_git"):
         """Initialize GitFileManager with a repository path"""
-        self.repo_path = repo_path
         
+        self.repo_path = os.getenv('GIT_PATH', repo_path)
         # Initialize repository if it doesn't exist
         if not os.path.exists(os.path.join(repo_path, ".git")):
             self.repo = Repo.init(repo_path)

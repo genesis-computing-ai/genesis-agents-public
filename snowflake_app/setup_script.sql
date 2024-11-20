@@ -36,6 +36,7 @@ $$
             CORTEX_FAST_MODEL_NAME: llama3.1-70b
             USE_KNOWLEDGE: TRUE
             LAST_K_KNOWLEGE: 0
+            GIT_PATH: /opt/bot_git
         readinessProbe:
             port: 8080
             path: /healthcheck

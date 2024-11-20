@@ -455,18 +455,18 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
         # If schema is specified without a database, require both for clarity
         if schema and not database:
             # Get list of available databases
-            databases = self.meta_database_connector.run_query("SHOW DATABASES")
+            databases = self.meta_database_connector.run_query("SHOW DATABASES", max_rows=500, max_rows_override=True)
             database_list = "\n- " + "\n- ".join([db[0] for db in databases])            
             return [f"Please specify both database and schema if you want to filter by schema. This helps avoid confusion with similarly named schemas across different databases.\n\nAvailable databases:{database_list}"]
         # Validate database if specified
-        if database and not schema:
-            # Get list of available databases
-            schemas = self.meta_database_connector.run_query("SHOW SCHEMAS")
-            schema_list = "\n- " + "\n- ".join([db[0] for db in schemas])            
-            return [f"Please specify both schema and database if you want to filter by database. \nSome of the available schemas in this database are: {database_list}. Note that this list may not be comprehensive as it does not include shared schemas such as the genesis default example data on baseball and formula1."]
-        # Validate database if specified
+ #       if database and not schema:
+ #           # Get list of available databases
+ #           schemas = self.meta_database_connector.run_query("SHOW SCHEMAS",  max_rows=500, max_rows_override=True)
+ #           schema_list = "\n- " + "\n- ".join([db[0] for db in schemas])            
+ #           return [f"Please specify both schema and database if you want to filter by database. \nSome of the available schemas in this database are: {database_list}. Note that this list may not be comprehensive as it does not include shared schemas such as the genesis default example data on baseball and formula1."]
+ #       # Validate database if specified
         if database:
-            databases = self.meta_database_connector.run_query("SHOW DATABASES")
+            databases = self.meta_database_connector.run_query("SHOW DATABASES",  max_rows=500, max_rows_override=True)
             database_list = [db['name'] for db in databases]
             if database.upper() not in [db.upper() for db in database_list]:
                 database_options = "\n- " + "\n- ".join(database_list)
@@ -523,7 +523,7 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
                 FROM {self.meta_database_connector.metadata_table_name}
                 WHERE {where_statement}
             """
-            filtered_entries = self.meta_database_connector.run_query(filtered_entries_query)
+            filtered_entries = self.meta_database_connector.run_query(filtered_entries_query, max_rows=1000, max_rows_override=True)
             
             if not filtered_entries:
 
@@ -641,7 +641,7 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
 
        # If schema is specified, check for tables that might not be harvested yet
         current_tables = None
-        if schema and filtered_table_names is not None:
+        if schema is not None:
             try:
                 # Get current tables in the schema from database
                 current_tables = self.meta_database_connector.get_tables(database, schema)

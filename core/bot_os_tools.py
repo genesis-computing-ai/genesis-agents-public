@@ -136,6 +136,9 @@ class ToolBelt:
         self.server = server
 
     def delegate_work(
+            # todo, add system prompt override, add tool limits, have delegated jobs skip the thread knowledge injection, etc.
+            # dont save to llm results table for a delegation
+            # allow work and tool calls from downstream bots to optionally filter back up to show up in slack while they are working (maybe with a summary like o1 does of whats happening)
         self,
         prompt: str,
         target_bot_id: Optional[str] = None,
@@ -169,9 +172,18 @@ class ToolBelt:
                     break
                     
             if not target_session:
+                # Get list of valid bot IDs and names
+                valid_bots = [
+                    {
+                        "id": session.bot_id,
+                        "name": session.bot_name
+                    }
+                    for session in self.server.sessions
+                ]
+
                 return {
                     "success": False,
-                    "error": f"Could not find target bot with ID: {target_bot_id}"
+                    "error": f"Could not find target bot with ID: {target_bot_id}. Valid bots are: {valid_bots}"
                 }
 
             # Create new thread

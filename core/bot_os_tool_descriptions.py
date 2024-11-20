@@ -665,3 +665,10 @@ tools_data.append(
     )
 )
 
+
+tools_data.append(
+    (
+        "bot_dispatch_tools",
+        "Tools delegating work to bots"
+    )
+)

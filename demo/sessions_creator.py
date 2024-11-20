@@ -674,12 +674,12 @@ def create_sessions(
  #       if bot_config.get("bot_name") != 'Janice 2.0':
  #           continue
         if os.getenv("TEST_MODE", "false").lower() == "true":
-            if bot_config.get("bot_name") != os.getenv("TEST_BOT", ""):
+            if bot_config.get("bot_name") != os.getenv("TEST_BOT", "") and os.getenv("TEST_BOT", "").upper() != "ALL":
                 print("()()()()()()()()()()()()()()()")
                 print(f"Test Mode skipping bot {bot_config.get('bot_name')} except ",os.getenv("TEST_BOT", ""))
                 print("()()()()()()()()()()()()()()()")
                 continue
-        # JL TEMP REMOVE
+            # JL TEMP REMOVE
         #       if bot_config["bot_id"] == "Eliza-lGxIAG":
         #           continue
         logger.info(f'🤖 Making session for bot {bot_config["bot_id"]}')        

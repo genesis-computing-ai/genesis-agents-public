@@ -57,6 +57,10 @@ class BotOsServer:
         self.data_cubes_ingress_url = data_cubes_ingress_url
         self.bot_id_to_slack_adapter_map = bot_id_to_slack_adapter_map
 
+        for session in self.sessions:
+            if hasattr(session, 'tool_belt'):
+                session.tool_belt.set_server(self)
+
         existing_job = self.scheduler.get_job("bots")
         if existing_job:
             self.scheduler.remove_job("bots")
@@ -105,6 +109,12 @@ class BotOsServer:
             logger.info("Adding session ", session)
         else:
             logger.info("Session is None")
+        
+        if session is not None:
+            # Set server reference in the new session's toolbelt
+            if hasattr(session, 'tool_belt'):
+                session.tool_belt.set_server(self)
+        
         self.sessions.append(session)
 
     def remove_session(self, session):

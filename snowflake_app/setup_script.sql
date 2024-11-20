@@ -159,6 +159,7 @@ $$
             SNOWFLAKE_SECURE: FALSE
             GENESIS_INTERNAL_DB_SCHEMA: {{app_db_sch}}
             GENESIS_SOURCE: Snowflake
+            GIT_PATH: /opt/bot_git
       endpoints:
       - name: udfendpoint
         port: 8080

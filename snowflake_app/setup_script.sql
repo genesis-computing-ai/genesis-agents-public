@@ -22,7 +22,7 @@ $$
       - name: genesis
         image: /genesisapp_master/code_schema/service_repo/genesis_app:latest
         volumeMounts:
-        - name: bot_git
+        - name: botgit
           mountPath: /opt/bot_git
         env:
             RUNNER_ID: snowflake-1
@@ -44,7 +44,7 @@ $$
             port: 8080
             path: /healthcheck
       volumes:
-      - name: bot_git
+      - name: botgit
         source: "@bot_git"
       endpoints:
       - name: udfendpoint
@@ -100,9 +100,6 @@ $$
             SNOWFLAKE_SECURE: FALSE
             GENESIS_INTERNAL_DB_SCHEMA: {{app_db_sch}}
             GENESIS_SOURCE: Snowflake
-      volumes:
-      - name: bot_git
-        source: "@bot_git"
       endpoints:
       - name: udfendpoint
         port: 8080
@@ -157,7 +154,7 @@ $$
       - name: genesis-task-server
         image: /genesisapp_master/code_schema/service_repo/genesis_app:latest
         volumeMounts:
-        - name: bot_git
+        - name: botgit
           mountPath: /opt/bot_git
         env:
             GENESIS_MODE: TASK_SERVER
@@ -172,6 +169,9 @@ $$
             GENESIS_INTERNAL_DB_SCHEMA: {{app_db_sch}}
             GENESIS_SOURCE: Snowflake
             GIT_PATH: /opt/bot_git
+      volumes:
+      - name: botgit
+        source: "@bot_git"
       endpoints:
       - name: udfendpoint
         port: 8080

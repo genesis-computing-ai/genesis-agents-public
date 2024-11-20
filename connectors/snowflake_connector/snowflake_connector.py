@@ -125,6 +125,7 @@ class SnowflakeConnector(DatabaseConnector):
         self.user_bot_table_name = self.genbot_internal_project_and_schema+ "."+ os.getenv("GENESIS_INTERNAL_USER_BOT_TABLE", "USER_BOT")
         self.tool_knowledge_table_name = self.genbot_internal_project_and_schema+ "."+ os.getenv("GENESIS_INTERNAL_TOOL_KNOWLEDGE_TABLE", "TOOL_KNOWLEDGE")
         self.data_knowledge_table_name = self.genbot_internal_project_and_schema+ "."+ os.getenv("GENESIS_INTERNAL_DATA_KNOWLEDGE_TABLE", "DATA_KNOWLEDGE")
+        self.proc_knowledge_table_name = self.genbot_internal_project_and_schema+ "."+ os.getenv("GENESIS_INTERNAL_PROC_KNOWLEDGE_TABLE", "PROC_KNOWLEDGE")
         self.slack_tokens_table_name = self.genbot_internal_project_and_schema + "." + "SLACK_APP_CONFIG_TOKENS"
         self.available_tools_table_name = self.genbot_internal_project_and_schema + "." + "AVAILABLE_TOOLS"
         self.bot_servicing_table_name = self.genbot_internal_project_and_schema + "." + "BOT_SERVICING"

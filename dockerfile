@@ -45,6 +45,9 @@ COPY genesis-voice ./genesis-voice
 COPY nodetest ./nodetest
 COPY data_dev_tools ./data_dev_tools
 
+# Install npm dependencies
+RUN npm install
+
 RUN apt-get update && apt-get install -y procps
 RUN apt-get -y update && \
     apt-get -y install  \

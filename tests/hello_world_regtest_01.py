@@ -7,7 +7,7 @@ from cryptography.hazmat.primitives import serialization
 # import uuid
 # Build a SnowflakeConnection from env variables
 
-def wait_for_return(thread_id):
+def wait_for_return(thread_id, start_time):
     cursor.execute(f"""
     select genesis_bots.app1.lookup_udf ('{thread_id}', 'Janice')
     """)
@@ -16,6 +16,7 @@ def wait_for_return(thread_id):
     attempts = 0
     response_result = None
 
+    i = 0
     while attempts < max_attempts and (response_result is None or response_result[0] == "not found" or response_result[0][-1] == '💬'):
         cursor.execute(f"""
         select genesis_bots.app1.lookup_udf ('{thread_id}', 'Janice')
@@ -23,7 +24,14 @@ def wait_for_return(thread_id):
 
         response_result = cursor.fetchone()
         response = response_result[0] if response_result else None
-        print(response)
+        elapsed_time = time.time() - start_time
+        elapsed_time_str = time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
+
+        if response == "not found":
+            print(f"{i} {elapsed_time_str} {response}", end='\r')
+            i += 1
+        else:
+            print(f"{elapsed_time_str} {response}")
 
         # Check if the response is valid
         if response_result is not None and response_result[0] != "not found" and response_result[0][-1] != '💬':
@@ -79,7 +87,7 @@ else:
 #grant_usage_2 = conn.cursor().execute("call genesis_bots.core.run_arbitrary('grant usage on function genesis_bots.app1.lookup_udf(varchar, varchar) to application role app_public')")
 cursor = conn.cursor()
 
-start_time = time.strftime("%A, %B %d, %Y %H:%M:%S", time.localtime())
+start_time = time.time()
 print(f"Start time: {start_time}")
 
 thread_id = str(uuid.uuid4())
@@ -91,7 +99,7 @@ print(query)
 cursor.execute(query)
 thread_id_result = cursor.fetchone()
 print(f"Response from Janice: {thread_id_result}")
-response = wait_for_return(thread_id)
+response = wait_for_return(thread_id, start_time)
 print(f"Janice's tool list: {response}")
 
 # thread_id = 'Not yet received'
@@ -111,7 +119,7 @@ select genesis_bots.app1.submit_udf('use your tool SendSlackChannelMessage to se
 
     time.sleep(10)
 
-    response = wait_for_return(thread_id)
+    response = wait_for_return(thread_id, start_time)
 
 exit(0)
 

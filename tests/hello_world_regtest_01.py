@@ -2,11 +2,42 @@
 from snowflake.connector import SnowflakeConnection
 import os
 import time
+import uuid
 from cryptography.hazmat.primitives import serialization
 # import uuid
 # Build a SnowflakeConnection from env variables
 
+def wait_for_return(thread_id):
+    cursor.execute(f"""
+    select genesis_bots.app1.lookup_udf ('{thread_id}', 'Janice')
+    """)
 
+    max_attempts = 1000
+    attempts = 0
+    response_result = None
+
+    while attempts < max_attempts and (response_result is None or response_result[0] == "not found" or response_result[0][-1] == '💬'):
+        cursor.execute(f"""
+        select genesis_bots.app1.lookup_udf ('{thread_id}', 'Janice')
+        """)
+
+        response_result = cursor.fetchone()
+        response = response_result[0] if response_result else None
+        print(response)
+
+        # Check if the response is valid
+        if response_result is not None and response_result[0] != "not found" and response_result[0][-1] != '💬':
+            print(f"{thread_id} - Received valid response: {response}")
+            return response
+
+        attempts += 1
+        time.sleep(1)
+
+    # Check if the responses are valid
+    if thread_id is not None and response is not None:
+        return response
+    else:
+        return {"error": "No response received after 1000 attempts"}
 
 # Load the private key from environment variable
 private_key = os.getenv('SNOWFLAKE_PRIVATE_KEY')
@@ -43,54 +74,44 @@ else:
     role=os.getenv("SNOWFLAKE_ROLE_OVERRIDE")
     )
 
-
 # Execute the SQL code
 #grant_usage_1 = conn.cursor().execute("call genesis_bots.core.run_arbitrary('grant usage on function genesis_bots.app1.submit_udf(varchar, varchar, varchar) to application role app_public')")
 #grant_usage_2 = conn.cursor().execute("call genesis_bots.core.run_arbitrary('grant usage on function genesis_bots.app1.lookup_udf(varchar, varchar) to application role app_public')")
 cursor = conn.cursor()
 
+start_time = time.strftime("%A, %B %d, %Y %H:%M:%S", time.localtime())
+print(f"Start time: {start_time}")
+
+thread_id = str(uuid.uuid4())
+print(f"Initializing thread_id: {thread_id} - Ask Janice to show her list of tools")
+query = """
+select genesis_bots.app1.submit_udf('show me your tools', '""" + thread_id + """', '{"bot_id": "Janice"}')
+"""
+print(query)
+cursor.execute(query)
+thread_id_result = cursor.fetchone()
+print(f"Response from Janice: {thread_id_result}")
+response = wait_for_return(thread_id)
+print(f"Janice's tool list: {response}")
+
+# thread_id = 'Not yet received'
+# time.sleep(10)
+
 for test in ['first_test', 'second_test', 'third_test', 'fourth_test']:
-    cursor.execute("""
-    select genesis_bots.app1.submit_udf('run process """ + test + """', '', '{"bot_id": "Janice"}')
-    """)
+    query = """
+select genesis_bots.app1.submit_udf('use your tool SendSlackChannelMessage to send this string to channel #dev-genbots ''Thread: {}''; run process {}', '', '{{"bot_id": "Janice"}}')
+""".format(thread_id, test)
+
+    print(query)
+
+    cursor.execute(query)
     thread_id_result = cursor.fetchone()
     thread_id = thread_id_result[0] if thread_id_result else None
     print(f'Sending request to Janice - thread id: {thread_id}')
 
     time.sleep(10)
 
-    cursor.execute(f"""
-    select genesis_bots.app1.lookup_udf ('{thread_id}', 'Janice')
-    """)
-
-    max_attempts = 1000
-    attempts = 0
-    response_result = None
-
-    while attempts < max_attempts and (response_result is None or response_result[0] == "not found" or response_result[0][-1] == '💬'):
-        cursor.execute(f"""
-        select genesis_bots.app1.lookup_udf ('{thread_id}', 'Janice')
-        """)
-
-        response_result = cursor.fetchone()
-        response = response_result[0] if response_result else None
-        print(response)
-
-        # Check if the response is valid
-        if response_result is not None and response_result[0] != "not found" and response_result[0][-1] != '💬':
-            print("Response is valid")
-            print(thread_id)
-            print(response)
-            break
-
-        attempts += 1
-        time.sleep(1)
-
-    # Check if the responses are valid
-    if thread_id is not None and response is not None:
-        print("Responses are valid")
-    else:
-        print("Responses are not valid")
+    response = wait_for_return(thread_id)
 
 exit(0)
 

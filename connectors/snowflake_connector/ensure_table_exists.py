@@ -1417,6 +1417,28 @@ def ensure_table_exists(self):
 
     try:
         cursor = self.client.cursor()
+        cursor.execute(f"SHOW TABLES LIKE 'PROC_KNOWLEDGE' IN SCHEMA {self.schema};")
+        if not cursor.fetchone():
+            user_bot_table_ddl = f"""
+            CREATE TABLE IF NOT EXISTS {self.proc_knowledge_table_name} (
+                timestamp TIMESTAMP NOT NULL,
+                last_timestamp TIMESTAMP NOT NULL,
+                bot_id STRING NOT NULL,
+                process STRING NOT NULL,
+                summary STRING NOT NULL
+            );
+            """
+            cursor.execute(user_bot_table_ddl)
+            self.client.commit()
+            logger.info(f"Table {self.proc_knowledge_table_name} created.")
+        else:
+            check_query = f"DESCRIBE TABLE {self.proc_knowledge_table_name};"
+            logger.info(f"Table {self.proc_knowledge_table_name} already exists.")
+    except Exception as e:
+        logger.info(f"An error occurred while checking or creating table {self.proc_knowledge_table_name}: {e}")
+
+    try:
+        cursor = self.client.cursor()
         cursor.execute(f"SHOW TABLES LIKE 'DATA_KNOWLEDGE' IN SCHEMA {self.schema};")
         if not cursor.fetchone():
             user_bot_table_ddl = f"""

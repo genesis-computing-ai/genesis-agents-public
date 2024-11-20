@@ -454,21 +454,90 @@ class KnowledgeServer:
                 logger.info(f"Pausing Data Knowledge for {refresh_seconds} seconds before next check.")
                 time.sleep(refresh_seconds)
 
+    def proc_knowledge(self):
+        while True:
+            cutoff = (datetime.now() - timedelta(minutes=10)).strftime("%Y-%m-%d %H:%M:%S")
+            query = f"""
+                    WITH K AS (SELECT COALESCE(max(last_timestamp),  DATE('2000-01-01')) as last_timestamp FROM {self.db_connector.proc_knowledge_table_name})
+                    SELECT DISTINCT THREAD_ID FROM {self.db_connector.message_log_table_name}, K           
+                    WHERE timestamp > K.last_timestamp AND timestamp < TO_TIMESTAMP('{cutoff}')
+                    AND MESSAGE_PAYLOAD LIKE '%run_process%';
+                    """
+            processes = self.db_connector.run_query(query, max_rows=100)
+            for process in processes:
+                thread_id = process['THREAD_ID']
+                query = f"""
+                        SELECT * FROM {self.db_connector.message_log_table_name}
+                        WHERE THREAD_ID = '{thread_id}'
+                        ORDER by timestamp;
+                        """
+                rows = self.db_connector.run_query(query, max_rows=100)
+                last_timestamp = max([row['TIMESTAMP'] for row in rows])
+                bot_id = max([row['BOT_ID'] for row in rows])
+
+                message_content = []
+                process_name = None
+                i = 0
+                while i < len(rows):
+                    row = rows[i]
+                    try:
+                        meta = json.loads(row['MESSAGE_METADATA'])
+                        if 'process_name' in meta:
+                            process_name = meta['process_name']
+                    except:
+                        pass
+                    if row['MESSAGE_TYPE'] == 'Supervisor Prompt':
+                        prompt = row['MESSAGE_PAYLOAD']
+                        if i < len(rows) - 1:
+                            response = rows[i + 1]['MESSAGE_PAYLOAD']
+                            i += 1
+                            message_content.append(f'Prompt: {prompt}\n\nResponse: {response}')                            
+                    i += 1
+
+                if message_content and process_name is not None:                
+                    messages = '\n\n'.join(message_content)
+                    system = 'Given the following outputs from a process call check if there are any issues which can be avoided for future reference'
+                    content = f"""
+                                Process Name:
+                                {process_name}
+                                
+                                Process Outputs:
+                                {messages}
+                            """
+                    if self.llm_type == 'openai':
+                        response = self.client.chat.completions.create(
+                            model=self.model,
+                            messages=[{"role": "system", "content": system},
+                                    {"role": "user", "content": content}]
+                        )
+                        response = response.choices[0].message.content
+                    else:
+                        response, status_code  = self.db_connector.cortex_chat_completion(content, system=system)                    
+                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")                
+                    self.db_connector.run_insert(self.db_connector.proc_knowledge_table_name, timestamp=timestamp, 
+                                                 last_timestamp=last_timestamp, bot_id=bot_id, process = process_name, summary=response)
+            else:
+                logger.info(f"Pausing Proc Knowledge for {refresh_seconds} seconds before next check.")
+                time.sleep(refresh_seconds)
+
     def start_threads(self):
         producer_thread = threading.Thread(target=self.producer)
         consumer_thread = threading.Thread(target=self.consumer)
         refiner_thread  = threading.Thread(target=self.refiner)
         tool_thread     = threading.Thread(target=self.tool_knowledge)
         data_thread     = threading.Thread(target=self.data_knowledge)
+        proc_thread     = threading.Thread(target=self.proc_knowledge)
 
         producer_thread.start()
         consumer_thread.start()
         refiner_thread.start()
         tool_thread.start()
         data_thread.start()
+        proc_thread.start()
 
         producer_thread.join()
         consumer_thread.join()
         refiner_thread.join()
         tool_thread.join()
         data_thread.join()
+        proc_thread.join()

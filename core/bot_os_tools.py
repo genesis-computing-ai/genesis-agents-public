@@ -84,18 +84,18 @@ from core.bot_os_tool_descriptions import (
     process_runner_tools,
     webpage_downloader_functions,
     webpage_downloader_tools,
-    data_dev_tools_functions, 
+    data_dev_tools_functions,
     data_dev_tools,  #
-    PROJECT_MANAGER_FUNCTIONS,  
-    project_manager_tools,  
-    git_file_manager_functions, 
-    git_file_manager_tools,  
+    PROJECT_MANAGER_FUNCTIONS,
+    project_manager_tools,
+    git_file_manager_functions,
+    git_file_manager_tools,
 )
 from core.bot_os_llm import BotLlmEngineEnum
 
 from core.logging_config import logger
 from core.bot_os_project_manager import ProjectManager
-from core.file_diff_handler import GitFileManager 
+from core.file_diff_handler import GitFileManager
 
 genesis_source = os.getenv("GENESIS_SOURCE", default="Snowflake")
 
@@ -163,7 +163,7 @@ class ToolBelt:
                 "success": False,
                 "error": "ToolBelt server reference not set. Cannot delegate work."
             }
-        
+
         try:
             # Get target session
             target_session = None
@@ -171,7 +171,7 @@ class ToolBelt:
                 if (target_bot_id is not None and session.bot_id.upper() == target_bot_id.upper()) or (target_bot_name is not None and session.bot_name.upper() == target_bot_name.upper()):
                     target_session = session
                     break
-                    
+
             if not target_session:
                 # Get list of valid bot IDs and names
                 valid_bots = [
@@ -194,10 +194,10 @@ class ToolBelt:
                 if adapter.__class__.__name__ == "UDFBotOsInputAdapter":
                     udf_adapter = adapter
                     break
-            
+
             if udf_adapter is None:
                 raise ValueError("No UDFBotOsInputAdapter found in target session")
-                
+
          #   thread_id = target_session.create_thread(udf_adapter)
             # Add initial message
             # Define a generic JSON schema that all delegated tasks should conform to
@@ -234,7 +234,7 @@ class ToolBelt:
             Task:
             {prompt}
             """
-            
+
             # Create thread ID for this task
             thread_id = str(uuid.uuid4())
             # Generate and store UUID for thread tracking
@@ -248,7 +248,7 @@ class ToolBelt:
             # Wait for response with timeout
             start_time = time.time()
             attempts = 0
-            
+
             while attempts < max_retries and (time.time() - start_time) < timeout_seconds:
                 # Check if response available
                 response = udf_adapter.lookup_udf(uu)
@@ -269,7 +269,7 @@ class ToolBelt:
                         else:
                             # Try parsing the whole response as JSON if no code blocks found
                             result = json.loads(response)
-                            
+
                         # Validate against schema
                         jsonschema.validate(result, expected_json_schema)
                         return {
@@ -292,14 +292,14 @@ class ToolBelt:
                                 bot_id={},
                                 file={}
                             )
-                
+
                 time.sleep(1)
-                
+
             return {
                 "success": False,
                 "error": f"Failed to get valid JSON response after {attempts} attempts"
             }
-                
+
         except Exception as e:
             return {
                 "success": False,
@@ -311,7 +311,7 @@ class ToolBelt:
         """
         Manages todos through various actions (CREATE, UPDATE, CHANGE_STATUS, LIST)
         """
-        return self.todos.manage_todos(action=action, bot_id=bot_id, todo_id=todo_id, 
+        return self.todos.manage_todos(action=action, bot_id=bot_id, todo_id=todo_id,
                                      todo_details=todo_details, thread_id=thread_id)
 
     def manage_projects(self, action, bot_id, project_id=None, project_details=None, thread_id=None):
@@ -331,12 +331,12 @@ class ToolBelt:
     def get_project_todos(self, bot_id, project_id, thread_id=None):
         """
         Gets all todos for a specific project
-        
+
         Args:
             bot_id (str): The ID of the bot requesting the todos
             project_id (str): The ID of the project
             thread_id (str, optional): Thread ID for tracking
-        
+
         Returns:
             dict: Result containing todos or error message
         """
@@ -345,13 +345,13 @@ class ToolBelt:
     def get_todo_dependencies(self, bot_id, todo_id, include_reverse=False, thread_id=None):
         """
         Gets dependencies for a specific todo
-        
+
         Args:
             bot_id (str): The ID of the bot requesting the dependencies
             todo_id (str): The ID of the todo
             include_reverse (bool): If True, also include todos that depend on this todo
             thread_id (str, optional): Thread ID for tracking
-        
+
         Returns:
             dict: Result containing dependencies or error message
         """
@@ -360,14 +360,14 @@ class ToolBelt:
     def manage_todo_dependencies(self, action, bot_id, todo_id, depends_on_todo_id=None, thread_id=None):
         """
         Manages todo dependencies (add/remove)
-        
+
         Args:
             action (str): ADD or REMOVE dependency
             bot_id (str): The ID of the bot performing the action
             todo_id (str): The ID of the todo that has the dependency
             depends_on_todo_id (str): The ID of the todo that needs to be completed first
             thread_id (str, optional): Thread ID for tracking
-        
+
         Returns:
             dict: Result of the operation
         """
@@ -381,7 +381,7 @@ class ToolBelt:
     def manage_project_assets(self, action, bot_id, project_id, asset_id=None, asset_details=None, thread_id=None):
         """
         Manages project assets through various actions (CREATE, UPDATE, DELETE, LIST)
-        
+
         Args:
             action (str): The action to perform (CREATE, UPDATE, DELETE, LIST)
             bot_id (str): The ID of the bot performing the action
@@ -393,7 +393,7 @@ class ToolBelt:
                     "git_path": str
                 }
             thread_id (str, optional): Thread ID for tracking
-        
+
         Returns:
             dict: Result containing operation status and any relevant data
         """
@@ -408,11 +408,11 @@ class ToolBelt:
     def git_action(self, action, **kwargs):
         """
         Wrapper for Git file management operations
-        
+
         Args:
             action: The git action to perform (list_files, read_file, write_file, etc.)
             **kwargs: Additional arguments needed for the specific action
-        
+
         Returns:
             Dict containing operation result and any relevant data
         """
@@ -2487,7 +2487,7 @@ class ToolBelt:
                 actual SQL code, not a reference to SQL code, or only the word 'PYTHON' if the text contains actual Python code, not a reference to Python code.
                 If the text contains both, return only 'SQL + PYTHON'.  Do not return any other verbage.  If the text contains
                 neither, return only the word 'NO CODE':\n {process_details['process_instructions']}"""
-                result = self.chat_completion(check_for_code_instructions, self.db_adapter)
+                result = self.chat_completion(check_for_code_instructions, self.db_adapter, bot_id=bot_id, bot_name='')
 
                 if result != 'NO CODE':
                     return {
@@ -3099,7 +3099,7 @@ def dispatch_to_bots(task_template, args_array, dispatch_bot_id=None):
 
 BOT_DISPATCH_DESCRIPTIONS = [
     {
-        "type": "function", 
+        "type": "function",
         "function": {
             "name": "_delegate_work",
             "description": "Delegates a task to another bot (or self) and waits for a JSON response. Use this when you need to delegate work to another bot.",
@@ -3126,7 +3126,7 @@ BOT_DISPATCH_DESCRIPTIONS = [
                         "default": 3
                     },
                     "timeout_seconds": {
-                        "type": "integer", 
+                        "type": "integer",
                         "description": "Maximum seconds to wait for response, defaults to 300",
                         "minimum": 1,
                         "default": 300

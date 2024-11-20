@@ -11,7 +11,8 @@ RUN apt-get update && apt-get install -y curl && \
     curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
     apt-get install -y nodejs && \
     npm install -g npm@latest
-RUN npm install express cors
+RUN npm install express cors node-fetch dotenv \
+    http https ws @openai/realtime-api-beta
 # Install git
 RUN apt-get update && \
     apt-get install -y git && \

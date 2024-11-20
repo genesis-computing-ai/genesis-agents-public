@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import time
 import uuid
+import traceback
 import re
 import sys
 import spacy
@@ -442,265 +443,283 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
             schema (str): Optional schema name to filter by
             table (str): Optional table name to filter by
         """
-        if scope != "database_metadata":
-            return self.find_memory_local(scope=scope, query=query)
-
-        # Handle empty index
-        if len(self.metadata_mapping) <= 1:
-            self.index, self.metadata_mapping = load_or_create_embeddings_index(
-                self.meta_database_connector.metadata_table_name, 
-                refresh=True
-            )
-        
-        # If schema is specified without a database, require both for clarity
-        if schema and not database:
-            # Get list of available databases
-            databases = self.meta_database_connector.run_query("SHOW DATABASES", max_rows=500, max_rows_override=True)
-            database_list = "\n- " + "\n- ".join([db[0] for db in databases])            
-            return [f"Please specify both database and schema if you want to filter by schema. This helps avoid confusion with similarly named schemas across different databases.\n\nAvailable databases:{database_list}"]
-        # Validate database if specified
- #       if database and not schema:
- #           # Get list of available databases
- #           schemas = self.meta_database_connector.run_query("SHOW SCHEMAS",  max_rows=500, max_rows_override=True)
- #           schema_list = "\n- " + "\n- ".join([db[0] for db in schemas])            
- #           return [f"Please specify both schema and database if you want to filter by database. \nSome of the available schemas in this database are: {database_list}. Note that this list may not be comprehensive as it does not include shared schemas such as the genesis default example data on baseball and formula1."]
- #       # Validate database if specified
-        if database:
-            databases = self.meta_database_connector.run_query("SHOW DATABASES",  max_rows=500, max_rows_override=True)
-            database_list = [db['name'] for db in databases]
-            if database.upper() not in [db.upper() for db in database_list]:
-                database_options = "\n- " + "\n- ".join(database_list)
-                return [f"Database '{database}' not found. Available databases:{database_options}"]
-            
-            # If schema specified, validate it exists in this database
-    #        if schema:
-    #            schemas = self.meta_database_connector.run_query(f"SHOW SCHEMAS IN DATABASE {database}")
-    #            schema_list = [s['name'] for s in schemas]
-    #            if schema.upper() not in [s.upper() for s in schema_list]:
-    #                schema_options = "\n- " + "\n- ".join(schema_list)
-    #i'd lik                return [f"Schema '{schema}' not found in database '{database}'. Available schemas in {database}:{schema_options}"]
-
-
-        # Check for exact table match first
-        match = re.match(r'^"?([^"\.]+)"?\."?([^"\.]+)"?\."?([^"\.]+)"?$', query.strip())
-        if match:
-            database, schema, table = [part.strip('"') for part in match.groups()]
-            full_metadata = self.get_full_metadata_details(
-                source_name=self.source_name,
-                database_name=database,
-                schema_name=schema,
-                table_name=table
-            )
-            if full_metadata:
-                return [full_metadata]
-            return [f"No metadata details found for table '{table}' in schema '{schema}', database '{database}', source '{self.source_name}'."]
-
-        if table:
-            full_metadata = self.get_full_metadata_details(source_name=self.source_name, database_name=database, schema_name=schema, table_name=table)
-            if full_metadata:
-                return [full_metadata]
-            else:
-                return [f"No metadata details found for table '{table}' in schema '{schema}', database '{database}', source '{self.source_name}'."]
-
-        # Build structural filters
-        filtered_entries = None
-
-        where_clauses = [f"source_name='{self.source_name.replace('', '')}'"]
-        if database:
-            where_clauses.append(f"database_name='{database.replace('', '')}'")
-        if schema:
-            where_clauses.append(f"schema_name='{schema.replace('', '')}'")
-        if table:
-            where_clauses.append(f"table_name='{table.replace('', '')}'")
-        
-        where_statement = " AND ".join(where_clauses)
-
-        if any([database, schema, table]):
-
-            # Get all entries matching structural criteria
-            filtered_entries_query = f"""
-                SELECT qualified_table_name 
-                FROM {self.meta_database_connector.metadata_table_name}
-                WHERE {where_statement}
-            """
-            filtered_entries = self.meta_database_connector.run_query(filtered_entries_query, max_rows=1000, max_rows_override=True)
-            
-            if not filtered_entries:
-
-                # Get current tables in the schema from database
-                current_tables = self.meta_database_connector.get_tables(database, schema)
-                current_table_set = set(table['table_name'] for table in current_tables)
-
-                # Find tables that exist but aren't harvested
-                unharvested_tables = current_table_set 
-
-                # Add note about unharvested tables if any found
-                if unharvested_tables:
-                    unharvested_list = sorted(list(unharvested_tables))[:50]
-                    msg = (f'Note: Found {len(unharvested_list)} tables in {schema} schema that may not be harvested yet: '
-                          f'{", ".join(unharvested_list)}. '
-                          f'You can use get_full_table_details to get more information about these tables.')
-                    
-                    if len(unharvested_tables) > 50:
-                        msg += f' (and {len(unharvested_tables)-50} more)'
-                    content = []
-                    content.append(msg)
-
-                    if schema and schema.endswith('_WORKSPACE'):
-                        content.append("Note: You searched within a bot workspace schema. If you didn't find what you were looking for, try using search_metadata without specifying a database and schema to search more broadly.")
-
-                    return(content)
-
-                else:
-                    if schema and schema.endswith('_WORKSPACE'):
-                        return ["Note: You searched within a bot workspace schema and it was empty. If you didn't find what you were looking for, try using search_metadata without specifying a database and schema to search more broadly."]
-                    else:
-                        return ["No tables found matching the specified criteria."]
-
 
         try:
-            if self.metadata_mapping == ['empty_index']:
-                return "There is no data harvested, the search index is empty. Tell the user to use the Genesis Streamlit GUI to grant access to their data to Genesis, or to specify a specfic DATABASE and SCHEMA that has already been granted to see what is in it."
-        except:
-            pass
+            if scope != "database_metadata":
+                return self.find_memory_local(scope=scope, query=query)
 
-        # Enhance query with context if provided
-        enhanced_query = query
-     #   if database:
-     #       enhanced_query += f" {database}"
-     #   if schema:
-     #       enhanced_query += f" {schema}"
-
-        # Get query embedding
-        embedding_size = int(os.environ.get('EMBEDDING_SIZE', -1))
-        embedding = self.get_embedding(enhanced_query, embedding_size=embedding_size)
-
-        # Map filtered entries to their Annoy indices and get distances
-        results = []
-        
-        # Convert embedding to list of floats if it's not already
-        embedding_vector = embedding if isinstance(embedding, list) else [embedding]
-        
-        # Get nearest neighbors using Annoy's get_nns_by_vector
-        # Get 20x more results than requested to filter down to those in filtered_table_names
-        nn_indices, nn_distances = self.index.get_nns_by_vector(embedding_vector, 1000, include_distances=True)
-        
-        # Convert filtered entries to a set of qualified table names if structural filters were applied
-        filtered_table_names = None
-        if filtered_entries:
-            filtered_table_names = {entry['QUALIFIED_TABLE_NAME'] for entry in filtered_entries}
-        
-        # Filter results to only include tables that match structural criteria
-        results = []
-        for idx, dist in zip(nn_indices, nn_distances):
-            metadata = self.metadata_mapping[idx]
-            if filtered_table_names is None:
-                results.append((idx, dist, metadata))
-            elif metadata in filtered_table_names:
-                results.append((idx, dist, metadata))
-        
-        # Take top_n results
-        top_results = results[:min(top_n, len(results))]
-
-        # Fetch full metadata for top results
-        qualified_names = [f"'{result[2]}'" for result in top_results]
-        if verbosity == "high":
-            content_query = f"""
-                SELECT 
-                    qualified_table_name as full_table_name,
-                    ddl as DDL_FULL,
-                    sample_data_text as sample_data
-                FROM {self.meta_database_connector.metadata_table_name}
-                WHERE {where_statement}
-                AND qualified_table_name IN ({','.join(qualified_names)})
-            """
-        else:
-            content_query = f"""
-                SELECT 
-                    qualified_table_name as full_table_name,
-                    ddl_short
-                FROM {self.meta_database_connector.metadata_table_name}
-                WHERE {where_statement}
-                AND qualified_table_name IN ({','.join(qualified_names)})
-            """
-
-        content = self.meta_database_connector.run_query(content_query)
-
-        # Get next set of results for reference
-        next_results = results[top_n:min(top_n * 3, len(results))]
-        
-        # Sort content to match order of qualified table names
-        content_dict = {row['FULL_TABLE_NAME']: row for row in content}
-        sorted_content = []
-        for qualified_name in qualified_names:
-            # Remove quotes around table name for lookup
-            table_name = qualified_name.strip("'")
-            if table_name in content_dict:
-                sorted_content.append(content_dict[table_name])
-        content = sorted_content
-
-       # If schema is specified, check for tables that might not be harvested yet
-        current_tables = None
-        if schema is not None:
-            try:
-                # Get current tables in the schema from database
-                current_tables = self.meta_database_connector.get_tables(database, schema)
-                current_table_set = set(table['table_name'] for table in current_tables)
-
-                # Extract just the table names from qualified names for comparison
-                harvested_tables = set()
-                for qname in filtered_table_names:
-                    table = qname.strip("'").split('.')[-1]
-                    # Remove quotes if present
-                    table = table.strip('"')
-                    harvested_tables.add(table)
-
-                # Find tables that exist but aren't harvested
-                unharvested_tables = current_table_set - harvested_tables
+            # Handle empty index
+            if len(self.metadata_mapping) <= 1:
+                self.index, self.metadata_mapping = load_or_create_embeddings_index(
+                    self.meta_database_connector.metadata_table_name, 
+                    refresh=True
+                )
+            
+            # If schema is specified without a database, require both for clarity
+            if schema and not database:
+                # Get list of available databases
+                databases = self.meta_database_connector.run_query("SHOW DATABASES", max_rows=500, max_rows_override=True)
+                database_list = "\n- " + "\n- ".join([db[0] for db in databases])            
+                return [f"Please specify both database and schema if you want to filter by schema. This helps avoid confusion with similarly named schemas across different databases.\n\nAvailable databases:{database_list}"]
+            # Validate database if specified
+    #       if database and not schema:
+    #           # Get list of available databases
+    #           schemas = self.meta_database_connector.run_query("SHOW SCHEMAS",  max_rows=500, max_rows_override=True)
+    #           schema_list = "\n- " + "\n- ".join([db[0] for db in schemas])            
+    #           return [f"Please specify both schema and database if you want to filter by database. \nSome of the available schemas in this database are: {database_list}. Note that this list may not be comprehensive as it does not include shared schemas such as the genesis default example data on baseball and formula1."]
+    #       # Validate database if specified
+            if database:
+                databases = self.meta_database_connector.run_query("SHOW DATABASES",  max_rows=500, max_rows_override=True)
+                database_list = [db['name'] for db in databases]
+                if database.upper() not in [db.upper() for db in database_list]:
+                    database_options = "\n- " + "\n- ".join(database_list)
+                    return [f"Database '{database}' not found. Available databases:{database_options}"]
                 
-                # Remove any results that no longer exist in the database
-                content = [row for row in content if isinstance(row, str) or 
-                          row['FULL_TABLE_NAME'].split('.')[-1].strip('"') in current_table_set]
-                # Remove tables from next_results that no longer exist in the database
-               # if next_results:
-               #     next_results = [result for result in next_results 
-               #                   if result[2].split('.')[-1] in current_table_set]
+                # If schema specified, validate it exists in this database
+        #        if schema:
+        #            schemas = self.meta_database_connector.run_query(f"SHOW SCHEMAS IN DATABASE {database}")
+        #            schema_list = [s['name'] for s in schemas]
+        #            if schema.upper() not in [s.upper() for s in schema_list]:
+        #                schema_options = "\n- " + "\n- ".join(schema_list)
+        #i'd lik                return [f"Schema '{schema}' not found in database '{database}'. Available schemas in {database}:{schema_options}"]
 
-                # Add note about unharvested tables if any found
-                if unharvested_tables:
-                    unharvested_list = sorted(list(unharvested_tables))[:50]
-                    msg = (f'Note: Found {len(unharvested_list)} tables in {schema} schema that may not be harvested yet: '
-                          f'{", ".join(unharvested_list)}. '
-                          f'You can use get_full_table_details to get more information about these tables.')
-                    if len(unharvested_tables) > 50:
-                        msg += f' (and {len(unharvested_tables)-50} more)'
-                    content.append(msg)
 
+            # Check for exact table match first
+            match = re.match(r'^"?([^"\.]+)"?\."?([^"\.]+)"?\."?([^"\.]+)"?$', query.strip())
+            if match:
+                database, schema, table = [part.strip('"') for part in match.groups()]
+                full_metadata = self.get_full_metadata_details(
+                    source_name=self.source_name,
+                    database_name=database,
+                    schema_name=schema,
+                    table_name=table
+                )
+                if full_metadata:
+                    return [full_metadata]
+                return [f"No metadata details found for table '{table}' in schema '{schema}', database '{database}', source '{self.source_name}'."]
+
+            if table:
+                full_metadata = self.get_full_metadata_details(source_name=self.source_name, database_name=database, schema_name=schema, table_name=table)
+                if full_metadata:
+                    return [full_metadata]
+                else:
+                    return [f"No metadata details found for table '{table}' in schema '{schema}', database '{database}', source '{self.source_name}'."]
+
+            # Build structural filters
+            filtered_entries = None
+
+            where_clauses = [f"source_name='{self.source_name.replace('', '')}'"]
+            if database:
+                where_clauses.append(f"database_name='{database.replace('', '')}'")
+            if schema:
+                where_clauses.append(f"schema_name='{schema.replace('', '')}'")
+            if table:
+                where_clauses.append(f"table_name='{table.replace('','')}'")
+            
+            where_statement = " AND ".join(where_clauses)
+
+            if any([database, schema, table]):
+
+                # Get all entries matching structural criteria
+                filtered_entries_query = f"""
+                    SELECT qualified_table_name 
+                    FROM {self.meta_database_connector.metadata_table_name}
+                    WHERE {where_statement}
+                """
+                filtered_entries = self.meta_database_connector.run_query(filtered_entries_query, max_rows=1000, max_rows_override=True)
+                
+                if not filtered_entries:
+
+                    # Get current tables in the schema from database
+                    current_tables = self.meta_database_connector.get_tables(database, schema)
+                    current_table_set = set(table['table_name'] for table in current_tables)
+
+                    # Find tables that exist but aren't harvested
+                    unharvested_tables = current_table_set 
+
+                    # Add note about unharvested tables if any found
+                    if unharvested_tables:
+                        unharvested_list = sorted(list(unharvested_tables))[:50]
+                        msg = (f'Note: Found {len(unharvested_list)} tables in {schema} schema that may not be harvested yet: '
+                            f'{", ".join(unharvested_list)}. '
+                            f'You can use get_full_table_details to get more information about these tables.')
+                        
+                        if len(unharvested_tables) > 50:
+                            msg += f' (and {len(unharvested_tables)-50} more)'
+                        content = []
+                        content.append(msg)
+
+                        if schema and schema.endswith('_WORKSPACE'):
+                            content.append("Note: You searched within a bot workspace schema. If you didn't find what you were looking for, try using search_metadata without specifying a database and schema to search more broadly.")
+
+                        return(content)
+
+                    else:
+                        if schema and schema.endswith('_WORKSPACE'):
+                            return ["Note: You searched within a bot workspace schema and it was empty. If you didn't find what you were looking for, try using search_metadata without specifying a database and schema to search more broadly."]
+                        else:
+                            return ["No tables found matching the specified criteria."]
+
+
+            try:
+                if self.metadata_mapping == ['empty_index']:
+                    return "There is no data harvested, the search index is empty. Tell the user to use the Genesis Streamlit GUI to grant access to their data to Genesis, or to specify a specfic DATABASE and SCHEMA that has already been granted to see what is in it."
+            except:
+                pass
+
+            # Enhance query with context if provided
+            enhanced_query = query
+        #   if database:
+        #       enhanced_query += f" {database}"
+        #   if schema:
+        #       enhanced_query += f" {schema}"
+
+            # Get query embedding
+            embedding_size = int(os.environ.get('EMBEDDING_SIZE', -1))
+            embedding = self.get_embedding(enhanced_query, embedding_size=embedding_size)
+
+            # Map filtered entries to their Annoy indices and get distances
+            results = []
+            
+            # Convert embedding to list of floats if it's not already
+            embedding_vector = embedding if isinstance(embedding, list) else [embedding]
+            
+            # Get nearest neighbors using Annoy's get_nns_by_vector
+            # Get 20x more results than requested to filter down to those in filtered_table_names
+            nn_indices, nn_distances = self.index.get_nns_by_vector(embedding_vector, 1000, include_distances=True)
+            
+            # Convert filtered entries to a set of qualified table names if structural filters were applied
+            filtered_table_names = None
+            if filtered_entries:
+                filtered_table_names = {entry['QUALIFIED_TABLE_NAME'] for entry in filtered_entries}
+            
+            # Filter results to only include tables that match structural criteria
+            results = []
+            for idx, dist in zip(nn_indices, nn_distances):
+                metadata = self.metadata_mapping[idx]
+                if filtered_table_names is None:
+                    results.append((idx, dist, metadata))
+                elif metadata in filtered_table_names:
+                    results.append((idx, dist, metadata))
+            
+            # Take top_n results
+            top_results = results[:min(top_n, len(results))]
+
+            # Fetch full metadata for top results
+            qualified_names = [f"'{result[2]}'" for result in top_results]
+            if verbosity == "high":
+                content_query = f"""
+                    SELECT 
+                        qualified_table_name as full_table_name,
+                        ddl as DDL_FULL,
+                        sample_data_text as sample_data
+                    FROM {self.meta_database_connector.metadata_table_name}
+                    WHERE {where_statement}
+                    {f"AND qualified_table_name IN ({','.join(qualified_names)})" if qualified_names else ""}
+                """
+            else:
+                content_query = f"""
+                    SELECT 
+                        qualified_table_name as full_table_name,
+                        ddl_short
+                    FROM {self.meta_database_connector.metadata_table_name}
+                    WHERE {where_statement}
+                    {f"AND qualified_table_name IN ({','.join(qualified_names)})" if qualified_names else ""}
+                """
+
+            # Add error handling around the query execution
+            try:
+                content = self.meta_database_connector.run_query(content_query)
+                if not content:
+                    return ["No results found matching your criteria."]
             except Exception as e:
-                logger.warning(f"Error checking for unharvested tables: {str(e)}")
+                logger.error(f"Error executing query: {str(e)}")
+                return [f"Error executing search query: {str(e)}"]
+
+            # Get next set of results for reference
+            next_results = results[top_n:min(top_n * 3, len(results))]
+            
+            # Sort content to match order of qualified table names
+            content_dict = {row['FULL_TABLE_NAME']: row for row in content}
+            sorted_content = []
+            for qualified_name in qualified_names:
+                # Remove quotes around table name for lookup
+                table_name = qualified_name.strip("'")
+                if table_name in content_dict:
+                    sorted_content.append(content_dict[table_name])
+            content = sorted_content
+
+        # If schema is specified, check for tables that might not be harvested yet
+            current_tables = None
+            if schema is not None:
+                try:
+                    # Get current tables in the schema from database
+                    current_tables = self.meta_database_connector.get_tables(database, schema)
+                    current_table_set = set(table['table_name'] for table in current_tables)
+
+                    # Extract just the table names from qualified names for comparison
+                    harvested_tables = set()
+                    for qname in filtered_table_names:
+                        table = qname.strip("'").split('.')[-1]
+                        # Remove quotes if present
+                        table = table.strip('"')
+                        harvested_tables.add(table)
+
+                    # Find tables that exist but aren't harvested
+                    unharvested_tables = current_table_set - harvested_tables
+                    
+                    # Remove any results that no longer exist in the database
+                    content = [row for row in content if isinstance(row, str) or 
+                            row['FULL_TABLE_NAME'].split('.')[-1].strip('"') in current_table_set]
+                    # Remove tables from next_results that no longer exist in the database
+                # if next_results:
+                #     next_results = [result for result in next_results 
+                #                   if result[2].split('.')[-1] in current_table_set]
+
+                    # Add note about unharvested tables if any found
+                    if unharvested_tables:
+                        unharvested_list = sorted(list(unharvested_tables))[:50]
+                        msg = (f'Note: Found {len(unharvested_list)} tables in {schema} schema that may not be harvested yet: '
+                            f'{", ".join(unharvested_list)}. '
+                            f'You can use get_full_table_details to get more information about these tables.')
+                        if len(unharvested_tables) > 50:
+                            msg += f' (and {len(unharvested_tables)-50} more)'
+                        content.append(msg)
+
+                except Exception as e:
+                    logger.warning(f"Error checking for unharvested tables: {str(e)}")
 
 
-        if next_results:
-            additional_tables = [result[2] for result in next_results]
-            reference_msg = (f'For reference, the next {len(additional_tables)} most relevant tables are named: '
-                           f'{", ".join(additional_tables)}')
-            content.append(reference_msg)
+            if next_results:
+                additional_tables = [result[2] for result in next_results]
+                reference_msg = (f'For reference, the next {len(additional_tables)} most relevant tables are named: '
+                            f'{", ".join(additional_tables)}')
+                content.append(reference_msg)
 
-        # Add note about potentially more results
-        if len(results) > top_n * 3:
-            msg = (f'Note! There may be more tables for this query, these were the first {top_n*3} results. '
-                f'If you don\'t see what you\'re looking for, try increasing top_n (up to 50) or use a more specific search query. '
-                f'For known table names, try get_full_table_details.')
-            content.append(msg)
+            # Add note about potentially more results
+            if len(results) > top_n * 3:
+                msg = (f'Note! There may be more tables for this query, these were the first {top_n*3} results. '
+                    f'If you don\'t see what you\'re looking for, try increasing top_n (up to 50) or use a more specific search query. '
+                    f'For known table names, try get_full_table_details.')
+                content.append(msg)
 
-        # Add note about searching across all DBs/schemas if not specified
-        if not database and not schema:
-            msg = ("Note: This search was performed across all databases and schemas. If you're having trouble finding "
-                  "the right tables, we could get better results by narrowing the search to a specific database and schema. "
-                  "You may want to work with the user to see if they can constrain the search to a specific database or schema, unless you've found what you're looking for already with these results.")
-            content.append(msg)
+            # Add note about searching across all DBs/schemas if not specified
+            if not database and not schema:
+                msg = ("Note: This search was performed across all databases and schemas. If you're having trouble finding "
+                    "the right tables, we could get better results by narrowing the search to a specific database and schema. "
+                    "You may want to work with the user to see if they can constrain the search to a specific database or schema, unless you've found what you're looking for already with these results.")
+                content.append(msg)
 
 
-        logger.info(f'Search metadata: returned {len(content)} objects')
-        return [content]
+            logger.info(f'Search metadata: returned {len(content)} objects')
+            return [content]
     
+        except Exception as e:
+            error_details = {
+                "success": False,
+                "error": str(e),
+                "error_type": type(e).__name__,
+                "error_traceback": traceback.format_exc()
+            }
+            logger.error(f"Error in search_table_metadata: {error_details}")
+            return [error_details]

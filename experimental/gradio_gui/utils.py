@@ -71,7 +71,7 @@ def get_bot_details():
         if session is None:
             logger.info("Error: Unable to establish Snowflake session.")
             return []  # Return an empty list if session is None
-        
+
         sql = """
         SELECT BOT_ID, BOT_NAME
         FROM GENESIS.PUBLIC.BOTS
@@ -131,7 +131,7 @@ def get_response_from_udf_proxy(uu, bot_id):
         except Exception as e:
             logger.info("!! Exception on get_response_from_udf_proxy: ", e)
             NativeMode = False  # Switch to non-native mode if there's an error
-    
+
     if not NativeMode:
         try:
             url = f"http://127.0.0.1:8080/udf_proxy/lookup_udf"
@@ -166,6 +166,6 @@ def get_metadata(metadata_type):
         else:
             raise Exception(f"Failed to get metadata: {response.text}")
 
-__all__ = ['NativeMode', 'check_status', 'get_session', 'app_name', 'prefix', 
-           'provide_slack_level_key', 'get_slack_tokens', 'get_bot_details', 
+__all__ = ['NativeMode', 'check_status', 'get_session', 'app_name', 'prefix',
+           'provide_slack_level_key', 'get_slack_tokens', 'get_bot_details',
            'submit_to_udf_proxy', 'get_response_from_udf_proxy', 'get_metadata']

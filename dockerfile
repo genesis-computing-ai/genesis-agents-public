@@ -11,8 +11,7 @@ RUN apt-get update && apt-get install -y curl && \
     curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
     apt-get install -y nodejs && \
     npm install -g npm@latest
-RUN npm install express cors node-fetch dotenv \
-    http https ws @openai/realtime-api-beta
+RUN npm install express cors node-fetch dotenv http https ws http-proxy
 # Install git
 RUN apt-get update && \
     apt-get install -y git && \
@@ -20,6 +19,9 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 # Verify git is accessible from Python
 RUN python3 -c "import subprocess; subprocess.run(['git', '--version'], check=True)"
+RUN npm i github:openai/openai-realtime-api-beta --save
+RUN npm install react-scripts
+RUN npm build
 COPY llm_openai ./llm_openai
 COPY llm_reka ./llm_reka
 COPY llm_mistral ./llm_mistral

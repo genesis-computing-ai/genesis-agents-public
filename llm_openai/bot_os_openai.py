@@ -589,7 +589,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                   logger.info(f"Cancelled run_id: {run.id} for thread_id: {thread_id}")
                   resp = "Streaming stopped for previous request"
                   stopped = True
-               except:
+               except Exception as e:
                      pass
             except:
                pass
@@ -1499,7 +1499,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                               logger.info(f'!! function was missing from self.all_functions, restored from backup, still missing func: {func_name}, len of backup={len(BotOsAssistantOpenAI.all_functions_backup)}')
          
                         execute_function(func_name, func_args, self.all_functions, callback_closure,
-                                       thread_id = thread_id, bot_id=self.bot_id)#, dispatch_task_callback=dispatch_task_callback)
+                                       thread_id = thread_id, bot_id=self.bot_id, status_update_callback=event_callback if event_callback else None, session_id=self.assistant.id if self.assistant.id is not None else None, input_metadata=run.metadata if run.metadata is not None else None, run_id =run.id )#, dispatch_task_callback=dispatch_task_callback)
 
                      continue
                   except Exception as e:

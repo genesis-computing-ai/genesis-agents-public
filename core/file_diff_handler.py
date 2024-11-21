@@ -8,15 +8,39 @@ from typing import List, Dict, Optional, Union
 
 
 class GitFileManager:
-    def __init__(self, repo_path: str = "./bot_git"):
+    def __init__(self, repo_path: str = "/opt/bot_git"):
         """Initialize GitFileManager with a repository path"""
         
         self.repo_path = os.getenv('GIT_PATH', repo_path)
-        # Initialize repository if it doesn't exist
-        if not os.path.exists(os.path.join(repo_path, ".git")):
-            self.repo = Repo.init(repo_path)
-        else:
-            self.repo = Repo(repo_path)
+        
+        try:
+            # Create directory if it doesn't exist
+            os.makedirs(self.repo_path, exist_ok=True)
+            
+            # Try to initialize repository
+            try:
+                self.repo = Repo(self.repo_path)
+            except:
+                # If repository doesn't exist, initialize it
+                self.repo = Repo.init(self.repo_path)
+                
+                # Configure git user for initial commit
+                with self.repo.config_writer() as git_config:
+                    git_config.set_value('user', 'email', 'bot@example.com')
+                    git_config.set_value('user', 'name', 'Bot')
+                
+                # Create an initial empty commit
+                # First create an empty file to commit
+                readme_path = os.path.join(self.repo_path, 'README.md')
+                with open(readme_path, 'w') as f:
+                    f.write('# Git Repository\nInitialized by Bot')
+                
+                # Stage and commit
+                self.repo.index.add(['README.md'])
+                self.repo.index.commit("Initial commit")
+                
+        except Exception as e:
+            raise Exception(f"Failed to initialize git repository: {str(e)}")
 
     def list_files(self, path: str = None) -> List[str]:
         """List all tracked files in the repository or specific path"""

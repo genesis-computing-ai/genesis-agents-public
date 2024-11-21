@@ -1068,6 +1068,9 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                                                         message_metadata={'func_name':function_to_call, 'func_args':arguments},
                                                         channel_type=meta.get("channel_type", None), channel_name=meta.get("channel", None),
                                                         primary_user=primary_user)
+#              execute_function(func_name, func_args, self.all_functions, callback_closure,
+#                                       thread_id = thread_id, bot_id=self.bot_id, status_update_callback=event_callback if event_callback else None, session_id=self.assistant.id if self.assistant.id is not None else None, input_metadata=run.metadata if run.metadata is not None else None )#, dispatch_task_callback=dispatch_task_callback)
+
             execute_function(function_to_call, json.dumps(arguments), self.available_functions, cb_closure, thread_id, self.bot_id)
         except json.JSONDecodeError as e:
             logger.info(f"Failed to decode tool call JSON: {e}")

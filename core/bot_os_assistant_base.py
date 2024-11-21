@@ -139,6 +139,10 @@ def execute_function(
     completion_callback,
     thread_id: str,
     bot_id: str,
+    status_update_callback=None,
+    session_id=None,
+    input_metadata=None,
+    run_id = None,
 ):
     logger.info(f"fn execute_function - {func_name}")
     function = available_functions.get(func_name, None)
@@ -160,6 +164,12 @@ def execute_function(
             s_arguments["thread_id"] = thread_id
             if func_name == '_run_process':
                 s_arguments["bot_id"] = bot_id
+
+            if func_name == '_delegate_work':
+                s_arguments["status_update_callback"] = status_update_callback
+                s_arguments["session_id"] = session_id
+                s_arguments["input_metadata"] = input_metadata
+                s_arguments["run_id"] = run_id
             if func_name in {'_run_query', '_run_snowpark_python', '_send_email', '_manage_artifact'} :
                 s_arguments["bot_id"] = bot_id
                 if 'query' in s_arguments:

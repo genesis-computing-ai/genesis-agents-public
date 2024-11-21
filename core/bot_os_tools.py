@@ -14,6 +14,7 @@ from typing import Optional, Dict, Any
 import time, uuid
 import jsonschema
 
+from llm_openai.bot_os_openai import StreamingEventHandler
 
 import re
 from typing import Optional
@@ -72,7 +73,7 @@ from core.bot_os_input import BotOsInputAdapter, BotOsInputMessage, BotOsOutputM
 from core.bot_os_memory import BotOsKnowledgeAnnoy_Metadata
 
 from core.bot_os_tool_descriptions import process_runner_tools
-
+from core.bot_os_input import BotOsInputMessage, BotOsOutputMessage
 from core.bot_os_artifacts import lookup_artifact_markdown, get_artifacts_store, ARTIFACT_ID_REGEX
 
 # import sys
@@ -138,22 +139,53 @@ class ToolBelt:
     def delegate_work(
             # todo, add system prompt override, add tool limits, have delegated jobs skip the thread knowledge injection, etc.
             # dont save to llm results table for a delegation
-            # see if they have a better time finding other bots now
-            # cancel the delegated run if timeout expires or if stop message is sent to local thread
-            # allow work and tool calls from downstream bots to optionally filter back up to show up in slack while they are working (maybe with a summary like o1 does of whats happening)
+            # x see if they have a better time finding other bots now
+            # x cancel the delegated run if timeout expires 
+            # make STOP on the main thread also cancel any inflight delegations
+            # x allow work and tool calls from downstream bots to optionally filter back up to show up in slack while they are working (maybe with a summary like o1 does of whats happening)
         self,
         prompt: str,
         target_bot: Optional[str] = None,
         max_retries: int = 3,
         timeout_seconds: int = 300,
-        thread_id: Optional[str] = None
+        thread_id: Optional[str] = None,
+        status_update_callback = None,
+        session_id = None,
+        input_metadata = None,
+        run_id = None,
     ) -> Dict[str, Any]:
         """
         Internal method that implements the delegation logic.
         Creates a new thread with target bot and waits for JSON response.
         """
+        og_thread_id = thread_id
 
- 
+        def _update_streaming_status(self, target_bot, current_summary, run_id, session_id, thread_id, status_update_callback, input_metadata):
+            msg = f"      🤖 {target_bot}: _{current_summary}_"
+
+            message_obj = {
+                "type": "tool_call",
+                "text": msg
+            }
+            if run_id is not None:
+                StreamingEventHandler.run_id_to_messages[run_id].append(message_obj)
+
+                # Initialize the array for this run_id if it doesn't exist
+                if StreamingEventHandler.run_id_to_output_stream.get(run_id,None) is not None:
+                    if StreamingEventHandler.run_id_to_output_stream.get(run_id,"").endswith('\n'):
+                        StreamingEventHandler.run_id_to_output_stream[run_id] += "\n"
+                    else:
+                        StreamingEventHandler.run_id_to_output_stream[run_id] += "\n\n"
+                    StreamingEventHandler.run_id_to_output_stream[run_id] += msg
+                    msg = StreamingEventHandler.run_id_to_output_stream[run_id]
+                else:
+                    StreamingEventHandler.run_id_to_output_stream[run_id] = msg
+
+                status_update_callback(session_id, BotOsOutputMessage(thread_id=thread_id, status="in_progress", output=msg+" 💬", messages=None, input_metadata=input_metadata))
+
+       # current_summary = "Starting delegation"
+       # _update_streaming_status(self, target_bot, current_summary, run_id, session_id, thread_id, status_update_callback, input_metadata)
+
         if self.server is None:
             return {
                 "success": False,
@@ -224,10 +256,13 @@ class ToolBelt:
                 "required": ["status", "message"]
             }
             validation_prompt = f"""
-            Please complete the following task and respond ONLY with a JSON object matching this schema:
+            You are being delegated tasks from another bot.
+            Please complete the following task(s) to the best of your ability, then return the results.  
+            If appropriate, use this JSON format for your response:
+
             {json.dumps(expected_json_schema, indent=2)}
 
-            Task:
+            Task(s):
             {prompt}
             """
 
@@ -244,39 +279,69 @@ class ToolBelt:
             # Wait for response with timeout
             start_time = time.time()
             attempts = 0
-
+            last_response = ""
+            previous_summary = ""
+            _last_summary_time = time.time()
             while attempts < max_retries and (time.time() - start_time) < timeout_seconds:
                 # Check if response available
                 response = udf_adapter.lookup_udf(uu)
                 # Check if response ends with chat emoji
+                if response:
+                    if response != last_response:
+                        # Track last summary time
+                        current_time = time.time()
+                        if (current_time - _last_summary_time) >= 5 or not response.strip().endswith("💬"):
+                            # Send current streaming response for summarization via chat completion
+                            last_response = response
+                            try:
+                                # Only summarize if response has changed since last check
+                                summary_response = ""
+                                if previous_summary == "":
+                                    summary_response = self.chat_completion(
+                                        f"An AI bot is doing work, you are monitoring it. Please summarize in a few words what is happening in this ongoing response from another bot so far.  Be VERY Brief, use just a few words, not even a complete sentence.  Don't put a period on the end if its just one sentence or less. Here is the bots ongoing response: {response.strip()[:-2]}"
+                                    , db_adapter=db_adapter, fast=True)
+                                else:
+                                    summary_response = self.chat_completion(
+                                        f"An AI bot is doing work, you are monitoring it.  Based on its previous status, you made this previous short summary of its work so far: \n{previous_summary}\n\nThe updated status from the bot is now:\n{response.strip()[:-2]}\n\nVery briefly, in just a few words, summarize anything new the bot has done since the last update.  Be VERY Brief, use just a few words, not even a complete sentence.  Don't put a period on the end if its just one sentence or less.  If there has been no substantial change in the status, return only NO_CHANGE."
+                                    , db_adapter=db_adapter, fast=True)
+                                if summary_response and summary_response != 'NO_CHANGE':
+                                    previous_summary = previous_summary + summary_response + '\n'
+                                    current_summary = summary_response
+                                    _update_streaming_status(self,target_bot, current_summary, run_id, session_id, og_thread_id, status_update_callback, input_metadata)
+                                _last_summary_time = current_time
+                            except Exception as e:
+                                logger.error(f"Error getting response summary: {str(e)}")
+                                _last_summary_time = current_time
                 if response and response.strip().endswith("💬"):
-                    time.sleep(1)
+                    time.sleep(2)
                     continue
                 if response:
                     try:
                         # Extract the last JSON object from the response string
                         # Try to find JSON in code blocks first
-                        json_matches = re.findall(r'```json\n(.*?)\n```', response, re.DOTALL)
-                        if not json_matches:
-                            # If no code blocks, try to find any JSON object in the response
-                            json_matches = re.findall(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', response)
-                        if json_matches:
-                            result = json.loads(json_matches[-1])  # Get last JSON match
-                        else:
-                            # Try parsing the whole response as JSON if no code blocks found
-                            result = json.loads(response)
+                        #json_matches = re.findall(r'```json\n(.*?)\n```', response, re.DOTALL)
+                        #if not json_matches:
+                        #    # If no code blocks, try to find any JSON object in the response
+                        #    json_matches = re.findall(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', response)
+                        #if json_matches:
+                        #    result = json.loads(json_matches[-1])  # Get last JSON match
+                        #else:
+                        #    # Try parsing the whole response as JSON if no code blocks found
+                        #    result = json.loads(response)
 
                         # Validate against schema
-                        jsonschema.validate(result, expected_json_schema)
+                        #jsonschema.validate(result, expected_json_schema)
                         return {
                             "success": True,
-                            "result": result
+                            "result": response
                         }
                     except (json.JSONDecodeError, jsonschema.ValidationError):
                         # Invalid JSON or schema mismatch - retry
                         attempts += 1
                         if attempts < max_retries:
                             # Send retry prompt
+                            last_response = ""
+                            previous_summary = ""
                             retry_prompt = f"""
                             Your previous response was not in the correct JSON format.
                             Please try again and respond ONLY with a JSON object matching this schema:
@@ -288,6 +353,7 @@ class ToolBelt:
                                 bot_id={},
                                 file={}
                             )
+                            _update_streaming_status(self,target_bot, 'Bot provided incorrect JSON response format, retrying...', run_id, session_id, thread_id, status_update_callback, input_metadata)
 
                 time.sleep(1)
 
@@ -510,13 +576,14 @@ class ToolBelt:
         except Exception as e:
             return {"error": str(e)}
 
-    def chat_completion(self, message, db_adapter, bot_id = None, bot_name = None, thread_id=None, process_id="", process_name="", note_id = None):
+    def chat_completion(self, message, db_adapter, bot_id = None, bot_name = None, thread_id=None, process_id="", process_name="", note_id = None, fast=False):
         process_name = "" if process_name is None else process_name
         process_id = "" if process_id is None else process_id
         message_metadata ={"process_id": process_id, "process_name": process_name}
         return_msg = None
 
-        self.write_message_log_row(db_adapter, bot_id, bot_name, thread_id, 'Supervisor Prompt', message, message_metadata)
+        if not fast:     
+            self.write_message_log_row(db_adapter, bot_id, bot_name, thread_id, 'Supervisor Prompt', message, message_metadata)
 
         model = None
 
@@ -547,7 +614,11 @@ class ToolBelt:
 
                     openai_model = os.getenv("OPENAI_MODEL_SUPERVISOR",os.getenv("OPENAI_MODEL_NAME","gpt-4o"))
 
-                    logger.info('process supervisor using model: ', openai_model)
+                    if fast and openai_model.startswith("gpt-4o"):
+                        openai_model = "gpt-4o-mini"
+
+                    if not fast:
+                        logger.info('process supervisor using model: ', openai_model)
                     try:
                         client = get_openai_client()
                         response = client.chat.completions.create(
@@ -590,7 +661,8 @@ class ToolBelt:
             return_msg = 'Error Chat_completion, return_msg is none, llm_type = ',os.getenv("BOT_OS_DEFAULT_LLM_ENGINE").lower()
             logger.info(return_msg)
 
-        self.write_message_log_row(db_adapter, bot_id, bot_name, thread_id, 'Supervisor Response', return_msg, message_metadata)
+        if not fast:
+            self.write_message_log_row(db_adapter, bot_id, bot_name, thread_id, 'Supervisor Response', return_msg, message_metadata)
 
         return return_msg
 

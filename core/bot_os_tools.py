@@ -212,7 +212,7 @@ class ToolBelt:
 
                 return {
                     "success": False,
-                    "error": f"Could not find target bot with ID: {target_bot_id}. Valid bots are: {valid_bots}"
+                    "error": f"Could not find target bot with ID: {target_bot}. Valid bots are: {valid_bots}"
                 }
 
             # Create new thread

@@ -9,12 +9,12 @@ export WORKDIR=/tmp
 
 #ttyd -p ${TTYD_PORT} -W bash &> ${WORKDIR}/ttyd.log &
 
-#/usr/bin/shellinaboxd \
-#    --port=1234 \
-#    --disable-ssl \
-#    --no-beep \
-#    --service "/:LOGIN" \
-#    --css /etc/shellinabox/options-enabled/00_White\ On\ Black.css &
+/usr/bin/shellinaboxd \
+    --port=1234 \
+    --disable-ssl \
+    --no-beep \
+    --service "/:LOGIN" \
+    --css /etc/shellinabox/options-enabled/00_White\ On\ Black.css &
 
 
 #ttyd -p 1234 \

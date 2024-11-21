@@ -85,21 +85,29 @@ NGROK_AUTH_TOKEN
 
    - Check the log to see if any missing modules/packages. you can output the log to a file to help you
 
-8. Run backend: open a terminal window:
+8. Create a new directory for Git files
+  - In a terminal, run the following:
+```
+sudo mkdir /opt/bot_git
+sudo chmod o+w /opt/bot_git
+git config --global --add safe.directory /opt/bot_git
+```
+
+9. Run backend: open a terminal window:
 
 ```
 python demo/bot_os_multibot_1.py
 ```
 
-9. Run Frontend: once #8 completed, run in another terminal window. This step will bring up 'Genesis Bots Configuration' page in Browser.
+10. Run Frontend: once #8 completed, run in another terminal window. This step will bring up 'Genesis Bots Configuration' page in Browser.
 
 ```
 streamlit run ./streamlit_gui/streamlit_sis_v1.py
 ```
 
-10. You can go to http://localhost:8501/ in a browser and this will bring you to 'Genesis Bots Configuration' page.
+11. You can go to http://localhost:8501/ in a browser and this will bring you to 'Genesis Bots Configuration' page.
 
-11. Select 'Chat with Bots' to talk to the app.
+12. Select 'Chat with Bots' to talk to the app.
 
 ### Notes:
 

@@ -160,7 +160,6 @@ def prompt_bot_and_await_response(
 
 if __name__ == "__main__":
 
-    # 
     bot_list = [
         {"bot_id": "Janice-JL", "assistant_id": "asst_OYId7gAF5v74xCHzr5319R27"},
         {"bot_id": "MrSpock-3762b2", "assistant_id": "asst_sbxRnnpMKosmf4cb3UeIVZZH"}
@@ -193,13 +192,13 @@ if __name__ == "__main__":
     scheduler.start()
 
     result = prompt_bot_and_await_response(target_bot='Janice-JL', prompt="Who are you and what is your mission?")
-    print(f"\n\n{result}\n\n")
+    print(f"\n{result}")
 
     result = prompt_bot_and_await_response(target_bot='Janice-JL', prompt="Search metadata for data on baseball, then find the number of baseball teams in the data.")
-    print(f"\n\n{result}\n\n")
+    print(f"\n{result}")
     
     result = prompt_bot_and_await_response(target_bot='MrSpock-3762b2', prompt="Delegate to Janice: Run on Snowflake 'select current_account();")
-    print(f"\n\n{result}\n\n")
+    print(f"\n{result}")
     
     scheduler.shutdown()
     print("Done")

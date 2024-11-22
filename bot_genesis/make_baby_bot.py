@@ -60,8 +60,6 @@ def set_slack_config_tokens(slack_app_config_token, slack_app_config_refresh_tok
         t, r = rotate_slack_token(slack_app_config_token,slack_app_config_refresh_token)
     except:
         return('Error','Refresh token invalid')
-
-    save_slack_config_tokens(t,r)
     return t,r
 
 
@@ -309,10 +307,10 @@ def rotate_slack_token(config_token, refresh_token):
             return new_config_token, new_refresh_token
         else:
             logger.info(f"Failed to rotate token: {response_data.get('error')}")
-            return None, None
+            return "Error", f"Failed to rotate token: {response_data.get('error')}"
     else:
         logger.info(f"Failed to rotate token, status code: {response.status_code}")
-        return None, None
+        return "Error", f"Failed to rotate token, status code: {response.status_code}"
 
 
 
@@ -875,7 +873,7 @@ def update_bot_instructions(bot_id, new_instructions=None, bot_instructions=None
 
 def test_slack_app_level_token(app_level_token):
     """
-    Test the Slack App Level Token by first checking if the token is valid in general, 
+    Test the Slack App Level Token by first checking if the token is valid in general,
     and then testing to see if it can be used for apps.connections.open.
 
     Args:
@@ -1852,10 +1850,10 @@ def remove_tools_from_bot(bot_id, remove_tools):
 def remove_bot_from_slack():
     # STUB PLACEHOLDER
 
-    query = '''update bot_servicing 
-    set api_app_id = null, bot_slack_user_id = null, slack_app_token = null, slack_app_level_key = null, 
-    slack_signing_secret = null, auth_url = null, auth_state = null, client_id = null, client_secret = null, 
-    slack_active = 'N' 
+    query = '''update bot_servicing
+    set api_app_id = null, bot_slack_user_id = null, slack_app_token = null, slack_app_level_key = null,
+    slack_signing_secret = null, auth_url = null, auth_state = null, client_id = null, client_secret = null,
+    slack_active = 'N'
     where bot_id = 'Eve-s2Wjwi';'''
 
     pass

@@ -177,7 +177,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
    def __init__(self, name:str, instructions:str, 
                 tools:list[dict] = {}, available_functions={}, files=[], 
-                update_existing=False, log_db_connector=None, bot_id='default_bot_id', bot_name='default_bot_name', all_tools:list[dict]={}, all_functions={},all_function_to_tool_map={}, skip_vectors=False) -> None:
+                update_existing=False, log_db_connector=None, bot_id='default_bot_id', bot_name='default_bot_name', all_tools:list[dict]={}, all_functions={},all_function_to_tool_map={}, skip_vectors=False, assistant_id = None) -> None:
       logger.debug("BotOsAssistantOpenAI:__init__") 
       super().__init__(name, instructions, tools, available_functions, files, update_existing, skip_vectors=False, bot_id=bot_id, bot_name=bot_name)
 
@@ -234,44 +234,55 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       self.internal_db_name = self.db_schema[0]
       self.internal_schema_name = self.db_schema[1]
 
-      my_assistants = self.client.beta.assistants.list(
-         order="desc", limit=100
-      )
-      logger.info('finding assistant...')
-      my_assistants = [a for a in my_assistants if a.name == name]
-      logger.info('assistant found')
-
-      if len(my_assistants) == 0 and update_existing:
-         vector_store_name = self.bot_id + '_vectorstore'
-         self.vector_store = self.create_vector_store(vector_store_name=vector_store_name, files=files)
-         if self.vector_store is not None:
-           # tool_resources = {"file_search": {"vector_store_ids": [vector_store]}}
-            self.tool_resources = {"file_search": {"vector_store_ids": [self.vector_store]}}
-         else:
-            self.tool_resources = {} 
+      my_assistant = None
+      if assistant_id is not None:
          try:
-            self.assistant = self.client.beta.assistants.create(
-            name=name,
-            instructions=instructions,
-            tools=my_tools, # type: ignore
-            model=model_name,
-            # file_ids=self._upload_files(files) #FixMe: what if the file contents change?
-            tool_resources=self.tool_resources,
-            temperature=0.0
-            )
-         except:
-            my_tools = [tool for tool in my_tools if tool.get('type') != 'file_search']
-            self.assistant = self.client.beta.assistants.create(
+            logger.info(f'loading assistant {assistant_id} for bot {name}...')
+            my_assistant = self.client.beta.assistants.retrieve(assistant_id=assistant_id)
+            self.assistant = my_assistant
+         except Exception as e:
+            my_assistant = None
+
+      if my_assistant is None:
+         my_assistants = self.client.beta.assistants.list(
+            order="desc", limit=100
+         )
+
+         logger.info('finding assistant...')
+
+         my_assistants = [a for a in my_assistants if a.name == name]
+         if len(my_assistants) == 0 and update_existing:
+            vector_store_name = self.bot_id + '_vectorstore'
+            self.vector_store = self.create_vector_store(vector_store_name=vector_store_name, files=files)
+            if self.vector_store is not None:
+            # tool_resources = {"file_search": {"vector_store_ids": [vector_store]}}
+               self.tool_resources = {"file_search": {"vector_store_ids": [self.vector_store]}}
+            else:
+               self.tool_resources = {} 
+            try:
+               self.assistant = self.client.beta.assistants.create(
                name=name,
                instructions=instructions,
                tools=my_tools, # type: ignore
                model=model_name,
+               # file_ids=self._upload_files(files) #FixMe: what if the file contents change?
+               tool_resources=self.tool_resources,
                temperature=0.0
-            # file_ids=self._upload_files(files) #FixMe: what if the file contents change?
-            )            
+               )
+            except:
+               my_tools = [tool for tool in my_tools if tool.get('type') != 'file_search']
+               self.assistant = self.client.beta.assistants.create(
+                  name=name,
+                  instructions=instructions,
+                  tools=my_tools, # type: ignore
+                  model=model_name,
+                  temperature=0.0
+               # file_ids=self._upload_files(files) #FixMe: what if the file contents change?
+               )            
 
-      elif len(my_assistants) > 0:
-         self.assistant = my_assistants[0]
+         elif len(my_assistants) > 0:
+            self.assistant = my_assistants[0]
+            logger.info('assistant found for bot ',name,': ',self.assistant.id,'. You can provide this parameter in your bot_list to speed session creation.')
 
          if os.getenv("TASK_MODE", "false").lower() == "true":
             # dont do this for the TASK SERVER, just have it use the existing assistant being managed by the MultiBot Runner Process

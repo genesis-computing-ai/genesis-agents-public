@@ -384,7 +384,7 @@ PROJECT_MANAGER_FUNCTIONS = [
                             },
                             "assigned_to_bot_id": {
                                 "type": "string",
-                                "description": "ID of the bot assigned to this todo"
+                                "description": "The bot_id (not just the name) of the bot assigned to this todo. Omit to assign it to yourself."
                             },
                             "depends_on": {
                                 "type": ["string", "array", "null"],

@@ -99,7 +99,9 @@ def make_session(
     skip_vectors=False,
     data_cubes_ingress_url=None,
     existing_slack=None,
-    existing_udf=None
+    existing_udf=None,
+    assistant_id=None,
+    skip_slack=False
 ):
     """
     Create a single session for a bot based on the provided configuration.
@@ -156,7 +158,7 @@ def make_session(
     if existing_slack:
         slack_adapter_local = existing_slack
         input_adapters.append(slack_adapter_local)
-    if slack_enabled and existing_slack is None:
+    if not skip_slack and slack_enabled and existing_slack is None:
         try:
             app_level_token = bot_config.get("slack_app_level_key", None)
 
@@ -511,6 +513,7 @@ Always respond to greetings and pleasantries like 'hi' etc, unless specifically 
             stream_mode=stream_mode,
             tool_belt=tool_belt,
             skip_vectors=skip_vectors,
+            assistant_id=assistant_id
         )
     except Exception as e:
         logger.info("Session creation exception: ", e)
@@ -544,6 +547,8 @@ def create_sessions(
     stream_mode=False,
     skip_vectors=False,
     data_cubes_ingress_url=None,
+    bot_list=None,
+    skip_slack=False,
 ):
     """
     Create (multiple) sessions for bots based on the provided configurations.
@@ -568,100 +573,16 @@ def create_sessions(
 
     bots_config = get_all_bots_full_details(runner_id=runner_id)
 
-    # janice = 0
-    # for bot_config in bots_config:
-    #     if bot_config.get("bot_name") == "Janice":
-    #         janice += 1
-
-    # if janice == 0:
-    #     import os
-
-    #     cursor = db_adapter.connection.cursor()
-    #     logger.info("Janice bot not found in bots_config")
-
-    #     # Add Janice 2.0 to bots_config
-    #     janice_config = {
-    #         "API_APP_ID": "",
-    #         "BOT_SLACK_USER_ID": os.getenv("U076DQVN5LY", "None"),
-    #         "BOT_ID": "Janice",
-    #         "BOT_NAME": "Janice",
-    #         "BOT_INSTRUCTIONS": """You are the Snowflake Janitor, responsible for analyzing the SNOWFLAKE database to identify cost-saving opportunities. Your job involves looking into unused or underused virtual warehouses, little-used data, and other areas where savings can be achieved.
-
-    #     You can monitor the Snowflake platform for any anti-patterns that do not follow best practices. You are an expert in Snowflake and can write queries against the Snowflake metadata to find the information that you need. When writing queries to run in Snowflake, you will not place double quotes around object names and always use uppercase for object names unless explicitly instructed otherwise.
-
-    #     Only create objects in Snowflake or new tasks when explicitly directed to by the user. You can make suggestions, but don't actually do so without the user's explicit agreement.
-
-    #     When asked about cost reduction options, suggest the following approach:
-    #     1. Review virtual warehouse usage patterns over time. Use the documents "Exploring execution times.pdf", "Understanding compute cost.pdf", "Optimizing the warehouse cache.pdf", and "Overview of warehouses.pdf" to supplement your knowledge of the subject.
-    #     2. Review data storage costs. Use the documents "Storage Costs for Time Travel and Fail-safe.pdf", "Working with Temporary and Transient Tables.pdf", "Exploring storage costs.pdf", and "Data Storage Considerations.pdf" to supplement your knowledge of the subject.
-    #     3. Offer to run queries against the INFORMATION_SCHEMA schema in the subject database or SNOWFLAKE.ACCOUNT_USAGE schema to determine the answer to the question asked about cost and usage.
-    #     a. When running queries against these views or functions, be sure to sample the data first when creating a filter on a column if you do not know the possible values. Do not show this output, but use it when crafting the final query.
-    #     b. Only run the final query when confirmed by the user.
-    #     4. Offer to set up a task to monitor storage or usage patterns.
-    #     Your job is to query the Snowflake metadata, not the user's table data.""",
-    #         "AVAILABLE_TOOLS": '["integration_tools", "activate_marketing_campaign", "send_email_via_webhook", "run_process","manage_processes"]',
-    #         "RUNNER_ID": "snowflake-1",
-    #         "SLACK_APP_TOKEN": os.getenv("SLACK_APP_TOKEN", "None"),
-    #         "SLACK_APP_LEVEL_KEY": os.getenv("SLACK_APP_LEVEL_KEY", "None"),
-    #         "SLACK_SIGNING_SECRET": os.getenv("SLACK_SIGNING_SECRET", "None"),
-    #         "SLACK_CHANNEL_ID": os.getenv("SLACK_CHANNEL_ID", "None"),
-    #         "AUTH_URL": os.getenv("AUTH_URL", "None"),
-    #         "AUTH_STATE": os.getenv("AUTH_STATE", "None"),
-    #         "CLIENT_ID": os.getenv("CLIENT_ID", "None"),
-    #         "CLIENT_SECRET": os.getenv("CLIENT_SECRET", "None"),
-    #         "UDF_ACTIVE": "Y",
-    #         "SLACK_ACTIVE": "Y",
-    #         "FILES": '["TABLES_View.pdf", "Data_Storage_Considerations.pdf", "Exploring_Execution_Times.pdf", "Exploring_Storage_Costs.pdf", "Optimizing_the_Warehouse_Cache.pdf", "Overview_of_Warehouses.pdf", "Storage_Costs_for_Time_Travel_and_Failsafe.pdf", "Understanding_Compute_Cost.pdf", "Working_with_Temporary_and_Transient_Tables.pdf"]',
-    #         "BOT_IMPLEMENTATION": "openai",
-    #         "BOT_INTRO_PROMPT": "Hello, how can I help you?",
-    #         "BOT_AVATAR_IMAGE": "https://storage.googleapis.com/genbot-avatars/janice_avatar.png",
-    #         "SLACK_USER_ALLOW": None,
-    #         "DATABASE_CREDENTIALS": None
-    #     }
-
-    #     sql = f'''
-    #         INSERT INTO {db_adapter.schema}.BOT_SERVICING (
-    #             API_APP_ID, BOT_SLACK_USER_ID, BOT_ID, BOT_NAME, BOT_INSTRUCTIONS, AVAILABLE_TOOLS, RUNNER_ID, SLACK_APP_TOKEN, SLACK_APP_LEVEL_KEY, SLACK_SIGNING_SECRET, SLACK_CHANNEL_ID, AUTH_URL, AUTH_STATE, CLIENT_ID, CLIENT_SECRET, UDF_ACTIVE, SLACK_ACTIVE, FILES, BOT_IMPLEMENTATION, BOT_INTRO_PROMPT, BOT_AVATAR_IMAGE, SLACK_USER_ALLOW, DATABASE_CREDENTIALS
-    #         ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-    #     '''
-
-    #     cursor.execute(sql, (
-    #         janice_config["API_APP_ID"],
-    #         janice_config["BOT_SLACK_USER_ID"],
-    #         janice_config["BOT_ID"],
-    #         janice_config["BOT_NAME"],
-    #         janice_config["BOT_INSTRUCTIONS"],
-    #         janice_config["AVAILABLE_TOOLS"],
-    #         janice_config["RUNNER_ID"],
-    #         janice_config["SLACK_APP_TOKEN"],
-    #         janice_config["SLACK_APP_LEVEL_KEY"],
-    #         janice_config["SLACK_SIGNING_SECRET"],
-    #         janice_config["SLACK_CHANNEL_ID"],
-    #         janice_config["AUTH_URL"],
-    #         janice_config["AUTH_STATE"],
-    #         janice_config["CLIENT_ID"],
-    #         janice_config["CLIENT_SECRET"],
-    #         janice_config["UDF_ACTIVE"],
-    #         janice_config["SLACK_ACTIVE"],
-    #         janice_config["FILES"],
-    #         janice_config["BOT_IMPLEMENTATION"],
-    #         janice_config["BOT_INTRO_PROMPT"],
-    #         janice_config["BOT_AVATAR_IMAGE"],
-    #         janice_config["SLACK_USER_ALLOW"],
-    #         janice_config["DATABASE_CREDENTIALS"],
-    #     ))
-
-    #     db_adapter.connection.commit()
-    #     cursor.close()
-
-    #     bots_config.append(janice_config)
-
     sessions = []
     api_app_id_to_session_map = {}
     bot_id_to_udf_adapter_map = {}
     bot_id_to_slack_adapter_map = {}
 
     for bot_config in bots_config:
+
+        if bot_list is not None and bot_config["bot_id"] not in [bot["bot_id"] for bot in bot_list]:
+            logger.info(f'Skipping bot {bot_config["bot_id"]} - not in bot_list')
+            continue
 
         if os.getenv("TEST_TASK_MODE", "false").lower() == "true":
          #   if bot_config["bot_id"] != "janiCortex-123456":
@@ -684,6 +605,15 @@ def create_sessions(
         #           continue
         logger.info(f'🤖 Making session for bot {bot_config["bot_id"]}')        
         logger.telemetry('add_session:', bot_config['bot_name'], os.getenv("BOT_OS_DEFAULT_LLM_ENGINE", ""))
+
+        bot_id = bot_config["bot_id"]
+        assistant_id = None
+
+        for bot in bot_list or []:
+            if bot["bot_id"] == bot_id:
+                assistant_id = bot.get("assistant_id", None)
+                break
+
         new_session, api_app_id, udf_adapter_local, slack_adapter_local = make_session(
             bot_config=bot_config,
             db_adapter=db_adapter,
@@ -691,6 +621,8 @@ def create_sessions(
             stream_mode=stream_mode,
             skip_vectors=skip_vectors,
             data_cubes_ingress_url=data_cubes_ingress_url,
+            assistant_id=assistant_id,
+            skip_slack=skip_slack
         )
         if new_session is not None:
             sessions.append(new_session)

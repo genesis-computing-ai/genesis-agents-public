@@ -285,19 +285,19 @@ class ProjectManager:
                         "error": f"Invalid status. Must be one of: {', '.join(self.VALID_STATUSES)}"
                     }
 
-                # Verify todo exists and bot has permission
+                # Verify todo exists
                 cursor.execute(
                     f"""
                     SELECT current_status FROM {self.db_adapter.schema}.TODO_ITEMS 
-                    WHERE todo_id = %s AND assigned_to_bot_id = %s
+                    WHERE todo_id = %s 
                     """,
-                    (todo_id, bot_id)
+                    (todo_id)
                 )
                 result = cursor.fetchone()
                 if not result:
                     return {
                         "success": False,
-                        "error": "Todo not found or you don't have permission to modify it"
+                        "error": "Todo not found"
                     }
 
                 old_status = result[0]
@@ -311,9 +311,9 @@ class ProjectManager:
                 update_query = f"""
                 UPDATE {self.db_adapter.schema}.TODO_ITEMS 
                 SET current_status = %s, updated_at = CURRENT_TIMESTAMP
-                WHERE todo_id = %s AND assigned_to_bot_id = %s
+                WHERE todo_id = %s 
                 """
-                cursor.execute(update_query, (new_status, todo_id, bot_id))
+                cursor.execute(update_query, (new_status, todo_id))
 
                 # Add history entry with status tracking
                 work_description = todo_details.get('work_description')

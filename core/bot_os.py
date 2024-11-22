@@ -110,6 +110,7 @@ class BotOsSession:
         stream_mode=False,
         tool_belt=None,
         skip_vectors=False,
+        assistant_id=None,
     ):
       #  logger.info(skip_vectors)
         BotOsAssistantOpenAI.stream_mode = stream_mode
@@ -171,6 +172,7 @@ class BotOsSession:
             all_functions=all_functions,
             all_function_to_tool_map=all_function_to_tool_map,
             skip_vectors=skip_vectors,
+            assistant_id=assistant_id,
         )
         self.runs = {}
         self.log_db_connector = log_db_connector

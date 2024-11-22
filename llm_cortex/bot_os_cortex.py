@@ -31,7 +31,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
     
     def __init__(self, name:str, instructions:str, 
                 tools:list[dict] = {}, available_functions={}, files=[], 
-                update_existing=False, log_db_connector=None, bot_id='default_bot_id', bot_name='default_bot_name', all_tools:list[dict]={}, all_functions={},all_function_to_tool_map={},skip_vectors=False) -> None:
+                update_existing=False, log_db_connector=None, bot_id='default_bot_id', bot_name='default_bot_name', all_tools:list[dict]={}, all_functions={},all_function_to_tool_map={},skip_vectors=False, assistant_id=None) -> None:
         super().__init__(name, instructions, tools, available_functions, files, update_existing, skip_vectors=False)
         self.active_runs = deque()
 #        self.llm_engine = 'mistral-large'

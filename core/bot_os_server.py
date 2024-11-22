@@ -47,7 +47,7 @@ class BotOsServer:
         data_cubes_ingress_url = None,
         bot_id_to_slack_adapter_map = None,
     ):
-        logger.debug(f"BotOsServer:__init__ creating server {flask_app.name}")
+        logger.debug(f"BotOsServer:__init__ creating server")
         self.app = flask_app
         self.sessions = sessions
         self.scheduler = scheduler

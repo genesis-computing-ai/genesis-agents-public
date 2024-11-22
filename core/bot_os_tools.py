@@ -137,11 +137,14 @@ class ToolBelt:
         self.server = server
 
     def delegate_work(
+            # if fast model errors, use regular one
+            # x add a followup option to followup on a thread vs starting a new one
             # todo, add system prompt override, add tool limits, have delegated jobs skip the thread knowledge injection, etc.
-            # dont save to llm results table for a delegation
+            # x dont save to llm results table for a delegation
             # x see if they have a better time finding other bots now
             # x cancel the delegated run if timeout expires 
             # make STOP on the main thread also cancel any inflight delegations
+            # x fix bot todo updating, make sure full bot id is in assigned bot field so it can update todos, or allow name too 
             # x allow work and tool calls from downstream bots to optionally filter back up to show up in slack while they are working (maybe with a summary like o1 does of whats happening)
         self,
         prompt: str,
@@ -153,6 +156,7 @@ class ToolBelt:
         session_id = None,
         input_metadata = None,
         run_id = None,
+        callback_id = None,
     ) -> Dict[str, Any]:
         """
         Internal method that implements the delegation logic.
@@ -267,7 +271,10 @@ class ToolBelt:
             """
 
             # Create thread ID for this task
-            thread_id = str(uuid.uuid4())
+            if callback_id is not None:
+                thread_id = callback_id
+            else:
+                thread_id = 'delegate_' + str(uuid.uuid4())
             # Generate and store UUID for thread tracking
             uu = udf_adapter.submit(
                 input=validation_prompt,
@@ -298,11 +305,11 @@ class ToolBelt:
                                 summary_response = ""
                                 if previous_summary == "":
                                     summary_response = self.chat_completion(
-                                        f"An AI bot is doing work, you are monitoring it. Please summarize in a few words what is happening in this ongoing response from another bot so far.  Be VERY Brief, use just a few words, not even a complete sentence.  Don't put a period on the end if its just one sentence or less. Here is the bots ongoing response: {response.strip()[:-2]}"
+                                        f"An AI bot is doing work, you are monitoring it. Please summarize in a few words what is happening in this ongoing response from another bot so far.  Be VERY Brief, use just a few words, not even a complete sentence.  Don't put a period on the end if its just one sentence or less.\nHere is the bots output so far:\n\n{response.strip()[:-2]}"
                                     , db_adapter=db_adapter, fast=True)
                                 else:
                                     summary_response = self.chat_completion(
-                                        f"An AI bot is doing work, you are monitoring it.  Based on its previous status, you made this previous short summary of its work so far: \n{previous_summary}\n\nThe updated status from the bot is now:\n{response.strip()[:-2]}\n\nVery briefly, in just a few words, summarize anything new the bot has done since the last update.  Be VERY Brief, use just a few words, not even a complete sentence.  Don't put a period on the end if its just one sentence or less.  If there has been no substantial change in the status, return only NO_CHANGE."
+                                        f"An AI bot is doing work, you are monitoring it.  Based on its previous status updates, you have provided these summaries so far: \n<PREVIOUS_SUMMARIES_START>\n{previous_summary}\n</PREVIOUS_SUMMARIES_END>\n\nThe current output of the bot so far:\n<BOTS_OUTPUT_START>{response.strip()[:-2]}\n</BOTS_OUTPUT_END>\n\nNOW, Very briefly, in just a few words, summarize anything new the bot has done since the last update, that you have not mentioned yet in a previous summary.  Be VERY Brief, use just a few words, not even a complete sentence.  Don't put a period on the end if its just one sentence or less.  Don't repeat things you already said in previous summaries. If there has been no substantial change in the status, return only NO_CHANGE."
                                     , db_adapter=db_adapter, fast=True)
                                 if summary_response and summary_response != 'NO_CHANGE':
                                     previous_summary = previous_summary + summary_response + '\n'
@@ -333,7 +340,8 @@ class ToolBelt:
                         #jsonschema.validate(result, expected_json_schema)
                         return {
                             "success": True,
-                            "result": response
+                            "result": response,
+                            "callback_id": thread_id
                         }
                     except (json.JSONDecodeError, jsonschema.ValidationError):
                         # Invalid JSON or schema mismatch - retry
@@ -632,7 +640,7 @@ class ToolBelt:
                         )
                     except Exception as e:
                         if os.getenv("OPENAI_MODEL_SUPERVISOR", None) is not None:
-                            logger.info(f"Error occurred while calling OpenAI API with supervisor model {openai_model}: {e}")
+                            logger.info(f"Error occurred while calling OpenAI API with model {openai_model}: {e}")
                             logger.info(f'Retrying with main model {os.getenv("OPENAI_MODEL_NAME","gpt-4o")}')
                             openai_model = os.getenv("OPENAI_MODEL_NAME","gpt-4o")
                             response = client.chat.completions.create(
@@ -3210,6 +3218,12 @@ BOT_DISPATCH_DESCRIPTIONS = [
                         "description": "Maximum seconds to wait for response, defaults to 300",
                         "minimum": 1,
                         "default": 300
+                    }
+                    ,
+                    "callback_id": {
+                        "type": "string",
+                        "description": "Optional callback_id to continue a previous delegation thread. Use this if you need to follow up on a previous delegation, by providing the callback_id that you received in the response to the previous delegation. If not used, a new thread will be started with the target_bot for this delegation.",
+                        "default": None
                     }
                 },
                 "required": ["prompt"]  # Only prompt is required, others have defaults

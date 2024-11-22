@@ -98,10 +98,12 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
                 self.response_map[in_uuid] = message.output
         # write the value to the hybrid table
         if in_uuid in self.pending_map:
-            self.db_connector.db_insert_llm_results(in_uuid, message.output)
+            if not message.input_metadata["thread_id"].startswith('delegate_'):
+                self.db_connector.db_insert_llm_results(in_uuid, message.output)
             del self.pending_map[in_uuid]
         else:
-            self.db_connector.db_update_llm_results(in_uuid, message.output)
+            if not message.input_metadata["thread_id"].startswith('delegate_'):
+                self.db_connector.db_update_llm_results(in_uuid, message.output)
 
 
     def lookup_fn(self):

@@ -99,6 +99,7 @@ else
     snow --config-file ~/.snowcli/config.toml sql -c GENESIS-DEV-CONSUMER-2 -q "call genesis_bots.core.run_arbitrary('grant all on service GENESIS_BOTS.APP1.GENESISAPP_TASK_SERVICE to application role app_public;');"
     snow --config-file ~/.snowcli/config.toml sql -c GENESIS-DEV-CONSUMER-2 -q "call genesis_bots.core.run_arbitrary('grant all on service GENESIS_BOTS.APP1.GENESISAPP_SERVICE_SERVICE to application role app_public;');"
     snow --config-file ~/.snowcli/config.toml sql -c GENESIS-DEV-CONSUMER-2 -q "call genesis_bots.core.run_arbitrary('grant all on all tables in schema GENESIS_BOTS.APP1 to application role app_public;');"
+    snow --config-file ~/.snowcli/config.toml sql -c GENESIS-DEV-CONSUMER-2 -q "call genesis_bots.core.run_arbitrary('grant select on GENESIS_BOTS.APP1.LLM_RESULTS to application role app_public;');"
     snow --config-file ~/.snowcli/config.toml sql -c GENESIS-DEV-CONSUMER-2 -q "call genesis_bots.core.run_arbitrary('grant all on schema GENESIS_BOTS.APP1 to application role app_public;');"
     snow --config-file ~/.snowcli/config.toml sql -c GENESIS-DEV-CONSUMER-2 -q "show applications;"
 fi

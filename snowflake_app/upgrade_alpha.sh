@@ -96,7 +96,7 @@ snow sql -c GENESIS-ALPHA-CONSUMER -q "call genesis_bots_alpha.core.run_arbitrar
 snow sql -c GENESIS-ALPHA-CONSUMER -q "call genesis_bots_alpha.core.run_arbitrary('grant all on service genesis_bots_alpha.APP1.GENESISAPP_TASK_SERVICE to application role app_public;');"
 snow sql -c GENESIS-ALPHA-CONSUMER -q "call genesis_bots_alpha.core.run_arbitrary('grant all on service genesis_bots_alpha.APP1.GENESISAPP_SERVICE_SERVICE to application role app_public;');"
 snow sql -c GENESIS-ALPHA-CONSUMER -q "call genesis_bots_alpha.core.run_arbitrary('grant all on all tables in schema genesis_bots_alpha.APP1 to application role app_public;');"
-snow sql -c GENESIS-ALPHA-CONSUMER -q "call genesis_bots.core.run_arbitrary('grant select on GENESIS_BOTS_ALPHA.APP1.LLM_RESULTS to application role app_public;');"
+snow sql -c GENESIS-ALPHA-CONSUMER -q "call genesis_bots_alpha.core.run_arbitrary('grant select on GENESIS_BOTS_ALPHA.APP1.LLM_RESULTS to application role app_public;');"
 snow sql -c GENESIS-ALPHA-CONSUMER -q "call genesis_bots_alpha.core.run_arbitrary('grant all on schema genesis_bots_alpha.APP1 to application role app_public;');"
 snow sql -c GENESIS-ALPHA-CONSUMER -q "show applications;"
 

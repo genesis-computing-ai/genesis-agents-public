@@ -4,12 +4,12 @@ from typing import TypedDict
 from core.bot_os_assistant_base import BotOsAssistantInterface, execute_function
 from collections import deque
 import datetime
-import time 
+import time
 
 import threading
 import core.global_flags as global_flags
 from core.bot_os_input import BotOsInputMessage, BotOsOutputMessage
-from core.bot_os_defaults import _BOT_OS_BUILTIN_TOOLS, BASE_BOT_INSTRUCTIONS_ADDENDUM
+from core.bot_os_defaults import _BOT_OS_BUILTIN_TOOLS, BASE_BOT_INSTRUCTIONS_ADDENDUM, BASE_BOT_CONDUCT_INSTRUCTIONS
 # For Streaming
 from typing_extensions import override
 from openai import AssistantEventHandler
@@ -21,7 +21,7 @@ from openai.types.beta import AssistantStreamEvent
 from collections import defaultdict
 import traceback
 from bot_genesis.make_baby_bot import (  get_bot_details )
-from llm_openai.openai_utils import get_openai_client 
+from llm_openai.openai_utils import get_openai_client
 
 from core.logging_config import logger
 def _get_function_details(run):
@@ -57,11 +57,11 @@ class StreamingEventHandler(AssistantEventHandler):
        self.client = client
        self.metadata = metadata
        self.bot_assist = bot_assist
-   
+
    @override
    def on_text_created(self, text) -> None:
        pass
-   
+
    @override
    def on_text_delta(self, delta, snapshot):
        # logger.info(f"\nassistant on_text_delta > {delta.value}")
@@ -94,12 +94,12 @@ class StreamingEventHandler(AssistantEventHandler):
    def on_message_done(self, message: Message) -> None:
       if self.run_id not in StreamingEventHandler.run_id_to_messages:
           StreamingEventHandler.run_id_to_messages[self.run_id] = []
-      
+
    #   try:
    #       message_text = message.content[0].text.value if message.content else ""
    #   except:
    #       message_text = ""
-      
+
       try:
           message_id = message.id if message.id else ""
       except:
@@ -109,15 +109,15 @@ class StreamingEventHandler(AssistantEventHandler):
        #   "text": message_text,
           "id": message_id
       }
-      
+
       StreamingEventHandler.run_id_to_messages[self.run_id].append(message_obj)
 
       if self.run_id in StreamingEventHandler.run_id_to_output_stream:
          if not StreamingEventHandler.run_id_to_output_stream[self.run_id].endswith('\n'):
             StreamingEventHandler.run_id_to_output_stream[self.run_id] += ' '
 
-      return 
-   
+      return
+
 
    @override
    def on_message_delta(self, delta: MessageDelta, snapshot: Message) -> None:
@@ -130,19 +130,19 @@ class StreamingEventHandler(AssistantEventHandler):
        return
 
    @override
-   def on_tool_call_done(self, tool_call: ToolCall) -> None: 
-       return      
-      
+   def on_tool_call_done(self, tool_call: ToolCall) -> None:
+       return
+
    @override
    def on_run_step_created(self, run_step: RunStep) -> None:
-       # 2       
+       # 2
        return
 
    @override
    def on_run_step_done(self, run_step: RunStep) -> None:
        return
 
-   def on_tool_call_delta(self, delta, snapshot): 
+   def on_tool_call_delta(self, delta, snapshot):
        return
 
    @override
@@ -164,7 +164,7 @@ class StreamingEventHandler(AssistantEventHandler):
                self.bot_assist.active_runs.append(self.thread_id)
        except:
           pass
-       return 
+       return
        if event.event == "thread.run.requires_action":
            logger.info("\nthread.run.requires_action > submit tool call")
            logger.info(f"ARGS: {self.arguments}")
@@ -175,15 +175,15 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
    stream_mode = False
    all_functions_backup = None
 
-   def __init__(self, name:str, instructions:str, 
-                tools:list[dict] = {}, available_functions={}, files=[], 
+   def __init__(self, name:str, instructions:str,
+                tools:list[dict] = {}, available_functions={}, files=[],
                 update_existing=False, log_db_connector=None, bot_id='default_bot_id', bot_name='default_bot_name', all_tools:list[dict]={}, all_functions={},all_function_to_tool_map={}, skip_vectors=False, assistant_id = None) -> None:
-      logger.debug("BotOsAssistantOpenAI:__init__") 
+      logger.debug("BotOsAssistantOpenAI:__init__")
       super().__init__(name, instructions, tools, available_functions, files, update_existing, skip_vectors=False, bot_id=bot_id, bot_name=bot_name)
 
       model_name = os.getenv("OPENAI_MODEL_NAME", default="gpt-4o")
       self.client = get_openai_client()
-    
+
       name = bot_id
       logger.info(f"-> OpenAI Model == {model_name}")
       self.thread_run_map = {}
@@ -200,16 +200,16 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       self.running_tools = {}
       self.tool_completion_status = {}
       self.log_db_connector = log_db_connector
-      my_tools = tools + [{"type": "file_search"}]  + [{"type": "code_interpreter"}]  
-      #my_tools = tools 
+      my_tools = tools + [{"type": "file_search"}]  + [{"type": "code_interpreter"}]
+      #my_tools = tools
       #logger.info(f'yoyo mytools {my_tools}')
       #logger.warn(f'yoyo mytools {my_tools}')
       self.my_tools = my_tools
       self.callback_closures = {}
-      self.clear_access_cache = False 
+      self.clear_access_cache = False
       self.first_tool_call = defaultdict(lambda: True)
       self.first_data_call = defaultdict(lambda: True)
-    
+
       self.allowed_types_search = [".c", ".cs", ".cpp", ".doc", ".docx", ".html", ".java", ".json", ".md", ".pdf", ".php", ".pptx", ".py", ".rb", ".tex", ".txt", ".css", ".js", ".sh", ".ts"]
       self.allowed_types_code_i = [".c", ".cs", ".cpp", ".doc", ".docx", ".html", ".java", ".json", ".md", ".pdf", ".php", ".pptx", ".py", ".rb", ".tex", ".txt", ".css", ".js", ".sh", ".ts", ".csv", ".jpeg", ".jpg", ".gif", ".png", ".tar", ".xlsx", ".xml", ".zip"]
       self.run_meta_map = {}
@@ -258,7 +258,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
             # tool_resources = {"file_search": {"vector_store_ids": [vector_store]}}
                self.tool_resources = {"file_search": {"vector_store_ids": [self.vector_store]}}
             else:
-               self.tool_resources = {} 
+               self.tool_resources = {}
             try:
                self.assistant = self.client.beta.assistants.create(
                name=name,
@@ -278,7 +278,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                   model=model_name,
                   temperature=0.0
                # file_ids=self._upload_files(files) #FixMe: what if the file contents change?
-               )            
+               )
 
          elif len(my_assistants) > 0:
             self.assistant = my_assistants[0]
@@ -306,7 +306,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                   self.tool_resources = {}
             else:
                self.tool_resources = {"file_search": {"vector_store_ids": [vector_store_id]}}
-            
+
             if True or hasattr(files, 'urls') and files.urls is not None:
                try:
                   self.client.beta.assistants.update(self.assistant.id,
@@ -321,22 +321,22 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                                              tools=my_tools, # type: ignore
                                              model=model_name,
                                           #   tool_resources=self.tool_resources
-                  )           
+                  )
             else:
                my_tools = [tool for tool in my_tools if tool.get('type') != 'file_search']
                self.client.beta.assistants.update(self.assistant.id,
                                              instructions=instructions,
                                              tools=my_tools, # type: ignore
                                              model=model_name,
-                  )            
+                  )
             self.first_message = True
-         
+
       logger.debug(f"BotOsAssistantOpenAI:__init__: assistant.id={self.assistant.id}")
 
    @override
    def is_active(self) -> bool:
       return self.active_runs
-   
+
    @override
    def is_processing_runs(self) -> bool:
       return self.processing_runs
@@ -359,12 +359,12 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       # Ready the files for upload to OpenAI
       if files is None and plain_files is None:
          return vector_store_id
-      
+
       if files is not None:
          files = files.urls
       if plain_files is not None:
          files = plain_files
-   
+
       try:
          files = files.urls
       except:
@@ -448,16 +448,16 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                logger.info(f"{self.bot_name} for bot {for_bot} update_vector_store successfully retrieved {file} from stage and saved to {new_file_location}")
           except Exception as e:
                logger.info(f"{self.bot_name} for bot {for_bot} update_vector_store failed to retrieve {file} from stage: {e}")
-          
+
       local_files = [file.replace('serverlocal:', '') for file in local_files]
 
       for file in local_files:
           if not os.path.isfile(file_path + file):
-              logger.error(f"Vector indexer: Can't find file: {file_path+file}") 
+              logger.error(f"Vector indexer: Can't find file: {file_path+file}")
 
       file_streams = [open(file_path + file_id, "rb") for file_id in local_files]
       stage_streams = [open(file_id, "rb") for file_id in files_from_stage]
-      
+
       # Use the upload and poll SDK helper to upload the files, add them to the vector store,
       # and poll the status of the file batch for completion.
 
@@ -474,7 +474,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       except Exception as e:
          logger.error(f"Failed to add files to the vector store '{vector_store_id}' for the bot with error: {e}")
          return vector_store_id
-      
+
                # Close the file streams after uploading
       for file_stream in file_streams:
          file_stream.close()
@@ -488,7 +488,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
          return vector_store_id
 
       else:
-         logger.info(f"No files provided to add to '{vector_store_id}'")   
+         logger.info(f"No files provided to add to '{vector_store_id}'")
          return vector_store_id
 
 
@@ -500,13 +500,13 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       except Exception as e:
          logger.error(f"Error creating vector store '{vector_store_name}': {e}")
          return None
-      
+
       return self.update_vector_store(vector_store.id, files, plain_files, for_bot=for_bot)
 
 
 
    def create_thread(self) -> str:
-      #logger.debug("BotOsAssistantOpenAI:create_thread") 
+      #logger.debug("BotOsAssistantOpenAI:create_thread")
       thread_id = self.client.beta.threads.create().id
       logger.info(f"{self.bot_name} openai new_thread -> {thread_id}")
       self.first_message_map[thread_id] = True
@@ -525,36 +525,36 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
          with open(original_file_location, 'rb') as source_file:
              with open(f"./downloaded_files/{thread_id}/{file_name}", 'wb') as dest_file:
                  dest_file.write(source_file.read())
-   
+
     #     logger.info("loading files")
          fo = open(new_file_location,"rb")
          file = self.client.files.create(file=(file_name, fo), purpose="assistants")
 
          file_ids.append(file.id)
-         
+
          # make a copy based on the new openai file.id as well in case the bot needs it by this reference later
          new_file_location_file_id = f"./downloaded_files/{thread_id}/{file.id}"
          with open(original_file_location, 'rb') as source_file:
              with open(new_file_location_file_id, 'wb') as dest_file:
                  dest_file.write(source_file.read())
-         
+
 
          self.file_storage[file.id] = new_file_location
          file_map.append({'file_id': file.id, 'file_name': file_name})
-         
-      logger.debug(f"BotOsAssistantOpenAI:_upload_files - uploaded {len(file_ids)} files") 
+
+      logger.debug(f"BotOsAssistantOpenAI:_upload_files - uploaded {len(file_ids)} files")
       return file_ids, file_map
 
 
 
    def add_message(self, input_message:BotOsInputMessage):#thread_id:str, message:str, files):
-      #logger.debug("BotOsA ssistantOpenAI:add_message") 
+      #logger.debug("BotOsA ssistantOpenAI:add_message")
 
       thread_id = input_message.thread_id
 
       stop_flag = False
       fast_mode = False
-      
+
       if input_message.msg.endswith('<<!!FAST_MODE!!>>') or thread_id in self.thread_fast_mode_map:
          # fast_mode = True
          # logger.info('openai fast mode = true')
@@ -568,7 +568,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
             logger.info('openai fast mode = false (set by default for a new slack-based thread)')
          if input_message.metadata and 'channel' in input_message.metadata:
             channel = input_message.metadata['channel']
-          #  input_message.msg += f" [FYI Current Slack channel id is: {channel}]"         
+          #  input_message.msg += f" [FYI Current Slack channel id is: {channel}]"
 
 
       if input_message.msg.endswith(') says: !model') or input_message.msg=='!model':
@@ -586,7 +586,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                del self.thread_fast_mode_map[thread_id]
             fast_mode = False
             input_message.msg = input_message.msg.replace('!fast off', f"SYSTEM MESSAGE:Tell the user that Fast mode deactivated for this thread. Model is now {os.getenv('OPENAI_MODEL_NAME', 'gpt-4o')}")
-   
+
       if input_message.msg.endswith(') says: !stop') or input_message.msg=='!stop':
             stopped = False
             try:
@@ -610,7 +610,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                   self.thread_stop_map[thread_id] = future_timestamp
                #  self.last_stop_time_map[thread_id] = datetime.datetime.now()
                   # TODO FIND AND CANCEL RUNS DIRECTLY HERE ?
-            
+
                   i = 0
                   for _ in range(15):
                      if self.stop_result_map.get(thread_id) == 'stopped':
@@ -618,7 +618,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                      time.sleep(1)
                      i = i + 1
                      logger.info("stop ",i)
-                     
+
                   if self.stop_result_map.get(thread_id) == 'stopped':
                      self.thread_stop_map.pop(thread_id, None)
                      self.stop_result_map.pop(thread_id, None)
@@ -626,9 +626,9 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                   else:
                      self.thread_stop_map.pop(thread_id, None)
                      self.stop_result_map.pop(thread_id, None)
-                     resp = "No streaming response found to stop"  
+                     resp = "No streaming response found to stop"
                return True
-                    
+
    #   if thread_id in self.thread_stop_map:
    #         self.thread_stop_map.pop(thread_id)
 
@@ -666,8 +666,8 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                  content += f"- {mapping['file_name']}: {mapping['file_id']}\n"
         # logger.info('... openai add_message attachments: ', attachments)
          thread_message = self.client.beta.threads.messages.create(
-            thread_id=thread_id, attachments=attachments, content=content, 
-            role="user", 
+            thread_id=thread_id, attachments=attachments, content=content,
+            role="user",
          )
       except Exception as e:
          fixed = False
@@ -680,15 +680,15 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                   self.client.beta.threads.runs.cancel(run_id=run_id, thread_id=thread_id)
                   logger.info(f"Cancelled run_id: {run_id}")
                   thread_message = self.client.beta.threads.messages.create(
-                     thread_id=thread_id, attachments=attachments, content=content, 
-                     role="user", 
+                     thread_id=thread_id, attachments=attachments, content=content,
+                     role="user",
                   )
                fixed = True
          except Exception as e:
             pass
        # removed some stuff here 6/15/24
        #logger.debug(f"add_message - created {thread_message}")
-      self.first_message = False 
+      self.first_message = False
       task_meta = input_message.metadata.pop('task_meta', None)
 
       if fast_mode == True:
@@ -713,7 +713,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                   event_handler=StreamingEventHandler(self.client, thread.id, self.assistant.id, input_message.metadata, self),
                   metadata=input_message.metadata,
                ) as stream:
-                  stream.until_done()               
+                  stream.until_done()
          except Exception as e:
             try:
                if e.status_code == 400 and 'already has an active run' in e.message:
@@ -731,11 +731,11 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
          self.thread_run_map[thread_id] = {"run": run.id, "completed_at": None}
          self.active_runs.append(thread_id)
 
-      primary_user = json.dumps({'user_id': input_message.metadata.get('user_id', 'Unknown User ID'), 
+      primary_user = json.dumps({'user_id': input_message.metadata.get('user_id', 'Unknown User ID'),
                                  'user_name': input_message.metadata.get('user_name', 'Unknown User'),
                                  'user_email': input_message.metadata.get('user_email', 'Unknown Email')})
-                                 
-      self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id, 
+
+      self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id,
                                                     message_type='User Prompt', message_payload=input_message.msg, message_metadata=input_message.metadata, files=attachments,
                                                     channel_type=input_message.metadata.get("channel_type", None), channel_name=input_message.metadata.get("channel", None),
                                                     primary_user=primary_user)
@@ -755,11 +755,11 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
 
    def _submit_tool_outputs(self, run_id, thread_id, tool_call_id, function_call_details, func_response, metadata=None):
-     
+
      # logger.debug(f"_submit_tool_outputs - {thread_id} {run_id} {tool_call_id} - {function_call_details} - {func_response}")
 
       new_response = func_response
- 
+
   #    if function_call_details[0][0] == '_lookup_slack_user_id' and isinstance(func_response, str):
   #          new_response = {"response": func_response}
   #          func_response = new_response
@@ -779,7 +779,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
          if (function_call_details[0][0] == 'remove_tools_from_bot' or function_call_details[0][0] == 'add_new_tools_to_bot') and (func_response.get('success',False)==True or func_response.get('Success',False)==True):
             target_bot = json.loads(function_call_details[0][1]).get('bot_id',None)
             if target_bot is not None:
-               
+
                if self.is_bot_openai(target_bot):
                   bot_tools = None
                   all_tools_for_bot = func_response.get('all_bot_tools', None)
@@ -800,8 +800,8 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
                   for assistant in my_assistants:
 
-                     new_instructions = assistant.instructions 
-                     if "snowflake_stage_tools" in all_tools_for_bot and 'make_baby_bot' in all_tools_for_bot:        
+                     new_instructions = assistant.instructions
+                     if "snowflake_stage_tools" in all_tools_for_bot and 'make_baby_bot' in all_tools_for_bot:
                            new_instructions += f"\nYour Internal Files Stage for bots is at snowflake stage: {self.genbot_internal_project_and_schema}.BOT_FILES_STAGE"
                            logger.info("Instruction for target bot updated with Internal Files Stage location.")
                      bot_tools_array = bot_tools_array + _BOT_OS_BUILTIN_TOOLS + [{"type": "code_interpreter"}, {"type": "file_search"}]
@@ -814,33 +814,33 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
                else: # target bot is not openai
                   # this will start a new session with the updated tools and proper instructions
-                  self.reset_bot_if_not_openai(bot_id=target_bot) 
-                  
+                  self.reset_bot_if_not_openai(bot_id=target_bot)
+
                logger.info(f"Bot tools for {target_bot} updated.")
 
          if function_call_details[0][0] == 'update_bot_instructions' and (func_response.get('success',False)==True or func_response.get('Success',False)==True):
             new_instructions = func_response.get("new_instructions",None)
             if new_instructions:
-               
+
                target_bot = json.loads(function_call_details[0][1]).get('bot_id',None)
                bot_details = func_response.get('new_bot_details',None)
                if bot_details is not None:
                    func_response.pop("new_bot_details", None)
-               
+
                if target_bot is not None:
 
-                  instructions = new_instructions + "\n" + BASE_BOT_INSTRUCTIONS_ADDENDUM
+                  instructions = new_instructions + "\n" + BASE_BOT_INSTRUCTIONS_ADDENDUM + "\n" + BASE_BOT_CONDUCT_INSTRUCTIONS
                   instructions += f'\nNote current settings:\nData source: {global_flags.source}\nYour bot_id: {bot_details["bot_id"]}.\n'
                   if global_flags.runner_id is not None:
                      instructions += f'Runner_id: {global_flags.runner_id}\n'
                   if bot_details["slack_active"]=='Y':
                      instructions += "\nYour slack user_id: "+bot_details["bot_slack_user_id"]
 
-                  if "snowflake_stage_tools" in bot_details["available_tools"] and 'make_baby_bot' in bot_details["available_tools"]:        
+                  if "snowflake_stage_tools" in bot_details["available_tools"] and 'make_baby_bot' in bot_details["available_tools"]:
                      instructions += f"\nYour Internal Files Stage for bots is at snowflake stage: {global_flags.genbot_internal_project_and_schema}.BOT_FILES_STAGE"
 
                   if "database_tools" in bot_details["available_tools"]:
-                     
+
                      workspace_schema_name = f"{global_flags.project_id}.{target_bot.replace(r'[^a-zA-Z0-9]', '_').replace('-', '_').replace('.', '_')}_WORKSPACE".upper()
                      instructions += f"\nYou have a workspace schema created specifically for you named {workspace_schema_name} that the user can also access. You may use this schema for creating tables, views, and stages that are required when generating answers to data analysis questions. Only use this schema if asked to create an object. Always return the full location of the object."
 
@@ -851,10 +851,10 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
                      for assistant in my_assistants:
                         self.client.beta.assistants.update(assistant.id,instructions=instructions)
-                     
+
                   logger.info(f"Bot instructions for {target_bot} updated: {instructions}")
-                        
-                  #new_response.pop("new_instructions", None)  
+
+                  #new_response.pop("new_instructions", None)
          if (function_call_details[0][0] == 'add_bot_files' or function_call_details[0][0] == 'remove_bot_files' ) and (func_response.get('success',False)==True or func_response.get('Success',False)==True):
          #  raise ('need to update bot_os_openai.py line 215 for new files structure with v2')
             try:
@@ -897,7 +897,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
                logger.info(f"{self.bot_name} open_ai submit_tool_outputs Bot files for {target_bot} updated.")
       except Exception as e:
-         logger.info(f'openai submit_tool_outputs error to tool checking, func_response: {func_response} e: {e}')    
+         logger.info(f'openai submit_tool_outputs error to tool checking, func_response: {func_response} e: {e}')
 
       if tool_call_id is not None: # in case this is a resubmit
          self.tool_completion_status[run_id][tool_call_id] = new_response
@@ -906,13 +906,13 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
       run = self.client.beta.threads.runs.retrieve(thread_id = thread_id, run_id = run_id)
       function_details = _get_function_details(run)
-      
+
       if run.status == 'requires_action':
          parallel_tool_call_ids = [f[2] for f in function_details]
 
-         #  check to see if any expected tool calls are missing from completion_status 
+         #  check to see if any expected tool calls are missing from completion_status
          missing_tool_call_ids = [tool_call_id for tool_call_id in parallel_tool_call_ids if tool_call_id not in self.tool_completion_status[run.id]]
-         if missing_tool_call_ids: 
+         if missing_tool_call_ids:
             logger.info('Error: a parallel tool call is missing form the completion status map.  Probably need to fail the run.')
             return
 
@@ -927,26 +927,26 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
     #  if any(value is None for value in self.tool_completion_status[run_id].values()):
     #     return
-      
+
       # now package up the responses together
 
       tool_outputs = [{'tool_call_id': k, 'output': str(v)} for k, v in self.tool_completion_status[run_id].items()]
 
       # if os.getenv("USE_KNOWLEDGE", "false").lower() == 'true' and metadata is not None:
-      #    primary_user = json.dumps({'user_id': metadata.get('user_id', 'Unknown User ID'), 
+      #    primary_user = json.dumps({'user_id': metadata.get('user_id', 'Unknown User ID'),
       #                   'user_name': metadata.get('user_name', 'Unknown User').
       #                   'user_email': metadata.get('user_email', 'Unknown Email')})
       #    knowledge = self.log_db_connector.extract_knowledge(primary_user, self.bot_name, bot_id=self.bot_id)
       #    if knowledge:
       #          if function_call_details[0][0] == 'search_metadata' and self.first_tool_call[thread_id]:
       #             tool_outputs[0]['output'] += f'''\n\nNOTE--Here are some things you know about this user and the data they used from previous interactions, that may be helpful to this conversation:
-      #                            {knowledge['DATA_LEARNING']}''' 
+      #                            {knowledge['DATA_LEARNING']}'''
       #             metadata["data_knowledge"] = knowledge['DATA_LEARNING']
       #             self.first_tool_call[thread_id] = False
       #          elif self.first_data_call[thread_id]:
       #             tool_outputs[0]['output'] += f'''\n\nNOTE--Here are some things you know about this user and the tools they called from previous interactions, that may be helpful to this conversation:
       #                            {knowledge['TOOL_LEARNING']}'''
-      #             metadata["tool_knowledge"] = knowledge['TOOL_LEARNING'] 
+      #             metadata["tool_knowledge"] = knowledge['TOOL_LEARNING']
       #             self.first_data_call[thread_id] = False
 
 
@@ -965,7 +965,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
           tool_outputs = [{'tool_call_id': output['tool_call_id'], 'output': 'Error! Total size of tool outputs too large to return to OpenAI, consider using tool paramaters that produce less raw data.'} for output in tool_outputs]
       try:
          if BotOsAssistantOpenAI.stream_mode == True:
- 
+
             meta = StreamingEventHandler.run_id_to_metadata.get(run_id,None)
             logger.info(f'{self.bot_name} openai submit_tool_outputs submitting tool outputs len={len(tool_outputs)} ')
             run_id_to_update = run_id
@@ -993,7 +993,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                      self.processing_runs.remove(thread_id)
                   if thread_id not in self.active_runs:
                      self.active_runs.append(thread_id)
-                  stream.until_done()   
+                  stream.until_done()
          else:
             updated_run = self.client.beta.threads.runs.submit_tool_outputs(
                thread_id=thread_id,
@@ -1010,12 +1010,12 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                self.active_runs.append(thread_id)
        #  if thread_id in self.processing_runs:
        #     self.processing_runs.remove(thread_id)
-         primary_user = json.dumps({'user_id': meta.get('user_id', 'Unknown User ID'), 
+         primary_user = json.dumps({'user_id': meta.get('user_id', 'Unknown User ID'),
                      'user_name': meta.get('user_name', 'Unknown User'),
                      'user_email': meta.get('user_email', 'Unknown Email')})
          for tool_output in tool_outputs:
-            self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id, 
-                                                          message_type='Tool Output', message_payload=tool_output['output'], 
+            self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id,
+                                                          message_type='Tool Output', message_payload=tool_output['output'],
                                                           message_metadata={'tool_call_id':tool_output['tool_call_id']},
                                                           channel_type=meta.get("channel_type", None), channel_name=meta.get("channel", None),
                                                           primary_user=primary_user)
@@ -1024,7 +1024,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
    def _generate_callback_closure(self, run, thread, tool_call_id, function_details, metadata=None):
       def callback_closure(func_response):  # FixMe: need to break out as a generate closure so tool_call_id isn't copied
-         try:                     
+         try:
             del self.running_tools[tool_call_id]
          except Exception as e:
             error_string = f"callback_closure - tool call already deleted - caught exception: {e}"
@@ -1040,7 +1040,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
             except Exception as e:
                error_string = f"callback_closure - _submit_tool_outputs - caught exception: {e} submitting error_string {error_string}"
                logger.info(error_string)
- 
+
       return callback_closure
 
    def _download_openai_file(self, file_id, thread_id):
@@ -1055,30 +1055,30 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
          except:
             try:
                file_id = file_id.file_id
-            except: 
+            except:
                pass
 
          file_info = self.client.files.retrieve(file_id=file_id)
       #   logger.info(f"{self.bot_name} open_ai download_file id: {file_info.id} name: {file_info.filename}")
          file_contents = self.client.files.content(file_id=file_id)
 
-     #    try:         
+     #    try:
      #       logger.info(f"{self.bot_name} open_ai download_file file_id: {file_id} contents_len: {len(file_contents.content)}")
      #    except Exception as e:
      #        logger.info(f"{self.bot_name} open_ai download_file file_id: {file_id} ERROR couldn't get file length: {e}")
-  
+
          local_file_path = os.path.join(f"./downloaded_files/{thread_id}/", os.path.basename(file_info.filename))
       #   logger.info(f"{self.bot_name} open_ai download_file file_id: {file_id} localpath: {local_file_path}")
-         
+
          # Ensure the directory exists
          os.makedirs(os.path.dirname(local_file_path), exist_ok=True)
-         
-         
+
+
          # Save the file contents locally
          file_contents.write_to_file(local_file_path)
-       
+
   #       logger.info(f"{self.bot_name} open_ai download_file wrote file: {file_id} to localpath: {local_file_path}")
-       
+
          # Save a copy of the file with the file_id as the file name
          try:
             file_id_based_path = f"./downloaded_files/{thread_id}/{file_id}"
@@ -1088,7 +1088,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
             pass
       except Exception as e:
          logger.info(f"{self.bot_name} open_ai download_file ERROR: {e}")
- 
+
 
       logger.debug(f"File downloaded: {local_file_path}")
       return local_file_path
@@ -1096,7 +1096,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
    def _store_files_locally(self, file_ids, thread_id):
     #  logger.info(f"{self.bot_name} open_ai store_files_locally, file_ids: {file_ids}")
       return [self._download_openai_file(file_id, thread_id) for file_id in file_ids]
-   
+
    def validate_or_add_function(self, function_name):
       """
       Validates if the given function_name is in self.all_functions. If not, it adds the function.
@@ -1131,7 +1131,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
             #   logger.warn(f"validate_or_add_function - module {module_path} does not need to be imported, proceeding...")
                return True
            # logger.warn(f"validate_or_add_function - module: {module}")
-            # here's how to get the function for generated things even new ones... 
+            # here's how to get the function for generated things even new ones...
             func = [getattr(module, desc_func)]
     #        logger.warn(f"validate_or_add_function - func: {func}")
             self.all_tools.extend(func)
@@ -1157,9 +1157,9 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
          logger.info(f"Likely newly generated function '{function_name}' added all_functions.")
          return False
 
-   
+
    def check_runs(self, event_callback):
-      logger.debug("BotOsAssistantOpenAI:check_runs") 
+      logger.debug("BotOsAssistantOpenAI:check_runs")
 
       threads_completed = {}
       threads_still_pending = []
@@ -1235,13 +1235,13 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                   if thread_id in self.failed_retry_run_count_map:
                      del self.failed_retry_run_count_map[thread_id]
 
-               event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id, 
-                                                                     status=run.status, 
-                                                                     output=output, 
-                                                                     messages=None, 
+               event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id,
+                                                                     status=run.status,
+                                                                     output=output,
+                                                                     messages=None,
                                                                      input_metadata=run.metadata))
                self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id,
-                                                              message_type='Assistant Response', message_payload=output, message_metadata=None, 
+                                                              message_type='Assistant Response', message_payload=output, message_metadata=None,
                                                               tokens_in=0, tokens_out=0)
                if not restarting_flag:
                   threads_completed[thread_id] = run.completed_at
@@ -1249,7 +1249,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
             if thread_id in self.failed_retry_run_count_map and not restarting_flag:
                del self.failed_retry_run_count_map[thread_id]
-            
+
             if (run.status == "in_progress" or run.status == 'requires_action') and BotOsAssistantOpenAI.stream_mode == True and run.id in StreamingEventHandler.run_id_to_output_stream:
                 #logger.info(StreamingEventHandler.run_id_to_output_stream[run.id])
 
@@ -1267,13 +1267,13 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                         # thread already completed
                         pass
                      logger.info(f"Cancelled run_id: {run.id} for thread_id: {thread_id}")
-               event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id, 
-                                                      status=run.status, 
+               event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id,
+                                                      status=run.status,
                                                       output=output,
-                                                      messages=None, 
+                                                      messages=None,
                                                       input_metadata=run.metadata))
            #    continue
-                                         
+
             #logger.info(f"run.status {run.status} Thread: {thread_id}")
             logger.info(f"{self.bot_name} open_ai check_runs {run.status} thread: {thread_id} runid: {run.id}")
 
@@ -1284,10 +1284,10 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                try:
                   # Corrected to ensure it only calls after each minute beyond the first 60 seconds
                   if run_duration > 60 and run_duration % 60 < 2 and run.id not in StreamingEventHandler.run_id_to_output_stream:  # Check if run duration is beyond 60 seconds and within the first 5 seconds of each subsequent minute # Check if run duration is beyond 60 seconds and within the first 5 seconds of each subsequent minute
-                     event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id, 
-                                                                           status=run.status, 
-                                                                           output=f"_still running..._ {run.id} has been waiting on OpenAI for {int(run_duration // 60)} minute(s)...", 
-                                                                           messages=None, 
+                     event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id,
+                                                                           status=run.status,
+                                                                           output=f"_still running..._ {run.id} has been waiting on OpenAI for {int(run_duration // 60)} minute(s)...",
+                                                                           messages=None,
                                                                            input_metadata=run.metadata))
                except Exception as e:
                   logger.info("requires action exception: ",e)
@@ -1297,10 +1297,10 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                threads_still_pending.append(thread_id)
                try:
                   if run_duration > 60 and run_duration % 60 < 2 and run.id not in StreamingEventHandler.run_id_to_output_stream:  # Check if run duration is beyond 60 seconds and within the first 5 seconds of each subsequent minute # Check if run duration is beyond 60 seconds and within the first 5 seconds of each subsequent minute
-                     event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id, 
-                                                                           status=run.status, 
-                                                                           output=f"_still running..._ {run.id} has been queued by OpenAI for {int(run_duration // 60)} minute(s)...", 
-                                                                           messages=None, 
+                     event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id,
+                                                                           status=run.status,
+                                                                           output=f"_still running..._ {run.id} has been queued by OpenAI for {int(run_duration // 60)} minute(s)...",
+                                                                           messages=None,
                                                                            input_metadata=run.metadata))
                except:
                   pass
@@ -1309,12 +1309,12 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
             if run.status == "expired":
                logger.info(f"!!!!!!!!!! EXPIRED JOB, run.lasterror {run.last_error} !!!!!!!")
                output = StreamingEventHandler.run_id_to_output_stream.get(run.id,'') + "\n\n!!! OpenAI run expired !!!"
-               event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id, 
-                                                                     status=run.status, 
-                                                                     output=output, 
-                                                                     messages=None, 
+               event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id,
+                                                                     status=run.status,
+                                                                     output=output,
+                                                                     messages=None,
                                                                      input_metadata=run.metadata))
-               #del threads_completed[thread_id] 
+               #del threads_completed[thread_id]
                # Todo add more handling here to tell the user the thread failed
                continue
 
@@ -1323,14 +1323,14 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                   function_details = _get_function_details(run)
                except Exception as e:
                   logger.info('!! no function details')
-                  continue 
+                  continue
 
                parallel_tool_call_ids = [f[2] for f in function_details]
            #    if self.tool_completion_status.get(run.id,None) is not None:
            #       function_details = [f for f in function_details if f[2] not in self.tool_completion_status[run.id]]
                try:
                   if not all(key in self.tool_completion_status[run.id] for key in parallel_tool_call_ids):
-                     self.tool_completion_status[run.id] = {key: None for key in parallel_tool_call_ids} 
+                     self.tool_completion_status[run.id] = {key: None for key in parallel_tool_call_ids}
                except:
                   self.tool_completion_status[run.id] = {key: None for key in parallel_tool_call_ids} # need to submit completed parallel calls together
 
@@ -1373,7 +1373,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                                  logger.info(f"Failed to resubmit tool outputs for run {run.id} with error: {e}")
                                  if run.id in self.threads_in_recovery:
                                     self.threads_in_recovery.remove(run.id)
-                           else: 
+                           else:
                               logger.info('* Recovery no longer needed, all calls not yet complete now')
                               if run.id in self.threads_in_recovery:
                                  self.threads_in_recovery.remove(run.id)
@@ -1387,7 +1387,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                         if run.id in self.threads_in_recovery:
                             self.threads_in_recovery.remove(run.id)
                         pass
-               
+
 
                # need to submit tool runs, but first check how long the run has been going, consider starting a new run
 
@@ -1404,7 +1404,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                      restarting_flag = True
                   except Exception as e:
                      logger.info(f"Failed to handle thread expiration for run {run.id} with error: {e}")
-               
+
                if restarting_flag == False:
                   thread = self.client.beta.threads.retrieve(thread_id)
                   try:
@@ -1420,11 +1420,11 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                         self.running_tools[tool_call_id] = {"run_id": run.id, "thread_id": thread.id }
 
                         meta = run.metadata
-                        primary_user = json.dumps({'user_id': meta.get('user_id', 'Unknown User ID'), 
+                        primary_user = json.dumps({'user_id': meta.get('user_id', 'Unknown User ID'),
                                     'user_name': meta.get('user_name', 'Unknown User'),
                                      'user_email': meta.get('user_email', 'Unknown Email')})
                         self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id,
-                                                                     message_type='Tool Call', message_payload=log_readable_payload, 
+                                                                     message_type='Tool Call', message_payload=log_readable_payload,
                                                                      message_metadata={'tool_call_id':tool_call_id, 'func_name':func_name, 'func_args':func_args},
                                                                      channel_type=meta.get("channel_type", None), channel_name=meta.get("channel", None),
                                                                      primary_user=primary_user)
@@ -1446,7 +1446,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                                  file_id = func_args_dict['file_name'].split('/')[-1]
                                  new_file_location = self.file_storage[file_id]
                                  if '/' in new_file_location:
-                                    new_file_location = new_file_location.split('/')[-1]   
+                                    new_file_location = new_file_location.split('/')[-1]
                                  func_args_dict['file_name'] = new_file_location
                                  func_args = json.dumps(func_args_dict)
                            except Exception as e:
@@ -1478,7 +1478,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
                            if run.id not in StreamingEventHandler.run_id_to_messages:
                               StreamingEventHandler.run_id_to_messages[run.id] = []
-                           
+
                            message_obj = {
                               "type": "tool_call",
                               "text": msg
@@ -1494,12 +1494,12 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                                  StreamingEventHandler.run_id_to_output_stream[run.id] += "\n\n"
                               StreamingEventHandler.run_id_to_output_stream[run.id] += msg
                               msg = StreamingEventHandler.run_id_to_output_stream[run.id]
-                           else: 
+                           else:
                               StreamingEventHandler.run_id_to_output_stream[run.id] = msg
-                           event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id, 
-                                                                              status=run.status, 
+                           event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id,
+                                                                              status=run.status,
                                                                               output=msg+" 💬",
-                                                                              messages=None, 
+                                                                              messages=None,
                                                                               input_metadata=run.metadata))
 
                         if func_name not in self.all_functions:
@@ -1508,7 +1508,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                               logger.info('!! function was missing from self.all_functions, restored from backup, now its ok')
                            else:
                               logger.info(f'!! function was missing from self.all_functions, restored from backup, still missing func: {func_name}, len of backup={len(BotOsAssistantOpenAI.all_functions_backup)}')
-         
+
                         execute_function(func_name, func_args, self.all_functions, callback_closure,
                                        thread_id = thread_id, bot_id=self.bot_id, status_update_callback=event_callback if event_callback else None, session_id=self.assistant.id if self.assistant.id is not None else None, input_metadata=run.metadata if run.metadata is not None else None, run_id =run.id )#, dispatch_task_callback=dispatch_task_callback)
 
@@ -1517,10 +1517,10 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                      logger.info(f"check_runs - requires action - exception:{e}")
                      try:
                         output = f"!!! Error making tool call, exception:{str(e)}"
-                        event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id, 
-                                                                           status=run.status, 
-                                                                           output=output, 
-                                                                           messages=None, 
+                        event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id,
+                                                                           status=run.status,
+                                                                           output=output,
+                                                                           messages=None,
                                                                            input_metadata=run.metadata))
                      except:
                         pass
@@ -1528,7 +1528,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                         self.client.beta.threads.runs.cancel(run_id=run.id, thread_id=thread_id)
                      except:
                         pass
-            
+
             if restarting_flag == False and ( run.status == "completed" and run.completed_at != thread_run["completed_at"]):
 
                try:
@@ -1563,7 +1563,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                                   tool_calls.insert(0, item)
                               elif item["type"] == "message":
                                   break
-                  
+
                   # If there are tool calls, add them to the output
 
                   output = ""
@@ -1602,7 +1602,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                   meta = meta_prime
                else:
                   meta = run.metadata
-                  
+
                   #  logger.info(f"{self.bot_name} open_ai attachment info going into store files locally: {latest_attachments}")
                files_in = self._store_files_locally(latest_attachments, thread_id)
                output = '\n'.join(reversed(output_array))
@@ -1624,17 +1624,17 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                   else:
                      # Default to gpt-4o prices if model is unknown
                      input_cost = 5.000 / 1000000
-                     output_cost = 15.000 / 1000000   
+                     output_cost = 15.000 / 1000000
                   total_cost = (run.usage.prompt_tokens * input_cost) + (run.usage.completion_tokens * output_cost)
                   output += f'  `${total_cost:.4f}`'
-          
-         #   
+
+         #
          #   StreamingEventHandler.run_id_to_messages[run.id]
-               event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id, 
-                                                                     status=run.status, 
-                                                                     output=output, 
-                                                                     messages=messages, 
-                                                                     # UPDATE THIS FOR LOCAL FILE DOWNLOAD 
+               event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id,
+                                                                     status=run.status,
+                                                                     output=output,
+                                                                     messages=messages,
+                                                                     # UPDATE THIS FOR LOCAL FILE DOWNLOAD
                                                                      files=files_in,
                                                                      input_metadata=meta))
                self.unposted_run_ids[thread_id] = []
@@ -1646,11 +1646,11 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                   message_metadata = str(message.content)
                except:
                   message_metadata = "!error converting content to string"
-               primary_user = json.dumps({'user_id': meta.get('user_id', 'Unknown User ID'), 
+               primary_user = json.dumps({'user_id': meta.get('user_id', 'Unknown User ID'),
                               'user_name': meta.get('user_name', 'Unknown User'),
                               'user_email': meta.get('user_email', 'Unknown Email')})
                try:
-                  self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id, 
+                  self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id,
                                                                   message_type='Assistant Response', message_payload=output, message_metadata=message_metadata,
                                                                   tokens_in=run.usage.prompt_tokens, tokens_out=run.usage.completion_tokens, files=files_in,
                                                                   channel_type=meta.get("channel_type", None), channel_name=meta.get("channel", None),
@@ -1667,7 +1667,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
             for thread_id in threads_completed:
                self.thread_run_map[thread_id]["completed_at"] = threads_completed[thread_id]
 
-         # get next run to check       
+         # get next run to check
        #  try:
        #     thread_id = self.active_runs.popleft()
        #  except IndexError:
@@ -1716,11 +1716,11 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                # Add the new thread/run to the active runs queue
                # self.active_runs_queue.append((thread_id, run.id))
                logger.info(f"Run {run.id} restarted in new message")
-               return 
+               return
 
 
          #thread_id = None
-      
+
       if thread_id in self.processing_runs:
          self.processing_runs.remove(thread_id)
       # put pending threads back on queue

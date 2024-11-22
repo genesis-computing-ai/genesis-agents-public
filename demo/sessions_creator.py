@@ -13,6 +13,7 @@ from core.bot_os_defaults import (
     BASE_BOT_PRE_VALIDATION_INSTRUCTIONS,
     BASE_BOT_PROACTIVE_INSTRUCTIONS,
     BASE_BOT_VALIDATION_INSTRUCTIONS,
+    BASE_BOT_CONDUCT_INSTRUCTIONS,
 )
 
 from core.bot_os_memory import BotOsKnowledgeAnnoy_Metadata
@@ -61,17 +62,17 @@ def _configure_openai_or_azure_openai(db_adapter:DatabaseConnector) -> bool:
 def get_legacy_sessions(bot_id: str, db_adapter) -> dict:
     """
     Gets legacy thread_ts values for a bot by querying message_log table.
-    
+
     Args:
         bot_id (str): ID of the bot to query legacy threads for
         db_adapter: Database adapter instance to execute query
-        
+
     Returns:
         dict: Dictionary mapping thread_ts to max timestamp
     """
     sql = f"""
-    select parse_json(message_metadata):thread_ts::varchar as thread_ts, max(timestamp) as max_ts 
-    from {db_adapter.genbot_internal_project_and_schema}.message_log 
+    select parse_json(message_metadata):thread_ts::varchar as thread_ts, max(timestamp) as max_ts
+    from {db_adapter.genbot_internal_project_and_schema}.message_log
     where message_metadata is not null
     and message_metadata like '%"thread_ts"%'
     and message_metadata not like '%TextContentBlock%'
@@ -262,8 +263,8 @@ def make_session(
         instructions += f"\n\nFYI, here are some of the processes you have available:\n{process_info}.\nThey can be run with _run_process function if useful to your work. This list may not be up to date, you can use _manage_process with action LIST to get a full list, especially if you are asked to run a process that is not on this list.\n\n"
         logger.info(f'appended process list to prompt, len={len(processes_found)}')
 
-# TODO ADD INFO HERE 
-    instructions += BASE_BOT_INSTRUCTIONS_ADDENDUM
+# TODO ADD INFO HERE
+    instructions += BASE_BOT_INSTRUCTIONS_ADDENDUM + "\n" + BASE_BOT_CONDUCT_INSTRUCTIONS
 
     instructions += f'\nYour default database connection is called "{genesis_source}".\n'
 
@@ -417,7 +418,7 @@ def make_session(
 
             instructions = """
 
-# Tool Instructions 
+# Tool Instructions
 """
 #""" - Always execute python code in messages that you share.
 # - When looking for real time information use relevant functions if available else fallback to brave_search
@@ -432,7 +433,7 @@ If a you choose to call a function ONLY reply in the following format:
 
 where
 
-function_name => the name of the function from the list above 
+function_name => the name of the function from the list above
 parameters => a JSON dict with the function argument name as key and function argument value as value.
 
 Here is an example,
@@ -449,13 +450,13 @@ Reminder:
 - Properly escape any double quotes in your parameter values with a backslash
 - Do not add any preable of other text before or directly after the function call
 - Always add your sources when using search results to answer the user query
-- Don't generate function call syntax (e.g. as an example) unless you want to actually call it immediately 
+- Don't generate function call syntax (e.g. as an example) unless you want to actually call it immediately
 - But when you do want to call the tools, don't just say you can do it, actually do it when needed
 - If you're suggesting a next step to the user other than calling a tool, just suggest it, but don't immediately perform it, wait for them to agree, unless its a tool call
 
 # Persona Instructions
  """+incoming_instructions + """
- 
+
 # Important Reminders
 If you say you're going to call or use a tool, you MUST actually make the tool call immediately in the format described above.
 Only respond with !NO_RESPONSE_REQUIRED if the message is directed to someone else or in chats with multiple people if you have nothing to say.
@@ -564,7 +565,7 @@ def create_sessions(
         data_cubes_ingress_url (str, optional): The URL for data cubes ingress, if applicable.
 
     Returns:
-        tuple: A tuple containing the sessions, API app ID to session map, bot ID to UDF adapter map, 
+        tuple: A tuple containing the sessions, API app ID to session map, bot ID to UDF adapter map,
                and bot ID to Slack adapter map.
     """
     import os
@@ -603,7 +604,7 @@ def create_sessions(
             # JL TEMP REMOVE
         #       if bot_config["bot_id"] == "Eliza-lGxIAG":
         #           continue
-        logger.info(f'🤖 Making session for bot {bot_config["bot_id"]}')        
+        logger.info(f'🤖 Making session for bot {bot_config["bot_id"]}')
         logger.telemetry('add_session:', bot_config['bot_name'], os.getenv("BOT_OS_DEFAULT_LLM_ENGINE", ""))
 
         bot_id = bot_config["bot_id"]

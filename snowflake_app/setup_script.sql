@@ -30,7 +30,7 @@ $$
             GENESIS_SOURCE: Snowflake
             SNOWFLAKE_SECURE: FALSE
             OPENAI_HARVESTER_EMBEDDING_MODEL: text-embedding-3-large
-            OPENAI_MODEL_NAME: gpt-4o
+            OPENAI_MODEL_NAME: gpt-4o-2024-11-20
             OPENAI_MODEL_SUPERVISOR: gpt-4o
             OPENAI_O1_OVERRIDE_MODEL: o1-preview
             O1_OVERRIDE_BOT: NO_OVERRIDE_BOT
@@ -91,7 +91,7 @@ $$
             GENESIS_MODE: HARVESTER
             AUTO_HARVEST: TRUE
             OPENAI_HARVESTER_EMBEDDING_MODEL: text-embedding-3-large
-            OPENAI_MODEL_NAME: gpt-4o
+            OPENAI_MODEL_NAME: gpt-4o-2024-11-20
             OPENAI_MODEL_SUPERVISOR: gpt-4o
             OPENAI_O1_OVERRIDE_MODEL: o1-preview
             OPENAI_FAST_MODEL_NAME: gpt-4o-mini
@@ -126,7 +126,7 @@ $$
             KNOWLEDGE_REFRESH_SECONDS: 120
             RUNNER_ID: snowflake-1
             SNOWFLAKE_SECURE: FALSE
-            OPENAI_MODEL_NAME: gpt-4o
+            OPENAI_MODEL_NAME: gpt-4o-2024-11-20
             OPENAI_MODEL_SUPERVISOR: gpt-4o
             OPENAI_O1_OVERRIDE_MODEL: o1-preview
             OPENAI_FAST_MODEL_NAME: gpt-4o-mini
@@ -160,7 +160,7 @@ $$
             GENESIS_MODE: TASK_SERVER
             AUTO_HARVEST: TRUE
             OPENAI_HARVESTER_EMBEDDING_MODEL: text-embedding-3-large
-            OPENAI_MODEL_NAME: gpt-4o
+            OPENAI_MODEL_NAME: gpt-4o-2024-11-20
             OPENAI_MODEL_SUPERVISOR: gpt-4o
             OPENAI_O1_OVERRIDE_MODEL: o1-preview
             OPENAI_FAST_MODEL_NAME: gpt-4o-mini

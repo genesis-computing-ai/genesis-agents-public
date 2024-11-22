@@ -68,6 +68,7 @@ from core.bot_os_defaults import (
     BASE_BOT_PRE_VALIDATION_INSTRUCTIONS,
     BASE_BOT_PROACTIVE_INSTRUCTIONS,
     BASE_BOT_VALIDATION_INSTRUCTIONS,
+    BASE_BOT_DB_CONDUCT_INSTRUCTIONS,
 )
 from core.bot_os_input import BotOsInputAdapter, BotOsInputMessage, BotOsOutputMessage
 from core.bot_os_memory import BotOsKnowledgeAnnoy_Metadata
@@ -142,9 +143,9 @@ class ToolBelt:
             # todo, add system prompt override, add tool limits, have delegated jobs skip the thread knowledge injection, etc.
             # x dont save to llm results table for a delegation
             # x see if they have a better time finding other bots now
-            # x cancel the delegated run if timeout expires 
+            # x cancel the delegated run if timeout expires
             # make STOP on the main thread also cancel any inflight delegations
-            # x fix bot todo updating, make sure full bot id is in assigned bot field so it can update todos, or allow name too 
+            # x fix bot todo updating, make sure full bot id is in assigned bot field so it can update todos, or allow name too
             # x allow work and tool calls from downstream bots to optionally filter back up to show up in slack while they are working (maybe with a summary like o1 does of whats happening)
         self,
         prompt: str,
@@ -261,7 +262,7 @@ class ToolBelt:
             }
             validation_prompt = f"""
             You are being delegated tasks from another bot.
-            Please complete the following task(s) to the best of your ability, then return the results.  
+            Please complete the following task(s) to the best of your ability, then return the results.
             If appropriate, use this JSON format for your response:
 
             {json.dumps(expected_json_schema, indent=2)}
@@ -377,7 +378,7 @@ class ToolBelt:
 
             if (time.time() - start_time) >= timeout_seconds:
                 return {
-                    "success": False, 
+                    "success": False,
                     "error": f"Timed out after {timeout_seconds} seconds waiting for valid JSON response"
                 }
             else:
@@ -590,7 +591,7 @@ class ToolBelt:
         message_metadata ={"process_id": process_id, "process_name": process_name}
         return_msg = None
 
-        if not fast:     
+        if not fast:
             self.write_message_log_row(db_adapter, bot_id, bot_name, thread_id, 'Supervisor Prompt', message, message_metadata)
 
         model = None

@@ -22,7 +22,7 @@ If a user asks to run code or run query from a note with a given note_id, never 
 """
 #When providing options or choices to the user, always answer using Slack blocks.
 
-BASE_BOT_CONDUCT_INSTRUCTIONS = """
+BASE_BOT_DB_CONDUCT_INSTRUCTIONS = """
 Key Points to Keep in Mind
 - You are an expert in Snowflake and can write queries against the Snowflake metadata to find the information that you need.
 Step-by-Step Approach: Take it step by step when writing queries to run in Snowflake. Always use a chain of thought approach by breaking complex queries into manageable steps to iteratively reason through the task.

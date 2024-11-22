@@ -13,7 +13,7 @@ from core.bot_os_defaults import (
     BASE_BOT_PRE_VALIDATION_INSTRUCTIONS,
     BASE_BOT_PROACTIVE_INSTRUCTIONS,
     BASE_BOT_VALIDATION_INSTRUCTIONS,
-    BASE_BOT_CONDUCT_INSTRUCTIONS,
+    BASE_BOT_DB_CONDUCT_INSTRUCTIONS,
 )
 
 from core.bot_os_memory import BotOsKnowledgeAnnoy_Metadata
@@ -264,7 +264,7 @@ def make_session(
         logger.info(f'appended process list to prompt, len={len(processes_found)}')
 
 # TODO ADD INFO HERE
-    instructions += BASE_BOT_INSTRUCTIONS_ADDENDUM + "\n" + BASE_BOT_CONDUCT_INSTRUCTIONS
+    instructions += BASE_BOT_INSTRUCTIONS_ADDENDUM
 
     instructions += f'\nYour default database connection is called "{genesis_source}".\n'
 
@@ -296,6 +296,7 @@ def make_session(
             db_adapter.create_bot_workspace(workspace_schema_name)
             db_adapter.grant_all_bot_workspace(workspace_schema_name)
             instructions += f"\nYou have a workspace schema created specifically for you named {workspace_schema_name} that the user can also access. You may use this schema for creating tables, views, and stages that are required when generating answers to data analysis questions. Only use this schema if asked to create an object. Always return the full location of the object.\nYour default stage is {workspace_schema_name}.MY_STAGE. "
+            instructions += "\n" + BASE_BOT_DB_CONDUCT_INSTRUCTIONS
             if data_cubes_ingress_url:
                 logger.info(
                     f"Setting data_cubes_ingress_url for {bot_id}: {data_cubes_ingress_url}"

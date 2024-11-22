@@ -9,7 +9,7 @@ import time
 import threading
 import core.global_flags as global_flags
 from core.bot_os_input import BotOsInputMessage, BotOsOutputMessage
-from core.bot_os_defaults import _BOT_OS_BUILTIN_TOOLS, BASE_BOT_INSTRUCTIONS_ADDENDUM, BASE_BOT_CONDUCT_INSTRUCTIONS
+from core.bot_os_defaults import _BOT_OS_BUILTIN_TOOLS, BASE_BOT_INSTRUCTIONS_ADDENDUM, BASE_BOT_DB_CONDUCT_INSTRUCTIONS
 # For Streaming
 from typing_extensions import override
 from openai import AssistantEventHandler
@@ -829,7 +829,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
                if target_bot is not None:
 
-                  instructions = new_instructions + "\n" + BASE_BOT_INSTRUCTIONS_ADDENDUM + "\n" + BASE_BOT_CONDUCT_INSTRUCTIONS
+                  instructions = new_instructions + "\n" + BASE_BOT_INSTRUCTIONS_ADDENDUM
                   instructions += f'\nNote current settings:\nData source: {global_flags.source}\nYour bot_id: {bot_details["bot_id"]}.\n'
                   if global_flags.runner_id is not None:
                      instructions += f'Runner_id: {global_flags.runner_id}\n'
@@ -843,6 +843,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
                      workspace_schema_name = f"{global_flags.project_id}.{target_bot.replace(r'[^a-zA-Z0-9]', '_').replace('-', '_').replace('.', '_')}_WORKSPACE".upper()
                      instructions += f"\nYou have a workspace schema created specifically for you named {workspace_schema_name} that the user can also access. You may use this schema for creating tables, views, and stages that are required when generating answers to data analysis questions. Only use this schema if asked to create an object. Always return the full location of the object."
+                     instructions += "\n" + BASE_BOT_DB_CONDUCT_INSTRUCTIONS
 
                   if not self.reset_bot_if_not_openai(bot_id=target_bot):
 

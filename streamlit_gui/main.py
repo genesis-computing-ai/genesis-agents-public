@@ -321,8 +321,7 @@ elif st.session_state.show_modal:
 if st.session_state.data:
     pages = Pages()
 
-    if not st.session_state.get("needs_keys"):
-        pages.add_page('chat_page', 'Chat with Bots', 'chat_page', 'chat_page')
+    pages.add_page('chat_page', 'Chat with Bots', 'chat_page', 'chat_page')
     pages.add_page('llm_config', 'LLM Model & Key', 'llm_config', 'llm_config')
     pages.add_page('config_email', 'Setup Email Integration', 'config_email', 'setup_email')
     pages.add_page('config_cortex_search', 'Setup Cortex Search', 'config_cortex_search', 'setup_cortex_search')

@@ -6,13 +6,11 @@ def bot_config():
     bot_details = get_bot_details()
 
     if bot_details == {"Success": False, "Message": "Needs LLM Type and Key"}:
-        from pages.llm_config import llm_config
+        from llm_config import llm_config
         llm_config()
     else:
         st.title("Bot Configuration")
-        st.write(
-            "Here you can see the details of your bots, and you can deploy them to Slack. To create or remove bots, ask your Eve bot to do it for you in chat."
-        )
+        st.write("Here you can see the details of your bots, and you can deploy them to Slack. To create or remove bots, ask your Eve bot to do it for you in chat.")
         bot_details.sort(key=lambda x: (not "Eve" in x["bot_name"], x["bot_name"]))
 
         slack_tokens = get_slack_tokens()
@@ -43,7 +41,7 @@ def bot_config():
                             st.caption(f"Preferred LLM Engine: {preferred_llm} (current LLM engine: {current_llm})")
                         else:
                             st.caption(f"Current LLM Engine: {current_llm} (default)")
-                        
+
                         bot_files = bot.get("files", None)
                         if bot_files == "null" or bot_files == "" or bot_files == "[]":
                             bot_files = None
@@ -125,15 +123,10 @@ def bot_config():
                                         st.success(
                                             f"The first of 3 steps to deploy {bot.get('bot_name')} to Slack is complete. Press the button below to see the next 2 steps to complete deployment to Slack. "
                                         )
-                                        if st.button(
-                                            "Press for Next Steps",
-                                            key=f"refresh_{bot['bot_id']}",
-                                        ):
-                                            st.experimental_rerun()
+                                        if st.button("Press for Next Steps", key=f"refresh_{bot['bot_id']}"):
+                                            st.rerun()
                                     else:
-                                        st.error(
-                                            f"Failed to deploy {bot['bot_name']} to Slack: {deploy_response.get('Message')}"
-                                        )
+                                        st.error(f"Failed to deploy {bot['bot_name']} to Slack: {deploy_response.get('Message')}")
                             else:
                                 if slack_ready is False:
                                     if "radio" in st.session_state:
@@ -143,18 +136,13 @@ def bot_config():
                                                 key=f"activate_{bot['bot_id']}",
                                             ):
                                                 st.session_state["radio"] = "Setup Slack Connection"
-                                                st.experimental_rerun()
+                                                st.rerun()
                                         else:
-                                            st.markdown(
-                                                "###### Activate on Slack by clicking the Setup Slack Connection radio button"
-                                            )
+                                            st.markdown("###### Activate on Slack by clicking the Setup Slack Connection radio button")
                                     else:
-                                        if st.button(
-                                            "Activate Slack Keys Here",
-                                            key=f"activate_{bot['bot_id']}",
-                                        ):
+                                        if st.button("Activate Slack Keys Here", key=f"activate_{bot['bot_id']}"):
                                             st.session_state["radio"] = "Setup Slack Connection"
-                                            st.experimental_rerun()
+                                            st.rerun()
 
                     with col2:
                         st.caption(

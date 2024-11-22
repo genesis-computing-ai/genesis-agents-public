@@ -132,8 +132,8 @@ def prompt_bot_and_await_response(
                     "success": True,
                     "result": response,
                 }
-            for s in sessions: 
-                s.execute()
+   #         for s in sessions: 
+   #             s.execute()
             time.sleep(.1)
 
         # If we've timed out, send stop command
@@ -161,7 +161,7 @@ def prompt_bot_and_await_response(
 if __name__ == "__main__":
 
     bot_list = [
-        {"bot_id": "Janice-JL", "assistant_id": "asst_OYId7gAF5v74xCHzr5319R27"},
+        {"bot_id": "Janice-JL"},
         {"bot_id": "MrSpock-3762b2", "assistant_id": "asst_sbxRnnpMKosmf4cb3UeIVZZH"}
     ]
 

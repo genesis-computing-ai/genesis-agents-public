@@ -56,23 +56,24 @@ def wait_for_return(thread_id, start_time):
     else:
         return {"error": "No response received after 1000 attempts"}
 
-def wait_for_return_udf(thread_id, bot_id):
+def wait_for_return_udf(thread_id, bot_id = 'Eve-37zAQo'):
     not_found = True
+    i = 0
     while not_found:
         try:
             url = f"http://127.0.0.1:8080/udf_proxy/lookup_udf"
             headers = {"Content-Type": "application/json"}
             data = json.dumps({"data": [[1, thread_id, bot_id]]})
             response = requests.post(url, headers=headers, data=data, timeout=5)
-            if response.status_code == 200 and response.json()["data"][0][1] != "not found":
+            if response.status_code == 200 and response.json()["data"][0][1] != "not found" and response.json()["data"][0][1][-1] != '💬':
                 return response.json()["data"][0][1]
-            print(f"Response status code: {response.status_code} | Message: {response.json()["data"][0][1]}")
+            print(f"{i}: Response: {response.status_code} | Message: {response.json()['data'][0][1]}", end = '\r')
+            i += 1
             continue
         except requests.exceptions.RequestException as e:
             logger.info(f"Error connecting to local server: {e}")
-            print("Error")
+            print(f"Response error: {e}")
             return "Error: Unable to connect to the bot server. Please try again later."
-
     return
 
 def call_submit_udf(input_text, thread_id, primary_user = {
@@ -132,7 +133,7 @@ else:
 #grant_usage_2 = conn.cursor().execute("call genesis_bots.core.run_arbitrary('grant usage on function genesis_bots.app1.lookup_udf(varchar, varchar) to application role app_public')")
 
 # cursor = conn.cursor()
-
+bot_id = 'Eve-37zAQo'
 start_time = time.time()
 start_time_str = time.strftime("%A, %B %d, %Y %H:%M:%S", time.localtime(start_time))
 print(f"Start time: {start_time_str}")
@@ -140,24 +141,20 @@ print(f"Start time: {start_time_str}")
 thread_id = str(uuid.uuid4())
 print(f"Initializing thread_id: {thread_id} - Ask Janice to show her list of tools")
 
-input_text = 'output the string "HELLO WORLD" to the #jeff-local-runner channel, then run process pi_100'
-result = call_submit_udf(input_text, thread_id)
-print(f"Response from submit_udf: {result}")
+input_text = 'show me a list of your processes and post them in #jeff-local-runner, then output the string "HELLO WORLD" to the #jeff-local-runner channel.'
+thread_id = call_submit_udf(input_text, thread_id)
+print(f"Response from submit_udf: {thread_id}")
 
-response = wait_for_return_udf(thread_id, start_time)
-print(f"Janice's tool list: {response}")
+response = wait_for_return_udf(thread_id, bot_id)
+print(f"{bot_id}'s process list: {response}")
 
 # 'File Upload Test',"NY MLB Stadiums", 'Pascal Triangle Test',
-# , 'second_test', 'third_test', 'fourth_test'
 
-for test_name in ['first_test']:
-    print(f'Sending request to Janice - thread id: {thread_id}')
-    input_text = f"run process {test_name}"
-    result = call_submit_udf(input_text, thread_id)
-
-    time.sleep(10)
-
-    response = wait_for_return_udf(thread_id, start_time)
+for test_name in ['first_test','second_test','third_test','fourth_test']:
+    print(f'run process {test_name}" to {bot_id} - thread id: {thread_id}')
+    input_text = f"show a list of your processes, then run process {test_name}"
+    thread_id = call_submit_udf(input_text, thread_id)
+    response = wait_for_return_udf(thread_id, bot_id)
     print(f"Response: {response}")
 
     elapsed_time = time.time() - start_time

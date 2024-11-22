@@ -160,6 +160,7 @@ def prompt_bot_and_await_response(
 
 if __name__ == "__main__":
 
+    # provide the openai assistant id if you know it, to make startup faster.. it's output the first time you start without it in the INFO logging
     bot_list = [
         {"bot_id": "Janice-JL"},
         {"bot_id": "MrSpock-3762b2", "assistant_id": "asst_sbxRnnpMKosmf4cb3UeIVZZH"}

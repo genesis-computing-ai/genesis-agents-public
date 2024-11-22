@@ -6,12 +6,14 @@ RUN pip install --upgrade pip && \
     pip install -r requirements.txt
 RUN python3 -m spacy download en_core_web_md
 EXPOSE 8501 8080 8000 5678 1234 3000 8081 8502 7681
+COPY genesis-voice ./genesis-voice
+
 # Install Node.js 18.x and npm
+WORKDIR /src/app/genesis-voice
 RUN apt-get update && apt-get install -y curl && \
     curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
     apt-get install -y nodejs && \
     npm install -g npm@latest
-RUN npm install express cors node-fetch dotenv http https ws http-proxy
 # Install git
 RUN apt-get update && \
     apt-get install -y git && \
@@ -19,9 +21,11 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 # Verify git is accessible from Python
 RUN python3 -c "import subprocess; subprocess.run(['git', '--version'], check=True)"
+RUN npm install express cors node-fetch dotenv http https ws http-proxy
 RUN npm i github:openai/openai-realtime-api-beta --save
 RUN npm install react-scripts
-RUN npm build
+
+WORKDIR /src/app
 COPY llm_openai ./llm_openai
 COPY llm_reka ./llm_reka
 COPY llm_mistral ./llm_mistral
@@ -45,7 +49,6 @@ COPY embed ./embed
 COPY generated_modules ./generated_modules
 COPY entrypoint.sh /entrypoint.sh
 COPY teams ./teams
-COPY genesis-voice ./genesis-voice
 COPY nodetest ./nodetest
 COPY data_dev_tools ./data_dev_tools
 

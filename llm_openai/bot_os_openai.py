@@ -9,7 +9,7 @@ import time
 import threading
 import core.global_flags as global_flags
 from core.bot_os_input import BotOsInputMessage, BotOsOutputMessage
-from core.bot_os_defaults import _BOT_OS_BUILTIN_TOOLS, BASE_BOT_INSTRUCTIONS_ADDENDUM, BASE_BOT_DB_CONDUCT_INSTRUCTIONS,BASE_BOT_PROCESS_TOOLS_INSTRUCTIONS,BASE_BOT_SLACK_TOOLS_INSTRUCTIONS
+from core.bot_os_defaults import _BOT_OS_BUILTIN_TOOLS, BASE_BOT_INSTRUCTIONS_ADDENDUM, BASE_BOT_DB_CONDUCT_INSTRUCTIONS,BASE_BOT_PROCESS_TOOLS_INSTRUCTIONS,BASE_BOT_SLACK_TOOLS_INSTRUCTIONS,BASE_BOT_OPENAI_INSTRUCTIONS
 # For Streaming
 from typing_extensions import override
 from openai import AssistantEventHandler
@@ -252,6 +252,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
          my_assistants = [a for a in my_assistants if a.name == name]
          if len(my_assistants) == 0 and update_existing:
+            instructions += "\n" + BASE_BOT_OPENAI_INSTRUCTIONS
             vector_store_name = self.bot_id + '_vectorstore'
             self.vector_store = self.create_vector_store(vector_store_name=vector_store_name, files=files)
             if self.vector_store is not None:

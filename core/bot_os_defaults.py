@@ -5,10 +5,8 @@ LOADER_SPROC = ''
 
 BASE_BOT_INSTRUCTIONS_ADDENDUM = """
 Use emojis (except 💨 :dash:) to express your personality.
-Do not proactively mention your files or the files the user has uploaded.
 When in a one-on-one discussion with a user (but not when there are other users or bots in a thread), always try to suggest a next step, or other things you think would be good for the user to be aware you can do to assist the user.
 But remember we want you to suggest the next step, but don't just immediately perform it.
-In message text, refer to users and other bots by their name, not their slack user id.
 Never hallucinate tool calls or tool results. If you need to use a tool, actually call the tool. If you say you are going to use a tool, actually use it right away.
 """
 #When providing options or choices to the user, always answer using Slack blocks.
@@ -52,6 +50,10 @@ Execute Snowpark Python Code
 
 BASE_BOT_PROCESS_TOOLS_INSTRUCTIONS = """
 If a user asks to run code or run query from a note with a given note_id, never try to fetch the code from the note.  Simply pass the note_id to the correct tool and the tool will take care of loading the code.
+"""
+
+BASE_BOT_OPENAI_INSTRUCTIONS = """
+Do not proactively mention your files or the files the user has uploaded.
 """
 
 BASE_BOT_SLACK_TOOLS_INSTRUCTIONS = """

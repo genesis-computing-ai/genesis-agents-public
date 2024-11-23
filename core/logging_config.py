@@ -5,8 +5,8 @@ import re
 
 
 # Logging format use for root logger and GENESIS logger.
-DEFAULT_LOGGER_FOMRAT = '[%(asctime)s][%(levelname)s][%(filename)s][%(funcName)s:%(lineno)s]:: %(message)s'
-GENESIS_LOGGER_FOMRAT = '[%(asctime)s][%(levelname)s][%(caller_filename)s][%(caller_funcName)s:%(caller_lineno)s]:: %(message)s'
+DEFAULT_LOGGER_FOMRAT = '[%(asctime)s][%(levelname)s][%(filename)s:%(lineno)s][%(funcName)s]:: %(message)s'
+GENESIS_LOGGER_FOMRAT = '[%(asctime)s][%(levelname)s][%(caller_filename)s:%(caller_lineno)s]:: %(message)s'
 
 GENESIS_LOGGER_NAME = "GENESIS"
 

@@ -418,6 +418,8 @@ class BotOsSession:
        #         sanitized_bot_id = re.sub(r'[^a-zA-Z0-9]', '', self.bot_id)
        #         with open(f'./thread_maps_{sanitized_bot_id}.pickle', 'wb') as handle:
        #             pickle.dump({'out_to_in': self.out_to_in_thread_map, 'in_to_out': self.in_to_out_thread_map}, handle, protocol=pickle.HIGHEST_PROTOCOL)
+                logger.telemetry('add_thread:', input_message.thread_id, self.bot_id, input_message.metadata.get('user_email', 'Unknown Email'),
+                                  os.getenv("BOT_OS_DEFAULT_LLM_ENGINE", ""))
 
                 if os.getenv("USE_KNOWLEDGE", "false").lower() == 'true' and not input_message.msg.startswith('NOTE--'):
 
@@ -435,7 +437,9 @@ class BotOsSession:
                     knowledge = self.log_db_connector.extract_knowledge(user_query, self.bot_id, k = last_k)
                     knowledge_len = len(''.join([knowledge.get(key, '') for key in ['USER_LEARNING', 'TOOL_LEARNING', 'DATA_LEARNING', 'HISTORY']]))
                     logger.info(f'bot_os {self.bot_id} knowledge injection, user len={len(primary_user)} len knowledge={knowledge_len}')
-                    logger.telemetry('add_knowledge:', input_message.thread_id, self.bot_id, input_message.metadata.get('user_email', 'Unknown Email'), os.getenv("BOT_OS_DEFAULT_LLM_ENGINE", ""), 'all_knowledge', knowledge_len)
+                    logger.telemetry('add_knowledge:', input_message.thread_id, self.bot_id, 
+                                     input_message.metadata.get('user_email', 'Unknown Email'), 
+                                     os.getenv("BOT_OS_DEFAULT_LLM_ENGINE", ""), 'all_knowledge', knowledge_len)
                     if knowledge:
                         input_message.msg = f'''NOTE--Here are some things you know about this user from previous interactions, that may be helpful to this conversation:
                         

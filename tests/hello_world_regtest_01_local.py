@@ -77,8 +77,8 @@ def wait_for_return_udf(thread_id, bot_id = 'Eve-37zAQo'):
     return
 
 def call_submit_udf(input_text, thread_id, primary_user = {
-        "user_id": "Unknown User ID",
-        "user_name": "Unknown User",
+        "user_id": "unknown_id",
+        "user_name": "unknown_name",
         "user_email": "test@example.com",
         "bot_id": 'Eve-37zAQo'
     }):

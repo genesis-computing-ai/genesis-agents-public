@@ -732,9 +732,9 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
          self.thread_run_map[thread_id] = {"run": run.id, "completed_at": None}
          self.active_runs.append(thread_id)
 
-      primary_user = json.dumps({'user_id': input_message.metadata.get('user_id', 'Unknown User ID'),
-                                 'user_name': input_message.metadata.get('user_name', 'Unknown User'),
-                                 'user_email': input_message.metadata.get('user_email', 'Unknown Email')})
+      primary_user = json.dumps({'user_id': input_message.metadata.get('user_id', 'unknown_id'),
+                                 'user_name': input_message.metadata.get('user_name', 'unknown_name'),
+                                 'user_email': input_message.metadata.get('user_email', 'unknown_email')})
 
       self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id,
                                                     message_type='User Prompt', message_payload=input_message.msg, message_metadata=input_message.metadata, files=attachments,
@@ -942,9 +942,9 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       tool_outputs = [{'tool_call_id': k, 'output': str(v)} for k, v in self.tool_completion_status[run_id].items()]
 
       # if os.getenv("USE_KNOWLEDGE", "false").lower() == 'true' and metadata is not None:
-      #    primary_user = json.dumps({'user_id': metadata.get('user_id', 'Unknown User ID'),
-      #                   'user_name': metadata.get('user_name', 'Unknown User').
-      #                   'user_email': metadata.get('user_email', 'Unknown Email')})
+      #    primary_user = json.dumps({'user_id': metadata.get('user_id', 'unknown_id'),
+      #                   'user_name': metadata.get('user_name', 'unknown_name').
+      #                   'user_email': metadata.get('user_email', 'unknown_email')})
       #    knowledge = self.log_db_connector.extract_knowledge(primary_user, self.bot_name, bot_id=self.bot_id)
       #    if knowledge:
       #          if function_call_details[0][0] == 'search_metadata' and self.first_tool_call[thread_id]:
@@ -1019,9 +1019,9 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                self.active_runs.append(thread_id)
        #  if thread_id in self.processing_runs:
        #     self.processing_runs.remove(thread_id)
-         primary_user = json.dumps({'user_id': meta.get('user_id', 'Unknown User ID'),
-                     'user_name': meta.get('user_name', 'Unknown User'),
-                     'user_email': meta.get('user_email', 'Unknown Email')})
+         primary_user = json.dumps({'user_id': meta.get('user_id', 'unknown_id'),
+                     'user_name': meta.get('user_name', 'unknown_name'),
+                     'user_email': meta.get('user_email', 'unknown_email')})
          for tool_output in tool_outputs:
             self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id,
                                                           message_type='Tool Output', message_payload=tool_output['output'],
@@ -1429,15 +1429,15 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                         self.running_tools[tool_call_id] = {"run_id": run.id, "thread_id": thread.id }
 
                         meta = run.metadata
-                        primary_user = json.dumps({'user_id': meta.get('user_id', 'Unknown User ID'),
-                                    'user_name': meta.get('user_name', 'Unknown User'),
-                                     'user_email': meta.get('user_email', 'Unknown Email')})
+                        primary_user = json.dumps({'user_id': meta.get('user_id', 'unknown_id'),
+                                    'user_name': meta.get('user_name', 'unknown_name'),
+                                     'user_email': meta.get('user_email', 'unknown_email')})
                         self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id,
                                                                      message_type='Tool Call', message_payload=log_readable_payload,
                                                                      message_metadata={'tool_call_id':tool_call_id, 'func_name':func_name, 'func_args':func_args},
                                                                      channel_type=meta.get("channel_type", None), channel_name=meta.get("channel", None),
                                                                      primary_user=primary_user)
-                        logger.telemetry('execute_function:', thread_id, self.bot_id, meta.get('user_email', 'Unknown Email'), 
+                        logger.telemetry('execute_function:', thread_id, self.bot_id, meta.get('user_email', 'unknown_email'), 
                                          os.getenv("BOT_OS_DEFAULT_LLM_ENGINE", ""), func_name, func_args)
                         func_args_dict = json.loads(func_args)
                         if "image_data" in func_args_dict: # FixMe: find a better way to convert file_id back to stored file
@@ -1656,9 +1656,9 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                   message_metadata = str(message.content)
                except:
                   message_metadata = "!error converting content to string"
-               primary_user = json.dumps({'user_id': meta.get('user_id', 'Unknown User ID'),
-                              'user_name': meta.get('user_name', 'Unknown User'),
-                              'user_email': meta.get('user_email', 'Unknown Email')})
+               primary_user = json.dumps({'user_id': meta.get('user_id', 'unknown_id'),
+                              'user_name': meta.get('user_name', 'unknown_name'),
+                              'user_email': meta.get('user_email', 'unknown_email')})
                try:
                   self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id,
                                                                   message_type='Assistant Response', message_payload=output, message_metadata=message_metadata,
@@ -1668,7 +1668,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                except:
                   pass
                threads_completed[thread_id] = run.completed_at
-               logger.telemetry('add_answer:', thread_id, self.bot_id, meta.get('user_email', 'Unknown Email'), 
+               logger.telemetry('add_answer:', thread_id, self.bot_id, meta.get('user_email', 'unknown_email'), 
                                 os.getenv("BOT_OS_DEFAULT_LLM_ENGINE", ""))
          else:
             logger.debug(f"check_runs - {thread_id} - {run.status} - {run.completed_at} - {thread_run['completed_at']}")

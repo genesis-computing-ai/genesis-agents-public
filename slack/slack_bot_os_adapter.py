@@ -273,8 +273,8 @@ class SlackBotAdapter(BotOsInputAdapter):
         user_info = self.slack_app.client.users_info(user=user_id)
         if user_id in self.user_info_cache:
             return self.user_info_cache[user_id]
-        user_email     = user_info["user"].get('profile', {}).get('email', 'Unknown Email')
-        user_full_name = user_info["user"].get('profile', {}).get('real_name', 'Unknown User')
+        user_email     = user_info["user"].get('profile', {}).get('email', 'unknown_email')
+        user_full_name = user_info["user"].get('profile', {}).get('real_name', 'unknown_name')
         self.user_info_cache[user_id] = (user_full_name, user_email)
         return self.user_info_cache[user_id]
 
@@ -431,7 +431,7 @@ class SlackBotAdapter(BotOsInputAdapter):
             pass
         #   logger.info('...*-*-*-* Files not in event')
 
-        user_id = "Unknown User ID"
+        user_id = "unknown_id"
         try:
             if event.get("subtype", None) == "message_changed":
                 user_id = event["message"]["user"]
@@ -537,7 +537,7 @@ class SlackBotAdapter(BotOsInputAdapter):
                 thread_messages = []
                 for message in messages:
                     user_id = message.get("user")
-                    user_name = self.user_info_cache.get(user_id, "Unknown User")
+                    user_name = self.user_info_cache.get(user_id, "unknown_name")
                     text = message.get("text", "")
                     thread_messages.append({"user": user_name, "message": text})
 

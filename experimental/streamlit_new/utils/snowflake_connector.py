@@ -140,8 +140,8 @@ def submit_to_udf_proxy(session, run_mode, input_text, thread_id, bot_id):
         try:
             user_info = st.experimental_user.to_dict()
             primary_user = {
-                "user_id": user_info.get("email", "Unknown User ID"),
-                "user_name": user_info.get("user_name", "Unknown User"),
+                "user_id": user_info.get("email", "unknown_id"),
+                "user_name": user_info.get("user_name", "unknown_name"),
                 "bot_id": bot_id,
             }
             sql = f"select {PREFIX}.submit_udf(?, ?, ?)"

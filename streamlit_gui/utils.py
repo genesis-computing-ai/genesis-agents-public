@@ -280,9 +280,9 @@ def get_artifact(artifact_id):
 def submit_to_udf_proxy(input_text, thread_id, bot_id, file={}):
     user_info = st.experimental_user.to_dict()
     primary_user = {
-        "user_id": user_info.get("email", "Unknown User ID"),
-        "user_name": user_info.get("user_name", "Unknown User"),
-        "user_email": user_info.get("email", "Unknown Email"),
+        "user_id": user_info.get("email", "unknown_id"),
+        "user_name": user_info.get("user_name", "unknown_name"),
+        "user_email": user_info.get("email", "unknown_email"),
         "bot_id": bot_id,
     }
 

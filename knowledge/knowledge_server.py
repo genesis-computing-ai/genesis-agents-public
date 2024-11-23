@@ -126,7 +126,7 @@ class KnowledgeServer:
 
             non_bot_users_query = f"""
                 WITH BOTS AS (SELECT BOT_SLACK_USER_ID,
-                    CONCAT('{{"user_id": "', BOT_SLACK_USER_ID, '", "user_name": "', BOT_NAME, '", "user_email": "Unknown Email"}}') as PRIMARY_USER
+                    CONCAT('{{"user_id": "', BOT_SLACK_USER_ID, '", "user_name": "', BOT_NAME, '", "user_email": "unknown_email"}}') as PRIMARY_USER
                     FROM  {self.db_connector.bot_servicing_table_name}),
                     BOTS2 AS (SELECT BOT_SLACK_USER_ID,
                     CONCAT('{{"user_id": "', BOT_SLACK_USER_ID, '", "user_name": "', BOT_NAME, '"}}') as PRIMARY_USER
@@ -136,7 +136,7 @@ class KnowledgeServer:
                 LEFT JOIN BOTS2 ON M.PRIMARY_USER = BOTS2.PRIMARY_USER
                 WHERE THREAD_ID = '{thread_id}'
                 AND  BOTS.BOT_SLACK_USER_ID IS NULL AND  BOTS2.BOT_SLACK_USER_ID IS NULL
-                and m.primary_user <> '{{"user_id": "Unknown User ID", "user_name": "Unknown User"}}';
+                and m.primary_user <> '{{"user_id": "unknown_id", "user_name": "unknown_name"}}';
                 """
                 # this is needed to exclude channels with more than one user
             count_non_bot_users = self.db_connector.run_query(non_bot_users_query)
@@ -272,13 +272,13 @@ class KnowledgeServer:
                     logger.info('Error on user_json ',e)
                     logger.info('    primary user is ',primary_user,' switching to unknown user')
                     primary_user = None
-                    user_json = {'user_email': 'Unknown Email'}
+                    user_json = {'user_email': 'unknown_email'}
             else:
-                user_json = {'user_email': 'Unknown Email'}
-            if user_json.get('user_email','Unknown Email') != 'Unknown Email':
+                user_json = {'user_email': 'unknown_email'}
+            if user_json.get('user_email','unknown_email') != 'unknown_email':
                 user_query = user_json['user_email']
             else:
-                user_query = user_json.get('user_id', 'Unknown User ID')
+                user_query = user_json.get('user_id', 'unknown_id')
 
             query = f"""SELECT * FROM {self.db_connector.user_bot_table_name}
                         WHERE primary_user = '{user_query}' AND BOT_ID = '{bot_id}'

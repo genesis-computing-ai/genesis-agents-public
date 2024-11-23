@@ -87,8 +87,8 @@ def get_bot_details():
 def submit_to_udf_proxy(input_text, thread_id, bot_id):
     global NativeMode
     primary_user = {
-        "user_id": "Unknown User ID",
-        "user_name": "Unknown User",
+        "user_id": "unknown_id",
+        "user_name": "unknown_name",
         "bot_id": bot_id,
     }
 

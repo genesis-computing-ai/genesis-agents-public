@@ -821,9 +821,9 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         except Exception as e:
             logger.error(f"Failed to insert message log for bot_id: {self.bot_id} with error: {e}")
 
-        primary_user = json.dumps({'user_id': input_message.metadata.get('user_id', 'Unknown User ID'), 
-                                 'user_name': input_message.metadata.get('user_name', 'Unknown User'),
-                                 'user_email': input_message.metadata.get('user_email', 'Unknown Email')})
+        primary_user = json.dumps({'user_id': input_message.metadata.get('user_id', 'unknown_id'), 
+                                 'user_name': input_message.metadata.get('user_name', 'unknown_name'),
+                                 'user_email': input_message.metadata.get('user_email', 'unknown_email')})
         attachments = []
         self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id, 
                                                     message_type='User Prompt', message_payload=input_message.msg, message_metadata=input_message.metadata, files=attachments,
@@ -940,9 +940,9 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                 logger.info(f"Error retrieving Assistant Response for Thread ID {thread_id} and model {self.llm_engine}: {e}")
 
         message_metadata_json = json.loads(message_metadata)
-        primary_user = json.dumps({'user_id': message_metadata_json.get('user_id', 'Unknown User ID'), 
-                                    'user_name': message_metadata_json.get('user_name', 'Unknown User'),
-                                    'user_email': message_metadata_json.get('user_email', 'Unknown Email')})
+        primary_user = json.dumps({'user_id': message_metadata_json.get('user_id', 'unknown_id'), 
+                                    'user_name': message_metadata_json.get('user_name', 'unknown_name'),
+                                    'user_email': message_metadata_json.get('user_email', 'unknown_email')})
         if output is not None:
             self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id, 
                                                                     message_type='Assistant Response', message_payload=output, message_metadata=message_metadata,
@@ -1059,9 +1059,9 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             logger.info(f"Function to call: {function_to_call}")
             logger.info(f"Argument keys: {', '.join(arguments.keys())}")
             meta = json.loads(message_metadata)
-            primary_user = json.dumps({'user_id': meta.get('user_id', 'Unknown User ID'), 
-                                    'user_name': meta.get('user_name', 'Unknown User'),
-                                    'user_email': meta.get('user_email', 'Unknown Email')})
+            primary_user = json.dumps({'user_id': meta.get('user_id', 'unknown_id'), 
+                                    'user_name': meta.get('user_name', 'unknown_name'),
+                                    'user_email': meta.get('user_email', 'unknown_email')})
             log_readable_payload = function_name+"("+arguments_str+")"
             self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id,
                                                         message_type='Tool Call', message_payload=log_readable_payload, 
@@ -1176,9 +1176,9 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             self.update_threads(thread_id, new_ts, message_metadata=message_metadata, temperature=hightemp, fast_mode=fast_mode)
    #     self.active_runs.append({"thread_id": thread_id, "timestamp": new_ts})
         meta = json.loads(message_metadata)
-        primary_user = json.dumps({'user_id': meta.get('user_id', 'Unknown User ID'), 
-                     'user_name': meta.get('user_name', 'Unknown User'),
-                     'user_email': meta.get('user_email', 'Unknown Email')})
+        primary_user = json.dumps({'user_id': meta.get('user_id', 'unknown_id'), 
+                     'user_name': meta.get('user_name', 'unknown_name'),
+                     'user_email': meta.get('user_email', 'unknown_email')})
         self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id, 
                                                           message_type='Tool Output', message_payload=results, 
                                                           message_metadata={'function_name':function_name, 'arguments': arguments},

@@ -60,9 +60,9 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
         metadata["channel_type"] = "Streamlit"
         metadata["channel_name"] = ""
         metadata['is_bot'] = 'FALSE'
-        metadata["user_id"] = self.bot_id.get('user_id', 'Unknown User ID')
-        metadata["user_name"] = self.bot_id.get('user_name', 'Unknown User')
-        metadata["user_email"] = self.bot_id.get('user_id', 'Unknown Email')
+        metadata["user_id"] = self.bot_id.get('user_id', 'unknown_id')
+        metadata["user_name"] = self.bot_id.get('user_name', 'unknown_name')
+        metadata["user_email"] = self.bot_id.get('user_id', 'unknown_email')
 
         file = event.get('file', '{}')
         if type(file) == str:

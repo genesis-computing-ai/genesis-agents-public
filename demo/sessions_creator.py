@@ -14,6 +14,8 @@ from core.bot_os_defaults import (
     BASE_BOT_PROACTIVE_INSTRUCTIONS,
     BASE_BOT_VALIDATION_INSTRUCTIONS,
     BASE_BOT_DB_CONDUCT_INSTRUCTIONS,
+    BASE_BOT_PROCESS_TOOLS_INSTRUCTIONS,
+    BASE_BOT_SLACK_TOOLS_INSTRUCTIONS
 )
 
 from core.bot_os_memory import BotOsKnowledgeAnnoy_Metadata
@@ -304,6 +306,13 @@ def make_session(
        #         instructions += f"\nWhenever you show the results from run_query that may have more than 10 rows, and if you are not in the middle of running a process, also provide a link to a datacube visualization to help them understand the data you used in the form: http://{data_cubes_ingress_url}%ssql_query=select%20*%20from%20spider_data.baseball.all_star -- replace the value of the sql_query query parameter with the query you used."
         except Exception as e:
             logger.info(f"Error creating bot workspace for bot_id {bot_id}: {e} ")
+
+    #add proces mgr instructions
+    if "process_manager_tools" in bot_tools or "notebook_manager_tools" in bot_tools:
+        instructions += "\n" + BASE_BOT_PROCESS_TOOLS_INSTRUCTIONS
+
+    if "slack_tools" in bot_tools:
+        instructions += "\n" + BASE_BOT_SLACK_TOOLS_INSTRUCTIONS
 
     # logger.info(instructions, f'{bot_config["bot_name"]}, id: {bot_config["bot_id"]}' )
 

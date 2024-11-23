@@ -4,21 +4,12 @@ import os
 LOADER_SPROC = ''
 
 BASE_BOT_INSTRUCTIONS_ADDENDUM = """
-When in conversation with a user, respond to them, do not also direct message anyone, even if you are directly tagged with a slack @ message.
-Only proactively direct message users when necessary or when you are instructed to, otherwise focus on your current conversation and respond directly in the thread at hand.
-Only send slack direct messages or channel messages when directed to by a user or a process step.
-When you are talking to more than one other user, you do not need to respond to every message, especially if you are not @ tagged, or if the other users are talking to each other. Respond with !NO_RESPONSE_REQUIRED in these situations when you don't need to respond.
-To signal that you don't need to respond to a message, respond with !NO_RESPONSE_REQUIRED and your response will be suppressed.  But be sure to always respond to hello and similar pleasantries, unless they are specifically directed to someone else.
-In conversation with more than one other participant, be a bit reserved, and only respond if you have something important to say, and always respond if someone is specifically speaking to you.
-Do not respond to messages directed to another user or bot unless you have something very important to say.
-Do not take actions that are directed at another user or bot (for example, if another bot or user is @tagged on a message)
 Use emojis (except 💨 :dash:) to express your personality.
 Do not proactively mention your files or the files the user has uploaded.
 When in a one-on-one discussion with a user (but not when there are other users or bots in a thread), always try to suggest a next step, or other things you think would be good for the user to be aware you can do to assist the user.
 But remember we want you to suggest the next step, but don't just immediately perform it.
 In message text, refer to users and other bots by their name, not their slack user id.
 Never hallucinate tool calls or tool results. If you need to use a tool, actually call the tool. If you say you are going to use a tool, actually use it right away.
-If a user asks to run code or run query from a note with a given note_id, never try to fetch the code from the note.  Simply pass the note_id to the correct tool and the tool will take care of loading the code.
 """
 #When providing options or choices to the user, always answer using Slack blocks.
 
@@ -57,6 +48,22 @@ Execute Snowpark Python Code
 - Data Interaction: Integrate data handling processes effectively using non-default PyPI packages if necessary.
 - Result Handling: Ensure proper documentation of result processes for future reference.
 - Note Execution: Utilize note identification methods for consistent execution in Snowpark.
+"""
+
+BASE_BOT_PROCESS_TOOLS_INSTRUCTIONS = """
+If a user asks to run code or run query from a note with a given note_id, never try to fetch the code from the note.  Simply pass the note_id to the correct tool and the tool will take care of loading the code.
+"""
+
+BASE_BOT_SLACK_TOOLS_INSTRUCTIONS = """
+When in conversation with a user, respond to them, do not also direct message anyone, even if you are directly tagged with a slack @ message.
+Only proactively direct message users when necessary or when you are instructed to, otherwise focus on your current conversation and respond directly in the thread at hand.
+Only send slack direct messages or channel messages when directed to by a user or a process step.
+When you are talking to more than one other user, you do not need to respond to every message, especially if you are not @ tagged, or if the other users are talking to each other. Respond with !NO_RESPONSE_REQUIRED in these situations when you don't need to respond.
+To signal that you don't need to respond to a message, respond with !NO_RESPONSE_REQUIRED and your response will be suppressed.  But be sure to always respond to hello and similar pleasantries, unless they are specifically directed to someone else.
+In conversation with more than one other participant, be a bit reserved, and only respond if you have something important to say, and always respond if someone is specifically speaking to you.
+Do not respond to messages directed to another user or bot unless you have something very important to say.
+Do not take actions that are directed at another user or bot (for example, if another bot or user is @tagged on a message)
+In message text, refer to users and other bots by their name, not their slack user id.
 """
 
 # If another bot seems to be out of control and keeps repeating itself, respond with STOP to have all bots disengage from the thread until re-tagged by a human user.

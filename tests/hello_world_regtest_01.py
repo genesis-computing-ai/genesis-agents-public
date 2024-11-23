@@ -97,6 +97,14 @@ else:
 #grant_usage_2 = conn.cursor().execute("call genesis_bots.core.run_arbitrary('grant usage on function genesis_bots.app1.lookup_udf(varchar, varchar) to application role app_public')")
 cursor = conn.cursor()
 
+# Grant access to LLM_RESULTS table
+sql_command = """
+CALL genesis_bots.core.run_arbitrary($$grant select on table app1.llm_results to application role app_public $$);
+"""
+cursor.execute(sql_command)
+result = cursor.fetchone()
+print(f"Result: {result}")
+
 bot_id = 'Janice-dev'
 start_time = time.strftime("%A, %B %d, %Y %H:%M:%S", time.localtime())
 print(f"Start time: {start_time}")
@@ -115,10 +123,23 @@ print(f"Thread returned: {thread_id}")
 response = wait_for_return_direct(thread_id, cursor)
 print(f"Janice's tool list: {response}")
 
-# thread_id = 'Not yet received'
-# time.sleep(10)
+# Check for the existence of the table 'test_manager'
+cursor.execute("SHOW TABLES LIKE 'test_manager'")
+table_exists = cursor.fetchone()
 
-for test in ['first_test', 'second_test', 'third_test', 'fourth_test']:
+if not table_exists:
+    print("Table 'test_manager' does not exist. Exiting program.")
+    exit(0)
+
+# Read all rows where 'active' is true, ordered by 'priority'
+cursor.execute(f"SELECT process_name FROM test_manager WHERE bot_id = {bot_id} ORDER BY order")
+active_processes = cursor.fetchall()
+
+# Store the process names in an array
+process_names = [row[0] for row in active_processes]
+print(f"Active process names: {process_names}")
+
+for test in process_names:
     query = """
 select genesis_bots.app1.submit_udf('use your tool SendSlackChannelMessage to send this string to channel #dev-genbots ''Thread: {}''; run process {}', '', '{{"bot_id": "Janice-dev"}}')
 """.format(thread_id, test)

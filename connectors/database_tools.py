@@ -469,6 +469,53 @@ notebook_manager_functions = [
     }
 ]
 
+test_manager_functions = [
+    {
+        "type": "function",
+        "function": {
+            "name": "_test_manager",
+            "description": """Manages tests that will run when when the project is deploymented, including adding, updating, listing and deleting tests from the list of tests to run
+                           project is deployed, allowing bots to manage tests. Remember that this is not used to create new processes.  Make sure that the user is specifically 
+                           asking for a test_manager to be added to, have its priority weighting updated, or deleted. This tool is not used to run a test_manager during deployment, but 
+                           can be used to run a test process to make sure it functions as designed.  If you are asked to run a test_manager, use the run process tool and pass the process_id, 
+                           do not use this tool.  If you aren't sure, ask the user to clarify.""",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "action": {
+                        "type": "string",
+                        "description": """
+                        The action to perform on a test_manager: ADD, UPDATE, DELETE,
+                        LIST returns a list of all test_managers, SHOW shows all fields of a test_manager,
+                        or TIME to get current system time.""",
+                    },
+                    "bot_id": {
+                        "type": "string",
+                        "description": "The identifier of the bot that is having its processes tested.",
+                    },
+                    "test_manager_id": {
+                        "type": "string",
+                        "description": "The unique identifier of the process_id. MAKE SURE TO DOUBLE-CHECK THAT YOU ARE USING THE CORRECT test_manager_id ON UPDATES AND DELETES!  Required for CREATE, UPDATE, and DELETE.",
+                    },
+                    "test_manager_name": {
+                        "type": "string",
+                        "description": "Human reable unique name for the test_manager.",
+                    },
+                    "test_manager_type": {
+                        "type": "string",
+                        "description": "The type of test_manager."
+                    },
+                    "priority": {
+                        "type": "integer",
+                        "description": "Determines the order in which the tests will run.  Lower numbers run first.",
+                    },
+                },
+                "required": ["action", "bot_id"],
+            },
+        },
+    }
+]
+
 process_manager_functions = [
     {
         "type": "function",
@@ -482,8 +529,9 @@ process_manager_functions = [
                     "action": {
                         "type": "string",
                         "description": """
-                        The action to perform on a process: CREATE, UPDATE, DELETE, CREATE_PROCESS_CONFIG, UPDATE_PROCESS_CONFIG, DELETE_PROCESS_CONFIG, ALLOW_CODE,
+                        The action to perform on a process: CREATE, UPDATE, DELETE, CREATE_PROCESS_CONFIG, UPDATE_PROCESS_CONFIG, DELETE_PROCESS_CONFIG, ALLOW_CODE, HIDE_PROCESS, UNHIDE_PROCESS
                         LIST returns a list of all processes, SHOW shows full instructions and details for a process, SHOW_CONFIG shows the configuration for a process,
+                        HIDE_PROCESS hides the process from the list of processes, UNHIDE_PROCESS unhides the process from the list of processes,
                         or TIME to get current system time.  If you are trying to deactivate a schedule for a task, use _process_scheduler instead, don't just DELETE the process.
                         ALLOW_CODE is used to bypass the restriction that code must be added as a note""",
                     },
@@ -513,7 +561,7 @@ process_manager_functions = [
                         "default": False,
                     },
                 },
-                "required": ["action", "bot_id", "process_instructions", "hidden"],
+                "required": ["action", "bot_id", "process_instructions"],
             },
         },
     }
@@ -736,6 +784,7 @@ autonomous_tools = {}
 #autonomous_tools = {"_manage_tasks": "db_adapter.manage_tasks"}
 
 #process_runner_tools = {"_run_process": "tool_belt.run_process"}
+test_manager_tools = {"_test_manager": "tool_belt.test_manager"}
 process_manager_tools = {"_manage_processes": "tool_belt.manage_processes"}
 process_scheduler_tools = {"_process_scheduler": "tool_belt.process_scheduler"}
 notebook_manager_tools = {"_manage_notebook": "tool_belt.manage_notebook"}

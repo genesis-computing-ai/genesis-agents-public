@@ -744,7 +744,7 @@ def ensure_table_exists(self):
 #                )
             bot_name = "Eve"
             bot_instructions = BASE_EVE_BOT_INSTRUCTIONS
-            available_tools = '["slack_tools", "make_baby_bot", "snowflake_stage_tools", "image_tools", "process_manager_tools", "process_runner_tools", "process_scheduler_tools", "notebook_manager_tools"]'
+            available_tools = '["slack_tools", "test_manager_tools", "make_baby_bot", "snowflake_stage_tools", "image_tools", "process_manager_tools", "process_runner_tools", "process_scheduler_tools", "notebook_manager_tools"]'
             udf_active = "Y"
             slack_active = "N"
             bot_intro_prompt = EVE_INTRO_PROMPT
@@ -1482,6 +1482,30 @@ def ensure_table_exists(self):
             logger.info(f"Table {self.user_bot_table_name} already exists.")
     except Exception as e:
         logger.info(f"An error occurred while checking or creating table {self.user_bot_table_name}: {e}")
+
+    # Create test_manager table if it doesn't exist
+    bot_test_manager_table_check_query = f"SHOW TABLES LIKE 'test_manager' IN SCHEMA {self.schema};"
+    cursor = self.client.cursor()
+    cursor.execute(bot_test_manager_table_check_query)
+
+    if not cursor.fetchone():
+        create_bot_test_manager_table_ddl = f"""
+        CREATE OR REPLACE TABLE {self.schema}.TEST_MANAGER (
+            CREATED_AT TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UPDATED_AT TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            BOT_ID VARCHAR(16777216),
+            TEST_PROCESS_ID VARCHAR(16777216),
+            TEST_PROCESS_NAME VARCHAR(16777216),
+            TEST_TYPE VARCHAR(16777216),
+            TEST_PRIORITY INTEGER
+        );
+        """
+        cursor.execute(create_bot_test_manager_table_ddl)
+        self.client.commit()
+        logger.info(f"Table {self.schema}.test_manager created successfully.")
+    else:
+        logger.info(f"Table {self.schema}.test_manager already exists.")
+        upgrade_timestamp_columns(self, 'test_manager')
 
     # HARVEST CONTROL TABLE
     hc_table_id = self.genbot_internal_harvest_control_table

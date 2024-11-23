@@ -174,6 +174,10 @@ webpage_downloader_action_function_mapping = {
 
 tools_data = [
     (
+        "test_manager_tools",
+        "List, add, update, and delete tests that run at deploy time.",
+    ),
+    (
         "slack_tools",
         "Lookup slack users by name, and send direct messages in Slack",
     ),
@@ -600,8 +604,8 @@ git_file_manager_functions = [
                         - get_status: Get file status (optional: file_path)
                         """,
                         "enum": [
-                            "list_files", "read_file", "write_file", "generate_diff", 
-                            "apply_diff", "commit", "get_history", "create_branch", 
+                            "list_files", "read_file", "write_file", "generate_diff",
+                            "apply_diff", "commit", "get_history", "create_branch",
                             "switch_branch", "get_branch", "get_status"
                         ]
                     },

@@ -36,18 +36,9 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.backends import default_backend
 import jwt
 
-from core.logging_config import logging, logger, LogSupressor
+from core.logging_config import logging, logger
 
 from snowflake.connector import SnowflakeConnection
-
-
-# Suppress logs polluting the native app logging.
-# See Issues: #114
-import snowflake.connector.connection
-LogSupressor.add_supressor(snowflake.connector.connection.__name__, log_level=logging.ERROR,
-                           regexp=r"Failed to establish a connection \(session id", n=100)
-LogSupressor.add_supressor(snowflake.connector.connection.__name__, log_level=logging.ERROR,
-                           regexp=r"on_error invoked \(session id", n=100)
 
 class SnowflakeConnector(DatabaseConnector):
     def __init__(self, connection_name, bot_database_creds=None):

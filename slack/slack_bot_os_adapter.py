@@ -14,7 +14,7 @@ from core.bot_os_input import BotOsInputAdapter, BotOsInputMessage, BotOsOutputM
 from core.bot_os_artifacts import ARTIFACT_ID_REGEX, get_artifacts_store
 from connectors import get_global_db_connector
 
-from core.logging_config import logger
+from core.logging_config import logger, logging, LogSupressor
 import threading
 import random
 import re
@@ -79,6 +79,11 @@ class SlackBotAdapter(BotOsInputAdapter):
         self.finalized_threads = {}
         self.split_at = 3700  # use 3700 normally
         self.legacy_sessions = legacy_sessions
+
+        # Supress/summarize certain repeated connection error logs that are polluting the logs in the native app. See Issue #114.
+        for msg_re_to_suppress in [r"Failed to establish a connection", r"on_error invoked \(session id"]:
+            LogSupressor.add_supressor(self.slack_app.logger.name, log_level=logging.ERROR,
+                                       regexp=msg_re_to_suppress, n=100)
 
         self.events_lock = threading.Lock()
 

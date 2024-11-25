@@ -103,11 +103,13 @@ class LogSupressor:
     A class to suppress repetitive log messages based on specified criteria.
 
     This class allows you to define suppression rules for log messages
-    from specific modules. You can specify the log level, a regular
+    from a specific logger. You can specify the log level, a regular
     expression to match the log message, and the frequency of messages
     to display. Messages that match the criteria will be suppressed
-    *after* the first occurrence, and only every nth message will be shown
+    *after* the first occurrence, and only every n-th message will be shown
     thereafter.
+
+    IMPORTANT: This class is should not be instantiated. Call LogSupressor.add_supressor directly.
 
     Attributes:
         _modulename_to_filtersspec_map (dict): A mapping of module names

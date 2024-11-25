@@ -272,7 +272,7 @@ def echo():
 
 @app.route("/udf_proxy/submit_udf", methods=["POST"])
 def submit_udf():
-    print("\nReached submit_udf endpoint\n")
+    # print("\nReached submit_udf endpoint\n")
     message = request.json
     input_rows = message["data"]
     if type(input_rows[0][3]) == str:
@@ -301,7 +301,7 @@ def submit_udf():
 
 @app.route("/udf_proxy/lookup_udf", methods=["POST"])
 def lookup_udf():
-    print("\nReached lookup_udf endpoint\n")
+    # print("\nReached lookup_udf endpoint\n")
     message = request.json
     input_rows = message["data"]
     bot_id = input_rows[0][2]

@@ -60,7 +60,7 @@ def _jira_connector(action: str,
     if action == "CREATE_ISSUE":
         success = False
         if project_key and summary and description and issue_type:
-            result = create_issue(project_name=project_key, summary=summary, description=description, issue_type=issue_type, priority=priority)
+            result = create_issue(project_name=project_key, summary=summary, description=description, issue_type=issue_type, priority=priority, user_name=user_name)
             if result:
                 success = True
         else:
@@ -69,7 +69,7 @@ def _jira_connector(action: str,
         return {
             "Success": success,
             "Message": "Jira issue created successfully.",
-            "Suggestion": "Offer to perform another action",
+            "Suggestion": "Show the details of the new issue. Offer to perform another action",
             "result": result,
         }
 
@@ -212,7 +212,7 @@ def jira_api_connector():
     except Exception as e:
         return {"error connecting to JIRA": str(e)}
 
-def create_issue(project_name, issue_type, summary, description, priority=None, thread_id=None):
+def create_issue(project_name, issue_type, summary, description, user_name=None, priority=None, thread_id=None):
 
     try:
         jira_connector = jira_api_connector()
@@ -258,7 +258,11 @@ def create_issue(project_name, issue_type, summary, description, priority=None, 
                             result_output["message"] = "Priority field is not available in this issue type or project."
                             return json.dumps(result_output, indent=4)
 
-
+                    users = jira_connector.client.search_users(query=user_name)
+                    if users:
+                        assignee = users[0].accountId
+                    else:
+                        assignee = None
 
                     issue_dict = {
                         'project': {'key': project_name},  # Replace 'PROJ' with your project key
@@ -266,14 +270,18 @@ def create_issue(project_name, issue_type, summary, description, priority=None, 
                         'description': description,
                         'priority': {'name': priority},
                         'issuetype': {'name': issue_type},  # Replace 'Task' with the appropriate issue type
+                        'assignee': {'name': assignee},
                     }
 
                     new_issue = jira_connector.client.create_issue(fields=issue_dict)
+
+                    issue_link = jira_connector.jira_url + '/browse/' + new_issue.key
 
                     # Fetch details of the created issue to return as JSON
                     issue_data = {
                         "id": new_issue.id,
                         "key": new_issue.key,
+                        "link": issue_link,
                         "fields": {
                             "summary": new_issue.fields.summary,
                             "description": new_issue.fields.description,

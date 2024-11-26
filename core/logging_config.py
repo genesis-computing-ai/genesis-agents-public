@@ -111,10 +111,15 @@ class LogSupressor:
 
     IMPORTANT: This class is should not be instantiated. Call LogSupressor.add_supressor directly.
 
-    Attributes:
-        _modulename_to_filtersspec_map (dict): A mapping of module names
-            to their respective filter specifications.
+    Example usage: 
+        To report only the first and then each 10th ERROR log records with the phrase 
+        'Failed to connect to Snowflake, retyring in 1.3 sec..." that are emitted by logger named 'XYZ', do this:
+        ```
+        LogSupressor.add_supressor('XYZ', log_level=logging.ERROR,  regexp=r'Failed to connect to Snowflake, retyring in .* sec', n=10)
+        ```
     """
+
+    # A mapping of logger names to their respective filter specifications.
     _modulename_to_filtersspec_map = dict()
 
     class _FilterSpec:
@@ -127,19 +132,26 @@ class LogSupressor:
             self.n = n
             self.counter = counter
 
+
     @staticmethod
     def _filter_record(record):
+        suppression_note_added = hasattr(record, '_suppression_note_added')
+        if suppression_note_added:
+            # This is a 'summary' record we've already seen and cleared through.
+            return True
         logger_name = record.name
         specs = LogSupressor._modulename_to_filtersspec_map.get(logger_name, [])
         show_record = True
         for spec in specs:
-            # if the record matches the spec then increase the counter and determine if it should be filtered.
+            # If the record matches the spec, then increase the counter and determine if it should be filtered.
             if record.levelno == spec.log_level and re.search(spec.regexp, record.getMessage()):
                 spec.counter += 1
                 show_record = spec.counter == 1 or spec.counter % spec.n == 1
                 if show_record and spec.counter > 1:
-                    record.msg += f" [NOTE: PREVIOUS {spec.n-1} SIMILAR RECORDS HAS BEEN SUPRESSED ({spec.regexp=})]"
+                    record.msg += " [NOTE: PREVIOUS {} SIMILAR RECORDS HAVE BEEN SUPPRESSED (regexp={!r})]".format(spec.n-1, spec.regexp)
+                    record._suppression_note_added = True  # Mark it as 'visited' and shortcut filtering for next time we see this record.
         return show_record
+
 
     @classmethod
     def add_supressor(cls, logger_name, log_level, regexp, n):
@@ -172,5 +184,3 @@ _setup_root_logger()
 
 # this was done to allow logging syntax that matches print statments syntax (since we auto-converted them to log messages) e.g. (print("hello", end="")
 logger = PrintLikeLogger(_setup_genesis_logger())
-
-

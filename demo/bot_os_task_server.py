@@ -19,9 +19,7 @@ from core.bot_os_input import BotOsInputMessage
 from core.bot_os_memory import BotOsKnowledgeAnnoy_Metadata
 from core.bot_os_server import BotOsServer
 from apscheduler.schedulers.background import BackgroundScheduler
-from connectors.bigquery_connector import BigQueryConnector
-from connectors.snowflake_connector.snowflake_connector import SnowflakeConnector
-from connectors.sqlite_connector import SqliteConnector
+from connectors import get_global_db_connector
 from core.bot_os_tools import get_tools, ToolBelt
 from slack.slack_bot_os_adapter import SlackBotAdapter
 from bot_genesis.make_baby_bot import (
@@ -45,7 +43,6 @@ from bot_genesis.make_baby_bot import (
 
 # from auto_ngrok.auto_ngrok import launch_ngrok_and_update_bots
 from core.bot_os_task_input_adapter import TaskBotOsInputAdapter
-# from connectors.snowflake_connector.snowflake_connector import SnowflakeConnector
 
 from demo.sessions_creator import create_sessions, make_session
 from auto_ngrok.auto_ngrok import launch_ngrok_and_update_bots
@@ -94,21 +91,8 @@ global_flags.genbot_internal_project_and_schema = genbot_internal_project_and_sc
 
 
 # new stuff for db
-genesis_source = os.getenv('GENESIS_SOURCE',default="BigQuery")
-logger.info('Starting DB connection...')
-if genesis_source == 'BigQuery':
-    credentials_path = os.getenv('GOOGLE_APPLICATION_CREDENTIALS',default=".secrets/gcp.json")
-    with open(credentials_path) as f:
-        connection_info = json.load(f)
-    # Initialize BigQuery client
-    db_adapter = BigQueryConnector(connection_info,'BigQuery')
-elif genesis_source ==  'Sqlite':
-    db_adapter = SqliteConnector(connection_name='Sqlite')
-elif genesis_source == 'Snowflake':    # Initialize BigQuery client
-    db_adapter = SnowflakeConnector(connection_name='Snowflake')
-else:
-    raise ValueError('Invalid Source')
-# Initialize the BigQueryConnector with your connection info
+db_adapter = get_global_db_connector()
+
 if not os.getenv("TEST_TASK_MODE", "false").lower() == "true":
     db_adapter.ensure_table_exists()
 

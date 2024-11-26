@@ -1,10 +1,8 @@
 # make_baby_bot.py
 
 import os, json, requests, uuid
-from connectors.bigquery_connector import BigQueryConnector
+from connectors import get_global_db_connector
 from connectors.database_connector import llm_keys_and_types_struct
-from connectors.snowflake_connector.snowflake_connector import SnowflakeConnector
-from connectors.sqlite_connector import SqliteConnector
 
 from google.cloud import bigquery
 import threading
@@ -13,21 +11,6 @@ from core.bot_os_corpus import URLListFileCorpus
 
 from core.logging_config import logger
 
-genesis_source = os.getenv('GENESIS_SOURCE',default="Snowflake")
-
-#if genesis_source == 'BigQuery':
-#    credentials_path = os.getenv('GOOGLE_APPLICATION_CREDENTIALS',default=".secrets/gcp.json")
-#    with open(credentials_path) as f:
-#        connection_info = json.load(f)
-#    # Initialize BigQuery client
-#    bb_db_connector = BigQueryConnector(connection_info,'BigQuery')
-#else:    # Initialize BigQuery client
-if genesis_source == 'Sqlite':
-    bb_db_connector = SqliteConnector(connection_name="Sqlite")
-elif genesis_source == 'Snowflake':
-    bb_db_connector = SnowflakeConnector(connection_name='Snowflake')
-else:
-    raise ValueError('Invalid Source')
 
 genbot_internal_project_and_schema = os.getenv('GENESIS_INTERNAL_DB_SCHEMA','None')
 if  genbot_internal_project_and_schema is None:
@@ -43,14 +26,17 @@ dataset_name = db_schema[1]
 bot_servicing_table = os.getenv('BOT_SERVICING_TABLE', 'BOT_SERVICING')
 
 def list_all_bots(runner_id=None, slack_details=False, with_instructions=False):
+    bb_db_connector = get_global_db_connector()
     return bb_db_connector.db_list_all_bots(project_id=project_id, dataset_name=dataset_name, bot_servicing_table=bot_servicing_table, runner_id=runner_id, full=False, slack_details=slack_details, with_instructions=with_instructions)
 
 def list_all_bots_wrap(runner_id=None, slack_details=False, with_instructions=False):
+    bb_db_connector = get_global_db_connector()
     result = bb_db_connector.db_list_all_bots(project_id=project_id, dataset_name=dataset_name, bot_servicing_table=bot_servicing_table, runner_id=runner_id, full=False, slack_details=slack_details, with_instructions=with_instructions)
     result = json.loads(json.dumps(result).replace('!NO_RESPONSE_REQUIRED', '(exclamation point)NO_RESPONSE_REQUIRED'))
     return result
 
 def get_all_bots_full_details(runner_id):
+    bb_db_connector = get_global_db_connector()
     return bb_db_connector.db_list_all_bots(project_id=project_id, dataset_name=dataset_name, bot_servicing_table=bot_servicing_table, runner_id=runner_id, full=True, with_instructions=True)
 
 def set_slack_config_tokens(slack_app_config_token, slack_app_config_refresh_token):
@@ -65,33 +51,36 @@ def set_slack_config_tokens(slack_app_config_token, slack_app_config_refresh_tok
 
 def save_slack_config_tokens(slack_app_config_token, slack_app_config_refresh_token):
     """
-    Saves the slack app config token and refresh token for the given runner_id to BigQuery.
+    Saves the slack app config token and refresh token for the given runner_id to the DB.
 
     Args:
         slack_app_config_token (str): The slack app config token to be saved.
         slack_app_config_refresh_token (str): The slack app config refresh token to be saved.
     """
+    bb_db_connector = get_global_db_connector()
     runner_id = os.getenv('RUNNER_ID', 'jl-local-runner')
     return bb_db_connector.db_save_slack_config_tokens(slack_app_config_token=slack_app_config_token, slack_app_config_refresh_token=slack_app_config_refresh_token, project_id=project_id, dataset_name=dataset_name)
 
 def get_slack_config_tokens():
     """
-    Retrieves the current slack access keys for the given runner_id from BigQuery.
+    Retrieves the current slack access keys for the given runner_id from the DB
 
     Returns:
         tuple: A tuple containing the slack app config token and the slack app config refresh token.
     """
+    bb_db_connector = get_global_db_connector()
     runner_id = os.getenv('RUNNER_ID', 'jl-local-runner')
     return bb_db_connector.db_get_slack_config_tokens(project_id=project_id, dataset_name=dataset_name)
 
 
 def get_ngrok_auth_token():
     """
-    Retrieves the ngrok authentication token, use domain flag, and domain for the given runner_id from BigQuery.
+    Retrieves the ngrok authentication token, use domain flag, and domain for the given runner_id from the DB.
 
     Returns:
         tuple: A tuple containing the ngrok authentication token, use domain flag, and domain.
     """
+    bb_db_connector = get_global_db_connector()
     runner_id = os.getenv('RUNNER_ID', 'jl-local-runner')
     return bb_db_connector.db_get_ngrok_auth_token(project_id=project_id, dataset_name=dataset_name)
 
@@ -104,6 +93,7 @@ def set_ngrok_auth_token(ngrok_auth_token, ngrok_use_domain='N', ngrok_domain=''
         ngrok_use_domain (str): Flag indicating whether to use a custom domain ('Y' or 'N').
         ngrok_domain (str): The custom domain to use if ngrok_use_domain is 'Y'.
     """
+    bb_db_connector = get_global_db_connector()
     runner_id = os.getenv('RUNNER_ID', 'jl-local-runner')
     return bb_db_connector.db_set_ngrok_auth_token(ngrok_auth_token=ngrok_auth_token, ngrok_use_domain=ngrok_use_domain, ngrok_domain=ngrok_domain, project_id=project_id, dataset_name=dataset_name)
 
@@ -115,6 +105,7 @@ def get_llm_key() -> list[llm_keys_and_types_struct]:
     Returns:
         tuple: A tuple containing the LLM key and LLM type.
     """
+    bb_db_connector = get_global_db_connector()
     runner_id = os.getenv('RUNNER_ID', 'jl-local-runner')
     return bb_db_connector.db_get_llm_key(project_id=project_id, dataset_name=dataset_name)
 
@@ -127,6 +118,7 @@ def set_llm_key(llm_key, llm_type, llm_endpoint):
         llm_type (str): The type of LLM (e.g., 'openai', 'reka').
         llm_endpoint (str): The URL endpoint (e.g., for azure)
     """
+    bb_db_connector = get_global_db_connector()
     runner_id = os.getenv('RUNNER_ID', 'jl-local-runner')
     return bb_db_connector.db_set_llm_key(llm_key=llm_key, llm_type=llm_type, llm_endpoint=llm_endpoint)
 
@@ -426,7 +418,7 @@ def insert_new_bot(api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instruct
         bot_intro_prompt: Prompt to generate default bot greeting.
         bot_avatar_image: Default GenBots avatar image
     """
-
+    bb_db_connector = get_global_db_connector()
     return bb_db_connector.db_insert_new_bot(api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instructions, runner_id, slack_signing_secret,
                    slack_channel_id, available_tools, auth_url, auth_state, client_id, client_secret, udf_active,
                    slack_active, files, bot_implementation, bot_avatar_image, bot_intro_prompt, slack_user_allow, project_id, dataset_name, bot_servicing_table)
@@ -603,6 +595,7 @@ def modify_slack_allow_list(bot_id, action, user_name=None, user_identifier=None
             return {'success': False, 'error': 'Invalid action'}
 
         # Update the SLACK_USER_ALLOW list in the database
+        bb_db_connector = get_global_db_connector()
         bb_db_connector.db_update_slack_allow_list( project_id=project_id, dataset_name=dataset_name, bot_servicing_table=bot_servicing_table, bot_id=bot_id, slack_user_allow_list=slack_user_allow_list)
         if slack_user_allow_list == []:
             return {'success': True, 'action': action, 'all_allowed': 'All Slack users currently have access to this bot.'}
@@ -624,7 +617,7 @@ def add_new_tools_to_bot(bot_id, new_tools):
         dict: A dictionary containing the tools that were added and those that were already present.
     """
     # Retrieve the current available tools for the bot
-
+    bb_db_connector = get_global_db_connector()
     available_tools_list = bb_db_connector.db_get_available_tools(project_id=project_id, dataset_name=dataset_name)
     available_tool_names = [tool['tool_name'] for tool in available_tools_list]
     if isinstance(new_tools, str):
@@ -705,6 +698,7 @@ def validate_potential_files(new_file_ids=None):
     database, schema, stage_name = internal_stage.split('.')
 # if wildcard include it as pattern...
     try:
+        bb_db_connector = get_global_db_connector()
         stage_contents = bb_db_connector.list_stage_contents(database=database, schema=schema, stage=stage_name)
     except Exception as e:
         return {"success": False, "error": e}
@@ -779,6 +773,7 @@ def add_bot_files(bot_id, new_file_names=None, new_file_ids=None):
             current_files.append(new_file_id)
     updated_files_str = json.dumps(current_files)
 
+    bb_db_connector = get_global_db_connector()
     return bb_db_connector.db_update_bot_files(project_id=project_id, dataset_name=dataset_name, bot_servicing_table=bot_servicing_table, bot_id=bot_id, updated_files_str=updated_files_str, current_files=current_files, new_file_ids=new_file_ids)
 
 def remove_bot_files(bot_id, file_ids_to_remove):
@@ -829,6 +824,7 @@ def remove_bot_files(bot_id, file_ids_to_remove):
                 "current_files_list": orig_files
             }
 
+    bb_db_connector = get_global_db_connector()
     return bb_db_connector.db_update_bot_files(project_id=project_id, dataset_name=dataset_name, bot_servicing_table=bot_servicing_table, bot_id=bot_id, updated_files_str=updated_files_str, current_files=current_files, new_file_ids=file_ids_to_remove)
 
 
@@ -841,6 +837,7 @@ def update_bot_instructions(bot_id, new_instructions=None, bot_instructions=None
         bot_id (str): The unique identifier for the bot.
         new_instructions (str): The new instructions for the bot.
     """
+    bb_db_connector = get_global_db_connector()
     runner_id = os.getenv('RUNNER_ID', 'jl-local-runner')
 
     bot_details = get_bot_details(bot_id)
@@ -903,6 +900,7 @@ def test_slack_app_level_token(app_level_token):
         return {"success": False, "error": "The token is invalid.  Make sure you provide an App Level Token with connection-write scope.  It should start with xapp-."}
 
 def update_bot_details(bot_id, bot_slack_user_id, slack_app_token):
+    bb_db_connector = get_global_db_connector()
     return bb_db_connector.db_update_bot_details(bot_id, bot_slack_user_id, slack_app_token, project_id, dataset_name, bot_servicing_table)
 
 
@@ -930,6 +928,7 @@ def update_slack_app_level_key(bot_id, slack_app_level_key):
 
     try:
         # Call the function from the Snowflake connector to update the Slack app level key
+        bb_db_connector = get_global_db_connector()
         result = bb_db_connector.db_update_slack_app_level_key(project_id=project_id, dataset_name=dataset_name, bot_servicing_table=bot_servicing_table, bot_id=bot_id, slack_app_level_key=slack_app_level_key)
         if result.get("success"):
             if auth_url:
@@ -963,6 +962,7 @@ def update_existing_bot(api_app_id, bot_id, bot_slack_user_id, client_id, client
     files_json = json.dumps(files)
     if files_json == 'null':
         files_json = None
+    bb_db_connector = get_global_db_connector()
     return bb_db_connector.db_update_existing_bot(api_app_id, bot_id, bot_slack_user_id, client_id, client_secret, slack_signing_secret,
                             auth_url, auth_state, udf_active, slack_active, files_json, bot_implementation, project_id, dataset_name, bot_servicing_table)
 
@@ -979,16 +979,20 @@ def get_bot_details(bot_id):
     Returns:
         dict: A dictionary containing the bot details if found, otherwise None.
     """
+    bb_db_connector = get_global_db_connector()
     return bb_db_connector.db_get_bot_details(project_id=project_id, dataset_name=dataset_name, bot_servicing_table=bot_servicing_table, bot_id=bot_id)
 
 
 def get_available_tools():
+    bb_db_connector = get_global_db_connector()
     return bb_db_connector.db_get_available_tools(project_id=project_id, dataset_name=dataset_name)
 
 def get_default_avatar():
+    bb_db_connector = get_global_db_connector()
     return bb_db_connector.db_get_default_avatar()
 
 def add_or_update_available_tool(tool_name, tool_description):
+    bb_db_connector = get_global_db_connector()
     return bb_db_connector.db_add_or_update_available_tool(tool_name=tool_name, tool_description=tool_description, project_id=project_id, dataset_name=dataset_name)
 
 def make_baby_bot(bot_id, bot_name, bot_instructions='You are a helpful bot.', available_tools=None, runner_id=None, slack_channel_id=None, confirmed=None, activate_slack='Y',
@@ -1097,6 +1101,7 @@ def make_baby_bot(bot_id, bot_name, bot_instructions='You are a helpful bot.', a
                 query1 = f"SHOW ENDPOINTS IN SERVICE {project_id}.{dataset_name}.GENESISAPP_SERVICE_SERVICE;"
             try:
                 logger.warning(f"Running query to check endpoints: {query1}")
+                bb_db_connector = get_global_db_connector()
                 results = bb_db_connector.run_query(query1)
                 udf_endpoint_url = next((endpoint['ingress_url'] for endpoint in results if endpoint['name'] == 'udfendpoint'), None)
                 return udf_endpoint_url
@@ -1294,6 +1299,7 @@ def _remove_bot(bot_id, thread_id=None, confirmed=None):
     else:
         logger.info(f"No session found for bot with API App ID {api_app_id} proceeding to delete from database and Slack.")
 
+    bb_db_connector = get_global_db_connector()
     bb_db_connector.db_delete_bot(project_id=project_id, dataset_name=dataset_name, bot_servicing_table=bot_servicing_table, bot_id=bot_id)
 
     # Rotate the Slack app configuration token before making the Slack API call
@@ -1344,6 +1350,7 @@ def update_bot_implementation(bot_id, bot_implementation, thread_id=None):
         bot_id (str): The unique identifier for the bot.
         bot_implementation (str): The new implementation type to be set for the bot (e.g., 'openai', 'cortex').
     """
+    bb_db_connector = get_global_db_connector()
     runner_id = os.getenv('RUNNER_ID', 'jl-local-runner')
 
     bot_config = get_bot_details(bot_id=bot_id)

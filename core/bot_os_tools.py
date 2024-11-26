@@ -27,9 +27,10 @@ from bot_genesis.make_baby_bot import (
     get_bot_details,
 )
 from connectors import database_tools
-from connectors.bigquery_connector import BigQueryConnector
-from connectors.snowflake_connector.snowflake_connector import SnowflakeConnector
-from connectors.sqlite_connector import SqliteConnector
+from connectors import get_global_db_connector
+# from connectors.bigquery_connector import BigQueryConnector
+# from connectors.snowflake_connector.snowflake_connector import SnowflakeConnector
+# from connectors.sqlite_connector import SqliteConnector
 from llm_openai.openai_utils import get_openai_client
 from slack.slack_tools import slack_tools, slack_tools_descriptions
 from connectors.database_tools import (
@@ -309,11 +310,11 @@ class ToolBelt:
                                 if previous_summary == "":
                                     summary_response = self.chat_completion(
                                         f"An AI bot is doing work, you are monitoring it. Please summarize in a few words what is happening in this ongoing response from another bot so far.  Be VERY Brief, use just a few words, not even a complete sentence.  Don't put a period on the end if its just one sentence or less.\nHere is the bots output so far:\n\n{response.strip()[:-2]}"
-                                    , db_adapter=db_adapter, fast=True)
+                                    , db_adapter=self.db_adapter, fast=True)
                                 else:
                                     summary_response = self.chat_completion(
                                         f"An AI bot is doing work, you are monitoring it.  Based on its previous status updates, you have provided these summaries so far: \n<PREVIOUS_SUMMARIES_START>\n{previous_summary}\n</PREVIOUS_SUMMARIES_END>\n\nThe current output of the bot so far:\n<BOTS_OUTPUT_START>{response.strip()[:-2]}\n</BOTS_OUTPUT_END>\n\nNOW, Very briefly, in just a few words, summarize anything new the bot has done since the last update, that you have not mentioned yet in a previous summary.  Be VERY Brief, use just a few words, not even a complete sentence.  Don't put a period on the end if its just one sentence or less.  Don't repeat things you already said in previous summaries. If there has been no substantial change in the status, return only NO_CHANGE."
-                                    , db_adapter=db_adapter, fast=True)
+                                    , db_adapter=self.db_adapter, fast=True)
                                 if summary_response and summary_response != 'NO_CHANGE':
                                     previous_summary = previous_summary + summary_response + '\n'
                                     current_summary = summary_response
@@ -1125,9 +1126,9 @@ class ToolBelt:
         return current_time.strftime("%Y-%m-%d %H:%M:%S %Z")
 
     def get_sys_email(self):
-        cursor = db_adapter.client.cursor()
+        cursor = self.db_adapter.client.cursor()
         try:
-            get_sys_email_query = f"SELECT default_email FROM {db_adapter.genbot_internal_project_and_schema}.DEFAULT_EMAIL"
+            get_sys_email_query = f"SELECT default_email FROM {self.db_adapter.genbot_internal_project_and_schema}.DEFAULT_EMAIL"
             cursor.execute(get_sys_email_query)
             result = cursor.fetchall()
             default_email = result[0][0] if result else None
@@ -1696,6 +1697,7 @@ class ToolBelt:
     # ====== NOTEBOOK START ==========================================================================================
 
     def get_notebook_list(self, bot_id="all"):
+        db_adapter = self.db_adapter
         cursor = db_adapter.client.cursor()
         try:
             if bot_id == "all":
@@ -1727,6 +1729,7 @@ class ToolBelt:
             cursor.close()
 
     def get_note_info(self, bot_id=None, note_id=None):
+        db_adapter = self.db_adapter
         cursor = db_adapter.client.cursor()
         try:
             result = None
@@ -1808,6 +1811,7 @@ class ToolBelt:
             }
         action = action.upper()
 
+        db_adapter = self.db_adapter
         cursor = db_adapter.client.cursor()
 
         try:
@@ -1880,7 +1884,7 @@ class ToolBelt:
                     line.lstrip() for line in tidy_note_content.splitlines()
                 )
 
-                note_content = self.chat_completion(tidy_note_content, self.db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, note_id=note_id)
+                note_content = self.chat_completion(tidy_note_content, db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, note_id=note_id)
 
             if action == "CREATE":
                 return {
@@ -2039,6 +2043,7 @@ class ToolBelt:
             cursor.close()
 
     def get_test_manager_list(self, bot_id="all"):
+        db_adapter = self.db_adapter
         cursor = db_adapter.client.cursor()
         try:
             if bot_id == "all":
@@ -2104,6 +2109,7 @@ class ToolBelt:
                 "current_system_time": datetime.now()
             }
 
+        db_adapter = self.db_adapter
         if test_process_name is not None and test_process_id is None:
             cursor.execute(f"SELECT process_id FROM {db_adapter.schema}.PROCESSES WHERE process_name = %s", (test_process_name,))
             result = cursor.fetchone()
@@ -2316,6 +2322,7 @@ class ToolBelt:
             needs_help_flag (bool): Flag indicating if help is needed.
             note_clarity_comments (str): Comments on the clarity of the note.
         """
+        db_adapter = self.db_adapter
         insert_query = f"""
             INSERT INTO {db_adapter.schema}.NOTEBOOK_HISTORY (
                 note_id, work_done_summary, note_status, updated_note_learnings,
@@ -2440,7 +2447,7 @@ class ToolBelt:
         ]
 
         required_fields_update = ["task_active"]
-
+        db_adapter = self.db_adapter
         client = db_adapter.client
         cursor = client.cursor()
         if action == "HISTORY":
@@ -2675,6 +2682,7 @@ class ToolBelt:
  # ====== PROCESSES START ========================================================================================
 
     def get_processes_list(self, bot_id="all"):
+        db_adapter = self.db_adapter
         cursor = db_adapter.client.cursor()
         try:
             if bot_id == "all":
@@ -2702,6 +2710,7 @@ class ToolBelt:
             cursor.close()
 
     def get_process_info(self, bot_id=None, process_name=None, process_id=None):
+        db_adapter = self.db_adapter
         cursor = db_adapter.client.cursor()
         try:
             result = None
@@ -2796,7 +2805,7 @@ class ToolBelt:
             return {
                 "current_system_time": datetime.now()
             }
-
+        db_adapter = self.db_adapter
         cursor = db_adapter.client.cursor()
 
         try:
@@ -3183,6 +3192,7 @@ class ToolBelt:
             needs_help_flag (bool): Flag indicating if help is needed.
             process_clarity_comments (str): Comments on the clarity of the process.
         """
+        db_adapter = self.db_adapter
         insert_query = f"""
             INSERT INTO {db_adapter.schema}.PROCESS_HISTORY (
                 process_id, work_done_summary, process_status, updated_process_learnings,
@@ -3224,24 +3234,6 @@ class ToolBelt:
                 cursor.close()
 
     # ====== PROCESSES END ====================================================================================
-
-if genesis_source == "BigQuery":
-    credentials_path = os.getenv(
-        "GOOGLE_APPLICATION_CREDENTIALS", default=".secrets/gcp.json"
-    )
-    with open(credentials_path) as f:
-        connection_info = json.load(f)
-    # Initialize BigQuery client
-    db_adapter = BigQueryConnector(connection_info, "BigQuery")
-elif genesis_source == 'Sqlite':
-    db_adapter = SqliteConnector(connection_name="Sqlite")
-    connection_info = {"Connection_Type": "Sqlite"}
-elif genesis_source == 'Snowflake':  # Initialize Snowflake client
-    db_adapter = SnowflakeConnector(connection_name="Snowflake")
-    connection_info = {"Connection_Type": "Snowflake"}
-else:
-    raise ValueError('Invalid Source')
-    # tool_belt = (ToolBelt(db_adapter, os.getenv("OPENAI_API_KEY")),)
 
 def get_tools(which_tools, db_adapter, slack_adapter_local=None, include_slack=True, tool_belt=None):
 
@@ -3296,6 +3288,7 @@ def get_tools(which_tools, db_adapter, slack_adapter_local=None, include_slack=T
             available_functions_load.update(bot_dispatch_tools)
             function_to_tool_map[tool_name] = BOT_DISPATCH_DESCRIPTIONS
         elif tool_name == "database_tools":
+            connection_info = {"Connection_Type": db_adapter.connection_info}
             tools.extend(database_tool_functions)
             available_functions_load.update(database_tools)
             run_query_f = bind_run_query([connection_info])
@@ -3512,6 +3505,8 @@ def make_session_for_dispatch(bot_config):
     input_adapters = []
     bot_tools = json.loads(bot_config["available_tools"])
 
+    # Create a DB connector for this session.
+    # TODO - use the utility functions in the connectors module to DRY up.
     genesis_source = os.getenv("GENESIS_SOURCE", default="BigQuery")
 
     if genesis_source == "BigQuery":

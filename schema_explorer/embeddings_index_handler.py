@@ -2,32 +2,18 @@ from annoy import AnnoyIndex
 import csv, json
 from google.cloud import bigquery
 from google.oauth2 import service_account
-from connectors.snowflake_connector.snowflake_connector import SnowflakeConnector
-from connectors.sqlite_connector import SqliteConnector
-from connectors.bigquery_connector import BigQueryConnector
+from connectors import get_global_db_connector
 import tempfile
 
 from openai import OpenAI
 from tqdm.auto import tqdm
-import os 
+import os
 from tqdm.auto import tqdm
 from datetime import datetime
 
 from core.logging_config import logger
 
 from llm_openai.openai_utils import get_openai_client
-
-genesis_source = os.getenv('GENESIS_SOURCE',default="BigQuery")
-emb_connection = genesis_source
-if genesis_source == 'BigQuery':
-    emb_db_adapter = BigQueryConnector(connection_name="Sqlite")
-elif genesis_source == 'Sqlite':
-    emb_db_adapter = SqliteConnector(connection_name="Sqlite")
-elif genesis_source == 'Snowflake':    
-    emb_db_adapter = SnowflakeConnector(connection_name='Snowflake')
-else:
-    raise ValueError('Invalud Source')
-
 
 index_file_path = './tmp/'
 def _get_bigquery_connection():
@@ -53,6 +39,7 @@ def fetch_embeddings_from_snow(table_id):
 
     # First, get the total number of rows to set up the progress bar
     total_rows_query = f"SELECT COUNT(*) as total FROM {table_id}"
+    emb_db_adapter = get_global_db_connector()
     cursor = emb_db_adapter.connection.cursor()
    # logger.info('total rows query: ',total_rows_query)
     cursor.execute(total_rows_query)
@@ -191,7 +178,7 @@ def load_embeddings_from_csv(csv_file_path):
 
 
 def create_annoy_index(embeddings, n_trees=10):
-    
+
    # logger.info('creating index')
    # logger.info('len embeddings ',len(embeddings))
     dimension = max(len(embedding) for embedding in embeddings)
@@ -220,9 +207,9 @@ def create_annoy_index(embeddings, n_trees=10):
 
 
 def make_and_save_index(table_id):
-    
+    emb_db_adapter = get_global_db_connector()
     table_names, embeddings = emb_db_adapter.fetch_embeddings(table_id)
-    
+
     logger.info("indexing ",len(embeddings)," embeddings...")
 
     if len(embeddings) == 0:
@@ -241,14 +228,14 @@ def make_and_save_index(table_id):
         logger.info('Error on create_index: ',e)
 
     logger.info("saving index to file...")
-    
- 
+
+
     # Save the index to a file
     if not os.path.exists(index_file_path):
         os.makedirs(index_file_path)
 
     # save with timestamp filename
-    
+    emb_db_adapter = get_global_db_connector()
     index_file_name, meta_file_name = emb_db_adapter.generate_filename_from_last_modified(table_id)
     try:
         annoy_index.save(os.path.join(index_file_path,index_file_name))
@@ -293,17 +280,17 @@ def get_embedding(text):
 def search_and_display_results(search_term, annoy_index, metadata_mapping):
     embedding = get_embedding(search_term)
     top_matches = annoy_index.get_nns_by_vector(embedding, 10, include_distances=True)
-    
+
     paired_data = list(zip(top_matches[0], top_matches[1]))
     sorted_paired_data = sorted(paired_data, key=lambda x: x[1])
-      
+
     for idx in sorted_paired_data:
         table_name = metadata_mapping[idx[0]]
         content = ""
         logger.info(f"Match: {table_name}, Score: {idx[1]}")
 
 
-def load_or_create_embeddings_index(table_id, refresh=True):    
+def load_or_create_embeddings_index(table_id, refresh=True):
 
     # if cortex_mode then 768 else
     if os.environ.get("CORTEX_MODE", 'False') == 'True':
@@ -314,6 +301,7 @@ def load_or_create_embeddings_index(table_id, refresh=True):
     index_file_path = './tmp/'
     # embedding_size = 3072
 
+    emb_db_adapter = get_global_db_connector()
     if refresh:
         index_file_name, meta_file_name = emb_db_adapter.generate_filename_from_last_modified(table_id)
     else:
@@ -347,7 +335,7 @@ def load_or_create_embeddings_index(table_id, refresh=True):
           #      logger.info(f'metadata_mapping meta  {metadata_mapping}')
           #      logger.info('metadata_mapping meta  ',metadata_mapping)
 
-            if refresh:                                
+            if refresh:
                 if not os.path.exists(index_file_path):
                     os.makedirs(index_file_path)
                 copy_index_file_name, copy_meta_file_name = 'latest_cached_index.ann', 'latest_cached_metadata.json'
@@ -355,7 +343,7 @@ def load_or_create_embeddings_index(table_id, refresh=True):
                     annoy_index.save(os.path.join(index_file_path,copy_index_file_name))
                 except Exception as e:
                     logger.info('I cannot save save annoy index')
-                    logger.info(e)                
+                    logger.info(e)
 
                 with open(os.path.join(index_file_path,copy_meta_file_name), 'w') as f:
                     json.dump(metadata_mapping, f)

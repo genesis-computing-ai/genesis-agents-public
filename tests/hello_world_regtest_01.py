@@ -141,7 +141,7 @@ if not table_exists:
     exit(0)
 
 # Read all rows where 'active' is true, ordered by 'priority'
-cursor.execute(f"SELECT test_process_name FROM test_manager WHERE bot_id = {bot_id} ORDER BY test_priority")
+cursor.execute(f"SELECT test_process_name FROM test_manager WHERE bot_id = '{bot_id}' ORDER BY test_priority")
 active_processes = cursor.fetchall()
 
 # Store the process names in an array

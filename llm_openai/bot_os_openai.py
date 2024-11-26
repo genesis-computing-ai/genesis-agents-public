@@ -1669,7 +1669,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                   pass
                threads_completed[thread_id] = run.completed_at
                logger.telemetry('add_answer:', thread_id, self.bot_id, meta.get('user_email', 'unknown_email'), 
-                                os.getenv("BOT_OS_DEFAULT_LLM_ENGINE", ""))
+                                os.getenv("BOT_OS_DEFAULT_LLM_ENGINE", ""), run.usage.prompt_tokens, run.usage.completion_tokens)
          else:
             logger.debug(f"check_runs - {thread_id} - {run.status} - {run.completed_at} - {thread_run['completed_at']}")
 

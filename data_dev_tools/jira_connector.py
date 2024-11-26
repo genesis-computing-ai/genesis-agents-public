@@ -96,12 +96,16 @@ def _jira_connector(action: str,
             result = get_issues_by_user(user_name=user_name)
             if result:
                 success = True
+        elif description or summary or status or issue_type or priority:
+            result = search_issues(description=description, summary=summary, status=status, issue_type=issue_type, priority=priority)
+            if result:
+                success = True
         else:
-            result = "User name not provided"
+            result = "Search attribute(s) not provided"
 
         return {
             "Success": success,
-            "Message": f"Jira issues for user {user_name} found successfully.",
+            "Message": f"Jira issues found successfully.",
             "Suggestion": "Offer to perform another action",
             "result": result,
         }
@@ -414,17 +418,77 @@ def set_issue_status(issue_name, status_text, thread_id=None):
     except Exception as e:
         return {"error updating status for issue": str(e)}
 
+def search_issues(description=None, summary=None, status=None, issue_type=None, priority=None):
+    try:
+        jira_connector = jira_api_connector()
+        jira = jira_connector.connect()
+
+        if jira == True:
+
+
+            if description:
+                jql_query = f'description ~ "{description}"'
+
+            # Fetch issues based on summary
+            if summary:
+                jql_query = f'summary ~ "{summary}"'
+
+            # Fetch issues based on issue type
+            if issue_type:
+                jql_query = f'issuetype = "{issue_type}"'
+
+            # Fetch issues based on priority
+            if priority:
+                jql_query = f'priority = "{priority}"'
+
+            # Fetch issues based on status
+            if status:
+                jql_query = f'status = "{status}"'
+
+            # Fetch the issues
+            issues = jira_connector.client.search_issues(jql_query)
+
+            # Display the issues found
+            found_issues = [
+                {
+                    "issue_key": issue.key,
+                    "summary": issue.fields.summary,
+                    "status": issue.fields.status.name,
+                    "priority": issue.fields.priority.name,
+                    "issuetype": issue.fields.issuetype.name,
+                    "link": jira_connector.jira_url + '/browse/' + issue.key
+                }
+                for issue in issues
+            ]
+
+            # Convert to JSON and print
+            content_json = json.dumps({"found_issues": found_issues}, indent=4)
+        else:
+            content_json = {"Unable to get connection to jira api": str(e)}
+
+        return content_json
+    except Exception as e:
+        return {"error getting all issues by user": str(e)}
+
+
+
 def get_issues_by_user(user_name, thread_id=None):
     try:
         jira_connector = jira_api_connector()
         jira = jira_connector.connect()
 
         if jira == True:
+
             # JQL query to find all issues assigned to the specified user
             if user_name == 'Unassigned':
                 jql_query = 'assignee is EMPTY'
             else:
-                jql_query = f'assignee = "{user_name}"'
+                users = jira_connector.client.search_users(query=user_name)
+                if users:
+                    account_id = users[0].accountId
+                else:
+                    account_id = None
+                jql_query = f'assignee = "{account_id}"'
 
             # Fetch the issues
             issues = jira_connector.client.search_issues(jql_query)

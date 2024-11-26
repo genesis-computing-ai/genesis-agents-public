@@ -247,31 +247,31 @@ data_dev_tools_functions = [
                     },
                     "summary": {
                         "type": "string",
-                        "description": "Issue summary/title for CREATE_ISSUE action",
+                        "description": "Issue summary/title for CREATE_ISSUE or SEARCH_ISSUE action",
                     },
                     "description": {
                         "type": "string",
-                        "description": "Detailed description or comment for CREATE_ISSUE or UPDATE_ISSUE actions. Use only the text entered by the user, do not auto create this field.",
+                        "description": "Detailed description or comment for CREATE_ISSUE or UPDATE_ISSUE or SEARCH_ISSUE actions. Use only the text entered by the user, do not auto create this field.",
                     },
                     "status": {
                         "type": "string",
-                        "description": "Jira issue status to be updated exactly as requested for CREATE_ISSUE or UPDATE_ISSUE actions.",
+                        "description": "Jira issue status to be updated exactly as requested for CREATE_ISSUE or UPDATE_ISSUE or SEARCH_ISSUE actions.",
                     },
                     "issue_key": {
                         "type": "string",
-                        "description": "The Jira issue key for UPDATE_ISSUE or GET_ISSUE actions (e.g., 'DATA-123')",
+                        "description": "The Jira issue key for UPDATE_ISSUE or GET_ISSUE or SEARCH_ISSUE actions (e.g., 'DATA-123')",
                     },
                     "issue_type": {
                         "type": "string",
-                        "description": "The Jira issue type for UPDATE_ISSUE or CREATE_ISSUE actions (e.g., 'Task')",
+                        "description": "The Jira issue type for UPDATE_ISSUE or CREATE_ISSUE or SEARCH_ISSUE actions (e.g., 'Task')",
                     },
                     "priority": {
                         "type": "string",
-                        "description": "The Jira issue priority or CREATE_ISSUE or UPDATE_ISSUE actions (e.g. 'Low','High','Highest')",
+                        "description": "The Jira issue priority or CREATE_ISSUE or UPDATE_ISSUE or SEARCH_ISSUE actions (e.g. 'Low','High','Highest')",
                     },
                     "jql": {
                         "type": "string",
-                        "description": "JQL query string for SEARCH_ISSUES action",
+                        "description": "JQL query string optional for SEARCH_ISSUES action",
                     },
                     "user_name": {
                         "type": "string",

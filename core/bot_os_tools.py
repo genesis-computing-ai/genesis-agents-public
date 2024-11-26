@@ -2052,9 +2052,9 @@ class ToolBelt:
             for test_manager in test_managers:
                 test_manager_dict = {
                     "bot_id": test_manager[1],
-                    "test_manager_id": test_manager[2],
-                    'test_manager_name': test_manager[3],
-                    'test_manager_type': test_manager[4],
+                    "test_process_id": test_manager[2],
+                    'test_process_name': test_manager[3],
+                    'test_type': test_manager[4],
                     'test_priority': test_manager[5],
                 }
                 test_manager_list.append(test_manager_dict)
@@ -2149,7 +2149,7 @@ class ToolBelt:
             if action == "ADD":
                 return {
                     "Success": False,
-                    "Fields": {"test_manager_id": test_process_id, "test_manager_name": test_process_name, "bot_id": bot_id},
+                    "Fields": {"test_manager_id": test_process_id, "test_process_name": test_process_name, "bot_id": bot_id},
                     "Confirmation_Needed": "Please reconfirm the field values with the user, then call this function again with the action CREATE_CONFIRMED to actually create the test_manager.  If the user does not want to create a test_manager, allow code in the process instructions",
                     "Suggestion": "If possible, for a sql or python test_manager, suggest to the user that we test the sql or python before making the test_manager to make sure it works properly",
                     "Next Step": "If you're ready to create this test_manager or the user has chosen not to create a test_manager, call this function again with action CREATE_CONFIRMED instead of CREATE.  If the user chooses to allow code in the process, allow them to do so and include the code directly in the process."
@@ -2159,7 +2159,7 @@ class ToolBelt:
             if action == "UPDATE":
                 return {
                     "Success": False,
-                    "Fields": {"test_manager_id": test_process_id, "test_manager_name": test_process_name, "bot_id": bot_id},
+                    "Fields": {"test_manager_id": test_process_id, "test_process_name": test_process_name, "bot_id": bot_id},
                     "Confirmation_Needed": "Please reconfirm this content and all the other test_manager field values with the user, then call this function again with the action UPDATE_CONFIRMED to actually update the test_manager.  If the user does not want to update the test_manager, allow code in the process instructions",
                     "Suggestion": "If possible, for a sql or python test_manager, suggest to the user that we test the sql or python before making the test_manager to make sure it works properly",
                     "Next Step": "If you're ready to update this test_manager, call this function again with action UPDATE_CONFIRMED instead of UPDATE"
@@ -2196,7 +2196,7 @@ class ToolBelt:
             if bot_id is None:
                 return {"Success": False, "Error": "bot_id is required for SHOW action"}
             if test_process_name is None:
-                return {"Success": False, "Error": "test_manager_name is required for SHOW action"}
+                return {"Success": False, "Error": "process is required for SHOW action"}
 
         test_manager_id_created = False
         if test_process_name is None:
@@ -2208,15 +2208,15 @@ class ToolBelt:
             if action == "ADD":
                 insert_query = f"""
                     INSERT INTO {db_adapter.schema}.test_manager (
-                        created_at, updated_at, test_manager_id, bot_id, test_manager_name
+                        created_at, updated_at, test_manager_id, boprocess
                     ) VALUES (
-                        current_timestamp(), current_timestamp(), %(test_manager_id)s, %(bot_id)s, %(test_manager_name)s
+                        current_timestamp(), current_timestamp(), %(test_manager_id)s, %(bot_idprocess)s
                     )
                 """ if db_adapter.schema else f"""
                     INSERT INTO test_manager (
-                        created_at, updated_at, test_manager_id, bot_id, test_manager_name
+                        created_at, updated_at, test_manager_id, boprocess
                     ) VALUES (
-                        current_timestamp(), current_timestamp(), %(test_manager_id)s, %(bot_id)s, %(test_manager_name)s
+                        current_timestamp(), current_timestamp(), %(test_manager_id)s, %(bot_idprocess)s
                     )
                 """
 
@@ -2228,16 +2228,16 @@ class ToolBelt:
                     random_suffix = "".join(
                     random.choices(string.ascii_letters + string.digits, k=6)
                      )
-                    test_manager_id_with_suffix = test_manager_id + "_" + random_suffix
+                    test_manager_id_with_suffix = test_process_id + "_" + random_suffix
                 else:
-                    test_manager_id_with_suffix = test_manager_id
+                    test_manager_id_with_suffix = test_process_id
                 cursor.execute(
                     insert_query,
                     {
                         "test_manager_id": test_manager_id_with_suffix,
                         "bot_id": bot_id,
-                        "test_manager_name": test_manager_name,
-                        "priority": priority
+                        "process": test_process_name,
+                        "priority": test_priority
                     },
                 )
 
@@ -2257,33 +2257,33 @@ class ToolBelt:
                     DELETE FROM test_manager
                     WHERE test_manager_id = %s
                 """
-                cursor.execute(delete_query, (test_manager_id))
+                cursor.execute(delete_query, (test_process_id))
 
                 return {
                     "Success": True,
                     "Message": f"test_manager deleted",
-                    "test_manager_id": test_manager_id,
+                    "test_manager_id": test_process_id,
                 }
 
             elif action == "UPDATE":
                 update_query = f"""
                     UPDATE {db_adapter.schema}.test_manager
-                    SET updated_at = CURRENT_TIMESTAMP, test_manager_id=%s, bot_id=%s, test_manager_name=%s, test_manager_content=%s
+                    SET updated_at = CURRENT_TIMESTAMP, test_manager_id=%s, bot_iprocess=%s, test_manager_content=%s
                     WHERE test_manager_id = %s
                 """ if db_adapter.schema else """
                     UPDATE test_manager
-                    SET updated_at = CURRENT_TIMESTAMP, test_manager_id=%s, bot_id=%s, test_manager_name=%s, test_manager_content=%s
+                    SET updated_at = CURRENT_TIMESTAMP, test_manager_id=%s, bot_iprocess=%s, test_manager_content=%s
                     WHERE test_manager_id = %s
                 """
                 cursor.execute(
                     update_query,
-                    (test_manager_id, bot_id, test_manager_name,test_manager_type, test_manager_id)
+                    (test_process_id, bot_id, test_process_name,test_type, test_process_id)
                 )
                 db_adapter.client.commit()
                 return {
                     "Success": True,
                     "Message": "test_manager successfully updated",
-                    "test_manager id": test_manager_id,
+                    "test_manager id": test_process_id,
                 }
             return {"Success": True, "Message": f"test_manager update or delete confirmed."}
         except Exception as e:

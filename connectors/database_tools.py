@@ -493,15 +493,15 @@ test_manager_functions = [
                         "type": "string",
                         "description": "The identifier of the bot that is having its processes tested.",
                     },
-                    "test_manager_id": {
+                    "test_process_id": {
                         "type": "string",
                         "description": "The unique identifier of the process_id. MAKE SURE TO DOUBLE-CHECK THAT YOU ARE USING THE CORRECT test_manager_id ON UPDATES AND DELETES!  Required for CREATE, UPDATE, and DELETE.",
                     },
-                    "test_manager_name": {
+                    "test_process_name": {
                         "type": "string",
                         "description": "Human reable unique name for the test_manager.",
                     },
-                    "test_manager_type": {
+                    "test_type": {
                         "type": "string",
                         "description": "The type of test_manager."
                     },

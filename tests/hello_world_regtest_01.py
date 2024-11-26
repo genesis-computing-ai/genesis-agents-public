@@ -3,6 +3,7 @@ from snowflake.connector import SnowflakeConnection
 import os
 import time
 import uuid
+import json
 from cryptography.hazmat.primitives import serialization
 # import uuid
 # Build a SnowflakeConnection from env variables
@@ -96,6 +97,14 @@ else:
 #grant_usage_1 = conn.cursor().execute("call genesis_bots.core.run_arbitrary('grant usage on function genesis_bots.app1.submit_udf(varchar, varchar, varchar) to application role app_public')")
 #grant_usage_2 = conn.cursor().execute("call genesis_bots.core.run_arbitrary('grant usage on function genesis_bots.app1.lookup_udf(varchar, varchar) to application role app_public')")
 cursor = conn.cursor()
+
+result =None
+while result != 'READY':
+    cursor.execute("USE DATABASE GENESIS_BOTS;")
+    cursor.execute("USE SCHEMA APP1;")
+    cursor.execute("SELECT SYSTEM$GET_SERVICE_STATUS('GENESISAPP_SERVICE_SERVICE');")
+    result = cursor.fetchone()
+    result = json.loads(result[0].replace("[" , "").replace("]", ""))['status']
 
 # Grant access to LLM_RESULTS table
 sql_command = """

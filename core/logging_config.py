@@ -9,6 +9,7 @@ DEFAULT_LOGGER_FOMRAT = '[%(asctime)s][%(levelname)s][%(filename)s:%(lineno)s][%
 GENESIS_LOGGER_FOMRAT = '[%(asctime)s][%(levelname)s][%(caller_filename)s:%(caller_lineno)s]:: %(message)s'
 
 GENESIS_LOGGER_NAME = "GENESIS"
+TELEMETRY_LEVEL = 25
 
 def _setup_root_logger():
     root_logger = logging.getLogger()
@@ -22,14 +23,33 @@ def _setup_root_logger():
         root_logger.addHandler(null_handler)
 
 
+class GenesisLogger(logging.Logger):
+    def __init__(self, name):
+        super().__init__(name)
+        self.telemetry_logs = {'messages': 0, 'prompt_tokens': 0, 'completion_tokens': 0}
+
+    def _log(self, level, msg, *args, **kwargs):
+        if level == TELEMETRY_LEVEL:            
+            items = msg.split(' ')
+            if items[0] == 'add_answer:':
+                self.telemetry_logs['messages'] += 1
+                self.telemetry_logs['prompt_tokens'] += int(items[5])
+                self.telemetry_logs['completion_tokens'] += int(items[6])
+        
+        # Call the parent class's log method to actually log the message
+        super()._log(level, msg, *args, **kwargs)
+
+    def get_telemetry(self):
+        return self.telemetry_logs
+
 def _setup_genesis_logger(name=GENESIS_LOGGER_NAME):
+    logging.setLoggerClass(GenesisLogger)
     logger = logging.getLogger(name)
     logger.propagate = False # do not propagate to the root logger. We thus override its default
     level = os.environ.get('LOG_LEVEL', 'INFO')
     logger.setLevel(level)
 
-    # Define custom log level name and value
-    TELEMETRY_LEVEL = 25
+    # Define custom log level name and value    
     logging.addLevelName(TELEMETRY_LEVEL, "TELEMETRY")
 
     # Add a method to the Logger class to handle the custom level

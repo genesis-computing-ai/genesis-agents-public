@@ -149,8 +149,9 @@ def ensure_table_exists(self):
         f"SHOW TABLES LIKE 'LLM_RESULTS' IN SCHEMA {self.schema};"
     )
     try:
-        with self.client.cursor() as cursor:
-            cursor.execute(llm_results_table_check_query)
+        cursor = self.client.cursor()
+        cursor.execute(llm_results_table_check_query)
+
     except Exception as e:
         logger.info(f"Unable to execute 'SHOW TABLES' query: {e}\nQuery attempted: {llm_results_table_check_query}")
         raise Exception(f"Unable to execute 'SHOW TABLES' query: {e}\nQuery attempted: {llm_results_table_check_query}")
@@ -164,9 +165,9 @@ def ensure_table_exists(self):
                 INDEX uu_idx (uu)
             );
             """
-            with self.client.cursor() as cursor:
-                cursor.execute(create_llm_results_table_ddl)
-                self.client.commit()
+            cursor = self.client.cursor()
+            cursor.execute(create_llm_results_table_ddl)
+            self.client.commit()
             logger.info(f"Table {self.schema}.LLM_RESULTS created as Hybrid Table successfully.")
         else:
             logger.info(f"Table {self.schema}.LLM_RESULTS already exists.")

@@ -270,7 +270,7 @@ def create_issue(project_name, issue_type, summary, description, user_name=None,
                         'description': description,
                         'priority': {'name': priority},
                         'issuetype': {'name': issue_type},  # Replace 'Task' with the appropriate issue type
-                        'assignee': {'name': assignee},
+                        'assignee': {'id': assignee},
                     }
 
                     new_issue = jira_connector.client.create_issue(fields=issue_dict)

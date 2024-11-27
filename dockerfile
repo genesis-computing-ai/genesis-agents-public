@@ -31,6 +31,7 @@ COPY llm_reka ./llm_reka
 COPY llm_mistral ./llm_mistral
 COPY llm_cortex ./llm_cortex
 COPY llm_gemini ./llm_gemini
+COPY llm_antrhopic ./llm_antrhopic
 COPY schema_explorer ./schema_explorer
 COPY knowledge ./knowledge
 #COPY default_data ./default_data

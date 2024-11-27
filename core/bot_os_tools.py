@@ -2243,8 +2243,8 @@ class ToolBelt:
                     {
                         "test_process_id": test_process_id_with_suffix,
                         "bot_id": bot_id,
-                        "process": test_process_name,
-                        "priority": test_priority
+                        "test_process_name": test_process_name,
+                        "test_priority": test_priority
                     },
                 )
 

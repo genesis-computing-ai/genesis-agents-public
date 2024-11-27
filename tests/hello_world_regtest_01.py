@@ -121,7 +121,7 @@ print(f"Start time: {start_time}")
 thread_id = str(uuid.uuid4())
 print(f"Initializing thread_id: {thread_id} - Ask {bot_id} to show her list of processes")
 query = """
-select genesis_bots.app1.submit_udf('say "Hi there, just testing tests" in channel #dev-genbots', '""" + thread_id + """', '{"bot_id": "Janice-dev"}')
+select genesis_bots.app1.submit_udf('say "Running post-deploy tests..." in channel #dev-genbots', '""" + thread_id + """', '{"bot_id": "Janice-dev"}')
 """
 print(query)
 cursor.execute(query)
@@ -140,7 +140,7 @@ if not table_exists:
     print("Table 'test_manager' does not exist. Exiting program.")
     exit(0)
 
-# Read all rows where 'active' is true, ordered by 'priority'
+# Read all rows ordered by 'test-priority'
 cursor.execute(f"SELECT test_process_name FROM test_manager WHERE bot_id = '{bot_id}' ORDER BY test_priority")
 active_processes = cursor.fetchall()
 

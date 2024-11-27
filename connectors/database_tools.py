@@ -495,7 +495,7 @@ test_manager_functions = [
                     },
                     "test_process_id": {
                         "type": "string",
-                        "description": "The unique identifier of the process_id. MAKE SURE TO DOUBLE-CHECK THAT YOU ARE USING THE CORRECT test_manager_id ON UPDATES AND DELETES!  Required for CREATE, UPDATE, and DELETE.",
+                        "description": "The unique identifier of the process_id. MAKE SURE TO DOUBLE-CHECK THAT YOU ARE USING THE CORRECT test_process_id ON UPDATES AND DELETES!  Required for CREATE, UPDATE, and DELETE.",
                     },
                     "test_process_name": {
                         "type": "string",
@@ -505,7 +505,7 @@ test_manager_functions = [
                         "type": "string",
                         "description": "The type of test_manager."
                     },
-                    "priority": {
+                    "test_priority": {
                         "type": "integer",
                         "description": "Determines the order in which the tests will run.  Lower numbers run first.",
                     },

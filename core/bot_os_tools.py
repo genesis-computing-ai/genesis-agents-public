@@ -2104,6 +2104,8 @@ class ToolBelt:
                 "Error": "Invalid action.  test manager tool only accepts actions of ADD, ADD_CONFIRMED, UPDATE, UPDATE_CONFIRMED, DELETE, LIST, or TIME."
             }
 
+        cursor = db_adapter.client.cursor()
+
         if action == "TIME":
             return {
                 "current_system_time": datetime.now()
@@ -2122,8 +2124,6 @@ class ToolBelt:
                 }
 
         action = action.upper()
-
-        cursor = db_adapter.client.cursor()
 
         try:
             if action == "ADD" or action == "ADD_CONFIRMED":

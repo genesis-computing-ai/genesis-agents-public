@@ -231,9 +231,11 @@ class GenesisSnowflakeServer(GenesisServer):
         )
         self.cursor = self.conn.cursor()
     def add_message(self, bot_id, message, thread_id):
-        self.cursor.execute("call genesis_bots.app1.submit_udf('%s', '%s', {'bot_id': '%s'})" % (message, thread_id, bot_id))
+        self.cursor.execute(f"select {self.scope}.app1.submit_udf('{message}', '{thread_id}', '{{\"bot_id\": \"{bot_id}\"}}')")
+        return self.cursor.fetchone()[0]
+
     def get_message(self, bot_id, thread_id):
-        self.cursor.execute("call genesis_bots.app1.lookup_udf('%s', '%s')" % (thread_id, bot_id))
+        self.cursor.execute(f"select {self.scope}.app1.lookup_udf('{thread_id}', '{bot_id}')")
         return self.cursor.fetchone()[0]
 
 class GenesisProcess(BaseModel):
@@ -338,7 +340,7 @@ class GenesisAPI:
         return self.metadata_store.get_all_metadata("GenesisKnowledge")
     
     def add_message(self, bot_id, message=None, thread_id=None) -> str:
-        return self.registered_server.add_message(bot_id, message, thread_id)
+        return self.registered_server.add_message(bot_id, message=message, thread_id=thread_id)
     def get_response(self, bot_id, thread_id=None) -> str:
         return self.registered_server.get_message(bot_id, thread_id)
 
@@ -414,7 +416,7 @@ def main():
     # Add message
     parser_add_message = subparsers.add_parser('add_message', help='Add a message to a bot')
     parser_add_message.add_argument('--bot_id', required=True, help='ID of the bot')
-    parser_add_message.add_argument('--message', required=True, help='Message to add')
+    parser_add_message.add_argument('--message', required=True, help='Message to add', nargs='+')
     parser_add_message.add_argument('--thread_id', required=False, help='Thread ID for the message')
 
     # Get response
@@ -490,7 +492,7 @@ def main():
             notebooks = client.get_all_notebooks()
             print(notebooks)
         elif args.command == 'add_message':
-            response = client.add_message(args.bot_id, args.thread_id, args.message)
+            response = client.add_message(args.bot_id, thread_id=args.thread_id, message=" ".join(args.message))
             print(response)
         elif args.command == 'get_response':
             response = client.get_response(args.bot_id, args.thread_id)

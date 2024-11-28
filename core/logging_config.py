@@ -28,7 +28,10 @@ class GenesisLogger(logging.Logger):
         super().__init__(name)
         self.telemetry_logs = {'messages': 0, 'prompt_tokens': 0, 'completion_tokens': 0}
 
-    def _log(self, level, msg, *args, **kwargs):
+    def _log(self, level, msg, args, **kwargs):
+        if args:
+            msg = msg + ' ' + ' '.join(str(arg) for arg in args)
+            args = ()
         if level == TELEMETRY_LEVEL:            
             items = msg.split(' ')
             if items[0] == 'add_answer:':
@@ -37,10 +40,17 @@ class GenesisLogger(logging.Logger):
                 self.telemetry_logs['completion_tokens'] += int(items[6])
         
         # Call the parent class's log method to actually log the message
-        super()._log(level, msg, *args, **kwargs)
+        super()._log(level, msg, args, **kwargs, extra=self._get_caller_info())
 
-    def get_telemetry(self):
-        return self.telemetry_logs
+    def reset_telemetry(self):
+        self.telemetry_logs = {'messages': 0, 'prompt_tokens': 0, 'completion_tokens': 0}
+
+    def _get_caller_info(self):
+        return {
+            'caller_funcName': sys._getframe(3).f_code.co_name,
+            'caller_filename': os.path.basename(sys._getframe(3).f_code.co_filename),
+            'caller_lineno': sys._getframe(3).f_lineno
+        }
 
 def _setup_genesis_logger(name=GENESIS_LOGGER_NAME):
     logging.setLoggerClass(GenesisLogger)
@@ -70,53 +80,6 @@ def _setup_genesis_logger(name=GENESIS_LOGGER_NAME):
         logger.addHandler(console_handler)
 
     return logger
-
-# Create a custom logger class to handle print-like behavior
-class PrintLikeLogger:
-    def __init__(self, logger):
-        self._logger = logger
-
-    def _format_message(self, *args):
-        return ' '.join(str(arg) for arg in args)
-
-    def _get_caller_info(self):
-        return {
-            'caller_funcName': sys._getframe(2).f_code.co_name,
-            'caller_filename': os.path.basename(sys._getframe(2).f_code.co_filename),
-            'caller_lineno': sys._getframe(2).f_lineno
-        }
-
-    def info(self, *args, **kwargs):
-        message = self._format_message(*args)
-        self._logger.info(message, extra=self._get_caller_info())
-
-    def error(self, *args, **kwargs):
-        message = self._format_message(*args)
-        self._logger.error(message, extra=self._get_caller_info())
-
-    def warning(self, *args, **kwargs):
-        message = self._format_message(*args)
-        self._logger.warning(message, extra=self._get_caller_info())
-
-    # Add alias for warn
-    warn = warning
-
-    def debug(self, *args, **kwargs):
-        message = self._format_message(*args)
-        self._logger.debug(message, extra=self._get_caller_info())
-
-    def critical(self, *args, **kwargs):
-        message = self._format_message(*args)
-        self._logger.critical(message, extra=self._get_caller_info())
-
-    def exception(self, *args, **kwargs):
-        message = self._format_message(*args)
-        self._logger.exception(message, extra=self._get_caller_info())
-
-    def telemetry(self, *args, **kwargs):
-        message = self._format_message(*args)
-        self._logger.telemetry(message, extra=self._get_caller_info())
-
 
 class LogSupressor:
     """
@@ -203,4 +166,4 @@ class LogSupressor:
 _setup_root_logger()
 
 # this was done to allow logging syntax that matches print statments syntax (since we auto-converted them to log messages) e.g. (print("hello", end="")
-logger = PrintLikeLogger(_setup_genesis_logger())
+logger = _setup_genesis_logger()

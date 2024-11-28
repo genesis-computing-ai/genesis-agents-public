@@ -27,6 +27,10 @@ def _job_listener(event):
     else:
         logger.debug(f"job executed successfully: {event.job_id}")
 
+def telemetry_heartbeat():
+    summary = logger.telemetry_logs
+    logger.telemetry("add_heartbeat::", summary['messages'], summary['prompt_tokens'], summary['completion_tokens'])
+    logger.reset_telemetry()
 
 class BotOsServer:
 
@@ -73,6 +77,7 @@ class BotOsServer:
             name="test",
         )
         self.scheduler.add_listener(_job_listener, EVENT_JOB_EXECUTED | EVENT_JOB_ERROR)
+        self.scheduler.add_job(telemetry_heartbeat, 'interval', seconds=360)
         self.slack_active = slack_active
         self.last_slack_token_rotate_time = datetime.datetime.now()
         self.last_dbconnection_refresh = datetime.datetime.now()

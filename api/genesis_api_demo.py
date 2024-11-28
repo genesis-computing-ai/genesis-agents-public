@@ -46,7 +46,7 @@ class LocalMetadataStore(GenesisMetadataStore):
         metadata_type_dir = f"{self.metadata_dir}/{self.scope}/{metadata_type}"
         if not os.path.exists(metadata_type_dir):
             return []
-        return [f.name for f in os.scandir(metadata_type_dir) if f.is_file()]
+        return [json.load(open(f"{metadata_type_dir}/{f.name}", "r")) for f in os.scandir(metadata_type_dir) if f.is_file()]
 
 class BotGuardrails(BaseModel):
     def preprocess(self, message):
@@ -61,6 +61,7 @@ class BotKnowledgeGuardrails(BotGuardrails):
         return response
 
 class GenesisBot(BaseModel):
+    bot_id: str
     bot_name: str
     bot_description: str
     tool_list: List[str]
@@ -68,10 +69,7 @@ class GenesisBot(BaseModel):
     docs: List[str]
     guardrails: BotKnowledgeGuardrails = BotKnowledgeGuardrails()
     client: Any = None
-    def set_client(self, client):
-        self.client = client
-    def add_message_and_wait(self, message):
-        return "Dummy response"
+
     
 class ToolDefinition(BaseModel):
     name: str
@@ -120,14 +118,19 @@ class GenesisServer(ABC):
         return self.adapters
     def run_tool(self, tool_name, tool_parameters):
         pass
+    def add_message(self, bot_id, message, thread_id):
+        pass
+    def get_message(self, bot_id, thread_id):
+        pass
 
 class GenesisLocalServer(GenesisServer):
     def __init__(self, scope):
         super().__init__(scope)
         self.add_adapter(GenesisLocalAdapter())
-
-    def add_message_and_wait(self, message):
-        return "Dummy response"
+    def add_message(self, bot_id, message, thread_id):
+        return "Thread_12345"
+    def get_message(self, bot_id, thread_id):
+        return "Message from thread_12345"
 
 class GenesisProcess(BaseModel):
     process_id: str
@@ -154,13 +157,15 @@ class GenesisAPI:
         else:
             raise ValueError("Remote server not supported yet")
     def register_bot(self, bot: GenesisBot):
-        self.metadata_store.insert_or_update_metadata("bot", bot.bot_name, bot)
-    def get_bot(self, bot_name):
-        bot = self.metadata_store.get_metadata("bot", bot_name)
-        bot.set_client(self)
+        self.metadata_store.insert_or_update_metadata("bot", bot.bot_id, bot)
+    def get_bot(self, bot_id):
+        bot = self.metadata_store.get_metadata("bot", bot_id)
+        #if bot:
+        #    bot.set_client(self)
         return bot
     def get_all_bots(self):
         return self.metadata_store.get_all_metadata("bot")
+    
     def register_tool(self, tool: ToolDefinition):
         self.metadata_store.insert_or_update_metadata("tool", tool.name, tool)
     def get_tool(self, tool_name):
@@ -173,24 +178,32 @@ class GenesisAPI:
             return registered_server.run_tool(tool_name, tool_parameters)
         else:
             raise ValueError("No server registered")
+    
     def register_project(self, project: GenesisProject):
         self.metadata_store.insert_or_update_metadata("project", project.project_id, project)
     def get_project(self, project_id) -> GenesisProject:
         return self.metadata_store.get_metadata("project", project_id)
     def get_all_projects(self):
         return self.metadata_store.get_all_metadata("project")
+    
     def register_process(self, process: GenesisProcess):
         self.metadata_store.insert_or_update_metadata("process", process.process_id, process)
     def get_process(self, process_id) -> GenesisProcess:
         return self.metadata_store.get_metadata("process", process_id)
     def get_all_processes(self):
         return self.metadata_store.get_all_metadata("process")
+    
     def register_note(self, note: GenesisNote):
         self.metadata_store.insert_or_update_metadata("note", note.note_id, note)
     def get_note(self, note_id) -> GenesisNote:
         return self.metadata_store.get_metadata("note", note_id)
     def get_all_notes(self):
         return self.metadata_store.get_all_metadata("note")
+
+    def add_message(self, bot_id, message=None, thread_id=None) -> str:
+        return self.registered_server.add_message(bot_id, message, thread_id)
+    def get_response(self, bot_id, thread_id=None) -> str:
+        return self.registered_server.get_message(bot_id, thread_id)
 
 def main():
     client = GenesisAPI("local", scope="GENESIS_INTERNAL") # or "url of genesis server" with a valid API key
@@ -207,6 +220,7 @@ def main():
 
     # Register bot
     parser_register_bot = subparsers.add_parser('register_bot', help='Register a new bot')
+    parser_register_bot.add_argument('--bot_id', required=True, help='ID of the bot')
     parser_register_bot.add_argument('--bot_name', required=True, help='Name of the bot')
     parser_register_bot.add_argument('--bot_description', required=True, help='Description of the bot')
     parser_register_bot.add_argument('--tool_list', required=True, nargs='+', help='List of tools for the bot')
@@ -214,8 +228,8 @@ def main():
     parser_register_bot.add_argument('--docs', required=True, nargs='+', help='Documentation for the bot')
 
     # Get bot
-    parser_get_bot = subparsers.add_parser('get_bot', help='Get a bot by name')
-    parser_get_bot.add_argument('--bot_name', required=True, help='Name of the bot')
+    parser_get_bot = subparsers.add_parser('get_bot', help='Get a bot by ID')
+    parser_get_bot.add_argument('--bot_id', required=True, help='ID of the bot')
 
     # Get all bots
     parser_get_all_bots = subparsers.add_parser('get_all_bots', help='Get all registered bots')
@@ -258,6 +272,17 @@ def main():
     # Get all notebooks
     parser_get_all_notebooks = subparsers.add_parser('get_all_notebooks', help='Get all registered notebooks')
 
+    # Add message
+    parser_add_message = subparsers.add_parser('add_message', help='Add a message to a bot')
+    parser_add_message.add_argument('--bot_id', required=True, help='ID of the bot')
+    parser_add_message.add_argument('--message', required=True, help='Message to add')
+    parser_add_message.add_argument('--thread_id', required=False, help='Thread ID for the message')
+
+    # Get response
+    parser_get_response = subparsers.add_parser('get_response', help='Get a response from a bot')
+    parser_get_response.add_argument('--bot_id', required=True, help='ID of the bot')
+    parser_get_response.add_argument('--thread_id', required=False, help='Thread ID for the response')
+
     while True:
         try:
             args = parser.parse_args(input("Enter a command: ").split())
@@ -272,7 +297,7 @@ def main():
             new_bot = GenesisBot(bot_name=args.bot_name, bot_description=args.bot_description, tool_list=args.tool_list, bot_implementation=args.bot_implementation, docs=args.docs)
             client.register_bot(new_bot)
         elif args.command == 'get_bot':
-            bot = client.get_bot(args.bot_name)
+            bot = client.get_bot(args.bot_id)
             print(bot)
         elif args.command == 'get_all_bots':
             bots = client.get_all_bots()
@@ -307,6 +332,12 @@ def main():
         elif args.command == 'get_all_notebooks':
             notebooks = client.get_all_notebooks()
             print(notebooks)
+        elif args.command == 'add_message':
+            response = client.add_message(args.bot_id, args.thread_id, args.message)
+            print(response)
+        elif args.command == 'get_response':
+            response = client.get_response(args.bot_id, args.thread_id)
+            print(response)
         elif args.command is None:
             print("Invalid command. Type 'help' for available commands.")
         else:

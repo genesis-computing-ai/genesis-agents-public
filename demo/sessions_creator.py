@@ -554,7 +554,7 @@ Always respond to greetings and pleasantries like 'hi' etc, unless specifically 
 
 def create_sessions(
     db_adapter,
-    bot_id_to_udf_adapter_map,
+    UNUSEDbot_id_to_udf_adapter_map,
     stream_mode=False,
     skip_vectors=False,
     data_cubes_ingress_url=None,

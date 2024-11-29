@@ -36,7 +36,7 @@ class BotOsServer:
 
     def __init__(
         self,
-        flask_app: Flask,
+        flask_app: Flask|None,
         sessions: list[BotOsSession],
         scheduler: BackgroundScheduler,
         scheduler_seconds_interval=2,
@@ -250,5 +250,6 @@ class BotOsServer:
 
 
     def run(self, *args, **kwargs):
-        # Start the Flask application
-        self.app.run(*args, **kwargs)
+        if self.app is not None:
+            # Start the Flask application
+            self.app.run(*args, **kwargs)

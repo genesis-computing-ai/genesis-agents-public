@@ -1,5 +1,6 @@
 import os
 from typing import Dict
+import uuid
 from connectors import get_global_db_connector
 from core.bot_os_llm import LLMKeyHandler
 from core.bot_os_server import BotOsServer
@@ -50,10 +51,13 @@ class GenesisLocalSnowflakeServer(GenesisServer):
         BotOsServer.stream_mode = True
         scheduler.start()
 
-    def add_message(self, bot_id, message, thread_id):
-        self.bot_id_to_udf_adapter_map[bot_id].submit(message, thread_id, bot_id)
+    def add_message(self, bot_id, message, thread_id) -> str: # returns request_id
+        if not thread_id:
+            thread_id = str(uuid.uuid4())
+        request_id = self.bot_id_to_udf_adapter_map[bot_id].submit(message, thread_id, bot_id={})
+        return f"Request submitted on thread {thread_id} . To get response use: get_response --bot_id {bot_id} --request_id {request_id}"
 
-    def get_message(self, bot_id, thread_id):
-        return self.bot_id_to_udf_adapter_map[bot_id].lookup_udf(thread_id)
+    def get_message(self, bot_id, request_id) -> str:
+        return self.bot_id_to_udf_adapter_map[bot_id].lookup_udf(request_id)
 
 #server = GenesisLocalSnowflakeServer(scope="GENESIS_TEST.GENESIS_INTERNAL")

@@ -72,9 +72,9 @@ class GenesisServer(ABC):
         return self.adapters
     def run_tool(self, tool_name, tool_parameters):
         pass
-    def add_message(self, bot_id, message, thread_id):
+    def add_message(self, bot_id, message, thread_id) -> str: # returns request_id
         pass
-    def get_message(self, bot_id, thread_id):
+    def get_message(self, bot_id, request_id) -> str:
         pass
 
 class GenesisMetadataStore():#BaseModel):
@@ -216,30 +216,10 @@ class GenesisLocalServer(GenesisServer):
     def __init__(self, scope):
         super().__init__(scope)
     def add_message(self, bot_id, message, thread_id):
-        return "Thread_12345"
-    def get_message(self, bot_id, thread_id):
-        return "Message from thread_12345"
+        return "Request_12345"
+    def get_message(self, bot_id, request_id):
+        return "Message from Request_12345"
 
-
-class GenesisSnowflakeServer(GenesisServer):
-    def __init__(self, scope):
-        super().__init__(scope)
-        self.conn = SnowflakeConnection(
-            account=os.getenv("SNOWFLAKE_ACCOUNT_OVERRIDE"),
-            user=os.getenv("SNOWFLAKE_USER_OVERRIDE"),
-            password=os.getenv("SNOWFLAKE_PASSWORD_OVERRIDE"),
-            database=scope,
-            warehouse=os.getenv("SNOWFLAKE_WAREHOUSE_OVERRIDE"),
-            role=os.getenv("SNOWFLAKE_ROLE_OVERRIDE")
-        )
-        self.cursor = self.conn.cursor()
-    def add_message(self, bot_id, message, thread_id):
-        self.cursor.execute(f"select {self.scope}.app1.submit_udf('{message}', '{thread_id}', '{{\"bot_id\": \"{bot_id}\"}}')")
-        return self.cursor.fetchone()[0]
-
-    def get_message(self, bot_id, thread_id):
-        self.cursor.execute(f"select {self.scope}.app1.lookup_udf('{thread_id}', '{bot_id}')")
-        return self.cursor.fetchone()[0]
 
 class GenesisProcess(BaseModel):
     process_id: str

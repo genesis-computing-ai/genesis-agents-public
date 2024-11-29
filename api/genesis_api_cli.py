@@ -3,8 +3,8 @@ from genesis_api import GenesisAPI, GenesisBot, GenesisProject, GenesisProcess, 
 
 def main():
     #client = GenesisAPI("local", scope="GENESIS_INTERNAL") 
-    client = GenesisAPI("remote-snowflake", scope="GENESIS_BOTS_ALPHA") 
-    #client = GenesisAPI("local-snowflake", scope="GENESIS_TEST", sub_scope="GENESIS_INTERNAL") 
+    #client = GenesisAPI("remote-snowflake", scope="GENESIS_BOTS_ALPHA") 
+    client = GenesisAPI("local-snowflake", scope="GENESIS_TEST", sub_scope="GENESIS_INTERNAL") 
 
     parser = argparse.ArgumentParser(description='CLI for GenesisAPI')
     subparsers = parser.add_subparsers(dest='command', help='Command to execute')
@@ -72,7 +72,7 @@ def main():
     # Get response
     parser_get_response = subparsers.add_parser('get_response', help='Get a response from a bot')
     parser_get_response.add_argument('--bot_id', required=True, help='ID of the bot')
-    parser_get_response.add_argument('--thread_id', required=False, help='Thread ID for the response')
+    parser_get_response.add_argument('--request_id', required=True, help='Request ID from add_messagefor the response')
 
     # Harvest Results
     parser_get_harvest_results = subparsers.add_parser('get_harvest_results', help='Get harvest results by source name')
@@ -145,7 +145,7 @@ def main():
             response = client.add_message(args.bot_id, thread_id=args.thread_id, message=" ".join(args.message))
             print(response)
         elif args.command == 'get_response':
-            response = client.get_response(args.bot_id, args.thread_id)
+            response = client.get_response(args.bot_id, args.request_id)
             print(response)
         elif args.command == 'get_harvest_results':
             harvest_results = client.get_harvest_results(args.source_name)

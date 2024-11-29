@@ -1,5 +1,6 @@
-from api.genesis_base import GenesisBot, GenesisLocalServer, GenesisProject, GenesisProcess, GenesisNote, GenesisKnowledge, GenesisSnowflakeServer, LocalMetadataStore, SnowflakeMetadataStore, ToolDefinition
+from api.genesis_base import GenesisBot, GenesisLocalServer, GenesisProject, GenesisProcess, GenesisNote, GenesisKnowledge, LocalMetadataStore, SnowflakeMetadataStore, ToolDefinition
 from api.snowflake_local_server import GenesisLocalSnowflakeServer
+from api.snowflake_remote_server import GenesisSnowflakeServer
 
 class GenesisAPI:
     def __init__(self, server_type, scope, sub_scope="app1"):

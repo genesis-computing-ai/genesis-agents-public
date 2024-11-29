@@ -2042,7 +2042,7 @@ class ToolBelt:
         finally:
             cursor.close()
 
-    def get_test_process_list(self, bot_id="all"):
+    def get_test_manager_list(self, bot_id="all"):
         db_adapter = self.db_adapter
         cursor = db_adapter.client.cursor()
         try:
@@ -2072,7 +2072,7 @@ class ToolBelt:
         finally:
             cursor.close()
 
-    def test_process(
+    def test_manager(
         self, action, bot_id=None, test_process_id = None, test_process_name = None, thread_id=None, test_type=None, test_priority = 1
     ):
         """
@@ -2105,6 +2105,7 @@ class ToolBelt:
                 "Error": "Invalid action.  test manager tool only accepts actions of ADD, ADD_CONFIRMED, UPDATE, UPDATE_CONFIRMED, DELETE, LIST, or TIME."
             }
 
+        db_adapter = self.db_adapter
         cursor = db_adapter.client.cursor()
 
         if action == "TIME":
@@ -2112,7 +2113,6 @@ class ToolBelt:
                 "current_system_time": datetime.now()
             }
 
-        db_adapter = self.db_adapter
         if test_process_name is not None and test_process_id is None:
             cursor.execute(f"SELECT process_id FROM {db_adapter.schema}.PROCESSES WHERE process_name = %s", (test_process_name,))
             result = cursor.fetchone()

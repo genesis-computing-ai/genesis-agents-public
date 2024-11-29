@@ -2804,7 +2804,7 @@ class ToolBelt:
 
         if action == "TIME":
             return {
-                "current_system_time": datetime.now()
+                "current_system_time": datetime.now().astimezone()
             }
         db_adapter = self.db_adapter
         cursor = db_adapter.client.cursor()

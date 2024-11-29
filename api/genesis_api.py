@@ -31,7 +31,7 @@ class GenesisAPI:
         return self.metadata_store.get_metadata("tool", tool_name)
     def get_all_tools(self):
         return self.metadata_store.get_all_metadata("tool")
-    def run_tool(self, tool_name, tool_parameters):
+    def run_tool(self, tool_name, tool_parameters: dict):
         registered_server = self.get_registered_server()
         if registered_server:
             return registered_server.run_tool(tool_name, tool_parameters)
@@ -76,10 +76,17 @@ class GenesisAPI:
     def get_all_knowledge(self):
         return self.metadata_store.get_all_metadata("GenesisKnowledge")
     
-    def add_message(self, bot_id, message=None, thread_id=None) -> str:
+    def get_message_log(self, bot_id, thread_id=None, last_n=None):
+        if last_n is None:
+            last_n = 5
+        return self.metadata_store.get_all_metadata("GenesisMessage", 
+                                                    fields_to_return=["TIMESTAMP", "THREAD_ID", "MESSAGE_TYPE", "MESSAGE_PAYLOAD"], 
+                                                    first_filter=bot_id, second_filter=thread_id, last_n=last_n)
+
+    def add_message(self, bot_id, message:str, thread_id=None) -> dict:
         return self.registered_server.add_message(bot_id, message=message, thread_id=thread_id)
-    def get_response(self, bot_id, thread_id=None) -> str:
-        return self.registered_server.get_message(bot_id, thread_id)
+    def get_response(self, bot_id, request_id=None) -> str:
+        return self.registered_server.get_message(bot_id, request_id)
 
 #client = GenesisAPI("local", scope="GENESIS_INTERNAL") # or "url of genesis server" with a valid API key
 #client = GenesisAPI("snowflake", scope="GENESIS_BOTS_ALPHA") # or "url of genesis server" with a valid API key

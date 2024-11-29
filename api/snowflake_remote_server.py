@@ -22,8 +22,11 @@ class GenesisSnowflakeServer(GenesisServer):
         message = urllib.parse.quote(message)
         self.cursor.execute(f"select {self.scope}.app1.submit_udf('{message}', '{thread_id}', '{{\"bot_id\": \"{bot_id}\"}}')")
         request_id = self.cursor.fetchone()[0]
-        return f"Request submitted on thread {thread_id} . To get response use: get_response --bot_id {bot_id} --request_id {request_id}"
-
+        #return f"Request submitted on thread {thread_id} . To get response use: get_response --bot_id {bot_id} --request_id {request_id}"
+        return {"request_id": request_id,
+                "bot_id": bot_id,
+                "thread_id": thread_id}
+    
     def get_message(self, bot_id, request_id):
         self.cursor.execute(f"select {self.scope}.app1.lookup_udf('{request_id}', '{bot_id}')")
         return self.cursor.fetchone()[0]

@@ -3,8 +3,8 @@ from genesis_api import GenesisAPI, GenesisBot, GenesisProject, GenesisProcess, 
 
 def main():
     #client = GenesisAPI("local", scope="GENESIS_INTERNAL") 
-    #client = GenesisAPI("remote-snowflake", scope="GENESIS_BOTS_ALPHA") 
-    client = GenesisAPI("local-snowflake", scope="GENESIS_TEST", sub_scope="GENESIS_INTERNAL") 
+    client = GenesisAPI("remote-snowflake", scope="GENESIS_BOTS_ALPHA") 
+    #client = GenesisAPI("local-snowflake", scope="GENESIS_TEST", sub_scope="GENESIS_INTERNAL") 
 
     parser = argparse.ArgumentParser(description='CLI for GenesisAPI')
     subparsers = parser.add_subparsers(dest='command', help='Command to execute')
@@ -92,6 +92,12 @@ def main():
     # Get all knowledge
     parser_get_all_knowledge = subparsers.add_parser('get_all_knowledge', help='Get all registered knowledge')
 
+    # Get message log
+    parser_get_message_log = subparsers.add_parser('get_message_log', help='Get message log by bot ID and thread ID')
+    parser_get_message_log.add_argument('--bot_id', required=True, help='ID of the bot')
+    parser_get_message_log.add_argument('--thread_id', required=False, help='Thread ID for the message log')
+    parser_get_message_log.add_argument('--last_n', required=False, help='Last N messages to return')
+
     while True:
         try:
             args = parser.parse_args(input("Enter a command: ").split())
@@ -162,6 +168,9 @@ def main():
         elif args.command == 'get_all_knowledge':
             all_knowledge = client.get_all_knowledge()
             print(all_knowledge)
+        elif args.command == 'get_message_log':
+            message_log = client.get_message_log(args.bot_id, args.thread_id, int(args.last_n) if args.last_n else None)
+            print(message_log)
         elif args.command is None:
             print("Invalid command. Type 'help' for available commands.")
         else:

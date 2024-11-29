@@ -2,12 +2,12 @@ from abc import ABC
 from pydantic import BaseModel
 import sys
 from pydantic import BaseModel
-from typing import Dict, Any, Tuple, List
+from typing import Dict, Any, Optional, Tuple, List
 import os
 import json
 from datetime import datetime
 from snowflake.connector import SnowflakeConnection
-
+import pandas as pd
 
 class BotGuardrails(BaseModel):
     def preprocess(self, message):
@@ -117,20 +117,34 @@ class LocalMetadataStore(GenesisMetadataStore):
                 return metadata_class(**metadata_dict)
         except FileNotFoundError:
             return None
-    def get_all_metadata(self, metadata_type: str, name: str = None):
+    def get_all_metadata(self, metadata_type: str, fields_to_return=None, first_filter=None, second_filter=None, last_n:int=None):
+    #def get_all_metadata(self, metadata_type: str, name: str = None):
         metadata_type_dir = f"{self.metadata_dir}/{self.scope}/{metadata_type}"
         if not os.path.exists(metadata_type_dir):
             return []
-        return [json.load(open(f"{metadata_type_dir}/{f.name}", "r")) for f in os.scandir(metadata_type_dir) if f.is_file()]
+        metadata_list = [json.load(open(f"{metadata_type_dir}/{f.name}", "r")) for f in os.scandir(metadata_type_dir) if f.is_file()]
+        import pandas as pd
+        metadata_list = pd.DataFrame(metadata_list)
+        if fields_to_return:
+            metadata_list = metadata_list[fields_to_return]
+        if first_filter:
+            raise NotImplementedError("First filter not implemented")
+        if second_filter:
+            raise NotImplementedError("Second filter not implemented")
+        if last_n:
+            metadata_list = metadata_list.tail(last_n)
+        
+        return metadata_list
 
 class SnowflakeMetadataStore(GenesisMetadataStore):
-    metadata_type_mapping: Dict[str, Tuple[str, str]] = {
-        "GenesisBot": ("BOT_SERVICING", "BOT_ID"),
-        "GenesisProject": ("PROJECTS", "PROJECT_ID"),
-        "GenesisProcess": ("PROCESSES", "PROCESS_ID"),
-        "GenesisNote": ("NOTEBOOK", "NOTE_ID"),
-        "GenesisKnowledge": ("KNOWLEDGE", "KNOWLEDGE_THREAD_ID"),
-        "GenesisHarvestResults": ("HARVEST_RESULTS", "SOURCE_NAME"),
+    metadata_type_mapping: Dict[str, Tuple[str, str, Optional[str]]] = {
+        "GenesisBot": ("BOT_SERVICING", "BOT_ID", None),
+        "GenesisProject": ("PROJECTS", "PROJECT_ID", None),
+        "GenesisProcess": ("PROCESSES", "PROCESS_ID", None),
+        "GenesisNote": ("NOTEBOOK", "NOTE_ID", None),
+        "GenesisKnowledge": ("KNOWLEDGE", "KNOWLEDGE_THREAD_ID", None),
+        "GenesisHarvestResults": ("HARVEST_RESULTS", "SOURCE_NAME", None),
+        "GenesisMessage": ("MESSAGE_LOG", "BOT_ID", "THREAD_ID"),
     }
     conn: SnowflakeConnection = None
 
@@ -170,21 +184,34 @@ class SnowflakeMetadataStore(GenesisMetadataStore):
             return metadata_class(**metadata_dict)
         else:
             return None
-    def get_all_metadata(self, metadata_type: str):
+    def get_all_metadata(self, metadata_type: str, fields_to_return=None, first_filter=None, second_filter=None, last_n:int=None):
         cursor = self.conn.cursor()
-        table_name, filter_column = self.metadata_type_mapping.get(metadata_type, (None, None))
+        table_name, filter_column, second_filter_field = self.metadata_type_mapping.get(metadata_type, (None, None, None))
         if not table_name:
             raise ValueError(f"Unknown metadata type: {metadata_type}")
-        query = f"SELECT {filter_column} FROM {self.sub_scope}.{table_name}"
+        if not fields_to_return:
+            fields_to_return = [filter_column]
+        query = f"SELECT {', '.join(fields_to_return)} FROM {self.sub_scope}.{table_name}"
+        params = []
+        if first_filter:
+            query += f" WHERE {filter_column} = '%s'"
+            params.append(first_filter)
+        if second_filter:
+            query += f" AND {second_filter_field} = '%s'"
+            params.append(second_filter)
+        if last_n:
+            query += f" ORDER BY timestamp DESC LIMIT %s"
+            params.append(last_n)
         if self.sub_scope == "app1": # only necessary if connecting remotely
-            cursor.execute("call core.run_arbitrary('%s')" % query)
+            query = "call core.run_arbitrary('%s')" % query
+            cursor.execute(query, params)
             metadata_list = cursor.fetchall()
             metadata_list = json.loads(metadata_list[0][0])
-            metadata_list = [metadata[filter_column] for metadata in metadata_list]
+            metadata_list = pd.DataFrame(metadata_list, columns=fields_to_return)
         else:
-            cursor.execute(query)
-            metadata_list = cursor.fetchall()
-            metadata_list = [metadata[0] for metadata in metadata_list]
+            cursor.execute(query, params)
+            #metadata_list = cursor.fetchall()
+            metadata_list = cursor.fetch_pandas_all().to_dict(orient="records")
         return metadata_list
 
 
@@ -215,8 +242,10 @@ class GenesisProject(BaseModel):
 class GenesisLocalServer(GenesisServer):
     def __init__(self, scope):
         super().__init__(scope)
-    def add_message(self, bot_id, message, thread_id):
-        return "Request_12345"
+    def add_message(self, bot_id, message, thread_id) -> dict:
+        return {"request_id": "Request_12345",
+                "bot_id": bot_id,
+                "thread_id": thread_id}
     def get_message(self, bot_id, request_id):
         return "Message from Request_12345"
 
@@ -248,3 +277,20 @@ class GenesisKnowledge(BaseModel):
     user_learning: str
     tool_learning: str
     data_learning: str
+
+class GenesisMessage(BaseModel):
+    TIMESTAMP: datetime
+    TIMESTAMP_NTZ: datetime
+    BOT_ID: str
+    BOT_NAME: str
+    THREAD_ID: str
+    MESSAGE_TYPE: str
+    MESSAGE_PAYLOAD: str
+    MESSAGE_METADATA: str
+    TOKENS_IN: int
+    TOKENS_OUT: int
+    FILES: str
+    CHANNEL_TYPE: str
+    CHANNEL_NAME: str
+    PRIMARY_USER: str
+    TASK_ID: str

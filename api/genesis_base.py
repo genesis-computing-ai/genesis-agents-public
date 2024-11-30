@@ -54,7 +54,7 @@ class GenesisBot(BaseModel):
     TEAMS_APP_TYPE: str
     UDF_ACTIVE: str
 
-    guardrails: BotKnowledgeGuardrails = BotKnowledgeGuardrails()
+    #guardrails: BotKnowledgeGuardrails = BotKnowledgeGuardrails()
 
     def __str__(self):
         return f"GenesisBot(BOT_ID={self.BOT_ID}, BOT_NAME={self.BOT_NAME}, BOT_IMPLEMENTATION={self.BOT_IMPLEMENTATION})"
@@ -150,6 +150,7 @@ class SnowflakeMetadataStore(GenesisMetadataStore):
     metadata_type_mapping: Dict[str, Tuple[str, str, Optional[str]]] = {
         "GenesisBot": ("BOT_SERVICING", "BOT_ID", None),
         "GenesisProject": ("PROJECTS", "PROJECT_ID", None),
+        "GenesisProjectAsset": ("PROJECT_ASSETS", "PROJECT_ID", "ASSET_ID"),
         "GenesisProcess": ("PROCESSES", "PROCESS_ID", None),
         "GenesisNote": ("NOTEBOOK", "NOTE_ID", None),
         "GenesisKnowledge": ("KNOWLEDGE", "KNOWLEDGE_THREAD_ID", None),
@@ -194,13 +195,13 @@ class SnowflakeMetadataStore(GenesisMetadataStore):
             return metadata_class(**metadata_dict)
         else:
             return None
-    def get_all_metadata(self, metadata_type: str, fields_to_return=None, first_filter=None, second_filter=None, last_n:int=None):
+    def get_all_metadata(self, metadata_type: str, first_filter=None, second_filter=None, last_n:int=None, fields_to_return=None):
         cursor = self.conn.cursor()
         table_name, filter_column, second_filter_field = self.metadata_type_mapping.get(metadata_type, (None, None, None))
         if not table_name:
             raise ValueError(f"Unknown metadata type: {metadata_type}")
         if not fields_to_return:
-            fields_to_return = [filter_column]
+            fields_to_return = [filter_column, second_filter_field]
         query = f"SELECT {', '.join(fields_to_return)} FROM {self.sub_scope}.{table_name}"
         params = []
         if first_filter:
@@ -257,7 +258,13 @@ class GenesisProject(BaseModel):
     #     else:
     #         raise ValueError("Item index not found")
 
-
+class GenesisProjectAsset(BaseModel):
+    PROJECT_ID: str
+    ASSET_ID: str
+    DESCRIPTION: str
+    CREATED_AT: datetime
+    UPDATED_AT: datetime
+    GIT_PATH: str
 
 class GenesisProcess(BaseModel):
     CREATED_AT: datetime

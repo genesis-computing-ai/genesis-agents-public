@@ -23,7 +23,7 @@ class GenesisAPI:
     def get_bot(self, bot_id) -> GenesisBot:
         return self.metadata_store.get_metadata("GenesisBot", bot_id)
     def get_all_bots(self) -> list[str]:
-        return self.metadata_store.get_all_metadata("GenesisBot")['BOT_ID']
+        return self.metadata_store.get_all_metadata("GenesisBot")['BOT_ID'].tolist()
     
     def register_tool(self, tool: ToolDefinition):
         self.metadata_store.insert_or_update_metadata("tool", tool.name, tool)
@@ -43,38 +43,38 @@ class GenesisAPI:
     def get_project(self, project_id) -> GenesisProject:
         return self.metadata_store.get_metadata("GenesisProject", project_id)
     def get_all_projects(self) -> list[str]:
-        return self.metadata_store.get_all_metadata("GenesisProject")['PROJECT_ID']
+        return self.metadata_store.get_all_metadata("GenesisProject")['PROJECT_ID'].tolist()
     
-    def get_project_assets(self, project_id, asset_id):
-        return self.metadata_store.get_metadata("project_assets", project_id, asset_id)
+    def get_project_asset(self, asset_id):
+        return self.metadata_store.get_metadata("GenesisProjectAsset", asset_id)
     def get_all_project_assets(self, project_id) -> list[str]:
-        return self.metadata_store.get_all_metadata("project_assets", project_id)['ASSET_ID']
+        return self.metadata_store.get_all_metadata("GenesisProjectAsset", project_id)['ASSET_ID'].tolist()
 
     def register_process(self, process: GenesisProcess):
         self.metadata_store.insert_or_update_metadata("GenesisProcess", process.process_id, process)
     def get_process(self, process_id) -> GenesisProcess:
         return self.metadata_store.get_metadata("GenesisProcess", process_id)
     def get_all_processes(self) -> list[str]:
-        return self.metadata_store.get_all_metadata("GenesisProcess")['PROCESS_ID']
+        return self.metadata_store.get_all_metadata("GenesisProcess")['PROCESS_ID'].tolist()
     
     def register_note(self, note: GenesisNote):
         self.metadata_store.insert_or_update_metadata("GenesisNote", note.note_id, note)
     def get_note(self, note_id) -> GenesisNote:
         return self.metadata_store.get_metadata("GenesisNote", note_id)
     def get_all_notes(self) -> list[str]:
-        return self.metadata_store.get_all_metadata("GenesisNote")['NOTE_ID']
+        return self.metadata_store.get_all_metadata("GenesisNote")['NOTE_ID'].tolist()
 
     def get_harvest_results(self, source_name):
         return self.metadata_store.get_all_metadata("harvest_results", source_name)
     def get_all_harvest_results(self) -> list[str]:
-        return self.metadata_store.get_all_metadata("harvest_results")['SOURCE_NAME']
+        return self.metadata_store.get_all_metadata("harvest_results")['SOURCE_NAME'].tolist()
     
     def register_knowledge(self, knowledge: GenesisKnowledge):
         self.metadata_store.insert_or_update_metadata("GenesisKnowledge", knowledge.knowledge_thread_id, knowledge)
     def get_knowledge(self, thread_id) -> GenesisKnowledge:
         return self.metadata_store.get_metadata("GenesisKnowledge", thread_id)
     def get_all_knowledge(self) -> list[str]:
-        return self.metadata_store.get_all_metadata("GenesisKnowledge")['KNOWLEDGE_THREAD_ID']
+        return self.metadata_store.get_all_metadata("GenesisKnowledge")['KNOWLEDGE_THREAD_ID'].tolist()
     
     def get_message_log(self, bot_id, thread_id=None, last_n=None):
         if last_n is None:

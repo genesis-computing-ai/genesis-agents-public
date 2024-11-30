@@ -41,6 +41,14 @@ def main():
     # Get all projects
     parser_get_all_projects = subparsers.add_parser('get_all_projects', help='Get all registered projects')
 
+    # Get project asset
+    parser_get_project_asset = subparsers.add_parser('get_project_asset', help='Get a project asset by ID')
+    parser_get_project_asset.add_argument('--asset_id', required=True, help='ID of the asset')
+
+    # Get all project assets    
+    parser_get_all_project_assets = subparsers.add_parser('get_all_project_assets', help='Get all assets for a project')
+    parser_get_all_project_assets.add_argument('--project_id', required=True, help='ID of the project')
+
     # Register process
     parser_register_process = subparsers.add_parser('register_process', help='Register a new process')
     parser_register_process.add_argument('--process_id', required=True, help='ID of the process')
@@ -129,6 +137,12 @@ def main():
         elif args.command == 'get_all_projects':
             projects = client.get_all_projects()
             print(projects)
+        elif args.command == 'get_project_asset':
+            asset = client.get_project_asset(args.asset_id)
+            print(asset)
+        elif args.command == 'get_all_project_assets':
+            assets = client.get_all_project_assets(args.project_id)
+            print(assets)
         elif args.command == 'register_process':
             new_process = GenesisProcess(process_id=args.process_id)
             client.register_process(new_process)

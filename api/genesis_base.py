@@ -46,7 +46,7 @@ class GenesisBot(BaseModel):
     SLACK_APP_TOKEN: str
     SLACK_CHANNEL_ID: str
     SLACK_SIGNING_SECRET: str
-    SLACK_USER_ALLOW: str
+    SLACK_USER_ALLOW: list[str]|str
     TEAMS_ACTIVE: str
     TEAMS_APP_ID: str
     TEAMS_APP_PASSWORD: str
@@ -173,7 +173,7 @@ class SnowflakeMetadataStore(GenesisMetadataStore):
         pass
     def get_metadata(self, metadata_type: str, name: str) -> BaseModel:
         cursor = self.conn.cursor()
-        table_name, filter_column = self.metadata_type_mapping.get(metadata_type, (None, None))
+        table_name, filter_column, _ = self.metadata_type_mapping.get(metadata_type, (None, None))
         if not table_name:
             raise ValueError(f"Unknown metadata type: {metadata_type}")
         if self.sub_scope == "app1": # only necessary if connecting remotely
@@ -260,11 +260,16 @@ class GenesisProject(BaseModel):
 
 
 class GenesisProcess(BaseModel):
+    CREATED_AT: datetime
+    UPDATED_AT: datetime
     PROCESS_ID: str
-    PROCESS_NAME: str
     BOT_ID: str
-    PROCESS_STEPS: List[str]
-    SCHEDULED_NEXT_RUN_TIME: datetime
+    PROCESS_NAME: str
+    PROCESS_INSTRUCTIONS: str
+    PROCESS_DESCRIPTION: str
+    NOTE_ID: str
+    PROCESS_CONFIG: str
+    HIDDEN: bool|str
 
 class GenesisNote(BaseModel):
     NOTE_ID: str
@@ -276,7 +281,6 @@ class GenesisNote(BaseModel):
 
 class GenesisKnowledge(BaseModel):
     TIMESTAMP: datetime
-    TIMESTAMP_NTZ: datetime
     THREAD_ID: str
     KNOWLEDGE_THREAD_ID: str
     PRIMARY_USER: str

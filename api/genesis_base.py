@@ -77,6 +77,16 @@ class GenesisServer(ABC):
     def get_message(self, bot_id, request_id) -> str:
         pass
 
+class GenesisLocalServer(GenesisServer):
+    def __init__(self, scope):
+        super().__init__(scope)
+    def add_message(self, bot_id, message, thread_id) -> dict:
+        return {"request_id": "Request_12345",
+                "bot_id": bot_id,
+                "thread_id": thread_id}
+    def get_message(self, bot_id, request_id):
+        return "Message from Request_12345"
+
 class GenesisMetadataStore():#BaseModel):
     scope: str
     def __init__(self, scope):
@@ -214,6 +224,15 @@ class SnowflakeMetadataStore(GenesisMetadataStore):
             metadata_list = cursor.fetch_pandas_all().to_dict(orient="records")
         return metadata_list
 
+class GenesisLocalServer(GenesisServer):
+    def __init__(self, scope):
+        super().__init__(scope)
+    def add_message(self, bot_id, message, thread_id) -> dict:
+        return {"request_id": "Request_12345",
+                "bot_id": bot_id,
+                "thread_id": thread_id}
+    def get_message(self, bot_id, request_id):
+        return "Message from Request_12345"
 
 class ToolDefinition(BaseModel):
     name: str
@@ -239,44 +258,34 @@ class GenesisProject(BaseModel):
     #         raise ValueError("Item index not found")
 
 
-class GenesisLocalServer(GenesisServer):
-    def __init__(self, scope):
-        super().__init__(scope)
-    def add_message(self, bot_id, message, thread_id) -> dict:
-        return {"request_id": "Request_12345",
-                "bot_id": bot_id,
-                "thread_id": thread_id}
-    def get_message(self, bot_id, request_id):
-        return "Message from Request_12345"
-
 
 class GenesisProcess(BaseModel):
-    process_id: str
-    process_name: str
-    bot_id: str
-    process_steps: List[str]
-    scheduled_next_run_time: datetime
+    PROCESS_ID: str
+    PROCESS_NAME: str
+    BOT_ID: str
+    PROCESS_STEPS: List[str]
+    SCHEDULED_NEXT_RUN_TIME: datetime
 
 class GenesisNote(BaseModel):
-    note_id: str
-    note_name: str
-    bot_id: str
-    note_type: str
-    note_content: str
-    note_params: str
+    NOTE_ID: str
+    NOTE_NAME: str
+    BOT_ID: str
+    NOTE_TYPE: str
+    NOTE_CONTENT: str
+    NOTE_PARAMS: str
 
 class GenesisKnowledge(BaseModel):
-    timestamp: datetime
-    timestamp_ntz: datetime
-    thread_id: str
-    knowledge_thread_id: str
-    primary_user: str
-    bot_id: str
-    last_timestamp: datetime
-    thread_summary: str
-    user_learning: str
-    tool_learning: str
-    data_learning: str
+    TIMESTAMP: datetime
+    TIMESTAMP_NTZ: datetime
+    THREAD_ID: str
+    KNOWLEDGE_THREAD_ID: str
+    PRIMARY_USER: str
+    BOT_ID: str
+    LAST_TIMESTAMP: datetime
+    THREAD_SUMMARY: str
+    USER_LEARNING: str
+    TOOL_LEARNING: str
+    DATA_LEARNING: str
 
 class GenesisMessage(BaseModel):
     TIMESTAMP: datetime

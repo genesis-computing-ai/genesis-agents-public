@@ -174,7 +174,7 @@ webpage_downloader_action_function_mapping = {
 
 tools_data = [
     (
-        "test_manager_tools",
+        "manage_tests_tools",
         "List, add, update, and delete tests that run at deploy time.",
     ),
     (

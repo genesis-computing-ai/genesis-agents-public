@@ -469,15 +469,15 @@ notebook_manager_functions = [
     }
 ]
 
-test_manager_functions = [
+manage_tests_functions = [
     {
         "type": "function",
         "function": {
-            "name": "_test_manager",
+            "name": "_manage_tests",
             "description": """Manages tests that will run when when the project is deploymented, including adding, updating, listing and deleting tests from the list of tests to run
                            project is deployed, allowing bots to manage tests. Remember that this is not used to create new processes.  Make sure that the user is specifically 
-                           asking for a test_manager to be added to, have its priority weighting updated, or deleted. This tool is not used to run a test_manager during deployment, but 
-                           can be used to run a test process to make sure it functions as designed.  If you are asked to run a test_manager, use the run process tool and pass the process_id, 
+                           asking for a manage_tests to be added to, have its priority weighting updated, or deleted. This tool is not used to run a manage_tests during deployment, but 
+                           can be used to run a test process to make sure it functions as designed.  If you are asked to run a manage_tests, use the run process tool and pass the process_id, 
                            do not use this tool.  If you aren't sure, ask the user to clarify.""",
             "parameters": {
                 "type": "object",
@@ -485,8 +485,8 @@ test_manager_functions = [
                     "action": {
                         "type": "string",
                         "description": """
-                        The action to perform on a test_manager: ADD, UPDATE, DELETE,
-                        LIST returns a list of all test_managers, SHOW shows all fields of a test_manager,
+                        The action to perform on a tests: ADD, UPDATE, DELETE,
+                        LIST returns a list of all tests, SHOW shows all fields of a test,
                         or TIME to get current system time.""",
                     },
                     "bot_id": {
@@ -499,11 +499,11 @@ test_manager_functions = [
                     },
                     "test_process_name": {
                         "type": "string",
-                        "description": "Human reable unique name for the test_manager.",
+                        "description": "Human reable unique name for the test.",
                     },
                     "test_type": {
                         "type": "string",
-                        "description": "The type of test_manager."
+                        "description": "The type of test."
                     },
                     "test_priority": {
                         "type": "integer",
@@ -784,7 +784,7 @@ autonomous_tools = {}
 #autonomous_tools = {"_manage_tasks": "db_adapter.manage_tasks"}
 
 #process_runner_tools = {"_run_process": "tool_belt.run_process"}
-test_manager_tools = {"_test_manager": "tool_belt.test_manager"}
+manage_tests_tools = {"_manage_tests": "tool_belt.manage_tests"}
 process_manager_tools = {"_manage_processes": "tool_belt.manage_processes"}
 process_scheduler_tools = {"_process_scheduler": "tool_belt.process_scheduler"}
 notebook_manager_tools = {"_manage_notebook": "tool_belt.manage_notebook"}

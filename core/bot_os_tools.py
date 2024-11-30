@@ -45,8 +45,8 @@ from connectors.database_tools import (
     process_manager_functions,
     notebook_manager_tools,
     notebook_manager_functions,
-    test_process_functions,
-    test_process_tools,
+    manage_tests_functions,
+    manage_tests_tools,
     database_tool_functions,
     database_tools,
     snowflake_stage_functions,
@@ -2072,7 +2072,7 @@ class ToolBelt:
         finally:
             cursor.close()
 
-    def test_manager(
+    def manage_tests(
         self, action, bot_id=None, test_process_id = None, test_process_name = None, thread_id=None, test_type=None, test_priority = 1
     ):
         """
@@ -3261,10 +3261,10 @@ def get_tools(which_tools, db_adapter, slack_adapter_local=None, include_slack=T
             tools.extend(BOT_DISPATCH_DESCRIPTIONS)
             available_functions_load.update(bot_dispatch_tools)
             function_to_tool_map[tool_name] = BOT_DISPATCH_DESCRIPTIONS
-        elif tool_name == "test_process_tools":
-            tools.extend(test_process_functions)
-            available_functions_load.update(test_process_tools)
-            function_to_tool_map[tool_name] = test_process_functions
+        elif tool_name == "manage_tests_tools":
+            tools.extend(manage_tests_functions)
+            available_functions_load.update(manage_tests_tools)
+            function_to_tool_map[tool_name] = manage_tests_functions
         elif tool_name == "data_dev_tools":
             tools.extend(data_dev_tools_functions)
             available_functions_load.update(data_dev_tools)

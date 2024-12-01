@@ -253,3 +253,6 @@ class BotOsServer:
         if self.app is not None:
             # Start the Flask application
             self.app.run(*args, **kwargs)
+
+    def shutdown(self):
+        self.scheduler.shutdown()

@@ -59,6 +59,11 @@ class GenesisBot(BaseModel):
     def __str__(self):
         return f"GenesisBot(BOT_ID={self.BOT_ID}, BOT_NAME={self.BOT_NAME}, BOT_IMPLEMENTATION={self.BOT_IMPLEMENTATION})"
 
+class ToolDefinition(BaseModel):
+    name: str
+    description: str
+    parameters: Dict[str, Any]  # JSON Schema
+
 class GenesisServer(ABC):
     def __init__(self, scope):
         self.scope = scope
@@ -70,12 +75,16 @@ class GenesisServer(ABC):
         self.adapters.append(adapter)
     def get_all_adapters(self):
         return self.adapters
-    def run_tool(self, tool_name, tool_parameters):
-        pass
+    def register_tool(self, tool: ToolDefinition):
+        raise NotImplementedError("register_tool not implemented")
+    def run_tool(self, bot_id, tool_name, tool_parameters):
+        raise NotImplementedError("run_tool not implemented")
     def add_message(self, bot_id, message, thread_id) -> str: # returns request_id
-        pass
+        raise NotImplementedError("add_message not implemented")
     def get_message(self, bot_id, request_id) -> str:
-        pass
+        raise NotImplementedError("get_message not implemented")
+    def shutdown(self):
+        raise NotImplementedError("shutdown not implemented")
 
 class GenesisLocalServer(GenesisServer):
     def __init__(self, scope):
@@ -201,14 +210,14 @@ class SnowflakeMetadataStore(GenesisMetadataStore):
         if not table_name:
             raise ValueError(f"Unknown metadata type: {metadata_type}")
         if not fields_to_return:
-            fields_to_return = [filter_column, second_filter_field]
+            fields_to_return = [filter_column] + ([second_filter_field] if second_filter_field is not None else [])
         query = f"SELECT {', '.join(fields_to_return)} FROM {self.sub_scope}.{table_name}"
         params = []
         if first_filter:
-            query += f" WHERE {filter_column} = '%s'"
+            query += f" WHERE {filter_column} = %s"
             params.append(first_filter)
         if second_filter:
-            query += f" AND {second_filter_field} = '%s'"
+            query += f" AND {second_filter_field} = %s"
             params.append(second_filter)
         if last_n:
             query += f" ORDER BY timestamp DESC LIMIT %s"
@@ -223,7 +232,7 @@ class SnowflakeMetadataStore(GenesisMetadataStore):
             cursor.execute(query, params)
             #metadata_list = cursor.fetchall()
             metadata_list = cursor.fetch_pandas_all().to_dict(orient="records")
-        return metadata_list
+        return [list(item.values())[0] for item in metadata_list]
 
 class GenesisLocalServer(GenesisServer):
     def __init__(self, scope):
@@ -234,11 +243,6 @@ class GenesisLocalServer(GenesisServer):
                 "thread_id": thread_id}
     def get_message(self, bot_id, request_id):
         return "Message from Request_12345"
-
-class ToolDefinition(BaseModel):
-    name: str
-    description: str
-    parameters: Dict[str, Any]  # JSON Schema
 
 class GenesisProject(BaseModel):
     PROJECT_ID: str

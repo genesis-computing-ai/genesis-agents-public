@@ -18,7 +18,7 @@ DIRECTORY_PATH=${1:-~/}
 # Ensure the directory path does not end with a slash
 DIRECTORY_PATH=${DIRECTORY_PATH%/}
 
-# DIRECTORY_PATH=/Users/justin/Documents/Code
+#DIRECTORY_PATH=/Users/justin/Documents/Code
 
 # Login to image repo
 # snow spcs image-registry token --connection GENESIS-ALPHA-PROVIDER --format=JSON
@@ -58,7 +58,7 @@ snow sql -c GENESIS-ALPHA-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/snowfl
 # Upload YML files
 snow sql -c GENESIS-ALPHA-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/snowflake_app/*.yml @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
 
-output=$(snow sql -c GENESIS-ALPHA-PROVIDER -q "ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG ADD PATCH FOR VERSION V0_4 USING @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE")
+output=$(snow sql -c GENESIS-ALPHA-PROVIDER -q "ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG ADD PATCH FOR VERSION V0_5 USING @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE")
 
 # Output the result of the first command
 echo "First command output:"
@@ -77,7 +77,7 @@ if [ -z "$patch_number" ]; then
 fi
 
 # Run the second command with the extracted patch number
-snow sql -c GENESIS-ALPHA-PROVIDER -q "ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG SET DEFAULT RELEASE DIRECTIVE VERSION = V0_4 PATCH = $patch_number;"
+snow sql -c GENESIS-ALPHA-PROVIDER -q "ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG SET DEFAULT RELEASE DIRECTIVE VERSION = V0_5 PATCH = $patch_number;"
 
 echo "Patch $patch_number has been set as the default release directive."
 

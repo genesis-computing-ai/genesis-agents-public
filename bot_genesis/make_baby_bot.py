@@ -1716,6 +1716,7 @@ def update_bot_endpoints(new_base_url, runner_id=None):
             query1 = f"SHOW ENDPOINTS IN SERVICE {project_id}.{dataset_name}.GENESISAPP_SERVICE_SERVICE;"
         try:
             logger.warning(f"Running query to check endpoints: {query1}")
+            bb_db_connector = get_global_db_connector()
             results = bb_db_connector.run_query(query1)
             udf_endpoint_url = next((endpoint['ingress_url'] for endpoint in results if endpoint['name'] == 'udfendpoint'), None)
             return udf_endpoint_url
@@ -1824,6 +1825,7 @@ def remove_tools_from_bot(bot_id, remove_tools):
         dict: A dictionary containing the current tool list.
     """
     # Retrieve the current available tools for the bot
+    bb_db_connector = get_global_db_connector()
     available_tools_list = bb_db_connector.db_get_available_tools(project_id=project_id, dataset_name=dataset_name)
     available_tool_names = [tool['tool_name'] for tool in available_tools_list]
     logger.info(bot_id, remove_tools)

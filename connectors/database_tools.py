@@ -479,11 +479,10 @@ manage_tests_functions = [
         "type": "function",
         "function": {
             "name": "_manage_tests",
-            "description": """Manages tests that will run when when the project is deploymented, including adding, updating, listing and deleting tests from the list of tests to run
+            "description": """Manages tests that will run when when the project is deployed, including adding, updating, listing and deleting tests from the list of tests to run when the
                            project is deployed, allowing bots to manage tests. Remember that this is not used to create new processes.  Make sure that the user is specifically 
-                           asking for a manage_tests to be added to, have its priority weighting updated, or deleted. This tool is not used to run a manage_tests during deployment, but 
-                           can be used to run a test process to make sure it functions as designed.  If you are asked to run a manage_tests, use the run process tool and pass the process_id, 
-                           do not use this tool.  If you aren't sure, ask the user to clarify.""",
+                           asking for a test to be added to the deploy sequence, have its priority weighting updated, or deleted. This tool is not used to run a test.
+                           If you are asked to run a tests, use the run process tool and pass the manage_process_id, do not use this tool.  If you aren't sure, ask the user to clarify.""",
             "parameters": {
                 "type": "object",
                 "properties": {

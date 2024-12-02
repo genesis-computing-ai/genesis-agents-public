@@ -66,6 +66,17 @@ class SqliteConnector(DatabaseConnector):
         self.images_table_name =  "APP_SHARE_IMAGES"      
         self.source_name = "Sqlite"
 
+
+    def is_using_local_runner(self):
+        val = os.environ.get('GENESIS_LOCAL_RUNNER', None)
+        if val:
+            if val.lower() == 'true':
+                return True
+            else:
+                logger.warning(f"Ignoring invalid value for env var GENESIS_LOCAL_RUNNER = {val} (expected 'TRUE')")
+        return False
+
+
     def check_cortex_available(self):
         return False
 
@@ -1253,6 +1264,109 @@ class SqliteConnector(DatabaseConnector):
             if cursor is not None:
                 cursor.close()
 
+
+    def load_default_processes_and_notebook(self, cursor):
+            folder_path = 'golden_defaults/golden_processes'
+            self.process_data = pd.DataFrame()
+
+            files = glob.glob(os.path.join(folder_path, '*'))
+
+            for filename in files:
+                with open(filename, 'r') as file:
+                    yaml_data = yaml.safe_load(file)
+
+                data = pd.DataFrame.from_dict(yaml_data, orient='index')
+                data.reset_index(inplace=True)
+                data.rename(columns={'index': 'PROCESS_ID'}, inplace=True)
+
+                self.process_defaults = pd.concat([self.process_data, data], ignore_index=True)
+
+            # Ensure TIMESTAMP column is timezone-aware
+            self.process_defaults['TIMESTAMP'] = pd.to_datetime(self.process_defaults['TIMESTAMP'], format='ISO8601', utc=True)
+
+            updated_process = False
+
+            for _, process_default in self.process_defaults.iterrows():
+                process_id = process_default['PROCESS_ID']
+
+                timestamp_str = make_date_tz_aware(process_default['TIMESTAMP'])
+
+                query = f"SELECT * FROM PROCESSES WHERE PROCESS_ID = ?"
+                cursor.execute(query, (process_id,))
+                result = cursor.fetchone()
+                process_columns = [desc[0] for desc in cursor.description]
+
+                updated_process = False
+                process_found = False
+                if result is not None:
+                    process_found = True
+                    db_timestamp = result[process_columns.index('UPDATED_AT')] if len(result) > 0 else None
+
+                    # Ensure db_timestamp is timezone-aware
+                    if db_timestamp is None or db_timestamp == '':
+                        db_timestamp = datetime.now(pytz.UTC)
+                    elif db_timestamp.tzinfo is None:
+                        db_timestamp = db_timestamp.replace(tzinfo=pytz.UTC)
+
+                    if process_default['PROCESS_ID'] == process_id and db_timestamp < process_default['TIMESTAMP']:
+                        # Remove old process
+                        query = f"DELETE FROM PROCESSES WHERE PROCESS_ID = ?"
+                        cursor.execute(query, (process_id,))
+                        updated_process = True
+                    elif result[process_columns.index('PROCESS_ID')] == process_id:
+                        continue
+
+                if process_found == False or (process_found == True and updated_process == True):
+                    placeholders = ', '.join(['?'] * len(process_columns))
+
+                    insert_values = []
+                    for key in process_columns:
+                        if key.lower() == 'process_id':
+                            insert_values.append(process_id)
+                        elif key.lower() == 'timestamp' or key.lower() == 'updated_at' or key.lower() == 'created_at':
+                            insert_values.append(timestamp_str)
+                        elif key.lower() == 'process_instructions':
+                            insert_values.append(process_default['PROCESS_INSTRUCTIONS'])
+
+                            # Check to see if the process_instructions are already in a note in the NOTEBOOK table
+                            check_exist_query = f"SELECT * FROM NOTEBOOK WHERE bot_id = ? AND note_content = ?"
+                            cursor.execute(check_exist_query, (process_default['BOT_ID'], process_default['PROCESS_INSTRUCTIONS']))
+                            result = cursor.fetchone()
+
+                            if False and result is None:
+                                # Use this code to insert the process_instructions into the NOTEBOOK table
+                                characters = string.ascii_letters + string.digits
+                                process_default['NOTE_ID'] = process_default['BOT_ID'] + '_' + ''.join(random.choice(characters) for i in range(10))
+                                note_type = 'process'
+                                insert_query = f"""
+                                    INSERT INTO NOTEBOOK (bot_id, note_content, note_type, note_id)
+                                    VALUES (?, ?, ?, ?)
+                                """
+                                cursor.execute(insert_query, (process_default['BOT_ID'], process_default['PROCESS_INSTRUCTIONS'], note_type, process_default['NOTE_ID']))
+                                self.client.commit()
+
+                                insert_values.append(process_default['NOTE_ID'])
+                                logger.info(f"Note_id {process_default['NOTE_ID']} inserted successfully for process {process_id}")
+                        elif key.lower() == 'hidden':
+                            insert_values.append(False)
+                        else:
+                            val = process_default.get(key, '') if process_default.get(key, '') is not None else ''
+                            if pd.isna(val):
+                                val = ''
+                            insert_values.append(val)
+
+                    insert_query = f"INSERT INTO PROCESSES ({', '.join(process_columns)}) VALUES ({placeholders})"
+                    cursor.execute(insert_query, insert_values)
+                    if updated_process:
+                        logger.info(f"Process {process_id} updated successfully.")
+                        updated_process = False
+                    else:
+                        logger.info(f"Process {process_id} inserted successfully.")
+                else:
+                    logger.info(f"Process {process_id} already in PROCESSES and it is up to date.")
+            cursor.close()
+
+
     def ensure_table_exists(self):
         import core.bot_os_tool_descriptions
 
@@ -1286,42 +1400,28 @@ class SqliteConnector(DatabaseConnector):
 
         # TODO ADD PROCESSES TABLE
         
+        processes_table_check_query = "SELECT name FROM sqlite_master WHERE type='table' AND name='PROCESSES';"
+        cursor = self.client.cursor()
+        cursor.execute(processes_table_check_query)
+        if not cursor.fetchone():
+            create_process_table_ddl = """
+            CREATE TABLE PROCESSES (
+                PROCESS_ID TEXT NOT NULL PRIMARY KEY,
+                BOT_ID TEXT,
+                PROCESS_NAME TEXT NOT NULL,
+                PROCESS_INSTRUCTIONS TEXT,
+                PROCESS_CONFIG TEXT,
+                TIMESTAMP TEXT NOT NULL
+            );
+            """
+            cursor.execute(create_process_table_ddl)
+            self.client.commit()
+            logger.info("Table PROCESSES created successfully.")
 
-        query = f"SELECT DISTINCT PROCESS_ID FROM {self.schema}.PROCESSES;"
-        cursor.execute(query)
-        results = cursor.fetchall()
-        unique_process_ids = [row[0] for row in results]
-
-        try:
-            cursor = self.client.cursor()
-            cursor.execute(processes_table_check_query)
-            if not cursor.fetchone():
-                create_process_table_ddl = f"""
-                CREATE TABLE {self.schema}.PROCESSES (
-                    PROCESS_ID VARCHAR(16777216) NOT NULL PRIMARY KEY,
-                    BOT_ID VARCHAR(16777216),
-                    PROCESS_NAME VARCHAR(16777216) NOT NULL,
-                    PROCESS_INSTRUCTIONS VARCHAR(16777216),
-                    PROCESS_CONFIG VARCHAR(16777216),
-                    TIMESTAMP TIMESTAMP_NTZ(9) NOT NULL
-                );
-                """
-                cursor.execute(create_process_table_ddl)
-                self.client.commit()
-                logger.info(f"Table {self.schema}.PROCESSES created successfully.")
-
-                table = f"{self.schema}.PROCESSES"
-                self.load_default_processes(cursor, table, unique_process_ids)
-            else:
-                logger.info(f"Table {self.schema}.PROCESSES already exists.")
-        except Exception as e:
-            logger.info(
-                f"An error occurred while checking or creating the PROCESSES table: {e}"
-            )
-        finally:
-            if cursor is not None:
-                cursor.close()
-    
+            # Assuming load_default_processes is a method that needs to be called
+            self.load_default_processes_and_notebook(cursor)
+        else:
+            logger.info("Table PROCESSES already exists.")
 
         tasks_table_check_query = "SELECT name FROM sqlite_master WHERE type='table' and name like 'TASKS'"
         try:
@@ -1429,71 +1529,69 @@ class SqliteConnector(DatabaseConnector):
         except Exception as e:
             logger.info(f"Stage BOT_FILES_STAGE already exists.")
 
-
-        llm_config_table_check_query = "SELECT name FROM sqlite_master WHERE type='table' and name like 'LLM_TOKENS'" 
+        llm_config_table_check_query = "SELECT name FROM sqlite_master WHERE type='table' AND name='LLM_TOKENS';"
         try:
+            runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
             cursor = self.client.cursor()
             cursor.execute(llm_config_table_check_query)
             if not cursor.fetchone():
-                llm_config_table_ddl = f"""
+                llm_config_table_ddl = """
                 CREATE TABLE LLM_TOKENS (
-                    RUNNER_ID VARCHAR(16777216),
-                    LLM_KEY VARCHAR(16777216),
-                    LLM_TYPE VARCHAR(16777216),
-                    ACTIVE INTEGER,
-                    LLM_ENDPOINT VARCHAR(16777216)
+                    RUNNER_ID TEXT,
+                    LLM_KEY TEXT,
+                    LLM_TYPE TEXT,
+                    ACTIVE BOOLEAN,
+                    LLM_ENDPOINT TEXT,
+                    MODEL_NAME TEXT,
+                    EMBEDDING_MODEL_NAME TEXT
                 );
                 """
                 cursor.execute(llm_config_table_ddl)
                 self.client.commit()
-                runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
-                insert_initial_row_query = f"""
+                logger.info("Table LLM_TOKENS created.")
+
+                insert_initial_row_query = """
                     INSERT INTO LLM_TOKENS (RUNNER_ID, LLM_KEY, LLM_TYPE, ACTIVE, LLM_ENDPOINT)
                     VALUES (?, NULL, NULL, 0, NULL);
                 """
                 cursor.execute(insert_initial_row_query, (runner_id,))
                 self.client.commit()
-            else:
-                pass
         except Exception as e:
             logger.info(f"An error occurred while checking or creating table LLM_TOKENS: {e}")
-        finally:
-            if cursor is not None:
-                cursor.close()
 
         # Check if LLM_ENDPOINT column exists in LLM_TOKENS table
-        check_llm_endpoint_query = f"DESCRIBE TABLE {self.genbot_internal_project_and_schema}.LLM_TOKENS;"
-        try:
-            cursor = self.client.cursor()
-            cursor.execute(check_llm_endpoint_query)
-            columns = [col[0] for col in cursor.fetchall()]
-            
-            if "LLM_ENDPOINT" not in columns:
-                # Add LLM_ENDPOINT column if it doesn't exist
-                alter_table_query = f"ALTER TABLE {self.genbot_internal_project_and_schema}.LLM_TOKENS ADD COLUMN LLM_ENDPOINT VARCHAR(16777216);"
-                cursor.execute(alter_table_query)
-                self.client.commit()
-                logger.info(
-                    f"Column 'LLM_ENDPOINT' added to table {self.genbot_internal_project_and_schema}.LLM_TOKENS."
-                )
-        except Exception as e:
-            logger.error(
-                f"An error occurred while checking or altering table {self.genbot_internal_project_and_schema}.LLM_TOKENS to add LLM_ENDPOINT column: {e}"
-            )
-        finally:
-            if cursor is not None:
-                cursor.close()
+        # check_llm_endpoint_query = f"DESCRIBE TABLE {self.genbot_internal_project_and_schema}.LLM_TOKENS;"
+        # try:
+        #     cursor = self.client.cursor()
+        #     cursor.execute(check_llm_endpoint_query)
+        #     columns = [col[0] for col in cursor.fetchall()]
+        #     
+        #     if "LLM_ENDPOINT" not in columns:
+        #         # Add LLM_ENDPOINT column if it doesn't exist
+        #         alter_table_query = f"ALTER TABLE {self.genbot_internal_project_and_schema}.LLM_TOKENS ADD COLUMN LLM_ENDPOINT VARCHAR(16777216);"
+        #         cursor.execute(alter_table_query)
+        #         self.client.commit()
+        #         logger.info(
+        #             f"Column 'LLM_ENDPOINT' added to table {self.genbot_internal_project_and_schema}.LLM_TOKENS."
+        #         )
+        # except Exception as e:
+        #     logger.error(
+        #         f"An error occurred while checking or altering table {self.genbot_internal_project_and_schema}.LLM_TOKENS to add LLM_ENDPOINT column: {e}"
+        #     )
+        # finally:
+        #     if cursor is not None:
+        #         cursor.close()
 
-        slack_tokens_table_check_query = "SELECT name FROM sqlite_master WHERE type='table' and name like 'SLACK_APP_CONFIG_TOKENS'" 
+        slack_tokens_table_check_query = "SELECT name FROM sqlite_master WHERE type='table' AND name='SLACK_APP_CONFIG_TOKENS'"
         try:
             cursor = self.client.cursor()
             cursor.execute(slack_tokens_table_check_query)
             if not cursor.fetchone():
                 slack_tokens_table_ddl = f"""
                 CREATE TABLE {self.slack_tokens_table_name} (
-                    RUNNER_ID VARCHAR(16777216),
-                    SLACK_APP_CONFIG_TOKEN VARCHAR(16777216),
-                    SLACK_APP_CONFIG_REFRESH_TOKEN VARCHAR(16777216)
+                    RUNNER_ID TEXT,
+                    SLACK_APP_CONFIG_TOKEN TEXT,
+                    SLACK_APP_CONFIG_REFRESH_TOKEN TEXT
                 );
                 """
                 cursor.execute(slack_tokens_table_ddl)
@@ -1517,9 +1615,6 @@ class SqliteConnector(DatabaseConnector):
             logger.info(
                 f"An error occurred while checking or creating table {self.slack_tokens_table_name}: {e}"
             )
-        finally:
-            if cursor is not None:
-                cursor.close()
 
         bot_servicing_table_check_query = "SELECT name FROM sqlite_master WHERE type='table' and name like 'BOT_SERVICING'" 
         try:
@@ -5754,3 +5849,145 @@ class SqliteConnector(DatabaseConnector):
             return "default_filename.ann", "default_metadata.json"
 
 
+
+    def one_time_db_fixes(self):
+        # Remove BOT_FUNCTIONS if it exists
+        bot_functions_table_check_query = "SELECT name FROM sqlite_master WHERE type='table' AND name='BOT_FUNCTIONS';"
+        cursor = self.client.cursor()
+        cursor.execute(bot_functions_table_check_query)
+
+        if cursor.fetchone():
+            query = "DROP TABLE BOT_FUNCTIONS"
+            cursor.execute(query)
+            logger.info("Table BOT_FUNCTIONS dropped.")
+
+        # REMOVE BOT_NOTEBOOK if it exists
+        bot_notebook_table_check_query = "SELECT name FROM sqlite_master WHERE type='table' AND name='BOT_NOTEBOOK';"
+        cursor = self.client.cursor()
+        cursor.execute(bot_notebook_table_check_query)
+
+        if cursor.fetchone():
+            query = "DROP TABLE BOT_NOTEBOOK"
+            cursor.execute(query)
+            logger.info("Table BOT_NOTEBOOK dropped.")
+
+        # Add manage_notebook_tool to existing bots
+        bots_table_check_query = "SELECT name FROM sqlite_master WHERE type='table' AND name='BOT_SERVICING';"
+        cursor = self.client.cursor()
+        cursor.execute(bots_table_check_query)
+
+        if cursor.fetchone():
+            # Fetch all existing bots
+            fetch_bots_query = "SELECT BOT_NAME, AVAILABLE_TOOLS FROM BOT_SERVICING;"
+            cursor.execute(fetch_bots_query)
+            bots = cursor.fetchall()
+
+            for bot in bots:
+                bot_name, tools = bot
+                if tools:
+                    tools_list = json.loads(tools)
+                    if 'notebook_manager_tools' not in tools_list:
+                        tools_list.append('notebook_manager_tools')
+                        updated_tools = json.dumps(tools_list)
+                        update_query = """
+                        UPDATE BOT_SERVICING
+                        SET AVAILABLE_TOOLS = ?
+                        WHERE BOT_NAME = ?
+                        """
+                        cursor.execute(update_query, (updated_tools, bot_name))
+                else:
+                    update_query = """
+                    UPDATE BOT_SERVICING
+                    SET AVAILABLE_TOOLS = '[notebook_manager_tools]'
+                    WHERE BOT_NAME = ?
+                    """
+                    cursor.execute(update_query, (bot_name,))
+
+            self.client.commit()
+            logger.info("Added notebook_manager_tools to all existing bots.")
+        else:
+            logger.info("BOTS table does not exist. Skipping tool addition.")
+
+        check_llm_endpoint_query = "PRAGMA table_info(BOT_SERVICING);"
+        try:
+            cursor = self.client.cursor()
+            cursor.execute(check_llm_endpoint_query)
+            columns = [col[1] for col in cursor.fetchall()]
+
+            if "TEAMS_ACTIVE" not in columns:
+                # Add TEAMS_ACTIVE column if it doesn't exist
+                alter_table_query = """ALTER TABLE BOT_SERVICING ADD COLUMN TEAMS_ACTIVE TEXT, 
+                    TEAMS_APP_ID TEXT,
+                    TEAMS_APP_PASSWORD TEXT,
+                    TEAMS_APP_TYPE TEXT,
+                    TEAMS_APP_TENANT_ID TEXT;"""
+                cursor.execute(alter_table_query)
+                self.client.commit()
+                logger.info("Column 'TEAMS_ACTIVE' added to table BOT_SERVICING.")
+
+                set_to_false_query = "UPDATE BOT_SERVICING SET TEAMS_ACTIVE = 'N';"
+                cursor.execute(set_to_false_query)
+                self.client.commit()
+                logger.info("Column 'TEAMS_ACTIVE' set to 'N' for all rows in table BOT_SERVICING.")
+        except Exception as e:
+            logger.error(f"An error occurred while checking or altering table BOT_SERVICING to add TEAMS_ACTIVE column: {e}")
+        finally:
+            if cursor is not None:
+                cursor.close()
+
+        return
+    
+
+    def get_llm_info(self, thread_id=None):
+        """
+        Retrieves a list of all llm types and keys.
+
+        Returns:
+            list: A list of llm keys, llm types, and the active switch.
+        """
+        try:
+            runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
+            query = """
+            SELECT LLM_TYPE, ACTIVE, LLM_KEY, LLM_ENDPOINT
+            FROM LLM_TOKENS
+            WHERE LLM_KEY is not NULL
+            AND RUNNER_ID = ?
+            """
+            cursor = self.client.cursor()
+            cursor.execute(query, (runner_id,))
+            llm_info = cursor.fetchall()
+            columns = [col[0].lower() for col in cursor.description]
+            llm_list = [dict(zip(columns, llm)) for llm in llm_info]
+            json_data = json.dumps(
+                llm_list, default=str
+            )  # default=str to handle datetime and other non-serializable types
+
+            return {"Success": True, "Data": json_data}
+
+        except Exception as e:
+            err = f"An error occurred while getting llm info: {e}"
+            return {"Success": False, "Error": err}
+
+    def get_email(self):
+        """
+        Retrieves the email address if set.
+
+        Returns:
+            list: An email address, if set.
+        """
+        try:
+            query = "SELECT DEFAULT_EMAIL FROM DEFAULT_EMAIL"
+            cursor = self.client.cursor()
+            cursor.execute(query)
+            email_info = cursor.fetchall()
+            columns = [col[0].lower() for col in cursor.description]
+            email_list = [dict(zip(columns, email)) for email in email_info]
+            json_data = json.dumps(
+                email_list, default=str
+            )  # default=str to handle datetime and other non-serializable types
+
+            return {"Success": True, "Data": json_data}
+
+        except Exception as e:
+            err = f"An error occurred while getting email address: {e}"
+            return {"Success": False, "Error": err}

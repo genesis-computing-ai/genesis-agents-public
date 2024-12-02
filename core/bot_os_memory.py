@@ -249,7 +249,7 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
         
         # Construct the SQL query to retrieve metadata
         query = f"""
-            SELECT QUALIFIED_TABLE_NAME, COMPLETE_DESCRIPTION, DDL_SHORT, SAMPLE_DATA_TEXT
+            SELECT QUALIFIED_TABLE_NAME, COMPLETE_DESCRIPTION, DDL_SHORT
             FROM {self.meta_database_connector.metadata_table_name}
             WHERE source_name = '{source_name_escaped}'
               AND database_name = '{database_name_escaped}'

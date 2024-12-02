@@ -11,7 +11,7 @@ from genesis_base import GenesisServer
 from streamlit_gui.udf_proxy_bot_os_adapter import UDFBotOsInputAdapter
 
 class GenesisLocalSnowflakeServer(GenesisServer):
-    def __init__(self, scope, sub_scope="app1"):
+    def __init__(self, scope, sub_scope="app1", bot_list=None):
         super().__init__(scope)
         self.bot_id_to_udf_adapter_map: Dict[str, UDFBotOsInputAdapter] = {}
         if f"{scope}.{sub_scope}" != os.getenv("GENESIS_INTERNAL_DB_SCHEMA"):
@@ -30,6 +30,7 @@ class GenesisLocalSnowflakeServer(GenesisServer):
                 db_adapter,
                 None, # bot_id_to_udf_adapter_map,
                 stream_mode=True,
+                bot_list=[{"bot_id": bot_id} for bot_id in bot_list] if bot_list is not None else None
         )
         scheduler = BackgroundScheduler(
             {

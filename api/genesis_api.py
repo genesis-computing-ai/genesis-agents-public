@@ -4,17 +4,21 @@ from api.snowflake_local_server import GenesisLocalSnowflakeServer
 from api.snowflake_remote_server import GenesisSnowflakeServer
 
 class GenesisAPI:
-    def __init__(self, server_type, scope, sub_scope="app1"):
+    def __init__(self, server_type, scope, sub_scope="app1", bot_list=None):
         self.server_type = server_type
         self.scope = scope
         self.sub_scope = sub_scope
         if server_type == "local":
+            if bot_list is not None:
+                raise ValueError("bot_list not supported for local server")
             self.metadata_store = LocalMetadataStore(scope)
             self.registered_server = GenesisLocalServer(scope)
         elif server_type == "local-snowflake":
             self.metadata_store = SnowflakeMetadataStore(scope, sub_scope)
-            self.registered_server = GenesisLocalSnowflakeServer(scope, sub_scope)
+            self.registered_server = GenesisLocalSnowflakeServer(scope, sub_scope, bot_list=bot_list)
         elif server_type == "remote-snowflake":
+            if bot_list is not None:
+                raise ValueError("bot_list not supported for remote server")
             self.metadata_store = SnowflakeMetadataStore(scope, sub_scope)
             self.registered_server = GenesisSnowflakeServer(scope)
         else:

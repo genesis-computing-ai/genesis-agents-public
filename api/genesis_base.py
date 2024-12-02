@@ -84,7 +84,7 @@ class GenesisServer(ABC):
     def get_message(self, bot_id, request_id) -> str:
         raise NotImplementedError("get_message not implemented")
     def shutdown(self):
-        raise NotImplementedError("shutdown not implemented")
+        pass
 
 class GenesisLocalServer(GenesisServer):
     def __init__(self, scope):
@@ -228,11 +228,13 @@ class SnowflakeMetadataStore(GenesisMetadataStore):
             metadata_list = cursor.fetchall()
             metadata_list = json.loads(metadata_list[0][0])
             metadata_list = pd.DataFrame(metadata_list, columns=fields_to_return)
+            metadata_list = metadata_list.to_dict(orient="records")
         else:
             cursor.execute(query, params)
             #metadata_list = cursor.fetchall()
             metadata_list = cursor.fetch_pandas_all().to_dict(orient="records")
-        return [list(item.values())[0] for item in metadata_list]
+        metadata_list = [item.get(filter_column) for item in metadata_list]
+        return metadata_list
 
 class GenesisLocalServer(GenesisServer):
     def __init__(self, scope):

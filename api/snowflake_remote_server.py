@@ -29,4 +29,7 @@ class GenesisSnowflakeServer(GenesisServer):
     
     def get_message(self, bot_id, request_id):
         self.cursor.execute(f"select {self.scope}.app1.lookup_udf('{request_id}', '{bot_id}')")
-        return self.cursor.fetchone()[0]
+        response = self.cursor.fetchone()[0]
+        if response == 'not found':
+            return None
+        return response

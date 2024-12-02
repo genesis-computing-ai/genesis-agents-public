@@ -2063,7 +2063,8 @@ def get_status(site):
         thread_id=None,
         note_id = None,
         note_name = None,
-        note_type = None
+        note_type = None,
+        max_field_size = 5000,
     ):
         """
         Executes a SQL query on Snowflake, with support for parameterized queries.
@@ -2090,6 +2091,7 @@ def get_status(site):
         """
         import core.global_flags as global_flags
         userquery = False
+        fieldTrunced = False
 
         if (query is None and note_id is None) or (query is not None and note_id is not None):
             return {
@@ -2174,11 +2176,7 @@ def get_status(site):
 }
 
         try:
-            #   if query_params:
-            #       cursor.execute(query, query_params)
-            #   else:
             cursor.execute(query)
-            # call grant_all_bot_workspace()
             if bot_id is not None and ("CREATE" in query.upper() and workspace_schema_name.upper() in query.upper()):
                 self.grant_all_bot_workspace(workspace_full_schema_name)
 
@@ -2191,7 +2189,6 @@ def get_status(site):
                 cursor = self.connection.cursor()
                 try:
                     cursor.execute(query)
-                    # call grant_all_bot_workspace()
                     if bot_id is not None and ("CREATE" in query.upper() and workspace_schema_name.upper() in query.upper()):
                         self.grant_all_bot_workspace(workspace_full_schema_name)
                 except Exception as e:
@@ -2231,6 +2228,18 @@ def get_status(site):
 
             results = cursor.fetchmany(max(1,max_rows))
             columns = [col[0] for col in cursor.description]
+
+            fieldTrunced = False
+            if userquery and max_field_size > 0:
+                updated_results = []
+                for row in results:
+                    updated_row = list(row)
+                    for i, value in enumerate(row):
+                        if isinstance(value, str) and len(value) > max_field_size:
+                            updated_row[i] = value[:max_field_size] + f"[!!FIELD OVER {max_field_size} (max_field_size) bytes--TRUNCATED!!]"
+                            fieldTrunced = True
+                    updated_results.append(tuple(updated_row))
+                results = updated_results
 
             sample_data = [dict(zip(columns, row)) for row in results]
          #   logger.info('query results: ',sample_data)

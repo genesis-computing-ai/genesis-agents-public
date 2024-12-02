@@ -275,6 +275,7 @@ class GitFileManager:
         Returns:
             Dict containing operation result and any relevant data
         """
+
         try:
             action = action.lower()
             
@@ -290,6 +291,10 @@ class GitFileManager:
                 return {"success": True, "content": content}
             
             elif action == "write_file":
+                if "file_content" in kwargs and "content" not in kwargs:
+                    kwargs["content"] = kwargs["file_content"]
+                if "content" not in kwargs and "new_content" in kwargs:
+                    kwargs["content"] = kwargs["new_content"]
                 if "file_path" not in kwargs or "content" not in kwargs:
                     return {"success": False, "error": "file_path and content are required"}
                 return self.write_file(

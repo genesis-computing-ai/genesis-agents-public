@@ -85,6 +85,11 @@ database_tool_functions = [
                         "type": "string",
                         "description": "The note_id of the note that contains the query to run. Use this instead of a query when instructed to run a note_id.",
                     },
+                    "max_field_size": {
+                        "type": "integer",
+                        "description": "Optional. The maximum size any field can be before it is truncated. Default is 5000.",
+                        "default": 5000,
+                    },
                 },
                 "required": [ "connection", "max_rows"],
             },

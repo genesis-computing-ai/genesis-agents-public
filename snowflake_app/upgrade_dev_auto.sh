@@ -81,7 +81,7 @@ if [ "$max_patch_number" -eq 130 ]; then
 
 else
 
-    output=$(snow --config-file sql -c GENESIS-DEV-PROVIDER -q "ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG ADD PATCH FOR VERSION $version USING @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE")
+    output=$(snow --config-file ~/.snowcli/config.toml sql -c GENESIS-DEV-PROVIDER -q "ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG ADD PATCH FOR VERSION $version USING @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE")
 
     # Output the result of the first command
     echo "First command output:"

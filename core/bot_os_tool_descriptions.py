@@ -92,8 +92,8 @@ process_runner_functions = [
         "type": "function",
         "function": {
             "name": "_send_email",
-            "description": ("Sends an email in either text/plain or text/html format. Prefer to use text/html. DO NOT use attachments and such as CID as those are NOT supported. "
-                            "To embed an artifact in an email use the artifact markdown notation."),
+            "description": ("Sends an email in either text/plain or text/html format. Prefer to use text/html. DO NOT use attachments nor CIDs as those are NOT supported. "
+                            "Instead, to embed an artifact in an email use artifact markdown notation in the body of the email."),
             "parameters": {
                 "type": "object",
                 "properties": {

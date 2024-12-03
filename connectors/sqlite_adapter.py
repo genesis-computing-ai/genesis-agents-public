@@ -54,6 +54,7 @@ class SQLiteAdapter:
                         create_table_sql = """
                             CREATE TABLE BOT_SERVICING (
                                 BOT_ID TEXT PRIMARY KEY,
+                                API_APP_ID TEXT,
                                 RUNNER_ID TEXT,
                                 BOT_NAME TEXT,
                                 BOT_INSTRUCTIONS TEXT,
@@ -61,10 +62,25 @@ class SQLiteAdapter:
                                 UDF_ACTIVE INTEGER,
                                 SLACK_ACTIVE INTEGER,
                                 BOT_INTRO_PROMPT TEXT,
+                                BOT_AVATAR_IMAGE TEXT,
+                                SLACK_APP_TOKEN TEXT,
+                                SLACK_APP_LEVEL_KEY TEXT,
+                                SLACK_SIGNING_SECRET TEXT,
+                                SLACK_CHANNEL_ID TEXT,
+                                FILES TEXT,
+                                SLACK_USER_ALLOW TEXT,
                                 TEAMS_ACTIVE INTEGER,
-                                BOT_AVATAR_IMAGE TEXT
+                                TEAMS_APP_ID TEXT,
+                                TEAMS_APP_PASSWORD TEXT,
+                                TEAMS_APP_TYPE TEXT,
+                                TEAMS_APP_TENANT_ID TEXT,
+                                BOT_SLACK_USER_ID TEXT,
+                                BOT_IMPLEMENTATION TEXT,
+                                AUTH_URL TEXT
                             )
                         """
+             
+                        
                         self.connection.execute(create_table_sql)
                         logger.info("Table creation SQL executed within transaction")
                         
@@ -164,38 +180,43 @@ class SQLiteCursorWrapper:
     
     def execute(self, query: str, params: Any = None) -> Any:
         try:
+            # Log original parameters
+            logger.debug(f"Original params count: {len(params) if params else 0}")
+            logger.debug(f"Original params: {params}")
+            
+            # Handle parameter count for MERGE/UPSERT operations before query transformation
+            if params and isinstance(params, (list, tuple)):
+                if len(params) == 8 and 'llm_tokens' in query.lower() and 'MERGE INTO' in query.upper():
+                    # Take only the first 4 parameters for llm_tokens MERGE
+                    params = params[:4]
+                    logger.debug(f"Using first 4 params for llm_tokens: {params}")
+            
             modified_query = self._transform_query(query)
-            logger.debug(f"Executing query: {modified_query}")
+            logger.debug(f"Transformed query: {modified_query}")
+            logger.debug(f"Final params count: {len(params) if params else 0}")
             
-            # If we got a list of statements
-            if isinstance(modified_query, list):
-                last_result = None
-                for stmt in modified_query:
-                    if isinstance(stmt, str) and stmt.strip():
-                        try:
-                            if params is None:
-                                last_result = self.real_cursor.execute(stmt.strip())
-                            else:
-                                last_result = self.real_cursor.execute(stmt.strip(), params)
-                        except sqlite3.OperationalError as e:
-                            if "duplicate column" not in str(e):
-                                raise
-                            logger.debug(f"Ignoring duplicate column error: {e}")
-                return last_result
-            
-            # If it's a single statement
-            elif isinstance(modified_query, str):
+            # Execute the modified query
+            if isinstance(modified_query, str):
                 if params is None:
                     return self.real_cursor.execute(modified_query)
                 return self.real_cursor.execute(modified_query, params)
-            
+            elif isinstance(modified_query, list):
+                results = []
+                for single_query in modified_query:
+                    if params is None:
+                        results.append(self.real_cursor.execute(single_query))
+                    else:
+                        results.append(self.real_cursor.execute(single_query, params))
+                return results
         except sqlite3.OperationalError as e:
-            setattr(e, 'msg', str(e))
+            logger.error(f"SQLite error: {e}")
+            logger.error(f"Query: {query}")
+            logger.error(f"Params: {params}")
             raise e
         except Exception as e:
-            logger.error(f"Error executing query: {e}\nQuery: {query}")
-            if not hasattr(e, 'msg'):
-                setattr(e, 'msg', str(e))
+            logger.error(f"Error executing query: {e}")
+            logger.error(f"Query: {query}")
+            logger.error(f"Params: {params}")
             raise
     
     def fetchone(self):
@@ -230,21 +251,21 @@ class SQLiteCursorWrapper:
         
         # Skip certain operations that don't apply in SQLite mode
         skip_patterns = [
-            r'(?i)ENCODED_IMAGE_DATA',  # Case insensitive
-            r'(?i)APP_SHARE\.IMAGES',
-            r'(?i)BOT_AVATAR_IMAGE',
+            r'(?i)ENCODED_IMAGE_DATA',
+            r'(?i)APP_SHARE\.',
+            r'(?i)UPDATE.*BOT_AVATAR_IMAGE',
+            r'(?i)INSERT.*BOT_AVATAR_IMAGE',
             r'(?i)CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION',
             r'(?i)CREATE\s+(?:OR\s+REPLACE\s+)?STAGE',
             r'(?i)RESULT_SCAN',
             r'(?i)LAST_QUERY_ID\(\)',
-            # Add a specific pattern for this type of update
             r'(?i)UPDATE.*BOT_SERVICING.*SET.*FROM.*IMAGES'
         ]
         
         # Check if query should be skipped
         for pattern in skip_patterns:
             if re.search(pattern, query_clean):
-                logger.debug(f"Skipping image-related operation in SQLite mode: {query_clean}")
+                logger.debug(f"Skipping query due to APP_SHARE or other pattern match: {query_clean}")
                 return "SELECT 1 WHERE 1=0"  # No-op query
         
         # Handle CREATE TABLE statements
@@ -364,35 +385,49 @@ class SQLiteCursorWrapper:
         
         # Handle MERGE INTO statements
         if query_upper.startswith('MERGE INTO'):
-            # Extract table name and check if it's BOT_SERVICING
+            # Extract table name and remove schema qualifiers
             table_match = re.search(r'MERGE\s+INTO\s+(?:[^.\s]+\.)?(?:[^.\s]+\.)?([^\s]+)', query, re.IGNORECASE)
             if table_match:
-                table_name = table_match.group(1).replace('AS target', '').strip()
+                table_name = table_match.group(1)
                 
-                # For BOT_SERVICING table
-                if 'BOT_SERVICING' in table_name.upper():
-                    # Extract column names from INSERT clause
-                    insert_match = re.search(r'INSERT\s*\((.*?)\)', query, re.IGNORECASE | re.DOTALL)
-                    if insert_match:
-                        columns = [col.strip() for col in insert_match.group(1).split(',')]
-                        placeholders = ','.join(['?' for _ in columns])
-                        
-                        return f"""
-                            INSERT INTO BOT_SERVICING 
-                                ({', '.join(columns)})
-                            VALUES 
-                                ({placeholders})
-                            ON CONFLICT(BOT_ID) 
-                            DO UPDATE SET
-                                RUNNER_ID = excluded.RUNNER_ID,
-                                BOT_NAME = excluded.BOT_NAME,
-                                BOT_INSTRUCTIONS = excluded.BOT_INSTRUCTIONS,
-                                AVAILABLE_TOOLS = excluded.AVAILABLE_TOOLS,
-                                UDF_ACTIVE = excluded.UDF_ACTIVE,
-                                SLACK_ACTIVE = excluded.SLACK_ACTIVE,
-                                BOT_INTRO_PROMPT = excluded.BOT_INTRO_PROMPT
-                            WHERE BOT_ID = excluded.BOT_ID
-                        """
+                # For llm_tokens table
+                if 'llm_tokens' in table_name.lower():
+                    logger.debug("Transforming llm_tokens MERGE query")
+                    return """
+                        INSERT INTO llm_tokens 
+                            (runner_id, llm_key, llm_type, active, llm_endpoint)
+                        VALUES 
+                            (?1, ?2, ?3, 1, ?4)
+                        ON CONFLICT(runner_id) 
+                        DO UPDATE SET
+                            llm_key = ?2,
+                            llm_type = ?3,
+                            active = 1,
+                            llm_endpoint = ?4
+                        WHERE runner_id = ?1 
+                            AND llm_type = 'openai'
+                    """
+
+                # For BOT_SERVICING table with USING SELECT pattern
+                if 'BOT_SERVICING' in table_name.upper() and 'USING (SELECT' in query_upper:
+                    logger.debug("Transforming BOT_SERVICING MERGE query")
+                    return """
+                        INSERT INTO BOT_SERVICING 
+                            (RUNNER_ID, BOT_ID, BOT_NAME, BOT_INSTRUCTIONS, 
+                             AVAILABLE_TOOLS, UDF_ACTIVE, SLACK_ACTIVE, BOT_INTRO_PROMPT)
+                        VALUES 
+                            (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+                        ON CONFLICT(BOT_ID) 
+                        DO UPDATE SET
+                            RUNNER_ID = ?1,
+                            BOT_NAME = ?3,
+                            BOT_INSTRUCTIONS = ?4,
+                            AVAILABLE_TOOLS = ?5,
+                            UDF_ACTIVE = ?6,
+                            SLACK_ACTIVE = ?7,
+                            BOT_INTRO_PROMPT = ?8
+                        WHERE BOT_ID = ?2
+                    """
         
         # Handle DESCRIBE TABLE command
         if query_upper.startswith('DESCRIBE TABLE'):
@@ -420,7 +455,7 @@ class SQLiteCursorWrapper:
         replacements = {
             'CURRENT_TIMESTAMP\\(\\)': "datetime('now')",
             'CURRENT_TIMESTAMP': "datetime('now')",
-            'TIMESTAMP': 'DATETIME',
+       #     'TIMESTAMP': 'DATETIME',
             'VARCHAR\\([0-9]+\\)': 'TEXT',
             'BOOLEAN': 'INTEGER',
             'TIMESTAMP_NTZ': 'DATETIME',
@@ -433,6 +468,22 @@ class SQLiteCursorWrapper:
         # Apply replacements
         for pattern, replacement in replacements.items():
             query = re.sub(pattern, replacement, query)
+        
+        # Handle TIMESTAMP keyword with special cases
+        # Case 1: Double TIMESTAMP -> TIMESTAMP DATETIME
+        query = re.sub(r'\bTIMESTAMP\s+TIMESTAMP\b', 'TIMESTAMP DATETIME', query)
+        
+        # Case 2: Don't modify TIMESTAMP in ORDER BY clause
+        # Handle TIMESTAMP keyword, excluding ORDER BY clauses
+        parts = query.split('ORDER BY')
+        if len(parts) > 1:
+            # Don't modify TIMESTAMP in ORDER BY clause
+            modified_first = re.sub(r'\bTIMESTAMP\b(?!\s+TIMESTAMP)', 'DATETIME', parts[0])
+            query = modified_first + 'ORDER BY' + parts[1]
+        else:
+            # No ORDER BY - replace all TIMESTAMP except when followed by TIMESTAMP
+            query = re.sub(r'\bTIMESTAMP\b(?!\s+TIMESTAMP)', 'DATETIME', query)
+
         
         # Handle ALTER TABLE ADD COLUMN statements
         if 'ALTER TABLE' in query_upper and 'ADD COLUMN' in query_upper:
@@ -590,9 +641,9 @@ class SQLiteCursorWrapper:
             'RESULT_SCAN': 'Result scan',
             'LAST_QUERY_ID()': 'Last query ID',
             # Skip any queries involving encoded image data
-            'ENCODED_IMAGE_DATA': 'Image data operation',
-            'APP_SHARE\.IMAGES': 'App share image query',
-            'BOT_AVATAR_IMAGE': 'Bot avatar update'
+            'ENCODED_IMAGE_DATA(?!.*SELECT)': 'Image data operation',
+            'APP_SHARE\.IMAGES(?!.*SELECT)': 'App share image query',
+       #     'BOT_AVATAR_IMAGE(?!.*SELECT)': 'Bot avatar update'
         }
 
         # Check if query should be skipped
@@ -623,5 +674,23 @@ class SQLiteCursorWrapper:
                     CREATE TABLE {table_name} ({column_defs});
                 """
         
-        logger.debug(f"Transformed query: {query}")
+        # Handle column name differences between Snowflake and SQLite
+        column_mappings = {
+            'LAST_CRAWLED_DATETIME': 'LAST_CRAWLED_TIMESTAMP',
+        #    'DATETIME': 'CREATED_AT'
+        }
+        
+        # Apply column name mappings
+        for old_name, new_name in column_mappings.items():
+            query = re.sub(
+                rf'\b{old_name}\b',  # Word boundary to match exact column name
+                new_name,
+                query,
+                flags=re.IGNORECASE
+            )
+        
+        # Remove schema qualifiers
+        query = re.sub(r'(?:[^.\s]+\.){1,2}([^\s(]+)', r'\1', query)
+        
+        logger.debug(f"Transformed query with column mappings: {query}")
         return query

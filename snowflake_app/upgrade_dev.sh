@@ -66,22 +66,29 @@ echo "$json_data" | jq '.[-1].version'
 echo "$json_data" | jq '.[-1].patch'
 version=$(echo "$json_data" | jq '.[-1].version')
 max_patch_number=$(echo "$json_data" | jq '.[-1].patch')
-
+version=${version//\"/}
 if [ "$max_patch_number" -eq 130 ]; then
     number_part=$(echo "$version" | sed -E 's/^V[0-9]+_([0-9]+)/\1/')
-    old_version=$((number_part - 1))
-    new_version=$((number_part + 1))
+    old_version="V0_$((number_part - 1))"
+    new_version="V0_$((number_part + 1))"
 
     echo "Dropping version $old_version"
-    snow sql -c GENESIS-DEV-PROVIDER -q "ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG DROP VERSION $old_version ;"
+    if ! snow sql -c GENESIS-DEV-PROVIDER -q "ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG DROP VERSION $old_version ;"; then
+        echo "Error occurred: Unable to drop version $old_version. Exiting script..."
+    else
+        echo "Successfully dropped version $old_version."
+    fi
     echo "Creating new version $new_version"
-    snow sql -c GENESIS-DEV-PROVIDER -q "ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG ADD VERSION $new_version USING @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE"
-    patch_number=0
-    version = $new_version
-
+    if ! snow sql -c GENESIS-DEV-PROVIDER -q "ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG ADD VERSION $new_version USING @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE"; then
+        echo "Error occurred: Unable to create version $new_version. Continuing with the script..."
+        exit 1
+    else
+        echo "Successfully created version $new_version."
+        patch_number=0
+        version=$new_version
+    fi
 
 else
-
 
     output=$(snow sql -c GENESIS-DEV-PROVIDER -q "ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG ADD PATCH FOR VERSION $version USING @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE")
 

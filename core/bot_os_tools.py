@@ -2047,10 +2047,10 @@ class ToolBelt:
         cursor = db_adapter.client.cursor()
         try:
             if bot_id == "all":
-                list_query = f"SELECT * FROM {db_adapter.schema}.test_process order by test_priority" if db_adapter.schema else f"SELECT * FROM test_process order by test_priority"
+                list_query = f"SELECT * FROM {db_adapter.schema}.test_manager order by test_priority" if db_adapter.schema else f"SELECT * FROM test_manager order by test_priority"
                 cursor.execute(list_query)
             else:
-                list_query = f"SELECT * FROM {db_adapter.schema}.test_process WHERE upper(bot_id) = upper(%s) order by test_priority" if db_adapter.schema else f"SELECT * FROM test_process WHERE upper(bot_id) = upper(%s) order by test_priority"
+                list_query = f"SELECT * FROM {db_adapter.schema}.test_manager WHERE upper(bot_id) = upper(%s) order by test_priority" if db_adapter.schema else f"SELECT * FROM test_manager WHERE upper(bot_id) = upper(%s) order by test_priority"
                 cursor.execute(list_query, (bot_id,))
             test_processes = cursor.fetchall()
             test_process_list = []
@@ -2129,7 +2129,7 @@ class ToolBelt:
         try:
             if action == "ADD" or action == "ADD_CONFIRMED":
                 # Check for dupe name
-                sql = f"SELECT * FROM {db_adapter.schema}.test_process WHERE bot_id = %s and test_process_name = %s"
+                sql = f"SELECT * FROM {db_adapter.schema}.test_manager WHERE bot_id = %s and test_process_name = %s"
                 cursor.execute(sql, (bot_id, test_process_name))
 
                 record = cursor.fetchone()
@@ -2142,7 +2142,7 @@ class ToolBelt:
 
             if action == "UPDATE" or action == 'UPDATE_CONFIRMED':
                 # Check for dupe name
-                sql = f"SELECT * FROM {db_adapter.schema}.test_process WHERE bot_id = %s and test_process_id = %s"
+                sql = f"SELECT * FROM {db_adapter.schema}.test_manager WHERE bot_id = %s and test_process_id = %s"
                 cursor.execute(sql, (bot_id, test_process_name))
 
                 record = cursor.fetchone()
@@ -2214,16 +2214,16 @@ class ToolBelt:
         try:
             if action == "ADD":
                 insert_query = f"""
-                    INSERT INTO {db_adapter.schema}.test_process (
-                        created_at, updated_at, test_process_id, boprocess
+                    INSERT INTO {db_adapter.schema}.test_manager (
+                        created_at, updated_at, test_process_id, bot_id
                     ) VALUES (
-                        current_timestamp(), current_timestamp(), %(test_process_id)s, %(bot_idprocess)s
+                        current_timestamp(), current_timestamp(), %(test_process_id)s, %(bot_id)s
                     )
                 """ if db_adapter.schema else f"""
-                    INSERT INTO test_process (
-                        created_at, updated_at, test_process_id, boprocess
+                    INSERT INTO test_manager (
+                        created_at, updated_at, test_process_id, bot_id
                     ) VALUES (
-                        current_timestamp(), current_timestamp(), %(test_process_id)s, %(bot_idprocess)s
+                        current_timestamp(), current_timestamp(), %(test_process_id)s, %(bot_id)s
                     )
                 """
 
@@ -2258,7 +2258,7 @@ class ToolBelt:
 
             elif action == "DELETE":
                 delete_query = f"""
-                    DELETE FROM {db_adapter.schema}.test_process
+                    DELETE FROM {db_adapter.schema}.test_manager
                     WHERE test_process_id = %s
                 """ if db_adapter.schema else f"""
                     DELETE FROM test_process
@@ -2274,7 +2274,7 @@ class ToolBelt:
 
             elif action == "UPDATE":
                 update_query = f"""
-                    UPDATE {db_adapter.schema}.test_process
+                    UPDATE {db_adapter.schema}.test_manager
                     SET updated_at = CURRENT_TIMESTAMP, test_process_id=%s, bot_iprocess=%s, test_process_content=%s
                     WHERE test_process_id = %s
                 """ if db_adapter.schema else """

@@ -10,6 +10,8 @@ jobs:
     steps:
       - name: Deploy main repository to snowflake dev
         uses: actions/checkout@v2
+        with:
+          submodules: false
 
       # Cache Python dependencies (including SnowCLI)
       - name: Cache Python dependencies

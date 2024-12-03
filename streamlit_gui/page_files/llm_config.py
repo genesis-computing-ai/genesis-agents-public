@@ -2,7 +2,7 @@ import streamlit as st
 import time
 from utils import (
     check_eai_assigned,
-    get_bot_details,
+    get_bot_details,llm_api_key_struct
     get_metadata,
     configure_llm,
     check_eai_status,

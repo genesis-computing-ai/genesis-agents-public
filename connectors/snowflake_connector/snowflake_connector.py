@@ -18,6 +18,7 @@ import functools
 from llm_openai.openai_utils import get_openai_client
 
 from ..database_connector import DatabaseConnector, llm_keys_and_types_struct
+from ..sqlite_adapter import SQLiteAdapter
 from .sematic_model_utils import *
 from .stage_utils import add_file_to_stage, read_file_from_stage, update_file_in_stage, delete_file_from_stage, list_stage_contents, test_stage_functions
 from .ensure_table_exists import ensure_table_exists, one_time_db_fixes, get_process_info, get_processes_list
@@ -45,37 +46,49 @@ class SnowflakeConnector(DatabaseConnector):
         super().__init__(connection_name)
         # logger.info('Snowflake connector entry...')
 
-        account, database, user, password, warehouse, role = [None] * 6
+        if os.getenv("SQLITE_OVERRIDE", "").upper() == "TRUE":
+            # Use SQLite with compatibility layer
+            db_path = os.getenv("SQLITE_DB_PATH", "genesis.db")
+            self.client = SQLiteAdapter(db_path)
+            self.connection = self.client
+            # Set other required attributes
+            self.schema = "main"  # SQLite default schema
+            self.database = db_path
+            self.source_name = "SQLite"
+        else:
+            account, database, user, password, warehouse, role = [None] * 6
 
-        if bot_database_creds:
-            account = bot_database_creds.get("account")
-            database = bot_database_creds.get("database")
-            user = bot_database_creds.get("user")
-            password = bot_database_creds.get("pwd")
-            warehouse = bot_database_creds.get("warehouse")
-            role = bot_database_creds.get("role")
+            if bot_database_creds:
+                account = bot_database_creds.get("account")
+                database = bot_database_creds.get("database")
+                user = bot_database_creds.get("user")
+                password = bot_database_creds.get("pwd")
+                warehouse = bot_database_creds.get("warehouse")
+                role = bot_database_creds.get("role")
 
-        # used to get the default value if not none, otherwise get env var. allows local mode to work with bot credentials
-        def get_env_or_default(value, env_var):
-            return value if value is not None else os.getenv(env_var)
+            # used to get the default value if not none, otherwise get env var. allows local mode to work with bot credentials
+            def get_env_or_default(value, env_var):
+                return value if value is not None else os.getenv(env_var)
 
-        self.account = get_env_or_default(account, "SNOWFLAKE_ACCOUNT_OVERRIDE")
-        self.user = get_env_or_default(user, "SNOWFLAKE_USER_OVERRIDE")
-        self.password = get_env_or_default(password, "SNOWFLAKE_PASSWORD_OVERRIDE")
-        self.database = get_env_or_default(database, "SNOWFLAKE_DATABASE_OVERRIDE")
-        self.warehouse = get_env_or_default(warehouse, "SNOWFLAKE_WAREHOUSE_OVERRIDE")
-        self.role = get_env_or_default(role, "SNOWFLAKE_ROLE_OVERRIDE")
-        self.source_name = "Snowflake"
+            self.account = get_env_or_default(account, "SNOWFLAKE_ACCOUNT_OVERRIDE")
+            self.user = get_env_or_default(user, "SNOWFLAKE_USER_OVERRIDE")
+            self.password = get_env_or_default(password, "SNOWFLAKE_PASSWORD_OVERRIDE")
+            self.database = get_env_or_default(database, "SNOWFLAKE_DATABASE_OVERRIDE")
+            self.warehouse = get_env_or_default(warehouse, "SNOWFLAKE_WAREHOUSE_OVERRIDE")
+            self.role = get_env_or_default(role, "SNOWFLAKE_ROLE_OVERRIDE")
+            self.source_name = "Snowflake"
 
-        self.default_data = pd.DataFrame()
+            self.default_data = pd.DataFrame()
 
-        # logger.info('Calling _create_connection...')
-        self.token_connection = False
-        self.connection: SnowflakeConnection = self._create_connection()
+            # logger.info('Calling _create_connection...')
+            self.token_connection = False
+            self.connection: SnowflakeConnection = self._create_connection()
 
-        self.semantic_models_map = {}
+            self.semantic_models_map = {}
 
-        self.client = self.connection
+            self.client = self.connection
+
+
         self.schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "GENESIS_INTERNAL")
 
         if os.getenv("CORTEX_MODEL", None) is not None:
@@ -1033,8 +1046,16 @@ def get_status(site):
             list: An email address, if set.
         """
         try:
-            query = f"SELECT DEFAULT_EMAIL FROM {self.genbot_internal_project_and_schema}.DEFAULT_EMAIL"
+            # Check if DEFAULT_EMAIL table exists
+            check_table_query = f"SHOW TABLES LIKE 'DEFAULT_EMAIL' IN {self.genbot_internal_project_and_schema}"
             cursor = self.client.cursor()
+            cursor.execute(check_table_query)
+            table_exists = cursor.fetchone() is not None
+
+            if not table_exists:
+                return {"Success": False, "Error": "Default email is not set because the DEFAULT_EMAIL table does not exist."}
+
+            query = f"SELECT DEFAULT_EMAIL FROM {self.genbot_internal_project_and_schema}.DEFAULT_EMAIL"
             cursor.execute(query)
             email_info = cursor.fetchall()
             columns = [col[0].lower() for col in cursor.description]
@@ -1624,79 +1645,83 @@ def get_status(site):
 
     def _create_connection(self):
         # Snowflake token testing
-        self.token_connection = False
-        #  logger.warn('Creating connection..')
-        SNOWFLAKE_ACCOUNT = os.getenv("SNOWFLAKE_ACCOUNT", self.account)
-        SNOWFLAKE_HOST = os.getenv("SNOWFLAKE_HOST", None)
-        logger.info("Checking possible SPCS ENV vars -- Account, Host: {}, {}".format(SNOWFLAKE_ACCOUNT, SNOWFLAKE_HOST))
 
-   #     logger.info("SNOWFLAKE_HOST: %s", os.getenv("SNOWFLAKE_HOST"))
-   #     logger.info("SNOWFLAKE_ACCOUNT: %s", os.getenv("SNOWFLAKE_ACCOUNT"))
-   #     logger.info("SNOWFLAKE_PORT: %s", os.getenv("SNOWFLAKE_PORT"))
-        #  logger.warn('SNOWFLAKE_WAREHOUSE: %s', os.getenv('SNOWFLAKE_WAREHOUSE'))
-   #     logger.info("SNOWFLAKE_DATABASE: %s", os.getenv("SNOWFLAKE_DATABASE"))
-   #     logger.info("SNOWFLAKE_SCHEMA: %s", os.getenv("SNOWFLAKE_SCHEMA"))
+        if os.getenv("SQLITE_OVERRIDE", "").upper() == "TRUE":
+            return self.client
+        else:
+            self.token_connection = False
+            #  logger.warn('Creating connection..')
+            SNOWFLAKE_ACCOUNT = os.getenv("SNOWFLAKE_ACCOUNT", self.account)
+            SNOWFLAKE_HOST = os.getenv("SNOWFLAKE_HOST", None)
+            logger.info("Checking possible SPCS ENV vars -- Account, Host: {}, {}".format(SNOWFLAKE_ACCOUNT, SNOWFLAKE_HOST))
 
-        if (SNOWFLAKE_ACCOUNT and SNOWFLAKE_HOST and os.getenv("SNOWFLAKE_PASSWORD_OVERRIDE", None) == None):
-            # token based connection from SPCS
-            with open("/snowflake/session/token", "r") as f:
-                snowflake_token = f.read()
-            logger.info(f"Natapp Connection: SPCS Snowflake token found, length: {len(snowflake_token)}")
-            self.token_connection = True
-            #   logger.warn('Snowflake token mode (SPCS)...')
+    #     logger.info("SNOWFLAKE_HOST: %s", os.getenv("SNOWFLAKE_HOST"))
+    #     logger.info("SNOWFLAKE_ACCOUNT: %s", os.getenv("SNOWFLAKE_ACCOUNT"))
+    #     logger.info("SNOWFLAKE_PORT: %s", os.getenv("SNOWFLAKE_PORT"))
+            #  logger.warn('SNOWFLAKE_WAREHOUSE: %s', os.getenv('SNOWFLAKE_WAREHOUSE'))
+    #     logger.info("SNOWFLAKE_DATABASE: %s", os.getenv("SNOWFLAKE_DATABASE"))
+    #     logger.info("SNOWFLAKE_SCHEMA: %s", os.getenv("SNOWFLAKE_SCHEMA"))
+
+            if (SNOWFLAKE_ACCOUNT and SNOWFLAKE_HOST and os.getenv("SNOWFLAKE_PASSWORD_OVERRIDE", None) == None):
+                # token based connection from SPCS
+                with open("/snowflake/session/token", "r") as f:
+                    snowflake_token = f.read()
+                logger.info(f"Natapp Connection: SPCS Snowflake token found, length: {len(snowflake_token)}")
+                self.token_connection = True
+                #   logger.warn('Snowflake token mode (SPCS)...')
+                if os.getenv("SNOWFLAKE_SECURE", "TRUE").upper() == "FALSE":
+                    #        logger.info('insecure mode')
+                    return connect(
+                        host=os.getenv("SNOWFLAKE_HOST"),
+                        #        port = os.getenv('SNOWFLAKE_PORT'),
+                        protocol="https",
+                        database=os.getenv("SNOWFLAKE_DATABASE"),
+                        schema=os.getenv("SNOWFLAKE_SCHEMA"),
+                        account=os.getenv("SNOWFLAKE_ACCOUNT"),
+                        token=snowflake_token,
+                        authenticator="oauth",
+                        insecure_mode=True,
+                        client_session_keep_alive=True,
+                    )
+
+                else:
+                    #        logger.info('secure mode')
+                    return connect(
+                        host=os.getenv("SNOWFLAKE_HOST"),
+                        #         port = os.getenv('SNOWFLAKE_PORT'),
+                        #         protocol = 'https',
+                        database=os.getenv("SNOWFLAKE_DATABASE"),
+                        schema=os.getenv("SNOWFLAKE_SCHEMA"),
+                        account=os.getenv("SNOWFLAKE_ACCOUNT"),
+                        token=snowflake_token,
+                        authenticator="oauth",
+                        client_session_keep_alive=True,
+                    )
+
+            logger.info("Creating Snowflake regular connection...")
+            # self.token_connection = False
+
             if os.getenv("SNOWFLAKE_SECURE", "TRUE").upper() == "FALSE":
-                #        logger.info('insecure mode')
                 return connect(
-                    host=os.getenv("SNOWFLAKE_HOST"),
-                    #        port = os.getenv('SNOWFLAKE_PORT'),
-                    protocol="https",
-                    database=os.getenv("SNOWFLAKE_DATABASE"),
-                    schema=os.getenv("SNOWFLAKE_SCHEMA"),
-                    account=os.getenv("SNOWFLAKE_ACCOUNT"),
-                    token=snowflake_token,
-                    authenticator="oauth",
+                    user=self.user,
+                    password=self.password,
+                    account=self.account,
+                    warehouse=self.warehouse,
+                    database=self.database,
+                    role=self.role,
                     insecure_mode=True,
                     client_session_keep_alive=True,
                 )
-
             else:
-                #        logger.info('secure mode')
                 return connect(
-                    host=os.getenv("SNOWFLAKE_HOST"),
-                    #         port = os.getenv('SNOWFLAKE_PORT'),
-                    #         protocol = 'https',
-                    database=os.getenv("SNOWFLAKE_DATABASE"),
-                    schema=os.getenv("SNOWFLAKE_SCHEMA"),
-                    account=os.getenv("SNOWFLAKE_ACCOUNT"),
-                    token=snowflake_token,
-                    authenticator="oauth",
+                    user=self.user,
+                    password=self.password,
+                    account=self.account,
+                    warehouse=self.warehouse,
+                    database=self.database,
+                    role=self.role,
                     client_session_keep_alive=True,
                 )
-
-        logger.info("Creating Snowflake regular connection...")
-        # self.token_connection = False
-
-        if os.getenv("SNOWFLAKE_SECURE", "TRUE").upper() == "FALSE":
-            return connect(
-                user=self.user,
-                password=self.password,
-                account=self.account,
-                warehouse=self.warehouse,
-                database=self.database,
-                role=self.role,
-                insecure_mode=True,
-                client_session_keep_alive=True,
-            )
-        else:
-            return connect(
-                user=self.user,
-                password=self.password,
-                account=self.account,
-                warehouse=self.warehouse,
-                database=self.database,
-                role=self.role,
-                client_session_keep_alive=True,
-            )
 
     # snowed
     def connector_type(self):

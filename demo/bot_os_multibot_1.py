@@ -139,6 +139,7 @@ else:
     db_adapter.one_time_db_fixes()
     db_adapter.ensure_table_exists()
 
+
 bot_id_to_udf_adapter_map = {}
 llm_api_key_struct = None
 llm_key_handler = LLMKeyHandler(db_adapter=db_adapter)
@@ -322,7 +323,7 @@ def list_available_bots_fn():
     row = input_rows[0]
 
     output_rows = []
-    if "llm_api_key_struct" not in globals() or llm_api_key_struct.llm_key is None:
+    if "llm_api_key_struct" not in globals() or llm_api_key_struct is None or  llm_api_key_struct.llm_key is None:
         output_rows = [
             [row[0], {"Success": False, "Message": "Needs LLM Type and Key"}]
         ]
@@ -869,6 +870,8 @@ def configure_llm():
             # set the system default LLM engine
             os.environ["BOT_OS_DEFAULT_LLM_ENGINE"] = llm_type.lower()
             default_llm_engine = llm_type
+            if llm_api_key_struct is None:
+                llm_api_key_struct = {}
             llm_api_key_struct.llm_key = llm_key
             llm_api_key_struct.llm_type = llm_type
             llm_api_key_struct.llm_endpoint = llm_endpoint

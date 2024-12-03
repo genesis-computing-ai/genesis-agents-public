@@ -52,7 +52,7 @@ genesis_source = os.getenv("GENESIS_SOURCE", default="Snowflake")
 def _configure_openai_or_azure_openai(db_adapter:DatabaseConnector) -> bool:
     llm_keys_and_types = db_adapter.db_get_active_llm_key()
 
-    if llm_keys_and_types.llm_type.lower() == "openai":
+    if llm_keys_and_types.llm_type is not None and llm_keys_and_types.llm_type.lower() == "openai":
             os.environ["OPENAI_API_KEY"] = llm_keys_and_types.llm_key
             os.environ["AZURE_OPENAI_API_ENDPOINT"] = llm_keys_and_types.llm_endpoint
             if llm_keys_and_types.llm_endpoint:

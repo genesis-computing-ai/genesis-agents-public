@@ -2196,7 +2196,7 @@ class ToolBelt:
 
         if action == "LIST":
             logger.info("Running get test_process list")
-            return self.get_test_process_list(bot_id if bot_id is not None else "all")
+            return self.get_test_manager_list(bot_id if bot_id is not None else "all")
 
         if action == "SHOW":
             logger.info("Running show test_process info")

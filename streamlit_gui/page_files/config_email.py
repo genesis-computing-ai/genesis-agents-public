@@ -40,8 +40,8 @@ def setup_email():
     st.markdown('<p class="big-font">Email Configuration Steps</p>', unsafe_allow_html=True)
 
     st.markdown("""
-    1. Please open another Snowflake window/tab in your browser.
-    2. If an email address has not yet been added to your user profile or validated, go to "My Profile" and check that an email address has been setup and is verified. If not, follow the steps in the [Snowflake documentation](https://docs.snowflake.com/en/user-guide/ui-snowsight-profile#verify-your-email-address).
+    1. Please open the Snowflake Web UI in a new window/tab in your browser (this should be an additional window/tab to the one where you're following these instructions).
+    2. If an email address has not yet been added and validated for your user profile, go to the menu at the lower left hand corner of the Snowflake UI (this should have your name and role and an arrow pointing up), click on this to expand the menu, select the "My profile" item, and, in the "Profile" window that pops up, make sure that the "Email" field is populated and it does NOT have a message asking you to validate the email. If there is no email, add one. If you do see the message asking you to validate the email, then follow the steps in the [Snowflake documentation](https://docs.snowflake.com/en/user-guide/ui-snowsight-profile#verify-your-email-address).
     3. Next, go to Projects and make a new Snowflake worksheet.
     4. Copy and paste the below SQL into the worksheet. Run these commands to set up an email integration and grant Genesis access to use it to send you emails. This will also test that Snowflake has validated your email and can send you email, and will also set your email as the default for notifications from the system. Note: Genesis can send a message to any validated email that has been added to a Snowflake user profile.
     """)

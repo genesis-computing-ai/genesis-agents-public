@@ -58,56 +58,63 @@ snow --config-file ~/.snowcli/config.toml sql -c GENESIS-DEV-PROVIDER -q "PUT fi
 # Upload YML files
 snow --config-file ~/.snowcli/config.toml sql -c GENESIS-DEV-PROVIDER -q "PUT file://$DIRECTORY_PATH/snowflake_app/*.yml @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
 
-output=$(snow --config-file ~/.snowcli/config.toml sql -c GENESIS-DEV-PROVIDER -q "ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG ADD PATCH FOR VERSION V0_9 USING @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE")
 
-# Output the result of the first command
-echo "First command output:"
-echo "$output"
+json_data=$(snow --config-file ~/.snowcli/config.toml sql -c GENESIS-DEV-PROVIDER --format json -q "show versions in application package GENESISAPP_APP_PKG;")
 
-# Extract the patch number using awk
-patch_number=$(echo "$output" | awk -F'|' '/Patch/ {gsub(/^[ \t]+|[ \t]+$/, "", $4); print $4}')
+# Extract specific fields
+echo "$json_data" | jq '.[-1].version'
+echo "$json_data" | jq '.[-1].patch'
+version=$(echo "$json_data" | jq '.[-1].version')
+max_patch_number=$(echo "$json_data" | jq '.[-1].patch')
 
-# Output the extracted patch number
-echo "Extracted patch number: $patch_number"
+if [ "$max_patch_number" -eq 130 ]; then
+    number_part=$(echo "$version" | sed -E 's/^V[0-9]+_([0-9]+)/\1/')
+    old_version=$((number_part - 1))
+    new_version=$((number_part + 1))
 
-# Check if patch_number is empty
-if [ -z "$patch_number" ]; then
-    echo "Failed to extract patch number. Exiting."
-    exit 1
+    echo "Dropping version $old_version"
+    snow --config-file ~/.snowcli/config.toml sql -c GENESIS-DEV-PROVIDER -q "ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG DROP VERSION $old_version ;"
+    echo "Creating new version $new_version"
+    snow --config-file ~/.snowcli/config.toml sql -c GENESIS-DEV-PROVIDER -q "ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG ADD VERSION $new_version USING @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE"
+    patch_number=0
+    version = $new_version
+
+else
+
+    output=$(snow --config-file sql -c GENESIS-DEV-PROVIDER -q "ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG ADD PATCH FOR VERSION $version USING @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE")
+
+    # Output the result of the first command
+    echo "First command output:"
+    echo "$output"
+
+    # Extract the patch number using awk
+    patch_number=$(echo "$output" | awk -F'|' '/Patch/ {gsub(/^[ \t]+|[ \t]+$/, "", $4); print $4}')
+
+    # Output the extracted patch number
+    echo "Extracted patch number: $patch_number"
+
+    # Check if patch_number is empty
+    if [ -z "$patch_number" ]; then
+        echo "Failed to extract patch number. Exiting."
+        exit 1
+    fi
 fi
 
 # Run the second command with the extracted patch number
-snow --config-file ~/.snowcli/config.toml sql -c GENESIS-DEV-PROVIDER -q "ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG SET DEFAULT RELEASE DIRECTIVE VERSION = V0_9 PATCH = $patch_number;"
+snow --config-file ~/.snowcli/config.toml sql -c GENESIS-DEV-PROVIDER -q "ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG SET DEFAULT RELEASE DIRECTIVE VERSION = $version PATCH = $patch_number;"
 
 echo "Patch $patch_number has been set as the default release directive."
 
-# Check if patch number is 130
-if [ "$patch_number" -eq 130 ]; then
-    echo "WARNING: You will need to upgrade your version number before your next patch"
-fi
+snow --config-file ~/.snowcli/config.toml sql -c GENESIS-DEV-CONSUMER-2 -q "alter application genesis_bots upgrade"
 
-if [ "$2" == "False" ]; then
-    snow --config-file ~/.snowcli/config.toml sql -c GENESIS-DEV-PROVIDER -q "ALTER APPLICATION GENESIS_BOTS UPGRADE USING VERSION V0_9;"
-else
-    snow --config-file ~/.snowcli/config.toml sql -c GENESIS-DEV-CONSUMER-2 -q "alter application genesis_bots upgrade"
-
-    # snow sql -c GENESIS-DEV-CONSUMER-2 -q "show services"
-
-    snow --config-file ~/.snowcli/config.toml sql -c GENESIS-DEV-CONSUMER-2 -q "call genesis_bots.core.run_arbitrary('grant all on warehouse app_xsmall to application role app_public;');"
-    snow --config-file ~/.snowcli/config.toml sql -c GENESIS-DEV-CONSUMER-2 -q "call genesis_bots.core.run_arbitrary('grant all on service GENESIS_BOTS.APP1.GENESISAPP_HARVESTER_SERVICE to application role app_public;');"
-    snow --config-file ~/.snowcli/config.toml sql -c GENESIS-DEV-CONSUMER-2 -q "call genesis_bots.core.run_arbitrary('grant all on service GENESIS_BOTS.APP1.GENESISAPP_KNOWLEDGE_SERVICE to application role app_public;');"
-    snow --config-file ~/.snowcli/config.toml sql -c GENESIS-DEV-CONSUMER-2 -q "call genesis_bots.core.run_arbitrary('grant all on service GENESIS_BOTS.APP1.GENESISAPP_TASK_SERVICE to application role app_public;');"
-    snow --config-file ~/.snowcli/config.toml sql -c GENESIS-DEV-CONSUMER-2 -q "call genesis_bots.core.run_arbitrary('grant all on service GENESIS_BOTS.APP1.GENESISAPP_SERVICE_SERVICE to application role app_public;');"
-    snow --config-file ~/.snowcli/config.toml sql -c GENESIS-DEV-CONSUMER-2 -q "call genesis_bots.core.run_arbitrary('grant all on all tables in schema GENESIS_BOTS.APP1 to application role app_public;');"
-    snow --config-file ~/.snowcli/config.toml sql -c GENESIS-DEV-CONSUMER-2 -q "call genesis_bots.core.run_arbitrary('grant select on GENESIS_BOTS.APP1.LLM_RESULTS to application role app_public;');"
-    snow --config-file ~/.snowcli/config.toml sql -c GENESIS-DEV-CONSUMER-2 -q "call genesis_bots.core.run_arbitrary('grant all on schema GENESIS_BOTS.APP1 to application role app_public;');"
-    snow --config-file ~/.snowcli/config.toml sql -c GENESIS-DEV-CONSUMER-2 -q "show applications;"
-fi
+snow --config-file ~/.snowcli/config.toml sql -c GENESIS-DEV-CONSUMER-2 -q "call genesis_bots.core.run_arbitrary('grant all on warehouse app_xsmall to application role app_public;');"
+snow --config-file ~/.snowcli/config.toml sql -c GENESIS-DEV-CONSUMER-2 -q "call genesis_bots.core.run_arbitrary('grant all on service GENESIS_BOTS.APP1.GENESISAPP_HARVESTER_SERVICE to application role app_public;');"
+snow --config-file ~/.snowcli/config.toml sql -c GENESIS-DEV-CONSUMER-2 -q "call genesis_bots.core.run_arbitrary('grant all on service GENESIS_BOTS.APP1.GENESISAPP_KNOWLEDGE_SERVICE to application role app_public;');"
+snow --config-file ~/.snowcli/config.toml sql -c GENESIS-DEV-CONSUMER-2 -q "call genesis_bots.core.run_arbitrary('grant all on service GENESIS_BOTS.APP1.GENESISAPP_TASK_SERVICE to application role app_public;');"
+snow --config-file ~/.snowcli/config.toml sql -c GENESIS-DEV-CONSUMER-2 -q "call genesis_bots.core.run_arbitrary('grant all on service GENESIS_BOTS.APP1.GENESISAPP_SERVICE_SERVICE to application role app_public;');"
+snow --config-file ~/.snowcli/config.toml sql -c GENESIS-DEV-CONSUMER-2 -q "call genesis_bots.core.run_arbitrary('grant all on all tables in schema GENESIS_BOTS.APP1 to application role app_public;');"
+snow --config-file ~/.snowcli/config.toml sql -c GENESIS-DEV-CONSUMER-2 -q "call genesis_bots.core.run_arbitrary('grant select on GENESIS_BOTS.APP1.LLM_RESULTS to application role app_public;');"
+snow --config-file ~/.snowcli/config.toml sql -c GENESIS-DEV-CONSUMER-2 -q "call genesis_bots.core.run_arbitrary('grant all on schema GENESIS_BOTS.APP1 to application role app_public;');"
+snow --config-file ~/.snowcli/config.toml sql -c GENESIS-DEV-CONSUMER-2 -q "show applications;"
 
 echo "Upgrade complete"
-
-# todo: add primary version fixing when needed:
-#ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG DROP VERSION V0_3 ;
-#ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG ADD VERSION V0_9 USING @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE;#show versions in APPLICATION PACKAGE GENESISAPP_APP_PKG;
-#ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG SET DEFAULT RELEASE DIRECTIVE VERSION = V0_9 PATCH = 0;
-#show versions in APPLICATION PACKAGE GENESISAPP_APP_PKG;

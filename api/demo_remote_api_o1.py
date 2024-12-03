@@ -5,10 +5,10 @@ client = GenesisAPI("remote-snowflake", scope="GENESIS_BOTS_ALPHA")
 bots = client.get_all_bots()
 print(bots)
 
-request = client.add_message(bots[0], "hello")
+request = client.add_message("Janice", "hello")
 response = None
 while response is None:
-    response = client.get_response(bots[0], request["request_id"])
+    response = client.get_response("Janice", request["request_id"])
     time.sleep(1)
 print(response)
 

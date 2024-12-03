@@ -6,20 +6,20 @@ client = GenesisAPI("local-snowflake", scope="GENESIS_TEST", sub_scope="GENESIS_
 bots = client.get_all_bots()
 print(bots)
 
-request = client.add_message(bots[0], "hello") # "Janice"
+request = client.add_message("Janice", "hello") # "Janice"
 time.sleep(1)
 response = None
 while response is None:
-    response = client.get_response(bots[0], request["request_id"])
+    response = client.get_response("Janice", request["request_id"])
     time.sleep(1)
 print(response)
 
-tools = client.get_all_tools(bots[0])
+tools = client.get_all_tools("Janice")
 print(tools)
-run_query_tool = client.get_tool(bots[0], "_run_query")
+run_query_tool = client.get_tool("Janice", "_run_query")
 print(run_query_tool)
 
-result = client.run_tool(bots[0], run_query_tool['name'], 
+result = client.run_tool("Janice", run_query_tool['name'], 
                          {"query": "select CURRENT_DATE()", "max_rows": 10})
 print(result)
 

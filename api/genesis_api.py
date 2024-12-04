@@ -1,4 +1,5 @@
 import json
+import time
 from api.genesis_base import GenesisBot, GenesisLocalServer, GenesisProject, GenesisProcess, GenesisNote, GenesisKnowledge, LocalMetadataStore, SnowflakeMetadataStore, ToolDefinition
 from api.snowflake_local_server import GenesisLocalSnowflakeServer
 from api.snowflake_remote_server import GenesisSnowflakeServer
@@ -86,8 +87,14 @@ class GenesisAPI:
 
     def add_message(self, bot_id, message:str, thread_id=None) -> dict:
         return self.registered_server.add_message(bot_id, message=message, thread_id=thread_id)
-    def get_response(self, bot_id, request_id=None) -> str:
-        return self.registered_server.get_message(bot_id, request_id)
+    def get_response(self, bot_id, request_id=None, timeout_seconds=None) -> str:
+        time_start = time.time()
+        while timeout_seconds is None or time.time() - time_start < timeout_seconds:
+            response = self.registered_server.get_message(bot_id, request_id)
+            if response is not None and not response.endswith("💬"):
+                return response
+            time.sleep(1)
+        return None
 
     def shutdown(self):
         self.registered_server.shutdown()

@@ -118,7 +118,6 @@ def print_file_contents(title, file_path, contents):
 def call_genesis_bot(client, bot_id, request):
     """Wait for a complete response from the bot, streaming partial results."""
     try:
-        last_response = ""
         print(f"\n\033[94m{'='*80}\033[0m")  # Blue separators
         print(f"\033[92mBot:\033[0m {bot_id}")  # Green label
         print(f"\033[92mPrompt:\033[0m {request}")  # Green label
@@ -126,36 +125,12 @@ def call_genesis_bot(client, bot_id, request):
         print("\033[92mResponse:\033[0m")  # Green label for response section
 
         request = client.add_message(bot_id, request)
-        while True:
-            response = client.get_response(bot_id, request["request_id"])
-            if response is not None:
-                # Print only the new content since last response
-                if len(response) > len(last_response):
-                    new_content = response[len(last_response):]
-                    # Remove any trailing speech bubbles from the new content
-                    if '💬' in new_content:
-                        new_content = new_content.rsplit('💬', 1)[0]
-                    if '🤖' in new_content and not '\n🤖' in new_content:
-                        new_content = new_content.replace('🤖', '\n🤖')
-                    if '🧰' in new_content and not '\n🧰' in new_content:
-                        new_content = new_content.replace('🧰', '\n🧰')
-                    print(f"\033[96m{new_content}\033[0m", end='', flush=True)  # Cyan text
-                    last_response = response
-                
-                if not response.endswith('💬'):
-                    break
-                    
-            time.sleep(1)
-
-        # Clean up response
-        if response and '💬' in response:
-            response = response.replace('💬', '')
+        response = client.get_response(bot_id, request["request_id"])
         
         print(f"\n\033[94m{'-'*80}\033[0m")  # Blue separator
         print("\033[93mResponse complete\033[0m")  # Yellow status
         print(f"\033[94m{'='*80}\033[0m\n")  # Blue separator
         return response
-            
     except Exception as e:
         raise e
 

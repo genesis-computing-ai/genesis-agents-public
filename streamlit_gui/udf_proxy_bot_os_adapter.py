@@ -20,7 +20,6 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
     #    self.proxy_messages_in = []
         self.events = deque()
         self.genbot_internal_project_and_schema = os.getenv('GENESIS_INTERNAL_DB_SCHEMA','None')
-        self.bot_id = {}
         self.pending_map = {}
         self.events_map = {}
         self.in_to_out_thread_map = {}
@@ -52,7 +51,7 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
         except IndexError:
             return None
         uu = event.get('uuid',None)
-        self.bot_id = event.get('bot_id', {})
+        bot_id = event.get('bot_id', {})
         metadata = {}
         if uu:
             metadata["input_uuid"] = uu
@@ -60,9 +59,9 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
         metadata["channel_type"] = "Streamlit"
         metadata["channel_name"] = ""
         metadata['is_bot'] = 'FALSE'
-        metadata["user_id"] = self.bot_id.get('user_id', 'unknown_id')
-        metadata["user_name"] = self.bot_id.get('user_name', 'unknown_name')
-        metadata["user_email"] = self.bot_id.get('user_id', 'unknown_email')
+        metadata["user_id"] = bot_id.get('user_id', 'unknown_id')
+        metadata["user_name"] = bot_id.get('user_name', 'unknown_name')
+        metadata["user_email"] = bot_id.get('user_email', 'unknown_email')
 
         file = event.get('file', '{}')
         if type(file) == str:
@@ -143,7 +142,7 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
         return render_template("submit_ui.html")
 
 
-    def submit(self, input, thread_id, bot_id, file={}):
+    def submit(self, input, thread_id, bot_id, file={}): # bot_id is actually misnamed user info
 
         if type(bot_id) == str:
             bot_id = json.loads(bot_id)

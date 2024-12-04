@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "genesis-workspace-project",
+  "private_key_id": "d094fd7d2562b7b20275ed252e4931533981e3c8",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCVCpoFPbX8msf/\n9tDllxobr+LVHRr76gcEVXjqMbXTFsVw82+StiYw/0o8lH8MMtGb9UMjCZa5XpSd\n+aIurWRJ61YEk1n0Zxm0gQUQqAPFQm8VGWtaULoiDP8ovQOW4U5NgSB5skyzU5fM\nWb3R7dU8X1fFlsXbdBe+jEjSq5ncDeDgzLahwDLwfjTGC/G7Ae+UIJGUZZr2pLX6\nZSxLCIRPWNamWXP58R49yif+NPwRXTG8yNRMz/WQYLI5yH55qfj3RhKzh9doRHkd\n4jLfOx+a1JovbfSeot7X8H0VtMnt6LVNS7Xo4XGMoFuW/1uOm+Maw6jWwwjSkcjF\nt91OHlUBAgMBAAECggEAAoyg39ATadO38g/luNeh0bFrftu1l3OEVTWlENRy2L59\n+BWh5e+JrbLgMTMVDT9dSH6kfFfwpRESF7WqaYP7wCvvV7qxgjW1QdonHQbSsbAW\nOFUr+eqBlI2GW8sH4a/O6BJ6XLqJB1Q5t3wdfBbGW/cBiFaw4bUVpuO9ZyUaR6JK\nc+I+F6aM6UEBYWfDqgkIDiZDt04W54HWKijpOmLBSgMvLf0DnghxjjayXwTBDJQr\nGQoLkD+dofOMbxpfb4qqFS/nOKOc7/K27Z4FoujCCrUgoHntJ03iG1XFBDA1fPV0\nD1282j2/cimycz07Qkt3T6SK0mScYQsxvVkCZ4ynAQKBgQDJpBAXP9bWUq2YhITx\nfR2Oq9EbfNSfWtII0wZirvzV0NwT48LYdiK5999DuhqpbTpz25d3CnqCCAIyke/I\nxe2Lo2JOgVT8Dvfdy384tJdtLogNlkCAo2SoZCLdSHccwsOEOsUlyn/6BYGdXIxU\nVuDO/naOxUlLfhnQ8ke17pKCUQKBgQC9OHepOgdgxZHkjf9Vsm3VylI7f/mHAUb9\nijxxnso24fKN98DyDi7bVLQtoxM6W7GLl2XATbYT8g/aKzO0lG1E8MgKaND74JKD\n89qVeOEjlketWGxWsp0epvxb/HYoOGdp+iLx3WMjDV4W2XdA399AKR+M87BfF9H+\njZ1tWrzLsQKBgC7ATkbFs28PzlYNa7F9+8tnhN0lrTqhWQ9YtiNNRSvh+BTYewWr\nJlQN54MRdDsSKzpPkKe2Ez9w0emdsoXPdkso/5MKI4Uph0iydPXV0UIsRrk3vA7X\nU3BDf13k/lD5y1EuOyWO9OsoOawdmB+54Pe9QgnKLjtFqoCqm/vPq8JxAoGAbr4h\nqnU/5C89V5qTmcA38CvdPN2FWLIyrii9f3IDv2M15kjeL8yFN/C3Ew6iLkGEA8Kz\n1nyk17+P74vhUwqbeQHC0fTOetvQZFHP2DNK8Nz/TkC2B3e55Tqt79gt/xQj0i6H\nTS7Y2qb0LkNQPDPKIW7v/DqTOtRiHq0bOeklHcECgYBXDqQNoj3exoj328fG7VqX\nXdXQE6wKV0XVtnhdjSYBImvJ16Wv11KlOGaqojOOLvlXNBVTBepLwHHoVa9XM8R9\n37V2v4IbKVe2xkGr2a+VitFcuteFqmbZwx/tvsyEF77K2ryrND/Vh6cZp1srHAV/\n5Ba458EhqlEFBpNhAIbJAw==\n-----END PRIVATE KEY-----\n",
+  "client_email": "genesis-workspace-creds@genesis-workspace-project.iam.gserviceaccount.com",
+  "client_id": "116259513448325883500",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/genesis-workspace-creds%40genesis-workspace-project.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}

@@ -4,6 +4,9 @@ APscheduler
 bs4
 db-dtypes
 dill
+google-api-python-client
+google-auth-httplib2
+google-auth-oauthlib
 werkzeug>=3.0.6
 flask==3.0.3
 google-cloud-bigquery
@@ -36,3 +39,4 @@ gitpython==3.1.43
 #flask_cors
 anthropic
 boto3
+markdown

@@ -47,3 +47,5 @@ sdf_genesis/sdf_dagster_out/*
 .personal/
 bot_git/
 ./bot_git/
+
+token.json

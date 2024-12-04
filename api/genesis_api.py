@@ -9,6 +9,7 @@ class GenesisAPI:
         self.server_type = server_type
         self.scope = scope
         self.sub_scope = sub_scope
+        self.server_type = server_type
         if server_type == "local":
             if bot_list is not None:
                 raise ValueError("bot_list not supported for local server")
@@ -24,8 +25,21 @@ class GenesisAPI:
             self.registered_server = GenesisSnowflakeServer(scope)
         else:
             raise ValueError("Remote server not supported yet")
+        
     def register_bot(self, bot: GenesisBot):
-        self.metadata_store.insert_or_update_metadata("GenesisBot", bot.bot_id, bot)
+
+        if self.server_type == "local-snowflake":
+            return(self.registered_server.server.make_baby_bot_wrapper(
+                bot_id=bot.get("BOT_ID", None),
+                bot_name=bot.get("BOT_NAME", None),
+                bot_implementation=bot.get("BOT_IMPLEMENTATION", None),
+                files=bot.get("FILES", None),
+                available_tools=bot.get("AVAILABLE_TOOLS", None),
+                bot_instructions=bot.get("BOT_INSTRUCTIONS", None)
+            ))
+
+        self.metadata_store.insert_or_update_metadata("GenesisBot", bot["BOT_ID"], bot)
+        
     def get_bot(self, bot_id) -> GenesisBot:
         return self.metadata_store.get_metadata("GenesisBot", bot_id)
     def get_all_bots(self) -> list[str]:
@@ -95,6 +109,9 @@ class GenesisAPI:
                 return response
             time.sleep(1)
         return None
+    
+
+    
 
     def shutdown(self):
         self.registered_server.shutdown()

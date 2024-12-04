@@ -6,7 +6,7 @@ from langsmith import traceable
 import snowflake.connector
 import json 
 
-import os
+import os, yaml
 
 # Initialize LangSmith client at the top of your file
 langsmith_client = Client()
@@ -148,7 +148,7 @@ def setup_paths(physical_column_name):
     }
 
 @traceable(name="source_research")
-def perform_source_research(client, requirement, paths):
+def perform_source_research(client, requirement, paths, bot_id):
     """Execute source research step and validate results."""
     try:
         print("\033[34mExecuting source research...\033[0m")
@@ -161,11 +161,11 @@ def perform_source_research(client, requirement, paths):
             raise Exception("Failed to put placeholder source research file to stage")
 
         research_prompt = f'''Here are requirements for a target field I want you to work on: {requirement}\n
-        Call source research microbot and tell them to research this field and save the results in git at: {paths["base_git_path"]}{paths["source_research_file"]}\n
+        Delegate to the SourceResourceBot microbot and tell them to research this field and save the results in git at: {paths["base_git_path"]}{paths["source_research_file"]}\n
         Then validate the microbot has saved the report in the right place, if so return SUCCESS.  If not return FAILURE.
         This is being run by an automated process, so do not repeat these instructions back to me, simply proceed to execute them without asking for further approval.'''
         
-        response = call_genesis_bot(client, "RequirementsPM-72dj5k", research_prompt)
+        response = call_genesis_bot(client, bot_id, research_prompt)
         if 'SUCCESS' not in response:
             raise Exception('Error on source research')
 
@@ -182,7 +182,7 @@ def perform_source_research(client, requirement, paths):
     except Exception as e:
         raise e
 
-def perform_mapping_proposal(client, requirement, paths):
+def perform_mapping_proposal(client, requirement, paths, bot_id):
     """Execute mapping proposal step and validate results."""
     print("\033[34mExecuting mapping proposal...\033[0m")
     
@@ -199,7 +199,7 @@ def perform_mapping_proposal(client, requirement, paths):
     Then validate the microbot has saved the report in the right place, if so return SUCCESS.  If not return FAILURE.
     This is being run by an automated process, so do not repeat these instructions back to me, simply proceed to execute them without asking for further approval.'''
     
-    response = call_genesis_bot(client, "RequirementsPM-72dj5k", mapping_prompt)
+    response = call_genesis_bot(client, bot_id, mapping_prompt)
     if 'SUCCESS' not in response:
         raise Exception('Error on mapping proposal')
 
@@ -213,7 +213,7 @@ def perform_mapping_proposal(client, requirement, paths):
                        contents)
     return contents
 
-def perform_confidence_analysis(client, requirement, paths):
+def perform_confidence_analysis(client, requirement, paths, bot_id):
     """Execute confidence analysis step and validate results."""
     print("\033[34mExecuting confidence analysis...\033[0m")
     
@@ -235,7 +235,7 @@ def perform_confidence_analysis(client, requirement, paths):
     Then validate the microbot has saved the report in the right place, if so return SUCCESS. If not return FAILURE.
     This is being run by an automated process, so do not repeat these instructions back to me, simply proceed to execute them without asking for further approval.'''
     
-    response = call_genesis_bot(client, "RequirementsPM-72dj5k", confidence_prompt)
+    response = call_genesis_bot(client, bot_id, confidence_prompt)
     if 'SUCCESS' not in response:
         raise Exception('Error on confidence analysis')
 
@@ -250,7 +250,7 @@ def perform_confidence_analysis(client, requirement, paths):
     return contents
 
 
-def perform_pm_summary(client, requirement, paths):
+def perform_pm_summary(client, requirement, paths, bot_id):
     """Have PM bot analyze results and provide structured summary."""
     print("\033[34mGetting PM summary...\033[0m")
 
@@ -270,7 +270,7 @@ def perform_pm_summary(client, requirement, paths):
     This is being run by an automated process so do not repeat these instructions back to me, and do not stop to ask for futher permission to proceed.
     '''
 
-    response = call_genesis_bot(client, "RequirementsPM-72dj5k", pm_prompt)
+    response = call_genesis_bot(client, bot_id, pm_prompt)
 
     # Extract JSON between tags
     if "!!JSON_START!!" not in response or "!!JSON_END!!" not in response:
@@ -296,13 +296,14 @@ def perform_pm_summary(client, requirement, paths):
     return summary
 
 
-def save_pm_summary_to_requirements(physical_column_name, summary_fields):
+def save_pm_summary_to_requirements(physical_column_name, summary_fields, table_name):
     """
-    Updates the flexicard_pm table with PM summary fields and sets status to READY_FOR_REVIEW
+    Updates the requirements table with PM summary fields and sets status to READY_FOR_REVIEW
     
     Args:
         physical_column_name (str): The column name to identify the requirement
         summary_fields (dict): Dictionary containing the fields to update
+        table_name (str): Fully qualified table name (schema.table)
     """
 
     # Flatten any array fields into comma-separated strings
@@ -316,8 +317,8 @@ def save_pm_summary_to_requirements(physical_column_name, summary_fields):
             # Remove any quotes from single values
             flattened_fields[key.lower()] = str(value).replace('"', '').replace("'", '')
     try:
-        update_query = """
-            UPDATE genesis_gxs.requirements.flexicard_pm 
+        update_query = f"""
+            UPDATE {table_name}
             SET 
                 upstream_table = %(upstream_table)s,
                 upstream_column = %(upstream_column)s,
@@ -350,12 +351,85 @@ def save_pm_summary_to_requirements(physical_column_name, summary_fields):
         raise Exception(f"Failed to update requirement for column {physical_column_name}: {str(e)}")
 
 
+def port_bot(client_source, client_target, bot_id, suffix='local', remove_slack=True):
+    """
+    Port bots from remote to local environment.
+    
+    Args:
+        client: Remote Genesis API client
+        client_local: Local Genesis API client
+    """
+
+    # Get bot definition from remote
+    remote_bot = client_source.get_bot(bot_id)
+
+    new_bot = {
+        "BOT_ID": f"{bot_id.split('-')[0]}-{suffix}",
+        "BOT_NAME": remote_bot.BOT_NAME,
+        "BOT_IMPLEMENTATION": remote_bot.BOT_IMPLEMENTATION,
+        "FILES": remote_bot.FILES,
+        "AVAILABLE_TOOLS": remote_bot.AVAILABLE_TOOLS,
+    #  "BOT_AVATAR_IMAGE": remote_bot.BOT_AVATAR_IMAGE,
+        "BOT_AVATAR_IMAGE": None,
+        "BOT_INSTRUCTIONS": remote_bot.BOT_INSTRUCTIONS,
+        "BOT_INTRO_PROMPT": remote_bot.BOT_INTRO_PROMPT,
+        "DATABASE_CREDENTIALS": remote_bot.DATABASE_CREDENTIALS,
+        "RUNNER_ID": os.getenv("RUNNER_ID", "genesis-runner-jl"),
+        "UDF_ACTIVE": remote_bot.UDF_ACTIVE
+    }
+
+    bot_name = new_bot["BOT_NAME"]
+    file_path = f"./tmp/ported_bots/{bot_name}.yaml"
+
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+
+    with open(file_path, 'w') as file:
+        yaml.dump(new_bot, file)
+
+    print(f"New bot details saved to {file_path} for bot {new_bot['BOT_NAME']}")
+
+    if remote_bot:
+        # Register bot locally
+        client_target.register_bot(new_bot)
+        print(f"Registered bot {bot_id} locally")
+    else:
+        print(f"Could not find bot {bot_id} on remote server")
+
 def main():
     """Main execution flow."""
-    client = GenesisAPI("remote-snowflake", scope="GENESIS_BOTS_ALPHA")
+    client_remote = GenesisAPI("remote-snowflake", scope="GENESIS_BOTS_ALPHA")
+
+    local_bots = [
+        'RequirementsPM-jllocal',
+        'sourceResearchBot-jllocal', 
+        'mappingProposerBot-jllocal',
+        'confidenceanalyst-jllocal'
+    ]
+
+    client = GenesisAPI("local-snowflake", scope="GENESIS_TEST", sub_scope="GENESIS_JL", 
+                        bot_list=local_bots) # ["marty-l6kx7d"]
+    bots = client_remote.get_all_bots()
+    print("Remote bots: ",bots)
+
+    bots = client.get_all_bots()
+    print("Local bots: ",bots)
+
+    bots_to_port = [
+ #       'RequirementsPM-72dj5k',
+ #       'sourceResearchBot-d3k9m1', 
+ #       'mappingProposerBot-4fj7kf',
+  #      'confidenceanalyst-xYzAb9'
+    ]
+
+## TODO , load bots from YAML
+
+    for bot_id in bots_to_port:
+        port_bot(client_source=client_remote, client_target=client, bot_id=bot_id, suffix='jllocal')
+
     try:
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM genesis_gxs.requirements.flexicard_pm WHERE status = 'NEW'")
+        table_name = "genesis_gxs.requirements.flexicard_pm_jl"  # Changed from genesis_gxs.requirements.flexicard_pm
+        cursor.execute(f"SELECT * FROM {table_name} WHERE status = 'NEW'")
         results = cursor.fetchall()
         columns = [col[0] for col in cursor.description]
 
@@ -382,11 +456,11 @@ def main():
 
             paths = setup_paths(requirement["PHYSICAL_COLUMN_NAME"])
             
-            source_research = perform_source_research(client, filtered_requirement, paths)
-            mapping_proposal = perform_mapping_proposal(client, filtered_requirement, paths)
-            confidence_report = perform_confidence_analysis(client, filtered_requirement, paths)
-            #Call PM bot to summarize results for database
-            summary = perform_pm_summary(client, filtered_requirement, paths)
+            pm_bot_id = 'RequirementsPM-jllocal'
+            source_research = perform_source_research(client, filtered_requirement, paths, pm_bot_id)
+            mapping_proposal = perform_mapping_proposal(client, filtered_requirement, paths, pm_bot_id)
+            confidence_report = perform_confidence_analysis(client, filtered_requirement, paths, pm_bot_id)
+            summary = perform_pm_summary(client, filtered_requirement, paths, pm_bot_id)
 
             # Get the full content of each file from git
             source_research_content = get_file_from_stage(
@@ -420,7 +494,11 @@ def main():
             }
 
             # Save to database
-            save_pm_summary_to_requirements(requirement['PHYSICAL_COLUMN_NAME'], db_fields)
+            save_pm_summary_to_requirements(
+                requirement['PHYSICAL_COLUMN_NAME'], 
+                db_fields,
+                table_name
+            )
             print("\033[32mSuccessfully saved results to database for requirement:", requirement['PHYSICAL_COLUMN_NAME'], "\033[0m")
 
             i = input('next? ')

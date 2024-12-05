@@ -452,4 +452,4 @@ else:
             pages[selection]()
     except Exception as e:
         st.error(f"Error accessing page {st.session_state.get('radio')}: {e}")
-        # st.rerun()
+        st.rerun()

@@ -101,15 +101,35 @@ class GenesisAPI:
 
     def add_message(self, bot_id, message:str, thread_id=None) -> dict:
         return self.registered_server.add_message(bot_id, message=message, thread_id=thread_id)
+    
+    
     def get_response(self, bot_id, request_id=None, timeout_seconds=None) -> str:
         time_start = time.time()
+        last_response = ""
         while timeout_seconds is None or time.time() - time_start < timeout_seconds:
             response = self.registered_server.get_message(bot_id, request_id)
-            if response is not None and not response.endswith("💬"):
-                return response
+            if response is not None:
+                # Print only the new content since last response
+                if len(response) > len(last_response):
+                    new_content = response[len(last_response):]
+                    # Remove any trailing speech bubbles from the new content
+                    if '💬' in new_content:
+                        new_content = new_content.rsplit('💬', 1)[0]
+                    if '🤖' in new_content and not '\n🤖' in new_content:
+                        new_content = new_content.replace('🤖', '\n🤖')
+                    if '🧰' in new_content and not '\n🧰' in new_content:
+                        new_content = new_content.replace('🧰', '\n🧰')
+                    print(f"\033[96m{new_content}\033[0m", end='', flush=True)  # Cyan text
+                    last_response = response
+                
+                if not response.endswith('💬'):
+                    # Clean up response
+                    if '💬' in response:
+                        response = response.replace('💬', '')
+                    return response
+                    
             time.sleep(1)
         return None
-    
 
     
 

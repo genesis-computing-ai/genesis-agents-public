@@ -395,37 +395,67 @@ def port_bot(client_source, client_target, bot_id, suffix='local', remove_slack=
     else:
         print(f"Could not find bot {bot_id} on remote server")
 
+
+def load_bots_from_yaml(client,bot_team_path):
+    """
+    Load and register bots from YAML files in the specified directory.
+    
+    Args:
+        bot_team_path: Path to directory containing bot YAML files
+    """
+   # client = GenesisAPI("local-snowflake", scope="GENESIS_TEST", sub_scope="GENESIS_JL")
+    
+    # Get all YAML files in directory
+    yaml_files = [f for f in os.listdir(bot_team_path) if f.endswith('.yaml')]
+    
+    for yaml_file in yaml_files:
+        file_path = os.path.join(bot_team_path, yaml_file)
+        
+        # Load bot config from YAML
+        with open(file_path, 'r') as file:
+            bot_config = yaml.safe_load(file)
+            
+        print(f"Registering bot from {file_path}")
+        
+        try:
+            # Register bot with API
+            client.register_bot(bot_config)
+            print(f"Successfully registered bot {bot_config['BOT_NAME']}")
+        except Exception as e:
+            print(f"Failed to register bot from {file_path}: {str(e)}")
+
+
 def main():
     """Main execution flow."""
-    client_remote = GenesisAPI("remote-snowflake", scope="GENESIS_BOTS_ALPHA")
 
-    local_bots = [
-        'RequirementsPM-jllocal',
-        'sourceResearchBot-jllocal', 
-        'mappingProposerBot-jllocal',
-        'confidenceanalyst-jllocal'
-    ]
+    # start these bots if they exist (if you're not loading/refreshing from YAMLS below) 
+    local_bots = []
 
     client = GenesisAPI("local-snowflake", scope="GENESIS_TEST", sub_scope="GENESIS_JL", 
                         bot_list=local_bots) # ["marty-l6kx7d"]
-    bots = client_remote.get_all_bots()
-    print("Remote bots: ",bots)
 
     bots = client.get_all_bots()
-    print("Local bots: ",bots)
+    print("Existing local bots: ",bots)
 
-    bots_to_port = [
- #       'RequirementsPM-72dj5k',
- #       'sourceResearchBot-d3k9m1', 
- #       'mappingProposerBot-4fj7kf',
-  #      'confidenceanalyst-xYzAb9'
-    ]
+            # port bots from another server
+        # client_remote = GenesisAPI("remote-snowflake", scope="GENESIS_BOTS_ALPHA")
+        #  bots = client_remote.get_all_bots()
+        #  print("Remote bots: ",bots)
+        #  bots_to_port = [
+        #       'RequirementsPM-72dj5k',
+        #       'sourceResearchBot-d3k9m1', 
+        #       'mappingProposerBot-4fj7kf',
+        #      'confidenceanalyst-xYzAb9'
+        #   ]
+        #  for bot_id in bots_to_port:
+        #      port_bot(client_source=client_remote, client_target=client, bot_id=bot_id, suffix='jllocal')
 
-## TODO , load bots from YAML
+    # LOAD AND ACTIVATE BOTS FROM YAML FILES
+    # adds or updates bots defined in YAML to metadata and activates the listed bots
+    bot_team_path = './demo/bot_team'
+    load_bots_from_yaml(client=client, bot_team_path=bot_team_path)
 
-    for bot_id in bots_to_port:
-        port_bot(client_source=client_remote, client_target=client, bot_id=bot_id, suffix='jllocal')
-
+    # MAIN WORKFLOW
     try:
         cursor = conn.cursor()
         table_name = "genesis_gxs.requirements.flexicard_pm_jl"  # Changed from genesis_gxs.requirements.flexicard_pm

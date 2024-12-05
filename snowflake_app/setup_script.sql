@@ -328,6 +328,7 @@ CREATE OR REPLACE PROCEDURE core.get_config_for_ref(ref_name STRING)
     $$
     DECLARE
       azure_ep VARCHAR;
+      jira_ep VARCHAR;
       custom_ep VARCHAR;
       ports VARCHAR;
     BEGIN
@@ -343,6 +344,21 @@ CREATE OR REPLACE PROCEDURE core.get_config_for_ref(ref_name STRING)
             "type": "CONFIGURATION",
             "payload":{
               "host_ports":["accounts.google.com","oauth2.googleapis.com","www.googleapis.com","googleapis.com"],
+              "allowed_secrets": "NONE"}}';
+        WHEN 'JIRA_EXTERNAL_ACCESS' THEN
+          SELECT VALUE || '.atlassian.net' INTO jira_ep
+          FROM APP1.EXT_SERVICE_CONFIG
+          WHERE UPPER(EXT_SERVICE_NAME) = 'JIRA' AND UPPER(PARAMETER) = 'SITE_NAME';
+
+          IF (jira_ep = '.atlassian.net') THEN
+              ports := '"www.atlassian.net"';
+          ELSE
+              ports := '"www.atlassian.net", "' || :jira_ep || '"';
+          END IF;
+          RETURN '{
+            "type": "CONFIGURATION",
+            "payload":{
+              "host_ports":[' || ports || '],
               "allowed_secrets": "NONE"}}';
         WHEN 'OPENAI_EXTERNAL_ACCESS' THEN
           RETURN '{

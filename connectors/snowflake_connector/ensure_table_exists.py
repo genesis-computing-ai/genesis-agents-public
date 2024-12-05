@@ -696,37 +696,6 @@ def ensure_table_exists(self):
             if cursor is not None:
                 cursor.close()
 
-        jira_api_table_check_query = (
-            f"SHOW TABLES LIKE 'JIRA_API_CONFIG' IN SCHEMA {self.schema};"
-        )
-        try:
-            cursor = self.client.cursor()
-            cursor.execute(jira_api_table_check_query)
-            if not cursor.fetchone():
-                jira_api_table_ddl = dedent(f"""
-                CREATE OR REPLACE TABLE {self.genbot_internal_project_and_schema}.JIRA_API_CONFIG(
-                    JIRA_URL VARCHAR(16777216),
-                    JIRA_EMAIL VARCHAR(16777216),
-                    JIRA_API_KEY VARCHAR(16777216)
-                );
-                """)
-                cursor.execute(jira_api_table_ddl)
-                self.client.commit()
-                print(f"Table JIRA_API_CONFIG created.")
-
-            else:
-                logger.info(
-                    f"Table JIRA_API_CONFIG already exists."
-                )
-
-        except Exception as e:
-            logger.error(
-                f"An error occurred while checking or creating table JIRA_API_CONFIG: {e}"
-            )
-        finally:
-            if cursor is not None:
-                cursor.close()
-
     bot_servicing_table_check_query = (
         f"SHOW TABLES LIKE 'BOT_SERVICING' IN SCHEMA {self.schema};"
     )

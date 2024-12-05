@@ -488,19 +488,12 @@ def set_metadata():
                 endpoint = metadata_parts[2].strip()
                 type = metadata_parts[3].strip()
             result = db_adapter.set_endpoint(group_name, endpoint, type)
-        elif metadata_type.startswith('set_jira_config_params '):
-            metadata_parts = metadata_type.split()
-            if len(metadata_parts) == 4:
-                jira_url = metadata_parts[1].strip()
-                jira_email = metadata_parts[2].strip()
-                jira_api_key = metadata_parts[3].strip()
-            result = db_adapter.set_jira_config_params(jira_url, jira_email, jira_api_key)
-        elif metadata_type.startswith('google_api_config_params '):
+        elif metadata_type.startswith('api_config_params '):
             metadata_parts = metadata_type.split()
             if len(metadata_parts) > 3:
-                type = metadata_parts[1].strip()
+                service_name = metadata_parts[1].strip()
                 key_pairs = " ".join(metadata_parts[2:])
-            result = db_adapter.set_api_config_params(type, key_pairs)
+            result = db_adapter.set_api_config_params(service_name, key_pairs)
         elif metadata_type.startswith('set_model_name '):
             model_name, embedding_model_name = metadata_type.split('set_model_name ')[1].split(' ')[:2]
             # model_name = metadata_type.split('set_model_name ')[1].strip()

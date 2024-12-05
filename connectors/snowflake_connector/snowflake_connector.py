@@ -870,15 +870,16 @@ class SnowflakeConnector(DatabaseConnector):
             list: A list of custom endpionts.
         """
         try:
-            query = dedent(f"""
-                SELECT JIRA_URL, JIRA_EMAIL, JIRA_API_KEY
-                FROM {self.genbot_internal_project_and_schema}.JIRA_API_CONFIG LIMIT 1
-                """)
+
+            query = f"SELECT parameter, value FROM {self.schema}.EXT_SERVICE_CONFIG WHERE ext_service_name = 'jira';"
             cursor = self.client.cursor()
             cursor.execute(query)
-            jira_params = cursor.fetchall()
-            columns = [col[0].lower() for col in cursor.description]
-            jira_params_list = [dict(zip(columns, param)) for param in jira_params]
+            rows = cursor.fetchall()
+
+            if not rows:
+                return False
+
+            jira_params_list = [dict(zip(["parameter", "value"], row)) for row in rows]
             json_data = json.dumps(
                 jira_params_list, default=str
             )
@@ -889,66 +890,42 @@ class SnowflakeConnector(DatabaseConnector):
             err = f"An error occurred while getting jira info: {e}"
             return {"Success": False, "Error": err}
 
-    def set_jira_config_params(self, jira_url, jira_email, jira_api_key):
+
+    def set_api_config_params(self, service_name, key_pairs_str):
         try:
-            insert_query = f"""INSERT INTO {self.genbot_internal_project_and_schema}.JIRA_API_CONFIG (JIRA_URL, JIRA_EMAIL, JIRA_API_KEY)
-            SELECT %s AS jira_url, %s AS jira_email, %s AS jira_api_key
-            WHERE NOT EXISTS (
-                SELECT 1
-                FROM {self.genbot_internal_project_and_schema}.JIRA_API_CONFIG
-                WHERE JIRA_URL = %s
-                AND JIRA_EMAIL = %s
-                AND JIRA_API_KEY = %s
-            );"""
+
             cursor = self.client.cursor()
-            cursor.execute(insert_query, (jira_url, jira_email, jira_api_key, jira_url, jira_email, jira_api_key,))
+            key_pairs = json.loads(key_pairs_str)
 
-            # Commit the changes
-            self.client.commit()
+            for key, value in key_pairs.items():
+                if isinstance(value, str):
 
-            json_data = json.dumps([{'Success': True}])
-            return {"Success": True, "Data": json_data}
-        except Exception as e:
-            err = f"An error occurred while inserting jira api config params: {e}"
-            return {"Success": False, "Data": err}
+                    value = value.replace("\n", "")
 
-    def set_api_config_params(self, type, key_pairs_str):
-        try:
-            if type == 'google':
-
-                cursor = self.client.cursor()
-                key_pairs = json.loads(key_pairs_str)
-
-                for key, value in key_pairs.items():
-                    if isinstance(value, str):
-                        print(
-                            f"Storing {key} in database '{self.genbot_internal_project_and_schema}'.EXT_SERVICE_CONFIG"
-                        )
-                        value = value.replace("\n", "")
-
-                        merge_query = f"""
-                        MERGE INTO {self.genbot_internal_project_and_schema}.EXT_SERVICE_CONFIG AS target
-                        USING (SELECT 'g-sheets' AS ext_service_name, '{key}' AS parameter, '{value}' AS value) AS source
-                        ON target.ext_service_name = source.ext_service_name AND target.parameter = source.parameter
-                        WHEN MATCHED THEN
-                            UPDATE SET
-                                target.value = source.value,
-                                target.updated = CURRENT_TIMESTAMP()
-                        WHEN NOT MATCHED THEN
-                            INSERT (ext_service_name, parameter, value, created, updated)
-                            VALUES (source.ext_service_name, source.parameter, source.value, CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP());
-                        """
-                        cursor.execute(merge_query)
+                    merge_query = f"""
+                    MERGE INTO {self.genbot_internal_project_and_schema}.EXT_SERVICE_CONFIG AS target
+                    USING (SELECT '{service_name}' AS ext_service_name, '{key}' AS parameter, '{value}' AS value) AS source
+                    ON target.ext_service_name = source.ext_service_name AND target.parameter = source.parameter
+                    WHEN MATCHED THEN
+                        UPDATE SET
+                            target.value = source.value,
+                            target.updated = CURRENT_TIMESTAMP()
+                    WHEN NOT MATCHED THEN
+                        INSERT (ext_service_name, parameter, value, created, updated)
+                        VALUES (source.ext_service_name, source.parameter, source.value, CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP());
+                    """
+                    cursor.execute(merge_query)
 
                 # Commit the changes
                 self.client.commit()
 
-                self.create_google_sheets_creds()
+                if service_name == 'g-sheets':
+                    self.create_google_sheets_creds()
 
             json_data = json.dumps([{'Success': True}])
             return {"Success": True, "Data": json_data}
         except Exception as e:
-            err = f"An error occurred while inserting google api config params: {e}"
+            err = f"An error occurred while inserting {service_name} api config params: {e}"
             return {"Success": False, "Data": err}
 
     def create_google_sheets_creds(self):
@@ -1042,6 +1019,10 @@ def get_status(site):
         url = "https://slack.com"  # Replace with the allowed URL
     elif site == 'openai':
         url = "https://api.openai.com/v1/models"  # Replace with the allowed URL
+    elif site == 'google':
+        url = "https://accounts.google.com"  # Replace with the allowed URL
+    elif site == 'jira':
+        url = "https://www.atlassian.net"  # Replace with the allowed URL
     elif site == 'azureopenai':
         url = "https://app.openai.azure.com"  # Replace with the allowed URL
     else:
@@ -1052,7 +1033,7 @@ def get_status(site):
         # Make an HTTP GET request to the allowed URL
         # response = requests.get(url, timeout=10)
         response = requests.options(url)
-        if response.ok:   # alternatively you can use response.status_code == 200
+        if response.ok or response.status_code == 302:   # alternatively you can use response.status_code == 200
             result = "Success"
         else:
             result = f"Failure"

@@ -1,4 +1,5 @@
 import json
+import time
 from api.genesis_base import GenesisBot, GenesisLocalServer, GenesisProject, GenesisProcess, GenesisNote, GenesisKnowledge, LocalMetadataStore, SnowflakeMetadataStore, ToolDefinition
 from api.snowflake_local_server import GenesisLocalSnowflakeServer
 from api.snowflake_remote_server import GenesisSnowflakeServer
@@ -8,6 +9,7 @@ class GenesisAPI:
         self.server_type = server_type
         self.scope = scope
         self.sub_scope = sub_scope
+        self.server_type = server_type
         if server_type == "local":
             if bot_list is not None:
                 raise ValueError("bot_list not supported for local server")
@@ -23,8 +25,21 @@ class GenesisAPI:
             self.registered_server = GenesisSnowflakeServer(scope)
         else:
             raise ValueError("Remote server not supported yet")
+        
     def register_bot(self, bot: GenesisBot):
-        self.metadata_store.insert_or_update_metadata("GenesisBot", bot.bot_id, bot)
+
+        if self.server_type == "local-snowflake":
+            return(self.registered_server.server.make_baby_bot_wrapper(
+                bot_id=bot.get("BOT_ID", None),
+                bot_name=bot.get("BOT_NAME", None),
+                bot_implementation=bot.get("BOT_IMPLEMENTATION", None),
+                files=bot.get("FILES", None),
+                available_tools=bot.get("AVAILABLE_TOOLS", None),
+                bot_instructions=bot.get("BOT_INSTRUCTIONS", None)
+            ))
+
+        self.metadata_store.insert_or_update_metadata("GenesisBot", bot["BOT_ID"], bot)
+        
     def get_bot(self, bot_id) -> GenesisBot:
         return self.metadata_store.get_metadata("GenesisBot", bot_id)
     def get_all_bots(self) -> list[str]:
@@ -86,8 +101,17 @@ class GenesisAPI:
 
     def add_message(self, bot_id, message:str, thread_id=None) -> dict:
         return self.registered_server.add_message(bot_id, message=message, thread_id=thread_id)
-    def get_response(self, bot_id, request_id=None) -> str:
-        return self.registered_server.get_message(bot_id, request_id)
+    def get_response(self, bot_id, request_id=None, timeout_seconds=None) -> str:
+        time_start = time.time()
+        while timeout_seconds is None or time.time() - time_start < timeout_seconds:
+            response = self.registered_server.get_message(bot_id, request_id)
+            if response is not None and not response.endswith("💬"):
+                return response
+            time.sleep(1)
+        return None
+    
+
+    
 
     def shutdown(self):
         self.registered_server.shutdown()

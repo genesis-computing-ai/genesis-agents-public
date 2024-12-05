@@ -15,7 +15,7 @@ import threading
 
 from demo.sessions_creator import create_sessions, make_session
 
-from bot_genesis.make_baby_bot import (  get_bot_details ) 
+from bot_genesis.make_baby_bot import (  get_bot_details, make_baby_bot ) 
 
 from core.logging_config import logger
 
@@ -92,6 +92,35 @@ class BotOsServer:
                 )
             else:
                 logger.info('Slack refresh token failed, token is None')
+
+    def make_baby_bot_wrapper(self, bot_id, bot_name, bot_implementation, files, available_tools, bot_instructions):
+        try:
+            # Handle string representation of list
+            if isinstance(available_tools, str) and available_tools.startswith('['):
+                # Remove brackets and quotes, then split
+                available_tools = available_tools.strip('[]').replace('"', '').replace("'", '').split(',')
+            
+            if isinstance(available_tools, list):
+                available_tools = ','.join(tool.strip() for tool in available_tools)
+            
+            bot_details = get_bot_details(bot_id)
+            update_existing = True if bot_details else False
+            
+            return make_baby_bot(
+                    bot_id=bot_id,
+                    bot_name=bot_name,
+                    bot_implementation=bot_implementation,
+                    files=files,
+                    available_tools=available_tools,
+                    bot_instructions=bot_instructions,
+                    confirmed='CONFIRMED',
+                    update_existing=update_existing
+                )
+
+        except Exception as e:
+            logger.error(f"Error in make_baby_bot_wrapper: {e}")
+            return None
+
 
     def add_session(self, session: BotOsSession, replace_existing=False):
         logger.info("At add_Session, replace_existing is ", replace_existing)

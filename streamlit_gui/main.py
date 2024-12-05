@@ -124,21 +124,21 @@ if 'data' not in st.session_state:
 
 # st.success('NativeMode1 '+str(st.session_state.NativeMode))
 session = None
-# if st.session_state.NativeMode:
-    # try:
-    # #    st.success('NativeMode2a')
-    #     service_status_result = check_status()
-    #  #   st.success('NativeMode2b '+str(service_status_result))
-    #     if service_status_result is None:
-    #         st.session_state["data"] = "Local Mode"
-    #         st.session_state.NativeMode = False
-    #     else:
-    #         st.session_state["data"] = service_status_result
-    #         session = get_session()
-    # except Exception as e:
-    #     st.session_state["data"] = None
-# else:
-    # st.session_state["data"] = "Local Mode"
+if st.session_state.NativeMode:
+    try:
+    #    st.success('NativeMode2a')
+        service_status_result = check_status()
+     #   st.success('NativeMode2b '+str(service_status_result))
+        if service_status_result is None:
+            st.session_state["data"] = "Local Mode"
+            st.session_state.NativeMode = False
+        else:
+            st.session_state["data"] = service_status_result
+            session = get_session()
+    except Exception as e:
+        st.session_state["data"] = None
+else:
+    st.session_state["data"] = "Local Mode"
 
 
 if 'show_log_config' not in st.session_state:
@@ -258,20 +258,7 @@ if st.session_state.NativeMode:
     try:
         # status_query = f"select v.value:status::varchar status from (select parse_json(system$get_service_status('{prefix}.GENESISAPP_SERVICE_SERVICE'))) t, lateral flatten(input => t.$1) v"
         # service_status_result = session.sql(status_query).collect()
-        # service_status_result = check_status()
-
-        try:
-        #    st.success('NativeMode2a')
-            service_status_result = check_status()
-        #   st.success('NativeMode2b '+str(service_status_result))
-            if service_status_result is None:
-                st.session_state["data"] = "Local Mode"
-                st.session_state.NativeMode = False
-            else:
-                st.session_state["data"] = service_status_result
-                session = get_session()
-        except Exception as e:
-            st.session_state["data"] = None
+        service_status_result = check_status()
 
     #    st.success('NativeMode3 '+str(service_status_result))
        # st.success('NativeMode3 '+str(service_status_result))

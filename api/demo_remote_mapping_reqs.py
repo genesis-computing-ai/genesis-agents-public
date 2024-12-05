@@ -180,7 +180,7 @@ def setup_paths(physical_column_name):
         'stage_base': stage_base,
         'base_git_path': base_git_path,
         'source_research_file': f"{physical_column_name}__source_research.txt",
-        'mapping_proposal_file': f"{physical_column_name}__source_research.txt",
+        'mapping_proposal_file': f"{physical_column_name}__mapping_proposal.txt",
         'confidence_report_file': f"{physical_column_name}__confidence_report.txt"
     }
 
@@ -249,7 +249,12 @@ def perform_source_research(client, requirement, paths, bot_id):
    #         raise Exception("Failed to put placeholder source research file to stage")
 
         research_prompt = f'''Here are requirements for a target field I want you to work on: {requirement}\n
-        Delegate to the SourceResourceBot microbot and tell them to research this field and save the results in git at: {paths["base_git_path"]}{paths["source_research_file"]}\n
+        Delegate to the SourceResearchBot microbot and tell them to research this field and save the results in git at: {paths["base_git_path"]}{paths["source_research_file"]}\n
+     
+        Tell the microbot that there are two past projects to use in its past project consideration step, stored in git at:
+        1. in git at: knowledge/past_projects/loan_data_project.txt
+        2. in git at: knowledge/past_projects/loan_lending_project.txt
+
         Then validate the microbot has saved the report in the right place, if so return SUCCESS.  If not return FAILURE.
         This is being run by an automated process, so do not repeat these instructions back to me, simply proceed to execute them without asking for further approval.'''
         

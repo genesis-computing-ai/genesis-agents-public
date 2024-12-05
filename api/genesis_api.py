@@ -1,8 +1,9 @@
 import json
-import time
+import time, os
 from api.genesis_base import GenesisBot, GenesisLocalServer, GenesisProject, GenesisProcess, GenesisNote, GenesisKnowledge, LocalMetadataStore, SnowflakeMetadataStore, ToolDefinition
 from api.snowflake_local_server import GenesisLocalSnowflakeServer
 from api.snowflake_remote_server import GenesisSnowflakeServer
+import core.global_flags as global_flags
 
 class GenesisAPI:
     def __init__(self, server_type, scope, sub_scope="app1", bot_list=None):
@@ -25,6 +26,17 @@ class GenesisAPI:
             self.registered_server = GenesisSnowflakeServer(scope)
         else:
             raise ValueError("Remote server not supported yet")
+        genbot_internal_project_and_schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "None")
+        if genbot_internal_project_and_schema == "None":
+            print("ENV Variable GENESIS_INTERNAL_DB_SCHEMA is not set.")
+        if genbot_internal_project_and_schema is not None:
+            genbot_internal_project_and_schema = genbot_internal_project_and_schema.upper()
+        db_schema = genbot_internal_project_and_schema.split(".")
+        project_id = db_schema[0]
+        global_flags.project_id = project_id
+        dataset_name = db_schema[1]
+        global_flags.genbot_internal_project_and_schema = genbot_internal_project_and_schema
+
         
     def register_bot(self, bot: GenesisBot):
 

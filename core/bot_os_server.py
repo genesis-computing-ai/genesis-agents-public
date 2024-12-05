@@ -106,6 +106,7 @@ class BotOsServer:
             bot_details = get_bot_details(bot_id)
             update_existing = True if bot_details else False
             
+            
             make_baby_bot(
                     bot_id=bot_id,
                     bot_name=bot_name,
@@ -114,7 +115,8 @@ class BotOsServer:
                     available_tools=available_tools,
                     bot_instructions=bot_instructions,
                     confirmed='CONFIRMED',
-                    update_existing=update_existing
+                    update_existing=update_existing,
+                    api_bot_update=update_existing
                 )
 
             bot_config = get_bot_details(bot_id)

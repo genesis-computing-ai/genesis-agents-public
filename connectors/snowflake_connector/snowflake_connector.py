@@ -3355,6 +3355,71 @@ def get_status(site):
             )
             raise e
 
+
+    def db_update_existing_bot_basics(
+        self,
+        bot_id,
+        bot_name,
+        bot_implementation,
+        files,
+        available_tools,
+        bot_instructions,
+        project_id,
+        dataset_name,
+        bot_servicing_table,
+    ):
+        """
+        Updates basic bot configuration fields in the BOT_SERVICING table.
+
+        Args:
+            bot_id (str): The unique identifier for the bot.
+            bot_name (str): The name of the bot.
+            bot_implementation (str): openai or cortex or ...
+            files (json-embedded list): A list of files to include with the bot.
+            available_tools (list): List of tools available to the bot.
+            bot_instructions (str): Instructions for the bot.
+            project_id (str): The Snowflake project ID.
+            dataset_name (str): The Snowflake dataset name.
+            bot_servicing_table (str): The name of the bot servicing table.
+        """
+        # validate inputs
+        bot_implementation = BotLlmEngineEnum(bot_implementation).value if bot_implementation else None
+
+        available_tools_string = json.dumps(available_tools)
+        files_string = json.dumps(files) if not isinstance(files, str) else files
+
+        update_query = f"""
+            UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
+            SET BOT_NAME = %s,
+                BOT_IMPLEMENTATION = %s,
+                FILES = %s,
+                AVAILABLE_TOOLS = %s,
+                BOT_INSTRUCTIONS = %s
+            WHERE upper(BOT_ID) = upper(%s)
+        """
+
+        try:
+            self.client.cursor().execute(
+                update_query,
+                (
+                    bot_name,
+                    bot_implementation,
+                    files_string,
+                    available_tools_string,
+                    bot_instructions,
+                    bot_id,
+                ),
+            )
+            self.client.commit()
+            logger.info(
+                f"Successfully updated basic bot configuration for bot_id: {bot_id}"
+            )
+        except Exception as e:
+            logger.info(
+                f"Failed to update basic bot configuration for bot_id: {bot_id} with error: {e}"
+            )
+            raise e
+
     def db_update_bot_details(
         self,
         bot_id,

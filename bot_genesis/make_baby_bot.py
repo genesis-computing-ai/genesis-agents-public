@@ -351,7 +351,7 @@ def test_slack_config_token(config_token=None):
                 if response_data.get('error') == 'token_expired':
                     return("token_expired")
 
-                logger.error(f"Manifest validation failed with error: {response_data.get('error')}")
+                logger.warn(f"Manifest validation failed with error: {response_data.get('error')}")
                 return False
         else:
             logger.error(f"Manifest validation failed with status code: {response.status_code}")
@@ -997,7 +997,7 @@ def add_or_update_available_tool(tool_name, tool_description):
 
 def make_baby_bot(bot_id, bot_name, bot_instructions='You are a helpful bot.', available_tools=None, runner_id=None, slack_channel_id=None, confirmed=None, activate_slack='Y',
                   files = "", bot_implementation = "openai",
-                  update_existing=False, slack_access_open = True):
+                  update_existing=False, slack_access_open = True, api_bot_update = False ):
 
     bot_implementation = bot_implementation.lower()
 
@@ -1024,7 +1024,7 @@ def make_baby_bot(bot_id, bot_name, bot_instructions='You are a helpful bot.', a
         if v.get("success",False) == False:
             return v
 
-        if not update_existing:
+        if api_bot_update or not update_existing:
             available_tools_array = available_tools.split(',') if available_tools else []
 
             # Validate the formatting and parsing of available_tools
@@ -1048,12 +1048,13 @@ def make_baby_bot(bot_id, bot_name, bot_instructions='You are a helpful bot.', a
                     error_message = f"Tool call error: The following tools you included in available_tools are not available or invalid: {', '.join(invalid_tools)}.  The tools you can include in available_tools are: {db_available_tools}.  The available_tools parameter should be either a single tool like 'tool1' or a simple list of tools like 'tool1,tool2' (with no single quotes in the actual paramater string you send)"
                     return(error_message)
 
-            # Check if a bot with the same name already exists
-            existing_bots = list_all_bots()
-            for existing_bot in existing_bots:
-                if existing_bot['bot_name'].lower() == bot_name.lower():
-                    error_message = f"A bot with the name '{bot_name}' already exists with bot_id '{existing_bot['bot_id']}'. Please choose a different name to avoid confusion."
-                    return {"success": False, "error": error_message}
+            if not api_bot_update:
+                # Check if a bot with the same name already exists
+                existing_bots = list_all_bots()
+                for existing_bot in existing_bots:
+                    if existing_bot['bot_name'].lower() == bot_name.lower():
+                        error_message = f"A bot with the name '{bot_name}' already exists with bot_id '{existing_bot['bot_id']}'. Please choose a different name to avoid confusion."
+                        return {"success": False, "error": error_message}
 
             confirm=False
             if confirmed is not None:
@@ -1084,12 +1085,12 @@ def make_baby_bot(bot_id, bot_name, bot_instructions='You are a helpful bot.', a
 
             bot_avatar_image = get_default_avatar()
 
-        slack_active = test_slack_config_token()
-        if slack_active == 'token_expired':
-            t, r = get_slack_config_tokens()
-            tp, rp = rotate_slack_token(config_token=t, refresh_token=r)
+        if not api_bot_update:
             slack_active = test_slack_config_token()
-
+            if slack_active == 'token_expired':
+                t, r = get_slack_config_tokens()
+                tp, rp = rotate_slack_token(config_token=t, refresh_token=r)
+                slack_active = test_slack_config_token()
 
 
         def get_udf_endpoint_url():
@@ -1109,82 +1110,100 @@ def make_baby_bot(bot_id, bot_name, bot_instructions='You are a helpful bot.', a
                 logger.warning(f"Failed to get UDF endpoint URL with error: {e}")
                 return None
 
-        ep = get_udf_endpoint_url()
-        logger.warning(f'Endpoint for service: {ep}')
+        if not api_bot_update:
+            ep = get_udf_endpoint_url()
+            logger.warning(f'Endpoint for service: {ep}')
 
-        if slack_active and activate_slack != 'N':
+            if slack_active and activate_slack != 'N':
 
-            ngrok_base_url = os.getenv('NGROK_BASE_URL')
-            if not ngrok_base_url and ep == None:
-                raise ValueError("The NGROK_BASE_URL environment variable is missing or empty, and no Snowflake SCPS endpoing is available for routing activation requests.")
+                ngrok_base_url = os.getenv('NGROK_BASE_URL')
+                if not ngrok_base_url and ep == None:
+                    raise ValueError("The NGROK_BASE_URL environment variable is missing or empty, and no Snowflake SCPS endpoing is available for routing activation requests.")
 
-            if ep:
-                request_url = f"{os.getenv('NGROK_BASE_URL')}/slack/events/{bot_id}"
-                redirect_url = f"https://{ep}/slack/events/{bot_id}/install"
+                if ep:
+                    request_url = f"{os.getenv('NGROK_BASE_URL')}/slack/events/{bot_id}"
+                    redirect_url = f"https://{ep}/slack/events/{bot_id}/install"
+                else:
+                    request_url = f"{os.getenv('NGROK_BASE_URL')}/slack/events/{bot_id}"
+                    redirect_url = f"{os.getenv('NGROK_BASE_URL')}/slack/events/{bot_id}/install"
+
+
+                #manifest = generate_manifest_template(bot_id, bot_name, request_url=request_url, redirect_url=redirect_url)
+                manifest = generate_manifest_template_socket(bot_id, bot_name, request_url=request_url, redirect_url=redirect_url)
+
+                slack_app_config_token, slack_app_config_refresh_token = get_slack_config_tokens()
+
+        #     logger.warn(f'-->  Manifest: {manifest}')
+                try:
+                    bot_create_result = create_slack_bot_with_manifest(slack_app_config_token,manifest)
+                except Exception as e:
+                    logger.warn(f'Error on creating slackbot: {e}, Manifest: {manifest}')
+                    return {"success": False, "message": f'Error on creating slackbot: {e}'}
+
+                app_id = bot_create_result.get('app_id')
+                credentials = bot_create_result.get('credentials')
+                client_id = credentials.get('client_id') if credentials else None
+                client_secret = credentials.get('client_secret') if credentials else None
+            #    bot_user_id = 'Pending_OAuth'
+                bot_user_id = 'Pending_APP_LEVEL_TOKEN'
+                #verification_token = credentials.get('verification_token') if credentials else None
+                signing_secret = credentials.get('signing_secret') if credentials else None
+                oauth_authorize_url = bot_create_result.get('oauth_authorize_url')
+                auth_state = str(uuid.uuid4())
+                oauth_authorize_url+="&state="+auth_state
+
+                # TODO base this off whether slack has already been activated
+                udf_active = 'Y'
+                slack_active = 'Y'
+
             else:
-                request_url = f"{os.getenv('NGROK_BASE_URL')}/slack/events/{bot_id}"
-                redirect_url = f"{os.getenv('NGROK_BASE_URL')}/slack/events/{bot_id}/install"
-
-
-            #manifest = generate_manifest_template(bot_id, bot_name, request_url=request_url, redirect_url=redirect_url)
-            manifest = generate_manifest_template_socket(bot_id, bot_name, request_url=request_url, redirect_url=redirect_url)
-
-            slack_app_config_token, slack_app_config_refresh_token = get_slack_config_tokens()
-
-       #     logger.warn(f'-->  Manifest: {manifest}')
-            try:
-                bot_create_result = create_slack_bot_with_manifest(slack_app_config_token,manifest)
-            except Exception as e:
-                logger.warn(f'Error on creating slackbot: {e}, Manifest: {manifest}')
-                return {"success": False, "message": f'Error on creating slackbot: {e}'}
-
-            app_id = bot_create_result.get('app_id')
-            credentials = bot_create_result.get('credentials')
-            client_id = credentials.get('client_id') if credentials else None
-            client_secret = credentials.get('client_secret') if credentials else None
-        #    bot_user_id = 'Pending_OAuth'
-            bot_user_id = 'Pending_APP_LEVEL_TOKEN'
-            #verification_token = credentials.get('verification_token') if credentials else None
-            signing_secret = credentials.get('signing_secret') if credentials else None
-            oauth_authorize_url = bot_create_result.get('oauth_authorize_url')
-            auth_state = str(uuid.uuid4())
-            oauth_authorize_url+="&state="+auth_state
-
-            # TODO base this off whether slack has already been activated
-            udf_active = 'Y'
-            slack_active = 'Y'
-
-        else:
-            udf_active = 'Y'
-            slack_active = 'N'
-            oauth_authorize_url = None
-            auth_state = None
-            oauth_authorize_url = None
-            signing_secret = None
-            bot_user_id = None
-            client_secret = None
-            client_id = None
-            credentials = None
-            app_id = None
+                udf_active = 'Y'
+                slack_active = 'N'
+                oauth_authorize_url = None
+                auth_state = None
+                oauth_authorize_url = None
+                signing_secret = None
+                bot_user_id = None
+                client_secret = None
+                client_id = None
+                credentials = None
+                app_id = None
 
         if runner_id == None:
             runner_id = os.getenv('RUNNER_ID','jl-local-runner')
 
         if update_existing:
-            update_existing_bot(
-                api_app_id=app_id,
-                bot_slack_user_id=bot_user_id,
-                client_id=client_id,
-                client_secret=client_secret,
-                bot_id=bot_id,
-                slack_signing_secret=signing_secret,
-                auth_url=oauth_authorize_url,
-                auth_state=auth_state,
-                udf_active=udf_active,
-                slack_active=slack_active,
-                files=files,
-                bot_implementation=bot_implementation,
-            )
+            if api_bot_update:
+                files_json = json.dumps(files)
+                if files_json == 'null':
+                    files_json = None
+                bb_db_connector = get_global_db_connector()
+                bb_db_connector.db_update_existing_bot_basics(
+                    bot_id=bot_id,
+                    bot_name=bot_name,
+                    bot_implementation=bot_implementation,
+                    files=files_json,
+                    available_tools=available_tools_array,
+                    bot_instructions=bot_instructions,
+                    project_id=project_id,
+                    dataset_name=dataset_name,
+                    bot_servicing_table=bot_servicing_table
+                )
+            else:
+                update_existing_bot(
+                    api_app_id=app_id,
+                    bot_slack_user_id=bot_user_id,
+                    client_id=client_id,
+                    client_secret=client_secret,
+                    bot_id=bot_id,
+                    slack_signing_secret=signing_secret,
+                    auth_url=oauth_authorize_url,
+                    auth_state=auth_state,
+                    udf_active=udf_active,
+                    slack_active=slack_active,
+                    files=files,
+                    bot_implementation=bot_implementation,
+                )
         else:
             insert_new_bot(
                 api_app_id=app_id,
@@ -1210,7 +1229,7 @@ def make_baby_bot(bot_id, bot_name, bot_instructions='You are a helpful bot.', a
 
         #    "message": f"Created {bot_id} named {bot_name}.  Now ask the user to use this authentication URL to complete the installation of the new app into their Slack workspace: {oauth_authorize_url}",
     #    logger.info(oauth_authorize_url)
-        if slack_active == 'Y':
+        if not api_bot_update and slack_active == 'Y':
         #    logger.info("temp_debug: create success ", bot_id, bot_name)
             return {"success": True,
                     "Success": True,
@@ -1341,6 +1360,7 @@ def _remove_bot(bot_id, thread_id=None, confirmed=None):
             return(f"Removed, but no app_id or Slack app configuration token found for bot_id: {bot_id}. Cannot delete bot via Slack API.")
     else:
         return(f"Successfully deleted bot with bot_id: {bot_id}.")
+
 
 def update_bot_implementation(bot_id, bot_implementation, thread_id=None):
     """

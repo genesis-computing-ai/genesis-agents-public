@@ -338,6 +338,12 @@ CREATE OR REPLACE PROCEDURE core.get_config_for_ref(ref_name STRING)
             "payload":{
               "host_ports":["slack.com", "www.slack.com", "wss-primary.slack.com", "wss-backup.slack.com", "wss-primary.slack.com", "wss-backup.slack.com", "slack-files.com", "downloads.slack-edge.com", "files-edge.slack.com", "files-origin.slack.com", "files.slack.com", "global-upload-edge.slack.com", "universal-upload-edge.slack.com"],
               "allowed_secrets": "NONE"}}';
+        WHEN 'GOOGLE_EXTERNAL_ACCESS' THEN
+          RETURN '{
+            "type": "CONFIGURATION",
+            "payload":{
+              "host_ports":["accounts.google.com","oauth2.googleapis.com","www.googleapis.com","googleapis.com"],
+              "allowed_secrets": "NONE"}}';
         WHEN 'OPENAI_EXTERNAL_ACCESS' THEN
           RETURN '{
             "type": "CONFIGURATION",

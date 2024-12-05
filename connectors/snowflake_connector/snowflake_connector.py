@@ -15,12 +15,16 @@ import pkgutil
 import inspect
 import functools
 
+from markdown import markdown
+
 from llm_openai.openai_utils import get_openai_client
 
 from ..database_connector import DatabaseConnector, llm_keys_and_types_struct
 from .sematic_model_utils import *
 from .stage_utils import add_file_to_stage, read_file_from_stage, update_file_in_stage, delete_file_from_stage, list_stage_contents, test_stage_functions
 from .ensure_table_exists import ensure_table_exists, one_time_db_fixes, get_process_info, get_processes_list
+
+from google_sheets.g_sheets import output_to_google_docs
 
 from core.bot_os_llm import BotLlmEngineEnum
 
@@ -39,6 +43,27 @@ import jwt
 from core.logging_config import logging, logger
 
 from snowflake.connector import SnowflakeConnection
+
+def dict_list_to_markdown_table(data):
+    """
+    Convert a list of dictionaries to a Markdown table string.
+    Args:
+        data (list): The list of dictionaries to convert.
+    Returns:
+        str: The Markdown table string.
+    """
+    if not data:
+        return ""
+
+    headers = list(data[0].keys())
+
+    table = "| " + " | ".join(headers) + " |\n"
+    table += "| " + " | ".join(["---"] * len(headers)) + " |\n"
+
+    for row in data:
+        table += "| " + " | ".join(map(str, row.values())) + " |\n"
+
+    return table
 
 class SnowflakeConnector(DatabaseConnector):
     def __init__(self, connection_name, bot_database_creds=None):
@@ -162,7 +187,6 @@ class SnowflakeConnector(DatabaseConnector):
     def test_stage_functions():
         return test_stage_functions()
 
-
     @functools.cached_property
     def is_using_local_runner(self):
         val = os.environ.get('GENESIS_LOCAL_RUNNER', None)
@@ -172,7 +196,6 @@ class SnowflakeConnector(DatabaseConnector):
             else:
                 logger.warning(f"Ignoring invalid value for env var GENESIS_LOCAL_RUNNER = {val} (expected 'TRUE')")
         return False
-
 
     # def process_scheduler(self,action, bot_id, task_id=None, task_details=None, thread_id=None, history_rows=10):
     #     process_scheduler(self, action, bot_id, task_id=None, task_details=None, thread_id=None, history_rows=10)
@@ -234,7 +257,7 @@ class SnowflakeConnector(DatabaseConnector):
                     os.environ['CORTEX_MODEL'] = 'llama3.1-70b'
                     os.environ['CORTEX_AVAILABLE'] = 'True'
                 else:
-                    #TODO remove llmkey handler from this file
+                    # TODO remove llmkey handler from this file
                     os.environ['CORTEX_MODE'] = 'False'
                     os.environ['CORTEX_AVAILABLE'] = 'False'
                     raise(e)
@@ -262,13 +285,13 @@ class SnowflakeConnector(DatabaseConnector):
             return False
         response, status_code  = self.cortex_chat_completion("Hi there", test=True)
         if status_code != 200:
-           # logger.info(f"Failed to connect to Cortex API. Status code: {status_code} RETRY 1")
+            # logger.info(f"Failed to connect to Cortex API. Status code: {status_code} RETRY 1")
             response, status_code  = self.cortex_chat_completion("Hi there", test=True)
             if status_code != 200:
-             #   logger.info(f"Failed to connect to Cortex API. Status code: {status_code} RETRY 2")
+                #   logger.info(f"Failed to connect to Cortex API. Status code: {status_code} RETRY 2")
                 response, status_code  = self.cortex_chat_completion("Hi there",test=True)
                 if status_code != 200:
-              #      logger.info(f"Failed to connect to Cortex API. Status code: {status_code} FAILED AFTER 3 TRIES")
+                    #      logger.info(f"Failed to connect to Cortex API. Status code: {status_code} FAILED AFTER 3 TRIES")
                     return False
 
         if len(response) > 2:
@@ -324,7 +347,7 @@ class SnowflakeConnector(DatabaseConnector):
                     try:
                         decoded_line = line.decode('utf-8')
                         if not decoded_line.strip():
-                     #       logger.info("Received an empty line.")
+                            #       logger.info("Received an empty line.")
                             continue
                         if decoded_line.startswith("data: "):
                             decoded_line = decoded_line[len("data: "):]
@@ -332,7 +355,7 @@ class SnowflakeConnector(DatabaseConnector):
                         if 'choices' in event_data:
                             d = event_data['choices'][0]['delta'].get('content','')
                             curr_resp += d
-                  #          logger.info(d)
+                    #          logger.info(d)
                     except json.JSONDecodeError as e:
                         logger.info(f"Error decoding JSON: {e}")
                         continue
@@ -737,7 +760,6 @@ class SnowflakeConnector(DatabaseConnector):
             err = f"An error occurred while getting llm info: {e}"
             return {"Success": False, "Error": err}
 
-
     def check_eai_assigned(self):
         """
         Retrieves the eai list if set.
@@ -828,7 +850,7 @@ class SnowflakeConnector(DatabaseConnector):
             cursor = self.client.cursor()
             cursor.execute(insert_query, (group_name, endpoint_name, type, group_name, endpoint_name, type,))
 
-        # Commit the changes
+            # Commit the changes
             self.client.commit()
 
             json_data = json.dumps([{'Success': True}])
@@ -861,7 +883,7 @@ class SnowflakeConnector(DatabaseConnector):
             return {"Success": True, "Data": json_data}
 
         except Exception as e:
-            err = f"An error occurred while getting llm info: {e}"
+            err = f"An error occurred while getting jira info: {e}"
             return {"Success": False, "Error": err}
 
     def set_jira_config_params(self, jira_url, jira_email, jira_api_key):
@@ -878,7 +900,7 @@ class SnowflakeConnector(DatabaseConnector):
             cursor = self.client.cursor()
             cursor.execute(insert_query, (jira_url, jira_email, jira_api_key, jira_url, jira_email, jira_api_key,))
 
-        # Commit the changes
+            # Commit the changes
             self.client.commit()
 
             json_data = json.dumps([{'Success': True}])
@@ -1093,7 +1115,7 @@ def get_status(site):
                 """
                 cursor.execute(create_table_query)
 
-            # Insert or update the default email
+                # Insert or update the default email
                 upsert_query = f"""
                 MERGE INTO {self.genbot_internal_project_and_schema}.DEFAULT_EMAIL t
                 USING (SELECT %s AS email) s
@@ -1105,7 +1127,7 @@ def get_status(site):
                 """
                 cursor.execute(upsert_query, (email_addr,))
 
-            # Commit the changes
+                # Commit the changes
                 self.client.commit()
 
             return {"Success": True, "Data": json_data}
@@ -1621,7 +1643,6 @@ def get_status(site):
     #     connection = snowflake.connector.connect(**creds)
     #     return connection
 
-
     def _create_connection(self):
         # Snowflake token testing
         self.token_connection = False
@@ -1630,12 +1651,12 @@ def get_status(site):
         SNOWFLAKE_HOST = os.getenv("SNOWFLAKE_HOST", None)
         logger.info("Checking possible SPCS ENV vars -- Account, Host: {}, {}".format(SNOWFLAKE_ACCOUNT, SNOWFLAKE_HOST))
 
-   #     logger.info("SNOWFLAKE_HOST: %s", os.getenv("SNOWFLAKE_HOST"))
-   #     logger.info("SNOWFLAKE_ACCOUNT: %s", os.getenv("SNOWFLAKE_ACCOUNT"))
-   #     logger.info("SNOWFLAKE_PORT: %s", os.getenv("SNOWFLAKE_PORT"))
+        #     logger.info("SNOWFLAKE_HOST: %s", os.getenv("SNOWFLAKE_HOST"))
+        #     logger.info("SNOWFLAKE_ACCOUNT: %s", os.getenv("SNOWFLAKE_ACCOUNT"))
+        #     logger.info("SNOWFLAKE_PORT: %s", os.getenv("SNOWFLAKE_PORT"))
         #  logger.warn('SNOWFLAKE_WAREHOUSE: %s', os.getenv('SNOWFLAKE_WAREHOUSE'))
-   #     logger.info("SNOWFLAKE_DATABASE: %s", os.getenv("SNOWFLAKE_DATABASE"))
-   #     logger.info("SNOWFLAKE_SCHEMA: %s", os.getenv("SNOWFLAKE_SCHEMA"))
+        #     logger.info("SNOWFLAKE_DATABASE: %s", os.getenv("SNOWFLAKE_DATABASE"))
+        #     logger.info("SNOWFLAKE_SCHEMA: %s", os.getenv("SNOWFLAKE_SCHEMA"))
 
         if (SNOWFLAKE_ACCOUNT and SNOWFLAKE_HOST and os.getenv("SNOWFLAKE_PASSWORD_OVERRIDE", None) == None):
             # token based connection from SPCS
@@ -1801,7 +1822,7 @@ def get_status(site):
         return columns
 
     def alt_get_ddl(self,table_name = None):
-        #logger.info(table_name)
+        # logger.info(table_name)
         describe_query = f"DESCRIBE TABLE {table_name};"
         try:
             describe_result = self.run_query(query=describe_query, max_rows=1000, max_rows_override=True)
@@ -1822,7 +1843,7 @@ def get_status(site):
                 key = " UNIQUE"
             ddl_statement += f"    {column_name} {column_type}{nullable}{default}{key}{comment},\n"
         ddl_statement = ddl_statement.rstrip(',\n') + "\n);"
-        #logger.info(ddl_statement)
+        # logger.info(ddl_statement)
         return ddl_statement
 
     def get_sample_data(self, database, schema_name: str, table_name: str):
@@ -1918,7 +1939,6 @@ def get_status(site):
         except Exception as e:
             logger.warning(f"Failed to grant workspace {workspace_schema_name} objects to {grant_fragment}: {e}")
 
-
     def get_cortex_search_service(self):
         """
         Executes a query to retrieve a summary of the harvest results, including the source name, database name, schema name,
@@ -1980,7 +2000,6 @@ def get_status(site):
                         backend=default_backend()
                     )
 
-
                 public_key_raw = private_key.public_key().public_bytes(serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo)
                 # Get the sha256 hash of the raw bytes.
                 sha256hash = hashlib.sha256()
@@ -2032,7 +2051,6 @@ def get_status(site):
             # service_name = 'HARVEST_SEARCH_SERVICE'.lower()
             api_endpoint = f'https://{self.client.host}/api/v2/databases/{self.database}/schemas/{schema}/cortex-search-services/{service_name}:query'
 
-
             payload = {"query": query, "limit": top_n}
             private_key_path = ".keys/rsa_key.p8"
             account = os.getenv("SNOWFLAKE_ACCOUNT_OVERRIDE")
@@ -2046,8 +2064,6 @@ def get_status(site):
         except Exception as e:
             print ("Bottom of function -- Error calling Cortex Search Rest API, ",e)
             return False, False
-
-
 
         return
 
@@ -2065,6 +2081,7 @@ def get_status(site):
         note_name = None,
         note_type = None,
         max_field_size = 5000,
+        export_to_google_doc = False,
     ):
         """
         Executes a SQL query on Snowflake, with support for parameterized queries.
@@ -2099,7 +2116,6 @@ def get_status(site):
                 "error": "Either a query or a note_id must be provided, but not both, and not neither.",
             }
 
-
         try:
             if note_id is not None or note_name is not None:
                 note_id = '' if note_id is None else note_id
@@ -2110,7 +2126,7 @@ def get_status(site):
                 query_cursor = cursor.fetchone()
 
                 if query_cursor is None:
-                        return {
+                    return {
                         "success": False,
                         "error": "Note not found.",
                         }
@@ -2242,7 +2258,7 @@ def get_status(site):
                 results = updated_results
 
             sample_data = [dict(zip(columns, row)) for row in results]
-         #   logger.info('query results: ',sample_data)
+            #   logger.info('query results: ',sample_data)
 
             # Replace occurrences of triple backticks with triple single quotes in sample data
             sample_data = [
@@ -2261,11 +2277,14 @@ def get_status(site):
             cursor.close()
             raise e
 
-        # logger.info('returning result: ', sample_data)
         cursor.close()
 
-        return sample_data
+        if export_to_google_doc:
+            print_string = dict_list_to_markdown_table(sample_data)
+            filename = output_to_google_docs(print_string)
+            return {"Success": True, "result": "Data sent to Google Docs - Filename: " + filename}
 
+        return sample_data
 
     def db_list_all_bots(
         self,
@@ -3445,7 +3464,6 @@ def get_status(site):
                 f"Failed to select default image data from the shared with error: {e}"
             )
 
-
     def db_get_endpoint_ingress_url(self, endpoint_name: str) -> str:
         """
         Retrieves the ingress URL for a specified endpoint registered within the Genesis (native) App service.
@@ -3473,7 +3491,6 @@ def get_status(site):
         except Exception as e:
             logger.warning(f"Failed to get {endpoint_name} endpoint URL with error: {e}")
             return None
-
 
     def image_generation(self, prompt, thread_id=None):
 
@@ -3806,8 +3823,6 @@ def get_status(site):
         total_rows_result_native = cursor.fetchone()
         total_rows_native = total_rows_result_native[0]
 
-
-
         if total_rows_openai >= total_rows_native:
             embedding_column = 'embedding'
         else:
@@ -3820,7 +3835,7 @@ def get_status(site):
             while True:
                 # Modify the query to include LIMIT and OFFSET
                 query = f"SELECT qualified_table_name, {embedding_column} FROM {table_id} WHERE {embedding_column} IS NOT NULL LIMIT {batch_size} OFFSET {offset}"
-    #            logger.info('fetch query ',query)
+                #            logger.info('fetch query ',query)
 
                 cursor.execute(query)
                 rows = cursor.fetchall()
@@ -3864,8 +3879,8 @@ def get_status(site):
                 offset += batch_size
 
         cursor.close()
-    #   logger.info('table names ',table_names)
-    #   logger.info('embeddings len ',len(embeddings))
+        #   logger.info('table names ',table_names)
+        #   logger.info('embeddings len ',len(embeddings))
         return table_names, embeddings
 
     def generate_filename_from_last_modified(self, table_id):
@@ -3886,12 +3901,11 @@ def get_status(site):
                 result = None
             cursor.close()
 
-
             # Ensure we have a valid result and last_crawled_time is not None
             if not result or result[0]['last_crawled_time'] is None:
                 raise ValueError("No data crawled - This is expected on fresh install.")
                 return('NO_DATA_CRAWLED')
-                #raise ValueError("Table last crawled timestamp is None. Unable to generate filename.")
+                # raise ValueError("Table last crawled timestamp is None. Unable to generate filename.")
 
             # The `last_crawled_time` attribute should be a datetime object. Format it.
             last_crawled_time = result[0]['last_crawled_time']
@@ -3903,12 +3917,12 @@ def get_status(site):
             return filename, metafilename
         except Exception as e:
             # Handle errors: for example, table not found, or API errors
-            #logger.info(f"An error occurred: {e}, possibly no data yet harvested, using default name for index file.")
+            # logger.info(f"An error occurred: {e}, possibly no data yet harvested, using default name for index file.")
             # Return a default filename or re-raise the exception based on your use case
             return "default_filename.ann", "default_metadata.json"
 
     def chat_completion_for_escallation(self, message):
-        #self.write_message_log_row(db_adapter, bot_id, bot_name, thread_id, 'Supervisor Prompt', message, message_metadata)
+        # self.write_message_log_row(db_adapter, bot_id, bot_name, thread_id, 'Supervisor Prompt', message, message_metadata)
         return_msg = None
         default_env_override = os.getenv("BOT_OS_DEFAULT_LLM_ENGINE")
         bot_os_llm_engine = BotLlmEngineEnum(default_env_override) if default_env_override else None
@@ -4163,14 +4177,12 @@ result = 'Table FAKE_CUST created successfully.'
 
             message += """\n\n### YOUR ACTION: So, now, please provide suggestions to the bot on how to fix this code so that it runs successfully in Snowflake Snowpark.\n"""
 
-
             potential_result = self.chat_completion_for_escallation(message=message)
-            #logger.info(potential_result)
+            # logger.info(potential_result)
             return potential_result
 
         else:
             return None
-
 
     def add_hints(self, purpose, result, code, packages):
 
@@ -4180,12 +4192,11 @@ result = 'Table FAKE_CUST created successfully.'
         if isinstance(result, dict) and 'Error' in result:
             potential_result = self.escallate_for_advice(purpose, code, result, packages)
             if potential_result is not None:
-               # result = potential_result
+                # result = potential_result
                 result['Suggestion'] = potential_result
-               # return potential_result
+            # return potential_result
 
         return result
-
 
     def run_python_code(self,
                         purpose: str = None,
@@ -4422,7 +4433,6 @@ result = 'Table FAKE_CUST created successfully.'
 
         result = self.run_query(stored_proc_call)
 
-
         if isinstance(result, list):
             result_json = result
             # Check if result is a list and has at least one element
@@ -4542,5 +4552,3 @@ result = 'Table FAKE_CUST created successfully.'
         if (bot_id not in ['eva-x1y2z3', 'Armen2-ps73td','MrsEliza-3348b2', os.getenv("O1_OVERRIDE_BOT","")]) and (bot_id is not None and not bot_id.endswith('-o1or')):
             result = self.add_hints(purpose, result, code, packages)
         return result
-
-

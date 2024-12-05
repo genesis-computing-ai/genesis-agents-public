@@ -28,7 +28,7 @@ class GenesisBot(BaseModel):
     #TOOL_LIST: List[str]
     BOT_IMPLEMENTATION: str
     FILES: str # List[str]
-    
+
     API_APP_ID: str
     AUTH_STATE: str
     AUTH_URL: str
@@ -152,7 +152,7 @@ class LocalMetadataStore(GenesisMetadataStore):
             raise NotImplementedError("Second filter not implemented")
         if last_n:
             metadata_list = metadata_list.tail(last_n)
-        
+
         return metadata_list
 
 class SnowflakeMetadataStore(GenesisMetadataStore):

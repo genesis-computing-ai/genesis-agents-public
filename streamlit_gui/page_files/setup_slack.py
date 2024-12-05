@@ -58,7 +58,7 @@ def setup_slack():
                 upgrade_result = upgrade_services(eai_type, st.session_state.eai_reference_name)
                 st.success(f"Genesis Bots upgrade result: {upgrade_result}")
                 st.session_state.slack_eai_available = True
-                st.experimental_rerun()
+                st.rerun()
             else:
                 st.error("No EAI reference set.")
     else:

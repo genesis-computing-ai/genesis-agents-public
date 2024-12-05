@@ -1,3 +1,5 @@
+# Commented out section is for using OAuth instead of creating a service account
+
 import os.path
 
 from google.oauth2.service_account import Credentials
@@ -16,7 +18,7 @@ SCOPES = [
     "https://www.googleapis.com/auth/drive"
 ]
 
-SERVICE_ACCOUNT_FILE = "./google_sheets/genesis-workspace-project-d094fd7d2562.json"
+SERVICE_ACCOUNT_FILE = "./genesis-workspace-project-d094fd7d2562.json"
 
 
 def output_to_google_docs(text:str =None):

@@ -883,7 +883,7 @@ class SnowflakeConnector(DatabaseConnector):
             return {"Success": True, "Data": json_data}
 
         except Exception as e:
-            err = f"An error occurred while getting llm info: {e}"
+            err = f"An error occurred while getting jira info: {e}"
             return {"Success": False, "Error": err}
 
     def set_jira_config_params(self, jira_url, jira_email, jira_api_key):

@@ -20,6 +20,22 @@ from core.bot_os_defaults import (
 
 from core.logging_config import logger
 
+def create_google_sheets_creds(self):
+    query = f"SELECT parameter, value FROM {self.schema}.EXT_SERVICE_CONFIG WHERE ext_service_name = 'g-sheets';"
+    cursor = self.client.cursor()
+    cursor.execute(query)
+    rows = cursor.fetchall()
+
+    if not rows:
+        return False
+
+    creds_dict = {row[0]: row[1] for row in rows}
+
+    creds_json = json.dumps(creds_dict, indent=4)
+    with open('genesis-workspace-project-d094fd7d2562.json', 'w') as json_file:
+        json_file.write(creds_json)
+    return True
+
 def one_time_db_fixes(self):
     # Remove BOT_FUNCTIONS is it exists
     bot_functions_table_check_query = f"SHOW TABLES LIKE 'BOT_FUNCTIONS' IN SCHEMA {self.schema};"
@@ -145,6 +161,45 @@ def ensure_table_exists(self):
     streamlitdc_url = os.getenv("DATA_CUBES_INGRESS_URL", None)
     logger.info(f"streamlit data cubes ingress URL: {streamlitdc_url}")
 
+    ext_service_config_table_check_query = (
+        f"SHOW TABLES LIKE 'EXT_SERVICE_CONFIG' IN SCHEMA {self.schema};"
+    )
+    try:
+        cursor = self.client.cursor()
+        cursor.execute(ext_service_config_table_check_query)
+
+    except Exception as e:
+        logger.info(f"Unable to execute 'SHOW TABLES' query: {e}\nQuery attempted: {ext_service_config_table_check_query}")
+        raise Exception(
+            f"Unable to execute 'SHOW TABLES' query: {e}\nQuery attempted: {ext_service_config_table_check_query}"
+        )
+    try:
+        if not cursor.fetchone():
+            create_external_service_config_table_ddl = f"""
+            CREATE OR REPLACE TABLE {self.schema}.EXT_SERVICE_CONFIG (
+                ext_service_name VARCHAR NOT NULL,
+                parameter VARCHAR NOT NULL,
+                value VARCHAR NOT NULL,
+                created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            """
+            cursor = self.client.cursor()
+            cursor.execute(create_external_service_config_table_ddl)
+            self.client.commit()
+            logger.info(f"Table {self.schema}.EXT_SERVICE_CONFIG created as Table successfully.")
+        else:
+            logger.info(f"Table {self.schema}.EXT_SERVICE_CONFIG already exists.")
+    except Exception as e:
+        logger.info(
+            f"An error occurred while checking or creating the EXT_SERVICE_CONFIG table: {e}"
+        )
+    finally:
+        if cursor is not None:
+            cursor.close()
+
+    create_google_sheets_creds(self)
+
     llm_results_table_check_query = (
         f"SHOW TABLES LIKE 'LLM_RESULTS' IN SCHEMA {self.schema};"
     )
@@ -191,6 +246,7 @@ def ensure_table_exists(self):
     finally:
         if cursor is not None:
             cursor.close()
+
     tasks_table_check_query = f"SHOW TABLES LIKE 'TASKS' IN SCHEMA {self.schema};"
     try:
         cursor = self.client.cursor()
@@ -426,7 +482,7 @@ def ensure_table_exists(self):
                         f"Columns 'MODEL_NAME' and 'EMBEDDING_MODEL_NAME' added to table {self.genbot_internal_project_and_schema}.LLM_TOKENS."
                     )
 
-                #update case to lower for llm_type. Can remove after release_202410b.
+                # update case to lower for llm_type. Can remove after release_202410b.
                 update_case_query = f"""UPDATE {self.genbot_internal_project_and_schema}.LLM_TOKENS SET LLM_TYPE = LOWER(LLM_TYPE)"""
                 cursor.execute(update_case_query)
                 self.client.commit()
@@ -462,8 +518,8 @@ def ensure_table_exists(self):
                 test_cortex_available = self.check_cortex_available()
                 if test_cortex_available == True:
                     cursor.execute(merge_cortex_row_query, (runner_id,'cortex_no_key_needed', 'cortex', cortex_active,))
-                # else:
-                #     cursor.execute(insert_initial_row_query, (runner_id,None,None,False,))
+                    # else:
+                    #     cursor.execute(insert_initial_row_query, (runner_id,None,None,False,))
                     self.client.commit()
                     logger.info(f"Merged cortex row into {self.genbot_internal_project_and_schema}.LLM_TOKENS with runner_id: {runner_id}")
 
@@ -542,7 +598,6 @@ def ensure_table_exists(self):
         if cursor is not None:
             cursor.close()
 
-
         eai_config_table_check_query = (
             f"SHOW TABLES LIKE 'EAI_CONFIG' IN SCHEMA {self.schema};"
         )
@@ -565,7 +620,7 @@ def ensure_table_exists(self):
                     f"Table EAI_CONFIG already exists."
                 )
 
-            #ensure eai_config table matches EAI assigned to services
+            # ensure eai_config table matches EAI assigned to services
             get_eai_from_services_query = f" SHOW SERVICES IN APPLICATION {self.project_id}"
             cursor.execute(get_eai_from_services_query)
             # self.client.commit()
@@ -605,7 +660,6 @@ def ensure_table_exists(self):
         finally:
             if cursor is not None:
                 cursor.close()
-
 
         endpoints_table_check_query = (
             f"SHOW TABLES LIKE 'CUSTOM_ENDPOINTS' IN SCHEMA {self.schema};"
@@ -660,7 +714,6 @@ def ensure_table_exists(self):
             if cursor is not None:
                 cursor.close()
 
-
         jira_api_table_check_query = (
             f"SHOW TABLES LIKE 'JIRA_API_CONFIG' IN SCHEMA {self.schema};"
         )
@@ -691,8 +744,6 @@ def ensure_table_exists(self):
         finally:
             if cursor is not None:
                 cursor.close()
-
-
 
     bot_servicing_table_check_query = (
         f"SHOW TABLES LIKE 'BOT_SERVICING' IN SCHEMA {self.schema};"
@@ -740,9 +791,9 @@ def ensure_table_exists(self):
             # Insert a row with specified values and NULL for the rest
             runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
             bot_id = "Eve"
-#                bot_id += "".join(
-#                    random.choices(string.ascii_letters + string.digits, k=6)
-#                )
+            #                bot_id += "".join(
+            #                    random.choices(string.ascii_letters + string.digits, k=6)
+            #                )
             bot_name = "Eve"
             bot_instructions = BASE_EVE_BOT_INSTRUCTIONS
             available_tools = '["slack_tools", "test_manager_tools", "make_baby_bot", "snowflake_stage_tools", "image_tools", "process_manager_tools", "process_runner_tools", "process_scheduler_tools", "notebook_manager_tools"]'
@@ -787,43 +838,41 @@ def ensure_table_exists(self):
                 f"Inserted initial Eve row into {self.bot_servicing_table_name} with runner_id: {runner_id}"
             )
 
-#               runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
-#               bot_id = "Eliza"
-#                bot_id += "".join(
-#                    random.choices(string.ascii_letters + string.digits, k=6)
-#                )
-            # bot_name = "Eliza"
-            # bot_instructions = ELIZA_DATA_ANALYST_INSTRUCTIONS
-            # available_tools = '["slack_tools", "database_tools", "snowflake_stage_tools",  "image_tools", "process_manager_tools", "process_runner_tools", "process_scheduler_tools"]'
-            # udf_active = "Y"
-            # slack_active = "N"
-            # bot_intro_prompt = ELIZA_INTRO_PROMPT
+        #               runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
+        #               bot_id = "Eliza"
+        #                bot_id += "".join(
+        #                    random.choices(string.ascii_letters + string.digits, k=6)
+        #                )
+        # bot_name = "Eliza"
+        # bot_instructions = ELIZA_DATA_ANALYST_INSTRUCTIONS
+        # available_tools = '["slack_tools", "database_tools", "snowflake_stage_tools",  "image_tools", "process_manager_tools", "process_runner_tools", "process_scheduler_tools"]'
+        # udf_active = "Y"
+        # slack_active = "N"
+        # bot_intro_prompt = ELIZA_INTRO_PROMPT
 
-            # insert_initial_row_query = f"""
-            # INSERT INTO {self.bot_servicing_table_name} (
-            #     RUNNER_ID, BOT_ID, BOT_NAME, BOT_INSTRUCTIONS, AVAILABLE_TOOLS, UDF_ACTIVE, SLACK_ACTIVE, BOT_INTRO_PROMPT
-            # )
-            # VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
-            # """
-            # cursor.execute(
-            #     insert_initial_row_query,
-            #     (
-            #         runner_id,
-            #         bot_id,
-            #         bot_name,
-            #         bot_instructions,
-            #         available_tools,
-            #         udf_active,
-            #         slack_active,
-            #         bot_intro_prompt,
-            #     ),
-            # )
-            # self.client.commit()
-            # logger.info(
-            #     f"Inserted initial Eliza row into {self.bot_servicing_table_name} with runner_id: {runner_id}"
-            # )
-
-
+        # insert_initial_row_query = f"""
+        # INSERT INTO {self.bot_servicing_table_name} (
+        #     RUNNER_ID, BOT_ID, BOT_NAME, BOT_INSTRUCTIONS, AVAILABLE_TOOLS, UDF_ACTIVE, SLACK_ACTIVE, BOT_INTRO_PROMPT
+        # )
+        # VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
+        # """
+        # cursor.execute(
+        #     insert_initial_row_query,
+        #     (
+        #         runner_id,
+        #         bot_id,
+        #         bot_name,
+        #         bot_instructions,
+        #         available_tools,
+        #         udf_active,
+        #         slack_active,
+        #         bot_intro_prompt,
+        #     ),
+        # )
+        # self.client.commit()
+        # logger.info(
+        #     f"Inserted initial Eliza row into {self.bot_servicing_table_name} with runner_id: {runner_id}"
+        # )
 
         #          runner_id = os.getenv('RUNNER_ID', 'jl-local-runner')
         #          bot_id = 'Stuart-'
@@ -970,9 +1019,9 @@ def ensure_table_exists(self):
     if result is None:
         runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
         bot_id = "Janice"
-#                bot_id += "".join(
-#                    random.choices(string.ascii_letters + string.digits, k=6)
-#                )
+        #                bot_id += "".join(
+        #                    random.choices(string.ascii_letters + string.digits, k=6)
+        #                )
         bot_name = "Janice"
         bot_instructions = JANICE_JANITOR_INSTRUCTIONS
         available_tools = '["slack_tools", "database_tools", "snowflake_stage_tools", "image_tools", "process_manager_tools", "process_runner_tools", "process_scheduler_tools", "notebook_manager_tools"]'
@@ -1017,13 +1066,13 @@ def ensure_table_exists(self):
         )
         # add files to stage from local dir for Janice
         database, schema = self.genbot_internal_project_and_schema.split('.')
-#            result = self.add_file_to_stage(
-#                database=database,
-#                schema=schema,
-#                stage="BOT_FILES_STAGE",
-#                file_name="./default_files/janice/*",
-#            )
-#           logger.info(result)
+    #            result = self.add_file_to_stage(
+    #                database=database,
+    #                schema=schema,
+    #                stage="BOT_FILES_STAGE",
+    #                file_name="./default_files/janice/*",
+    #            )
+    #           logger.info(result)
 
     ngrok_tokens_table_check_query = (
         f"SHOW TABLES LIKE 'NGROK_TOKENS' IN SCHEMA {self.schema};"
@@ -1459,7 +1508,6 @@ def ensure_table_exists(self):
             logger.info(f"Table {self.data_knowledge_table_name} already exists.")
     except Exception as e:
         logger.info(f"An error occurred while checking or creating table {self.data_knowledge_table_name}: {e}")
-
 
     try:
         cursor = self.client.cursor()

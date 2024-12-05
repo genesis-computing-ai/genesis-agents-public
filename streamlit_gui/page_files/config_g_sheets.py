@@ -31,8 +31,6 @@ def config_g_sheets():
         except Exception as e:
             st.error(f"Failed to check EAI status: {e}")
 
-
-
     local = False
     session = get_session()
     if not session:
@@ -68,12 +66,6 @@ def config_g_sheets():
         unsafe_allow_html=True,
     )
 
-    project_id = st.text_input("Project ID:")
-    client_id = st.text_input("Client ID:")
-    client_email = st.text_input("Client Email:")
-    private_key_id = st.text_input("Private Key ID:")
-    private_key = st.text_area("Private Key:")
-
     if not st.session_state.google_eai_available and st.session_state.get("NativeMode", False) == True:
         if st.button("Assign EAI to Genesis", key="assigneai"):
             if st.session_state.eai_reference_name:
@@ -85,6 +77,12 @@ def config_g_sheets():
             else:
                 st.error("No EAI reference set.")
     else:
+        project_id = st.text_input("Project ID:")
+        client_id = st.text_input("Client ID:")
+        client_email = st.text_input("Client Email:")
+        private_key_id = st.text_input("Private Key ID:")
+        private_key = st.text_area("Private Key:")
+
         if st.button("Add Google Worksheet API parameters to access Google Worksheet account from Genesis"):
             if not client_id:
                 st.error("Client ID is required.")

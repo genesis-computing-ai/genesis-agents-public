@@ -138,6 +138,7 @@ else:
     logger.info("NOT RUNNING TEST MODE - APPLYING ONE TIME DB FIXES AND CREATING TABLES")
     db_adapter.one_time_db_fixes()
     db_adapter.ensure_table_exists()
+    db_adapter.create_google_sheets_creds()
 
 bot_id_to_udf_adapter_map = {}
 llm_api_key_struct = None
@@ -362,6 +363,7 @@ def file_to_bytes(file_path):
     logger.info('inside file_path - after encoded')
     return encoded
 
+
 @app.route("/udf_proxy/get_metadata", methods=["POST"])
 def get_metadata():
     try:
@@ -409,13 +411,6 @@ def get_metadata():
                 endpoint = metadata_parts[2].strip()
                 type = metadata_parts[3].strip()
             result = db_adapter.set_endpoint(group_name, endpoint, type)
-        elif metadata_type.startswith('set_jira_config_params '):
-            metadata_parts = metadata_type.split()
-            if len(metadata_parts) == 4:
-                jira_url = metadata_parts[1].strip()
-                jira_email = metadata_parts[2].strip()
-                jira_api_key = metadata_parts[3].strip()
-            result = db_adapter.set_jira_config_params(jira_url, jira_email, jira_api_key)
         elif metadata_type.startswith('set_model_name '):
             model_name, embedding_model_name = metadata_type.split('set_model_name ')[1].split(' ')[:2]
             # model_name = metadata_type.split('set_model_name ')[1].strip()
@@ -460,6 +455,57 @@ def get_metadata():
                 result = {"Success": True, "Metadata": m}
             except Exception as e:
                 result = {"Success": False, "Error": e}
+        else:
+            raise ValueError(
+                "Invalid metadata_type provided."
+            )
+
+        if result["Success"]:
+            output_rows = [[input_rows[0][0], json.loads(result["Data"])]]
+        else:
+            output_rows = [[input_rows[0][0], {"Success": False, "Message": result["Error"]}]]
+
+    except Exception as e:
+        logger.info(f"***** error in metadata: {str(e)}")
+        output_rows = [[input_rows[0][0], {"Success": False, "Message": str(e)}]]
+
+    response = make_response({"data": output_rows})
+    response.headers["Content-type"] = "application/json"
+    logger.debug(f"Sending response: {response.json}")
+    return response
+
+@app.route("/udf_proxy/set_metadata", methods=["POST"])
+def set_metadata():
+    try:
+        message = request.json
+        input_rows = message["data"]
+        metadata_type = input_rows[0][1]
+
+        if metadata_type.startswith('set_endpoint '):
+            metadata_parts = metadata_type.split()
+            if len(metadata_parts) == 4:
+                group_name = metadata_parts[1].strip()
+                endpoint = metadata_parts[2].strip()
+                type = metadata_parts[3].strip()
+            result = db_adapter.set_endpoint(group_name, endpoint, type)
+        elif metadata_type.startswith('set_jira_config_params '):
+            metadata_parts = metadata_type.split()
+            if len(metadata_parts) == 4:
+                jira_url = metadata_parts[1].strip()
+                jira_email = metadata_parts[2].strip()
+                jira_api_key = metadata_parts[3].strip()
+            result = db_adapter.set_jira_config_params(jira_url, jira_email, jira_api_key)
+        elif metadata_type.startswith('google_api_config_params '):
+            metadata_parts = metadata_type.split()
+            if len(metadata_parts) > 3:
+                type = metadata_parts[1].strip()
+                key_pairs = " ".join(metadata_parts[2:])
+            result = db_adapter.set_api_config_params(type, key_pairs)
+        elif metadata_type.startswith('set_model_name '):
+            model_name, embedding_model_name = metadata_type.split('set_model_name ')[1].split(' ')[:2]
+            # model_name = metadata_type.split('set_model_name ')[1].strip()
+            # embedding_model_name = metadata_type.split('set_model_name ')[1].strip()
+            result = db_adapter.update_model_params(model_name, embedding_model_name)
         else:
             raise ValueError(
                 "Invalid metadata_type provided."

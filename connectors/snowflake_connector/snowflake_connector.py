@@ -15,8 +15,6 @@ import pkgutil
 import inspect
 import functools
 
-from markdown import markdown
-
 from llm_openai.openai_utils import get_openai_client
 
 from ..database_connector import DatabaseConnector, llm_keys_and_types_struct
@@ -913,6 +911,61 @@ class SnowflakeConnector(DatabaseConnector):
         except Exception as e:
             err = f"An error occurred while inserting jira api config params: {e}"
             return {"Success": False, "Data": err}
+
+    def set_api_config_params(self, type, key_pairs_str):
+        try:
+            if type == 'google':
+
+                cursor = self.client.cursor()
+                key_pairs = json.loads(key_pairs_str)
+
+                for key, value in key_pairs.items():
+                    if isinstance(value, str):
+                        print(
+                            f"Storing {key} in database '{self.genbot_internal_project_and_schema}'.EXT_SERVICE_CONFIG"
+                        )
+                        value = value.replace("\n", "")
+
+                        merge_query = f"""
+                        MERGE INTO {self.genbot_internal_project_and_schema}.EXT_SERVICE_CONFIG AS target
+                        USING (SELECT 'g-sheets' AS ext_service_name, '{key}' AS parameter, '{value}' AS value) AS source
+                        ON target.ext_service_name = source.ext_service_name AND target.parameter = source.parameter
+                        WHEN MATCHED THEN
+                            UPDATE SET
+                                target.value = source.value,
+                                target.updated = CURRENT_TIMESTAMP()
+                        WHEN NOT MATCHED THEN
+                            INSERT (ext_service_name, parameter, value, created, updated)
+                            VALUES (source.ext_service_name, source.parameter, source.value, CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP());
+                        """
+                        cursor.execute(merge_query)
+
+                # Commit the changes
+                self.client.commit()
+
+                self.create_google_sheets_creds()
+
+            json_data = json.dumps([{'Success': True}])
+            return {"Success": True, "Data": json_data}
+        except Exception as e:
+            err = f"An error occurred while inserting google api config params: {e}"
+            return {"Success": False, "Data": err}
+
+    def create_google_sheets_creds(self):
+        query = f"SELECT parameter, value FROM {self.schema}.EXT_SERVICE_CONFIG WHERE ext_service_name = 'g-sheets';"
+        cursor = self.client.cursor()
+        cursor.execute(query)
+        rows = cursor.fetchall()
+
+        if not rows:
+            return False
+
+        creds_dict = {row[0]: row[1] for row in rows}
+
+        creds_json = json.dumps(creds_dict, indent=4)
+        with open('genesis-workspace-project-d094fd7d2562.json', 'w') as json_file:
+            json_file.write(creds_json)
+        return True
 
     def update_model_params(self, model_name, embedding_model_name):
         """

@@ -716,6 +716,9 @@ $$
    'CREATE or replace FUNCTION '|| :INSTANCE_NAME ||'.get_metadata (metadata_type varchar)  RETURNS varchar SERVICE='|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||' ENDPOINT=udfendpoint AS '||chr(39)||'/udf_proxy/get_metadata'||chr(39);
 
  EXECUTE IMMEDIATE
+   'CREATE or replace FUNCTION '|| :INSTANCE_NAME ||'.set_metadata (metadata_type varchar)  RETURNS varchar SERVICE='|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||' ENDPOINT=udfendpoint AS '||chr(39)||'/udf_proxy/set_metadata'||chr(39);
+
+ EXECUTE IMMEDIATE
    'CREATE or replace FUNCTION '|| :INSTANCE_NAME ||'.get_artifact (artifact_id varchar)  RETURNS varchar SERVICE='|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||' ENDPOINT=udfendpoint AS '||chr(39)||'/udf_proxy/get_artifact'||chr(39);
 
 

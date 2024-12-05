@@ -1,5 +1,5 @@
 import streamlit as st
-from utils import get_session, get_metadata
+from utils import get_session, set_metadata
 
 def config_jira():
 
@@ -41,7 +41,7 @@ def config_jira():
     if st.button("Add Jira API parameters to access Jira from Genesis"):
         try:
             # Execute the command and collect the results
-            jira_config_result = get_metadata(f"set_jira_config_params {jira_url} {jira_email} {jira_api_key}")
+            jira_config_result = set_metadata(f"set_jira_config_params {jira_url} {jira_email} {jira_api_key}")
             if isinstance(jira_config_result, list) and len(jira_config_result) > 0:
                 if 'Success' in jira_config_result[0] and jira_config_result[0]['Success']==True:
                     st.success("Jira params configured successfully")

@@ -213,6 +213,26 @@ def get_metadata_cached(metadata_type):
         else:
             raise Exception(f"Failed to get metadata: {response.text}")
 
+def set_metadata(metadata_type):
+    if st.session_state.NativeMode:
+        session = get_session()
+        prefix = st.session_state.get('prefix', '')
+        st.success("set md here i come")
+        sql = f"select {prefix}.set_metadata('{metadata_type}') "
+        data = session.sql(sql).collect()
+        response = data[0][0]
+        response = json.loads(response)
+        return response
+    else:
+        url = LOCAL_SERVER_URL + "udf_proxy/set_metadata"
+        headers = {"Content-Type": "application/json"}
+        data = json.dumps({"data": [[0, metadata_type]]})
+        response = requests.post(url, headers=headers, data=data)
+        if response.status_code == 200:
+            return response.json()["data"][0][1]
+        else:
+            raise Exception(f"Failed to set metadata: {response.text}")
+
 
 def get_metadata(metadata_type):
     if st.session_state.NativeMode:

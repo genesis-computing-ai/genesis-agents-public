@@ -20,22 +20,6 @@ from core.bot_os_defaults import (
 
 from core.logging_config import logger
 
-def create_google_sheets_creds(self):
-    query = f"SELECT parameter, value FROM {self.schema}.EXT_SERVICE_CONFIG WHERE ext_service_name = 'g-sheets';"
-    cursor = self.client.cursor()
-    cursor.execute(query)
-    rows = cursor.fetchall()
-
-    if not rows:
-        return False
-
-    creds_dict = {row[0]: row[1] for row in rows}
-
-    creds_json = json.dumps(creds_dict, indent=4)
-    with open('genesis-workspace-project-d094fd7d2562.json', 'w') as json_file:
-        json_file.write(creds_json)
-    return True
-
 def one_time_db_fixes(self):
     # Remove BOT_FUNCTIONS is it exists
     bot_functions_table_check_query = f"SHOW TABLES LIKE 'BOT_FUNCTIONS' IN SCHEMA {self.schema};"
@@ -197,8 +181,6 @@ def ensure_table_exists(self):
     finally:
         if cursor is not None:
             cursor.close()
-
-    create_google_sheets_creds(self)
 
     llm_results_table_check_query = (
         f"SHOW TABLES LIKE 'LLM_RESULTS' IN SCHEMA {self.schema};"

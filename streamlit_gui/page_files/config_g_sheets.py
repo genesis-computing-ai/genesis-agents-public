@@ -1,8 +1,9 @@
-import sys, json
+import json
+import sys
 sys.path.append(".")
 
 import streamlit as st
-from utils import get_session
+from utils import get_session, set_metadata
 from snowflake.connector import SnowflakeConnection
 # from connectors import get_global_db_connector
 import os
@@ -77,51 +78,20 @@ def config_g_sheets():
                 "token_uri": "https://oauth2.googleapis.com/token",
                 "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
                 "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/genesis-workspace-creds%40" + project_id + ".iam.gserviceaccount.com",
-                "universe_domain": "googleapis.com",
+                "universe_domain": "googleapis.com"
             }
             try:
-                genesis_source = os.getenv("GENESIS_SOURCE", default="Snowflake")
-                # db_adapter = get_global_db_connector(genesis_source)
-                # cursor = db_adapter.client.cursor()
-                conn = SnowflakeConnection(
-                    account=os.getenv("SNOWFLAKE_ACCOUNT_OVERRIDE"),
-                    user=os.getenv("SNOWFLAKE_USER_OVERRIDE"),
-                    password=os.getenv("SNOWFLAKE_PASSWORD_OVERRIDE"),
-                    database=os.getenv("SNOWFLAKE_DATABASE_OVERRIDE"),
-                    warehouse=os.getenv("SNOWFLAKE_WAREHOUSE_OVERRIDE"),
-                    role=os.getenv("SNOWFLAKE_ROLE_OVERRIDE"),
-                )
-
-                cursor = conn.cursor()
-                database = os.getenv("GENESIS_INTERNAL_DB_SCHEMA")
-
-                for key, value in key_pairs.items():
-                    if isinstance(value, str):
-                        print(
-                            f"Storing {key} in database '{database}'.EXT_SERVICE_CONFIG"
-                        )
-                        value = value.replace("\n", "")
-
-                        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-
-                        create_creds_query = f"""
-                        INSERT INTO {database}.EXT_SERVICE_CONFIG 
-                        (ext_service_name, parameter, value, created, updated)
-                        VALUES 
-                        ('g-sheets', '{key}', '{value}', '{timestamp}', '{timestamp}');
-                        """
-
-                        cursor.execute(create_creds_query)
-                        conn.commit()
+                key_pairs_str = json.dumps(key_pairs)
+                google_api_config_result = set_metadata(f"google_api_config_params google {key_pairs_str}")
+                if isinstance(google_api_config_result, list) and len(google_api_config_result) > 0:
+                    if 'Success' in google_api_config_result[0] and google_api_config_result[0]['Success']==True:
+                        st.success("Google API params configured successfully")
+                    else:
+                        st.error(google_api_config_result)
 
             except Exception as e:
-                st.error(f"Error configuring Google Worksheet params: {e}")
-                return
-            finally:
-                cursor.close()
-                creds_json = json.dumps(key_pairs, indent=4)
-                with open('genesis-workspace-project-d094fd7d2562.json', 'w') as json_file:
-                    json_file.write(creds_json)
+                st.error(f"Error configuring Google API params: {e}")
+
 
                 st.success("Google Worksheet API parameters configured successfully.")
 

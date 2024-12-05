@@ -41,7 +41,7 @@ def config_g_sheets():
     )
 
     st.markdown(
-        '<p class="big-font">Add your the information from your Google Worksheets service account. \n(#TODO) Explainer on how to set up Google Projects/Service account</p>',
+        '<p class="big-font">Add information from your Google Worksheets service account. \n(#TODO) Explainer on how to set up Google Projects/Service account</p>',
         unsafe_allow_html=True,
     )
 

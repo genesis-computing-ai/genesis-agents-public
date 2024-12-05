@@ -33,6 +33,7 @@ rsa_key.pub
 .env*
 requirements_orig.txt
 .vscode/
+.pyflyby/
 
 genesis_env/*
 .matt.sh

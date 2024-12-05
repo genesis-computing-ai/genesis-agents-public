@@ -8,7 +8,9 @@ from google.oauth2.service_account import Credentials
 # from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+from googleapiclient.http import MediaFileUpload
 from datetime import datetime
+import mimetypes
 
 
 # If modifying these scopes, delete the file token.json.
@@ -20,6 +22,66 @@ SCOPES = [
 
 SERVICE_ACCOUNT_FILE = "genesis-workspace-project-d094fd7d2562.json"
 
+def upload_to_folder(path_to_file, parent_folder_id):
+    creds = Credentials.from_service_account_file(
+            SERVICE_ACCOUNT_FILE, scopes=SCOPES
+        )
+    service = build("docs", "v3", credentials=creds)
+
+    file_path = os.path(path_to_file)
+    filename = os.path.basename(file_path)
+    mime_type = mimetypes.guess_type(file_path)
+
+    file_metadata = {"name": filename}
+    if parent_folder_id:
+        file_metadata["parents"] = [parent_folder_id]
+
+    media = MediaFileUpload(file_path, mimetype=mime_type[0])
+    file = (
+        service.files().create(body=file_metadata, media_body=media, fields="id").execute()
+    )
+    print(f'File ID: "{file.get("id")}".')
+    return file.get("id")
+
+
+def create_folder_in_folder(folder_name, parent_folder_id):
+    creds = Credentials.from_service_account_file(
+            SERVICE_ACCOUNT_FILE, scopes=SCOPES
+        )
+    service = build("docs", "v3", credentials=creds)
+
+    file_metadata = {
+        "name": folder_name,
+        "parents": [parent_folder_id],
+        "mimeType": "application/vnd.google-apps.folder",
+    }
+
+    file = service.files().create(body=file_metadata, fields="id").execute()
+
+    print("Folder ID: %s" % file.get("id"))
+
+    return file.get("id")
+
+
+def create_g_drive_folder(folder_name:str = "folder"):
+    try:
+        creds = Credentials.from_service_account_file(
+            SERVICE_ACCOUNT_FILE, scopes=SCOPES
+        )
+        service = build("docs", "v3", credentials=creds)
+
+        file_metadata = {
+            "name": folder_name,
+            "mimeType": "application/vnd.google-apps.folder",
+        }
+
+        file = service.files().create(body=file_metadata, fields="id").execute()
+        print(f'Folder ID: "{file.get("id")}".')
+        return file.get("id")
+
+    except HttpError as err:
+        print(err)
+        return None
 
 def output_to_google_docs(text:str =None):
     """
@@ -68,7 +130,6 @@ def output_to_google_docs(text:str =None):
         print('Document content updated: ', result)
 
         return title
-
 
     except HttpError as err:
         print(err)

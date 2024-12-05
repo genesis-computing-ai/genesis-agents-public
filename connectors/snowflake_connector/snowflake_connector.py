@@ -24,7 +24,12 @@ from .sematic_model_utils import *
 from .stage_utils import add_file_to_stage, read_file_from_stage, update_file_in_stage, delete_file_from_stage, list_stage_contents, test_stage_functions
 from .ensure_table_exists import ensure_table_exists, one_time_db_fixes, get_process_info, get_processes_list
 
-from google_sheets.g_sheets import output_to_google_docs
+from google_sheets.g_sheets import (
+    output_to_google_docs,
+    create_g_drive_folder,
+    create_folder_in_folder,
+    upload_to_folder,
+)
 
 from core.bot_os_llm import BotLlmEngineEnum
 
@@ -2107,6 +2112,10 @@ def get_status(site):
             In case of success, the result will be a list of dictionaries representing the resultset
         """
         import core.global_flags as global_flags
+        from .stage_utils import (
+            read_file_from_stage
+        )
+
         userquery = False
         fieldTrunced = False
 
@@ -2279,11 +2288,36 @@ def get_status(site):
 
         cursor.close()
 
-        if query == "select * from genesis_gxs.requirements.flexicard_pm;":
-            pass
+        if query.casefold() == 'SELECT * FROM "GENESIS_GXS"."REQUIREMENTS"."FLEXICARD_PM";'.casefold():
+            parent_folder_id = create_g_drive_folder(
+                "project flexi_card_mappings_project_"
+                + datetime.now().strftime("%m%d%Y_%H:%M:%S")
+            )
 
+            subfolder_id = {}
+            for key in ['GIT_SOURCE_RESEARCH', 'GIT_MAPPING_PROPOSAL', 'GIT_CONFIDENCE_OUTPUT']:
+                subfolder_id[key] = create_folder_in_folder(key, parent_folder_id)
 
-        if export_to_google_doc:
+            for data in sample_data:
+                print(data['GIT_SOURCE_RESEARCH'], data ['GIT_MAPPING_PROPOSAL'], data['GIT_CONFIDENCE_OUTPUT'])
+                # @genesis_bots_alpha.app1.bot_git/requirements/run1/ROLLOVER_PRIN_OUTSTANDING_AMT__source_research.txt
+
+                for key in ['GIT_SOURCE_RESEARCH', 'GIT_MAPPING_PROPOSAL', 'GIT_CONFIDENCE_OUTPUT']:
+                    file_path = read_file_from_stage(
+                        self,
+                        "GENESIS_GXS",
+                        "REQUIREMENTS",
+                        "FLEXICARD_PM",
+                        data[key].replace("@genesis_bots_alpha.app1.bot_git/", ""),
+                        return_file_path = True,
+                    )
+
+                    # create text docs in sub-folder
+                    docId = upload_to_folder(file_path, subfolder_id['key'])
+
+                # write text docs ID's back to table
+
+        elif export_to_google_doc:
             print_string = dict_list_to_markdown_table(sample_data)
             filename = output_to_google_docs(print_string)
             return {"Success": True, "result": "Data sent to Google Docs - Filename: " + filename}

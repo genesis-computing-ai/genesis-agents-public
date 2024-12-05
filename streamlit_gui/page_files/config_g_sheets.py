@@ -1,4 +1,4 @@
-import sys
+import sys, json
 sys.path.append(".")
 
 import streamlit as st
@@ -111,14 +111,17 @@ def config_g_sheets():
                         ('g-sheets', '{key}', '{value}', '{timestamp}', '{timestamp}');
                         """
 
-                        result = cursor.execute(create_creds_query)
-                        result = conn.commit()
+                        cursor.execute(create_creds_query)
+                        conn.commit()
 
             except Exception as e:
                 st.error(f"Error configuring Google Worksheet params: {e}")
                 return
             finally:
                 cursor.close()
+                creds_json = json.dumps(key_pairs, indent=4)
+                with open('genesis-workspace-project-d094fd7d2562.json', 'w') as json_file:
+                    json_file.write(creds_json)
 
                 st.success("Google Worksheet API parameters configured successfully.")
 

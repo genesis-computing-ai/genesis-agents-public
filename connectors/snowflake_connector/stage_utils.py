@@ -111,7 +111,8 @@ def read_file_from_stage(
     schema: str,
     stage: str,
     file_name: str,
-    return_contents: bool = True,        
+    return_contents: bool = True,
+    return_file_path: bool = False,
     is_binary: bool = False,
     for_bot=None,
     thread_id=None,
@@ -159,14 +160,14 @@ def read_file_from_stage(
 
         if os.path.isfile(local_file_path):
             if return_contents:
-                if is_binary:   
+                if is_binary:
                     with open(local_file_path, "rb") as file:
                         return file.read()
                 else:
                     with open(local_file_path, "r") as file:
                         return file.read()
             else:
-                return file_name
+                return local_file_path if return_file_path else file_name
         else:
             return f"The file {file_name} does not exist at stage path @{database}.{schema}.{stage}/{file_name}."
     except Exception as e:
@@ -259,10 +260,10 @@ def delete_file_from_stage(
     except Exception as e:
         logger.error(f"Error deleting file from stage: {e}")
         return {"success": False, "error": str(e)}
-    
+
 def test_stage_functions():
     # Create a test instance of SnowflakeConnector
-    from .snowflake_connector import SnowflakeConnector 
+    from .snowflake_connector import SnowflakeConnector
     test_connector = SnowflakeConnector("Snowflake")
 
     # Call the list_stage method with the specified parameters

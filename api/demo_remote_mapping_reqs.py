@@ -8,7 +8,40 @@ import json
 
 import os, yaml
 
+"""
+launch.json config example:
+
+        {
+            "name": "Python: Current File with Env Vars Alpha",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}",
+                "SNOWFLAKE_ACCOUNT_OVERRIDE": "eqb52188",
+                "SNOWFLAKE_USER_OVERRIDE": "your user",
+                "SNOWFLAKE_PASSWORD_OVERRIDE": "your pw",
+                "SNOWFLAKE_DATABASE_OVERRIDE": "GENESIS_TEST",
+                "SNOWFLAKE_WAREHOUSE_OVERRIDE": "XSMALL",
+                "SNOWFLAKE_ROLE_OVERRIDE": "ACCOUNTADMIN",
+                // below are for local mode only
+                "GENESIS_INTERNAL_DB_SCHEMA": "GENESIS_TEST.<your schema>",
+                "GENESIS_SOURCE": "Snowflake",
+                "RUNNER_ID": "snowflake-1",
+                "GIT_PATH": "./bot_git",
+                "LANGCHAIN_TRACING_V2": "true",
+                "LANGCHAIN_ENDPOINT": "https://api.smith.langchain.com",
+                "LANGCHAIN_API_KEY": "your langchain api key (free to get one)",
+                "LANGCHAIN_PROJECT": "your langcgain project",
+                "LOG_LEVEL": "ERROR"
+            },
+            "justMyCode": true
+},
+"""
+
 # Initialize LangSmith client at the top of your file
+# this is just for LangSmith observability, does not use Langchain
 langsmith_client = Client()
 
 conn = snowflake.connector.connect(
@@ -82,11 +115,15 @@ def write_file_to_stage(stage_path, file_name, contents):
     """
     try:
         cursor = conn.cursor()
-        
+
         # Write contents to temporary local file
         with open(f'./tmp/{file_name}', 'w') as f:
             f.write(contents)
             
+        # Create stage if it doesn't exist
+        create_stage_cmd = f"CREATE STAGE IF NOT EXISTS {stage_path.replace('@', '').split('/')[0]};"
+        cursor.execute(create_stage_cmd)
+
         # Put file to stage
         put_cmd = f"PUT file://./tmp/{file_name} {stage_path};"
         cursor.execute(put_cmd)
@@ -136,9 +173,9 @@ def call_genesis_bot(client, bot_id, request):
 
 def setup_paths(physical_column_name):
     """Setup file paths and names for a given requirement."""
-    stage_base = '@genesis_bots_alpha.app1.bot_git/'
-    base_git_path = 'requirements/run1/'
-    
+    stage_base = f"@{os.getenv('GENESIS_INTERNAL_DB_SCHEMA', 'GENESIS_TEST.GENESIS_INTERNAL')}.bot_git/"
+    base_git_path = 'requirements/run4/'
+
     return {
         'stage_base': stage_base,
         'base_git_path': base_git_path,
@@ -147,6 +184,57 @@ def setup_paths(physical_column_name):
         'confidence_report_file': f"{physical_column_name}__confidence_report.txt"
     }
 
+def check_git_file(paths, file_name):
+    """
+    Check if file exists in stage or local git, copy to stage if needed.
+    
+    Args:
+        paths (dict): Dictionary containing path information
+        file_name (str): Name of file to check
+    Returns:
+        str: Contents of the file if found, False if not found
+    """
+    stage_path = f"{paths['stage_base']}{paths['base_git_path']}{file_name}"
+    # Get git base path from environment variable, default to ./bot_git
+    git_base = os.getenv("GIT_PATH", "./bot_git")
+    local_git_path = f"{git_base}/{paths['base_git_path']}{file_name}"
+
+    # First check if file exists in stage
+    try:
+        stage_contents = get_file_from_stage(f"{paths['stage_base']}{paths['base_git_path']}", file_name)
+        if stage_contents and not stage_contents.startswith('Placeholder'):
+            print(f"\033[92mFile found in stage: {stage_path}\033[0m")
+            return stage_contents
+    except Exception as e:
+        print(f"\033[93mFile not found in stage: {stage_path}\033[0m")
+
+    # If not in stage, check local git
+    try:
+        if os.path.exists(local_git_path):
+            print(f"\033[93mFile found in local git: {local_git_path}\033[0m")
+            
+            # Read local file
+            with open(local_git_path, 'r') as f:
+                contents = f.read()
+            
+            # Copy to stage
+            success = write_file_to_stage(f"{paths['stage_base']}{paths['base_git_path']}", 
+                                        file_name,
+                                        contents)
+            
+            if success:
+                print(f"\033[92mCopied file from local git to stage: {stage_path}\033[0m")
+                return contents
+            else:
+                print("Failed to copy file to stage")
+                return False
+
+    except Exception as e:
+        print(f"Error accessing file: {str(e)}")
+        return False
+
+    return False
+
 @traceable(name="source_research")
 def perform_source_research(client, requirement, paths, bot_id):
     """Execute source research step and validate results."""
@@ -154,11 +242,11 @@ def perform_source_research(client, requirement, paths, bot_id):
         print("\033[34mExecuting source research...\033[0m")
         
         # Create placeholder file
-        success = write_file_to_stage(f'{paths["stage_base"]}{paths["base_git_path"]}',
-                                     paths["source_research_file"], 
-                                     "Placeholder for source research")
-        if not success:
-            raise Exception("Failed to put placeholder source research file to stage")
+   #     success = write_file_to_stage(f'{paths["stage_base"]}{paths["base_git_path"]}',
+   #                                  paths["source_research_file"], 
+   #                                  "Placeholder for source research")
+   #     if not success:
+   #         raise Exception("Failed to put placeholder source research file to stage")
 
         research_prompt = f'''Here are requirements for a target field I want you to work on: {requirement}\n
         Delegate to the SourceResourceBot microbot and tell them to research this field and save the results in git at: {paths["base_git_path"]}{paths["source_research_file"]}\n
@@ -169,8 +257,8 @@ def perform_source_research(client, requirement, paths, bot_id):
         if 'SUCCESS' not in response:
             raise Exception('Error on source research')
 
-        contents = get_file_from_stage(f'{paths["stage_base"]}{paths["base_git_path"]}', 
-                                     paths["source_research_file"])
+        contents = check_git_file(paths=paths, file_name=paths["source_research_file"])
+        
         if not contents or contents.startswith('Placeholder '):
             raise Exception('Source research file not found or contains only placeholder')
         
@@ -186,11 +274,11 @@ def perform_mapping_proposal(client, requirement, paths, bot_id):
     """Execute mapping proposal step and validate results."""
     print("\033[34mExecuting mapping proposal...\033[0m")
     
-    success = write_file_to_stage(f'{paths["stage_base"]}{paths["base_git_path"]}',
-                                 paths["mapping_proposal_file"], 
-                                 "Placeholder for mapping proposal")
-    if not success:
-        raise Exception("Failed to put placeholder mapping proposal file to stage")
+    #success = write_file_to_stage(f'{paths["stage_base"]}{paths["base_git_path"]}',
+    #                             paths["mapping_proposal_file"], 
+    #                             "Placeholder for mapping proposal")
+    #if not success:
+    #    raise Exception("Failed to put placeholder mapping proposal file to stage")
 
     mapping_prompt = f'''Here are requirements for a target field I want you to work on: {requirement}\n
     The source research bot has already run and saved its results at this git location: {paths["base_git_path"]}{paths["source_research_file"]}\n
@@ -203,8 +291,8 @@ def perform_mapping_proposal(client, requirement, paths, bot_id):
     if 'SUCCESS' not in response:
         raise Exception('Error on mapping proposal')
 
-    contents = get_file_from_stage(f'{paths["stage_base"]}{paths["base_git_path"]}',
-                                 paths["mapping_proposal_file"])
+    contents = check_git_file(paths=paths, file_name=paths["mapping_proposal_file"])
+        
     if not contents or contents.startswith('Placeholder '):
         raise Exception('Mapping proposal file not found or contains only placeholder')
     
@@ -213,15 +301,17 @@ def perform_mapping_proposal(client, requirement, paths, bot_id):
                        contents)
     return contents
 
+
+
 def perform_confidence_analysis(client, requirement, paths, bot_id):
     """Execute confidence analysis step and validate results."""
     print("\033[34mExecuting confidence analysis...\033[0m")
     
-    success = write_file_to_stage(f'{paths["stage_base"]}{paths["base_git_path"]}',
-                                 paths["confidence_report_file"], 
-                                 "Placeholder for confidence report")
-    if not success:
-        raise Exception("Failed to put placeholder confidence report file to stage")
+    #success = write_file_to_stage(f'{paths["stage_base"]}{paths["base_git_path"]}',
+    #                             paths["confidence_report_file"], 
+    #                             "Placeholder for confidence report")
+    #if not success:
+    #    raise Exception("Failed to put placeholder confidence report file to stage")
 
     confidence_prompt = f'''Here are requirements for a target field I want you to work on: {requirement}\n
     The source research bot has saved its results in git at: {paths["base_git_path"]}{paths["source_research_file"]}\n
@@ -238,9 +328,9 @@ def perform_confidence_analysis(client, requirement, paths, bot_id):
     response = call_genesis_bot(client, bot_id, confidence_prompt)
     if 'SUCCESS' not in response:
         raise Exception('Error on confidence analysis')
-
-    contents = get_file_from_stage(f'{paths["stage_base"]}{paths["base_git_path"]}',
-                                 paths["confidence_report_file"])
+    
+    contents = check_git_file(paths=paths, file_name=paths["confidence_report_file"])
+        
     if not contents or contents.startswith('Placeholder '):
         raise Exception('Confidence report file not found or contains only placeholder')
     
@@ -358,6 +448,22 @@ def port_bot(client_source, client_target, bot_id, suffix='local', remove_slack=
     Args:
         client: Remote Genesis API client
         client_local: Local Genesis API client
+
+    Use example:
+
+        ## port bots from another server
+        # client_remote = GenesisAPI("remote-snowflake", scope="GENESIS_BOTS_ALPHA")
+        #  bots = client_remote.get_all_bots()
+        #  print("Remote bots: ",bots)
+        #  bots_to_port = [
+        #       'RequirementsPM-72dj5k',
+        #       'sourceResearchBot-d3k9m1', 
+        #       'mappingProposerBot-4fj7kf',
+        #      'confidenceanalyst-xYzAb9'
+        #   ]
+        #  for bot_id in bots_to_port:
+        #      port_bot(client_source=client_remote, client_target=client, bot_id=bot_id, suffix='jllocal')
+
     """
 
     # Get bot definition from remote
@@ -402,6 +508,7 @@ def load_bots_from_yaml(client,bot_team_path):
     
     Args:
         bot_team_path: Path to directory containing bot YAML files
+
     """
    # client = GenesisAPI("local-snowflake", scope="GENESIS_TEST", sub_scope="GENESIS_JL")
     
@@ -426,37 +533,29 @@ def load_bots_from_yaml(client,bot_team_path):
 
 
 def main():
-    """Main execution flow."""
-
-    # start these bots if they exist (if you're not loading/refreshing from YAMLS below) 
-    local_bots = []
+    """Main execution flow.
+        # todo - startup speed with local bot definitions
+    """
+   
+    local_bots = []   # start these already-present-on-serber bots if they exist (if you're not loading/refreshing from YAMLS below) 
 
     client = GenesisAPI("local-snowflake", scope="GENESIS_TEST", sub_scope="GENESIS_JL", 
                         bot_list=local_bots) # ["marty-l6kx7d"]
 
-    bots = client.get_all_bots()
-    print("Existing local bots: ",bots)
-
-            # port bots from another server
-        # client_remote = GenesisAPI("remote-snowflake", scope="GENESIS_BOTS_ALPHA")
-        #  bots = client_remote.get_all_bots()
-        #  print("Remote bots: ",bots)
-        #  bots_to_port = [
-        #       'RequirementsPM-72dj5k',
-        #       'sourceResearchBot-d3k9m1', 
-        #       'mappingProposerBot-4fj7kf',
-        #      'confidenceanalyst-xYzAb9'
-        #   ]
-        #  for bot_id in bots_to_port:
-        #      port_bot(client_source=client_remote, client_target=client, bot_id=bot_id, suffix='jllocal')
+    # if you want to see what bots are already on the server
+    #bots = client.get_all_bots()
+    #print("Existing local bots: ",bots)
 
     # LOAD AND ACTIVATE BOTS FROM YAML FILES
     # adds or updates bots defined in YAML to metadata and activates the listed bots
+
     bot_team_path = './demo/bot_team'
-    load_bots_from_yaml(client=client, bot_team_path=bot_team_path)
+    load_bots_from_yaml(client=client, bot_team_path=bot_team_path)  # takes bot definitions from yaml files at the specified path and injects/updates those bots into the running local server
 
     # MAIN WORKFLOW
     try:
+
+        # get the work to do
         cursor = conn.cursor()
         table_name = "genesis_gxs.requirements.flexicard_pm_jl"  # Changed from genesis_gxs.requirements.flexicard_pm
         cursor.execute(f"SELECT * FROM {table_name} WHERE status = 'NEW'")
@@ -473,6 +572,7 @@ def main():
 
         print("Found", len(requirements), "requirements with NEW status:")
         
+        # loop over the work to do
         for requirement in requirements:
             filtered_requirement = {
                 'PHYSICAL_COLUMN_NAME': requirement['PHYSICAL_COLUMN_NAME'],
@@ -507,7 +607,6 @@ def main():
             )
 
             # Prepare fields for database update
-              # Prepare fields for database update
             db_fields = {
                 'upstream_table': summary['UPSTREAM_TABLE'],
                 'upstream_column': summary['UPSTREAM_COLUMN'],
@@ -523,7 +622,7 @@ def main():
                 'transformation_logic': summary['TRANSFORMATION_LOGIC']
             }
 
-            # Save to database
+            # Save results of work to database
             save_pm_summary_to_requirements(
                 requirement['PHYSICAL_COLUMN_NAME'], 
                 db_fields,
@@ -531,7 +630,9 @@ def main():
             )
             print("\033[32mSuccessfully saved results to database for requirement:", requirement['PHYSICAL_COLUMN_NAME'], "\033[0m")
 
+            # prevent unintentional runaway runs while developing/testing
             i = input('next? ')
+
     except Exception as e:
         print(f"\033[31mError occurred: {e}\033[0m")
         raise e

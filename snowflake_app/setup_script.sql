@@ -468,6 +468,10 @@ BEGIN
 
       REVOKE USAGE ON FUNCTION APP1.get_metadata(varchar) FROM APPLICATION ROLE APP_PUBLIC;
 
+      EXECUTE IMMEDIATE
+        'CREATE FUNCTION if not exists '|| :INSTANCE_NAME ||'.set_metadata (metadata_type varchar)  RETURNS varchar SERVICE='|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||' ENDPOINT=udfendpoint AS '||chr(39)||'/udf_proxy/set_metadata'||chr(39);
+
+
       -- REVOKE USAGE ON FUNCTION APP1.get_artifact(varchar) FROM APPLICATION ROLE APP_PUBLIC;
 
       BEGIN

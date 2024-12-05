@@ -2279,6 +2279,10 @@ def get_status(site):
 
         cursor.close()
 
+        if query == "select * from genesis_gxs.requirements.flexicard_pm;":
+            pass
+
+
         if export_to_google_doc:
             print_string = dict_list_to_markdown_table(sample_data)
             filename = output_to_google_docs(print_string)

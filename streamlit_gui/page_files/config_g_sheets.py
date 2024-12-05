@@ -116,6 +116,7 @@ def config_g_sheets():
 
             except Exception as e:
                 st.error(f"Error configuring Google Worksheet params: {e}")
+                return
             finally:
                 cursor.close()
 

@@ -110,7 +110,7 @@ def config_g_sheets():
                 }
                 try:
                     key_pairs_str = json.dumps(key_pairs)
-                    google_api_config_result = set_metadata(f"google_api_config_params google {key_pairs_str}")
+                    google_api_config_result = set_metadata(f"api_config_params g-sheets {key_pairs_str}")
                     if isinstance(google_api_config_result, list) and len(google_api_config_result) > 0:
                         if 'Success' in google_api_config_result[0] and google_api_config_result[0]['Success']==True:
                             st.success("Google API params configured successfully")

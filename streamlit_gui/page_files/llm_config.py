@@ -57,7 +57,7 @@ def llm_config():
 
 def check_eai_availability(llm_type, reference_name):
     if not st.session_state.get(f"{llm_type}_eai_available", False):
-        if check_eai_status(llm_type) or check_eai_assigned(reference_name) or st.session_state.NativeMode == False:
+        if (check_eai_status(llm_type) and check_eai_assigned(reference_name)) or st.session_state.NativeMode == False:
             st.session_state.update({
                 f"{llm_type}_eai_available": True,
                 "eai_reference_name": reference_name,

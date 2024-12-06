@@ -67,17 +67,14 @@ def config_jira():
                     "jira_email": jira_email,
                     "jira_api_key": jira_api_key
                 }
-                st.success("before set metadata")
                 # Send data to metadata
                 jira_api_config_result = set_metadata(f"api_config_params jira {json.dumps(key_pairs)}")
-                st.success("after set metadata")
                 # Check if the result indicates success
                 if (isinstance(jira_api_config_result, list) and jira_api_config_result and
                     jira_api_config_result[0].get('Success') is True):
                     st.success("Jira API parameters configured successfully!")
                 else:
                     st.error(f"Failed to configure Jira API parameters: {jira_api_config_result}")
-                st.success("after success or failure")
 
             except Exception as e:
                 st.error(f"Error configuring Jira params: {e}")
@@ -85,7 +82,6 @@ def config_jira():
     # Check if Jira EAI is available
     if not st.session_state.jira_eai_available:
         try:
-            st.success("checking eai status")
             eai_status = check_eai_status("jira")
             if eai_status:
                 st.session_state.jira_eai_available = True
@@ -94,7 +90,6 @@ def config_jira():
                 # If EAI is not available and we're in Native Mode, offer options
                 if st.session_state.NativeMode:
                     ref = get_references(st.session_state.eai_reference_name)
-                    st.success("after check ref")
                     if not ref:
                         # If no reference found, allow creating a new one
                         if st.button("Create External Access Integration", key="create_eai"):
@@ -110,7 +105,7 @@ def config_jira():
                                 upgrade_result = upgrade_services(eai_type, st.session_state.eai_reference_name)
                                 st.success(f"Genesis Bots upgrade result: {upgrade_result}")
                                 st.session_state.jira_eai_available = True
-                                st.experimental_rerun()
+                                st.rerun()
                             else:
                                 st.error("No EAI reference set. Cannot assign EAI.")
         except Exception as e:

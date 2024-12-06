@@ -993,7 +993,7 @@ class SnowflakeConnector(DatabaseConnector):
 
     def eai_test(self, site):
         try:
-
+            azure_endpoint = "https://example.com"
             eai_list_query = f"""CALL CORE.GET_EAI_LIST('{self.schema}')"""
             cursor = self.client.cursor()
             cursor.execute(eai_list_query)
@@ -1001,6 +1001,15 @@ class SnowflakeConnector(DatabaseConnector):
             if not eai_list:
                 return {"Success": False, "Error": "Cannot check EAI status. No EAI set up."}
             else:
+
+                if site == "azureopenai":
+                    azure_query = f"""
+                        SELECT LLM_ENDPOINT
+                        FROM {self.genbot_internal_project_and_schema}.LLM_TOKENS
+                        WHERE UPPER(LLM_TYPE) = 'OPENAI'"""
+                    cursor = self.client.cursor()
+                    cursor.execute(azure_query)
+                    azure_endpoint = cursor.fetchone()
 
                 create_function_query = f"""
 CREATE OR REPLACE FUNCTION {self.project_id}.CORE.CHECK_URL_STATUS(site string)
@@ -1015,16 +1024,19 @@ $$
 import requests
 
 def get_status(site):
+    check_command = "options"
+
     if site == 'slack':
         url = "https://slack.com"  # Replace with the allowed URL
     elif site == 'openai':
         url = "https://api.openai.com/v1/models"  # Replace with the allowed URL
     elif site == 'google':
         url = "https://accounts.google.com"  # Replace with the allowed URL
+        check_command = "put"
     elif site == 'jira':
-        url = "https://www.atlassian.net"  # Replace with the allowed URL
+        url = "https://www.atlassian.net/jira/your-work"  # Replace with the allowed URL
     elif site == 'azureopenai':
-        url = "https://app.openai.azure.com"  # Replace with the allowed URL
+        url = {azure_endpoint}  # Replace with the allowed URL
     else:
         # TODO allow custom endpoints to be tested
         return f"Invalid site: {{site}}"
@@ -1032,7 +1044,10 @@ def get_status(site):
     try:
         # Make an HTTP GET request to the allowed URL
         # response = requests.get(url, timeout=10)
-        response = requests.options(url)
+        if check_command == "options":
+            response = requests.options(url)
+        else:
+            response = requests.put(url)
         if response.ok or response.status_code == 302:   # alternatively you can use response.status_code == 200
             result = "Success"
         else:

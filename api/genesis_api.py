@@ -1,14 +1,30 @@
 import json
 import time, os
+import core.global_flags as global_flags
+
+
 from api.genesis_base import GenesisBot, GenesisLocalServer, GenesisMetadataStore, GenesisProject, GenesisProcess, GenesisNote, GenesisKnowledge, GenesisServer, LocalMetadataStore, SnowflakeMetadataStore, ToolDefinition
 
 class GenesisAPI:
     def __init__(self, scope:str, sub_scope:str="app1", bot_list=None, server_type: type = GenesisLocalServer):
+        self.set_global_flags()
         self.scope = scope
         self.sub_scope = sub_scope
         self.registered_server: GenesisServer = server_type(scope, sub_scope, bot_list=bot_list)
         self.metadata_store: GenesisMetadataStore = self.registered_server.get_metadata_store()
 
+    def set_global_flags(self):
+        genbot_internal_project_and_schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "None")
+        if genbot_internal_project_and_schema == "None":
+            print("ENV Variable GENESIS_INTERNAL_DB_SCHEMA is not set.")
+        if genbot_internal_project_and_schema is not None:
+            genbot_internal_project_and_schema = genbot_internal_project_and_schema.upper()
+        db_schema = genbot_internal_project_and_schema.split(".")
+        project_id = db_schema[0]
+        global_flags.project_id = project_id
+        dataset_name = db_schema[1]
+        global_flags.genbot_internal_project_and_schema = genbot_internal_project_and_schema
+        
     def register_bot(self, bot: GenesisBot):
         self.registered_server.register_bot(bot)
         self.metadata_store.insert_or_update_metadata("GenesisBot", bot["BOT_ID"], bot) # FIXME: do we need this if we are registering the bot?

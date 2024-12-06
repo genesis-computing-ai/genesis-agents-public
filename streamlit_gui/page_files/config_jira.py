@@ -4,16 +4,17 @@ from utils import check_eai_status, get_references, get_session, set_metadata, u
 
 def config_jira():
     # Initialize session state variables
-    st.session_state.setdefault("jira_eai_available", False)
-    st.session_state.setdefault("eai_reference_name", "jira_external_access")
+    if "jira_eai_available" not in st.session_state:
+        st.session_state.jira_eai_available = False
+    if "eai_reference_name" not in st.session_state:
+        st.session_state.eai_reference_name = "jira_external_access"
+    if "NativeMode" not in st.session_state:
+        st.session_state.NativeMode = False  # Or set this based on your environment
 
-    local=False
-    session = get_session()
-    if not session:
-        local = True
-
+    # Page Title
     st.title("Configure Jira API settings")
 
+    # Custom styles
     st.markdown("""
     <style>
     .big-font {
@@ -34,24 +35,32 @@ def config_jira():
     </style>
     """, unsafe_allow_html=True)
 
+    # Instructions
+    st.markdown(
+        '<p class="big-font">Add your Jira URL, email address, and API key below</p>',
+        unsafe_allow_html=True
+    )
 
-    st.markdown('<p class="big-font">Add your Jira URL, email address, and API key below</p>', unsafe_allow_html=True)
-
+    # User input fields
     jira_url = st.text_input("Your Jira URL (e.g. https://genesiscomputing.atlassian.net):")
     jira_email = st.text_input("Your Jira email address:")
     jira_api_key = st.text_input("Your Jira API key:")
 
+    # Handle submission of Jira parameters
     if st.button("Add Jira API parameters to access Jira from Genesis"):
-        try:
-            # Execute the command and collect the results
-            if not jira_url:
-                st.error("Jira URL is required.")
-            elif not jira_email:
-                st.error("Jira email address is required.")
-            elif not jira_api_key:
-                st.error("Jira API key is required.")
-            else:
+        if not jira_url:
+            st.error("Jira URL is required.")
+        elif not jira_email:
+            st.error("Jira email address is required.")
+        elif not jira_api_key:
+            st.error("Jira API key is required.")
+        else:
+            try:
+                # Extract the site name from the Jira URL
+                # Assumes URL in form: https://<site_name>.atlassian.net
                 site_name = jira_url.split("//")[1].split(".")[0]
+
+                # Prepare key-value pairs for metadata
                 key_pairs = {
                     "site_name": site_name,
                     "jira_url": jira_url,
@@ -59,18 +68,19 @@ def config_jira():
                     "jira_api_key": jira_api_key
                 }
 
-                key_pairs_str = json.dumps(key_pairs)
-                jira_api_config_result = set_metadata(f"api_config_params jira {key_pairs_str}")
-                if isinstance(jira_api_config_result, list) and len(jira_api_config_result) > 0:
-                    if 'Success' in jira_api_config_result[0] and jira_api_config_result[0]['Success']==True:
-                        st.success("Jira API params configured successfully")
-                    else:
-                        st.error(jira_api_config_result)
+                # Send data to metadata
+                jira_api_config_result = set_metadata(f"api_config_params jira {json.dumps(key_pairs)}")
 
-        except Exception as e:
-            st.error(f"Error configuring Jira params: {e}")
+                # Check if the result indicates success
+                if (isinstance(jira_api_config_result, list) and jira_api_config_result and
+                    jira_api_config_result[0].get('Success') is True):
+                    st.success("Jira API parameters configured successfully!")
+                else:
+                    st.error(f"Failed to configure Jira API parameters: {jira_api_config_result}")
+            except Exception as e:
+                st.error(f"Error configuring Jira params: {e}")
 
-    # Check if Slack External Access Integration (EAI) is available
+    # Check if Jira EAI is available
     if not st.session_state.jira_eai_available:
         try:
             eai_status = check_eai_status("jira")
@@ -78,30 +88,26 @@ def config_jira():
                 st.session_state.jira_eai_available = True
                 st.success("Jira External Access Integration is available.")
             else:
-                # Request EAI if not available and in Native Mode
-                if st.session_state.get("NativeMode", False) == True:
+                # If EAI is not available and we're in Native Mode, offer options
+                if st.session_state.NativeMode:
                     ref = get_references(st.session_state.eai_reference_name)
                     if not ref:
-                        if st.button("Create External Access Integration", key="createaeai"):
+                        # If no reference found, allow creating a new one
+                        if st.button("Create External Access Integration", key="create_eai"):
                             import snowflake.permissions as permissions
                             permissions.request_reference(st.session_state.eai_reference_name)
-
+                            st.info("Request sent. Please rerun the app or try again to see updates.")
                     else:
-                        if not st.session_state.jira_eai_available and st.session_state.get("NativeMode", False) == True:
-                            if st.button("Assign EAI to Genesis", key="assigneai"):
-                                if st.session_state.eai_reference_name:
-                                    eai_type = st.session_state.eai_reference_name.split("_")[0].upper()
-                                    upgrade_result = upgrade_services(eai_type, st.session_state.eai_reference_name)
-                                    st.success(f"Genesis Bots upgrade result: {upgrade_result}")
-                                    st.session_state.jira_eai_available = True
-                                    st.rerun()
-                                else:
-                                    st.error("No EAI reference set.")
-
+                        # Reference exists but not assigned, allow assigning now
+                        if st.button("Assign EAI to Genesis", key="assign_eai"):
+                            if st.session_state.eai_reference_name:
+                                # Upgrade services for the EAI reference
+                                eai_type = st.session_state.eai_reference_name.split("_")[0].upper()
+                                upgrade_result = upgrade_services(eai_type, st.session_state.eai_reference_name)
+                                st.success(f"Genesis Bots upgrade result: {upgrade_result}")
+                                st.session_state.jira_eai_available = True
+                                st.experimental_rerun()
+                            else:
+                                st.error("No EAI reference set. Cannot assign EAI.")
         except Exception as e:
             st.error(f"Failed to check EAI status: {e}")
-
-
-
-    st.info("If you need any assistance, please check our [documentation](https://genesiscomputing.ai/docs/) or join our [Slack community](https://communityinviter.com/apps/genesisbotscommunity/genesis-bots-community).")
-

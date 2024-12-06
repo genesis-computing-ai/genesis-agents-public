@@ -6,8 +6,6 @@ import streamlit as st
 from utils import check_eai_status, get_references, get_session, set_metadata, upgrade_services
 from snowflake.connector import SnowflakeConnection
 # from connectors import get_global_db_connector
-import os
-from datetime import datetime
 
 def config_g_sheets():
     # Initialize session state variables

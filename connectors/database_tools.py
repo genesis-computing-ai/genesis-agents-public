@@ -487,7 +487,8 @@ manage_tests_functions = [
             "description": """Manages tests that will run when when the project is deployed, including adding, updating, listing and deleting tests from the list of tests to run when the
                            project is deployed, allowing bots to manage tests. Remember that this is not used to create new processes.  Make sure that the user is specifically 
                            asking for a test to be added to the deploy sequence, have its priority weighting updated, or deleted. This tool is not used to run a test.
-                           If you are asked to run a tests, use the run process tool and pass the manage_process_id, do not use this tool.  If you aren't sure, ask the user to clarify.""",
+                           If you are asked to run a tests, use the run process tool and pass the manage_process_id, do not use this tool.  If you aren't sure, ask the user to clarify.
+                           If you are asked to enable a test, set its test_type to enabled.  If you are asked to disable a test, set its test_type to disabled.""",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -495,7 +496,7 @@ manage_tests_functions = [
                         "type": "string",
                         "description": """
                         The action to perform on a tests: ADD, UPDATE, DELETE,
-                        LIST returns a list of all tests, SHOW shows all fields of a test,
+                        LIST, ENABLE, DISABLE returns a list of all tests, SHOW shows all fields of a test,
                         or TIME to get current system time.""",
                     },
                     "bot_id": {
@@ -512,7 +513,7 @@ manage_tests_functions = [
                     },
                     "test_type": {
                         "type": "string",
-                        "description": "The type of test."
+                        "description": "The type of table, either enabled or disabled.",
                     },
                     "test_priority": {
                         "type": "integer",

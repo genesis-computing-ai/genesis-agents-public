@@ -182,9 +182,9 @@ if not table_exists:
 
 for test in process_names:
     query = """
-select genesis_bots.app1.submit_udf('use your tool SendSlackChannelMessage to send this string to channel #dev-genbots ''Thread: {}''; run process {}', '', '{{"bot_id": "Janice-dev"}}')
+select genesis_bots.app1.submit_udf('run process {}', '', '{{"bot_id": "Janice-dev"}}')
 """.format(
-        thread_id, test
+        test
     )
     print(query)
     cursor.execute(query)

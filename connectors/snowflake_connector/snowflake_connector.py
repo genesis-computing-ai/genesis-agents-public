@@ -890,7 +890,6 @@ class SnowflakeConnector(DatabaseConnector):
             err = f"An error occurred while getting jira info: {e}"
             return {"Success": False, "Error": err}
 
-
     def set_api_config_params(self, service_name, key_pairs_str):
         try:
 
@@ -937,7 +936,7 @@ class SnowflakeConnector(DatabaseConnector):
         if not rows:
             return False
 
-        creds_dict = {row[0]: row[1] for row in rows}
+        creds_dict = {row[0]: row[1] for row in rows if row[0].casefold() != "shared_folder"}
 
         creds_json = json.dumps(creds_dict, indent=4)
         with open('genesis-workspace-project-d094fd7d2562.json', 'w') as json_file:
@@ -3350,7 +3349,6 @@ def get_status(site):
                 f"Failed to update existing bot configuration for bot_id: {bot_id} with error: {e}"
             )
             raise e
-
 
     def db_update_existing_bot_basics(
         self,

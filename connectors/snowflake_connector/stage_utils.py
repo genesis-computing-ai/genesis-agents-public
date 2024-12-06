@@ -132,7 +132,7 @@ def read_file_from_stage(
     try:
         # Define the local directory to save the file
         if for_bot == None:
-            for_bot = thread_id
+            for_bot = thread_id if thread_id else 'tmp'
         local_dir = os.path.join(".", "downloaded_files", for_bot)
 
         #        if '/' in file_name:
@@ -149,14 +149,14 @@ def read_file_from_stage(
 
         query = f'GET @"{database}"."{schema}"."{stage}"/{file_name} file://{target_dir}'
         ret = self.run_query(query)
-        if isinstance(ret, dict) and "does not exist or not authorized" in ret.get(
-            "Error", ""
-        ):
-            database = database.upper()
-            schema = schema.upper()
-            stage = stage.upper()
-            query = f'GET @"{database}"."{schema}"."{stage}"/{file_name} file://{local_dir}'
-            ret = self.run_query(query)
+        # if isinstance(ret, dict) and "does not exist or not authorized" in ret.get(
+        #     "Error", ""
+        # ):
+        #     database = database.upper()
+        #     schema = schema.upper()
+        #     stage = stage.upper()
+        #     query = f'GET @"{database}"."{schema}"."{stage}"/{file_name} file://{local_dir}'
+        #     ret = self.run_query(query)
 
         if os.path.isfile(local_file_path):
             if return_contents:

@@ -2,7 +2,6 @@ from snowflake.connector import connect
 
 import os
 import json
-from datetime import datetime
 import uuid
 import os
 import hashlib
@@ -15,6 +14,8 @@ import pkgutil
 import inspect
 import functools
 
+from datetime import datetime
+
 from llm_openai.openai_utils import get_openai_client
 
 from ..database_connector import DatabaseConnector, llm_keys_and_types_struct
@@ -26,7 +27,7 @@ from google_sheets.g_sheets import (
     output_to_google_docs,
     create_g_drive_folder,
     create_folder_in_folder,
-    upload_to_folder,
+    upload_file_to_folder,
 )
 
 from core.bot_os_llm import BotLlmEngineEnum
@@ -936,7 +937,7 @@ class SnowflakeConnector(DatabaseConnector):
         if not rows:
             return False
 
-        creds_dict = {row[0]: row[1] for row in rows if row[0].casefold() != "shared_folder"}
+        creds_dict = {row[0]: row[1] for row in rows if row[0].casefold() != "shared_folder_id"}
 
         creds_json = json.dumps(creds_dict, indent=4)
         with open('genesis-workspace-project-d094fd7d2562.json', 'w') as json_file:
@@ -2336,38 +2337,83 @@ def get_status(site):
 
         cursor.close()
 
+        def get_root_folder_id():
+            cursor = self.connection.cursor()
+            query = f"SELECT value from {self.schema}.EXT_SERVICE_CONFIG WHERE ext_service_name = 'g-sheets' AND parameter = 'shared_folder_id'"
+            cursor.execute(query)
+            row = cursor.fetchone()
+            cursor.close()
+            if row is not None:
+                return {"Success": True, "result": row[0]}
+            else:
+                raise Exception("Missing shared folder ID")
+
+        root_folder_id = get_root_folder_id()
+        root_folder_id = "1t0RJsOSgwksy2IH-pQtMbGVgrIaBI_-Y"
+
         if query.casefold() == 'SELECT * FROM "GENESIS_GXS"."REQUIREMENTS"."FLEXICARD_PM";'.casefold():
-            parent_folder_id = create_g_drive_folder(
-                "project flexi_card_mappings_project_"
-                + datetime.now().strftime("%m%d%Y_%H:%M:%S")
+            from datetime import datetime
+            timestamp = datetime.now().strftime("%m%d%Y_%H:%M:%S")
+            parent_folder_id = create_folder_in_folder(
+                "gxs_" + timestamp, root_folder_id
             )
 
             subfolder_id = {}
             for key in ['GIT_SOURCE_RESEARCH', 'GIT_MAPPING_PROPOSAL', 'GIT_CONFIDENCE_OUTPUT']:
                 subfolder_id[key] = create_folder_in_folder(key, parent_folder_id)
 
+            links = {}
             for data in sample_data:
                 print(data['GIT_SOURCE_RESEARCH'], data ['GIT_MAPPING_PROPOSAL'], data['GIT_CONFIDENCE_OUTPUT'])
                 # @genesis_bots_alpha.app1.bot_git/requirements/run1/ROLLOVER_PRIN_OUTSTANDING_AMT__source_research.txt
 
                 for key in ['GIT_SOURCE_RESEARCH', 'GIT_MAPPING_PROPOSAL', 'GIT_CONFIDENCE_OUTPUT']:
-                    file_path = read_file_from_stage(
+                    # file_path = read_file_from_stage(
+                    #     self,
+                    #     "GENESIS_GXS",
+                    #     "REQUIREMENTS",
+                    #     "FLEXICARD_PM",
+                    #     data[key].replace("@genesis_bots_alpha.app1.bot_git/", ""),
+                    #     return_file_path = True,
+                    # )
+                    file = read_file_from_stage(
                         self,
-                        "GENESIS_GXS",
-                        "REQUIREMENTS",
-                        "FLEXICARD_PM",
+                        "GENESIS_BOT_ALPHA",
+                        "APP1",
+                        "BOT_GIT",
                         data[key].replace("@genesis_bots_alpha.app1.bot_git/", ""),
-                        return_file_path = True,
+                        return_file_path=True,
                     )
 
+                    file_name = data[key].replace(
+                        "@genesis_bots_alpha.app1.bot_git/", ""
+                    ).split("/")[-1]
+
                     # create text docs in sub-folder
-                    docId = upload_to_folder(file_path, subfolder_id['key'])
+                    links[key] = output_to_google_docs(file, subfolder_id[key], file_name)
 
                 # write text docs ID's back to table
+                cursor = self.connection.cursor()
+                query = f"""
+                    UPDATE "GENESIS_GXS"."REQUIREMENTS"."FLEXICARD_PM" 
+                    SET
+                    GIT_SOURCE_RESEARCH_DOC_LINK = '{links["GIT_SOURCE_RESEARCH"]}',
+                    GIT_MAPPING_PROPOSAL_DOC_LINK = '{links["GIT_MAPPING_PROPOSAL"]}',
+                    GIT_CONFIDENCE_OUTPUT_DOC_LINK = '{links["GIT_CONFIDENCE_OUTPUT"]}'
+                    WHERE 
+                    PHYSICAL_COLUMN_NAME = '{data['PHYSICAL_COLUMN_NAME']}'
+                """
+                result = cursor.execute(query)
+                cursor.close()
 
         elif export_to_google_doc:
+            cursor = self.connection.cursor()
+            query = f"SELECT value from {self.schema}.EXT_SERVICE_CONFIG WHERE ext_service_name = 'g-sheets' AND parameter = 'shared_key_id'"
+            cursor.execute(query)
+            shared_key_id = cursor.fetchone()[0]
+
             print_string = dict_list_to_markdown_table(sample_data)
-            filename = output_to_google_docs(print_string)
+            filename, link = output_to_google_docs(print_string, shared_key_id)
             return {"Success": True, "result": "Data sent to Google Docs - Filename: " + filename}
 
         return sample_data

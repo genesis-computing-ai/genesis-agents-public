@@ -7,12 +7,12 @@ from core.bot_os_server import BotOsServer
 from apscheduler.schedulers.background import BackgroundScheduler
 from demo.sessions_creator import create_sessions
 
-from genesis_base import GenesisServer
+from genesis_base import GenesisBot, GenesisMetadataStore, GenesisServer, SnowflakeMetadataStore
 from streamlit_gui.udf_proxy_bot_os_adapter import UDFBotOsInputAdapter
 
 class GenesisLocalSnowflakeServer(GenesisServer):
     def __init__(self, scope, sub_scope="app1", bot_list=None):
-        super().__init__(scope)
+        super().__init__(scope, sub_scope)
         self.bot_id_to_udf_adapter_map: Dict[str, UDFBotOsInputAdapter] = {}
         if f"{scope}.{sub_scope}" != os.getenv("GENESIS_INTERNAL_DB_SCHEMA"):
             raise Exception(f"Scope {scope}.{sub_scope} does not match environment variable GENESIS_INTERNAL_DB_SCHEMA {os.getenv('GENESIS_INTERNAL_DB_SCHEMA')}")
@@ -51,6 +51,19 @@ class GenesisLocalSnowflakeServer(GenesisServer):
         )
         BotOsServer.stream_mode = True
         scheduler.start()
+
+    def get_metadata_store(self) -> GenesisMetadataStore:
+        return SnowflakeMetadataStore(self.scope, self.sub_scope)
+
+    def register_bot(self, bot: GenesisBot):
+        return(self.server.make_baby_bot_wrapper(
+            bot_id=bot.get("BOT_ID", None),
+            bot_name=bot.get("BOT_NAME", None),
+            bot_implementation=bot.get("BOT_IMPLEMENTATION", None),
+            files=bot.get("FILES", None),
+            available_tools=bot.get("AVAILABLE_TOOLS", None),
+            bot_instructions=bot.get("BOT_INSTRUCTIONS", None)
+        ))
 
     def add_message(self, bot_id, message, thread_id) -> str: # returns request_id
         if not thread_id:
@@ -106,3 +119,84 @@ class GenesisLocalSnowflakeServer(GenesisServer):
     
     def shutdown(self):
         self.server.shutdown()
+
+    def upload_file(self, file_path, file_name, contents):
+        """
+        Write file contents to a Snowflake stage location.
+        Args:
+            file_path: Full path to stage, e.g. '@my_stage/path/to/'
+            file_name: Name of file to write
+            contents: String contents to write to file
+        Returns:
+            True if file was written successfully, False otherwise
+        """
+        conn = get_global_db_connector("Snowflake").connection
+        try:
+            cursor = conn.cursor()
+        
+            # Write contents to temporary local file
+            with open(f'./tmp/{file_name}', 'w') as f:
+                f.write(contents)
+            
+            # Put file to stage
+            put_cmd = f"PUT file://./tmp/{file_name} {file_path};"
+            cursor.execute(put_cmd)
+            
+            return True
+        except Exception as e:
+            print(f"Error writing file to stage: {e}")
+            return False
+        finally:
+            cursor.close()
+
+    def get_file_contents(self, file_path, file_name):
+        """
+        Retrieve file contents from a Snowflake stage location.
+        Args:
+            stage_path: Full path to file in stage, e.g. '@my_stage/path/to/file.txt'
+        Returns:
+            String contents of the file
+        """
+        conn = get_global_db_connector("Snowflake").connection
+        try:
+            cursor = conn.cursor()
+            get_file_cmd = f"GET {file_path}{file_name} file://./tmp/;"
+            res = cursor.execute(get_file_cmd)
+            
+            with open(f'./tmp/{file_name}', 'r') as f:
+                contents = f.read()
+            
+            return contents
+        except Exception as e:
+            print(f"Error retrieving file from stage: {e}")
+            return None
+        finally:
+            cursor.close()
+
+    def remove_file(self, file_path, file_name):
+        """
+        Remove a file from a Snowflake stage location if it exists.
+        Args:
+            stage_path: Full path to stage, e.g. '@my_stage/path/to/'
+            file_name: Name of file to remove
+        Returns:
+            True if file was removed successfully, False otherwise
+        """
+        conn = get_global_db_connector("Snowflake").connection
+        try:
+            cursor = conn.cursor()
+            # Check if file exists first
+            list_cmd = f"LIST {file_path}{file_name};"
+            res = cursor.execute(list_cmd).fetchall()
+            
+            if len(res) > 0:
+                # File exists, remove it
+                remove_cmd = f"REMOVE {file_path}{file_name};"
+                cursor.execute(remove_cmd)
+                return True
+            return False
+        except Exception as e:
+            print(f"Error removing file from stage: {e}")
+            return False
+        finally:
+            cursor.close()

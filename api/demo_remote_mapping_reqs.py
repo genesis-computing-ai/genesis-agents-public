@@ -8,6 +8,8 @@ import json
 
 import os, yaml
 
+from api.snowflake_local_server import GenesisLocalSnowflakeServer
+
 """
 launch.json config example:
 
@@ -52,89 +54,6 @@ conn = snowflake.connector.connect(
     warehouse=os.environ['SNOWFLAKE_WAREHOUSE_OVERRIDE'],
     role=os.environ['SNOWFLAKE_ROLE_OVERRIDE']
 )
-
-def get_file_from_stage(stage_path, file_name):
-    """
-    Retrieve file contents from a Snowflake stage location.
-    Args:
-        stage_path: Full path to file in stage, e.g. '@my_stage/path/to/file.txt'
-    Returns:
-        String contents of the file
-    """
-    try:
-        cursor = conn.cursor()
-        get_file_cmd = f"GET {stage_path}{file_name} file://./tmp/;"
-        res = cursor.execute(get_file_cmd)
-        
-        with open(f'./tmp/{file_name}', 'r') as f:
-            contents = f.read()
-            
-        return contents
-    except Exception as e:
-        print(f"Error retrieving file from stage: {e}")
-        return None
-    finally:
-        cursor.close()
-
-def remove_file_from_stage(stage_path, file_name):
-    """
-    Remove a file from a Snowflake stage location if it exists.
-    Args:
-        stage_path: Full path to stage, e.g. '@my_stage/path/to/'
-        file_name: Name of file to remove
-    Returns:
-        True if file was removed successfully, False otherwise
-    """
-    try:
-        cursor = conn.cursor()
-        # Check if file exists first
-        list_cmd = f"LIST {stage_path}{file_name};"
-        res = cursor.execute(list_cmd).fetchall()
-        
-        if len(res) > 0:
-            # File exists, remove it
-            remove_cmd = f"REMOVE {stage_path}{file_name};"
-            cursor.execute(remove_cmd)
-            return True
-        return False
-    except Exception as e:
-        print(f"Error removing file from stage: {e}")
-        return False
-    finally:
-        cursor.close()
-
-def write_file_to_stage(stage_path, file_name, contents):
-    """
-    Write file contents to a Snowflake stage location.
-    Args:
-        stage_path: Full path to stage, e.g. '@my_stage/path/to/'
-        file_name: Name of file to write
-        contents: String contents to write to file
-    Returns:
-        True if file was written successfully, False otherwise
-    """
-    try:
-        cursor = conn.cursor()
-
-        # Write contents to temporary local file
-        with open(f'./tmp/{file_name}', 'w') as f:
-            f.write(contents)
-            
-        # Create stage if it doesn't exist
-        create_stage_cmd = f"CREATE STAGE IF NOT EXISTS {stage_path.replace('@', '').split('/')[0]};"
-        cursor.execute(create_stage_cmd)
-
-        # Put file to stage
-        put_cmd = f"PUT file://./tmp/{file_name} {stage_path};"
-        cursor.execute(put_cmd)
-        
-        return True
-    except Exception as e:
-        print(f"Error writing file to stage: {e}")
-        return False
-    finally:
-        cursor.close()
-
 
 def print_file_contents(title, file_path, contents):
     """
@@ -184,7 +103,7 @@ def setup_paths(physical_column_name):
         'confidence_report_file': f"{physical_column_name}__confidence_report.txt"
     }
 
-def check_git_file(paths, file_name):
+def check_git_file(client, paths, file_name):
     """
     Check if file exists in stage or local git, copy to stage if needed.
     
@@ -201,7 +120,7 @@ def check_git_file(paths, file_name):
 
     # First check if file exists in stage
     try:
-        stage_contents = get_file_from_stage(f"{paths['stage_base']}{paths['base_git_path']}", file_name)
+        stage_contents = client.get_file_contents(f"{paths['stage_base']}{paths['base_git_path']}", file_name)
         if stage_contents and not stage_contents.startswith('Placeholder'):
             print(f"\033[92mFile found in stage: {stage_path}\033[0m")
             return stage_contents
@@ -218,7 +137,7 @@ def check_git_file(paths, file_name):
                 contents = f.read()
             
             # Copy to stage
-            success = write_file_to_stage(f"{paths['stage_base']}{paths['base_git_path']}", 
+            success = client.upload_file(f"{paths['stage_base']}{paths['base_git_path']}", 
                                         file_name,
                                         contents)
             
@@ -262,7 +181,7 @@ def perform_source_research(client, requirement, paths, bot_id):
         if 'SUCCESS' not in response:
             raise Exception('Error on source research')
 
-        contents = check_git_file(paths=paths, file_name=paths["source_research_file"])
+        contents = check_git_file(client, paths=paths, file_name=paths["source_research_file"])
         
         if not contents or contents.startswith('Placeholder '):
             raise Exception('Source research file not found or contains only placeholder')
@@ -334,7 +253,7 @@ def perform_confidence_analysis(client, requirement, paths, bot_id):
     if 'SUCCESS' not in response:
         raise Exception('Error on confidence analysis')
     
-    contents = check_git_file(paths=paths, file_name=paths["confidence_report_file"])
+    contents = check_git_file(client,paths=paths, file_name=paths["confidence_report_file"])
         
     if not contents or contents.startswith('Placeholder '):
         raise Exception('Confidence report file not found or contains only placeholder')
@@ -544,7 +463,7 @@ def main():
    
     local_bots = []   # start these already-present-on-serber bots if they exist (if you're not loading/refreshing from YAMLS below) 
 
-    client = GenesisAPI("local-snowflake", scope="GENESIS_TEST", sub_scope="GENESIS_JL", 
+    client = GenesisAPI(server_type=GenesisLocalSnowflakeServer, scope="GENESIS_TEST", sub_scope="GENESIS_INTERNAL", #"GENESIS_JL", 
                         bot_list=local_bots) # ["marty-l6kx7d"]
 
     # if you want to see what bots are already on the server
@@ -598,15 +517,15 @@ def main():
             summary = perform_pm_summary(client, filtered_requirement, paths, pm_bot_id)
 
             # Get the full content of each file from git
-            source_research_content = get_file_from_stage(
+            source_research_content = client.get_file_contents(
                 f"{paths['stage_base']}{paths['base_git_path']}", 
                 paths["source_research_file"]
             )
-            mapping_proposal_content = get_file_from_stage(
+            mapping_proposal_content = client.get_file_contents(
                 f"{paths['stage_base']}{paths['base_git_path']}", 
                 paths["mapping_proposal_file"]
             )
-            confidence_output_content = get_file_from_stage(
+            confidence_output_content = client.get_file_contents(
                 f"{paths['stage_base']}{paths['base_git_path']}", 
                 paths["confidence_report_file"]
             )

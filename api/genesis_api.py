@@ -1,56 +1,17 @@
 import json
 import time, os
-from api.genesis_base import GenesisBot, GenesisLocalServer, GenesisProject, GenesisProcess, GenesisNote, GenesisKnowledge, LocalMetadataStore, SnowflakeMetadataStore, ToolDefinition
-from api.snowflake_local_server import GenesisLocalSnowflakeServer
-from api.snowflake_remote_server import GenesisSnowflakeServer
-import core.global_flags as global_flags
+from api.genesis_base import GenesisBot, GenesisLocalServer, GenesisMetadataStore, GenesisProject, GenesisProcess, GenesisNote, GenesisKnowledge, GenesisServer, LocalMetadataStore, SnowflakeMetadataStore, ToolDefinition
 
 class GenesisAPI:
-    def __init__(self, server_type, scope, sub_scope="app1", bot_list=None):
-        self.server_type = server_type
+    def __init__(self, scope:str, sub_scope:str="app1", bot_list=None, server_type: type = GenesisLocalServer):
         self.scope = scope
         self.sub_scope = sub_scope
-        self.server_type = server_type
-        if server_type == "local":
-            if bot_list is not None:
-                raise ValueError("bot_list not supported for local server")
-            self.metadata_store = LocalMetadataStore(scope)
-            self.registered_server = GenesisLocalServer(scope)
-        elif server_type == "local-snowflake":
-            self.metadata_store = SnowflakeMetadataStore(scope, sub_scope)
-            self.registered_server = GenesisLocalSnowflakeServer(scope, sub_scope, bot_list=bot_list)
-        elif server_type == "remote-snowflake":
-            if bot_list is not None:
-                raise ValueError("bot_list not supported for remote server")
-            self.metadata_store = SnowflakeMetadataStore(scope, sub_scope)
-            self.registered_server = GenesisSnowflakeServer(scope)
-        else:
-            raise ValueError("Remote server not supported yet")
-        genbot_internal_project_and_schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "None")
-        if genbot_internal_project_and_schema == "None":
-            print("ENV Variable GENESIS_INTERNAL_DB_SCHEMA is not set.")
-        if genbot_internal_project_and_schema is not None:
-            genbot_internal_project_and_schema = genbot_internal_project_and_schema.upper()
-        db_schema = genbot_internal_project_and_schema.split(".")
-        project_id = db_schema[0]
-        global_flags.project_id = project_id
-        dataset_name = db_schema[1]
-        global_flags.genbot_internal_project_and_schema = genbot_internal_project_and_schema
+        self.registered_server: GenesisServer = server_type(scope, sub_scope, bot_list=bot_list)
+        self.metadata_store: GenesisMetadataStore = self.registered_server.get_metadata_store()
 
-        
     def register_bot(self, bot: GenesisBot):
-
-        if self.server_type == "local-snowflake":
-            return(self.registered_server.server.make_baby_bot_wrapper(
-                bot_id=bot.get("BOT_ID", None),
-                bot_name=bot.get("BOT_NAME", None),
-                bot_implementation=bot.get("BOT_IMPLEMENTATION", None),
-                files=bot.get("FILES", None),
-                available_tools=bot.get("AVAILABLE_TOOLS", None),
-                bot_instructions=bot.get("BOT_INSTRUCTIONS", None)
-            ))
-
-        self.metadata_store.insert_or_update_metadata("GenesisBot", bot["BOT_ID"], bot)
+        self.registered_server.register_bot(bot)
+        self.metadata_store.insert_or_update_metadata("GenesisBot", bot["BOT_ID"], bot) # FIXME: do we need this if we are registering the bot?
         
     def get_bot(self, bot_id) -> GenesisBot:
         return self.metadata_store.get_metadata("GenesisBot", bot_id)
@@ -103,6 +64,13 @@ class GenesisAPI:
         return self.metadata_store.get_metadata("GenesisKnowledge", thread_id)
     def get_all_knowledge(self) -> list[str]:
         return self.metadata_store.get_all_metadata("GenesisKnowledge")
+
+    def upload_file(self, file_path, file_name, contents):
+        return self.registered_server.upload_file(file_path, file_name, contents)
+    def get_file_contents(self, file_path, file_name):
+        return self.registered_server.get_file_contents(file_path, file_name)
+    def remove_file(self, file_path, file_name):
+        return self.registered_server.remove_file(file_path, file_name)
     
     def get_message_log(self, bot_id, thread_id=None, last_n=None):
         if last_n is None:

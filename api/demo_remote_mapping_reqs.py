@@ -472,11 +472,11 @@ def perform_source_research_new(client, requirement, paths, bot_id):
         research_prompt = f'''Here are requirements for a target field I want you to work on: {requirement}\n
         Save the results in git at: {paths["base_git_path"]}{paths["source_research_file"]}\n
      
-        There are two past projects to use in its past project consideration step, stored in git at:
-        1. in git at: knowledge/past_projects/loan_data_project.txt
-        2. in git at: knowledge/past_projects/loan_lending_project.txt
+        There are two past projects to use in its past project consideration step, stored in git. Get both of them by calling:
+        1. _git_action(action='read_file',file_path='knowledge/past_projects/loan_data_project.txt')
+        2. _git_action(action='read_file',file_path='knowledge/past_projects/loan_lending_project.txt')
 
-        It is important to analyze BOTH the metadata, and ALSO the past projects, and to discuss both in its report.
+        It is important to analyze BOTH the metadata, and ALSO the past projects, and to discuss both in your report.
 
         This is being run by an automated process, so do not repeat these instructions back to me, simply proceed to execute them without asking for further approval.'''
         
@@ -495,6 +495,65 @@ def perform_source_research_new(client, requirement, paths, bot_id):
     except Exception as e:
         raise e
 
+def perform_mapping_proposal_new(client, requirement, paths, bot_id):
+    """Execute mapping proposal step and validate results."""
+    print("\033[34mExecuting mapping proposal...\033[0m")
+    
+    mapping_prompt = f'''Here are requirements for a target field I want you to work on a mapping proposal for: {requirement}
+
+    The source research bot has already run and saved its results at this git. First, read its report by calling:
+    _git_action(action='read_file',file_path='{paths["base_git_path"]}{paths["source_research_file"]}')
+
+    Now, make a mapping proposal for this field. 
+    
+    Then save your results at this git location using _git_action: {paths["base_git_path"]}{paths["mapping_proposal_file"]}
+
+    This is being run by an automated process, so do not repeat these instructions back to me, simply proceed to execute them without asking for further approval.'''
+    
+    response = call_genesis_bot(client, bot_id, mapping_prompt)
+#    if 'SUCCESS' not in response:
+#        raise Exception('Error on mapping proposal')
+
+    contents = check_git_file(client,paths=paths, file_name=paths["mapping_proposal_file"])
+        
+    if not contents or contents.startswith('Placeholder '):
+        raise Exception('Mapping proposal file not found or contains only placeholder')
+    
+    print_file_contents("MAPPING PROPOSAL",
+                       f"{paths['base_git_path']}{paths['mapping_proposal_file']}", 
+                       contents)
+    return contents    
+
+def perform_confidence_analysis_new(client, requirement, paths, bot_id):
+    """Execute confidence analysis step and validate results."""
+    print("\033[34mExecuting confidence analysis...\033[0m")
+    
+    confidence_prompt = f'''Here are requirements for a target field I want you to analyze confidence for: {requirement}
+
+    First read the source research report by calling:
+    _git_action(action='read_file',file_path='{paths["base_git_path"]}{paths["source_research_file"]}')
+
+    Then read the mapping proposal by calling:
+    _git_action(action='read_file',file_path='{paths["base_git_path"]}{paths["mapping_proposal_file"]}')
+
+    Now, analyze the confidence level of this mapping proposal based on the source research.
+    
+    Then save your confidence analysis at this git location using _git_action: {paths["base_git_path"]}{paths["confidence_report_file"]}
+
+    This is being run by an automated process, so do not repeat these instructions back to me, simply proceed to execute them without asking for further approval.'''
+    
+    response = call_genesis_bot(client, bot_id, confidence_prompt)
+
+    contents = check_git_file(client,paths=paths, file_name=paths["confidence_report_file"])
+        
+    if not contents or contents.startswith('Placeholder '):
+        raise Exception('Confidence report file not found or contains only placeholder')
+    
+    print_file_contents("CONFIDENCE ANALYSIS",
+                       f"{paths['base_git_path']}{paths['confidence_report_file']}", 
+                       contents)
+    return contents
+
 
 def main():
     """Main execution flow.
@@ -502,14 +561,12 @@ def main():
     """
    
     local_bots = []   # start these already-present-on-serber bots if they exist (if you're not loading/refreshing from YAMLS below) 
-    local_bots = [
-        "sourceResearchBot-jllocal",  # Changed from SourceResearch-jllocal
-        "mappingProposerBot-jllocal", # Changed from MappingProposal-jllocal
-        "confidenceanalyst-jllocal",  # Changed from ConfidenceReport-jllocal
-        "MappingValidator-jllocal",   # This one isn't used in the code
-        "RequirementsPM-jllocal"      # This one matches existing usage
-    ]
-
+   # local_bots = [
+   #     "sourceResearchBot-jllocal",  # Changed from SourceResearch-jllocal
+   #     "mappingProposerBot-jllocal", # Changed from MappingProposal-jllocal
+   #     "confidenceanalyst-jllocal",  # Changed from ConfidenceReport-jllocal
+   #     "RequirementsPM-jllocal"      # This one matches existing usage
+   # ]
     # Get scope and sub_scope from environment variable
     internal_schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA")
     if not internal_schema:
@@ -528,7 +585,7 @@ def main():
     # adds or updates bots defined in YAML to metadata and activates the listed bots
 
     bot_team_path = './demo/bot_team'
-  #  load_bots_from_yaml(client=client, bot_team_path=bot_team_path)  # takes bot definitions from yaml files at the specified path and injects/updates those bots into the running local server
+    load_bots_from_yaml(client=client, bot_team_path=bot_team_path)  # takes bot definitions from yaml files at the specified path and injects/updates those bots into the running local server
 
     # MAIN WORKFLOW
     try:
@@ -598,10 +655,11 @@ def main():
 
             pm_bot_id = 'RequirementsPM-jllocal'
             source_research_bot_id = 'sourceResearchBot-jllocal'
+            mapping_proposer_bot_id = 'mappingProposerBot-jllocal'
 
             source_research = perform_source_research_new(client, filtered_requirement, paths, source_research_bot_id)
             
-            mapping_proposal = perform_mapping_proposal(client, filtered_requirement, paths, pm_bot_id)
+            mapping_proposal = perform_mapping_proposal_new(client, filtered_requirement, paths, mapping_proposer_bot_id)
             
             confidence_report = perform_confidence_analysis(client, filtered_requirement, paths, pm_bot_id)
             

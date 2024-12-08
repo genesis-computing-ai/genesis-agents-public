@@ -84,7 +84,7 @@ def create_g_drive_folder(folder_name:str = "folder"):
         print(err)
         return None
 
-def output_to_google_docs(text: str = None, shared_folder_id: str = None, file_name = None):
+def output_to_google_docs(text: str = 'No text received.', shared_folder_id: str = None, file_name = None):
     """
     Creates new file in Google Docs named Genesis_mmddyyy_hh:mm:ss from text string
     """
@@ -127,7 +127,7 @@ def output_to_google_docs(text: str = None, shared_folder_id: str = None, file_n
                 )
                 .execute()
             )
-            print(f"File moved to folder: {file} | Parent folder {file.parents[0]}")
+            print(f"File moved to folder: {file} | Parent folder {file['parents'][0]}")
 
         # Verify the new document exists in Google Drive
         try:
@@ -144,6 +144,9 @@ def output_to_google_docs(text: str = None, shared_folder_id: str = None, file_n
             drive_service.files().get(fileId=shared_folder_id, fields="id, name").execute()
         )
         print(f"Parent folder name: {parent.get('name')} (ID: {parent.get('id')})")
+
+        if not text:
+            text = 'No text received from Snowflake stage.'
 
         requests = [{"insertText": {"location": {"index": 1}, "text": text}}]
 

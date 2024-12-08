@@ -2380,7 +2380,7 @@ def get_status(site):
                     #     data[key].replace("@genesis_bots_alpha.app1.bot_git/", ""),
                     #     return_file_path = True,
                     # )
-                    file = read_file_from_stage(
+                    file_contents = read_file_from_stage(
                         self,
                         "GENESIS_BOTS_ALPHA",
                         "APP1",
@@ -2394,7 +2394,7 @@ def get_status(site):
                     ).split("/")[-1]
 
                     # create text docs in sub-folder
-                    links[key] = output_to_google_docs(file, subfolder_id[key], file_name)
+                    links[key] = output_to_google_docs(file_contents, subfolder_id[key], file_name)
 
                 # write text docs ID's back to table
                 cursor = self.connection.cursor()

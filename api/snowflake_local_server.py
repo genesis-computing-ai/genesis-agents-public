@@ -9,10 +9,12 @@ from demo.sessions_creator import create_sessions
 
 from genesis_base import GenesisBot, GenesisMetadataStore, GenesisServer, SnowflakeMetadataStore
 from streamlit_gui.udf_proxy_bot_os_adapter import UDFBotOsInputAdapter
+import core.global_flags as global_flags
 
 class GenesisLocalSnowflakeServer(GenesisServer):
     def __init__(self, scope, sub_scope="app1", bot_list=None):
         super().__init__(scope, sub_scope)
+        self.set_global_flags()
         self.bot_id_to_udf_adapter_map: Dict[str, UDFBotOsInputAdapter] = {}
         if f"{scope}.{sub_scope}" != os.getenv("GENESIS_INTERNAL_DB_SCHEMA"):
             raise Exception(f"Scope {scope}.{sub_scope} does not match environment variable GENESIS_INTERNAL_DB_SCHEMA {os.getenv('GENESIS_INTERNAL_DB_SCHEMA')}")
@@ -52,6 +54,18 @@ class GenesisLocalSnowflakeServer(GenesisServer):
         BotOsServer.stream_mode = True
         scheduler.start()
 
+    def set_global_flags(self):
+        genbot_internal_project_and_schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "None")
+        if genbot_internal_project_and_schema == "None":
+            print("ENV Variable GENESIS_INTERNAL_DB_SCHEMA is not set.")
+        if genbot_internal_project_and_schema is not None:
+            genbot_internal_project_and_schema = genbot_internal_project_and_schema.upper()
+        db_schema = genbot_internal_project_and_schema.split(".")
+        project_id = db_schema[0]
+        global_flags.project_id = project_id
+        dataset_name = db_schema[1]
+        global_flags.genbot_internal_project_and_schema = genbot_internal_project_and_schema
+        
     def get_metadata_store(self) -> GenesisMetadataStore:
         return SnowflakeMetadataStore(self.scope, self.sub_scope)
 

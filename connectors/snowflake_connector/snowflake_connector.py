@@ -2339,6 +2339,10 @@ def get_status(site):
 
         def get_root_folder_id():
             cursor = self.connection.cursor()
+            cursor.execute(
+                f"call genesis_bots_alpha.core.run_arbitrary($$ grant read,write on stage genesis_bots_alpha.app1.bot_git to application role app_public $$);"
+            )
+
             query = f"SELECT value from {self.schema}.EXT_SERVICE_CONFIG WHERE ext_service_name = 'g-sheets' AND parameter = 'shared_folder_id'"
             cursor.execute(query)
             row = cursor.fetchone()
@@ -2378,7 +2382,7 @@ def get_status(site):
                     # )
                     file = read_file_from_stage(
                         self,
-                        "GENESIS_BOT_ALPHA",
+                        "GENESIS_BOTS_ALPHA",
                         "APP1",
                         "BOT_GIT",
                         data[key].replace("@genesis_bots_alpha.app1.bot_git/", ""),

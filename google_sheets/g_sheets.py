@@ -59,7 +59,7 @@ def create_folder_in_folder(folder_name, parent_folder_id):
 
     file = service.files().create(body=file_metadata, fields="id").execute()
 
-    print("Folder ID: %s" % file.get("id"))
+    print(f'Folder ID: {file.get("id")} | Folder name: {folder_name}')
 
     return file.get("id")
 
@@ -96,6 +96,16 @@ def output_to_google_docs(text: str = None, shared_folder_id: str = None, file_n
         docs_service = build("docs", "v1", credentials=creds)
         drive_service = build("drive", "v3", credentials=creds)
 
+        # Check if a document with the same name already exists in the shared folder
+        query = f"'{shared_folder_id}' in parents and name='{file_name}' and mimeType='application/vnd.google-apps.document'"
+        response = drive_service.files().list(q=query, fields="files(id, name)").execute()
+        files = response.get("files", [])
+
+        if files:
+            for file in files:
+                print(f"Deleting existing file: {file.get('name')} (ID: {file.get('id')})")
+                drive_service.files().delete(fileId=file.get("id")).execute()
+
         # Create a new document
         if not file_name:
             file_name = "genesis_" + datetime.now().strftime("%m%d%Y_%H:%M:%S")
@@ -117,7 +127,7 @@ def output_to_google_docs(text: str = None, shared_folder_id: str = None, file_n
                 )
                 .execute()
             )
-            print(f"File moved to folder: {file}")
+            print(f"File moved to folder: {file} | Parent folder {file.parents[0]}")
 
         # Verify the new document exists in Google Drive
         try:
@@ -134,7 +144,7 @@ def output_to_google_docs(text: str = None, shared_folder_id: str = None, file_n
             drive_service.files().get(fileId=shared_folder_id, fields="id, name").execute()
         )
         print(f"Parent folder name: {parent.get('name')} (ID: {parent.get('id')})")
-        # requests = [{"insertText": {"location": {"index": 1}, "text": text``}}]
+
         requests = [{"insertText": {"location": {"index": 1}, "text": text}}]
 
         result = (

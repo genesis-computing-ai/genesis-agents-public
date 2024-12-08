@@ -1,31 +1,34 @@
 import json
-import time
-from api.genesis_base import GenesisBot, GenesisLocalServer, GenesisProject, GenesisProcess, GenesisNote, GenesisKnowledge, LocalMetadataStore, SnowflakeMetadataStore, ToolDefinition
-from api.snowflake_local_server import GenesisLocalSnowflakeServer
-from api.snowflake_remote_server import GenesisSnowflakeServer
+import time, os
+import core.global_flags as global_flags
+
+
+from api.genesis_base import GenesisBot, GenesisLocalServer, GenesisMetadataStore, GenesisProject, GenesisProcess, GenesisNote, GenesisKnowledge, GenesisServer, LocalMetadataStore, SnowflakeMetadataStore, ToolDefinition
 
 class GenesisAPI:
-    def __init__(self, server_type, scope, sub_scope="app1", bot_list=None):
-        self.server_type = server_type
+    def __init__(self, scope:str, sub_scope:str="app1", bot_list=None, server_type: type = GenesisLocalServer):
+        self.set_global_flags()
         self.scope = scope
         self.sub_scope = sub_scope
-        if server_type == "local":
-            if bot_list is not None:
-                raise ValueError("bot_list not supported for local server")
-            self.metadata_store = LocalMetadataStore(scope)
-            self.registered_server = GenesisLocalServer(scope)
-        elif server_type == "local-snowflake":
-            self.metadata_store = SnowflakeMetadataStore(scope, sub_scope)
-            self.registered_server = GenesisLocalSnowflakeServer(scope, sub_scope, bot_list=bot_list)
-        elif server_type == "remote-snowflake":
-            if bot_list is not None:
-                raise ValueError("bot_list not supported for remote server")
-            self.metadata_store = SnowflakeMetadataStore(scope, sub_scope)
-            self.registered_server = GenesisSnowflakeServer(scope)
-        else:
-            raise ValueError("Remote server not supported yet")
+        self.registered_server: GenesisServer = server_type(scope, sub_scope, bot_list=bot_list)
+        self.metadata_store: GenesisMetadataStore = self.registered_server.get_metadata_store()
+
+    def set_global_flags(self):
+        genbot_internal_project_and_schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "None")
+        if genbot_internal_project_and_schema == "None":
+            print("ENV Variable GENESIS_INTERNAL_DB_SCHEMA is not set.")
+        if genbot_internal_project_and_schema is not None:
+            genbot_internal_project_and_schema = genbot_internal_project_and_schema.upper()
+        db_schema = genbot_internal_project_and_schema.split(".")
+        project_id = db_schema[0]
+        global_flags.project_id = project_id
+        dataset_name = db_schema[1]
+        global_flags.genbot_internal_project_and_schema = genbot_internal_project_and_schema
+        
     def register_bot(self, bot: GenesisBot):
-        self.metadata_store.insert_or_update_metadata("GenesisBot", bot.bot_id, bot)
+        self.registered_server.register_bot(bot)
+        self.metadata_store.insert_or_update_metadata("GenesisBot", bot["BOT_ID"], bot) # FIXME: do we need this if we are registering the bot?
+        
     def get_bot(self, bot_id) -> GenesisBot:
         return self.metadata_store.get_metadata("GenesisBot", bot_id)
     def get_all_bots(self) -> list[str]:
@@ -77,6 +80,13 @@ class GenesisAPI:
         return self.metadata_store.get_metadata("GenesisKnowledge", thread_id)
     def get_all_knowledge(self) -> list[str]:
         return self.metadata_store.get_all_metadata("GenesisKnowledge")
+
+    def upload_file(self, file_path, file_name, contents):
+        return self.registered_server.upload_file(file_path, file_name, contents)
+    def get_file_contents(self, file_path, file_name):
+        return self.registered_server.get_file_contents(file_path, file_name)
+    def remove_file(self, file_path, file_name):
+        return self.registered_server.remove_file(file_path, file_name)
     
     def get_message_log(self, bot_id, thread_id=None, last_n=None):
         if last_n is None:
@@ -87,14 +97,37 @@ class GenesisAPI:
 
     def add_message(self, bot_id, message:str, thread_id=None) -> dict:
         return self.registered_server.add_message(bot_id, message=message, thread_id=thread_id)
+    
+    
     def get_response(self, bot_id, request_id=None, timeout_seconds=None) -> str:
         time_start = time.time()
+        last_response = ""
         while timeout_seconds is None or time.time() - time_start < timeout_seconds:
             response = self.registered_server.get_message(bot_id, request_id)
-            if response is not None and not response.endswith("💬"):
-                return response
+            if response is not None:
+                # Print only the new content since last response
+                if len(response) > len(last_response):
+                    new_content = response[len(last_response):]
+                    # Remove any trailing speech bubbles from the new content
+                    if '💬' in new_content:
+                        new_content = new_content.rsplit('💬', 1)[0]
+                    if '🤖' in new_content and not '\n🤖' in new_content:
+                        new_content = new_content.replace('🤖', '\n🤖')
+                    if '🧰' in new_content and not '\n🧰' in new_content:
+                        new_content = new_content.replace('🧰', '\n🧰')
+                    print(f"\033[96m{new_content}\033[0m", end='', flush=True)  # Cyan text
+                    last_response = response
+                
+                if not response.endswith('💬'):
+                    # Clean up response
+                    if '💬' in response:
+                        response = response.replace('💬', '')
+                    return response
+                    
             time.sleep(1)
         return None
+
+    
 
     def shutdown(self):
         self.registered_server.shutdown()

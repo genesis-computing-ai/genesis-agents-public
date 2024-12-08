@@ -28,7 +28,7 @@ class GenesisBot(BaseModel):
     #TOOL_LIST: List[str]
     BOT_IMPLEMENTATION: str
     FILES: str # List[str]
-    
+
     API_APP_ID: str
     AUTH_STATE: str
     AUTH_URL: str
@@ -64,21 +64,38 @@ class ToolDefinition(BaseModel):
     description: str
     parameters: Dict[str, Any]  # JSON Schema
 
-class GenesisServer(ABC):
-    def __init__(self, scope):
+class GenesisMetadataStore():#BaseModel):
+    scope: str
+    sub_scope: str
+    def __init__(self, scope, sub_scope):
+        #super().__init__(scope=scope)
         self.scope = scope
-        self.bots = []
-        self.adapters = []
-    def add_bot(self, bot: GenesisBot):
-        self.bots.append(bot)
-    def add_adapter(self, adapter):
-        self.adapters.append(adapter)
-    def get_all_adapters(self):
-        return self.adapters
+        self.sub_scope = sub_scope
+    def insert_or_update_metadata(self, metadata_type: str, name: str, metadata: Dict[str, Any]):
+        pass
+    def get_metadata(self, metadata_type: str, name: str, name2: str = None) -> Dict[str, Any]:
+        pass
+    def get_all_metadata(self, metadata_type: str, name: str = None):
+        pass
+
+class GenesisServer(ABC):
+    def __init__(self, scope, sub_scope):
+        self.scope = scope
+        self.sub_scope = sub_scope
+    def get_metadata_store(self) -> GenesisMetadataStore:
+        raise NotImplementedError("get_metadata_store not implemented")
+    def register_bot(self, bot: GenesisBot):
+        raise NotImplementedError("register_bot not implemented")
     def register_tool(self, tool: ToolDefinition):
         raise NotImplementedError("register_tool not implemented")
     def run_tool(self, bot_id, tool_name, tool_parameters):
         raise NotImplementedError("run_tool not implemented")
+    def upload_file(self, file_path, file_name, contents):
+        raise NotImplementedError("upload_file not implemented")
+    def get_file_contents(self, file_path, file_name):
+        raise NotImplementedError("get_file_contents not implemented")
+    def remove_file(self, file_path, file_name):
+        raise NotImplementedError("remove_file not implemented")
     def add_message(self, bot_id, message, thread_id) -> str: # returns request_id
         raise NotImplementedError("add_message not implemented")
     def get_message(self, bot_id, request_id) -> str:
@@ -87,8 +104,8 @@ class GenesisServer(ABC):
         pass
 
 class GenesisLocalServer(GenesisServer):
-    def __init__(self, scope):
-        super().__init__(scope)
+    def __init__(self, scope, sub_scope):
+        super().__init__(scope, sub_scope)
     def add_message(self, bot_id, message, thread_id) -> dict:
         return {"request_id": "Request_12345",
                 "bot_id": bot_id,
@@ -96,22 +113,10 @@ class GenesisLocalServer(GenesisServer):
     def get_message(self, bot_id, request_id):
         return "Message from Request_12345"
 
-class GenesisMetadataStore():#BaseModel):
-    scope: str
-    def __init__(self, scope):
-        #super().__init__(scope=scope)
-        self.scope = scope
-    def insert_or_update_metadata(self, metadata_type: str, name: str, metadata: Dict[str, Any]):
-        pass
-    def get_metadata(self, metadata_type: str, name: str, name2: str = None) -> Dict[str, Any]:
-        pass
-    def get_all_metadata(self, metadata_type: str, name: str = None):
-        pass
-
 class LocalMetadataStore(GenesisMetadataStore):
     metadata_dir: str = "./metadata"  # Set a default value for metadata_dir
-    def __init__(self, scope):
-        super().__init__(scope)
+    def __init__(self, scope, sub_scope):
+        super().__init__(scope, sub_scope)
     def insert_or_update_metadata(self, metadata_type: str, name: str, metadata: BaseModel):
         metadata_dict = metadata.model_dump()
         metadata_dict['type'] = metadata.__class__.__name__  # Store the class name for later instantiation
@@ -152,7 +157,7 @@ class LocalMetadataStore(GenesisMetadataStore):
             raise NotImplementedError("Second filter not implemented")
         if last_n:
             metadata_list = metadata_list.tail(last_n)
-        
+
         return metadata_list
 
 class SnowflakeMetadataStore(GenesisMetadataStore):
@@ -169,7 +174,7 @@ class SnowflakeMetadataStore(GenesisMetadataStore):
     conn: SnowflakeConnection = None
 
     def __init__(self, scope, sub_scope="app1"):
-        super().__init__(scope)
+        super().__init__(scope, sub_scope)
         self.sub_scope = sub_scope
         self.conn = SnowflakeConnection(
             account=os.getenv("SNOWFLAKE_ACCOUNT_OVERRIDE"),
@@ -245,6 +250,9 @@ class GenesisLocalServer(GenesisServer):
                 "thread_id": thread_id}
     def get_message(self, bot_id, request_id):
         return "Message from Request_12345"
+
+    def get_metadata_store(self) -> GenesisMetadataStore:
+        return LocalMetadataStore(self.scope)
 
 class GenesisProject(BaseModel):
     PROJECT_ID: str

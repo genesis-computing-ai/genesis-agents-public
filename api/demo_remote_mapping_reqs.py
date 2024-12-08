@@ -6,9 +6,44 @@ from langsmith import traceable
 import snowflake.connector
 import json 
 
-import os
+import os, yaml
+
+from api.snowflake_local_server import GenesisLocalSnowflakeServer
+
+"""
+launch.json config example:
+
+        {
+            "name": "Python: Current File with Env Vars Alpha",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}",
+                "SNOWFLAKE_ACCOUNT_OVERRIDE": "eqb52188",
+                "SNOWFLAKE_USER_OVERRIDE": "your user",
+                "SNOWFLAKE_PASSWORD_OVERRIDE": "your pw",
+                "SNOWFLAKE_DATABASE_OVERRIDE": "GENESIS_TEST",
+                "SNOWFLAKE_WAREHOUSE_OVERRIDE": "XSMALL",
+                "SNOWFLAKE_ROLE_OVERRIDE": "ACCOUNTADMIN",
+                // below are for local mode only
+                "GENESIS_INTERNAL_DB_SCHEMA": "GENESIS_TEST.<your schema>",
+                "GENESIS_SOURCE": "Snowflake",
+                "RUNNER_ID": "snowflake-1",
+                "GIT_PATH": "./bot_git",
+                "LANGCHAIN_TRACING_V2": "true",
+                "LANGCHAIN_ENDPOINT": "https://api.smith.langchain.com",
+                "LANGCHAIN_API_KEY": "your langchain api key (free to get one)",
+                "LANGCHAIN_PROJECT": "your langcgain project",
+                "LOG_LEVEL": "ERROR"
+            },
+            "justMyCode": true
+},
+"""
 
 # Initialize LangSmith client at the top of your file
+# this is just for LangSmith observability, does not use Langchain
 langsmith_client = Client()
 
 conn = snowflake.connector.connect(
@@ -19,85 +54,6 @@ conn = snowflake.connector.connect(
     warehouse=os.environ['SNOWFLAKE_WAREHOUSE_OVERRIDE'],
     role=os.environ['SNOWFLAKE_ROLE_OVERRIDE']
 )
-
-def get_file_from_stage(stage_path, file_name):
-    """
-    Retrieve file contents from a Snowflake stage location.
-    Args:
-        stage_path: Full path to file in stage, e.g. '@my_stage/path/to/file.txt'
-    Returns:
-        String contents of the file
-    """
-    try:
-        cursor = conn.cursor()
-        get_file_cmd = f"GET {stage_path}{file_name} file://./tmp/;"
-        res = cursor.execute(get_file_cmd)
-        
-        with open(f'./tmp/{file_name}', 'r') as f:
-            contents = f.read()
-            
-        return contents
-    except Exception as e:
-        print(f"Error retrieving file from stage: {e}")
-        return None
-    finally:
-        cursor.close()
-
-def remove_file_from_stage(stage_path, file_name):
-    """
-    Remove a file from a Snowflake stage location if it exists.
-    Args:
-        stage_path: Full path to stage, e.g. '@my_stage/path/to/'
-        file_name: Name of file to remove
-    Returns:
-        True if file was removed successfully, False otherwise
-    """
-    try:
-        cursor = conn.cursor()
-        # Check if file exists first
-        list_cmd = f"LIST {stage_path}{file_name};"
-        res = cursor.execute(list_cmd).fetchall()
-        
-        if len(res) > 0:
-            # File exists, remove it
-            remove_cmd = f"REMOVE {stage_path}{file_name};"
-            cursor.execute(remove_cmd)
-            return True
-        return False
-    except Exception as e:
-        print(f"Error removing file from stage: {e}")
-        return False
-    finally:
-        cursor.close()
-
-def write_file_to_stage(stage_path, file_name, contents):
-    """
-    Write file contents to a Snowflake stage location.
-    Args:
-        stage_path: Full path to stage, e.g. '@my_stage/path/to/'
-        file_name: Name of file to write
-        contents: String contents to write to file
-    Returns:
-        True if file was written successfully, False otherwise
-    """
-    try:
-        cursor = conn.cursor()
-        
-        # Write contents to temporary local file
-        with open(f'./tmp/{file_name}', 'w') as f:
-            f.write(contents)
-            
-        # Put file to stage
-        put_cmd = f"PUT file://./tmp/{file_name} {stage_path};"
-        cursor.execute(put_cmd)
-        
-        return True
-    except Exception as e:
-        print(f"Error writing file to stage: {e}")
-        return False
-    finally:
-        cursor.close()
-
 
 def print_file_contents(title, file_path, contents):
     """
@@ -134,43 +90,100 @@ def call_genesis_bot(client, bot_id, request):
     except Exception as e:
         raise e
 
-def setup_paths(physical_column_name):
+def setup_paths(physical_column_name, run_number = 1):
     """Setup file paths and names for a given requirement."""
-    stage_base = '@genesis_bots_alpha.app1.bot_git/'
-    base_git_path = 'requirements/run1/'
-    
+    stage_base = f"@{os.getenv('GENESIS_INTERNAL_DB_SCHEMA', 'GENESIS_TEST.GENESIS_INTERNAL')}.bot_git/"
+    base_git_path = f'requirements/run{run_number}/'
+
     return {
         'stage_base': stage_base,
         'base_git_path': base_git_path,
         'source_research_file': f"{physical_column_name}__source_research.txt",
-        'mapping_proposal_file': f"{physical_column_name}__source_research.txt",
+        'mapping_proposal_file': f"{physical_column_name}__mapping_proposal.txt",
         'confidence_report_file': f"{physical_column_name}__confidence_report.txt"
     }
 
+def check_git_file(client, paths, file_name):
+    """
+    Check if file exists in local git or stage, copy to stage if needed.
+    
+    Args:
+        paths (dict): Dictionary containing path information
+        file_name (str): Name of file to check
+    Returns:
+        str: Contents of the file if found, False if not found
+    """
+    stage_path = f"{paths['stage_base']}{paths['base_git_path']}{file_name}"
+    # Get git base path from environment variable, default to ./bot_git
+    git_base = os.getenv("GIT_PATH", "./bot_git")
+    local_git_path = f"{git_base}/{paths['base_git_path']}{file_name}"
+
+    # First check local git
+    try:
+        if os.path.exists(local_git_path):
+            print(f"\033[93mFile found in local git: {local_git_path}\033[0m")
+            
+            # Read local file
+            with open(local_git_path, 'r') as f:
+                contents = f.read()
+            
+            # Copy to stage
+            success = client.upload_file(f"{paths['stage_base']}{paths['base_git_path']}", 
+                                        file_name,
+                                        contents)
+            
+            if success:
+                print(f"\033[92mCopied file from local git to stage: {stage_path}\033[0m")
+                return contents
+            else:
+                print("Failed to copy file to stage")
+                return False
+
+    except Exception as e:
+        print(f"Error accessing local git file: {str(e)}")
+
+    # If not in local git, check stage
+    try:
+        stage_contents = get_file_from_stage(f"{paths['stage_base']}{paths['base_git_path']}", file_name)
+        if stage_contents and not stage_contents.startswith('Placeholder'):
+            print(f"\033[92mFile found in stage: {stage_path}\033[0m")
+            return stage_contents
+    except Exception as e:
+        print(f"\033[93mFile not found in stage: {stage_path}\033[0m")
+
+    return False
+
 @traceable(name="source_research")
-def perform_source_research(client, requirement, paths):
+def perform_source_research(client, requirement, paths, bot_id):
     """Execute source research step and validate results."""
     try:
         print("\033[34mExecuting source research...\033[0m")
         
         # Create placeholder file
-        success = write_file_to_stage(f'{paths["stage_base"]}{paths["base_git_path"]}',
-                                     paths["source_research_file"], 
-                                     "Placeholder for source research")
-        if not success:
-            raise Exception("Failed to put placeholder source research file to stage")
+   #     success = write_file_to_stage(f'{paths["stage_base"]}{paths["base_git_path"]}',
+   #                                  paths["source_research_file"], 
+   #                                  "Placeholder for source research")
+   #     if not success:
+   #         raise Exception("Failed to put placeholder source research file to stage")
 
         research_prompt = f'''Here are requirements for a target field I want you to work on: {requirement}\n
-        Call source research microbot and tell them to research this field and save the results in git at: {paths["base_git_path"]}{paths["source_research_file"]}\n
+        Delegate to the SourceResearchBot microbot and tell them to research this field and save the results in git at: {paths["base_git_path"]}{paths["source_research_file"]}\n
+     
+        Tell the microbot that there are two past projects to use in its past project consideration step, stored in git at:
+        1. in git at: knowledge/past_projects/loan_data_project.txt
+        2. in git at: knowledge/past_projects/loan_lending_project.txt
+
+        Remind the microbot that it is important to analyze BOTH the metadata, and ALSO the past projects, and to discuss both in its report.
+
         Then validate the microbot has saved the report in the right place, if so return SUCCESS.  If not return FAILURE.
         This is being run by an automated process, so do not repeat these instructions back to me, simply proceed to execute them without asking for further approval.'''
         
-        response = call_genesis_bot(client, "RequirementsPM-72dj5k", research_prompt)
+        response = call_genesis_bot(client, bot_id, research_prompt)
         if 'SUCCESS' not in response:
             raise Exception('Error on source research')
 
-        contents = get_file_from_stage(f'{paths["stage_base"]}{paths["base_git_path"]}', 
-                                     paths["source_research_file"])
+        contents = check_git_file(client, paths=paths, file_name=paths["source_research_file"])
+        
         if not contents or contents.startswith('Placeholder '):
             raise Exception('Source research file not found or contains only placeholder')
         
@@ -182,15 +195,15 @@ def perform_source_research(client, requirement, paths):
     except Exception as e:
         raise e
 
-def perform_mapping_proposal(client, requirement, paths):
+def perform_mapping_proposal(client, requirement, paths, bot_id):
     """Execute mapping proposal step and validate results."""
     print("\033[34mExecuting mapping proposal...\033[0m")
     
-    success = write_file_to_stage(f'{paths["stage_base"]}{paths["base_git_path"]}',
-                                 paths["mapping_proposal_file"], 
-                                 "Placeholder for mapping proposal")
-    if not success:
-        raise Exception("Failed to put placeholder mapping proposal file to stage")
+    #success = write_file_to_stage(f'{paths["stage_base"]}{paths["base_git_path"]}',
+    #                             paths["mapping_proposal_file"], 
+    #                             "Placeholder for mapping proposal")
+    #if not success:
+    #    raise Exception("Failed to put placeholder mapping proposal file to stage")
 
     mapping_prompt = f'''Here are requirements for a target field I want you to work on: {requirement}\n
     The source research bot has already run and saved its results at this git location: {paths["base_git_path"]}{paths["source_research_file"]}\n
@@ -199,12 +212,12 @@ def perform_mapping_proposal(client, requirement, paths):
     Then validate the microbot has saved the report in the right place, if so return SUCCESS.  If not return FAILURE.
     This is being run by an automated process, so do not repeat these instructions back to me, simply proceed to execute them without asking for further approval.'''
     
-    response = call_genesis_bot(client, "RequirementsPM-72dj5k", mapping_prompt)
+    response = call_genesis_bot(client, bot_id, mapping_prompt)
     if 'SUCCESS' not in response:
         raise Exception('Error on mapping proposal')
 
-    contents = get_file_from_stage(f'{paths["stage_base"]}{paths["base_git_path"]}',
-                                 paths["mapping_proposal_file"])
+    contents = check_git_file(client,paths=paths, file_name=paths["mapping_proposal_file"])
+        
     if not contents or contents.startswith('Placeholder '):
         raise Exception('Mapping proposal file not found or contains only placeholder')
     
@@ -213,15 +226,17 @@ def perform_mapping_proposal(client, requirement, paths):
                        contents)
     return contents
 
-def perform_confidence_analysis(client, requirement, paths):
+
+
+def perform_confidence_analysis(client, requirement, paths, bot_id):
     """Execute confidence analysis step and validate results."""
     print("\033[34mExecuting confidence analysis...\033[0m")
     
-    success = write_file_to_stage(f'{paths["stage_base"]}{paths["base_git_path"]}',
-                                 paths["confidence_report_file"], 
-                                 "Placeholder for confidence report")
-    if not success:
-        raise Exception("Failed to put placeholder confidence report file to stage")
+    #success = write_file_to_stage(f'{paths["stage_base"]}{paths["base_git_path"]}',
+    #                             paths["confidence_report_file"], 
+    #                             "Placeholder for confidence report")
+    #if not success:
+    #    raise Exception("Failed to put placeholder confidence report file to stage")
 
     confidence_prompt = f'''Here are requirements for a target field I want you to work on: {requirement}\n
     The source research bot has saved its results in git at: {paths["base_git_path"]}{paths["source_research_file"]}\n
@@ -235,12 +250,12 @@ def perform_confidence_analysis(client, requirement, paths):
     Then validate the microbot has saved the report in the right place, if so return SUCCESS. If not return FAILURE.
     This is being run by an automated process, so do not repeat these instructions back to me, simply proceed to execute them without asking for further approval.'''
     
-    response = call_genesis_bot(client, "RequirementsPM-72dj5k", confidence_prompt)
+    response = call_genesis_bot(client, bot_id, confidence_prompt)
     if 'SUCCESS' not in response:
         raise Exception('Error on confidence analysis')
-
-    contents = get_file_from_stage(f'{paths["stage_base"]}{paths["base_git_path"]}',
-                                 paths["confidence_report_file"])
+    
+    contents = check_git_file(client,paths=paths, file_name=paths["confidence_report_file"])
+        
     if not contents or contents.startswith('Placeholder '):
         raise Exception('Confidence report file not found or contains only placeholder')
     
@@ -250,7 +265,7 @@ def perform_confidence_analysis(client, requirement, paths):
     return contents
 
 
-def perform_pm_summary(client, requirement, paths):
+def perform_pm_summary(client, requirement, paths, bot_id):
     """Have PM bot analyze results and provide structured summary."""
     print("\033[34mGetting PM summary...\033[0m")
 
@@ -270,7 +285,7 @@ def perform_pm_summary(client, requirement, paths):
     This is being run by an automated process so do not repeat these instructions back to me, and do not stop to ask for futher permission to proceed.
     '''
 
-    response = call_genesis_bot(client, "RequirementsPM-72dj5k", pm_prompt)
+    response = call_genesis_bot(client, bot_id, pm_prompt)
 
     # Extract JSON between tags
     if "!!JSON_START!!" not in response or "!!JSON_END!!" not in response:
@@ -296,13 +311,14 @@ def perform_pm_summary(client, requirement, paths):
     return summary
 
 
-def save_pm_summary_to_requirements(physical_column_name, summary_fields):
+def save_pm_summary_to_requirements(physical_column_name, summary_fields, table_name):
     """
-    Updates the flexicard_pm table with PM summary fields and sets status to READY_FOR_REVIEW
+    Updates the requirements table with PM summary fields and sets status to READY_FOR_REVIEW
     
     Args:
         physical_column_name (str): The column name to identify the requirement
         summary_fields (dict): Dictionary containing the fields to update
+        table_name (str): Fully qualified table name (schema.table)
     """
 
     # Flatten any array fields into comma-separated strings
@@ -316,8 +332,8 @@ def save_pm_summary_to_requirements(physical_column_name, summary_fields):
             # Remove any quotes from single values
             flattened_fields[key.lower()] = str(value).replace('"', '').replace("'", '')
     try:
-        update_query = """
-            UPDATE genesis_gxs.requirements.flexicard_pm 
+        update_query = f"""
+            UPDATE {table_name}
             SET 
                 upstream_table = %(upstream_table)s,
                 upstream_column = %(upstream_column)s,
@@ -350,12 +366,256 @@ def save_pm_summary_to_requirements(physical_column_name, summary_fields):
         raise Exception(f"Failed to update requirement for column {physical_column_name}: {str(e)}")
 
 
-def main():
-    """Main execution flow."""
-    client = GenesisAPI("remote-snowflake", scope="GENESIS_BOTS_ALPHA")
+def port_bot(client_source, client_target, bot_id, suffix='local', remove_slack=True):
+    """
+    Port bots from remote to local environment.
+    
+    Args:
+        client: Remote Genesis API client
+        client_local: Local Genesis API client
+
+    Use example:
+
+        ## port bots from another server
+        # client_remote = GenesisAPI("remote-snowflake", scope="GENESIS_BOTS_ALPHA")
+        #  bots = client_remote.get_all_bots()
+        #  print("Remote bots: ",bots)
+        #  bots_to_port = [
+        #       'RequirementsPM-72dj5k',
+        #       'sourceResearchBot-d3k9m1', 
+        #       'mappingProposerBot-4fj7kf',
+        #      'confidenceanalyst-xYzAb9'
+        #   ]
+        #  for bot_id in bots_to_port:
+        #      port_bot(client_source=client_remote, client_target=client, bot_id=bot_id, suffix='jllocal')
+
+    """
+
+    # Get bot definition from remote
+    remote_bot = client_source.get_bot(bot_id)
+
+    new_bot = {
+        "BOT_ID": f"{bot_id.split('-')[0]}-{suffix}",
+        "BOT_NAME": remote_bot.BOT_NAME,
+        "BOT_IMPLEMENTATION": remote_bot.BOT_IMPLEMENTATION,
+        "FILES": remote_bot.FILES,
+        "AVAILABLE_TOOLS": remote_bot.AVAILABLE_TOOLS,
+    #  "BOT_AVATAR_IMAGE": remote_bot.BOT_AVATAR_IMAGE,
+        "BOT_AVATAR_IMAGE": None,
+        "BOT_INSTRUCTIONS": remote_bot.BOT_INSTRUCTIONS,
+        "BOT_INTRO_PROMPT": remote_bot.BOT_INTRO_PROMPT,
+        "DATABASE_CREDENTIALS": remote_bot.DATABASE_CREDENTIALS,
+        "RUNNER_ID": os.getenv("RUNNER_ID", "genesis-runner-jl"),
+        "UDF_ACTIVE": remote_bot.UDF_ACTIVE
+    }
+
+    bot_name = new_bot["BOT_NAME"]
+    file_path = f"./tmp/ported_bots/{bot_name}.yaml"
+
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+
+    with open(file_path, 'w') as file:
+        yaml.dump(new_bot, file)
+
+    print(f"New bot details saved to {file_path} for bot {new_bot['BOT_NAME']}")
+
+    if remote_bot:
+        # Register bot locally
+        client_target.register_bot(new_bot)
+        print(f"Registered bot {bot_id} locally")
+    else:
+        print(f"Could not find bot {bot_id} on remote server")
+
+
+def load_bots_from_yaml(client,bot_team_path):
+    """
+    Load and register bots from YAML files in the specified directory.
+    
+    Args:
+        bot_team_path: Path to directory containing bot YAML files
+
+    """
+   # client = GenesisAPI("local-snowflake", scope="GENESIS_TEST", sub_scope="GENESIS_JL")
+    
+    # Get all YAML files in directory
+    yaml_files = [f for f in os.listdir(bot_team_path) if f.endswith('.yaml')]
+    
+    for yaml_file in yaml_files:
+        file_path = os.path.join(bot_team_path, yaml_file)
+        
+        # Load bot config from YAML
+        with open(file_path, 'r') as file:
+            bot_config = yaml.safe_load(file)
+            
+        print(f"Registering bot from {file_path}")
+        
+        try:
+            # Register bot with API
+            client.register_bot(bot_config)
+            print(f"Successfully registered bot {bot_config['BOT_NAME']}")
+        except Exception as e:
+            print(f"Failed to register bot from {file_path}: {str(e)}")
+
+
+def perform_source_research_new(client, requirement, paths, bot_id):
+    """Execute source research step and validate results."""
     try:
+        print("\033[34mExecuting source research...\033[0m")
+        
+        # Create placeholder file
+   #     success = write_file_to_stage(f'{paths["stage_base"]}{paths["base_git_path"]}',
+   #                                  paths["source_research_file"], 
+   #                                  "Placeholder for source research")
+   #     if not success:
+   #         raise Exception("Failed to put placeholder source research file to stage")
+
+        research_prompt = f'''Here are requirements for a target field I want you to work on: {requirement}\n
+        Save the results in git at: {paths["base_git_path"]}{paths["source_research_file"]}\n
+     
+        There are two past projects to use in its past project consideration step, stored in git. Get both of them by calling:
+        1. _git_action(action='read_file',file_path='knowledge/past_projects/loan_data_project.txt')
+        2. _git_action(action='read_file',file_path='knowledge/past_projects/loan_lending_project.txt')
+
+        It is important to analyze BOTH the metadata, and ALSO the past projects, and to discuss both in your report.
+
+        This is being run by an automated process, so do not repeat these instructions back to me, simply proceed to execute them without asking for further approval.'''
+        
+        response = call_genesis_bot(client, bot_id, research_prompt)
+
+        contents = check_git_file(client,paths=paths, file_name=paths["source_research_file"])
+        
+        if not contents or contents.startswith('Placeholder '):
+            raise Exception('Source research file not found or contains only placeholder')
+        
+        print_file_contents("SOURCE RESEARCH", 
+                           f"{paths['base_git_path']}{paths['source_research_file']}", 
+                           contents)
+        return contents
+            
+    except Exception as e:
+        raise e
+
+def perform_mapping_proposal_new(client, requirement, paths, bot_id):
+    """Execute mapping proposal step and validate results."""
+    print("\033[34mExecuting mapping proposal...\033[0m")
+    
+    mapping_prompt = f'''Here are requirements for a target field I want you to work on a mapping proposal for: {requirement}
+
+    The source research bot has already run and saved its results at this git. First, read its report by calling:
+    _git_action(action='read_file',file_path='{paths["base_git_path"]}{paths["source_research_file"]}')
+
+    Now, make a mapping proposal for this field. 
+    
+    Then save your results at this git location using _git_action: {paths["base_git_path"]}{paths["mapping_proposal_file"]}
+
+    This is being run by an automated process, so do not repeat these instructions back to me, simply proceed to execute them without asking for further approval.'''
+    
+    response = call_genesis_bot(client, bot_id, mapping_prompt)
+#    if 'SUCCESS' not in response:
+#        raise Exception('Error on mapping proposal')
+
+    contents = check_git_file(client,paths=paths, file_name=paths["mapping_proposal_file"])
+        
+    if not contents or contents.startswith('Placeholder '):
+        raise Exception('Mapping proposal file not found or contains only placeholder')
+    
+    print_file_contents("MAPPING PROPOSAL",
+                       f"{paths['base_git_path']}{paths['mapping_proposal_file']}", 
+                       contents)
+    return contents    
+
+def perform_confidence_analysis_new(client, requirement, paths, bot_id):
+    """Execute confidence analysis step and validate results."""
+    print("\033[34mExecuting confidence analysis...\033[0m")
+    
+    confidence_prompt = f'''Here are requirements for a target field I want you to analyze confidence for: {requirement}
+
+    First read the source research report by calling:
+    _git_action(action='read_file',file_path='{paths["base_git_path"]}{paths["source_research_file"]}')
+
+    Then read the mapping proposal by calling:
+    _git_action(action='read_file',file_path='{paths["base_git_path"]}{paths["mapping_proposal_file"]}')
+
+    Now, analyze the confidence level of this mapping proposal based on the source research.
+    
+    Then save your confidence analysis at this git location using _git_action: {paths["base_git_path"]}{paths["confidence_report_file"]}
+
+    This is being run by an automated process, so do not repeat these instructions back to me, simply proceed to execute them without asking for further approval.'''
+    
+    response = call_genesis_bot(client, bot_id, confidence_prompt)
+
+    contents = check_git_file(client,paths=paths, file_name=paths["confidence_report_file"])
+        
+    if not contents or contents.startswith('Placeholder '):
+        raise Exception('Confidence report file not found or contains only placeholder')
+    
+    print_file_contents("CONFIDENCE ANALYSIS",
+                       f"{paths['base_git_path']}{paths['confidence_report_file']}", 
+                       contents)
+    return contents
+
+
+def main():
+    """Main execution flow.
+        # todo - startup speed with local bot definitions
+    """
+   
+    local_bots = []   # start these already-present-on-serber bots if they exist (if you're not loading/refreshing from YAMLS below) 
+   # local_bots = [
+   #     "sourceResearchBot-jllocal",  # Changed from SourceResearch-jllocal
+   #     "mappingProposerBot-jllocal", # Changed from MappingProposal-jllocal
+   #     "confidenceanalyst-jllocal",  # Changed from ConfidenceReport-jllocal
+   #     "RequirementsPM-jllocal"      # This one matches existing usage
+   # ]
+    # Get scope and sub_scope from environment variable
+    internal_schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA")
+    if not internal_schema:
+        raise Exception("GENESIS_INTERNAL_DB_SCHEMA environment variable not set")
+        
+    scope, sub_scope = internal_schema.split(".")
+
+    client = GenesisAPI(server_type=GenesisLocalSnowflakeServer, scope=scope, sub_scope=sub_scope,
+                        bot_list=local_bots) # ["marty-l6kx7d"]
+
+    # if you want to see what bots are already on the server
+    #bots = client.get_all_bots()
+    #print("Existing local bots: ",bots)
+
+    # LOAD AND ACTIVATE BOTS FROM YAML FILES
+    # adds or updates bots defined in YAML to metadata and activates the listed bots
+
+    bot_team_path = './demo/bot_team'
+    load_bots_from_yaml(client=client, bot_team_path=bot_team_path)  # takes bot definitions from yaml files at the specified path and injects/updates those bots into the running local server
+
+    # MAIN WORKFLOW
+    try:
+
+        run_number = 8;
+
+        # Reset the requirements table before starting
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM genesis_gxs.requirements.flexicard_pm WHERE status = 'NEW'")
+        reset_sql = """
+            update genesis_gxs.requirements.flexicard_pm_jl 
+            set upstream_table = null,
+                upstream_column = null, 
+                source_research = null,
+                git_source_research = null,
+                mapping_proposal = null,
+                git_mapping_proposal = null,
+                confidence_output = null,
+                git_confidence_output = null,
+                confidence_summary = null,
+                pm_bot_comments = null,
+                transformation_logic = null,
+                status = 'NEW'
+            where physical_column_name = 'CUSTOMER_ID';
+        """
+        cursor.execute(reset_sql)
+
+        # get the work to do
+        cursor = conn.cursor()
+        table_name = "genesis_gxs.requirements.flexicard_pm_jl"  # Changed from genesis_gxs.requirements.flexicard_pm
+        cursor.execute(f"SELECT * FROM {table_name} WHERE status = 'NEW'")
         results = cursor.fetchall()
         columns = [col[0] for col in cursor.description]
 
@@ -369,6 +629,7 @@ def main():
 
         print("Found", len(requirements), "requirements with NEW status:")
         
+        # loop over the work to do
         for requirement in requirements:
             filtered_requirement = {
                 'PHYSICAL_COLUMN_NAME': requirement['PHYSICAL_COLUMN_NAME'],
@@ -380,30 +641,45 @@ def main():
             }
             print("\033[34mWorking on requirement:", filtered_requirement, "\033[0m")
 
-            paths = setup_paths(requirement["PHYSICAL_COLUMN_NAME"])
+            paths = setup_paths(requirement["PHYSICAL_COLUMN_NAME"], run_number=run_number)
             
-            source_research = perform_source_research(client, filtered_requirement, paths)
-            mapping_proposal = perform_mapping_proposal(client, filtered_requirement, paths)
-            confidence_report = perform_confidence_analysis(client, filtered_requirement, paths)
-            #Call PM bot to summarize results for database
-            summary = perform_pm_summary(client, filtered_requirement, paths)
+
+            # test source
+
+      #      # Test source research first
+      #      source_research_result = test_source_research(client, filtered_requirement, paths, 'sourceResearchBot-jllocal')
+      #      if not source_research_result:
+      #          print("\033[91mSource research test failed\033[0m")
+      #          continue
+
+
+            pm_bot_id = 'RequirementsPM-jllocal'
+            source_research_bot_id = 'sourceResearchBot-jllocal'
+            mapping_proposer_bot_id = 'mappingProposerBot-jllocal'
+
+            source_research = perform_source_research_new(client, filtered_requirement, paths, source_research_bot_id)
+            
+            mapping_proposal = perform_mapping_proposal_new(client, filtered_requirement, paths, mapping_proposer_bot_id)
+            
+            confidence_report = perform_confidence_analysis(client, filtered_requirement, paths, pm_bot_id)
+            
+            summary = perform_pm_summary(client, filtered_requirement, paths, pm_bot_id)
 
             # Get the full content of each file from git
-            source_research_content = get_file_from_stage(
+            source_research_content = client.get_file_contents(
                 f"{paths['stage_base']}{paths['base_git_path']}", 
                 paths["source_research_file"]
             )
-            mapping_proposal_content = get_file_from_stage(
+            mapping_proposal_content = client.get_file_contents(
                 f"{paths['stage_base']}{paths['base_git_path']}", 
                 paths["mapping_proposal_file"]
             )
-            confidence_output_content = get_file_from_stage(
+            confidence_output_content = client.get_file_contents(
                 f"{paths['stage_base']}{paths['base_git_path']}", 
                 paths["confidence_report_file"]
             )
 
             # Prepare fields for database update
-              # Prepare fields for database update
             db_fields = {
                 'upstream_table': summary['UPSTREAM_TABLE'],
                 'upstream_column': summary['UPSTREAM_COLUMN'],
@@ -419,11 +695,17 @@ def main():
                 'transformation_logic': summary['TRANSFORMATION_LOGIC']
             }
 
-            # Save to database
-            save_pm_summary_to_requirements(requirement['PHYSICAL_COLUMN_NAME'], db_fields)
+            # Save results of work to database
+            save_pm_summary_to_requirements(
+                requirement['PHYSICAL_COLUMN_NAME'], 
+                db_fields,
+                table_name
+            )
             print("\033[32mSuccessfully saved results to database for requirement:", requirement['PHYSICAL_COLUMN_NAME'], "\033[0m")
 
+            # prevent unintentional runaway runs while developing/testing
             i = input('next? ')
+
     except Exception as e:
         print(f"\033[31mError occurred: {e}\033[0m")
         raise e

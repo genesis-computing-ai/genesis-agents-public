@@ -111,10 +111,11 @@ def read_file_from_stage(
     schema: str,
     stage: str,
     file_name: str,
-    return_contents: bool = True,        
+    return_contents: bool = True,
+    return_file_path: bool = False,
     is_binary: bool = False,
     for_bot=None,
-    thread_id=None,
+    thread_id=None
 ):
     """
     Read a file from a Snowflake stage.
@@ -131,7 +132,7 @@ def read_file_from_stage(
     try:
         # Define the local directory to save the file
         if for_bot == None:
-            for_bot = thread_id
+            for_bot = thread_id if thread_id else "tmp"
         local_dir = os.path.join(".", "downloaded_files", for_bot)
 
         #        if '/' in file_name:
@@ -144,31 +145,40 @@ def read_file_from_stage(
         if not os.path.exists(target_dir):
             os.makedirs(target_dir)
 
-        # Modify the GET command to include the local file path
+        cursor = self.client.cursor()
+        query = f"call {database}.core.run_arbitrary($$ grant read,write on stage {database}.{schema}.{stage} to application role app_public $$);"
+        cursor.execute(query)
+        # ret = cursor.fetchall()
 
-        query = f'GET @"{database}"."{schema}"."{stage}"/{file_name} file://{target_dir}'
-        ret = self.run_query(query)
-        if isinstance(ret, dict) and "does not exist or not authorized" in ret.get(
-            "Error", ""
-        ):
-            database = database.upper()
-            schema = schema.upper()
-            stage = stage.upper()
-            query = f'GET @"{database}"."{schema}"."{stage}"/{file_name} file://{local_dir}'
-            ret = self.run_query(query)
+        # Modify the GET command to include the local file path
+        query = f'GET @"{database}"."{schema}"."{stage}"/{file_name} file://{local_dir}'
+        cursor.execute(query)
+        ret = cursor.fetchall()
+        cursor.close()
+
+        # ret = self.run_query(query)
+
+        # if isinstance(ret, dict) and "does not exist or not authorized" in ret.get(
+        #     "Error", ""
+        # ):
+        #     database = database.upper()
+        #     schema = schema.upper()
+        #     stage = stage.upper()
+        #     query = f'GET @"{database}"."{schema}"."{stage}"/{file_name} file://{local_dir}'
+        #     ret = self.run_query(query)
 
         if os.path.isfile(local_file_path):
             if return_contents:
-                if is_binary:   
+                if is_binary:
                     with open(local_file_path, "rb") as file:
                         return file.read()
                 else:
                     with open(local_file_path, "r") as file:
                         return file.read()
             else:
-                return file_name
-        else:
-            return f"The file {file_name} does not exist at stage path @{database}.{schema}.{stage}/{file_name}."
+                return None
+        # else:
+                return None
     except Exception as e:
         return {"success": False, "error": str(e)}
 
@@ -259,10 +269,10 @@ def delete_file_from_stage(
     except Exception as e:
         logger.error(f"Error deleting file from stage: {e}")
         return {"success": False, "error": str(e)}
-    
+
 def test_stage_functions():
     # Create a test instance of SnowflakeConnector
-    from .snowflake_connector import SnowflakeConnector 
+    from .snowflake_connector import SnowflakeConnector
     test_connector = SnowflakeConnector("Snowflake")
 
     # Call the list_stage method with the specified parameters

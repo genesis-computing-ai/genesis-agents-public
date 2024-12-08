@@ -29,6 +29,22 @@ references:
       object_type: EXTERNAL ACCESS INTEGRATION
       register_callback: core.register_single_reference
       configuration_callback: core.get_config_for_ref
+  - google_external_access:
+      label: "Google External Access Integration"
+      description: "This is required to access the Google API"
+      privileges:
+        - USAGE
+      object_type: EXTERNAL ACCESS INTEGRATION
+      register_callback: core.register_single_reference
+      configuration_callback: core.get_config_for_ref
+  - jira_external_access:
+      label: "Jira External Access Integration"
+      description: "This is required to access the Jira API"
+      privileges:
+        - USAGE
+      object_type: EXTERNAL ACCESS INTEGRATION
+      register_callback: core.register_single_reference
+      configuration_callback: core.get_config_for_ref
   - openai_external_access:
       label: "OpenAI External Access Integration"
       description: "This is required to access OpenAI"

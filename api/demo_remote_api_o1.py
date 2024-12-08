@@ -1,7 +1,8 @@
 import time
 from api.genesis_api import GenesisAPI
+from api.snowflake_remote_server import GenesisSnowflakeServer
 
-client = GenesisAPI("remote-snowflake", scope="GENESIS_BOTS_ALPHA") 
+client = GenesisAPI(server_type=GenesisSnowflakeServer, scope="GENESIS_BOTS_ALPHA") 
 bots = client.get_all_bots()
 print(bots)
 

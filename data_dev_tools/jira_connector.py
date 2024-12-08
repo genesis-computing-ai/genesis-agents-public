@@ -199,12 +199,15 @@ def jira_api_connector():
         data_list = json.loads(data_json_str)
 
         # Access the first dictionary in the list
-        parsed_data = data_list[0]
+        # parsed_data = data_list[0]
 
         # Now you can access each key-value pair
-        jira_url = parsed_data['jira_url']
-        jira_email = parsed_data['jira_email']
-        jira_api_key = parsed_data['jira_api_key']
+        params_dict = {item['parameter']: item['value'] for item in data_list}
+
+        # Extract values
+        jira_url = params_dict['jira_url']
+        jira_email = params_dict['jira_email']
+        jira_api_key = params_dict['jira_api_key']
 
         jira_connector = JiraConnector(
             jira_url,

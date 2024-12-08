@@ -75,12 +75,12 @@ def config_g_sheets():
             else:
                 st.error("No EAI reference set.")
     else:
-        project_id = st.text_input("Project ID:")
-        client_id = st.text_input("Client ID:")
-        client_email = st.text_input("Client Email:")
-        private_key_id = st.text_input("Private Key ID:")
-        private_key = st.text_area("Private Key:")
-        shared_folder = st.text_input("Shared Folder name:")
+        project_id = st.text_input("Project ID*:")
+        client_id = st.text_input("Client ID*:")
+        client_email = st.text_input("Client Email*:")
+        private_key_id = st.text_input("Private Key ID*:")
+        private_key = st.text_area("Private Key*:")
+        shared_folder_id = st.text_input("Shared Folder ID:")
 
         if st.button("Add Google Worksheet API parameters to access Google Worksheet account from Genesis"):
             if not client_id:
@@ -106,7 +106,7 @@ def config_g_sheets():
                     "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
                     "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/genesis-workspace-creds%40" + project_id + ".iam.gserviceaccount.com",
                     "universe_domain": "googleapis.com",
-                    "shared_folder": shared_folder,
+                    "shared_folder_id": shared_folder_id,
                 }
                 try:
                     key_pairs_str = json.dumps(key_pairs)

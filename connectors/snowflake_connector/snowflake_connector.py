@@ -2369,17 +2369,8 @@ def get_status(site):
             links = {}
             for data in sample_data:
                 print(data['GIT_SOURCE_RESEARCH'], data ['GIT_MAPPING_PROPOSAL'], data['GIT_CONFIDENCE_OUTPUT'])
-                # @genesis_bots_alpha.app1.bot_git/requirements/run1/ROLLOVER_PRIN_OUTSTANDING_AMT__source_research.txt
 
                 for key in ['GIT_SOURCE_RESEARCH', 'GIT_MAPPING_PROPOSAL', 'GIT_CONFIDENCE_OUTPUT']:
-                    # file_path = read_file_from_stage(
-                    #     self,
-                    #     "GENESIS_GXS",
-                    #     "REQUIREMENTS",
-                    #     "FLEXICARD_PM",
-                    #     data[key].replace("@genesis_bots_alpha.app1.bot_git/", ""),
-                    #     return_file_path = True,
-                    # )
                     file_contents = read_file_from_stage(
                         self,
                         "GENESIS_BOTS_ALPHA",

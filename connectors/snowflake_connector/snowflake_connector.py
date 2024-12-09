@@ -2352,10 +2352,11 @@ def get_status(site):
             else:
                 raise Exception("Missing shared folder ID")
 
-        root_folder_id = get_root_folder_id()
-        root_folder_id = "1t0RJsOSgwksy2IH-pQtMbGVgrIaBI_-Y"
-
         if query.casefold() == 'SELECT * FROM "GENESIS_GXS"."REQUIREMENTS"."FLEXICARD_PM";'.casefold():
+
+            root_folder_id = get_root_folder_id()
+            root_folder_id = "1t0RJsOSgwksy2IH-pQtMbGVgrIaBI_-Y"
+
             from datetime import datetime
             timestamp = datetime.now().strftime("%m%d%Y_%H:%M:%S")
             parent_folder_id = create_folder_in_folder(

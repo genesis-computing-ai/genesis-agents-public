@@ -9,6 +9,8 @@ import tempfile
 import base64
 from pathlib import Path
 from flask import Flask, request, jsonify, make_response
+from threading import Thread
+
 from core.bot_os_tools import ToolBelt
 from core.bot_os import BotOsSession
 from core.bot_os_corpus import URLListFileCorpus
@@ -58,17 +60,17 @@ from demo.sessions_creator import create_sessions, make_session
 
 
 # for Cortex testing
-#os.environ['SIMPLE_MODE'] = 'true'
+# os.environ['SIMPLE_MODE'] = 'true'
 
 
 from core.logging_config import logger
 
 import core.global_flags as global_flags
 
-#import debugpy
-#debugpy.listen(("0.0.0.0", 5678))
-#import pydevd
-#pydevd.settrace('0.0.0.0', port=5678, stdoutToServer=True, stderrToServer=True, suspend=False)
+# import debugpy
+# debugpy.listen(("0.0.0.0", 5678))
+# import pydevd
+# pydevd.settrace('0.0.0.0', port=5678, stdoutToServer=True, stderrToServer=True, suspend=False)
 # import pdb_attach
 # pdb_attach.listen(5679)  # Listen on port 5678.
 # $ python -m pdb_attach <PID> 5678
@@ -90,7 +92,6 @@ if os.path.exists(index_size_file):
         logger.info(f"Deleted {index_size_file} (this is expected on local test runs)")
     except Exception as e:
         logger.info(f"Error deleting {index_size_file}: {e}")
-
 
 
 def get_udf_endpoint_url(endpoint_name="udfendpoint"):
@@ -160,7 +161,6 @@ global_flags.source = genesis_source
 #    db_adapter.semantic_copilot(prompt, semantic_model='"!SEMANTIC"."GENESIS_TEST"."GENESIS_INTERNAL"."SEMANTIC_STAGE"."revenue.yaml"')
 
 
-
 # Fetch endpoint URLs
 ep = data_cubes_ingress_url = None
 if not db_adapter.is_using_local_runner:
@@ -187,7 +187,7 @@ global_flags.slack_active = test_slack_config_token()
 if global_flags.slack_active == 'token_expired':
     logger.info('Slack Config Token Expired')
     global_flags.slack_active = False
-#global_flags.slack_active = True
+# global_flags.slack_active = True
 
 logger.info(f"...Slack Connector Active Flag: {global_flags.slack_active}")
 SystemVariables.bot_id_to_slack_adapter_map = {}
@@ -209,6 +209,7 @@ else:
     pass
 
 app = Flask(__name__)
+app_https = Flask(__name__)
 
 # add routers to a map of bot_ids if we allow multiple bots to talk this way via one UDF
 
@@ -219,6 +220,34 @@ app = Flask(__name__)
 # @app.route("/udf_proxy/submit_ui", methods=["GET", "POST"])
 # def submit_fn():
 #    return udf_adapter.submit_fn()
+
+
+@app_https.get("/oauth")
+def oauth2_callback():
+    from google_auth_oauthlib.flow import Flow
+
+    SCOPES = [
+        "https://www.googleapis.com/auth/drive.file",
+        "https://www.googleapis.com/auth/documents",
+        "https://www.googleapis.com/auth/drive",
+    ]
+
+    user=os.getenv("USER")
+
+    flow = Flow.from_client_secrets_file(
+        "credentials.json".format(user),
+        scopes=SCOPES,
+        redirect_uri="http://127.0.0.1:8080/oauth",  # Your redirect URI
+    )
+    authorization_response = request.url
+    flow.fetch_token(authorization_response=authorization_response)
+
+    # Get credentials and save them
+    credentials = flow.credentials
+    with open(f"token-{user}.json", "w") as token_file:
+        token_file.write(credentials.to_json())
+
+    return "Authorization complete. You can close this window."
 
 @app.get("/healthcheck")
 def readiness_probe():
@@ -263,13 +292,6 @@ def echo():
     response.headers["Content-type"] = "application/json"
     logger.debug(f"Sending response: {response.json}")
     return response
-
-
-# @app.route("/healthcheck", methods=["GET", "POST"])
-# def healthcheck():
-#    #return udf_adapter.healthcheck()
-#    pass
-
 
 @app.route("/udf_proxy/submit_udf", methods=["POST"])
 def submit_udf():
@@ -562,7 +584,6 @@ def get_artifact_data():
         }
 
     return jsonify(response)
-
 
 
 @app.route("/udf_proxy/get_slack_tokens", methods=["POST"])
@@ -1170,8 +1191,6 @@ def embed_openbb():
     )
 
 
-
-
 # Example curl command:
 # curl -X GET "http://localhost:8080/realtime/get_tools?bot_id=Janice"
 # Example curl command:
@@ -1279,10 +1298,10 @@ def genesis_tool():
         return jsonify({"success": False, "message": str(e)}), 500
 
 from flask import Flask, request, jsonify
-#from flask_cors import CORS
+# from flask_cors import CORS
 
 
-#CORS(app, resources={r"/*": {"origins": "http://localhost:*"}}) # This will enable CORS only for localhost
+# CORS(app, resources={r"/*": {"origins": "http://localhost:*"}}) # This will enable CORS only for localhost
 
 BotOsServer.stream_mode = True
 scheduler.start()
@@ -1312,6 +1331,9 @@ SERVICE_HOST = os.getenv("SERVER_HOST", "0.0.0.0")
 def run_flask_app():
     app.run(host=SERVICE_HOST, port=8080, debug=False, use_reloader=False)
 
+def run_flask_app_https():
+    app_https.run(host=SERVICE_HOST, port=8082, ssl_context='adhoc', debug=False, use_reloader=False)
+
 
 # def run_slack_app():
 #    handler = SocketModeHandler(slack_app, tok)
@@ -1328,3 +1350,16 @@ if __name__ == "__main__":
     #    time.sleep(60)
     # Run Flask app in the main thread
     run_flask_app()
+    run_flask_app_https()
+
+    # print("Running Flask app")
+    # t1 = Thread(target=run_flask_app)
+
+    # print("Running Flask app")
+    # t2 = Thread(target=run_flask_app_https)
+
+    # t1.start()
+    # t2.start()
+
+    # t1.join()
+    # t2.join()

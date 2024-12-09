@@ -25,9 +25,9 @@ from .ensure_table_exists import ensure_table_exists, one_time_db_fixes, get_pro
 
 from google_sheets.g_sheets import (
     output_to_google_docs,
-    create_g_drive_folder,
+    # create_g_drive_folder,
     create_folder_in_folder,
-    upload_file_to_folder,
+    # upload_file_to_folder,
 )
 
 from core.bot_os_llm import BotLlmEngineEnum
@@ -929,7 +929,7 @@ class SnowflakeConnector(DatabaseConnector):
             return {"Success": False, "Data": err}
 
     def create_google_sheets_creds(self):
-        query = f"SELECT parameter, value FROM {self.schema}.EXT_SERVICE_CONFIG WHERE ext_service_name = 'g-sheets';"
+        query = f"SELECT parameter, value FROM {self.schema}.EXT_SERVICE_CONFIG WHERE ext_service_name = 'g-sheets' and user='{self.user}';"
         cursor = self.client.cursor()
         cursor.execute(query)
         rows = cursor.fetchall()
@@ -940,7 +940,7 @@ class SnowflakeConnector(DatabaseConnector):
         creds_dict = {row[0]: row[1] for row in rows if row[0].casefold() != "shared_folder_id"}
 
         creds_json = json.dumps(creds_dict, indent=4)
-        with open('genesis-workspace-project-d094fd7d2562.json', 'w') as json_file:
+        with open(f'g-workspace-{self.user}.json', 'w') as json_file:
             json_file.write(creds_json)
         return True
 
@@ -2343,7 +2343,7 @@ def get_status(site):
                 f"call core.run_arbitrary($$ grant read,write on stage app1.bot_git to application role app_public $$);"
             )
 
-            query = f"SELECT value from {self.schema}.EXT_SERVICE_CONFIG WHERE ext_service_name = 'g-sheets' AND parameter = 'shared_folder_id'"
+            query = f"SELECT value from {self.schema}.EXT_SERVICE_CONFIG WHERE ext_service_name = 'g-sheets' AND parameter = 'shared_folder_id' and user = '{self.user}'"
             cursor.execute(query)
             row = cursor.fetchone()
             cursor.close()
@@ -2355,17 +2355,20 @@ def get_status(site):
         if query.casefold() == 'SELECT * FROM "GENESIS_GXS"."REQUIREMENTS"."FLEXICARD_PM";'.casefold():
 
             root_folder_id = get_root_folder_id()
-            root_folder_id = "1t0RJsOSgwksy2IH-pQtMbGVgrIaBI_-Y"
+            # root_folder_id = "1t0RJsOSgwksy2IH-pQtMbGVgrIaBI_-Y"
 
             from datetime import datetime
+
+            print(f"Root Folder ID: {root_folder_id}")
+
             timestamp = datetime.now().strftime("%m%d%Y_%H:%M:%S")
             parent_folder_id = create_folder_in_folder(
-                "gxs_" + timestamp, root_folder_id
+                "gxs_" + timestamp, root_folder_id, self.user
             )
 
             subfolder_id = {}
             for key in ['GIT_SOURCE_RESEARCH', 'GIT_MAPPING_PROPOSAL', 'GIT_CONFIDENCE_OUTPUT']:
-                subfolder_id[key] = create_folder_in_folder(key, parent_folder_id)
+                subfolder_id[key] = create_folder_in_folder(key, parent_folder_id, self.user)
 
             links = {}
             for data in sample_data:
@@ -2386,7 +2389,7 @@ def get_status(site):
                     ).split("/")[-1]
 
                     # create text docs in sub-folder
-                    links[key] = output_to_google_docs(file_contents, subfolder_id[key], file_name)
+                    links[key] = output_to_google_docs(file_contents, subfolder_id[key], file_name, self.name)
 
                 # write text docs ID's back to table
                 cursor = self.connection.cursor()
@@ -2404,12 +2407,12 @@ def get_status(site):
 
         elif export_to_google_doc:
             cursor = self.connection.cursor()
-            query = f"SELECT value from {self.schema}.EXT_SERVICE_CONFIG WHERE ext_service_name = 'g-sheets' AND parameter = 'shared_key_id'"
+            query = f"SELECT value from {self.schema}.EXT_SERVICE_CONFIG WHERE ext_service_name = 'g-sheets' AND parameter = 'shared_key_id' and user = {self.user}"
             cursor.execute(query)
             shared_key_id = cursor.fetchone()[0]
 
             print_string = dict_list_to_markdown_table(sample_data)
-            filename, link = output_to_google_docs(print_string, shared_key_id)
+            filename, link = output_to_google_docs(print_string, shared_key_id, self.name)
             return {"Success": True, "result": "Data sent to Google Docs - Filename: " + filename}
 
         return sample_data

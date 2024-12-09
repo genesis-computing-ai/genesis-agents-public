@@ -174,6 +174,10 @@ webpage_downloader_action_function_mapping = {
 
 tools_data = [
     (
+        "google_drive_tools",
+        "A suite of tools for interacting with Google Drive",
+    ),
+    (
         "manage_tests_tools",
         "List, add, update, and delete tests that run at deploy time.",
     ),

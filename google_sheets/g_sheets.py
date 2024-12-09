@@ -21,31 +21,31 @@ SCOPES = [
     "https://www.googleapis.com/auth/drive"
 ]
 
-SERVICE_ACCOUNT_FILE = "genesis-workspace-project-d094fd7d2562.json"
 
-def upload_file_to_folder(path_to_file, parent_folder_id):
-    creds = Credentials.from_service_account_file(
-            SERVICE_ACCOUNT_FILE, scopes=SCOPES
-        )
-    service = build("drive", "v3", credentials=creds)
+# def upload_file_to_folder(path_to_file, parent_folder_id):
+#     creds = Credentials.from_service_account_file(
+#             SERVICE_ACCOUNT_FILE, scopes=SCOPES
+#         )
+#     service = build("drive", "v3", credentials=creds)
 
-    file_path = os.path(path_to_file)
-    filename = os.path.basename(file_path)
-    mime_type = mimetypes.guess_type(file_path)
+#     file_path = os.path(path_to_file)
+#     filename = os.path.basename(file_path)
+#     mime_type = mimetypes.guess_type(file_path)
 
-    file_metadata = {"name": filename}
-    if parent_folder_id:
-        file_metadata["parents"] = [parent_folder_id]
+#     file_metadata = {"name": filename}
+#     if parent_folder_id:
+#         file_metadata["parents"] = [parent_folder_id]
 
-    media = MediaFileUpload(file_path, mimetype=mime_type[0])
-    file = (
-        service.files().create(body=file_metadata, media_body=media, fields="id").execute()
-    )
-    print(f'File ID: "{file.get("id")}".')
-    return file.get("id")
+#     media = MediaFileUpload(file_path, mimetype=mime_type[0])
+#     file = (
+#         service.files().create(body=file_metadata, media_body=media, fields="id").execute()
+#     )
+#     print(f'File ID: "{file.get("id")}".')
+#     return file.get("id")
 
 
-def create_folder_in_folder(folder_name, parent_folder_id):
+def create_folder_in_folder(folder_name, parent_folder_id, user):
+    SERVICE_ACCOUNT_FILE = f'g-workspace-{user}.json'
     creds = Credentials.from_service_account_file(
             SERVICE_ACCOUNT_FILE, scopes=SCOPES
         )
@@ -84,10 +84,14 @@ def create_g_drive_folder(folder_name:str = "folder"):
         print(err)
         return None
 
-def output_to_google_docs(text: str = 'No text received.', shared_folder_id: str = None, file_name = None):
+def output_to_google_docs(text: str = 'No text received.', shared_folder_id: str = None, user =None, file_name = None):
     """
     Creates new file in Google Docs named Genesis_mmddyyy_hh:mm:ss from text string
     """
+    if not user:
+        raise Exception("User not specified for google drive conventions.")
+
+    SERVICE_ACCOUNT_FILE = f"g-workspace-{user}.json"
     try:
         # Authenticate using the service account JSON file
         creds = Credentials.from_service_account_file(

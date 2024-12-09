@@ -47,6 +47,8 @@ from connectors.database_tools import (
     notebook_manager_functions,
     manage_tests_functions,
     manage_tests_tools,
+    google_drive_tools,
+    google_drive_functions,
     database_tool_functions,
     database_tools,
     snowflake_stage_functions,
@@ -134,7 +136,7 @@ class ToolBelt:
         self.server = None  # Will be set later
 
         self.sys_default_email = self.get_sys_email()
-   #     logger.info(belts)
+    #     logger.info(belts)
 
     def set_server(self, server):
         """Set the server instance for this toolbelt"""
@@ -191,8 +193,8 @@ class ToolBelt:
 
                 status_update_callback(session_id, BotOsOutputMessage(thread_id=thread_id, status="in_progress", output=msg+" 💬", messages=None, input_metadata=input_metadata))
 
-       # current_summary = "Starting delegation"
-       # _update_streaming_status(self, target_bot, current_summary, run_id, session_id, thread_id, status_update_callback, input_metadata)
+        # current_summary = "Starting delegation"
+        # _update_streaming_status(self, target_bot, current_summary, run_id, session_id, thread_id, status_update_callback, input_metadata)
 
         if self.server is None:
             return {
@@ -234,7 +236,7 @@ class ToolBelt:
             if udf_adapter is None:
                 raise ValueError("No UDFBotOsInputAdapter found in target session")
 
-         #   thread_id = target_session.create_thread(udf_adapter)
+            #   thread_id = target_session.create_thread(udf_adapter)
             # Add initial message
             # Define a generic JSON schema that all delegated tasks should conform to
             expected_json_schema = {
@@ -330,18 +332,18 @@ class ToolBelt:
                     try:
                         # Extract the last JSON object from the response string
                         # Try to find JSON in code blocks first
-                        #json_matches = re.findall(r'```json\n(.*?)\n```', response, re.DOTALL)
-                        #if not json_matches:
+                        # json_matches = re.findall(r'```json\n(.*?)\n```', response, re.DOTALL)
+                        # if not json_matches:
                         #    # If no code blocks, try to find any JSON object in the response
                         #    json_matches = re.findall(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', response)
-                        #if json_matches:
+                        # if json_matches:
                         #    result = json.loads(json_matches[-1])  # Get last JSON match
-                        #else:
+                        # else:
                         #    # Try parsing the whole response as JSON if no code blocks found
                         #    result = json.loads(response)
 
                         # Validate against schema
-                        #jsonschema.validate(result, expected_json_schema)
+                        # jsonschema.validate(result, expected_json_schema)
                         return {
                             "success": True,
                             "result": response,
@@ -395,7 +397,6 @@ class ToolBelt:
                 "success": False,
                 "error": f"Error delegating work: {str(e)}"
             }
-
 
     def manage_todos(self, action, bot_id, todo_id=None, todo_details=None, thread_id=None):
         """
@@ -608,7 +609,6 @@ class ToolBelt:
         if bot_id and bot_id in bot_llms:
             model = bot_llms[bot_id].get('current_llm')
 
-
         if not model:
             engine = BotLlmEngineEnum(os.getenv("BOT_OS_DEFAULT_LLM_ENGINE"))
             if engine is BotLlmEngineEnum.openai:
@@ -619,21 +619,21 @@ class ToolBelt:
         # TODO: handle other engine types, use BotLlmEngineEnum instead of strings
 
         if model == 'openai':
-                    api_key = os.getenv("OPENAI_API_KEY")
-                    if not api_key:
-                        logger.info("OpenAI API key is not set in the environment variables.")
-                        return None
+            api_key = os.getenv("OPENAI_API_KEY")
+            if not api_key:
+                logger.info("OpenAI API key is not set in the environment variables.")
+                return None
 
-                    openai_model = os.getenv("OPENAI_MODEL_SUPERVISOR",os.getenv("OPENAI_MODEL_NAME","gpt-4o"))
+            openai_model = os.getenv("OPENAI_MODEL_SUPERVISOR",os.getenv("OPENAI_MODEL_NAME","gpt-4o"))
 
-                    if fast and openai_model.startswith("gpt-4o"):
-                        openai_model = "gpt-4o-mini"
+            if fast and openai_model.startswith("gpt-4o"):
+                openai_model = "gpt-4o-mini"
 
-                    if not fast:
-                        logger.info('process supervisor using model: ', openai_model)
-                    try:
-                        client = get_openai_client()
-                        response = client.chat.completions.create(
+            if not fast:
+                logger.info('process supervisor using model: ', openai_model)
+            try:
+                client = get_openai_client()
+                response = client.chat.completions.create(
                             model=openai_model,
                             messages=[
                                 {
@@ -642,12 +642,12 @@ class ToolBelt:
                                 },
                             ],
                         )
-                    except Exception as e:
-                        if os.getenv("OPENAI_MODEL_SUPERVISOR", None) is not None:
-                            logger.info(f"Error occurred while calling OpenAI API with model {openai_model}: {e}")
-                            logger.info(f'Retrying with main model {os.getenv("OPENAI_MODEL_NAME","gpt-4o")}')
-                            openai_model = os.getenv("OPENAI_MODEL_NAME","gpt-4o")
-                            response = client.chat.completions.create(
+            except Exception as e:
+                if os.getenv("OPENAI_MODEL_SUPERVISOR", None) is not None:
+                    logger.info(f"Error occurred while calling OpenAI API with model {openai_model}: {e}")
+                    logger.info(f'Retrying with main model {os.getenv("OPENAI_MODEL_NAME","gpt-4o")}')
+                    openai_model = os.getenv("OPENAI_MODEL_NAME","gpt-4o")
+                    response = client.chat.completions.create(
                                 model=openai_model,
                                 messages=[
                                     {
@@ -656,10 +656,10 @@ class ToolBelt:
                                     },
                                 ],
                             )
-                        else:
-                            logger.info(f"Error occurred while calling OpenAI API: {e}")
+                else:
+                    logger.info(f"Error occurred while calling OpenAI API: {e}")
 
-                    return_msg = response.choices[0].message.content
+            return_msg = response.choices[0].message.content
 
         elif model == 'cortex':
             if not db_adapter.check_cortex_available():
@@ -753,7 +753,6 @@ class ToolBelt:
                     artifact_pattern = re.compile(r'artifact:/(' + ARTIFACT_ID_REGEX + r')')
                     if not artifact_pattern.match(url):
                         raise ValueError(f"Improperly formatted artifact markdown detected: [{description}]({url})")
-
 
         def _strip_url_markdown(txt):
             # a helper function to strip any URL markdown and leave only the URL part
@@ -1055,7 +1054,6 @@ class ToolBelt:
         assert result
         return result
 
-
     def set_process_cache(self, bot_id, thread_id, process_id):
         cache_dir = "./process_cache"
         os.makedirs(cache_dir, exist_ok=True)
@@ -1134,7 +1132,7 @@ class ToolBelt:
             default_email = result[0][0] if result else None
             return default_email
         except Exception as e:
-         #  logger.info(f"Error getting sys email: {e}")
+            #  logger.info(f"Error getting sys email: {e}")
             return None
 
     def clear_process_registers_by_thread(self, thread_id):
@@ -1142,8 +1140,8 @@ class ToolBelt:
         with self.lock:
             if thread_id not in self.counter:
                 self.counter[thread_id] = {}
-         #   if thread_id not in self.process:
-         #       self.process[thread_id] = {}
+            #   if thread_id not in self.process:
+            #       self.process[thread_id] = {}
             if thread_id not in self.last_fail:
                 self.last_fail[thread_id] = {}
             if thread_id not in self.fail_count:
@@ -1183,8 +1181,8 @@ class ToolBelt:
         concise_mode=False,
         bot_name=None
     ):
-      #  logger.info(f"Running processes Action: {action} | process_id: {process_id or 'None'} | Thread ID: {thread_id or 'None'}")
-      #         self.recurse_level = 0
+        #  logger.info(f"Running processes Action: {action} | process_id: {process_id or 'None'} | Thread ID: {thread_id or 'None'}")
+        #         self.recurse_level = 0
         self.recurse_stack = {thread_id: thread_id, process_id: process_id}
 
         if process_id is not None and process_id == '':
@@ -1267,7 +1265,7 @@ class ToolBelt:
 
             with self.lock:
                 self.counter[thread_id][process_id] = 1
-         #       self.process[thread_id][process_id] = process
+                #       self.process[thread_id][process_id] = process
                 self.last_fail[thread_id][process_id] = None
                 self.fail_count[thread_id][process_id] = 0
                 self.instructions[thread_id][process_id] = None
@@ -1276,7 +1274,6 @@ class ToolBelt:
                 self.done[thread_id][process_id] = False
                 self.silent_mode[thread_id][process_id] = silent_mode
                 self.process_id[thread_id] = process_id
-
 
             logger.info(
                 f"Process {process_name} has been kicked off."
@@ -1352,7 +1349,7 @@ class ToolBelt:
                 """
 
             if verbose:
-                    self.instructions[thread_id][process_id] += """
+                self.instructions[thread_id][process_id] += """
                     However DO generate text explaining what you are doing and showing interium outputs, etc. while you are running this and further steps to keep the user informed what is going on, preface these messages by 🔄 aka :arrows_counterclockwise:.
                     Oh, and mention to the user before you start running the process that they can send "stop" to you at any time to stop the running of the process, and if they want less verbose output next time they can run request to run the process in "concise mode".
                     And keep them informed while you are running the process about what you are up to, especially before you call various tools.
@@ -1380,7 +1377,7 @@ class ToolBelt:
 
             # Call set_process_cache to save the current state
             self.set_process_cache(bot_id, thread_id, process_id)
-        #    logger.info(f'Process cached with bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}')
+            #    logger.info(f'Process cached with bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}')
 
             return {"Success": True, "Instructions": self.instructions[thread_id][process_id], "process_id": process_id}
 
@@ -1477,7 +1474,7 @@ class ToolBelt:
                     {previous_response}
                     """
 
-       #     logger.info(f"\nSENT TO 2nd LLM:\n{check_response}\n")
+            #     logger.info(f"\nSENT TO 2nd LLM:\n{check_response}\n")
 
             result = self.chat_completion(check_response, self.db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, process_id=process_id, process_name = process_name)
 
@@ -1486,16 +1483,16 @@ class ToolBelt:
 
             if not isinstance(result, str):
                 self.set_process_cache(bot_id, thread_id, process_id)
-       #         logger.info(f'Process cached with bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}')
+                #         logger.info(f'Process cached with bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}')
 
                 return {
                     "success": False,
                     "message": "Process failed: The checking function didn't return a string."
                 }
 
-           # logger.info("RUN 2nd LLM...")
+            # logger.info("RUN 2nd LLM...")
 
-    #        logger.info(f"\nRESULT FROM 2nd LLM: {result}\n")
+            #        logger.info(f"\nRESULT FROM 2nd LLM: {result}\n")
 
             if "**fail**" in result.lower():
                 with self.lock:
@@ -1505,7 +1502,7 @@ class ToolBelt:
                 if self.fail_count[thread_id][process_id] <= 5:
                     logger.info(f"\nStep {self.counter[thread_id][process_id]} failed. Fail count={self.fail_count[thread_id][process_id]} Trying again up to 5 times...\n")
                     self.set_process_cache(bot_id, thread_id, process_id)
-             #       logger.info(f'Process cached with bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}')
+                    #       logger.info(f'Process cached with bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}')
 
                     return_dict = {
                         "success": False,
@@ -1534,11 +1531,10 @@ class ToolBelt:
 
                     return {"success": "False", "message": f'The process {process_name} has failed due to > 5 repeated step completion failures.  Do not start this process again without user approval.'}
 
-
             with self.lock:
                 self.last_fail[thread_id][process_id] = None
                 self.fail_count[thread_id][process_id] = 0
-      #          logger.info(f"\nThis step passed.  Moving to next step\n")
+                #          logger.info(f"\nThis step passed.  Moving to next step\n")
                 self.counter[thread_id][process_id] += 1
 
             extract_instructions = f"""
@@ -1567,12 +1563,12 @@ class ToolBelt:
             {process['PROCESS_INSTRUCTIONS']}
             """
 
-       #     logger.info(f"\nEXTRACT NEXT STEP:\n{extract_instructions}\n")
+            #     logger.info(f"\nEXTRACT NEXT STEP:\n{extract_instructions}\n")
 
-       #     logger.info("RUN 2nd LLM...")
+            #     logger.info("RUN 2nd LLM...")
             next_step = self.chat_completion(extract_instructions, self.db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, process_id=process_id, process_name=process_name)
 
-      #      logger.info(f"\nRESULT (NEXT_STEP_): {next_step}\n")
+            #      logger.info(f"\nRESULT (NEXT_STEP_): {next_step}\n")
 
             if next_step == '**done**' or next_step == '***done***' or next_step.strip().endswith('**done**'):
                 with self.lock:
@@ -1591,7 +1587,7 @@ class ToolBelt:
                     "reminder": f"If you were running this as a subprocess inside another process, be sure to continue the parent process."
                 }
 
-    #        logger.info(f"\n{next_step}\n")
+            #        logger.info(f"\n{next_step}\n")
 
             with self.lock:
                 if ">> RECURSE" in next_step or ">>RECURSE" in next_step:
@@ -1646,7 +1642,7 @@ class ToolBelt:
                 In your response back to run_process, provide a detailed description of what you did, what result you achieved, and why you believe this to have successfully completed the step.
                 """
 
-       #     logger.info(f"\nEXTRACTED NEXT STEP: \n{self.instructions[thread_id][process_id]}\n")
+            #     logger.info(f"\nEXTRACTED NEXT STEP: \n{self.instructions[thread_id][process_id]}\n")
 
             with self.lock:
                 self.process_history[thread_id][process_id] += "\nNext step: " + next_step
@@ -1908,7 +1904,6 @@ class ToolBelt:
 
         except Exception as e:
             return {"Success": False, "Error": f"Error connecting to LLM: {e}"}
-
 
         if action == "CREATE_CONFIRMED":
             action = "CREATE"
@@ -2176,7 +2171,6 @@ class ToolBelt:
         except Exception as e:
             return {"Success": False, "Error": f"Error connecting to LLM: {e}"}
 
-
         if action == "ADD_CONFIRMED":
             action = "ADD"
         if action == "UPDATE_CONFIRMED":
@@ -2410,6 +2404,41 @@ class ToolBelt:
 
     # ====== ARTIFACTS END ==========================================================================================
 
+    def google_drive(self, action, thread_id=None):
+        """
+        A wrapper for LLMs to access/manage Google Drive files by performing specified actions such as listing or downloading files.
+
+        Args:
+            action (str): The action to perform on the Google Drive files. Supported actions are 'LIST' and 'DOWNLOAD'.
+
+        Returns:
+            dict: A dictionary containing the result of the action. E.g. for 'LIST', it includes the list of files in the Google Drive.
+        """
+        if action == "LIST":
+            return self.get_google_drive_files()
+        elif action == "TEST":
+            return {"Success": True, "message": "Test successful"}
+        elif action == "SET_ROOT_FOLDER":
+            raise NotImplementedError
+        elif action == "LOGIN":
+            from google_auth_oauthlib.flow import Flow
+
+            SCOPES = [
+                "https://www.googleapis.com/auth/drive.file",
+                "https://www.googleapis.com/auth/documents",
+                "https://www.googleapis.com/auth/drive"
+            ]
+
+            flow = Flow.from_client_secrets_file(
+                f"credentials.json",
+                scopes=SCOPES,
+                redirect_uri="http://127.0.0.1:8080/oauth",  # Your redirect URI
+            )
+            auth_url, _ = flow.authorization_url(prompt="consent")
+            return {"Success": "True", "auth_url": f"<{auth_url}|View Document>"}
+
+    def get_google_drive_files(self):
+        pass
 
     def process_scheduler(
         self, action, bot_id, task_id=None, task_details=None, thread_id=None, history_rows=10
@@ -2429,7 +2458,7 @@ class ToolBelt:
             dict: A dictionary with the result of the operation.
         """
 
-    #    logger.info("Reached process scheduler")
+        #    logger.info("Reached process scheduler")
 
         if task_details and 'process_name' in task_details and 'task_name' not in task_details:
             task_details['task_name'] = task_details['process_name']
@@ -2478,7 +2507,6 @@ class ToolBelt:
                     "Success": False,
                     "Error": e
                 }
-
 
         if action == "TIME":
             return {
@@ -2680,7 +2708,7 @@ class ToolBelt:
         finally:
             cursor.close()
 
- # ====== PROCESSES START ========================================================================================
+    # ====== PROCESSES START ========================================================================================
 
     def get_processes_list(self, bot_id="all"):
         db_adapter = self.db_adapter
@@ -2770,7 +2798,6 @@ class ToolBelt:
             process_details['process_config'] = process_config
         if hidden:
             process_details['hidden'] = hidden
-
 
         # If process_name is specified but not in process_details, add it to process_details
         # if process_name and process_details and 'process_name' not in process_details:
@@ -2966,7 +2993,6 @@ class ToolBelt:
         except Exception as e:
             return {"Success": False, "Error": f"Error connecting to LLM: {e}"}
 
-
         if action == "CREATE_CONFIRMED":
             action = "CREATE"
         if action == "UPDATE_CONFIRMED":
@@ -2997,7 +3023,6 @@ class ToolBelt:
                     return {"Success": False, "Error": "Either process_name or process_id is required in process_details for SHOW action"}
 
             if process_id is not None or 'process_id' in process_details:
-
 
                 return self.get_process_info(bot_id=bot_id, process_id=process_id)
             else:
@@ -3257,6 +3282,10 @@ def get_tools(which_tools, db_adapter, slack_adapter_local=None, include_slack=T
             tools.extend(integration_tool_descriptions)
             available_functions_load.update(integration_tools)
             function_to_tool_map[tool_name] = integration_tool_descriptions
+        elif tool_name == "google_drive_tools":
+            tools.extend(google_drive_functions)
+            available_functions_load.update(google_drive_tools)
+            function_to_tool_map[tool_name] = google_drive_functions
         elif tool_name == "bot_dispatch_tools":
             tools.extend(BOT_DISPATCH_DESCRIPTIONS)
             available_functions_load.update(bot_dispatch_tools)
@@ -3300,11 +3329,11 @@ def get_tools(which_tools, db_adapter, slack_adapter_local=None, include_slack=T
             tools.extend(image_functions)
             available_functions_load.update(image_tools)
             function_to_tool_map[tool_name] = image_functions
-    #    elif tool_name == "snowflake_semantic_tools":
-    #        logger.info('Note: Semantic Tools are currently disabled pending refactoring or removal.')
-    #        tools.extend(snowflake_semantic_functions)
-    #        available_functions_load.update(snowflake_semantic_tools)
-    #        function_to_tool_map[tool_name] = snowflake_semantic_functions
+        #    elif tool_name == "snowflake_semantic_tools":
+        #        logger.info('Note: Semantic Tools are currently disabled pending refactoring or removal.')
+        #        tools.extend(snowflake_semantic_functions)
+        #        available_functions_load.update(snowflake_semantic_tools)
+        #        function_to_tool_map[tool_name] = snowflake_semantic_functions
         elif tool_name == "snowflake_stage_tools":
             tools.extend(snowflake_stage_functions)
             available_functions_load.update(snowflake_stage_tools)
@@ -3573,5 +3602,3 @@ def make_session_for_dispatch(bot_config):
     #                       input_adapter=slack_adapter_local))
 
     return session  # , api_app_id, udf_adapter_local, slack_adapter_local
-
-

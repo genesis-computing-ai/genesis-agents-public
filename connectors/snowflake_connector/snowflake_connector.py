@@ -2340,7 +2340,7 @@ def get_status(site):
         def get_root_folder_id():
             cursor = self.connection.cursor()
             cursor.execute(
-                f"call genesis_bots_alpha.core.run_arbitrary($$ grant read,write on stage genesis_bots_alpha.app1.bot_git to application role app_public $$);"
+                f"call core.run_arbitrary($$ grant read,write on stage app1.bot_git to application role app_public $$);"
             )
 
             query = f"SELECT value from {self.schema}.EXT_SERVICE_CONFIG WHERE ext_service_name = 'g-sheets' AND parameter = 'shared_folder_id'"
@@ -2390,12 +2390,12 @@ def get_status(site):
                 # write text docs ID's back to table
                 cursor = self.connection.cursor()
                 query = f"""
-                    UPDATE "GENESIS_GXS"."REQUIREMENTS"."FLEXICARD_PM" 
+                    UPDATE "GENESIS_GXS"."REQUIREMENTS"."FLEXICARD_PM"
                     SET
                     GIT_SOURCE_RESEARCH_DOC_LINK = '{links["GIT_SOURCE_RESEARCH"]}',
                     GIT_MAPPING_PROPOSAL_DOC_LINK = '{links["GIT_MAPPING_PROPOSAL"]}',
                     GIT_CONFIDENCE_OUTPUT_DOC_LINK = '{links["GIT_CONFIDENCE_OUTPUT"]}'
-                    WHERE 
+                    WHERE
                     PHYSICAL_COLUMN_NAME = '{data['PHYSICAL_COLUMN_NAME']}'
                 """
                 result = cursor.execute(query)

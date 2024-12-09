@@ -54,6 +54,7 @@ else:
     logger.info("NOT RUNNING TEST MODE - APPLYING ONE TIME DB FIXES AND CREATING TABLES")
     db_adapter.one_time_db_fixes()
     db_adapter.ensure_table_exists()
+    db_adapter.create_google_sheets_creds()
 
 bot_id_to_udf_adapter_map = {}
 llm_api_key_struct = None

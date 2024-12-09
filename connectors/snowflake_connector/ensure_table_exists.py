@@ -26,6 +26,7 @@ def one_time_db_fixes(self):
             ALTER TABLE {self.schema}.EXT_SERVICE_CONFIG
             ADD COLUMN user VARCHAR;
         """
+        cursor = self.client.cursor()
         cursor.execute(add_user_col_ddl)
         self.client.commit()
         logger.info(f"User column added to EXT_SERVICE_CONFIG table.")
@@ -762,12 +763,12 @@ def ensure_table_exists(self):
             available_tools = """[
                 "slack_tools",
                 "test_manager_tools",
-                "make_baby_bot", 
-                "snowflake_stage_tools", 
-                "image_tools", 
-                "process_manager_tools", 
-                "process_runner_tools", 
-                "process_scheduler_tools", 
+                "make_baby_bot",
+                "snowflake_stage_tools",
+                "image_tools",
+                "process_manager_tools",
+                "process_runner_tools",
+                "process_scheduler_tools",
                 "notebook_manager_tools",
                 "google_drive_tools"]
                 """

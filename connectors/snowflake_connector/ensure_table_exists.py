@@ -1625,6 +1625,33 @@ def ensure_table_exists(self):
     af = get_artifacts_store(self)
     af.setup_db_objects(replace_if_exists=False)
 
+    # USER EXTENDED TOOLS TABLE
+    user_extended_tools_table_check_query = f"SHOW TABLES LIKE 'USER_EXTENDED_TOOLS' IN SCHEMA {self.schema};"
+    cursor.execute(user_extended_tools_table_check_query)
+    if not cursor.fetchone():
+        user_extended_tools_table_ddl = f"""
+        CREATE TABLE {self.schema}.USER_EXTENDED_TOOLS (
+            TOOL_NAME STRING NOT NULL,
+            TOOL_DESCRIPTION STRING NOT NULL,
+            PARAMETERS VARIANT NOT NULL
+        );
+        """
+        cursor.execute(user_extended_tools_table_ddl)
+        self.client.commit()
+        logger.info(f"Table USER_EXTENDED_TOOLS created.")
+    else:
+        logger.info(f"Table USER_EXTENDED_TOOLS already exists.")
+
+    # EXTENDED TOOLS SCHEMA for storing extended tools
+    extended_tools_schema_check_query = f"SHOW SCHEMAS LIKE 'EXTENDED_TOOLS' IN DATABASE {self.database};"
+    cursor.execute(extended_tools_schema_check_query)
+    if not cursor.fetchone():
+        create_extended_tools_schema_ddl = f"CREATE SCHEMA IF NOT EXISTS EXTENDED_TOOLS;"
+        cursor.execute(create_extended_tools_schema_ddl)
+        self.client.commit()
+        logger.info(f"Schema EXTENDED_TOOLS created.")
+    else:
+        logger.info(f"Schema EXTENDED_TOOLS already exists.")
 
 def get_processes_list(self, bot_id="all"):
     cursor = self.client.cursor()

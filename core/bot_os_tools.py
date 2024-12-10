@@ -14,6 +14,8 @@ from typing import Optional, Dict, Any
 import time, uuid
 import jsonschema
 
+from core import global_flags
+from core.bot_os_tools_extended import load_user_extended_tools
 from llm_openai.bot_os_openai import StreamingEventHandler
 
 import re
@@ -3236,7 +3238,7 @@ class ToolBelt:
 
     # ====== PROCESSES END ====================================================================================
 
-def get_tools(which_tools, db_adapter, slack_adapter_local=None, include_slack=True, tool_belt=None):
+def get_tools(which_tools, db_adapter, slack_adapter_local=None, include_slack=True, tool_belt=None) -> tuple[list, dict, dict]:
 
     tools = []
     available_functions_load = {}
@@ -3379,6 +3381,14 @@ def get_tools(which_tools, db_adapter, slack_adapter_local=None, include_slack=T
             available_functions[name] = func
     # Insert additional code here if needed
 
+    # add user extended tools
+    user_extended_tools_definitions, user_extended_functions = load_user_extended_tools(db_adapter, project_id=global_flags.project_id, 
+                                                                                        dataset_name=global_flags.genbot_internal_project_and_schema.split(".")[1])
+    if user_extended_functions:
+        tools.extend(user_extended_functions)
+        available_functions_load.update(user_extended_tools_definitions)
+        function_to_tool_map[tool_name] = user_extended_functions
+        
     return tools, available_functions, function_to_tool_map
     # logger.info("imported: ",func)
 

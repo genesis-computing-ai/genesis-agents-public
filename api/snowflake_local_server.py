@@ -18,7 +18,13 @@ class GenesisLocalSnowflakeServer(GenesisServer):
         self.bot_id_to_udf_adapter_map: Dict[str, UDFBotOsInputAdapter] = {}
         if f"{scope}.{sub_scope}" != os.getenv("GENESIS_INTERNAL_DB_SCHEMA"):
             raise Exception(f"Scope {scope}.{sub_scope} does not match environment variable GENESIS_INTERNAL_DB_SCHEMA {os.getenv('GENESIS_INTERNAL_DB_SCHEMA')}")
+        self.server = None
+        self.bot_list = bot_list
+        self.restart()
 
+    def restart(self):
+        if self.server is not None:
+            self.server.shutdown()
         db_adapter = get_global_db_connector("Snowflake")
         llm_key_handler = LLMKeyHandler(db_adapter=db_adapter)
         _, llm_api_key_struct = llm_key_handler.get_llm_key_from_db()
@@ -32,7 +38,7 @@ class GenesisLocalSnowflakeServer(GenesisServer):
                 db_adapter,
                 None, # bot_id_to_udf_adapter_map,
                 stream_mode=True,
-                bot_list=[{"bot_id": bot_id} for bot_id in bot_list] if bot_list is not None else None
+                bot_list=[{"bot_id": bot_id} for bot_id in self.bot_list] if self.bot_list is not None else None
         )
         scheduler = BackgroundScheduler(
             {
@@ -65,6 +71,11 @@ class GenesisLocalSnowflakeServer(GenesisServer):
         global_flags.project_id = project_id
         dataset_name = db_schema[1]
         global_flags.genbot_internal_project_and_schema = genbot_internal_project_and_schema
+
+        db_adapter = get_global_db_connector("Snowflake")
+        db_adapter.one_time_db_fixes()
+        db_adapter.ensure_table_exists()
+        db_adapter.create_google_sheets_creds()
         
     def get_metadata_store(self) -> GenesisMetadataStore:
         return SnowflakeMetadataStore(self.scope, self.sub_scope)

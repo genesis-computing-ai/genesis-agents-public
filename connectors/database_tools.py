@@ -90,7 +90,7 @@ database_tool_functions = [
                         "description": "Optional. The maximum size any field can be before it is truncated. Default is 5000.",
                         "default": 5000,
                     },
-                    "export_to_google_doc": {
+                    "export_to_google_sheet": {
                         "type": "boolean",
                         "description": "Optional. If true, the results will be exported to a Google Doc. Default is false.",
                         "default": False,
@@ -526,6 +526,32 @@ manage_tests_functions = [
     }
 ]
 
+google_drive_functions = [
+    {
+        "type": "function",
+        "function": {
+            "name": "_google_drive",
+            "description": """Performs certain actions on Google Drive, including logging in, listing files, and setting the root folder.
+                           Other actions may be added in the future.""",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "action": {
+                        "type": "string",
+                        "description": """
+                        The action to be performed on Google Drive.  Possible actions are: LOGIN, TEST, LIST, SET_ROOT_FOLDER""",
+                    },
+                    "user": {
+                        "type": "string",
+                        "description": "The unique identifier of the process_id. MAKE SURE TO DOUBLE-CHECK THAT YOU ARE USING THE CORRECT test_process_id ON UPDATES AND DELETES!  Required for CREATE, UPDATE, and DELETE.",
+                    },
+                },
+                "required": ["action"],
+            },
+        },
+    }
+]
+
 process_manager_functions = [
     {
         "type": "function",
@@ -791,9 +817,10 @@ snowflake_stage_tools = {
 }
 
 autonomous_tools = {}
-#autonomous_tools = {"_manage_tasks": "db_adapter.manage_tasks"}
+# autonomous_tools = {"_manage_tasks": "db_adapter.manage_tasks"}
 
-#process_runner_tools = {"_run_process": "tool_belt.run_process"}
+# process_runner_tools = {"_run_process": "tool_belt.run_process"}
+google_drive_tools = {"_google_drive": "tool_belt.google_drive"}
 manage_tests_tools = {"_manage_tests": "tool_belt.manage_tests"}
 process_manager_tools = {"_manage_processes": "tool_belt.manage_processes"}
 process_scheduler_tools = {"_process_scheduler": "tool_belt.process_scheduler"}

@@ -24,10 +24,10 @@ from .stage_utils import add_file_to_stage, read_file_from_stage, update_file_in
 from .ensure_table_exists import ensure_table_exists, one_time_db_fixes, get_process_info, get_processes_list
 
 from google_sheets.g_sheets import (
-    output_to_google_docs,
-    create_g_drive_folder,
+    export_to_google_sheets,
+    create_google_sheet,
     create_folder_in_folder,
-    upload_file_to_folder,
+    # upload_file_to_folder,
 )
 
 from core.bot_os_llm import BotLlmEngineEnum
@@ -929,7 +929,7 @@ class SnowflakeConnector(DatabaseConnector):
             return {"Success": False, "Data": err}
 
     def create_google_sheets_creds(self):
-        query = f"SELECT parameter, value FROM {self.schema}.EXT_SERVICE_CONFIG WHERE ext_service_name = 'g-sheets';"
+        query = f"SELECT parameter, value FROM {self.schema}.EXT_SERVICE_CONFIG WHERE ext_service_name = 'g-sheets' and user='{self.user}';"
         cursor = self.client.cursor()
         cursor.execute(query)
         rows = cursor.fetchall()
@@ -940,7 +940,7 @@ class SnowflakeConnector(DatabaseConnector):
         creds_dict = {row[0]: row[1] for row in rows if row[0].casefold() != "shared_folder_id"}
 
         creds_json = json.dumps(creds_dict, indent=4)
-        with open('genesis-workspace-project-d094fd7d2562.json', 'w') as json_file:
+        with open(f'g-workspace-{self.user}.json', 'w') as json_file:
             json_file.write(creds_json)
         return True
 
@@ -2135,7 +2135,7 @@ def get_status(site):
         note_name = None,
         note_type = None,
         max_field_size = 5000,
-        export_to_google_doc = False,
+        export_to_google_sheet = False,
     ):
         """
         Executes a SQL query on Snowflake, with support for parameterized queries.
@@ -2340,10 +2340,10 @@ def get_status(site):
         def get_root_folder_id():
             cursor = self.connection.cursor()
             cursor.execute(
-                f"call genesis_bots_alpha.core.run_arbitrary($$ grant read,write on stage genesis_bots_alpha.app1.bot_git to application role app_public $$);"
+                f"call core.run_arbitrary($$ grant read,write on stage app1.bot_git to application role app_public $$);"
             )
 
-            query = f"SELECT value from {self.schema}.EXT_SERVICE_CONFIG WHERE ext_service_name = 'g-sheets' AND parameter = 'shared_folder_id'"
+            query = f"SELECT value from {self.schema}.EXT_SERVICE_CONFIG WHERE ext_service_name = 'g-sheets' AND parameter = 'shared_folder_id' and user = '{self.user}'"
             cursor.execute(query)
             row = cursor.fetchone()
             cursor.close()
@@ -2352,19 +2352,23 @@ def get_status(site):
             else:
                 raise Exception("Missing shared folder ID")
 
-        root_folder_id = get_root_folder_id()
-        root_folder_id = "1t0RJsOSgwksy2IH-pQtMbGVgrIaBI_-Y"
-
         if query.casefold() == 'SELECT * FROM "GENESIS_GXS"."REQUIREMENTS"."FLEXICARD_PM";'.casefold():
+
+            root_folder_id = get_root_folder_id()
+            # root_folder_id = "1t0RJsOSgwksy2IH-pQtMbGVgrIaBI_-Y"
+
             from datetime import datetime
+
+            print(f"Root Folder ID: {root_folder_id}")
+
             timestamp = datetime.now().strftime("%m%d%Y_%H:%M:%S")
             parent_folder_id = create_folder_in_folder(
-                "gxs_" + timestamp, root_folder_id
+                "gxs_" + timestamp, root_folder_id, self.user
             )
 
             subfolder_id = {}
             for key in ['GIT_SOURCE_RESEARCH', 'GIT_MAPPING_PROPOSAL', 'GIT_CONFIDENCE_OUTPUT']:
-                subfolder_id[key] = create_folder_in_folder(key, parent_folder_id)
+                subfolder_id[key] = create_folder_in_folder(key, parent_folder_id, self.user)
 
             links = {}
             for data in sample_data:
@@ -2385,31 +2389,38 @@ def get_status(site):
                     ).split("/")[-1]
 
                     # create text docs in sub-folder
-                    links[key] = output_to_google_docs(file_contents, subfolder_id[key], file_name)
+                    links[key] = export_to_google_sheets(file_contents, subfolder_id[key], file_name, self.name)
 
                 # write text docs ID's back to table
                 cursor = self.connection.cursor()
                 query = f"""
-                    UPDATE "GENESIS_GXS"."REQUIREMENTS"."FLEXICARD_PM" 
+                    UPDATE "GENESIS_GXS"."REQUIREMENTS"."FLEXICARD_PM"
                     SET
                     GIT_SOURCE_RESEARCH_DOC_LINK = '{links["GIT_SOURCE_RESEARCH"]}',
                     GIT_MAPPING_PROPOSAL_DOC_LINK = '{links["GIT_MAPPING_PROPOSAL"]}',
                     GIT_CONFIDENCE_OUTPUT_DOC_LINK = '{links["GIT_CONFIDENCE_OUTPUT"]}'
-                    WHERE 
+                    WHERE
                     PHYSICAL_COLUMN_NAME = '{data['PHYSICAL_COLUMN_NAME']}'
                 """
                 result = cursor.execute(query)
                 cursor.close()
 
-        elif export_to_google_doc:
+        elif export_to_google_sheet:
+            # get user's shared folder ID
             cursor = self.connection.cursor()
-            query = f"SELECT value from {self.schema}.EXT_SERVICE_CONFIG WHERE ext_service_name = 'g-sheets' AND parameter = 'shared_key_id'"
+            query = f"SELECT value from {self.schema}.EXT_SERVICE_CONFIG WHERE ext_service_name = 'g-sheets' AND parameter = 'shared_folder_id' and user = '{self.user}'"
             cursor.execute(query)
-            shared_key_id = cursor.fetchone()[0]
+            if cursor.rowcount > 0:
+                shared_folder_id = cursor.fetchone()[0]
 
-            print_string = dict_list_to_markdown_table(sample_data)
-            filename, link = output_to_google_docs(print_string, shared_key_id)
-            return {"Success": True, "result": "Data sent to Google Docs - Filename: " + filename}
+            result = create_google_sheet(shared_folder_id, self.user, 'test google sheet', sample_data )
+            # print_string = dict_list_to_markdown_table(sample_data)
+            # link = export_to_google_sheets(print_string, shared_folder_id, self.user)
+
+            return {
+                "Success": True,
+                "result": "Data sent to Google Sheets - Link: " + result["webViewLink"],
+            }
 
         return sample_data
 

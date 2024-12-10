@@ -6,6 +6,7 @@ from demo.routes import realtime_routes, slack_routes, udf_routes, main_routes
 
 
 app = Flask(__name__)
+app_https = Flask(__name__)
 
 app.register_blueprint(main_routes)
 app.register_blueprint(realtime_routes)

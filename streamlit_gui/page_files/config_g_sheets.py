@@ -83,16 +83,23 @@ def config_g_sheets():
         shared_folder_id = st.text_input("Shared Folder ID:")
 
         if st.button("Add Google Worksheet API parameters to access Google Worksheet account from Genesis"):
-            if not client_id:
+            if not client_id and not client_email and not project_id and not private_key_id and not private_key and shared_folder_id:
+                key_pairs = {"shared_folder_id": shared_folder_id}
+            elif not client_id:
                 st.error("Client ID is required.")
+                return
             elif not client_email:
                 st.error("Client email is required.")
+                return
             elif not project_id:
                 st.error("Project ID is required.")
+                return
             elif not private_key_id:
                 st.error("Private Key ID is required.")
+                return
             elif not private_key:
                 st.error("Private Key is required.")
+                return
             else:
                 key_pairs = {
                     "type": "service_account",
@@ -106,22 +113,23 @@ def config_g_sheets():
                     "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
                     "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/genesis-workspace-creds%40" + project_id + ".iam.gserviceaccount.com",
                     "universe_domain": "googleapis.com",
-                    "shared_folder_id": shared_folder_id,
                 }
-                try:
-                    key_pairs_str = json.dumps(key_pairs)
-                    google_api_config_result = set_metadata(f"api_config_params g-sheets {key_pairs_str}")
-                    if isinstance(google_api_config_result, list) and len(google_api_config_result) > 0:
-                        if 'Success' in google_api_config_result[0] and google_api_config_result[0]['Success']==True:
-                            st.success("Google API params configured successfully")
-                        else:
-                            st.error(google_api_config_result)
+                if shared_folder_id:
+                    key_pairs["shared_folder_id"] = shared_folder_id
+            try:
+                key_pairs_str = json.dumps(key_pairs)
+                google_api_config_result = set_metadata(f"api_config_params g-sheets {key_pairs_str}")
+                if isinstance(google_api_config_result, list) and len(google_api_config_result) > 0:
+                    if 'Success' in google_api_config_result[0] and google_api_config_result[0]['Success']==True:
+                        st.success("Google API params configured successfully")
+                    else:
+                        st.error(google_api_config_result)
 
-                except Exception as e:
-                    st.error(f"Error configuring Google API params: {e}")
+            except Exception as e:
+                st.error(f"Error configuring Google API params: {e}")
 
 
-                    st.success("Google Worksheet API parameters configured successfully.")
+                st.success("Google Worksheet API parameters configured successfully.")
 
         st.info(
             "If you need any assistance, please check our [documentation](https://genesiscomputing.ai/docs/) or join our [Slack community](https://communityinviter.com/apps/genesisbotscommunity/genesis-bots-community)."

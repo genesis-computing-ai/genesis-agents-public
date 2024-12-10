@@ -144,7 +144,7 @@ def check_git_file(client, paths, file_name):
 
     # If not in local git, check stage
     try:
-        stage_contents = get_file_from_stage(f"{paths['stage_base']}{paths['base_git_path']}", file_name)
+        stage_contents = client.get_file(f"{paths['stage_base']}{paths['base_git_path']}", file_name)
         if stage_contents and not stage_contents.startswith('Placeholder'):
             print(f"\033[92mFile found in stage: {stage_path}\033[0m")
             return stage_contents

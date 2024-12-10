@@ -15,7 +15,7 @@ import threading
 
 from demo.sessions_creator import create_sessions, make_session
 
-from bot_genesis.make_baby_bot import (  get_bot_details, make_baby_bot ) 
+from bot_genesis.make_baby_bot import (  get_bot_details, make_baby_bot )
 
 from core.logging_config import logger
 
@@ -46,7 +46,7 @@ class BotOsServer:
         scheduler_seconds_interval=2,
         slack_active=False,
         db_adapter=None,
-        bot_id_to_udf_adapter_map = None, 
+        bot_id_to_udf_adapter_map = None,
         api_app_id_to_session_map = None,
         data_cubes_ingress_url = None,
         bot_id_to_slack_adapter_map = None,
@@ -99,14 +99,14 @@ class BotOsServer:
             if isinstance(available_tools, str) and available_tools.startswith('['):
                 # Remove brackets and quotes, then split
                 available_tools = available_tools.strip('[]').replace('"', '').replace("'", '').split(',')
-            
+
             if isinstance(available_tools, list):
                 available_tools = ','.join(tool.strip() for tool in available_tools)
-            
+
             bot_details = get_bot_details(bot_id)
             update_existing = True if bot_details else False
-            
-            
+
+
             make_baby_bot(
                     bot_id=bot_id,
                     bot_name=bot_name,
@@ -171,12 +171,12 @@ class BotOsServer:
             logger.info("Adding session ", session)
         else:
             logger.info("Session is None")
-        
+
         if session is not None:
             # Set server reference in the new session's toolbelt
             if hasattr(session, 'tool_belt'):
                 session.tool_belt.set_server(self)
-        
+
         self.sessions.append(session)
 
     def remove_session(self, session):
@@ -190,7 +190,7 @@ class BotOsServer:
 
         # TODO REMOVE THE OTHER ROTATER CALL
         # Print a confirmation message with the current time
-       
+
         if tok is not None and ref is not None:
             logger.info(f"Slack Bot Config Token REFRESHED {self.last_slack_token_rotate_time}")
         else:
@@ -204,7 +204,7 @@ class BotOsServer:
 
     def reset_session(self, bot_id, session):
         bot_config = get_bot_details(bot_id=bot_id)
-        
+
         existing_udf = None
         existing_slack = None
         if session is not None:
@@ -317,4 +317,4 @@ class BotOsServer:
             self.app.run(*args, **kwargs)
 
     def shutdown(self):
-        self.scheduler.shutdown()
+        self.scheduler.shutdown(wait=False)

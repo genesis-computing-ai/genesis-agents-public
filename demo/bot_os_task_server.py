@@ -99,7 +99,6 @@ if not os.getenv("TEST_TASK_MODE", "false").lower() == "true":
 tool_belt = ToolBelt(db_adapter)
 
 def insert_task_history(
-        self,
         task_id,
         work_done_summary,
         task_status,
@@ -123,7 +122,7 @@ def insert_task_history(
             task_clarity_comments (str): Comments on the clarity of the task.
         """
         insert_query = f"""
-            INSERT INTO {self.schema}.TASK_HISTORY (
+            INSERT INTO {db_adapter.schema}.TASK_HISTORY (
                 task_id, work_done_summary, task_status, updated_task_learnings,
                 report_message, done_flag, needs_help_flag, task_clarity_comments
             ) VALUES (
@@ -132,7 +131,7 @@ def insert_task_history(
         """
         cursor = None
         try:
-            cursor = self.client.cursor()
+            cursor = db_adapter.client.cursor()
             cursor.execute(
                 insert_query,
                 (
@@ -146,7 +145,7 @@ def insert_task_history(
                     task_clarity_comments,
                 ),
             )
-            self.client.commit()
+            db_adapter.client.commit()
             cursor.close()
             logger.info(f"Task history row inserted successfully for task_id: {task_id}")
         except Exception as e:

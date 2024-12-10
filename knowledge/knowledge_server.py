@@ -49,6 +49,7 @@ class KnowledgeServer:
         self.thread_set = set()
         self.thread_set_lock = threading.Lock()
         self.llm_type = llm_type.lower()
+        self.sleepytime = False
         if llm_type == 'openai':
             self.openai_api_key = os.getenv("OPENAI_API_KEY")
             self.client = get_openai_client()
@@ -87,7 +88,7 @@ class KnowledgeServer:
             i = 0
             while not wake_up:
                 time.sleep(refresh_seconds)
-
+                self.sleepytime = True
                 cursor = self.db_connector.client.cursor()
                 check_bot_active = f"DESCRIBE TABLE {self.db_connector.schema}.BOTS_ACTIVE"
                 cursor.execute(check_bot_active)
@@ -104,10 +105,12 @@ class KnowledgeServer:
 
                 if time_difference < timedelta(minutes=5):
                     wake_up = True
+                    self.sleepytime = False
     #                logger.info("Bot is active")
 
     def consumer(self):
         while True:
+            if self.sleepytime: time.sleep(120); continue;
             with self.condition:
                 if self.thread_queue.empty():
                     #logger.info("Queue is empty, consumer is waiting...")
@@ -259,6 +262,7 @@ class KnowledgeServer:
 
 
         while True:
+            if self.sleepytime: time.sleep(120); continue;
             if self.user_queue.empty():
                 #logger.info("Queue is empty, refiner is waiting...")
                 time.sleep(refresh_seconds)
@@ -339,6 +343,7 @@ class KnowledgeServer:
 
     def tool_knowledge(self):
         while True:
+            if self.sleepytime: time.sleep(120); continue;
             cutoff = (datetime.now() - timedelta(minutes=10)).strftime("%Y-%m-%d %H:%M:%S")
             query = f"""
                     WITH K AS (SELECT COALESCE(max(last_timestamp),  DATE('2000-01-01')) as last_timestamp FROM {self.db_connector.tool_knowledge_table_name})
@@ -397,6 +402,7 @@ class KnowledgeServer:
 
     def data_knowledge(self):
         while True:
+            if self.sleepytime: time.sleep(120); continue;
             cutoff = (datetime.now() - timedelta(minutes=10)).strftime("%Y-%m-%d %H:%M:%S")
             query = f"""
                     WITH K AS (SELECT COALESCE(max(last_timestamp),  DATE('2000-01-01')) as last_timestamp FROM {self.db_connector.data_knowledge_table_name})
@@ -456,10 +462,11 @@ class KnowledgeServer:
 
     def proc_knowledge(self):
         while True:
+            if self.sleepytime: time.sleep(120); continue;
             cutoff = (datetime.now() - timedelta(minutes=10)).strftime("%Y-%m-%d %H:%M:%S")
             query = f"""
                     WITH K AS (SELECT COALESCE(max(last_timestamp),  DATE('2000-01-01')) as last_timestamp FROM {self.db_connector.proc_knowledge_table_name})
-                    SELECT DISTINCT THREAD_ID FROM {self.db_connector.message_log_table_name}, K           
+                    SELECT DISTINCT THREAD_ID FROM {self.db_connector.message_log_table_name}, K
                     WHERE timestamp > K.last_timestamp AND timestamp < TO_TIMESTAMP('{cutoff}')
                     AND MESSAGE_PAYLOAD LIKE '%run_process%';
                     """
@@ -491,16 +498,16 @@ class KnowledgeServer:
                         if i < len(rows) - 1:
                             response = rows[i + 1]['MESSAGE_PAYLOAD']
                             i += 1
-                            message_content.append(f'Prompt: {prompt}\n\nResponse: {response}')                            
+                            message_content.append(f'Prompt: {prompt}\n\nResponse: {response}')
                     i += 1
 
-                if message_content and process_name is not None:                
+                if message_content and process_name is not None:
                     messages = '\n\n'.join(message_content)
                     system = 'Given the following outputs from a process call check if there are any issues which can be avoided for future reference'
                     content = f"""
                                 Process Name:
                                 {process_name}
-                                
+
                                 Process Outputs:
                                 {messages}
                             """
@@ -512,9 +519,9 @@ class KnowledgeServer:
                         )
                         response = response.choices[0].message.content
                     else:
-                        response, status_code  = self.db_connector.cortex_chat_completion(content, system=system)                    
-                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")                
-                    self.db_connector.run_insert(self.db_connector.proc_knowledge_table_name, timestamp=timestamp, 
+                        response, status_code  = self.db_connector.cortex_chat_completion(content, system=system)
+                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    self.db_connector.run_insert(self.db_connector.proc_knowledge_table_name, timestamp=timestamp,
                                                  last_timestamp=last_timestamp, bot_id=bot_id, process = process_name, summary=response)
             else:
                 logger.info(f"Pausing Proc Knowledge for {refresh_seconds} seconds before next check.")

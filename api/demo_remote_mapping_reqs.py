@@ -145,6 +145,9 @@ def check_git_file(client, paths, file_name):
     # If not in local git, check stage
     try:
         stage_contents = client.get_file(f"{paths['stage_base']}{paths['base_git_path']}", file_name)
+        # stage_contents = get_file_from_stage(f"{paths['stage_base']}{paths['base_git_path']}", file_name)
+       # stage_contents = client.get_file_from_stage(f"{paths['stage_base']}{paths['base_git_path']}", file_name)
+       
         if stage_contents and not stage_contents.startswith('Placeholder'):
             print(f"\033[92mFile found in stage: {stage_path}\033[0m")
             return stage_contents
@@ -366,6 +369,96 @@ def save_pm_summary_to_requirements(physical_column_name, summary_fields, table_
         raise Exception(f"Failed to update requirement for column {physical_column_name}: {str(e)}")
 
 
+def evaluate_results(client, paths, filtered_requirement, pm_bot_id, source_research_content, mapping_proposal_content, confidence_output_content, summary):
+    """
+    Evaluate the mapping results against known correct answers.
+    
+    Args:
+        client: Genesis API client
+        filtered_requirement: The requirement being processed
+        paths: Dictionary of file paths
+        pm_bot_id: ID of the PM bot to use
+        source_research_content: Content of source research report
+        mapping_proposal_content: Content of mapping proposal
+        confidence_output_content: Content of confidence analysis
+        summary: PM summary of the mapping
+        
+    Returns:
+        Dictionary containing evaluation results
+    """
+    try:
+        # Get the correct answers file
+        with open("./bot_git/knowledge/flexicard_eval_answers/flexicard_answers.txt", "r") as f:
+            answers_content = f.read()
+    
+
+        # First get just the correct answer for this field
+        message = {
+            "requirement": filtered_requirement,
+            "correct_answers": answers_content,
+            "instruction": """
+                You are helping to evaluate a ETL mapping that has been proposed by another AI Bot.
+                
+                To help in that evaluation, olease extract ONLY the correct answer for this specific field from the correct_answers field I provdier above (NOT from your uploaded documents.) 
+
+                The field name to look for is in the requirement.  Return both the correct database, schema, table and column for any source columns,
+                and also any required transformation logic.
+                
+                Format your response as a simple JSON with one field:
+                {
+                    "correct_answer": "the correct answer text for this specific field"
+                }
+
+                We will then use your extracted correct answer to judge the output of the other bot.
+            """
+        }
+
+        # Get the correct answer first
+        message_str = json.dumps(message)
+        correct_answer = call_genesis_bot(client, pm_bot_id, message_str)
+
+        # Now prepare full evaluation message
+        message = {
+            "requirement": filtered_requirement,
+            "source_research": source_research_content,
+            "mapping_proposal": mapping_proposal_content, 
+            "confidence_report": confidence_output_content,
+            "pm_summary": summary,
+            "correct_answer": correct_answer,
+            "instruction": """
+                Please evaluate the mapping proposal results against the correct answer for this field.
+
+                Compare the following aspects:
+                1. Is the final mapping fully correct?
+                2. Are the identified source tables/columns correct?
+                3. Is the transformation logic correct?
+                
+                Provide a detailed analysis of any discrepancies found and identify
+                likely sources of errors in the process.
+                
+                Format your response as a JSON with these fields:
+                {
+                    "Mapping_Fully_Correct": boolean,
+                    "Mapping_Sources_Correct": boolean,
+                    "Mapping_Transform_Correct": boolean,
+                    "Description_of_discrepancies": "detailed text",
+                    "Likely_source_of_error": "analysis text",
+                    "Correct_answer": "what is the correct answer text"
+                }
+            """
+        }
+
+        # Send to PM bot for evaluation
+        message_str = json.dumps(message)
+        evaluation = call_genesis_bot(client, pm_bot_id, message_str)
+
+        return evaluation
+
+    except Exception as e:
+        print(f"\033[31mError in evaluation: {str(e)}\033[0m")
+        raise e
+
+
 def port_bot(client_source, client_target, bot_id, suffix='local', remove_slack=True):
     """
     Port bots from remote to local environment.
@@ -427,12 +520,13 @@ def port_bot(client_source, client_target, bot_id, suffix='local', remove_slack=
         print(f"Could not find bot {bot_id} on remote server")
 
 
-def load_bots_from_yaml(client,bot_team_path):
+def load_bots_from_yaml(client, bot_team_path, onlybot=None):
     """
     Load and register bots from YAML files in the specified directory.
     
     Args:
         bot_team_path: Path to directory containing bot YAML files
+        onlybot: Optional bot name to only load a specific bot
 
     """
    # client = GenesisAPI("local-snowflake", scope="GENESIS_TEST", sub_scope="GENESIS_JL")
@@ -447,6 +541,10 @@ def load_bots_from_yaml(client,bot_team_path):
         with open(file_path, 'r') as file:
             bot_config = yaml.safe_load(file)
             
+        # Skip if onlybot specified and doesn't match BOT_ID
+        if onlybot and not bot_config.get('BOT_ID', '') == (onlybot):
+            continue
+            
         print(f"Registering bot from {file_path}")
         
         try:
@@ -455,7 +553,6 @@ def load_bots_from_yaml(client,bot_team_path):
             print(f"Successfully registered bot {bot_config['BOT_NAME']}")
         except Exception as e:
             print(f"Failed to register bot from {file_path}: {str(e)}")
-
 
 def perform_source_research_new(client, requirement, paths, bot_id):
     """Execute source research step and validate results."""
@@ -472,11 +569,13 @@ def perform_source_research_new(client, requirement, paths, bot_id):
         research_prompt = f'''Here are requirements for a target field I want you to work on: {requirement}\n
         Save the results in git at: {paths["base_git_path"]}{paths["source_research_file"]}\n
      
-        There are two past projects to use in its past project consideration step, stored in git. Get both of them by calling:
+        First search the metadata for fields that may be useful.  You may want to try a couple different search terms to make sure your search is comprehensive.
+
+        Then, consider these two past projects to in your past project consideration step, stored in git. Get both of them by calling:
         1. _git_action(action='read_file',file_path='knowledge/past_projects/loan_data_project.txt')
         2. _git_action(action='read_file',file_path='knowledge/past_projects/loan_lending_project.txt')
 
-        It is important to analyze BOTH the metadata, and ALSO the past projects, and to discuss both in your report.
+        It is important to analyze BOTH the metadata search results, and ALSO the past projects, and to discuss both in your report.
 
         This is being run by an automated process, so do not repeat these instructions back to me, simply proceed to execute them without asking for further approval.'''
         
@@ -536,7 +635,7 @@ def perform_confidence_analysis_new(client, requirement, paths, bot_id):
     Then read the mapping proposal by calling:
     _git_action(action='read_file',file_path='{paths["base_git_path"]}{paths["mapping_proposal_file"]}')
 
-    Now, analyze the confidence level of this mapping proposal based on the source research.
+    Now, analyze the confidence level of this mapping proposal using the process in your base bot instructions.
     
     Then save your confidence analysis at this git location using _git_action: {paths["base_git_path"]}{paths["confidence_report_file"]}
 
@@ -584,13 +683,18 @@ def main():
     # LOAD AND ACTIVATE BOTS FROM YAML FILES
     # adds or updates bots defined in YAML to metadata and activates the listed bots
 
+    pm_bot_id = 'RequirementsPM-jllocal'
+    source_research_bot_id = 'sourceResearchBot-jllocal'
+    mapping_proposer_bot_id = 'mappingProposerBot-jllocal'
+    confidence_analyst_bot_id = 'confidenceanalyst-jllocal'
+
     bot_team_path = './demo/bot_team'
-    load_bots_from_yaml(client=client, bot_team_path=bot_team_path)  # takes bot definitions from yaml files at the specified path and injects/updates those bots into the running local server
+    load_bots_from_yaml(client=client, bot_team_path=bot_team_path) # onlybot=pm_bot_id)  # takes bot definitions from yaml files at the specified path and injects/updates those bots into the running local server
 
     # MAIN WORKFLOW
     try:
 
-        run_number = 8;
+        run_number = 14;
 
         # Reset the requirements table before starting
         cursor = conn.cursor()
@@ -653,16 +757,12 @@ def main():
       #          continue
 
 
-            pm_bot_id = 'RequirementsPM-jllocal'
-            source_research_bot_id = 'sourceResearchBot-jllocal'
-            mapping_proposer_bot_id = 'mappingProposerBot-jllocal'
-
             source_research = perform_source_research_new(client, filtered_requirement, paths, source_research_bot_id)
             
             mapping_proposal = perform_mapping_proposal_new(client, filtered_requirement, paths, mapping_proposer_bot_id)
             
-            confidence_report = perform_confidence_analysis(client, filtered_requirement, paths, pm_bot_id)
-            
+            confidence_report = perform_confidence_analysis_new(client, filtered_requirement, paths, confidence_analyst_bot_id)
+        
             summary = perform_pm_summary(client, filtered_requirement, paths, pm_bot_id)
 
             # Get the full content of each file from git
@@ -678,6 +778,10 @@ def main():
                 f"{paths['stage_base']}{paths['base_git_path']}", 
                 paths["confidence_report_file"]
             )
+
+            # Evaluate results
+            evaluation = evaluate_results(client, paths, filtered_requirement, pm_bot_id, source_research_content, mapping_proposal_content, confidence_output_content, summary)
+            print("\033[34mEvaluation results:", evaluation, "\033[0m")
 
             # Prepare fields for database update
             db_fields = {

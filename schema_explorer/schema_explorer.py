@@ -239,7 +239,7 @@ class SchemaExplorer:
             return response.choices[0].message.content
     
     def get_ddl_short(self, ddl):
-        prompt = f'Here is the full DDL for a table:\n{ddl}\n\nPlease make a new ddl_summary for this table.  If there are 15 or fewer fields, just include them all. If there are more, combine any that are similar and explain that there are more, and then pick the more important 15 fields to include in the ddl_summary.  Express it as DDL, but include comments about other similar fields, and then a comment summarizing the rest of the fields and noting to see the FULL_DDL to see all columns.  Return ONLY the DDL_SUMMARY, do NOT include preamble or other post-result commentary.'
+        prompt = f'Here is the full DDL for a table:\n{ddl}\n\nPlease make a new summarized version of the ddl for this table.  If there are 15 or fewer fields, just include them all. If there are more, combine any that are similar and explain that there are more, and then pick the more important 15 fields to include in the ddl_summary.  Express it as DDL, but include comments about other similar fields, and then a comment summarizing the rest of the fields and noting to see the FULL_DDL to see all columns.  Return ONLY the summarized, do NOT include preamble or other post-result commentary.  Express it as a CREATE TABE statement like a regular DDL, using the exact same table name as I mentioned above (dont modify the table name in any way).'
         
         messages = [
             {"role": "system", "content": "You are an assistant that is great at taking full table DDL and creating shorter DDL summaries."},

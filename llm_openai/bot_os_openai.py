@@ -235,6 +235,17 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       self.internal_schema_name = self.db_schema[1]
 
       my_assistant = None
+      # Try loading assistant ID from cache if not provided
+      if assistant_id is None:
+          try:
+              map_file = f'./tmp/bot_maps/{self.bot_id}.map'
+              if os.path.exists(map_file):
+                  with open(map_file, 'r') as f:
+                      assistant_id = f.read().strip()
+                      logger.info(f'Loaded assistant ID {assistant_id} from cache for bot {name}')
+          except Exception as e:
+              logger.warning(f'Failed to load bot-assistant mapping from cache: {str(e)}')
+
       if assistant_id is not None:
          try:
             logger.info(f'loading assistant {assistant_id} for bot {name}...')
@@ -284,6 +295,15 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
          elif len(my_assistants) > 0:
             self.assistant = my_assistants[0]
             logger.info('assistant found for bot ',name,': ',self.assistant.id,'. You can provide this parameter in your bot_list to speed session creation.')
+            # Save mapping between bot_id and assistant_id
+            try:
+                os.makedirs('./tmp/bot_maps', exist_ok=True)
+                map_file = f'./tmp/bot_maps/{self.bot_id}.map'
+                with open(map_file, 'w') as f:
+                    f.write(self.assistant.id)
+            except Exception as e:
+                logger.warning(f'Failed to save bot-assistant mapping: {str(e)}')
+
 
          if os.getenv("TASK_MODE", "false").lower() == "true":
             # dont do this for the TASK SERVER, just have it use the existing assistant being managed by the MultiBot Runner Process

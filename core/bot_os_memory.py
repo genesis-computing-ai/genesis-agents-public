@@ -646,6 +646,13 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
                 # Remove quotes around table name for lookup
                 table_name = qualified_name.strip("'")
                 if table_name in content_dict:
+                    # Fix any _SUMMARY appended to table names in DDL_SHORT
+                    if 'DDL_SHORT' in content_dict[table_name]:
+                        table_name_no_quotes = table_name.split('.')[-1].strip('"')
+                        content_dict[table_name]['DDL_SHORT'] = content_dict[table_name]['DDL_SHORT'].replace(
+                            f"{table_name_no_quotes}_SUMMARY", 
+                            table_name_no_quotes
+                        )
                     sorted_content.append(content_dict[table_name])
             content = sorted_content
 

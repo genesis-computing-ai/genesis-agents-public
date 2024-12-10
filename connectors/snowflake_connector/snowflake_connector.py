@@ -2371,6 +2371,7 @@ def get_status(site):
                 subfolder_id[key] = create_folder_in_folder(key, parent_folder_id, self.user)
 
             links = {}
+            sheets_data = [sample_data[0].keys()]
             for data in sample_data:
                 print(data['GIT_SOURCE_RESEARCH'], data ['GIT_MAPPING_PROPOSAL'], data['GIT_CONFIDENCE_OUTPUT'])
 
@@ -2391,6 +2392,8 @@ def get_status(site):
                     # create text docs in sub-folder
                     links[key] = export_to_google_sheets(file_contents, subfolder_id[key], file_name, self.name)
 
+
+
                 # write text docs ID's back to table
                 cursor = self.connection.cursor()
                 query = f"""
@@ -2407,11 +2410,8 @@ def get_status(site):
 
         elif export_to_google_sheet:
             # get user's shared folder ID
-            cursor = self.connection.cursor()
-            query = f"SELECT value from {self.schema}.EXT_SERVICE_CONFIG WHERE ext_service_name = 'g-sheets' AND parameter = 'shared_folder_id' and user = '{self.user}'"
-            cursor.execute(query)
-            if cursor.rowcount > 0:
-                shared_folder_id = cursor.fetchone()[0]
+            shared_folder_id = get_root_folder_id()
+            timestamp = datetime.now().strftime("%m%d%Y_%H:%M:%S")
 
             result = create_google_sheet(shared_folder_id, self.user, 'test google sheet', sample_data )
             # print_string = dict_list_to_markdown_table(sample_data)

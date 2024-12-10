@@ -169,29 +169,48 @@ class SnowflakeMetadataStore(GenesisMetadataStore):
             warehouse=os.getenv("SNOWFLAKE_WAREHOUSE_OVERRIDE"),
             role=os.getenv("SNOWFLAKE_ROLE_OVERRIDE")
         )
+
+    def _format_value(self,value):
+        if isinstance(value, dict):
+            # Convert dict to valid JSON format for Snowflake
+            return f"parse_json('{json.dumps(value)}')"
+        elif isinstance(value, str):
+            # Escape single quotes in strings by doubling them
+            escaped_value = value.replace("'", "''")
+            return f"'{escaped_value}'"
+        else:
+            # Default handling for other data types
+            return f"'{value}'"
+
     def insert_or_update_metadata(self, metadata_type: str, name: str, metadata: BaseModel):
         cursor = self.conn.cursor()
         table_name, filter_column, _ = self.metadata_type_mapping.get(metadata_type, (None, None))
         if not table_name:
             raise ValueError(f"Unknown metadata type: {metadata_type}")
+
         metadata_dict = metadata.model_dump()
         metadata_dict['type'] = metadata.__class__.__name__  # Store the class name for later instantiation
-        columns = [field for field in metadata_dict.keys() if field not in ["type"]]
-        values = [f"'{metadata_dict[column]}'" for column in columns]
+
+        # Exclude 'type' from columns
+        columns = [field for field in metadata_dict.keys() if field != "type"]
+
+        values = [self._format_value(metadata_dict[column]) for column in columns]
+        select_expressions = [f"{value} AS {col}" for col, value in zip(columns, values)]
+
+        # Generate the MERGE statement
         query = f"""
-            MERGE INTO {self.sub_scope}.{table_name} 
-            USING (
-                SELECT {', '.join(columns)} 
-                FROM VALUES ({', '.join([f"'{value}'" if "'" in value else value for value in values])})
-            ) AS source 
-            ON {self.sub_scope}.{table_name}.{filter_column} = source.{filter_column} 
-            WHEN MATCHED THEN 
-                UPDATE SET 
-                    {', '.join([f"{column} = source.{column}" for column in columns[1:]])}
-            WHEN NOT MATCHED THEN 
-                INSERT ({', '.join(columns)}) 
-                VALUES ({', '.join([f"'{value}'" if "'" in value else value for value in values])})
-        """
+        MERGE INTO {self.sub_scope}.{table_name} AS target
+        USING (
+            SELECT {', '.join(select_expressions)}
+        ) AS source
+        ON target.{filter_column} = source.{filter_column}
+        WHEN MATCHED THEN
+            UPDATE SET {', '.join([f"{column} = source.{column}" for column in columns])}
+        WHEN NOT MATCHED THEN
+            INSERT ({', '.join(columns)})
+            VALUES ({', '.join([f"source.{column}" for column in columns])})
+        """.strip().replace("\n", " ")
+
         cursor.execute(query)
         self.conn.commit()
         

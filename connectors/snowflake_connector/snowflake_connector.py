@@ -24,8 +24,8 @@ from .stage_utils import add_file_to_stage, read_file_from_stage, update_file_in
 from .ensure_table_exists import ensure_table_exists, one_time_db_fixes, get_process_info, get_processes_list
 
 from google_sheets.g_sheets import (
-    output_to_google_docs,
-    # create_g_drive_folder,
+    export_to_google_sheets,
+    create_google_sheet,
     create_folder_in_folder,
     # upload_file_to_folder,
 )
@@ -2135,7 +2135,7 @@ def get_status(site):
         note_name = None,
         note_type = None,
         max_field_size = 5000,
-        export_to_google_doc = False,
+        export_to_google_sheet = False,
     ):
         """
         Executes a SQL query on Snowflake, with support for parameterized queries.
@@ -2389,7 +2389,7 @@ def get_status(site):
                     ).split("/")[-1]
 
                     # create text docs in sub-folder
-                    links[key] = output_to_google_docs(file_contents, subfolder_id[key], file_name, self.name)
+                    links[key] = export_to_google_sheets(file_contents, subfolder_id[key], file_name, self.name)
 
                 # write text docs ID's back to table
                 cursor = self.connection.cursor()
@@ -2405,15 +2405,22 @@ def get_status(site):
                 result = cursor.execute(query)
                 cursor.close()
 
-        elif export_to_google_doc:
+        elif export_to_google_sheet:
+            # get user's shared folder ID
             cursor = self.connection.cursor()
-            query = f"SELECT value from {self.schema}.EXT_SERVICE_CONFIG WHERE ext_service_name = 'g-sheets' AND parameter = 'shared_key_id' and user = {self.user}"
+            query = f"SELECT value from {self.schema}.EXT_SERVICE_CONFIG WHERE ext_service_name = 'g-sheets' AND parameter = 'shared_folder_id' and user = '{self.user}'"
             cursor.execute(query)
-            shared_key_id = cursor.fetchone()[0]
+            if cursor.rowcount > 0:
+                shared_folder_id = cursor.fetchone()[0]
 
-            print_string = dict_list_to_markdown_table(sample_data)
-            filename, link = output_to_google_docs(print_string, shared_key_id, self.name)
-            return {"Success": True, "result": "Data sent to Google Docs - Filename: " + filename}
+            result = create_google_sheet(shared_folder_id, self.user, 'test google sheet', sample_data )
+            # print_string = dict_list_to_markdown_table(sample_data)
+            # link = export_to_google_sheets(print_string, shared_folder_id, self.user)
+
+            return {
+                "Success": True,
+                "result": "Data sent to Google Sheets - Link: " + result["webViewLink"],
+            }
 
         return sample_data
 

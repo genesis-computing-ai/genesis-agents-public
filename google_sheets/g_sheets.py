@@ -18,7 +18,8 @@ import os
 SCOPES = [
     "https://www.googleapis.com/auth/drive.file",
     "https://www.googleapis.com/auth/documents",
-    "https://www.googleapis.com/auth/drive"
+    "https://www.googleapis.com/auth/drive",
+    "https://www.googleapis.com/auth/spreadsheets"
 ]
 
 
@@ -64,27 +65,28 @@ def create_folder_in_folder(folder_name, parent_folder_id, user):
     return file.get("id")
 
 
-def create_g_drive_folder(folder_name:str = "folder"):
-    try:
-        creds = Credentials.from_service_account_file(
-            SERVICE_ACCOUNT_FILE, scopes=SCOPES
-        )
-        service = build("drive", "v3", credentials=creds)
+# def create_g_drive_folder(folder_name:str = "folder"):
+#     try:
+#         creds = Credentials.from_service_account_file(
+#             SERVICE_ACCOUNT_FILE, scopes=SCOPES
+#         )
+#         service = build("drive", "v3", credentials=creds)
 
-        file_metadata = {
-            "name": folder_name,
-            "mimeType": "application/vnd.google-apps.folder",
-        }
+#         file_metadata = {
+#             "name": folder_name,
+#             "mimeType": "application/vnd.google-apps.folder",
+#         }
 
-        file = service.files().create(body=file_metadata, fields="id").execute()
-        print(f'Folder ID: "{file.get("id")}".')
-        return file.get("id")
+#         file = service.files().create(body=file_metadata, fields="id").execute()
+#         print(f'Folder ID: "{file.get("id")}".')
+#         return file.get("id")
 
-    except HttpError as err:
-        print(err)
-        return None
+# except HttpError as err:
+#     print(err)
+#     return None
 
-def output_to_google_docs(text: str = 'No text received.', shared_folder_id: str = None, user =None, file_name = None):
+
+def export_to_google_sheets(text: str = 'No text received.', shared_folder_id: str = None, user =None, file_name = None):
     """
     Creates new file in Google Docs named Genesis_mmddyyy_hh:mm:ss from text string
     """
@@ -168,54 +170,85 @@ def output_to_google_docs(text: str = 'No text received.', shared_folder_id: str
         print(err)
         return None
 
+def create_google_sheet(shared_folder_id, user, title, data):
+    """
+    Creates the Sheet the user has access to.
+    Loads pre-authorized user credentials from the environment.
+    """
+    if not user:
+        raise Exception("User not specified for google drive conventions.")
 
-# def output_to_google_docs(text:str =None):
-#     """
-#     Creates new file in Google Docs named Genesis_mmddyyy_hh:mm:ss from text string
-#     """
-#     creds = None
+    SERVICE_ACCOUNT_FILE = f"g-workspace-{user}.json"
+    try:
+        # Authenticate using the service account JSON file
+        creds = Credentials.from_service_account_file(
+            SERVICE_ACCOUNT_FILE, scopes=SCOPES
+        )
+    except Exception as e:
+        print(f"Error loading credentials: {e}")
+        return None
 
-#     # if os.path.exists("token.json"):
-#     #     # creds = Credentials.from_authorized_user_file("token.json", SCOPES)
+    try:
+        service = build("sheets", "v4", credentials=creds)
+        drive_service = build("drive", "v3", credentials=creds)
+        spreadsheet = {"properties": {"title": title}}
+        spreadsheet = (
+            service.spreadsheets()
+            .create(body=spreadsheet, fields="spreadsheetId")
+            .execute()
+        )
 
-#     # # If there are no (valid) credentials available, let the user log in.
-#     # if not creds or not creds.valid:
-#     #     if creds and creds.expired and creds.refresh_token:
-#     #         creds.refresh(Request())
-#     #     else:
-#     #         flow = InstalledAppFlow.from_client_secrets_file("./google_sheets/credentials.json", SCOPES)
-#     #         creds = flow.run_local_server(port=0)
-#     #     # Save the credentials for the next run
-#     #     with open("token.json", "w") as token:
-#     #         token.write(creds.to_json())
+        ss_id = spreadsheet.get("spreadsheetId")
+        print(f"Spreadsheet ID: {ss_id}")
+        keys = data[0].keys()
+        columns = [list(keys)]
+        rows = 1
 
-#     try:
-#         creds = Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
-#         service = build("docs", "v1", credentials=creds)
+        stage = False
+        for row in data:
+            row_values = list(row.values())
+            for i, row_value in enumerate(row_values):
+                if isinstance(row_value, datetime):
+                    row_values[i] = row_value.strftime("%Y-%m-%d %H:%M:%S")
+                if isinstance(row_value, str) and row_value.startswith('@'):
+                    stage = True
+            columns.append(row_values)
+            rows += 1
 
-#         title = "Genesis_" + datetime.now().strftime("%m%d%Y_%H:%M:%S")
-#         body = {'title': title}
-#         doc = service.documents().create(body=body).execute()
-#         print('Created document with title: {0}'.format(doc.get('title')))
+        range_name = f"Sheet1!A1:{chr(62 + len(columns))}{rows + 1}"
+        print(f"\n\nRange name: {range_name} | {len(columns)}\n\n")
+        body = {
+                "values": columns
+               }
 
-#         requests = [
-#                 {
-#                 'insertText': {
-#                     'location': {
-#                         'index': 1
-#                     },
-#                     'text': text
-#                 }
-#             }
-#         ]
+        result = (
+            service.spreadsheets()
+            .values()
+            .update(
+                spreadsheetId=ss_id,
+                range=range_name,
+                valueInputOption='RAW',
+                body=body,
+            )
+            .execute()
+        )
+        print(f"{result.get('updatedCells')} cells updated.")
 
-#         result = service.documents().batchUpdate(
-#             documentId=doc["documentId"], body={'requests': requests}).execute()
+        # Move the document to shared folder
+        if shared_folder_id:
+            file = (
+                drive_service.files()
+                .update(
+                    fileId=ss_id,
+                    addParents=shared_folder_id,
+                    fields="id, webViewLink, parents",
+                )
+                .execute()
+            )
+            print(f"File moved to folder: {file} | Parent folder {file['parents'][0]}")
 
-#         print('Document content updated: ', result)
+        return {"Success": True, "file_id": spreadsheet.get("spreadsheetId"), "webViewLink": file.get("webViewLink")}
 
-#         return title
-
-#     except HttpError as err:
-#         print(err)
-#         return None
+    except HttpError as error:
+        print(f"An error occurred: {error}")
+        return error

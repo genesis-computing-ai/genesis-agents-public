@@ -90,7 +90,7 @@ database_tool_functions = [
                         "description": "Optional. The maximum size any field can be before it is truncated. Default is 5000.",
                         "default": 5000,
                     },
-                    "export_to_google_doc": {
+                    "export_to_google_sheet": {
                         "type": "boolean",
                         "description": "Optional. If true, the results will be exported to a Google Doc. Default is false.",
                         "default": False,

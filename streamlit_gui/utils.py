@@ -9,7 +9,7 @@ import requests
 LOCAL_SERVER_URL = "http://127.0.0.1:8080/"
 
 def get_session():
-
+    print(f"Get session: {st.session_state.NativeMode}")
     if st.session_state.NativeMode:
         try:
             from snowflake.snowpark.context import get_active_session
@@ -17,7 +17,7 @@ def get_session():
         except:
             st.session_state.NativeMode = False
             st.session_state.eai_available = True
-  #  st.write('NativeMode', NativeMode)
+    #  st.write('NativeMode', NativeMode)
     return None
 
 # def get_permissions():
@@ -234,8 +234,8 @@ def set_metadata(metadata_type):
 
 
 def get_metadata(metadata_type):
+    session = get_session()
     if st.session_state.NativeMode:
-        session = get_session()
         prefix = st.session_state.get('prefix', '')
         sql = f"select {prefix}.get_metadata('{metadata_type}') "
         data = session.sql(sql).collect()

@@ -258,7 +258,7 @@ def export_to_google_docs(text: str = 'No text received.', shared_folder_id: str
 
 def create_google_sheet(self, shared_folder_id, title, data):
     """
-    Creates a Google Sheet with the given title and table data and moves it 
+    Creates a Google Sheet with the given title and table data and moves it
     from the service account to the shared folder.
     Loads pre-authorized user credentials from the environment.
     """
@@ -297,13 +297,13 @@ def create_google_sheet(self, shared_folder_id, title, data):
         stage_column_folder_ids = []
 
         # Create folder top level folder
-        if len(stage_column_folder_names) > 0:
-            top_level_folder_id = create_folder_in_folder(
-                "genesis_" + datetime.now().strftime("%m%d%Y_%H:%M:%S"),
-                shared_folder_id,
-                self.user
-            )
+        top_level_folder_id = create_folder_in_folder(
+            "genesis_" + datetime.now().strftime("%m%d%Y_%H:%M:%S"),
+            shared_folder_id,
+            self.user
+        )
 
+        if len(stage_column_folder_names) > 0:
             # Create sub-folders
             for stage_column_folder in stage_column_folder_names:
                 stage_column_folder_ids.append(

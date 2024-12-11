@@ -38,6 +38,7 @@ from connectors.database_tools import (
     image_tools,
     bind_run_query,
     bind_search_metadata,
+    bind_search_metadata_detailed,
     bind_semantic_copilot,
     autonomous_functions,
     autonomous_tools,
@@ -131,7 +132,7 @@ class ToolBelt:
         belts = belts + 1
         self.process_id = {}
         self.include_code = False
-
+        
         if genesis_source == 'Sqlite':
             self.db_adapter = SqliteConnector(connection_name="Sqlite")
             connection_info = {"Connection_Type": "Sqlite"}
@@ -146,7 +147,6 @@ class ToolBelt:
         self.server = None  # Will be set later
 
         self.sys_default_email = self.get_sys_email()
-
    #     logger.info(belts)
 
     def set_server(self, server):
@@ -3334,6 +3334,7 @@ def get_tools(which_tools, db_adapter, slack_adapter_local=None, include_slack=T
             available_functions_load.update(database_tools)
             run_query_f = bind_run_query([connection_info])
             search_metadata_f = bind_search_metadata("./kb_vector")
+            search_metadata_detailed_f = bind_search_metadata_detailed("./kb_vector")
             semantic_copilot_f = bind_semantic_copilot([connection_info])
             function_to_tool_map[tool_name] = database_tool_functions
         elif tool_name == "image_tools":

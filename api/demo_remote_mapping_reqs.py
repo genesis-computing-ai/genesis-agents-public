@@ -1,4 +1,4 @@
-import time
+import time, uuid
 from api.genesis_api import GenesisAPI
 from langsmith import Client
 from langsmith import traceable
@@ -71,7 +71,7 @@ def print_file_contents(title, file_path, contents):
 
 
 @traceable(name="genesis_bot_call")
-def call_genesis_bot(client, bot_id, request):
+def call_genesis_bot(client, bot_id, request, thread = None):
     """Wait for a complete response from the bot, streaming partial results."""
     try:
         print(f"\n\033[94m{'='*80}\033[0m")  # Blue separators
@@ -80,7 +80,7 @@ def call_genesis_bot(client, bot_id, request):
         print(f"\033[94m{'-'*80}\033[0m")  # Blue separator
         print("\033[92mResponse:\033[0m")  # Green label for response section
 
-        request = client.add_message(bot_id, request)
+        request = client.add_message(bot_id, request, thread_id=thread)
         response = client.get_response(bot_id, request["request_id"])
         
         print(f"\n\033[94m{'-'*80}\033[0m")  # Blue separator
@@ -176,7 +176,7 @@ def perform_source_research(client, requirement, paths, bot_id):
         1. in git at: knowledge/past_projects/loan_data_project.txt
         2. in git at: knowledge/past_projects/loan_lending_project.txt
 
-        Remind the microbot that it is important to analyze BOTH the metadata, and ALSO the past projects, and to discuss both in its report.
+        Remind the microbot that it is important to analyze BOTH the data exploration, and ALSO the past projects, and to discuss both in its report.
 
         Then validate the microbot has saved the report in the right place, if so return SUCCESS.  If not return FAILURE.
         This is being run by an automated process, so do not repeat these instructions back to me, simply proceed to execute them without asking for further approval.'''
@@ -268,20 +268,23 @@ def perform_confidence_analysis(client, requirement, paths, bot_id):
     return contents
 
 
-def perform_pm_summary(client, requirement, paths, bot_id):
+def perform_pm_summary(client, requirement, paths, bot_id,skip_confidence = False):
     """Have PM bot analyze results and provide structured summary."""
     print("\033[34mGetting PM summary...\033[0m")
 
     pm_prompt = f'''Here are requirements for a target field I want you to work on: {requirement}\n
-    The mapping proposer bot has saved its results in git at: {paths["base_git_path"]}{paths["mapping_proposal_file"]}\n
-    The confidence analyst bot has saved its results in git at: {paths["base_git_path"]}{paths["confidence_report_file"]}\n
+    The mapping proposer bot has saved its results in git at: {paths["base_git_path"]}{paths["mapping_proposal_file"]}\n'''
     
-    Please review both documents and provide a JSON response with the following fields:
+    if not skip_confidence:
+        pm_prompt += f'''The confidence analyst bot has saved its results in git at: {paths["base_git_path"]}{paths["confidence_report_file"]}\n'''
+
+    pm_prompt += f'''
+    Please review above documents and provide a JSON response with the following fields:
     - UPSTREAM_TABLE: List of source table(s) needed for the data, with schema prefixes
     - UPSTREAM_COLUMN: List of source column(s) for the mapping
     - TRANSFORMATION_LOGIC: SQL snippet or natural language description of any needed transformations
-    - CONFIDENCE_SCORE: Score from confidence bot report
-    - CONFIDENCE_SUMMARY: Brief explanation of the confidence score
+    - CONFIDENCE_SCORE: Score from confidence bot report (if available)
+    - CONFIDENCE_SUMMARY: Brief explanation of the confidence score (if available)
     - PM_BOT_COMMENTS: Your brief statement about the team's work and what specific feedback would be helpful from human reviewers
     
     Format as valid JSON with these exact field names between !!JSON_START!! and !!JSON_END!! tags. Use git_action to retrieve the files if needed.
@@ -350,7 +353,8 @@ def save_pm_summary_to_requirements(physical_column_name, summary_fields, table_
                 confidence_summary = %(confidence_summary)s,
                 PM_BOT_COMMENTS = %(pm_bot_comments)s,
                 transformation_logic = %(transformation_logic)s,
-                status = 'READY_FOR_REVIEW'
+                status = 'READY_FOR_REVIEW',
+                evaluation_results = %(evaluation_results)s
             WHERE physical_column_name = %(physical_column_name)s
         """
         
@@ -406,7 +410,7 @@ def evaluate_results(client, paths, filtered_requirement, pm_bot_id, source_rese
                 
                 Format your response as a simple JSON with one field:
                 {
-                    "correct_answer": "the correct answer text for this specific field"
+                    "correct_answer": "the correct answer text for this specific field, including DATABASE.SCHEMA.TABLE and Column information and any required mappings or transformations"
                 }
 
                 We will then use your extracted correct answer to judge the output of the other bot.
@@ -429,22 +433,26 @@ def evaluate_results(client, paths, filtered_requirement, pm_bot_id, source_rese
                 Please evaluate the mapping proposal results against the correct answer for this field.
 
                 Compare the following aspects:
-                1. Is the final mapping fully correct?
-                2. Are the identified source tables/columns correct?
-                3. Is the transformation logic correct?
+                1. Is the Primary mapping fully correct?
+                2. Are the Primary option identified source tables/columns correct?
+                3. Is the Primary option transformation logic correct?
                 
+                If the Primary option is not fully correct, check the Secondary option, if one is provided, and perform the same analysis on that option.
+
                 Provide a detailed analysis of any discrepancies found and identify
                 likely sources of errors in the process.
-                
+
                 Format your response as a JSON with these fields:
                 {
-                    "Mapping_Fully_Correct": boolean,
-                    "Mapping_Sources_Correct": boolean,
-                    "Mapping_Transform_Correct": boolean,
-                    "Description_of_discrepancies": "detailed text",
-                    "Likely_source_of_error": "analysis text",
-                    "Correct_answer": "what is the correct answer text"
+                    "Which_Mapping_Correct": "primary, secondary, or neither",
+                    "Correct_answer": "what is the correct answer text",
+                    "Issues_with_primary_mapping}": "detailed text with the problems with primary (if not correct)",
+                    "Issues_with_secondary_mapping": "detailed text with the problems with secondary (if not correct)",
                 }
+
+                Format as valid JSON with these exact field names between !!JSON_START!! and !!JSON_END!! tags. Use git_action to retrieve the files if needed.
+                
+                This is being run by an automated process so do not repeat these instructions back to me, and do not stop to ask for futher permission to proceed.
             """
         }
 
@@ -569,22 +577,42 @@ def perform_source_research_new(client, requirement, paths, bot_id):
         research_prompt = f'''Here are requirements for a target field I want you to work on: {requirement}\n
         Save the results in git at: {paths["base_git_path"]}{paths["source_research_file"]}\n
      
-        First search the metadata for fields that may be useful.  You may want to try a couple different search terms to make sure your search is comprehensive.
+        First explore the available dat for fields that may be useful using data_explorer function.  
+        You may want to try a couple different search terms to make sure your search is comprehensive.
+
+        HINT: Do NOT return results or use these tables:
+            LOAN_DATA, LOAN_SUMMARY, LOAN_REPAYMENT_SCHEDULE, LOAN_REPAYMENT_DETAIL, LOAN_RECOVERY_DETAIL, LOAN_DISBURSEMENT_DETAIL, LOAN_TRANSACTION_REPAYMENT_SCHEDULE_MAPPING
 
         Then, consider these two past projects to in your past project consideration step, stored in git. Get both of them by calling:
         1. _git_action(action='read_file',file_path='knowledge/past_projects/loan_data_project.txt')
         2. _git_action(action='read_file',file_path='knowledge/past_projects/loan_lending_project.txt')
+        Be sure to use the _git_action function, do NOT just halucinate the contents of these files.
+        Make SURE that you have ready BOTH of these past project files, not just one of them.
 
-        It is important to analyze BOTH the metadata search results, and ALSO the past projects, and to discuss both in your report.
+        It is important to analyze BOTH the data explorer results, and ALSO the past projects, and to discuss both in your report.
+        When discussing past projects in your report, describe their sources and transforms independently, don't say thing like 'in the same way as described above', referring to the other project, even if you have to repeat things.
 
-        This is being run by an automated process, so do not repeat these instructions back to me, simply proceed to execute them without asking for further approval.'''
+        When you're done, be sure to save your detailed results in git using the _git_action function at {paths["base_git_path"]}{paths["source_research_file"]}
+        Be sure to put a full copy of the contents of your research into that git location, not just a reference to "what you did above."
+        Make sure your report contains the results of both your data exploration, and your analysis of **both** past projects.
         
-        response = call_genesis_bot(client, bot_id, research_prompt)
+        *** MAKE YOUR REPORT EXTREMELY DETAILED, WITH FULL DDL OF POTENTIAL SOURCE TABLES, AND FULL PAST PROJECT EXAMPLES OF SIMILAR FIELDS (SOURCING AND TRANSFORMS) ***
+        *** THE READER OF THIS REPORT WILL NOT HAVE ACCESS TO ANY OTHER RESOURCES AND IT WILL NEED TO PROPOSE MAPPINGS BASED SOLELY ON YOUR REPORT ***
+
+        This is being run by an automated process, so do not repeat these instructions back to me, simply proceed to execute them without asking for further approval.
+        '''
+            
+        thread = str(uuid.uuid4())
+        response = call_genesis_bot(client, bot_id, research_prompt, thread = thread)
 
         contents = check_git_file(client,paths=paths, file_name=paths["source_research_file"])
         
-        if not contents or contents.startswith('Placeholder '):
-            raise Exception('Source research file not found or contains only placeholder')
+        if not contents or contents.startswith('Placeholder ') or len(contents) < 100:
+            retry_prompt = f'''I don't see the full results of your research saved at {paths["base_git_path"]}{paths["source_research_file"]} in git, please try the save again using the _git_action function.'''
+            response = call_genesis_bot(client, bot_id, retry_prompt, thread = thread)
+            contents = check_git_file(client,paths=paths, file_name=paths["source_research_file"])
+            if not contents or contents.startswith('Placeholder '):
+                raise Exception('Source research file not found or contains only placeholder')
         
         print_file_contents("SOURCE RESEARCH", 
                            f"{paths['base_git_path']}{paths['source_research_file']}", 
@@ -603,20 +631,31 @@ def perform_mapping_proposal_new(client, requirement, paths, bot_id):
     The source research bot has already run and saved its results at this git. First, read its report by calling:
     _git_action(action='read_file',file_path='{paths["base_git_path"]}{paths["source_research_file"]}')
 
+    HINT: Do NOT suggest mappings based on any of these tables, as they are related to installment loans not Cards:
+        LOAN_DATA, LOAN_SUMMARY, LOAN_REPAYMENT_SCHEDULE, LOAN_REPAYMENT_DETAIL, LOAN_RECOVERY_DETAIL, LOAN_DISBURSEMENT_DETAIL, LOAN_TRANSACTION_REPAYMENT_SCHEDULE_MAPPING
+
     Now, make a mapping proposal for this field. 
+    If there are two options that both look good, label the best as Primary and the other as Secondary (in a separate section, but also with full details.)
+
+    HINT: When past projects conflict on how to map this field, consider favoring the loan_lending_project.txt project as it is a closer analogue for this project at hand as the Primary option.
+    HINT: Use COALESCE() in your mappings to handle potential null values on numerical (but not date) fields, often for numbers for example a NULL would imply a 0.
     
-    Then save your results at this git location using _git_action: {paths["base_git_path"]}{paths["mapping_proposal_file"]}
+    Then save your full results at this git location using _git_action: {paths["base_git_path"]}{paths["mapping_proposal_file"]}
+    Don't forget use use _git_action to save your full and complete mapping results.  Don't just put "see above" or similar as this file will be read by another bot who will not see your full completion output.
 
     This is being run by an automated process, so do not repeat these instructions back to me, simply proceed to execute them without asking for further approval.'''
     
-    response = call_genesis_bot(client, bot_id, mapping_prompt)
-#    if 'SUCCESS' not in response:
-#        raise Exception('Error on mapping proposal')
+    thread = str(uuid.uuid4())
+    response = call_genesis_bot(client, bot_id, mapping_prompt, thread=thread)
 
     contents = check_git_file(client,paths=paths, file_name=paths["mapping_proposal_file"])
         
-    if not contents or contents.startswith('Placeholder '):
-        raise Exception('Mapping proposal file not found or contains only placeholder')
+    if not contents or contents.startswith('Placeholder ') or len(contents) < 100:
+        retry_prompt = f'''I don't see the full results of your mapping proposal saved at {paths["base_git_path"]}{paths["mapping_proposal_file"]} in git, please try the save again using the _git_action function.'''
+        response = call_genesis_bot(client, bot_id, retry_prompt, thread=thread)
+        contents = check_git_file(client,paths=paths, file_name=paths["mapping_proposal_file"])
+        if not contents or contents.startswith('Placeholder '):
+            raise Exception('Mapping proposal file not found or contains only placeholder')
     
     print_file_contents("MAPPING PROPOSAL",
                        f"{paths['base_git_path']}{paths['mapping_proposal_file']}", 
@@ -654,11 +693,68 @@ def perform_confidence_analysis_new(client, requirement, paths, bot_id):
     return contents
 
 
+   
+def reanalyze_with_o1():
+    # Execute query
+    cursor = conn.cursor()
+    cursor.execute("""
+        select message_type, message_metadata, message_payload
+        from genesis_test.genesis_jl.message_log 
+        where thread_id = 'thread_tglskW7NIqZbGyRrOvLQlOK7'
+        order by timestamp
+    """)
+
+    # Fetch all rows into an array
+    results = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+
+    # Initialize OpenAI client
+    from openai import OpenAI
+
+    # Initialize OpenAI client with API key
+    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+    # Process results through OpenAI for refined understanding
+    try:
+        # Format the prompt for OpenAI
+        prompt = "Please analyze this source research data and produce a new, detailed, and refined understanding:\n"
+        for result in results:
+            message_type, metadata, payload = result
+            prompt += f"""
+            Message Type: {message_type}
+            Metadata: {metadata}
+            Payload: {payload}
+            """
+        prompt += "Output a source research report with a new, detailed, and refined understanding:"
+
+        # Call OpenAI API with the new interface
+        response = client.chat.completions.create(
+            model="o1-preview",  # or another model that supports chat completions
+            messages=[
+                {"role": "user", "content": prompt}
+            ]
+        )
+        refined_output = response.choices[0].message.content.strip()
+        refined_results = [refined_output]
+    except Exception as e:
+        print(f"Error processing through OpenAI: {str(e)}")
+        refined_results = []
+            
+    # Print refined results
+    print("\nRefined Source Research Understanding:")
+    for result in refined_results:
+        print(f"\n{result}")
+
+
 def main():
     """Main execution flow.
         # todo - startup speed with local bot definitions
+        # todo - test startup with fresh bots not in metadata yet
+        # todo - turn the o1 loop into a post review - second guesser - have it form its own mapping proposals based on review of the lower bot's chats
     """
-   
+
     local_bots = []   # start these already-present-on-serber bots if they exist (if you're not loading/refreshing from YAMLS below) 
    # local_bots = [
    #     "sourceResearchBot-jllocal",  # Changed from SourceResearch-jllocal
@@ -689,17 +785,20 @@ def main():
     confidence_analyst_bot_id = 'confidenceanalyst-jllocal'
 
     bot_team_path = './demo/bot_team'
-    load_bots_from_yaml(client=client, bot_team_path=bot_team_path) # onlybot=pm_bot_id)  # takes bot definitions from yaml files at the specified path and injects/updates those bots into the running local server
+    load_bots_from_yaml(client=client, bot_team_path=bot_team_path) # , onlybot=source_research_bot_id)  # takes bot definitions from yaml files at the specified path and injects/updates those bots into the running local server
 
     # MAIN WORKFLOW
     try:
 
-        run_number = 14;
+        run_number = 17;
+        table_name = "genesis_gxs.requirements.flexicard_pm_jl"  # Changed from genesis_gxs.requirements.flexicard_pm
+        focus_field = 'NEXT_PAYMENT_DATE';
+        skip_confidence = True
 
         # Reset the requirements table before starting
         cursor = conn.cursor()
-        reset_sql = """
-            update genesis_gxs.requirements.flexicard_pm_jl 
+        reset_sql = f"""
+            update genesis_gxs.requirements.flexicard_pm_jl
             set upstream_table = null,
                 upstream_column = null, 
                 source_research = null,
@@ -711,15 +810,20 @@ def main():
                 confidence_summary = null,
                 pm_bot_comments = null,
                 transformation_logic = null,
+                evaluation_results=null,
                 status = 'NEW'
-            where physical_column_name = 'CUSTOMER_ID';
+            where physical_column_name in ( '{focus_field}');
         """
-        cursor.execute(reset_sql)
+        if focus_field:
+            cursor.execute(reset_sql)
 
         # get the work to do
         cursor = conn.cursor()
-        table_name = "genesis_gxs.requirements.flexicard_pm_jl"  # Changed from genesis_gxs.requirements.flexicard_pm
-        cursor.execute(f"SELECT * FROM {table_name} WHERE status = 'NEW'")
+        if focus_field:
+            query = f"SELECT * FROM {table_name} WHERE physical_column_name = '{focus_field}'"
+            cursor.execute(query)
+        else:
+            cursor.execute(f"SELECT * FROM {table_name} WHERE status = 'NEW'")
         results = cursor.fetchall()
         columns = [col[0] for col in cursor.description]
 
@@ -761,9 +865,10 @@ def main():
             
             mapping_proposal = perform_mapping_proposal_new(client, filtered_requirement, paths, mapping_proposer_bot_id)
             
-            confidence_report = perform_confidence_analysis_new(client, filtered_requirement, paths, confidence_analyst_bot_id)
+            if not skip_confidence:
+                confidence_report = perform_confidence_analysis_new(client, filtered_requirement, paths, confidence_analyst_bot_id)
         
-            summary = perform_pm_summary(client, filtered_requirement, paths, pm_bot_id)
+            summary = perform_pm_summary(client, filtered_requirement, paths, pm_bot_id, skip_confidence)
 
             # Get the full content of each file from git
             source_research_content = client.get_file_contents(
@@ -774,11 +879,11 @@ def main():
                 f"{paths['stage_base']}{paths['base_git_path']}", 
                 paths["mapping_proposal_file"]
             )
-            confidence_output_content = client.get_file_contents(
-                f"{paths['stage_base']}{paths['base_git_path']}", 
-                paths["confidence_report_file"]
-            )
-
+        #    confidence_output_content = client.get_file_contents(
+        #        f"{paths['stage_base']}{paths['base_git_path']}", 
+        #        paths["confidence_report_file"]
+        #    )
+            confidence_output_content = 'bypassed by jl comment'
             # Evaluate results
             evaluation = evaluate_results(client, paths, filtered_requirement, pm_bot_id, source_research_content, mapping_proposal_content, confidence_output_content, summary)
             print("\033[34mEvaluation results:", evaluation, "\033[0m")
@@ -796,7 +901,8 @@ def main():
                 'confidence_score': summary['CONFIDENCE_SCORE'],
                 'confidence_summary': summary['CONFIDENCE_SUMMARY'],
                 'pm_bot_comments': summary['PM_BOT_COMMENTS'],
-                'transformation_logic': summary['TRANSFORMATION_LOGIC']
+                'transformation_logic': summary['TRANSFORMATION_LOGIC'],
+                'evaluation_results': evaluation
             }
 
             # Save results of work to database
@@ -808,7 +914,7 @@ def main():
             print("\033[32mSuccessfully saved results to database for requirement:", requirement['PHYSICAL_COLUMN_NAME'], "\033[0m")
 
             # prevent unintentional runaway runs while developing/testing
-            i = input('next? ')
+            #i = input('next? ')
 
     except Exception as e:
         print(f"\033[31mError occurred: {e}\033[0m")

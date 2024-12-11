@@ -75,7 +75,7 @@ def get_llm_api_key(db_adapter):
                     logger.info(f"BOTS ACTIVE TIME: {result[0]} | CURRENT TIME: {current_time} | TIME DIFFERENCE: {time_difference} | producer")
                     ii = 0
 
-                if time_difference < timedelta(minutes=5):
+                if time_difference < timedelta(minutes=5) or os.getenv("HARVEST_TEST", "false").lower() == "true":
                     wake_up = True
                 else:
                     time.sleep(refresh_seconds)

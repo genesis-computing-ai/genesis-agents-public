@@ -251,6 +251,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
             logger.info(f'loading assistant {assistant_id} for bot {name}...')
             my_assistant = self.client.beta.assistants.retrieve(assistant_id=assistant_id)
             self.assistant = my_assistant
+            my_assistants = [my_assistant]
          except Exception as e:
             my_assistant = None
 
@@ -262,6 +263,8 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
          logger.info('finding assistant...')
 
          my_assistants = [a for a in my_assistants if a.name == name]
+
+      if True:
          if len(my_assistants) == 0 and update_existing:
             instructions += "\n" + BASE_BOT_OPENAI_INSTRUCTIONS
             vector_store_name = self.bot_id + '_vectorstore'

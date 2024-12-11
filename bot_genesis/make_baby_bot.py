@@ -1054,6 +1054,7 @@ def make_baby_bot(bot_id, bot_name, bot_instructions='You are a helpful bot.', a
                 for existing_bot in existing_bots:
                     if existing_bot['bot_name'].lower() == bot_name.lower():
                         error_message = f"A bot with the name '{bot_name}' already exists with bot_id '{existing_bot['bot_id']}'. Please choose a different name to avoid confusion."
+                        print(error_message)
                         return {"success": False, "error": error_message}
 
             confirm=False

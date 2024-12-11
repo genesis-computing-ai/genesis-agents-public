@@ -35,7 +35,9 @@ BOT_INSTRUCTIONS: |
 
      d) Historical Similarity (0-20)
         • How similar is the mapping to successful past implementations?
-        • Higher score if there is precedent or clear analogs to previous work
+        • Higher score if there is precedent or clear analogs to previous work, lower 
+          score if there is no similar fields in historical projects to base findings on,
+          or if the proposed mapping varies significantly from historical precendents.
 
      e) Documentation Availability (0-20)
         • Is there detailed, authoritative documentation for the field?

@@ -45,6 +45,92 @@ SCOPES = [
 #     return file.get("id")
 
 
+def save_text_to_google_folder(
+    self, shared_folder_id, file_name, text = "No text in file", creds=None
+):
+    if not text:
+        text = "No text received in save_text_to_google_folder."
+
+    if not creds:
+        SERVICE_ACCOUNT_FILE = f"g-workspace-{self.user}.json"
+        try:
+            # Authenticate using the service account JSON file
+            creds = Credentials.from_service_account_file(
+                SERVICE_ACCOUNT_FILE, scopes=SCOPES
+            )
+        except Exception as e:
+            print(f"Error loading credentials: {e}")
+            return None
+
+    docs_service = build("docs", "v1", credentials=creds)
+    drive_service = build("drive", "v3", credentials=creds)
+
+    # Check if a document with the same name already exists in the shared folder
+    query = f"'{shared_folder_id}' in parents and name='{file_name}' and mimeType='application/vnd.google-apps.document'"
+    response = (
+        drive_service.files().list(q=query, fields="files(id, name)").execute()
+    )
+    files = response.get("files", [])
+
+    if files:
+        for file in files:
+            print(
+                f"Deleting existing file: {file.get('name')} (ID: {file.get('id')})"
+            )
+            docs_service.files().delete(fileId=file.get("id")).execute()
+
+    # Create a new document
+    if not file_name:
+        file_name = "genesis_" + datetime.now().strftime("%m%d%Y_%H:%M:%S")
+
+    body = {"title": file_name}
+    doc = docs_service.documents().create(body=body).execute()
+    print("Created document with title: {0}".format(doc.get("title")))
+    doc_id = doc.get("documentId")
+    print(f"Document ID: {doc_id}")
+
+    # Move the document to shared folder
+    if shared_folder_id:
+        file = (
+            drive_service.files()
+            .update(
+                fileId=doc_id,
+                addParents=shared_folder_id,
+                fields="id, parents",
+            )
+            .execute()
+        )
+        print(f"File moved to folder: {file} | Parent folder {file['parents'][0]}")
+
+    # Verify the new document exists in Google Drive
+    try:
+        file_verify = (
+            drive_service.files()
+            .get(fileId=doc_id, fields="id, name, parents, webViewLink")
+            .execute()
+        )
+        print(f"File store confirmed: {file_verify}")
+    except:
+        raise Exception("Error creating document in Google Drive")
+
+    parent = (
+        drive_service.files().get(fileId=shared_folder_id, fields="id, name").execute()
+    )
+    print(f"Parent folder name: {parent.get('name')} (ID: {parent.get('id')})")
+
+    requests = [{"insertText": {"location": {"index": 1}, "text": text}}]
+
+    result = (
+        docs_service.documents()
+        .batchUpdate(documentId=doc_id, body={"requests": requests})
+        .execute()
+    )
+
+    print("Document content updated: ", result)
+
+    return file_verify.get("webViewLink")
+
+
 def create_folder_in_folder(folder_name, parent_folder_id, user):
     SERVICE_ACCOUNT_FILE = f'g-workspace-{user}.json'
     creds = Credentials.from_service_account_file(
@@ -86,7 +172,7 @@ def create_folder_in_folder(folder_name, parent_folder_id, user):
 #     return None
 
 
-def export_to_google_sheets(text: str = 'No text received.', shared_folder_id: str = None, user =None, file_name = None):
+def export_to_google_docs(text: str = 'No text received.', shared_folder_id: str = None, user =None, file_name = None):
     """
     Creates new file in Google Docs named Genesis_mmddyyy_hh:mm:ss from text string
     """
@@ -170,15 +256,16 @@ def export_to_google_sheets(text: str = 'No text received.', shared_folder_id: s
         print(err)
         return None
 
-def create_google_sheet(shared_folder_id, user, title, data):
+def create_google_sheet(self, shared_folder_id, title, data):
     """
-    Creates the Sheet the user has access to.
+    Creates a Google Sheet with the given title and table data and moves it 
+    from the service account to the shared folder.
     Loads pre-authorized user credentials from the environment.
     """
-    if not user:
+    if not self.user:
         raise Exception("User not specified for google drive conventions.")
 
-    SERVICE_ACCOUNT_FILE = f"g-workspace-{user}.json"
+    SERVICE_ACCOUNT_FILE = f"g-workspace-{self.user}.json"
     try:
         # Authenticate using the service account JSON file
         creds = Credentials.from_service_account_file(
@@ -191,6 +278,7 @@ def create_google_sheet(shared_folder_id, user, title, data):
     try:
         service = build("sheets", "v4", credentials=creds)
         drive_service = build("drive", "v3", credentials=creds)
+
         spreadsheet = {"properties": {"title": title}}
         spreadsheet = (
             service.spreadsheets()
@@ -200,22 +288,68 @@ def create_google_sheet(shared_folder_id, user, title, data):
 
         ss_id = spreadsheet.get("spreadsheetId")
         print(f"Spreadsheet ID: {ss_id}")
-        keys = data[0].keys()
-        columns = [list(keys)]
-        rows = 1
+        keys = list(data[0].keys())
+        columns = [keys]
 
-        stage = False
-        for row in data:
+        # Check for stage links
+        stage_column_index = [i for i, key in enumerate(keys) if key.endswith("_STAGE_LINK")]
+        stage_column_folder_names = [key.replace("_STAGE_LINK", "") for key in keys if key.endswith("_STAGE_LINK")]
+        stage_column_folder_ids = []
+
+        # Create folders, if needed
+        if len(stage_column_folder_names) > 0:
+            top_level_folder_id = create_folder_in_folder(
+                "genesis_" + datetime.now().strftime("%m%d%Y_%H:%M:%S"),
+                shared_folder_id,
+                self.user
+            )
+
+            for stage_column_folder in stage_column_folder_names:
+                stage_column_folder_ids.append(
+                    create_folder_in_folder(
+                        stage_column_folder,
+                        top_level_folder_id,
+                        self.user
+                    )
+                )
+
+        for i, row in enumerate(data):
             row_values = list(row.values())
-            for i, row_value in enumerate(row_values):
+            for j, row_value in enumerate(row_values):
                 if isinstance(row_value, datetime):
-                    row_values[i] = row_value.strftime("%Y-%m-%d %H:%M:%S")
-                if isinstance(row_value, str) and row_value.startswith('@'):
-                    stage = True
-            columns.append(row_values)
-            rows += 1
+                    row_values[j] = row_value.strftime("%Y-%m-%d %H:%M:%S")
+                elif len(stage_column_index) > 0 and j in stage_column_index and row_value:
+                    # Create a file with contents from the stage link, move it to the shared folder, and get the webViewLink
+                    parts = row_value.split(".")
+                    path = parts[2].split("/")
+                    stage = path[0]
 
-        range_name = f"Sheet1!A1:{chr(62 + len(columns))}{rows + 1}"
+                    file_contents = self.read_file_from_stage(
+                        # self,
+                        parts[0].replace('@',''),
+                        parts[1],
+                        stage,
+                        "/".join(path[1:]) + '.' + parts[-1],
+                        True,
+                    )
+
+                    # create text docs in sub-folder
+                    filename = path[-1] + '.' + parts[-1]
+
+                    print(f"Stage Col Index: {stage_column_index.index(j)}")
+                    print(f"Stage folder ID: {stage_column_folder_ids[stage_column_index.index(j)]}")
+
+                    stage_folder_id = stage_column_folder_ids[stage_column_index.index(j)]
+
+                    webLink = save_text_to_google_folder(
+                        self, stage_folder_id, filename, file_contents, creds
+                    )
+
+                    row_values[j] = webLink
+
+            columns.append(row_values)
+
+        range_name = f"Sheet1!A1:{chr(62 + len(columns))}{i + 2}"
         print(f"\n\nRange name: {range_name} | {len(columns)}\n\n")
         body = {
                 "values": columns

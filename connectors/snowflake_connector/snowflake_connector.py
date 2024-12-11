@@ -24,7 +24,7 @@ from .stage_utils import add_file_to_stage, read_file_from_stage, update_file_in
 from .ensure_table_exists import ensure_table_exists, one_time_db_fixes, get_process_info, get_processes_list
 
 from google_sheets.g_sheets import (
-    export_to_google_sheets,
+    export_to_google_docs,
     create_google_sheet,
     create_folder_in_folder,
     # upload_file_to_folder,
@@ -2339,9 +2339,9 @@ def get_status(site):
 
         def get_root_folder_id():
             cursor = self.connection.cursor()
-            cursor.execute(
-                f"call core.run_arbitrary($$ grant read,write on stage app1.bot_git to application role app_public $$);"
-            )
+            # cursor.execute(
+            #     f"call core.run_arbitrary($$ grant read,write on stage app1.bot_git to application role app_public $$);"
+            # )
 
             query = f"SELECT value from {self.schema}.EXT_SERVICE_CONFIG WHERE ext_service_name = 'g-sheets' AND parameter = 'shared_folder_id' and user = '{self.user}'"
             cursor.execute(query)
@@ -2352,68 +2352,69 @@ def get_status(site):
             else:
                 raise Exception("Missing shared folder ID")
 
-        if query.casefold() == 'SELECT * FROM "GENESIS_GXS"."REQUIREMENTS"."FLEXICARD_PM";'.casefold():
+        # if query.casefold() == 'SELECT * FROM "GENESIS_GXS"."REQUIREMENTS"."FLEXICARD_PM";'.casefold():
 
-            root_folder_id = get_root_folder_id()
-            # root_folder_id = "1t0RJsOSgwksy2IH-pQtMbGVgrIaBI_-Y"
+        #     root_folder_id = get_root_folder_id()
+        #     # root_folder_id = "1t0RJsOSgwksy2IH-pQtMbGVgrIaBI_-Y"
 
+        #     from datetime import datetime
+
+        #     print(f"Root Folder ID: {root_folder_id}")
+
+        #     timestamp = datetime.now().strftime("%m%d%Y_%H:%M:%S")
+        #     parent_folder_id = create_folder_in_folder(
+        #         "gxs_" + timestamp, root_folder_id, self.user
+        #     )
+
+        #     subfolder_id = {}
+        #     for key in ['GIT_SOURCE_RESEARCH', 'GIT_MAPPING_PROPOSAL', 'GIT_CONFIDENCE_OUTPUT']:
+        #         subfolder_id[key] = create_folder_in_folder(key, parent_folder_id, self.user)
+
+        #     links = {}
+        #     sheets_data = [sample_data[0].keys()]
+        #     for data in sample_data:
+        #         print(data['GIT_SOURCE_RESEARCH'], data ['GIT_MAPPING_PROPOSAL'], data['GIT_CONFIDENCE_OUTPUT'])
+
+        #         for key in ['GIT_SOURCE_RESEARCH', 'GIT_MAPPING_PROPOSAL', 'GIT_CONFIDENCE_OUTPUT']:
+        #             file_contents = read_file_from_stage(
+        #                 self,
+        #                 "GENESIS_BOTS_ALPHA",
+        #                 "APP1",
+        #                 "BOT_GIT",
+        #                 data[key].replace("@genesis_bots_alpha.app1.bot_git/", ""),
+        #                 return_file_path=True,
+        #             )
+
+        #             file_name = data[key].replace(
+        #                 "@genesis_bots_alpha.app1.bot_git/", ""
+        #             ).split("/")[-1]
+
+        #             # create text docs in sub-folder
+        #             links[key] = export_to_google_sheets(file_contents, subfolder_id[key], file_name, self.name)
+
+
+
+        #         # write text docs ID's back to table
+        #         cursor = self.connection.cursor()
+        #         query = f"""
+        #             UPDATE "GENESIS_GXS"."REQUIREMENTS"."FLEXICARD_PM"
+        #             SET
+        #             GIT_SOURCE_RESEARCH_DOC_LINK = '{links["GIT_SOURCE_RESEARCH"]}',
+        #             GIT_MAPPING_PROPOSAL_DOC_LINK = '{links["GIT_MAPPING_PROPOSAL"]}',
+        #             GIT_CONFIDENCE_OUTPUT_DOC_LINK = '{links["GIT_CONFIDENCE_OUTPUT"]}'
+        #             WHERE
+        #             PHYSICAL_COLUMN_NAME = '{data['PHYSICAL_COLUMN_NAME']}'
+        #         """
+        #         result = cursor.execute(query)
+        #         cursor.close()
+
+        if export_to_google_sheet:
             from datetime import datetime
-
-            print(f"Root Folder ID: {root_folder_id}")
-
-            timestamp = datetime.now().strftime("%m%d%Y_%H:%M:%S")
-            parent_folder_id = create_folder_in_folder(
-                "gxs_" + timestamp, root_folder_id, self.user
-            )
-
-            subfolder_id = {}
-            for key in ['GIT_SOURCE_RESEARCH', 'GIT_MAPPING_PROPOSAL', 'GIT_CONFIDENCE_OUTPUT']:
-                subfolder_id[key] = create_folder_in_folder(key, parent_folder_id, self.user)
-
-            links = {}
-            sheets_data = [sample_data[0].keys()]
-            for data in sample_data:
-                print(data['GIT_SOURCE_RESEARCH'], data ['GIT_MAPPING_PROPOSAL'], data['GIT_CONFIDENCE_OUTPUT'])
-
-                for key in ['GIT_SOURCE_RESEARCH', 'GIT_MAPPING_PROPOSAL', 'GIT_CONFIDENCE_OUTPUT']:
-                    file_contents = read_file_from_stage(
-                        self,
-                        "GENESIS_BOTS_ALPHA",
-                        "APP1",
-                        "BOT_GIT",
-                        data[key].replace("@genesis_bots_alpha.app1.bot_git/", ""),
-                        return_file_path=True,
-                    )
-
-                    file_name = data[key].replace(
-                        "@genesis_bots_alpha.app1.bot_git/", ""
-                    ).split("/")[-1]
-
-                    # create text docs in sub-folder
-                    links[key] = export_to_google_sheets(file_contents, subfolder_id[key], file_name, self.name)
-
-
-
-                # write text docs ID's back to table
-                cursor = self.connection.cursor()
-                query = f"""
-                    UPDATE "GENESIS_GXS"."REQUIREMENTS"."FLEXICARD_PM"
-                    SET
-                    GIT_SOURCE_RESEARCH_DOC_LINK = '{links["GIT_SOURCE_RESEARCH"]}',
-                    GIT_MAPPING_PROPOSAL_DOC_LINK = '{links["GIT_MAPPING_PROPOSAL"]}',
-                    GIT_CONFIDENCE_OUTPUT_DOC_LINK = '{links["GIT_CONFIDENCE_OUTPUT"]}'
-                    WHERE
-                    PHYSICAL_COLUMN_NAME = '{data['PHYSICAL_COLUMN_NAME']}'
-                """
-                result = cursor.execute(query)
-                cursor.close()
-
-        elif export_to_google_sheet:
             # get user's shared folder ID
             shared_folder_id = get_root_folder_id()
             timestamp = datetime.now().strftime("%m%d%Y_%H:%M:%S")
 
-            result = create_google_sheet(shared_folder_id, self.user, 'test google sheet', sample_data )
+            result = create_google_sheet(self, shared_folder_id['result'], 'test google sheet', sample_data )
             # print_string = dict_list_to_markdown_table(sample_data)
             # link = export_to_google_sheets(print_string, shared_folder_id, self.user)
 

@@ -1520,7 +1520,6 @@ def ensure_table_exists(self):
             BOT_ID VARCHAR(16777216),
             TEST_PROCESS_ID VARCHAR(16777216),
             TEST_PROCESS_NAME VARCHAR(16777216),
-            TEST_TYPE VARCHAR(16777216),
             TEST_PRIORITY INTEGER
         );
         """

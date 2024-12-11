@@ -2416,7 +2416,7 @@ def get_status(site):
             shared_folder_id = get_root_folder_id()
             timestamp = datetime.now().strftime("%m%d%Y_%H:%M:%S")
 
-            result = create_google_sheet(self, shared_folder_id['result'], 'test google sheet', sample_data )
+            result = create_google_sheet(self, shared_folder_id['result'], f"Genesis Table Output {timestamp}", sample_data )
 
             return {
                 "Success": True,

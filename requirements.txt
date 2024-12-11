@@ -1,4 +1,3 @@
-anthropic==0.31.2
 annoy
 APscheduler
 bs4

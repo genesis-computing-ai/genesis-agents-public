@@ -993,7 +993,7 @@ class SnowflakeConnector(DatabaseConnector):
 
     def eai_test(self, site):
         try:
-            azure_endpoint = "https://example.com"
+
             eai_list_query = f"""CALL CORE.GET_EAI_LIST('{self.schema}')"""
             cursor = self.client.cursor()
             cursor.execute(eai_list_query)
@@ -1010,6 +1010,8 @@ class SnowflakeConnector(DatabaseConnector):
                     cursor = self.client.cursor()
                     cursor.execute(azure_query)
                     azure_endpoint = cursor.fetchone()
+                    if azure_endpoint is None or azure_endpoint == '':
+                        azure_endpoint = "https://example.com"
 
                 create_function_query = f"""
 CREATE OR REPLACE FUNCTION {self.project_id}.CORE.CHECK_URL_STATUS(site string)

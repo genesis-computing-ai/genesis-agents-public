@@ -1036,7 +1036,7 @@ def get_status(site):
     elif site == 'jira':
         url = "https://www.atlassian.net/jira/your-work"  # Replace with the allowed URL
     elif site == 'azureopenai':
-        url = {azure_endpoint}  # Replace with the allowed URL
+        url = "{azure_endpoint}"  # Replace with the allowed URL
     else:
         # TODO allow custom endpoints to be tested
         return f"Invalid site: {{site}}"

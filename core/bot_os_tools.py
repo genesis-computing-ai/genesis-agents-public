@@ -27,10 +27,10 @@ from bot_genesis.make_baby_bot import (
     get_bot_details,
 )
 from connectors import database_tools
-from connectors import get_global_db_connector
+# from connectors import get_global_db_connector
 # from connectors.bigquery_connector import BigQueryConnector
-# from connectors.snowflake_connector.snowflake_connector import SnowflakeConnector
-# from connectors.sqlite_connector import SqliteConnector
+from connectors.snowflake_connector.snowflake_connector import SnowflakeConnector
+from connectors.sqlite_connector import SqliteConnector
 from llm_openai.openai_utils import get_openai_client
 from slack.slack_tools import slack_tools, slack_tools_descriptions
 from connectors.database_tools import (
@@ -114,8 +114,8 @@ GENESIS_LOGO_URL = "https://i0.wp.com/genesiscomputing.ai/wp-content/uploads/202
 belts = 0
 
 class ToolBelt:
-    def __init__(self, db_adapter):
-        self.db_adapter = db_adapter
+    def __init__(self):
+        # self.db_adapter = db_adapter
         self.counter = {}
         self.instructions = {}
         self.process_config = {}
@@ -131,12 +131,23 @@ class ToolBelt:
         belts = belts + 1
         self.process_id = {}
         self.include_code = False
-        self.todos = ProjectManager(db_adapter)  # Initialize Todos instance
+
+        if genesis_source == 'Sqlite':
+            self.db_adapter = SqliteConnector(connection_name="Sqlite")
+            connection_info = {"Connection_Type": "Sqlite"}
+        elif genesis_source == 'Snowflake':  # Initialize Snowflake client
+            self.db_adapter = SnowflakeConnector(connection_name="Snowflake")
+            connection_info = {"Connection_Type": "Snowflake"}
+        else:
+            raise ValueError('Invalid Source')
+
+        self.todos = ProjectManager(self.db_adapter)  # Initialize Todos instance
         self.git_manager = GitFileManager()
         self.server = None  # Will be set later
 
         self.sys_default_email = self.get_sys_email()
-    #     logger.info(belts)
+
+   #     logger.info(belts)
 
     def set_server(self, server):
         """Set the server instance for this toolbelt"""

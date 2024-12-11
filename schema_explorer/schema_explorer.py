@@ -2,7 +2,7 @@ import os, csv, io
 # import time
 import simplejson as json
 from openai import OpenAI
-import random 
+import random
 #from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 
@@ -37,9 +37,9 @@ class SchemaExplorer:
             self.embedding_model = os.getenv("OPENAI_HARVESTER_EMBEDDING_MODEL", 'text-embedding-3-large')
 
     def alt_get_ddl(self,table_name = None):
-        
+
         return self.db_connector.alt_get_ddl(table_name)
-        
+
     def format_sample_data(self, sample_data):
         # Utility method to format sample data into a string
         # Implementation depends on how you want to present the data
@@ -53,7 +53,7 @@ class SchemaExplorer:
             output.close()
             j = j[:1000]
         except TypeError:
-            j = ""        
+            j = ""
         return j
 
     def store_table_memory(self, database, schema, table, summary=None, ddl=None, ddl_short=None, sample_data=None):
@@ -82,16 +82,16 @@ class SchemaExplorer:
                 except Exception as e:
                     sample_data_str = "format error"
                 #sample_data_str = sample_data_str.replace("\n", " ")  # Replace newlines with spaces
-   
+
             #logger.info('sample data string: ',sample_data_str)
             self.store_table_summary(database, schema, table, ddl=ddl, ddl_short=ddl_short,summary=summary, sample_data=sample_data_str)
-  
+
         except Exception as e:
             logger.info(f"Harvester Error for an object: {e}")
             self.store_table_summary(database, schema, table, summary="Harvester Error: {e}", ddl="Harvester Error", ddl_short="Harvester Error", sample_data="Harvester Error")
 
     def test_cortex(self):
-        
+
         newarray = [{"role": "user", "content": "hi there"} ]
         new_array_str = json.dumps(newarray)
 
@@ -109,7 +109,7 @@ class SchemaExplorer:
             except Exception as e:
                 if 'unknown model' in e.msg:
                     logger.info(f'Model {self.cortex_model} not available in this region, trying mistral-7b')
-                    self.cortex_model = 'mistral-7b'        
+                    self.cortex_model = 'mistral-7b'
                     cortex_query = f"""
                         select SNOWFLAKE.CORTEX.COMPLETE('{self.cortex_model}', %s) as completion; """
                     cursor.execute(cortex_query, (new_array_str,))
@@ -129,9 +129,9 @@ class SchemaExplorer:
             logger.info('cortex not available, query error: ',e)
             self.db_connector.connection.rollback()
             return False
-             
+
     def test_cortex_embedding(self):
-        
+
         try:
             test_message = 'this is a test message to generate an embedding'
 
@@ -141,11 +141,11 @@ class SchemaExplorer:
                 result_value = next(iter(embedding_result[0].values()))
                 if result_value:
                     # os.environ['CORTEX_EMBEDDING_MODEL'] = self.embedding_model
-                    logger.info(f"Test result value len embedding: {len(result_value)}")            
+                    logger.info(f"Test result value len embedding: {len(result_value)}")
             except Exception as e:
                 if 'unknown model' in e.msg:
                     logger.info(f'Model {self.embedding_model} not available in this region, trying snowflake-arctic-embed-m')
-                    self.embedding_model = 'snowflake-arctic-embed-m'        
+                    self.embedding_model = 'snowflake-arctic-embed-m'
                     embedding_result = self.db_connector.run_query(f"SELECT SNOWFLAKE.CORTEX.EMBED_TEXT_768('{self.embedding_model}', '{test_message}');")
                     result_value = next(iter(embedding_result[0].values()))
                     if result_value:
@@ -182,29 +182,29 @@ class SchemaExplorer:
                 if sample_data != "":
                     memory_content += f"\n\n<SAMPLE CSV DATA>\n{sample_data}\n</SAMPLE CSV DATA>"
                 complete_description = memory_content
-            embedding = self.get_embedding(complete_description)  
+            embedding = self.get_embedding(complete_description)
             # logger.info("we got the embedding!")
             #sample_data_text = json.dumps(sample_data)  # Assuming sample_data needs to be a JSON text.
 
             # Now using the modified method to insert the data into BigQuery
             self.db_connector.insert_table_summary(database_name=database,
                                                 schema_name=schema,
-                                                table_name=table, 
-                                                ddl=ddl,  
+                                                table_name=table,
+                                                ddl=ddl,
                                                 ddl_short=ddl_short,
-                                                summary=summary, 
-                                                sample_data_text=sample_data, 
+                                                summary=summary,
+                                                sample_data_text=sample_data,
                                                 complete_description=complete_description,
                                                 embedding=embedding,
                                                 memory_uuid=memory_uuid,
                                                 ddl_hash=ddl_hash)
-            
+
             logger.info(f"Stored summary for an object in Harvest Results.")
-   
+
         except Exception as e:
             logger.info(f"Harvester Error for an object: {e}")
             self.store_table_summary(database, schema, table, summary="Harvester Error: {e}", ddl="Harvester Error", ddl_short="Harvester Error", sample_data="Harvester Error")
-   
+
         ## Assuming an instance of BotOsKnowledgeLocal named memory_system exists
         #self.memory_system.store_memory(memory_content, scope='database_metadata')
 
@@ -215,7 +215,7 @@ class SchemaExplorer:
             {"role": "user", "content": prompt}
         ]
         return self.run_prompt(p)
-    
+
     def run_prompt(self, messages):
         if os.environ.get("CORTEX_MODE", 'False') == 'True':
             escaped_messages = str(messages).replace("'", '\\"')
@@ -237,24 +237,24 @@ class SchemaExplorer:
                 messages=messages
             )
             return response.choices[0].message.content
-    
+
     def get_ddl_short(self, ddl):
         prompt = f'Here is the full DDL for a table:\n{ddl}\n\nPlease make a new summarized version of the ddl for this table.  If there are 15 or fewer fields, just include them all. If there are more, combine any that are similar and explain that there are more, and then pick the more important 15 fields to include in the ddl_summary.  Express it as DDL, but include comments about other similar fields, and then a comment summarizing the rest of the fields and noting to see the FULL_DDL to see all columns.  Return ONLY the summarized, do NOT include preamble or other post-result commentary.  Express it as a CREATE TABE statement like a regular DDL, using the exact same table name as I mentioned above (dont modify the table name in any way).'
-        
+
         messages = [
             {"role": "system", "content": "You are an assistant that is great at taking full table DDL and creating shorter DDL summaries."},
             {"role": "user", "content": prompt}
         ]
-        
+
         response = self.run_prompt(messages)
-        
+
         return response
 
     def get_embedding(self, text):
         # logic to handle switch between openai and cortex
         if os.getenv("CORTEX_MODE", 'False') == 'True':
             escaped_messages = str(text[:512]).replace("'", "\\'")
-            try:           
+            try:
                 # review function used once new regions are unlocked in snowflake
                 embedding_result = self.db_connector.run_query(f"SELECT SNOWFLAKE.CORTEX.EMBED_TEXT_768('{self.embedding_model}', '{escaped_messages}');")
 
@@ -310,10 +310,10 @@ class SchemaExplorer:
 
 
     def get_active_databases(self):
-        
+
         databases = self.db_connector.get_databases()
         return [item for item in databases if item['status'] == 'Include']
-        
+
 
     def get_active_schemas(self, database):
 
@@ -363,7 +363,7 @@ class SchemaExplorer:
             cursor.execute(query)
             self.db_connector.client.commit()
 
-        
+
 
     def explore_and_summarize_tables_parallel(self, max_to_process=1000):
         # called by standalone_harvester.py
@@ -379,7 +379,7 @@ class SchemaExplorer:
                 if (database["initial_crawl_complete"] == False):
                     crawl_flag = True
                     self.update_initial_crawl_flag(database["database_name"],True)
-                else: 
+                else:
                     if (database["refresh_interval"] > 0):
                         if (self.run_number % database["refresh_interval"] == 0):
                             crawl_flag = True
@@ -389,7 +389,7 @@ class SchemaExplorer:
                     harvesting_databases.append(database)
                     schemas.extend([database["database_name"]+"."+schema for schema in self.get_active_schemas(database)])
               #      logger.info(f'Checking a Database for new or changed objects (cycle#: {self.run_number}, refresh every: {database["refresh_interval"]}) {cur_time}')
-              #  else: 
+              #  else:
               #      logger.info(f'Skipping a Database, not in current refresh cycle (cycle#: {self.run_number}, refresh every: {database["refresh_interval"]} {cur_time})')
 
             summaries = {}
@@ -426,7 +426,7 @@ class SchemaExplorer:
                     embedding_column = 'embedding_native'
                 else:
                     embedding_column = 'embedding'
-                    
+
                 check_query = f"""
                 SELECT qualified_table_name, table_name, ddl_hash, last_crawled_timestamp, ddl, ddl_short, summary, sample_data_text, memory_uuid, (SUMMARY = '{{!placeholder}}') as needs_full, NULLIF(COALESCE(ARRAY_TO_STRING({embedding_column}, ','), ''), '') IS NULL as needs_embedding
                 FROM {self.db_connector.metadata_table_name}
@@ -448,9 +448,10 @@ class SchemaExplorer:
                 except Exception as e:
                     logger.info(f'Error running check query Error: {e}')
                     return None, None
-                
+
                 non_existing_tables.extend(refresh_tables)
                 for table_info in non_existing_tables:
+                    print(table_info)
                     try:
                         table_name = table_info['table_name']
                         quoted_table_name = f'"{db}"."{sch}"."{table_name}"'
@@ -464,7 +465,7 @@ class SchemaExplorer:
                                 shared_table_exists = self.db_connector.check_cached_metadata('PLACEHOLDER_DB_NAME', sch, table_name)
                             else:
                                 shared_table_exists = self.db_connector.check_cached_metadata(db, sch, table_name)
-                            # shared_table_exists = False 
+                            # shared_table_exists = False
                             if shared_table_exists:
                                 # print ("!!!! CACHING Working !!!! ")
                                 # Get the record from the shared metadata table with database name modified from placeholder
@@ -504,7 +505,7 @@ class SchemaExplorer:
                         quoted_table_name = table_info[0]
                         table_name = table_info[1]
                         # logger.info(f"embedding needed for {quoted_table_name}")
-                        
+
                         for current_info in existing_tables_info:
                             if current_info["QUALIFIED_TABLE_NAME"] == quoted_table_name:
                                 current_ddl = current_info['DDL']
@@ -519,7 +520,7 @@ class SchemaExplorer:
                         logger.info(f'Error processing table in step1 embedding refresh: {e}')
 
             return non_indexed_tables
-        
+
         def process_dataset_step2( non_indexed_tables, max_to_process = 1000):
 
                 local_summaries = {}
@@ -536,22 +537,22 @@ class SchemaExplorer:
                         prompt = self.generate_table_summary_prompt(database, schema, table, columns)
                         summary = self.generate_summary(prompt)
                         #logger.info(summary)
-                        #embedding = self.get_embedding(summary)  
+                        #embedding = self.get_embedding(summary)
                         ddl = row.get('ddl',None)
                         ddl_short = self.get_ddl_short(ddl)
-                        #logger.info(f"storing: database: {database}, schema: {schema}, table: {table}, summary len: {len(summary)}, ddl: {ddl}, ddl_short: {ddl_short} ") 
+                        #logger.info(f"storing: database: {database}, schema: {schema}, table: {table}, summary len: {len(summary)}, ddl: {ddl}, ddl_short: {ddl_short} ")
                         logger.info('Storing summary for new object')
                         self.store_table_memory(database, schema, table, summary, ddl=ddl, ddl_short=ddl_short)
                     except Exception as e:
                         logger.info(f"Harvester Error on Object: {e}")
                         self.store_table_memory(database, schema, table, summary=f"Harvester Error: {e}", ddl="Harvester Error", ddl_short="Harvester Error")
 
-                    
+
                     local_summaries[qualified_table_name] = summary
                 return local_summaries
 
         # Using ThreadPoolExecutor to parallelize dataset processing
-   
+
         # MAIN LOOP
 
         tables_for_full_processing = []
@@ -567,7 +568,7 @@ class SchemaExplorer:
         process_dataset_step2(tables_for_full_processing)
 
         return 'Processed'
-   
+
         with ThreadPoolExecutor(max_workers=5) as executor:
             future_to_dataset = {executor.submit(process_dataset, schema, max_to_process): schema for schema in schemas if total_processed < max_to_process}
 

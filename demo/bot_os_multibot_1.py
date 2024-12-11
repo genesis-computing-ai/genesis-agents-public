@@ -26,7 +26,9 @@ from core.bot_os_memory import BotOsKnowledgeAnnoy_Metadata
 from core.bot_os_server import BotOsServer
 from core.bot_os_artifacts import get_artifacts_store
 from apscheduler.schedulers.background import BackgroundScheduler
-from connectors import get_global_db_connector
+# from connectors import get_global_db_connector
+from connectors.snowflake_connector.snowflake_connector import SnowflakeConnector
+from connectors.sqlite_connector import SqliteConnector
 from embed.embed_openbb import openbb_query
 from llm_openai.openai_utils import get_openai_client
 from slack.slack_bot_os_adapter import SlackBotAdapter
@@ -93,6 +95,14 @@ if os.path.exists(index_size_file):
     except Exception as e:
         logger.info(f"Error deleting {index_size_file}: {e}")
 
+genesis_source = os.getenv('GENESIS_SOURCE', default="Snowflake")
+
+if genesis_source ==  'Sqlite':
+    db_adapter = SqliteConnector(connection_name='Sqlite')
+elif genesis_source == 'Snowflake':
+    db_adapter = SnowflakeConnector(connection_name='Snowflake')
+else:
+    raise ValueError('Invalid Source')
 
 def get_udf_endpoint_url(endpoint_name="udfendpoint"):
 
@@ -128,8 +138,8 @@ global_flags.project_id = project_id
 dataset_name = db_schema[1]
 global_flags.genbot_internal_project_and_schema = genbot_internal_project_and_schema
 
-genesis_source = os.getenv("GENESIS_SOURCE", default="Snowflake")
-db_adapter = get_global_db_connector(genesis_source)
+# genesis_source = os.getenv("GENESIS_SOURCE", default="Snowflake")
+# db_adapter = get_global_db_connector(genesis_source)
 
 if os.getenv("TEST_MODE", "false").lower() == "true":
     logger.info("()()()()()()()()()()()()()")

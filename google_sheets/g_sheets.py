@@ -296,7 +296,7 @@ def create_google_sheet(self, shared_folder_id, title, data):
         stage_column_folder_names = [key.replace("_STAGE_LINK", "") for key in keys if key.endswith("_STAGE_LINK")]
         stage_column_folder_ids = []
 
-        # Create folders, if needed
+        # Create folder top level folder
         if len(stage_column_folder_names) > 0:
             top_level_folder_id = create_folder_in_folder(
                 "genesis_" + datetime.now().strftime("%m%d%Y_%H:%M:%S"),
@@ -304,6 +304,7 @@ def create_google_sheet(self, shared_folder_id, title, data):
                 self.user
             )
 
+            # Create sub-folders
             for stage_column_folder in stage_column_folder_names:
                 stage_column_folder_ids.append(
                     create_folder_in_folder(
@@ -382,12 +383,12 @@ def create_google_sheet(self, shared_folder_id, title, data):
 
 
         # Move the document to shared folder
-        if shared_folder_id:
+        if top_level_folder_id:
             file = (
                 drive_service.files()
                 .update(
                     fileId=ss_id,
-                    addParents=shared_folder_id,
+                    addParents=top_level_folder_id,
                     fields="id, webViewLink, parents",
                 )
                 .execute()

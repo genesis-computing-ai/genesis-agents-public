@@ -2412,13 +2412,11 @@ def get_status(site):
 
         if export_to_google_sheet:
             from datetime import datetime
-            # get user's shared folder ID
+
             shared_folder_id = get_root_folder_id()
             timestamp = datetime.now().strftime("%m%d%Y_%H:%M:%S")
 
             result = create_google_sheet(self, shared_folder_id['result'], 'test google sheet', sample_data )
-            # print_string = dict_list_to_markdown_table(sample_data)
-            # link = export_to_google_sheets(print_string, shared_folder_id, self.user)
 
             return {
                 "Success": True,

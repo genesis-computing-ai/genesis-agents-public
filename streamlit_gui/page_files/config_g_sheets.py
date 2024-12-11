@@ -60,7 +60,9 @@ def config_g_sheets():
     )
 
     st.markdown(
-        '<p class="big-font">Add information from your Google Worksheets service account. \n(#TODO) Explainer on how to set up Google Projects/Service account</p>',
+        '<p class="big-font">Add information from your Google Worksheets service account. Use links for Google Projects & Service account set-up and Google Drive set-up </p>\n'
+        '<a href="https://drive.google.com/file/d/11yhXV5fTRgE10F2OI_2w5w6njkxf7EVW/view?usp=drive_link" target="_blank">GCP Service Account Set Up\n\n'
+        '<a href="https://drive.google.com/file/d/1jWUxGg4Tr_E5iVg5PQZtBfytNBtN_kW0/view?usp=drive_link" target="_blank">Connect Genesis to Google Drive</a>',
         unsafe_allow_html=True,
     )
 
@@ -127,7 +129,6 @@ def config_g_sheets():
 
             except Exception as e:
                 st.error(f"Error configuring Google API params: {e}")
-
 
                 st.success("Google Worksheet API parameters configured successfully.")
 

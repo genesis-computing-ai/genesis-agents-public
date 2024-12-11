@@ -349,8 +349,20 @@ def create_google_sheet(self, shared_folder_id, title, data):
 
             columns.append(row_values)
 
-        range_name = f"Sheet1!A1:{chr(62 + len(columns))}{i + 2}"
-        print(f"\n\nRange name: {range_name} | {len(columns)}\n\n")
+        spreadsheet = {"properties": {"title": title}}
+        spreadsheet = (
+            service.spreadsheets()
+            .create(body=spreadsheet, fields="spreadsheetId")
+            .execute()
+        )
+
+        ss_id = spreadsheet.get("spreadsheetId")
+
+        width_10 = chr(65 + len(columns[0]) % 26)
+        width_1 = chr(64 + len(columns[0]) // 26) if len(columns[0]) > 25 else ''
+        width = width_10 + width_1
+        range_name = f"Sheet1!A1:{width}{len(columns)}"
+        print(f"\n\nRange name: {range_name} | {len(columns[0])} | {len(columns)}\n\n")
         body = {
                 "values": columns
                }
@@ -367,6 +379,7 @@ def create_google_sheet(self, shared_folder_id, title, data):
             .execute()
         )
         print(f"{result.get('updatedCells')} cells updated.")
+
 
         # Move the document to shared folder
         if shared_folder_id:

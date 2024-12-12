@@ -130,7 +130,7 @@ def config_g_sheets():
             except Exception as e:
                 st.error(f"Error configuring Google API params: {e}")
 
-                st.success("Google Worksheet API parameters configured successfully.")
+            st.success("Google Worksheet API parameters configured successfully.")
 
         st.info(
             "If you need any assistance, please check our [documentation](https://genesiscomputing.ai/docs/) or join our [Slack community](https://communityinviter.com/apps/genesisbotscommunity/genesis-bots-community)."

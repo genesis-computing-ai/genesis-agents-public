@@ -29,7 +29,7 @@ print("   ╱         ╲   ")
 print("  G E N E S I S ")
 print("    B o t O S")
 print(" ---- KNOWLEDGE SERVER----")
-print('****** GENBOT VERSION 0.202 *******',flush=True)
+print('****** GENBOT VERSION 0.300 *******',flush=True)
 
 
 

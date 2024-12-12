@@ -169,7 +169,7 @@ logger.info("   ╱         ╲   ")
 logger.info("  G E N E S I S ")
 logger.info("    B o t O S")
 logger.info(" ---- HARVESTER----")
-logger.info('****** GENBOT VERSION 0.202 *******')
+logger.info('****** GENBOT VERSION 0.300 *******')
 
 
 while True:

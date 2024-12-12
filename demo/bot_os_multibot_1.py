@@ -77,7 +77,7 @@ import core.global_flags as global_flags
 # pdb_attach.listen(5679)  # Listen on port 5678.
 # $ python -m pdb_attach <PID> 5678
 
-logger.info("****** GENBOT VERSION 0.202 *******")
+logger.info("****** GENBOT VERSION 0.300 *******")
 
 runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
 multbot_mode = True

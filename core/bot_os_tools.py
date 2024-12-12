@@ -132,7 +132,7 @@ class ToolBelt:
         belts = belts + 1
         self.process_id = {}
         self.include_code = False
-        
+
         if genesis_source == 'Sqlite':
             self.db_adapter = SqliteConnector(connection_name="Sqlite")
             connection_info = {"Connection_Type": "Sqlite"}
@@ -147,7 +147,7 @@ class ToolBelt:
         self.server = None  # Will be set later
 
         self.sys_default_email = self.get_sys_email()
-   #     logger.info(belts)
+    #     logger.info(belts)
 
     def set_server(self, server):
         """Set the server instance for this toolbelt"""
@@ -2443,7 +2443,7 @@ class ToolBelt:
             flow = Flow.from_client_secrets_file(
                 f"credentials.json",
                 scopes=SCOPES,
-                redirect_uri="http://127.0.0.1:8080/oauth",  # Your redirect URI
+                redirect_uri=f"{os.environ['NGROK_BASE_URL']}/oauth",  # Your redirect URI
             )
             auth_url, _ = flow.authorization_url(prompt="consent")
             return {"Success": "True", "auth_url": f"<{auth_url}|View Document>"}

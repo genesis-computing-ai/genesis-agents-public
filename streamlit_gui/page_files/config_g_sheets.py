@@ -12,20 +12,19 @@ def config_g_sheets():
     st.session_state.setdefault("google_eai_available", False)
     st.session_state.setdefault("eai_reference_name", "google_external_access")
 
-    # Check if Slack External Access Integration (EAI) is available
-    if not st.session_state.google_eai_available:
+    # Check if Slack External Access Integration (EAI) is available and in Native Mode
+    if not st.session_state.google_eai_available and st.session_state.get("NativeMode", False) == True:
         try:
             eai_status = check_eai_status("google")
             if eai_status:
                 st.session_state.google_eai_available = True
                 st.success("Google External Access Integration is available.")
             else:
-                # Request EAI if not available and in Native Mode
-                if st.session_state.get("NativeMode", False) == True:
-                    ref = get_references(st.session_state.eai_reference_name)
-                    if not ref:
-                        import snowflake.permissions as permissions
-                        permissions.request_reference(st.session_state.eai_reference_name)
+                # Request EAI if not available
+                ref = get_references(st.session_state.eai_reference_name)
+                if not ref:
+                    import snowflake.permissions as permissions
+                    permissions.request_reference(st.session_state.eai_reference_name)
         except Exception as e:
             st.error(f"Failed to check EAI status: {e}")
 

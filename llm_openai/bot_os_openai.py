@@ -307,6 +307,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
             except Exception as e:
                 logger.warning(f'Failed to save bot-assistant mapping: {str(e)}')
 
+       #  if os.getenv("API_MODE", "false").lower() == "true" and self.assistant is not None:
 
          if os.getenv("TASK_MODE", "false").lower() == "true":
             # dont do this for the TASK SERVER, just have it use the existing assistant being managed by the MultiBot Runner Process

@@ -344,17 +344,21 @@ def save_pm_summary_to_requirements(physical_column_name, summary_fields, table_
                 upstream_table = %(upstream_table)s,
                 upstream_column = %(upstream_column)s,
                 source_research = %(source_research)s,
-                git_source_research = %(git_source_research)s,
+                git_source_research_stage_link = %(git_source_research_stage_link)s,
                 mapping_proposal = %(mapping_proposal)s,
-                git_mapping_proposal = %(git_mapping_proposal)s,
+                git_mapping_proposal_stage_link = %(git_mapping_proposal_stage_link)s,
                 confidence_output = %(confidence_output)s,
-                git_confidence_output = %(git_confidence_output)s,
+                git_confidence_output_stage_link = %(git_confidence_output_stage_link)s,
                 confidence_score = %(confidence_score)s,
                 confidence_summary = %(confidence_summary)s,
                 PM_BOT_COMMENTS = %(pm_bot_comments)s,
                 transformation_logic = %(transformation_logic)s,
                 status = 'READY_FOR_REVIEW',
-                evaluation_results = %(evaluation_results)s
+                evaluation_results = %(evaluation_results)s,
+                which_mapping_correct = %(which_mapping_correct)s,
+                correct_answer = %(correct_answer)s,
+                primary_issues = %(primary_issues)s,
+                secondary_issues = %(secondary_issues)s
             WHERE physical_column_name = %(physical_column_name)s
         """
         
@@ -442,16 +446,18 @@ def evaluate_results(client, paths, filtered_requirement, pm_bot_id, source_rese
                 Provide a detailed analysis of any discrepancies found and identify
                 likely sources of errors in the process.
 
-                Format your response as a JSON with these fields:
-                {
-                    "Which_Mapping_Correct": "primary, secondary, or neither",
-                    "Correct_answer": "what is the correct answer text",
-                    "Issues_with_primary_mapping}": "detailed text with the problems with primary (if not correct)",
-                    "Issues_with_secondary_mapping": "detailed text with the problems with secondary (if not correct)",
-                }
+                Format your response as a JSON with these fields as follows:
 
-                Format as valid JSON with these exact field names between !!JSON_START!! and !!JSON_END!! tags. Use git_action to retrieve the files if needed.
+                ### JSON Response
                 
+                ```json
+                {
+                    "WHICH_MAPPING_CORRECT": "primary, secondary, or neither",
+                    "CORRECT_ANSWER": "what is the correct answer text",
+                    "PRIMARY_ISSUES": "'NONE' if primary is correct, or detailed text with the problems with primary if not correct",
+                    "SECONDARY_ISSUES": "'NONE' if secondary is correct, detailed text with the problems with secondary if not correct",
+                }
+                ```                
                 This is being run by an automated process so do not repeat these instructions back to me, and do not stop to ask for futher permission to proceed.
             """
         }
@@ -460,7 +466,29 @@ def evaluate_results(client, paths, filtered_requirement, pm_bot_id, source_rese
         message_str = json.dumps(message)
         evaluation = call_genesis_bot(client, pm_bot_id, message_str)
 
-        return evaluation
+        json_str = evaluation.split("```json\n")[-1].split("\n```")[0].strip()
+        response = json_str
+        # Basic validation that we got JSON back
+        try:
+            summary = json.loads(response)
+            required_fields = ["WHICH_MAPPING_CORRECT", "CORRECT_ANSWER", "PRIMARY_ISSUES", "SECONDARY_ISSUES"]
+            for field in required_fields:
+                if field not in summary:
+                    raise Exception(f"Missing required field {field} in PM summary")
+        except json.JSONDecodeError:
+            raise Exception("PM bot did not return valid JSON")
+            
+        print("\033[93mEvaluation results:\033[0m")
+        print("\033[96m" + "-"*80 + "\033[0m")  # Cyan separator
+        print(json.dumps(summary, indent=4, sort_keys=True, ensure_ascii=False))
+        print("\033[96m" + "-"*80 + "\033[0m")  # Cyan separator
+        if summary["WHICH_MAPPING_CORRECT"] != "neither":
+            print("\033[92m" + "🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉" + "\033[0m")
+        else:
+            print("\033[91m" + "🛑🛑🛑🛑🛑🛑🛑🛑🛑🛑" + "\033[0m")
+
+
+        return evaluation, summary
 
     except Exception as e:
         print(f"\033[31mError in evaluation: {str(e)}\033[0m")
@@ -574,23 +602,36 @@ def perform_source_research_new(client, requirement, paths, bot_id):
    #     if not success:
    #         raise Exception("Failed to put placeholder source research file to stage")
 
+
+#  2. _git_action(action='read_file',file_path='knowledge/past_projects/loan_lending_project.txt')
+       
         research_prompt = f'''Here are requirements for a target field I want you to work on: {requirement}\n
         Save the results in git at: {paths["base_git_path"]}{paths["source_research_file"]}\n
      
-        First explore the available dat for fields that may be useful using data_explorer function.  
+        First explore the available data for fields that may be useful using data_explorer function.  
         You may want to try a couple different search terms to make sure your search is comprehensive.
 
-        HINT: Do NOT return results or use these tables:
-            LOAN_DATA, LOAN_SUMMARY, LOAN_REPAYMENT_SCHEDULE, LOAN_REPAYMENT_DETAIL, LOAN_RECOVERY_DETAIL, LOAN_DISBURSEMENT_DETAIL, LOAN_TRANSACTION_REPAYMENT_SCHEDULE_MAPPING
+        HINT: We are only interested in data sourced from these tables:
 
-        Then, consider these two past projects to in your past project consideration step, stored in git. Get both of them by calling:
+        bronze.lending_loan_core.asset_account
+        bronze.core_accounts_service.customer_account
+        bronze.lending_loan_core.card_summary
+        bronze.lending_loan_core.billing_cycle_detail
+        bronze.lending_loan_core.billing_cycle_payment_info
+        bronze.cards_digicard_core.card
+        bronze.lending_loan_app.application
+        bronze.lending_loan_app.applicant_scoring_model_details
+        bronze.lending_cr_decision_eng.application_credit_decision
+        bronze.lending_loan_core.asset_account_parameter
+        bronze.lending_loan_core.asset_account_restriction
+
+        Then, consider this past projects to in your past project consideration step, stored in git. Get it by calling:
         1. _git_action(action='read_file',file_path='knowledge/past_projects/loan_data_project.txt')
-        2. _git_action(action='read_file',file_path='knowledge/past_projects/loan_lending_project.txt')
         Be sure to use the _git_action function, do NOT just halucinate the contents of these files.
         Make SURE that you have ready BOTH of these past project files, not just one of them.
 
-        It is important to analyze BOTH the data explorer results, and ALSO the past projects, and to discuss both in your report.
-        When discussing past projects in your report, describe their sources and transforms independently, don't say thing like 'in the same way as described above', referring to the other project, even if you have to repeat things.
+        It is important to analyze BOTH the data explorer results, and ALSO the past project, and to discuss both in your report.
+        When discussing past project in your report, describe their sources and transforms independently, don't say thing like 'in the same way as described above', referring to the other project, even if you have to repeat things.
 
         When you're done, be sure to save your detailed results in git using the _git_action function at {paths["base_git_path"]}{paths["source_research_file"]}
         Be sure to put a full copy of the contents of your research into that git location, not just a reference to "what you did above."
@@ -622,6 +663,8 @@ def perform_source_research_new(client, requirement, paths, bot_id):
     except Exception as e:
         raise e
 
+#  HINT: When past projects conflict on how to map this field, consider favoring the loan_lending_project.txt project as it is a closer analogue for this project at hand as the Primary option.
+   
 def perform_mapping_proposal_new(client, requirement, paths, bot_id):
     """Execute mapping proposal step and validate results."""
     print("\033[34mExecuting mapping proposal...\033[0m")
@@ -631,14 +674,12 @@ def perform_mapping_proposal_new(client, requirement, paths, bot_id):
     The source research bot has already run and saved its results at this git. First, read its report by calling:
     _git_action(action='read_file',file_path='{paths["base_git_path"]}{paths["source_research_file"]}')
 
-    HINT: Do NOT suggest mappings based on any of these tables, as they are related to installment loans not Cards:
-        LOAN_DATA, LOAN_SUMMARY, LOAN_REPAYMENT_SCHEDULE, LOAN_REPAYMENT_DETAIL, LOAN_RECOVERY_DETAIL, LOAN_DISBURSEMENT_DETAIL, LOAN_TRANSACTION_REPAYMENT_SCHEDULE_MAPPING
-
     Now, make a mapping proposal for this field. 
     If there are two options that both look good, label the best as Primary and the other as Secondary (in a separate section, but also with full details.)
 
-    HINT: When past projects conflict on how to map this field, consider favoring the loan_lending_project.txt project as it is a closer analogue for this project at hand as the Primary option.
-    HINT: Use COALESCE() in your mappings to handle potential null values on numerical (but not date) fields, often for numbers for example a NULL would imply a 0.
+    HINT: Do NOT suggest mappings based on any of these tables, as they are related to installment loans not Cards:
+        LOAN_DATA, LOAN_SUMMARY, LOAN_REPAYMENT_SCHEDULE, LOAN_REPAYMENT_DETAIL, LOAN_RECOVERY_DETAIL, LOAN_DISBURSEMENT_DETAIL, LOAN_TRANSACTION_REPAYMENT_SCHEDULE_MAPPING
+        **DO NOT USE LOAN_DATA AS A SOURCE FOR YOUR MAPPINGS, IT IS NOT A VALID SOURCE FOR THIS PROJECT**    HINT: Use COALESCE() in your mappings to handle potential null values on numerical (but not date) fields, often for numbers for example a NULL would imply a 0.
     
     Then save your full results at this git location using _git_action: {paths["base_git_path"]}{paths["mapping_proposal_file"]}
     Don't forget use use _git_action to save your full and complete mapping results.  Don't just put "see above" or similar as this file will be read by another bot who will not see your full completion output.
@@ -753,6 +794,15 @@ def main():
         # todo - startup speed with local bot definitions
         # todo - test startup with fresh bots not in metadata yet
         # todo - turn the o1 loop into a post review - second guesser - have it form its own mapping proposals based on review of the lower bot's chats
+
+
+        # regroup ideas
+            # run baseline without flexicard knowledge
+            # save to g-sheet with Jeff's thing
+            # reformat flexicard cheat input into 
+                # list of valid source tables (allow search metadata to be passed in a constrained list?)
+                # "actual requirements" that could help the bots know what to do
+
     """
 
     local_bots = []   # start these already-present-on-serber bots if they exist (if you're not loading/refreshing from YAMLS below) 
@@ -790,9 +840,10 @@ def main():
     # MAIN WORKFLOW
     try:
 
-        run_number = 17;
-        table_name = "genesis_gxs.requirements.flexicard_pm_jl"  # Changed from genesis_gxs.requirements.flexicard_pm
-        focus_field = 'NEXT_PAYMENT_DATE';
+        run_number = 21;
+        table_name = "genesis_gxs.requirements.flexicard_pm_jl_2"  # Changed from genesis_gxs.requirements.flexicard_pm
+      #  focus_field = 'EXPOSURE_END_DATE';
+        focus_field = None
         skip_confidence = True
 
         # Reset the requirements table before starting
@@ -802,25 +853,33 @@ def main():
             set upstream_table = null,
                 upstream_column = null, 
                 source_research = null,
-                git_source_research = null,
+                git_source_research_stage_link = null,
                 mapping_proposal = null,
-                git_mapping_proposal = null,
+                git_mapping_proposal_stage_link = null,
                 confidence_output = null,
-                git_confidence_output = null,
+                git_confidence_output_stage_link = null,
                 confidence_summary = null,
                 pm_bot_comments = null,
                 transformation_logic = null,
                 evaluation_results=null,
+                which_mapping_correct = null,
+                correct_answer = null,
+                confidence_score = null,
+                primary_issues = null,
+                secondary_issues = null,
                 status = 'NEW'
-            where physical_column_name in ( '{focus_field}');
+            where physical_column_name = '{focus_field}'
+            ;
         """
+
+       #focus_field = None
         if focus_field:
             cursor.execute(reset_sql)
 
         # get the work to do
         cursor = conn.cursor()
         if focus_field:
-            query = f"SELECT * FROM {table_name} WHERE physical_column_name = '{focus_field}'"
+            query = f'''SELECT * FROM {table_name} WHERE physical_column_name = '{focus_field}' '''
             cursor.execute(query)
         else:
             cursor.execute(f"SELECT * FROM {table_name} WHERE status = 'NEW'")
@@ -885,24 +944,28 @@ def main():
         #    )
             confidence_output_content = 'bypassed by jl comment'
             # Evaluate results
-            evaluation = evaluate_results(client, paths, filtered_requirement, pm_bot_id, source_research_content, mapping_proposal_content, confidence_output_content, summary)
-            print("\033[34mEvaluation results:", evaluation, "\033[0m")
+            evaluation, eval_json  = evaluate_results(client, paths, filtered_requirement, pm_bot_id, source_research_content, mapping_proposal_content, confidence_output_content, summary)
+          #  print("\033[34mEvaluation results:", evaluation, "\033[0m")
 
             # Prepare fields for database update
             db_fields = {
                 'upstream_table': summary['UPSTREAM_TABLE'],
                 'upstream_column': summary['UPSTREAM_COLUMN'],
                 'source_research': source_research_content,
-                'git_source_research': f"{paths['stage_base']}{paths['base_git_path']}{paths['source_research_file']}", 
+                'git_source_research_stage_link': f"{paths['stage_base']}{paths['base_git_path']}{paths['source_research_file']}", 
                 'mapping_proposal': mapping_proposal_content,
-                'git_mapping_proposal': f"{paths['stage_base']}{paths['base_git_path']}{paths['mapping_proposal_file']}",
+                'git_mapping_proposal_stage_link': f"{paths['stage_base']}{paths['base_git_path']}{paths['mapping_proposal_file']}",
                 'confidence_output': confidence_output_content,
-                'git_confidence_output': f"{paths['stage_base']}{paths['base_git_path']}{paths['confidence_report_file']}",
+                'git_confidence_output_stage_link': f"{paths['stage_base']}{paths['base_git_path']}{paths['confidence_report_file']}",
                 'confidence_score': summary['CONFIDENCE_SCORE'],
                 'confidence_summary': summary['CONFIDENCE_SUMMARY'],
                 'pm_bot_comments': summary['PM_BOT_COMMENTS'],
                 'transformation_logic': summary['TRANSFORMATION_LOGIC'],
-                'evaluation_results': evaluation
+                'evaluation_results': evaluation,
+                'which_mapping_correct': eval_json['WHICH_MAPPING_CORRECT'],
+                'correct_answer': eval_json['CORRECT_ANSWER'],
+                'primary_issues': eval_json['PRIMARY_ISSUES'],
+                'secondary_issues': eval_json['SECONDARY_ISSUES'],
             }
 
             # Save results of work to database

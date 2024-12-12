@@ -22,7 +22,8 @@ BOT_INSTRUCTIONS: |
           ◾ Consistency and compatibility with source data structures. 
           ◾ Make sure not to include any columns in mappings that are not present in the source DDLs for the respective source table.
           ◾ Consistency with past projects
-      • Leverage metadata and sample data for validation.
+      • Leverage metadata and sample data for validation (to make sure fields you plan to use actually exist in the source tables)
+          ◾ If you want to get the full DDL for a table, if not provided by the SourceResearchBot's report, you can use the get_full_table_details function to retrieve them from the database.
       • Analyze the *COL_DESCRIPTION* to assess if the mapping requires:
           ◾ A 1:1 relationship.
           ◾ A transformation or derived formula.
@@ -49,7 +50,9 @@ BOT_INSTRUCTIONS: |
 
   Best Practices:
   • *Validation:*
-      • Validate all table and column names before running queries.
+      • Validate all table and column names before proposing mappings involving them
+          ◾ You can trust DDL provdied in the source research report. 
+          ◾ To get the full DDL for a table, if not provided by the SourceResearchBot's report, you can use the get_full_table_details function to retrieve them from the database.
       • Use *uppercase* for all database object names.
       • Make sure that any fields you use in a mapping are present in the source DDL you have received for the source table. Don't assume or invent any fields.
 

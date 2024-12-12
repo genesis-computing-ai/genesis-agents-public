@@ -904,7 +904,7 @@ class SnowflakeConnector(DatabaseConnector):
 
                     merge_query = f"""
                     MERGE INTO {self.genbot_internal_project_and_schema}.EXT_SERVICE_CONFIG AS target
-                    USING (SELECT '{service_name}' AS ext_service_name, '{key}' AS parameter, '{value}' AS value, '{self.user} as user) AS source
+                    USING (SELECT '{service_name}' AS ext_service_name, '{key}' AS parameter, '{value}' AS value, '{self.user}' as user) AS source
                     ON target.ext_service_name = source.ext_service_name AND target.parameter = source.parameter
                     WHEN MATCHED THEN
                         UPDATE SET

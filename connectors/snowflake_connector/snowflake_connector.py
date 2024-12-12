@@ -3282,7 +3282,7 @@ def get_status(site):
                 bot_details = dict(zip(columns, result))
                 return bot_details
             else:
-                logger.error(f"No details found for bot_id: {bot_id}")
+                logger.info(f"No details found for bot_id: {bot_id} in {project_id}.{dataset_name}.{bot_servicing_table}")
                 return None
         except Exception as e:
             logger.exception(

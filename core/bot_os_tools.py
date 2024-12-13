@@ -1771,7 +1771,7 @@ class ToolBelt:
             return {}
 
     def manage_notebook(
-        self, action, bot_id=None, note_id=None, note_name = None, note_content=None, note_params=None, thread_id=None, note_type=None
+        self, action, bot_id=None, note_id=None, note_name = None, note_content=None, note_params=None, thread_id=None, note_type=None, note_config = None
     ):
         """
         Manages notes in the NOTEBOOK table with actions to create, delete, or update a note.
@@ -1827,7 +1827,7 @@ class ToolBelt:
 
         try:
             if action in ["UPDATE_NOTE_CONFIG", "CREATE_NOTE_CONFIG", "DELETE_NOTE_CONFIG"]:
-                note_config = '' #if action == "DELETE_NOTE_CONFIG" else note_config # FIXME JeffD
+                note_config = '' if action == "DELETE_NOTE_CONFIG" else note_config 
                 update_query = f"""
                     UPDATE {db_adapter.schema}.NOTEBOOK
                     SET NOTE_CONFIG = %(note_config)s

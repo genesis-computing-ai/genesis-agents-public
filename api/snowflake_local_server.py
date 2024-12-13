@@ -12,9 +12,9 @@ from streamlit_gui.udf_proxy_bot_os_adapter import UDFBotOsInputAdapter
 import core.global_flags as global_flags
 
 class GenesisLocalSnowflakeServer(GenesisServer):
-    def __init__(self, scope, sub_scope="app1", bot_list=None):
+    def __init__(self, scope, sub_scope="app1", bot_list=None, fast_start=False):
         super().__init__(scope, sub_scope)
-        self.set_global_flags()
+        self.set_global_flags(fast_start=fast_start)
         self.bot_id_to_udf_adapter_map: Dict[str, UDFBotOsInputAdapter] = {}
         if f"{scope}.{sub_scope}" != os.getenv("GENESIS_INTERNAL_DB_SCHEMA"):
             raise Exception(f"Scope {scope}.{sub_scope} does not match environment variable GENESIS_INTERNAL_DB_SCHEMA {os.getenv('GENESIS_INTERNAL_DB_SCHEMA')}")
@@ -65,7 +65,7 @@ class GenesisLocalSnowflakeServer(GenesisServer):
 
 
 
-    def set_global_flags(self):
+    def set_global_flags(self, fast_start=False):
         genbot_internal_project_and_schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "None")
         if genbot_internal_project_and_schema == "None":
             print("ENV Variable GENESIS_INTERNAL_DB_SCHEMA is not set.")
@@ -78,9 +78,12 @@ class GenesisLocalSnowflakeServer(GenesisServer):
         global_flags.genbot_internal_project_and_schema = genbot_internal_project_and_schema
 
         db_adapter = get_global_db_connector("Snowflake")
-        db_adapter.one_time_db_fixes()
-        db_adapter.ensure_table_exists()
-        db_adapter.create_google_sheets_creds()
+        if fast_start:
+            print("Genesis API Fast Start-Skipping Metadata Update Checks")
+        else:
+            db_adapter.one_time_db_fixes()
+            db_adapter.ensure_table_exists()
+            db_adapter.create_google_sheets_creds()
         
     def get_metadata_store(self) -> GenesisMetadataStore:
         return SnowflakeMetadataStore(self.scope, self.sub_scope)

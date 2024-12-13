@@ -828,7 +828,7 @@ def main():
     scope, sub_scope = internal_schema.split(".")
 
     client = GenesisAPI(server_type=GenesisLocalSnowflakeServer, scope=scope, sub_scope=sub_scope,
-                        bot_list=local_bots) # ["marty-l6kx7d"]
+                        bot_list=local_bots, fast_start=True) # ["marty-l6kx7d"]
 
     # if you want to see what bots are already on the server
     #bots = client.get_all_bots()

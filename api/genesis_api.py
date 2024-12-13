@@ -5,10 +5,10 @@ import re
 from api.genesis_base import GenesisBot, GenesisLocalServer, GenesisMetadataStore, GenesisProject, GenesisProcess, GenesisNote, GenesisKnowledge, GenesisServer, GenesisToolDefinition
 
 class GenesisAPI:
-    def __init__(self, scope:str, sub_scope:str="app1", bot_list=None, server_type: type = GenesisLocalServer):
+    def __init__(self, scope:str, sub_scope:str="app1", bot_list=None, server_type: type = GenesisLocalServer, fast_start=False):
         self.scope = scope
         self.sub_scope = sub_scope
-        self.registered_server: GenesisServer = server_type(scope, sub_scope, bot_list=bot_list)
+        self.registered_server: GenesisServer = server_type(scope, sub_scope, bot_list=bot_list, fast_start=fast_start)
         self.metadata_store: GenesisMetadataStore = self.registered_server.get_metadata_store()
 
     def register_bot(self, bot: GenesisBot):

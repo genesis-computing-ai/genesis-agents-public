@@ -14,7 +14,7 @@ from typing import Optional, Dict, Any
 import time, uuid
 import jsonschema
 
-from bigquery_connector import BigQueryConnector
+from connectors.bigquery_connector import BigQueryConnector
 from core import global_flags
 from core.bot_os_tools_extended import load_user_extended_tools
 from llm_openai.bot_os_openai import StreamingEventHandler
@@ -107,7 +107,7 @@ from core.bot_os_llm import BotLlmEngineEnum
 from core.logging_config import logger
 from core.bot_os_project_manager import ProjectManager
 from core.file_diff_handler import GitFileManager
-from snowflake_connector.snowflake_connector import SnowflakeConnector
+from connectors.snowflake_connector.snowflake_connector import SnowflakeConnector
 
 genesis_source = os.getenv("GENESIS_SOURCE", default="Snowflake")
 

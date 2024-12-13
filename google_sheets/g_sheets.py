@@ -48,7 +48,7 @@ SCOPES = [
 def save_text_to_google_folder(
     self, shared_folder_id, file_name, text = "No text in file", creds=None
 ):
-    if not text:
+    if not text or isinstance(text, dict):
         text = "No text received in save_text_to_google_folder."
 
     if not creds:

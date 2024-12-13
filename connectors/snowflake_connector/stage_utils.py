@@ -145,8 +145,8 @@ def read_file_from_stage(
             os.makedirs(target_dir)
 
         cursor = self.client.cursor()
-        query = f"call {database}.core.run_arbitrary($$ grant read,write on stage {database}.{schema}.{stage} to application role app_public $$);"
-        cursor.execute(query)
+        # query = f"call {database}.core.run_arbitrary($$ grant read,write on stage {database}.{schema}.{stage} to application role app_public $$);"
+        # cursor.execute(query)
         # ret = cursor.fetchall()
 
         # Modify the GET command to include the local file path

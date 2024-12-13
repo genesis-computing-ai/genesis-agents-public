@@ -3,8 +3,7 @@ import re
 import logging
 from typing import Any
 from datetime import datetime
-
-logger = logging.getLogger(__name__)
+from core.logging_config import logger
 
 class SQLiteAdapter:
     """Adapts Snowflake-style operations to work with SQLite"""

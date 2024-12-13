@@ -37,7 +37,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.backends import default_backend
 import jwt
 
-from core.logging_config import logging, logger
+from core.logging_config import logger
 
 from snowflake.connector import SnowflakeConnection
 

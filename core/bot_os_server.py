@@ -93,61 +93,60 @@ class BotOsServer:
             else:
                 logger.info('Slack refresh token failed, token is None')
 
+
     def make_baby_bot_wrapper(self, bot_id, bot_name, bot_implementation, files, available_tools, bot_instructions):
-        try:
-            # Handle string representation of list
-            if isinstance(available_tools, str) and available_tools.startswith('['):
-                # Remove brackets and quotes, then split
-                available_tools = available_tools.strip('[]').replace('"', '').replace("'", '').split(',')
 
-            if isinstance(available_tools, list):
-                available_tools = ','.join(tool.strip() for tool in available_tools)
+        # Handle string representation of list
+        if isinstance(available_tools, str) and available_tools.startswith('['):
+            # Remove brackets and quotes, then split
+            available_tools = available_tools.strip('[]').replace('"', '').replace("'", '').split(',')
 
-            bot_details = get_bot_details(bot_id)
-            update_existing = True if bot_details else False
+        if isinstance(available_tools, list):
+            available_tools = ','.join(tool.strip() for tool in available_tools)
 
-
-            make_baby_bot(
-                    bot_id=bot_id,
-                    bot_name=bot_name,
-                    bot_implementation=bot_implementation,
-                    files=files,
-                    available_tools=available_tools,
-                    bot_instructions=bot_instructions,
-                    confirmed='CONFIRMED',
-                    update_existing=update_existing,
-                    api_bot_update=update_existing
-                )
-
-            bot_config = get_bot_details(bot_id)
-
-            new_session, api_app_id, udf_local_adapter, slack_adapter_local = make_session(
-                    bot_config=bot_config,
-                    db_adapter=self.db_adapter,
-                    bot_id_to_udf_adapter_map=self.bot_id_to_udf_adapter_map,
-                    stream_mode=True,
-                    data_cubes_ingress_url=self.data_cubes_ingress_url,
-                    existing_slack=None,
-                    existing_udf=None
-                )
-            # check new_session
-            if new_session is None:
-                logger.info("new_session is none")
-                return "Error: Not Installed new session is none"
-            if slack_adapter_local is not None and self.bot_id_to_slack_adapter_map is not None:
-                self.bot_id_to_slack_adapter_map[bot_config["bot_id"]] = (
-                    slack_adapter_local
-                )
-            if udf_local_adapter is not None:
-                self.bot_id_to_udf_adapter_map[bot_config["bot_id"]] = udf_local_adapter
-            self.api_app_id_to_session_map[api_app_id] = new_session
-            #    logger.info("about to add session ",new_session)
-            self.add_session(new_session, replace_existing=True)
+        bot_details = get_bot_details(bot_id)
+        update_existing = True if bot_details else False
 
 
-        except Exception as e:
-            logger.error(f"Error in make_baby_bot_wrapper: {e}")
-            return None
+        retval = make_baby_bot(
+                bot_id=bot_id,
+                bot_name=bot_name,
+                bot_implementation=bot_implementation,
+                files=files,
+                available_tools=available_tools,
+                bot_instructions=bot_instructions,
+                confirmed='CONFIRMED',
+                update_existing=update_existing,
+                api_bot_update=update_existing
+            )
+        if not retval['success']:
+            raise ValueError(retval.get('error', "Error unknown"))
+
+        bot_config = get_bot_details(bot_id)
+
+        new_session, api_app_id, udf_local_adapter, slack_adapter_local = make_session(
+                bot_config=bot_config,
+                db_adapter=self.db_adapter,
+                bot_id_to_udf_adapter_map=self.bot_id_to_udf_adapter_map,
+                stream_mode=True,
+                data_cubes_ingress_url=self.data_cubes_ingress_url,
+                existing_slack=None,
+                existing_udf=None
+            )
+        # check new_session
+        if new_session is None:
+            logger.info("new_session is none")
+            raise ValueError(f"Failed to start a new session for {bot_id=}")
+
+        if slack_adapter_local is not None and self.bot_id_to_slack_adapter_map is not None:
+            self.bot_id_to_slack_adapter_map[bot_config["bot_id"]] = (
+                slack_adapter_local
+            )
+        if udf_local_adapter is not None:
+            self.bot_id_to_udf_adapter_map[bot_config["bot_id"]] = udf_local_adapter
+        self.api_app_id_to_session_map[api_app_id] = new_session
+        #    logger.info("about to add session ",new_session)
+        self.add_session(new_session, replace_existing=True)
 
 
     def add_session(self, session: BotOsSession, replace_existing=False):

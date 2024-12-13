@@ -3,7 +3,7 @@ from flask import Blueprint
 from core.logging_config import logger
 from flask import request, jsonify, make_response
 from bot_genesis.make_baby_bot import get_bot_details
-from demo.config import get_global_db_connector, sessions
+from demo.config import sessions
 from demo.config import db_adapter, global_flags, scheduler
 from demo.config import bot_id_to_udf_adapter_map, server
 from demo.config import llm_api_key_struct, api_app_id_to_session_map, ngrok_active

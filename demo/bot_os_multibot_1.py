@@ -17,8 +17,7 @@ app_https.register_blueprint(auth_routes)
 
 SERVICE_HOST = os.getenv("SERVER_HOST", "0.0.0.0")
 
-scheduler.start()
-
 if __name__ == "__main__":
+    scheduler.start()
     app.run(host=SERVICE_HOST, port=8080, debug=False, use_reloader=False)
     app_https.run(host=SERVICE_HOST, port=8082, ssl_context='adhoc', debug=False, use_reloader=False)

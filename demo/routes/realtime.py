@@ -2,8 +2,7 @@ import os
 from flask import Blueprint
 from core.logging_config import logger
 from flask import request, jsonify
-from bot_genesis.make_baby_bot import get_bot_details
-from demo.config import get_global_db_connector, sessions, project_id, dataset_name
+from demo.config import sessions, project_id, dataset_name
 from demo.config import db_adapter
 import json
 

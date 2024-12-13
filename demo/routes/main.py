@@ -1,7 +1,7 @@
 import os
 from flask import Blueprint
 from core.logging_config import logger
-from flask import request, jsonify, make_response
+from flask import request, make_response
 
 main_routes = Blueprint('main_routes', __name__)
 

@@ -4,7 +4,7 @@ from core.logging_config import logger
 from flask import request, jsonify
 import requests
 from bot_genesis.make_baby_bot import get_bot_details, update_bot_details
-from demo.sessions_creator import create_sessions, make_session
+from demo.sessions_creator import make_session
 from demo.config import bot_id_to_udf_adapter_map, api_app_id_to_session_map
 from demo.config import db_adapter, server
 from core.system_variables import SystemVariables

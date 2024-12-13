@@ -165,7 +165,7 @@ class GenesisLocalSnowflakeServer(GenesisServer):
                 f.write(contents)
 
             # Put file to stage
-            put_cmd = f"PUT file://./tmp/{file_name} {file_path};"
+            put_cmd = f"PUT file://./tmp/{file_name} {file_path} AUTO_COMPRESS=FALSE;"
             cursor.execute(put_cmd)
 
             return True

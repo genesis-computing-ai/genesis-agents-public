@@ -19,7 +19,9 @@ from core.bot_os_input import BotOsInputMessage
 from core.bot_os_memory import BotOsKnowledgeAnnoy_Metadata
 from core.bot_os_server import BotOsServer
 from apscheduler.schedulers.background import BackgroundScheduler
-from connectors import get_global_db_connector
+# from connectors import get_global_db_connector
+from connectors.snowflake_connector.snowflake_connector import SnowflakeConnector
+from connectors.sqlite_connector import SqliteConnector
 from core.bot_os_tools import get_tools, ToolBelt
 from slack.slack_bot_os_adapter import SlackBotAdapter
 from bot_genesis.make_baby_bot import (
@@ -61,7 +63,7 @@ os.environ['TASK_MODE'] = 'true'
 os.environ['SHOW_COST'] = 'false'
 ########################################
 
-logger.info("****** GENBOT VERSION 0.202 *******")
+logger.info("****** GENBOT VERSION 0.300 *******")
 logger.info("****** TASK AUTOMATION SERVER *******")
 runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
 logger.info("Runner ID: ", runner_id)
@@ -89,17 +91,21 @@ dataset_name = db_schema[1]
 global_flags.project_id = project_id
 global_flags.genbot_internal_project_and_schema = genbot_internal_project_and_schema
 
-
-# new stuff for db
-db_adapter = get_global_db_connector()
+genesis_source = os.getenv('GENESIS_SOURCE', default="Snowflake")
+if genesis_source ==  'Sqlite':
+    db_adapter = SqliteConnector(connection_name='Sqlite')
+elif genesis_source == 'Snowflake':
+    db_adapter = SnowflakeConnector(connection_name='Snowflake')
+else:
+    raise ValueError('Invalid Source')
+# db_adapter = get_global_db_connector()
 
 if not os.getenv("TEST_TASK_MODE", "false").lower() == "true":
     db_adapter.ensure_table_exists()
 
-tool_belt = ToolBelt(db_adapter)
+tool_belt = ToolBelt()
 
 def insert_task_history(
-        self,
         task_id,
         work_done_summary,
         task_status,
@@ -123,7 +129,7 @@ def insert_task_history(
             task_clarity_comments (str): Comments on the clarity of the task.
         """
         insert_query = f"""
-            INSERT INTO {self.schema}.TASK_HISTORY (
+            INSERT INTO {db_adapter.schema}.TASK_HISTORY (
                 task_id, work_done_summary, task_status, updated_task_learnings,
                 report_message, done_flag, needs_help_flag, task_clarity_comments
             ) VALUES (
@@ -132,7 +138,7 @@ def insert_task_history(
         """
         cursor = None
         try:
-            cursor = self.client.cursor()
+            cursor = db_adapter.client.cursor()
             cursor.execute(
                 insert_query,
                 (
@@ -146,7 +152,7 @@ def insert_task_history(
                     task_clarity_comments,
                 ),
             )
-            self.client.commit()
+            db_adapter.client.commit()
             cursor.close()
             logger.info(f"Task history row inserted successfully for task_id: {task_id}")
         except Exception as e:

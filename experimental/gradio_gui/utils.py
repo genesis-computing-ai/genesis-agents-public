@@ -13,6 +13,7 @@ NativeMode = True
 
 def get_session():
     global NativeMode
+    print("NativeMode: ", NativeMode)
     if NativeMode:
         try:
             from snowflake.snowpark.context import get_active_session

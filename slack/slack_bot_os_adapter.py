@@ -79,6 +79,10 @@ class SlackBotAdapter(BotOsInputAdapter):
         self.finalized_threads = {}
         self.split_at = 3700  # use 3700 normally
         self.legacy_sessions = legacy_sessions
+        self.slack_thread = None # initialized later
+        self.slack_thread_shutdown_event = None # # initialized later
+        self.slack_socket_mode_handler = None # initialized later
+
 
         # Supress/summarize certain repeated connection error logs that are polluting the logs in the native app. See Issue #114.
         for msg_re_to_suppress in [r"Failed to establish a connection", r"on_error invoked \(session id"]:
@@ -185,12 +189,31 @@ class SlackBotAdapter(BotOsInputAdapter):
                     self.events.append(event)
 
             def run_slack_app():
-                handler = SocketModeHandler(self.slack_socket, slack_app_level_token)
-                handler.start()
+                # runs the event loop and blocks on an event. This emulates the .start() method
+                self.slack_socket_mode_handler.connect()
+                self.slack_thread_shutdown_event.wait()
+
 
             # Run Slack app in a separate thread
-            slack_thread = threading.Thread(target=run_slack_app)
-            slack_thread.start()
+            self.slack_socket_mode_handler = SocketModeHandler(self.slack_socket, slack_app_level_token)
+            self.slack_thread = threading.Thread(target=run_slack_app)
+            self.slack_thread_shutdown_event = threading.Event() # used for signalling the thread to terminate
+            self.slack_thread.start()
+
+
+    def shutdown(self):
+        """
+        Attempts to shut down the SlackBotAdapter by closing the Slack socket mode handler
+        and terminating the dedicated thread
+        """
+        if self.slack_socket_mode_handler:
+            self.slack_socket_mode_handler.close()
+        self.slack_thread_shutdown_event.set() # thread should exit now.
+        if self.slack_thread and self.slack_thread.is_alive():
+            timeout = 1 # 1sec
+            self.slack_thread.join(timeout=timeout)  # Wait for the thread to finish gracefully
+            if self.slack_thread.is_alive():
+                logger.warn(f"Unable to gracefully shut down Slack handler thread for {self.__class__.__name__} for bot name {self.bot_name} ({timeout=})")
 
 
     @functools.cached_property

@@ -24,10 +24,10 @@ from .stage_utils import add_file_to_stage, read_file_from_stage, update_file_in
 from .ensure_table_exists import ensure_table_exists, one_time_db_fixes, get_process_info, get_processes_list
 
 from google_sheets.g_sheets import (
-    output_to_google_docs,
-    create_g_drive_folder,
+    export_to_google_docs,
+    create_google_sheet,
     create_folder_in_folder,
-    upload_file_to_folder,
+    # upload_file_to_folder,
 )
 
 from core.bot_os_llm import BotLlmEngineEnum
@@ -904,7 +904,7 @@ class SnowflakeConnector(DatabaseConnector):
 
                     merge_query = f"""
                     MERGE INTO {self.genbot_internal_project_and_schema}.EXT_SERVICE_CONFIG AS target
-                    USING (SELECT '{service_name}' AS ext_service_name, '{key}' AS parameter, '{value}' AS value) AS source
+                    USING (SELECT '{service_name}' AS ext_service_name, '{key}' AS parameter, '{value}' AS value, '{self.user}' as user) AS source
                     ON target.ext_service_name = source.ext_service_name AND target.parameter = source.parameter
                     WHEN MATCHED THEN
                         UPDATE SET
@@ -929,7 +929,7 @@ class SnowflakeConnector(DatabaseConnector):
             return {"Success": False, "Data": err}
 
     def create_google_sheets_creds(self):
-        query = f"SELECT parameter, value FROM {self.schema}.EXT_SERVICE_CONFIG WHERE ext_service_name = 'g-sheets';"
+        query = f"SELECT parameter, value FROM {self.schema}.EXT_SERVICE_CONFIG WHERE ext_service_name = 'g-sheets' and user='{self.user}';"
         cursor = self.client.cursor()
         cursor.execute(query)
         rows = cursor.fetchall()
@@ -940,7 +940,7 @@ class SnowflakeConnector(DatabaseConnector):
         creds_dict = {row[0]: row[1] for row in rows if row[0].casefold() != "shared_folder_id"}
 
         creds_json = json.dumps(creds_dict, indent=4)
-        with open('genesis-workspace-project-d094fd7d2562.json', 'w') as json_file:
+        with open(f'g-workspace-{self.user}.json', 'w') as json_file:
             json_file.write(creds_json)
         return True
 
@@ -993,7 +993,7 @@ class SnowflakeConnector(DatabaseConnector):
 
     def eai_test(self, site):
         try:
-            azure_endpoint = "https://example.com"
+
             eai_list_query = f"""CALL CORE.GET_EAI_LIST('{self.schema}')"""
             cursor = self.client.cursor()
             cursor.execute(eai_list_query)
@@ -1010,6 +1010,8 @@ class SnowflakeConnector(DatabaseConnector):
                     cursor = self.client.cursor()
                     cursor.execute(azure_query)
                     azure_endpoint = cursor.fetchone()
+                    if azure_endpoint is None or azure_endpoint == '':
+                        azure_endpoint = "https://example.com"
 
                 create_function_query = f"""
 CREATE OR REPLACE FUNCTION {self.project_id}.CORE.CHECK_URL_STATUS(site string)
@@ -1036,7 +1038,7 @@ def get_status(site):
     elif site == 'jira':
         url = "https://www.atlassian.net/jira/your-work"  # Replace with the allowed URL
     elif site == 'azureopenai':
-        url = {azure_endpoint}  # Replace with the allowed URL
+        url = "{azure_endpoint}"  # Replace with the allowed URL
     else:
         # TODO allow custom endpoints to be tested
         return f"Invalid site: {{site}}"
@@ -2135,7 +2137,7 @@ def get_status(site):
         note_name = None,
         note_type = None,
         max_field_size = 5000,
-        export_to_google_doc = False,
+        export_to_google_sheet = False,
     ):
         """
         Executes a SQL query on Snowflake, with support for parameterized queries.
@@ -2339,11 +2341,11 @@ def get_status(site):
 
         def get_root_folder_id():
             cursor = self.connection.cursor()
-            cursor.execute(
-                f"call genesis_bots_alpha.core.run_arbitrary($$ grant read,write on stage genesis_bots_alpha.app1.bot_git to application role app_public $$);"
-            )
+            # cursor.execute(
+            #     f"call core.run_arbitrary($$ grant read,write on stage app1.bot_git to application role app_public $$);"
+            # )
 
-            query = f"SELECT value from {self.schema}.EXT_SERVICE_CONFIG WHERE ext_service_name = 'g-sheets' AND parameter = 'shared_folder_id'"
+            query = f"SELECT value from {self.schema}.EXT_SERVICE_CONFIG WHERE ext_service_name = 'g-sheets' AND parameter = 'shared_folder_id' and user = '{self.user}'"
             cursor.execute(query)
             row = cursor.fetchone()
             cursor.close()
@@ -2352,64 +2354,74 @@ def get_status(site):
             else:
                 raise Exception("Missing shared folder ID")
 
-        root_folder_id = get_root_folder_id()
-        root_folder_id = "1t0RJsOSgwksy2IH-pQtMbGVgrIaBI_-Y"
+        # if query.casefold() == 'SELECT * FROM "GENESIS_GXS"."REQUIREMENTS"."FLEXICARD_PM";'.casefold():
 
-        if query.casefold() == 'SELECT * FROM "GENESIS_GXS"."REQUIREMENTS"."FLEXICARD_PM";'.casefold():
+        #     root_folder_id = get_root_folder_id()
+        #     # root_folder_id = "1t0RJsOSgwksy2IH-pQtMbGVgrIaBI_-Y"
+
+        #     from datetime import datetime
+
+        #     print(f"Root Folder ID: {root_folder_id}")
+
+        #     timestamp = datetime.now().strftime("%m%d%Y_%H:%M:%S")
+        #     parent_folder_id = create_folder_in_folder(
+        #         "gxs_" + timestamp, root_folder_id, self.user
+        #     )
+
+        #     subfolder_id = {}
+        #     for key in ['GIT_SOURCE_RESEARCH', 'GIT_MAPPING_PROPOSAL', 'GIT_CONFIDENCE_OUTPUT']:
+        #         subfolder_id[key] = create_folder_in_folder(key, parent_folder_id, self.user)
+
+        #     links = {}
+        #     sheets_data = [sample_data[0].keys()]
+        #     for data in sample_data:
+        #         print(data['GIT_SOURCE_RESEARCH'], data ['GIT_MAPPING_PROPOSAL'], data['GIT_CONFIDENCE_OUTPUT'])
+
+        #         for key in ['GIT_SOURCE_RESEARCH', 'GIT_MAPPING_PROPOSAL', 'GIT_CONFIDENCE_OUTPUT']:
+        #             file_contents = read_file_from_stage(
+        #                 self,
+        #                 "GENESIS_BOTS_ALPHA",
+        #                 "APP1",
+        #                 "BOT_GIT",
+        #                 data[key].replace("@genesis_bots_alpha.app1.bot_git/", ""),
+        #                 return_file_path=True,
+        #             )
+
+        #             file_name = data[key].replace(
+        #                 "@genesis_bots_alpha.app1.bot_git/", ""
+        #             ).split("/")[-1]
+
+        #             # create text docs in sub-folder
+        #             links[key] = export_to_google_sheets(file_contents, subfolder_id[key], file_name, self.name)
+
+
+
+        #         # write text docs ID's back to table
+        #         cursor = self.connection.cursor()
+        #         query = f"""
+        #             UPDATE "GENESIS_GXS"."REQUIREMENTS"."FLEXICARD_PM"
+        #             SET
+        #             GIT_SOURCE_RESEARCH_DOC_LINK = '{links["GIT_SOURCE_RESEARCH"]}',
+        #             GIT_MAPPING_PROPOSAL_DOC_LINK = '{links["GIT_MAPPING_PROPOSAL"]}',
+        #             GIT_CONFIDENCE_OUTPUT_DOC_LINK = '{links["GIT_CONFIDENCE_OUTPUT"]}'
+        #             WHERE
+        #             PHYSICAL_COLUMN_NAME = '{data['PHYSICAL_COLUMN_NAME']}'
+        #         """
+        #         result = cursor.execute(query)
+        #         cursor.close()
+
+        if export_to_google_sheet:
             from datetime import datetime
+
+            shared_folder_id = get_root_folder_id()
             timestamp = datetime.now().strftime("%m%d%Y_%H:%M:%S")
-            parent_folder_id = create_folder_in_folder(
-                "gxs_" + timestamp, root_folder_id
-            )
 
-            subfolder_id = {}
-            for key in ['GIT_SOURCE_RESEARCH', 'GIT_MAPPING_PROPOSAL', 'GIT_CONFIDENCE_OUTPUT']:
-                subfolder_id[key] = create_folder_in_folder(key, parent_folder_id)
+            result = create_google_sheet(self, shared_folder_id['result'], f"Genesis Table Output {timestamp}", sample_data )
 
-            links = {}
-            for data in sample_data:
-                print(data['GIT_SOURCE_RESEARCH'], data ['GIT_MAPPING_PROPOSAL'], data['GIT_CONFIDENCE_OUTPUT'])
-
-                for key in ['GIT_SOURCE_RESEARCH', 'GIT_MAPPING_PROPOSAL', 'GIT_CONFIDENCE_OUTPUT']:
-                    file_contents = read_file_from_stage(
-                        self,
-                        "GENESIS_BOTS_ALPHA",
-                        "APP1",
-                        "BOT_GIT",
-                        data[key].replace("@genesis_bots_alpha.app1.bot_git/", ""),
-                        return_file_path=True,
-                    )
-
-                    file_name = data[key].replace(
-                        "@genesis_bots_alpha.app1.bot_git/", ""
-                    ).split("/")[-1]
-
-                    # create text docs in sub-folder
-                    links[key] = output_to_google_docs(file_contents, subfolder_id[key], file_name)
-
-                # write text docs ID's back to table
-                cursor = self.connection.cursor()
-                query = f"""
-                    UPDATE "GENESIS_GXS"."REQUIREMENTS"."FLEXICARD_PM" 
-                    SET
-                    GIT_SOURCE_RESEARCH_DOC_LINK = '{links["GIT_SOURCE_RESEARCH"]}',
-                    GIT_MAPPING_PROPOSAL_DOC_LINK = '{links["GIT_MAPPING_PROPOSAL"]}',
-                    GIT_CONFIDENCE_OUTPUT_DOC_LINK = '{links["GIT_CONFIDENCE_OUTPUT"]}'
-                    WHERE 
-                    PHYSICAL_COLUMN_NAME = '{data['PHYSICAL_COLUMN_NAME']}'
-                """
-                result = cursor.execute(query)
-                cursor.close()
-
-        elif export_to_google_doc:
-            cursor = self.connection.cursor()
-            query = f"SELECT value from {self.schema}.EXT_SERVICE_CONFIG WHERE ext_service_name = 'g-sheets' AND parameter = 'shared_key_id'"
-            cursor.execute(query)
-            shared_key_id = cursor.fetchone()[0]
-
-            print_string = dict_list_to_markdown_table(sample_data)
-            filename, link = output_to_google_docs(print_string, shared_key_id)
-            return {"Success": True, "result": "Data sent to Google Docs - Filename: " + filename}
+            return {
+                "Success": True,
+                "result": "Data sent to Google Sheets - Link: " + result["webViewLink"],
+            }
 
         return sample_data
 
@@ -3270,7 +3282,7 @@ def get_status(site):
                 bot_details = dict(zip(columns, result))
                 return bot_details
             else:
-                logger.error(f"No details found for bot_id: {bot_id}")
+                logger.info(f"No details found for bot_id: {bot_id} in {project_id}.{dataset_name}.{bot_servicing_table}")
                 return None
         except Exception as e:
             logger.exception(

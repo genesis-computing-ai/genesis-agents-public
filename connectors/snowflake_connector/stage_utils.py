@@ -112,7 +112,6 @@ def read_file_from_stage(
     stage: str,
     file_name: str,
     return_contents: bool = True,
-    return_file_path: bool = False,
     is_binary: bool = False,
     for_bot=None,
     thread_id=None
@@ -146,12 +145,12 @@ def read_file_from_stage(
             os.makedirs(target_dir)
 
         cursor = self.client.cursor()
-        query = f"call {database}.core.run_arbitrary($$ grant read,write on stage {database}.{schema}.{stage} to application role app_public $$);"
-        cursor.execute(query)
+        # query = f"call {database}.core.run_arbitrary($$ grant read,write on stage {database}.{schema}.{stage} to application role app_public $$);"
+        # cursor.execute(query)
         # ret = cursor.fetchall()
 
         # Modify the GET command to include the local file path
-        query = f'GET @"{database}"."{schema}"."{stage}"/{file_name} file://{local_dir}'
+        query = f'GET @{database}.{schema}.{stage}/{file_name} file://{local_dir}'
         cursor.execute(query)
         ret = cursor.fetchall()
         cursor.close()
@@ -176,7 +175,7 @@ def read_file_from_stage(
                     with open(local_file_path, "r") as file:
                         return file.read()
             else:
-                return None
+                return local_file_path
         # else:
                 return None
     except Exception as e:

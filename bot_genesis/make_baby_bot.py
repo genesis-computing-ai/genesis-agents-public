@@ -1,15 +1,19 @@
 # make_baby_bot.py
 
-import os, json, requests, uuid
-from connectors import get_global_db_connector
-from connectors.database_connector import llm_keys_and_types_struct
+import json
+import os
+import requests
+import uuid
 
-from google.cloud import bigquery
 import threading
+from   typing                   import Mapping
 
-from core.bot_os_corpus import URLListFileCorpus
+from   connectors               import get_global_db_connector
+from   connectors.database_connector \
+                                import llm_keys_and_types_struct
+from   core.logging_config      import logger
 
-from core.logging_config import logger
+
 
 
 genbot_internal_project_and_schema = os.getenv('GENESIS_INTERNAL_DB_SCHEMA','None')
@@ -995,9 +999,56 @@ def add_or_update_available_tool(tool_name, tool_description):
     bb_db_connector = get_global_db_connector()
     return bb_db_connector.db_add_or_update_available_tool(tool_name=tool_name, tool_description=tool_description, project_id=project_id, dataset_name=dataset_name)
 
-def make_baby_bot(bot_id, bot_name, bot_instructions='You are a helpful bot.', available_tools=None, runner_id=None, slack_channel_id=None, confirmed=None, activate_slack='Y',
-                  files = "", bot_implementation = "openai",
-                  update_existing=False, slack_access_open = True, api_bot_update = False ):
+def make_baby_bot(
+    bot_id: str,
+    bot_name: str,
+    bot_instructions: str = 'You are a helpful bot.',
+    available_tools: str = None,
+    runner_id: str = None,
+    slack_channel_id: str = None,
+    confirmed: str = None,
+    activate_slack: str = 'Y',
+    files: str = "",
+    bot_implementation: str = "openai",
+    update_existing: bool = False,
+    slack_access_open: bool = True,
+    api_bot_update: bool = False
+    ) -> Mapping[str, str]:
+    """
+    Creates or updates a bot with the provided parameters.
+
+    Args:
+        bot_id (str): The unique identifier for the bot.
+        bot_name (str): The name of the bot.
+        bot_instructions (str, optional): Instructions for the bot's behavior. Defaults to 'You are a helpful bot.'.
+        available_tools (str, optional): Comma-separated list of tools available to the bot. Defaults to None.
+        runner_id (str, optional): Identifier for the server where the bot will run. Defaults to None.
+        slack_channel_id (str, optional): Slack channel ID for bot communication. Defaults to None.
+        confirmed (str, optional): Confirmation status for bot creation. Defaults to None.
+        activate_slack (str, optional): Whether to activate the bot on Slack ('Y' or 'N'). Defaults to 'Y'.
+        files (str, optional): Comma-separated list of file IDs available to the bot. Defaults to "".
+        bot_implementation (str, optional): The implementation type of the bot (e.g., "openai"). Defaults to "openai".
+        update_existing (bool, optional): Whether to update an existing bot. Defaults to False.
+        slack_access_open (bool, optional): Whether Slack access is open to all users. Defaults to True.
+        api_bot_update (bool, optional): Whether the bot update is via API. Defaults to False.
+
+    Returns:
+        dict: A dictionary indicating the success or failure of the bot creation or update process.
+    """
+
+    def _make_retval(status : bool, success_msg:str = None, error_msg: str = None, extra: Mapping =None):
+        success = bool(status)
+        retval = dict(success=success)
+        if success:
+            assert success_msg and not error_msg
+            retval['message'] = success_msg
+        else:
+            assert not success_msg and error_msg
+            retval['error'] = error_msg
+        # Merge any additional keyword arguments into the return value
+        if extra:
+            retval.update(extra)
+        return retval
 
     bot_implementation = bot_implementation.lower()
 
@@ -1011,8 +1062,10 @@ def make_baby_bot(bot_id, bot_name, bot_instructions='You are a helpful bot.', a
     if isinstance(files, str):
         files = files.split(',') if files else []
 
-    if available_tools == []:
+    if not available_tools:
         available_tools = None
+    else:
+        available_tools = available_tools.strip().rstrip(",")
 
     # Remove any special characters from bot_id except - A-Z and 0-9
     bot_id = ''.join(char for char in bot_id if char.isalnum() or char == '-')
@@ -1022,21 +1075,22 @@ def make_baby_bot(bot_id, bot_name, bot_instructions='You are a helpful bot.', a
 
         v = validate_potential_files(new_file_ids=files)
         if v.get("success",False) == False:
-            return v
+            return _make_retval(False, error_msg=v.get("error"))
 
         if api_bot_update or not update_existing:
             available_tools_array = available_tools.split(',') if available_tools else []
+            available_tools_array = [tool for tool in available_tools_array if tool] # remove empty string
 
             # Validate the formatting and parsing of available_tools
             parsed_tools_str = ','.join(available_tools_array)
             if not (parsed_tools_str == '' and available_tools == None):
                 if parsed_tools_str != available_tools:
-                    return(f"Tool call error: Available tools was not properly formatted, it should be either the name of a single tool like 'tool1' or a simple list of tools like 'tool1,tool2'")
+                    return _make_retval(False, error_msg="Tool call error: Available tools was not properly formatted, it should be either the name of a single tool like 'tool1' or a simple list of tools like 'tool1,tool2'")
 
                 # Check for leading or trailing whitespace in the available tools
                 for tool in available_tools_array:
                     if tool != tool.strip():
-                        return ValueError(f"Tool call error: Tool '{tool}' has leading or trailing whitespace in available_tools. Please remove any extra spaces from your list.")
+                        return _make_retval(False, error_msg=f"Tool call error: Tool '{tool}' has leading or trailing whitespace in available_tools. Please remove any extra spaces from your list.")
 
                 # Retrieve the list of available tools from the database
                 db_available_tools = get_available_tools()
@@ -1046,7 +1100,7 @@ def make_baby_bot(bot_id, bot_name, bot_instructions='You are a helpful bot.', a
                 if not all(tool in db_tool_names for tool in available_tools_array):
                     invalid_tools = [tool for tool in available_tools_array if tool not in db_tool_names]
                     error_message = f"Tool call error: The following tools you included in available_tools are not available or invalid: {', '.join(invalid_tools)}.  The tools you can include in available_tools are: {db_available_tools}.  The available_tools parameter should be either a single tool like 'tool1' or a simple list of tools like 'tool1,tool2' (with no single quotes in the actual paramater string you send)"
-                    return(error_message)
+                    return _make_retval(False, error_msg=error_message)
 
             if not api_bot_update:
                 # Check if a bot with the same name already exists
@@ -1054,7 +1108,8 @@ def make_baby_bot(bot_id, bot_name, bot_instructions='You are a helpful bot.', a
                 for existing_bot in existing_bots:
                     if existing_bot['bot_name'].lower() == bot_name.lower():
                         error_message = f"A bot with the name '{bot_name}' already exists with bot_id '{existing_bot['bot_id']}'. Please choose a different name to avoid confusion."
-                        return {"success": False, "error": error_message}
+                        print(error_message)
+                        return _make_retval(False, error_msg=error_message)
 
             confirm=False
             if confirmed is not None:
@@ -1081,7 +1136,7 @@ def make_baby_bot(bot_id, bot_name, bot_instructions='You are a helpful bot.', a
                 if activate_slack == 'Y' and slack_access_open == False:
                     conf += f'When deployed to slack, no users will initially have access to the bot via slack until explicitly granted using _modify_slack_allow_list\n'
                 conf += "Please make sure you have validated all this with the user.  If you've already validated with the user, and ready to make the Bot, call this function again with the parameter confirmed=CONFIRMED"
-                return(conf)
+                return _make_retval(False, error_msg=conf)
 
             bot_avatar_image = get_default_avatar()
 
@@ -1138,7 +1193,7 @@ def make_baby_bot(bot_id, bot_name, bot_instructions='You are a helpful bot.', a
                     bot_create_result = create_slack_bot_with_manifest(slack_app_config_token,manifest)
                 except Exception as e:
                     logger.warn(f'Error on creating slackbot: {e}, Manifest: {manifest}')
-                    return {"success": False, "message": f'Error on creating slackbot: {e}'}
+                    return _make_retval(False, error_msg=f'Error on creating slackbot: {e}')
 
                 app_id = bot_create_result.get('app_id')
                 credentials = bot_create_result.get('credentials')
@@ -1231,19 +1286,27 @@ def make_baby_bot(bot_id, bot_name, bot_instructions='You are a helpful bot.', a
     #    logger.info(oauth_authorize_url)
         if not api_bot_update and slack_active == 'Y':
         #    logger.info("temp_debug: create success ", bot_id, bot_name)
-            return {"success": True,
-                    "Success": True,
-                    "message": f"Created {bot_id} named {bot_name}. To complete the setup on Slack for this bot, tell the user there are two more steps, first is to go to: https://api.slack.com/apps/{app_id}/general Ask them to scroll to App Level Tokens, add a token called 'app_token' with scope 'connections-write', and provide the results back to this bot.  Then you, the bot, should call the update_app_level_key function to update the backend.  Once you and the user do that, I will give you an AUTH_URL for the user to click as the second step to complete the installation.",
-                    "important note for the user": "Remind the user that this bot will be initially set to allow any user on the users Slack to talk to it.  You can use _modify_slack_allow_list function on behalf of the user to change the access to limit it to only select users once the bot has been activated on Slack."
-                    }
+            return _make_retval(
+                True,
+                success_msg=(
+                    f"Created {bot_id} named {bot_name}. To complete the setup on Slack for this bot, tell the user there are two more steps, first is to "
+                    f"go to: https://api.slack.com/apps/{app_id}/general Ask them to scroll to App Level Tokens, add a token called 'app_token' with scope "
+                    f"'connections-write', and provide the results back to this bot. Then you, the bot, should call the update_app_level_key function to update "
+                    f"the backend. Once you and the user do that, I will give you an AUTH_URL for the user to click as the second step to complete the installation."
+                ),
+                extra={"important note for the user": (
+                        "Remind the user that this bot will be initially set to allow any user on the users Slack to talk to it. You can use "
+                        "_modify_slack_allow_list function on behalf of the user to change the access to limit it to only select users once the bot has been "
+                        "activated on Slack.")}
+            )
 
         else:
-            return {"success": True, "message": f"Created {bot_id} named {bot_name}.  Tell the user that they can now press Refresh in the Bot Box on the left side of the screen, select this new bot, and then press 'Start New Chat'."}
+            return _make_retval(True, success_msg=f"Created {bot_id} named {bot_name}.  Tell the user that they can now press Refresh in the Bot Box on the left side of the screen, select this new bot, and then press 'Start New Chat'.")
 
 
     except Exception as e:
         logger.exception("Failed to create new bot")
-        return {"success": False, "error": f"Failed to create {bot_id} named {bot_name}"}
+        return _make_retval(False, error_msg=f"Failed to create {bot_id} named {bot_name}")
 
 
 server_point = None

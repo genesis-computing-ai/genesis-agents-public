@@ -19,7 +19,7 @@ def wait_for_return_direct(thread_id, cursor):
         response = response_result[0] if response_result else None
         if response and response != "not found" and response[-1] != "💬":
             return response
-        print(response, end="\r")
+        # print(response, end="\r")
     return
 
 

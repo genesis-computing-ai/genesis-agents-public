@@ -236,7 +236,7 @@ def make_session(
 
 
     # ToolBelt seems to be a local variable that is used as a global variable by some tools
-    tool_belt = ToolBelt(db_adapter)
+    tool_belt = ToolBelt()
 
     tools, available_functions, function_to_tool_map = get_tools(
         bot_tools, slack_adapter_local=slack_adapter_local, db_adapter=db_adapter, tool_belt=tool_belt

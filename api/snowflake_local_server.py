@@ -40,6 +40,9 @@ class GenesisLocalSnowflakeServer(GenesisServer):
                 stream_mode=True,
                 bot_list=[{"bot_id": bot_id} for bot_id in self.bot_list] if self.bot_list is not None else None
         )
+
+        self.bot_id_to_slack_adapter_map = bot_id_to_slack_adapter_map # We need to save it for a graceful shutdown
+
         scheduler = BackgroundScheduler(
             {
                 "apscheduler.job_defaults.max_instances": 100,
@@ -55,10 +58,12 @@ class GenesisLocalSnowflakeServer(GenesisServer):
             db_adapter=db_adapter,
             bot_id_to_udf_adapter_map = self.bot_id_to_udf_adapter_map,
             api_app_id_to_session_map = api_app_id_to_session_map,
-            bot_id_to_slack_adapter_map = bot_id_to_slack_adapter_map,
+            bot_id_to_slack_adapter_map = self.bot_id_to_slack_adapter_map,
         )
         BotOsServer.stream_mode = True
-        scheduler.start()
+        scheduler.start() # Note: self.server.shutdown() shuts down the scheduler
+
+
 
     def set_global_flags(self):
         genbot_internal_project_and_schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "None")
@@ -101,7 +106,7 @@ class GenesisLocalSnowflakeServer(GenesisServer):
 
     def get_message(self, bot_id, request_id) -> str:
         return self.bot_id_to_udf_adapter_map[bot_id].lookup_udf(request_id)
-    
+
     def run_tool(self, bot_id, tool_name, params):
         session = next((s for s in self.server.sessions if s.bot_id == bot_id), None)
         if session is None:
@@ -141,9 +146,16 @@ class GenesisLocalSnowflakeServer(GenesisServer):
         if tool is None:
             raise ValueError(f"Tool {tool_name} not found for bot {bot_id}")
         return tool['function']
-    
+
+
     def shutdown(self):
+        # shuts down the server (including the apscheduler)
         self.server.shutdown()
+        # If there were any slack adapters created, shut them down
+        if self.bot_id_to_slack_adapter_map:
+            for slack_adapter in self.bot_id_to_slack_adapter_map.values():
+                slack_adapter.shutdown()
+
 
     def upload_file(self, file_path, file_name, contents):
         """
@@ -158,15 +170,15 @@ class GenesisLocalSnowflakeServer(GenesisServer):
         conn = get_global_db_connector("Snowflake").connection
         try:
             cursor = conn.cursor()
-        
+
             # Write contents to temporary local file
             with open(f'./tmp/{file_name}', 'w') as f:
                 f.write(contents)
-            
+
             # Put file to stage
             put_cmd = f"PUT file://./tmp/{file_name} {file_path};"
             cursor.execute(put_cmd)
-            
+
             return True
         except Exception as e:
             print(f"Error writing file to stage: {e}")
@@ -187,10 +199,10 @@ class GenesisLocalSnowflakeServer(GenesisServer):
             cursor = conn.cursor()
             get_file_cmd = f"GET {file_path}{file_name} file://./tmp/;"
             res = cursor.execute(get_file_cmd)
-            
+
             with open(f'./tmp/{file_name}', 'r') as f:
                 contents = f.read()
-            
+
             return contents
         except Exception as e:
             print(f"Error retrieving file from stage: {e}")
@@ -213,7 +225,7 @@ class GenesisLocalSnowflakeServer(GenesisServer):
             # Check if file exists first
             list_cmd = f"LIST {file_path}{file_name};"
             res = cursor.execute(list_cmd).fetchall()
-            
+
             if len(res) > 0:
                 # File exists, remove it
                 remove_cmd = f"REMOVE {file_path}{file_name};"

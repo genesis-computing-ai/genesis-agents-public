@@ -52,6 +52,13 @@ class GenesisLogger(logging.Logger):
             'caller_lineno': sys._getframe(3).f_lineno
         }
 
+
+# logging.warn is deprecated but we have a lot of legacy code using logger.warn.
+# With the below line we 'un-deprecate' it. Without this line, logger.warn will call logger.warning
+# with an additional frame, messing up the caller info above.
+GenesisLogger.warn = GenesisLogger.warning
+
+
 def _setup_genesis_logger(name=GENESIS_LOGGER_NAME):
     logging.setLoggerClass(GenesisLogger)
     logger = logging.getLogger(name)

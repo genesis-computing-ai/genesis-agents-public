@@ -15,7 +15,7 @@ import threading
 
 from demo.sessions_creator import create_sessions, make_session
 
-from bot_genesis.make_baby_bot import (  get_bot_details, make_baby_bot ) 
+from bot_genesis.make_baby_bot import (  get_bot_details, make_baby_bot )
 
 from core.logging_config import logger
 
@@ -46,7 +46,7 @@ class BotOsServer:
         scheduler_seconds_interval=2,
         slack_active=False,
         db_adapter=None,
-        bot_id_to_udf_adapter_map = None, 
+        bot_id_to_udf_adapter_map = None,
         api_app_id_to_session_map = None,
         data_cubes_ingress_url = None,
         bot_id_to_slack_adapter_map = None,
@@ -93,61 +93,60 @@ class BotOsServer:
             else:
                 logger.info('Slack refresh token failed, token is None')
 
+
     def make_baby_bot_wrapper(self, bot_id, bot_name, bot_implementation, files, available_tools, bot_instructions):
-        try:
-            # Handle string representation of list
-            if isinstance(available_tools, str) and available_tools.startswith('['):
-                # Remove brackets and quotes, then split
-                available_tools = available_tools.strip('[]').replace('"', '').replace("'", '').split(',')
-            
-            if isinstance(available_tools, list):
-                available_tools = ','.join(tool.strip() for tool in available_tools)
-            
-            bot_details = get_bot_details(bot_id)
-            update_existing = True if bot_details else False
-            
-            
-            make_baby_bot(
-                    bot_id=bot_id,
-                    bot_name=bot_name,
-                    bot_implementation=bot_implementation,
-                    files=files,
-                    available_tools=available_tools,
-                    bot_instructions=bot_instructions,
-                    confirmed='CONFIRMED',
-                    update_existing=update_existing,
-                    api_bot_update=update_existing
-                )
 
-            bot_config = get_bot_details(bot_id)
+        # Handle string representation of list
+        if isinstance(available_tools, str) and available_tools.startswith('['):
+            # Remove brackets and quotes, then split
+            available_tools = available_tools.strip('[]').replace('"', '').replace("'", '').split(',')
 
-            new_session, api_app_id, udf_local_adapter, slack_adapter_local = make_session(
-                    bot_config=bot_config,
-                    db_adapter=self.db_adapter,
-                    bot_id_to_udf_adapter_map=self.bot_id_to_udf_adapter_map,
-                    stream_mode=True,
-                    data_cubes_ingress_url=self.data_cubes_ingress_url,
-                    existing_slack=None,
-                    existing_udf=None
-                )
-            # check new_session
-            if new_session is None:
-                logger.info("new_session is none")
-                return "Error: Not Installed new session is none"
-            if slack_adapter_local is not None and self.bot_id_to_slack_adapter_map is not None:
-                self.bot_id_to_slack_adapter_map[bot_config["bot_id"]] = (
-                    slack_adapter_local
-                )
-            if udf_local_adapter is not None:
-                self.bot_id_to_udf_adapter_map[bot_config["bot_id"]] = udf_local_adapter
-            self.api_app_id_to_session_map[api_app_id] = new_session
-            #    logger.info("about to add session ",new_session)
-            self.add_session(new_session, replace_existing=True)
+        if isinstance(available_tools, list):
+            available_tools = ','.join(tool.strip() for tool in available_tools)
+
+        bot_details = get_bot_details(bot_id)
+        update_existing = True if bot_details else False
 
 
-        except Exception as e:
-            logger.error(f"Error in make_baby_bot_wrapper: {e}")
-            return None
+        retval = make_baby_bot(
+                bot_id=bot_id,
+                bot_name=bot_name,
+                bot_implementation=bot_implementation,
+                files=files,
+                available_tools=available_tools,
+                bot_instructions=bot_instructions,
+                confirmed='CONFIRMED',
+                update_existing=update_existing,
+                api_bot_update=update_existing
+            )
+        if not retval['success']:
+            raise ValueError(retval.get('error', "Error unknown"))
+
+        bot_config = get_bot_details(bot_id)
+
+        new_session, api_app_id, udf_local_adapter, slack_adapter_local = make_session(
+                bot_config=bot_config,
+                db_adapter=self.db_adapter,
+                bot_id_to_udf_adapter_map=self.bot_id_to_udf_adapter_map,
+                stream_mode=True,
+                data_cubes_ingress_url=self.data_cubes_ingress_url,
+                existing_slack=None,
+                existing_udf=None
+            )
+        # check new_session
+        if new_session is None:
+            logger.info("new_session is none")
+            raise ValueError(f"Failed to start a new session for {bot_id=}")
+
+        if slack_adapter_local is not None and self.bot_id_to_slack_adapter_map is not None:
+            self.bot_id_to_slack_adapter_map[bot_config["bot_id"]] = (
+                slack_adapter_local
+            )
+        if udf_local_adapter is not None:
+            self.bot_id_to_udf_adapter_map[bot_config["bot_id"]] = udf_local_adapter
+        self.api_app_id_to_session_map[api_app_id] = new_session
+        #    logger.info("about to add session ",new_session)
+        self.add_session(new_session, replace_existing=True)
 
 
     def add_session(self, session: BotOsSession, replace_existing=False):
@@ -171,12 +170,12 @@ class BotOsServer:
             logger.info("Adding session ", session)
         else:
             logger.info("Session is None")
-        
+
         if session is not None:
             # Set server reference in the new session's toolbelt
             if hasattr(session, 'tool_belt'):
                 session.tool_belt.set_server(self)
-        
+
         self.sessions.append(session)
 
     def remove_session(self, session):
@@ -190,7 +189,7 @@ class BotOsServer:
 
         # TODO REMOVE THE OTHER ROTATER CALL
         # Print a confirmation message with the current time
-       
+
         if tok is not None and ref is not None:
             logger.info(f"Slack Bot Config Token REFRESHED {self.last_slack_token_rotate_time}")
         else:
@@ -204,7 +203,7 @@ class BotOsServer:
 
     def reset_session(self, bot_id, session):
         bot_config = get_bot_details(bot_id=bot_id)
-        
+
         existing_udf = None
         existing_slack = None
         if session is not None:
@@ -317,4 +316,4 @@ class BotOsServer:
             self.app.run(*args, **kwargs)
 
     def shutdown(self):
-        self.scheduler.shutdown()
+        self.scheduler.shutdown(wait=False)

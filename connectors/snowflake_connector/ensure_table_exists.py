@@ -21,6 +21,18 @@ from core.bot_os_defaults import (
 from core.logging_config import logger
 
 def one_time_db_fixes(self):
+    try:
+        add_user_col_ddl = f"""
+            ALTER TABLE {self.schema}.EXT_SERVICE_CONFIG
+            ADD COLUMN user VARCHAR;
+        """
+        cursor = self.client.cursor()
+        cursor.execute(add_user_col_ddl)
+        self.client.commit()
+        logger.info(f"User column added to EXT_SERVICE_CONFIG table.")
+    except Exception as e:
+        pass
+
     # Remove BOT_FUNCTIONS is it exists
     bot_functions_table_check_query = f"SHOW TABLES LIKE 'BOT_FUNCTIONS' IN SCHEMA {self.schema};"
     cursor = self.client.cursor()
@@ -164,6 +176,7 @@ def ensure_table_exists(self):
                 ext_service_name VARCHAR NOT NULL,
                 parameter VARCHAR NOT NULL,
                 value VARCHAR NOT NULL,
+                user VARCHAR,
                 created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
@@ -747,7 +760,18 @@ def ensure_table_exists(self):
             #                )
             bot_name = "Eve"
             bot_instructions = BASE_EVE_BOT_INSTRUCTIONS
-            available_tools = '["slack_tools", "test_manager_tools", "make_baby_bot", "snowflake_stage_tools", "image_tools", "process_manager_tools", "process_runner_tools", "process_scheduler_tools", "notebook_manager_tools"]'
+            available_tools = """[
+                "slack_tools",
+                "test_manager_tools",
+                "make_baby_bot",
+                "snowflake_stage_tools",
+                "image_tools",
+                "process_manager_tools",
+                "process_runner_tools",
+                "process_scheduler_tools",
+                "notebook_manager_tools",
+                "google_drive_tools"]
+                """
             udf_active = "Y"
             slack_active = "N"
             bot_intro_prompt = EVE_INTRO_PROMPT
@@ -1496,7 +1520,6 @@ def ensure_table_exists(self):
             BOT_ID VARCHAR(16777216),
             TEST_PROCESS_ID VARCHAR(16777216),
             TEST_PROCESS_NAME VARCHAR(16777216),
-            TEST_TYPE VARCHAR(16777216),
             TEST_PRIORITY INTEGER
         );
         """

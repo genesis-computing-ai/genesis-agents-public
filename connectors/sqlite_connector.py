@@ -1,4 +1,7 @@
+import glob
 import sqlite3
+import pandas as pd
+import pytz
 from snowflake.connector import connect
 from tqdm import tqdm
 
@@ -1264,16 +1267,38 @@ class SqliteConnector(DatabaseConnector):
             if cursor is not None:
                 cursor.close()
 
+    def make_date_tz_aware(self, date, tz='UTC'):
+        """
+        Makes a date object timezone-aware.
+
+        Args:
+        date (datetime): The date to make timezone-aware.
+        tz (str): The timezone to use.
+
+        Returns:
+            datetime: The date string with timezone information.
+        """
+        if type(date) is not str and date is not None and not pd.isna(date):
+            # Ensure row['CREATED_AT'] is timezone-aware
+            if date.tzinfo is None:
+                date = date.tz_localize(pytz.timezone(tz))
+            else:
+                date = date.astimezone(pytz.timezone(tz))
+            date_str = date.strftime('%Y-%m-%d %H:%M:%S')
+        else:
+            date_str = None
+
+        return date_str
 
     def load_default_processes_and_notebook(self, cursor):
-            folder_path = 'golden_defaults/golden_processes'
-            self.process_data = pd.DataFrame()
+        folder_path = 'golden_defaults/golden_processes'
+        self.process_data = pd.DataFrame()
 
-            files = glob.glob(os.path.join(folder_path, '*'))
+        files = glob.glob(os.path.join(folder_path, '*'))
 
-            for filename in files:
-                with open(filename, 'r') as file:
-                    yaml_data = yaml.safe_load(file)
+        for filename in files:
+            with open(filename, 'r') as file:
+                yaml_data = yaml.safe_load(file)
 
                 data = pd.DataFrame.from_dict(yaml_data, orient='index')
                 data.reset_index(inplace=True)
@@ -1289,7 +1314,7 @@ class SqliteConnector(DatabaseConnector):
             for _, process_default in self.process_defaults.iterrows():
                 process_id = process_default['PROCESS_ID']
 
-                timestamp_str = make_date_tz_aware(process_default['TIMESTAMP'])
+                timestamp_str = self.make_date_tz_aware(process_default['TIMESTAMP'])
 
                 query = f"SELECT * FROM PROCESSES WHERE PROCESS_ID = ?"
                 cursor.execute(query, (process_id,))
@@ -1833,10 +1858,10 @@ class SqliteConnector(DatabaseConnector):
                     logger.info(
                         f"An error occurred while checking or altering table {self.bot_servicing_table_name} to add BOT_IMPLEMENTATION column: {e}"
                     )
-                except Exception as e:
-                    logger.info(
-                        f"An error occurred while checking or altering table {metadata_table_id}: {e}"
-                    )
+                # except Exception as e:
+                #     logger.info(
+                #         f"An error occurred while checking or altering table {metadata_table_id}: {e}"
+                #     )
                 logger.info(f"Table {self.bot_servicing_table_name} already exists.")
             # # update bot servicing table bot avatars from shared images table
             # insert_images_query = f"""

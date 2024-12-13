@@ -30,8 +30,8 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
     stream_mode = False
     
     def __init__(self, name:str, instructions:str, 
-                tools:list[dict] = {}, available_functions={}, files=[], 
-                update_existing=False, log_db_connector=None, bot_id='default_bot_id', bot_name='default_bot_name', all_tools:list[dict]={}, all_functions={},all_function_to_tool_map={},skip_vectors=False, assistant_id=None) -> None:
+                tools:list[dict] = [], available_functions={}, files=[], 
+                update_existing=False, log_db_connector=None, bot_id='default_bot_id', bot_name='default_bot_name', all_tools:list[dict]=[], all_functions={},all_function_to_tool_map={},skip_vectors=False, assistant_id=None) -> None:
         super().__init__(name, instructions, tools, available_functions, files, update_existing, skip_vectors=False)
         self.active_runs = deque()
 #        self.llm_engine = 'mistral-large'
@@ -540,7 +540,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
 
         else:
             try:
-                resp = f"Error calling Cortex: Received status code {response.status_code} with message: {response.reason}"
+                resp = f"Error calling Cortex: Received status code UNKNOWN" # {response.status_code} with message: {response.reason}" 
                 curr_resp = resp
             except:
                 resp = 'Error calling Cortex'

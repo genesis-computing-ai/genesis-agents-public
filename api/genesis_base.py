@@ -9,23 +9,9 @@ from datetime import datetime
 from snowflake.connector import SnowflakeConnection
 import pandas as pd
 
-class BotGuardrails(BaseModel):
-    def preprocess(self, message):
-        pass
-    def postprocess_response(self, response):
-        pass
-
-class BotKnowledgeGuardrails(BotGuardrails):
-    def preprocess(self, message):
-        return message
-    def postprocess_response(self, response):
-        return response
-
 class GenesisBot(BaseModel):
     BOT_ID: str
     BOT_NAME: str
-    #BOT_DESCRIPTION: str
-    #TOOL_LIST: List[str]
     BOT_IMPLEMENTATION: str
     FILES: str # List[str]
 
@@ -54,29 +40,29 @@ class GenesisBot(BaseModel):
     TEAMS_APP_TYPE: str
     UDF_ACTIVE: str
 
-    #guardrails: BotKnowledgeGuardrails = BotKnowledgeGuardrails()
-
     def __str__(self):
         return f"GenesisBot(BOT_ID={self.BOT_ID}, BOT_NAME={self.BOT_NAME}, BOT_IMPLEMENTATION={self.BOT_IMPLEMENTATION})"
 
-class ToolDefinition(BaseModel):
-    name: str
-    description: str
-    parameters: Dict[str, Any]  # JSON Schema
-
-class GenesisMetadataStore():#BaseModel):
+class GenesisToolDefinition(BaseModel):
+    TOOL_NAME: str
+    TOOL_DESCRIPTION: str
+    PARAMETERS: Dict[str, Dict[str, str]]  # {"param_name": { "type": "string", "description": "description" }, 
+                       
+class GenesisMetadataStore():
     scope: str
     sub_scope: str
     def __init__(self, scope, sub_scope):
         #super().__init__(scope=scope)
         self.scope = scope
         self.sub_scope = sub_scope
-    def insert_or_update_metadata(self, metadata_type: str, name: str, metadata: Dict[str, Any]):
-        pass
-    def get_metadata(self, metadata_type: str, name: str, name2: str = None) -> Dict[str, Any]:
-        pass
+    def insert_or_update_metadata(self, metadata_type: str, name: str, metadata: BaseModel):
+        raise NotImplementedError("insert_or_update_metadata not implemented")
+    def get_metadata(self, metadata_type: str, name: str, name2: str = None) -> BaseModel:
+        raise NotImplementedError("get_metadata not implemented")
     def get_all_metadata(self, metadata_type: str, name: str = None):
-        pass
+        raise NotImplementedError("get_all_metadata not implemented")
+    def upload_extended_tool(self, tool: GenesisToolDefinition, python_code: str, return_type: str, packages: list[str] = None):
+        raise NotImplementedError("upload_extended_tool not implemented")
 
 class GenesisServer(ABC):
     def __init__(self, scope, sub_scope):
@@ -86,8 +72,6 @@ class GenesisServer(ABC):
         raise NotImplementedError("get_metadata_store not implemented")
     def register_bot(self, bot: GenesisBot):
         raise NotImplementedError("register_bot not implemented")
-    def register_tool(self, tool: ToolDefinition):
-        raise NotImplementedError("register_tool not implemented")
     def run_tool(self, bot_id, tool_name, tool_parameters):
         raise NotImplementedError("run_tool not implemented")
     def upload_file(self, file_path, file_name, contents):
@@ -170,6 +154,7 @@ class SnowflakeMetadataStore(GenesisMetadataStore):
         "GenesisKnowledge": ("KNOWLEDGE", "KNOWLEDGE_THREAD_ID", None),
         "GenesisHarvestResults": ("HARVEST_RESULTS", "SOURCE_NAME", None),
         "GenesisMessage": ("MESSAGE_LOG", "BOT_ID", "THREAD_ID"),
+        "GenesisToolDefinition": ("USER_EXTENDED_TOOLS", "TOOL_NAME", None),
     }
     conn: SnowflakeConnection = None
 
@@ -184,8 +169,51 @@ class SnowflakeMetadataStore(GenesisMetadataStore):
             warehouse=os.getenv("SNOWFLAKE_WAREHOUSE_OVERRIDE"),
             role=os.getenv("SNOWFLAKE_ROLE_OVERRIDE")
         )
+
+    def _format_value(self,value):
+        if isinstance(value, dict):
+            # Convert dict to valid JSON format for Snowflake
+            return f"parse_json('{json.dumps(value)}')"
+        elif isinstance(value, str):
+            # Escape single quotes in strings by doubling them
+            escaped_value = value.replace("'", "''")
+            return f"'{escaped_value}'"
+        else:
+            # Default handling for other data types
+            return f"'{value}'"
+
     def insert_or_update_metadata(self, metadata_type: str, name: str, metadata: BaseModel):
-        pass
+        cursor = self.conn.cursor()
+        table_name, filter_column, _ = self.metadata_type_mapping.get(metadata_type, (None, None))
+        if not table_name:
+            raise ValueError(f"Unknown metadata type: {metadata_type}")
+
+        metadata_dict = metadata.model_dump()
+        metadata_dict['type'] = metadata.__class__.__name__  # Store the class name for later instantiation
+
+        # Exclude 'type' from columns
+        columns = [field for field in metadata_dict.keys() if field != "type"]
+
+        values = [self._format_value(metadata_dict[column]) for column in columns]
+        select_expressions = [f"{value} AS {col}" for col, value in zip(columns, values)]
+
+        # Generate the MERGE statement
+        query = f"""
+        MERGE INTO {self.sub_scope}.{table_name} AS target
+        USING (
+            SELECT {', '.join(select_expressions)}
+        ) AS source
+        ON target.{filter_column} = source.{filter_column}
+        WHEN MATCHED THEN
+            UPDATE SET {', '.join([f"{column} = source.{column}" for column in columns])}
+        WHEN NOT MATCHED THEN
+            INSERT ({', '.join(columns)})
+            VALUES ({', '.join([f"source.{column}" for column in columns])})
+        """.strip().replace("\n", " ")
+
+        cursor.execute(query)
+        self.conn.commit()
+        
     def get_metadata(self, metadata_type: str, name: str) -> BaseModel:
         cursor = self.conn.cursor()
         table_name, filter_column, _ = self.metadata_type_mapping.get(metadata_type, (None, None))
@@ -227,20 +255,48 @@ class SnowflakeMetadataStore(GenesisMetadataStore):
         if last_n:
             query += f" ORDER BY timestamp DESC LIMIT %s"
             params.append(last_n)
-        if self.sub_scope == "app1": # only necessary if connecting remotely
-            query = "call core.run_arbitrary('%s')" % query
-            cursor.execute(query, params)
-            metadata_list = cursor.fetchall()
-            metadata_list = json.loads(metadata_list[0][0])
-            metadata_list = pd.DataFrame(metadata_list, columns=fields_to_return)
-            metadata_list = metadata_list.to_dict(orient="records")
-        else:
-            cursor.execute(query, params)
-            #metadata_list = cursor.fetchall()
-            metadata_list = cursor.fetch_pandas_all().to_dict(orient="records")
-        metadata_list = [item.get(filter_column) for item in metadata_list]
+        try:
+            if self.sub_scope == "app1": # only necessary if connecting remotely
+                query = "call core.run_arbitrary('%s')" % query
+                cursor.execute(query, params)
+                metadata_list = cursor.fetchall()
+                metadata_list = json.loads(metadata_list[0][0])
+                metadata_list = pd.DataFrame(metadata_list, columns=fields_to_return)
+                metadata_list = metadata_list.to_dict(orient="records")
+            else:
+                cursor.execute(query, params)
+                metadata_list = cursor.fetch_pandas_all().to_dict(orient="records")
+            metadata_list = [item.get(filter_column) for item in metadata_list]
+        except Exception as e:
+            print(f"Error getting metadata: {e}")
+            return []
+        finally:
+            cursor.close()
         return metadata_list
-
+    def upload_extended_tool(self, tool: GenesisToolDefinition, python_code: str, return_type: str, packages: list[str] = None):
+        cursor = self.conn.cursor()
+        stored_proc_name = f"{self.scope}.EXTENDED_TOOLS.{tool.TOOL_NAME}"
+        packages = packages if packages else [] + ['snowflake-snowpark-python', 'pandas']
+        query = f"""
+            CREATE OR REPLACE PROCEDURE {stored_proc_name}(
+                {', '.join([f'{param_name} {param_details["type"]}' for param_name, param_details in tool.PARAMETERS.items()])}
+            )
+            RETURNS {return_type}
+            LANGUAGE PYTHON
+            RUNTIME_VERSION = '3.8'
+            PACKAGES = ({', '.join([f"'{package}'" for package in packages])})
+            HANDLER = '{tool.TOOL_NAME}'
+            AS
+            $$
+{python_code}
+            $$
+        """
+        if self.sub_scope == "app1": # only necessary if connecting remotely
+            cursor.execute("call core.run_arbitrary('%s')" % query) # TODO: don't need run_arbitrary if running locally
+        else:
+            cursor.execute(query)
+        self.insert_or_update_metadata("GenesisToolDefinition", tool.TOOL_NAME, tool)
+        
 class GenesisLocalServer(GenesisServer):
     def __init__(self, scope):
         super().__init__(scope)

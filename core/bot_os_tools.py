@@ -2440,10 +2440,12 @@ class ToolBelt:
                 "https://www.googleapis.com/auth/drive"
             ]
 
+            redirect_url = f"{os.environ['NGROK_BASE_URL']}:8080/oauth"
+
             flow = Flow.from_client_secrets_file(
                 f"credentials.json",
                 scopes=SCOPES,
-                redirect_uri=f"{os.environ['NGROK_BASE_URL']}/oauth",  # Your redirect URI
+                redirect_uri = redirect_url #"http://127.0.0.1:8080/oauth",  # Your redirect URI
             )
             auth_url, _ = flow.authorization_url(prompt="consent")
             return {"Success": "True", "auth_url": f"<{auth_url}|View Document>"}

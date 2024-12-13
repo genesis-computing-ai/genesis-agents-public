@@ -321,6 +321,8 @@ def create_google_sheet(self, shared_folder_id, title, data):
                     row_values[j] = row_value.strftime("%Y-%m-%d %H:%M:%S")
                 elif len(stage_column_index) > 0 and j in stage_column_index and row_value:
                     # Create a file with contents from the stage link, move it to the shared folder, and get the webViewLink
+                    if len(row_value) < 1 or not row_value.startswith('@'):
+                        break
                     parts = row_value.split(".")
                     path = parts[2].split("/")
                     stage = path[0]

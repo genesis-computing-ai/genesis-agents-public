@@ -5,6 +5,13 @@ import tempfile
 import subprocess
 from distutils.extension import Extension
 from Cython.Build import cythonize
+import glob
+
+def should_copy(path, abs_exclude):
+        for exc in abs_exclude:
+            if os.path.abspath(path).startswith(exc):
+                return False
+        return True
 
 def compile_and_package(project_dir, public_files, exclude=None, output_dir="dist", package_name="compiled_whl", public_package_name="public_package", version="1.0.0"):
     exclude = exclude or []
@@ -25,18 +32,6 @@ def compile_and_package(project_dir, public_files, exclude=None, output_dir="dis
     # `public_files` are given relative to project_dir, store them as abs paths
     public_files = [os.path.abspath(os.path.join(project_dir, file)) for file in public_files]
 
-    # public files in tmp structure
-    tmp_public_files = [
-        os.path.join(temp_project_dir, os.path.relpath(file, project_dir))
-        for file in public_files
-    ]
-
-    def should_copy(path):
-        for exc in abs_exclude:
-            if os.path.abspath(path).startswith(exc):
-                return False
-        return True
-
     def sanitize_filename(filename):
     # Replace invalid chars but keep extension intact
         base, ext = os.path.splitext(filename)
@@ -47,13 +42,12 @@ def compile_and_package(project_dir, public_files, exclude=None, output_dir="dis
         """Copy the source directory to the destination, filtering out excluded paths."""
         for root, dirs, files in os.walk(src):
             # Filter directories
-            pre_filtered_dirs = dirs
-            dirs[:] = [d for d in dirs if should_copy(os.path.join(root, d))]
-            #print(f"Excluded directories in {root}: {set(pre_filtered_dirs) - set(dirs)}")
-            #print(f"Copied directories in {root}: {set(dirs)}")
+            dirs[:] = [d for d in dirs if should_copy(os.path.join(root, d), abs_exclude)]
             for file in files:
+                if file == 'requirements.txt':
+                    print("found requirements.txt")
                 src_path = os.path.join(root, file)
-                if should_copy(src_path):
+                if should_copy(src_path, abs_exclude):
                     sanitized_file = sanitize_filename(file)
                     dest_path = os.path.join(dest, os.path.relpath(root, src), sanitized_file)
                     os.makedirs(os.path.dirname(dest_path), exist_ok=True)
@@ -64,15 +58,35 @@ def compile_and_package(project_dir, public_files, exclude=None, output_dir="dis
     print(f"Copying project from {project_dir} to temporary directory: {temp_project_dir}")
     copy_filtered(project_dir, temp_project_dir)
 
-    compiled_whl_path = os.path.join(output_dir, f"{package_name}-{version}-py3-none-any.whl")
-    create_public_package(temp_dir, public_package_name, public_files, output_dir, version, compiled_package_name=package_name, compiled_whl_path=compiled_whl_path)
+    # Build the compiled package
+    #build_compiled_package(temp_project_dir, output_dir, package_name, version, public_files, project_dir, abs_exclude)
+    
+    # After building the compiled wheel build the public package
+    whl_files = glob.glob(os.path.join(output_dir, f"{package_name}-{version}-*.whl"))
+    if len(whl_files) == 1:
+        post_build_compiled_whl_path = whl_files[0]
+    else:
+        # Handle error: either no files or multiple matches
+        raise RuntimeError("Could not uniquely identify the compiled wheel.")
+    
+    create_public_package(temp_dir, public_package_name, public_files, output_dir, version, compiled_package_name=package_name, compiled_whl_path=post_build_compiled_whl_path)
 
+    # Cleanup
+    shutil.rmtree(temp_dir)
+    print("Temporary directory cleaned up.")
+
+def build_compiled_package(temp_project_dir, output_dir, package_name, version, public_files, project_dir, abs_exclude):
+    # public files in tmp structure
+    tmp_public_files = [
+        os.path.join(temp_project_dir, os.path.relpath(file, project_dir))
+        for file in public_files
+    ]
     # Identify Python files to compile (not public, not excluded)
     extensions = []
     for dirpath, _, filenames in os.walk(temp_project_dir):
         for filename in filenames:
             filepath = os.path.join(dirpath, filename)
-            if not should_copy(filepath):
+            if not should_copy(filepath, abs_exclude):
                 continue
         # Adjust your condition as needed. For example, if you're reverting back to ".py":
             if filepath.endswith(".py") and filepath not in tmp_public_files:
@@ -125,9 +139,6 @@ setup(
         print("No compiled extensions. Creating empty compiled package wheel.")
         subprocess.check_call(["python", compiled_setup_script, "bdist_wheel", "--dist-dir", output_dir])
 
-    # Cleanup
-    shutil.rmtree(temp_dir)
-    print("Temporary directory cleaned up.")
 
 def create_public_package(temp_dir, public_package_name, public_files, output_dir, version, compiled_package_name, compiled_whl_path):
     # Now create the public package
@@ -153,7 +164,13 @@ def create_public_package(temp_dir, public_package_name, public_files, output_di
     with open(public_setup_script, "w") as f:
         f.write(f"""
 from setuptools import setup
+import os
 
+this_directory = os.path.abspath(os.path.join(os.path.dirname(__file__), "{public_package_name}"))
+
+with open(os.path.join(this_directory, "requirements.txt")) as f:
+    required = f.read().splitlines()
+                
 setup(
     name="{public_package_name}",
     version="{version}",
@@ -163,7 +180,7 @@ setup(
     package_data={{"{public_package_name}": ["*"]}},
     install_requires=[
         "{compiled_package_name} @ file://{compiled_whl_path}"
-    ],
+    ] + required,
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
@@ -191,6 +208,8 @@ if __name__ == "__main__":
         "api/demo_local_api_01.py",
         "api/snowflake_local_server.py",
         "api/snowflake_remote_server.py",
+        "api/genesis_base.py",
+        "requirements.txt",
     ]
     excluded_items = [
         os.path.join(project_directory, ".venv"),

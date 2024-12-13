@@ -13,6 +13,12 @@ from datetime import datetime
 import mimetypes
 import os
 
+## test
+from concurrent.futures import ThreadPoolExecutor
+import copy
+import time
+from tenacity import retry, stop_after_attempt, wait_exponential
+
 
 # If modifying these scopes, delete the file token.json.
 SCOPES = [
@@ -44,6 +50,51 @@ SCOPES = [
 #     print(f'File ID: "{file.get("id")}".')
 #     return file.get("id")
 
+# test
+def process_row(args):
+    self, row, stage_column_index, stage_column_folder_ids, creds = args
+    row_values = list(row.values())
+    
+    for j, row_value in enumerate(row_values):
+        if isinstance(row_value, datetime):
+            row_values[j] = row_value.strftime("%Y-%m-%d %H:%M:%S")
+        elif len(stage_column_index) > 0 and j in stage_column_index and row_value:
+            if len(row_value) < 1 or not row_value.startswith('@'):
+                continue
+            
+            parts = row_value.split(".")
+            path = parts[2].split("/")
+            stage = path[0]
+
+            file_contents = self.read_file_from_stage(
+                parts[0].replace('@',''),
+                parts[1],
+                stage,
+                "/".join(path[1:]) + '.' + parts[-1],
+                True,
+            )
+
+            filename = path[-1] + '.' + parts[-1]
+            stage_folder_id = stage_column_folder_ids[stage_column_index.index(j)]
+            
+            webLink = save_text_to_google_folder_with_retry(
+                self, stage_folder_id, filename, file_contents, creds
+            )
+
+            # Remove any quotes around the URL and filename to prevent formula errors
+            webLink = webLink.replace('"', '') if webLink else ''
+            filename = filename.replace('"', '')
+            row_values[j] = f'=HYPERLINK("{webLink}")'
+    
+    return row_values
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=4, max=10),
+    retry_error_callback=lambda retry_state: None
+)
+def save_text_to_google_folder_with_retry(*args, **kwargs):
+    return save_text_to_google_folder(*args, **kwargs)
 
 def save_text_to_google_folder(
     self, shared_folder_id, file_name, text = "No text in file", creds=None
@@ -298,7 +349,7 @@ def create_google_sheet(self, shared_folder_id, title, data):
 
         # Create folder top level folder
         top_level_folder_id = create_folder_in_folder(
-            "genesis_" + datetime.now().strftime("%m%d%Y_%H:%M:%S"),
+            title + "(" + datetime.now().strftime("%m%d%Y_%H:%M:%S") + ")",
             shared_folder_id,
             self.user
         )
@@ -314,43 +365,22 @@ def create_google_sheet(self, shared_folder_id, title, data):
                     )
                 )
 
-        for i, row in enumerate(data):
-            row_values = list(row.values())
-            for j, row_value in enumerate(row_values):
-                if isinstance(row_value, datetime):
-                    row_values[j] = row_value.strftime("%Y-%m-%d %H:%M:%S")
-                elif len(stage_column_index) > 0 and j in stage_column_index and row_value:
-                    # Create a file with contents from the stage link, move it to the shared folder, and get the webViewLink
-                    if len(row_value) < 1 or not row_value.startswith('@'):
-                        break
-                    parts = row_value.split(".")
-                    path = parts[2].split("/")
-                    stage = path[0]
-
-                    file_contents = self.read_file_from_stage(
-                        # self,
-                        parts[0].replace('@',''),
-                        parts[1],
-                        stage,
-                        "/".join(path[1:]) + '.' + parts[-1],
-                        True,
-                    )
-
-                    # create text docs in sub-folder
-                    filename = path[-1] + '.' + parts[-1]
-
-                    print(f"Stage Col Index: {stage_column_index.index(j)}")
-                    print(f"Stage folder ID: {stage_column_folder_ids[stage_column_index.index(j)]}")
-
-                    stage_folder_id = stage_column_folder_ids[stage_column_index.index(j)]
-
-                    webLink = save_text_to_google_folder(
-                        self, stage_folder_id, filename, file_contents, creds
-                    )
-
-                    row_values[j] = webLink
-
-            columns.append(row_values)
+        # Process rows in smaller batches
+        batch_size = 10  # Adjust based on your needs
+        max_workers = 5  # Reduced number of concurrent workers
+        processed_rows = []
+        
+        for i in range(0, len(data), batch_size):
+            batch = data[i:i + batch_size]
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                row_args = [(self, row, stage_column_index, stage_column_folder_ids, creds) 
+                           for row in batch]
+                batch_results = list(executor.map(process_row, row_args))
+                processed_rows.extend(batch_results)
+                time.sleep(1)  # Add delay between batches
+        
+        # Add header and processed rows to columns
+        columns = [keys] + processed_rows
 
         spreadsheet = {"properties": {"title": title}}
         spreadsheet = (
@@ -376,13 +406,144 @@ def create_google_sheet(self, shared_folder_id, title, data):
             .update(
                 spreadsheetId=ss_id,
                 range=range_name,
-                valueInputOption='RAW',
+                valueInputOption='USER_ENTERED',
                 body=body,
             )
             .execute()
         )
         print(f"{result.get('updatedCells')} cells updated.")
 
+        formatting_requests = [
+            # Set row heights
+            {
+                "updateDimensionProperties": {
+                    "range": {
+                        "sheetId": 0,
+                        "dimension": "ROWS",
+                        "startIndex": 0,
+                        "endIndex": len(columns)
+                    },
+                    "properties": {
+                        "pixelSize": 63
+                    },
+                    "fields": "pixelSize"
+                }
+            },
+            # Set column width
+            {
+                "updateDimensionProperties": {
+                    "range": {
+                        "sheetId": 0,
+                        "dimension": "COLUMNS",
+                        "startIndex": 0,
+                        "endIndex": len(columns[0])
+                    },
+                    "properties": {
+                        "pixelSize": 300
+                    },
+                    "fields": "pixelSize"
+                }
+            },
+            # Format header row with deep blue background
+            {
+                "updateCells": {
+                    "range": {
+                        "sheetId": 0,
+                        "startRowIndex": 0,
+                        "endRowIndex": 1,
+                        "startColumnIndex": 0,
+                        "endColumnIndex": len(columns[0])
+                    },
+                    "rows": [{
+                        "values": [{
+                            "userEnteredFormat": {
+                                "backgroundColor": {"red": 0.27, "green": 0.51, "blue": 0.71},  # Adjusted to match image blue
+                                "textFormat": {
+                                    "foregroundColor": {"red": 1.0, "green": 1.0, "blue": 1.0},  # White text
+                                    "bold": True
+                                },
+                                "horizontalAlignment": "CENTER",
+                                "verticalAlignment": "MIDDLE"
+                            }
+                        }] * len(columns[0])
+                    }],
+                    "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)"
+                }
+            },
+            # Add alternating row colors (white and light orange)
+            {
+                "addBanding": {
+                    "bandedRange": {
+                        "range": {
+                            "sheetId": 0,
+                            "startRowIndex": 1,
+                            "endRowIndex": len(columns),
+                            "startColumnIndex": 0,
+                            "endColumnIndex": len(columns[0])
+                        },
+                        "rowProperties": {
+                            "firstBandColor": {"red": 1.0, "green": 1.0, "blue": 1.0},  # White
+                            "secondBandColor": {"red": 1.0, "green": 0.95, "blue": 0.9}  # Very light orange
+                        }
+                    }
+                }
+            },
+            # Add borders in orange
+            {
+                "updateBorders": {
+                    "range": {
+                        "sheetId": 0,
+                        "startRowIndex": 0,
+                        "endRowIndex": len(columns),
+                        "startColumnIndex": 0,
+                        "endColumnIndex": len(columns[0])
+                    },
+                    "top": {"style": "SOLID", "width": 2, "color": {"red": 1.0, "green": 0.65, "blue": 0.0}},  # Orange
+                    "bottom": {"style": "SOLID", "width": 2, "color": {"red": 1.0, "green": 0.65, "blue": 0.0}},
+                    "left": {"style": "SOLID", "width": 2, "color": {"red": 1.0, "green": 0.65, "blue": 0.0}},
+                    "right": {"style": "SOLID", "width": 2, "color": {"red": 1.0, "green": 0.65, "blue": 0.0}},
+                    "innerHorizontal": {"style": "SOLID", "color": {"red": 1.0, "green": 0.65, "blue": 0.0}},
+                    "innerVertical": {"style": "SOLID", "color": {"red": 1.0, "green": 0.65, "blue": 0.0}}
+                }
+            },
+            # Freeze header row
+            {
+                "updateSheetProperties": {
+                    "properties": {
+                        "sheetId": 0,
+                        "gridProperties": {
+                            "frozenRowCount": 1
+                        }
+                    },
+                    "fields": "gridProperties.frozenRowCount"
+                }
+            },
+            # Enable text wrapping
+            {
+                "repeatCell": {
+                    "range": {
+                        "sheetId": 0,
+                        "startRowIndex": 0,
+                        "endRowIndex": len(columns),
+                        "startColumnIndex": 0,
+                        "endColumnIndex": len(columns[0])
+                    },
+                    "cell": {
+                        "userEnteredFormat": {
+                            "wrapStrategy": "WRAP"
+                        }
+                    },
+                    "fields": "userEnteredFormat.wrapStrategy"
+                }
+            }
+        ]
+
+
+        # Apply formatting
+        service.spreadsheets().batchUpdate(
+            spreadsheetId=ss_id,
+            body={"requests": formatting_requests}
+        ).execute()
 
         # Move the document to shared folder
         if top_level_folder_id:

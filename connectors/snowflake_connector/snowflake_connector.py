@@ -2138,6 +2138,7 @@ def get_status(site):
         note_type = None,
         max_field_size = 5000,
         export_to_google_sheet = False,
+        export_title=None
     ):
         """
         Executes a SQL query on Snowflake, with support for parameterized queries.
@@ -2237,6 +2238,9 @@ def get_status(site):
 
         if max_rows > 100 and not max_rows_override:
             max_rows = 100
+
+        if export_to_google_sheet:
+            max_rows = 500
 
         #   logger.info('running query ... ', query)
         cursor = self.connection.cursor()
@@ -2416,7 +2420,9 @@ def get_status(site):
             shared_folder_id = get_root_folder_id()
             timestamp = datetime.now().strftime("%m%d%Y_%H:%M:%S")
 
-            result = create_google_sheet(self, shared_folder_id['result'], f"Genesis Table Output {timestamp}", sample_data )
+            if export_title is None:
+                export_title = 'Genesis Export'
+            result = create_google_sheet(self, shared_folder_id['result'], title=f"{export_title}", data=sample_data )
 
             return {
                 "Success": True,

@@ -849,9 +849,9 @@ def main():
     try:
 
         run_number = 22;
-        table_name = "genesis_gxs.requirements.flexicard_pm_jl_4"  # Changed from genesis_gxs.requirements.flexicard_pm
-      #  focus_field = 'EXPOSURE_END_DATE';
-        focus_field = None
+        table_name = "genesis_gxs.requirements.flexicard_pm_jl_3"  # Changed from genesis_gxs.requirements.flexicard_pm
+        focus_field = 'EXPOSURE_END_DATE';
+       # focus_field = None
         skip_confidence = True
 
         # Reset the requirements table before starting

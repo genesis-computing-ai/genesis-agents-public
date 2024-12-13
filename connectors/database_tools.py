@@ -116,8 +116,12 @@ database_tool_functions = [
                     },
                     "export_to_google_sheet": {
                         "type": "boolean",
-                        "description": "Optional. If true, the results will be exported to a Google Doc. Default is false.",
+                        "description": "Optional. If true, the results will be exported to a Google Doc. Default is false.  BTW this will override max_rows to 500 when used.",
                         "default": False,
+                    },
+                    "export_title": {
+                        "type": "string",
+                        "description": "Optional. The title to use for the exported Gdrive Folder and Google Sheet. Default is 'Genesis Export'.",
                     },
                 },
                 "required": [ "connection", "max_rows"],

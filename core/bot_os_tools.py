@@ -14,6 +14,7 @@ from typing import Optional, Dict, Any
 import time, uuid
 import jsonschema
 
+from bigquery_connector import BigQueryConnector
 from core import global_flags
 from core.bot_os_tools_extended import load_user_extended_tools
 from llm_openai.bot_os_openai import StreamingEventHandler
@@ -103,6 +104,7 @@ from core.bot_os_llm import BotLlmEngineEnum
 from core.logging_config import logger
 from core.bot_os_project_manager import ProjectManager
 from core.file_diff_handler import GitFileManager
+from snowflake_connector.snowflake_connector import SnowflakeConnector
 
 genesis_source = os.getenv("GENESIS_SOURCE", default="Snowflake")
 
@@ -1818,7 +1820,7 @@ class ToolBelt:
 
         try:
             if action in ["UPDATE_NOTE_CONFIG", "CREATE_NOTE_CONFIG", "DELETE_NOTE_CONFIG"]:
-                note_config = '' if action == "DELETE_NOTE_CONFIG" else note_config
+                note_config = '' #if action == "DELETE_NOTE_CONFIG" else note_config # FIXME JeffD
                 update_query = f"""
                     UPDATE {db_adapter.schema}.NOTEBOOK
                     SET NOTE_CONFIG = %(note_config)s
@@ -2374,7 +2376,7 @@ class ToolBelt:
                         artifact_id: Optional[str] = None,
                         thread_id=None,  # ignored, saved for future use
                         bot_id=None      # ignored, saved for future use
-                        ) -> str:
+                        ) -> str|dict:
         """
         A wrapper for LLMs to access/manage artifacts by performing specified actions such as describing or deleting an artifact.
 
@@ -2819,7 +2821,7 @@ class ToolBelt:
                     WHERE PROCESS_ID = %(process_id)s
                 """
                 cursor.execute(
-                    update_query,
+                    hide_query,
                     {"process_id": process_id},
                 )
                 db_adapter.client.commit()
@@ -2831,7 +2833,7 @@ class ToolBelt:
                     WHERE PROCESS_ID = %(process_id)s
                 """
                 cursor.execute(
-                    update_query,
+                    hide_query,
                     {"process_id": process_id},
                 )
                 db_adapter.client.commit()

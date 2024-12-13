@@ -4399,7 +4399,7 @@ result = 'Table FAKE_CUST created successfully.'
                         note_name = None,
                         note_type = None,
                         return_base64 = False,
-                        save_artifacts=True) -> str:
+                        save_artifacts=True) -> str|dict:
         """
         Executes a given Python code snippet within a Snowflake Snowpark environment, handling various
         scenarios such as code retrieval from notes, package management, and result processing.
@@ -4745,19 +4745,18 @@ result = 'Table FAKE_CUST created successfully.'
         return result
 
     def db_get_user_extended_tools(self, project_id, dataset_name) -> list[dict]:
-        runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
+        #runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
         cursor = self.client.cursor()
 
         try:
-            cursor.execute(f"SELECT * FROM {project_id}.{dataset_name}.USER_EXTENDED_TOOLS WHERE RUNNER_ID = '{runner_id}'")
+            cursor.execute(f"SELECT TOOL_NAME, TOOL_DESCRIPTION, PARAMETERS FROM {project_id}.{dataset_name}.USER_EXTENDED_TOOLS")# WHERE RUNNER_ID = '{runner_id}'")
             user_extended_tools_data = cursor.fetchall()
             user_extended_tools = []
             for tool in user_extended_tools_data:
                 user_extended_tools.append({
-                    "tool_name": tool["TOOL_NAME"],
-                    "tool_description": tool["TOOL_DESCRIPTION"],
-                    "stored_proc_name": tool["STORED_PROC_NAME"],
-                    "parameters": json.loads(tool["PARAMETERS"])
+                    "tool_name": tool[0],
+                    "tool_description": tool[1],
+                    "parameters": json.loads(tool[2])
                 })
             return user_extended_tools
         except Exception as e:

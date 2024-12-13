@@ -935,10 +935,10 @@ def ensure_table_exists(self):
                 logger.info(
                     f"An error occurred while checking or altering table {self.bot_servicing_table_name} to add BOT_IMPLEMENTATION column: {e}"
                 )
-            except Exception as e:
-                logger.info(
-                    f"An error occurred while checking or altering table {metadata_table_id}: {e}"
-                )
+            # except Exception as e:
+            #     logger.info(
+            #         f"An error occurred while checking or altering table {metadata_table_id}: {e}"
+            #     )
             logger.info(f"Table {self.bot_servicing_table_name} already exists.")
         # update bot servicing table bot avatars from shared images table
         insert_images_query = f"""UPDATE {self.bot_servicing_table_name} b SET BOT_AVATAR_IMAGE = a.ENCODED_IMAGE_DATA

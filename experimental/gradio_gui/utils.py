@@ -67,7 +67,7 @@ def get_slack_tokens():
 
 def get_bot_details():
     try:
-        session = get_snowflake_session()
+        session = get_snowflake_session() # type: ignore
         if session is None:
             logger.info("Error: Unable to establish Snowflake session.")
             return []  # Return an empty list if session is None

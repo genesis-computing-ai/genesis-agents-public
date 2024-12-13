@@ -1,68 +1,56 @@
-from distutils.dir_util import copy_tree
-from distutils.extension import Extension
 import os
 import re
 import shutil
 import tempfile
+import subprocess
+from distutils.extension import Extension
 from Cython.Build import cythonize
 
 def compile_and_package(project_dir, public_files, exclude=None, output_dir="dist", package_name="compiled_whl", public_package_name="public_package", version="1.0.0"):
-    """
-    Compiles internal Python files into C extensions as a .whl package and creates a public Python package
-    that depends on the compiled .whl package.
-
-    Args:
-        project_dir (str): Path to the project directory.
-        public_files (list): List of public .py files to remain uncompiled.
-        exclude (list): List of files or directories to exclude from the package.
-        output_dir (str): Directory to store the output .whl files.
-        package_name (str): Name of the compiled .whl package.
-        public_package_name (str): Name of the public Python package.
-        version (str): Version of the package.
-    """
     exclude = exclude or []
+    # Ensure output_dir is excluded so we don't copy previous builds
     exclude.append(os.path.join(project_dir, output_dir))
 
     public_files = public_files or []
     project_dir = os.path.abspath(project_dir)
+    output_dir = os.path.abspath(output_dir)
 
-    # Create a temporary directory for the compiled package
+    # Create a temporary directory for building
     temp_dir = tempfile.mkdtemp()
     temp_project_dir = os.path.join(temp_dir, package_name)
 
-    # Update exclude and public_files to reference paths in the temporary directory
-    exclude = [
-        os.path.join(project_dir, os.path.relpath(path, project_dir))
-        for path in exclude
-    ]
-    public_files = [
-        os.path.join(project_dir, file)
-        for file in public_files
-    ]
+    # Compute absolute excluded paths
+    abs_exclude = [os.path.abspath(x) for x in exclude]
+
+    # `public_files` are given relative to project_dir, store them as abs paths
+    public_files = [os.path.abspath(os.path.join(project_dir, file)) for file in public_files]
+
+    # public files in tmp structure
     tmp_public_files = [
         os.path.join(temp_project_dir, os.path.relpath(file, project_dir))
         for file in public_files
     ]
 
     def should_copy(path):
-        """Check if the given path should be copied based on exclusions."""
-        #if ".venv" in path:
-        #    print(f"should be excluded: {path}")
-        for excluded in exclude:
-            if os.path.abspath(path).startswith(os.path.abspath(excluded)):
+        for exc in abs_exclude:
+            if os.path.abspath(path).startswith(exc):
                 return False
         return True
 
     def sanitize_filename(filename):
-        """Convert invalid filenames to valid Python module names."""
-        return re.sub(r"[^a-zA-Z0-9_]", "_", filename)
+    # Replace invalid chars but keep extension intact
+        base, ext = os.path.splitext(filename)
+        base = re.sub(r'[^a-zA-Z0-9_]', '_', base)
+        return base + ext
 
-    
     def copy_filtered(src, dest):
         """Copy the source directory to the destination, filtering out excluded paths."""
         for root, dirs, files in os.walk(src):
-            # Filter out excluded directories
+            # Filter directories
+            pre_filtered_dirs = dirs
             dirs[:] = [d for d in dirs if should_copy(os.path.join(root, d))]
+            #print(f"Excluded directories in {root}: {set(pre_filtered_dirs) - set(dirs)}")
+            #print(f"Copied directories in {root}: {set(dirs)}")
             for file in files:
                 src_path = os.path.join(root, file)
                 if should_copy(src_path):
@@ -70,24 +58,37 @@ def compile_and_package(project_dir, public_files, exclude=None, output_dir="dis
                     dest_path = os.path.join(dest, os.path.relpath(root, src), sanitized_file)
                     os.makedirs(os.path.dirname(dest_path), exist_ok=True)
                     shutil.copy2(src_path, dest_path)
-                else:
-                    print(f"Excluding {src_path}")
+                else:   
+                    print(f"Skipping {src_path} because it should be excluded")
 
-    print(f"Copying project to temporary directory: {temp_project_dir}")
+    print(f"Copying project from {project_dir} to temporary directory: {temp_project_dir}")
     copy_filtered(project_dir, temp_project_dir)
 
-    # Identify Python files to compile
+    compiled_whl_path = os.path.join(output_dir, f"{package_name}-{version}-py3-none-any.whl")
+    create_public_package(temp_dir, public_package_name, public_files, output_dir, version, compiled_package_name=package_name, compiled_whl_path=compiled_whl_path)
+
+    # Identify Python files to compile (not public, not excluded)
     extensions = []
     for dirpath, _, filenames in os.walk(temp_project_dir):
         for filename in filenames:
-            filepath = os.path.abspath(os.path.join(dirpath, filename))
-            if filepath in exclude:
+            filepath = os.path.join(dirpath, filename)
+            if not should_copy(filepath):
                 continue
+        # Adjust your condition as needed. For example, if you're reverting back to ".py":
             if filepath.endswith(".py") and filepath not in tmp_public_files:
                 module_path = os.path.relpath(filepath, temp_project_dir).replace(os.path.sep, ".")[:-3]
-                extensions.append(Extension(module_path, [filepath]))
+                # Convert to relative path for the Extension source
+                source_rel = os.path.relpath(filepath, temp_project_dir)
+                extensions.append(Extension(module_path, [source_rel]))
+            else:
+                print(f"Skipping {filepath} because it should be excluded")
 
-    # Create a setup.py for the compiled package
+    if not extensions:
+        print("No files to compile into C extensions. Ensure some .py files are not public or excluded.")
+    else:
+        print(f"Found {len(extensions)} extensions to compile.")
+
+    # Create setup.py for the compiled package
     compiled_setup_script = os.path.join(temp_project_dir, "setup.py")
     with open(compiled_setup_script, "w") as f:
         extensions_str = ",\n    ".join(
@@ -110,26 +111,44 @@ setup(
 )
     """)
 
-    # Compile the project and create the .whl package
-    print("Compiling internal logic to C extensions...")
-    os.system(f"python {compiled_setup_script} bdist_wheel --dist-dir {output_dir}")
+    # Build the compiled wheel
+    if extensions:
+        print("Compiling internal logic to C extensions...")
+        subprocess.check_call(
+            ["python", compiled_setup_script, "bdist_wheel", "--dist-dir", output_dir],
+            cwd=temp_project_dir
+        )
+        compiled_whl_path = os.path.join(output_dir, f"{package_name}-{version}-py3-none-any.whl")
+        print(f"Compiled package saved to: {compiled_whl_path}")
+    else:
+        # If no extensions, still create a wheel with no compiled code (if desired)
+        print("No compiled extensions. Creating empty compiled package wheel.")
+        subprocess.check_call(["python", compiled_setup_script, "bdist_wheel", "--dist-dir", output_dir])
 
-    compiled_whl_path = os.path.join(output_dir, f"{package_name}-{version}-py3-none-any.whl")
-    print(f"Compiled package saved to: {compiled_whl_path}")
+    # Cleanup
+    shutil.rmtree(temp_dir)
+    print("Temporary directory cleaned up.")
 
-     # Create the public Python package
+def create_public_package(temp_dir, public_package_name, public_files, output_dir, version, compiled_package_name, compiled_whl_path):
+    # Now create the public package
     public_package_dir = os.path.join(temp_dir, public_package_name)
+
+    # Clean and create directory structure for public package
     if os.path.exists(public_package_dir):
         shutil.rmtree(public_package_dir)
-
     os.makedirs(os.path.join(public_package_dir, public_package_name), exist_ok=True)
 
-    # Add an empty __init__.py file to the public package
+    # Add __init__.py
     init_file = os.path.join(public_package_dir, public_package_name, "__init__.py")
     with open(init_file, "w") as f:
         pass
 
-    # Create setup.py for the public package
+    # Copy only the public files
+    for public_file in public_files:
+        dest_path = os.path.join(public_package_dir, public_package_name, os.path.basename(public_file))
+        shutil.copy2(public_file, dest_path)
+
+    # Create setup.py for the public package AFTER copying files
     public_setup_script = os.path.join(public_package_dir, "setup.py")
     with open(public_setup_script, "w") as f:
         f.write(f"""
@@ -140,10 +159,10 @@ setup(
     version="{version}",
     description="Public API package depending on compiled internal logic",
     packages=["{public_package_name}"],
-    package_dir={{"{public_package_name}": "{public_package_name}"}},  # Map only the public package
-    package_data={{"{public_package_name}": ["*"]}},  # Include all files in the public_package_name directory
+    package_dir={{"{public_package_name}": "{public_package_name}"}},
+    package_data={{"{public_package_name}": ["*"]}},
     install_requires=[
-        "{package_name} @ file://{compiled_whl_path}"
+        "{compiled_package_name} @ file://{compiled_whl_path}"
     ],
     classifiers=[
         "Programming Language :: Python :: 3",
@@ -154,51 +173,39 @@ setup(
 )
     """)
 
-    # Ensure public package directory contains only the intended files
-    if os.path.exists(public_package_dir):
-        shutil.rmtree(public_package_dir)
-    os.makedirs(os.path.join(public_package_dir, public_package_name), exist_ok=True)
-
-    # Add __init__.py to the public package
-    init_file = os.path.join(public_package_dir, public_package_name, "__init__.py")
-    with open(init_file, "w") as f:
-        pass
-
-    # Copy public files to the public package directory
-    for public_file in public_files:
-        dest_path = os.path.join(public_package_dir, public_package_name, os.path.basename(public_file))
-    shutil.copy2(public_file, dest_path)
-
-    # Debug: Print directory contents
-    print("Public package directory contents:")
-    for root, dirs, files in os.walk(public_package_dir):
-        print(f"Directory: {root}")
-        for file in files:
-            print(f"  {file}")
+    # Build the public wheel
+    print("Building public API package...")
+    subprocess.check_call(["python", public_setup_script, "bdist_wheel", "--dist-dir", output_dir], 
+                          cwd=public_package_dir)
+    public_whl_path = os.path.join(output_dir, f"{public_package_name}-{version}-py3-none-any.whl")
+    print(f"Public package saved to: {public_whl_path}")
 
 
-# Example Usage
+
+# Example usage
 if __name__ == "__main__":
-    project_directory = "."  # Replace with your project directory
-
-    # Public files to remain as .py
+    project_directory = "."  # current directory
     public_api_files = [
-        "api/genesis_api.py",  # Public API file to expose
+        "api/genesis_api.py",
         "api/demo_remote_api_01.py",
         "api/demo_local_api_01.py",
         "api/snowflake_local_server.py",
         "api/snowflake_remote_server.py",
     ]
-
-    # Excluded files or directories, including .venv
     excluded_items = [
-        os.path.join(project_directory, ".venv"),  # Exclude virtual environment
+        os.path.join(project_directory, ".venv"),
+        os.path.join(project_directory, ".git"),
+        os.path.join(project_directory, "build"),
+        #os.path.join(project_directory, "spider_load"),
+        os.path.join(project_directory, "bot_git"),
+        os.path.join(project_directory, "genesis_api_whl"),    
+        os.path.join(project_directory, "app engine"),
+        os.path.join(project_directory, "experimental"),
+        os.path.join(project_directory, "teams/app.py"),
+        os.path.join(project_directory, "tests/hello_world_regtest_01_local.py"),
     ]
-
-    # Output directory for the .whl files
     output_directory = "dist"
 
-    # Call the function to create both packages
     compile_and_package(
         project_dir=project_directory,
         public_files=public_api_files,

@@ -40,3 +40,4 @@ gitpython==3.1.43
 anthropic
 boto3
 markdown
+cython

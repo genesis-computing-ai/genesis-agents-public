@@ -1,8 +1,3 @@
-import sys
-
-# Add the path to the directory or zip containing the compiled .pyc files
-sys.path.insert(0, "genesis_api.zip")
-
 # Import the GenesisAPI class
 from api.genesis_api import GenesisAPI
 from api.snowflake_remote_server import GenesisSnowflakeServer

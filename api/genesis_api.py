@@ -8,7 +8,14 @@ from   api.genesis_base         import (GenesisBot, GenesisKnowledge,
                                         GenesisServer, GenesisToolDefinition)
 
 class GenesisAPI:
-    def __init__(self, scope:str, sub_scope:str="app1", bot_list=None, server_type: type = GenesisLocalServer, fast_start=False):
+
+    def __init__(self,
+                 scope:str,
+                 sub_scope:str="app1",
+                 bot_list=None,
+                 server_type: type = GenesisLocalServer,
+                 fast_start=False
+                 ):
         self.scope = scope
         self.sub_scope = sub_scope
         self.registered_server: GenesisServer = server_type(scope, sub_scope, bot_list=bot_list, fast_start=fast_start)
@@ -163,3 +170,12 @@ class GenesisAPI:
 
     def shutdown(self):
         self.registered_server.shutdown()
+
+
+    def __enter__(self):
+        # Allow ClientAPI to be used as a resource manager that shuts itself down
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        # Allow ClientAPI to be used as a resource manager that shuts itself down
+        self.shutdown()

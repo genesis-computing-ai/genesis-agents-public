@@ -322,7 +322,7 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
 
             try:
                 if self.metadata_mapping == ['empty_index']:
-                    return "There is no data harvested, the search index is empty. Tell the user to use the Genesis Streamlit GUI to grant access to their data to Genesis."
+                    return ["There is no data harvested, the search index is empty. Tell the user to use the Genesis Streamlit GUI to grant access to their data to Genesis, or to specify a specfic DATABASE and SCHEMA that has already been granted to see what is in it."]
             except:
                 pass
 
@@ -568,7 +568,7 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
 
             try:
                 if self.metadata_mapping == ['empty_index']:
-                    return "There is no data harvested, the search index is empty. Tell the user to use the Genesis Streamlit GUI to grant access to their data to Genesis, or to specify a specfic DATABASE and SCHEMA that has already been granted to see what is in it."
+                    return ["There is no data harvested, the search index is empty. Tell the user to use the Genesis Streamlit GUI to grant access to their data to Genesis, or to specify a specfic DATABASE and SCHEMA that has already been granted to see what is in it."]
             except:
                 pass
 

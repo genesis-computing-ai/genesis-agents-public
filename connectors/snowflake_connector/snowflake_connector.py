@@ -4411,7 +4411,7 @@ result = 'Table FAKE_CUST created successfully.'
                         note_name = None,
                         note_type = None,
                         return_base64 = False,
-                        save_artifacts=True) -> str:
+                        save_artifacts=True) -> str|dict:
         """
         Executes a given Python code snippet within a Snowflake Snowpark environment, handling various
         scenarios such as code retrieval from notes, package management, and result processing.
@@ -4755,3 +4755,22 @@ result = 'Table FAKE_CUST created successfully.'
         if (bot_id not in ['eva-x1y2z3', 'Armen2-ps73td','MrsEliza-3348b2', os.getenv("O1_OVERRIDE_BOT","")]) and (bot_id is not None and not bot_id.endswith('-o1or')):
             result = self.add_hints(purpose, result, code, packages)
         return result
+
+    def db_get_user_extended_tools(self, project_id, dataset_name) -> list[dict]:
+        #runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
+        cursor = self.client.cursor()
+
+        try:
+            cursor.execute(f"SELECT TOOL_NAME, TOOL_DESCRIPTION, PARAMETERS FROM {project_id}.{dataset_name}.USER_EXTENDED_TOOLS")# WHERE RUNNER_ID = '{runner_id}'")
+            user_extended_tools_data = cursor.fetchall()
+            user_extended_tools = []
+            for tool in user_extended_tools_data:
+                user_extended_tools.append({
+                    "tool_name": tool[0],
+                    "tool_description": tool[1],
+                    "parameters": json.loads(tool[2])
+                })
+            return user_extended_tools
+        except Exception as e:
+            logger.error(f"Failed to fetch user extended tools definitions: {e}")
+            return []

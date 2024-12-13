@@ -1816,7 +1816,6 @@ def update_bot_endpoints(new_base_url, runner_id=None):
 
     try:
         bb_db_connector = get_global_db_connector()
-
         bots = bb_db_connector.db_get_slack_active_bots(runner_id=runner_id, project_id=project_id, dataset_name=dataset_name, bot_servicing_table=bot_servicing_table)
         for bot in bots:
             bot_id = bot.get('bot_id')

@@ -2,7 +2,7 @@ import json
 import time, os
 import re
 
-from api.genesis_base import GenesisBot, GenesisLocalServer, GenesisMetadataStore, GenesisProject, GenesisProcess, GenesisNote, GenesisKnowledge, GenesisServer, LocalMetadataStore, SnowflakeMetadataStore, ToolDefinition
+from api.genesis_base import GenesisBot, GenesisLocalServer, GenesisMetadataStore, GenesisProject, GenesisProcess, GenesisNote, GenesisKnowledge, GenesisServer, GenesisToolDefinition
 
 class GenesisAPI:
     def __init__(self, scope:str, sub_scope:str="app1", bot_list=None, server_type: type = GenesisLocalServer):
@@ -20,12 +20,14 @@ class GenesisAPI:
     def get_all_bots(self) -> list[str]:
         return self.metadata_store.get_all_metadata("GenesisBot")
 
-    def register_tool(self, tool: ToolDefinition):
-        raise NotImplementedError("register_tool not implemented")
+    def register_tool(self, tool: GenesisToolDefinition, python_code: str, return_type: str = "VOID", packages: list[str] = None):
+        self.metadata_store.upload_extended_tool(tool, python_code, return_type, packages)
+        #self.metadata_store.insert_or_update_metadata("GenesisToolDefinition", tool.tool_name, tool)
+        self.registered_server.restart()
     def get_tool(self, bot_id, tool_name) -> dict:
-        return self.registered_server.get_tool(bot_id, tool_name)
-    def get_all_tools(self, bot_id) -> list[str]:
-        return self.registered_server.get_all_tools(bot_id)
+        return self.metadata_store.get_metadata("GenesisToolDefinition", tool_name)
+    def get_all_user_defined_tools(self) -> list[str]:
+        return self.metadata_store.get_all_metadata("GenesisToolDefinition")
     def run_tool(self, bot_id, tool_name, tool_parameters: dict):
         return self.registered_server.run_tool(bot_id, tool_name, tool_parameters)
 

@@ -14,6 +14,9 @@ from typing import Optional, Dict, Any
 import time, uuid
 import jsonschema
 
+from bigquery_connector import BigQueryConnector
+from core import global_flags
+from core.bot_os_tools_extended import load_user_extended_tools
 from llm_openai.bot_os_openai import StreamingEventHandler
 
 import re
@@ -104,6 +107,7 @@ from core.bot_os_llm import BotLlmEngineEnum
 from core.logging_config import logger
 from core.bot_os_project_manager import ProjectManager
 from core.file_diff_handler import GitFileManager
+from snowflake_connector.snowflake_connector import SnowflakeConnector
 
 genesis_source = os.getenv("GENESIS_SOURCE", default="Snowflake")
 
@@ -1767,7 +1771,7 @@ class ToolBelt:
             return {}
 
     def manage_notebook(
-        self, action, bot_id=None, note_id=None, note_name = None, note_content=None, note_params=None, thread_id=None, note_type=None
+        self, action, bot_id=None, note_id=None, note_name = None, note_content=None, note_params=None, thread_id=None, note_type=None, note_config = None
     ):
         """
         Manages notes in the NOTEBOOK table with actions to create, delete, or update a note.
@@ -1823,7 +1827,7 @@ class ToolBelt:
 
         try:
             if action in ["UPDATE_NOTE_CONFIG", "CREATE_NOTE_CONFIG", "DELETE_NOTE_CONFIG"]:
-                note_config = '' if action == "DELETE_NOTE_CONFIG" else note_config
+                note_config = '' if action == "DELETE_NOTE_CONFIG" else note_config 
                 update_query = f"""
                     UPDATE {db_adapter.schema}.NOTEBOOK
                     SET NOTE_CONFIG = %(note_config)s
@@ -2377,7 +2381,7 @@ class ToolBelt:
                         artifact_id: Optional[str] = None,
                         thread_id=None,  # ignored, saved for future use
                         bot_id=None      # ignored, saved for future use
-                        ) -> str:
+                        ) -> str|dict:
         """
         A wrapper for LLMs to access/manage artifacts by performing specified actions such as describing or deleting an artifact.
 
@@ -2857,7 +2861,7 @@ class ToolBelt:
                     WHERE PROCESS_ID = %(process_id)s
                 """
                 cursor.execute(
-                    update_query,
+                    hide_query,
                     {"process_id": process_id},
                 )
                 db_adapter.client.commit()
@@ -2869,7 +2873,7 @@ class ToolBelt:
                     WHERE PROCESS_ID = %(process_id)s
                 """
                 cursor.execute(
-                    update_query,
+                    hide_query,
                     {"process_id": process_id},
                 )
                 db_adapter.client.commit()
@@ -3274,7 +3278,7 @@ class ToolBelt:
 
     # ====== PROCESSES END ====================================================================================
 
-def get_tools(which_tools, db_adapter, slack_adapter_local=None, include_slack=True, tool_belt=None):
+def get_tools(which_tools, db_adapter, slack_adapter_local=None, include_slack=True, tool_belt=None) -> tuple[list, dict, dict]:
 
     tools = []
     available_functions_load = {}
@@ -3422,6 +3426,14 @@ def get_tools(which_tools, db_adapter, slack_adapter_local=None, include_slack=T
             available_functions[name] = func
     # Insert additional code here if needed
 
+    # add user extended tools
+    user_extended_tools_definitions, user_extended_functions = load_user_extended_tools(db_adapter, project_id=global_flags.project_id, 
+                                                                                        dataset_name=global_flags.genbot_internal_project_and_schema.split(".")[1])
+    if user_extended_functions:
+        tools.extend(user_extended_functions)
+        available_functions_load.update(user_extended_tools_definitions)
+        function_to_tool_map[tool_name] = user_extended_functions
+        
     return tools, available_functions, function_to_tool_map
     # logger.info("imported: ",func)
 

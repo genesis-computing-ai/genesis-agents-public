@@ -21,6 +21,7 @@ def compile_and_package(project_dir, public_files, exclude=None, output_dir="dis
     public_files = public_files or []
     project_dir = os.path.abspath(project_dir)
     output_dir = os.path.abspath(output_dir)
+    os.makedirs(output_dir, exist_ok=True)
 
     # Create a temporary directory for building
     temp_dir = tempfile.mkdtemp()
@@ -59,7 +60,7 @@ def compile_and_package(project_dir, public_files, exclude=None, output_dir="dis
     copy_filtered(project_dir, temp_project_dir)
 
     # Build the compiled package
-    #build_compiled_package(temp_project_dir, output_dir, package_name, version, public_files, project_dir, abs_exclude)
+    build_compiled_package(temp_project_dir, output_dir, package_name, version, public_files, project_dir, abs_exclude)
     
     # After building the compiled wheel build the public package
     whl_files = glob.glob(os.path.join(output_dir, f"{package_name}-{version}-*.whl"))
@@ -72,6 +73,7 @@ def compile_and_package(project_dir, public_files, exclude=None, output_dir="dis
     create_public_package(temp_dir, public_package_name, public_files, output_dir, version, compiled_package_name=package_name, compiled_whl_path=post_build_compiled_whl_path)
 
     # Cleanup
+    print(f"Cleaning up temporary directory: {temp_dir}")
     shutil.rmtree(temp_dir)
     print("Temporary directory cleaned up.")
 
@@ -89,7 +91,7 @@ def build_compiled_package(temp_project_dir, output_dir, package_name, version, 
             if not should_copy(filepath, abs_exclude):
                 continue
         # Adjust your condition as needed. For example, if you're reverting back to ".py":
-            if filepath.endswith(".py") and filepath not in tmp_public_files:
+            if filepath.endswith(".py") and filepath not in tmp_public_files and filename != "__init__.py":
                 module_path = os.path.relpath(filepath, temp_project_dir).replace(os.path.sep, ".")[:-3]
                 # Convert to relative path for the Extension source
                 source_rel = os.path.relpath(filepath, temp_project_dir)
@@ -103,42 +105,81 @@ def build_compiled_package(temp_project_dir, output_dir, package_name, version, 
         print(f"Found {len(extensions)} extensions to compile.")
 
     # Create setup.py for the compiled package
-    compiled_setup_script = os.path.join(temp_project_dir, "setup.py")
-    with open(compiled_setup_script, "w") as f:
-        extensions_str = ",\n    ".join(
-            f"Extension('{ext.name}', {ext.sources})" for ext in extensions
-        )
-        f.write(f"""
-from setuptools import setup, Extension
+    compiled_setup_script = os.path.join(temp_project_dir, "compile_setup.py")
+    wheel_setup_script = os.path.join(temp_project_dir, "wheel_setup.py")
+
+    #extensions = extensions[:10]
+    extensions_str = ",\n    ".join(
+        f"Extension('{ext.name}', {ext.sources})" for ext in extensions
+    )
+    setup_py_template = """
+from setuptools import setup
+from setuptools.command.build_ext import build_ext
+from setuptools.extension import Extension
 from Cython.Build import cythonize
 
 setup(
     name="{package_name}",
     version="{version}",
     description="Compiled internal logic package",
-    ext_modules=cythonize([
-        {extensions_str}
-    ], compiler_directives={{"language_level": "3"}}),
+    ext_modules=cythonize(
+        [{extensions_str}],
+        compiler_directives={{"language_level": "3"}}
+    ),
     packages=[""],
-    package_data={{"": ["*.so"]}},
     include_package_data=True,
 )
-    """)
+"""
+    build_setup_py_content = setup_py_template.format(
+        package_name=package_name,
+        version=version,
+        extensions_str=extensions_str
+    )
+
+    with open(compiled_setup_script, "w") as f:
+        f.write(build_setup_py_content)
+
+    wheel_setup_template = """
+from setuptools import setup, find_packages
+from wheel.bdist_wheel import bdist_wheel as _bdist_wheel
+
+class bdist_wheel(_bdist_wheel):
+    def finalize_options(self):
+        super().finalize_options()
+        self.root_is_pure = False  # Mark the wheel as not pure, making it platform-specific
+
+setup(
+    name="{package_name}",
+    version="{version}",
+    description="Compiled internal logic package (packaging stage)",
+    packages=find_packages(),       # Automatically find all packages with __init__.py
+    include_package_data=True,      # Include additional data as specified
+    package_data={{
+        '': ['*.so'],               # Include all .so files in all packages
+    }},
+    cmdclass={{'bdist_wheel': bdist_wheel}},  # Use the customized bdist_wheel
+)
+"""
+    wheel_setup_py_content = wheel_setup_template.format(
+        package_name=package_name,
+        version=version,
+        #extensions_str=extensions_str
+    )
+
+    with open(wheel_setup_script, "w") as f:
+        f.write(wheel_setup_py_content)
 
     # Build the compiled wheel
-    if extensions:
-        print("Compiling internal logic to C extensions...")
-        subprocess.check_call(
-            ["python", compiled_setup_script, "bdist_wheel", "--dist-dir", output_dir],
-            cwd=temp_project_dir
-        )
-        compiled_whl_path = os.path.join(output_dir, f"{package_name}-{version}-py3-none-any.whl")
-        print(f"Compiled package saved to: {compiled_whl_path}")
-    else:
-        # If no extensions, still create a wheel with no compiled code (if desired)
-        print("No compiled extensions. Creating empty compiled package wheel.")
-        subprocess.check_call(["python", compiled_setup_script, "bdist_wheel", "--dist-dir", output_dir])
+    # 1. Run build_ext to compile .py to .so
+    subprocess.check_call(["python", compiled_setup_script, "build_ext", "--inplace"], cwd=temp_project_dir)
 
+    # 2. Remove all .py files except __init__.py
+    for dirpath, dirs, files in os.walk(temp_project_dir):
+        for file in files:
+            if file.endswith(".py") and file != "__init__.py" and not file.endswith("setup.py") or file.endswith(".pyc"):
+                os.remove(os.path.join(dirpath, file))
+
+    subprocess.check_call(["python", wheel_setup_script, "bdist_wheel", "--dist-dir", output_dir], cwd=temp_project_dir)
 
 def create_public_package(temp_dir, public_package_name, public_files, output_dir, version, compiled_package_name, compiled_whl_path):
     # Now create the public package

@@ -31,10 +31,10 @@ class BotOsAssistantInterface:
         self.bot_name = bot_name
         self.user_allow_cache = {}
 
-    @staticmethod
-    @abstractmethod
-    def load_by_name(name: str):
-        pass
+    #@staticmethod
+    #@abstractmethod
+    #def load_by_name(name: str):
+    #    pass
 
     @abstractmethod
     def create_thread(self) -> str:

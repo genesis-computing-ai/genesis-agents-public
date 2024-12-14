@@ -19,6 +19,8 @@ from core import global_flags
 from core.bot_os_tools_extended import load_user_extended_tools
 from llm_openai.bot_os_openai import StreamingEventHandler
 
+from google_sheets.g_sheets import get_g_file_version
+
 import re
 from typing import Optional
 import collections
@@ -1827,7 +1829,7 @@ class ToolBelt:
 
         try:
             if action in ["UPDATE_NOTE_CONFIG", "CREATE_NOTE_CONFIG", "DELETE_NOTE_CONFIG"]:
-                note_config = '' if action == "DELETE_NOTE_CONFIG" else note_config 
+                note_config = '' if action == "DELETE_NOTE_CONFIG" else note_config
                 update_query = f"""
                     UPDATE {db_adapter.schema}.NOTEBOOK
                     SET NOTE_CONFIG = %(note_config)s
@@ -2419,7 +2421,7 @@ class ToolBelt:
 
     # ====== ARTIFACTS END ==========================================================================================
 
-    def google_drive(self, action, thread_id=None):
+    def google_drive(self, action, thread_id=None, g_file_id=None):
         """
         A wrapper for LLMs to access/manage Google Drive files by performing specified actions such as listing or downloading files.
 
@@ -2435,6 +2437,12 @@ class ToolBelt:
             return {"Success": True, "message": "Test successful"}
         elif action == "SET_ROOT_FOLDER":
             raise NotImplementedError
+        elif action == "GET_FILE_VERSION_NUM":
+            try:
+                file_version_num = get_g_file_version(self.db_adapter.user, g_file_id)
+                return {"Success": True, "file_version_num": file_version_num}
+            except Exception as e:
+                return {"Success": False, "Error": str(e)}
         elif action == "LOGIN":
             from google_auth_oauthlib.flow import Flow
 
@@ -3427,13 +3435,13 @@ def get_tools(which_tools, db_adapter, slack_adapter_local=None, include_slack=T
     # Insert additional code here if needed
 
     # add user extended tools
-    user_extended_tools_definitions, user_extended_functions = load_user_extended_tools(db_adapter, project_id=global_flags.project_id, 
+    user_extended_tools_definitions, user_extended_functions = load_user_extended_tools(db_adapter, project_id=global_flags.project_id,
                                                                                         dataset_name=global_flags.genbot_internal_project_and_schema.split(".")[1])
     if user_extended_functions:
         tools.extend(user_extended_functions)
         available_functions_load.update(user_extended_tools_definitions)
         function_to_tool_map[tool_name] = user_extended_functions
-        
+
     return tools, available_functions, function_to_tool_map
     # logger.info("imported: ",func)
 

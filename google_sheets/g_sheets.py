@@ -55,6 +55,37 @@ def get_url_to_g_folder(folder_id, creds):
         return None
 
 
+def get_g_file_version(user = None, g_file_id = None):
+    """
+    Get the version number of a file in Google Drive.
+
+    Args:
+        file_id (str): The ID of the file.
+
+    Returns:
+        int: The version number of the file.
+    """
+    if not g_file_id or not user:
+        raise Exception("Missing parameters in get_g_file_version - file id or user")
+
+    try:
+        SERVICE_ACCOUNT_FILE = f"g-workspace-{user}.json"
+        creds = Credentials.from_service_account_file(
+            SERVICE_ACCOUNT_FILE, scopes=SCOPES
+        )
+        service = build("drive", "v3", credentials=creds)
+
+        # Get the file metadata including the version number
+        file_metadata = service.files().get(fileId=g_file_id, fields="version").execute()
+
+        # Print the file version
+        return file_metadata.get("version")
+
+    except Exception as e:
+        print(f"An error occurred: {str(e)}")
+        return None
+
+
 def read_g_sheet(spreadsheet_id = None, range_name = None, creds = None):
     """
     Creates the batch_update the user has access to.
@@ -484,7 +515,7 @@ def create_google_sheet(self, shared_folder_id, title, data):
                 )
                 .execute()
             )
-            print(f"File moved to folder: {file} | Parent folder {file['parents'][0]}")
+            print(f"File moved to folder - File ID: {file['id']} | Folder ID {file['parents'][0]}")
 
         # Test only - read file contents to confirm write
         # results = read_g_sheet(ss_id, range_name, creds)

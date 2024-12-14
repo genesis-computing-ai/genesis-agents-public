@@ -559,19 +559,23 @@ google_drive_functions = [
         "type": "function",
         "function": {
             "name": "_google_drive",
-            "description": """Performs certain actions on Google Drive, including logging in, listing files, and setting the root folder.
-                           Other actions may be added in the future.""",
+            "description": """Performs certain actions on Google Drive, including logging in, listing files, setting the root folder,
+                           and getting the version number of a google file (g_file).  Other actions may be added in the future.""",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "action": {
                         "type": "string",
                         "description": """
-                        The action to be performed on Google Drive.  Possible actions are: LOGIN, TEST, LIST, SET_ROOT_FOLDER""",
+                        The action to be performed on Google Drive.  Possible actions are: LOGIN, TEST, LIST, SET_ROOT_FOLDER, GET_FILE_VERSION_NUM""",
                     },
                     "user": {
                         "type": "string",
                         "description": "The unique identifier of the process_id. MAKE SURE TO DOUBLE-CHECK THAT YOU ARE USING THE CORRECT test_process_id ON UPDATES AND DELETES!  Required for CREATE, UPDATE, and DELETE.",
+                    },
+                    "g_file_id": {
+                        "type": "string",
+                        "description": "The unique identifier of a file stored on Google Drive.",
                     },
                 },
                 "required": ["action"],

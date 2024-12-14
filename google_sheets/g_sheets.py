@@ -26,20 +26,48 @@ SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets"
 ]
 
+def get_url_to_g_folder(folder_id, creds):
+    """
+    Get the web link to a folder in Google Drive.
 
-def read_g_sheet(spreadsheet_id = None, range_name = None, service = None):
+    Args:
+        folder_id (str): The ID of the folder.
+
+    Returns:
+        str: The web link to the folder.
+    """
+    try:
+        # Authenticate using the service account JSON file
+        service = build("drive", "v3", credentials=creds)
+
+        # Get the folder metadata including the webViewLink
+        folder = service.files().get(fileId=folder_id, fields="id, name, webViewLink").execute()
+
+        # Print the folder details
+        print(f"Folder ID: {folder.get('id')}")
+        print(f"Folder Name: {folder.get('name')}")
+        print(f"Web View Link: {folder.get('webViewLink')}")
+
+        return folder.get("webViewLink")
+
+    except Exception as e:
+        print(f"An error occurred: {str(e)}")
+        return None
+
+
+def read_g_sheet(spreadsheet_id = None, range_name = None, creds = None):
     """
     Creates the batch_update the user has access to.
     Load pre-authorized user credentials from the environment.
     TODO(developer) - See https://developers.google.com/identity
     for guides on implementing OAuth2 for the application.
     """
-    if not service or not spreadsheet_id or not range_name:
+    if not creds or not spreadsheet_id or not range_name:
         raise Exception("Missing credentials, spreadsheet ID, or range name.")
 
     # creds, _ = google.auth.default()
     try:
-        # service = build("sheets", "v4", credentials=creds)
+        service = build("sheets", "v4", credentials=creds)
 
         result = (
             service.spreadsheets()
@@ -459,11 +487,13 @@ def create_google_sheet(self, shared_folder_id, title, data):
             print(f"File moved to folder: {file} | Parent folder {file['parents'][0]}")
 
         # Test only - read file contents to confirm write
-        results = read_g_sheet(ss_id, range_name, service)
+        # results = read_g_sheet(ss_id, range_name, creds)
+        # print(f"Results from storing, then reading sheet: {results}")
 
-        print(f"Results from storing, then reading sheet: {results}")
+        folder_url = get_url_to_g_folder(top_level_folder_id, creds)
+        file_url = file.get("webViewLink")
 
-        return {"Success": True, "file_id": spreadsheet.get("spreadsheetId"), "webViewLink": file.get("webViewLink")}
+        return {"Success": True, "file_id": spreadsheet.get("spreadsheetId"), "file_url": file_url, "folder_url": folder_url}
 
     except HttpError as error:
         print(f"An error occurred: {error}")

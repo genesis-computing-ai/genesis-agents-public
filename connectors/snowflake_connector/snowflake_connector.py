@@ -2370,7 +2370,7 @@ def get_status(site):
 
             return {
                 "Success": True,
-                "result": "Data sent to Google Sheets - Link: " + result["webViewLink"],
+                "result": f'Data sent to Google Sheets - Link to folder: {result["folder_url"]} | Link to file: {result["file_url"]}'
             }
 
         return sample_data

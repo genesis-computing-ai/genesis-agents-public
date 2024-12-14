@@ -3,15 +3,13 @@
 import os.path
 
 from google.oauth2.service_account import Credentials
-# from google.auth.transport.requests import Request
-# from google.oauth2.credentials import Credentials
-# from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
-from googleapiclient.http import MediaFileUpload
 from datetime import datetime
-import mimetypes
+# import mimetypes
 import os
+import google.auth
+from .format_g_sheets import format_genesis_g_sheets
 
 ## test
 from concurrent.futures import ThreadPoolExecutor
@@ -27,6 +25,34 @@ SCOPES = [
     "https://www.googleapis.com/auth/drive",
     "https://www.googleapis.com/auth/spreadsheets"
 ]
+
+
+def read_g_sheet(spreadsheet_id = None, range_name = None, service = None):
+    """
+    Creates the batch_update the user has access to.
+    Load pre-authorized user credentials from the environment.
+    TODO(developer) - See https://developers.google.com/identity
+    for guides on implementing OAuth2 for the application.
+    """
+    if not service or not spreadsheet_id or not range_name:
+        raise Exception("Missing credentials, spreadsheet ID, or range name.")
+
+    # creds, _ = google.auth.default()
+    try:
+        # service = build("sheets", "v4", credentials=creds)
+
+        result = (
+            service.spreadsheets()
+            .values()
+            .get(spreadsheetId=spreadsheet_id, range=range_name)
+            .execute()
+        )
+        rows = result.get("values", [])
+        print(f"{len(rows)} rows retrieved")
+        return result
+    except HttpError as error:
+        print(f"An error occurred: {error}")
+        return error
 
 
 # def upload_file_to_folder(path_to_file, parent_folder_id):
@@ -50,18 +76,18 @@ SCOPES = [
 #     print(f'File ID: "{file.get("id")}".')
 #     return file.get("id")
 
-# test
+
 def process_row(args):
     self, row, stage_column_index, stage_column_folder_ids, creds = args
     row_values = list(row.values())
-    
+
     for j, row_value in enumerate(row_values):
         if isinstance(row_value, datetime):
             row_values[j] = row_value.strftime("%Y-%m-%d %H:%M:%S")
         elif len(stage_column_index) > 0 and j in stage_column_index and row_value:
             if len(row_value) < 1 or not row_value.startswith('@'):
                 continue
-            
+
             parts = row_value.split(".")
             path = parts[2].split("/")
             stage = path[0]
@@ -76,7 +102,7 @@ def process_row(args):
 
             filename = path[-1] + '.' + parts[-1]
             stage_folder_id = stage_column_folder_ids[stage_column_index.index(j)]
-            
+
             webLink = save_text_to_google_folder_with_retry(
                 self, stage_folder_id, filename, file_contents, creds
             )
@@ -85,7 +111,7 @@ def process_row(args):
             webLink = webLink.replace('"', '') if webLink else ''
             filename = filename.replace('"', '')
             row_values[j] = f'=HYPERLINK("{webLink}")'
-    
+
     return row_values
 
 @retry(
@@ -369,16 +395,16 @@ def create_google_sheet(self, shared_folder_id, title, data):
         batch_size = 10  # Adjust based on your needs
         max_workers = 5  # Reduced number of concurrent workers
         processed_rows = []
-        
+
         for i in range(0, len(data), batch_size):
             batch = data[i:i + batch_size]
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                row_args = [(self, row, stage_column_index, stage_column_folder_ids, creds) 
+                row_args = [(self, row, stage_column_index, stage_column_folder_ids, creds)
                            for row in batch]
                 batch_results = list(executor.map(process_row, row_args))
                 processed_rows.extend(batch_results)
                 time.sleep(1)  # Add delay between batches
-        
+
         # Add header and processed rows to columns
         columns = [keys] + processed_rows
 
@@ -413,136 +439,10 @@ def create_google_sheet(self, shared_folder_id, title, data):
         )
         print(f"{result.get('updatedCells')} cells updated.")
 
-        formatting_requests = [
-            # Set row heights
-            {
-                "updateDimensionProperties": {
-                    "range": {
-                        "sheetId": 0,
-                        "dimension": "ROWS",
-                        "startIndex": 0,
-                        "endIndex": len(columns)
-                    },
-                    "properties": {
-                        "pixelSize": 63
-                    },
-                    "fields": "pixelSize"
-                }
-            },
-            # Set column width
-            {
-                "updateDimensionProperties": {
-                    "range": {
-                        "sheetId": 0,
-                        "dimension": "COLUMNS",
-                        "startIndex": 0,
-                        "endIndex": len(columns[0])
-                    },
-                    "properties": {
-                        "pixelSize": 300
-                    },
-                    "fields": "pixelSize"
-                }
-            },
-            # Format header row with deep blue background
-            {
-                "updateCells": {
-                    "range": {
-                        "sheetId": 0,
-                        "startRowIndex": 0,
-                        "endRowIndex": 1,
-                        "startColumnIndex": 0,
-                        "endColumnIndex": len(columns[0])
-                    },
-                    "rows": [{
-                        "values": [{
-                            "userEnteredFormat": {
-                                "backgroundColor": {"red": 0.27, "green": 0.51, "blue": 0.71},  # Adjusted to match image blue
-                                "textFormat": {
-                                    "foregroundColor": {"red": 1.0, "green": 1.0, "blue": 1.0},  # White text
-                                    "bold": True
-                                },
-                                "horizontalAlignment": "CENTER",
-                                "verticalAlignment": "MIDDLE"
-                            }
-                        }] * len(columns[0])
-                    }],
-                    "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)"
-                }
-            },
-            # Add alternating row colors (white and light orange)
-            {
-                "addBanding": {
-                    "bandedRange": {
-                        "range": {
-                            "sheetId": 0,
-                            "startRowIndex": 1,
-                            "endRowIndex": len(columns),
-                            "startColumnIndex": 0,
-                            "endColumnIndex": len(columns[0])
-                        },
-                        "rowProperties": {
-                            "firstBandColor": {"red": 1.0, "green": 1.0, "blue": 1.0},  # White
-                            "secondBandColor": {"red": 1.0, "green": 0.95, "blue": 0.9}  # Very light orange
-                        }
-                    }
-                }
-            },
-            # Add borders in orange
-            {
-                "updateBorders": {
-                    "range": {
-                        "sheetId": 0,
-                        "startRowIndex": 0,
-                        "endRowIndex": len(columns),
-                        "startColumnIndex": 0,
-                        "endColumnIndex": len(columns[0])
-                    },
-                    "top": {"style": "SOLID", "width": 2, "color": {"red": 1.0, "green": 0.65, "blue": 0.0}},  # Orange
-                    "bottom": {"style": "SOLID", "width": 2, "color": {"red": 1.0, "green": 0.65, "blue": 0.0}},
-                    "left": {"style": "SOLID", "width": 2, "color": {"red": 1.0, "green": 0.65, "blue": 0.0}},
-                    "right": {"style": "SOLID", "width": 2, "color": {"red": 1.0, "green": 0.65, "blue": 0.0}},
-                    "innerHorizontal": {"style": "SOLID", "color": {"red": 1.0, "green": 0.65, "blue": 0.0}},
-                    "innerVertical": {"style": "SOLID", "color": {"red": 1.0, "green": 0.65, "blue": 0.0}}
-                }
-            },
-            # Freeze header row
-            {
-                "updateSheetProperties": {
-                    "properties": {
-                        "sheetId": 0,
-                        "gridProperties": {
-                            "frozenRowCount": 1
-                        }
-                    },
-                    "fields": "gridProperties.frozenRowCount"
-                }
-            },
-            # Enable text wrapping
-            {
-                "repeatCell": {
-                    "range": {
-                        "sheetId": 0,
-                        "startRowIndex": 0,
-                        "endRowIndex": len(columns),
-                        "startColumnIndex": 0,
-                        "endColumnIndex": len(columns[0])
-                    },
-                    "cell": {
-                        "userEnteredFormat": {
-                            "wrapStrategy": "WRAP"
-                        }
-                    },
-                    "fields": "userEnteredFormat.wrapStrategy"
-                }
-            }
-        ]
-
-
         # Apply formatting
         service.spreadsheets().batchUpdate(
             spreadsheetId=ss_id,
-            body={"requests": formatting_requests}
+            body={"requests": format_genesis_g_sheets(columns)}
         ).execute()
 
         # Move the document to shared folder
@@ -557,6 +457,11 @@ def create_google_sheet(self, shared_folder_id, title, data):
                 .execute()
             )
             print(f"File moved to folder: {file} | Parent folder {file['parents'][0]}")
+
+        # Test only - read file contents to confirm write
+        results = read_g_sheet(ss_id, range_name, service)
+
+        print(f"Results from storing, then reading sheet: {results}")
 
         return {"Success": True, "file_id": spreadsheet.get("spreadsheetId"), "webViewLink": file.get("webViewLink")}
 

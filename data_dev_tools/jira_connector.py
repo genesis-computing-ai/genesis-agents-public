@@ -199,12 +199,15 @@ def jira_api_connector():
         data_list = json.loads(data_json_str)
 
         # Access the first dictionary in the list
-        parsed_data = data_list[0]
+        # parsed_data = data_list[0]
 
         # Now you can access each key-value pair
-        jira_url = parsed_data['jira_url']
-        jira_email = parsed_data['jira_email']
-        jira_api_key = parsed_data['jira_api_key']
+        params_dict = {item['parameter']: item['value'] for item in data_list}
+
+        # Extract values
+        jira_url = params_dict['jira_url']
+        jira_email = params_dict['jira_email']
+        jira_api_key = params_dict['jira_api_key']
 
         jira_connector = JiraConnector(
             jira_url,
@@ -302,7 +305,7 @@ def create_issue(project_name, issue_type, summary, description, user_name=None,
             content_json = json.dumps(result_output, indent=4)
 
         else:
-            content_json = {"Unable to get connection to jira api": str(e)}
+            content_json = {"Unable to get connection to jira api": project_name}
         return content_json
     except Exception as e:
         return {"error updating comment for issue": str(e)}
@@ -342,7 +345,7 @@ def set_issue_assigned_user(issue_name, user_name, thread_id=None):
             # Convert to JSON and print
             content_json = json.dumps(reassign_output, indent=4)
         else:
-            content_json = {"Unable to get connection to jira api": str(e)}
+            content_json = {"Unable to get connection to jira api": issue_name}
         return content_json
     except Exception as e:
         return {"error updating comment for issue": str(e)}
@@ -371,7 +374,7 @@ def set_issue_comment(issue_name, comment, thread_id=None):
             # Convert to JSON and print
             content_json = json.dumps(comment_output, indent=4)
         else:
-            content_json = {"Unable to get connection to jira api": str(e)}
+            content_json = {"Unable to get connection to jira api": issue_name}
         return content_json
     except Exception as e:
         return {"error updating comment for issue": str(e)}
@@ -413,7 +416,7 @@ def set_issue_status(issue_name, status_text, thread_id=None):
             # Convert to JSON and print
             content_json = json.dumps(status_output, indent=4)
         else:
-            content_json = {"Unable to get connection to jira api": str(e)}
+            content_json = {"Unable to get connection to jira api": issue_name}
         return content_json
     except Exception as e:
         return {"error updating status for issue": str(e)}
@@ -464,7 +467,7 @@ def search_issues(description=None, summary=None, status=None, issue_type=None, 
             # Convert to JSON and print
             content_json = json.dumps({"found_issues": found_issues}, indent=4)
         else:
-            content_json = {"Unable to get connection to jira api": str(e)}
+            content_json = {"Unable to get connection to jira api": description}
 
         return content_json
     except Exception as e:
@@ -506,7 +509,7 @@ def get_issues_by_user(user_name, thread_id=None):
             # Convert to JSON and print
             content_json = json.dumps({"assigned_issues": assigned_issues}, indent=4)
         else:
-            content_json = {"Unable to get connection to jira api": str(e)}
+            content_json = {"Unable to get connection to jira api": user_name}
 
         return content_json
     except Exception as e:

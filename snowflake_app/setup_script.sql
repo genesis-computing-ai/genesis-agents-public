@@ -45,7 +45,7 @@ $$
             path: /healthcheck
       volumes:
       - name: botgit
-        source: "@bot_git"
+        source: "@app1.bot_git"
       endpoints:
       - name: udfendpoint
         port: 8080
@@ -171,7 +171,7 @@ $$
             GIT_PATH: /opt/bot_git
       volumes:
       - name: botgit
-        source: "@bot_git"
+        source: "@app1.bot_git"
       endpoints:
       - name: udfendpoint
         port: 8080
@@ -328,6 +328,7 @@ CREATE OR REPLACE PROCEDURE core.get_config_for_ref(ref_name STRING)
     $$
     DECLARE
       azure_ep VARCHAR;
+      jira_ep VARCHAR;
       custom_ep VARCHAR;
       ports VARCHAR;
     BEGIN
@@ -337,6 +338,27 @@ CREATE OR REPLACE PROCEDURE core.get_config_for_ref(ref_name STRING)
             "type": "CONFIGURATION",
             "payload":{
               "host_ports":["slack.com", "www.slack.com", "wss-primary.slack.com", "wss-backup.slack.com", "wss-primary.slack.com", "wss-backup.slack.com", "slack-files.com", "downloads.slack-edge.com", "files-edge.slack.com", "files-origin.slack.com", "files.slack.com", "global-upload-edge.slack.com", "universal-upload-edge.slack.com"],
+              "allowed_secrets": "NONE"}}';
+        WHEN 'GOOGLE_EXTERNAL_ACCESS' THEN
+          RETURN '{
+            "type": "CONFIGURATION",
+            "payload":{
+              "host_ports":["accounts.google.com","oauth2.googleapis.com","www.googleapis.com","googleapis.com"],
+              "allowed_secrets": "NONE"}}';
+        WHEN 'JIRA_EXTERNAL_ACCESS' THEN
+          SELECT VALUE || '.atlassian.net' INTO jira_ep
+          FROM APP1.EXT_SERVICE_CONFIG
+          WHERE UPPER(EXT_SERVICE_NAME) = 'JIRA' AND UPPER(PARAMETER) = 'SITE_NAME';
+
+          IF (jira_ep = '.atlassian.net') THEN
+              ports := '"www.atlassian.net"';
+          ELSE
+              ports := '"www.atlassian.net", "' || :jira_ep || '"';
+          END IF;
+          RETURN '{
+            "type": "CONFIGURATION",
+            "payload":{
+              "host_ports":[' || ports || '],
               "allowed_secrets": "NONE"}}';
         WHEN 'OPENAI_EXTERNAL_ACCESS' THEN
           RETURN '{
@@ -423,179 +445,185 @@ BEGIN
     WHERE SCHEMA_NAME = :INSTANCE_NAME;
 
     IF (:schema_exists) then
+      EXECUTE IMMEDIATE 'CREATE STAGE IF NOT EXISTS '||:INSTANCE_NAME||'.'||'BOT_GIT DIRECTORY = ( ENABLE = true ) ENCRYPTION = (TYPE = '||CHR(39)||'SNOWFLAKE_SSE'||chr(39)||')';
+      EXECUTE IMMEDIATE 'GRANT READ, WRITE ON STAGE '||:INSTANCE_NAME||'.'||'BOT_GIT TO APPLICATION ROLE APP_PUBLIC';
 
-    REVOKE USAGE ON FUNCTION APP1.deploy_bot(varchar) FROM APPLICATION ROLE APP_PUBLIC;
+      REVOKE USAGE ON FUNCTION APP1.deploy_bot(varchar) FROM APPLICATION ROLE APP_PUBLIC;
 
-    DROP FUNCTION IF EXISTS APP1.configure_ngrok_token(varchar, varchar, varchar);
+      DROP FUNCTION IF EXISTS APP1.configure_ngrok_token(varchar, varchar, varchar);
 
-    REVOKE USAGE ON FUNCTION APP1.configure_slack_app_token(varchar, varchar) FROM APPLICATION ROLE APP_PUBLIC;
+      REVOKE USAGE ON FUNCTION APP1.configure_slack_app_token(varchar, varchar) FROM APPLICATION ROLE APP_PUBLIC;
 
-    REVOKE USAGE ON FUNCTION APP1.configure_llm(varchar, varchar) FROM APPLICATION ROLE APP_PUBLIC;
+      REVOKE USAGE ON FUNCTION APP1.configure_llm(varchar, varchar) FROM APPLICATION ROLE APP_PUBLIC;
 
-    -- REVOKE USAGE ON FUNCTION APP1.submit_udf(varchar, varchar, varchar) FROM APPLICATION ROLE APP_PUBLIC;
+      -- REVOKE USAGE ON FUNCTION APP1.submit_udf(varchar, varchar, varchar) FROM APPLICATION ROLE APP_PUBLIC;
 
-    -- REVOKE USAGE ON FUNCTION APP1.lookup_udf(varchar, varchar) FROM APPLICATION ROLE APP_PUBLIC;
+      -- REVOKE USAGE ON FUNCTION APP1.lookup_udf(varchar, varchar) FROM APPLICATION ROLE APP_PUBLIC;
 
-    REVOKE USAGE ON FUNCTION APP1.get_slack_endpoints() FROM APPLICATION ROLE APP_PUBLIC;
+      REVOKE USAGE ON FUNCTION APP1.get_slack_endpoints() FROM APPLICATION ROLE APP_PUBLIC;
 
-    REVOKE USAGE ON FUNCTION APP1.list_available_bots() FROM APPLICATION ROLE APP_PUBLIC;
+      REVOKE USAGE ON FUNCTION APP1.list_available_bots() FROM APPLICATION ROLE APP_PUBLIC;
 
-    DROP FUNCTION IF EXISTS APP1.get_ngrok_tokens();
+      DROP FUNCTION IF EXISTS APP1.get_ngrok_tokens();
 
-    REVOKE USAGE ON FUNCTION APP1.get_metadata(varchar) FROM APPLICATION ROLE APP_PUBLIC;
+      REVOKE USAGE ON FUNCTION APP1.get_metadata(varchar) FROM APPLICATION ROLE APP_PUBLIC;
 
-    -- REVOKE USAGE ON FUNCTION APP1.get_artifact(varchar) FROM APPLICATION ROLE APP_PUBLIC;
-
-    BEGIN
-        SELECT
-          CASE
-              WHEN ARRAY_SIZE(PARSE_JSON(SYSTEM$GET_ALL_REFERENCES('private_key_secret'))) > 0
-              THEN TRUE
-              ELSE FALSE
-          END AS has_references INTO key_secret;
-    EXCEPTION
-      WHEN STATEMENT_ERROR THEN
-       key_secret := FALSE;
-    END;
-
-    IF (key_secret = TRUE and SERVICE_NAME = 'GENESISAPP_SERVICE_SERVICE') THEN
-
-      // Add logic to check references for private_key_secret existence.
-      LET spec VARCHAR := (
-            SELECT REGEXP_REPLACE(
-              REGEXP_REPLACE(VALUE
-                        ,'{{app_db_sch}}',lower(current_database())||'.'||lower(:INSTANCE_NAME)),
-              '(\\s+image:\\s.+)',
-              '\\1\n        secrets:\n        - snowflakeSecret:\n            objectReference: \'private_key_secret\''
-          ) AS updated_spec
-          FROM APP.YAML
-          WHERE NAME=:SERVICE_NAME and VALUE LIKE '%image:%');
-
-        EXECUTE IMMEDIATE
-        'ALTER SERVICE IF EXISTS '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
-        ' FROM SPECIFICATION  '||chr(36)||chr(36)||'\n'|| :spec ||'\n'||chr(36)||chr(36) ||
-        ' ';
-    ELSE
-      LET spec VARCHAR := (
-            SELECT REGEXP_REPLACE(VALUE
-              ,'{{app_db_sch}}',lower(current_database())||'.'||lower(:INSTANCE_NAME)) AS VALUE
-            FROM APP.YAML WHERE NAME=:SERVICE_NAME);
-
-        EXECUTE IMMEDIATE
-        'ALTER SERVICE IF EXISTS '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
-        ' FROM SPECIFICATION  '||chr(36)||chr(36)||'\n'|| :spec ||'\n'||chr(36)||chr(36) ||
-        ' ';
-    END IF;
+      EXECUTE IMMEDIATE
+        'CREATE FUNCTION if not exists '|| :INSTANCE_NAME ||'.set_metadata (metadata_type varchar)  RETURNS varchar SERVICE='|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||' ENDPOINT=udfendpoint AS '||chr(39)||'/udf_proxy/set_metadata'||chr(39);
 
 
+      -- REVOKE USAGE ON FUNCTION APP1.get_artifact(varchar) FROM APPLICATION ROLE APP_PUBLIC;
 
-    CALL CORE.GET_EAI_LIST(:INSTANCE_NAME) INTO :EAI_LIST;
+      BEGIN
+          SELECT
+            CASE
+                WHEN ARRAY_SIZE(PARSE_JSON(SYSTEM$GET_ALL_REFERENCES('private_key_secret'))) > 0
+                THEN TRUE
+                ELSE FALSE
+            END AS has_references INTO key_secret;
+      EXCEPTION
+        WHEN STATEMENT_ERROR THEN
+        key_secret := FALSE;
+      END;
 
-    LET x INTEGER := 0;
-    LET stmt VARCHAR := 'SELECT "name" as SERVICE_NAME, "schema_name" AS SCHEMA_NAME FROM TABLE(RESULT_SCAN(LAST_QUERY_ID()))';
-    EXECUTE IMMEDIATE 'SHOW SERVICES IN SCHEMA ' ||:INSTANCE_NAME;
-    LET RS1 RESULTSET := (EXECUTE IMMEDIATE :stmt);
-    LET c1 CURSOR FOR RS1;
-    FOR rec IN c1 DO
-        IF (LEN(EAI_LIST) > 0) THEN
+      IF (key_secret = TRUE and SERVICE_NAME = 'GENESISAPP_SERVICE_SERVICE') THEN
+
+        // Add logic to check references for private_key_secret existence.
+        LET spec VARCHAR := (
+              SELECT REGEXP_REPLACE(
+                REGEXP_REPLACE(VALUE
+                          ,'{{app_db_sch}}',lower(current_database())||'.'||lower(:INSTANCE_NAME)),
+                '(\\s+image:\\s.+)',
+                '\\1\n        secrets:\n        - snowflakeSecret:\n            objectReference: \'private_key_secret\''
+            ) AS updated_spec
+            FROM APP.YAML
+            WHERE NAME=:SERVICE_NAME and VALUE LIKE '%image:%');
+
+          EXECUTE IMMEDIATE
+          'ALTER SERVICE IF EXISTS '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
+          ' FROM SPECIFICATION  '||chr(36)||chr(36)||'\n'|| :spec ||'\n'||chr(36)||chr(36) ||
+          ' ';
+      ELSE
+        LET spec VARCHAR := (
+              SELECT REGEXP_REPLACE(VALUE
+                ,'{{app_db_sch}}',lower(current_database())||'.'||lower(:INSTANCE_NAME)) AS VALUE
+              FROM APP.YAML WHERE NAME=:SERVICE_NAME);
+
+          EXECUTE IMMEDIATE
+          'ALTER SERVICE IF EXISTS '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
+          ' FROM SPECIFICATION  '||chr(36)||chr(36)||'\n'|| :spec ||'\n'||chr(36)||chr(36) ||
+          ' ';
+      END IF;
+
+
+
+      CALL CORE.GET_EAI_LIST(:INSTANCE_NAME) INTO :EAI_LIST;
+
+      LET x INTEGER := 0;
+      LET stmt VARCHAR := 'SELECT "name" as SERVICE_NAME, "schema_name" AS SCHEMA_NAME FROM TABLE(RESULT_SCAN(LAST_QUERY_ID()))';
+      EXECUTE IMMEDIATE 'SHOW SERVICES IN SCHEMA ' ||:INSTANCE_NAME;
+      LET RS1 RESULTSET := (EXECUTE IMMEDIATE :stmt);
+      LET c1 CURSOR FOR RS1;
+      FOR rec IN c1 DO
+          IF (LEN(EAI_LIST) > 0) THEN
+              EXECUTE IMMEDIATE
+                'ALTER SERVICE IF EXISTS '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
+                ' SET ' ||
+                ' QUERY_WAREHOUSE = '||:WH_NAME||
+                ' EXTERNAL_ACCESS_INTEGRATIONS = (' || :EAI_LIST || ')';
+          ELSE
             EXECUTE IMMEDIATE
               'ALTER SERVICE IF EXISTS '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
               ' SET ' ||
-              ' QUERY_WAREHOUSE = '||:WH_NAME||
-              ' EXTERNAL_ACCESS_INTEGRATIONS = (' || :EAI_LIST || ')';
-        ELSE
-          EXECUTE IMMEDIATE
-            'ALTER SERVICE IF EXISTS '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||
-            ' SET ' ||
-            ' QUERY_WAREHOUSE = '||:WH_NAME;
-        END IF;
+              ' QUERY_WAREHOUSE = '||:WH_NAME;
+          END IF;
 
-      x := x + 1;
-    END FOR;
+        x := x + 1;
+      END FOR;
 
-    IF (x < 4) THEN
-      CALL APP.RECREATE_APP_INSTANCE(:INSTANCE_NAME, :C_POOL_NAME, :WH_NAME);
-    END IF;
+      IF (x < 4) THEN
+        CALL APP.RECREATE_APP_INSTANCE(:INSTANCE_NAME, :C_POOL_NAME, :WH_NAME);
+      END IF;
 
 
-    EXECUTE IMMEDIATE
-        'GRANT USAGE ON SERVICE '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||' TO APPLICATION ROLE APP_PUBLIC';
-    EXECUTE IMMEDIATE
-        'GRANT MONITOR ON SERVICE '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME || ' TO APPLICATION ROLE APP_PUBLIC';
-    EXECUTE IMMEDIATE
-        'GRANT SERVICE ROLE '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME || '!' || :SERVICE_NAME || '_ROLE TO APPLICATION ROLE APP_PUBLIC';
+      EXECUTE IMMEDIATE
+          'GRANT USAGE ON SERVICE '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||' TO APPLICATION ROLE APP_PUBLIC';
+      EXECUTE IMMEDIATE
+          'GRANT MONITOR ON SERVICE '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME || ' TO APPLICATION ROLE APP_PUBLIC';
+      EXECUTE IMMEDIATE
+          'GRANT SERVICE ROLE '|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME || '!' || :SERVICE_NAME || '_ROLE TO APPLICATION ROLE APP_PUBLIC';
 
-      IF (UPDATE_HARVEST_METADATA) THEN
-        -- Check if the APP1.HARVEST_RESULTS table exists and then delete specific rows from harvest_data
-        SELECT COUNT(*) > 0 INTO :harvest_schema_exists FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = :INSTANCE_NAME AND TABLE_NAME = 'HARVEST_RESULTS';
+        IF (UPDATE_HARVEST_METADATA) THEN
+          -- Check if the APP1.HARVEST_RESULTS table exists and then delete specific rows from harvest_data
+          SELECT COUNT(*) > 0 INTO :harvest_schema_exists FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = :INSTANCE_NAME AND TABLE_NAME = 'HARVEST_RESULTS';
 
-        SELECT IFF(COUNT(*)>0, 1, 0) INTO :harvest_excluded
-        FROM APP1.HARVEST_CONTROL
-        WHERE DATABASE_NAME = :APP_NAME
-            AND (ARRAY_CONTAINS('BASEBALL'::variant, SCHEMA_EXCLUSIONS) OR ARRAY_CONTAINS('FORMULA_1'::variant, SCHEMA_EXCLUSIONS)) ;
+          SELECT IFF(COUNT(*)>0, 1, 0) INTO :harvest_excluded
+          FROM APP1.HARVEST_CONTROL
+          WHERE DATABASE_NAME = :APP_NAME
+              AND (ARRAY_CONTAINS('BASEBALL'::variant, SCHEMA_EXCLUSIONS) OR ARRAY_CONTAINS('FORMULA_1'::variant, SCHEMA_EXCLUSIONS)) ;
 
-        IF  (:harvest_schema_exists AND NOT :harvest_excluded) THEN
+          IF  (:harvest_schema_exists AND NOT :harvest_excluded) THEN
 
 
-          EXECUTE IMMEDIATE '
-          MERGE INTO APP1.HARVEST_RESULTS AS target
-          USING (
-              SELECT
-                  SOURCE_NAME,
-                  REPLACE(QUALIFIED_TABLE_NAME, ''APP_NAME'', ''' || :APP_NAME || ''') AS QUALIFIED_TABLE_NAME,
-                  ''' || :APP_NAME || ''' AS DATABASE_NAME,
-                  MEMORY_UUID,
-                  SCHEMA_NAME,
-                  TABLE_NAME,
-                  REPLACE(COMPLETE_DESCRIPTION, ''APP_NAME'', ''' || :APP_NAME || ''') AS COMPLETE_DESCRIPTION,
-                  REPLACE(DDL, ''APP_NAME'', ''' || :APP_NAME || ''') AS DDL,
-                  REPLACE(DDL_SHORT, ''APP_NAME'', ''' || :APP_NAME || ''') AS DDL_SHORT,
-                  ''SHARED_VIEW'' AS DDL_HASH,
-                  REPLACE(SUMMARY, ''APP_NAME'', ''' || :APP_NAME || ''') AS SUMMARY,
-                  SAMPLE_DATA_TEXT,
-                  LAST_CRAWLED_TIMESTAMP,
-                  CRAWL_STATUS,
-                  ROLE_USED_FOR_CRAWL
-              FROM SHARED_HARVEST.HARVEST_RESULTS
-              WHERE DATABASE_NAME = ''APP_NAME''
-              AND SCHEMA_NAME IN (''BASEBALL'', ''FORMULA_1'')
-          ) AS source
-          ON target.QUALIFIED_TABLE_NAME = source.QUALIFIED_TABLE_NAME AND target.DDL = source.DDL
-          WHEN MATCHED THEN
-              UPDATE SET
-                  target.SOURCE_NAME = source.SOURCE_NAME,
-                  target.MEMORY_UUID = source.MEMORY_UUID,
-                  target.SCHEMA_NAME = source.SCHEMA_NAME,
-                  target.TABLE_NAME = source.TABLE_NAME,
-                  target.COMPLETE_DESCRIPTION = source.COMPLETE_DESCRIPTION,
-                  target.DDL = source.DDL,
-                  target.DDL_SHORT = source.DDL_SHORT,
-                  target.DDL_HASH = source.DDL_HASH,
-                  target.SUMMARY = source.SUMMARY,
-                  target.SAMPLE_DATA_TEXT = source.SAMPLE_DATA_TEXT,
-                  target.LAST_CRAWLED_TIMESTAMP = source.LAST_CRAWLED_TIMESTAMP,
-                  target.CRAWL_STATUS = source.CRAWL_STATUS,
-                  target.ROLE_USED_FOR_CRAWL = source.ROLE_USED_FOR_CRAWL
-          WHEN NOT MATCHED THEN
-              INSERT (SOURCE_NAME, QUALIFIED_TABLE_NAME, DATABASE_NAME, MEMORY_UUID, SCHEMA_NAME, TABLE_NAME, COMPLETE_DESCRIPTION, DDL, DDL_SHORT, DDL_HASH, SUMMARY, SAMPLE_DATA_TEXT, LAST_CRAWLED_TIMESTAMP, CRAWL_STATUS, ROLE_USED_FOR_CRAWL)
-              VALUES (
-                  source.SOURCE_NAME,
-                  source.QUALIFIED_TABLE_NAME,
-                  source.DATABASE_NAME,
-                  source.MEMORY_UUID,
-                  source.SCHEMA_NAME,
-                  source.TABLE_NAME,
-                  source.COMPLETE_DESCRIPTION,
-                  source.DDL,
-                  source.DDL_SHORT,
-                  source.DDL_HASH,
-                  source.SUMMARY,
-                  source.SAMPLE_DATA_TEXT,
-                  source.LAST_CRAWLED_TIMESTAMP,
-                  source.CRAWL_STATUS,
-                  source.ROLE_USED_FOR_CRAWL
-              );
-          ';
+            EXECUTE IMMEDIATE '
+            MERGE INTO APP1.HARVEST_RESULTS AS target
+            USING (
+                SELECT
+                    SOURCE_NAME,
+                    REPLACE(QUALIFIED_TABLE_NAME, ''APP_NAME'', ''' || :APP_NAME || ''') AS QUALIFIED_TABLE_NAME,
+                    ''' || :APP_NAME || ''' AS DATABASE_NAME,
+                    MEMORY_UUID,
+                    SCHEMA_NAME,
+                    TABLE_NAME,
+                    REPLACE(COMPLETE_DESCRIPTION, ''APP_NAME'', ''' || :APP_NAME || ''') AS COMPLETE_DESCRIPTION,
+                    REPLACE(DDL, ''APP_NAME'', ''' || :APP_NAME || ''') AS DDL,
+                    REPLACE(DDL_SHORT, ''APP_NAME'', ''' || :APP_NAME || ''') AS DDL_SHORT,
+                    ''SHARED_VIEW'' AS DDL_HASH,
+                    REPLACE(SUMMARY, ''APP_NAME'', ''' || :APP_NAME || ''') AS SUMMARY,
+                    SAMPLE_DATA_TEXT,
+                    LAST_CRAWLED_TIMESTAMP,
+                    CRAWL_STATUS,
+                    ROLE_USED_FOR_CRAWL
+                FROM SHARED_HARVEST.HARVEST_RESULTS
+                WHERE DATABASE_NAME = ''APP_NAME''
+                AND SCHEMA_NAME IN (''BASEBALL'', ''FORMULA_1'')
+            ) AS source
+            ON target.QUALIFIED_TABLE_NAME = source.QUALIFIED_TABLE_NAME AND target.DDL = source.DDL
+            WHEN MATCHED THEN
+                UPDATE SET
+                    target.SOURCE_NAME = source.SOURCE_NAME,
+                    target.MEMORY_UUID = source.MEMORY_UUID,
+                    target.SCHEMA_NAME = source.SCHEMA_NAME,
+                    target.TABLE_NAME = source.TABLE_NAME,
+                    target.COMPLETE_DESCRIPTION = source.COMPLETE_DESCRIPTION,
+                    target.DDL = source.DDL,
+                    target.DDL_SHORT = source.DDL_SHORT,
+                    target.DDL_HASH = source.DDL_HASH,
+                    target.SUMMARY = source.SUMMARY,
+                    target.SAMPLE_DATA_TEXT = source.SAMPLE_DATA_TEXT,
+                    target.LAST_CRAWLED_TIMESTAMP = source.LAST_CRAWLED_TIMESTAMP,
+                    target.CRAWL_STATUS = source.CRAWL_STATUS,
+                    target.ROLE_USED_FOR_CRAWL = source.ROLE_USED_FOR_CRAWL
+            WHEN NOT MATCHED THEN
+                INSERT (SOURCE_NAME, QUALIFIED_TABLE_NAME, DATABASE_NAME, MEMORY_UUID, SCHEMA_NAME, TABLE_NAME, COMPLETE_DESCRIPTION, DDL, DDL_SHORT, DDL_HASH, SUMMARY, SAMPLE_DATA_TEXT, LAST_CRAWLED_TIMESTAMP, CRAWL_STATUS, ROLE_USED_FOR_CRAWL)
+                VALUES (
+                    source.SOURCE_NAME,
+                    source.QUALIFIED_TABLE_NAME,
+                    source.DATABASE_NAME,
+                    source.MEMORY_UUID,
+                    source.SCHEMA_NAME,
+                    source.TABLE_NAME,
+                    source.COMPLETE_DESCRIPTION,
+                    source.DDL,
+                    source.DDL_SHORT,
+                    source.DDL_HASH,
+                    source.SUMMARY,
+                    source.SAMPLE_DATA_TEXT,
+                    source.LAST_CRAWLED_TIMESTAMP,
+                    source.CRAWL_STATUS,
+                    source.ROLE_USED_FOR_CRAWL
+                );
+            ';
 
 
 --           EXECUTE IMMEDIATE 'DELETE FROM APP1.HARVEST_RESULTS WHERE DATABASE_NAME = ''' || :APP_NAME || ''' AND SCHEMA_NAME IN (''BASEBALL'', ''FORMULA_1'')';
@@ -712,6 +740,9 @@ $$
 
  EXECUTE IMMEDIATE
    'CREATE or replace FUNCTION '|| :INSTANCE_NAME ||'.get_metadata (metadata_type varchar)  RETURNS varchar SERVICE='|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||' ENDPOINT=udfendpoint AS '||chr(39)||'/udf_proxy/get_metadata'||chr(39);
+
+ EXECUTE IMMEDIATE
+   'CREATE or replace FUNCTION '|| :INSTANCE_NAME ||'.set_metadata (metadata_type varchar)  RETURNS varchar SERVICE='|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||' ENDPOINT=udfendpoint AS '||chr(39)||'/udf_proxy/set_metadata'||chr(39);
 
  EXECUTE IMMEDIATE
    'CREATE or replace FUNCTION '|| :INSTANCE_NAME ||'.get_artifact (artifact_id varchar)  RETURNS varchar SERVICE='|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||' ENDPOINT=udfendpoint AS '||chr(39)||'/udf_proxy/get_artifact'||chr(39);
@@ -1103,9 +1134,6 @@ BEGIN
     FROM TABLE(RESULT_SCAN(LAST_QUERY_ID()))
     WHERE "name" NOT IN ('SYSTEM$STREAMLIT_NOTEBOOK_WH','APP_XSMALL','APP_XSMALL_1')
     LIMIT 1;
-
-  EXECUTE IMMEDIATE 'CREATE STAGE IF NOT EXISTS '||:INSTANCE_NAME||'.'||'BOT_GIT DIRECTORY = ( ENABLE = true ) ENCRYPTION = (TYPE = '||CHR(39)||'SNOWFLAKE_SSE'||chr(39)||')';
-  EXECUTE IMMEDIATE 'GRANT READ, WRITE ON STAGE '||:INSTANCE_NAME||'.'||'BOT_GIT TO APPLICATION ROLE APP_PUBLIC';
 
     -- Upgrade services
     CALL APP.UPGRADE_APP('APP1', 'GENESISAPP_SERVICE_SERVICE', TRUE, CURRENT_DATABASE(), 'GENESIS_POOL', :WAREHOUSE_NAME);

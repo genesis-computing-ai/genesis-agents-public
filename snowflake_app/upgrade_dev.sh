@@ -59,36 +59,66 @@ snow sql -c GENESIS-DEV-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/snowflak
 # Upload YML files
 snow sql -c GENESIS-DEV-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/snowflake_app/*.yml @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
 
-output=$(snow sql -c GENESIS-DEV-PROVIDER -q "ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG ADD PATCH FOR VERSION V0_9 USING @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE")
+json_data=$(snow sql -c GENESIS-DEV-PROVIDER --format json -q "show versions in application package GENESISAPP_APP_PKG;")
 
-# Output the result of the first command
-echo "First command output:"
-echo "$output"
+# Extract specific fields
+echo "$json_data" | jq '.[-1].version'
+echo "$json_data" | jq '.[-1].patch'
+version=$(echo "$json_data" | jq '.[-1].version')
+max_patch_number=$(echo "$json_data" | jq '.[-1].patch')
+version=${version//\"/}
+if [ "$max_patch_number" -eq 130 ]; then
+    number_part=$(echo "$version" | sed -E 's/^V[0-9]+_([0-9]+)/\1/')
+    old_version="V0_$((number_part - 1))"
+    new_version="V0_$((number_part + 1))"
 
-# Extract the patch number using awk
-patch_number=$(echo "$output" | awk -F'|' '/Patch/ {gsub(/^[ \t]+|[ \t]+$/, "", $4); print $4}')
+    echo "Dropping version $old_version"
+    if ! snow sql -c GENESIS-DEV-PROVIDER -q "ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG DROP VERSION $old_version ;"; then
+        echo "Error occurred: Unable to drop version $old_version. Exiting script..."
+    else
+        echo "Successfully dropped version $old_version."
+    fi
+    echo "Creating new version $new_version"
+    if ! snow sql -c GENESIS-DEV-PROVIDER -q "ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG ADD VERSION $new_version USING @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE"; then
+        echo "Error occurred: Unable to create version $new_version. Continuing with the script..."
+        exit 1
+    else
+        echo "Successfully created version $new_version."
+        patch_number=0
+        version=$new_version
+    fi
 
-# Output the extracted patch number
-echo "Extracted patch number: $patch_number"
+else
 
-# Check if patch_number is empty
-if [ -z "$patch_number" ]; then
-    echo "Failed to extract patch number. Exiting."
-    exit 1
+    output=$(snow sql -c GENESIS-DEV-PROVIDER -q "ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG ADD PATCH FOR VERSION $version USING @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE")
+
+    # Output the result of the first command
+    echo "First command output:"
+    echo "$output"
+
+    # Extract the patch number using awk
+    patch_number=$(echo "$output" | awk -F'|' '/Patch/ {gsub(/^[ \t]+|[ \t]+$/, "", $4); print $4}')
+
+    # Output the extracted patch number
+    echo "Extracted patch number: $patch_number"
+
+    # Check if patch_number is empty
+    if [ -z "$patch_number" ]; then
+        echo "Failed to extract patch number. Exiting."
+        exit 1
+    fi
 fi
 
+
+
 # Run the second command with the extracted patch number
-snow sql -c GENESIS-DEV-PROVIDER -q "ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG SET DEFAULT RELEASE DIRECTIVE VERSION = V0_9 PATCH = $patch_number;"
+snow sql -c GENESIS-DEV-PROVIDER -q "ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG SET DEFAULT RELEASE DIRECTIVE VERSION = $version PATCH = $patch_number;"
 
 echo "Patch $patch_number has been set as the default release directive."
 
-# Check if patch number is 130
-if [ "$patch_number" -eq 130 ]; then
-    echo "WARNING: You will need to upgrade your version number before your next patch"
-fi
 
 if [ "$2" == "False" ]; then
-    snow sql -c GENESIS-DEV-PROVIDER -q "ALTER APPLICATION GENESIS_BOTS UPGRADE USING VERSION V0_9;"
+    snow sql -c GENESIS-DEV-PROVIDER -q "ALTER APPLICATION GENESIS_BOTS UPGRADE USING VERSION $version;"
 else
     snow sql -c GENESIS-DEV-CONSUMER-2 -q "alter application genesis_bots upgrade"
 

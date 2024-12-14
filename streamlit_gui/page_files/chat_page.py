@@ -269,9 +269,9 @@ def chat_page():
                     if not image_format:
                         # fallback to guessing the content type from the header
                         ctype, csubtype = response.headers['Content-Type'].split('/')
-                        if ctype == "image" and csubtype in known_img_suffixes:
-                            image_format = csubtype
-                        elif ctype == "text" and csubtype in known_txt_types:
+                        #if ctype == "image" and csubtype in known_img_suffixes: # FIXME: this is not working
+                        #    image_format = csubtype
+                        if ctype == "text" and csubtype in known_txt_types:
                             image_format = csubtype
 
             allow_html = False

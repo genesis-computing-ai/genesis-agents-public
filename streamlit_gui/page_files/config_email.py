@@ -3,14 +3,14 @@ from utils import get_session, get_metadata
 import pandas as pd
 
 def setup_email():
-    
-    local=False
-    session = get_session()
-    if not session:
-        local = True
-    
+
+    # local=False
+    # session = get_session()
+    # if not session:
+    #     local = True
+
     st.title("Configure Email")
-    
+
     st.markdown("""
     <style>
     .big-font {
@@ -32,15 +32,18 @@ def setup_email():
     """, unsafe_allow_html=True)
 
     st.markdown('<p class="big-font">Why do we need to configure Email?</p>', unsafe_allow_html=True)
-    
+
     st.markdown("""
     Genesis Bots can send you email when they run autonomous tasks for you.  For example, Janice can email you when she identifies any concerns with the security of your Snowflake account, or if she has ideas for Snowflake cost savings or performance improvement opportunities.
     """, unsafe_allow_html=True)
 
     st.markdown('<p class="big-font">Email Configuration Steps</p>', unsafe_allow_html=True)
-    
+
     st.markdown("""
-    Please open another Snowflake window/tab, go to Projects, and make a new Snowflake worksheet. Run these commands to set up an email integration and grant Genesis access to use it to send you emails. This will also test that Snowflake has validated your email and can send you email, and will also set your email as the default for notifications from the system.
+    1. Please open the Snowflake Web UI in a new window/tab in your browser (this should be an additional window/tab to the one where you're following these instructions).
+    2. If an email address has not yet been added and validated for your user profile, go to the menu at the lower left hand corner of the Snowflake UI (this should have your name and role and an arrow pointing up), click on this to expand the menu, select the "My profile" item, and, in the "Profile" window that pops up, make sure that the "Email" field is populated and it does NOT have a message asking you to validate the email. If there is no email, add one. If you do see the message asking you to validate the email, then follow the steps in the [Snowflake documentation](https://docs.snowflake.com/en/user-guide/ui-snowsight-profile#verify-your-email-address).
+    3. Next, go to Projects and make a new Snowflake worksheet.
+    4. Copy and paste the below SQL into the worksheet. Run these commands to set up an email integration and grant Genesis access to use it to send you emails. This will also test that Snowflake has validated your email and can send you email, and will also set your email as the default for notifications from the system. Note: Genesis can send a message to any validated email that has been added to a Snowflake user profile.
     """)
 
     try:
@@ -63,7 +66,7 @@ call {st.session_state.get("app_name", "")}.core.set_default_email('{user_email}
     # Add a text input for the user's email
     user_email = st.text_input("Your email address:", value=user_email)
 
-    
+
     if st.button("TEST Email Integration from Genesis Server"):
         try:
             # Execute the command and collect the results
@@ -89,7 +92,7 @@ call {st.session_state.get("app_name", "")}.core.set_default_email('{user_email}
 # st.session_state.prefix = st.session_state.app_name + ".app1"
 # st.session_state.core_prefix = st.session_state.app_name + ".CORE"
 # st.session_state["wh_name"] = "XSMSALL"
-# import pandas as pd 
+# import pandas as pd
 # from snowflake.snowpark.context import get_active_session
 # session = get_active_session()
 # config_wh()

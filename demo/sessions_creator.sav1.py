@@ -49,8 +49,8 @@ genesis_source = os.getenv("GENESIS_SOURCE", default="Snowflake")
 
 def _configure_openai_or_azure_openai(db_adapter:DatabaseConnector) -> bool:
     llm_keys_and_types = db_adapter.db_get_active_llm_key()
-    
-    if llm_keys_and_types.llm_key: 
+
+    if llm_keys_and_types.llm_key:
         if llm_keys_and_types.llm_type == "azure_openai":
             os.environ["AZURE_OPENAI_API_KEY"] = llm_keys_and_types.llm_key
             os.environ["AZURE_OPENAI_API_ENDPOINT"] = llm_keys_and_types.llm_endpoint
@@ -181,7 +181,7 @@ def make_session(
     #    print (f"Instantiating ToolBelt with db_adapter and openai_api_key: len: {len(openai_key)}")
     #else:
     #    print (f"Instantiating ToolBelt with db_adapter, no OPENAI_KEY available")
-    tool_belt = ToolBelt(db_adapter)#, openai_key)
+    tool_belt = ToolBelt()#, openai_key)
 
     tools, available_functions, function_to_tool_map = get_tools(
         bot_tools, slack_adapter_local=slack_adapter_local, db_adapter=db_adapter, tool_belt=tool_belt
@@ -387,11 +387,11 @@ def make_session(
 
             instructions = """
 
-# Tool Instructions 
-""" 
+# Tool Instructions
+"""
 #""" - Always execute python code in messages that you share.
 # - When looking for real time information use relevant functions if available else fallback to brave_search
-# 
+#
             instructions += """You have access to the following functions, only call them when needed to perform actions or lookup information that you do not already have:
 
 """ + json.dumps(tools) + """
@@ -402,7 +402,7 @@ If a you choose to call a function ONLY reply in the following format:
 
 where
 
-function_name => the name of the function from the list above 
+function_name => the name of the function from the list above
 parameters => a JSON dict with the function argument name as key and function argument value as value.
 
 Here is an example,
@@ -419,13 +419,13 @@ Reminder:
 - Properly escape any double quotes in your parameter values with a backslash
 - Do not add any preable of other text before or directly after the function call
 - Always add your sources when using search results to answer the user query
-- Don't generate function call syntax (e.g. as an example) unless you want to actually call it immediately 
+- Don't generate function call syntax (e.g. as an example) unless you want to actually call it immediately
 - But when you do want to call the tools, don't just say you can do it, actually do it when needed
 - If you're suggesting a next step to the user other than calling a tool, just suggest it, but don't immediately perform it, wait for them to agree, unless its a tool call
 
 # Persona Instructions
  """+incoming_instructions + """
- 
+
 # Important Reminders
 If you say you're going to call or use a tool, you MUST actually make the tool call immediately in the format described above.
 Only respond with !NO_RESPONSE_REQUIRED if the message is directed to someone else or in chats with multiple people if you have nothing to say.
@@ -444,16 +444,16 @@ Only respond with !NO_RESPONSE_REQUIRED if the message is directed to someone el
 Always respond to greetings and pleasantries like 'hi' etc, unless specifically directed at someone else.
 
 """
- 
+
    #         with open('./latest_instructions.txt', 'w') as file:
    #             file.write(instructions)
-        
+
     try:
         # logger.warning(f"GenBot {bot_id} instructions:::  {instructions}")
         # logger.info(f'tools: {tools}')
         asst_impl = (
 #            assistant_implementation if stream_mode else None
-            assistant_implementation 
+            assistant_implementation
         )  # test this - may need separate BotOsSession call for stream mode
         logger.info(f"assistant impl : {assistant_implementation}")
         session = BotOsSession(
@@ -481,7 +481,7 @@ Always respond to greetings and pleasantries like 'hi' etc, unless specifically 
             all_function_to_tool_map=all_function_to_tool_map,
             bot_id=bot_config["bot_id"],
             stream_mode=stream_mode,
-            tool_belt=tool_belt, 
+            tool_belt=tool_belt,
             skip_vectors=skip_vectors,
         )
     except Exception as e:
@@ -610,7 +610,7 @@ def create_sessions(
     #     cursor.close()
 
     #     bots_config.append(janice_config)
-        
+
     sessions = []
     api_app_id_to_session_map = {}
     bot_id_to_udf_adapter_map = {}
@@ -629,9 +629,9 @@ def create_sessions(
  #           continue
         if os.getenv("TEST_MODE", "false").lower() == "true":
             if bot_config.get("bot_name") != os.getenv("TEAMS_BOT", ""):
-                logger.info("()()()()()()()()()()()()()()()")                
+                logger.info("()()()()()()()()()()()()()()()")
                 logger.info("Test Mode skipping all bots except ",os.getenv("TEAMS_BOT", ""))
-                logger.info("()()()()()()()()()()()()()()()") 
+                logger.info("()()()()()()()()()()()()()()()")
                 continue
         # JL TEMP REMOVE
         #       if bot_config["bot_id"] == "Eliza-lGxIAG":

@@ -33,6 +33,7 @@ rsa_key.pub
 .env*
 requirements_orig.txt
 .vscode/
+.pyflyby/
 
 genesis_env/*
 .matt.sh
@@ -47,3 +48,11 @@ sdf_genesis/sdf_dagster_out/*
 .personal/
 bot_git/
 ./bot_git/
+
+genesis-workspace-project-d094fd7d2562.json
+g-workspace-*.*
+
+build/
+dist/
+genesis_api_public.egg-info/
+genesis_api_public_whl.egg-info/

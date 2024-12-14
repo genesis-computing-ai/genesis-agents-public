@@ -139,4 +139,5 @@ class DatabaseConnector:
     def db_get_active_llm_key(self) -> list[llm_keys_and_types_struct]:
         raise NotImplementedError("This method should be implemented by subclasses.")
 
-
+    def db_get_user_extended_tools(self, project_id, dataset_name) -> list[dict]:
+        raise NotImplementedError("This method should be implemented by subclasses.")

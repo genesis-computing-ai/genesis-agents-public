@@ -249,7 +249,7 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
         
         # Construct the SQL query to retrieve metadata
         query = f"""
-            SELECT QUALIFIED_TABLE_NAME, COMPLETE_DESCRIPTION, DDL_SHORT
+            SELECT QUALIFIED_TABLE_NAME, COMPLETE_DESCRIPTION, DDL
             FROM {self.meta_database_connector.metadata_table_name}
             WHERE source_name = '{source_name_escaped}'
               AND database_name = '{database_name_escaped}'
@@ -290,8 +290,11 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
             return None
 
     
-    def find_memory_oldold(self, query, scope="database_metadata", top_n=15, verbosity="low", database=None, schema=None, table=None) -> list[str]:
+    def find_memory_oldold(self, query, scope="database_metadata", top_n=15, full_ddl='false',verbosity="low", database=None, schema=None, table=None) -> list[str]:
         
+        if full_ddl.lower == 'true':
+            verbosity='high'
+
         if scope == "database_metadata":
 
             # Check if the query is a 3-part table name
@@ -319,7 +322,7 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
 
             try:
                 if self.metadata_mapping == ['empty_index']:
-                    return "There is no data harvested, the search index is empty. Tell the user to use the Genesis Streamlit GUI to grant access to their data to Genesis."
+                    return ["There is no data harvested, the search index is empty. Tell the user to use the Genesis Streamlit GUI to grant access to their data to Genesis, or to specify a specfic DATABASE and SCHEMA that has already been granted to see what is in it."]
             except:
                 pass
 
@@ -430,7 +433,7 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
 
 
 
-    def find_memory(self, query, scope="database_metadata", top_n=15, verbosity="low", database=None, schema=None, table=None) -> list[str]:
+    def find_memory(self, query, scope="database_metadata", top_n=15, verbosity="low", database=None, schema=None, table=None, full_ddl='false') -> list[str]:
         """
         Find relevant metadata using a combination of structural filtering and vector similarity search.
         
@@ -443,6 +446,8 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
             schema (str): Optional schema name to filter by
             table (str): Optional table name to filter by
         """
+        if full_ddl.lower() == 'true':
+            verbosity='high'
 
         try:
             if scope != "database_metadata":
@@ -563,7 +568,7 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
 
             try:
                 if self.metadata_mapping == ['empty_index']:
-                    return "There is no data harvested, the search index is empty. Tell the user to use the Genesis Streamlit GUI to grant access to their data to Genesis, or to specify a specfic DATABASE and SCHEMA that has already been granted to see what is in it."
+                    return ["There is no data harvested, the search index is empty. Tell the user to use the Genesis Streamlit GUI to grant access to their data to Genesis, or to specify a specfic DATABASE and SCHEMA that has already been granted to see what is in it."]
             except:
                 pass
 
@@ -646,6 +651,13 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
                 # Remove quotes around table name for lookup
                 table_name = qualified_name.strip("'")
                 if table_name in content_dict:
+                    # Fix any _SUMMARY appended to table names in DDL_SHORT
+                    if 'DDL_SHORT' in content_dict[table_name]:
+                        table_name_no_quotes = table_name.split('.')[-1].strip('"')
+                        content_dict[table_name]['DDL_SHORT'] = content_dict[table_name]['DDL_SHORT'].replace(
+                            f"{table_name_no_quotes}_SUMMARY", 
+                            table_name_no_quotes
+                        )
                     sorted_content.append(content_dict[table_name])
             content = sorted_content
 
@@ -712,7 +724,7 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
 
 
             logger.info(f'Search metadata: returned {len(content)} objects')
-            return [content]
+            return content
     
         except Exception as e:
             error_details = {

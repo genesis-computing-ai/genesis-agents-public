@@ -60,6 +60,30 @@ database_tool_functions = [
             },
         },
     },
+        {
+        "type": "function",
+        "function": {
+            "name": "data_explorer",
+            "description": "Explores evailable data and finds the top relevant tables or views related to a search term. If you know what DATABASE or DATABASE and SCHEMA to use, it is highly recommended to use the DATABASE and SCHEMA paramaters to constrain the search. If you don't know these, call without these paramaters first to get a sense of the overall data availability situation for your query, and then perhaps later focus on a single database and/or scheme if the user agrees, especially if there are results from multiple databases and/or schemas. Use this tool if you don't already know which specific table(s) to query. If you already know the full table name, use get_full_table_details instead. (Note, this tool does not search stages).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "A short search query of what kind of data the user is looking for.",
+                    },
+                    "top_n": {
+                        "type": "integer",
+                        "description": "How many of the top results to return, max 25, default 15.  Use 15 to start.",
+                        "default": 15,
+                    },
+                    "database": {"type": "string", "description": "Use when you want to constrain the search to a specific database, this is highly recommended if you or the user knows the name of the database to focus on. But don't just use your workspace database by default unless the user agrees as you may miss out on data in other places."},
+                    "schema": {"type": "string", "description": "Use to constrain the search to a specific schema. Use together with DATABASE. This is highly recommended if you or the user knows the name of the database and schema to focus on.   But don't just use your workspace schema by default unless the user agrees as you may miss out on data in other places."},
+                },
+                "required": ["query"],
+            },
+        },
+    },
     {
         "type": "function",
         "function": {
@@ -89,6 +113,11 @@ database_tool_functions = [
                         "type": "integer",
                         "description": "Optional. The maximum size any field can be before it is truncated. Default is 5000.",
                         "default": 5000,
+                    },
+                    "export_to_google_sheet": {
+                        "type": "boolean",
+                        "description": "Optional. If true, the results will be exported to a Google Doc. Default is false.",
+                        "default": False,
                     },
                 },
                 "required": [ "connection", "max_rows"],
@@ -482,7 +511,8 @@ manage_tests_functions = [
             "description": """Manages tests that will run when when the project is deployed, including adding, updating, listing and deleting tests from the list of tests to run when the
                            project is deployed, allowing bots to manage tests. Remember that this is not used to create new processes.  Make sure that the user is specifically 
                            asking for a test to be added to the deploy sequence, have its priority weighting updated, or deleted. This tool is not used to run a test.
-                           If you are asked to run a tests, use the run process tool and pass the manage_process_id, do not use this tool.  If you aren't sure, ask the user to clarify.""",
+                           If you are asked to run a tests, use the run process tool and pass the manage_process_id, do not use this tool.  If you aren't sure, ask the user to clarify.
+                           If you are asked to enable a test, set its test_type to enabled.  If you are asked to disable a test, set its test_type to disabled.""",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -490,7 +520,7 @@ manage_tests_functions = [
                         "type": "string",
                         "description": """
                         The action to perform on a tests: ADD, UPDATE, DELETE,
-                        LIST returns a list of all tests, SHOW shows all fields of a test,
+                        LIST, ENABLE, DISABLE returns a list of all tests, SHOW shows all fields of a test,
                         or TIME to get current system time.""",
                     },
                     "bot_id": {
@@ -507,7 +537,7 @@ manage_tests_functions = [
                     },
                     "test_type": {
                         "type": "string",
-                        "description": "The type of test."
+                        "description": "The type of table, either enabled or disabled.",
                     },
                     "test_priority": {
                         "type": "integer",
@@ -515,6 +545,32 @@ manage_tests_functions = [
                     },
                 },
                 "required": ["action", "bot_id"],
+            },
+        },
+    }
+]
+
+google_drive_functions = [
+    {
+        "type": "function",
+        "function": {
+            "name": "_google_drive",
+            "description": """Performs certain actions on Google Drive, including logging in, listing files, and setting the root folder.
+                           Other actions may be added in the future.""",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "action": {
+                        "type": "string",
+                        "description": """
+                        The action to be performed on Google Drive.  Possible actions are: LOGIN, TEST, LIST, SET_ROOT_FOLDER""",
+                    },
+                    "user": {
+                        "type": "string",
+                        "description": "The unique identifier of the process_id. MAKE SURE TO DOUBLE-CHECK THAT YOU ARE USING THE CORRECT test_process_id ON UPDATES AND DELETES!  Required for CREATE, UPDATE, and DELETE.",
+                    },
+                },
+                "required": ["action"],
             },
         },
     }
@@ -771,6 +827,7 @@ snowflake_semantic_tools = {
 database_tools = {
     "_run_query":             "db_adapter.run_query",
     "search_metadata":        "search_metadata_f.local",
+    "data_explorer":        "search_metadata_detailed_f.local",
     "get_full_table_details": "search_metadata_f.local",
     "_run_snowpark_python":   "db_adapter.run_python_code",
     "_manage_artifact":       "tool_belt.manage_artifact",
@@ -785,9 +842,10 @@ snowflake_stage_tools = {
 }
 
 autonomous_tools = {}
-#autonomous_tools = {"_manage_tasks": "db_adapter.manage_tasks"}
+# autonomous_tools = {"_manage_tasks": "db_adapter.manage_tasks"}
 
-#process_runner_tools = {"_run_process": "tool_belt.run_process"}
+# process_runner_tools = {"_run_process": "tool_belt.run_process"}
+google_drive_tools = {"_google_drive": "tool_belt.google_drive"}
 manage_tests_tools = {"_manage_tests": "tool_belt.manage_tests"}
 process_manager_tools = {"_manage_processes": "tool_belt.manage_processes"}
 process_scheduler_tools = {"_process_scheduler": "tool_belt.process_scheduler"}
@@ -846,6 +904,7 @@ def bind_run_query(data_connection_info: list):
 
 def bind_search_metadata(knowledge_base_path):
 
+
     def _search_metadata(
         query: str,
         scope="database_metadata",
@@ -854,6 +913,7 @@ def bind_search_metadata(knowledge_base_path):
         table=None,
         top_n=8,
         verbosity="low",
+        full_ddl='false',
     ):
         """
         Exposes the find_memory function to be callable by OpenAI.
@@ -861,12 +921,11 @@ def bind_search_metadata(knowledge_base_path):
         :return: The search result from find_memory.
         """
 
-
-
         from core.logging_config import logger
 
         # logger.info(f"Search metadata called with query: {query}, scope: {scope}, top_n: {top_n}, verbosity: {verbosity}")
         try:
+
             if isinstance(top_n, str):
                 try:
                     top_n = int(top_n)
@@ -892,6 +951,7 @@ def bind_search_metadata(knowledge_base_path):
                 scope=scope,
                 top_n=top_n,
                 verbosity=verbosity,
+                full_ddl=full_ddl
             )
             return result
         except Exception as e:
@@ -899,3 +959,61 @@ def bind_search_metadata(knowledge_base_path):
             return "An error occurred while trying to find the memory."
 
     return _search_metadata
+
+def bind_search_metadata_detailed(knowledge_base_path):
+
+    def _search_metadata_detailed(
+        query: str,
+        scope="database_metadata",
+        database=None,
+        schema=None,
+        table=None,
+        top_n=8,
+        verbosity="high",
+        full_ddl='true',
+    ):
+
+        """
+        Exposes the find_memory function to be callable by OpenAI.
+        :param query: The query string to search memories for.
+        :return: The search result from find_memory.
+        """
+
+        from core.logging_config import logger
+
+        # logger.info(f"Search metadata called with query: {query}, scope: {scope}, top_n: {top_n}, verbosity: {verbosity}")
+        try:
+
+            if isinstance(top_n, str):
+                try:
+                    top_n = int(top_n)
+                except ValueError:
+                    top_n = 8
+            logger.info(
+                "Search metadata_detailed: query len=",
+                len(query),
+                " Top_n: ",
+                top_n,
+                " Verbosity: ",
+                verbosity,
+            )
+            # Adjusted to include scope in the call to find_memory
+            # logger.info(f"GETTING NEW ANNOY - Refresh True - --- Search metadata called with query: {query}, scope: {scope}, top_n: {top_n}, verbosity: {verbosity}")
+            my_kb = BotOsKnowledgeAnnoy_Metadata(knowledge_base_path, refresh=True)
+            # logger.info(f"CALLING FIND MEMORY  --- Search metadata called with query: {query}, scope: {scope}, top_n: {top_n}, verbosity: {verbosity}")
+            result = my_kb.find_memory(
+                query,
+                database=database,
+                schema=schema,
+                table=table,
+                scope=scope,
+                top_n=top_n,
+                verbosity='high',
+                full_ddl='true'
+            )
+            return result
+        except Exception as e:
+            logger.error(f"Error in find_memory_openai_callable: {str(e)}")
+            return "An error occurred while trying to find the memory."
+
+    return _search_metadata_detailed

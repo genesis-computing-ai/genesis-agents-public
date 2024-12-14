@@ -22,6 +22,7 @@ class Pages:
 
     def add_page(self, *args, **kwargs):
         entry = PageDesc(*args, **kwargs)
+        print(f"Adding page: {entry}")
         assert entry.page_id not in self.all # prevent duplicates
         self.all[entry.page_id] = entry
         self._by_display[entry.display_name] = entry
@@ -113,7 +114,7 @@ a = """
     }
     </style>
 """
-#st.markdown(a, unsafe_allow_html=True)
+# st.markdown(a, unsafe_allow_html=True)
 
 # Initialize data in session state if it doesn't exist
 if 'data' not in st.session_state:
@@ -121,7 +122,7 @@ if 'data' not in st.session_state:
 
 # ... (keep the initialization code)
 
-#st.success('NativeMode1 '+str(st.session_state.NativeMode))
+# st.success('NativeMode1 '+str(st.session_state.NativeMode))
 session = None
 if st.session_state.NativeMode:
     try:
@@ -138,7 +139,6 @@ if st.session_state.NativeMode:
         st.session_state["data"] = None
 else:
     st.session_state["data"] = "Local Mode"
-
 
 
 if 'show_log_config' not in st.session_state:
@@ -259,6 +259,7 @@ if st.session_state.NativeMode:
         # status_query = f"select v.value:status::varchar status from (select parse_json(system$get_service_status('{prefix}.GENESISAPP_SERVICE_SERVICE'))) t, lateral flatten(input => t.$1) v"
         # service_status_result = session.sql(status_query).collect()
         service_status_result = check_status()
+
     #    st.success('NativeMode3 '+str(service_status_result))
        # st.success('NativeMode3 '+str(service_status_result))
         if service_status_result != "READY":
@@ -330,6 +331,12 @@ if st.session_state.data:
     pages.add_page('grant_data', 'Grant Data Access', 'grant_data', 'grant_data')
     pages.add_page('config_custom_eai', 'Setup Custom Endpoints', 'config_custom_eai', 'config_custom_eai')
     pages.add_page('config_jira', 'Setup Jira API Params', 'config_jira', 'config_jira')
+    pages.add_page(
+        "config_g_sheets",
+        "Setup Google Workspace API",
+        "config_g_sheets",
+        "config_g_sheets",
+    )
     pages.add_page('db_harvester', 'Harvester Status', 'db_harvester', 'db_harvester')
     pages.add_page('bot_config', 'Bot Configuration', 'bot_config', 'bot_config')
     pages.add_page('start_stop', 'Server Stop-Start', 'start_stop', 'start_stop')
@@ -337,8 +344,7 @@ if st.session_state.data:
     pages.add_page('show_server_logs', 'Server Logs', 'show_server_logs', 'show_server_logs')
     pages.add_page('support', 'Support and Community', 'support', 'support')
 
-
-#    st.sidebar.subheader("**Genesis App**")
+    #    st.sidebar.subheader("**Genesis App**")
 
     # Get NativeMode from session state
     native_mode = st.session_state.get("NativeMode", False)
@@ -375,7 +381,7 @@ if st.session_state.data:
                         ''')
                 )
             else:
-                #TODO: handle missing  params
+                # TODO: handle missing  params
                 pass
         else:
             pass # silently ignore unrecognized requests
@@ -421,12 +427,16 @@ else:
     }
 
     st.sidebar.title("Genesis Bots Installation")
-    selection = st.sidebar.radio(
-        "Go to:",
-        list(pages.keys()),
-        index=list(pages.keys()).index(
-            st.session_state.get("radio", list(pages.keys())[0])
-        ),
-    )
-    if selection in pages:
-        pages[selection]()
+    try:
+        selection = st.sidebar.radio(
+            "Go to:",
+            list(pages.keys()),
+            index=list(pages.keys()).index(
+                st.session_state.get("radio", list(pages.keys())[0])
+            ),
+        )
+        if selection in pages:
+            pages[selection]()
+    except Exception as e:
+        st.error(f"Error accessing page {st.session_state.get('radio')}: {e}")
+        st.rerun()

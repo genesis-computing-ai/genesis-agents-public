@@ -1,8 +1,8 @@
 import logging
 import os
-import sys
 import re
-
+import sys
+from   contextlib               import contextmanager
 
 # Logging format use for root logger and GENESIS logger.
 DEFAULT_LOGGER_FOMRAT = '[%(asctime)s][%(levelname)s][%(filename)s:%(lineno)s][%(funcName)s]:: %(message)s'
@@ -32,13 +32,13 @@ class GenesisLogger(logging.Logger):
         if args:
             msg = msg + ' ' + ' '.join(str(arg) for arg in args)
             args = ()
-        if level == TELEMETRY_LEVEL:            
+        if level == TELEMETRY_LEVEL:
             items = msg.split(' ')
             if items[0] == 'add_answer:':
                 self.telemetry_logs['messages'] += 1
                 self.telemetry_logs['prompt_tokens'] += int(items[5])
                 self.telemetry_logs['completion_tokens'] += int(items[6])
-        
+
         # Call the parent class's log method to actually log the message
         super()._log(level, msg, args, **kwargs, extra=self._get_caller_info())
 
@@ -52,6 +52,13 @@ class GenesisLogger(logging.Logger):
             'caller_lineno': sys._getframe(3).f_lineno
         }
 
+
+# logging.warn is deprecated but we have a lot of legacy code using logger.warn.
+# With the below line we 'un-deprecate' it. Without this line, logger.warn will call logger.warning
+# with an additional frame, messing up the caller info above.
+GenesisLogger.warn = GenesisLogger.warning
+
+
 def _setup_genesis_logger(name=GENESIS_LOGGER_NAME):
     logging.setLoggerClass(GenesisLogger)
     logger = logging.getLogger(name)
@@ -59,7 +66,7 @@ def _setup_genesis_logger(name=GENESIS_LOGGER_NAME):
     level = os.environ.get('LOG_LEVEL', 'INFO')
     logger.setLevel(level)
 
-    # Define custom log level name and value    
+    # Define custom log level name and value
     logging.addLevelName(TELEMETRY_LEVEL, "TELEMETRY")
 
     # Add a method to the Logger class to handle the custom level
@@ -71,8 +78,7 @@ def _setup_genesis_logger(name=GENESIS_LOGGER_NAME):
     logging.Logger.telemetry = telemetry
 
     if not logger.handlers:
-        console_handler = logging.StreamHandler(sys.stdout)
-        console_handler.setLevel(level)
+        console_handler = logging.StreamHandler(sys.stdout)  # handles all logging levels by default
 
         # Update formatter to use custom attributes
         formatter = logging.Formatter(GENESIS_LOGGER_FOMRAT)
@@ -159,6 +165,31 @@ class LogSupressor:
             if filter is LogSupressor._filter_record:
                 return # We aready added this filter
         logger.addFilter(LogSupressor._filter_record)
+
+
+@contextmanager
+def log_level_ctx(new_level: int|str):
+    """
+    A context manager to temporarily set the Genesis logger level to a specified level.
+
+        >>> assert logger.level == logging.INFO
+        >>> logger.debug("you should NOT see this")
+        >>> with log_level_ctx(logging.DEBUG): # or "DEBUG"
+        ...     logger.debug("you should be able to see this")
+        >>> assert logger.level == logging.INFO
+
+    Args:
+        new_level (int): The temporary log level to set for the Genesis logger.
+    """
+    global logger
+    if isinstance(new_level, str): # convert to the numerinc value
+        new_level = logging.getLevelName(new_level.upper())
+    original_level = logger.level
+    logger.setLevel(new_level)
+    try:
+        yield
+    finally:
+        logger.setLevel(original_level)
 
 
 # Log configruation starts here

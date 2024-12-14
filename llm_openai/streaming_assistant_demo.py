@@ -144,7 +144,7 @@ class EventHandler(AssistantEventHandler):
       
        if keep_retrieving_run.status == "completed":
            all_messages = openai_client.beta.threads.messages.list(
-               thread_id=current_thread.id
+               thread_id=self.thread_id # current_thread.id
            )
 
            print(all_messages.data[0].content[0].text.value, "", "")

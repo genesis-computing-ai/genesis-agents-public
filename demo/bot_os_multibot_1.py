@@ -9,6 +9,8 @@ import tempfile
 import base64
 from pathlib import Path
 from flask import Flask, request, jsonify, make_response
+from threading import Thread
+
 from core.bot_os_tools import ToolBelt
 from core.bot_os import BotOsSession
 from core.bot_os_corpus import URLListFileCorpus
@@ -24,7 +26,9 @@ from core.bot_os_memory import BotOsKnowledgeAnnoy_Metadata
 from core.bot_os_server import BotOsServer
 from core.bot_os_artifacts import get_artifacts_store
 from apscheduler.schedulers.background import BackgroundScheduler
-from connectors import get_global_db_connector
+# from connectors import get_global_db_connector
+from connectors.snowflake_connector.snowflake_connector import SnowflakeConnector
+from connectors.sqlite_connector import SqliteConnector
 from embed.embed_openbb import openbb_query
 from llm_openai.openai_utils import get_openai_client
 from slack.slack_bot_os_adapter import SlackBotAdapter
@@ -58,22 +62,22 @@ from demo.sessions_creator import create_sessions, make_session
 
 
 # for Cortex testing
-#os.environ['SIMPLE_MODE'] = 'true'
+# os.environ['SIMPLE_MODE'] = 'true'
 
 
 from core.logging_config import logger
 
 import core.global_flags as global_flags
 
-#import debugpy
-#debugpy.listen(("0.0.0.0", 5678))
-#import pydevd
-#pydevd.settrace('0.0.0.0', port=5678, stdoutToServer=True, stderrToServer=True, suspend=False)
+# import debugpy
+# debugpy.listen(("0.0.0.0", 5678))
+# import pydevd
+# pydevd.settrace('0.0.0.0', port=5678, stdoutToServer=True, stderrToServer=True, suspend=False)
 # import pdb_attach
 # pdb_attach.listen(5679)  # Listen on port 5678.
 # $ python -m pdb_attach <PID> 5678
 
-logger.info("****** GENBOT VERSION 0.202 *******")
+logger.info("****** GENBOT VERSION 0.300 *******")
 
 runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
 multbot_mode = True
@@ -91,7 +95,14 @@ if os.path.exists(index_size_file):
     except Exception as e:
         logger.info(f"Error deleting {index_size_file}: {e}")
 
+genesis_source = os.getenv('GENESIS_SOURCE', default="Snowflake")
 
+if genesis_source ==  'Sqlite':
+    db_adapter = SqliteConnector(connection_name='Sqlite')
+elif genesis_source == 'Snowflake':
+    db_adapter = SnowflakeConnector(connection_name='Snowflake')
+else:
+    raise ValueError('Invalid Source')
 
 def get_udf_endpoint_url(endpoint_name="udfendpoint"):
 
@@ -127,8 +138,8 @@ global_flags.project_id = project_id
 dataset_name = db_schema[1]
 global_flags.genbot_internal_project_and_schema = genbot_internal_project_and_schema
 
-genesis_source = os.getenv("GENESIS_SOURCE", default="Snowflake")
-db_adapter = get_global_db_connector(genesis_source)
+# genesis_source = os.getenv("GENESIS_SOURCE", default="Snowflake")
+# db_adapter = get_global_db_connector(genesis_source)
 
 if os.getenv("TEST_MODE", "false").lower() == "true":
     logger.info("()()()()()()()()()()()()()")
@@ -138,6 +149,7 @@ else:
     logger.info("NOT RUNNING TEST MODE - APPLYING ONE TIME DB FIXES AND CREATING TABLES")
     db_adapter.one_time_db_fixes()
     db_adapter.ensure_table_exists()
+    db_adapter.create_google_sheets_creds()
 
 
 bot_id_to_udf_adapter_map = {}
@@ -158,7 +170,6 @@ global_flags.source = genesis_source
 # while True:
 #    prompt = input('> ')
 #    db_adapter.semantic_copilot(prompt, semantic_model='"!SEMANTIC"."GENESIS_TEST"."GENESIS_INTERNAL"."SEMANTIC_STAGE"."revenue.yaml"')
-
 
 
 # Fetch endpoint URLs
@@ -187,7 +198,7 @@ global_flags.slack_active = test_slack_config_token()
 if global_flags.slack_active == 'token_expired':
     logger.info('Slack Config Token Expired')
     global_flags.slack_active = False
-#global_flags.slack_active = True
+# global_flags.slack_active = True
 
 logger.info(f"...Slack Connector Active Flag: {global_flags.slack_active}")
 SystemVariables.bot_id_to_slack_adapter_map = {}
@@ -209,6 +220,7 @@ else:
     pass
 
 app = Flask(__name__)
+app_https = Flask(__name__)
 
 # add routers to a map of bot_ids if we allow multiple bots to talk this way via one UDF
 
@@ -219,6 +231,34 @@ app = Flask(__name__)
 # @app.route("/udf_proxy/submit_ui", methods=["GET", "POST"])
 # def submit_fn():
 #    return udf_adapter.submit_fn()
+
+
+@app_https.get("/oauth")
+def oauth2_callback():
+    from google_auth_oauthlib.flow import Flow
+
+    SCOPES = [
+        "https://www.googleapis.com/auth/drive.file",
+        "https://www.googleapis.com/auth/documents",
+        "https://www.googleapis.com/auth/drive",
+    ]
+
+    user=os.getenv("USER")
+
+    flow = Flow.from_client_secrets_file(
+        "credentials.json".format(user),
+        scopes=SCOPES,
+        redirect_uri="http://127.0.0.1:8080/oauth",  # Your redirect URI
+    )
+    authorization_response = request.url
+    flow.fetch_token(authorization_response=authorization_response)
+
+    # Get credentials and save them
+    credentials = flow.credentials
+    with open(f"token-{user}.json", "w") as token_file:
+        token_file.write(credentials.to_json())
+
+    return "Authorization complete. You can close this window."
 
 @app.get("/healthcheck")
 def readiness_probe():
@@ -263,13 +303,6 @@ def echo():
     response.headers["Content-type"] = "application/json"
     logger.debug(f"Sending response: {response.json}")
     return response
-
-
-# @app.route("/healthcheck", methods=["GET", "POST"])
-# def healthcheck():
-#    #return udf_adapter.healthcheck()
-#    pass
-
 
 @app.route("/udf_proxy/submit_udf", methods=["POST"])
 def submit_udf():
@@ -363,6 +396,7 @@ def file_to_bytes(file_path):
     logger.info('inside file_path - after encoded')
     return encoded
 
+
 @app.route("/udf_proxy/get_metadata", methods=["POST"])
 def get_metadata():
     try:
@@ -386,7 +420,7 @@ def get_metadata():
             if "BOT_LLMS" in os.environ and os.environ["BOT_LLMS"]:
                 result = {"Success": True, "Data": os.environ["BOT_LLMS"]}
             else:
-                result = {"Success": False, "Message": result["Error"]}
+                result = {"Success": False, "Message": "BOT_LLMS not set"}
         elif metadata_type.startswith('test_email '):
             email = metadata_type.split('test_email ')[1].strip()
             result = db_adapter.send_test_email(email)
@@ -410,13 +444,6 @@ def get_metadata():
                 endpoint = metadata_parts[2].strip()
                 type = metadata_parts[3].strip()
             result = db_adapter.set_endpoint(group_name, endpoint, type)
-        elif metadata_type.startswith('set_jira_config_params '):
-            metadata_parts = metadata_type.split()
-            if len(metadata_parts) == 4:
-                jira_url = metadata_parts[1].strip()
-                jira_email = metadata_parts[2].strip()
-                jira_api_key = metadata_parts[3].strip()
-            result = db_adapter.set_jira_config_params(jira_url, jira_email, jira_api_key)
         elif metadata_type.startswith('set_model_name '):
             model_name, embedding_model_name = metadata_type.split('set_model_name ')[1].split(' ')[:2]
             # model_name = metadata_type.split('set_model_name ')[1].strip()
@@ -480,6 +507,50 @@ def get_metadata():
     logger.debug(f"Sending response: {response.json}")
     return response
 
+@app.route("/udf_proxy/set_metadata", methods=["POST"])
+def set_metadata():
+    try:
+        message = request.json
+        input_rows = message["data"]
+        metadata_type = input_rows[0][1]
+
+        if metadata_type.startswith('set_endpoint '):
+            metadata_parts = metadata_type.split()
+            if len(metadata_parts) == 4:
+                group_name = metadata_parts[1].strip()
+                endpoint = metadata_parts[2].strip()
+                type = metadata_parts[3].strip()
+            result = db_adapter.set_endpoint(group_name, endpoint, type)
+        elif metadata_type.startswith('api_config_params '):
+            metadata_parts = metadata_type.split()
+            if len(metadata_parts) > 3:
+                service_name = metadata_parts[1].strip()
+                key_pairs = " ".join(metadata_parts[2:])
+            result = db_adapter.set_api_config_params(service_name, key_pairs)
+        elif metadata_type.startswith('set_model_name '):
+            model_name, embedding_model_name = metadata_type.split('set_model_name ')[1].split(' ')[:2]
+            # model_name = metadata_type.split('set_model_name ')[1].strip()
+            # embedding_model_name = metadata_type.split('set_model_name ')[1].strip()
+            result = db_adapter.update_model_params(model_name, embedding_model_name)
+        else:
+            raise ValueError(
+                "Invalid metadata_type provided."
+            )
+
+        if result["Success"]:
+            output_rows = [[input_rows[0][0], json.loads(result["Data"])]]
+        else:
+            output_rows = [[input_rows[0][0], {"Success": False, "Message": result["Error"]}]]
+
+    except Exception as e:
+        logger.info(f"***** error in metadata: {str(e)}")
+        output_rows = [[input_rows[0][0], {"Success": False, "Message": str(e)}]]
+
+    response = make_response({"data": output_rows})
+    response.headers["Content-type"] = "application/json"
+    logger.debug(f"Sending response: {response.json}")
+    return response
+
 
 @app.route("/udf_proxy/get_artifact", methods=["POST"])
 def get_artifact_data():
@@ -524,7 +595,6 @@ def get_artifact_data():
         }
 
     return jsonify(response)
-
 
 
 @app.route("/udf_proxy/get_slack_tokens", methods=["POST"])
@@ -1134,8 +1204,6 @@ def embed_openbb():
     )
 
 
-
-
 # Example curl command:
 # curl -X GET "http://localhost:8080/realtime/get_tools?bot_id=Janice"
 # Example curl command:
@@ -1243,10 +1311,10 @@ def genesis_tool():
         return jsonify({"success": False, "message": str(e)}), 500
 
 from flask import Flask, request, jsonify
-#from flask_cors import CORS
+# from flask_cors import CORS
 
 
-#CORS(app, resources={r"/*": {"origins": "http://localhost:*"}}) # This will enable CORS only for localhost
+# CORS(app, resources={r"/*": {"origins": "http://localhost:*"}}) # This will enable CORS only for localhost
 
 BotOsServer.stream_mode = True
 scheduler.start()
@@ -1276,6 +1344,9 @@ SERVICE_HOST = os.getenv("SERVER_HOST", "0.0.0.0")
 def run_flask_app():
     app.run(host=SERVICE_HOST, port=8080, debug=False, use_reloader=False)
 
+def run_flask_app_https():
+    app_https.run(host=SERVICE_HOST, port=8082, ssl_context='adhoc', debug=False, use_reloader=False)
+
 
 # def run_slack_app():
 #    handler = SocketModeHandler(slack_app, tok)
@@ -1292,3 +1363,16 @@ if __name__ == "__main__":
     #    time.sleep(60)
     # Run Flask app in the main thread
     run_flask_app()
+    run_flask_app_https()
+
+    # print("Running Flask app")
+    # t1 = Thread(target=run_flask_app)
+
+    # print("Running Flask app")
+    # t2 = Thread(target=run_flask_app_https)
+
+    # t1.start()
+    # t2.start()
+
+    # t1.join()
+    # t2.join()

@@ -567,7 +567,8 @@ google_drive_functions = [
                     "action": {
                         "type": "string",
                         "description": """
-                        The action to be performed on Google Drive.  Possible actions are: LOGIN, TEST, LIST, SET_ROOT_FOLDER, GET_FILE_VERSION_NUM""",
+                        The action to be performed on Google Drive.  Possible actions are: LOGIN, TEST, LIST, SET_ROOT_FOLDER, 
+                        GET_FILE_VERSION_NUM, GET_COMMENTS, GET_SHEET_CELL, EDIT_SHEET_CELL""",
                     },
                     "user": {
                         "type": "string",
@@ -576,6 +577,14 @@ google_drive_functions = [
                     "g_file_id": {
                         "type": "string",
                         "description": "The unique identifier of a file stored on Google Drive.",
+                    },
+                    "g_sheet_cell": {
+                        "type": "string",
+                        "description": "Cell in a Google Sheet to edit/update.",
+                    },
+                    "g_sheet_value": {
+                        "type": "string",
+                        "description": "Value to update the cell with.",
                     },
                 },
                 "required": ["action"],

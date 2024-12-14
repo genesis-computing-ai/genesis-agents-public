@@ -19,7 +19,7 @@ from core import global_flags
 from core.bot_os_tools_extended import load_user_extended_tools
 from llm_openai.bot_os_openai import StreamingEventHandler
 
-from google_sheets.g_sheets import get_g_file_version
+from google_sheets.g_sheets import get_g_file_version, get_g_file_comments, write_g_sheet_cell, read_g_sheet
 
 import re
 from typing import Optional
@@ -2421,7 +2421,7 @@ class ToolBelt:
 
     # ====== ARTIFACTS END ==========================================================================================
 
-    def google_drive(self, action, thread_id=None, g_file_id=None):
+    def google_drive(self, action, thread_id=None, g_file_id=None, g_sheet_cell = None, g_sheet_value = None):
         """
         A wrapper for LLMs to access/manage Google Drive files by performing specified actions such as listing or downloading files.
 
@@ -2431,18 +2431,95 @@ class ToolBelt:
         Returns:
             dict: A dictionary containing the result of the action. E.g. for 'LIST', it includes the list of files in the Google Drive.
         """
+        def column_to_number(letter: str) -> int:
+            num = 0
+            for char in letter:
+                num = num * 26 + (ord(char.upper()) - ord('A') + 1)
+            return num
+
+        def number_to_column(num: int) -> str:
+            result = ""
+            while num > 0:
+                num -= 1
+                result = chr(num % 26 + 65) + result
+                num //= 26
+            return result
+
+        def verify_single_cell(g_sheet_cell: str) -> str:
+            pattern = r"^([a-zA-Z]{1,3})(\d{1,4})$"
+            match = re.match(pattern, g_sheet_cell)
+            if not match:
+                raise ValueError("Invalid g_sheet_cell format. It should start with 1-3 letters followed by 1-4 numbers.")
+
+            col, row = match.groups()
+            # next_col = number_to_column(column_to_number(col) + 1)
+            range = f"{col}{row}" # :{next_col}{row}"
+
+            return range
+
+        def verify_cell_range(g_sheet_cell):
+            pattern = r"^([A-Z]{1,2})(\d+):([A-Z]{1,2})(\d+)$"
+            match = re.match(pattern, g_sheet_cell)
+
+            # Verify range is only one cell
+            if not match:
+                raise ValueError("Invalid g_sheet_cell format. It should be in the format 'A1:B1'.")
+
+            # column_1, row_1, column_2, row_2 = match.groups()
+            # column_1_int = column_to_number(column_1)
+            # column_2_int = column_to_number(column_2)
+
+            return True
+
         if action == "LIST":
             return self.get_google_drive_files()
+
         elif action == "TEST":
             return {"Success": True, "message": "Test successful"}
+
         elif action == "SET_ROOT_FOLDER":
             raise NotImplementedError
+
         elif action == "GET_FILE_VERSION_NUM":
             try:
                 file_version_num = get_g_file_version(self.db_adapter.user, g_file_id)
                 return {"Success": True, "file_version_num": file_version_num}
             except Exception as e:
                 return {"Success": False, "Error": str(e)}
+
+        elif action == "GET_COMMENTS":
+            try:
+                comments_and_replies = get_g_file_comments(self.db_adapter.user, g_file_id)
+                return {"Success": True, "Comments & Replies": comments_and_replies}
+            except Exception as e:
+                return {"Success": False, "Error": str(e)}
+
+        elif action == "GET_SHEET_CELL":
+            sheet_range = verify_single_cell(g_sheet_cell)
+            try:
+                value = read_g_sheet(
+                    g_file_id, sheet_range, None, self.db_adapter.user
+                )
+                return {"Success": True, "value": value}
+            except Exception as e:
+                return {"Success": False, "Error": str(e)}
+
+        elif action == "EDIT_SHEET_CELL":
+            range = verify_single_cell(g_sheet_cell)
+
+            print(
+                f"\nG_sheet value to insert to cell {g_sheet_cell}: Value: {g_sheet_value}\n"
+            )
+
+            write_g_sheet_cell(
+                g_file_id, range, g_sheet_value, None, self.db_adapter.user
+            )
+
+            return {
+                "Success": True,
+                "Message": f"g_sheet value to insert to cell {range}: Value: {g_sheet_value}",
+            }
+
         elif action == "LOGIN":
             from google_auth_oauthlib.flow import Flow
 

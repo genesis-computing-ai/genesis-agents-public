@@ -26,6 +26,45 @@ SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets"
 ]
 
+def get_g_file_comments(user, file_id):
+    """
+    Get comments on a Google Sheets document.
+
+    Args:
+        file_id (str): The ID of the file.
+
+    Returns:
+        list: A list of comments on the document.
+    """
+    SERVICE_ACCOUNT_FILE = f"g-workspace-{user}.json"
+
+    try:
+        # Authenticate using the service account JSON file
+        creds = Credentials.from_service_account_file(
+            SERVICE_ACCOUNT_FILE, scopes=SCOPES
+        )
+        service = build("drive", "v3", credentials=creds)
+
+        # Get the comments on the document
+        comments = (
+            service.comments()
+            .list(fileId=file_id, fields="comments(content,replies)")
+            .execute()
+        )
+
+        # Print the comments
+        for comment in comments.get("comments", []):
+            print(f"Comment: {comment['content']}")
+            for reply in comment.get("replies", []):
+                print(f"Reply: {reply['content']}")
+
+        return comments.get("comments", [])
+
+    except Exception as e:
+        print(f"An error occurred: {str(e)}")
+        return None
+
+
 def get_url_to_g_folder(folder_id, creds):
     """
     Get the web link to a folder in Google Drive.
@@ -86,34 +125,6 @@ def get_g_file_version(user = None, g_file_id = None):
         return None
 
 
-def read_g_sheet(spreadsheet_id = None, range_name = None, creds = None):
-    """
-    Creates the batch_update the user has access to.
-    Load pre-authorized user credentials from the environment.
-    TODO(developer) - See https://developers.google.com/identity
-    for guides on implementing OAuth2 for the application.
-    """
-    if not creds or not spreadsheet_id or not range_name:
-        raise Exception("Missing credentials, spreadsheet ID, or range name.")
-
-    # creds, _ = google.auth.default()
-    try:
-        service = build("sheets", "v4", credentials=creds)
-
-        result = (
-            service.spreadsheets()
-            .values()
-            .get(spreadsheetId=spreadsheet_id, range=range_name)
-            .execute()
-        )
-        rows = result.get("values", [])
-        print(f"{len(rows)} rows retrieved")
-        return result
-    except HttpError as error:
-        print(f"An error occurred: {error}")
-        return error
-
-
 # def upload_file_to_folder(path_to_file, parent_folder_id):
 #     creds = Credentials.from_service_account_file(
 #             SERVICE_ACCOUNT_FILE, scopes=SCOPES
@@ -162,7 +173,7 @@ def process_row(args):
             filename = path[-1] + '.' + parts[-1]
             stage_folder_id = stage_column_folder_ids[stage_column_index.index(j)]
 
-            webLink = save_text_to_google_folder_with_retry(
+            webLink = save_text_to_google_file_with_retry(
                 self, stage_folder_id, filename, file_contents, creds
             )
 
@@ -178,14 +189,14 @@ def process_row(args):
     wait=wait_exponential(multiplier=1, min=4, max=10),
     retry_error_callback=lambda retry_state: None
 )
-def save_text_to_google_folder_with_retry(*args, **kwargs):
-    return save_text_to_google_folder(*args, **kwargs)
+def save_text_to_google_file_with_retry(*args, **kwargs):
+    return save_text_to_google_file(*args, **kwargs)
 
-def save_text_to_google_folder(
+def save_text_to_google_file(
     self, shared_folder_id, file_name, text = "No text in file", creds=None
 ):
     if not text or isinstance(text, dict):
-        text = "No text received in save_text_to_google_folder."
+        text = "No text received in save_text_to_google_file."
 
     if not creds:
         SERVICE_ACCOUNT_FILE = f"g-workspace-{self.user}.json"
@@ -312,85 +323,86 @@ def export_to_google_docs(text: str = 'No text received.', shared_folder_id: str
     """
     Creates new file in Google Docs named Genesis_mmddyyy_hh:mm:ss from text string
     """
-    if not user:
-        raise Exception("User not specified for google drive conventions.")
+    pass
+    # if not user:
+    #     raise Exception("User not specified for google drive conventions.")
 
-    SERVICE_ACCOUNT_FILE = f"g-workspace-{user}.json"
-    try:
-        # Authenticate using the service account JSON file
-        creds = Credentials.from_service_account_file(
-            SERVICE_ACCOUNT_FILE, scopes=SCOPES
-        )
-        docs_service = build("docs", "v1", credentials=creds)
-        drive_service = build("drive", "v3", credentials=creds)
+    # SERVICE_ACCOUNT_FILE = f"g-workspace-{user}.json"
+    # try:
+    #     # Authenticate using the service account JSON file
+    #     creds = Credentials.from_service_account_file(
+    #         SERVICE_ACCOUNT_FILE, scopes=SCOPES
+    #     )
+    #     docs_service = build("docs", "v1", credentials=creds)
+    #     drive_service = build("drive", "v3", credentials=creds)
 
-        # Check if a document with the same name already exists in the shared folder
-        query = f"'{shared_folder_id}' in parents and name='{file_name}' and mimeType='application/vnd.google-apps.document'"
-        response = drive_service.files().list(q=query, fields="files(id, name)").execute()
-        files = response.get("files", [])
+    #     # Check if a document with the same name already exists in the shared folder
+    #     query = f"'{shared_folder_id}' in parents and name='{file_name}' and mimeType='application/vnd.google-apps.document'"
+    #     response = drive_service.files().list(q=query, fields="files(id, name)").execute()
+    #     files = response.get("files", [])
 
-        if files:
-            for file in files:
-                print(f"Deleting existing file: {file.get('name')} (ID: {file.get('id')})")
-                drive_service.files().delete(fileId=file.get("id")).execute()
+    #     if files:
+    #         for file in files:
+    #             print(f"Deleting existing file: {file.get('name')} (ID: {file.get('id')})")
+    #             drive_service.files().delete(fileId=file.get("id")).execute()
 
-        # Create a new document
-        if not file_name:
-            file_name = "genesis_" + datetime.now().strftime("%m%d%Y_%H:%M:%S")
+    #     # Create a new document
+    #     if not file_name:
+    #         file_name = "genesis_" + datetime.now().strftime("%m%d%Y_%H:%M:%S")
 
-        body = {"title": file_name}
-        doc = docs_service.documents().create(body=body).execute()
-        print("Created document with title: {0}".format(doc.get("title")))
-        doc_id = doc.get("documentId")
-        print(f"Document ID: {doc_id}")
+    #     body = {"title": file_name}
+    #     doc = docs_service.documents().create(body=body).execute()
+    #     print("Created document with title: {0}".format(doc.get("title")))
+    #     doc_id = doc.get("documentId")
+    #     print(f"Document ID: {doc_id}")
 
-        # Move the document to shared folder
-        if shared_folder_id:
-            file = (
-                drive_service.files()
-                .update(
-                    fileId=doc_id,
-                    addParents=shared_folder_id,
-                    fields="id, parents",
-                )
-                .execute()
-            )
-            print(f"File moved to folder: {file} | Parent folder {file['parents'][0]}")
+    #     # Move the document to shared folder
+    #     if shared_folder_id:
+    #         file = (
+    #             drive_service.files()
+    #             .update(
+    #                 fileId=doc_id,
+    #                 addParents=shared_folder_id,
+    #                 fields="id, parents",
+    #             )
+    #             .execute()
+    #         )
+    #         print(f"File moved to folder: {file} | Parent folder {file['parents'][0]}")
 
-        # Verify the new document exists in Google Drive
-        try:
-            file_verify = (
-                drive_service.files()
-                .get(fileId=doc_id, fields="id, name, parents, webViewLink")
-                .execute()
-            )
-            print(f"File store confirmed: {file_verify}")
-        except:
-            raise Exception("Error creating document in Google Drive")
+    #     # Verify the new document exists in Google Drive
+    #     try:
+    #         file_verify = (
+    #             drive_service.files()
+    #             .get(fileId=doc_id, fields="id, name, parents, webViewLink")
+    #             .execute()
+    #         )
+    #         print(f"File store confirmed: {file_verify}")
+    #     except:
+    #         raise Exception("Error creating document in Google Drive")
 
-        parent = (
-            drive_service.files().get(fileId=shared_folder_id, fields="id, name").execute()
-        )
-        print(f"Parent folder name: {parent.get('name')} (ID: {parent.get('id')})")
+    #     parent = (
+    #         drive_service.files().get(fileId=shared_folder_id, fields="id, name").execute()
+    #     )
+    #     print(f"Parent folder name: {parent.get('name')} (ID: {parent.get('id')})")
 
-        if not text:
-            text = 'No text received from Snowflake stage.'
+    #     if not text:
+    #         text = 'No text received from Snowflake stage.'
 
-        requests = [{"insertText": {"location": {"index": 1}, "text": text}}]
+    #     requests = [{"insertText": {"location": {"index": 1}, "text": text}}]
 
-        result = (
-            docs_service.documents()
-            .batchUpdate(documentId=doc_id, body={"requests": requests})
-            .execute()
-        )
+    #     result = (
+    #         docs_service.documents()
+    #         .batchUpdate(documentId=doc_id, body={"requests": requests})
+    #         .execute()
+    #     )
 
-        print("Document content updated: ", result)
+    #     print("Document content updated: ", result)
 
-        return file_verify.get("webViewLink")
+    #     return file_verify.get("webViewLink")
 
-    except HttpError as err:
-        print(err)
-        return None
+    # except HttpError as err:
+    #     print(err)
+    #     return None
 
 def create_google_sheet(self, shared_folder_id, title, data):
     """
@@ -479,8 +491,8 @@ def create_google_sheet(self, shared_folder_id, title, data):
         width_10 = chr(65 + len(columns[0]) % 26)
         width_1 = chr(64 + len(columns[0]) // 26) if len(columns[0]) > 25 else ''
         width = width_10 + width_1
-        range_name = f"Sheet1!A1:{width}{len(columns)}"
-        print(f"\n\nRange name: {range_name} | {len(columns[0])} | {len(columns)}\n\n")
+        range = f"Sheet1!A1:{width}{len(columns)}"
+        print(f"\n\nRange name: {range} | {len(columns[0])} | {len(columns)}\n\n")
         body = {
                 "values": columns
                }
@@ -490,7 +502,7 @@ def create_google_sheet(self, shared_folder_id, title, data):
             .values()
             .update(
                 spreadsheetId=ss_id,
-                range=range_name,
+                range=range,
                 valueInputOption='USER_ENTERED',
                 body=body,
             )
@@ -518,7 +530,7 @@ def create_google_sheet(self, shared_folder_id, title, data):
             print(f"File moved to folder - File ID: {file['id']} | Folder ID {file['parents'][0]}")
 
         # Test only - read file contents to confirm write
-        # results = read_g_sheet(ss_id, range_name, creds)
+        # results = read_g_sheet(ss_id, range, creds)
         # print(f"Results from storing, then reading sheet: {results}")
 
         folder_url = get_url_to_g_folder(top_level_folder_id, creds)
@@ -526,6 +538,82 @@ def create_google_sheet(self, shared_folder_id, title, data):
 
         return {"Success": True, "file_id": spreadsheet.get("spreadsheetId"), "file_url": file_url, "folder_url": folder_url}
 
+    except HttpError as error:
+        print(f"An error occurred: {error}")
+        return error
+
+def write_g_sheet_cell(spreadsheet_id=None, range=None, value=None, creds=None, user=None):
+    if not spreadsheet_id or not range or (not creds and not user):
+        raise Exception(
+            "Missing credentials, user name, spreadsheet ID, or range name."
+        )
+    if not creds:
+        SERVICE_ACCOUNT_FILE = f"g-workspace-{user}.json"
+        try:
+            # Authenticate using the service account JSON file
+            creds = Credentials.from_service_account_file(
+                SERVICE_ACCOUNT_FILE, scopes=SCOPES
+            )
+        except Exception as e:
+            print(f"Error loading credentials: {e}")
+            return None
+
+    service = build("sheets", "v4", credentials=creds)
+
+    body = {"values": [[value]]}
+
+    result = (
+        service.spreadsheets()
+        .values()
+        .update(
+            spreadsheetId=spreadsheet_id,
+            range=range,
+            valueInputOption="USER_ENTERED",
+            body=body,
+        )
+        .execute()
+    )
+    return {
+        "Success": True,
+        "updatedCells": result.get("updatedCells"),
+    }
+
+def read_g_sheet(spreadsheet_id=None, range=None, creds=None, user=None):
+    """
+    Creates the batch_update the user has access to.
+    Load pre-authorized user credentials from the environment.
+    TODO(developer) - See https://developers.google.com/identity
+    for guides on implementing OAuth2 for the application.
+    """
+    if not spreadsheet_id or not range or (not creds and not user):
+        raise Exception("Missing credentials, user name, spreadsheet ID, or range name.")
+
+    if not creds:
+        SERVICE_ACCOUNT_FILE = f"g-workspace-{user}.json"
+        try:
+            # Authenticate using the service account JSON file
+            creds = Credentials.from_service_account_file(
+                SERVICE_ACCOUNT_FILE, scopes=SCOPES
+            )
+        except Exception as e:
+            print(f"Error loading credentials: {e}")
+            return None
+    try:
+        service = build("sheets", "v4", credentials=creds)
+
+        result = (
+            service.spreadsheets()
+            .values()
+            .get(spreadsheetId=spreadsheet_id, range=range)
+            .execute()
+        )
+        rows = result.get("values", [])
+
+        print(f"{len(rows)} rows retrieved")
+        return {
+            "Success": True,
+            "cell_values": rows,
+        }
     except HttpError as error:
         print(f"An error occurred: {error}")
         return error

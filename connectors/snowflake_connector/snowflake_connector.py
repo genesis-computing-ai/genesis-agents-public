@@ -75,6 +75,10 @@ class SnowflakeConnector(DatabaseConnector):
         super().__init__(connection_name)
         # logger.info('Snowflake connector entry...')
 
+        # used to get the default value if not none, otherwise get env var. allows local mode to work with bot credentials
+        def get_env_or_default(value, env_var):
+            return value if value is not None else os.getenv(env_var)
+
         if os.getenv("SQLITE_OVERRIDE", "").upper() == "TRUE":
             # Use SQLite with compatibility layer
             db_path = os.getenv("SQLITE_DB_PATH", "genesis.db")
@@ -84,6 +88,7 @@ class SnowflakeConnector(DatabaseConnector):
             self.schema = "main"  # SQLite default schema
             self.database = db_path
             self.source_name = "SQLite"
+            self.user = "local"
         else:
             account, database, user, password, warehouse, role = [None] * 6
 
@@ -95,10 +100,7 @@ class SnowflakeConnector(DatabaseConnector):
                 warehouse = bot_database_creds.get("warehouse")
                 role = bot_database_creds.get("role")
 
-            # used to get the default value if not none, otherwise get env var. allows local mode to work with bot credentials
-            def get_env_or_default(value, env_var):
-                return value if value is not None else os.getenv(env_var)
-
+            
             self.account = get_env_or_default(account, "SNOWFLAKE_ACCOUNT_OVERRIDE")
             self.user = get_env_or_default(user, "SNOWFLAKE_USER_OVERRIDE")
             self.password = get_env_or_default(password, "SNOWFLAKE_PASSWORD_OVERRIDE")

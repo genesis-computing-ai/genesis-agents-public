@@ -48,7 +48,7 @@ def get_g_file_comments(user, file_id):
         # Get the comments on the document
         comments = (
             service.comments()
-            .list(fileId=file_id, fields="comments(id,content,replies(id,content,htmlContent))")
+            .list(fileId=file_id, fields="comments(id,content,author(displayName,emailAddress),replies(id,content,author(displayName,emailAddress),htmlContent))")
             .execute()
         )
 
@@ -193,7 +193,7 @@ def find_g_file_by_name(file_name, creds=None, user=None):
 
         # Search for the files by name
         query = f"name='{file_name}'"
-        response = service.files().list(q=query, fields="files(id, name, webViewLink)").execute()
+        response = service.files().list(q=query, fields="files(id, name, webViewLink, createdTime)").execute()
         files = response.get("files", [])
 
         if files:
@@ -204,7 +204,7 @@ def find_g_file_by_name(file_name, creds=None, user=None):
     except Exception as e:
         return {"Success": False, "Error": str(e)}
 
-def get_all_files_in_g_folder(folder_id, creds=None, user=None):
+def get_g_folder_directory(folder_id, creds=None, user=None):
     """
     Get all files in a Google Drive folder.
 
@@ -289,7 +289,7 @@ def add_g_file_comment(
         return None
 
 
-def get_url_to_g_folder(folder_id, creds):
+def get_g_folder_web_link(folder_id, creds):
     """
     Get the web link to a folder in Google Drive.
 
@@ -757,7 +757,7 @@ def create_google_sheet(self, shared_folder_id, title, data):
         # results = read_g_sheet(ss_id, range, creds)
         # print(f"Results from storing, then reading sheet: {results}")
 
-        folder_url = get_url_to_g_folder(top_level_folder_id, creds)
+        folder_url = get_g_folder_web_link(top_level_folder_id, creds)
         file_url = file.get("webViewLink")
 
         return {"Success": True, "file_id": spreadsheet.get("spreadsheetId"), "file_url": file_url, "folder_url": folder_url}

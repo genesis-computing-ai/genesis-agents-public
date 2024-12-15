@@ -27,7 +27,7 @@ from google_sheets.g_sheets import (
     write_g_sheet_cell,
     add_reply_to_g_file_comment,
     get_g_file_web_link,
-    get_all_files_in_g_folder,
+    get_g_folder_directory,
     find_g_file_by_name,
 )
 
@@ -2483,7 +2483,7 @@ class ToolBelt:
 
         if action == "LIST":
             try:
-                files = get_all_files_in_g_folder(
+                files = get_g_folder_directory(
                     g_folder_id, None, user=self.db_adapter.user
                 )
                 return {"Success": True, "files": files}

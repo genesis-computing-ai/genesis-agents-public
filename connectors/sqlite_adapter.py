@@ -654,7 +654,7 @@ class SQLiteCursorWrapper:
         # Handle CREATE OR REPLACE HYBRID TABLE
         if re.search(r'CREATE\s+OR\s+REPLACE\s+HYBRID\s+TABLE', query_upper):
             # Extract table name and column definitions
-            match = re.search(r'CREATE\s+OR\s+REPLACE\s+HYBRID\s+TABLE\s+(\w+)\s*\((.*?)\)', query, re.IGNORECASE | re.DOTALL)
+            match = re.search(r'CREATE\s+OR\s+REPLACE\s+HYBRID\s+TABLE\s+(\w+)\s*\((.*)\)', query, re.IGNORECASE | re.DOTALL)
             if match:
                 table_name = match.group(1)
                 column_defs = match.group(2).strip()
@@ -668,10 +668,8 @@ class SQLiteCursorWrapper:
                 # Clean up any extra whitespace
                 column_defs = re.sub(r'\s+', ' ', column_defs).strip()
                 
-                return f"""
-                    DROP TABLE IF EXISTS {table_name};
-                    CREATE TABLE {table_name} ({column_defs});
-                """
+                return [f"DROP TABLE IF EXISTS {table_name};",
+                    f"CREATE TABLE {table_name} ({column_defs});"]
         
         # Handle column name differences between Snowflake and SQLite
         column_mappings = {

@@ -20,7 +20,7 @@ class GenesisSnowflakeServer(GenesisServer):
     def get_metadata_store(self) -> GenesisMetadataStore:
         return SnowflakeMetadataStore(self.scope, self.sub_scope)
     
-    def add_message(self, bot_id, message, thread_id):
+    def add_message(self, bot_id, message, thread_id) -> str|dict:
         if not thread_id:
             thread_id = str(uuid.uuid4())
         message = urllib.parse.quote(message)

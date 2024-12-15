@@ -6,8 +6,8 @@ from core.bot_os_llm import LLMKeyHandler
 from core.bot_os_server import BotOsServer
 from apscheduler.schedulers.background import BackgroundScheduler
 from demo.sessions_creator import create_sessions
-
-from genesis_base import GenesisBot, GenesisMetadataStore, GenesisServer, SnowflakeMetadataStore
+from api.genesis_base import GenesisBot, GenesisMetadataStore, GenesisServer, SnowflakeMetadataStore
+from connectors.snowflake_connector.snowflake_connector import SnowflakeConnector
 from streamlit_gui.udf_proxy_bot_os_adapter import UDFBotOsInputAdapter
 import core.global_flags as global_flags
 
@@ -95,7 +95,7 @@ class GenesisLocalSnowflakeServer(GenesisServer):
             bot_instructions=bot.get("BOT_INSTRUCTIONS", None)
         ))
 
-    def add_message(self, bot_id, message, thread_id) -> str: # returns request_id
+    def add_message(self, bot_id, message, thread_id) -> str|dict: # returns request_id
         if not thread_id:
             thread_id = str(uuid.uuid4())
         request_id = self.bot_id_to_udf_adapter_map[bot_id].submit(message, thread_id, bot_id={})

@@ -1,4 +1,3 @@
-import json
 import os
 from core.bot_os_memory import BotOsKnowledgeAnnoy_Metadata, BotOsKnowledgeBase
 from connectors.bigquery_connector import BigQueryConnector

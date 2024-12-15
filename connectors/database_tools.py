@@ -569,7 +569,7 @@ google_drive_functions = [
                         "description": """
                         The action to be performed on Google Drive.  Possible actions are: LOGIN, TEST, LIST, SET_ROOT_FOLDER, 
                         GET_FILE_VERSION_NUM, GET_COMMENTS, ADD_COMMENT, ADD_REPLY_TO_COMMENT, GET_SHEET_CELL, EDIT_SHEET_CELL,
-                        GET_LINK_FROM_FILE_ID""",
+                        GET_LINK_FROM_FILE_ID, GET_FILE_BY_NAME""",
                     },
                     "user": {
                         "type": "string",
@@ -594,6 +594,10 @@ google_drive_functions = [
                     "g_folder_id": {
                         "type": "string",
                         "description": "The unique identifier of a folder stored on Google Drive.",
+                    },
+                    "g_file_name": {
+                        "type": "string",
+                        "description": "The name of a file, files, folder, or folders stored on Google Drive.",
                     },
                 },
                 "required": ["action"],

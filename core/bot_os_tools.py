@@ -28,6 +28,7 @@ from google_sheets.g_sheets import (
     add_reply_to_g_file_comment,
     get_g_file_web_link,
     get_all_files_in_g_folder,
+    find_g_file_by_name,
 )
 
 import re
@@ -2430,7 +2431,7 @@ class ToolBelt:
 
     # ====== ARTIFACTS END ==========================================================================================
 
-    def google_drive(self, action, thread_id=None, g_folder_id=None, g_file_id=None, g_sheet_cell = None, g_sheet_value = None, g_file_comment_id = None):
+    def google_drive(self, action, thread_id=None, g_folder_id=None, g_file_id=None, g_sheet_cell = None, g_sheet_value = None, g_file_comment_id = None, g_file_name=None):
         """
         A wrapper for LLMs to access/manage Google Drive files by performing specified actions such as listing or downloading files.
 
@@ -2489,8 +2490,12 @@ class ToolBelt:
             except Exception as e:
                 return {"Success": False, "Error": str(e)}
 
-        elif action == "TEST":
-            return {"Success": True, "message": "Test successful"}
+        elif action == "GET_FILE_BY_NAME":
+            try:
+                file_id = find_g_file_by_name(g_file_name, None, self.db_adapter.user)
+                return {"Success": True, "id": file_id}
+            except Exception as e:
+                return {"Success": False, "Error": str(e)}
 
         elif action == "SET_ROOT_FOLDER":
             raise NotImplementedError

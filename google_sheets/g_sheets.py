@@ -164,6 +164,46 @@ def get_g_file_web_link(file_id, creds=None, user=None):
     except Exception as e:
         return {"Success": False, "Error": str(e)}
 
+def find_g_file_by_name(file_name, creds=None, user=None):
+    """
+    Find all files in Google Drive by their name.
+
+    Args:
+        file_name (str): The name of the file.
+
+    Returns:
+        dict: A list of file metadata if found, otherwise None.
+    """
+    if not file_name or (not creds and not user):
+        raise Exception("Missing credentials, user name, or file name.")
+
+    if not creds:
+        SERVICE_ACCOUNT_FILE = f"g-workspace-{user}.json"
+        try:
+            # Authenticate using the service account JSON file
+            creds = Credentials.from_service_account_file(
+                SERVICE_ACCOUNT_FILE, scopes=SCOPES
+            )
+        except Exception as e:
+            print(f"Error loading credentials: {e}")
+            return None
+
+    try:
+        service = build("drive", "v3", credentials=creds)
+
+        # Search for the files by name
+        query = f"name='{file_name}'"
+        response = service.files().list(q=query, fields="files(id, name, webViewLink)").execute()
+        files = response.get("files", [])
+
+        if files:
+            return {"Success": True, "Files": files}
+        else:
+            return {"Success": False, "Error": "Files not found"}
+
+    except Exception as e:
+        return {"Success": False, "Error": str(e)}
+
 def get_all_files_in_g_folder(folder_id, creds=None, user=None):
     """
     Get all files in a Google Drive folder.

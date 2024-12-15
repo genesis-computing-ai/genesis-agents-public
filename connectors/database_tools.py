@@ -115,8 +115,12 @@ database_tool_functions = [
                     },
                     "export_to_google_sheet": {
                         "type": "boolean",
-                        "description": "Optional. If true, the results will be exported to a Google Doc. Default is false.",
+                        "description": "Optional. If true, the results will be exported to a Google Doc. Default is false.  BTW this will override max_rows to 500 when used.",
                         "default": False,
+                    },
+                    "export_title": {
+                        "type": "string",
+                        "description": "Optional. The title to use for the exported Gdrive Folder and Google Sheet. Default is 'Genesis Export'.",
                     },
                 },
                 "required": [ "connection", "max_rows"],
@@ -554,19 +558,45 @@ google_drive_functions = [
         "type": "function",
         "function": {
             "name": "_google_drive",
-            "description": """Performs certain actions on Google Drive, including logging in, listing files, and setting the root folder.
-                           Other actions may be added in the future.""",
+            "description": """Performs certain actions on Google Drive, including logging in, listing files, setting the root folder,
+                           and getting the version number of a google file (g_file).  Other actions may be added in the future.""",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "action": {
                         "type": "string",
                         "description": """
-                        The action to be performed on Google Drive.  Possible actions are: LOGIN, TEST, LIST, SET_ROOT_FOLDER""",
+                        The action to be performed on Google Drive.  Possible actions are: LOGIN, TEST, LIST, SET_ROOT_FOLDER, 
+                        GET_FILE_VERSION_NUM, GET_COMMENTS, ADD_COMMENT, ADD_REPLY_TO_COMMENT, GET_SHEET_CELL, EDIT_SHEET_CELL,
+                        GET_LINK_FROM_FILE_ID, GET_FILE_BY_NAME""",
                     },
                     "user": {
                         "type": "string",
                         "description": "The unique identifier of the process_id. MAKE SURE TO DOUBLE-CHECK THAT YOU ARE USING THE CORRECT test_process_id ON UPDATES AND DELETES!  Required for CREATE, UPDATE, and DELETE.",
+                    },
+                    "g_file_id": {
+                        "type": "string",
+                        "description": "The unique identifier of a file stored on Google Drive.",
+                    },
+                    "g_sheet_cell": {
+                        "type": "string",
+                        "description": "Cell in a Google Sheet to edit/update.",
+                    },
+                    "g_sheet_value": {
+                        "type": "string",
+                        "description": "Value to update the cell in a Google Sheet or update a comment.",
+                    },
+                    "g_file_comment_id": {
+                        "type": "string",
+                        "description": "The unique identifier of a comment stored on Google Drive.",
+                    },
+                    "g_folder_id": {
+                        "type": "string",
+                        "description": "The unique identifier of a folder stored on Google Drive.",
+                    },
+                    "g_file_name": {
+                        "type": "string",
+                        "description": "The name of a file, files, folder, or folders stored on Google Drive.",
                     },
                 },
                 "required": ["action"],

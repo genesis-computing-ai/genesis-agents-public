@@ -3,15 +3,19 @@
 import os.path
 
 from google.oauth2.service_account import Credentials
-# from google.auth.transport.requests import Request
-# from google.oauth2.credentials import Credentials
-# from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
-from googleapiclient.http import MediaFileUpload
 from datetime import datetime
-import mimetypes
+# import mimetypes
 import os
+import google.auth
+from .format_g_sheets import format_genesis_g_sheets
+
+## test
+from concurrent.futures import ThreadPoolExecutor
+import copy
+import time
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 
 # If modifying these scopes, delete the file token.json.
@@ -21,6 +25,328 @@ SCOPES = [
     "https://www.googleapis.com/auth/drive",
     "https://www.googleapis.com/auth/spreadsheets"
 ]
+
+def get_g_file_comments(user, file_id):
+    """
+    Get comments on a Google Sheets document.
+
+    Args:
+        file_id (str): The ID of the file.
+
+    Returns:
+        list: A list of comments on the document.
+    """
+    SERVICE_ACCOUNT_FILE = f"g-workspace-{user}.json"
+
+    try:
+        # Authenticate using the service account JSON file
+        creds = Credentials.from_service_account_file(
+            SERVICE_ACCOUNT_FILE, scopes=SCOPES
+        )
+        service = build("drive", "v3", credentials=creds)
+
+        # Get the comments on the document
+        comments = (
+            service.comments()
+            .list(fileId=file_id, fields="comments(id,content,replies(id,content,htmlContent))")
+            .execute()
+        )
+
+        # Get the web link to the file
+        file_metadata = service.files().get(fileId=file_id, fields="webViewLink").execute()
+        file_url = file_metadata.get("webViewLink")
+
+        # Add the URL to each comment
+        for comment in comments.get("comments", []):
+            comment["url"] = f"{file_url}?comment={comment['id']}"
+            for reply in comment.get("replies", []):
+                reply["url"] = f"{file_url}?comment={comment['id']}&reply={reply['id']}"
+
+        return comments.get("comments", [])
+
+    except Exception as e:
+        print(f"An error occurred: {str(e)}")
+        return None
+
+
+def add_reply_to_g_file_comment(
+    file_id=None, comment_id=None, reply_content=None, g_file_comment_id=None, creds=None, user=None
+):
+    """
+    Add a reply to a comment on a Google Drive file.
+
+    Args:
+        user (str): The user associated with the service account.
+        file_id (str): The ID of the file.
+        comment_id (str): The ID of the comment.
+        reply_content (str): The content of the reply.
+
+    Returns:
+        dict: The created reply.
+    """
+    if not file_id or not comment_id or not reply_content or not g_file_comment_id or (not creds and not user):
+        raise Exception(
+            "Missing credentials, user name, file ID, comment ID, or reply content."
+        )
+
+    SERVICE_ACCOUNT_FILE = f"g-workspace-{user}.json"
+
+    try:
+        if not creds:
+            # Authenticate using the service account JSON file
+            creds = Credentials.from_service_account_file(
+                SERVICE_ACCOUNT_FILE, scopes=SCOPES
+            )
+
+        service = build("drive", "v3", credentials=creds)
+
+        # Create the reply
+        reply_body = {"content": reply_content}
+        created_reply = (
+            service.replies()
+            .create(
+                fileId=file_id,
+                commentId=g_file_comment_id,
+                body=reply_body,
+                fields="id,content",
+            )
+            .execute()
+        )
+
+        print(f"Reply added: {created_reply['content']}")
+        return created_reply
+
+    except Exception as e:
+        print(f"An error occurred: {str(e)}")
+        return None
+
+def get_g_file_web_link(file_id, creds=None, user=None):
+    """
+    Get the web link to a file in Google Drive.
+
+    Args:
+        file_id (str): The ID of the file.
+
+    Returns:
+        str: The web link to the file.
+    """
+    if not file_id or (not creds and not user):
+        raise Exception("Missing credentials, user name, or file ID.")
+
+    if not creds:
+        SERVICE_ACCOUNT_FILE = f"g-workspace-{user}.json"
+        try:
+            # Authenticate using the service account JSON file
+            creds = Credentials.from_service_account_file(
+                SERVICE_ACCOUNT_FILE, scopes=SCOPES
+            )
+        except Exception as e:
+            print(f"Error loading credentials: {e}")
+            return None
+
+    try:
+        service = build("drive", "v3", credentials=creds)
+
+        # Get the file metadata including the webViewLink
+        file_metadata = service.files().get(fileId=file_id, fields="name, webViewLink, parents").execute()
+
+        return {
+            "Success": True,
+            "Name": file_metadata.get("name"),
+            "URL": file_metadata.get("webViewLink"),
+            "Folder ID": (
+                file_metadata.get("parents")[0]
+                if file_metadata.get("parents")
+                else None
+            ),
+        }
+
+    except Exception as e:
+        return {"Success": False, "Error": str(e)}
+
+def find_g_file_by_name(file_name, creds=None, user=None):
+    """
+    Find all files in Google Drive by their name.
+
+    Args:
+        file_name (str): The name of the file.
+
+    Returns:
+        dict: A list of file metadata if found, otherwise None.
+    """
+    if not file_name or (not creds and not user):
+        raise Exception("Missing credentials, user name, or file name.")
+
+    if not creds:
+        SERVICE_ACCOUNT_FILE = f"g-workspace-{user}.json"
+        try:
+            # Authenticate using the service account JSON file
+            creds = Credentials.from_service_account_file(
+                SERVICE_ACCOUNT_FILE, scopes=SCOPES
+            )
+        except Exception as e:
+            print(f"Error loading credentials: {e}")
+            return None
+
+    try:
+        service = build("drive", "v3", credentials=creds)
+
+        # Search for the files by name
+        query = f"name='{file_name}'"
+        response = service.files().list(q=query, fields="files(id, name, webViewLink)").execute()
+        files = response.get("files", [])
+
+        if files:
+            return {"Success": True, "Files": files}
+        else:
+            return {"Success": False, "Error": "Files not found"}
+
+    except Exception as e:
+        return {"Success": False, "Error": str(e)}
+
+def get_all_files_in_g_folder(folder_id, creds=None, user=None):
+    """
+    Get all files in a Google Drive folder.
+
+    Args:
+        folder_id (str): The ID of the folder.
+
+    Returns:
+        list: A list of files in the folder.
+    """
+    if not folder_id or (not creds and not user):
+        raise Exception("Missing credentials, user name, or folder ID.")
+
+    if not creds:
+        SERVICE_ACCOUNT_FILE = f"g-workspace-{user}.json"
+        try:
+            # Authenticate using the service account JSON file
+            creds = Credentials.from_service_account_file(
+                SERVICE_ACCOUNT_FILE, scopes=SCOPES
+            )
+        except Exception as e:
+            print(f"Error loading credentials: {e}")
+            return None
+
+    try:
+        service = build("drive", "v3", credentials=creds)
+
+        # Get the list of files in the folder
+        query = f"'{folder_id}' in parents"
+        response = service.files().list(q=query, fields="files(id, name)").execute()
+        files = response.get("files", [])
+
+        return {"Success": True, "File Names": files}
+
+    except Exception as e:
+        return {"Success": False, "Error": str(e)}
+
+
+def add_g_file_comment(
+    file_id=None,
+    content=None,
+    creds=None,
+    user=None
+):
+    """
+    Add a comment to a Google Drive file.
+
+    Args:
+        user (str): The user associated with the service account.
+        file_id (str): The ID of the file.
+        content (str): The content of the comment.
+
+    Returns:
+        dict: The created comment.
+    """
+    if not file_id or not content or (not creds and not user):
+        raise Exception(
+            "Missing credentials, user name, file ID, or value."
+        )
+    SERVICE_ACCOUNT_FILE = f"g-workspace-{user}.json"
+
+    try:
+        if not creds:
+            # Authenticate using the service account JSON file
+            creds = Credentials.from_service_account_file(
+                SERVICE_ACCOUNT_FILE, scopes=SCOPES
+            )
+        service = build("drive", "v3", credentials=creds)
+
+        # Create the comment
+        body = {"content": content}
+        created_comment = (
+            service.comments()
+            .create(fileId=file_id, body=body, fields="id,content")
+            .execute()
+        )
+
+        print(f"Comment added: {created_comment['content']}")
+        return created_comment
+
+    except Exception as e:
+        print(f"An error occurred: {str(e)}")
+        return None
+
+
+def get_url_to_g_folder(folder_id, creds):
+    """
+    Get the web link to a folder in Google Drive.
+
+    Args:
+        folder_id (str): The ID of the folder.
+
+    Returns:
+        str: The web link to the folder.
+    """
+    try:
+        # Authenticate using the service account JSON file
+        service = build("drive", "v3", credentials=creds)
+
+        # Get the folder metadata including the webViewLink
+        folder = service.files().get(fileId=folder_id, fields="id, name, webViewLink").execute()
+
+        # Print the folder details
+        print(f"Folder ID: {folder.get('id')}")
+        print(f"Folder Name: {folder.get('name')}")
+        print(f"Web View Link: {folder.get('webViewLink')}")
+
+        return folder.get("webViewLink")
+
+    except Exception as e:
+        print(f"An error occurred: {str(e)}")
+        return None
+
+
+def get_g_file_version(user = None, g_file_id = None):
+    """
+    Get the version number of a file in Google Drive.
+
+    Args:
+        file_id (str): The ID of the file.
+
+    Returns:
+        int: The version number of the file.
+    """
+    if not g_file_id or not user:
+        raise Exception("Missing parameters in get_g_file_version - file id or user")
+
+    try:
+        SERVICE_ACCOUNT_FILE = f"g-workspace-{user}.json"
+        creds = Credentials.from_service_account_file(
+            SERVICE_ACCOUNT_FILE, scopes=SCOPES
+        )
+        service = build("drive", "v3", credentials=creds)
+
+        # Get the file metadata including the version number
+        file_metadata = service.files().get(fileId=g_file_id, fields="version").execute()
+
+        # Print the file version
+        return file_metadata.get("version")
+
+    except Exception as e:
+        print(f"An error occurred: {str(e)}")
+        return None
 
 
 # def upload_file_to_folder(path_to_file, parent_folder_id):
@@ -45,11 +371,56 @@ SCOPES = [
 #     return file.get("id")
 
 
-def save_text_to_google_folder(
+def process_row(args):
+    self, row, stage_column_index, stage_column_folder_ids, creds = args
+    row_values = list(row.values())
+
+    for j, row_value in enumerate(row_values):
+        if isinstance(row_value, datetime):
+            row_values[j] = row_value.strftime("%Y-%m-%d %H:%M:%S")
+        elif len(stage_column_index) > 0 and j in stage_column_index and row_value:
+            if len(row_value) < 1 or not row_value.startswith('@'):
+                continue
+
+            parts = row_value.split(".")
+            path = parts[2].split("/")
+            stage = path[0]
+
+            file_contents = self.read_file_from_stage(
+                parts[0].replace('@',''),
+                parts[1],
+                stage,
+                "/".join(path[1:]) + '.' + parts[-1],
+                True,
+            )
+
+            filename = path[-1] + '.' + parts[-1]
+            stage_folder_id = stage_column_folder_ids[stage_column_index.index(j)]
+
+            webLink = save_text_to_google_file_with_retry(
+                self, stage_folder_id, filename, file_contents, creds
+            )
+
+            # Remove any quotes around the URL and filename to prevent formula errors
+            webLink = webLink.replace('"', '') if webLink else ''
+            filename = filename.replace('"', '')
+            row_values[j] = f'=HYPERLINK("{webLink}")'
+
+    return row_values
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=4, max=10),
+    retry_error_callback=lambda retry_state: None
+)
+def save_text_to_google_file_with_retry(*args, **kwargs):
+    return save_text_to_google_file(*args, **kwargs)
+
+def save_text_to_google_file(
     self, shared_folder_id, file_name, text = "No text in file", creds=None
 ):
     if not text or isinstance(text, dict):
-        text = "No text received in save_text_to_google_folder."
+        text = "No text received in save_text_to_google_file."
 
     if not creds:
         SERVICE_ACCOUNT_FILE = f"g-workspace-{self.user}.json"
@@ -176,85 +547,86 @@ def export_to_google_docs(text: str = 'No text received.', shared_folder_id: str
     """
     Creates new file in Google Docs named Genesis_mmddyyy_hh:mm:ss from text string
     """
-    if not user:
-        raise Exception("User not specified for google drive conventions.")
+    pass
+    # if not user:
+    #     raise Exception("User not specified for google drive conventions.")
 
-    SERVICE_ACCOUNT_FILE = f"g-workspace-{user}.json"
-    try:
-        # Authenticate using the service account JSON file
-        creds = Credentials.from_service_account_file(
-            SERVICE_ACCOUNT_FILE, scopes=SCOPES
-        )
-        docs_service = build("docs", "v1", credentials=creds)
-        drive_service = build("drive", "v3", credentials=creds)
+    # SERVICE_ACCOUNT_FILE = f"g-workspace-{user}.json"
+    # try:
+    #     # Authenticate using the service account JSON file
+    #     creds = Credentials.from_service_account_file(
+    #         SERVICE_ACCOUNT_FILE, scopes=SCOPES
+    #     )
+    #     docs_service = build("docs", "v1", credentials=creds)
+    #     drive_service = build("drive", "v3", credentials=creds)
 
-        # Check if a document with the same name already exists in the shared folder
-        query = f"'{shared_folder_id}' in parents and name='{file_name}' and mimeType='application/vnd.google-apps.document'"
-        response = drive_service.files().list(q=query, fields="files(id, name)").execute()
-        files = response.get("files", [])
+    #     # Check if a document with the same name already exists in the shared folder
+    #     query = f"'{shared_folder_id}' in parents and name='{file_name}' and mimeType='application/vnd.google-apps.document'"
+    #     response = drive_service.files().list(q=query, fields="files(id, name)").execute()
+    #     files = response.get("files", [])
 
-        if files:
-            for file in files:
-                print(f"Deleting existing file: {file.get('name')} (ID: {file.get('id')})")
-                drive_service.files().delete(fileId=file.get("id")).execute()
+    #     if files:
+    #         for file in files:
+    #             print(f"Deleting existing file: {file.get('name')} (ID: {file.get('id')})")
+    #             drive_service.files().delete(fileId=file.get("id")).execute()
 
-        # Create a new document
-        if not file_name:
-            file_name = "genesis_" + datetime.now().strftime("%m%d%Y_%H:%M:%S")
+    #     # Create a new document
+    #     if not file_name:
+    #         file_name = "genesis_" + datetime.now().strftime("%m%d%Y_%H:%M:%S")
 
-        body = {"title": file_name}
-        doc = docs_service.documents().create(body=body).execute()
-        print("Created document with title: {0}".format(doc.get("title")))
-        doc_id = doc.get("documentId")
-        print(f"Document ID: {doc_id}")
+    #     body = {"title": file_name}
+    #     doc = docs_service.documents().create(body=body).execute()
+    #     print("Created document with title: {0}".format(doc.get("title")))
+    #     doc_id = doc.get("documentId")
+    #     print(f"Document ID: {doc_id}")
 
-        # Move the document to shared folder
-        if shared_folder_id:
-            file = (
-                drive_service.files()
-                .update(
-                    fileId=doc_id,
-                    addParents=shared_folder_id,
-                    fields="id, parents",
-                )
-                .execute()
-            )
-            print(f"File moved to folder: {file} | Parent folder {file['parents'][0]}")
+    #     # Move the document to shared folder
+    #     if shared_folder_id:
+    #         file = (
+    #             drive_service.files()
+    #             .update(
+    #                 fileId=doc_id,
+    #                 addParents=shared_folder_id,
+    #                 fields="id, parents",
+    #             )
+    #             .execute()
+    #         )
+    #         print(f"File moved to folder: {file} | Parent folder {file['parents'][0]}")
 
-        # Verify the new document exists in Google Drive
-        try:
-            file_verify = (
-                drive_service.files()
-                .get(fileId=doc_id, fields="id, name, parents, webViewLink")
-                .execute()
-            )
-            print(f"File store confirmed: {file_verify}")
-        except:
-            raise Exception("Error creating document in Google Drive")
+    #     # Verify the new document exists in Google Drive
+    #     try:
+    #         file_verify = (
+    #             drive_service.files()
+    #             .get(fileId=doc_id, fields="id, name, parents, webViewLink")
+    #             .execute()
+    #         )
+    #         print(f"File store confirmed: {file_verify}")
+    #     except:
+    #         raise Exception("Error creating document in Google Drive")
 
-        parent = (
-            drive_service.files().get(fileId=shared_folder_id, fields="id, name").execute()
-        )
-        print(f"Parent folder name: {parent.get('name')} (ID: {parent.get('id')})")
+    #     parent = (
+    #         drive_service.files().get(fileId=shared_folder_id, fields="id, name").execute()
+    #     )
+    #     print(f"Parent folder name: {parent.get('name')} (ID: {parent.get('id')})")
 
-        if not text:
-            text = 'No text received from Snowflake stage.'
+    #     if not text:
+    #         text = 'No text received from Snowflake stage.'
 
-        requests = [{"insertText": {"location": {"index": 1}, "text": text}}]
+    #     requests = [{"insertText": {"location": {"index": 1}, "text": text}}]
 
-        result = (
-            docs_service.documents()
-            .batchUpdate(documentId=doc_id, body={"requests": requests})
-            .execute()
-        )
+    #     result = (
+    #         docs_service.documents()
+    #         .batchUpdate(documentId=doc_id, body={"requests": requests})
+    #         .execute()
+    #     )
 
-        print("Document content updated: ", result)
+    #     print("Document content updated: ", result)
 
-        return file_verify.get("webViewLink")
+    #     return file_verify.get("webViewLink")
 
-    except HttpError as err:
-        print(err)
-        return None
+    # except HttpError as err:
+    #     print(err)
+    #     return None
 
 def create_google_sheet(self, shared_folder_id, title, data):
     """
@@ -298,7 +670,7 @@ def create_google_sheet(self, shared_folder_id, title, data):
 
         # Create folder top level folder
         top_level_folder_id = create_folder_in_folder(
-            "genesis_" + datetime.now().strftime("%m%d%Y_%H:%M:%S"),
+            title + "(" + datetime.now().strftime("%m%d%Y_%H:%M:%S") + ")",
             shared_folder_id,
             self.user
         )
@@ -314,43 +686,22 @@ def create_google_sheet(self, shared_folder_id, title, data):
                     )
                 )
 
-        for i, row in enumerate(data):
-            row_values = list(row.values())
-            for j, row_value in enumerate(row_values):
-                if isinstance(row_value, datetime):
-                    row_values[j] = row_value.strftime("%Y-%m-%d %H:%M:%S")
-                elif len(stage_column_index) > 0 and j in stage_column_index and row_value:
-                    # Create a file with contents from the stage link, move it to the shared folder, and get the webViewLink
-                    if len(row_value) < 1 or not row_value.startswith('@'):
-                        break
-                    parts = row_value.split(".")
-                    path = parts[2].split("/")
-                    stage = path[0]
+        # Process rows in smaller batches
+        batch_size = 10  # Adjust based on your needs
+        max_workers = 5  # Reduced number of concurrent workers
+        processed_rows = []
 
-                    file_contents = self.read_file_from_stage(
-                        # self,
-                        parts[0].replace('@',''),
-                        parts[1],
-                        stage,
-                        "/".join(path[1:]) + '.' + parts[-1],
-                        True,
-                    )
+        for i in range(0, len(data), batch_size):
+            batch = data[i:i + batch_size]
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                row_args = [(self, row, stage_column_index, stage_column_folder_ids, creds)
+                           for row in batch]
+                batch_results = list(executor.map(process_row, row_args))
+                processed_rows.extend(batch_results)
+                time.sleep(1)  # Add delay between batches
 
-                    # create text docs in sub-folder
-                    filename = path[-1] + '.' + parts[-1]
-
-                    print(f"Stage Col Index: {stage_column_index.index(j)}")
-                    print(f"Stage folder ID: {stage_column_folder_ids[stage_column_index.index(j)]}")
-
-                    stage_folder_id = stage_column_folder_ids[stage_column_index.index(j)]
-
-                    webLink = save_text_to_google_folder(
-                        self, stage_folder_id, filename, file_contents, creds
-                    )
-
-                    row_values[j] = webLink
-
-            columns.append(row_values)
+        # Add header and processed rows to columns
+        columns = [keys] + processed_rows
 
         spreadsheet = {"properties": {"title": title}}
         spreadsheet = (
@@ -364,8 +715,8 @@ def create_google_sheet(self, shared_folder_id, title, data):
         width_10 = chr(65 + len(columns[0]) % 26)
         width_1 = chr(64 + len(columns[0]) // 26) if len(columns[0]) > 25 else ''
         width = width_10 + width_1
-        range_name = f"Sheet1!A1:{width}{len(columns)}"
-        print(f"\n\nRange name: {range_name} | {len(columns[0])} | {len(columns)}\n\n")
+        range = f"Sheet1!A1:{width}{len(columns)}"
+        print(f"\n\nRange name: {range} | {len(columns[0])} | {len(columns)}\n\n")
         body = {
                 "values": columns
                }
@@ -375,14 +726,19 @@ def create_google_sheet(self, shared_folder_id, title, data):
             .values()
             .update(
                 spreadsheetId=ss_id,
-                range=range_name,
-                valueInputOption='RAW',
+                range=range,
+                valueInputOption='USER_ENTERED',
                 body=body,
             )
             .execute()
         )
         print(f"{result.get('updatedCells')} cells updated.")
 
+        # Apply formatting
+        service.spreadsheets().batchUpdate(
+            spreadsheetId=ss_id,
+            body={"requests": format_genesis_g_sheets(columns)}
+        ).execute()
 
         # Move the document to shared folder
         if top_level_folder_id:
@@ -395,10 +751,93 @@ def create_google_sheet(self, shared_folder_id, title, data):
                 )
                 .execute()
             )
-            print(f"File moved to folder: {file} | Parent folder {file['parents'][0]}")
+            print(f"File moved to folder - File ID: {file['id']} | Folder ID {file['parents'][0]}")
 
-        return {"Success": True, "file_id": spreadsheet.get("spreadsheetId"), "webViewLink": file.get("webViewLink")}
+        # Test only - read file contents to confirm write
+        # results = read_g_sheet(ss_id, range, creds)
+        # print(f"Results from storing, then reading sheet: {results}")
 
+        folder_url = get_url_to_g_folder(top_level_folder_id, creds)
+        file_url = file.get("webViewLink")
+
+        return {"Success": True, "file_id": spreadsheet.get("spreadsheetId"), "file_url": file_url, "folder_url": folder_url}
+
+    except HttpError as error:
+        print(f"An error occurred: {error}")
+        return error
+
+def write_g_sheet_cell(spreadsheet_id=None, range=None, value=None, creds=None, user=None):
+    if not spreadsheet_id or not range or (not creds and not user):
+        raise Exception(
+            "Missing credentials, user name, spreadsheet ID, or range name."
+        )
+    if not creds:
+        SERVICE_ACCOUNT_FILE = f"g-workspace-{user}.json"
+        try:
+            # Authenticate using the service account JSON file
+            creds = Credentials.from_service_account_file(
+                SERVICE_ACCOUNT_FILE, scopes=SCOPES
+            )
+        except Exception as e:
+            print(f"Error loading credentials: {e}")
+            return None
+
+    service = build("sheets", "v4", credentials=creds)
+
+    body = {"values": [[value]]}
+
+    result = (
+        service.spreadsheets()
+        .values()
+        .update(
+            spreadsheetId=spreadsheet_id,
+            range=range,
+            valueInputOption="USER_ENTERED",
+            body=body,
+        )
+        .execute()
+    )
+    return {
+        "Success": True,
+        "updatedCells": result.get("updatedCells"),
+    }
+
+def read_g_sheet(spreadsheet_id=None, range=None, creds=None, user=None):
+    """
+    Creates the batch_update the user has access to.
+    Load pre-authorized user credentials from the environment.
+    TODO(developer) - See https://developers.google.com/identity
+    for guides on implementing OAuth2 for the application.
+    """
+    if not spreadsheet_id or not range or (not creds and not user):
+        raise Exception("Missing credentials, user name, spreadsheet ID, or range name.")
+
+    if not creds:
+        SERVICE_ACCOUNT_FILE = f"g-workspace-{user}.json"
+        try:
+            # Authenticate using the service account JSON file
+            creds = Credentials.from_service_account_file(
+                SERVICE_ACCOUNT_FILE, scopes=SCOPES
+            )
+        except Exception as e:
+            print(f"Error loading credentials: {e}")
+            return None
+    try:
+        service = build("sheets", "v4", credentials=creds)
+
+        result = (
+            service.spreadsheets()
+            .values()
+            .get(spreadsheetId=spreadsheet_id, range=range)
+            .execute()
+        )
+        rows = result.get("values", [])
+
+        print(f"{len(rows)} rows retrieved")
+        return {
+            "Success": True,
+            "cell_values": rows,
+        }
     except HttpError as error:
         print(f"An error occurred: {error}")
         return error

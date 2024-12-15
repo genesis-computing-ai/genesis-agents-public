@@ -5,7 +5,7 @@ import os
 import urllib.parse
 
 class GenesisSnowflakeServer(GenesisServer):
-    def __init__(self, scope, sub_scope, bot_list=None):
+    def __init__(self, scope, sub_scope, bot_list=None, fast_start=False):
         super().__init__(scope, sub_scope)
         self.conn = SnowflakeConnection(
             account=os.getenv("SNOWFLAKE_ACCOUNT_OVERRIDE"),

@@ -396,7 +396,7 @@ def evaluate_results(client, paths, filtered_requirement, pm_bot_id, source_rese
     """
     try:
         # Get the correct answers file
-        with open("./bot_git/knowledge/flexicard_eval_answers/flexicard_answers.txt", "r") as f:
+        with open("./bot_git/knowledge/flexicard_eval_answers/flexicard_answers_clean2.txt", "r") as f:
             answers_content = f.read()
     
 
@@ -428,10 +428,10 @@ def evaluate_results(client, paths, filtered_requirement, pm_bot_id, source_rese
         # Now prepare full evaluation message
         message = {
             "requirement": filtered_requirement,
-            "source_research": source_research_content,
+       #     "source_research": source_research_content,
             "mapping_proposal": mapping_proposal_content, 
-            "confidence_report": confidence_output_content,
-            "pm_summary": summary,
+       #     "confidence_report": confidence_output_content,
+      #      "pm_summary": summary,
             "correct_answer": correct_answer,
             "instruction": """
                 Please evaluate the mapping proposal results against the correct answer for this field.
@@ -603,15 +603,14 @@ def perform_source_research_new(client, requirement, paths, bot_id):
    #         raise Exception("Failed to put placeholder source research file to stage")
 
 
-#  2. _git_action(action='read_file',file_path='knowledge/past_projects/loan_lending_project.txt')
-       
+
         research_prompt = f'''Here are requirements for a target field I want you to work on: {requirement}\n
         Save the results in git at: {paths["base_git_path"]}{paths["source_research_file"]}\n
      
         First explore the available data for fields that may be useful using data_explorer function.  
         You may want to try a couple different search terms to make sure your search is comprehensive.
 
-        HINT: We are only interested in data sourced from these tables:
+        HINT: We are only interested in data sourced from these tables (this is my Focus Tables List):
 
         bronze.lending_loan_core.asset_account
         bronze.core_accounts_service.customer_account
@@ -625,11 +624,15 @@ def perform_source_research_new(client, requirement, paths, bot_id):
         bronze.lending_loan_core.asset_account_parameter
         bronze.lending_loan_core.asset_account_restriction
 
-        Then, consider this past projects to in your past project consideration step, stored in git. Get it by calling:
-        1. _git_action(action='read_file',file_path='knowledge/past_projects/loan_data_project.txt')
+        Then, consider these TWO past projects to in your past project consideration step, stored in git. Get it by calling:
+        1. _git_action(action='read_file',file_path='knowledge/past_projects/loan_data_project_clean2.txt')
+        2. _git_action(action='read_file',file_path='knowledge/past_projects/loan_lending_project_clean2.txt')
+       
         Be sure to use the _git_action function, do NOT just halucinate the contents of these files.
         Make SURE that you have ready BOTH of these past project files, not just one of them.
-
+        HINT: This past project is useful mostly to see the logic and transforms used for simialr fields, but is a different kind of loan (installment vs card) so a lot of 
+        the source tables we need to use for our project will not be the same.
+ 
         It is important to analyze BOTH the data explorer results, and ALSO the past project, and to discuss both in your report.
         When discussing past project in your report, describe their sources and transforms independently, don't say thing like 'in the same way as described above', referring to the other project, even if you have to repeat things.
 
@@ -680,7 +683,10 @@ def perform_mapping_proposal_new(client, requirement, paths, bot_id):
     HINT: Do NOT suggest mappings based on any of these tables, as they are related to installment loans not Cards:
         LOAN_DATA, LOAN_SUMMARY, LOAN_REPAYMENT_SCHEDULE, LOAN_REPAYMENT_DETAIL, LOAN_RECOVERY_DETAIL, LOAN_DISBURSEMENT_DETAIL, LOAN_TRANSACTION_REPAYMENT_SCHEDULE_MAPPING
         **DO NOT USE LOAN_DATA AS A SOURCE FOR YOUR MAPPINGS, IT IS NOT A VALID SOURCE FOR THIS PROJECT**    HINT: Use COALESCE() in your mappings to handle potential null values on numerical (but not date) fields, often for numbers for example a NULL would imply a 0.
-    
+
+    HINT: If you need details about how acct_block_code is generated, you can read a special report about that field by calling:
+    _git_action(action='read_file',file_path='knowledge/past_projects/acct_block_code.txt')
+            
     Then save your full results at this git location using _git_action: {paths["base_git_path"]}{paths["mapping_proposal_file"]}
     Don't forget use use _git_action to save your full and complete mapping results.  Don't just put "see above" or similar as this file will be read by another bot who will not see your full completion output.
 
@@ -803,6 +809,8 @@ def main():
                 # list of valid source tables (allow search metadata to be passed in a constrained list?)
                 # "actual requirements" that could help the bots know what to do
 
+        # add MMSE https://docs.google.com/spreadsheets/d/1n3tU3iBsFkUNJ-Jf7wKrL1p0sqP0lbLIE-nRrRrjcgg/edit?gid=1495289745#gid=1495289745 as a past project
+
     """
 
     local_bots = []   # start these already-present-on-serber bots if they exist (if you're not loading/refreshing from YAMLS below) 
@@ -820,7 +828,7 @@ def main():
     scope, sub_scope = internal_schema.split(".")
 
     client = GenesisAPI(server_type=GenesisLocalSnowflakeServer, scope=scope, sub_scope=sub_scope,
-                        bot_list=local_bots) # ["marty-l6kx7d"]
+                        bot_list=local_bots, fast_start=True) # ["marty-l6kx7d"]
 
     # if you want to see what bots are already on the server
     #bots = client.get_all_bots()
@@ -840,10 +848,10 @@ def main():
     # MAIN WORKFLOW
     try:
 
-        run_number = 21;
-        table_name = "genesis_gxs.requirements.flexicard_pm_jl_2"  # Changed from genesis_gxs.requirements.flexicard_pm
-      #  focus_field = 'EXPOSURE_END_DATE';
-        focus_field = None
+        run_number = 22;
+        table_name = "genesis_gxs.requirements.flexicard_pm_jl_3"  # Changed from genesis_gxs.requirements.flexicard_pm
+        focus_field = 'EXPOSURE_END_DATE';
+       # focus_field = None
         skip_confidence = True
 
         # Reset the requirements table before starting

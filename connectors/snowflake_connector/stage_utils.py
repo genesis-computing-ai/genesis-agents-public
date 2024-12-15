@@ -139,7 +139,12 @@ def read_file_from_stage(
 
         if not os.path.isdir(local_dir):
             os.makedirs(local_dir)
+        if '/' in file_name:
+            file_name_flat = file_name.split('/')[-1]
+        else:
+            file_name_flat = file_name
         local_file_path = os.path.join(local_dir, file_name)
+        local_file_path_flat = os.path.join(local_dir, file_name_flat)
         target_dir = os.path.dirname(local_file_path)
         if not os.path.exists(target_dir):
             os.makedirs(target_dir)
@@ -150,6 +155,7 @@ def read_file_from_stage(
         # ret = cursor.fetchall()
 
         # Modify the GET command to include the local file path
+
         query = f'GET @{database}.{schema}.{stage}/{file_name} file://{local_dir}'
         cursor.execute(query)
         ret = cursor.fetchall()
@@ -173,6 +179,16 @@ def read_file_from_stage(
                         return file.read()
                 else:
                     with open(local_file_path, "r") as file:
+                        return file.read()
+            else:
+                return local_file_path
+        if os.path.isfile(local_file_path_flat):
+            if return_contents:
+                if is_binary:
+                    with open(local_file_path_flat, "rb") as file:
+                        return file.read()
+                else:
+                    with open(local_file_path_flat, "r") as file:
                         return file.read()
             else:
                 return local_file_path

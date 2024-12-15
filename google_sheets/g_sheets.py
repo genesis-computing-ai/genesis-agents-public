@@ -48,17 +48,120 @@ def get_g_file_comments(user, file_id):
         # Get the comments on the document
         comments = (
             service.comments()
-            .list(fileId=file_id, fields="comments(content,replies)")
+            .list(fileId=file_id, fields="comments(id,content,replies(id,content,htmlContent))")
             .execute()
         )
 
-        # Print the comments
+        # Get the web link to the file
+        file_metadata = service.files().get(fileId=file_id, fields="webViewLink").execute()
+        file_url = file_metadata.get("webViewLink")
+
+        # Add the URL to each comment
         for comment in comments.get("comments", []):
-            print(f"Comment: {comment['content']}")
+            comment["url"] = f"{file_url}?comment={comment['id']}"
             for reply in comment.get("replies", []):
-                print(f"Reply: {reply['content']}")
+                reply["url"] = f"{file_url}?comment={comment['id']}&reply={reply['id']}"
 
         return comments.get("comments", [])
+
+    except Exception as e:
+        print(f"An error occurred: {str(e)}")
+        return None
+
+
+def add_reply_to_g_file_comment(
+    file_id=None, comment_id=None, reply_content=None, g_file_comment_id=None, creds=None, user=None
+):
+    """
+    Add a reply to a comment on a Google Drive file.
+
+    Args:
+        user (str): The user associated with the service account.
+        file_id (str): The ID of the file.
+        comment_id (str): The ID of the comment.
+        reply_content (str): The content of the reply.
+
+    Returns:
+        dict: The created reply.
+    """
+    if not file_id or not comment_id or not reply_content or not g_file_comment_id or (not creds and not user):
+        raise Exception(
+            "Missing credentials, user name, file ID, comment ID, or reply content."
+        )
+
+    SERVICE_ACCOUNT_FILE = f"g-workspace-{user}.json"
+
+    try:
+        if not creds:
+            # Authenticate using the service account JSON file
+            creds = Credentials.from_service_account_file(
+                SERVICE_ACCOUNT_FILE, scopes=SCOPES
+            )
+
+        service = build("drive", "v3", credentials=creds)
+
+        # Create the reply
+        reply_body = {"content": reply_content}
+        created_reply = (
+            service.replies()
+            .create(
+                fileId=file_id,
+                commentId=g_file_comment_id,
+                body=reply_body,
+                fields="id,content",
+            )
+            .execute()
+        )
+
+        print(f"Reply added: {created_reply['content']}")
+        return created_reply
+
+    except Exception as e:
+        print(f"An error occurred: {str(e)}")
+        return None
+
+
+def add_g_file_comment(
+    file_id=None,
+    content=None,
+    creds=None,
+    user=None
+):
+    """
+    Add a comment to a Google Drive file.
+
+    Args:
+        user (str): The user associated with the service account.
+        file_id (str): The ID of the file.
+        content (str): The content of the comment.
+
+    Returns:
+        dict: The created comment.
+    """
+    if not file_id or not content or (not creds and not user):
+        raise Exception(
+            "Missing credentials, user name, file ID, or value."
+        )
+    SERVICE_ACCOUNT_FILE = f"g-workspace-{user}.json"
+
+    try:
+        if not creds:
+            # Authenticate using the service account JSON file
+            creds = Credentials.from_service_account_file(
+                SERVICE_ACCOUNT_FILE, scopes=SCOPES
+            )
+        service = build("drive", "v3", credentials=creds)
+
+        # Create the comment
+        body = {"content": content}
+        created_comment = (
+            service.comments()
+            .create(fileId=file_id, body=body, fields="id,content")
+            .execute()
+        )
+
+        print(f"Comment added: {created_comment['content']}")
+        return created_comment
 
     except Exception as e:
         print(f"An error occurred: {str(e)}")

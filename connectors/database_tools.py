@@ -568,7 +568,7 @@ google_drive_functions = [
                         "type": "string",
                         "description": """
                         The action to be performed on Google Drive.  Possible actions are: LOGIN, TEST, LIST, SET_ROOT_FOLDER, 
-                        GET_FILE_VERSION_NUM, GET_COMMENTS, GET_SHEET_CELL, EDIT_SHEET_CELL""",
+                        GET_FILE_VERSION_NUM, GET_COMMENTS, ADD_COMMENT, ADD_REPLY_TO_COMMENT, GET_SHEET_CELL, EDIT_SHEET_CELL""",
                     },
                     "user": {
                         "type": "string",
@@ -584,8 +584,12 @@ google_drive_functions = [
                     },
                     "g_sheet_value": {
                         "type": "string",
-                        "description": "Value to update the cell with.",
+                        "description": "Value to update the cell in a Google Sheet or update a comment.",
                     },
+                    "g_file_comment_id": {
+                        "type": "string",
+                        "description": "The unique identifier of a comment stored on Google Drive.",
+                    }
                 },
                 "required": ["action"],
             },

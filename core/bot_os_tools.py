@@ -19,7 +19,14 @@ from core import global_flags
 from core.bot_os_tools_extended import load_user_extended_tools
 from llm_openai.bot_os_openai import StreamingEventHandler
 
-from google_sheets.g_sheets import get_g_file_version, get_g_file_comments, write_g_sheet_cell, read_g_sheet
+from google_sheets.g_sheets import (
+    get_g_file_version,
+    get_g_file_comments,
+    add_g_file_comment,
+    read_g_sheet,
+    write_g_sheet_cell,
+    add_reply_to_g_file_comment,
+)
 
 import re
 from typing import Optional
@@ -2421,7 +2428,7 @@ class ToolBelt:
 
     # ====== ARTIFACTS END ==========================================================================================
 
-    def google_drive(self, action, thread_id=None, g_file_id=None, g_sheet_cell = None, g_sheet_value = None):
+    def google_drive(self, action, thread_id=None, g_file_id=None, g_sheet_cell = None, g_sheet_value = None, g_file_comment_id = None):
         """
         A wrapper for LLMs to access/manage Google Drive files by performing specified actions such as listing or downloading files.
 
@@ -2491,6 +2498,24 @@ class ToolBelt:
             try:
                 comments_and_replies = get_g_file_comments(self.db_adapter.user, g_file_id)
                 return {"Success": True, "Comments & Replies": comments_and_replies}
+            except Exception as e:
+                return {"Success": False, "Error": str(e)}
+
+        elif action == "ADD_COMMENT":
+            try:
+                result = add_g_file_comment(
+                    g_file_id, g_sheet_value, None, self.db_adapter.user
+                )
+                return {"Success": True, "Result": result}
+            except Exception as e:
+                return {"Success": False, "Error": str(e)}
+
+        elif action == "ADD_REPLY_TO_COMMENT":
+            try:
+                result = add_reply_to_g_file_comment(
+                    g_file_id, g_file_comment_id, g_sheet_value, g_file_comment_id, None, self.db_adapter.user
+                )
+                return {"Success": True, "Result": result}
             except Exception as e:
                 return {"Success": False, "Error": str(e)}
 

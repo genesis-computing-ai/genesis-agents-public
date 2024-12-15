@@ -8,10 +8,10 @@ from Cython.Build import cythonize
 import glob
 
 def should_copy(path, abs_exclude):
-        for exc in abs_exclude:
-            if os.path.abspath(path).startswith(exc):
-                return False
-        return True
+    for exc in abs_exclude:
+        if os.path.abspath(path).startswith(exc) or "__pycache__" in path:
+            return False
+    return True
 
 def compile_and_package(project_dir, public_files, exclude=None, output_dir="dist", package_name="compiled_whl", public_package_name="public_package", version="1.0.0"):
     exclude = exclude or []
@@ -26,6 +26,7 @@ def compile_and_package(project_dir, public_files, exclude=None, output_dir="dis
     # Create a temporary directory for building
     temp_dir = tempfile.mkdtemp()
     temp_project_dir = os.path.join(temp_dir, package_name)
+    print(f"temp_project_dir: {temp_project_dir}")
 
     # Compute absolute excluded paths
     abs_exclude = [os.path.abspath(x) for x in exclude]
@@ -45,8 +46,6 @@ def compile_and_package(project_dir, public_files, exclude=None, output_dir="dis
             # Filter directories
             dirs[:] = [d for d in dirs if should_copy(os.path.join(root, d), abs_exclude)]
             for file in files:
-                if file == 'requirements.txt':
-                    print("found requirements.txt")
                 src_path = os.path.join(root, file)
                 if should_copy(src_path, abs_exclude):
                     sanitized_file = sanitize_filename(file)
@@ -74,8 +73,8 @@ def compile_and_package(project_dir, public_files, exclude=None, output_dir="dis
 
     # Cleanup
     print(f"Cleaning up temporary directory: {temp_dir}")
-    shutil.rmtree(temp_dir)
-    print("Temporary directory cleaned up.")
+    #shutil.rmtree(temp_dir)
+    #print("Temporary directory cleaned up.")
 
 def build_compiled_package(temp_project_dir, output_dir, package_name, version, public_files, project_dir, abs_exclude):
     # public files in tmp structure
@@ -126,7 +125,10 @@ setup(
         [{extensions_str}],
         compiler_directives={{"language_level": "3"}}
     ),
-    packages=[""],
+    #packages=[""],
+    package_data={{
+        '': ['**/*.yaml', '**/*.so'],  # Include all YAML and .so files in any package
+    }},
     include_package_data=True,
 )
 """
@@ -155,7 +157,7 @@ setup(
     packages=find_packages(),       # Automatically find all packages with __init__.py
     include_package_data=True,      # Include additional data as specified
     package_data={{
-        '': ['*.so'],               # Include all .so files in all packages
+        '': ['**/*.yaml', '**/*.so'],  # Include all YAML and .so files in any package
     }},
     cmdclass={{'bdist_wheel': bdist_wheel}},  # Use the customized bdist_wheel
 )
@@ -176,7 +178,7 @@ setup(
     # 2. Remove all .py files except __init__.py
     for dirpath, dirs, files in os.walk(temp_project_dir):
         for file in files:
-            if file.endswith(".py") and file != "__init__.py" and not file.endswith("setup.py") or file.endswith(".pyc"):
+            if file.endswith(".py") and file != "__init__.py" and not file.endswith("setup.py") or file.endswith(".pyc") or file.endswith(".c"):
                 os.remove(os.path.join(dirpath, file))
 
     subprocess.check_call(["python", wheel_setup_script, "bdist_wheel", "--dist-dir", output_dir], cwd=temp_project_dir)
@@ -247,7 +249,7 @@ if __name__ == "__main__":
         "api/genesis_api.py",
         "api/demo_remote_api_01.py",
         "api/demo_local_api_01.py",
-        "api/snowflake_local_server.py",
+        #"api/snowflake_local_server.py",
         "api/snowflake_remote_server.py",
         "api/genesis_base.py",
         "requirements.txt",
@@ -256,13 +258,14 @@ if __name__ == "__main__":
         os.path.join(project_directory, ".venv"),
         os.path.join(project_directory, ".git"),
         os.path.join(project_directory, "build"),
-        #os.path.join(project_directory, "spider_load"),
         os.path.join(project_directory, "bot_git"),
         os.path.join(project_directory, "genesis_api_whl"),    
         os.path.join(project_directory, "app engine"),
         os.path.join(project_directory, "experimental"),
         os.path.join(project_directory, "teams/app.py"),
         os.path.join(project_directory, "tests/hello_world_regtest_01_local.py"),
+        os.path.join(project_directory, "demo/bot_os_streamlit.py"),
+        os.path.join(project_directory, "app_engine"),
     ]
     output_directory = "dist"
 

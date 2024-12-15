@@ -26,6 +26,8 @@ from google_sheets.g_sheets import (
     read_g_sheet,
     write_g_sheet_cell,
     add_reply_to_g_file_comment,
+    get_g_file_web_link,
+    get_all_files_in_g_folder,
 )
 
 import re
@@ -2428,7 +2430,7 @@ class ToolBelt:
 
     # ====== ARTIFACTS END ==========================================================================================
 
-    def google_drive(self, action, thread_id=None, g_file_id=None, g_sheet_cell = None, g_sheet_value = None, g_file_comment_id = None):
+    def google_drive(self, action, thread_id=None, g_folder_id=None, g_file_id=None, g_sheet_cell = None, g_sheet_value = None, g_file_comment_id = None):
         """
         A wrapper for LLMs to access/manage Google Drive files by performing specified actions such as listing or downloading files.
 
@@ -2479,13 +2481,26 @@ class ToolBelt:
             return True
 
         if action == "LIST":
-            return self.get_google_drive_files()
+            try:
+                files = get_all_files_in_g_folder(
+                    g_folder_id, None, user=self.db_adapter.user
+                )
+                return {"Success": True, "files": files}
+            except Exception as e:
+                return {"Success": False, "Error": str(e)}
 
         elif action == "TEST":
             return {"Success": True, "message": "Test successful"}
 
         elif action == "SET_ROOT_FOLDER":
             raise NotImplementedError
+
+        elif action == "GET_LINK_FROM_FILE_ID":
+            try:
+                web_link = get_g_file_web_link(g_file_id, None, self.db_adapter.user)
+                return {"Success": True, "web_link": web_link}
+            except Exception as e:
+                return {"Success": False, "Error": str(e)}
 
         elif action == "GET_FILE_VERSION_NUM":
             try:
@@ -2563,9 +2578,6 @@ class ToolBelt:
             )
             auth_url, _ = flow.authorization_url(prompt="consent")
             return {"Success": "True", "auth_url": f"<{auth_url}|View Document>"}
-
-    def get_google_drive_files(self):
-        pass
 
     def process_scheduler(
         self, action, bot_id, task_id=None, task_details=None, thread_id=None, history_rows=10

@@ -120,6 +120,87 @@ def add_reply_to_g_file_comment(
         print(f"An error occurred: {str(e)}")
         return None
 
+def get_g_file_web_link(file_id, creds=None, user=None):
+    """
+    Get the web link to a file in Google Drive.
+
+    Args:
+        file_id (str): The ID of the file.
+
+    Returns:
+        str: The web link to the file.
+    """
+    if not file_id or (not creds and not user):
+        raise Exception("Missing credentials, user name, or file ID.")
+
+    if not creds:
+        SERVICE_ACCOUNT_FILE = f"g-workspace-{user}.json"
+        try:
+            # Authenticate using the service account JSON file
+            creds = Credentials.from_service_account_file(
+                SERVICE_ACCOUNT_FILE, scopes=SCOPES
+            )
+        except Exception as e:
+            print(f"Error loading credentials: {e}")
+            return None
+
+    try:
+        service = build("drive", "v3", credentials=creds)
+
+        # Get the file metadata including the webViewLink
+        file_metadata = service.files().get(fileId=file_id, fields="name, webViewLink, parents").execute()
+
+        return {
+            "Success": True,
+            "Name": file_metadata.get("name"),
+            "URL": file_metadata.get("webViewLink"),
+            "Folder ID": (
+                file_metadata.get("parents")[0]
+                if file_metadata.get("parents")
+                else None
+            ),
+        }
+
+    except Exception as e:
+        return {"Success": False, "Error": str(e)}
+
+def get_all_files_in_g_folder(folder_id, creds=None, user=None):
+    """
+    Get all files in a Google Drive folder.
+
+    Args:
+        folder_id (str): The ID of the folder.
+
+    Returns:
+        list: A list of files in the folder.
+    """
+    if not folder_id or (not creds and not user):
+        raise Exception("Missing credentials, user name, or folder ID.")
+
+    if not creds:
+        SERVICE_ACCOUNT_FILE = f"g-workspace-{user}.json"
+        try:
+            # Authenticate using the service account JSON file
+            creds = Credentials.from_service_account_file(
+                SERVICE_ACCOUNT_FILE, scopes=SCOPES
+            )
+        except Exception as e:
+            print(f"Error loading credentials: {e}")
+            return None
+
+    try:
+        service = build("drive", "v3", credentials=creds)
+
+        # Get the list of files in the folder
+        query = f"'{folder_id}' in parents"
+        response = service.files().list(q=query, fields="files(id, name)").execute()
+        files = response.get("files", [])
+
+        return {"Success": True, "File Names": files}
+
+    except Exception as e:
+        return {"Success": False, "Error": str(e)}
+
 
 def add_g_file_comment(
     file_id=None,

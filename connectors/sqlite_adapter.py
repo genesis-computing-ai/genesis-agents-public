@@ -117,12 +117,12 @@ class SQLiteAdapter:
         """Ensure llm_tokens table exists with correct constraints"""
         cursor = self.cursor()
         # First drop the table to ensure clean creation
-        cursor.execute("DROP TABLE IF EXISTS llm_tokens")
-        self.commit()
+        # cursor.execute("DROP TABLE IF EXISTS llm_tokens")
+        # self.commit()
         
         # Create the table with explicit constraints
         cursor.execute("""
-            CREATE TABLE llm_tokens (
+            CREATE TABLE IF NOT EXISTS llm_tokens (
                 runner_id TEXT NOT NULL,
                 llm_key TEXT,
                 llm_type TEXT,

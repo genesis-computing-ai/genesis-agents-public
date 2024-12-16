@@ -228,7 +228,7 @@ setup(
     install_requires=["snowflake_connector_python==3.12.3"],  # Adjust version constraints as needed,
     classifiers=[
         "Programming Language :: Python :: 3",
-        "License :: OSI Approved :: Server Side Public License (SSPL)",
+        #"License :: OSI Approved :: Server Side Public License (SSPL)",
         "Operating System :: OS Independent",
     ],
     python_requires=">=3.6",
@@ -268,6 +268,7 @@ if __name__ == "__main__":
         os.path.join(project_directory, "tests/hello_world_regtest_01_local.py"),
         os.path.join(project_directory, "demo/bot_os_streamlit.py"),
         os.path.join(project_directory, "app_engine"),
+        #os.path.join(project_directory, "google_sheets"),
     ]
     output_directory = "dist"
 
@@ -278,5 +279,5 @@ if __name__ == "__main__":
         output_dir=output_directory,
         package_name="genesis_api_whl",
         public_package_name="genesis_api_public",
-        version="1.0.0",
+        version="1.0.2",
     )

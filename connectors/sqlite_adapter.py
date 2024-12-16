@@ -39,6 +39,7 @@ class SQLiteAdapter:
         try:
             self._ensure_bot_servicing_table()
             self._ensure_llm_tokens_table()
+            self._ensure_slack_config_table()
             logger.info("All tables initialized successfully")
         except Exception as e:
             logger.error(f"Failed to initialize tables: {e}")
@@ -202,6 +203,20 @@ class SQLiteAdapter:
         """)
         self.commit()
     
+    def _ensure_slack_config_table(self):
+        """Ensure slack_app_config_tokens table exists"""
+        cursor = self.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS slack_app_config_tokens (
+                runner_id TEXT PRIMARY KEY,
+                slack_app_config_token TEXT,
+                slack_app_config_refresh_token TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        self.commit()
+    
     def cursor(self):
         if self.connection is None:
             logger.error("No database connection")
@@ -244,6 +259,9 @@ class SQLiteCursorWrapper:
     
     def execute(self, query: str, params: Any = None) -> Any:
         try:
+            # Replace %s with ? for SQLite
+            query = query.replace('%s', '?')
+            
             # Log original parameters
             logger.debug(f"Original params count: {len(params) if params else 0}")
             logger.debug(f"Original params: {params}")
@@ -254,6 +272,10 @@ class SQLiteCursorWrapper:
                     # Take only the first 4 parameters for llm_tokens MERGE
                     params = params[:4]
                     logger.debug(f"Using first 4 params for llm_tokens: {params}")
+                if len(params) == 5 and 'slack_app_config_tokens' in query.lower() and 'MERGE INTO' in query.upper():
+                    # Adjust parameters to match the transformed query
+                    params = params[:3]
+                    logger.debug(f"Using first 3 params for slack_app_config_tokens: {params}")
             
             modified_query = self._transform_query(query)
             logger.debug(f"Transformed query: {modified_query}")
@@ -313,6 +335,30 @@ class SQLiteCursorWrapper:
         query_clean = ' '.join(query.split())
         query_upper = query_clean.upper()
         
+        # Replace %s with ? for SQLite
+        query = query.replace('%s', '?')
+        
+        # Handle CALL statements (new)
+        if query_upper.startswith('CALL'):
+            logger.debug("Converting CALL statement to SELECT")
+            # Convert CALL CORE.GET_EAI_LIST to a simple SELECT that returns NULL
+            if 'GET_EAI_LIST' in query_upper:
+                return "SELECT NULL as EAI_LIST WHERE 1=0"
+            return "SELECT 1 WHERE 1=0"  # Default no-op for other CALL statements
+
+        # Handle MERGE INTO statements for slack_app_config_tokens
+        if query_upper.startswith('MERGE INTO') and 'SLACK_APP_CONFIG_TOKENS' in query_upper:
+            return """
+                INSERT INTO slack_app_config_tokens 
+                    (runner_id, slack_app_config_token, slack_app_config_refresh_token)
+                VALUES 
+                    (?1, ?2, ?3)
+                ON CONFLICT(runner_id) 
+                DO UPDATE SET
+                    slack_app_config_token = ?2,
+                    slack_app_config_refresh_token = ?3
+            """
+
         # Skip certain operations that don't apply in SQLite mode
         skip_patterns = [
             r'(?i)ENCODED_IMAGE_DATA',
@@ -753,6 +799,14 @@ class SQLiteCursorWrapper:
         
         # Remove schema qualifiers
         query = re.sub(r'(?:[^.\s]+\.){1,2}([^\s(]+)', r'\1', query)
+        
+        # Handle INSERT INTO statements for BOT_SERVICING
+        if 'INSERT INTO GENESIS_TEST.GENESIS_JL.BOT_SERVICING' in query_upper:
+            # Replace %s with ? for SQLite
+            query = query.replace('%s', '?')
+            # Remove schema qualifiers
+            query = re.sub(r'GENESIS_TEST\.GENESIS_JL\.', '', query)
+            return query
         
         logger.debug(f"Transformed query with column mappings: {query}")
         return query

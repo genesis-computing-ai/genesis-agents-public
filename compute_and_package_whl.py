@@ -127,7 +127,7 @@ setup(
     ),
     #packages=[""],
     package_data={{
-        '': ['**/*.yaml', '**/*.so'],  # Include all YAML and .so files in any package
+        '': ['**/*.yaml', '**/*.so', 'requirements.txt'],  # Include all YAML and .so files in any package
     }},
     include_package_data=True,
 )
@@ -144,7 +144,13 @@ setup(
     wheel_setup_template = """
 from setuptools import setup, find_packages
 from wheel.bdist_wheel import bdist_wheel as _bdist_wheel
+import os
 
+this_directory = os.path.abspath(os.path.dirname(__file__))
+
+with open(os.path.join(this_directory, "requirements.txt")) as f:
+    required = f.read().splitlines()
+                
 class bdist_wheel(_bdist_wheel):
     def finalize_options(self):
         super().finalize_options()
@@ -160,6 +166,7 @@ setup(
         '': ['**/*.yaml', '**/*.so'],  # Include all YAML and .so files in any package
     }},
     cmdclass={{'bdist_wheel': bdist_wheel}},  # Use the customized bdist_wheel
+    install_requires=required,
 )
 """
     wheel_setup_py_content = wheel_setup_template.format(
@@ -211,9 +218,6 @@ import os
 
 this_directory = os.path.abspath(os.path.join(os.path.dirname(__file__), "{public_package_name}"))
 
-with open(os.path.join(this_directory, "requirements.txt")) as f:
-    required = f.read().splitlines()
-                
 setup(
     name="{public_package_name}",
     version="{version}",
@@ -221,12 +225,10 @@ setup(
     packages=["{public_package_name}"],
     package_dir={{"{public_package_name}": "{public_package_name}"}},
     package_data={{"{public_package_name}": ["*"]}},
-    install_requires=[
-        "{compiled_package_name} @ file://{compiled_whl_path}"
-    ] + required,
+    install_requires=["snowflake_connector_python==3.12.3"],  # Adjust version constraints as needed,
     classifiers=[
         "Programming Language :: Python :: 3",
-        "License :: OSI Approved :: MIT License",
+        "License :: OSI Approved :: Server Side Public License (SSPL)",
         "Operating System :: OS Independent",
     ],
     python_requires=">=3.6",

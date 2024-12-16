@@ -597,13 +597,13 @@ def create_sessions(
         try:
             bot_id = bot_config["bot_id"]
             assistant_id = None
-
+            
             for bot in bot_list or []:
                 if bot["bot_id"] == bot_id:
                     assistant_id = bot.get("assistant_id", None)
                     break
 
-            logger.info(f'🤖 Making session for bot_id={bot_config["bot_id"]} (bot_name={bot_config["bot_name"]})')
+            logger.info(f'🤖 Making session for bot {bot_id}')
             logger.telemetry('add_session:', bot_config['bot_name'], os.getenv("BOT_OS_DEFAULT_LLM_ENGINE", ""))
 
             return make_session(
@@ -623,7 +623,7 @@ def create_sessions(
     # Execute session creation in parallel
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         future_to_bot = {
-            executor.submit(create_single_session, bot_config): bot_config
+            executor.submit(create_single_session, bot_config): bot_config 
             for bot_config in filtered_bots
         }
 

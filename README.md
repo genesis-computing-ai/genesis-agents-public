@@ -102,7 +102,7 @@ python demo/bot_os_multibot_1.py
 10. Run Frontend: once #8 completed, run in another terminal window. This step will bring up 'Genesis Bots Configuration' page in Browser.
 
 ```
-streamlit run streamlit_gui/main.py
+streamlit run ./streamlit_gui/streamlit_sis_v1.py
 ```
 
 11. You can go to http://localhost:8501/ in a browser and this will bring you to 'Genesis Bots Configuration' page.

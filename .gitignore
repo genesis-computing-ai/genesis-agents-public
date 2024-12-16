@@ -31,7 +31,6 @@ rsa_key.p8
 rsa_key.pub
 .venv/*
 .env*
-.pyflyby/
 requirements_orig.txt
 .vscode/
 .pyflyby/

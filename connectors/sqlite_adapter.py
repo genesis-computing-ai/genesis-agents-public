@@ -4,6 +4,17 @@ import logging
 from typing import Any
 from datetime import datetime
 from core.logging_config import logger
+import os
+
+from core.bot_os_defaults import (
+    BASE_EVE_BOT_INSTRUCTIONS,
+    JANICE_JANITOR_INSTRUCTIONS,
+    EVE_INTRO_PROMPT,
+    ELIZA_INTRO_PROMPT,
+    STUART_INTRO_PROMPT,
+    JANICE_INTRO_PROMPT
+)
+
 
 class SQLiteAdapter:
     """Adapts Snowflake-style operations to work with SQLite"""
@@ -58,8 +69,8 @@ class SQLiteAdapter:
                                 BOT_NAME TEXT,
                                 BOT_INSTRUCTIONS TEXT,
                                 AVAILABLE_TOOLS TEXT,
-                                UDF_ACTIVE INTEGER,
-                                SLACK_ACTIVE INTEGER,
+                                UDF_ACTIVE TEXT,
+                                SLACK_ACTIVE TEXT,
                                 BOT_INTRO_PROMPT TEXT,
                                 BOT_AVATAR_IMAGE TEXT,
                                 SLACK_APP_TOKEN TEXT,
@@ -108,6 +119,60 @@ class SQLiteAdapter:
             cursor.execute("SELECT COUNT(*) FROM BOT_SERVICING")
             count = cursor.fetchone()[0]
             logger.info(f"Final verification successful. Row count: {count}")
+                
+            # After successful table creation, insert Eve
+            logger.info("Inserting initial Eve row")
+            runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
+            bot_id = "Eve"
+            bot_name = "Eve"
+            bot_instructions = BASE_EVE_BOT_INSTRUCTIONS
+            available_tools = """[
+                "slack_tools",
+                "test_manager_tools",
+                "make_baby_bot",
+                "snowflake_stage_tools",
+                "image_tools",
+                "process_manager_tools",
+                "process_runner_tools",
+                "process_scheduler_tools",
+                "notebook_manager_tools",
+                "google_drive_tools"]
+                """
+            udf_active = 'Y'  # Using 1 instead of "Y" for SQLite boolean
+            slack_active = 'N'  # Using 0 instead of "N" for SQLite boolean
+            bot_intro_prompt = EVE_INTRO_PROMPT
+
+            # Insert Eve using SQLite's UPSERT syntax
+            insert_eve_query = """
+            INSERT INTO BOT_SERVICING 
+                (BOT_ID, RUNNER_ID, BOT_NAME, BOT_INSTRUCTIONS, 
+                 AVAILABLE_TOOLS, UDF_ACTIVE, SLACK_ACTIVE, BOT_INTRO_PROMPT)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(BOT_ID) DO UPDATE SET
+                RUNNER_ID = excluded.RUNNER_ID,
+                BOT_NAME = excluded.BOT_NAME,
+                BOT_INSTRUCTIONS = excluded.BOT_INSTRUCTIONS,
+                AVAILABLE_TOOLS = excluded.AVAILABLE_TOOLS,
+                UDF_ACTIVE = excluded.UDF_ACTIVE,
+                SLACK_ACTIVE = excluded.SLACK_ACTIVE,
+                BOT_INTRO_PROMPT = excluded.BOT_INTRO_PROMPT
+            """
+            
+            cursor.execute(
+                insert_eve_query,
+                (
+                    bot_id,
+                    runner_id,
+                    bot_name,
+                    bot_instructions,
+                    available_tools,
+                    udf_active,
+                    slack_active,
+                    bot_intro_prompt,
+                )
+            )
+            self.connection.commit()
+            logger.info("Initial Eve row inserted successfully")
                 
         except Exception as e:
             logger.error(f"Error in _ensure_bot_servicing_table: {e}")

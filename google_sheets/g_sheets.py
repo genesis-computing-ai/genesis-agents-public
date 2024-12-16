@@ -48,7 +48,7 @@ def get_g_file_comments(user, file_id):
         # Get the comments on the document
         comments = (
             service.comments()
-            .list(fileId=file_id, fields="comments(id,content,replies(id,content,htmlContent))")
+            .list(fileId=file_id, fields="comments(id,content,author(displayName,emailAddress),replies(id,content,author(displayName,emailAddress),htmlContent))")
             .execute()
         )
 
@@ -193,7 +193,7 @@ def find_g_file_by_name(file_name, creds=None, user=None):
 
         # Search for the files by name
         query = f"name='{file_name}'"
-        response = service.files().list(q=query, fields="files(id, name, webViewLink)").execute()
+        response = service.files().list(q=query, fields="files(id, name, webViewLink, createdTime)").execute()
         files = response.get("files", [])
 
         if files:
@@ -204,7 +204,7 @@ def find_g_file_by_name(file_name, creds=None, user=None):
     except Exception as e:
         return {"Success": False, "Error": str(e)}
 
-def get_all_files_in_g_folder(folder_id, creds=None, user=None):
+def get_g_folder_directory(folder_id, creds=None, user=None):
     """
     Get all files in a Google Drive folder.
 
@@ -289,7 +289,7 @@ def add_g_file_comment(
         return None
 
 
-def get_url_to_g_folder(folder_id, creds):
+def get_g_folder_web_link(folder_id, creds):
     """
     Get the web link to a folder in Google Drive.
 
@@ -715,8 +715,8 @@ def create_google_sheet(self, shared_folder_id, title, data):
         width_10 = chr(65 + len(columns[0]) % 26)
         width_1 = chr(64 + len(columns[0]) // 26) if len(columns[0]) > 25 else ''
         width = width_10 + width_1
-        range = f"Sheet1!A1:{width}{len(columns)}"
-        print(f"\n\nRange name: {range} | {len(columns[0])} | {len(columns)}\n\n")
+        cell_range = f"Sheet1!A1:{width}{len(columns)}"
+        print(f"\n\nRange name: {cell_range} | {len(columns[0])} | {len(columns)}\n\n")
         body = {
                 "values": columns
                }
@@ -726,7 +726,7 @@ def create_google_sheet(self, shared_folder_id, title, data):
             .values()
             .update(
                 spreadsheetId=ss_id,
-                range=range,
+                range=cell_range,
                 valueInputOption='USER_ENTERED',
                 body=body,
             )
@@ -754,10 +754,10 @@ def create_google_sheet(self, shared_folder_id, title, data):
             print(f"File moved to folder - File ID: {file['id']} | Folder ID {file['parents'][0]}")
 
         # Test only - read file contents to confirm write
-        # results = read_g_sheet(ss_id, range, creds)
+        # results = read_g_sheet(ss_id, cell_range, creds)
         # print(f"Results from storing, then reading sheet: {results}")
 
-        folder_url = get_url_to_g_folder(top_level_folder_id, creds)
+        folder_url = get_g_folder_web_link(top_level_folder_id, creds)
         file_url = file.get("webViewLink")
 
         return {"Success": True, "file_id": spreadsheet.get("spreadsheetId"), "file_url": file_url, "folder_url": folder_url}
@@ -766,10 +766,10 @@ def create_google_sheet(self, shared_folder_id, title, data):
         print(f"An error occurred: {error}")
         return error
 
-def write_g_sheet_cell(spreadsheet_id=None, range=None, value=None, creds=None, user=None):
-    if not spreadsheet_id or not range or (not creds and not user):
+def write_g_sheet_cell(spreadsheet_id=None, cell_range=None, value=None, creds=None, user=None):
+    if not spreadsheet_id or not cell_range or (not creds and not user):
         raise Exception(
-            "Missing credentials, user name, spreadsheet ID, or range name."
+            "Missing credentials, user name, spreadsheet ID, or cell_range name."
         )
     if not creds:
         SERVICE_ACCOUNT_FILE = f"g-workspace-{user}.json"
@@ -791,7 +791,7 @@ def write_g_sheet_cell(spreadsheet_id=None, range=None, value=None, creds=None, 
         .values()
         .update(
             spreadsheetId=spreadsheet_id,
-            range=range,
+            range=cell_range,
             valueInputOption="USER_ENTERED",
             body=body,
         )
@@ -802,15 +802,15 @@ def write_g_sheet_cell(spreadsheet_id=None, range=None, value=None, creds=None, 
         "updatedCells": result.get("updatedCells"),
     }
 
-def read_g_sheet(spreadsheet_id=None, range=None, creds=None, user=None):
+def read_g_sheet(spreadsheet_id=None, cell_range=None, creds=None, user=None):
     """
     Creates the batch_update the user has access to.
     Load pre-authorized user credentials from the environment.
     TODO(developer) - See https://developers.google.com/identity
     for guides on implementing OAuth2 for the application.
     """
-    if not spreadsheet_id or not range or (not creds and not user):
-        raise Exception("Missing credentials, user name, spreadsheet ID, or range name.")
+    if not spreadsheet_id or not cell_range or (not creds and not user):
+        raise Exception("Missing credentials, user name, spreadsheet ID, or cell_range name.")
 
     if not creds:
         SERVICE_ACCOUNT_FILE = f"g-workspace-{user}.json"
@@ -825,12 +825,21 @@ def read_g_sheet(spreadsheet_id=None, range=None, creds=None, user=None):
     try:
         service = build("sheets", "v4", credentials=creds)
 
-        result = (
-            service.spreadsheets()
-            .values()
-            .get(spreadsheetId=spreadsheet_id, range=range)
-            .execute()
-        )
+        if cell_range:
+            result = (
+                service.spreadsheets()
+                .values()
+                .get(spreadsheetId=spreadsheet_id, range=cell_range)
+                .execute()
+            )
+        else:
+            result = (
+                service.spreadsheets()
+                .values()
+                .get(spreadsheetId=spreadsheet_id)
+                .execute()
+            )
+
         rows = result.get("values", [])
 
         print(f"{len(rows)} rows retrieved")

@@ -1,4 +1,4 @@
-from core.logging_config import logger
+from   core.logging_config      import logger
 
 def create_stored_proc_lambda(tool_name, db_adapter, project_id):
     return lambda *args, **kwargs: db_adapter.run_query(f"CALL {project_id}.EXTENDED_TOOLS.{tool_name}({', '.join(['%s'] * len(args))})", args)
@@ -37,5 +37,5 @@ def load_user_extended_tools(db_adapter, project_id, dataset_name) -> tuple[list
         logger.error(f"Failed to fetch user extended tools definitions: {e}")
         user_extended_tools_definitions = []
         user_extended_tools = {}
-        
+
     return user_extended_tools_definitions, user_extended_tools

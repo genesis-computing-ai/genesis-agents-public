@@ -27,7 +27,7 @@ from google_sheets.g_sheets import (
     write_g_sheet_cell,
     add_reply_to_g_file_comment,
     get_g_file_web_link,
-    get_all_files_in_g_folder,
+    get_g_folder_directory,
     find_g_file_by_name,
 )
 
@@ -2462,9 +2462,9 @@ class ToolBelt:
 
             col, row = match.groups()
             # next_col = number_to_column(column_to_number(col) + 1)
-            range = f"{col}{row}" # :{next_col}{row}"
+            cell_range = f"{col}{row}" # :{next_col}{row}"
 
-            return range
+            return cell_range
 
         def verify_cell_range(g_sheet_cell):
             pattern = r"^([A-Z]{1,2})(\d+):([A-Z]{1,2})(\d+)$"
@@ -2482,7 +2482,7 @@ class ToolBelt:
 
         if action == "LIST":
             try:
-                files = get_all_files_in_g_folder(
+                files = get_g_folder_directory(
                     g_folder_id, None, user=self.db_adapter.user
                 )
                 return {"Success": True, "files": files}
@@ -2538,31 +2538,39 @@ class ToolBelt:
             except Exception as e:
                 return {"Success": False, "Error": str(e)}
 
-        elif action == "GET_SHEET_CELL":
-            sheet_range = verify_single_cell(g_sheet_cell)
-            try:
-                value = read_g_sheet(
-                    g_file_id, sheet_range, None, self.db_adapter.user
-                )
-                return {"Success": True, "value": value}
-            except Exception as e:
-                return {"Success": False, "Error": str(e)}
+        # elif action == "GET_SHEET_CELL":
+        #     cell_range = verify_single_cell(g_sheet_cell)
+        #     try:
+        #         value = read_g_sheet(g_file_id, cell_range, None, self.db_adapter.user)
+        #         return {"Success": True, "value": value}
+        #     except Exception as e:
+        #         return {"Success": False, "Error": str(e)}
 
-        elif action == "EDIT_SHEET_CELL":
-            range = verify_single_cell(g_sheet_cell)
+        elif action == "EDIT_SHEET_CELLS":
+            # cell_range = verify_single_cell(g_sheet_cell)
 
             print(
                 f"\nG_sheet value to insert to cell {g_sheet_cell}: Value: {g_sheet_value}\n"
             )
 
             write_g_sheet_cell(
-                g_file_id, range, g_sheet_value, None, self.db_adapter.user
+                g_file_id, g_sheet_cell, g_sheet_value, None, self.db_adapter.user
             )
 
             return {
                 "Success": True,
-                "Message": f"g_sheet value to insert to cell {range}: Value: {g_sheet_value}",
+                "Message": f"g_sheet value to insert to cell {g_sheet_cell}: Value: {g_sheet_value}",
             }
+
+        elif action == "GET_SHEET_CELLS":
+            # cell_range = verify_single_cell(g_sheet_cell)
+            try:
+                value = read_g_sheet(
+                    g_file_id, g_sheet_cell, None, self.db_adapter.user
+                )
+                return {"Success": True, "value": value}
+            except Exception as e:
+                return {"Success": False, "Error": str(e)}
 
         elif action == "LOGIN":
             from google_auth_oauthlib.flow import Flow

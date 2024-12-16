@@ -825,12 +825,21 @@ def read_g_sheet(spreadsheet_id=None, cell_range=None, creds=None, user=None):
     try:
         service = build("sheets", "v4", credentials=creds)
 
-        result = (
-            service.spreadsheets()
-            .values()
-            .get(spreadsheetId=spreadsheet_id, range=cell_range)
-            .execute()
-        )
+        if cell_range:
+            result = (
+                service.spreadsheets()
+                .values()
+                .get(spreadsheetId=spreadsheet_id, range=cell_range)
+                .execute()
+            )
+        else:
+            result = (
+                service.spreadsheets()
+                .values()
+                .get(spreadsheetId=spreadsheet_id)
+                .execute()
+            )
+
         rows = result.get("values", [])
 
         print(f"{len(rows)} rows retrieved")

@@ -568,7 +568,7 @@ google_drive_functions = [
                         "type": "string",
                         "description": """
                         The action to be performed on Google Drive.  Possible actions are: LOGIN, TEST, LIST, SET_ROOT_FOLDER, 
-                        GET_FILE_VERSION_NUM, GET_COMMENTS, ADD_COMMENT, ADD_REPLY_TO_COMMENT, GET_SHEET_CELL, EDIT_SHEET_CELL,
+                        GET_FILE_VERSION_NUM, GET_COMMENTS, ADD_COMMENT, ADD_REPLY_TO_COMMENT, GET_SHEET_CELLS, EDIT_SHEET_CELLS,
                         GET_LINK_FROM_FILE_ID, GET_FILE_BY_NAME""",
                     },
                     "user": {

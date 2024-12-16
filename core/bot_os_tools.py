@@ -2539,31 +2539,39 @@ class ToolBelt:
             except Exception as e:
                 return {"Success": False, "Error": str(e)}
 
-        elif action == "GET_SHEET_CELL":
-            cell_range = verify_single_cell(g_sheet_cell)
-            try:
-                value = read_g_sheet(
-                    g_file_id, cell_range, None, self.db_adapter.user
-                )
-                return {"Success": True, "value": value}
-            except Exception as e:
-                return {"Success": False, "Error": str(e)}
+        # elif action == "GET_SHEET_CELL":
+        #     cell_range = verify_single_cell(g_sheet_cell)
+        #     try:
+        #         value = read_g_sheet(g_file_id, cell_range, None, self.db_adapter.user)
+        #         return {"Success": True, "value": value}
+        #     except Exception as e:
+        #         return {"Success": False, "Error": str(e)}
 
-        elif action == "EDIT_SHEET_CELL":
-            cell_range = verify_single_cell(g_sheet_cell)
+        elif action == "EDIT_SHEET_CELLS":
+            # cell_range = verify_single_cell(g_sheet_cell)
 
             print(
                 f"\nG_sheet value to insert to cell {g_sheet_cell}: Value: {g_sheet_value}\n"
             )
 
             write_g_sheet_cell(
-                g_file_id, cell_range, g_sheet_value, None, self.db_adapter.user
+                g_file_id, g_sheet_cell, g_sheet_value, None, self.db_adapter.user
             )
 
             return {
                 "Success": True,
-                "Message": f"g_sheet value to insert to cell {cell_range}: Value: {g_sheet_value}",
+                "Message": f"g_sheet value to insert to cell {g_sheet_cell}: Value: {g_sheet_value}",
             }
+
+        elif action == "GET_SHEET_CELLS":
+            # cell_range = verify_single_cell(g_sheet_cell)
+            try:
+                value = read_g_sheet(
+                    g_file_id, g_sheet_cell, None, self.db_adapter.user
+                )
+                return {"Success": True, "value": value}
+            except Exception as e:
+                return {"Success": False, "Error": str(e)}
 
         elif action == "LOGIN":
             from google_auth_oauthlib.flow import Flow

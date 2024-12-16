@@ -227,6 +227,11 @@ tools_data = [
         "notebook_manager_tools",
         "Tools to manage bot notebook.",
     ),
+    (
+        "dagster_tools",
+        "Tools to access and manage data pipelines orchestrated by a Dagster Cloud setup.",
+    ),
+
 ]
 
 data_dev_tools_functions = [

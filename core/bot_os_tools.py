@@ -41,7 +41,6 @@ from bot_genesis.make_baby_bot import (
     make_baby_bot_tools,
     get_bot_details,
 )
-from connectors import database_tools
 # from connectors import get_global_db_connector
 # from connectors.bigquery_connector import BigQueryConnector
 from connectors.snowflake_connector.snowflake_connector import SnowflakeConnector

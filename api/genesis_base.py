@@ -80,7 +80,7 @@ class GenesisServer(ABC):
         raise NotImplementedError("get_file_contents not implemented")
     def remove_file(self, file_path, file_name):
         raise NotImplementedError("remove_file not implemented")
-    def add_message(self, bot_id, message, thread_id) -> str: # returns request_id
+    def add_message(self, bot_id, message, thread_id) -> str|dict: # returns request_id
         raise NotImplementedError("add_message not implemented")
     def get_message(self, bot_id, request_id) -> str:
         raise NotImplementedError("get_message not implemented")

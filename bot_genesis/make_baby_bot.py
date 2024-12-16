@@ -1008,7 +1008,7 @@ def make_baby_bot(
     slack_channel_id: str = None,
     confirmed: str = None,
     activate_slack: str = 'Y',
-    files: str = "",
+    files: str|list[str] = "",
     bot_implementation: str = "openai",
     update_existing: bool = False,
     slack_access_open: bool = True,

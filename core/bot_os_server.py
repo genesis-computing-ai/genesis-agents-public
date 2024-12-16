@@ -3,7 +3,6 @@ from flask import Flask
 from core.bot_os import BotOsSession
 import threading
 import os
-from connectors.snowflake_connector.snowflake_connector import SnowflakeConnector
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.events import EVENT_JOB_ERROR, EVENT_JOB_EXECUTED
 from bot_genesis.make_baby_bot import get_slack_config_tokens, rotate_slack_token

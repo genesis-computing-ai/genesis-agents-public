@@ -1815,7 +1815,11 @@ def load_default_processes_and_notebook(self, cursor):
         folder_path = 'golden_defaults/golden_processes'
         self.process_data = pd.DataFrame()
 
-        files = glob.glob(os.path.join(folder_path, '*'))
+        files = glob.glob(os.path.join(folder_path, '*.yaml'))
+
+        if not files or len(files) == 0:
+            print("No files found in golden_defaults/golden_processes")
+            return
 
         for filename in files:
             with open(filename, 'r') as file:
@@ -1955,10 +1959,14 @@ def upgrade_timestamp_columns(self, table_name):
     return
 
 def load_default_notes(self, cursor):
+        print("*** load_default_notes")
         folder_path = 'golden_defaults/golden_notes'
-        self.notes_data = pd.DataFrame()
+        notes_data = pd.DataFrame()
 
-        files = glob.glob(os.path.join(folder_path, '*'))
+        files = glob.glob(os.path.join(folder_path, '*.yaml'))
+        if not files or len(files) == 0:
+            print("No files found in golden_defaults/golden_notes")
+            return
 
         for filename in files:
             with open(filename, 'r') as file:
@@ -1968,14 +1976,14 @@ def load_default_notes(self, cursor):
             data.reset_index(inplace=True)
             data.rename(columns={'index': 'NOTE_ID'}, inplace=True)
 
-            self.note_defaults = pd.concat([self.notes_data, data], ignore_index=True)
+            note_defaults = pd.concat([notes_data, data], ignore_index=True)
 
         # Ensure TIMESTAMP column is timezone-aware
-        self.note_defaults['TIMESTAMP'] = pd.to_datetime(self.note_defaults['TIMESTAMP'], format='ISO8601', utc=True)
+        note_defaults['TIMESTAMP'] = pd.to_datetime(note_defaults['TIMESTAMP'], format='ISO8601', utc=True)
 
         updated_note = False
 
-        for _, note_default in self.note_defaults.iterrows():
+        for _, note_default in note_defaults.iterrows():
             note_id = note_default['NOTE_ID']
             timestamp_str = make_date_tz_aware(note_default['TIMESTAMP'])
 

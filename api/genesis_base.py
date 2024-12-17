@@ -80,7 +80,7 @@ class GenesisServer(ABC):
         raise NotImplementedError("get_file_contents not implemented")
     def remove_file(self, file_path, file_name):
         raise NotImplementedError("remove_file not implemented")
-    def add_message(self, bot_id, message, thread_id) -> str: # returns request_id
+    def add_message(self, bot_id, message, thread_id) -> str|dict: # returns request_id
         raise NotImplementedError("add_message not implemented")
     def get_message(self, bot_id, request_id) -> str:
         raise NotImplementedError("get_message not implemented")
@@ -188,7 +188,16 @@ class SnowflakeMetadataStore(GenesisMetadataStore):
         if not table_name:
             raise ValueError(f"Unknown metadata type: {metadata_type}")
 
-        metadata_dict = metadata.model_dump()
+        # Handle both dictionary and Pydantic model inputs
+        if isinstance(metadata, dict):
+            metadata_dict = metadata
+        else:
+            # Try model_dump() first (Pydantic V2), fall back to dict() (Pydantic V1)
+            try:
+                metadata_dict = metadata.model_dump()
+            except AttributeError:
+                metadata_dict = metadata.dict()
+        
         metadata_dict['type'] = metadata.__class__.__name__  # Store the class name for later instantiation
 
         # Exclude 'type' from columns

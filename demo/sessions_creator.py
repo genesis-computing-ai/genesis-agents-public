@@ -38,6 +38,8 @@ from core.logging_config import logger
 
 import core.global_flags as global_flags
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
 genbot_internal_project_and_schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "None")
 if genbot_internal_project_and_schema == "None":
     logger.info("ENV Variable GENESIS_INTERNAL_DB_SCHEMA is not set.")
@@ -560,28 +562,12 @@ def create_sessions(
     data_cubes_ingress_url=None,
     bot_list=None,
     skip_slack=False,
+    max_workers=10 # New parameter to control parallel execution
 ):
     """
-    Create (multiple) sessions for bots based on the provided configurations.
-
-    This function initializes sessions for each bot using the given database adapter and configuration details.
-    It maps bot IDs to their respective UDF adapters and sets up the necessary environment for each bot to operate.
-
-    Args:
-        db_adapter: The database adapter used to interact with the database.
-        bot_id_to_udf_adapter_map: A dictionary mapping bot IDs to their UDF adapters.
-        stream_mode (bool): Indicates whether the sessions should be created in stream mode.
-        skip_vectors (bool): If True, skips vector-related operations during session creation.
-        data_cubes_ingress_url (str, optional): The URL for data cubes ingress, if applicable.
-
-    Returns:
-        tuple: A tuple containing the sessions, API app ID to session map, bot ID to UDF adapter map,
-               and bot ID to Slack adapter map.
+    Create (multiple) sessions for bots in parallel based on the provided configurations.
     """
-    import os
-    # Fetch bot configurations for the given runner_id from BigQuery
     runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
-
     bots_config = get_all_bots_full_details(runner_id=runner_id)
 
     sessions = []
@@ -589,59 +575,71 @@ def create_sessions(
     bot_id_to_udf_adapter_map = {}
     bot_id_to_slack_adapter_map = {}
 
+    # Filter bots based on test mode and bot list
+    filtered_bots = []
     for bot_config in bots_config:
-
         if bot_list is not None and bot_config["bot_id"] not in [bot["bot_id"] for bot in bot_list]:
             logger.info(f'Skipping bot {bot_config["bot_id"]} - not in bot_list')
             continue
 
         if os.getenv("TEST_TASK_MODE", "false").lower() == "true":
-         #   if bot_config["bot_id"] != "janiCortex-123456":
             if bot_config["bot_id"] != "MrSpock-3762b2":
                 continue
 
-
-  #      if bot_config["bot_id"] != 'MrsEliza-3348b2':
-  #          continue
- #       if bot_config.get("bot_name") != 'Janice 2.0':
- #           continue
         if os.getenv("TEST_MODE", "false").lower() == "true":
             if bot_config.get("bot_name") != os.getenv("TEST_BOT", "") and os.getenv("TEST_BOT", "").upper() != "ALL":
-                print("()()()()()()()()()()()()()()()")
-                print(f"Test Mode skipping bot {bot_config.get('bot_name')} except ",os.getenv("TEST_BOT", ""))
-                print("()()()()()()()()()()()()()()()")
+                logger.info(f"Test Mode skipping bot {bot_config.get('bot_name')}")
                 continue
-            # JL TEMP REMOVE
-        #       if bot_config["bot_id"] == "Eliza-lGxIAG":
-        #           continue
-        logger.info(f'🤖 Making session for bot {bot_config["bot_id"]}')
-        logger.telemetry('add_session:', bot_config['bot_name'], os.getenv("BOT_OS_DEFAULT_LLM_ENGINE", ""))
 
-        bot_id = bot_config["bot_id"]
-        assistant_id = None
+        filtered_bots.append(bot_config)
 
-        for bot in bot_list or []:
-            if bot["bot_id"] == bot_id:
-                assistant_id = bot.get("assistant_id", None)
-                break
+    def create_single_session(bot_config):
+        try:
+            bot_id = bot_config["bot_id"]
+            assistant_id = None
 
-        new_session, api_app_id, udf_adapter_local, slack_adapter_local = make_session(
-            bot_config=bot_config,
-            db_adapter=db_adapter,
-            bot_id_to_udf_adapter_map=bot_id_to_udf_adapter_map,
-            stream_mode=stream_mode,
-            skip_vectors=skip_vectors,
-            data_cubes_ingress_url=data_cubes_ingress_url,
-            assistant_id=assistant_id,
-            skip_slack=skip_slack
-        )
-        if new_session is not None:
-            sessions.append(new_session)
-            api_app_id_to_session_map[api_app_id] = new_session
-            if slack_adapter_local is not None:
-                bot_id_to_slack_adapter_map[bot_config["bot_id"]] = slack_adapter_local
-            if udf_adapter_local is not None:
-                bot_id_to_udf_adapter_map[bot_config["bot_id"]] = udf_adapter_local
+            for bot in bot_list or []:
+                if bot["bot_id"] == bot_id:
+                    assistant_id = bot.get("assistant_id", None)
+                    break
+
+            logger.info(f'🤖 Making session for bot_id={bot_config["bot_id"]} (bot_name={bot_config["bot_name"]})')
+            logger.telemetry('add_session:', bot_config['bot_name'], os.getenv("BOT_OS_DEFAULT_LLM_ENGINE", ""))
+
+            return make_session(
+                bot_config=bot_config,
+                db_adapter=db_adapter,
+                bot_id_to_udf_adapter_map=bot_id_to_udf_adapter_map,
+                stream_mode=stream_mode,
+                skip_vectors=skip_vectors,
+                data_cubes_ingress_url=data_cubes_ingress_url,
+                assistant_id=assistant_id,
+                skip_slack=skip_slack
+            )
+        except Exception as e:
+            logger.error(f"Error creating session for bot {bot_id}: {str(e)}")
+            return None, None, None, None
+
+    # Execute session creation in parallel
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        future_to_bot = {
+            executor.submit(create_single_session, bot_config): bot_config
+            for bot_config in filtered_bots
+        }
+
+        for future in as_completed(future_to_bot):
+            bot_config = future_to_bot[future]
+            try:
+                new_session, api_app_id, udf_adapter_local, slack_adapter_local = future.result()
+                if new_session is not None:
+                    sessions.append(new_session)
+                    api_app_id_to_session_map[api_app_id] = new_session
+                    if slack_adapter_local is not None:
+                        bot_id_to_slack_adapter_map[bot_config["bot_id"]] = slack_adapter_local
+                    if udf_adapter_local is not None:
+                        bot_id_to_udf_adapter_map[bot_config["bot_id"]] = udf_adapter_local
+            except Exception as e:
+                logger.error(f"Error processing results for bot {bot_config['bot_id']}: {str(e)}")
 
     return (
         sessions,

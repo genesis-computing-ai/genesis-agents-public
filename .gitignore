@@ -31,6 +31,7 @@ rsa_key.p8
 rsa_key.pub
 .venv/*
 .env*
+.pyflyby/
 requirements_orig.txt
 .vscode/
 .pyflyby/
@@ -56,3 +57,4 @@ build/
 dist/
 genesis_api_public.egg-info/
 genesis_api_public_whl.egg-info/
+genesis_api_whl.egg-info/

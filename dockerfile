@@ -52,6 +52,7 @@ COPY entrypoint.sh /entrypoint.sh
 COPY teams ./teams
 COPY nodetest ./nodetest
 COPY data_dev_tools ./data_dev_tools
+COPY data_pipeline_tools ./data_pipeline_tools
 COPY google_sheets ./google_sheets
 
 RUN apt-get update && apt-get install -y procps

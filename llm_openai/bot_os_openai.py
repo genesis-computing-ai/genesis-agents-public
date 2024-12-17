@@ -370,9 +370,9 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
    def get_done_map(self) -> dict:
       return self.done_map
 
-   @staticmethod
-   def load_by_name(name: str):
-      return BotOsAssistantOpenAI(name, update_existing=False)
+   #@staticmethod
+   #def load_by_name(name: str):
+   #   return BotOsAssistantOpenAI(name, update_existing=False)
 
    def update_vector_store(self, vector_store_id: str, files: list=None, plain_files: list=None, for_bot = None):
 

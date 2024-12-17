@@ -1008,7 +1008,7 @@ def make_baby_bot(
     slack_channel_id: str = None,
     confirmed: str = None,
     activate_slack: str = 'Y',
-    files: str = "",
+    files: str|list[str] = "",
     bot_implementation: str = "openai",
     update_existing: bool = False,
     slack_access_open: bool = True,
@@ -1071,7 +1071,7 @@ def make_baby_bot(
     bot_id = ''.join(char for char in bot_id if char.isalnum() or char == '-')
 
     try:
-        logger.info(f"Creating {bot_id} named {bot_name}")
+        logger.info(f"Creating Bot with {bot_id=} and {bot_name=}")
 
         v = validate_potential_files(new_file_ids=files)
         if v.get("success",False) == False:

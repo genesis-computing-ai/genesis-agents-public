@@ -846,8 +846,8 @@ def main():
 
         run_number = 22;
         table_name = "genesis_gxs.requirements.flexicard_pm_jl_set2"  # Changed from genesis_gxs.requirements.flexicard_pm
-       # focus_field = 'EXPOSURE_END_DATE';
-        focus_field = None
+        focus_field = 'EXPOSURE_END_DATE';
+       # focus_field = None
         skip_confidence = True
 
         # Reset the requirements table before starting
@@ -900,6 +900,16 @@ def main():
 
         print("Found", len(requirements), "requirements with NEW status:")
         
+        if not requirements:
+            requirements = [{
+                'PHYSICAL_COLUMN_NAME': 'CUSTOMER_ID',
+                'LOGICAL_COLUMN_NAME': 'Customer ID', 
+                'COLUMN_DESCRIPTION': 'Unique identifier for the customer',
+                'DATA_TYPE': 'VARCHAR',
+                'LENGTH': 20,
+                'LIST_OF_VALUES': None,
+                'STATUS': 'NEW'
+            }]
         # loop over the work to do
         for requirement in requirements:
 

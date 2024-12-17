@@ -19,6 +19,9 @@ from core.bot_os_defaults import (
 class SQLiteAdapter:
     """Adapts Snowflake-style operations to work with SQLite"""
     
+    # Class-level flag to track if tables have been initialized
+    _tables_initialized = False
+    
     def __init__(self, db_path="genesis.db"):
         logger.info(f"Initializing SQLiteAdapter with db_path: {db_path}")
         self.db_path = db_path
@@ -35,27 +38,28 @@ class SQLiteAdapter:
             logger.error(f"Failed to initialize database connection: {e}")
             raise Exception(f"Database initialization failed: {e}")
         
-        # Ensure tables exist
-        try:
-            self._ensure_bot_servicing_table()
-            self._ensure_llm_tokens_table()
-            self._ensure_slack_config_table()
-            logger.info("All tables initialized successfully")
-        except Exception as e:
-            logger.error(f"Failed to initialize tables: {e}")
-            raise
+        # Ensure tables exist only once per class
+        if not SQLiteAdapter._tables_initialized:
+            try:
+                self._ensure_bot_servicing_table()
+                self._ensure_llm_tokens_table()
+                self._ensure_slack_config_table()
+                SQLiteAdapter._tables_initialized = True
+                logger.info("All tables initialized successfully")
+            except Exception as e:
+                logger.error(f"Failed to initialize tables: {e}")
+                raise
     
     def _ensure_bot_servicing_table(self):
         """Ensure BOT_SERVICING table exists with correct constraints"""
-        logger.info("Starting BOT_SERVICING table creation")
-        cursor = self.cursor()
+        logger.info("Starting BOT_SERVICING table verification")
+        cursor = self.connection.cursor()
         
         try:
             # First verify if table exists
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='BOT_SERVICING'")
             exists = cursor.fetchone() is not None
             logger.info(f"BOT_SERVICING table exists: {exists}")
-            
             if not exists:
                 logger.info("Creating BOT_SERVICING table")
                 try:
@@ -94,22 +98,22 @@ class SQLiteAdapter:
                             )
                         """
              
-                        
                         self.connection.execute(create_table_sql)
-                        logger.info("Table creation SQL executed within transaction")
+                        self.connection.commit()
+                        logger.info("Table creation SQL executed and committed")
                         
-                        # Verify within the same transaction
+                        # Verify after commit
                         result = self.connection.execute(
                             "SELECT name FROM sqlite_master WHERE type='table' AND name='BOT_SERVICING'"
                         ).fetchone()
                         
                         if result is None:
-                            logger.error("Table not found in sqlite_master within transaction")
-                            raise Exception("Failed to create table within transaction")
+                            logger.error("Table not found in sqlite_master after commit")
+                            raise Exception("Failed to create table")
                         
                     logger.info("Transaction committed successfully")
                     
-                    # Verify after transaction
+                    # Additional verification
                     tables = self.connection.execute(
                         "SELECT name FROM sqlite_master WHERE type='table'"
                     ).fetchall()
@@ -121,70 +125,75 @@ class SQLiteAdapter:
                 
             # Final verification
             cursor.execute("SELECT COUNT(*) FROM BOT_SERVICING")
-            count = cursor.fetchone()[0]
+            c = cursor.fetchone()
+            if c:
+                count = c[0]
+            else:
+                count = 0
             logger.info(f"Final verification successful. Row count: {count}")
                 
             # After successful table creation, insert Eve
-            logger.info("Inserting initial Eve row")
-            runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
-            bot_id = "Eve"
-            bot_name = "Eve"
-            bot_instructions = BASE_EVE_BOT_INSTRUCTIONS
-            available_tools = """[
-                "slack_tools",
-                "test_manager_tools",
-                "make_baby_bot",
-                "snowflake_stage_tools",
-                "image_tools",
-                "process_manager_tools",
-                "process_runner_tools",
-                "process_scheduler_tools",
-                "notebook_manager_tools",
-                "google_drive_tools"]
-                """
-            udf_active = 'Y'  # Using 1 instead of "Y" for SQLite boolean
-            slack_active = 'N'  # Using 0 instead of "N" for SQLite boolean
-            bot_intro_prompt = EVE_INTRO_PROMPT
+            if not exists:
+                logger.info("Inserting initial Eve row")
+                runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
+                bot_id = "Eve"
+                bot_name = "Eve"
+                bot_instructions = BASE_EVE_BOT_INSTRUCTIONS
+                available_tools = """[
+                    "slack_tools",
+                    "test_manager_tools",
+                    "make_baby_bot",
+                    "snowflake_stage_tools",
+                    "image_tools",
+                    "process_manager_tools",
+                    "process_runner_tools",
+                    "process_scheduler_tools",
+                    "notebook_manager_tools",
+                    "google_drive_tools"]
+                    """
+                udf_active = 'Y'  # Using 1 instead of "Y" for SQLite boolean
+                slack_active = 'N'  # Using 0 instead of "N" for SQLite boolean
+                bot_intro_prompt = EVE_INTRO_PROMPT
 
-            # Insert Eve using SQLite's UPSERT syntax
-            insert_eve_query = """
-            INSERT INTO BOT_SERVICING 
-                (BOT_ID, RUNNER_ID, BOT_NAME, BOT_INSTRUCTIONS, 
-                 AVAILABLE_TOOLS, UDF_ACTIVE, SLACK_ACTIVE, BOT_INTRO_PROMPT)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(BOT_ID) DO UPDATE SET
-                RUNNER_ID = excluded.RUNNER_ID,
-                BOT_NAME = excluded.BOT_NAME,
-                BOT_INSTRUCTIONS = excluded.BOT_INSTRUCTIONS,
-                AVAILABLE_TOOLS = excluded.AVAILABLE_TOOLS,
-                UDF_ACTIVE = excluded.UDF_ACTIVE,
-                SLACK_ACTIVE = excluded.SLACK_ACTIVE,
-                BOT_INTRO_PROMPT = excluded.BOT_INTRO_PROMPT
-            """
-            
-            cursor.execute(
-                insert_eve_query,
-                (
-                    bot_id,
-                    runner_id,
-                    bot_name,
-                    bot_instructions,
-                    available_tools,
-                    udf_active,
-                    slack_active,
-                    bot_intro_prompt,
-                )
-            )
-            self.connection.commit()
-            logger.info("Initial Eve row inserted successfully")
+                # Insert Eve using SQLite's UPSERT syntax
+                insert_eve_query = """
+                INSERT INTO BOT_SERVICING 
+                    (BOT_ID, RUNNER_ID, BOT_NAME, BOT_INSTRUCTIONS, 
+                    AVAILABLE_TOOLS, UDF_ACTIVE, SLACK_ACTIVE, BOT_INTRO_PROMPT)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(BOT_ID) DO UPDATE SET
+                    RUNNER_ID = excluded.RUNNER_ID,
+                    BOT_NAME = excluded.BOT_NAME,
+                    BOT_INSTRUCTIONS = excluded.BOT_INSTRUCTIONS,
+                    AVAILABLE_TOOLS = excluded.AVAILABLE_TOOLS,
+                    UDF_ACTIVE = excluded.UDF_ACTIVE,
+                    SLACK_ACTIVE = excluded.SLACK_ACTIVE,
+                    BOT_INTRO_PROMPT = excluded.BOT_INTRO_PROMPT
+                """
                 
+                cursor.execute(
+                    insert_eve_query,
+                    (
+                        bot_id,
+                        runner_id,
+                        bot_name,
+                        bot_instructions,
+                        available_tools,
+                        udf_active,
+                        slack_active,
+                        bot_intro_prompt,
+                    )
+                )
+                self.connection.commit()
+                logger.info("Initial Eve row inserted successfully")
+                    
         except Exception as e:
             logger.error(f"Error in _ensure_bot_servicing_table: {e}")
             raise
     
     def _ensure_llm_tokens_table(self):
         """Ensure llm_tokens table exists with correct constraints"""
-        cursor = self.cursor()
+        cursor = self.connection.cursor()
         # First drop the table to ensure clean creation
         # cursor.execute("DROP TABLE IF EXISTS llm_tokens")
         # self.commit()
@@ -208,7 +217,7 @@ class SQLiteAdapter:
     
     def _ensure_slack_config_table(self):
         """Ensure slack_app_config_tokens table exists"""
-        cursor = self.cursor()
+        cursor = self.connection.cursor()
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS slack_app_config_tokens (
                 runner_id TEXT PRIMARY KEY,
@@ -331,8 +340,24 @@ class SQLiteCursorWrapper:
     
     def _transform_query(self, query: str) -> str:
         """Transform Snowflake SQL to SQLite compatible SQL"""
+        
         if not query:
             return query
+        
+        # Clean up query for easier pattern matching
+        query_clean = ' '.join(query.split())
+        query_upper = query_clean.upper()
+        
+        # Convert HYBRID TABLE to just TABLE
+        query = re.sub(r'(?i)HYBRID\s+TABLE', 'TABLE', query)
+        
+        # Remove INDEX definitions from CREATE TABLE statements
+        query = re.sub(r',\s*INDEX\s+\w+\s*\([^)]+\)', '', query)
+        
+        # Handle GRANT statements - convert to no-op
+        if query_upper.startswith('GRANT'):
+            logger.debug(f"Converting GRANT statement to no-op: {query}")
+            return "SELECT 1 WHERE 1=0"
         
         # First clean up any newlines/extra spaces for easier pattern matching
         query_clean = ' '.join(query.split())
@@ -340,6 +365,15 @@ class SQLiteCursorWrapper:
         
         # Replace %s with ? for SQLite
         query = query.replace('%s', '?')
+        
+        # Handle JSON extraction and type casting
+        if '::varchar' in query:
+            # Replace Snowflake's JSON parsing and type casting with SQLite's json_extract
+            query = re.sub(
+                r'parse_json\(([^)]+)\):(\w+)::varchar',
+                r'json_extract(\1, "$.\2")',
+                query
+            )
         
         # Handle CALL statements (new)
         if query_upper.startswith('CALL'):
@@ -767,24 +801,31 @@ class SQLiteCursorWrapper:
                 return "SELECT 1 WHERE 1=0"  # No-op query
         
         # Handle CREATE OR REPLACE HYBRID TABLE
-        if re.search(r'CREATE\s+OR\s+REPLACE\s+HYBRID\s+TABLE', query_upper):
+        if re.search(r'CREATE\s+(?:OR\s+REPLACE\s+)?(?:HYBRID\s+)?TABLE', query_upper):
             # Extract table name and column definitions
-            match = re.search(r'CREATE\s+OR\s+REPLACE\s+HYBRID\s+TABLE\s+(\w+)\s*\((.*)\)', query, re.IGNORECASE | re.DOTALL)
+            match = re.search(r'CREATE\s+(?:OR\s+REPLACE\s+)?(?:HYBRID\s+)?TABLE\s+(?:[^.\s]+\.)?(?:[^.\s]+\.)?([^\s]+)\s*\((.*)\)', query, re.IGNORECASE | re.DOTALL)
             if match:
                 table_name = match.group(1)
                 column_defs = match.group(2).strip()
                 
-                # Remove INDEX definition as SQLite handles indexes separately
+                # Remove INDEX definition
                 column_defs = re.sub(r',\s*INDEX.*?\([^)]+\)', '', column_defs)
                 
-                # Convert VARCHAR to TEXT
-                column_defs = re.sub(r'VARCHAR(\([^)]*\))?', 'TEXT', column_defs)
+                # Convert data types
+                column_defs = re.sub(r'VARCHAR\(\d+\)', 'TEXT', column_defs)
+                column_defs = re.sub(r'VARCHAR', 'TEXT', column_defs)
+                column_defs = re.sub(r'TIMESTAMP', 'DATETIME', column_defs)
+                
+                # Convert CURRENT_TIMESTAMP
+                column_defs = re.sub(r'CURRENT_TIMESTAMP', "CURRENT_TIMESTAMP", column_defs)
                 
                 # Clean up any extra whitespace
                 column_defs = re.sub(r'\s+', ' ', column_defs).strip()
                 
-                return [f"DROP TABLE IF EXISTS {table_name};",
-                    f"CREATE TABLE {table_name} ({column_defs});"]
+                return [
+                    f"DROP TABLE IF EXISTS {table_name}",
+                    f"CREATE TABLE {table_name} ({column_defs})"
+                ]
         
         # Handle column name differences between Snowflake and SQLite
         column_mappings = {
@@ -811,6 +852,27 @@ class SQLiteCursorWrapper:
             # Remove schema qualifiers
             query = re.sub(r'GENESIS_TEST\.GENESIS_JL\.', '', query)
             return query
-        
-        logger.debug(f"Transformed query with column mappings: {query}")
+        # Handle the specific message_log thread query
+        if "parse_json(message_metadata):thread_ts::varchar" in query:
+            # Extract the bot_id parameter from the original query
+            bot_id_match = re.search(r"bot_id\s*=\s*'([^']+)'", query)
+            bot_id = bot_id_match.group(1) if bot_id_match else None
+
+            transformed_query = """
+                SELECT 
+                    json_extract(message_metadata, '$.thread_ts') as thread_ts,
+                    max(timestamp) as max_ts
+                FROM message_log
+                WHERE message_metadata IS NOT NULL
+                AND message_metadata LIKE '%"thread_ts"%'
+                AND message_metadata NOT LIKE '%TextContentBlock%'
+                AND bot_id = ?
+                GROUP BY bot_id, json_extract(message_metadata, '$.thread_ts')
+                ORDER BY max_ts DESC
+                LIMIT 1000
+            """
+            logger.debug(f"Transformed thread query to: {transformed_query}")
+            return transformed_query
+
+        # Return the original query if no transformations were applied
         return query

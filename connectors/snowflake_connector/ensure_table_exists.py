@@ -716,6 +716,13 @@ def ensure_table_exists(self):
             if cursor is not None:
                 cursor.close()
 
+
+    # =====================================================================
+    # NOTE: If using SQLite adapter, skip this section as SQLiteAdapter has 
+    # its own version of table creation and Eve bot initialization in
+    # connectors/sqlite_adapter.py _ensure_bot_servicing_table()
+    # =====================================================================
+
     bot_servicing_table_check_query = (
         f"SHOW TABLES LIKE 'BOT_SERVICING' IN SCHEMA {self.schema};"
     )

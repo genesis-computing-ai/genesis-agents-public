@@ -4,6 +4,17 @@ import logging
 from typing import Any
 from datetime import datetime
 from core.logging_config import logger
+import os
+
+from core.bot_os_defaults import (
+    BASE_EVE_BOT_INSTRUCTIONS,
+    JANICE_JANITOR_INSTRUCTIONS,
+    EVE_INTRO_PROMPT,
+    ELIZA_INTRO_PROMPT,
+    STUART_INTRO_PROMPT,
+    JANICE_INTRO_PROMPT
+)
+
 
 class SQLiteAdapter:
     """Adapts Snowflake-style operations to work with SQLite"""
@@ -28,6 +39,7 @@ class SQLiteAdapter:
         try:
             self._ensure_bot_servicing_table()
             self._ensure_llm_tokens_table()
+            self._ensure_slack_config_table()
             logger.info("All tables initialized successfully")
         except Exception as e:
             logger.error(f"Failed to initialize tables: {e}")
@@ -58,8 +70,8 @@ class SQLiteAdapter:
                                 BOT_NAME TEXT,
                                 BOT_INSTRUCTIONS TEXT,
                                 AVAILABLE_TOOLS TEXT,
-                                UDF_ACTIVE INTEGER,
-                                SLACK_ACTIVE INTEGER,
+                                UDF_ACTIVE TEXT,
+                                SLACK_ACTIVE TEXT,
                                 BOT_INTRO_PROMPT TEXT,
                                 BOT_AVATAR_IMAGE TEXT,
                                 SLACK_APP_TOKEN TEXT,
@@ -75,7 +87,10 @@ class SQLiteAdapter:
                                 TEAMS_APP_TENANT_ID TEXT,
                                 BOT_SLACK_USER_ID TEXT,
                                 BOT_IMPLEMENTATION TEXT,
-                                AUTH_URL TEXT
+                                AUTH_URL TEXT,
+                                AUTH_STATE TEXT,
+                                CLIENT_ID TEXT,
+                                CLIENT_SECRET TEXT
                             )
                         """
              
@@ -109,6 +124,60 @@ class SQLiteAdapter:
             count = cursor.fetchone()[0]
             logger.info(f"Final verification successful. Row count: {count}")
                 
+            # After successful table creation, insert Eve
+            logger.info("Inserting initial Eve row")
+            runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
+            bot_id = "Eve"
+            bot_name = "Eve"
+            bot_instructions = BASE_EVE_BOT_INSTRUCTIONS
+            available_tools = """[
+                "slack_tools",
+                "test_manager_tools",
+                "make_baby_bot",
+                "snowflake_stage_tools",
+                "image_tools",
+                "process_manager_tools",
+                "process_runner_tools",
+                "process_scheduler_tools",
+                "notebook_manager_tools",
+                "google_drive_tools"]
+                """
+            udf_active = 'Y'  # Using 1 instead of "Y" for SQLite boolean
+            slack_active = 'N'  # Using 0 instead of "N" for SQLite boolean
+            bot_intro_prompt = EVE_INTRO_PROMPT
+
+            # Insert Eve using SQLite's UPSERT syntax
+            insert_eve_query = """
+            INSERT INTO BOT_SERVICING 
+                (BOT_ID, RUNNER_ID, BOT_NAME, BOT_INSTRUCTIONS, 
+                 AVAILABLE_TOOLS, UDF_ACTIVE, SLACK_ACTIVE, BOT_INTRO_PROMPT)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(BOT_ID) DO UPDATE SET
+                RUNNER_ID = excluded.RUNNER_ID,
+                BOT_NAME = excluded.BOT_NAME,
+                BOT_INSTRUCTIONS = excluded.BOT_INSTRUCTIONS,
+                AVAILABLE_TOOLS = excluded.AVAILABLE_TOOLS,
+                UDF_ACTIVE = excluded.UDF_ACTIVE,
+                SLACK_ACTIVE = excluded.SLACK_ACTIVE,
+                BOT_INTRO_PROMPT = excluded.BOT_INTRO_PROMPT
+            """
+            
+            cursor.execute(
+                insert_eve_query,
+                (
+                    bot_id,
+                    runner_id,
+                    bot_name,
+                    bot_instructions,
+                    available_tools,
+                    udf_active,
+                    slack_active,
+                    bot_intro_prompt,
+                )
+            )
+            self.connection.commit()
+            logger.info("Initial Eve row inserted successfully")
+                
         except Exception as e:
             logger.error(f"Error in _ensure_bot_servicing_table: {e}")
             raise
@@ -133,6 +202,20 @@ class SQLiteAdapter:
                 updated_at DATETIME DEFAULT (strftime('%Y-%m-%d %H:%M:%S', 'now')),
                 embedding_model_name TEXT,
                 PRIMARY KEY (runner_id)
+            )
+        """)
+        self.commit()
+    
+    def _ensure_slack_config_table(self):
+        """Ensure slack_app_config_tokens table exists"""
+        cursor = self.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS slack_app_config_tokens (
+                runner_id TEXT PRIMARY KEY,
+                slack_app_config_token TEXT,
+                slack_app_config_refresh_token TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         """)
         self.commit()
@@ -179,6 +262,9 @@ class SQLiteCursorWrapper:
     
     def execute(self, query: str, params: Any = None) -> Any:
         try:
+            # Replace %s with ? for SQLite
+            query = query.replace('%s', '?')
+            
             # Log original parameters
             logger.debug(f"Original params count: {len(params) if params else 0}")
             logger.debug(f"Original params: {params}")
@@ -189,6 +275,10 @@ class SQLiteCursorWrapper:
                     # Take only the first 4 parameters for llm_tokens MERGE
                     params = params[:4]
                     logger.debug(f"Using first 4 params for llm_tokens: {params}")
+                if len(params) == 5 and 'slack_app_config_tokens' in query.lower() and 'MERGE INTO' in query.upper():
+                    # Adjust parameters to match the transformed query
+                    params = params[:3]
+                    logger.debug(f"Using first 3 params for slack_app_config_tokens: {params}")
             
             modified_query = self._transform_query(query)
             logger.debug(f"Transformed query: {modified_query}")
@@ -248,12 +338,37 @@ class SQLiteCursorWrapper:
         query_clean = ' '.join(query.split())
         query_upper = query_clean.upper()
         
+        # Replace %s with ? for SQLite
+        query = query.replace('%s', '?')
+        
+        # Handle CALL statements (new)
+        if query_upper.startswith('CALL'):
+            logger.debug("Converting CALL statement to SELECT")
+            # Convert CALL CORE.GET_EAI_LIST to a simple SELECT that returns NULL
+            if 'GET_EAI_LIST' in query_upper:
+                return "SELECT NULL as EAI_LIST WHERE 1=0"
+            return "SELECT 1 WHERE 1=0"  # Default no-op for other CALL statements
+
+        # Handle MERGE INTO statements for slack_app_config_tokens
+        if query_upper.startswith('MERGE INTO') and 'SLACK_APP_CONFIG_TOKENS' in query_upper:
+            return """
+                INSERT INTO slack_app_config_tokens 
+                    (runner_id, slack_app_config_token, slack_app_config_refresh_token)
+                VALUES 
+                    (?1, ?2, ?3)
+                ON CONFLICT(runner_id) 
+                DO UPDATE SET
+                    slack_app_config_token = ?2,
+                    slack_app_config_refresh_token = ?3
+            """
+
         # Skip certain operations that don't apply in SQLite mode
+        
         skip_patterns = [
             r'(?i)ENCODED_IMAGE_DATA',
             r'(?i)APP_SHARE\.',
-            r'(?i)UPDATE.*BOT_AVATAR_IMAGE',
-            r'(?i)INSERT.*BOT_AVATAR_IMAGE',
+     #       r'(?i)UPDATE.*BOT_AVATAR_IMAGE',
+     #       r'(?i)INSERT.*BOT_AVATAR_IMAGE',
             r'(?i)CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION',
             r'(?i)CREATE\s+(?:OR\s+REPLACE\s+)?STAGE',
             r'(?i)RESULT_SCAN',
@@ -688,6 +803,14 @@ class SQLiteCursorWrapper:
         
         # Remove schema qualifiers
         query = re.sub(r'(?:[^.\s]+\.){1,2}([^\s(]+)', r'\1', query)
+        
+        # Handle INSERT INTO statements for BOT_SERVICING
+        if 'INSERT INTO GENESIS_TEST.GENESIS_JL.BOT_SERVICING' in query_upper:
+            # Replace %s with ? for SQLite
+            query = query.replace('%s', '?')
+            # Remove schema qualifiers
+            query = re.sub(r'GENESIS_TEST\.GENESIS_JL\.', '', query)
+            return query
         
         logger.debug(f"Transformed query with column mappings: {query}")
         return query

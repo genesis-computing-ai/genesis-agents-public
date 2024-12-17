@@ -78,6 +78,9 @@ class SnowflakeConnector(DatabaseConnector):
 
         if os.getenv("SQLITE_OVERRIDE", "").upper() == "TRUE":
             # Use SQLite with compatibility layer
+            # Set default LLM engine to openai if not specified
+            if not os.getenv("BOT_OS_DEFAULT_LLM_ENGINE"):
+                os.environ["BOT_OS_DEFAULT_LLM_ENGINE"] = "openai"
             db_path = os.getenv("SQLITE_DB_PATH", "genesis.db")
             self.client = SQLiteAdapter(db_path)
             self.connection = self.client

@@ -1012,7 +1012,8 @@ def make_baby_bot(
     bot_implementation: str = "openai",
     update_existing: bool = False,
     slack_access_open: bool = True,
-    api_bot_update: bool = False
+    api_bot_update: bool = False,
+    api_mode: bool = False,
     ) -> Mapping[str, str]:
     """
     Creates or updates a bot with the provided parameters.
@@ -1169,7 +1170,7 @@ def make_baby_bot(
             ep = get_udf_endpoint_url()
             logger.warning(f'Endpoint for service: {ep}')
 
-            if slack_active and activate_slack != 'N':
+            if slack_active and activate_slack != 'N' and not api_mode:
 
                 ngrok_base_url = os.getenv('NGROK_BASE_URL')
                 if not ngrok_base_url and ep == None:

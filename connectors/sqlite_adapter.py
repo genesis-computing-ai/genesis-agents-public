@@ -65,10 +65,10 @@ class SQLiteAdapter:
                 try:
                     # Use a with block for automatic transaction management
                     with self.connection:
-                        # Create table
+                        # Create table with BOT_ID as PRIMARY KEY
                         create_table_sql = """
                             CREATE TABLE BOT_SERVICING (
-                                BOT_ID TEXT PRIMARY KEY,
+                                BOT_ID TEXT PRIMARY KEY NOT NULL,  -- Explicitly make BOT_ID PRIMARY KEY and NOT NULL
                                 API_APP_ID TEXT,
                                 RUNNER_ID TEXT,
                                 BOT_NAME TEXT,
@@ -97,28 +97,23 @@ class SQLiteAdapter:
                                 CLIENT_SECRET TEXT
                             )
                         """
-             
+                        
+                        # Drop the table if it exists (to ensure clean creation)
+                        self.connection.execute("DROP TABLE IF EXISTS BOT_SERVICING")
                         self.connection.execute(create_table_sql)
                         self.connection.commit()
-                        logger.info("Table creation SQL executed and committed")
                         
-                        # Verify after commit
-                        result = self.connection.execute(
-                            "SELECT name FROM sqlite_master WHERE type='table' AND name='BOT_SERVICING'"
-                        ).fetchone()
+                        # Verify the primary key constraint
+                        cursor.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='BOT_SERVICING'")
+                        table_def = cursor.fetchone()[0]
+                        logger.info(f"Created table with definition: {table_def}")
                         
-                        if result is None:
-                            logger.error("Table not found in sqlite_master after commit")
-                            raise Exception("Failed to create table")
+                        # Verify the primary key constraint exists
+                        cursor.execute("PRAGMA table_info(BOT_SERVICING)")
+                        columns = cursor.fetchall()
+                        pk_columns = [col for col in columns if col[5] > 0]  # Column 5 is the pk flag
+                        logger.info(f"Primary key columns: {pk_columns}")
                         
-                    logger.info("Transaction committed successfully")
-                    
-                    # Additional verification
-                    tables = self.connection.execute(
-                        "SELECT name FROM sqlite_master WHERE type='table'"
-                    ).fetchall()
-                    logger.info(f"All tables after creation: {[t[0] for t in tables]}")
-                    
                 except Exception as e:
                     logger.error(f"Error during table creation: {e}")
                     raise
@@ -347,7 +342,7 @@ class SQLiteCursorWrapper:
     def close(self):
         return self.real_cursor.close()
     
-    def _transform_query(self, query: str) -> str:
+    def _transform_query(self, query: str) -> str | list[str]:
         """Transform Snowflake SQL to SQLite compatible SQL"""
         
         if not query:
@@ -550,42 +545,30 @@ class SQLiteCursorWrapper:
                 # For llm_tokens table
                 if 'llm_tokens' in table_name.lower():
                     logger.debug("Transforming llm_tokens MERGE query")
-                    return """
-                        INSERT INTO llm_tokens 
+                    return [
+                        """DELETE FROM llm_tokens 
+                           WHERE runner_id = ?1 
+                             AND llm_type = 'openai'
+                             AND (?2 IS NOT NULL OR ?3 IS NOT NULL OR ?4 IS NOT NULL)""",
+                        """INSERT INTO llm_tokens 
                             (runner_id, llm_key, llm_type, active, llm_endpoint)
-                        VALUES 
-                            (?1, ?2, ?3, 1, ?4)
-                        ON CONFLICT(runner_id) 
-                        DO UPDATE SET
-                            llm_key = ?2,
-                            llm_type = ?3,
-                            active = 1,
-                            llm_endpoint = ?4
-                        WHERE runner_id = ?1 
-                            AND llm_type = 'openai'
-                    """
+                           VALUES 
+                            (?1, ?2, ?3, 1, ?4)"""
+                    ]
 
                 # For BOT_SERVICING table with USING SELECT pattern
                 if 'BOT_SERVICING' in table_name.upper() and 'USING (SELECT' in query_upper:
-                    logger.debug("Transforming BOT_SERVICING MERGE query")
-                    return """
+                    logger.debug("Transforming BOT_SERVICING MERGE query with USING SELECT") 
+                    return [
+                        """DELETE FROM BOT_SERVICING WHERE BOT_ID = ?1 AND (?2 IS NOT NULL OR ?3 IS NOT NULL OR ?4 IS NOT NULL OR ?5 IS NOT NULL OR ?6 IS NOT NULL OR ?7 IS NOT NULL OR ?8 IS NOT NULL)""",
+                        """
                         INSERT INTO BOT_SERVICING 
-                            (RUNNER_ID, BOT_ID, BOT_NAME, BOT_INSTRUCTIONS, 
+                            (BOT_ID, RUNNER_ID, BOT_NAME, BOT_INSTRUCTIONS, 
                              AVAILABLE_TOOLS, UDF_ACTIVE, SLACK_ACTIVE, BOT_INTRO_PROMPT)
                         VALUES 
                             (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
-                        ON CONFLICT(BOT_ID) 
-                        DO UPDATE SET
-                            RUNNER_ID = ?1,
-                            BOT_NAME = ?3,
-                            BOT_INSTRUCTIONS = ?4,
-                            AVAILABLE_TOOLS = ?5,
-                            UDF_ACTIVE = ?6,
-                            SLACK_ACTIVE = ?7,
-                            BOT_INTRO_PROMPT = ?8
-                        WHERE BOT_ID = ?2
-                    """
-        
+                        """
+                    ]
         # Handle DESCRIBE TABLE command
         if query_upper.startswith('DESCRIBE TABLE'):
             # Extract table name, handling both quoted and unquoted names
@@ -887,6 +870,31 @@ class SQLiteCursorWrapper:
         if query_upper.startswith('CREATE SCHEMA'):
             logger.debug(f"Converting CREATE SCHEMA statement to no-op: {query}")
             return "SELECT 1 WHERE 1=0"
+
+        # Handle MERGE INTO statements for BOT_SERVICING
+        if query_upper.startswith('MERGE INTO') and 'BOT_SERVICING' in query_upper:
+            # Extract the column order from the query
+            insert_cols_match = re.search(r'INSERT\s*\((.*?)\)', query, re.IGNORECASE | re.DOTALL)
+            if insert_cols_match:
+                columns = [col.strip() for col in insert_cols_match.group(1).split(',')]
+                placeholders = ','.join(['?' for _ in columns])
+                
+                return f"""
+                    INSERT INTO BOT_SERVICING 
+                        ({', '.join(columns)})
+                    VALUES 
+                        ({placeholders})
+                    ON CONFLICT(BOT_ID) 
+                    DO UPDATE SET
+                        RUNNER_ID = excluded.RUNNER_ID,
+                        BOT_NAME = excluded.BOT_NAME,
+                        BOT_INSTRUCTIONS = excluded.BOT_INSTRUCTIONS,
+                        AVAILABLE_TOOLS = excluded.AVAILABLE_TOOLS,
+                        UDF_ACTIVE = excluded.UDF_ACTIVE,
+                        SLACK_ACTIVE = excluded.SLACK_ACTIVE,
+                        BOT_INTRO_PROMPT = excluded.BOT_INTRO_PROMPT
+                    WHERE BOT_ID = excluded.BOT_ID
+                """
 
         # Return the original query if no transformations were applied
         return query

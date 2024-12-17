@@ -182,7 +182,10 @@ class LLMKeyHandler:
                     logger.info("cortex not availabe and no llm key set")
             api_key_from_env = False
         else:
-            api_key_from_env, llm_key_struct = self.get_llm_key_from_env()
+            try:
+                api_key_from_env, llm_key_struct = self.get_llm_key_from_env()
+            except:
+                return None, llm_key_struct
 
         if llm_key_struct.llm_type.lower() == "cortex" and not cortex_avail:
             logger.info("Cortex is not available. Falling back to OpenAI.")

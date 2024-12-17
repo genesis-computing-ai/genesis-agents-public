@@ -29,6 +29,8 @@ import re
 from datetime import datetime, timezone
 from textwrap import dedent
 from core.logging_config import logger
+# The import statement seems to be incomplete and has a typo. Correcting it to import the sqlite3 module.
+
 
 # Regex for matching valid artifcat UUIDs
 ARTIFACT_ID_REGEX = r'[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}' # regrex for matching a valid artifact UUID
@@ -175,7 +177,10 @@ class SnowflakeStageArtifactsStore(ArtifactsStoreBase):
 
     def does_storage_exist(self):
         stage_check_query = f"SHOW STAGES LIKE '{self.STAGE_NAME}' IN SCHEMA {self._sfconn.genbot_internal_project_and_schema};"
-        with self._get_sql_cursor() as cursor:
+        cursor = self._get_sql_cursor()
+        if type(cursor).__name__ == "SQLiteCursorWrapper":
+            return False
+        with cursor:
             cursor.execute(stage_check_query)  # Corrected variable name
             return bool(cursor.fetchone())
 

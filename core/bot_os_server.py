@@ -116,7 +116,8 @@ class BotOsServer:
                 bot_instructions=bot_instructions,
                 confirmed='CONFIRMED',
                 update_existing=update_existing,
-                api_bot_update=update_existing
+                api_bot_update=update_existing,
+                api_mode=True
             )
         if not retval['success']:
             raise ValueError(retval.get('error', "Error unknown"))

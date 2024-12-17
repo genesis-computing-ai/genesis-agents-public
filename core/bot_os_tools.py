@@ -2514,10 +2514,11 @@ class ToolBelt:
 
         elif action == "GET_FILE_VERSION_NUM":
             try:
-                file_version_num = get_g_file_version(self.db_adapter.user, g_file_id)
-                return {"Success": True, "file_version_num": file_version_num}
+                file_version_num = get_g_file_version(g_file_id, None, self)
             except Exception as e:
                 return {"Success": False, "Error": str(e)}
+
+            return {"Success": True, "file_version_num": file_version_num}
 
         elif action == "GET_COMMENTS":
             try:
@@ -2544,7 +2545,7 @@ class ToolBelt:
             except Exception as e:
                 return {"Success": False, "Error": str(e)}
 
-        # elif action == "GET_SHEET_CELL":
+        # elif action == "GET_SHEET":
         #     cell_range = verify_single_cell(g_sheet_cell)
         #     try:
         #         value = read_g_sheet(g_file_id, cell_range, None, self.db_adapter.user)
@@ -2552,7 +2553,7 @@ class ToolBelt:
         #     except Exception as e:
         #         return {"Success": False, "Error": str(e)}
 
-        elif action == "EDIT_SHEET_CELLS":
+        elif action == "EDIT_SHEET":
             # cell_range = verify_single_cell(g_sheet_cell)
 
             print(
@@ -2568,7 +2569,7 @@ class ToolBelt:
                 "Message": f"g_sheet value to insert to cell {g_sheet_cell}: Value: {g_sheet_value}",
             }
 
-        elif action == "GET_SHEET_CELLS":
+        elif action == "GET_SHEET" or action == "READ_SHEET":
             # cell_range = verify_single_cell(g_sheet_cell)
             try:
                 value = read_g_sheet(

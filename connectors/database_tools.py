@@ -566,9 +566,21 @@ google_drive_functions = [
                     "action": {
                         "type": "string",
                         "description": """
-                        The action to be performed on Google Drive.  Possible actions are: LOGIN, TEST, LIST, SET_ROOT_FOLDER, 
-                        GET_FILE_VERSION_NUM, GET_COMMENTS, ADD_COMMENT, ADD_REPLY_TO_COMMENT, GET_SHEET_CELLS, EDIT_SHEET_CELLS,
-                        GET_LINK_FROM_FILE_ID, GET_FILE_BY_NAME""",
+                        The action to be performed on Google Drive.  Possible actions are: 
+                            LOGIN - Used to login in to Google Workspace with OAuth2.0.  Not implemented
+                            LIST - Get's list of files in a folder.  Same as DIRECTORY, DIR, GET FILES IN FOLDER
+                            SET_ROOT_FOLDER - Sets the root folder for the user on their drive 
+                            GET_FILE_VERSION_NUM - Gets the version numbergiven a g_file id
+                            GET_COMMENTS - Gets the comments and replies for a file give a g_file_id
+                            ADD_COMMENT - Adds a comment to a file given a g_file_id
+                            ADD_REPLY_TO_COMMENT - Adds a reply to a comment given a g_file_id and a comment_id
+                            GET_SHEET - (Also can be READ_SHEET) - Gets the contents of a Google Sheet given a g_file_id
+                            EDIT_SHEET - (Also can be WRITE SHEET) - Edits a Google Sheet given a g_file_id and values.  Passing
+                                a cell range is optional
+                            GET_LINK_FROM_FILE_ID - Gets the url link to a file given a g_file_id
+                            GET_FILE_BY_NAME - Searches for a file by name and returns the file id
+                            SAVE_QUERY_RESULTS_TO_G_SHEET - Saves the results of a query to a Google Sheet
+                        """,
                     },
                     "user": {
                         "type": "string",

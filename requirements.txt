@@ -40,9 +40,13 @@ anthropic==0.40.0
 boto3==1.35.72
 markdown
 cython
+<<<<<<< Updated upstream
 tenacity
 dagster
 #dagster-cloud
 dagster-graphql
 dagster-spark
 dagster-dbt
+=======
+tenacity
+>>>>>>> Stashed changes

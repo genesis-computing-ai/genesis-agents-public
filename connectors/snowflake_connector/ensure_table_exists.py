@@ -216,10 +216,13 @@ def ensure_table_exists(self):
     except Exception as e:
         logger.info(f"An error occurred while creating or replacing the bots_active table: {e}")
 
+<<<<<<< Updated upstream
 
 
     # EXT_SERVICE_CONFIG
     #---------------------
+=======
+>>>>>>> Stashed changes
     streamlitdc_url = os.getenv("DATA_CUBES_INGRESS_URL", None)
     logger.info(f"streamlit data cubes ingress URL: {streamlitdc_url}")
 
@@ -251,7 +254,145 @@ def ensure_table_exists(self):
         _create_table_if_not_exist('LLM_RESULTS', create_llm_results_table_ddl, raise_on_failure=True)
 
     except Exception as e:
+<<<<<<< Updated upstream
         logger.error(f"Failed to create hybrid LLM_RESULTS table: {e}")
+=======
+        logger.info(f"Unable to execute 'SHOW TABLES' query: {e}\nQuery attempted: {ext_service_config_table_check_query}")
+        raise Exception(
+            f"Unable to execute 'SHOW TABLES' query: {e}\nQuery attempted: {ext_service_config_table_check_query}"
+        )
+    try:
+        if not cursor.fetchone():
+            create_external_service_config_table_ddl = f"""
+            CREATE OR REPLACE TABLE {self.schema}.EXT_SERVICE_CONFIG (
+                ext_service_name VARCHAR NOT NULL,
+                parameter VARCHAR NOT NULL,
+                value VARCHAR NOT NULL,
+                user VARCHAR,
+                created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            """
+            cursor = self.client.cursor()
+            cursor.execute(create_external_service_config_table_ddl)
+            self.client.commit()
+            logger.info(f"Table {self.schema}.EXT_SERVICE_CONFIG created as Table successfully.")
+        else:
+            logger.info(f"Table {self.schema}.EXT_SERVICE_CONFIG already exists.")
+    except Exception as e:
+        logger.info(
+            f"An error occurred while checking or creating the EXT_SERVICE_CONFIG table: {e}"
+        )
+    finally:
+        if cursor is not None:
+            cursor.close()
+
+    ext_service_config_table_check_query = (
+        f"SHOW TABLES LIKE 'EXT_SERVICE_CONFIG' IN SCHEMA {self.schema};"
+    )
+    try:
+        cursor = self.client.cursor()
+        cursor.execute(ext_service_config_table_check_query)
+
+    except Exception as e:
+        logger.info(f"Unable to execute 'SHOW TABLES' query: {e}\nQuery attempted: {ext_service_config_table_check_query}")
+        raise Exception(
+            f"Unable to execute 'SHOW TABLES' query: {e}\nQuery attempted: {ext_service_config_table_check_query}"
+        )
+    try:
+        if not cursor.fetchone():
+            create_external_service_config_table_ddl = f"""
+            CREATE OR REPLACE TABLE {self.schema}.EXT_SERVICE_CONFIG (
+                ext_service_name VARCHAR NOT NULL,
+                parameter VARCHAR NOT NULL,
+                value VARCHAR NOT NULL,
+                user VARCHAR,
+                created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            """
+            cursor = self.client.cursor()
+            cursor.execute(create_external_service_config_table_ddl)
+            self.client.commit()
+            logger.info(f"Table {self.schema}.EXT_SERVICE_CONFIG created as Table successfully.")
+        else:
+            logger.info(f"Table {self.schema}.EXT_SERVICE_CONFIG already exists.")
+    except Exception as e:
+        logger.info(
+            f"An error occurred while checking or creating the EXT_SERVICE_CONFIG table: {e}"
+        )
+    finally:
+        if cursor is not None:
+            cursor.close()
+
+    g_drive_file_version_table_check_query = (
+        f"SHOW TABLES LIKE 'G_DRIVE_FILE_VERSION' IN SCHEMA {self.schema};"
+    )
+    try:
+        cursor = self.client.cursor()
+        cursor.execute(g_drive_file_version_table_check_query)
+
+    except Exception as e:
+        logger.info(f"Unable to execute 'SHOW TABLES' query: {e}\nQuery attempted: {g_drive_file_version_table_check_query}")
+        raise Exception(
+            f"Unable to execute 'SHOW TABLES' query: {e}\nQuery attempted: {g_drive_file_version_table_check_query}"
+        )
+    try:
+        if not cursor.fetchone():
+            create_g_drive_file_version_table_ddl = f"""
+            CREATE OR REPLACE TABLE {self.schema}.G_DRIVE_FILE_VERSION (
+                g_file_id VARCHAR NOT NULL,
+                g_file_name VARCHAR NOT NULL,
+                g_file_type VARCHAR NOT NULL,
+                g_file_parent_id VARCHAR,
+                g_file_size VARCHAR,
+                g_file_version VARCHAR,
+                created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            """
+            cursor = self.client.cursor()
+            cursor.execute(create_g_drive_file_version_table_ddl)
+            self.client.commit()
+            logger.info(f"Table {self.schema}.G_DRIVE_FILE_VERSION created as Table successfully.")
+        else:
+            logger.info(f"Table {self.schema}.G_DRIVE_FILE_VERSION already exists.")
+    except Exception as e:
+        logger.info(
+            f"An error occurred while checking or creating the G_DRIVE_FILE_VERSION table: {e}"
+        )
+    finally:
+        if cursor is not None:
+            cursor.close()
+
+    llm_results_table_check_query = (
+        f"SHOW TABLES LIKE 'LLM_RESULTS' IN SCHEMA {self.schema};"
+    )
+    try:
+        cursor = self.client.cursor()
+        cursor.execute(llm_results_table_check_query)
+
+    except Exception as e:
+        logger.info(f"Unable to execute 'SHOW TABLES' query: {e}\nQuery attempted: {llm_results_table_check_query}")
+        raise Exception(f"Unable to execute 'SHOW TABLES' query: {e}\nQuery attempted: {llm_results_table_check_query}")
+    try:
+        if not cursor.fetchone():
+            create_llm_results_table_ddl = f"""
+            CREATE OR REPLACE HYBRID TABLE {self.schema}.LLM_RESULTS (
+                uu VARCHAR(40) PRIMARY KEY,
+                message VARCHAR NOT NULL,
+                created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX uu_idx (uu)
+            );
+            """
+            cursor = self.client.cursor()
+            cursor.execute(create_llm_results_table_ddl)
+            self.client.commit()
+            logger.info(f"Table {self.schema}.LLM_RESULTS created as Hybrid Table successfully.")
+        else:
+            logger.info(f"Table {self.schema}.LLM_RESULTS already exists.")
+    except Exception as e:
+>>>>>>> Stashed changes
         try:
             logger.info("Falling back to create non-hybrid table for LLM_RESULTS")
             create_llm_results_table_ddl = f"""
@@ -716,7 +857,6 @@ def ensure_table_exists(self):
         finally:
             if cursor is not None:
                 cursor.close()
-
 
     # =====================================================================
     # NOTE: If using SQLite adapter, skip this section as SQLiteAdapter has

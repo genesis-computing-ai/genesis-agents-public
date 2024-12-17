@@ -26,6 +26,104 @@ SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets"
 ]
 
+def column_to_number(letter: str) -> int:
+    num = 0
+    for char in letter:
+        num = num * 26 + (ord(char.upper()) - ord('A') + 1)
+    return num
+
+def number_to_column(num: int) -> str:
+    result = ""
+    while num > 0:
+        num -= 1
+        result = chr(num % 26 + 65) + result
+        num //= 26
+    return result
+
+def insert_into_g_drive_file_version_table(self, data):
+    """
+    Insert a new row into the G_DRIVE_FILE_VERSION table.
+
+    Args:
+        data (dict): A dictionary containing the following keys:
+            - g_file_id
+            - g_file_name
+            - g_file_type
+            - g_file_parent_id
+            - g_file_size
+            - g_file_version
+    """
+    # Assuming you have a database connection established
+    connection = self.connection
+    cursor = connection.cursor()
+
+    insert_query = f"""
+    INSERT INTO {self.schema}.G_DRIVE_FILE_VERSION (g_file_id, g_file_name, g_file_type, g_file_parent_id, g_file_size, g_file_version)
+    VALUES (%s, %s, %s, %s, %s, %s)
+    """
+    cursor.execute(
+        insert_query,
+        (
+            data["g_file_id"],
+            data["g_file_name"],
+            data["g_file_type"],
+            data["g_file_parent_id"],
+            data["g_file_size"],
+            data["g_file_version"],
+        ),
+    )
+
+    connection.commit()
+    cursor.close()
+    return {"Success": True, "Message": "File version inserted."}
+
+
+def update_g_drive_file_version_table(
+    self, g_file_id, g_file_version, g_file_name, g_file_size, g_folder_id, g_file_type
+):
+    """
+    Update the version of a file in the G_DRIVE_FILE_VERSION table.
+
+    Args:
+        g_file_id (str): The ID of the file.
+        g_file_version (str): The new version of the file.
+        g_file_name (str): The name of the file.
+        g_file_size (str): The size of the file.
+        g_folder_id (str): The ID of the folder containing the file.
+        g_file_type (str): The type of the file.
+    """
+    connection = self.db_adapter.connection
+    cursor = connection.cursor()
+
+    # Check if the file ID exists in the table
+    select_query = f"""
+    SELECT COUNT(*)
+    FROM {self.db_adapter.schema}.G_DRIVE_FILE_VERSION
+    WHERE g_file_id = %s
+    """
+    cursor.execute(select_query, (g_file_id,))
+    file_exists = cursor.fetchone()[0]
+
+    if file_exists == 0:
+        insert_query = f"""
+        INSERT INTO {self.db_adapter.schema}.G_DRIVE_FILE_VERSION (g_file_id, g_file_version, g_file_name, g_file_size, g_file_parent_id, g_file_type)
+        VALUES (%s, %s, %s, %s, %s, %s)
+        """
+        cursor.execute(insert_query, (g_file_id, g_file_version, g_file_name, g_file_size, g_folder_id, g_file_type))
+    else:
+        update_query = f"""
+        UPDATE {self.db_adapter.schema}.G_DRIVE_FILE_VERSION
+        SET g_file_version = %s
+        WHERE g_file_id = %s
+        """
+        cursor.execute(update_query, (g_file_version, g_file_id))
+
+    connection.commit()
+    cursor.close()
+
+    return {"Success": True, "Message": "File version updated."}
+
+
 def get_g_file_comments(user, file_id):
     """
     Get comments on a Google Sheets document.
@@ -241,7 +339,6 @@ def get_g_folder_directory(folder_id, creds=None, user=None):
     except Exception as e:
         return {"Success": False, "Error": str(e)}
 
-
 def add_g_file_comment(
     file_id=None,
     content=None,
@@ -318,7 +415,7 @@ def get_g_folder_web_link(folder_id, creds):
         return None
 
 
-def get_g_file_version(user = None, g_file_id = None):
+def get_g_file_version(g_file_id = None, creds = None, self = None):
     """
     Get the version number of a file in Google Drive.
 
@@ -328,25 +425,35 @@ def get_g_file_version(user = None, g_file_id = None):
     Returns:
         int: The version number of the file.
     """
-    if not g_file_id or not user:
+    if not g_file_id or (not self and not creds):
         raise Exception("Missing parameters in get_g_file_version - file id or user")
 
-    try:
-        SERVICE_ACCOUNT_FILE = f"g-workspace-{user}.json"
-        creds = Credentials.from_service_account_file(
-            SERVICE_ACCOUNT_FILE, scopes=SCOPES
-        )
-        service = build("drive", "v3", credentials=creds)
+    if not creds:
+        SERVICE_ACCOUNT_FILE = f"g-workspace-{self.db_adapter.user}.json"
+        try:
+            # Authenticate using the service account JSON file
+            creds = Credentials.from_service_account_file(
+                SERVICE_ACCOUNT_FILE, scopes=SCOPES
+            )
+        except Exception as e:
+            print(f"Error loading credentials: {e}")
+            return None
 
-        # Get the file metadata including the version number
-        file_metadata = service.files().get(fileId=g_file_id, fields="version").execute()
+    service = build("drive", "v3", credentials=creds)
 
-        # Print the file version
-        return file_metadata.get("version")
+    # Get the file metadata including the version number
+    file_metadata = service.files().get(fileId=g_file_id, fields="version, name, size, parents").execute()
 
-    except Exception as e:
-        print(f"An error occurred: {str(e)}")
-        return None
+    version = file_metadata.get("version")
+    file_name = file_metadata.get("name")
+    file_size = file_metadata.get("size")
+    parent_folder_id = file_metadata.get("parents")[0] if file_metadata.get("parents") else None
+    g_file_type = 'sheet'
+
+    update_g_drive_file_version_table(self, g_file_id, version, file_name, file_size, parent_folder_id, g_file_type)
+
+    # Print the file version
+    return version
 
 
 # def upload_file_to_folder(path_to_file, parent_folder_id):
@@ -499,6 +606,17 @@ def save_text_to_google_file(
 
     print("Document content updated: ", result)
 
+    # Add to G_DRIVE_FILE_VERSION table
+    g_file_version_data = {
+        "g_file_id": doc_id,
+        "g_file_name": file_name,
+        "g_file_type": "application/vnd.google-apps.document",
+        "g_file_parent_id": shared_folder_id,
+        "g_file_size": str(len(text)),
+        "g_file_version": "1"
+    }
+
+    insert_into_g_drive_file_version_table(self, g_file_version_data)
     return file_verify.get("webViewLink")
 
 
@@ -520,27 +638,6 @@ def create_folder_in_folder(folder_name, parent_folder_id, user):
     print(f'Folder ID: {file.get("id")} | Folder name: {folder_name}')
 
     return file.get("id")
-
-
-# def create_g_drive_folder(folder_name:str = "folder"):
-#     try:
-#         creds = Credentials.from_service_account_file(
-#             SERVICE_ACCOUNT_FILE, scopes=SCOPES
-#         )
-#         service = build("drive", "v3", credentials=creds)
-
-#         file_metadata = {
-#             "name": folder_name,
-#             "mimeType": "application/vnd.google-apps.folder",
-#         }
-
-#         file = service.files().create(body=file_metadata, fields="id").execute()
-#         print(f'Folder ID: "{file.get("id")}".')
-#         return file.get("id")
-
-# except HttpError as err:
-#     print(err)
-#     return None
 
 
 def export_to_google_docs(text: str = 'No text received.', shared_folder_id: str = None, user =None, file_name = None):
@@ -732,7 +829,7 @@ def create_google_sheet(self, shared_folder_id, title, data):
             )
             .execute()
         )
-        print(f"{result.get('updatedCells')} cells updated.")
+        print(f"{result.get('updatedCells')} cells created.")
 
         # Apply formatting
         service.spreadsheets().batchUpdate(
@@ -759,6 +856,17 @@ def create_google_sheet(self, shared_folder_id, title, data):
 
         folder_url = get_g_folder_web_link(top_level_folder_id, creds)
         file_url = file.get("webViewLink")
+
+        g_file_version_data = {
+            "g_file_id": ss_id,
+            "g_file_name": title,
+            "g_file_type": "sheet",
+            "g_file_parent_id": top_level_folder_id,
+            "g_file_size": None,
+            "g_file_version": "1",
+        }
+
+        insert_into_g_drive_file_version_table(self, g_file_version_data)
 
         return {"Success": True, "file_id": spreadsheet.get("spreadsheetId"), "file_url": file_url, "folder_url": folder_url}
 
@@ -809,7 +917,7 @@ def read_g_sheet(spreadsheet_id=None, cell_range=None, creds=None, user=None):
     TODO(developer) - See https://developers.google.com/identity
     for guides on implementing OAuth2 for the application.
     """
-    if not spreadsheet_id or not cell_range or (not creds and not user):
+    if not spreadsheet_id or (not creds and not user):
         raise Exception("Missing credentials, user name, spreadsheet ID, or cell_range name.")
 
     if not creds:
@@ -825,20 +933,23 @@ def read_g_sheet(spreadsheet_id=None, cell_range=None, creds=None, user=None):
     try:
         service = build("sheets", "v4", credentials=creds)
 
-        if cell_range:
+        if not cell_range:
             result = (
                 service.spreadsheets()
-                .values()
-                .get(spreadsheetId=spreadsheet_id, range=cell_range)
-                .execute()
-            )
-        else:
-            result = (
-                service.spreadsheets()
-                .values()
                 .get(spreadsheetId=spreadsheet_id)
                 .execute()
             )
+
+            row_count = result.get("sheets")[0].get("properties").get("gridProperties").get("rowCount")
+            col_count = result.get("sheets")[0].get("properties").get("gridProperties").get("columnCount")
+            cell_range = f"Sheet1!A1:{number_to_column(col_count+1)}{row_count}"
+
+        result = (
+            service.spreadsheets()
+            .values()
+            .get(spreadsheetId=spreadsheet_id, range=cell_range)
+            .execute()
+        )
 
         rows = result.get("values", [])
 

@@ -608,6 +608,7 @@ def ensure_table_exists(self):
             cursor.close()
 
         try:
+            eai_config_table_check_query = f"DESCRIBE TABLE {self.genbot_internal_project_and_schema}.EAI_CONFIG;"
             cursor = self.client.cursor()
             cursor.execute(eai_config_table_check_query)
             if not _check_table_exists('EAI_CONFIG'):

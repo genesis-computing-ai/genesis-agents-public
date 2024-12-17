@@ -268,7 +268,6 @@ if __name__ == "__main__":
         os.path.join(project_directory, "tests/hello_world_regtest_01_local.py"),
         os.path.join(project_directory, "demo/bot_os_streamlit.py"),
         os.path.join(project_directory, "app_engine"),
-        #os.path.join(project_directory, "google_sheets"),
     ]
     output_directory = "dist"
 
@@ -279,5 +278,5 @@ if __name__ == "__main__":
         output_dir=output_directory,
         package_name="genesis_api_whl",
         public_package_name="genesis_api_public",
-        version="1.0.2",
+        version="1.0.3",
     )

@@ -1,24 +1,21 @@
-import os
-import random
-import string
-from datetime import datetime
-from textwrap import dedent
-import yaml
-import pytz
-import pandas as pd
+from   datetime                 import datetime
 import glob
 import json
+import os
+import pandas as pd
+import pytz
+import random
+import string
+from   textwrap                 import dedent
+import yaml
 
-from core.bot_os_defaults import (
-    BASE_EVE_BOT_INSTRUCTIONS,
-    JANICE_JANITOR_INSTRUCTIONS,
-    EVE_INTRO_PROMPT,
-    ELIZA_INTRO_PROMPT,
-    STUART_INTRO_PROMPT,
-    JANICE_INTRO_PROMPT
-)
+from   core.bot_os_defaults     import (BASE_EVE_BOT_INSTRUCTIONS,
+                                        ELIZA_INTRO_PROMPT, EVE_INTRO_PROMPT,
+                                        JANICE_INTRO_PROMPT,
+                                        JANICE_JANITOR_INSTRUCTIONS,
+                                        STUART_INTRO_PROMPT)
 
-from core.logging_config import logger
+from   core.logging_config      import logger
 
 def one_time_db_fixes(self):
     try:
@@ -139,21 +136,80 @@ def ensure_table_exists(self):
     import core.bot_os_tool_descriptions
     from core.bot_os_artifacts import get_artifacts_store
 
-    # Maintain bots_active table
+    # >>> BEGIN helper functions
+    # -------------------------------
+    def _fetch_all_schema_tables():
+        """
+        A helper function that fetches all table names in self.schema and returns them as a set.
+        This set is used for testing table existence below.
+        """
+        retval = set()
+        all_schema_tables_query = f"SHOW TABLES IN SCHEMA {self.schema};"
+        with self.client.cursor() as cursor:
+            try:
+                cursor.execute(all_schema_tables_query)
+                retval = {row[1] for row in cursor.fetchall()}  # Assuming the table name is in the second column
+                logger.debug(f"Tables in schema {self.schema} (sorted): {sorted(retval)}")
+            except Exception as e:
+                logger.error(f"An error occurred while retrieving tables in schema {self.schema}: {e}")
+        return retval
+
+    all_schema_tables = _fetch_all_schema_tables()
+
+
+    def _check_table_exists(tbl_name):
+        ''' return true if tbl_name (unauliafied) exists is self.schema '''
+        return tbl_name in all_schema_tables
+
+
+    def _create_table_if_not_exist(tbl_name, ddl, raise_on_failure=False):
+        """
+        Checks if a table exists in the specified schema and creates it if it does not exist.
+
+        This function uses the provided DDL statement to create the table if it is not already present in the schema.
+
+        Parameters:
+        tbl_name (str): The name of the table to check and potentially create.
+        ddl (str): The Data Definition Language (DDL) statement to execute if the table does not exist.
+        raise_on_failure (bool): If True, re-raises exceptions encountered during table creation; otherwise, logs the error.
+
+        Returns:
+        bool: True if the table was created, False if it already exists or an error occurred.
+
+        Logs:
+        - Info: Indicates whether the table was created successfully or already exists.
+        - Error: Logs any exceptions that occur during the table creation process.
+        """
+        if not _check_table_exists(tbl_name):
+            try:
+                with self.client.cursor() as cursor:
+                    cursor.execute(ddl)
+                    self.client.commit()
+                logger.info(f"Table {tbl_name} created successfully.")
+                return True
+            except Exception as e:
+                if raise_on_failure:
+                    raise
+                logger.error(f"An error occurred while creating table {tbl_name}: {e}")
+                return False
+        else:
+            logger.info(f"Table {tbl_name} already exists.")
+            return False
+
+    # <<< END  helper functions
+    # -------------------------------
+
+
     # Get the current timestamp
     current_timestamp = self.get_current_time_with_timezone()
-
     # Format the timestamp as a string
     timestamp_str = current_timestamp
-    # Create or replace the bots_active table with the current timestamp
-    create_bots_active_table_query = f"""
-    CREATE OR REPLACE TABLE {self.schema}.bots_active ("{timestamp_str}" STRING);
-    """
 
+
+    # Create or replace the bots_active table with the current timestamp
+    create_bots_active_table_query = f"""CREATE OR REPLACE TABLE {self.schema}.bots_active ("{timestamp_str}" STRING); """
     try:
         with self.client.cursor() as cursor:
-            cursor.execute(create_bots_active_table_query)
-            self.client.commit()
             cursor.execute(create_bots_active_table_query)
             self.client.commit()
         logger.info(f"Table {self.schema}.bots_active created or replaced successfully with timestamp: {timestamp_str}")
@@ -161,74 +217,41 @@ def ensure_table_exists(self):
         logger.info(f"An error occurred while creating or replacing the bots_active table: {e}")
 
 
+
+    # EXT_SERVICE_CONFIG
+    #---------------------
     streamlitdc_url = os.getenv("DATA_CUBES_INGRESS_URL", None)
     logger.info(f"streamlit data cubes ingress URL: {streamlitdc_url}")
 
-    ext_service_config_table_check_query = (
-        f"SHOW TABLES LIKE 'EXT_SERVICE_CONFIG' IN SCHEMA {self.schema};"
+    _create_table_if_not_exist(
+        'EXT_SERVICE_CONFIG',
+        f"""
+        CREATE OR REPLACE TABLE {self.schema}.EXT_SERVICE_CONFIG (
+            ext_service_name VARCHAR NOT NULL,
+            parameter VARCHAR NOT NULL,
+            value VARCHAR NOT NULL,
+            user VARCHAR,
+            created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        """
     )
+
+    # LLM_RESULTS
+    #---------------------
     try:
-        cursor = self.client.cursor()
-        cursor.execute(ext_service_config_table_check_query)
+        create_llm_results_table_ddl = f"""
+        CREATE OR REPLACE HYBRID TABLE {self.schema}.LLM_RESULTS (
+            uu VARCHAR(40) PRIMARY KEY,
+            message VARCHAR NOT NULL,
+            created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX uu_idx (uu)
+        );
+        """
+        _create_table_if_not_exist('LLM_RESULTS', create_llm_results_table_ddl, raise_on_failure=True)
 
     except Exception as e:
-        logger.info(f"Unable to execute 'SHOW TABLES' query: {e}\nQuery attempted: {ext_service_config_table_check_query}")
-        raise Exception(
-            f"Unable to execute 'SHOW TABLES' query: {e}\nQuery attempted: {ext_service_config_table_check_query}"
-        )
-    try:
-        if not cursor.fetchone():
-            create_external_service_config_table_ddl = f"""
-            CREATE OR REPLACE TABLE {self.schema}.EXT_SERVICE_CONFIG (
-                ext_service_name VARCHAR NOT NULL,
-                parameter VARCHAR NOT NULL,
-                value VARCHAR NOT NULL,
-                user VARCHAR,
-                created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-            """
-            cursor = self.client.cursor()
-            cursor.execute(create_external_service_config_table_ddl)
-            self.client.commit()
-            logger.info(f"Table {self.schema}.EXT_SERVICE_CONFIG created as Table successfully.")
-        else:
-            logger.info(f"Table {self.schema}.EXT_SERVICE_CONFIG already exists.")
-    except Exception as e:
-        logger.info(
-            f"An error occurred while checking or creating the EXT_SERVICE_CONFIG table: {e}"
-        )
-    finally:
-        if cursor is not None:
-            cursor.close()
-
-    llm_results_table_check_query = (
-        f"SHOW TABLES LIKE 'LLM_RESULTS' IN SCHEMA {self.schema};"
-    )
-    try:
-        cursor = self.client.cursor()
-        cursor.execute(llm_results_table_check_query)
-
-    except Exception as e:
-        logger.info(f"Unable to execute 'SHOW TABLES' query: {e}\nQuery attempted: {llm_results_table_check_query}")
-        raise Exception(f"Unable to execute 'SHOW TABLES' query: {e}\nQuery attempted: {llm_results_table_check_query}")
-    try:
-        if not cursor.fetchone():
-            create_llm_results_table_ddl = f"""
-            CREATE OR REPLACE HYBRID TABLE {self.schema}.LLM_RESULTS (
-                uu VARCHAR(40) PRIMARY KEY,
-                message VARCHAR NOT NULL,
-                created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                INDEX uu_idx (uu)
-            );
-            """
-            cursor = self.client.cursor()
-            cursor.execute(create_llm_results_table_ddl)
-            self.client.commit()
-            logger.info(f"Table {self.schema}.LLM_RESULTS created as Hybrid Table successfully.")
-        else:
-            logger.info(f"Table {self.schema}.LLM_RESULTS already exists.")
-    except Exception as e:
+        logger.error(f"Failed to create hybrid LLM_RESULTS table: {e}")
         try:
             logger.info("Falling back to create non-hybrid table for LLM_RESULTS")
             create_llm_results_table_ddl = f"""
@@ -238,83 +261,53 @@ def ensure_table_exists(self):
                 created TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
             """
-            cursor.execute(create_llm_results_table_ddl)
-            self.client.commit()
-            logger.info(f"Table {self.schema}.LLM_RESULTS created as Regular Table successfully.")
+            _create_table_if_not_exist('LLM_RESULTS', create_llm_results_table_ddl)
         except Exception as e:
-            logger.info(  f"An error occurred while checking or creating the LLM_RESULTS table: {e}" )
+            logger.error(f"An error occurred while creating the non-hybrid LLM_RESULTS table: {e}")
             pass
 
-    finally:
-        if cursor is not None:
-            cursor.close()
-
-    tasks_table_check_query = f"SHOW TABLES LIKE 'TASKS' IN SCHEMA {self.schema};"
-    try:
-        cursor = self.client.cursor()
-        cursor.execute(tasks_table_check_query)
-        if not cursor.fetchone():
-            create_tasks_table_ddl = f"""
-            CREATE TABLE {self.schema}.TASKS (
-                task_id VARCHAR(255),
-                bot_id VARCHAR(255),
-                task_name VARCHAR(255),
-                primary_report_to_type VARCHAR(50),
-                primary_report_to_id VARCHAR(255),
-                next_check_ts TIMESTAMP,
-                action_trigger_type VARCHAR(50),
-                action_trigger_details VARCHAR(1000),
-                task_instructions TEXT,
-                reporting_instructions TEXT,
-                last_task_status VARCHAR(255),
-                task_learnings TEXT,
-                task_active BOOLEAN
-            );
-            """
-            cursor.execute(create_tasks_table_ddl)
-            self.client.commit()
-            logger.info(f"Table {self.schema}.TASKS created successfully.")
-        else:
-            logger.info(f"Table {self.schema}.TASKS already exists.")
-    except Exception as e:
-        logger.info(f"An error occurred while checking or creating the TASKS table: {e}")
-    finally:
-        if cursor is not None:
-            cursor.close()
-
-    task_history_check_query = (
-        f"SHOW TABLES LIKE 'TASK_HISTORY' IN SCHEMA {self.schema};"
+    # TASKS
+    #---------------------
+    _create_table_if_not_exist(
+        'TASKS',
+        f"""
+        CREATE TABLE {self.schema}.TASKS (
+            task_id VARCHAR(255),
+            bot_id VARCHAR(255),
+            task_name VARCHAR(255),
+            primary_report_to_type VARCHAR(50),
+            primary_report_to_id VARCHAR(255),
+            next_check_ts TIMESTAMP,
+            action_trigger_type VARCHAR(50),
+            action_trigger_details VARCHAR(1000),
+            task_instructions TEXT,
+            reporting_instructions TEXT,
+            last_task_status VARCHAR(255),
+            task_learnings TEXT,
+            task_active BOOLEAN
+        );
+        """
     )
-    try:
-        cursor = self.client.cursor()
-        cursor.execute(task_history_check_query)
-        if not cursor.fetchone():
-            create_task_history_table_ddl = f"""
-            CREATE TABLE {self.schema}.TASK_HISTORY (
-                task_id VARCHAR(255),
-                run_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
-                work_done_summary TEXT,
-                task_status TEXT,
-                updated_task_learnings TEXT,
-                report_message TEXT,
-                done_flag BOOLEAN,
-                needs_help_flag BOOLEAN,
-                task_clarity_comments TEXT
-            );
-            """
-            cursor.execute(create_task_history_table_ddl)
-            self.client.commit()
-            logger.info(f"Table {self.schema}.TASK_HISTORY created successfully.")
-        else:
-            logger.info(f"Table {self.schema}.TASK_HISTORY already exists.")
-    except Exception as e:
-        logger.info(
-            f"An error occurred while checking or creating the TASK_HISTORY table: {e}"
-        )
-    finally:
-        if cursor is not None:
-            cursor.close()
 
+    # TASK_HISTORY
+    #---------------------
+    create_task_history_table_ddl = f"""
+    CREATE TABLE {self.schema}.TASK_HISTORY (
+        task_id VARCHAR(255),
+        run_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
+        work_done_summary TEXT,
+        task_status TEXT,
+        updated_task_learnings TEXT,
+        report_message TEXT,
+        done_flag BOOLEAN,
+        needs_help_flag BOOLEAN,
+        task_clarity_comments TEXT
+    );
+    """
+    _create_table_if_not_exist('TASK_HISTORY', create_task_history_table_ddl)
+
+    # SEMANTIC_MODELS_DEV
+    #---------------------
     semantic_stage_check_query = (
         f"SHOW STAGES LIKE 'SEMANTIC_MODELS_DEV' IN SCHEMA {self.schema};"
     )
@@ -339,6 +332,8 @@ def ensure_table_exists(self):
         if cursor is not None:
             cursor.close()
 
+    # SEMANTIC_MODELS
+    #---------------------
     semantic_stage_check_query = (
         f"SHOW STAGES LIKE 'SEMANTIC_MODELS' IN SCHEMA {self.schema};"
     )
@@ -363,6 +358,8 @@ def ensure_table_exists(self):
         if cursor is not None:
             cursor.close()
 
+    # SET_BOT_APP_LEVEL_KEY
+    #---------------------
     udf_check_query = (
         f"SHOW USER FUNCTIONS LIKE 'SET_BOT_APP_LEVEL_KEY' IN SCHEMA {self.schema};"
     )
@@ -388,6 +385,8 @@ def ensure_table_exists(self):
             f"UDF not created in {self.schema} {e}.  This is expected in Local mode."
         )
 
+    # BOT_FILES_STAGE
+    #---------------------
     bot_files_stage_check_query = f"SHOW STAGES LIKE 'BOT_FILES_STAGE' IN SCHEMA {self.genbot_internal_project_and_schema};"
     try:
         cursor = self.client.cursor()
@@ -414,12 +413,12 @@ def ensure_table_exists(self):
         if cursor is not None:
             cursor.close()
 
-    llm_config_table_check_query = (f"SHOW TABLES LIKE 'LLM_TOKENS' IN SCHEMA {self.schema};")
+    # LLM_TOKENS
+    #---------------------
     try:
         runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
         cursor = self.client.cursor()
-        cursor.execute(llm_config_table_check_query)
-        if not cursor.fetchone():
+        if not _check_table_exists('LLM_TOKENS'):
             llm_config_table_ddl = f"""
             CREATE OR REPLACE TABLE {self.genbot_internal_project_and_schema}.LLM_TOKENS (
                 RUNNER_ID VARCHAR(16777216),
@@ -536,6 +535,9 @@ def ensure_table_exists(self):
         if cursor is not None:
             cursor.close()
 
+    # LLM_TOKENS
+    #---------------------
+
     # Check if LLM_ENDPOINT column exists in LLM_TOKENS table
     check_llm_endpoint_query = f"DESCRIBE TABLE {self.genbot_internal_project_and_schema}.LLM_TOKENS;"
     try:
@@ -559,6 +561,11 @@ def ensure_table_exists(self):
         if cursor is not None:
             cursor.close()
 
+    # SLACK_APP_CONFIG_TOKENS,
+    # & self.slack_tokens_table_name
+    # & EAI_CONFIG
+    # & CUSTOM_ENDPOINTS
+    # -------------------------
     slack_tokens_table_check_query = (
         f"SHOW TABLES LIKE 'SLACK_APP_CONFIG_TOKENS' IN SCHEMA {self.schema};"
     )
@@ -600,13 +607,10 @@ def ensure_table_exists(self):
         if cursor is not None:
             cursor.close()
 
-        eai_config_table_check_query = (
-            f"SHOW TABLES LIKE 'EAI_CONFIG' IN SCHEMA {self.schema};"
-        )
         try:
             cursor = self.client.cursor()
             cursor.execute(eai_config_table_check_query)
-            if not cursor.fetchone():
+            if not _check_table_exists('EAI_CONFIG'):
                 eai_config_table_ddl = f"""
                 CREATE OR REPLACE TABLE {self.genbot_internal_project_and_schema}.EAI_CONFIG (
                     EAI_TYPE VARCHAR(16777216),
@@ -663,13 +667,9 @@ def ensure_table_exists(self):
             if cursor is not None:
                 cursor.close()
 
-        endpoints_table_check_query = (
-            f"SHOW TABLES LIKE 'CUSTOM_ENDPOINTS' IN SCHEMA {self.schema};"
-        )
         try:
             cursor = self.client.cursor()
-            cursor.execute(endpoints_table_check_query)
-            if not cursor.fetchone():
+            if not _check_table_exists('CUSTOM_ENDPOINTS'):
                 endpoints_table_ddl = dedent(f"""
                 CREATE OR REPLACE TABLE {self.genbot_internal_project_and_schema}.CUSTOM_ENDPOINTS (
                     GROUP_NAME VARCHAR(16777216),
@@ -718,18 +718,16 @@ def ensure_table_exists(self):
 
 
     # =====================================================================
-    # NOTE: If using SQLite adapter, skip this section as SQLiteAdapter has 
+    # NOTE: If using SQLite adapter, skip this section as SQLiteAdapter has
     # its own version of table creation and Eve bot initialization in
     # connectors/sqlite_adapter.py _ensure_bot_servicing_table()
     # =====================================================================
 
-    bot_servicing_table_check_query = (
-        f"SHOW TABLES LIKE 'BOT_SERVICING' IN SCHEMA {self.schema};"
-    )
+    # BOT_SERVICING
+    # --------------------------
     try:
         cursor = self.client.cursor()
-        cursor.execute(bot_servicing_table_check_query)
-        if not cursor.fetchone():
+        if not _check_table_exists('BOT_SERVICING'):
             bot_servicing_table_ddl = f"""
             CREATE OR REPLACE TABLE {self.bot_servicing_table_name} (
                 API_APP_ID VARCHAR(16777216),
@@ -827,61 +825,6 @@ def ensure_table_exists(self):
                 f"Inserted initial Eve row into {self.bot_servicing_table_name} with runner_id: {runner_id}"
             )
 
-        #               runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
-        #               bot_id = "Eliza"
-        #                bot_id += "".join(
-        #                    random.choices(string.ascii_letters + string.digits, k=6)
-        #                )
-        # bot_name = "Eliza"
-        # bot_instructions = ELIZA_DATA_ANALYST_INSTRUCTIONS
-        # available_tools = '["slack_tools", "database_tools", "snowflake_stage_tools",  "image_tools", "process_manager_tools", "process_runner_tools", "process_scheduler_tools"]'
-        # udf_active = "Y"
-        # slack_active = "N"
-        # bot_intro_prompt = ELIZA_INTRO_PROMPT
-
-        # insert_initial_row_query = f"""
-        # INSERT INTO {self.bot_servicing_table_name} (
-        #     RUNNER_ID, BOT_ID, BOT_NAME, BOT_INSTRUCTIONS, AVAILABLE_TOOLS, UDF_ACTIVE, SLACK_ACTIVE, BOT_INTRO_PROMPT
-        # )
-        # VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
-        # """
-        # cursor.execute(
-        #     insert_initial_row_query,
-        #     (
-        #         runner_id,
-        #         bot_id,
-        #         bot_name,
-        #         bot_instructions,
-        #         available_tools,
-        #         udf_active,
-        #         slack_active,
-        #         bot_intro_prompt,
-        #     ),
-        # )
-        # self.client.commit()
-        # logger.info(
-        #     f"Inserted initial Eliza row into {self.bot_servicing_table_name} with runner_id: {runner_id}"
-        # )
-
-        #          runner_id = os.getenv('RUNNER_ID', 'jl-local-runner')
-        #          bot_id = 'Stuart-'
-        #          bot_id += ''.join(random.choices(string.ascii_letters + string.digits, k=6))
-        #          bot_name = "Stuart"
-        #          bot_instructions = STUART_DATA_STEWARD_INSTRUCTIONS
-        #          available_tools = '["slack_tools", "database_tools", "snowflake_stage_tools", "snowflake_semantic_tools", "image_tools", "autonomous_tools"]'
-        #          udf_active = "Y"
-        #          slack_active = "N"
-        #          bot_intro_prompt = STUART_INTRO_PROMPT
-
-        #          insert_initial_row_query = f"""
-        #         INSERT INTO {self.bot_servicing_table_name} (
-        #              RUNNER_ID, BOT_ID, BOT_NAME, BOT_INSTRUCTIONS, AVAILABLE_TOOLS, UDF_ACTIVE, SLACK_ACTIVE, BOT_INTRO_PROMPT
-        #          )
-        #          VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
-        #          """
-        #          cursor.execute(insert_initial_row_query, (runner_id, bot_id, bot_name, bot_instructions, available_tools, udf_active, slack_active, bot_intro_prompt))
-        #          self.client.commit()
-        #          logger.info(f"Inserted initial Stuart row into {self.bot_servicing_table_name} with runner_id: {runner_id}")
 
         else:
             # Check if the 'ddl_short' column exists in the metadata table
@@ -1063,13 +1006,12 @@ def ensure_table_exists(self):
     #            )
     #           logger.info(result)
 
-    ngrok_tokens_table_check_query = (
-        f"SHOW TABLES LIKE 'NGROK_TOKENS' IN SCHEMA {self.schema};"
-    )
+
+    # NGROK_TOKENS
+    # -------------------
     try:
         cursor = self.client.cursor()
-        cursor.execute(ngrok_tokens_table_check_query)
-        if not cursor.fetchone():
+        if not _check_table_exists('NGROK_TOKENS'):
             ngrok_tokens_table_ddl = f"""
             CREATE OR REPLACE TABLE {self.ngrok_tokens_table_name} (
                 RUNNER_ID VARCHAR(16777216),
@@ -1103,14 +1045,11 @@ def ensure_table_exists(self):
         if cursor is not None:
             cursor.close()
 
-    available_tools_table_check_query = (
-        f"SHOW TABLES LIKE 'AVAILABLE_TOOLS' IN SCHEMA {self.schema};"
-    )
+    # AVAILABLE_TOOLS
+    # -----------------
     try:
         cursor = self.client.cursor()
-        # cursor.execute(available_tools_table_check_query)
-        # logger.info('!!!!!!!!!!!!!!! SKIPPING AVAILABLE TOOLS --- TASK TEST !!!!!!!!!!!!')
-        if os.getenv('TASK_TEST_MODE', 'False').lower() != 'true':
+        if os.getenv('TASK_TEST_MODE', 'False').lower() != 'true': # skip if TEST_MODE
             available_tools_table_ddl = f"""
             CREATE OR REPLACE TABLE {self.available_tools_table_name} (
                 TOOL_NAME VARCHAR(16777216),
@@ -1164,17 +1103,14 @@ def ensure_table_exists(self):
         if cursor is not None:
             cursor.close()
 
-    # CHAT HISTORY TABLE
+    # MESSAGE_LOG (CHAT HISTORY)
+    # -----------------------------
     chat_history_table_id = self.message_log_table_name
-    chat_history_table_check_query = (
-        f"SHOW TABLES LIKE 'MESSAGE_LOG' IN SCHEMA {self.schema};"
-    )
 
     # Check if the chat history table exists
     try:
         cursor = self.client.cursor()
-        cursor.execute(chat_history_table_check_query)
-        if not cursor.fetchone():
+        if not _check_table_exists('MESSAGE_LOG'):
             chat_history_table_ddl = f"""
             CREATE TABLE {self.message_log_table_name} (
                 timestamp TIMESTAMP NOT NULL,
@@ -1223,7 +1159,8 @@ def ensure_table_exists(self):
             f"An error occurred while checking or creating table {self.message_log_table_name}: {e}"
         )
 
-    # KNOWLEDGE TABLE
+    # KNOWLEDGE
+    # --------------------
     knowledge_table_check_query = (
         f"SHOW TABLES LIKE 'KNOWLEDGE' IN SCHEMA {self.schema};"
     )
@@ -1257,65 +1194,44 @@ def ensure_table_exists(self):
             f"An error occurred while checking or creating table {self.knowledge_table_name}: {e}"
         )
 
-    # Create NOTEBOOK table if it doesn't exist
-    bot_notebook_table_check_query = f"SHOW TABLES LIKE 'NOTEBOOK' IN SCHEMA {self.schema};"
-    cursor = self.client.cursor()
-    cursor.execute(bot_notebook_table_check_query)
+    # NOTEBOOK
+    # -------------------
+    create_bot_notebook_table_ddl = f"""
+    CREATE OR REPLACE TABLE {self.schema}.NOTEBOOK (
+        CREATED_AT TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UPDATED_AT TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        BOT_ID VARCHAR(16777216),
+        NOTE_ID VARCHAR(16777216),
+        NOTE_NAME VARCHAR(16777216),
+        NOTE_TYPE VARCHAR(16777216),
+        NOTE_CONTENT VARCHAR(16777216),
+        NOTE_PARAMS VARCHAR(16777216)
+    );
+    """
 
-    if not cursor.fetchone():
-        create_bot_notebook_table_ddl = f"""
-        CREATE OR REPLACE TABLE {self.schema}.NOTEBOOK (
-            CREATED_AT TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UPDATED_AT TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            BOT_ID VARCHAR(16777216),
-            NOTE_ID VARCHAR(16777216),
-            NOTE_NAME VARCHAR(16777216),
-            NOTE_TYPE VARCHAR(16777216),
-            NOTE_CONTENT VARCHAR(16777216),
-            NOTE_PARAMS VARCHAR(16777216)
-        );
-        """
-        cursor.execute(create_bot_notebook_table_ddl)
-        self.client.commit()
-        logger.info(f"Table {self.schema}.NOTEBOOK created successfully.")
-    else:
-        logger.info(f"Table {self.schema}.NOTEBOOK already exists.")
+    created = _create_table_if_not_exist('NOTEBOOK', create_bot_notebook_table_ddl)
+    if not created:
         upgrade_timestamp_columns(self, 'NOTEBOOK')
 
-    load_default_notes(self, cursor)
+    with self.client.cursor() as cursor:
+        load_default_notes(self, cursor)
 
-    # NOTEBOOK_HISTORY TABLE
-    notebook_history_table_check_query = (
-        f"SHOW TABLES LIKE 'NOTEBOOK_HISTORY' IN SCHEMA {self.schema};"
-    )
-    # Check if the notebook_history table exists
-    try:
-        cursor = self.client.cursor()
-        cursor.execute(notebook_history_table_check_query)
-        if not cursor.fetchone():
-            notebook_history_table_ddl = f"""
-            CREATE OR REPLACE TABLE {self.schema}.NOTEBOOK_HISTORY (
-                timestamp TIMESTAMP NOT NULL,
-                note_id STRING,
-                work_done_summary STRING,
-                note_status STRING,
-                updated_note_learnings STRING,
-                report_message STRING,
-                done_flag BOOLEAN,
-                needs_help_flag BOOLEAN,
-                note_clarity_comments STRING
-            );
-            """
-            cursor.execute(notebook_history_table_ddl)
-            self.client.commit()
-            logger.info(f"Table NOTEBOOK_HISTORY created.")
-        else:
-            check_query = f"DESCRIBE TABLE {self.schema}.NOTEBOOK_HISTORY;"
-            logger.info(f"Table NOTEBOOK_HISTORY already exists.")
-    except Exception as e:
-        logger.info(
-            f"An error occurred while checking or creating table NOTEBOOK_HISTORY: {e}"
-        )
+    # NOTEBOOK_HISTORY
+    # ----------------------
+    notebook_history_table_ddl = f"""
+    CREATE OR REPLACE TABLE {self.schema}.NOTEBOOK_HISTORY (
+        timestamp TIMESTAMP NOT NULL,
+        note_id STRING,
+        work_done_summary STRING,
+        note_status STRING,
+        updated_note_learnings STRING,
+        report_message STRING,
+        done_flag BOOLEAN,
+        needs_help_flag BOOLEAN,
+        note_clarity_comments STRING
+    );
+    """
+    _create_table_if_not_exist('NOTEBOOK_HISTORY', notebook_history_table_ddl)
 
     # PROCESSES TABLE
     processes_table_check_query = (
@@ -1353,10 +1269,9 @@ def ensure_table_exists(self):
         )
 
     # Check if PROCESS_CONFIG column exists in PROCESSES table
-    describe_table_query = f"DESCRIBE TABLE {self.schema}.PROCESSES;"
-
     try:
         cursor = self.client.cursor()
+        describe_table_query = f"DESCRIBE TABLE {self.schema}.PROCESSES;"
         cursor.execute(describe_table_query)
         table_description = cursor.fetchall()
 
@@ -1399,128 +1314,78 @@ def ensure_table_exists(self):
 
     load_default_processes_and_notebook(self, cursor)
 
-    # PROCESS_HISTORY TABLE
-    process_history_table_check_query = (
-        f"SHOW TABLES LIKE 'PROCESS_HISTORY' IN SCHEMA {self.schema};"
-    )
-    # Check if the processes table exists
-    try:
-        cursor = self.client.cursor()
-        cursor.execute(process_history_table_check_query)
-        if not cursor.fetchone():
-            process_history_table_ddl = f"""
-            CREATE TABLE {self.process_history_table_name} (
-                timestamp TIMESTAMP NOT NULL,
-                process_id STRING NOT NULL,
-                work_done_summary STRING,
-                process_status STRING,
-                updated_process_learnings STRING,
-                report_message STRING,
-                done_flag BOOLEAN,
-                needs_help_flag BOOLEAN,
-                process_clarity_comments STRING
-            );
-            """
-            cursor.execute(process_history_table_ddl)
-            self.client.commit()
-            logger.info(f"Table {self.process_history_table_name} created.")
-        else:
-            check_query = f"DESCRIBE TABLE {self.process_history_table_name};"
-            logger.info(f"Table {self.process_history_table_name} already exists.")
-    except Exception as e:
-        logger.info(
-            f"An error occurred while checking or creating table {self.process_history_table_name}: {e}"
-        )
+    # PROCESS_HISTORY
+    # ----------------------
+    process_history_table_ddl = f"""
+    CREATE TABLE {self.process_history_table_name} (
+        timestamp TIMESTAMP NOT NULL,
+        process_id STRING NOT NULL,
+        work_done_summary STRING,
+        process_status STRING,
+        updated_process_learnings STRING,
+        report_message STRING,
+        done_flag BOOLEAN,
+        needs_help_flag BOOLEAN,
+        process_clarity_comments STRING
+    );
+    """
+    _create_table_if_not_exist('PROCESS_HISTORY', process_history_table_ddl)
 
-    try:
-        cursor = self.client.cursor()
-        cursor.execute(f"SHOW TABLES LIKE 'TOOL_KNOWLEDGE' IN SCHEMA {self.schema};")
-        if not cursor.fetchone():
-            user_bot_table_ddl = f"""
-            CREATE TABLE IF NOT EXISTS {self.tool_knowledge_table_name} (
-                timestamp TIMESTAMP NOT NULL,
-                last_timestamp TIMESTAMP NOT NULL,
-                bot_id STRING NOT NULL,
-                tool STRING NOT NULL,
-                summary STRING NOT NULL
-            );
-            """
-            cursor.execute(user_bot_table_ddl)
-            self.client.commit()
-            logger.info(f"Table {self.tool_knowledge_table_name} created.")
-        else:
-            check_query = f"DESCRIBE TABLE {self.tool_knowledge_table_name};"
-            logger.info(f"Table {self.tool_knowledge_table_name} already exists.")
-    except Exception as e:
-        logger.info(f"An error occurred while checking or creating table {self.tool_knowledge_table_name}: {e}")
+    # TOOL_KNOWLEDGE
+    # ------------------
+    user_bot_table_ddl = f"""
+    CREATE TABLE IF NOT EXISTS {self.tool_knowledge_table_name} (
+        timestamp TIMESTAMP NOT NULL,
+        last_timestamp TIMESTAMP NOT NULL,
+        bot_id STRING NOT NULL,
+        tool STRING NOT NULL,
+        summary STRING NOT NULL
+    );
+    """
+    _create_table_if_not_exist('TOOL_KNOWLEDGE', user_bot_table_ddl)
 
-    try:
-        cursor = self.client.cursor()
-        cursor.execute(f"SHOW TABLES LIKE 'PROC_KNOWLEDGE' IN SCHEMA {self.schema};")
-        if not cursor.fetchone():
-            user_bot_table_ddl = f"""
-            CREATE TABLE IF NOT EXISTS {self.proc_knowledge_table_name} (
-                timestamp TIMESTAMP NOT NULL,
-                last_timestamp TIMESTAMP NOT NULL,
-                bot_id STRING NOT NULL,
-                process STRING NOT NULL,
-                summary STRING NOT NULL
-            );
-            """
-            cursor.execute(user_bot_table_ddl)
-            self.client.commit()
-            logger.info(f"Table {self.proc_knowledge_table_name} created.")
-        else:
-            check_query = f"DESCRIBE TABLE {self.proc_knowledge_table_name};"
-            logger.info(f"Table {self.proc_knowledge_table_name} already exists.")
-    except Exception as e:
-        logger.info(f"An error occurred while checking or creating table {self.proc_knowledge_table_name}: {e}")
+    # PROC_KNOWLEDGE
+    # ------------------
+    user_bot_table_ddl = f"""
+    CREATE TABLE IF NOT EXISTS {self.proc_knowledge_table_name} (
+        timestamp TIMESTAMP NOT NULL,
+        last_timestamp TIMESTAMP NOT NULL,
+        bot_id STRING NOT NULL,
+        process STRING NOT NULL,
+        summary STRING NOT NULL
+    );
+    """
+    _create_table_if_not_exist('PROC_KNOWLEDGE', user_bot_table_ddl)
 
-    try:
-        cursor = self.client.cursor()
-        cursor.execute(f"SHOW TABLES LIKE 'DATA_KNOWLEDGE' IN SCHEMA {self.schema};")
-        if not cursor.fetchone():
-            user_bot_table_ddl = f"""
-            CREATE TABLE IF NOT EXISTS {self.data_knowledge_table_name} (
-                timestamp TIMESTAMP NOT NULL,
-                last_timestamp TIMESTAMP NOT NULL,
-                bot_id STRING NOT NULL,
-                dataset STRING NOT NULL,
-                summary STRING NOT NULL
-            );
-            """
-            cursor.execute(user_bot_table_ddl)
-            self.client.commit()
-            logger.info(f"Table {self.data_knowledge_table_name} created.")
-        else:
-            check_query = f"DESCRIBE TABLE {self.data_knowledge_table_name};"
-            logger.info(f"Table {self.data_knowledge_table_name} already exists.")
-    except Exception as e:
-        logger.info(f"An error occurred while checking or creating table {self.data_knowledge_table_name}: {e}")
+    # DATA_KNOWLEDGE
+    # ------------------
+    user_bot_table_ddl = f"""
+    CREATE TABLE IF NOT EXISTS {self.data_knowledge_table_name} (
+        timestamp TIMESTAMP NOT NULL,
+        last_timestamp TIMESTAMP NOT NULL,
+        bot_id STRING NOT NULL,
+        dataset STRING NOT NULL,
+        summary STRING NOT NULL
+    );
+    """
+    _create_table_if_not_exist('DATA_KNOWLEDGE', user_bot_table_ddl)
 
-    try:
-        cursor = self.client.cursor()
-        cursor.execute(f"SHOW TABLES LIKE 'USER_BOT' IN SCHEMA {self.schema};")
-        if not cursor.fetchone():
-            user_bot_table_ddl = f"""
-            CREATE TABLE IF NOT EXISTS {self.user_bot_table_name} (
-                timestamp TIMESTAMP NOT NULL,
-                primary_user STRING,
-                bot_id STRING,
-                user_learning STRING,
-                tool_learning STRING,
-                data_learning STRING
-            );
-            """
-            cursor.execute(user_bot_table_ddl)
-            self.client.commit()
-            logger.info(f"Table {self.user_bot_table_name} created.")
-        else:
-            check_query = f"DESCRIBE TABLE {self.user_bot_table_name};"
-            logger.info(f"Table {self.user_bot_table_name} already exists.")
-    except Exception as e:
-        logger.info(f"An error occurred while checking or creating table {self.user_bot_table_name}: {e}")
+    # USER_BOT
+    #--------------------
+    user_bot_table_ddl = f"""
+    CREATE TABLE IF NOT EXISTS {self.user_bot_table_name} (
+        timestamp TIMESTAMP NOT NULL,
+        primary_user STRING,
+        bot_id STRING,
+        user_learning STRING,
+        tool_learning STRING,
+        data_learning STRING
+    );
+    """
+    _create_table_if_not_exist('USER_BOT', user_bot_table_ddl)
 
+    # TEST_MANAGER
+    #------------------
     # Create test_manager table if it doesn't exist
     bot_test_manager_table_check_query = f"SHOW TABLES LIKE 'test_manager' IN SCHEMA {self.schema};"
     cursor = self.client.cursor()
@@ -1550,7 +1415,8 @@ def ensure_table_exists(self):
         f"SHOW TABLES LIKE '{hc_table_id.upper()}' IN SCHEMA {self.schema};"
     )
 
-    # Check if the harvest control table exists
+    # HARVEST CONTROL (self.harvest_control_table_name)
+    #--------------------------------
     try:
         cursor.execute(hc_table_check_query)
         if not cursor.fetchone():
@@ -1577,6 +1443,7 @@ def ensure_table_exists(self):
         )
 
     # METADATA TABLE FOR HARVESTER RESULTS
+    #---------------------------------------
     metadata_table_id = self.genbot_internal_harvest_table
     metadata_table_check_query = (
         f"SHOW TABLES LIKE '{metadata_table_id.upper()}' IN SCHEMA {self.schema};"
@@ -1658,29 +1525,22 @@ def ensure_table_exists(self):
             f"An error occurred while checking or creating table {metadata_table_id}: {e}"
         )
 
+    # ARTIFACTS STORE
+    # --------------------
     # Setup artifact storage
     af = get_artifacts_store(self)
     af.setup_db_objects(replace_if_exists=False)
 
-    # USER EXTENDED TOOLS TABLE
-    try:
-        user_extended_tools_table_check_query = f"SHOW TABLES LIKE 'USER_EXTENDED_TOOLS' IN SCHEMA {self.schema};"
-        cursor.execute(user_extended_tools_table_check_query)
-        if not cursor.fetchone():
-            user_extended_tools_table_ddl = f"""
-            CREATE TABLE {self.schema}.USER_EXTENDED_TOOLS (
-                TOOL_NAME STRING NOT NULL,
-                TOOL_DESCRIPTION STRING NOT NULL,
-                PARAMETERS VARIANT NOT NULL
-            );
-            """
-            cursor.execute(user_extended_tools_table_ddl)
-            self.client.commit()
-            logger.info(f"Table USER_EXTENDED_TOOLS created.")
-        else:
-            logger.info(f"Table USER_EXTENDED_TOOLS already exists.")
-    except Exception as e:
-        logger.error(f"An error occurred while creating Schema USER_EXTENDED_TOOLS: {e}")
+    # USER EXTENDED TOOLS
+    #-----------------------
+    user_extended_tools_table_ddl = f"""
+    CREATE TABLE {self.schema}.USER_EXTENDED_TOOLS (
+        TOOL_NAME STRING NOT NULL,
+        TOOL_DESCRIPTION STRING NOT NULL,
+        PARAMETERS VARIANT NOT NULL
+    );
+    """
+    _create_table_if_not_exist('USER_EXTENDED_TOOLS', user_extended_tools_table_ddl)
 
     # EXTENDED TOOLS SCHEMA for storing extended tools
     try:
@@ -1693,6 +1553,7 @@ def ensure_table_exists(self):
             logger.info(f"Schema EXTENDED_TOOLS created.")
     except Exception as e:
         logger.error(f"An error occurred while creating Schema EXTENDED_TOOLS: {e}")
+
 
 def get_processes_list(self, bot_id="all"):
     cursor = self.client.cursor()

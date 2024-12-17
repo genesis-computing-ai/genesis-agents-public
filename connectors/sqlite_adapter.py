@@ -87,7 +87,10 @@ class SQLiteAdapter:
                                 TEAMS_APP_TENANT_ID TEXT,
                                 BOT_SLACK_USER_ID TEXT,
                                 BOT_IMPLEMENTATION TEXT,
-                                AUTH_URL TEXT
+                                AUTH_URL TEXT,
+                                AUTH_STATE TEXT,
+                                CLIENT_ID TEXT,
+                                CLIENT_SECRET TEXT
                             )
                         """
              
@@ -360,11 +363,12 @@ class SQLiteCursorWrapper:
             """
 
         # Skip certain operations that don't apply in SQLite mode
+        
         skip_patterns = [
             r'(?i)ENCODED_IMAGE_DATA',
             r'(?i)APP_SHARE\.',
-            r'(?i)UPDATE.*BOT_AVATAR_IMAGE',
-            r'(?i)INSERT.*BOT_AVATAR_IMAGE',
+     #       r'(?i)UPDATE.*BOT_AVATAR_IMAGE',
+     #       r'(?i)INSERT.*BOT_AVATAR_IMAGE',
             r'(?i)CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION',
             r'(?i)CREATE\s+(?:OR\s+REPLACE\s+)?STAGE',
             r'(?i)RESULT_SCAN',

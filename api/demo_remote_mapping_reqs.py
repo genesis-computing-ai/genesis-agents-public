@@ -828,7 +828,7 @@ def main():
     scope, sub_scope = internal_schema.split(".")
 
     client = GenesisAPI(server_type=GenesisLocalSnowflakeServer, scope=scope, sub_scope=sub_scope,
-                        bot_list=local_bots, fast_start=True) # ["marty-l6kx7d"]
+                        bot_list=local_bots, fast_start=False) # ["marty-l6kx7d"]
 
     # if you want to see what bots are already on the server
     #bots = client.get_all_bots()
@@ -849,15 +849,15 @@ def main():
     try:
 
         run_number = 22;
-        table_name = "genesis_gxs.requirements.flexicard_pm_jl_4"  # Changed from genesis_gxs.requirements.flexicard_pm
-      #  focus_field = 'EXPOSURE_END_DATE';
-        focus_field = None
+        table_name = "genesis_gxs.requirements.flexicard_pm_jl_2"  # Changed from genesis_gxs.requirements.flexicard_pm
+        focus_field = 'EXPOSURE_END_DATE';
+      #  focus_field = None
         skip_confidence = True
 
         # Reset the requirements table before starting
         cursor = conn.cursor()
         reset_sql = f"""
-            update genesis_gxs.requirements.flexicard_pm_jl
+            update {table_name}
             set upstream_table = null,
                 upstream_column = null, 
                 source_research = null,

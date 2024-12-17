@@ -81,6 +81,12 @@ from development.integration_tools import (
     integration_tool_descriptions,
     integration_tools,
 )
+
+from data_pipeline_tools.gc_dagster import (
+    dagster_tool_functions,
+    dagster_tools,
+)
+
 from core.bot_os import BotOsSession
 from core.bot_os_corpus import URLListFileCorpus
 from core.bot_os_defaults import (
@@ -3518,6 +3524,10 @@ def get_tools(which_tools, db_adapter, slack_adapter_local=None, include_slack=T
             tools.extend(webpage_downloader_functions)
             available_functions_load.update(webpage_downloader_tools)
             function_to_tool_map[tool_name] = webpage_downloader_functions
+        elif tool_name == "dagster_tools":
+            tools.extend(dagster_tool_functions)
+            available_functions_load.update(dagster_tools)
+            function_to_tool_map[tool_name] = dagster_tool_functions
         else:
             try:
                 module_path = "generated_modules." + tool_name

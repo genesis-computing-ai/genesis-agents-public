@@ -2,8 +2,7 @@ import os
 from flask import Blueprint
 from core.logging_config import logger
 from flask import request, jsonify
-from demo.config import sessions, project_id, dataset_name
-from demo.config import db_adapter
+from demo.app import genesis_app
 import json
 
 realtime_routes = Blueprint('realtime_routes', __name__)
@@ -17,7 +16,7 @@ def get_session_tools():
             return jsonify({"success": False, "message": "Missing 'bot_id' parameter."}), 400
 
         # Find the session for the given bot_id
-        session = next((s for s in sessions if s.bot_id == bot_id), None)
+        session = next((s for s in genesis_app.sessions if s.bot_id == bot_id), None)
 
         if session is None:
             return jsonify({"success": False, "message": f"Session for bot ID '{bot_id}' not found."}), 404
@@ -60,7 +59,7 @@ def genesis_tool():
             params['save_artifacts'] = False
 
         # Find the session for the bot_id
-        session = next((s for s in sessions if s.bot_id == bot_id), None)
+        session = next((s for s in genesis_app.sessions if s.bot_id == bot_id), None)
 
         if session is None:
             return jsonify({"success": False, "message": f"Session for bot ID {bot_id} not found"}), 404
@@ -96,10 +95,10 @@ def get_udf_endpoint_url(endpoint_name="udfendpoint"):
     if alt_service_name:
         query1 = f"SHOW ENDPOINTS IN SERVICE {alt_service_name};"
     else:
-        query1 = f"SHOW ENDPOINTS IN SERVICE {project_id}.{dataset_name}.GENESISAPP_SERVICE_SERVICE;"
+        query1 = f"SHOW ENDPOINTS IN SERVICE {genesis_app.project_id}.{genesis_app.dataset_name}.GENESISAPP_SERVICE_SERVICE;"
     try:
         logger.warning(f"Running query to check endpoints: {query1}")
-        results = db_adapter.run_query(query1)
+        results = genesis_app.db_adapter.run_query(query1)
         udf_endpoint_url = next(
             (
                 endpoint["ingress_url"]

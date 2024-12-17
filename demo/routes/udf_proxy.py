@@ -3,10 +3,8 @@ from flask import Blueprint
 from core.logging_config import logger
 from flask import request, jsonify, make_response
 from bot_genesis.make_baby_bot import get_bot_details
-from demo.config import sessions
-from demo.config import db_adapter, global_flags, scheduler
-from demo.config import bot_id_to_udf_adapter_map, server
-from demo.config import llm_api_key_struct, api_app_id_to_session_map, ngrok_active
+from demo.app import genesis_app
+import core.global_flags as global_flags
 
 import json
 from core.system_variables import SystemVariables
@@ -51,13 +49,13 @@ def submit_udf():
         bot_id = input_rows[0][3]["bot_id"]
     row = input_rows[0]
 
-    bots_udf_adapter = bot_id_to_udf_adapter_map.get(bot_id, None)
+    bots_udf_adapter = genesis_app.bot_id_to_udf_adapter_map.get(bot_id, None)
     if bots_udf_adapter is not None:
         return bots_udf_adapter.submit_udf_fn()
     else:
         # TODO LAUNCH
         bot_install_followup(bot_id, no_slack=True)
-        bots_udf_adapter = bot_id_to_udf_adapter_map.get(bot_id, None)
+        bots_udf_adapter = genesis_app.bot_id_to_udf_adapter_map.get(bot_id, None)
 
         if bots_udf_adapter is not None:
             return bots_udf_adapter.submit_udf_fn()
@@ -76,7 +74,7 @@ def lookup_udf():
     input_rows = message["data"]
     bot_id = input_rows[0][2]
 
-    bots_udf_adapter = bot_id_to_udf_adapter_map.get(bot_id, None)
+    bots_udf_adapter = genesis_app.bot_id_to_udf_adapter_map.get(bot_id, None)
     if bots_udf_adapter is not None:
         return bots_udf_adapter.lookup_udf_fn()
     else:
@@ -92,7 +90,7 @@ def list_available_bots_fn():
     row = input_rows[0]
 
     output_rows = []
-    if "llm_api_key_struct" not in globals() or llm_api_key_struct.llm_key is None:
+    if genesis_app.llm_api_key_struct.llm_key is None:
         output_rows = [
             [row[0], {"Success": False, "Message": "Needs LLM Type and Key"}]
         ]
@@ -140,17 +138,17 @@ def get_metadata():
         metadata_type = input_rows[0][1]
 
         if metadata_type == "harvest_control":
-            result = db_adapter.get_harvest_control_data_as_json()
+            result = genesis_app.db_adapter.get_harvest_control_data_as_json()
         elif metadata_type == "harvest_summary":
-            result = db_adapter.get_harvest_summary()
+            result = genesis_app.db_adapter.get_harvest_summary()
         elif metadata_type == "available_databases":
-            result = db_adapter.get_available_databases()
+            result = genesis_app.db_adapter.get_available_databases()
         elif metadata_type == "bot_images":
-            result = db_adapter.get_bot_images()
+            result = genesis_app.db_adapter.get_bot_images()
         elif metadata_type == "llm_info":
-            result = db_adapter.get_llm_info()
+            result = genesis_app.db_adapter.get_llm_info()
         elif metadata_type == 'cortex_search_services':
-            result = db_adapter.get_cortex_search_service()
+            result = genesis_app.db_adapter.get_cortex_search_service()
         elif metadata_type == "bot_llms":
             if "BOT_LLMS" in os.environ and os.environ["BOT_LLMS"]:
                 result = {"Success": True, "Data": os.environ["BOT_LLMS"]}
@@ -158,34 +156,34 @@ def get_metadata():
                 result = {"Success": False, "Message": result["Error"]}
         elif metadata_type.startswith('test_email '):
             email = metadata_type.split('test_email ')[1].strip()
-            result = db_adapter.send_test_email(email)
+            result = genesis_app.db_adapter.send_test_email(email)
         elif metadata_type.startswith('get_email'):
-            result = db_adapter.get_email()
+            result = genesis_app.db_adapter.get_email()
         elif metadata_type.startswith('check_eai_assigned'):
-            result = db_adapter.check_eai_assigned()
+            result = genesis_app.db_adapter.check_eai_assigned()
         elif metadata_type.startswith('get_endpoints'):
-            result = db_adapter.get_endpoints()
+            result = genesis_app.db_adapter.get_endpoints()
         elif metadata_type.startswith('delete_endpoint_group '):
             metadata_parts = metadata_type.split()
             if len(metadata_parts) == 2:
                 group_name = metadata_parts[1].strip()
             else:
                 logger.info("missing group name to delete")
-            result = db_adapter.delete_endpoint_group(group_name)
+            result = genesis_app.db_adapter.delete_endpoint_group(group_name)
         elif metadata_type.startswith('set_endpoint '):
             metadata_parts = metadata_type.split()
             if len(metadata_parts) == 4:
                 group_name = metadata_parts[1].strip()
                 endpoint = metadata_parts[2].strip()
                 type = metadata_parts[3].strip()
-            result = db_adapter.set_endpoint(group_name, endpoint, type)
+            result = genesis_app.db_adapter.set_endpoint(group_name, endpoint, type)
         elif metadata_type.startswith('set_model_name '):
             model_name, embedding_model_name = metadata_type.split('set_model_name ')[1].split(' ')[:2]
             # model_name = metadata_type.split('set_model_name ')[1].strip()
             # embedding_model_name = metadata_type.split('set_model_name ')[1].strip()
-            result = db_adapter.update_model_params(model_name, embedding_model_name)
+            result = genesis_app.db_adapter.update_model_params(model_name, embedding_model_name)
         elif metadata_type.startswith('logging_status'):
-            status = db_adapter.check_logging_status()
+            status = genesis_app.db_adapter.check_logging_status()
             result = {"Success": True, "Data": status}
         elif metadata_type.startswith('check_eai '):
             metadata_parts = metadata_type.split()
@@ -193,13 +191,13 @@ def get_metadata():
                 site = metadata_parts[1].strip()
             else:
                 logger.info("missing metadata")
-            result = db_adapter.eai_test(site=site)
+            result = genesis_app.db_adapter.eai_test(site=site)
         elif 'sandbox' in metadata_type:
             _, bot_id, thread_id_in, file_name = metadata_type.split('|')
             logger.info('****get_metadata, file_name', file_name)
             logger.info('****get_metadata, thread_id_in', thread_id_in)
             logger.info('****get_metadata, bot_id', bot_id)
-            bots_udf_adapter = bot_id_to_udf_adapter_map.get(bot_id, None)
+            bots_udf_adapter = genesis_app.bot_id_to_udf_adapter_map.get(bot_id, None)
             logger.info('****get_metadata, bots_udf_adapter', bots_udf_adapter)
             try:
                 logger.info(f'**** in to out map: {bots_udf_adapter.in_to_out_thread_map}')
@@ -217,7 +215,7 @@ def get_metadata():
             if len(parts) != 2:
                 raise ValueError(f"Invalid params for artifact metadata: expected 'artifact|<artifact_id>', got {metadata_type}")
             _, artifact_id = parts
-            af = get_artifacts_store(db_adapter)
+            af = get_artifacts_store(genesis_app.db_adapter)
             try:
                 m = af.get_artifact_metadata()
                 result = {"Success": True, "Metadata": m}
@@ -255,18 +253,18 @@ def set_metadata():
                 group_name = metadata_parts[1].strip()
                 endpoint = metadata_parts[2].strip()
                 type = metadata_parts[3].strip()
-            result = db_adapter.set_endpoint(group_name, endpoint, type)
+            result = genesis_app.db_adapter.set_endpoint(group_name, endpoint, type)
         elif metadata_type.startswith('api_config_params '):
             metadata_parts = metadata_type.split()
             if len(metadata_parts) > 3:
                 service_name = metadata_parts[1].strip()
                 key_pairs = " ".join(metadata_parts[2:])
-            result = db_adapter.set_api_config_params(service_name, key_pairs)
+            result = genesis_app.db_adapter.set_api_config_params(service_name, key_pairs)
         elif metadata_type.startswith('set_model_name '):
             model_name, embedding_model_name = metadata_type.split('set_model_name ')[1].split(' ')[:2]
             # model_name = metadata_type.split('set_model_name ')[1].strip()
             # embedding_model_name = metadata_type.split('set_model_name ')[1].strip()
-            result = db_adapter.update_model_params(model_name, embedding_model_name)
+            result = genesis_app.db_adapter.update_model_params(model_name, embedding_model_name)
         else:
             raise ValueError(
                 "Invalid metadata_type provided."
@@ -308,7 +306,7 @@ def get_artifact_data():
         if not artifact_id:
             return jsonify({"Success": False, "Message": "Missing 'artifact_id' parameter."}), 400
 
-        af = get_artifacts_store(db_adapter)
+        af = get_artifacts_store(genesis_app.db_adapter)
         # Retrieve artifact metadata
         metadata = af.get_artifact_metadata(artifact_id)
         # Retrieve artifact data into a temporary file and encode it with base64
@@ -605,9 +603,6 @@ def configure_ngrok_token():
 @udf_routes.route("/udf_proxy/configure_llm", methods=["POST"])
 def configure_llm():
 
-    from openai import OpenAI, OpenAIError
-    global llm_api_key_struct, sessions, api_app_id_to_session_map, bot_id_to_udf_adapter_map, server
-    
     try:
 
         message = request.json
@@ -637,7 +632,7 @@ def configure_llm():
         else:
         # if llm_type is not None:
 
-            data_cubes_ingress_url = db_adapter.db_get_endpoint_ingress_url("streamlitdatacubes")
+            data_cubes_ingress_url = genesis_app.db_adapter.db_get_endpoint_ingress_url("streamlitdatacubes")
             data_cubes_ingress_url = data_cubes_ingress_url if data_cubes_ingress_url else "localhost:8501"
             logger.warning(f"data_cubes_ingress_url(2) set to {data_cubes_ingress_url}")
 
@@ -676,9 +671,9 @@ def configure_llm():
             # set the system default LLM engine
             os.environ["BOT_OS_DEFAULT_LLM_ENGINE"] = llm_type.lower()
             default_llm_engine = llm_type
-            llm_api_key_struct.llm_key = llm_key
-            llm_api_key_struct.llm_type = llm_type
-            llm_api_key_struct.llm_endpoint = llm_endpoint
+            genesis_app.llm_api_key_struct.llm_key = llm_key
+            genesis_app.llm_api_key_struct.llm_type = llm_type
+            genesis_app.llm_api_key_struct.llm_endpoint = llm_endpoint
 
             set_key_result = set_llm_key(
                 llm_key=llm_key,
@@ -686,46 +681,8 @@ def configure_llm():
                 llm_endpoint=llm_endpoint,
             )
 
-            if llm_api_key_struct.llm_key is not None:
-                try:
-                    sessions, api_app_id_to_session_map, bot_id_to_udf_adapter_map, SystemVariables.bot_id_to_slack_adapter_map = create_sessions(
-                        db_adapter,
-                        bot_id_to_udf_adapter_map,
-                        stream_mode=True,
-                        data_cubes_ingress_url=data_cubes_ingress_url,
-                    )
-                except Exception as e:
-                    logger.error(f"Failed to create sessions: {e}")
-                    sessions = []
-                    api_app_id_to_session_map = {}
-                    bot_id_to_udf_adapter_map = {}
-                    SystemVariables.bot_id_to_slack_adapter_map = {}
-                    return None
-            # (
-            #     sessions,
-            #     api_app_id_to_session_map,
-            #     bot_id_to_udf_adapter_map,
-            #     SystemVariables.bot_id_to_slack_adapter_map,
-            # ) = create_sessions(
-            #     db_adapter,
-            #     bot_id_to_udf_adapter_map,
-            #     stream_mode=True,
-            #     data_cubes_ingress_url=data_cubes_ingress_url,
-            # )
-            server = BotOsServer(
-                flask_app=None,
-                sessions=sessions,
-                scheduler=scheduler,
-                scheduler_seconds_interval=2,
-                slack_active=global_flags.slack_active,
-                db_adapter=db_adapter,
-                bot_id_to_udf_adapter_map = bot_id_to_udf_adapter_map,
-                api_app_id_to_session_map = api_app_id_to_session_map,
-                data_cubes_ingress_url = data_cubes_ingress_url,
-                bot_id_to_slack_adapter_map = SystemVariables.bot_id_to_slack_adapter_map,
-            )
-            BotOsServer.stream_mode = True
-            set_remove_pointers(server, api_app_id_to_session_map)
+            genesis_app.create_app_sessions()
+            genesis_app.generate_server()
 
             # Assuming 'babybot' is an instance of a class that has the 'set_llm_key' method
             # and it has been instantiated and imported above in the code.
@@ -755,7 +712,7 @@ def configure_llm():
 @udf_routes.route("/udf_proxy/openbb/v1/query", methods=["POST"])
 def embed_openbb():
     return openbb_query(
-        bot_id_to_udf_adapter_map,
-        default_bot_id=list(bot_id_to_udf_adapter_map.keys())[0],
+        genesis_app.bot_id_to_udf_adapter_map,
+        default_bot_id=list(genesis_app.bot_id_to_udf_adapter_map.keys())[0],
     )
 

@@ -5,8 +5,8 @@ from flask import request, jsonify
 import requests
 from bot_genesis.make_baby_bot import get_bot_details, update_bot_details
 from demo.sessions_creator import make_session
-from demo.config import bot_id_to_udf_adapter_map, api_app_id_to_session_map
-from demo.config import db_adapter, server
+from demo.app import genesis_app
+import core.global_flags as global_flags
 from core.system_variables import SystemVariables
 
 slack_routes = Blueprint('slack_routes', __name__)
@@ -73,7 +73,7 @@ def bot_install_followup(bot_id=None, no_slack=False):
             )
 
     runner = os.getenv("RUNNER_ID", "jl-local-runner")
-    data_cubes_ingress_url = db_adapter.db_get_endpoint_ingress_url("streamlitdatacubes")
+    data_cubes_ingress_url = genesis_app.db_adapter.db_get_endpoint_ingress_url("streamlitdatacubes")
     data_cubes_ingress_url = data_cubes_ingress_url if data_cubes_ingress_url else "localhost:8501"
     logger.info(f"data_cubes_ingress_url(3) set to {data_cubes_ingress_url}")
 
@@ -97,10 +97,10 @@ def bot_install_followup(bot_id=None, no_slack=False):
                 slack_adapter_local
             )
         if udf_local_adapter is not None:
-            bot_id_to_udf_adapter_map[bot_config["bot_id"]] = udf_local_adapter
-        api_app_id_to_session_map[api_app_id] = new_session
+            genesis_app.bot_id_to_udf_adapter_map[bot_config["bot_id"]] = udf_local_adapter
+        genesis_app.api_app_id_to_session_map[api_app_id] = new_session
         #    logger.info("about to add session ",new_session)
-        server.add_session(new_session, replace_existing=True)
+        genesis_app.server.add_session(new_session, replace_existing=True)
 
         if no_slack:
             logger.info(
@@ -130,7 +130,7 @@ def slack_event_handle(bot_id=None):
         return jsonify({"challenge": request_data["challenge"]})
 
     # Find the session using the API App ID
-    session = api_app_id_to_session_map.get(api_app_id)
+    session = genesis_app.api_app_id_to_session_map.get(api_app_id)
 
     if session:
         # If a matching session is found, handle the event

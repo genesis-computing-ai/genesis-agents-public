@@ -94,6 +94,7 @@ class GenesisApp:
                 logger.warning(f"Error on get_endpoints {e} ")
         data_cubes_ingress_url = data_cubes_ingress_url if data_cubes_ingress_url else "localhost:8501"
         logger.info(f"Endpoints: {data_cubes_ingress_url=}; udf endpoint={ep}")
+        self.data_cubes_ingress_url = data_cubes_ingress_url
 
     def get_slack_config(self):
         t, r = get_slack_config_tokens()
@@ -166,6 +167,8 @@ class GenesisApp:
             set_remove_pointers(server, api_app_id_to_session_map)
         self.server = server
         self.scheduler = scheduler
+        self.scheduler.start()
+
 
     def run_ngrok(self):
         ngrok_active = launch_ngrok_and_update_bots(update_endpoints=global_flags.slack_active)
@@ -178,10 +181,10 @@ class GenesisApp:
         self.get_llm_key_handler()
         self.get_data_cubes_ingress_url()
         self.get_slack_config()
+        self.run_ngrok()
         self.create_app_sessions()
         self.generate_server()
-        self.run_ngrok()
-        self.scheduler.start()
+        
 
 genesis_app = GenesisApp()
 

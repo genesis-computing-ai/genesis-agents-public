@@ -297,7 +297,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
          elif len(my_assistants) > 0:
             self.assistant = my_assistants[0]
-            logger.info('assistant found for bot ',name,': ',self.assistant.id,'. You can provide this parameter in your bot_list to speed session creation.')
+            logger.info('assistant found for bot ',name,': ',self.assistant.id,'.')
             # Save mapping between bot_id and assistant_id
             try:
                 os.makedirs('./tmp/bot_maps', exist_ok=True)

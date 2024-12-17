@@ -3640,8 +3640,8 @@ def get_status(site):
                 f"Successfully selected default image data from the shared schema."
             )
         except Exception as e:
-            logger.error(
-                f"Failed to select default image data from the shared with error: {e}"
+            logger.info(
+                f"Default image data from share not available (expected in non-Snowflake modes): {e}"
             )
 
     def db_get_endpoint_ingress_url(self, endpoint_name: str) -> str:

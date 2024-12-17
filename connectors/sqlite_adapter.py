@@ -307,10 +307,19 @@ class SQLiteCursorWrapper:
                         results.append(self.real_cursor.execute(single_query, params))
                 return results
         except sqlite3.OperationalError as e:
-            logger.error(f"SQLite error: {e}")
-            logger.error(f"Query: {query}")
-            logger.error(f"Params: {params}")
-            raise e
+            # Check if this is a DEFAULT_EMAIL query
+            if 'DEFAULT_EMAIL' in query.upper():
+                logger.info(f"DEFAULT_EMAIL table not found (expected): {query}")
+                return None
+            # Check if error is about duplicate column
+            elif 'duplicate column name' in str(e) or 'duplicate column' in str(e):
+                logger.info(f"Column already exists (skipping): {query}")
+                return None
+            else:
+                logger.error(f"SQLite error: {e}")
+                logger.error(f"Query: {query}")
+                logger.error(f"Params: {params}")
+                raise e
         except Exception as e:
             logger.error(f"Error executing query: {e}")
             logger.error(f"Query: {query}")
@@ -873,6 +882,11 @@ class SQLiteCursorWrapper:
             """
             logger.debug(f"Transformed thread query to: {transformed_query}")
             return transformed_query
+
+        # Handle CREATE SCHEMA statements - convert to no-op
+        if query_upper.startswith('CREATE SCHEMA'):
+            logger.debug(f"Converting CREATE SCHEMA statement to no-op: {query}")
+            return "SELECT 1 WHERE 1=0"
 
         # Return the original query if no transformations were applied
         return query

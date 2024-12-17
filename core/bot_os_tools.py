@@ -14,7 +14,22 @@ from typing import Optional, Dict, Any
 import time, uuid
 import jsonschema
 
+from connectors.bigquery_connector import BigQueryConnector
+from core import global_flags
+from core.bot_os_tools_extended import load_user_extended_tools
 from llm_openai.bot_os_openai import StreamingEventHandler
+
+from google_sheets.g_sheets import (
+    get_g_file_version,
+    get_g_file_comments,
+    add_g_file_comment,
+    read_g_sheet,
+    write_g_sheet_cell,
+    add_reply_to_g_file_comment,
+    get_g_file_web_link,
+    get_g_folder_directory,
+    find_g_file_by_name,
+)
 
 import re
 from typing import Optional
@@ -26,11 +41,10 @@ from bot_genesis.make_baby_bot import (
     make_baby_bot_tools,
     get_bot_details,
 )
-from connectors import database_tools
-from connectors import get_global_db_connector
+# from connectors import get_global_db_connector
 # from connectors.bigquery_connector import BigQueryConnector
-# from connectors.snowflake_connector.snowflake_connector import SnowflakeConnector
-# from connectors.sqlite_connector import SqliteConnector
+from connectors.snowflake_connector.snowflake_connector import SnowflakeConnector
+from connectors.sqlite_connector import SqliteConnector
 from llm_openai.openai_utils import get_openai_client
 from slack.slack_tools import slack_tools, slack_tools_descriptions
 from connectors.database_tools import (
@@ -38,6 +52,7 @@ from connectors.database_tools import (
     image_tools,
     bind_run_query,
     bind_search_metadata,
+    bind_search_metadata_detailed,
     bind_semantic_copilot,
     autonomous_functions,
     autonomous_tools,
@@ -66,6 +81,12 @@ from development.integration_tools import (
     integration_tool_descriptions,
     integration_tools,
 )
+
+from data_pipeline_tools.gc_dagster import (
+    dagster_tool_functions,
+    dagster_tools,
+)
+
 from core.bot_os import BotOsSession
 from core.bot_os_corpus import URLListFileCorpus
 from core.bot_os_defaults import (
@@ -103,6 +124,7 @@ from core.bot_os_llm import BotLlmEngineEnum
 from core.logging_config import logger
 from core.bot_os_project_manager import ProjectManager
 from core.file_diff_handler import GitFileManager
+from connectors.snowflake_connector.snowflake_connector import SnowflakeConnector
 
 genesis_source = os.getenv("GENESIS_SOURCE", default="Snowflake")
 
@@ -114,8 +136,8 @@ GENESIS_LOGO_URL = "https://i0.wp.com/genesiscomputing.ai/wp-content/uploads/202
 belts = 0
 
 class ToolBelt:
-    def __init__(self, db_adapter):
-        self.db_adapter = db_adapter
+    def __init__(self):
+        # self.db_adapter = db_adapter
         self.counter = {}
         self.instructions = {}
         self.process_config = {}
@@ -131,7 +153,17 @@ class ToolBelt:
         belts = belts + 1
         self.process_id = {}
         self.include_code = False
-        self.todos = ProjectManager(db_adapter)  # Initialize Todos instance
+
+        if genesis_source == 'Sqlite':
+            self.db_adapter = SqliteConnector(connection_name="Sqlite")
+            connection_info = {"Connection_Type": "Sqlite"}
+        elif genesis_source == 'Snowflake':  # Initialize Snowflake client
+            self.db_adapter = SnowflakeConnector(connection_name="Snowflake")
+            connection_info = {"Connection_Type": "Snowflake"}
+        else:
+            raise ValueError('Invalid Source')
+
+        self.todos = ProjectManager(self.db_adapter)  # Initialize Todos instance
         self.git_manager = GitFileManager()
         self.server = None  # Will be set later
 
@@ -1756,7 +1788,7 @@ class ToolBelt:
             return {}
 
     def manage_notebook(
-        self, action, bot_id=None, note_id=None, note_name = None, note_content=None, note_params=None, thread_id=None, note_type=None
+        self, action, bot_id=None, note_id=None, note_name = None, note_content=None, note_params=None, thread_id=None, note_type=None, note_config = None
     ):
         """
         Manages notes in the NOTEBOOK table with actions to create, delete, or update a note.
@@ -2366,7 +2398,7 @@ class ToolBelt:
                         artifact_id: Optional[str] = None,
                         thread_id=None,  # ignored, saved for future use
                         bot_id=None      # ignored, saved for future use
-                        ) -> str:
+                        ) -> str|dict:
         """
         A wrapper for LLMs to access/manage artifacts by performing specified actions such as describing or deleting an artifact.
 
@@ -2404,7 +2436,7 @@ class ToolBelt:
 
     # ====== ARTIFACTS END ==========================================================================================
 
-    def google_drive(self, action, thread_id=None):
+    def google_drive(self, action, thread_id=None, g_folder_id=None, g_file_id=None, g_sheet_cell = None, g_sheet_value = None, g_file_comment_id = None, g_file_name=None):
         """
         A wrapper for LLMs to access/manage Google Drive files by performing specified actions such as listing or downloading files.
 
@@ -2414,12 +2446,138 @@ class ToolBelt:
         Returns:
             dict: A dictionary containing the result of the action. E.g. for 'LIST', it includes the list of files in the Google Drive.
         """
+        def column_to_number(letter: str) -> int:
+            num = 0
+            for char in letter:
+                num = num * 26 + (ord(char.upper()) - ord('A') + 1)
+            return num
+
+        def number_to_column(num: int) -> str:
+            result = ""
+            while num > 0:
+                num -= 1
+                result = chr(num % 26 + 65) + result
+                num //= 26
+            return result
+
+        def verify_single_cell(g_sheet_cell: str) -> str:
+            pattern = r"^([a-zA-Z]{1,3})(\d{1,4})$"
+            match = re.match(pattern, g_sheet_cell)
+            if not match:
+                raise ValueError("Invalid g_sheet_cell format. It should start with 1-3 letters followed by 1-4 numbers.")
+
+            col, row = match.groups()
+            # next_col = number_to_column(column_to_number(col) + 1)
+            cell_range = f"{col}{row}" # :{next_col}{row}"
+
+            return cell_range
+
+        def verify_cell_range(g_sheet_cell):
+            pattern = r"^([A-Z]{1,2})(\d+):([A-Z]{1,2})(\d+)$"
+            match = re.match(pattern, g_sheet_cell)
+
+            # Verify range is only one cell
+            if not match:
+                raise ValueError("Invalid g_sheet_cell format. It should be in the format 'A1:B1'.")
+
+            # column_1, row_1, column_2, row_2 = match.groups()
+            # column_1_int = column_to_number(column_1)
+            # column_2_int = column_to_number(column_2)
+
+            return True
+
         if action == "LIST":
-            return self.get_google_drive_files()
-        elif action == "TEST":
-            return {"Success": True, "message": "Test successful"}
+            try:
+                files = get_g_folder_directory(
+                    g_folder_id, None, user=self.db_adapter.user
+                )
+                return {"Success": True, "files": files}
+            except Exception as e:
+                return {"Success": False, "Error": str(e)}
+
+        elif action == "GET_FILE_BY_NAME":
+            try:
+                file_id = find_g_file_by_name(g_file_name, None, self.db_adapter.user)
+                return {"Success": True, "id": file_id}
+            except Exception as e:
+                return {"Success": False, "Error": str(e)}
+
         elif action == "SET_ROOT_FOLDER":
             raise NotImplementedError
+
+        elif action == "GET_LINK_FROM_FILE_ID":
+            try:
+                web_link = get_g_file_web_link(g_file_id, None, self.db_adapter.user)
+                return {"Success": True, "web_link": web_link}
+            except Exception as e:
+                return {"Success": False, "Error": str(e)}
+
+        elif action == "GET_FILE_VERSION_NUM":
+            try:
+                file_version_num = get_g_file_version(self.db_adapter.user, g_file_id)
+                return {"Success": True, "file_version_num": file_version_num}
+            except Exception as e:
+                return {"Success": False, "Error": str(e)}
+
+        elif action == "GET_COMMENTS":
+            try:
+                comments_and_replies = get_g_file_comments(self.db_adapter.user, g_file_id)
+                return {"Success": True, "Comments & Replies": comments_and_replies}
+            except Exception as e:
+                return {"Success": False, "Error": str(e)}
+
+        elif action == "ADD_COMMENT":
+            try:
+                result = add_g_file_comment(
+                    g_file_id, g_sheet_value, None, self.db_adapter.user
+                )
+                return {"Success": True, "Result": result}
+            except Exception as e:
+                return {"Success": False, "Error": str(e)}
+
+        elif action == "ADD_REPLY_TO_COMMENT":
+            try:
+                result = add_reply_to_g_file_comment(
+                    g_file_id, g_file_comment_id, g_sheet_value, g_file_comment_id, None, self.db_adapter.user
+                )
+                return {"Success": True, "Result": result}
+            except Exception as e:
+                return {"Success": False, "Error": str(e)}
+
+        # elif action == "GET_SHEET_CELL":
+        #     cell_range = verify_single_cell(g_sheet_cell)
+        #     try:
+        #         value = read_g_sheet(g_file_id, cell_range, None, self.db_adapter.user)
+        #         return {"Success": True, "value": value}
+        #     except Exception as e:
+        #         return {"Success": False, "Error": str(e)}
+
+        elif action == "EDIT_SHEET_CELLS":
+            # cell_range = verify_single_cell(g_sheet_cell)
+
+            print(
+                f"\nG_sheet value to insert to cell {g_sheet_cell}: Value: {g_sheet_value}\n"
+            )
+
+            write_g_sheet_cell(
+                g_file_id, g_sheet_cell, g_sheet_value, None, self.db_adapter.user
+            )
+
+            return {
+                "Success": True,
+                "Message": f"g_sheet value to insert to cell {g_sheet_cell}: Value: {g_sheet_value}",
+            }
+
+        elif action == "GET_SHEET_CELLS":
+            # cell_range = verify_single_cell(g_sheet_cell)
+            try:
+                value = read_g_sheet(
+                    g_file_id, g_sheet_cell, None, self.db_adapter.user
+                )
+                return {"Success": True, "value": value}
+            except Exception as e:
+                return {"Success": False, "Error": str(e)}
+
         elif action == "LOGIN":
             from google_auth_oauthlib.flow import Flow
 
@@ -2429,16 +2587,15 @@ class ToolBelt:
                 "https://www.googleapis.com/auth/drive"
             ]
 
+            redirect_url = f"{os.environ['NGROK_BASE_URL']}:8080/oauth"
+
             flow = Flow.from_client_secrets_file(
                 f"credentials.json",
                 scopes=SCOPES,
-                redirect_uri="http://127.0.0.1:8080/oauth",  # Your redirect URI
+                redirect_uri = redirect_url #"http://127.0.0.1:8080/oauth",  # Your redirect URI
             )
             auth_url, _ = flow.authorization_url(prompt="consent")
             return {"Success": "True", "auth_url": f"<{auth_url}|View Document>"}
-
-    def get_google_drive_files(self):
-        pass
 
     def process_scheduler(
         self, action, bot_id, task_id=None, task_details=None, thread_id=None, history_rows=10
@@ -2844,7 +3001,7 @@ class ToolBelt:
                     WHERE PROCESS_ID = %(process_id)s
                 """
                 cursor.execute(
-                    update_query,
+                    hide_query,
                     {"process_id": process_id},
                 )
                 db_adapter.client.commit()
@@ -2856,7 +3013,7 @@ class ToolBelt:
                     WHERE PROCESS_ID = %(process_id)s
                 """
                 cursor.execute(
-                    update_query,
+                    hide_query,
                     {"process_id": process_id},
                 )
                 db_adapter.client.commit()
@@ -3261,7 +3418,7 @@ class ToolBelt:
 
     # ====== PROCESSES END ====================================================================================
 
-def get_tools(which_tools, db_adapter, slack_adapter_local=None, include_slack=True, tool_belt=None):
+def get_tools(which_tools, db_adapter, slack_adapter_local=None, include_slack=True, tool_belt=None) -> tuple[list, dict, dict]:
 
     tools = []
     available_functions_load = {}
@@ -3323,6 +3480,7 @@ def get_tools(which_tools, db_adapter, slack_adapter_local=None, include_slack=T
             available_functions_load.update(database_tools)
             run_query_f = bind_run_query([connection_info])
             search_metadata_f = bind_search_metadata("./kb_vector")
+            search_metadata_detailed_f = bind_search_metadata_detailed("./kb_vector")
             semantic_copilot_f = bind_semantic_copilot([connection_info])
             function_to_tool_map[tool_name] = database_tool_functions
         elif tool_name == "image_tools":
@@ -3366,6 +3524,10 @@ def get_tools(which_tools, db_adapter, slack_adapter_local=None, include_slack=T
             tools.extend(webpage_downloader_functions)
             available_functions_load.update(webpage_downloader_tools)
             function_to_tool_map[tool_name] = webpage_downloader_functions
+        elif tool_name == "dagster_tools":
+            tools.extend(dagster_tool_functions)
+            available_functions_load.update(dagster_tools)
+            function_to_tool_map[tool_name] = dagster_tool_functions
         else:
             try:
                 module_path = "generated_modules." + tool_name
@@ -3407,6 +3569,14 @@ def get_tools(which_tools, db_adapter, slack_adapter_local=None, include_slack=T
                 # logger.info("imported: ",func)
             available_functions[name] = func
     # Insert additional code here if needed
+
+    # add user extended tools
+    user_extended_tools_definitions, user_extended_functions = load_user_extended_tools(db_adapter, project_id=global_flags.project_id,
+                                                                                        dataset_name=global_flags.genbot_internal_project_and_schema.split(".")[1])
+    if user_extended_functions:
+        tools.extend(user_extended_functions)
+        available_functions_load.update(user_extended_tools_definitions)
+        function_to_tool_map[tool_name] = user_extended_functions
 
     return tools, available_functions, function_to_tool_map
     # logger.info("imported: ",func)

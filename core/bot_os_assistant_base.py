@@ -15,14 +15,14 @@ class BotOsAssistantInterface:
         self,
         name: str,
         instructions: str,
-        tools: list[dict] = {},
+        tools: list[dict] = [],
         available_functions={},
         files=[],
         update_existing=False,
         log_db_connector=None,
         bot_id="default_bot_id",
         bot_name="default_bot_name",
-        all_tools: list[dict] = {},
+        all_tools: list[dict] = [],
         all_functions={},
         all_function_to_tool_map={},
         skip_vectors=False,
@@ -31,10 +31,10 @@ class BotOsAssistantInterface:
         self.bot_name = bot_name
         self.user_allow_cache = {}
 
-    @staticmethod
-    @abstractmethod
-    def load_by_name(name: str):
-        pass
+    #@staticmethod
+    #@abstractmethod
+    #def load_by_name(name: str):
+    #    pass
 
     @abstractmethod
     def create_thread(self) -> str:

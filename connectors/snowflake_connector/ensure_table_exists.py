@@ -99,15 +99,12 @@ def one_time_db_fixes(self):
         columns = [col[0] for col in cursor.fetchall()]
 
         if "TEAMS_ACTIVE" not in columns:
-            # Add LLM_ENDPOINT column if it doesn't exist
-            alter_table_query = f"""ALTER TABLE {self.genbot_internal_project_and_schema}.BOT_SERVICING ADD COLUMN TEAMS_ACTIVE VARCHAR(16777216),TEAMS_APP_ID VARCHAR(16777216),
-                TEAMS_APP_PASSWORD VARCHAR(16777216),
-                TEAMS_APP_TYPE VARCHAR(16777216),
-                TEAMS_APP_TENANT_ID VARCHAR(16777216);"""
-            cursor.execute(alter_table_query)
+            # Add TEAMS_ACTIVE column if it doesn't exist
+            alter_table_query_teams_active = f"""ALTER TABLE {self.genbot_internal_project_and_schema}.BOT_SERVICING ADD COLUMN TEAMS_ACTIVE VARCHAR(16777216);"""
+            cursor.execute(alter_table_query_teams_active)
             self.client.commit()
             logger.info(
-                f"Column 'TEAMS_ACTIVE' added to table {self.genbot_internal_project_and_schema}.LLM_TOKENS."
+                f"Column 'TEAMS_ACTIVE' added to table {self.genbot_internal_project_and_schema}.BOT_SERVICING."
             )
 
             set_to_false_query = f"UPDATE {self.genbot_internal_project_and_schema}.BOT_SERVICING SET TEAMS_ACTIVE = 'N';"
@@ -116,9 +113,21 @@ def one_time_db_fixes(self):
             logger.info(
                 f"Column 'TEAMS_ACTIVE' set to 'N' for all rows in table {self.genbot_internal_project_and_schema}.BOT_SERVICING."
             )
+
+        if "TEAMS_APP_ID" not in columns:
+            # Add TEAMS_APP_ID and related columns if they don't exist
+            alter_table_query_teams_app = f"""ALTER TABLE {self.genbot_internal_project_and_schema}.BOT_SERVICING ADD COLUMN TEAMS_APP_ID VARCHAR(16777216),
+                TEAMS_APP_PASSWORD VARCHAR(16777216),
+                TEAMS_APP_TYPE VARCHAR(16777216),
+                TEAMS_APP_TENANT_ID VARCHAR(16777216);"""
+            cursor.execute(alter_table_query_teams_app)
+            self.client.commit()
+            logger.info(
+                f"Columns 'TEAMS_APP_ID', 'TEAMS_APP_PASSWORD', 'TEAMS_APP_TYPE', 'TEAMS_APP_TENANT_ID' added to table {self.genbot_internal_project_and_schema}.BOT_SERVICING."
+            )
     except Exception as e:
         logger.error(
-            f"An error occurred while checking or altering table {self.genbot_internal_project_and_schema}.LLM_TOKENS to add LLM_ENDPOINT column: {e}"
+            f"An error occurred while checking or altering table {self.genbot_internal_project_and_schema}.BOT_SERVICING to add TEAMS_ACTIVE column: {e}"
         )
     finally:
         if cursor is not None:
@@ -150,9 +159,7 @@ def ensure_table_exists(self):
         logger.info(f"Table {self.schema}.bots_active created or replaced successfully with timestamp: {timestamp_str}")
     except Exception as e:
         logger.info(f"An error occurred while creating or replacing the bots_active table: {e}")
-    finally:
-        if cursor:
-            cursor.close()
+
 
     streamlitdc_url = os.getenv("DATA_CUBES_INGRESS_URL", None)
     logger.info(f"streamlit data cubes ingress URL: {streamlitdc_url}")
@@ -709,6 +716,13 @@ def ensure_table_exists(self):
             if cursor is not None:
                 cursor.close()
 
+
+    # =====================================================================
+    # NOTE: If using SQLite adapter, skip this section as SQLiteAdapter has 
+    # its own version of table creation and Eve bot initialization in
+    # connectors/sqlite_adapter.py _ensure_bot_servicing_table()
+    # =====================================================================
+
     bot_servicing_table_check_query = (
         f"SHOW TABLES LIKE 'BOT_SERVICING' IN SCHEMA {self.schema};"
     )
@@ -959,10 +973,10 @@ def ensure_table_exists(self):
                 logger.info(
                     f"An error occurred while checking or altering table {self.bot_servicing_table_name} to add BOT_IMPLEMENTATION column: {e}"
                 )
-            except Exception as e:
-                logger.info(
-                    f"An error occurred while checking or altering table {metadata_table_id}: {e}"
-                )
+            # except Exception as e:
+            #     logger.info(
+            #         f"An error occurred while checking or altering table {metadata_table_id}: {e}"
+            #     )
             logger.info(f"Table {self.bot_servicing_table_name} already exists.")
         # update bot servicing table bot avatars from shared images table
         insert_images_query = f"""UPDATE {self.bot_servicing_table_name} b SET BOT_AVATAR_IMAGE = a.ENCODED_IMAGE_DATA
@@ -1520,7 +1534,6 @@ def ensure_table_exists(self):
             BOT_ID VARCHAR(16777216),
             TEST_PROCESS_ID VARCHAR(16777216),
             TEST_PROCESS_NAME VARCHAR(16777216),
-            TEST_TYPE VARCHAR(16777216),
             TEST_PRIORITY INTEGER
         );
         """
@@ -1649,6 +1662,37 @@ def ensure_table_exists(self):
     af = get_artifacts_store(self)
     af.setup_db_objects(replace_if_exists=False)
 
+    # USER EXTENDED TOOLS TABLE
+    try:
+        user_extended_tools_table_check_query = f"SHOW TABLES LIKE 'USER_EXTENDED_TOOLS' IN SCHEMA {self.schema};"
+        cursor.execute(user_extended_tools_table_check_query)
+        if not cursor.fetchone():
+            user_extended_tools_table_ddl = f"""
+            CREATE TABLE {self.schema}.USER_EXTENDED_TOOLS (
+                TOOL_NAME STRING NOT NULL,
+                TOOL_DESCRIPTION STRING NOT NULL,
+                PARAMETERS VARIANT NOT NULL
+            );
+            """
+            cursor.execute(user_extended_tools_table_ddl)
+            self.client.commit()
+            logger.info(f"Table USER_EXTENDED_TOOLS created.")
+        else:
+            logger.info(f"Table USER_EXTENDED_TOOLS already exists.")
+    except Exception as e:
+        logger.error(f"An error occurred while creating Schema USER_EXTENDED_TOOLS: {e}")
+
+    # EXTENDED TOOLS SCHEMA for storing extended tools
+    try:
+        extended_tools_schema_check_query = f"SHOW SCHEMAS LIKE 'EXTENDED_TOOLS' IN DATABASE {self.database};"
+        cursor.execute(extended_tools_schema_check_query)
+        if not cursor.fetchone():
+            create_extended_tools_schema_ddl = f"CREATE SCHEMA IF NOT EXISTS EXTENDED_TOOLS;"
+            cursor.execute(create_extended_tools_schema_ddl)
+            self.client.commit()
+            logger.info(f"Schema EXTENDED_TOOLS created.")
+    except Exception as e:
+        logger.error(f"An error occurred while creating Schema EXTENDED_TOOLS: {e}")
 
 def get_processes_list(self, bot_id="all"):
     cursor = self.client.cursor()
@@ -1778,7 +1822,11 @@ def load_default_processes_and_notebook(self, cursor):
         folder_path = 'golden_defaults/golden_processes'
         self.process_data = pd.DataFrame()
 
-        files = glob.glob(os.path.join(folder_path, '*'))
+        files = glob.glob(os.path.join(folder_path, '*.yaml'))
+
+        if not files or len(files) == 0:
+            print("No files found in golden_defaults/golden_processes")
+            return
 
         for filename in files:
             with open(filename, 'r') as file:
@@ -1813,6 +1861,8 @@ def load_default_processes_and_notebook(self, cursor):
                 db_timestamp = result[process_columns.index('UPDATED_AT')] if len(result) > 0 else None
 
                 # Ensure db_timestamp is timezone-aware
+                if isinstance(db_timestamp, str):
+                    db_timestamp = pd.to_datetime(db_timestamp, utc=True)
                 if db_timestamp is None or db_timestamp == '':
                     db_timestamp = datetime.now(pytz.UTC)
                 elif db_timestamp.tzinfo is None:
@@ -1879,44 +1929,51 @@ def load_default_processes_and_notebook(self, cursor):
 
 def upgrade_timestamp_columns(self, table_name):
     try:
-        with self.client.cursor() as cursor:
-            check_for_old_timestamp_columns_query = f"DESCRIBE TABLE {self.schema}.{table_name};"
-            cursor.execute(check_for_old_timestamp_columns_query)
-            columns = [col[0] for col in cursor.fetchall()]
+        cursor = self.client.cursor()
+        check_for_old_timestamp_columns_query = f"DESCRIBE TABLE {self.schema}.{table_name};"
+        cursor.execute(check_for_old_timestamp_columns_query)
+        columns = [col[0] for col in cursor.fetchall()]
 
-            if "CREATED_AT" not in columns and "UPDATED_AT" not in columns:
-                alter_table_query = f"ALTER TABLE {self.schema}.{table_name} ADD COLUMN \"CREATED_AT\" TIMESTAMP, \"UPDATED_AT\" TIMESTAMP;"
-                cursor.execute(alter_table_query)
-                self.client.commit()
-                logger.info(f"Table {table_name} updated with new columns.")
+        if "CREATED_AT" not in columns and "UPDATED_AT" not in columns:
+            alter_table_query = f"ALTER TABLE {self.schema}.{table_name} ADD COLUMN \"CREATED_AT\" TIMESTAMP, \"UPDATED_AT\" TIMESTAMP;"
+            cursor.execute(alter_table_query)
+            self.client.commit()
+            logger.info(f"Table {table_name} updated with new columns.")
 
-            if "TIMESTAMP" in columns:
-                # Copy contents of TIMESTAMP to CREATED_AT
-                copy_timestamp_to_created_at_query = f"""
-                UPDATE {self.schema}.{table_name}
-                SET CREATED_AT = TIMESTAMP, UPDATED_AT = TIMESTAMP
-                WHERE CREATED_AT IS NULL;
-                """
+        if "TIMESTAMP" in columns:
+            # Copy contents of TIMESTAMP to CREATED_AT
+            copy_timestamp_to_created_at_query = f"""
+            UPDATE {self.schema}.{table_name}
+            SET CREATED_AT = TIMESTAMP, UPDATED_AT = TIMESTAMP
+            WHERE CREATED_AT IS NULL;
+            """
 
-                cursor.execute(copy_timestamp_to_created_at_query)
-                self.client.commit()
+            cursor.execute(copy_timestamp_to_created_at_query)
+            self.client.commit()
 
-                # Drop TIMESTAMP column
-                drop_timestamp_query = f"ALTER TABLE {self.schema}.{table_name} DROP COLUMN TIMESTAMP;"
-                cursor.execute(drop_timestamp_query)
-                self.client.commit()
-                logger.info(f"TIMESTAMP column dropped from {table_name}.")
+            # Drop TIMESTAMP column
+            drop_timestamp_query = f"ALTER TABLE {self.schema}.{table_name} DROP COLUMN TIMESTAMP;"
+            cursor.execute(drop_timestamp_query)
+            self.client.commit()
+            logger.info(f"TIMESTAMP column dropped from {table_name}.")
 
     except Exception as e:
         logger.info(f"An error occurred while checking or adding new timestamp columns: {e}")
 
+    finally:
+        cursor.close()
+
     return
 
 def load_default_notes(self, cursor):
+        print("*** load_default_notes")
         folder_path = 'golden_defaults/golden_notes'
-        self.notes_data = pd.DataFrame()
+        notes_data = pd.DataFrame()
 
-        files = glob.glob(os.path.join(folder_path, '*'))
+        files = glob.glob(os.path.join(folder_path, '*.yaml'))
+        if not files or len(files) == 0:
+            print("No files found in golden_defaults/golden_notes")
+            return
 
         for filename in files:
             with open(filename, 'r') as file:
@@ -1926,14 +1983,14 @@ def load_default_notes(self, cursor):
             data.reset_index(inplace=True)
             data.rename(columns={'index': 'NOTE_ID'}, inplace=True)
 
-            self.note_defaults = pd.concat([self.notes_data, data], ignore_index=True)
+            note_defaults = pd.concat([notes_data, data], ignore_index=True)
 
         # Ensure TIMESTAMP column is timezone-aware
-        self.note_defaults['TIMESTAMP'] = pd.to_datetime(self.note_defaults['TIMESTAMP'], format='ISO8601', utc=True)
+        note_defaults['TIMESTAMP'] = pd.to_datetime(note_defaults['TIMESTAMP'], format='ISO8601', utc=True)
 
         updated_note = False
 
-        for _, note_default in self.note_defaults.iterrows():
+        for _, note_default in note_defaults.iterrows():
             note_id = note_default['NOTE_ID']
             timestamp_str = make_date_tz_aware(note_default['TIMESTAMP'])
 
@@ -1953,6 +2010,8 @@ def load_default_notes(self, cursor):
                 db_timestamp = result[timestamp_index] if len(result) > 0 else None
 
                 # Ensure db_timestamp is timezone-aware
+                if isinstance(db_timestamp, str):
+                    db_timestamp = pd.to_datetime(db_timestamp, utc=True)
                 if db_timestamp is None:
                     db_timestamp = datetime.now(pytz.UTC)
                 elif db_timestamp.tzinfo is None:

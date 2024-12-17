@@ -1,0 +1,508 @@
+#
+# This Query is copied from the Dagster+ page for Catalog-->all assets --> <asset key path> (e.g. "snowflake/activity_daily_stats")
+# This page shows things like:
+#  - status (last materializaiton, recent updates and run_id)
+#  - Description (e.g. for a DBT model - SQL and columns)
+#  - Metadata provided to Dagster
+#
+# Variables example:
+# {  "assetKey": { "path": ["snowflake","activity_daily_stats"]] }}
+#
+query AssetViewDefinitionQuery($assetKey: AssetKeyInput!) {
+
+  assetOrError(assetKey: $assetKey) {
+    ... on Asset {
+      id
+      key {
+        path
+        __typename
+      }
+      assetMaterializations(limit: 1) {
+        timestamp
+        runId
+        __typename
+      }
+      definition {
+        id
+        ...AssetViewDefinitionNode
+        __typename
+      }
+      __typename
+    }
+    __typename
+  }
+}
+
+fragment AssetViewDefinitionNode on AssetNode {
+  id
+  groupName
+  partitionDefinition {
+    description
+    dimensionTypes {
+      type
+      dynamicPartitionsDefinitionName
+      __typename
+    }
+    __typename
+  }
+  partitionKeysByDimension {
+    name
+    __typename
+  }
+  hasReportRunlessAssetEventPermission
+  repository {
+    id
+    name
+    location {
+      id
+      name
+      __typename
+    }
+    __typename
+  }
+  ...AssetNodeInstigatorsFragment
+  ...AssetNodeDefinitionFragment
+  ...UnderlyingOpsAssetNodeFragment
+  __typename
+}
+
+fragment AssetNodeInstigatorsFragment on AssetNode {
+  id
+  targetingInstigators {
+    ... on Schedule {
+      ...ScheduleSwitchFragment
+      __typename
+    }
+    ... on Sensor {
+      ...SensorSwitchFragment
+      __typename
+    }
+    __typename
+  }
+  __typename
+}
+
+fragment ScheduleSwitchFragment on Schedule {
+  id
+  name
+  cronSchedule
+  executionTimezone
+  scheduleState {
+    id
+    selectorId
+    status
+    __typename
+  }
+  __typename
+}
+
+fragment SensorSwitchFragment on Sensor {
+  id
+  name
+  sensorState {
+    id
+    selectorId
+    status
+    typeSpecificData {
+      ... on SensorData {
+        lastCursor
+        __typename
+      }
+      __typename
+    }
+    __typename
+  }
+  sensorType
+  __typename
+}
+
+fragment AssetNodeDefinitionFragment on AssetNode {
+  id
+  description
+  groupName
+  graphName
+  opNames
+  opVersion
+  jobNames
+  isMaterializable
+  isExecutable
+  tags {
+    key
+    value
+    __typename
+  }
+  owners {
+    ... on TeamAssetOwner {
+      team
+      __typename
+    }
+    ... on UserAssetOwner {
+      email
+      __typename
+    }
+    __typename
+  }
+  autoMaterializePolicy {
+    rules {
+      className
+      description
+      decisionType
+      __typename
+    }
+    __typename
+  }
+  automationCondition {
+    label
+    expandedLabel
+    __typename
+  }
+  freshnessPolicy {
+    maximumLagMinutes
+    cronSchedule
+    cronScheduleTimezone
+    __typename
+  }
+  backfillPolicy {
+    description
+    __typename
+  }
+  partitionDefinition {
+    description
+    __typename
+  }
+  repository {
+    id
+    name
+    location {
+      id
+      name
+      __typename
+    }
+    __typename
+  }
+  requiredResources {
+    resourceKey
+    __typename
+  }
+  ...AssetNodeConfigFragment
+  ...AssetNodeFragment
+  ...AssetNodeOpMetadataFragment
+  ...AssetNodeInstigatorsFragment
+  __typename
+}
+
+fragment AssetNodeConfigFragment on AssetNode {
+  id
+  configField {
+    name
+    isRequired
+    configType {
+      ...ConfigTypeSchemaFragment
+      recursiveConfigTypes {
+        ...ConfigTypeSchemaFragment
+        __typename
+      }
+      __typename
+    }
+    __typename
+  }
+  __typename
+}
+
+fragment ConfigTypeSchemaFragment on ConfigType {
+  ... on EnumConfigType {
+    givenName
+    values {
+      value
+      description
+      __typename
+    }
+    __typename
+  }
+  ... on RegularConfigType {
+    givenName
+    __typename
+  }
+  key
+  description
+  isSelector
+  typeParamKeys
+  ... on CompositeConfigType {
+    fields {
+      name
+      description
+      isRequired
+      configTypeKey
+      defaultValueAsJson
+      __typename
+    }
+    __typename
+  }
+  ... on ScalarUnionConfigType {
+    scalarTypeKey
+    nonScalarTypeKey
+    __typename
+  }
+  ... on MapConfigType {
+    keyLabelName
+    __typename
+  }
+  __typename
+}
+
+fragment AssetNodeFragment on AssetNode {
+  id
+  graphName
+  hasMaterializePermission
+  jobNames
+  changedReasons
+  opNames
+  opVersion
+  description
+  computeKind
+  isPartitioned
+  isObservable
+  isMaterializable
+  assetKey {
+    ...AssetNodeKey
+    __typename
+  }
+  tags {
+    key
+    value
+    __typename
+  }
+  kinds
+  __typename
+}
+
+fragment AssetNodeKey on AssetKey {
+  path
+  __typename
+}
+
+fragment AssetNodeOpMetadataFragment on AssetNode {
+  id
+  metadataEntries {
+    ...MetadataEntryFragment
+    __typename
+  }
+  type {
+    ...DagsterTypeFragment
+    __typename
+  }
+  __typename
+}
+
+fragment MetadataEntryFragment on MetadataEntry {
+  label
+  description
+  ... on PathMetadataEntry {
+    path
+    __typename
+  }
+  ... on NotebookMetadataEntry {
+    path
+    __typename
+  }
+  ... on JsonMetadataEntry {
+    jsonString
+    __typename
+  }
+  ... on UrlMetadataEntry {
+    url
+    __typename
+  }
+  ... on TextMetadataEntry {
+    text
+    __typename
+  }
+  ... on MarkdownMetadataEntry {
+    mdStr
+    __typename
+  }
+  ... on PythonArtifactMetadataEntry {
+    module
+    name
+    __typename
+  }
+  ... on FloatMetadataEntry {
+    floatValue
+    __typename
+  }
+  ... on TimestampMetadataEntry {
+    timestamp
+    __typename
+  }
+  ... on IntMetadataEntry {
+    intValue
+    intRepr
+    __typename
+  }
+  ... on BoolMetadataEntry {
+    boolValue
+    __typename
+  }
+  ... on PipelineRunMetadataEntry {
+    runId
+    __typename
+  }
+  ... on AssetMetadataEntry {
+    assetKey {
+      path
+      __typename
+    }
+    __typename
+  }
+  ... on JobMetadataEntry {
+    jobName
+    repositoryName
+    locationName
+    __typename
+  }
+  ... on TableColumnLineageMetadataEntry {
+    lineage {
+      columnName
+      columnDeps {
+        assetKey {
+          path
+          __typename
+        }
+        columnName
+        __typename
+      }
+      __typename
+    }
+    __typename
+  }
+  ... on TableMetadataEntry {
+    ...TableMetadataEntryFragment
+    __typename
+  }
+  ... on TableSchemaMetadataEntry {
+    ...TableSchemaForMetadataEntry
+    __typename
+  }
+  ... on CodeReferencesMetadataEntry {
+    codeReferences {
+      __typename
+      ... on LocalFileCodeReference {
+        filePath
+        lineNumber
+        label
+        __typename
+      }
+      ... on UrlCodeReference {
+        url
+        label
+        __typename
+      }
+    }
+    __typename
+  }
+  __typename
+}
+
+fragment TableMetadataEntryFragment on TableMetadataEntry {
+  label
+  table {
+    records
+    schema {
+      ...TableSchemaFragment
+      __typename
+    }
+    __typename
+  }
+  __typename
+}
+
+fragment TableSchemaForMetadataEntry on TableSchemaMetadataEntry {
+  schema {
+    ...TableSchemaFragment
+    __typename
+  }
+  __typename
+}
+
+fragment TableSchemaFragment on TableSchema {
+  columns {
+    name
+    description
+    type
+    tags {
+      key
+      value
+      __typename
+    }
+    constraints {
+      ...ConstraintsForTableColumn
+      __typename
+    }
+    __typename
+  }
+  constraints {
+    other
+    __typename
+  }
+  __typename
+}
+
+fragment ConstraintsForTableColumn on TableColumnConstraints {
+  nullable
+  unique
+  other
+  __typename
+}
+
+fragment DagsterTypeFragment on DagsterType {
+  ...InnerDagsterTypeFragment
+  innerTypes {
+    ...InnerDagsterTypeFragment
+    __typename
+  }
+  __typename
+}
+
+fragment InnerDagsterTypeFragment on DagsterType {
+  __typename
+  key
+  name
+  displayName
+  description
+  isNullable
+  isList
+  isBuiltin
+  isNothing
+  metadataEntries {
+    ...MetadataEntryFragment
+    __typename
+  }
+  inputSchemaType {
+    ...ConfigTypeSchemaFragment
+    recursiveConfigTypes {
+      ...ConfigTypeSchemaFragment
+      __typename
+    }
+    __typename
+  }
+  outputSchemaType {
+    ...ConfigTypeSchemaFragment
+    recursiveConfigTypes {
+      ...ConfigTypeSchemaFragment
+      __typename
+    }
+    __typename
+  }
+}
+
+fragment UnderlyingOpsAssetNodeFragment on AssetNode {
+  id
+  assetKey {
+    path
+    __typename
+  }
+  graphName
+  opNames
+  jobNames
+  __typename
+}

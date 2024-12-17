@@ -19,7 +19,7 @@ def wait_for_return_direct(thread_id, cursor):
         response = response_result[0] if response_result else None
         if response and response != "not found" and response[-1] != "💬":
             return response
-        print(response, end="\r")
+        # print(response, end="\r")
     return
 
 
@@ -73,11 +73,12 @@ def wait_for_return(thread_id, start_time):
     else:
         return {"error": "No response received after 1000 attempts"}
 
-
+print("Runnning Regression tests.....")
 # Load the private key from environment variable
 private_key = os.getenv("SNOWFLAKE_PRIVATE_KEY")
 
 if private_key:
+    print("Using private key authentication")
     # If your key is encrypted with a passphrase
     passphrase = os.getenv("PRIVATE_KEY_PASSPHRASE")
 
@@ -100,6 +101,7 @@ if private_key:
         private_key=p_key,
     )
 else:
+    print("Using password authentication")
     conn = SnowflakeConnection(
         account=os.getenv("SNOWFLAKE_ACCOUNT_OVERRIDE"),
         user=os.getenv("SNOWFLAKE_USER_OVERRIDE"),
@@ -114,6 +116,7 @@ else:
 # grant_usage_2 = conn.cursor().execute("call genesis_bots.core.run_arbitrary('grant usage on function genesis_bots.app1.lookup_udf(varchar, varchar) to application role app_public')")
 cursor = conn.cursor()
 
+print("Waiting for the service to be ready...")
 result = None
 while result != "READY":
     cursor.execute("USE DATABASE GENESIS_BOTS;")
@@ -122,6 +125,7 @@ while result != "READY":
     result = cursor.fetchone()
     result = json.loads(result[0].replace("[", "").replace("]", ""))["status"]
 
+print("Service is ready")
 
 bot_id = "Janice-dev"
 start_time = time.strftime("%A, %B %d, %Y %H:%M:%S", time.localtime())

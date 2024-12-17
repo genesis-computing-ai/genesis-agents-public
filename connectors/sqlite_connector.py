@@ -1,4 +1,7 @@
+import glob
 import sqlite3
+import pandas as pd
+import pytz
 from snowflake.connector import connect
 from tqdm import tqdm
 
@@ -52,7 +55,7 @@ class SqliteConnector(DatabaseConnector):
         self.database = os.getenv("SNOWFLAKE_DATABASE_OVERRIDE", None)
         self.warehouse = os.getenv("SNOWFLAKE_WAREHOUSE_OVERRIDE", None)
         self.role = os.getenv("SNOWFLAKE_ROLE_OVERRIDE", None)
-        self.client = sqlite3.connect(os.getenv("SQLITE_DB", 'genesis.db'), check_same_thread=False)        
+        self.client = sqlite3.connect(os.getenv("SQLITE_DB", 'genesis.db'), check_same_thread=False)
         self.stages = os.getenv("SQLITE_STAGES", "sqlite_stages")
         self.metadata_table_name = os.getenv("GENESIS_INTERNAL_HARVEST_RESULTS_TABLE", "harvest_results")
         self.harvest_control_table_name = os.getenv("GENESIS_INTERNAL_HARVEST_CONTROL_TABLE", "harvest_control")
@@ -62,8 +65,8 @@ class SqliteConnector(DatabaseConnector):
         self.slack_tokens_table_name = "SLACK_APP_CONFIG_TOKENS"
         self.available_tools_table_name = "AVAILABLE_TOOLS"
         self.bot_servicing_table_name = "BOT_SERVICING"
-        self.ngrok_tokens_table_name = "NGROK_TOKENS"        
-        self.images_table_name =  "APP_SHARE_IMAGES"      
+        self.ngrok_tokens_table_name = "NGROK_TOKENS"
+        self.images_table_name =  "APP_SHARE_IMAGES"
         self.source_name = "Sqlite"
 
 
@@ -210,14 +213,14 @@ class SqliteConnector(DatabaseConnector):
             )
             cursor.close()
             if cnt.rowcount == 0:
-                self.run_insert(self.harvest_control_table_name, 
+                self.run_insert(self.harvest_control_table_name,
                         source_name= source_name,
                         database_name= database_name,
                         initial_crawl_complete= initial_crawl_complete,
                         refresh_interval= refresh_interval,
                         schema_exclusions= str(schema_exclusions),
                         schema_inclusions= str(schema_inclusions),
-                        status= status)               
+                        status= status)
 
             return {
                 "Success": True,
@@ -352,7 +355,7 @@ class SqliteConnector(DatabaseConnector):
         Returns:
             list: A list of visible database names.
         """
-        try:            
+        try:
             return {"Success": True, "Databases": self.database}
 
         except Exception as e:
@@ -625,7 +628,7 @@ class SqliteConnector(DatabaseConnector):
             return {
                 "current_system_time": datetime.now().strftime("%Y-%m-%d %H:%M:? %Z")
             }
-        
+
         try:
             if action == "CREATE" or action == "UPDATE":
                 # Send process_instructions to 2nd LLM to check it and format nicely
@@ -646,7 +649,7 @@ class SqliteConnector(DatabaseConnector):
                 # os.environ["CORTEX_MODE"] = "False"
                 # os.environ["CORTEX_AVAILABLE"] = 'False'
                 # os.getenv("BOT_OS_DEFAULT_LLM_ENGINE") == 'openai | cortex'
-                # os.getenv("CORTEX_FIREWORKS_OVERRIDE", "False").lower() 
+                # os.getenv("CORTEX_FIREWORKS_OVERRIDE", "False").lower()
                 default_eng_override = os.getenv("BOT_OS_DEFAULT_LLM_ENGINE")
                 default_llm_engine = BotLlmEngineEnum(default_eng_override) if default_eng_override else None
                 if default_llm_engine is BotLlmEngineEnum.openai:
@@ -694,7 +697,7 @@ class SqliteConnector(DatabaseConnector):
         except Exception as e:
             return {"Success": False, "Error": f"Error connecting to LLM: {e}"}
 
-        
+
         if action == "CREATE_CONFIRMED":
             action = "CREATE"
 
@@ -1264,16 +1267,38 @@ class SqliteConnector(DatabaseConnector):
             if cursor is not None:
                 cursor.close()
 
+    def make_date_tz_aware(self, date, tz='UTC'):
+        """
+        Makes a date object timezone-aware.
+
+        Args:
+        date (datetime): The date to make timezone-aware.
+        tz (str): The timezone to use.
+
+        Returns:
+            datetime: The date string with timezone information.
+        """
+        if type(date) is not str and date is not None and not pd.isna(date):
+            # Ensure row['CREATED_AT'] is timezone-aware
+            if date.tzinfo is None:
+                date = date.tz_localize(pytz.timezone(tz))
+            else:
+                date = date.astimezone(pytz.timezone(tz))
+            date_str = date.strftime('%Y-%m-%d %H:%M:%S')
+        else:
+            date_str = None
+
+        return date_str
 
     def load_default_processes_and_notebook(self, cursor):
-            folder_path = 'golden_defaults/golden_processes'
-            self.process_data = pd.DataFrame()
+        folder_path = 'golden_defaults/golden_processes'
+        self.process_data = pd.DataFrame()
 
-            files = glob.glob(os.path.join(folder_path, '*'))
+        files = glob.glob(os.path.join(folder_path, '*'))
 
-            for filename in files:
-                with open(filename, 'r') as file:
-                    yaml_data = yaml.safe_load(file)
+        for filename in files:
+            with open(filename, 'r') as file:
+                yaml_data = yaml.safe_load(file)
 
                 data = pd.DataFrame.from_dict(yaml_data, orient='index')
                 data.reset_index(inplace=True)
@@ -1289,7 +1314,7 @@ class SqliteConnector(DatabaseConnector):
             for _, process_default in self.process_defaults.iterrows():
                 process_id = process_default['PROCESS_ID']
 
-                timestamp_str = make_date_tz_aware(process_default['TIMESTAMP'])
+                timestamp_str = self.make_date_tz_aware(process_default['TIMESTAMP'])
 
                 query = f"SELECT * FROM PROCESSES WHERE PROCESS_ID = ?"
                 cursor.execute(query, (process_id,))
@@ -1399,7 +1424,7 @@ class SqliteConnector(DatabaseConnector):
                 cursor.close()
 
         # TODO ADD PROCESSES TABLE
-        
+
         processes_table_check_query = "SELECT name FROM sqlite_master WHERE type='table' AND name='PROCESSES';"
         cursor = self.client.cursor()
         cursor.execute(processes_table_check_query)
@@ -1486,20 +1511,20 @@ class SqliteConnector(DatabaseConnector):
         finally:
             if cursor is not None:
                 cursor.close()
-        
-       
+
+
         try:
             os.makedirs(os.path.join(self.stages, 'SEMANTIC_MODELS_DEV'))
-            logger.info(f"Stage SEMANTIC_MODELS_DEV created.")                
+            logger.info(f"Stage SEMANTIC_MODELS_DEV created.")
         except Exception as e:
             logger.info(f"Stage SEMANTIC_MODELS_DEV already exists.")
-       
+
         try:
             os.makedirs(os.path.join(self.stages, 'SEMANTIC_MODELS'))
             logger.info(f"Stage SEMANTIC_MODELS created.")
         except Exception as e:
             logger.info(f"Stage SEMANTIC_MODELS already exists.")
-            
+
 
         udf_check_query = f"SHOW USER FUNCTIONS LIKE 'SET_BOT_APP_LEVEL_KEY' IN SCHEMA;"
         try:
@@ -1565,7 +1590,7 @@ class SqliteConnector(DatabaseConnector):
         #     cursor = self.client.cursor()
         #     cursor.execute(check_llm_endpoint_query)
         #     columns = [col[0] for col in cursor.fetchall()]
-        #     
+        #
         #     if "LLM_ENDPOINT" not in columns:
         #         # Add LLM_ENDPOINT column if it doesn't exist
         #         alter_table_query = f"ALTER TABLE {self.genbot_internal_project_and_schema}.LLM_TOKENS ADD COLUMN LLM_ENDPOINT VARCHAR(16777216);"
@@ -1616,7 +1641,7 @@ class SqliteConnector(DatabaseConnector):
                 f"An error occurred while checking or creating table {self.slack_tokens_table_name}: {e}"
             )
 
-        bot_servicing_table_check_query = "SELECT name FROM sqlite_master WHERE type='table' and name like 'BOT_SERVICING'" 
+        bot_servicing_table_check_query = "SELECT name FROM sqlite_master WHERE type='table' and name like 'BOT_SERVICING'"
         try:
             cursor = self.client.cursor()
             cursor.execute(bot_servicing_table_check_query)
@@ -1833,13 +1858,13 @@ class SqliteConnector(DatabaseConnector):
                     logger.info(
                         f"An error occurred while checking or altering table {self.bot_servicing_table_name} to add BOT_IMPLEMENTATION column: {e}"
                     )
-                except Exception as e:
-                    logger.info(
-                        f"An error occurred while checking or altering table {metadata_table_id}: {e}"
-                    )
+                # except Exception as e:
+                #     logger.info(
+                #         f"An error occurred while checking or altering table {metadata_table_id}: {e}"
+                #     )
                 logger.info(f"Table {self.bot_servicing_table_name} already exists.")
             # # update bot servicing table bot avatars from shared images table
-            # insert_images_query = f"""            
+            # insert_images_query = f"""
             #     UPDATE  {self.bot_servicing_table_name}
             #     SET BOT_AVATAR_IMAGE = (
             #         SELECT ENCODED_IMAGE_DATA
@@ -1868,7 +1893,7 @@ class SqliteConnector(DatabaseConnector):
         finally:
             if cursor is not None:
                 cursor.close()
-        
+
         ngrok_tokens_table_check_query = "SELECT name FROM sqlite_master WHERE type='table' and name like 'NGROK_TOKENS'"
         try:
             cursor = self.client.cursor()
@@ -1969,7 +1994,7 @@ class SqliteConnector(DatabaseConnector):
 
         # CHAT HISTORY TABLE
         chat_history_table_id = self.message_log_table_name
-        chat_history_table_check_query = "SELECT name FROM sqlite_master WHERE type='table' and name like 'MESSAGE_LOG'"       
+        chat_history_table_check_query = "SELECT name FROM sqlite_master WHERE type='table' and name like 'MESSAGE_LOG'"
 
         # Check if the chat history table exists
         try:
@@ -1997,7 +2022,7 @@ class SqliteConnector(DatabaseConnector):
                 cursor.execute(chat_history_table_ddl)
                 self.client.commit()
                 logger.info(f"Table {self.message_log_table_name} created.")
-            else:                
+            else:
                 check_query = f"PRAGMA table_info([{chat_history_table_id}]);"
                 try:
                     cursor.execute(check_query)
@@ -2025,7 +2050,7 @@ class SqliteConnector(DatabaseConnector):
             )
 
         # KNOWLEDGE TABLE
-        knowledge_table_check_query = "SELECT name FROM sqlite_master WHERE type='table' and name like 'KNOWLEDGE'"       
+        knowledge_table_check_query = "SELECT name FROM sqlite_master WHERE type='table' and name like 'KNOWLEDGE'"
         # Check if the chat knowledge table exists
         try:
             cursor = self.client.cursor()
@@ -2162,7 +2187,7 @@ class SqliteConnector(DatabaseConnector):
                     )
 
             else:
-                # Check if the 'ddl_short' column exists in the metadata table                
+                # Check if the 'ddl_short' column exists in the metadata table
                 ddl_short_check_query = f"PRAGMA table_info([{self.metadata_table_name}]);"
                 try:
                     cursor.execute(ddl_short_check_query)
@@ -2184,7 +2209,7 @@ class SqliteConnector(DatabaseConnector):
 
         cursor = self.client.cursor()
 
-        cortex_threads_input_table_check_query = f"SELECT name FROM sqlite_master WHERE type='table' and name like 'CORTEX_THREADS_INPUT'"        
+        cortex_threads_input_table_check_query = f"SELECT name FROM sqlite_master WHERE type='table' and name like 'CORTEX_THREADS_INPUT'"
         try:
             cursor.execute(cortex_threads_input_table_check_query)
             if not cursor.fetchone():
@@ -2291,14 +2316,14 @@ class SqliteConnector(DatabaseConnector):
             if_exist = self.run_query(query)
             if if_exist[0]['CNT']: # udpate
                 query = f"""DROP FROM {self.metadata_table_name}              
-                        WHERE qualified_table_name = '{qualified_table_name}';"""                
-            self.run_insert(self.metadata_table_name, 
-                source_name=self.source_name, qualified_table_name=qualified_table_name, memory_uuid=memory_uuid, 
+                        WHERE qualified_table_name = '{qualified_table_name}';"""
+            self.run_insert(self.metadata_table_name,
+                source_name=self.source_name, qualified_table_name=qualified_table_name, memory_uuid=memory_uuid,
                 database_name=database_name, schema_name=schema_name, table_name=table_name,
                 complete_description=complete_description, ddl=ddl, ddl_short=ddl_short, ddl_hash=ddl_hash,
                 summary=summary, sample_data_text=sample_data_text, last_crawled_timestamp=last_crawled_timestamp,
                 crawl_status=crawl_status, role_used_for_crawl=role_used_for_crawl, **{embedding_target: json.dumps(embedding)})
-       
+
         except Exception as e:
             logger.info(f"An error occurred while executing the MERGE statement: {e}")
 
@@ -2357,7 +2382,7 @@ class SqliteConnector(DatabaseConnector):
             if os.environ.get('GENESIS_LOCAL_RUNNER', '').upper() != 'TRUE':
                 logger.info(f"Error checking cached metadata: {e}")
             return False
-            
+
     def get_metadata_from_cache(
         self, database_name: str, schema_name: str, table_name: str
     ):
@@ -2562,7 +2587,7 @@ class SqliteConnector(DatabaseConnector):
         cursor.close()
         return schemas
 
-    def get_tables(self, database, schema, thread_id=None):        
+    def get_tables(self, database, schema, thread_id=None):
         return [{'table_name': schema}]
 
     def get_columns(self, database, schema, table):
@@ -2598,8 +2623,8 @@ class SqliteConnector(DatabaseConnector):
         try:
             describe_result = self.run_query(query=describe_query, max_rows=1000, max_rows_override=True)
         except:
-            return None 
-        
+            return None
+
         ddl_statement = "CREATE TABLE " + table_name + " (\n"
         for column in describe_result:
             column_name = column['NAME']
@@ -2750,7 +2775,7 @@ class SqliteConnector(DatabaseConnector):
             results = cursor.fetchmany(max_rows)
             columns = [col[0].upper() for col in cursor.description]
             sample_data = [dict(zip(columns, row)) for row in results]
-        
+
         # Replace occurrences of triple backticks with triple single quotes in sample data
             sample_data = [
                 {key: (value.replace("```", "\`\`\`") if isinstance(value, str) else value) for key, value in row.items()}
@@ -3033,7 +3058,7 @@ class SqliteConnector(DatabaseConnector):
             with self.connection.cursor() as cursor:
                 cursor.execute(query, (runner_id,))
                 result = cursor.fetchone()
-                
+
             if result:
                 return llm_keys_and_types_struct(llm_type=result[1], llm_key=result[0], llm_endpoint=result[2])
             else:
@@ -5731,7 +5756,7 @@ class SqliteConnector(DatabaseConnector):
 
     def run_insert(self, table, **kwargs):
         keys = ','.join(kwargs.keys())
-        
+
         insert_query = f"""
             INSERT INTO {table} ({keys})
                 VALUES ({','.join(['?']*len(kwargs))})
@@ -5936,7 +5961,7 @@ class SqliteConnector(DatabaseConnector):
                 cursor.close()
 
         return
-    
+
 
     def get_llm_info(self, thread_id=None):
         """

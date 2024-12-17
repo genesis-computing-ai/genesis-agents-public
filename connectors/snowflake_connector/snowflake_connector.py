@@ -19,15 +19,13 @@ from datetime import datetime
 from llm_openai.openai_utils import get_openai_client
 
 from ..database_connector import DatabaseConnector, llm_keys_and_types_struct
+from ..sqlite_adapter import SQLiteAdapter
 from .sematic_model_utils import *
 from .stage_utils import add_file_to_stage, read_file_from_stage, update_file_in_stage, delete_file_from_stage, list_stage_contents, test_stage_functions
 from .ensure_table_exists import ensure_table_exists, one_time_db_fixes, get_process_info, get_processes_list
 
 from google_sheets.g_sheets import (
-    export_to_google_sheets,
     create_google_sheet,
-    create_folder_in_folder,
-    # upload_file_to_folder,
 )
 
 from core.bot_os_llm import BotLlmEngineEnum
@@ -44,7 +42,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.backends import default_backend
 import jwt
 
-from core.logging_config import logging, logger
+from core.logging_config import logger
 
 from snowflake.connector import SnowflakeConnection
 
@@ -74,37 +72,54 @@ class SnowflakeConnector(DatabaseConnector):
         super().__init__(connection_name)
         # logger.info('Snowflake connector entry...')
 
-        account, database, user, password, warehouse, role = [None] * 6
-
-        if bot_database_creds:
-            account = bot_database_creds.get("account")
-            database = bot_database_creds.get("database")
-            user = bot_database_creds.get("user")
-            password = bot_database_creds.get("pwd")
-            warehouse = bot_database_creds.get("warehouse")
-            role = bot_database_creds.get("role")
-
         # used to get the default value if not none, otherwise get env var. allows local mode to work with bot credentials
         def get_env_or_default(value, env_var):
             return value if value is not None else os.getenv(env_var)
 
-        self.account = get_env_or_default(account, "SNOWFLAKE_ACCOUNT_OVERRIDE")
-        self.user = get_env_or_default(user, "SNOWFLAKE_USER_OVERRIDE")
-        self.password = get_env_or_default(password, "SNOWFLAKE_PASSWORD_OVERRIDE")
-        self.database = get_env_or_default(database, "SNOWFLAKE_DATABASE_OVERRIDE")
-        self.warehouse = get_env_or_default(warehouse, "SNOWFLAKE_WAREHOUSE_OVERRIDE")
-        self.role = get_env_or_default(role, "SNOWFLAKE_ROLE_OVERRIDE")
-        self.source_name = "Snowflake"
+        if os.getenv("SQLITE_OVERRIDE", "").upper() == "TRUE":
+            # Use SQLite with compatibility layer
+            # Set default LLM engine to openai if not specified
+            if not os.getenv("BOT_OS_DEFAULT_LLM_ENGINE"):
+                os.environ["BOT_OS_DEFAULT_LLM_ENGINE"] = "openai"
+            db_path = os.getenv("SQLITE_DB_PATH", "genesis.db")
+            self.client = SQLiteAdapter(db_path)
+            self.connection = self.client
+            # Set other required attributes
+            self.schema = "main"  # SQLite default schema
+            self.database = db_path
+            self.source_name = "SQLite"
+            self.user = "local"
+        else:
+            account, database, user, password, warehouse, role = [None] * 6
 
-        self.default_data = pd.DataFrame()
+            if bot_database_creds:
+                account = bot_database_creds.get("account")
+                database = bot_database_creds.get("database")
+                user = bot_database_creds.get("user")
+                password = bot_database_creds.get("pwd")
+                warehouse = bot_database_creds.get("warehouse")
+                role = bot_database_creds.get("role")
 
-        # logger.info('Calling _create_connection...')
-        self.token_connection = False
-        self.connection: SnowflakeConnection = self._create_connection()
+            
+            self.account = get_env_or_default(account, "SNOWFLAKE_ACCOUNT_OVERRIDE")
+            self.user = get_env_or_default(user, "SNOWFLAKE_USER_OVERRIDE")
+            self.password = get_env_or_default(password, "SNOWFLAKE_PASSWORD_OVERRIDE")
+            self.database = get_env_or_default(database, "SNOWFLAKE_DATABASE_OVERRIDE")
+            self.warehouse = get_env_or_default(warehouse, "SNOWFLAKE_WAREHOUSE_OVERRIDE")
+            self.role = get_env_or_default(role, "SNOWFLAKE_ROLE_OVERRIDE")
+            self.source_name = "Snowflake"
 
-        self.semantic_models_map = {}
+            self.default_data = pd.DataFrame()
 
-        self.client = self.connection
+            # logger.info('Calling _create_connection...')
+            self.token_connection = False
+            self.connection: SnowflakeConnection = self._create_connection()
+
+            self.semantic_models_map = {}
+
+            self.client = self.connection
+
+
         self.schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "GENESIS_INTERNAL")
 
         if os.getenv("CORTEX_MODEL", None) is not None:
@@ -904,7 +919,7 @@ class SnowflakeConnector(DatabaseConnector):
 
                     merge_query = f"""
                     MERGE INTO {self.genbot_internal_project_and_schema}.EXT_SERVICE_CONFIG AS target
-                    USING (SELECT '{service_name}' AS ext_service_name, '{key}' AS parameter, '{value}' AS value) AS source
+                    USING (SELECT '{service_name}' AS ext_service_name, '{key}' AS parameter, '{value}' AS value, '{self.user}' as user) AS source
                     ON target.ext_service_name = source.ext_service_name AND target.parameter = source.parameter
                     WHEN MATCHED THEN
                         UPDATE SET
@@ -993,7 +1008,7 @@ class SnowflakeConnector(DatabaseConnector):
 
     def eai_test(self, site):
         try:
-            azure_endpoint = "https://example.com"
+
             eai_list_query = f"""CALL CORE.GET_EAI_LIST('{self.schema}')"""
             cursor = self.client.cursor()
             cursor.execute(eai_list_query)
@@ -1010,6 +1025,8 @@ class SnowflakeConnector(DatabaseConnector):
                     cursor = self.client.cursor()
                     cursor.execute(azure_query)
                     azure_endpoint = cursor.fetchone()
+                    if azure_endpoint is None or azure_endpoint == '':
+                        azure_endpoint = "https://example.com"
 
                 create_function_query = f"""
 CREATE OR REPLACE FUNCTION {self.project_id}.CORE.CHECK_URL_STATUS(site string)
@@ -1036,7 +1053,7 @@ def get_status(site):
     elif site == 'jira':
         url = "https://www.atlassian.net/jira/your-work"  # Replace with the allowed URL
     elif site == 'azureopenai':
-        url = {azure_endpoint}  # Replace with the allowed URL
+        url = "{azure_endpoint}"  # Replace with the allowed URL
     else:
         # TODO allow custom endpoints to be tested
         return f"Invalid site: {{site}}"
@@ -1109,8 +1126,16 @@ def get_status(site):
             list: An email address, if set.
         """
         try:
-            query = f"SELECT DEFAULT_EMAIL FROM {self.genbot_internal_project_and_schema}.DEFAULT_EMAIL"
+            # Check if DEFAULT_EMAIL table exists
+            check_table_query = f"SHOW TABLES LIKE 'DEFAULT_EMAIL' IN {self.genbot_internal_project_and_schema}"
             cursor = self.client.cursor()
+            cursor.execute(check_table_query)
+            table_exists = cursor.fetchone() is not None
+
+            if not table_exists:
+                return {"Success": False, "Error": "Default email is not set because the DEFAULT_EMAIL table does not exist."}
+
+            query = f"SELECT DEFAULT_EMAIL FROM {self.genbot_internal_project_and_schema}.DEFAULT_EMAIL"
             cursor.execute(query)
             email_info = cursor.fetchall()
             columns = [col[0].lower() for col in cursor.description]
@@ -1699,18 +1724,22 @@ def get_status(site):
 
     def _create_connection(self):
         # Snowflake token testing
+
+        if os.getenv("SQLITE_OVERRIDE", "").upper() == "TRUE":
+            return self.client
+
         self.token_connection = False
         #  logger.warn('Creating connection..')
         SNOWFLAKE_ACCOUNT = os.getenv("SNOWFLAKE_ACCOUNT", self.account)
         SNOWFLAKE_HOST = os.getenv("SNOWFLAKE_HOST", None)
         logger.info("Checking possible SPCS ENV vars -- Account, Host: {}, {}".format(SNOWFLAKE_ACCOUNT, SNOWFLAKE_HOST))
 
-        #     logger.info("SNOWFLAKE_HOST: %s", os.getenv("SNOWFLAKE_HOST"))
-        #     logger.info("SNOWFLAKE_ACCOUNT: %s", os.getenv("SNOWFLAKE_ACCOUNT"))
-        #     logger.info("SNOWFLAKE_PORT: %s", os.getenv("SNOWFLAKE_PORT"))
+   #     logger.info("SNOWFLAKE_HOST: %s", os.getenv("SNOWFLAKE_HOST"))
+   #     logger.info("SNOWFLAKE_ACCOUNT: %s", os.getenv("SNOWFLAKE_ACCOUNT"))
+   #     logger.info("SNOWFLAKE_PORT: %s", os.getenv("SNOWFLAKE_PORT"))
         #  logger.warn('SNOWFLAKE_WAREHOUSE: %s', os.getenv('SNOWFLAKE_WAREHOUSE'))
-        #     logger.info("SNOWFLAKE_DATABASE: %s", os.getenv("SNOWFLAKE_DATABASE"))
-        #     logger.info("SNOWFLAKE_SCHEMA: %s", os.getenv("SNOWFLAKE_SCHEMA"))
+   #     logger.info("SNOWFLAKE_DATABASE: %s", os.getenv("SNOWFLAKE_DATABASE"))
+   #     logger.info("SNOWFLAKE_SCHEMA: %s", os.getenv("SNOWFLAKE_SCHEMA"))
 
         if (SNOWFLAKE_ACCOUNT and SNOWFLAKE_HOST and os.getenv("SNOWFLAKE_PASSWORD_OVERRIDE", None) == None):
             # token based connection from SPCS
@@ -2136,6 +2165,7 @@ def get_status(site):
         note_type = None,
         max_field_size = 5000,
         export_to_google_sheet = False,
+        export_title=None
     ):
         """
         Executes a SQL query on Snowflake, with support for parameterized queries.
@@ -2235,6 +2265,9 @@ def get_status(site):
 
         if max_rows > 100 and not max_rows_override:
             max_rows = 100
+
+        if export_to_google_sheet:
+            max_rows = 500
 
         #   logger.info('running query ... ', query)
         cursor = self.connection.cursor()
@@ -2339,9 +2372,9 @@ def get_status(site):
 
         def get_root_folder_id():
             cursor = self.connection.cursor()
-            cursor.execute(
-                f"call core.run_arbitrary($$ grant read,write on stage app1.bot_git to application role app_public $$);"
-            )
+            # cursor.execute(
+            #     f"call core.run_arbitrary($$ grant read,write on stage app1.bot_git to application role app_public $$);"
+            # )
 
             query = f"SELECT value from {self.schema}.EXT_SERVICE_CONFIG WHERE ext_service_name = 'g-sheets' AND parameter = 'shared_folder_id' and user = '{self.user}'"
             cursor.execute(query)
@@ -2352,74 +2385,19 @@ def get_status(site):
             else:
                 raise Exception("Missing shared folder ID")
 
-        if query.casefold() == 'SELECT * FROM "GENESIS_GXS"."REQUIREMENTS"."FLEXICARD_PM";'.casefold():
-
-            root_folder_id = get_root_folder_id()
-            # root_folder_id = "1t0RJsOSgwksy2IH-pQtMbGVgrIaBI_-Y"
-
+        if export_to_google_sheet:
             from datetime import datetime
 
-            print(f"Root Folder ID: {root_folder_id}")
-
+            shared_folder_id = get_root_folder_id()
             timestamp = datetime.now().strftime("%m%d%Y_%H:%M:%S")
-            parent_folder_id = create_folder_in_folder(
-                "gxs_" + timestamp, root_folder_id, self.user
-            )
 
-            subfolder_id = {}
-            for key in ['GIT_SOURCE_RESEARCH', 'GIT_MAPPING_PROPOSAL', 'GIT_CONFIDENCE_OUTPUT']:
-                subfolder_id[key] = create_folder_in_folder(key, parent_folder_id, self.user)
-
-            links = {}
-            for data in sample_data:
-                print(data['GIT_SOURCE_RESEARCH'], data ['GIT_MAPPING_PROPOSAL'], data['GIT_CONFIDENCE_OUTPUT'])
-
-                for key in ['GIT_SOURCE_RESEARCH', 'GIT_MAPPING_PROPOSAL', 'GIT_CONFIDENCE_OUTPUT']:
-                    file_contents = read_file_from_stage(
-                        self,
-                        "GENESIS_BOTS_ALPHA",
-                        "APP1",
-                        "BOT_GIT",
-                        data[key].replace("@genesis_bots_alpha.app1.bot_git/", ""),
-                        return_file_path=True,
-                    )
-
-                    file_name = data[key].replace(
-                        "@genesis_bots_alpha.app1.bot_git/", ""
-                    ).split("/")[-1]
-
-                    # create text docs in sub-folder
-                    links[key] = export_to_google_sheets(file_contents, subfolder_id[key], file_name, self.name)
-
-                # write text docs ID's back to table
-                cursor = self.connection.cursor()
-                query = f"""
-                    UPDATE "GENESIS_GXS"."REQUIREMENTS"."FLEXICARD_PM"
-                    SET
-                    GIT_SOURCE_RESEARCH_DOC_LINK = '{links["GIT_SOURCE_RESEARCH"]}',
-                    GIT_MAPPING_PROPOSAL_DOC_LINK = '{links["GIT_MAPPING_PROPOSAL"]}',
-                    GIT_CONFIDENCE_OUTPUT_DOC_LINK = '{links["GIT_CONFIDENCE_OUTPUT"]}'
-                    WHERE
-                    PHYSICAL_COLUMN_NAME = '{data['PHYSICAL_COLUMN_NAME']}'
-                """
-                result = cursor.execute(query)
-                cursor.close()
-
-        elif export_to_google_sheet:
-            # get user's shared folder ID
-            cursor = self.connection.cursor()
-            query = f"SELECT value from {self.schema}.EXT_SERVICE_CONFIG WHERE ext_service_name = 'g-sheets' AND parameter = 'shared_folder_id' and user = '{self.user}'"
-            cursor.execute(query)
-            if cursor.rowcount > 0:
-                shared_folder_id = cursor.fetchone()[0]
-
-            result = create_google_sheet(shared_folder_id, self.user, 'test google sheet', sample_data )
-            # print_string = dict_list_to_markdown_table(sample_data)
-            # link = export_to_google_sheets(print_string, shared_folder_id, self.user)
+            if export_title is None:
+                export_title = 'Genesis Export'
+            result = create_google_sheet(self, shared_folder_id['result'], title=f"{export_title}", data=sample_data )
 
             return {
                 "Success": True,
-                "result": "Data sent to Google Sheets - Link: " + result["webViewLink"],
+                "result": f'Data sent to Google Sheets - Link to folder: {result["folder_url"]} | Link to file: {result["file_url"]}'
             }
 
         return sample_data
@@ -3281,7 +3259,7 @@ def get_status(site):
                 bot_details = dict(zip(columns, result))
                 return bot_details
             else:
-                logger.error(f"No details found for bot_id: {bot_id}")
+                logger.info(f"No details found for bot_id: {bot_id} in {project_id}.{dataset_name}.{bot_servicing_table}")
                 return None
         except Exception as e:
             logger.exception(
@@ -4410,7 +4388,7 @@ result = 'Table FAKE_CUST created successfully.'
                         note_name = None,
                         note_type = None,
                         return_base64 = False,
-                        save_artifacts=True) -> str:
+                        save_artifacts=True) -> str|dict:
         """
         Executes a given Python code snippet within a Snowflake Snowpark environment, handling various
         scenarios such as code retrieval from notes, package management, and result processing.
@@ -4754,3 +4732,22 @@ result = 'Table FAKE_CUST created successfully.'
         if (bot_id not in ['eva-x1y2z3', 'Armen2-ps73td','MrsEliza-3348b2', os.getenv("O1_OVERRIDE_BOT","")]) and (bot_id is not None and not bot_id.endswith('-o1or')):
             result = self.add_hints(purpose, result, code, packages)
         return result
+
+    def db_get_user_extended_tools(self, project_id, dataset_name) -> list[dict]:
+        #runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
+        cursor = self.client.cursor()
+
+        try:
+            cursor.execute(f"SELECT TOOL_NAME, TOOL_DESCRIPTION, PARAMETERS FROM {project_id}.{dataset_name}.USER_EXTENDED_TOOLS")# WHERE RUNNER_ID = '{runner_id}'")
+            user_extended_tools_data = cursor.fetchall()
+            user_extended_tools = []
+            for tool in user_extended_tools_data:
+                user_extended_tools.append({
+                    "tool_name": tool[0],
+                    "tool_description": tool[1],
+                    "parameters": json.loads(tool[2])
+                })
+            return user_extended_tools
+        except Exception as e:
+            logger.error(f"Failed to fetch user extended tools definitions: {e}")
+            return []

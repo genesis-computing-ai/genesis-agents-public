@@ -12,20 +12,19 @@ def config_g_sheets():
     st.session_state.setdefault("google_eai_available", False)
     st.session_state.setdefault("eai_reference_name", "google_external_access")
 
-    # Check if Slack External Access Integration (EAI) is available
-    if not st.session_state.google_eai_available:
+    # Check if Slack External Access Integration (EAI) is available and in Native Mode
+    if not st.session_state.google_eai_available and st.session_state.get("NativeMode", False) == True:
         try:
             eai_status = check_eai_status("google")
             if eai_status:
                 st.session_state.google_eai_available = True
                 st.success("Google External Access Integration is available.")
             else:
-                # Request EAI if not available and in Native Mode
-                if st.session_state.get("NativeMode", False) == True:
-                    ref = get_references(st.session_state.eai_reference_name)
-                    if not ref:
-                        import snowflake.permissions as permissions
-                        permissions.request_reference(st.session_state.eai_reference_name)
+                # Request EAI if not available
+                ref = get_references(st.session_state.eai_reference_name)
+                if not ref:
+                    import snowflake.permissions as permissions
+                    permissions.request_reference(st.session_state.eai_reference_name)
         except Exception as e:
             st.error(f"Failed to check EAI status: {e}")
 
@@ -60,7 +59,9 @@ def config_g_sheets():
     )
 
     st.markdown(
-        '<p class="big-font">Add information from your Google Worksheets service account. \n(#TODO) Explainer on how to set up Google Projects/Service account</p>',
+        '<p class="big-font">Add information from your Google Worksheets service account. Use links for Google Projects & Service account set-up and Google Drive set-up </p>\n'
+        '<a href="https://drive.google.com/file/d/11yhXV5fTRgE10F2OI_2w5w6njkxf7EVW/view?usp=drive_link" target="_blank">GCP Service Account Set Up\n\n'
+        '<a href="https://drive.google.com/file/d/1jWUxGg4Tr_E5iVg5PQZtBfytNBtN_kW0/view?usp=drive_link" target="_blank">Connect Genesis to Google Drive</a>',
         unsafe_allow_html=True,
     )
 
@@ -128,8 +129,7 @@ def config_g_sheets():
             except Exception as e:
                 st.error(f"Error configuring Google API params: {e}")
 
-
-                st.success("Google Worksheet API parameters configured successfully.")
+            st.success("Google Worksheet API parameters configured successfully.")
 
         st.info(
             "If you need any assistance, please check our [documentation](https://genesiscomputing.ai/docs/) or join our [Slack community](https://communityinviter.com/apps/genesisbotscommunity/genesis-bots-community)."

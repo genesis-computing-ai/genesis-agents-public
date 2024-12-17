@@ -75,7 +75,7 @@ def get_llm_api_key(db_adapter):
                     logger.info(f"BOTS ACTIVE TIME: {result[0]} | CURRENT TIME: {current_time} | TIME DIFFERENCE: {time_difference} | producer")
                     ii = 0
 
-                if time_difference < timedelta(minutes=5):
+                if time_difference < timedelta(minutes=5) or os.getenv("HARVEST_TEST", "false").lower() == "true":
                     wake_up = True
                 else:
                     time.sleep(refresh_seconds)
@@ -169,7 +169,7 @@ logger.info("   ╱         ╲   ")
 logger.info("  G E N E S I S ")
 logger.info("    B o t O S")
 logger.info(" ---- HARVESTER----")
-logger.info('****** GENBOT VERSION 0.202 *******')
+logger.info('****** GENBOT VERSION 0.300 *******')
 
 
 while True:

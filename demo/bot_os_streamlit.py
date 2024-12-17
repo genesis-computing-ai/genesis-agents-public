@@ -9,6 +9,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from connectors.database_tools import (
     bind_run_query,
     bind_search_metadata,
+    bind_search_metadata_detailed,
     database_tool_functions,
 )
 

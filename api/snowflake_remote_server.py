@@ -1,11 +1,11 @@
 import uuid
 from snowflake.connector import SnowflakeConnection
-from genesis_base import GenesisMetadataStore, GenesisServer, SnowflakeMetadataStore
+from api.genesis_base import GenesisMetadataStore, GenesisServer, SnowflakeMetadataStore
 import os
 import urllib.parse
 
 class GenesisSnowflakeServer(GenesisServer):
-    def __init__(self, scope, sub_scope, bot_list=None):
+    def __init__(self, scope, sub_scope, bot_list=None, fast_start=False):
         super().__init__(scope, sub_scope)
         self.conn = SnowflakeConnection(
             account=os.getenv("SNOWFLAKE_ACCOUNT_OVERRIDE"),
@@ -20,7 +20,7 @@ class GenesisSnowflakeServer(GenesisServer):
     def get_metadata_store(self) -> GenesisMetadataStore:
         return SnowflakeMetadataStore(self.scope, self.sub_scope)
     
-    def add_message(self, bot_id, message, thread_id):
+    def add_message(self, bot_id, message, thread_id) -> str|dict:
         if not thread_id:
             thread_id = str(uuid.uuid4())
         message = urllib.parse.quote(message)

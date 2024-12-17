@@ -176,8 +176,8 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
    all_functions_backup = None
 
    def __init__(self, name:str, instructions:str,
-                tools:list[dict] = {}, available_functions={}, files=[],
-                update_existing=False, log_db_connector=None, bot_id='default_bot_id', bot_name='default_bot_name', all_tools:list[dict]={}, all_functions={},all_function_to_tool_map={}, skip_vectors=False, assistant_id = None) -> None:
+                tools:list[dict] = [], available_functions={}, files=[],
+                update_existing=False, log_db_connector=None, bot_id='default_bot_id', bot_name='default_bot_name', all_tools:list[dict]=[], all_functions={},all_function_to_tool_map={}, skip_vectors=False, assistant_id = None) -> None:
       logger.debug("BotOsAssistantOpenAI:__init__")
       super().__init__(name, instructions, tools, available_functions, files, update_existing, skip_vectors=False, bot_id=bot_id, bot_name=bot_name)
 
@@ -235,11 +235,23 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       self.internal_schema_name = self.db_schema[1]
 
       my_assistant = None
+      # Try loading assistant ID from cache if not provided
+      if assistant_id is None:
+          try:
+              map_file = f'./tmp/bot_maps/{self.bot_id}.map'
+              if os.path.exists(map_file):
+                  with open(map_file, 'r') as f:
+                      assistant_id = f.read().strip()
+                      logger.info(f'Loaded assistant ID {assistant_id} from cache for bot {name}')
+          except Exception as e:
+              logger.warning(f'Failed to load bot-assistant mapping from cache: {str(e)}')
+
       if assistant_id is not None:
          try:
             logger.info(f'loading assistant {assistant_id} for bot {name}...')
             my_assistant = self.client.beta.assistants.retrieve(assistant_id=assistant_id)
             self.assistant = my_assistant
+            my_assistants = [my_assistant]
          except Exception as e:
             my_assistant = None
 
@@ -251,6 +263,8 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
          logger.info('finding assistant...')
 
          my_assistants = [a for a in my_assistants if a.name == name]
+
+      if True:
          if len(my_assistants) == 0 and update_existing:
             instructions += "\n" + BASE_BOT_OPENAI_INSTRUCTIONS
             vector_store_name = self.bot_id + '_vectorstore'
@@ -284,6 +298,16 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
          elif len(my_assistants) > 0:
             self.assistant = my_assistants[0]
             logger.info('assistant found for bot ',name,': ',self.assistant.id,'. You can provide this parameter in your bot_list to speed session creation.')
+            # Save mapping between bot_id and assistant_id
+            try:
+                os.makedirs('./tmp/bot_maps', exist_ok=True)
+                map_file = f'./tmp/bot_maps/{self.bot_id}.map'
+                with open(map_file, 'w') as f:
+                    f.write(self.assistant.id)
+            except Exception as e:
+                logger.warning(f'Failed to save bot-assistant mapping: {str(e)}')
+
+       #  if os.getenv("API_MODE", "false").lower() == "true" and self.assistant is not None:
 
          if os.getenv("TASK_MODE", "false").lower() == "true":
             # dont do this for the TASK SERVER, just have it use the existing assistant being managed by the MultiBot Runner Process
@@ -346,9 +370,9 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
    def get_done_map(self) -> dict:
       return self.done_map
 
-   @staticmethod
-   def load_by_name(name: str):
-      return BotOsAssistantOpenAI(name, update_existing=False)
+   #@staticmethod
+   #def load_by_name(name: str):
+   #   return BotOsAssistantOpenAI(name, update_existing=False)
 
    def update_vector_store(self, vector_store_id: str, files: list=None, plain_files: list=None, for_bot = None):
 

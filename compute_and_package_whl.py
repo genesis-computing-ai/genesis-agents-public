@@ -52,7 +52,7 @@ def compile_and_package(project_dir, public_files, exclude=None, output_dir="dis
                     dest_path = os.path.join(dest, os.path.relpath(root, src), sanitized_file)
                     os.makedirs(os.path.dirname(dest_path), exist_ok=True)
                     shutil.copy2(src_path, dest_path)
-                else:   
+                else:
                     print(f"Skipping {src_path} because it should be excluded")
 
     print(f"Copying project from {project_dir} to temporary directory: {temp_project_dir}")
@@ -60,7 +60,7 @@ def compile_and_package(project_dir, public_files, exclude=None, output_dir="dis
 
     # Build the compiled package
     build_compiled_package(temp_project_dir, output_dir, package_name, version, public_files, project_dir, abs_exclude)
-    
+
     # After building the compiled wheel build the public package
     whl_files = glob.glob(os.path.join(output_dir, f"{package_name}-{version}-*.whl"))
     if len(whl_files) == 1:
@@ -68,7 +68,7 @@ def compile_and_package(project_dir, public_files, exclude=None, output_dir="dis
     else:
         # Handle error: either no files or multiple matches
         raise RuntimeError("Could not uniquely identify the compiled wheel.")
-    
+
     create_public_package(temp_dir, public_package_name, public_files, output_dir, version, compiled_package_name=package_name, compiled_whl_path=post_build_compiled_whl_path)
 
     # Cleanup
@@ -153,7 +153,7 @@ this_directory = os.path.abspath(os.path.dirname(__file__))
 
 with open(os.path.join(this_directory, "requirements.txt")) as f:
     required = f.read().splitlines()
-                
+
 class bdist_wheel(_bdist_wheel):
     def finalize_options(self):
         super().finalize_options()
@@ -240,7 +240,7 @@ setup(
 
     # Build the public wheel
     print("Building public API package...")
-    subprocess.check_call(["python", public_setup_script, "bdist_wheel", "--dist-dir", output_dir], 
+    subprocess.check_call(["python", public_setup_script, "bdist_wheel", "--dist-dir", output_dir],
                           cwd=public_package_dir)
     public_whl_path = os.path.join(output_dir, f"{public_package_name}-{version}-py3-none-any.whl")
     print(f"Public package saved to: {public_whl_path}")
@@ -264,13 +264,15 @@ if __name__ == "__main__":
         os.path.join(project_directory, ".git"),
         os.path.join(project_directory, "build"),
         os.path.join(project_directory, "bot_git"),
-        os.path.join(project_directory, "genesis_api_whl"),    
+        os.path.join(project_directory, "genesis_api_whl"),
         os.path.join(project_directory, "app engine"),
         os.path.join(project_directory, "experimental"),
         os.path.join(project_directory, "teams/app.py"),
         os.path.join(project_directory, "tests/hello_world_regtest_01_local.py"),
         os.path.join(project_directory, "demo/bot_os_streamlit.py"),
         os.path.join(project_directory, "app_engine"),
+        os.path.join(project_directory, "genesis_voice"),
+        os.path.join(project_directory, "spider_load"),
     ]
     output_directory = "dist"
 

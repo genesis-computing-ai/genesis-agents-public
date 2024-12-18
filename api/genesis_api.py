@@ -10,7 +10,7 @@ from   api.genesis_base         import (GenesisBot, GenesisKnowledge,
 class GenesisAPI:
 
     def __init__(self,
-                 scope:str,
+                 scope:str=None,
                  sub_scope:str="app1",
                  bot_list=None,
                  server_type: type = GenesisLocalServer,

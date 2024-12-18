@@ -1294,7 +1294,7 @@ class SqliteConnector(DatabaseConnector):
         folder_path = 'golden_defaults/golden_processes'
         self.process_data = pd.DataFrame()
 
-        files = glob.glob(os.path.join(folder_path, '*'))
+        files = glob.glob(os.path.join(folder_path, '*.yaml'))
 
         for filename in files:
             with open(filename, 'r') as file:
@@ -3068,7 +3068,7 @@ class SqliteConnector(DatabaseConnector):
             logger.error("Error retrieving LLM tokens: %s", str(e))
             return llm_keys_and_types_struct()
 
-    def db_get_active_llm_key(self) -> list[llm_keys_and_types_struct]:
+    def db_get_active_llm_key(self) -> llm_keys_and_types_struct:
         """
         Retrieves the active LLM key and type for the given runner_id.
 
@@ -3079,7 +3079,7 @@ class SqliteConnector(DatabaseConnector):
         logger.info("in getllmkey")
         # Query to select the LLM key and type from the llm_tokens table
         query = f"""
-            SELECT llm_key, llm_type, llm_endpoint
+            SELECT llm_key, llm_type, llm_endpoint, model_name, embedding_model_name
             FROM llm_tokens
             WHERE runner_id = ? and active = True
         """
@@ -3091,14 +3091,14 @@ class SqliteConnector(DatabaseConnector):
             cursor.close()
 
             if result:
-                return result[0], result[1], result[2]  # Return llm_key and llm_type as a tuple
+                return llm_keys_and_types_struct(llm_type=result[1], llm_key=result[0], llm_endpoint=result[2], model_name=result[3], embedding_model_name=result[4])
             else:
-                return None, None  # Return None if no result found
+                return llm_keys_and_types_struct()  # Return None if no result found
         except Exception as e:
             logger.info(
                 "LLM_TOKENS table not yet created, returning empty list, try again later."
             )
-            return []
+            return llm_keys_and_types_struct()
 
     def db_set_llm_key(self, llm_key, llm_type, project_id=None, dataset_name=None):
         """

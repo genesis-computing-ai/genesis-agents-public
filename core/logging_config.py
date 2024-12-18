@@ -58,6 +58,23 @@ class GenesisLogger(logging.Logger):
 # with an additional frame, messing up the caller info above.
 GenesisLogger.warn = GenesisLogger.warning
 
+class _ColoredLogRecordFormatter(logging.Formatter):
+    def format(self, record):
+        if record.levelno > logging.INFO:
+            level_color = None
+            # Special formatting for level > INFO
+            if record.levelname == 'ERROR':
+                level_color = '\033[91m'  # Red
+                record.msg = f"{level_color}{record.msg}\033[0m"  # Make the whole message red as well
+            elif record.levelname == 'WARNING':
+                level_color = '\033[93m'  # Yellow
+            elif record.levelname == 'TELEMETRY':
+                level_color = '\033[94m'  # Blue
+            if level_color:
+                record.levelname = f"{level_color}{record.levelname}\033[0m"
+
+        return super().format(record)
+
 
 def _setup_genesis_logger(name=GENESIS_LOGGER_NAME):
     logging.setLoggerClass(GenesisLogger)
@@ -80,8 +97,8 @@ def _setup_genesis_logger(name=GENESIS_LOGGER_NAME):
     if not logger.handlers:
         console_handler = logging.StreamHandler(sys.stdout)  # handles all logging levels by default
 
-        # Update formatter to use custom attributes
-        formatter = logging.Formatter(GENESIS_LOGGER_FOMRAT)
+        # Use the ColoredFormatter instead of the default formatter
+        formatter = _ColoredLogRecordFormatter(GENESIS_LOGGER_FOMRAT)
         console_handler.setFormatter(formatter)
         logger.addHandler(console_handler)
 

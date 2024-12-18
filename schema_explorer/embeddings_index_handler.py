@@ -325,7 +325,7 @@ def load_or_create_embeddings_index(table_id, refresh=True):
             try:
                 annoy_index.load(os.path.join(index_file_path,index_file_name))
             except Exception as e:
-                logger.info('Error on annoy_index.load: ',e)
+                logger.debug('Error on annoy_index.load: ',e)
            # logger.info(f'index  now {annoy_index}')
 
             # Load the metadata mapping
@@ -342,8 +342,8 @@ def load_or_create_embeddings_index(table_id, refresh=True):
                 try:
                     annoy_index.save(os.path.join(index_file_path,copy_index_file_name))
                 except Exception as e:
-                    logger.info('I cannot save save annoy index')
-                    logger.info(e)
+                    logger.debug('I cannot save save annoy index')
+                    logger.debug(e)
 
                 with open(os.path.join(index_file_path,copy_meta_file_name), 'w') as f:
                     json.dump(metadata_mapping, f)

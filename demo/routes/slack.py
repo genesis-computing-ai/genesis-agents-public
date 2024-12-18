@@ -83,8 +83,8 @@ def bot_install_followup(bot_id=None, no_slack=False):
             bot_config["slack_active"] = "N"
         new_session, api_app_id, udf_local_adapter, slack_adapter_local = make_session(
             bot_config=bot_config,
-            db_adapter=db_adapter,
-            bot_id_to_udf_adapter_map=bot_id_to_udf_adapter_map,
+            db_adapter=genesis_app.db_adapter,
+            bot_id_to_udf_adapter_map=genesis_app.bot_id_to_udf_adapter_map,
             stream_mode=True,
             data_cubes_ingress_url=data_cubes_ingress_url,
         )

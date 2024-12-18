@@ -153,7 +153,7 @@ def get_metadata():
             if "BOT_LLMS" in os.environ and os.environ["BOT_LLMS"]:
                 result = {"Success": True, "Data": os.environ["BOT_LLMS"]}
             else:
-                result = {"Success": False, "Message": result["Error"]}
+                result = {"Success": False, "Error": "Environment variable not set"}
         elif metadata_type.startswith('test_email '):
             email = metadata_type.split('test_email ')[1].strip()
             result = genesis_app.db_adapter.send_test_email(email)

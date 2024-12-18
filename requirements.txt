@@ -41,7 +41,7 @@ boto3==1.35.72
 markdown
 cython
 tenacity
-dagster
+dagster==1.9.5
 #dagster-cloud
 dagster-graphql
 dagster-spark

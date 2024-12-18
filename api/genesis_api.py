@@ -16,6 +16,9 @@ class GenesisAPI:
                  server_type: type = GenesisLocalServer,
                  fast_start=False
                  ):
+        # Set default environment variables if not already set
+        import os
+        os.environ["GENESIS_SOURCE"] = "Snowflake"  # should always be Snowflake as all metadata goes through Snowflake Connector even when
         self.scope = scope
         self.sub_scope = sub_scope
         self.registered_server: GenesisServer = server_type(scope, sub_scope, bot_list=bot_list, fast_start=fast_start)

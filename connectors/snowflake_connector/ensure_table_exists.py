@@ -8,6 +8,7 @@ import random
 import string
 from   textwrap                 import dedent
 import yaml
+from ..sqlite_adapter import SQLiteAdapter
 
 from   core.bot_os_defaults     import (BASE_EVE_BOT_INSTRUCTIONS,
                                         ELIZA_INTRO_PROMPT, EVE_INTRO_PROMPT,
@@ -158,7 +159,12 @@ def ensure_table_exists(self):
 
 
     def _check_table_exists(tbl_name):
-        ''' return true if tbl_name (unauliafied) exists is self.schema '''
+        ''' return true if tbl_name (unqualified) exists in self.schema '''
+        sqlite = isinstance(self.client, SQLiteAdapter)
+        if sqlite:
+            with self.client.cursor() as cursor:
+                cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (tbl_name,))
+                return cursor.fetchone() is not None
         return tbl_name in all_schema_tables
 
 
@@ -1093,7 +1099,7 @@ def ensure_table_exists(self):
 
         insert_initial_row_query = f"""
         MERGE INTO {self.bot_servicing_table_name} AS target
-        USING (SELECT %s AS RUNNER_ID, %s AS BOT_ID, %s AS BOT_NAME, %s AS BOT_INSTRUCTIONS,
+        USING (SELECT %s AS BOT_ID, %s AS RUNNER_ID, %s AS BOT_NAME, %s AS BOT_INSTRUCTIONS,
                         %s AS AVAILABLE_TOOLS, %s AS UDF_ACTIVE, %s AS SLACK_ACTIVE, %s AS BOT_INTRO_PROMPT) AS source
         ON target.BOT_ID = source.BOT_ID
         WHEN MATCHED THEN
@@ -1106,15 +1112,15 @@ def ensure_table_exists(self):
                 SLACK_ACTIVE = source.SLACK_ACTIVE,
                 BOT_INTRO_PROMPT = source.BOT_INTRO_PROMPT
         WHEN NOT MATCHED THEN
-            INSERT (RUNNER_ID, BOT_ID, BOT_NAME, BOT_INSTRUCTIONS, AVAILABLE_TOOLS, UDF_ACTIVE, SLACK_ACTIVE, BOT_INTRO_PROMPT)
-            VALUES (source.RUNNER_ID, source.BOT_ID, source.BOT_NAME, source.BOT_INSTRUCTIONS,
+            INSERT (BOT_ID, RUNNER_ID, BOT_NAME, BOT_INSTRUCTIONS, AVAILABLE_TOOLS, UDF_ACTIVE, SLACK_ACTIVE, BOT_INTRO_PROMPT)
+            VALUES (source.BOT_ID, source.RUNNER_ID, source.BOT_NAME, source.BOT_INSTRUCTIONS,
                     source.AVAILABLE_TOOLS, source.UDF_ACTIVE, source.SLACK_ACTIVE, source.BOT_INTRO_PROMPT);
         """
         cursor.execute(
             insert_initial_row_query,
             (
-                runner_id,
                 bot_id,
+                runner_id,
                 bot_name,
                 bot_instructions,
                 available_tools,

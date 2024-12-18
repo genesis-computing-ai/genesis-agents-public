@@ -14,8 +14,8 @@ import core.global_flags as global_flags
 class GenesisLocalServer(GenesisServer):
     def __init__(self, scope, sub_scope="app1", bot_list=None, fast_start=False):
         super().__init__(scope, sub_scope)
-        if os.getenv("SQLITE_OVERRIDE") == "True":
-            self.db_source = "SQLITE"
+        if os.getenv("SQLITE_OVERRIDE",'Snowflake').lower() == "true": # should ALWAYS be Snowflake even for SQLite
+            self.db_source = "Snowflake"
         else:
             self.db_source = "Snowflake"
         self.set_global_flags(fast_start=fast_start)
@@ -90,7 +90,7 @@ class GenesisLocalServer(GenesisServer):
             #db_adapter.create_google_sheets_creds()
 
     def get_metadata_store(self) -> GenesisMetadataStore:
-        if os.getenv("SQLITE_OVERRIDE") == "True":
+        if os.getenv("SQLITE_OVERRIDE", "false").lower() == "true":
             return SqliteMetadataStore(self.scope, self.sub_scope)
         else:
             return SnowflakeMetadataStore(self.scope, self.sub_scope)

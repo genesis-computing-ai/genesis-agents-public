@@ -8,6 +8,8 @@ import os
 import json
 from datetime import datetime
 from snowflake.connector import SnowflakeConnection
+from connectors.sqlite_adapter import SQLiteAdapter
+from connectors import get_global_db_connector
 import pandas as pd
 
 class GenesisBot(BaseModel):
@@ -249,7 +251,7 @@ class DatabaseMetadataStore(GenesisMetadataStore):
             raise ValueError(f"Unknown metadata type: {metadata_type}")
         if not fields_to_return:
             fields_to_return = [filter_column] + ([second_filter_field] if second_filter_field is not None else [])
-        query = f"SELECT {', '.join(fields_to_return)} FROM {self.sub_scope}.{table_name}"
+        query = f"SELECT {', '.join(fields_to_return)} FROM {self.scope}.{self.sub_scope}.{table_name}"
         params = []
         if first_filter:
             query += f" WHERE {filter_column} = %s"
@@ -269,8 +271,12 @@ class DatabaseMetadataStore(GenesisMetadataStore):
                 metadata_list = pd.DataFrame(metadata_list, columns=fields_to_return)
                 metadata_list = metadata_list.to_dict(orient="records")
             else:
+                db_adapter = get_global_db_connector(os.getenv("GENESIS_SOURCE", "SNOWFLAKE"))
+                cursor = db_adapter.connection.cursor()
                 cursor.execute(query, params)
-                metadata_list = cursor.fetch_pandas_all().to_dict(orient="records")
+                metadata_list = cursor.fetchall()
+                metadata_list = pd.DataFrame(metadata_list, columns=fields_to_return)
+                metadata_list = metadata_list.to_dict(orient="records")
             metadata_list = [item.get(filter_column) for item in metadata_list]
         except Exception as e:
             print(f"Error getting metadata: {e}")

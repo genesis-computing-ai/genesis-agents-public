@@ -1,4 +1,5 @@
 from abc import ABC
+import sqlite3
 from pydantic import BaseModel
 import sys
 from pydantic import BaseModel
@@ -144,7 +145,7 @@ class LocalMetadataStore(GenesisMetadataStore):
 
         return metadata_list
 
-class SnowflakeMetadataStore(GenesisMetadataStore):
+class DatabaseMetadataStore(GenesisMetadataStore):
     metadata_type_mapping: Dict[str, Tuple[str, str, Optional[str]]] = {
         "GenesisBot": ("BOT_SERVICING", "BOT_ID", None),
         "GenesisProject": ("PROJECTS", "PROJECT_ID", None),
@@ -158,17 +159,12 @@ class SnowflakeMetadataStore(GenesisMetadataStore):
     }
     conn: SnowflakeConnection = None
 
-    def __init__(self, scope, sub_scope="app1"):
+    def __init__(self, scope, sub_scope="app1", conn=None):
         super().__init__(scope, sub_scope)
         self.sub_scope = sub_scope
-        self.conn = SnowflakeConnection(
-            account=os.getenv("SNOWFLAKE_ACCOUNT_OVERRIDE"),
-            user=os.getenv("SNOWFLAKE_USER_OVERRIDE"),
-            password=os.getenv("SNOWFLAKE_PASSWORD_OVERRIDE"),
-            database=scope,
-            warehouse=os.getenv("SNOWFLAKE_WAREHOUSE_OVERRIDE"),
-            role=os.getenv("SNOWFLAKE_ROLE_OVERRIDE")
-        )
+        if not conn:
+            raise NotImplementedError("DatabaseMetadataStore requires a connection")
+        self.conn = conn
 
     def _format_value(self,value):
         if isinstance(value, dict):
@@ -305,19 +301,36 @@ class SnowflakeMetadataStore(GenesisMetadataStore):
         else:
             cursor.execute(query)
         self.insert_or_update_metadata("GenesisToolDefinition", tool.TOOL_NAME, tool)
-        
-class GenesisLocalServer(GenesisServer):
-    def __init__(self, scope):
-        super().__init__(scope)
-    def add_message(self, bot_id, message, thread_id) -> dict:
-        return {"request_id": "Request_12345",
-                "bot_id": bot_id,
-                "thread_id": thread_id}
-    def get_message(self, bot_id, request_id):
-        return "Message from Request_12345"
 
-    def get_metadata_store(self) -> GenesisMetadataStore:
-        return LocalMetadataStore(self.scope)
+class SnowflakeMetadataStore(DatabaseMetadataStore):
+    def __init__(self, scope, sub_scope="app1"):
+        conn = SnowflakeConnection(
+            account=os.getenv("SNOWFLAKE_ACCOUNT_OVERRIDE"),
+            user=os.getenv("SNOWFLAKE_USER_OVERRIDE"),
+            password=os.getenv("SNOWFLAKE_PASSWORD_OVERRIDE"),
+            database=scope,
+            warehouse=os.getenv("SNOWFLAKE_WAREHOUSE_OVERRIDE"),
+            role=os.getenv("SNOWFLAKE_ROLE_OVERRIDE")
+        )
+        super().__init__(scope, sub_scope, conn)
+
+class SqliteMetadataStore(DatabaseMetadataStore):
+    def __init__(self, scope=None, sub_scope=None, conn=None):
+        conn = sqlite3.connect(f"{scope}.db")
+        super().__init__(scope, sub_scope, conn)
+
+# class GenesisLocalServer(GenesisServer):
+#     def __init__(self, scope):
+#         super().__init__(scope)
+#     def add_message(self, bot_id, message, thread_id) -> dict:
+#         return {"request_id": "Request_12345",
+#                 "bot_id": bot_id,
+#                 "thread_id": thread_id}
+#     def get_message(self, bot_id, request_id):
+#         return "Message from Request_12345"
+
+#     def get_metadata_store(self) -> GenesisMetadataStore:
+#         return LocalMetadataStore(self.scope)
 
 class GenesisProject(BaseModel):
     PROJECT_ID: str

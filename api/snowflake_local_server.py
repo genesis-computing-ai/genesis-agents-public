@@ -7,13 +7,17 @@ from core.bot_os_server import BotOsServer
 from apscheduler.schedulers.background import BackgroundScheduler
 from demo.sessions_creator import create_sessions
 
-from .genesis_base import GenesisBot, GenesisMetadataStore, GenesisServer, SnowflakeMetadataStore
+from .genesis_base import GenesisBot, GenesisMetadataStore, GenesisServer, SnowflakeMetadataStore, SqliteMetadataStore
 from streamlit_gui.udf_proxy_bot_os_adapter import UDFBotOsInputAdapter
 import core.global_flags as global_flags
 
-class GenesisLocalSnowflakeServer(GenesisServer):
+class GenesisLocalServer(GenesisServer):
     def __init__(self, scope, sub_scope="app1", bot_list=None, fast_start=False):
         super().__init__(scope, sub_scope)
+        if os.getenv("SQLITE_OVERRIDE") == "True":
+            self.db_source = "SQLITE"
+        else:
+            self.db_source = "Snowflake"
         self.set_global_flags(fast_start=fast_start)
         self.bot_id_to_udf_adapter_map: Dict[str, UDFBotOsInputAdapter] = {}
         if f"{scope}.{sub_scope}" != os.getenv("GENESIS_INTERNAL_DB_SCHEMA"):
@@ -25,7 +29,7 @@ class GenesisLocalSnowflakeServer(GenesisServer):
     def restart(self):
         if self.server is not None:
             self.server.shutdown()
-        db_adapter = get_global_db_connector("Snowflake")
+        db_adapter = get_global_db_connector(self.db_source)
         llm_key_handler = LLMKeyHandler(db_adapter=db_adapter)
         _, llm_api_key_struct = llm_key_handler.get_llm_key_from_db()
         if llm_api_key_struct is not None and llm_api_key_struct.llm_key is not None:
@@ -39,29 +43,29 @@ class GenesisLocalSnowflakeServer(GenesisServer):
                 None, # bot_id_to_udf_adapter_map,
                 stream_mode=True,
                 bot_list=[{"bot_id": bot_id} for bot_id in self.bot_list] if self.bot_list is not None else None
-        )
+            )
 
-        self.bot_id_to_slack_adapter_map = bot_id_to_slack_adapter_map # We need to save it for a graceful shutdown
+            self.bot_id_to_slack_adapter_map = bot_id_to_slack_adapter_map # We need to save it for a graceful shutdown
 
-        scheduler = BackgroundScheduler(
-            {
-                "apscheduler.job_defaults.max_instances": 100,
-                "apscheduler.job_defaults.coalesce": True,
-            }
-        )
-        self.server = BotOsServer(
-            None,
-            sessions=sessions,
-            scheduler=scheduler,
-            scheduler_seconds_interval=2,
-            slack_active=False, #global_flags.slack_active,
-            db_adapter=db_adapter,
-            bot_id_to_udf_adapter_map = self.bot_id_to_udf_adapter_map,
-            api_app_id_to_session_map = api_app_id_to_session_map,
-            bot_id_to_slack_adapter_map = self.bot_id_to_slack_adapter_map,
-        )
-        BotOsServer.stream_mode = True
-        scheduler.start() # Note: self.server.shutdown() shuts down the scheduler
+            scheduler = BackgroundScheduler(
+                {
+                    "apscheduler.job_defaults.max_instances": 100,
+                    "apscheduler.job_defaults.coalesce": True,
+                }
+            )
+            self.server = BotOsServer(
+                None,
+                sessions=sessions,
+                scheduler=scheduler,
+                scheduler_seconds_interval=2,
+                slack_active=False, #global_flags.slack_active,
+                db_adapter=db_adapter,
+                bot_id_to_udf_adapter_map = self.bot_id_to_udf_adapter_map,
+                api_app_id_to_session_map = api_app_id_to_session_map,
+                bot_id_to_slack_adapter_map = self.bot_id_to_slack_adapter_map,
+            )
+            BotOsServer.stream_mode = True
+            scheduler.start() # Note: self.server.shutdown() shuts down the scheduler
 
 
 
@@ -77,16 +81,19 @@ class GenesisLocalSnowflakeServer(GenesisServer):
         dataset_name = db_schema[1]
         global_flags.genbot_internal_project_and_schema = genbot_internal_project_and_schema
 
-        db_adapter = get_global_db_connector("Snowflake")
+        db_adapter = get_global_db_connector(self.db_source)
         if fast_start:
             print("Genesis API Fast Start-Skipping Metadata Update Checks")
         else:
             db_adapter.one_time_db_fixes()
             db_adapter.ensure_table_exists()
-            db_adapter.create_google_sheets_creds()
+            #db_adapter.create_google_sheets_creds()
 
     def get_metadata_store(self) -> GenesisMetadataStore:
-        return SnowflakeMetadataStore(self.scope, self.sub_scope)
+        if os.getenv("SQLITE_OVERRIDE") == "True":
+            return SqliteMetadataStore(self.scope, self.sub_scope)
+        else:
+            return SnowflakeMetadataStore(self.scope, self.sub_scope)
 
     def register_bot(self, bot: GenesisBot):
         return(self.server.make_baby_bot_wrapper(
@@ -171,7 +178,7 @@ class GenesisLocalSnowflakeServer(GenesisServer):
         Returns:
             True if file was written successfully, False otherwise
         """
-        conn = get_global_db_connector("Snowflake").connection
+        conn = get_global_db_connector(self.db_source).connection
         try:
             cursor = conn.cursor()
 
@@ -198,7 +205,7 @@ class GenesisLocalSnowflakeServer(GenesisServer):
         Returns:
             String contents of the file
         """
-        conn = get_global_db_connector("Snowflake").connection
+        conn = get_global_db_connector(self.db_source).connection
         try:
             cursor = conn.cursor()
             get_file_cmd = f"GET {file_path}{file_name} file://./tmp/;"
@@ -223,7 +230,7 @@ class GenesisLocalSnowflakeServer(GenesisServer):
         Returns:
             True if file was removed successfully, False otherwise
         """
-        conn = get_global_db_connector("Snowflake").connection
+        conn = get_global_db_connector(self.db_source).connection
         try:
             cursor = conn.cursor()
             # Check if file exists first

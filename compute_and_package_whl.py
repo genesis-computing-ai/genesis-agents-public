@@ -72,9 +72,12 @@ def compile_and_package(project_dir, public_files, exclude=None, output_dir="dis
     create_public_package(temp_dir, public_package_name, public_files, output_dir, version, compiled_package_name=package_name, compiled_whl_path=post_build_compiled_whl_path)
 
     # Cleanup
-    print(f"Cleaning up temporary directory: {temp_dir}")
-    #shutil.rmtree(temp_dir)
-    #print("Temporary directory cleaned up.")
+    user_input = input(f"Do you want to cleanup the temporary directory {temp_dir}? (y/n, default=n): ")
+    if user_input.lower() == 'y':
+        shutil.rmtree(temp_dir)
+        print("Temporary directory cleaned up.")
+    else:
+        print("Temporary directory not cleaned up.")
 
 def build_compiled_package(temp_project_dir, output_dir, package_name, version, public_files, project_dir, abs_exclude):
     # public files in tmp structure
@@ -278,5 +281,5 @@ if __name__ == "__main__":
         output_dir=output_directory,
         package_name="genesis_api_whl",
         public_package_name="genesis_api_public",
-        version="1.0.3",
+        version="1.0.4",
     )

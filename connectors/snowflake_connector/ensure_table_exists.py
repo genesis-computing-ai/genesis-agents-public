@@ -253,9 +253,9 @@ def ensure_table_exists(self):
         _create_table_if_not_exist('LLM_RESULTS', create_llm_results_table_ddl, raise_on_failure=True)
 
     except Exception as e:
-        logger.info(f"Unable to execute 'SHOW TABLES' query: {e}\nQuery attempted: {ext_service_config_table_check_query}")
+        logger.info(f"Unable to execute 'SHOW TABLES' query: {e}\nQuery attempted: {create_llm_results_table_ddl}")
         raise Exception(
-            f"Unable to execute 'SHOW TABLES' query: {e}\nQuery attempted: {ext_service_config_table_check_query}"
+            f"Unable to execute 'SHOW TABLES' query: {e}\nQuery attempted: {create_llm_results_table_ddl}"
         )
     try:
         if not cursor.fetchone():

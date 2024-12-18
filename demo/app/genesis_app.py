@@ -11,6 +11,22 @@ from core.bot_os_server import BotOsServer
 from auto_ngrok.auto_ngrok import launch_ngrok_and_update_bots
 
 class GenesisApp:
+    _instance = None
+
+    def __new__(cls):
+        """
+        Implements the Singleton pattern for the GenesisApp class.
+
+        This method ensures that only one instance of the GenesisApp class is created.
+        If an instance already exists, it is reused; otherwise, a new instance is created.
+
+        Returns:
+            GenesisApp: The single instance of the GenesisApp class.
+        """
+        if cls._instance is None:
+            cls._instance = super(GenesisApp, cls).__new__(cls)
+            cls._instance.__init__()
+        return cls._instance
     def __init__(self):
         """
         Initializes a new instance of the GenesisApp class.

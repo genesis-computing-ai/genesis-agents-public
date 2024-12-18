@@ -4,6 +4,15 @@ from core.logging_config import logger
 from demo.app import genesis_app
 from demo.routes import realtime_routes, slack_routes
 from demo.routes import udf_routes, main_routes, auth_routes
+import core.global_flags as global_flags
+
+logger.info("****** GENBOT VERSION 0.202 *******")
+
+runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
+multbot_mode = True
+
+global_flags.runner_id = runner_id
+global_flags.multibot_mode = True
 
 
 app = Flask(__name__)

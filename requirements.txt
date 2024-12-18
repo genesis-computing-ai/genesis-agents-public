@@ -47,3 +47,7 @@ dagster-graphql
 dagster-spark
 dagster-dbt
 dagster-sdf
+sqlalchemy
+psycopg2-binary
+pymysql
+snowflake-sqlalchemy

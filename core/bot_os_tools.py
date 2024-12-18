@@ -124,6 +124,7 @@ from core.bot_os_llm import BotLlmEngineEnum
 from core.logging_config import logger
 from core.bot_os_project_manager import ProjectManager
 from core.file_diff_handler import GitFileManager
+from connectors.customer_data_connector import CustomerDataConnector
 from connectors.snowflake_connector.snowflake_connector import SnowflakeConnector
 
 genesis_source = os.getenv("GENESIS_SOURCE", default="Snowflake")
@@ -154,17 +155,21 @@ class ToolBelt:
         self.process_id = {}
         self.include_code = False
 
-        if genesis_source == 'Sqlite':
-            self.db_adapter = SqliteConnector(connection_name="Sqlite")
-            connection_info = {"Connection_Type": "Sqlite"}
-        elif genesis_source == 'Snowflake':  # Initialize Snowflake client
-            self.db_adapter = SnowflakeConnector(connection_name="Snowflake")
-            connection_info = {"Connection_Type": "Snowflake"}
-        else:
-            raise ValueError('Invalid Source')
+      #  if genesis_source == 'Sqlite':
+      #      self.db_adapter = SqliteConnector(connection_name="Sqlite")
+      #      connection_info = {"Connection_Type": "Sqlite"}
+      #  elif genesis_source == 'Snowflake':  # Initialize Snowflake client
+
+
+        self.db_adapter = SnowflakeConnector(connection_name="Snowflake")  # always use this for metadata
+        connection_info = {"Connection_Type": "Snowflake"}
+        #else:
+       #     raise ValueError('Invalid Source')
 
         self.todos = ProjectManager(self.db_adapter)  # Initialize Todos instance
         self.git_manager = GitFileManager()
+        self.customer_data_connector = CustomerDataConnector(self.db_adapter)
+        self.customer_data_connector._test()
         self.server = None  # Will be set later
 
         self.sys_default_email = self.get_sys_email()

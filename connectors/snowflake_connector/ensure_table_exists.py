@@ -216,13 +216,6 @@ def ensure_table_exists(self):
     except Exception as e:
         logger.info(f"An error occurred while creating or replacing the bots_active table: {e}")
 
-<<<<<<< Updated upstream
-
-
-    # EXT_SERVICE_CONFIG
-    #---------------------
-=======
->>>>>>> Stashed changes
     streamlitdc_url = os.getenv("DATA_CUBES_INGRESS_URL", None)
     logger.info(f"streamlit data cubes ingress URL: {streamlitdc_url}")
 
@@ -254,9 +247,6 @@ def ensure_table_exists(self):
         _create_table_if_not_exist('LLM_RESULTS', create_llm_results_table_ddl, raise_on_failure=True)
 
     except Exception as e:
-<<<<<<< Updated upstream
-        logger.error(f"Failed to create hybrid LLM_RESULTS table: {e}")
-=======
         logger.info(f"Unable to execute 'SHOW TABLES' query: {e}\nQuery attempted: {ext_service_config_table_check_query}")
         raise Exception(
             f"Unable to execute 'SHOW TABLES' query: {e}\nQuery attempted: {ext_service_config_table_check_query}"
@@ -392,7 +382,6 @@ def ensure_table_exists(self):
         else:
             logger.info(f"Table {self.schema}.LLM_RESULTS already exists.")
     except Exception as e:
->>>>>>> Stashed changes
         try:
             logger.info("Falling back to create non-hybrid table for LLM_RESULTS")
             create_llm_results_table_ddl = f"""

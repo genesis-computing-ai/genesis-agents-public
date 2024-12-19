@@ -3,7 +3,7 @@ import re
 import shutil
 import tempfile
 import subprocess
-from distutils.extension import Extension
+from setuptools.extension import Extension
 from Cython.Build import cythonize
 import glob
 

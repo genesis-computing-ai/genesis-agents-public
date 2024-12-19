@@ -8,8 +8,7 @@ import os
 import json
 from datetime import datetime
 from snowflake.connector import SnowflakeConnection
-from connectors.sqlite_adapter import SQLiteAdapter
-from connectors import get_global_db_connector
+#from connectors import get_global_db_connector
 import pandas as pd
 
 class GenesisBot(BaseModel):
@@ -271,8 +270,8 @@ class DatabaseMetadataStore(GenesisMetadataStore):
                 metadata_list = pd.DataFrame(metadata_list, columns=fields_to_return)
                 metadata_list = metadata_list.to_dict(orient="records")
             else:
-                db_adapter = get_global_db_connector(os.getenv("GENESIS_SOURCE", "SNOWFLAKE"))
-                cursor = db_adapter.connection.cursor()
+                #db_adapter = get_global_db_connector(os.getenv("GENESIS_SOURCE", "SNOWFLAKE"))
+                #cursor = db_adapter.connection.cursor()
                 cursor.execute(query, params)
                 metadata_list = cursor.fetchall()
                 metadata_list = pd.DataFrame(metadata_list, columns=fields_to_return)

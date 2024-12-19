@@ -1,7 +1,7 @@
 import re
 import time
 
-from   api.genesis_base         import (GenesisBot, GenesisKnowledge,
+from   .genesis_base             import (GenesisBot, GenesisKnowledge,
                                         GenesisLocalServer,
                                         GenesisMetadataStore, GenesisNote,
                                         GenesisProcess, GenesisProject,

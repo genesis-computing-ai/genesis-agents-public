@@ -25,6 +25,7 @@ def compile_and_package(project_dir, public_files, exclude=None, output_dir="dis
 
     # Create a temporary directory for building
     temp_dir = tempfile.mkdtemp()
+    #temp_dir = "/var/folders/pr/5qwcvm514l3bqsx3j37kxk8w0000gn"
     temp_project_dir = os.path.join(temp_dir, package_name)
     print(f"temp_project_dir: {temp_project_dir}")
 
@@ -83,8 +84,9 @@ def build_compiled_package(temp_project_dir, output_dir, package_name, version, 
     # public files in tmp structure
     tmp_public_files = [
         os.path.join(temp_project_dir, os.path.relpath(file, project_dir))
-        for file in public_files
+        for file in public_files + ["requirements.txt"]
     ]
+
     # Identify Python files to compile (not public, not excluded)
     extensions = []
     for dirpath, _, filenames in os.walk(temp_project_dir):
@@ -93,7 +95,8 @@ def build_compiled_package(temp_project_dir, output_dir, package_name, version, 
             if not should_copy(filepath, abs_exclude):
                 continue
         # Adjust your condition as needed. For example, if you're reverting back to ".py":
-            if filepath.endswith(".py") and filepath not in tmp_public_files and filename != "__init__.py":
+            #if filepath.endswith(".py") and filepath not in tmp_public_files and filename != "__init__.py":
+            if filepath.endswith(".py") and filename != "__init__.py":
                 module_path = os.path.relpath(filepath, temp_project_dir).replace(os.path.sep, ".")[:-3]
                 # Convert to relative path for the Extension source
                 source_rel = os.path.relpath(filepath, temp_project_dir)
@@ -163,7 +166,7 @@ setup(
     name="{package_name}",
     version="{version}",
     description="Compiled internal logic package (packaging stage)",
-    packages=find_packages(),       # Automatically find all packages with __init__.py
+    packages=find_packages(include=['*']),       # Include the package for the current directory
     include_package_data=True,      # Include additional data as specified
     package_data={{
         '': ['**/*.yaml', '**/*.so'],  # Include all YAML and .so files in any package
@@ -205,7 +208,8 @@ def create_public_package(temp_dir, public_package_name, public_files, output_di
     # Add __init__.py
     init_file = os.path.join(public_package_dir, public_package_name, "__init__.py")
     with open(init_file, "w") as f:
-        pass
+        f.write("from .genesis_api import GenesisAPI\n")
+        f.write("from .snowflake_remote_server import GenesisSnowflakeServer\n")
 
     # Copy only the public files
     for public_file in public_files:
@@ -228,10 +232,12 @@ setup(
     packages=["{public_package_name}"],
     package_dir={{"{public_package_name}": "{public_package_name}"}},
     package_data={{"{public_package_name}": ["*"]}},
-    install_requires=["snowflake_connector_python==3.12.3"],  # Adjust version constraints as needed,
+    install_requires=["snowflake_connector_python==3.12.3",
+                      "urllib3==1.26.19",
+    ],
     classifiers=[
         "Programming Language :: Python :: 3",
-        #"License :: OSI Approved :: Server Side Public License (SSPL)",
+        "License :: Other/Proprietary License",
         "Operating System :: OS Independent",
     ],
     python_requires=">=3.6",
@@ -252,12 +258,13 @@ if __name__ == "__main__":
     project_directory = "."  # current directory
     public_api_files = [
         "api/genesis_api.py",
-        "api/demo_remote_api_01.py",
-        "api/demo_local_api_01.py",
+        #"api/demo_remote_api_01.py",
+        #"api/demo_local_api_01.py",
         #"api/snowflake_local_server.py",
         "api/snowflake_remote_server.py",
         "api/genesis_base.py",
-        "requirements.txt",
+        #"api/__init__.py",
+        #"requirements.txt",
     ]
     excluded_items = [
         os.path.join(project_directory, ".venv"),
@@ -283,5 +290,5 @@ if __name__ == "__main__":
         output_dir=output_directory,
         package_name="genesis_api_whl",
         public_package_name="genesis_api_public",
-        version="1.0.4",
+        version="1.0.5",
     )

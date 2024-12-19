@@ -180,8 +180,9 @@ def gctool(**param_descriptions):
                 return {'type': 'boolean'}
 
             else:
-                raise ValueError(f"Could not convert annotation type {python_type} to llm type")
-
+                print(f"_python_type_to_llm_type: Could not convert annotation type {python_type} {python_type is str} to llm type")
+                return {'type': 'string'}
+            
         def _cleanup_docsting(s):
             s = dedent(s)
             s = "\n".join([line for line in s.split("\n") if line])

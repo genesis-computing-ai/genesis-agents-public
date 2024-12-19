@@ -168,7 +168,7 @@ class ToolBelt:
         self.todos = ProjectManager(self.db_adapter)  # Initialize Todos instance
         self.git_manager = GitFileManager()
         self.customer_data_connector = CustomerDataConnector(self.db_adapter)
-        self.customer_data_connector._test()
+ #       self.customer_data_connector._test()
         self.server = None  # Will be set later
 
         self.sys_default_email = self.get_sys_email()

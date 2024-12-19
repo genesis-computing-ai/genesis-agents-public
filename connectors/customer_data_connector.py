@@ -409,7 +409,6 @@ class CustomerDataConnector:
             return False
 
 
-
     def _test(self):
         """
         Run all database connector tests.

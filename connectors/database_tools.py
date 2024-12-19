@@ -610,6 +610,10 @@ google_drive_functions = [
                         "type": "string",
                         "description": "The name of a file, files, folder, or folders stored on Google Drive.",
                     },
+                    "g_sheet_query": {
+                        "type": "string",
+                        "description": "Query string to run and save the results to a Google Sheet.",
+                    },
                 },
                 "required": ["action"],
             },

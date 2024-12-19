@@ -155,16 +155,15 @@ class ToolBelt:
         self.process_id = {}
         self.include_code = False
 
-      #  if genesis_source == 'Sqlite':
-      #      self.db_adapter = SqliteConnector(connection_name="Sqlite")
-      #      connection_info = {"Connection_Type": "Sqlite"}
-      #  elif genesis_source == 'Snowflake':  # Initialize Snowflake client
-
+        #  if genesis_source == 'Sqlite':
+        #      self.db_adapter = SqliteConnector(connection_name="Sqlite")
+        #      connection_info = {"Connection_Type": "Sqlite"}
+        #  elif genesis_source == 'Snowflake':  # Initialize Snowflake client
 
         self.db_adapter = SnowflakeConnector(connection_name="Snowflake")  # always use this for metadata
         connection_info = {"Connection_Type": "Snowflake"}
-        #else:
-       #     raise ValueError('Invalid Source')
+        # else:
+        #     raise ValueError('Invalid Source')
 
         self.todos = ProjectManager(self.db_adapter)  # Initialize Todos instance
         self.git_manager = GitFileManager()
@@ -2441,7 +2440,18 @@ class ToolBelt:
 
     # ====== ARTIFACTS END ==========================================================================================
 
-    def google_drive(self, action, thread_id=None, g_folder_id=None, g_file_id=None, g_sheet_cell = None, g_sheet_value = None, g_file_comment_id = None, g_file_name=None):
+    def google_drive(
+        self,
+        action,
+        thread_id=None,
+        g_folder_id=None,
+        g_file_id=None,
+        g_sheet_cell=None,
+        g_sheet_value=None,
+        g_file_comment_id=None,
+        g_file_name=None,
+        g_sheet_query=None,
+    ):
         """
         A wrapper for LLMs to access/manage Google Drive files by performing specified actions such as listing or downloading files.
 
@@ -2602,6 +2612,12 @@ class ToolBelt:
             )
             auth_url, _ = flow.authorization_url(prompt="consent")
             return {"Success": "True", "auth_url": f"<{auth_url}|View Document>"}
+
+        elif action == "SAVE_QUERY_RESULTS_TO_G_SHEET":
+            self.db_adapter.run_query(g_sheet_query, export_to_google_sheet = True)
+            pass
+
+        return {"Success": False, "Error": "Invalid action specified."}
 
     def process_scheduler(
         self, action, bot_id, task_id=None, task_details=None, thread_id=None, history_rows=10

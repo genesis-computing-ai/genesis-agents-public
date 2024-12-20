@@ -1,6 +1,6 @@
 import uuid
 from snowflake.connector import SnowflakeConnection
-from api.genesis_base import GenesisMetadataStore, GenesisServer, SnowflakeMetadataStore
+from .genesis_base import GenesisMetadataStore, GenesisServer, SnowflakeMetadataStore
 import os
 import urllib.parse
 

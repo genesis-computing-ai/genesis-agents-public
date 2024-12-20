@@ -1,6 +1,6 @@
 from   api.genesis_api          import GenesisAPI
 from   api.snowflake_local_server \
-                                import GenesisLocalSnowflakeServer
+                                import GenesisLocalServer
 from   langsmith                import Client, traceable
 
 
@@ -496,7 +496,7 @@ def main():
     print("---------------------------------")
     try:
 
-        gclient = GenesisAPI(server_type=GenesisLocalSnowflakeServer,
+        gclient = GenesisAPI(server_type=GenesisLocalServer,
                             scope="GENESIS_TEST",
                             sub_scope="GENESIS_AD")
 

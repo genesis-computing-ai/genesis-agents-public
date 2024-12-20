@@ -1218,26 +1218,26 @@ def ensure_table_exists(self):
         if cursor is not None:
             cursor.close()
 
-    # Check if the 'snowflake_semantic_tools' row exists in the available_tables and insert if not present
-    check_snowflake_semantic_tools_query = f"SELECT COUNT(*) FROM {self.available_tools_table_name} WHERE TOOL_NAME = 'snowflake_semantic_tools';"
-    try:
-        cursor = self.client.cursor()
-        cursor.execute(check_snowflake_semantic_tools_query)
-        if cursor.fetchone()[0] == 0:
-            insert_snowflake_semantic_tools_query = f"""
-            INSERT INTO {self.available_tools_table_name} (TOOL_NAME, TOOL_DESCRIPTION)
-            VALUES ('snowflake_semantic_tools', 'Create and modify Snowflake Semantic Models');
-            """
-            cursor.execute(insert_snowflake_semantic_tools_query)
-            self.client.commit()
-            logger.info("Inserted 'snowflake_semantic_tools' into available_tools table.")
-    except Exception as e:
-        logger.info(
-            f"An error occurred while inserting 'snowflake_semantic_tools' into available_tools table: {e}"
-        )
-    finally:
-        if cursor is not None:
-            cursor.close()
+    # # Check if the 'snowflake_semantic_tools' row exists in the available_tables and insert if not present
+    # check_snowflake_semantic_tools_query = f"SELECT COUNT(*) FROM {self.available_tools_table_name} WHERE TOOL_NAME = 'snowflake_semantic_tools';"
+    # try:
+    #     cursor = self.client.cursor()
+    #     cursor.execute(check_snowflake_semantic_tools_query)
+    #     if cursor.fetchone()[0] == 0:
+    #         insert_snowflake_semantic_tools_query = f"""
+    #         INSERT INTO {self.available_tools_table_name} (TOOL_NAME, TOOL_DESCRIPTION)
+    #         VALUES ('snowflake_semantic_tools', 'Create and modify Snowflake Semantic Models');
+    #         """
+    #         cursor.execute(insert_snowflake_semantic_tools_query)
+    #         self.client.commit()
+    #         logger.info("Inserted 'snowflake_semantic_tools' into available_tools table.")
+    # except Exception as e:
+    #     logger.info(
+    #         f"An error occurred while inserting 'snowflake_semantic_tools' into available_tools table: {e}"
+    #     )
+    # finally:
+    #     if cursor is not None:
+    #         cursor.close()
 
     # MESSAGE_LOG (CHAT HISTORY)
     # -----------------------------

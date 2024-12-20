@@ -569,6 +569,13 @@ def create_sessions(
     """
     runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
     bots_config = get_all_bots_full_details(runner_id=runner_id)
+    logger.info(f"Total configured bots: {len(bots_config)}")
+    if bot_list:
+        bot_names = [bot["bot_id"] for bot in bot_list]
+        logger.info(f"Creating sessions only for bot(s): {', '.join(bot_names)}")
+    # Check if there are any bots to start
+    if len(bots_config) == 0 or (bot_list and not any(bot["bot_id"] in [b["bot_id"] for b in bot_list] for bot in bots_config)):
+        logger.info("No bots will be started.")
 
     sessions = []
     api_app_id_to_session_map = {}

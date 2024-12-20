@@ -45,7 +45,7 @@ CUSTOMER_DATABASE_TOOL_DEFINITIONS = [
     {
         "type": "function", 
         "function": {
-            "name": "_add_connection",
+            "name": "_add_database_connection",
             "description": "Add a new database connection",
             "parameters": {
                 "type": "object",
@@ -72,7 +72,7 @@ CUSTOMER_DATABASE_TOOL_DEFINITIONS = [
     {
         "type": "function",
         "function": {
-            "name": "_delete_connection",
+            "name": "_delete_database_connection",
             "description": "Delete an existing database connection",
             "parameters": {
                 "type": "object",
@@ -89,7 +89,7 @@ CUSTOMER_DATABASE_TOOL_DEFINITIONS = [
     {
         "type": "function",
         "function": {
-            "name": "_list_connections",
+            "name": "_list_database_connections",
             "description": "List all database connections accessible to a bot",
             "parameters": {
                 "type": "object",
@@ -103,33 +103,23 @@ CUSTOMER_DATABASE_TOOL_DEFINITIONS = [
 
 customer_data_tools = {
                 "_query_database": "tool_belt.customer_data_connector_query_database",
-                "_add_connection": "tool_belt.customer_data_connector_add_connection", 
-                "_delete_connection": "tool_belt.customer_data_connector_delete_connection",
-                "_list_connections": "tool_belt.customer_data_connector_list_database_connections"
+                "_add_database_connection": "tool_belt.customer_data_connector_add_connection", 
+                "_delete_database_connection": "tool_belt.customer_data_connector_delete_connection",
+                "_list_database_connections": "tool_belt.customer_data_connector_list_database_connections"
             }
 
 
-bot_dispatch_tools = {"_delegate_work": "tool_belt.delegate_work"}
-
-
-
 customer_data_tools_overall_description = (
-    "customer_data_tools",
-    "Tools for managing and querying customer database connections, including adding new connections, deleting connections, listing available connections, and running queries against connected databases"
+    "data_connector_tools",
+    "Tools for managing and querying database connections, including adding new connections, deleting connections, listing available connections, and running queries against connected databases"
 )
 
 # Import tools_data from core.bot_os_tool_descriptions
 from core.bot_os_tool_descriptions import tools_data
 
 # Only append if not already present
-if not any(tool[0] == "customer_data_tools" for tool in tools_data):
-    tools_data.append(
-        (
-            "customer_data_tools",
-            "Tools for managing and querying customer database connections, including adding new connections, deleting connections, listing available connections, and running queries against connected databases"
-        )
-    )
-
+if not any(tool[0] == "data_connector_tools" for tool in tools_data):
+    tools_data.append(customer_data_tools_overall_description)
 class CustomerDataConnector:
     # make it so we dont need anything specific for each db type
 

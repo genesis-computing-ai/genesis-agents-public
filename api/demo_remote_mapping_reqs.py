@@ -8,7 +8,17 @@ import json
 
 import os, yaml
 
-from api.snowflake_local_server import GenesisLocalSnowflakeServer
+from api.genesis_api import GenesisAPI
+from api.snowflake_local_server import GenesisLocalServer
+import os
+
+#requires these environment variables:
+    #"PYTHONPATH": "${workspaceFolder}",
+    #"OPENAI_API_KEY": "...",
+    #"GENESIS_INTERNAL_DB_SCHEMA": "IGNORED.genesis",
+    #"SQLITE_OVERRIDE": "True",
+    #"BOT_OS_DEFAULT_LLM_ENGINE": "openai"
+
 
 """
 launch.json config example:
@@ -823,7 +833,7 @@ def main():
         
     scope, sub_scope = internal_schema.split(".")
 
-    client = GenesisAPI(server_type=GenesisLocalSnowflakeServer, scope=scope, sub_scope=sub_scope,
+    client = GenesisAPI(server_type=GenesisLocalServer, scope=scope, sub_scope=sub_scope,
                         bot_list=local_bots, fast_start=False) # ["marty-l6kx7d"]
 
     # if you want to see what bots are already on the server

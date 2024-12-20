@@ -17,14 +17,14 @@ def _get_global_db_connector_cached(genesis_source_name, **kwargs):
             connection_info = kwargs.pop('connection_info')
         except KeyError:
             raise ValueError(f"missing manadatory arg 'connection_info' for {genesis_source_name=}")
-        connection_name = kwargs.pop('conenction_name', "BigQuery")
+        connection_name = kwargs.pop('connection_name', "BigQuery")
         return BigQueryConnector(connection_info=connection_info, connection_name=connection_name, **kwargs)
     elif genesis_source_name == 'SQLITE':
         from connectors.sqlite_connector import SqliteConnector
-        connection_name = kwargs.pop('conenction_name', "Sqlite")
+        connection_name = kwargs.pop('connection_name', "Sqlite")
         return SqliteConnector(connection_name=connection_name, **kwargs)
     elif genesis_source_name == 'SNOWFLAKE':
-        connection_name = kwargs.pop('conenction_name', "Snowflake")
+        connection_name = kwargs.pop('connection_name', "Snowflake")
         return SnowflakeConnector(connection_name=connection_name, **kwargs)
     else:
         raise ValueError(f"Invalid Source name '{genesis_source_name}'")

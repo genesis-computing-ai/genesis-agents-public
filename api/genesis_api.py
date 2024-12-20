@@ -27,7 +27,7 @@ class GenesisAPI:
 
     def register_bot(self, bot: GenesisBot):
         self.registered_server.register_bot(bot)
-        self.metadata_store.insert_or_update_metadata("GenesisBot", bot["BOT_ID"], bot) # FIXME: do we need this if we are registering the bot?
+     #   self.metadata_store.insert_or_update_metadata("GenesisBot", bot["BOT_ID"], bot) # FIXME: do we need this if we are registering the bot?
 
 
     def get_bot(self, bot_id) -> GenesisBot:

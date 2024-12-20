@@ -15,6 +15,13 @@ client = GenesisAPI(server_type=GenesisLocalServer,
                     sub_scope = "genesis",
                     bot_list=[bot_id])
 bots = client.get_all_bots()
+notes = client.get_all_notes()
+print(notes)
+if len(notes) > 0:
+    first_note = notes[0]
+    note = client.get_note(first_note)
+    print("First note:", first_note)
+
 print(bots)
 
 request = client.add_message(bot_id, "hello")

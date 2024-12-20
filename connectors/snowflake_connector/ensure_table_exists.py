@@ -155,7 +155,11 @@ def ensure_table_exists(self):
                 logger.error(f"An error occurred while retrieving tables in schema {self.schema}: {e}")
         return retval
 
-    all_schema_tables = _fetch_all_schema_tables()
+    sqlite = isinstance(self.client, SQLiteAdapter)
+    if not sqlite:
+        all_schema_tables = _fetch_all_schema_tables()
+    else:
+        all_schema_tables = None
 
 
     def _check_table_exists(tbl_name):

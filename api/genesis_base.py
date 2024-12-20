@@ -10,7 +10,6 @@ from datetime import datetime
 from snowflake.connector import SnowflakeConnection
 from connectors.sqlite_adapter import SQLiteAdapter
 import pandas as pd
-from connectors import get_global_db_connector
 
 class GenesisBot(BaseModel):
     BOT_ID: str
@@ -165,12 +164,14 @@ class DatabaseMetadataStore(GenesisMetadataStore):
     def __init__(self, scope, sub_scope="app1", conn=None):
         super().__init__(scope, sub_scope)
         self.sub_scope = sub_scope
-     #   if not conn:
-     #       raise NotImplementedError("DatabaseMetadataStore requires a connection")
+        if not conn:
+            raise NotImplementedError("DatabaseMetadataStore requires a connection")
         self.conn = conn
-     #   from connectors import get_global_db_connector
-        self.db_adapter = get_global_db_connector(os.getenv("GENESIS_SOURCE", "Snowflake"))
-
+     #   if conn is None:
+     #       from connectors import get_global_db_connector
+     #       self.db_adapter = get_global_db_connector(os.getenv("GENESIS_SOURCE", "Snowflake"))
+     #   else:
+    #        self.db_adapter = conn
 
     def _format_value(self,value):
         if isinstance(value, dict):
@@ -248,6 +249,7 @@ class DatabaseMetadataStore(GenesisMetadataStore):
             return metadata_class(**metadata_dict)
         else:
             return None
+        
     def get_all_metadata(self, metadata_type: str, first_filter=None, second_filter=None, last_n:int=None, fields_to_return=None):
         
         table_name, filter_column, second_filter_field = self.metadata_type_mapping.get(metadata_type, (None, None, None))
@@ -277,12 +279,13 @@ class DatabaseMetadataStore(GenesisMetadataStore):
                 metadata_list = metadata_list.to_dict(orient="records")
             else:
                # db_adapter = get_global_db_connector(os.getenv("GENESIS_SOURCE", "Snowflake"))
-                cursor = self.db_adapter.connection.cursor()
+                cursor = self.conn.cursor()
                 cursor.execute(query, params)
                 metadata_list = cursor.fetchall()
                 metadata_list = pd.DataFrame(metadata_list, columns=fields_to_return)
+                metadata_list = metadata_list.to_dict(orient="records")
              #   metadata_list = cursor.fetch_pandas_all().to_dict(orient="records")
-       #     metadata_list = [item.get(filter_column) for item in metadata_list]
+            metadata_list = [item.get(filter_column) for item in metadata_list]
         except Exception as e:
             print(f"Error getting metadata: {e}")
             return []
@@ -328,6 +331,8 @@ class SnowflakeMetadataStore(DatabaseMetadataStore):
 class SqliteMetadataStore(DatabaseMetadataStore):
     def __init__(self, scope=None, sub_scope=None, conn=None):
  #       conn = sqlite3.connect(f"{scope}.db")
+        from connectors import get_global_db_connector
+        conn = get_global_db_connector("Snowflake").connection  # this is correct, Snowflake, not SQLite
         super().__init__(scope, sub_scope, conn)
 
 # class GenesisLocalServer(GenesisServer):

@@ -1,6 +1,6 @@
 from openai import OpenAI
 client = OpenAI()
-model = 'o1-preview'
+model = 'o1'
 print("model ", model)
 messages = []
 

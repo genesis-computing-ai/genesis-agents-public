@@ -2396,6 +2396,44 @@ class ToolBelt:
 
     # ====== NOTEBOOK END ==========================================================================================
 
+
+    # ====== CUSTOMER DATA BEGIN ==========================================================================================
+    def customer_data_connector_query_database(self, *args, **kwargs) -> dict:
+        """
+        Wrapper for querying customer databases.
+
+        Args and Returns passed through to customer_data_connector_query_database
+        """
+        return self.customer_data_connector.query_database(*args, **kwargs)
+
+    def customer_data_connector_add_connection(self, *args, **kwargs) -> dict:
+        """
+        Wrapper for adding a new customer database connection.
+
+        Args and Returns passed through to customer_data_connector_add_connection
+        """
+        return self.customer_data_connector.add_connection(*args, **kwargs)
+
+    def customer_data_connector_delete_connection(self, *args, **kwargs) -> bool:
+        """
+        Wrapper for deleting a customer database connection.
+
+        Args and Returns passed through to customer_data_connector_delete_connection
+        """
+        return self.customer_data_connector.delete_connection(*args, **kwargs)
+
+    def customer_data_connector_list_database_connections(self, *args, **kwargs) -> dict:
+        """
+        Wrapper for listing all customer database connections.
+
+        Args and Returns passed through to customer_data_connector_list_database_connections
+        """
+        return self.customer_data_connector.list_database_connections(*args, **kwargs)
+
+    # ====== CUSTOMER DATA END ==========================================================================================
+
+
+
     # ====== ARTIFACTS BEGIN ==========================================================================================
     def manage_artifact(self,
                         action: str,
@@ -3550,6 +3588,11 @@ def get_tools(which_tools, db_adapter, slack_adapter_local=None, include_slack=T
             tools.extend(dagster_tool_functions)
             available_functions_load.update(dagster_tools)
             function_to_tool_map[tool_name] = dagster_tool_functions
+        elif tool_name == "customer_data_tools":
+            from connectors.customer_data_connector import CUSTOMER_DATABASE_TOOL_DEFINITIONS as customer_data_functions, customer_data_tools
+            tools.extend(customer_data_functions)
+            available_functions_load.update(customer_data_tools)
+            function_to_tool_map[tool_name] = customer_data_functions
         else:
             try:
                 module_path = "generated_modules." + tool_name

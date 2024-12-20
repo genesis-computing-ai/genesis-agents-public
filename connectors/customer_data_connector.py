@@ -115,11 +115,12 @@ customer_data_tools_overall_description = (
 )
 
 # Import tools_data from core.bot_os_tool_descriptions
-from core.bot_os_tool_descriptions import tools_data
+# TODO: refactor this into a 'new-style' tool registry
+from core.bot_os_tool_descriptions import _tools_data
+if not any(tool[0] == "customer_data_tools" for tool in _tools_data):
+    # Only append if not already present
+    _tools_data.append(customer_data_tools_overall_description)
 
-# Only append if not already present
-if not any(tool[0] == "data_connector_tools" for tool in tools_data):
-    tools_data.append(customer_data_tools_overall_description)
 class CustomerDataConnector:
     # make it so we dont need anything specific for each db type
 

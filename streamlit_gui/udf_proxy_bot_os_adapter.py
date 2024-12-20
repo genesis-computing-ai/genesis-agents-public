@@ -142,10 +142,16 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
         return render_template("submit_ui.html")
 
 
-    def submit(self, input, thread_id, bot_id, file={}): # bot_id is actually misnamed user info
+    def submit(self,
+               input: str,
+               thread_id: str,
+               bot_id: dict | str,
+               file: dict = None):
 
         if type(bot_id) == str:
             bot_id = json.loads(bot_id)
+
+        file = file or {}
 
         uu = str(uuid.uuid4())
         # self.proxy_messages_in.append({"msg": input, "uuid": uu, "thread_id": thread_id, "bot_id": bot_id})
@@ -163,6 +169,8 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
     def submit_udf_fn(self):
         '''
         Main handler for input data sent by Snowflake.
+
+        This is be called from our Flask end point to handle requests sent to the UDF in narive mode (which routes to a Flask endpoint)
         '''
         message = request.json
      #   logger.debug(f'Received request: {message}')
@@ -247,8 +255,8 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
         return response
 
 
-    def lookup_udf(self, input_text:str):
-        if input_text in self.response_map.keys():
-            return self.response_map[input_text]
+    def lookup_udf(self, in_uuid:str):
+        if in_uuid in self.response_map.keys():
+            return self.response_map[in_uuid]
         else:
             return None

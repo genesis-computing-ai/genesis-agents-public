@@ -184,6 +184,8 @@ def execute_function(
         except:
             pass
         try:
+            # Call the function (via a wrapper, runs in a separate process)
+            #---------------------------------------------------------------
             wrapper = create_func_wrapper(function, func_name)
             completion_callback(wrapper(s_arguments))
         except Exception as e:

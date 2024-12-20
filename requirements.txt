@@ -46,6 +46,7 @@ dagster==1.9.5
 dagster-graphql
 dagster-spark
 dagster-dbt
+wrapt
 dagster-sdf
 sqlalchemy
 psycopg2-binary

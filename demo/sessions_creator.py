@@ -247,7 +247,7 @@ def make_session(
     all_tools, all_functions, all_function_to_tool_map = get_tools(
         available_tools, slack_adapter_local=slack_adapter_local, db_adapter=db_adapter, tool_belt=tool_belt
     )
-    logger.info(f"Number of all functions for bot {bot_id}: {len(all_functions)}")
+    logger.info(f"Number of all functions listed in the DB: {len(all_functions)}")
 
     simple_mode = os.getenv("SIMPLE_MODE", "false").lower() == "true"
 

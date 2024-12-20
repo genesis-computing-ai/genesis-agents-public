@@ -5,6 +5,10 @@ langtrace.init(api_key = 'f2cc4c71dbd567098789b764b8b4e50308046824ddadfe2844c4e3
 )
 
 
+#--------------------------------------------------------------------------------------------------
+# NOTE: requires 
+#       `pip install crewai crewai-tools`
+#--------------------------------------------------------------------------------------------------
 
 from   crewai                   import Agent, Crew, LLM, Process, Task
 from   crewai.tools             import tool

@@ -1,131 +1,118 @@
+from   bs4                      import BeautifulSoup
+from   datetime                 import datetime
 import json
-import os
-import time
-import requests
-from bs4 import BeautifulSoup
-from urllib.parse import urljoin, urlunparse, urlencode
-from datetime import datetime
-import threading
-import random
-import string
-from selenium import webdriver
-import json
-from typing import Optional, Dict, Any
-import time, uuid
 import jsonschema
+import os
+import random
+import requests
+import string
+import threading
+import time
+from   typing                   import Any, Callable, Dict, List
+from   urllib.parse             import urlencode, urljoin, urlunparse
+import uuid
 
-from connectors.bigquery_connector import BigQueryConnector
-from core import global_flags
-from core.bot_os_tools_extended import load_user_extended_tools
-from llm_openai.bot_os_openai import StreamingEventHandler
+from   connectors.bigquery_connector \
+                                import BigQueryConnector
+from   core                     import global_flags
+from   core.bot_os_tools2       import (ToolFuncDescriptor,
+                                        get_global_tools_registry,
+                                        get_tool_func_descriptor)
+from   core.bot_os_tools_extended \
+                                import load_user_extended_tools
+from   llm_openai.bot_os_openai import StreamingEventHandler
 
-from google_sheets.g_sheets import (
-    get_g_file_version,
-    get_g_file_comments,
-    add_g_file_comment,
-    read_g_sheet,
-    write_g_sheet_cell,
-    add_reply_to_g_file_comment,
-    get_g_file_web_link,
-    get_g_folder_directory,
-    find_g_file_by_name,
-)
+from   connectors.customer_data_connector \
+                                import CustomerDataConnector
+from   google_sheets.g_sheets   import (add_g_file_comment,
+                                        add_reply_to_g_file_comment,
+                                        find_g_file_by_name,
+                                        get_g_file_comments,
+                                        get_g_file_version,
+                                        get_g_file_web_link,
+                                        get_g_folder_directory, read_g_sheet,
+                                        write_g_sheet_cell)
 
-import re
-from typing import Optional
 import collections
+import re
+from   typing                   import Optional
 
-from jinja2 import Template
-from bot_genesis.make_baby_bot import (
-    MAKE_BABY_BOT_DESCRIPTIONS,
-    make_baby_bot_tools,
-    get_bot_details,
-)
+from   bot_genesis.make_baby_bot \
+                                import (MAKE_BABY_BOT_DESCRIPTIONS,
+                                        get_bot_details, make_baby_bot_tools)
+from   jinja2                   import Template
 # from connectors import get_global_db_connector
 # from connectors.bigquery_connector import BigQueryConnector
-from connectors.snowflake_connector.snowflake_connector import SnowflakeConnector
-from connectors.sqlite_connector import SqliteConnector
-from llm_openai.openai_utils import get_openai_client
-from slack.slack_tools import slack_tools, slack_tools_descriptions
-from connectors.database_tools import (
-    image_functions,
-    image_tools,
-    bind_run_query,
-    bind_search_metadata,
-    bind_search_metadata_detailed,
-    bind_semantic_copilot,
-    autonomous_functions,
-    autonomous_tools,
-    process_manager_tools,
-    process_manager_functions,
-    notebook_manager_tools,
-    notebook_manager_functions,
-    manage_tests_functions,
-    manage_tests_tools,
-    google_drive_tools,
-    google_drive_functions,
-    database_tool_functions,
-    database_tools,
-    snowflake_stage_functions,
-    snowflake_stage_tools,
-    snowflake_semantic_functions,
-    snowflake_semantic_tools,
-    process_scheduler_functions,
-    process_scheduler_tools,
-)
-from schema_explorer.harvester_tools import (
-    harvester_tools_list,
-    harvester_tools_functions,
-)
-from development.integration_tools import (
-    integration_tool_descriptions,
-    integration_tools,
-)
+from   connectors.database_tools \
+                                import (autonomous_functions, autonomous_tools,
+                                        bind_run_query, bind_search_metadata,
+                                        bind_search_metadata_detailed,
+                                        bind_semantic_copilot,
+                                        database_tool_functions,
+                                        database_tools, google_drive_functions,
+                                        google_drive_tools, image_functions,
+                                        image_tools, manage_tests_functions,
+                                        manage_tests_tools,
+                                        notebook_manager_functions,
+                                        notebook_manager_tools,
+                                        process_manager_functions,
+                                        process_manager_tools,
+                                        process_scheduler_functions,
+                                        process_scheduler_tools,
+                                        snowflake_stage_functions,
+                                        snowflake_stage_tools)
+from   development.integration_tools \
+                                import (integration_tool_descriptions,
+                                        integration_tools)
+from   llm_openai.openai_utils  import get_openai_client
+from   schema_explorer.harvester_tools \
+                                import (harvester_tools_functions,
+                                        harvester_tools_list)
+from   slack.slack_tools        import slack_tools, slack_tools_descriptions
 
-from data_pipeline_tools.gc_dagster import (
-    dagster_tool_functions,
-    dagster_tools,
-)
+# Commented out gut left for reference: dagster tools are 'new type' tools - registred with the ToolsFuncRegistry
+#
+# from data_pipeline_tools.gc_dagster import (
+#     dagster_tool_functions,
+#     dagster_tools,
+# )
 
-from core.bot_os import BotOsSession
-from core.bot_os_corpus import URLListFileCorpus
-from core.bot_os_defaults import (
-    BASE_BOT_INSTRUCTIONS_ADDENDUM,
-    BASE_BOT_PRE_VALIDATION_INSTRUCTIONS,
-    BASE_BOT_PROACTIVE_INSTRUCTIONS,
-    BASE_BOT_VALIDATION_INSTRUCTIONS,
-    BASE_BOT_DB_CONDUCT_INSTRUCTIONS,
-)
-from core.bot_os_input import BotOsInputAdapter, BotOsInputMessage, BotOsOutputMessage
-from core.bot_os_memory import BotOsKnowledgeAnnoy_Metadata
+from   core.bot_os              import BotOsSession
+from   core.bot_os_corpus       import URLListFileCorpus
+from   core.bot_os_defaults     import (BASE_BOT_INSTRUCTIONS_ADDENDUM,
+                                        BASE_BOT_PRE_VALIDATION_INSTRUCTIONS,
+                                        BASE_BOT_PROACTIVE_INSTRUCTIONS,
+                                        BASE_BOT_VALIDATION_INSTRUCTIONS)
+from   core.bot_os_input        import BotOsInputAdapter
+from   core.bot_os_memory       import BotOsKnowledgeAnnoy_Metadata
 
-from core.bot_os_tool_descriptions import process_runner_tools
-from core.bot_os_input import BotOsInputMessage, BotOsOutputMessage
-from core.bot_os_artifacts import lookup_artifact_markdown, get_artifacts_store, ARTIFACT_ID_REGEX
+from   core.bot_os_artifacts    import (ARTIFACT_ID_REGEX, get_artifacts_store,
+                                        lookup_artifact_markdown)
+from   core.bot_os_input        import BotOsInputMessage, BotOsOutputMessage
 
 # import sys
 # sys.path.append('/Users/mglickman/helloworld/bot_os')  # Adjust the path as necessary
 
 
-from core.bot_os_tool_descriptions import (
-    process_runner_functions,
-    process_runner_tools,
-    webpage_downloader_functions,
-    webpage_downloader_tools,
-    data_dev_tools_functions,
-    data_dev_tools,  #
-    PROJECT_MANAGER_FUNCTIONS,
-    project_manager_tools,
-    git_file_manager_functions,
-    git_file_manager_tools,
-)
-from core.bot_os_llm import BotLlmEngineEnum
+from   core.bot_os_llm          import BotLlmEngineEnum
+from   core.bot_os_tool_descriptions \
+                                import (PROJECT_MANAGER_FUNCTIONS,
+                                        data_dev_tools,
+                                        data_dev_tools_functions,
+                                        git_file_manager_functions,
+                                        git_file_manager_tools,
+                                        process_runner_functions,
+                                        process_runner_tools,
+                                        project_manager_tools,
+                                        webpage_downloader_functions,
+                                        webpage_downloader_tools)
 
-from core.logging_config import logger
-from core.bot_os_project_manager import ProjectManager
-from core.file_diff_handler import GitFileManager
-from connectors.customer_data_connector import CustomerDataConnector
-from connectors.snowflake_connector.snowflake_connector import SnowflakeConnector
+from   connectors.snowflake_connector.snowflake_connector \
+                                import SnowflakeConnector
+from   core.bot_os_project_manager \
+                                import ProjectManager
+from   core.file_diff_handler   import GitFileManager
+from   core.logging_config      import logger
 
 genesis_source = os.getenv("GENESIS_SOURCE", default="Snowflake")
 
@@ -3478,142 +3465,184 @@ class ToolBelt:
 
     # ====== PROCESSES END ====================================================================================
 
-def get_tools(which_tools, db_adapter, slack_adapter_local=None, include_slack=True, tool_belt=None) -> tuple[list, dict, dict]:
+def get_tools(
+    which_tools: list[str], 
+    db_adapter, 
+    slack_adapter_local=None, 
+    include_slack: bool = True, 
+    tool_belt=None
+    ) -> tuple[list, dict, dict]:
+    """
+    Retrieve a list of tools (function groups), available functions, and a mapping of functions to tools based on the specified tool names.
 
-    tools = []
-    available_functions_load = {}
-    function_to_tool_map = {}
+    Args:
+        which_tools (list): A list of tool (function group) names to retrieve.
+        db_adapter: The database adapter to use (some functions we methods of db_adapter).
+        slack_adapter_local: The Slack adapter to use for Slack operations (optional).
+        include_slack (bool): Whether to include Slack tools (default is True).
+        tool_belt: An optional tool belt instance to use.
+
+    Returns:
+        tuple: A tuple containing three elements:
+            - list of dicts: A list of function descriptions
+            - dict: A dictionary mapping function names to their implementations (callable objects).
+            - dict: A dictionary mapping tool (group) names to a list of function descriptors (dicts) for this tool (group)
+    """
+    func_descriptors = []
+    available_functions_loaded = {} # map function_name (str)--> 'locator' (str|callable) ; 
+                                    # 'locator' can be a callable or string. 
+                                    # If a string, it gets dyanmically evaluated below to the actual callable object
+    tool_to_func_descriptors_map = {} # map of tool name to list of function descriptors
     if "autonomous_functions" in which_tools and "autonomous_tools" not in which_tools:
         which_tools = [
             tool if tool != "autonomous_functions" else "autonomous_tools"
             for tool in which_tools
         ]
     which_tools = [tool for tool in which_tools if tool != "autonomous_functions"]
+
     for tool in which_tools:
         try:
             tool_name = tool.get("tool_name")
         except:
             tool_name = tool
-
+            
+        # Resolve 'old style' tool names
+        #----------------------------------
         if False:  # tool_name == 'integration_tools':
-            tools.extend(integration_tool_descriptions)
-            available_functions_load.update(integration_tools)
-            function_to_tool_map[tool_name] = integration_tool_descriptions
+            func_descriptors.extend(integration_tool_descriptions)
+            available_functions_loaded.update(integration_tools)
+            tool_to_func_descriptors_map[tool_name] = integration_tool_descriptions
         elif tool_name == "google_drive_tools":
-            tools.extend(google_drive_functions)
-            available_functions_load.update(google_drive_tools)
-            function_to_tool_map[tool_name] = google_drive_functions
+            func_descriptors.extend(google_drive_functions)
+            available_functions_loaded.update(google_drive_tools)
+            tool_to_func_descriptors_map[tool_name] = google_drive_functions
         elif tool_name == "bot_dispatch_tools":
-            tools.extend(BOT_DISPATCH_DESCRIPTIONS)
-            available_functions_load.update(bot_dispatch_tools)
-            function_to_tool_map[tool_name] = BOT_DISPATCH_DESCRIPTIONS
+            func_descriptors.extend(BOT_DISPATCH_DESCRIPTIONS)
+            available_functions_loaded.update(bot_dispatch_tools)
+            tool_to_func_descriptors_map[tool_name] = BOT_DISPATCH_DESCRIPTIONS
         elif tool_name == "manage_tests_tools":
-            tools.extend(manage_tests_functions)
-            available_functions_load.update(manage_tests_tools)
-            function_to_tool_map[tool_name] = manage_tests_functions
+            func_descriptors.extend(manage_tests_functions)
+            available_functions_loaded.update(manage_tests_tools)
+            tool_to_func_descriptors_map[tool_name] = manage_tests_functions
         elif tool_name == "data_dev_tools":
-            tools.extend(data_dev_tools_functions)
-            available_functions_load.update(data_dev_tools)
+            func_descriptors.extend(data_dev_tools_functions)
+            available_functions_loaded.update(data_dev_tools)
         elif tool_name == "project_manager_tools" or tool_name == "todo_manager_tools":
-            tools.extend(PROJECT_MANAGER_FUNCTIONS)
-            available_functions_load.update(project_manager_tools)
-            function_to_tool_map[tool_name] = PROJECT_MANAGER_FUNCTIONS
+            func_descriptors.extend(PROJECT_MANAGER_FUNCTIONS)
+            available_functions_loaded.update(project_manager_tools)
+            tool_to_func_descriptors_map[tool_name] = PROJECT_MANAGER_FUNCTIONS
         elif include_slack and tool_name == "slack_tools":
-            tools.extend(slack_tools_descriptions)
-            available_functions_load.update(slack_tools)
-            function_to_tool_map[tool_name] = slack_tools_descriptions
+            func_descriptors.extend(slack_tools_descriptions)
+            available_functions_loaded.update(slack_tools)
+            tool_to_func_descriptors_map[tool_name] = slack_tools_descriptions
         elif tool_name == "harvester_tools":
-            tools.extend(harvester_tools_functions)
-            available_functions_load.update(harvester_tools_list)
-            function_to_tool_map[tool_name] = harvester_tools_functions
+            func_descriptors.extend(harvester_tools_functions)
+            available_functions_loaded.update(harvester_tools_list)
+            tool_to_func_descriptors_map[tool_name] = harvester_tools_functions
         elif tool_name == "make_baby_bot":
-            tools.extend(MAKE_BABY_BOT_DESCRIPTIONS)
-            available_functions_load.update(make_baby_bot_tools)
-            function_to_tool_map[tool_name] = MAKE_BABY_BOT_DESCRIPTIONS
+            func_descriptors.extend(MAKE_BABY_BOT_DESCRIPTIONS)
+            available_functions_loaded.update(make_baby_bot_tools)
+            tool_to_func_descriptors_map[tool_name] = MAKE_BABY_BOT_DESCRIPTIONS
         elif tool_name == "bot_dispatch":
-            tools.extend(BOT_DISPATCH_DESCRIPTIONS)
-            available_functions_load.update(bot_dispatch_tools)
-            function_to_tool_map[tool_name] = BOT_DISPATCH_DESCRIPTIONS
+            func_descriptors.extend(BOT_DISPATCH_DESCRIPTIONS)
+            available_functions_loaded.update(bot_dispatch_tools)
+            tool_to_func_descriptors_map[tool_name] = BOT_DISPATCH_DESCRIPTIONS
         elif tool_name == "database_tools":
             connection_info = {"Connection_Type": db_adapter.connection_info}
-            tools.extend(database_tool_functions)
-            available_functions_load.update(database_tools)
+            func_descriptors.extend(database_tool_functions)
+            available_functions_loaded.update(database_tools)
             run_query_f = bind_run_query([connection_info])
             search_metadata_f = bind_search_metadata("./kb_vector")
             search_metadata_detailed_f = bind_search_metadata_detailed("./kb_vector")
             semantic_copilot_f = bind_semantic_copilot([connection_info])
-            function_to_tool_map[tool_name] = database_tool_functions
+            tool_to_func_descriptors_map[tool_name] = database_tool_functions
         elif tool_name == "image_tools":
-            tools.extend(image_functions)
-            available_functions_load.update(image_tools)
-            function_to_tool_map[tool_name] = image_functions
+            func_descriptors.extend(image_functions)
+            available_functions_loaded.update(image_tools)
+            tool_to_func_descriptors_map[tool_name] = image_functions
         #    elif tool_name == "snowflake_semantic_tools":
         #        logger.info('Note: Semantic Tools are currently disabled pending refactoring or removal.')
         #        tools.extend(snowflake_semantic_functions)
         #        available_functions_load.update(snowflake_semantic_tools)
         #        function_to_tool_map[tool_name] = snowflake_semantic_functions
         elif tool_name == "snowflake_stage_tools":
-            tools.extend(snowflake_stage_functions)
-            available_functions_load.update(snowflake_stage_tools)
-            function_to_tool_map[tool_name] = snowflake_stage_functions
+            func_descriptors.extend(snowflake_stage_functions)
+            available_functions_loaded.update(snowflake_stage_tools)
+            tool_to_func_descriptors_map[tool_name] = snowflake_stage_functions
         elif tool_name == "autonomous_tools" or tool_name == "autonomous_functions":
-            tools.extend(autonomous_functions)
-            available_functions_load.update(autonomous_tools)
-            function_to_tool_map[tool_name] = autonomous_functions
+            func_descriptors.extend(autonomous_functions)
+            available_functions_loaded.update(autonomous_tools)
+            tool_to_func_descriptors_map[tool_name] = autonomous_functions
         elif tool_name == "process_runner_tools":
-            tools.extend(process_runner_functions)
-            available_functions_load.update(process_runner_tools)
-            function_to_tool_map[tool_name] = process_runner_functions
+            func_descriptors.extend(process_runner_functions)
+            available_functions_loaded.update(process_runner_tools)
+            tool_to_func_descriptors_map[tool_name] = process_runner_functions
         elif tool_name == "process_manager_tools":
-            tools.extend(process_manager_functions)
-            available_functions_load.update(process_manager_tools)
-            function_to_tool_map[tool_name] = process_manager_functions
+            func_descriptors.extend(process_manager_functions)
+            available_functions_loaded.update(process_manager_tools)
+            tool_to_func_descriptors_map[tool_name] = process_manager_functions
         elif tool_name == "process_scheduler_tools":
-            tools.extend(process_scheduler_functions)
-            available_functions_load.update(process_scheduler_tools)
-            function_to_tool_map[tool_name] = process_scheduler_functions
+            func_descriptors.extend(process_scheduler_functions)
+            available_functions_loaded.update(process_scheduler_tools)
+            tool_to_func_descriptors_map[tool_name] = process_scheduler_functions
         elif tool_name == "notebook_manager_tools":
-            tools.extend(notebook_manager_functions)
-            available_functions_load.update(notebook_manager_tools)
-            function_to_tool_map[tool_name] = notebook_manager_functions
+            func_descriptors.extend(notebook_manager_functions)
+            available_functions_loaded.update(notebook_manager_tools)
+            tool_to_func_descriptors_map[tool_name] = notebook_manager_functions
         elif tool_name == "git_file_manager_tools":  # Add this section
-            tools.extend(git_file_manager_functions)
-            available_functions_load.update(git_file_manager_tools)
-            function_to_tool_map[tool_name] = git_file_manager_functions
+            func_descriptors.extend(git_file_manager_functions)
+            available_functions_loaded.update(git_file_manager_tools)
+            tool_to_func_descriptors_map[tool_name] = git_file_manager_functions
         elif tool_name == "webpage_downloader":
-            tools.extend(webpage_downloader_functions)
-            available_functions_load.update(webpage_downloader_tools)
-            function_to_tool_map[tool_name] = webpage_downloader_functions
-        elif tool_name == "dagster_tools":
-            tools.extend(dagster_tool_functions)
-            available_functions_load.update(dagster_tools)
-            function_to_tool_map[tool_name] = dagster_tool_functions
-        elif tool_name == "customer_data_tools":
-            from connectors.customer_data_connector import CUSTOMER_DATABASE_TOOL_DEFINITIONS as customer_data_functions, customer_data_tools
-            tools.extend(customer_data_functions)
-            available_functions_load.update(customer_data_tools)
-            function_to_tool_map[tool_name] = customer_data_functions
+            func_descriptors.extend(webpage_downloader_functions)
+            available_functions_loaded.update(webpage_downloader_tools)
+            tool_to_func_descriptors_map[tool_name] = webpage_downloader_functions
+        # dagster tools have been converted to 'new type' tools (see bot_os_tools2.py)
+        #
+        # elif tool_name == "dagster_tools":
+        #     func_descriptors.extend(dagster_tool_functions)
+        #     available_functions_loaded.update(dagster_tools)
+        #     tool_to_func_descriptors_map[tool_name] = dagster_tool_functions
         else:
-            try:
-                module_path = "generated_modules." + tool_name
-                desc_func = "TOOL_FUNCTION_DESCRIPTION_" + tool_name.upper()
-                functs_func = tool_name.lower() + "_action_function_mapping"
-                module = __import__(module_path, fromlist=[desc_func, functs_func])
-                # here's how to get the function for generated things even new ones...
-                func = [getattr(module, desc_func)]
-                tools.extend(func)
-                function_to_tool_map[tool_name] = func
-                func_af = getattr(module, functs_func)
-                available_functions_load.update(func_af)
-            except:
-                logger.warn(f"Functions for tool '{tool_name}' could not be found.")
+            # Resolve 'new style' tool functions 
+            # (from tool functions registry)
+            #----------------------------------
+            registry = get_global_tools_registry()
+            tool_funcs : List[Callable] = registry.get_tool_funcs_by_group(tool_name)
+            if tool_funcs:
+                descriptors : List(ToolFuncDescriptor) = [get_tool_func_descriptor(func) for func in tool_funcs]
+                func_descriptors.extend([descriptor.to_llm_description_dict() 
+                                        for descriptor in descriptors])
+                available_functions_loaded.update({get_tool_func_descriptor(func).name : func
+                                                for func in tool_funcs})
+                tool_to_func_descriptors_map[tool_name] = [descriptor.to_llm_description_dict()
+                                                        for descriptor in descriptors]
+            else:
+                # Ultimately, fallback to try to load the function data dynamaically from a module named exactly like tool_name
+                # ??? is this ever actually used ???
+                try:
+                    module_path = "generated_modules." + tool_name
+                    desc_func = "TOOL_FUNCTION_DESCRIPTION_" + tool_name.upper()
+                    functs_func = tool_name.lower() + "_action_function_mapping"
+                    module = __import__(module_path, fromlist=[desc_func, functs_func])
+                    # here's how to get the function for generated things even new ones...
+                    func = [getattr(module, desc_func)]
+                    func_descriptors.extend(func)
+                    tool_to_func_descriptors_map[tool_name] = func
+                    func_af = getattr(module, functs_func)
+                    available_functions_loaded.update(func_af)
+                except:
+                    logger.warn(f"Functions for tool '{tool_name}' could not be found.")
 
+    
+    # Resolve 'old style' tool functions to actual callables
     available_functions = {}
-    for name, full_func_name in available_functions_load.items():
-        if callable(full_func_name):
-            available_functions[name] = full_func_name
+    for name, function_handle in available_functions_loaded.items():
+        if callable(function_handle):
+            available_functions[name] = function_handle
         else:
-            module_path, func_name = full_func_name.rsplit(".", 1)
+            assert isinstance(function_handle, str)
+            module_path, func_name = function_handle.rsplit(".", 1)
             if module_path in locals():
                 module = locals()[module_path]
                 try:
@@ -3629,6 +3658,7 @@ def get_tools(which_tools, db_adapter, slack_adapter_local=None, include_slack=T
                     func = module
                 # logger.info("existing global: ",func)
             else:
+                # Dyanmic imports (e.g. module_path= 'bot_genesis.make_baby_bot')
                 module = __import__(module_path, fromlist=[func_name])
                 func = getattr(module, func_name)
                 # logger.info("imported: ",func)
@@ -3639,11 +3669,11 @@ def get_tools(which_tools, db_adapter, slack_adapter_local=None, include_slack=T
     user_extended_tools_definitions, user_extended_functions = load_user_extended_tools(db_adapter, project_id=global_flags.project_id,
                                                                                         dataset_name=global_flags.genbot_internal_project_and_schema.split(".")[1])
     if user_extended_functions:
-        tools.extend(user_extended_functions)
-        available_functions_load.update(user_extended_tools_definitions)
-        function_to_tool_map[tool_name] = user_extended_functions
+        func_descriptors.extend(user_extended_functions)
+        available_functions_loaded.update(user_extended_tools_definitions)
+        tool_to_func_descriptors_map[tool_name] = user_extended_functions
 
-    return tools, available_functions, function_to_tool_map
+    return func_descriptors, available_functions, tool_to_func_descriptors_map
     # logger.info("imported: ",func)
 
 

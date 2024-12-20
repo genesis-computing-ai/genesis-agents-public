@@ -171,8 +171,9 @@ webpage_downloader_action_function_mapping = {
     "webpage_downloader": "tool_belt.download_webpage"
 }
 
-
-tools_data = [
+# A global list of tools (function groups) and their descriptions.  
+# NOTE: This is used to populate the AVAILABLE_TOOLS table in the database.
+_tools_data = [
     (
         "google_drive_tools",
         "A suite of tools for interacting with Google Drive",
@@ -227,10 +228,11 @@ tools_data = [
         "notebook_manager_tools",
         "Tools to manage bot notebook.",
     ),
-    (
-        "dagster_tools",
-        "Tools to access and manage data pipelines orchestrated by a Dagster Cloud setup.",
-    ),
+    # dagster tools have been converted to 'new type' tools (see bot_os_tools2.py)
+    # (
+    #     "dagster_tools",
+    #     "Tools to access and manage data pipelines orchestrated by a Dagster Cloud setup.",
+    # ),
 
 ]
 
@@ -297,7 +299,7 @@ data_dev_tools = {
     "_jira_connector": "data_dev_tools.jira_connector._jira_connector"
 }
 
-tools_data.append(
+_tools_data.append(
     (
         "data_dev_tools",
         "Tools for data development workflows including Jira integration",
@@ -580,7 +582,7 @@ project_manager_tools = {
     "_manage_project_assets": "tool_belt.manage_project_assets"
 }
 
-tools_data.append(
+_tools_data.append(
     (
         "project_manager_tools",
         "Tools for managing projects and their todo items including creating, updating, changing status and listing both projects and todos",
@@ -671,7 +673,7 @@ git_file_manager_tools = {
     "_git_action": "tool_belt.git_action"
 }
 
-tools_data.append(
+_tools_data.append(
     (
         "git_file_manager_tools",
         "Tools for managing files in a local Git repository including reading, writing, generating and applying diffs, and managing commits"
@@ -679,9 +681,29 @@ tools_data.append(
 )
 
 
-tools_data.append(
+_tools_data.append(
     (
         "bot_dispatch_tools",
         "Tools delegating work to bots"
     )
 )
+
+
+def get_persistent_tools_descriptions() -> list[tuple[str, str]]:
+    """
+    Retrieves a list of all tool descriptions for tools that have a 'persistent' lifetime.
+
+    Returns:
+        list: A list of tuples where each tuple contains the name and description of a tool group.
+    """
+    # Impl note: This function copies the global _tools_data list - AKA 'old-style' tool registry  - and appends descriptions of tool groups
+    # from the global tools registry - AKA 'new-style' tool registry - where all tools in the group have a 'PERSISTENT' lifetime.
+    from core.bot_os_tools2 import get_global_tools_registry, ToolFuncGroupLifetime
+    global _tools_data
+    tools_data = _tools_data.copy()
+
+    registry = get_global_tools_registry()
+    for group in registry.list_groups():
+        if group.lifetime == ToolFuncGroupLifetime.PERSISTENT:
+            tools_data.append((group.name, group.description))
+    return tools_data

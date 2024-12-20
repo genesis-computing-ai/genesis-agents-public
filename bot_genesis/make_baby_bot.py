@@ -1100,7 +1100,10 @@ def make_baby_bot(
                 # Check if the provided available tools match the database tools
                 if not all(tool in db_tool_names for tool in available_tools_array):
                     invalid_tools = [tool for tool in available_tools_array if tool not in db_tool_names]
-                    error_message = f"Tool call error: The following tools you included in available_tools are not available or invalid: {', '.join(invalid_tools)}.  The tools you can include in available_tools are: {db_available_tools}.  The available_tools parameter should be either a single tool like 'tool1' or a simple list of tools like 'tool1,tool2' (with no single quotes in the actual paramater string you send)"
+                    error_message = (f"Tool call error: The following tools you included in available_tools are not available or invalid: {', '.join(invalid_tools)}. "
+                                     f"The tools you can include in available_tools are: {db_tool_names}. "
+                                     " The available_tools parameter should be either a single tool like 'tool1' or a simple list of tools like 'tool1,tool2' "
+                                     "(with no single quotes in the actual paramater string you send)")
                     return _make_retval(False, error_msg=error_message)
 
             if not api_bot_update:

@@ -1202,7 +1202,7 @@ def ensure_table_exists(self):
                 f"Table {self.available_tools_table_name} (re)created, this is expected on every run."
             )
 
-            tools_data = core.bot_os_tool_descriptions.tools_data
+            tools_data = core.bot_os_tool_descriptions.get_persistent_tools_descriptions()
 
             insert_tools_query = f"""
             INSERT INTO {self.available_tools_table_name} (TOOL_NAME, TOOL_DESCRIPTION)

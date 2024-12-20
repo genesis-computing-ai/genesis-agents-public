@@ -1,8 +1,5 @@
-from   textwrap                 import dedent
-from   typing                   import Dict, List, get_args, get_origin
 
 import gzip
-import inspect
 import os
 import shutil
 import tempfile
@@ -15,7 +12,9 @@ from   dagster_graphql          import (DagsterGraphQLClient,
 from   pathlib                  import Path
 import requests
 
-# relative locaiton to files with the graphql queries used by the tools
+from   core.bot_os_tools2       import gc_tool, ToolFuncGroup
+
+# relative location to the files with the graphql queries used by the tools
 GRAPHQL_QUERIES_DIR = Path(__file__).parent / "graphql"
 
 
@@ -39,7 +38,7 @@ class DagsterConfig:
         self.DAGSTER_HOSTNAME = os.getenv("DAGSTER_HOSTNAME")
         self.DAGSTER_USER_TOKEN = os.getenv("DAGSTER_USER_TOKEN")
 
-        assert self.DAGSTER_HOSTNAME & self.DAGSTER_USER_TOKEN, "DAGSTER_HOSTNAME and DAGSTER_USER_TOKEN env vars must be set"
+        assert bool(self.DAGSTER_HOSTNAME) & bool(self.DAGSTER_USER_TOKEN), "DAGSTER_HOSTNAME and DAGSTER_USER_TOKEN env vars must be set"
 
         # Optional
         self.DAGSTER_DEPLOYMENT_NAME = os.getenv("DAGSTER_DEPLOYMENT_NAME", "prod")
@@ -119,115 +118,24 @@ def _get_content_of_web_file(url, token):
                 return f"Error processing file: {e}"
 
 
-# TODO: refactor the gc_tool_descriptor value we attach to each func be a ToolDescriptor class that can
-#       validate the input and convert to_dict()
-def gctool(**param_descriptions):
-    '''
-    """
-    A decorator for a 'tool' function that attaches a `gc_tool_descriptor` property to the wrapped function that can 
-    be used as the Geensis bot tool description:
-
-    example: 
-        @gctool(param1='this is param1',
-                param2="note that param2 is optional")
-        def foo(param1: int, param2: str = "genesis"):
-            'This is the description of gfoo'
-            pass
-
-        pprint.pprint(foo.gc_tool_descriptor)
-       @gctool(pa)
+dagster_tools_tag = ToolFuncGroup(name="dagster_tools", 
+                                  description="Tools to interact with Dagster Cloud", 
+                                  lifetime="PERSISTENT")
 
 
+# def list_gctool_decorated_functions():
+#     """
+#     Lists all the functions defined in this module that are decorated with @gctool.
 
-    Output:
-        (param1: int, param2: str = 'genesis')
-        {'param1': <Parameter "param1: int">, 'param2': <Parameter "param2: str = 'genesis'">}
-        {'function': {'description': 'This is the description of gfoo',
-                    'name': 'foo',
-                    'parameters': {'properties': {'param1': {'description': 'this is param1',
-                                                            'type': 'int'},
-                                                    'param2': {'description': 'note that param2 is optional',
-                                                            'type': 'string'}},
-                                    'type': 'object',
-                                    'required': ['param1']},
-        'type': 'function'}
-    """
-    '''
-    def decorator(func):
-        sig = inspect.signature(func)
-        if not func.__doc__:
-            raise ValueError("Function must have a docstring")
-        if func.__annotations__ is None and len(inspect.signature(func).parameters) > 0:
-            raise ValueError("Function must have type annotations")
+#     Returns:
+#         list: A list of function names that are decorated with @gctool.
+#     """
+#     gctool_decorated_functions = []
+#     for name, obj in globals().items():
+#         if callable(obj) and hasattr(obj, gc_tool.gc_tool_descriptor_attr_name):
+#             gctool_decorated_functions.append(obj)
 
-        def _python_type_to_llm_type(python_type):
-            origin = get_origin(python_type)
-            args = get_args(python_type)
-            if origin in (list, List):
-                return {'type': 'array', 'items': _python_type_to_llm_type(args[0])} if args else {'type': 'array'}
-            elif origin in(dict, Dict):
-                return {
-                    'type': 'object',
-                    'properties': {arg: _python_type_to_llm_type(args[i]) for i, arg in enumerate(args)}
-                }
-            elif python_type is int:
-                return {'type': 'int'}
-            elif python_type is str:
-                return {'type': 'string'}
-            elif python_type is float:
-                return {'type': 'float'}
-            elif python_type is bool:
-                return {'type': 'boolean'}
-
-            else:
-                print(f"_python_type_to_llm_type: Could not convert annotation type {python_type} {python_type is str} to llm type")
-                return {'type': 'string'}
-            
-        def _cleanup_docsting(s):
-            s = dedent(s)
-            s = "\n".join([line for line in s.split("\n") if line])
-            return s
-
-        params_desc_dict = {pname: dict(description=param_descriptions[pname]) | _python_type_to_llm_type(pattrs.annotation)
-             for pname, pattrs in sig.parameters.items()}
-
-        required_params = [pname for pname, pattrs in sig.parameters.items()
-                           if pattrs.default is  pattrs.empty]
-
-        # Construct the gc_tool_descriptor attribute
-        func.gc_tool_descriptor = {
-            "type": "function",
-            "function": {
-                "name": func.__name__,
-                "description": _cleanup_docsting(func.__doc__),
-                "parameters": {
-                    "type": "object",
-                    "properties": params_desc_dict,
-                    "required": required_params,
-                },
-
-            }
-        }
-        return func
-
-    return decorator
-
-gctool.gc_tool_descriptor_attr_name = "gc_tool_descriptor"
-
-
-def list_gctool_decorated_functions():
-    """
-    Lists all the functions defined in this module that are decorated with @gctool.
-
-    Returns:
-        list: A list of function names that are decorated with @gctool.
-    """
-    gctool_decorated_functions = []
-    for name, obj in globals().items():
-        if callable(obj) and hasattr(obj, gctool.gc_tool_descriptor_attr_name):
-            gctool_decorated_functions.append(obj)
-
-    return gctool_decorated_functions
+#     return gctool_decorated_functions
 
 
 def run_dagster_graphql(graphql_query, variables=None):
@@ -248,8 +156,9 @@ def run_dagster_graphql_file(filename, variables=None):
         return f"Error reading or executing query from file: {e}"
 
 
-@gctool(
-    run_id="The run_id to fetch status for"
+@gc_tool(
+    run_id="The run_id to fetch status for",
+    _group_tags_= [dagster_tools_tag]
 )
 def get_dagster_run_status(run_id: str):
     '''
@@ -262,8 +171,9 @@ def get_dagster_run_status(run_id: str):
     return status
 
 
-@gctool(
-    run_id="The run_id to fetch status for"
+@gc_tool(
+    run_id="The run_id to fetch status for",
+    _group_tags_= [dagster_tools_tag]
 )
 def get_dagster_run_debug_dump(run_id: str):
     '''
@@ -277,8 +187,9 @@ def get_dagster_run_debug_dump(run_id: str):
     return _get_content_of_web_file(run_debug_file_url, DagsterConfig().DAGSTER_USER_TOKEN)
 
 
-@gctool(
-    asset_key='the asset key, using "/" as path separeator (e.g. foo/bar for asset key ["foo", "bar"])'
+@gc_tool(
+    asset_key='the asset key, using "/" as path separeator (e.g. foo/bar for asset key ["foo", "bar"])',
+    _group_tags_= [dagster_tools_tag]
 )
 def get_dagster_asset_definition_and_overview(asset_key: str):
     '''
@@ -297,7 +208,7 @@ def get_dagster_asset_definition_and_overview(asset_key: str):
     return run_dagster_graphql_file(GRAPHQL_QUERIES_DIR / "dagster_asset_definition_and_overview.graphql",
                                       dict(assetKey=ak.to_graphql_input()))
 
-@gctool()
+@gc_tool(_group_tags_= [dagster_tools_tag])
 def get_dagster_asset_lineage_graph():
     '''
     Fetch asset lineage for the entire dagster repository.
@@ -308,11 +219,23 @@ def get_dagster_asset_lineage_graph():
                                     {})
 
 
-# used in bot_os_toools.py:
-dagster_tool_functions = [getattr(func, gctool.gc_tool_descriptor_attr_name)
-                          for func in list_gctool_decorated_functions()]
+# # used in bot_os_tools.py:
+# dagster_tool_functions = [getattr(func, gc_tool.gc_tool_descriptor_attr_name).to_dict()
+#                           for func in list_gctool_decorated_functions()]
 
-# used in bot_os_toools.py:
-dagster_tools = {func.__name__: f"{__name__}.{func.__name__}" for func in list_gctool_decorated_functions()}
+# # used in bot_os_tools.py:
+# dagster_tools = {func.__name__: f"{__name__}.{func.__name__}" for func in list_gctool_decorated_functions()}
 
+# holds the list of all dagster tool functions
+# NOTE: Update this list when adding new dagster tools (TODO: automate this by scanning the module)
+_all_dagster_tool_functions = (get_dagster_run_status, 
+                               get_dagster_run_debug_dump, 
+                               get_dagster_asset_definition_and_overview, 
+                               get_dagster_asset_lineage_graph)
+
+
+# Called from bot_os_tools.py to update the global list of dagster tool functions
+def get_dagster_tool_functions():
+    return _all_dagster_tool_functions
+    
 

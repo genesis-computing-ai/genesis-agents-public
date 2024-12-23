@@ -2,6 +2,10 @@
 GENESIS BOT TODOS
 =================
 
+prerelease:
+check that adding a tool via streamlit doesnt mess up the thread with that bot (e.g. data connector tools)
+
+
 todo:
 do bots have task id ok to check history?
 ADD DEFAULT HEADER ON SEND_EMAILS

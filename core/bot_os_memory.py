@@ -125,7 +125,11 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
             self.meta_database_connector = SqliteConnector(connection_name='Sqlite')
             self.project_id = self.meta_database_connector.database
         elif self.source_name  == 'Snowflake':  
-            self.meta_database_connector = SnowflakeConnector(connection_name='Snowflake')
+            if os.getenv("SQLITE_OVERRIDE", "").lower() == "true":
+                from connectors import get_global_db_connector
+                self.meta_database_connector = get_global_db_connector()
+            else:
+                self.meta_database_connector = SnowflakeConnector(connection_name='Snowflake')
             self.project_id = self.meta_database_connector.database
 
         # check if cortex or openai

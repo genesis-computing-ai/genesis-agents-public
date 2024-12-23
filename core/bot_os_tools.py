@@ -147,7 +147,11 @@ class ToolBelt:
         #      connection_info = {"Connection_Type": "Sqlite"}
         #  elif genesis_source == 'Snowflake':  # Initialize Snowflake client
 
-        self.db_adapter = SnowflakeConnector(connection_name="Snowflake")  # always use this for metadata
+        if os.getenv("SQLITE_OVERRIDE", "").lower() == "true":
+            from connectors import get_global_db_connector
+            self.db_adapter = get_global_db_connector()
+        else:
+            self.db_adapter = SnowflakeConnector(connection_name="Snowflake")  # always use this for metadata
         connection_info = {"Connection_Type": "Snowflake"}
         # else:
         #     raise ValueError('Invalid Source')

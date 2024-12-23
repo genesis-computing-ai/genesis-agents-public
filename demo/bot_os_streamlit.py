@@ -3,7 +3,7 @@ import json
 from flask import Flask
 from core.bot_os import BotOsSession
 from core.bot_os_defaults import ELSA_DATA_ANALYST_INSTRUCTIONS
-from core.bot_os_memory import BotOsKnowledgeAnnoy_Metadata, BotOsKnowledgeLocal
+from core.bot_os_memory import BotOsKnowledgeAnnoy_Metadata
 from core.bot_os_server import BotOsServer
 from apscheduler.schedulers.background import BackgroundScheduler
 from connectors.database_tools import (

@@ -10,7 +10,7 @@ import uuid
 import traceback
 import re
 import sys
-import spacy
+#import spacy
 from connectors.bigquery_connector import BigQueryConnector
 from connectors.snowflake_connector.snowflake_connector import SnowflakeConnector
 from connectors.sqlite_connector import SqliteConnector
@@ -28,9 +28,9 @@ class BotOsKnowledgeBase:
         pass
 
 # Load the medium spaCy model
-nlp = spacy.load("en_core_web_md")
+#nlp = spacy.load("en_core_web_md")
 
-class BotOsKnowledgeLocal(BotOsKnowledgeBase):
+class DEPRECIATED_BotOsKnowledgeLocal(BotOsKnowledgeBase):
     def __init__(self, base_directory_path) -> None:
         self.base_directory_path = base_directory_path
         # Create the base directory if it doesn't exist

@@ -4,7 +4,6 @@ from flask import Flask, jsonify, request
 from bot_os import BotOsSession
 from bot_os_input import BotInputAdapterCLI
 from core.bot_os_defaults import ELSA_DATA_ANALYST_INSTRUCTIONS
-from bot_os_memory import BotOsKnowledgeLocal
 from bot_os_server import BotOsServer
 from apscheduler.schedulers.background import BackgroundScheduler
 from slack.slack_bot_os_adapter import SlackBotAdapter

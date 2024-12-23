@@ -205,10 +205,6 @@ class SchemaExplorer:
             logger.info(f"Harvester Error for an object: {e}")
             self.store_table_summary(database, schema, table, summary="Harvester Error: {e}", ddl="Harvester Error", ddl_short="Harvester Error", sample_data="Harvester Error")
 
-        ## Assuming an instance of BotOsKnowledgeLocal named memory_system exists
-        #self.memory_system.store_memory(memory_content, scope='database_metadata')
-
-
     def generate_summary(self, prompt):
         p = [
             {"role": "system", "content": "You are an assistant that is great at explaining database tables and columns in natural language."},

@@ -80,7 +80,6 @@ NGROK_AUTH_TOKEN
    ```
    pip install ngrok
    pip install aiohttp
-   python -m spacy download en_core_web_md
    ```
 
    - Check the log to see if any missing modules/packages. you can output the log to a file to help you

@@ -171,6 +171,13 @@ class CustomerDataConnector:
             # Test new connection first
             # URL encode any special characters in connection string
       
+            # Check if connection_id is the reserved 'snowflake' name
+            if connection_id.lower() == 'snowflake':
+                return {
+                    'success': False,
+                    'error': "The connection_id 'snowflake' is reserved. You can connect to Snowflake but please use a different connection_id string."
+                }
+      
             engine = create_engine(connection_string)
             with engine.connect() as conn:
                 conn.execute(text('SELECT 1'))

@@ -4,7 +4,12 @@ GENESIS BOT TODOS
 
 prerelease:
 check that adding a tool via streamlit doesnt mess up the thread with that bot (e.g. data connector tools)
-
+make sqlite sample data load from csv files vs binary
+speed up startup
+speed up bot responses
+o1 via api with tool calling
+put eve back in as default bot in streamlit 
+demo with web research tools
 
 todo:
 do bots have task id ok to check history?

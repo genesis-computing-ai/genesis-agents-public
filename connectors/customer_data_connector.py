@@ -153,7 +153,7 @@ class CustomerDataConnector:
         finally:
             cursor.close()
 
-    def add_connection(self, connection_id: str, connection_string: str, 
+    def add_connection(self, connection_id: str = None, connection_string: str = None, 
                       bot_id: str, allowed_bot_ids: list = None, thread_id: str = None) -> dict:
         """
         Add or update a database connection configuration

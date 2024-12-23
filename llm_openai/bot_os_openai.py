@@ -768,11 +768,22 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
    def is_bot_openai(self,bot_id):
        bot_details = get_bot_details(bot_id)
-       return bot_details.get("bot_implementation") == 'openai'
-
+       bot_is_openai = False
+       if bot_details.get("bot_implementation") == "openai":
+           bot_is_openai = True
+       elif bot_details.get("bot_implementation") is None:
+           default_engine = os.getenv("BOT_OS_DEFAULT_LLM_ENGINE")
+           if default_engine == "openai":
+               bot_is_openai = True
+           else:
+               bot_is_openai = False
+       else:
+           bot_is_openai = False
+       return bot_is_openai
+   
    def reset_bot_if_not_openai(self,bot_id):
-       bot_details = get_bot_details(bot_id)
-       if bot_details.get("bot_implementation") != "openai":
+       
+       if not self.is_bot_openai(bot_id):
            os.environ[f'RESET_BOT_SESSION_{bot_id}'] = 'True'
            return True
        else:
@@ -820,8 +831,29 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                            for t in self.all_function_to_tool_map[tool_name]:
                               bot_tools_array.append(t)
 
-                  my_assistants = self.client.beta.assistants.list(order="desc", limit=100)
-                  my_assistants = [a for a in my_assistants if a.name == target_bot]
+
+                  # Check for cached assistant ID first
+                  assistant_id_file = f"/tmp/assistant_id_{target_bot}.txt"
+                  my_assistants = []
+                  
+                  if os.path.exists(assistant_id_file):
+                      with open(assistant_id_file, 'r') as f:
+                          assistant_id = f.read().strip()
+                          try:
+                              assistant = self.client.beta.assistants.retrieve(assistant_id)
+                              if assistant.name == target_bot:
+                                  my_assistants = [assistant]
+                          except:
+                              pass
+                              
+                  if not my_assistants:
+                      my_assistants = self.client.beta.assistants.list(order="desc", limit=100)
+                      my_assistants = [a for a in my_assistants if a.name == target_bot]
+                      
+                      # Cache the assistant ID if found
+                      if my_assistants:
+                          with open(assistant_id_file, 'w') as f:
+                              f.write(my_assistants[0].id)
 
                   for assistant in my_assistants:
 

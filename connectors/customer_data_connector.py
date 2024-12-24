@@ -72,6 +72,7 @@ class CustomerDataConnector:
             thread_id: Optional thread identifier for logging/tracking
         """
         try:
+
             allowed_bots_str = ','.join(allowed_bot_ids) if allowed_bot_ids else ''
             
             # Test new connection first
@@ -134,15 +135,18 @@ class CustomerDataConnector:
                 
         except Exception as e:
             logger.error(f"Error adding connection: {str(e)}")
-            return {
+            resp =  {
                 'success': False,
                 'error': str(e)
             }
+            if '/mnt/data' in connection_string:
+                resp['hint'] = "Don't use /mnt/data, just provide the full or relative file path as provided by the user"
+            return resp
 
-    def query_database(self, connection_id: str, bot_id: str, 
-                      query: str, params: dict = None, 
+    def query_database(self, connection_id: str = None, bot_id: str = None, 
+                      query: str = None, params: dict = None, 
                       max_rows: int = 20, max_rows_override: bool = False,
-                      thread_id: str = None) -> dict:
+                      thread_id: str = None, bot_id_override: bool = False) -> dict:
         """Add thread_id parameter to docstring"""
         try:
             # Check access permissions
@@ -165,7 +169,7 @@ class CustomerDataConnector:
                     raise ValueError(f"Connection {connection_id} not found")
                 
                 owner_id, allowed_bots, connection_string = result  # Add connection_string to unpacking
-                if (bot_id != owner_id and 
+                if not bot_id_override and (bot_id != owner_id and 
                     (not allowed_bots or bot_id not in allowed_bots.split(','))):
                     raise ValueError("Bot does not have permission to access this connection")
                 
@@ -176,8 +180,16 @@ class CustomerDataConnector:
                 with engine.connect() as conn:
                     trans = conn.begin()
                     try:
-                        result = conn.execute(text(query), params or {})
-                        
+                        query = query.replace('```', '')
+                        if query.lower().startswith('sql'):
+                            query = query[3:].lstrip()
+                        query_text = text(query)
+            
+                        if params:
+                            result = conn.execute(query_text, params)
+                        else:
+                            result = conn.execute(query_text)
+            
                         if not result.returns_rows:
                             trans.commit()
                             # For non-select queries, return rowcount or 0 if None
@@ -452,7 +464,7 @@ class CustomerDataConnector:
    
         logger.info("All database connector tests completed successfully.")
 
-    def list_database_connections(self, bot_id: str, thread_id: str = None) -> dict:
+    def list_database_connections(self, bot_id: str, thread_id: str = None, bot_id_override: bool = False) -> dict:
         """
         List all database connections accessible to a bot
         
@@ -469,16 +481,25 @@ class CustomerDataConnector:
         try:
             cursor = self.db_adapter.client.cursor()
             try:
-                cursor.execute(
-                    f"""
-                    SELECT connection_id, db_type, owner_bot_id, allowed_bot_ids, 
-                           created_at, updated_at
-                    FROM {self.db_adapter.schema}.CUST_DB_CONNECTIONS 
-                    WHERE owner_bot_id = %s 
-                    OR allowed_bot_ids LIKE %s
-                    """,
-                    (bot_id, f"%{bot_id}%")
-                )
+                if bot_id_override:
+                    cursor.execute(
+                        f"""
+                        SELECT connection_id, db_type, owner_bot_id, allowed_bot_ids, 
+                               created_at, updated_at
+                        FROM {self.db_adapter.schema}.CUST_DB_CONNECTIONS
+                        """
+                    )
+                else:
+                    cursor.execute(
+                        f"""
+                        SELECT connection_id, db_type, owner_bot_id, allowed_bot_ids, 
+                               created_at, updated_at
+                        FROM {self.db_adapter.schema}.CUST_DB_CONNECTIONS 
+                        WHERE owner_bot_id = %s 
+                        OR allowed_bot_ids LIKE %s
+                        """,
+                        (bot_id, f"%{bot_id}%")
+                    )
                 
                 connections = []
                 for row in cursor.fetchall():
@@ -551,8 +572,8 @@ def _query_database(connection_id: str,
     )
 
 
-@gc_tool(connection_id= "ID of the database connection to query",
-         connection_string= "Full SQLAlchemy connection string",
+@gc_tool(connection_id= "ID of the database connection to create",
+         connection_string= "Full SQLAlchemy connection string.",
          bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
          allowed_bot_ids= "List of bot IDs that can access this connection",
          thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,

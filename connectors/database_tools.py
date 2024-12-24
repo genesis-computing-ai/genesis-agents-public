@@ -87,7 +87,7 @@ database_tool_functions = [
         "type": "function",
         "function": {
             "name": "_run_query",
-            "description": "Run a query against a database.  If you need to find tables to query, use search_metadata first to determine the right object names to query.  You need to specify either a SQL query OR a note_id.",
+            "description": "Run a query against a Snowflake database (use data_connector_tools instead for non-snowflake databases).  If you need to find tables to query, use search_metadata first to determine the right object names to query.  You need to specify either a SQL query OR a note_id.",
             "parameters": {
                 "type": "object",
                 "properties": {

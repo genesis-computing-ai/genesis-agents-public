@@ -922,7 +922,9 @@ def ensure_table_exists(self):
                 "process_runner_tools",
                 "process_scheduler_tools",
                 "notebook_manager_tools",
-                "google_drive_tools"]
+                "google_drive_tools",
+                "data_connector_tools",
+                "harvester_tools"]
                 """
             udf_active = "Y"
             slack_active = "N"

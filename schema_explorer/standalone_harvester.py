@@ -17,7 +17,7 @@ from core.logging_config import logger
 genesis_source = os.getenv('GENESIS_SOURCE',default="BigQuery")
 
 logger.info("waiting 60 seconds for other services to start first...")
-if os.getenv('HARVEST_TEST', 'FALSE').upper() != 'TRUE':
+if os.getenv('HARVEST_TEST', 'FALSE').upper() != 'TRUE' and os.getenv('HARVEST_NO_WAIT', 'FALSE').upper() != 'TRUE':
     time.sleep(60)
 
 ### LLM KEY STUFF
@@ -57,6 +57,12 @@ def get_llm_api_key(db_adapter):
 
         refresh_seconds = 180
         wake_up = False
+        first_pass = True
+        # skip the sleeping on bots inactive if we are running locally or on Sqlite metadata
+        if db_adapter.source_name == "SQLite":
+            wake_up = True
+        if os.getenv("GENESIS_LOCAL_RUNNER", "").upper() == "TRUE":
+            wake_up = True
         while not wake_up:
             ii = 0
 
@@ -70,6 +76,7 @@ def get_llm_api_key(db_adapter):
                 current_time = datetime.now()
                 time_difference = current_time - bot_active_time_dt
 
+
                 ii += 1
                 if ii >= 30:
                     logger.info(f"BOTS ACTIVE TIME: {result[0]} | CURRENT TIME: {current_time} | TIME DIFFERENCE: {time_difference} | producer")
@@ -78,6 +85,9 @@ def get_llm_api_key(db_adapter):
                 if time_difference < timedelta(minutes=5) or os.getenv("HARVEST_TEST", "false").lower() == "true":
                     wake_up = True
                 else:
+                    if first_pass:
+                        logger.info("Waiting for bots to be active as running in non-local (Snowflake SCPS) mode. Set GENESIS_LOCAL_RUNNER=TRUE to prevent this sleeping.")
+                        first_pass = False
                     time.sleep(refresh_seconds)
             except:
                 logger.info('Waiting for BOTS_ACTIVE table to be created...')
@@ -198,6 +208,12 @@ while True:
     sys.stdout.flush()
 
     wake_up = False
+    first_pass = True
+    # skip the sleeping on bots inactive if we are running locally or on Sqlite metadata
+    if harvester_db_connector.source_name == "SQLite":
+        wake_up = True
+    if os.getenv("GENESIS_LOCAL_RUNNER", "").upper() == "TRUE":
+        wake_up = True
     i = 0
     while not wake_up:
         time.sleep(refresh_seconds)
@@ -218,4 +234,9 @@ while True:
 
         if time_difference < timedelta(minutes=5):
             wake_up = True
+        else:
+            if first_pass:
+                logger.info("Waiting for bots to be active as running in non-local (Snowflake SCPS) mode. Set GENESIS_LOCAL_RUNNER=TRUE to prevent this sleeping.")
+                first_pass = False
+        
        #     logger.info("Bot is active")

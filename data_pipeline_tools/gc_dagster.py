@@ -12,7 +12,7 @@ from   dagster_graphql          import (DagsterGraphQLClient,
 from   pathlib                  import Path
 import requests
 
-from   core.bot_os_tools2       import gc_tool, ToolFuncGroup
+from   core.bot_os_tools2       import ToolFuncGroup, gc_tool
 
 # relative location to the files with the graphql queries used by the tools
 GRAPHQL_QUERIES_DIR = Path(__file__).parent / "graphql"
@@ -218,16 +218,8 @@ def get_dagster_asset_lineage_graph():
     return run_dagster_graphql_file(GRAPHQL_QUERIES_DIR / "dagster_asset_lineage_graph.graphql",
                                     {})
 
-
-# # used in bot_os_tools.py:
-# dagster_tool_functions = [getattr(func, gc_tool.gc_tool_descriptor_attr_name).to_dict()
-#                           for func in list_gctool_decorated_functions()]
-
-# # used in bot_os_tools.py:
-# dagster_tools = {func.__name__: f"{__name__}.{func.__name__}" for func in list_gctool_decorated_functions()}
-
 # holds the list of all dagster tool functions
-# NOTE: Update this list when adding new dagster tools (TODO: automate this by scanning the module)
+# NOTE: Update this list when adding new dagster tools (TODO: automate this by scanning the module?)
 _all_dagster_tool_functions = (get_dagster_run_status, 
                                get_dagster_run_debug_dump, 
                                get_dagster_asset_definition_and_overview, 

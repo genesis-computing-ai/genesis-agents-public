@@ -22,8 +22,6 @@ from   core.bot_os_tools_extended \
                                 import load_user_extended_tools
 from   llm_openai.bot_os_openai import StreamingEventHandler
 
-from   connectors.customer_data_connector \
-                                import CustomerDataConnector
 from   google_sheets.g_sheets   import (add_g_file_comment,
                                         add_reply_to_g_file_comment,
                                         find_g_file_by_name,
@@ -158,8 +156,6 @@ class ToolBelt:
 
         self.todos = ProjectManager(self.db_adapter)  # Initialize Todos instance
         self.git_manager = GitFileManager()
-        self.customer_data_connector = CustomerDataConnector(self.db_adapter)
- #       self.customer_data_connector._test()
         self.server = None  # Will be set later
 
         self.sys_default_email = self.get_sys_email()
@@ -2386,44 +2382,6 @@ class ToolBelt:
                 cursor.close()
 
     # ====== NOTEBOOK END ==========================================================================================
-
-
-    # ====== CUSTOMER DATA BEGIN ==========================================================================================
-    def customer_data_connector_query_database(self, *args, **kwargs) -> dict:
-        """
-        Wrapper for querying customer databases.
-
-        Args and Returns passed through to customer_data_connector_query_database
-        """
-        return self.customer_data_connector.query_database(*args, **kwargs)
-
-    def customer_data_connector_add_connection(self, *args, **kwargs) -> dict:
-        """
-        Wrapper for adding a new customer database connection.
-
-        Args and Returns passed through to customer_data_connector_add_connection
-        """
-        return self.customer_data_connector.add_connection(*args, **kwargs)
-
-    def customer_data_connector_delete_connection(self, *args, **kwargs) -> bool:
-        """
-        Wrapper for deleting a customer database connection.
-
-        Args and Returns passed through to customer_data_connector_delete_connection
-        """
-        return self.customer_data_connector.delete_connection(*args, **kwargs)
-
-    def customer_data_connector_list_database_connections(self, *args, **kwargs) -> dict:
-        """
-        Wrapper for listing all customer database connections.
-
-        Args and Returns passed through to customer_data_connector_list_database_connections
-        """
-        return self.customer_data_connector.list_database_connections(*args, **kwargs)
-
-    # ====== CUSTOMER DATA END ==========================================================================================
-
-
 
     # ====== ARTIFACTS BEGIN ==========================================================================================
     def manage_artifact(self,

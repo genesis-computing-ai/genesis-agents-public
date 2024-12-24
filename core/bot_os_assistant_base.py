@@ -1,12 +1,14 @@
-from abc import abstractmethod
-from collections import deque
-import json
-import sys
-from multiprocessing import Process
-from core.bot_os_input import BotOsInputMessage, BotOsOutputMessage
+from   abc                      import abstractmethod
+from   collections              import deque
+from   core.bot_os_input        import BotOsInputMessage, BotOsOutputMessage
+from   core.bot_os_tools2       import (PARAM_IMPLICIT_FROM_CONTEXT,
+                                        get_tool_func_descriptor, is_tool_func)
 import dill
+import json
+from   multiprocessing          import Process
+import sys
 
-from core.logging_config import logger
+from   core.logging_config      import logger
 
 
 class BotOsAssistantInterface:
@@ -82,8 +84,8 @@ def execute_function_blocking(
     else:
         return f"Error function {func_name} does not exist"
 
-import tempfile
 import os
+import tempfile
 
 
 def fork_function_call(function_serialized, func_name, temp_file_path, args):
@@ -153,15 +155,36 @@ def execute_function(
             func_name = '_' + func_name
     if function is not None:
         s_arguments = json.loads(arguments)
+
+        # Handle parameters that are implicitly required from context
+        # in functions that were defined with gc_tool decorator.
+        # we 'inject' those into the call using the local variables
+        if is_tool_func(function):
+            try:
+                tool_func_descriptor = get_tool_func_descriptor(function)
+                for param in tool_func_descriptor.parameters_desc:
+                    if param.required is PARAM_IMPLICIT_FROM_CONTEXT:
+                        recognized_context_params = ["bot_id", "run_id", "session_id", "thread_id"]
+                        if param.name in recognized_context_params:
+                            assert param.name in locals()
+                            s_arguments[param.name] = locals()[param.name]                            
+                        else:
+                            raise ValueError(f"Function {func_name}: parameter  {param.name} flagged as 'PARAM_IMPLICIT_FROM_CONTEXT' but is "
+                                            f"not one of the recognized context parameters: {recognized_context_params}")
+            except Exception as e:
+                err_msg = f"Error while processing function {func_name}: {str(e)}"
+                logger.error(err_msg)
+                completion_callback(err_msg)
+                return
+            
+        # special case for dispatch_bot_id
         try:
-            if (
-                "dispatch_bot_id" in function.__code__.co_varnames
-            ):  # FixMe: expose this as a tool arg that can be set by the AI
+            if "dispatch_bot_id" in function.__code__.co_varnames:  # FixMe: expose this as a tool arg that can be set by the AI
                 s_arguments["dispatch_bot_id"] = bot_id
         except:
             pass
-        if func_name.startswith("_"):  # run internal BotOS functions in process
-            s_arguments["thread_id"] = thread_id
+        if func_name.startswith("_"):  # run internal BotOS functions in-process
+            s_arguments["thread_id"] = thread_id # redundant for 'new style' tool functions
             if func_name == '_run_process':
                 s_arguments["bot_id"] = bot_id
 
@@ -170,10 +193,10 @@ def execute_function(
                 s_arguments["session_id"] = session_id
                 s_arguments["input_metadata"] = input_metadata
                 s_arguments["run_id"] = run_id
-            if func_name in {'_run_query', '_run_snowpark_python', '_send_email', '_manage_artifact', '_manage_tests', '_query_database', '_add_database_connection', '_delete_database_connection', '_list_database_connections'}:
+            if func_name in {'_run_query', '_run_snowpark_python', '_send_email', '_manage_artifact', '_manage_tests'}:
                 s_arguments["bot_id"] = bot_id
                 if 'query' in s_arguments:
-                    s_arguments['query'] = 'USERQUERY::' + s_arguments['query']
+                    s_arguments['query'] = 'USERQUERY::' + s_arguments['query']                
             completion_callback(
                 execute_function_blocking(func_name, s_arguments, available_functions)
             )

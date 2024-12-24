@@ -1,136 +1,42 @@
-from sqlalchemy import create_engine, text
-import json
-import os 
-from datetime import datetime
-from core.logging_config import logger
-from urllib.parse import quote_plus
 
-CUSTOMER_DATABASE_TOOL_DEFINITIONS = [
-    {
-        "type": "function",
-        "function": {
-            "name": "_query_database",
-            "description": "Query a connected database with SQL",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "connection_id": {
-                        "type": "string",
-                        "description": "ID of the database connection to query"
-                    },
-                    "query": {
-                        "type": "string",
-                        "description": "SQL query to execute"
-                    },
-                    "params": {
-                        "type": "object",
-                        "description": "Optional parameters for the SQL query",
-                        "optional": True
-                    },
-                    "max_rows": {
-                        "type": "integer",
-                        "description": "Maximum number of rows to return (default 20)",
-                        "optional": True
-                    },
-                    "max_rows_override": {
-                        "type": "boolean",
-                        "description": "Override max rows limit if true",
-                        "optional": True
-                    }
-                },
-                "required": ["connection_id", "query"]
-            }
-        }
-    },
-    {
-        "type": "function", 
-        "function": {
-            "name": "_add_database_connection",
-            "description": "Add a new database connection",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "connection_id": {
-                        "type": "string",
-                        "description": "Unique identifier for the connection"
-                    },
-                    "connection_string": {
-                        "type": "string",
-                        "description": "Full SQLAlchemy connection string"
-                    },
-                    "allowed_bot_ids": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "List of bot IDs that can access this connection",
-                        "optional": True
-                    }
-                },
-                "required": ["connection_id", "connection_string"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "_delete_database_connection",
-            "description": "Delete an existing database connection",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "connection_id": {
-                        "type": "string",
-                        "description": "ID of the connection to delete"
-                    },
-                },
-                "required": ["connection_id"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "_list_database_connections",
-            "description": "List all database connections accessible to a bot",
-            "parameters": {
-                "type": "object",
-                "properties": {},
-                "required": []
-            }
-        }
-    }
-]
+from   core.bot_os_tools2       import (BOT_ID_IMPLICIT_FROM_CONTEXT, THREAD_ID_IMPLICIT_FROM_CONTEXT,
+                                        ToolFuncGroup, ToolFuncParamDescriptor,
+                                        gc_tool)
+from   core.logging_config      import logger
+import os
+from   sqlalchemy               import create_engine, text
+from   urllib.parse             import quote_plus
+from   connectors               import get_global_db_connector
 
-
-customer_data_tools = {
-                "_query_database": "tool_belt.customer_data_connector_query_database",
-                "_add_database_connection": "tool_belt.customer_data_connector_add_connection", 
-                "_delete_database_connection": "tool_belt.customer_data_connector_delete_connection",
-                "_list_database_connections": "tool_belt.customer_data_connector_list_database_connections"
-            }
-
-
-customer_data_tools_overall_description = (
-    "data_connector_tools",
-    "Tools for managing and querying database connections, including adding new connections, deleting connections, listing available connections, and running queries against connected databases"
-)
-
-# Import tools_data from core.bot_os_tool_descriptions
-# TODO: refactor this into a 'new-style' tool registry
-from core.bot_os_tool_descriptions import _tools_data
-if not any(tool[0] == "data_connector_tools" for tool in _tools_data):
-    # Only append if not already present
-    _tools_data.append(customer_data_tools_overall_description)
 
 class CustomerDataConnector:
-    # make it so we dont need anything specific for each db type
+    """
+    CustomerDataConnector is a singleton class responsible for managing database connections.
+    
+    This class provides methods to add, delete, list, and query database connections. It ensures
+    that the necessary tables for storing connection metadata are created and maintained. The 
+    connections are stored as SQLAlchemy engines, and access control is managed through ownership 
+    and allowed bot IDs.
+    
+    Attributes:
+        db_adapter: An adapter for interacting with the database.
+        connections: A dictionary to store SQLAlchemy engines.
+    """
+    _instance = None  # Class variable to hold the single instance
 
-    def __init__(self, db_adapter):
-        self.db_adapter = db_adapter  # For metadata storage
-        self.connections = {}  # Store SQLAlchemy engines
-        if not hasattr(CustomerDataConnector, '_tables_initialized'):
-            CustomerDataConnector._tables_initialized = True
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            cls._instance = super(CustomerDataConnector, cls).__new__(cls)
+        return cls._instance
+
+
+    def __init__(self):
+        if not hasattr(self, '_initialized'):  # Check if already initialized
+            self.db_adapter = get_global_db_connector()
+            self.connections = {}  # Store SQLAlchemy engines
             self._ensure_tables_exist()
-  #          self._test()
+            self._initialized = True  # Mark as initialized
+
 
     def _ensure_tables_exist(self):
         """Create the necessary tables if they don't exist"""
@@ -600,7 +506,117 @@ class CustomerDataConnector:
                 'error': str(e)
             }
 
-    def get_tool_definitions(self):
-        """Get the LLM tool definitions for the database connector tools"""
-        return DATABASE_TOOL_DEFINITIONS
 
+
+data_connector_tools = ToolFuncGroup(
+    name="data_connector_tools",
+    description=("Tools for managing and querying database connections, including adding new connections, deleting connections, "
+                  "listing available connections, and running queries against connected databases"),
+    lifetime="PERSISTENT"
+)
+
+
+@gc_tool(
+    connection_id= "ID of the database connection to query",
+    bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
+    query= "SQL query to execute",
+    params= "Optional parameters for the SQL query",
+    max_rows= "Maximum number of rows to return (default 20)",
+    max_rows_override= "Override max rows limit if true (default False)",
+    thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
+    _group_tags_=[data_connector_tools]
+    )
+def _query_database(connection_id: str, 
+                    bot_id: str,
+                    query: str, 
+                    params: dict = None, 
+                    max_rows: int = 20, 
+                    max_rows_override: bool = False,
+                    thread_id: str = None,
+                    ) -> dict:
+    """
+    Query a connected database with SQL
+
+    Returns:
+        dict: A dictionary containing the query results or an error message.
+    """
+    return CustomerDataConnector().query_database(
+        connection_id=connection_id, 
+        bot_id=bot_id, 
+        query=query, 
+        params=params, 
+        max_rows=max_rows, 
+        max_rows_override=max_rows_override, 
+        thread_id=thread_id
+    )
+
+
+@gc_tool(connection_id= "ID of the database connection to query",
+         connection_string= "Full SQLAlchemy connection string",
+         bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
+         allowed_bot_ids= "List of bot IDs that can access this connection",
+         thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
+         _group_tags_=[data_connector_tools])
+def _add_database_connection(connection_id: str, 
+                            connection_string: str, 
+                            bot_id: str, 
+                            allowed_bot_ids: list[str] = None, 
+                            thread_id: str = None
+                            ) -> dict:
+    """
+    Add a new named database connection.
+
+    Returns:
+        dict: A dictionary containing the result of the connection addition.
+    """
+    return CustomerDataConnector().add_connection(
+        connection_id=connection_id, 
+        connection_string=connection_string, 
+        bot_id=bot_id, 
+        allowed_bot_ids=allowed_bot_ids, 
+        thread_id=thread_id
+    )
+    
+
+@gc_tool(
+    connection_id= "ID of the database connection to delete",
+    bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
+    thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
+    _group_tags_=[data_connector_tools])
+def _delete_database_connection(
+                        connection_id: str, 
+                        bot_id: str,
+                        thread_id: str = None
+                        ) -> bool:
+    '''Delete an existing named database connection'''
+    return CustomerDataConnector().delete_connection(
+        connection_id=connection_id, 
+        bot_id=bot_id, 
+        thread_id=thread_id
+    )
+    
+
+@gc_tool(bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
+         thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
+         _group_tags_=[data_connector_tools],)
+def _list_database_connections(bot_id: str, 
+                               thread_id: str = None
+                               ) -> dict:
+    '''List all database connections accessible to a bot'''
+    return CustomerDataConnector().list_database_connections(
+        bot_id=bot_id, 
+        thread_id=thread_id
+    )   
+
+# holds the list of all dagster tool functions
+# NOTE: Update this list when adding new dagster tools (TODO: automate this by scanning the module?)
+_all_database_connections_functions = (
+    _query_database, 
+    _add_database_connection, 
+    _delete_database_connection, 
+    _list_database_connections)
+
+
+# Called from bot_os_tools.py to update the global list of dagster tool functions
+def get_database_connections_functions():
+    return _all_database_connections_functions

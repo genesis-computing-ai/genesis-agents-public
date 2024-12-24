@@ -15,6 +15,7 @@ class SchemaExplorer:
         self.db_connector = db_connector
         self.llm_api_key = llm_api_key
         self.run_number = 0
+        self._prompt_cache = {}
 
         self.initialize_model()
 
@@ -36,9 +37,49 @@ class SchemaExplorer:
             self.model=os.getenv("OPENAI_HARVESTER_MODEL", 'gpt-4o')
             self.embedding_model = os.getenv("OPENAI_HARVESTER_EMBEDDING_MODEL", 'text-embedding-3-large')
 
-    def alt_get_ddl(self,table_name = None):
+    def alt_get_ddl(self,table_name = None, dataset=None, matching_connection=None):
+        if dataset['source_name'] == 'Snowflake':
+            return self.db_connector.alt_get_ddl(table_name)
+        else:
+            try:
+                from connectors.customer_data_connector import CustomerDataConnector
+                connector = CustomerDataConnector()
+                
+                # Generate prompt to get SQL for DDL based on database type
+                p = [
+                    {"role": "user", "content": f"Write a SQL query to get the DDL or CREATE TABLE statement for a table in a {matching_connection['db_type']} database.  You can include placeholders !table_name!, !schema_name!, !database_name! in the query to be replaced by the actual values at runtime.  Return only the SQL query without any explanation or additional text, with no markdown formatting. The query should return a single column containing the DDL text."}
+                ]
+                
+                sql = self.run_prompt(p)
+                
+                # Extract database, schema, table from qualified name
+                parts = table_name.strip('"').split('.')
+                database_name = parts[0].strip('"')
+                schema_name = parts[1].strip('"')
+                table_name = parts[2].strip('"')
 
-        return self.db_connector.alt_get_ddl(table_name)
+                # Replace placeholders in SQL query
+                sql = sql.replace('!table_name!', table_name)
+                sql = sql.replace('!schema_name!', schema_name) 
+                sql = sql.replace('!database_name!', database_name)
+                
+                # Execute the generated SQL query through the connector
+                result = connector.query_database(
+                    connection_id=dataset['source_name'],
+                    bot_id='system',
+                    query=sql,
+                    max_rows=1,
+                    max_rows_override=True,
+                    bot_id_override=True
+                )
+                
+                if result and 'rows' in result and len(result['rows']) > 0:
+                    return result['rows'][0][0]
+                return ""
+                
+            except Exception as e:
+                logger.info(f'Error getting DDL: {e}')
+                return ""
 
     def format_sample_data(self, sample_data):
         # Utility method to format sample data into a string
@@ -161,7 +202,7 @@ class SchemaExplorer:
         return result_value
 
 
-    def store_table_summary(self, database, schema, table, ddl, ddl_short="", summary="", sample_data="", memory_uuid="", ddl_hash=""):
+    def store_table_summary(self, database, schema, table, ddl, ddl_short="", summary="", sample_data="", memory_uuid="", ddl_hash="", matching_connection=None):
         """
         Stores a document including the DDL and summary for a table in the memory system.
         :param schema: The schema name.
@@ -197,7 +238,8 @@ class SchemaExplorer:
                                                 complete_description=complete_description,
                                                 embedding=embedding,
                                                 memory_uuid=memory_uuid,
-                                                ddl_hash=ddl_hash)
+                                                ddl_hash=ddl_hash,
+                                                matching_connection=matching_connection)
 
             logger.info(f"Stored summary for an object in Harvest Results.")
 
@@ -212,7 +254,15 @@ class SchemaExplorer:
         ]
         return self.run_prompt(p)
 
+
+
+
     def run_prompt(self, messages):
+        # Check if prompt is cached
+        prompt_key = str(messages)
+        if prompt_key in self._prompt_cache:
+            return self._prompt_cache[prompt_key]
+        
         if os.environ.get("CORTEX_MODE", 'False') == 'True':
             escaped_messages = str(messages).replace("'", '\\"')
             query = f"select snowflake.cortex.complete('{self.cortex_model}','{escaped_messages}');"
@@ -232,6 +282,8 @@ class SchemaExplorer:
                 model=self.model,  # Adjust the model name as necessary
                 messages=messages
             )
+            # Cache the response
+            self._prompt_cache[prompt_key] = response.choices[0].message.content
             return response.choices[0].message.content
 
     def get_ddl_short(self, ddl):
@@ -313,6 +365,64 @@ class SchemaExplorer:
 
     def get_active_schemas(self, database):
 
+        if database['source_name'] == 'Snowflake':
+            schemas = self.db_connector.get_schemas(database["database_name"])
+        else:
+            # handle non-snowflake sources
+            from connectors.customer_data_connector import CustomerDataConnector
+            connector = CustomerDataConnector()
+            # Get connection type for the source
+            connections = connector.list_database_connections(bot_id='system', bot_id_override=True)
+            if connections['success']:
+                connections = connections['connections']
+            else:
+                logger.info(f'Error listing connections: {connections.get("error")}')
+                return []
+            # Find matching connection for database source
+            matching_connection = None
+            for conn in connections:
+                if conn['connection_id'] == database['source_name']:
+                    matching_connection = conn
+                    break
+            
+            if matching_connection is None:
+                logger.info(f"No matching connection found for source {database['source_name']}")
+                return []
+
+            db_type = matching_connection['db_type']
+            database_name = database['database_name']
+
+            # Generate prompt to get SQL for schema listing based on database type
+            p = [
+                {"role": "user", "content": f"Write a SQL query to list all schemas in a {db_type} database named with the placeholder !database_name!, which will be replaced by the actual database name at runtime. Return only the SQL query without any explanation or additional text, with no markdown formatting. If the database is a sqlite database or other schema-less database, return the schema name as 'main'."}
+            ]
+            
+            sql = self.run_prompt(p)
+            # Execute the generated SQL query through the connector
+            # Replace placeholder in SQL query
+            sql = sql.replace('!database_name!', database_name)
+            try:
+                schemas = connector.query_database(connection_id=matching_connection['connection_id'], bot_id='system', query=sql, bot_id_override=True)
+                if isinstance(schemas, list):
+                    # Extract schema names from result set based on first column
+                    schemas = [row[0] for row in schemas if row[0]]
+                elif isinstance(schemas, dict) and 'rows' in schemas:
+                    # Extract schema names from rows in dictionary result
+                    schemas_out = []
+                    for row in schemas['rows']:
+                        if row[0]:
+                            if isinstance(row[0], list):
+                                schemas_out.extend(row[0])
+                            else:
+                                schemas_out.append(row[0])
+                    schemas = schemas_out
+                else:
+                    logger.info(f"Unexpected schema query result format for {db_type}")
+                    schemas = []
+            except Exception as e:
+                logger.info(f"Error getting schemas for {db_type}: {e}")
+                schemas = []
+
         try:
             inclusions = database["schema_inclusions"]
             if isinstance(inclusions, str):
@@ -320,7 +430,7 @@ class SchemaExplorer:
             if inclusions is None:
                 inclusions = []
             if len(inclusions) == 0:
-                schemas = self.db_connector.get_schemas(database["database_name"])
+                
                 # get the app-shared schemas BASEBALL & FORMULA_1
                 # logger.info(f"get schemas for database: {database['database_name']} == {self.db_connector.project_id}")
                 if database["database_name"] == self.db_connector.project_id:
@@ -383,7 +493,11 @@ class SchemaExplorer:
                 cur_time = datetime.now()
                 if crawl_flag:
                     harvesting_databases.append(database)
-                    schemas.extend([database["database_name"]+"."+schema for schema in self.get_active_schemas(database)])
+                    schemas.extend([{
+                        'source_name': database["source_name"],
+                        'database_name': database["database_name"],
+                        'schema_name': schema
+                    } for schema in self.get_active_schemas(database)])
               #      logger.info(f'Checking a Database for new or changed objects (cycle#: {self.run_number}, refresh every: {database["refresh_interval"]}) {cur_time}')
               #  else:
               #      logger.info(f'Skipping a Database, not in current refresh cycle (cycle#: {self.run_number}, refresh every: {database["refresh_interval"]} {cur_time})')
@@ -398,122 +512,189 @@ class SchemaExplorer:
         # todo, first build list of objects to harvest, then harvest them
 
         def process_dataset_step1(dataset, max_to_process = 1000):
-            #logger.info("  Process_dataset: ",dataset)
-            # query to find new
-            # tables, or those with changes to their DDL
-
- #           logger.info('Checking a schema for new (not changed) objects.')
-            if self.db_connector.source_name == 'Snowflake' or self.db_connector.source_name == 'Sqlite':
+            potential_tables = []
+            matching_connection = None 
+            if dataset['source_name'] == 'Snowflake':
                 try:
                     potential_tables = self.db_connector.get_tables(dataset.split('.')[0], dataset.split('.')[1])
                 except Exception as e:
                     logger.info(f'Error running get potential tables Error: {e}')
-                #logger.info('potential tables: ',potential_tables)
-                non_indexed_tables = []
+            else:
+                try:
+                    from connectors.customer_data_connector import CustomerDataConnector
+                    connector = CustomerDataConnector()
+                    # Get connection type for the source
+                    connections = connector.list_database_connections(bot_id='system', bot_id_override=True)
+                    if connections['success']:
+                        connections = connections['connections']
+                    else:
+                        logger.info(f'Error listing connections: {connections.get("error")}')
+                        return None, None
+                    
+                    # Find matching connection for database source
+                    matching_connection = None
+                    for conn in connections:
+                        if conn['connection_id'] == dataset['source_name']:
+                            matching_connection = conn
+                            break
+                    
+                    if matching_connection is None:
+                        logger.info(f"No matching connection found for source {dataset['source_name']}")
+                        return None, None
 
-                # Check all potential_tables at once using a single query with an IN clause
-                table_names = [table_info['table_name'] for table_info in potential_tables]
-                db, sch = dataset.split('.')[0], dataset.split('.')[1]
-                #quoted_table_names = [f'\'"{db}"."{sch}"."{table}"\'' for table in table_names]
-                #in_clause = ', '.join(quoted_table_names)
+                    db_type = matching_connection['db_type']
+                    database_name = dataset['database_name']
+                    schema_name = dataset['schema_name']
 
-                self.initialize_model()
-                if os.environ.get("CORTEX_MODE", 'False') == 'True':
-                    embedding_column = 'embedding_native'
-                else:
-                    embedding_column = 'embedding'
+                    # Generate prompt to get SQL for table listing based on database type
+                    p = [
+                        {"role": "user", "content": f"Write a SQL query to list all tables in a {db_type} database named with the placeholder !database_name!, in the schema named with the placeholder !schema_name!, which will be replaced by the actual database name and schema name at runtime. Return only the SQL query without any explanation or additional text, with no markdown formatting.  For schema-less databases like sqlite, do not use the placehodlers as they aren't applicable. The query should return a single column named 'table_name'."}
+                    ]
+                    
+                    sql = self.run_prompt(p)
+                    
+                    # Replace placeholders in SQL query
+                    sql = sql.replace('!database_name!', database_name)
+                    sql = sql.replace('!schema_name!', schema_name)
+                    # Execute the generated SQL query through the connector
+                    result = connector.query_database(
+                        connection_id=dataset['source_name'],
+                        bot_id='system',
+                        query=sql,
+                        max_rows=1000,
+                        max_rows_override=True,
+                        bot_id_override=True
+                    )
+                    
+                    if isinstance(result, dict) and result.get('success'):
+                        potential_tables = []
+                        for row in result['rows']:
+                            potential_tables.append({'table_name': row[0]})
+                    elif isinstance(result, list):
+                        potential_tables = [{'table_name': row[0]} for row in result]
+                    else:
+                        logger.info(f'Error getting tables from {dataset["source_name"]}: {result.get("error") if isinstance(result, dict) else "Unknown error"}')
+                        return None, None
 
+                except Exception as e:
+                    logger.info(f'Error connecting to {dataset["source_name"]}: {e}')
+                    return None, None
+
+            #logger.info('potential tables: ',potential_tables)
+            non_indexed_tables = []
+
+            # Check all potential_tables at once using a single query with an IN clause
+            table_names = [table_info['table_name'] for table_info in potential_tables]
+
+            db, sch = dataset['database_name'], dataset['schema_name']
+            #quoted_table_names = [f'\'"{db}"."{sch}"."{table}"\'' for table in table_names]
+            #in_clause = ', '.join(quoted_table_names)
+
+            self.initialize_model()
+            if os.environ.get("CORTEX_MODE", 'False') == 'True':
+                embedding_column = 'embedding_native'
+            else:
+                embedding_column = 'embedding'
+
+            if self.db_connector.source_name == 'Snowflake':
                 check_query = f"""
                 SELECT qualified_table_name, table_name, ddl_hash, last_crawled_timestamp, ddl, ddl_short, summary, sample_data_text, memory_uuid, (SUMMARY = '{{!placeholder}}') as needs_full, NULLIF(COALESCE(ARRAY_TO_STRING({embedding_column}, ','), ''), '') IS NULL as needs_embedding
                 FROM {self.db_connector.metadata_table_name}
                 WHERE source_name = '{self.db_connector.source_name}'
                 AND database_name= '{db}' and schema_name = '{sch}';"""
+            else:
+                check_query = f"""
+                SELECT qualified_table_name, table_name, ddl_hash, last_crawled_timestamp, ddl, ddl_short, summary, sample_data_text, memory_uuid, (SUMMARY = '{{!placeholder}}') as needs_full, {embedding_column} IS NULL as needs_embedding
+                FROM {self.db_connector.metadata_table_name}
+                WHERE source_name = '{self.db_connector.source_name}'
+                AND database_name= '{db}' and schema_name = '{sch}';"""               
+
+            try:
+                existing_tables_info = self.db_connector.run_query(check_query, max_rows=1000, max_rows_override=True)
+                existing_tables_set = {info['QUALIFIED_TABLE_NAME'] for info in existing_tables_info}
+                non_existing_tables = [table for table in potential_tables if f'"{db}"."{sch}"."{table["table_name"]}"' not in existing_tables_set]
+                needs_updating = [table['QUALIFIED_TABLE_NAME']  for table in existing_tables_info if table["NEEDS_FULL"]]
+                needs_embedding = [(table['QUALIFIED_TABLE_NAME'], table['TABLE_NAME']) for table in existing_tables_info if table["NEEDS_EMBEDDING"]]
+                refresh_tables = [table for table in potential_tables if f'"{db}"."{sch}"."{table["table_name"]}"' in needs_updating]
+                # Print counts of each variable
+                # logger.info(f"{db}.{sch}")
+                # for tb in existing_tables_info:
+                #     if tb['NEEDS_EMBEDDING']:
+                #         logger.info(f"{tb['QUALIFIED_TABLE_NAME']} needs embedding: {tb['NEEDS_EMBEDDING']}")
+                # logger.info(f"{check_query}")
+            except Exception as e:
+                logger.info(f'Error running check query Error: {e}')
+                return None, None
+
+            non_existing_tables.extend(refresh_tables)
+            for table_info in non_existing_tables:
+              #  print(table_info)
                 try:
-                    existing_tables_info = self.db_connector.run_query(check_query, max_rows=1000, max_rows_override=True)
-                    existing_tables_set = {info['QUALIFIED_TABLE_NAME'] for info in existing_tables_info}
-                    non_existing_tables = [table for table in potential_tables if f'"{db}"."{sch}"."{table["table_name"]}"' not in existing_tables_set]
-                    needs_updating = [table['QUALIFIED_TABLE_NAME']  for table in existing_tables_info if table["NEEDS_FULL"]]
-                    needs_embedding = [(table['QUALIFIED_TABLE_NAME'], table['TABLE_NAME']) for table in existing_tables_info if table["NEEDS_EMBEDDING"]]
-                    refresh_tables = [table for table in potential_tables if f'"{db}"."{sch}"."{table["table_name"]}"' in needs_updating]
-                    # Print counts of each variable
-                    # logger.info(f"{db}.{sch}")
-                    # for tb in existing_tables_info:
-                    #     if tb['NEEDS_EMBEDDING']:
-                    #         logger.info(f"{tb['QUALIFIED_TABLE_NAME']} needs embedding: {tb['NEEDS_EMBEDDING']}")
-                    # logger.info(f"{check_query}")
+                    table_name = table_info['table_name']
+                    quoted_table_name = f'"{db}"."{sch}"."{table_name}"'
+                    # logger.info(f"checking {table_name} which is {quoted_table_name}")
+                    if quoted_table_name not in existing_tables_set or quoted_table_name in needs_updating:
+                        # Table is not in metadata table
+                        # Check to see if it exists in the shared metadata table
+                        #print ("!!!! CACHING DIsABLED !!!! ")
+                        # get metadata from cache and add embeddings for all schemas, incl baseball and f1
+                        if sch == 'INFORMATION_SCHEMA':
+                            shared_table_exists = self.db_connector.check_cached_metadata('PLACEHOLDER_DB_NAME', sch, table_name)
+                        else:
+                            shared_table_exists = self.db_connector.check_cached_metadata(db, sch, table_name)
+                        # shared_table_exists = False
+                        if shared_table_exists:
+                            # print ("!!!! CACHING Working !!!! ")
+                            # Get the record from the shared metadata table with database name modified from placeholder
+                            logger.info(f"Object cache hit for {table_name}")
+                            get_from_cache_result = self.db_connector.get_metadata_from_cache(db, sch, table_name)
+                            for record in get_from_cache_result:
+                                database = record['database_name']
+                                schema = record['schema_name']
+                                table = record['table_name']
+                                summary = record['summary']
+                                ddl = record['ddl']
+                                ddl_short = record['ddl_short']
+                                sample_data = record['sample_data_text']
+
+                                # call store memory
+                                self.store_table_memory(database, schema, table, summary, ddl=ddl, ddl_short=ddl_short, sample_data=sample_data)
+
+                        else:
+                            # Table is new, so get its DDL and hash
+                            current_ddl = self.alt_get_ddl(table_name=quoted_table_name, dataset=dataset, matching_connection=matching_connection)
+                            current_ddl_hash = self.db_connector.sha256_hash_hex_string(current_ddl)
+                            new_table = {"qualified_table_name": quoted_table_name, "ddl_hash": current_ddl_hash, "ddl": current_ddl}
+                            logger.info('Newly found object added to harvest array (no cache hit)')
+                            non_indexed_tables.append(new_table)
+
+                            # store quick summary
+                            # logger.info(f"is the table in the existing list?")
+                            if quoted_table_name not in existing_tables_set:
+                                # logger.info(f"yep, storing summary")
+                                self.store_table_summary(database=db, schema=sch, table=table_name, ddl=current_ddl, ddl_short=current_ddl, summary="{!placeholder}", sample_data="", matching_connection=matching_connection)
+
                 except Exception as e:
-                    logger.info(f'Error running check query Error: {e}')
-                    return None, None
+                    logger.info(f'Error processing table in step1: {e}')
 
-                non_existing_tables.extend(refresh_tables)
-                for table_info in non_existing_tables:
-                    print(table_info)
-                    try:
-                        table_name = table_info['table_name']
-                        quoted_table_name = f'"{db}"."{sch}"."{table_name}"'
-                        # logger.info(f"checking {table_name} which is {quoted_table_name}")
-                        if quoted_table_name not in existing_tables_set or quoted_table_name in needs_updating:
-                            # Table is not in metadata table
-                            # Check to see if it exists in the shared metadata table
-                            #print ("!!!! CACHING DIsABLED !!!! ")
-                            # get metadata from cache and add embeddings for all schemas, incl baseball and f1
-                            if sch == 'INFORMATION_SCHEMA':
-                                shared_table_exists = self.db_connector.check_cached_metadata('PLACEHOLDER_DB_NAME', sch, table_name)
-                            else:
-                                shared_table_exists = self.db_connector.check_cached_metadata(db, sch, table_name)
-                            # shared_table_exists = False
-                            if shared_table_exists:
-                                # print ("!!!! CACHING Working !!!! ")
-                                # Get the record from the shared metadata table with database name modified from placeholder
-                                logger.info(f"Object cache hit for {table_name}")
-                                get_from_cache_result = self.db_connector.get_metadata_from_cache(db, sch, table_name)
-                                for record in get_from_cache_result:
-                                    database = record['database_name']
-                                    schema = record['schema_name']
-                                    table = record['table_name']
-                                    summary = record['summary']
-                                    ddl = record['ddl']
-                                    ddl_short = record['ddl_short']
-                                    sample_data = record['sample_data_text']
+            for table_info in needs_embedding:
+                try:
+                    quoted_table_name = table_info[0]
+                    table_name = table_info[1]
+                    # logger.info(f"embedding needed for {quoted_table_name}")
 
-                                    # call store memory
-                                    self.store_table_memory(database, schema, table, summary, ddl=ddl, ddl_short=ddl_short, sample_data=sample_data)
+                    for current_info in existing_tables_info:
+                        if current_info["QUALIFIED_TABLE_NAME"] == quoted_table_name:
+                            current_ddl = current_info['DDL']
+                            ddl_short = current_info['DDL_SHORT']
+                            summary = current_info['SUMMARY']
+                            sample_data_text = current_info['SAMPLE_DATA_TEXT']
+                            memory_uuid = current_info['MEMORY_UUID']
+                            ddl_hash = current_info['DDL_HASH']
+                            self.store_table_summary(database=db, schema=sch, table=table_name, ddl=current_ddl, ddl_short=ddl_short, summary=summary, sample_data=sample_data_text, memory_uuid=memory_uuid, ddl_hash=ddl_hash)
 
-                            else:
-                                # Table is new, so get its DDL and hash
-                                current_ddl = self.alt_get_ddl(table_name=quoted_table_name)
-                                current_ddl_hash = self.db_connector.sha256_hash_hex_string(current_ddl)
-                                new_table = {"qualified_table_name": quoted_table_name, "ddl_hash": current_ddl_hash, "ddl": current_ddl}
-                                logger.info('Newly found object added to harvest array (no cache hit)')
-                                non_indexed_tables.append(new_table)
-
-                                # store quick summary
-                                # logger.info(f"is the table in the existing list?")
-                                if quoted_table_name not in existing_tables_set:
-                                    # logger.info(f"yep, storing summary")
-                                    self.store_table_summary(database=db, schema=sch, table=table_name, ddl=current_ddl, ddl_short=current_ddl, summary="{!placeholder}", sample_data="")
-
-                    except Exception as e:
-                        logger.info(f'Error processing table in step1: {e}')
-
-                for table_info in needs_embedding:
-                    try:
-                        quoted_table_name = table_info[0]
-                        table_name = table_info[1]
-                        # logger.info(f"embedding needed for {quoted_table_name}")
-
-                        for current_info in existing_tables_info:
-                            if current_info["QUALIFIED_TABLE_NAME"] == quoted_table_name:
-                                current_ddl = current_info['DDL']
-                                ddl_short = current_info['DDL_SHORT']
-                                summary = current_info['SUMMARY']
-                                sample_data_text = current_info['SAMPLE_DATA_TEXT']
-                                memory_uuid = current_info['MEMORY_UUID']
-                                ddl_hash = current_info['DDL_HASH']
-                                self.store_table_summary(database=db, schema=sch, table=table_name, ddl=current_ddl, ddl_short=ddl_short, summary=summary, sample_data=sample_data_text, memory_uuid=memory_uuid, ddl_hash=ddl_hash)
-
-                    except Exception as e:
-                        logger.info(f'Error processing table in step1 embedding refresh: {e}')
+                except Exception as e:
+                    logger.info(f'Error processing table in step1 embedding refresh: {e}')
 
             return non_indexed_tables
 
@@ -557,6 +738,7 @@ class SchemaExplorer:
             logger.info(f'Checking {len(schemas)} schemas for new (not changed) objects.')
         except Exception as e:
             logger.info(f'Error printing schema count log line. {e}')
+
 
         for schema in schemas:
             tables_for_full_processing.extend(process_dataset_step1(schema))

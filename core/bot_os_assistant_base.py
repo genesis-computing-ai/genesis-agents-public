@@ -193,10 +193,12 @@ def execute_function(
                 s_arguments["session_id"] = session_id
                 s_arguments["input_metadata"] = input_metadata
                 s_arguments["run_id"] = run_id
-            if func_name in {'_run_query', '_run_snowpark_python', '_send_email', '_manage_artifact', '_manage_tests'}:
+            if func_name in {'_run_query', '_run_snowpark_python', '_send_email', '_manage_artifact', '_manage_tests', '_set_harvest_control_data', '_get_harvest_control_data', '_list_database_connections'}:
                 s_arguments["bot_id"] = bot_id
                 if 'query' in s_arguments:
-                    s_arguments['query'] = 'USERQUERY::' + s_arguments['query']                
+                    s_arguments['query'] = 'USERQUERY::' + s_arguments['query']      
+            # Remove any arguments ending with _override
+            s_arguments = {k: v for k, v in s_arguments.items() if k != 'bot_id_override' }
             completion_callback(
                 execute_function_blocking(func_name, s_arguments, available_functions)
             )

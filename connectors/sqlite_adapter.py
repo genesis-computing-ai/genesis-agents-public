@@ -144,8 +144,10 @@ class SQLiteAdapter:
                     "process_runner_tools",
                     "process_scheduler_tools",
                     "notebook_manager_tools",
-                    "google_drive_tools"]
-                    """
+                    "google_drive_tools",
+                    "data_connector_tools",
+                    "harvester_tools"
+                ]"""
                 udf_active = 'Y'  # Using 1 instead of "Y" for SQLite boolean
                 slack_active = 'N'  # Using 0 instead of "N" for SQLite boolean
                 bot_intro_prompt = EVE_INTRO_PROMPT
@@ -348,6 +350,12 @@ class SQLiteCursorWrapper:
         if not query:
             return query
         
+
+        # Remove schema prefix if it matches GENESIS_INTERNAL_DB_SCHEMA
+        schema_prefix = os.environ.get('GENESIS_INTERNAL_DB_SCHEMA', '')
+        if schema_prefix and schema_prefix + '.' in query:
+            query = query.replace(schema_prefix + '.', '')
+
         # Clean up query for easier pattern matching
         query_clean = ' '.join(query.split())
         query_upper = query_clean.upper()
@@ -472,7 +480,7 @@ class SQLiteCursorWrapper:
             if query_upper == 'SHOW DATABASES':
                 return "SELECT name FROM pragma_database_list"
             
-            elif query_upper == 'SHOW SCHEMAS':
+            elif query_upper == 'SHOW SCHEMAS' or query_upper.startswith('SHOW SCHEMAS IN'):
                 # SQLite doesn't have schemas, return 'main' as default schema
                 return "SELECT 'main' as name"
             
@@ -504,11 +512,14 @@ class SQLiteCursorWrapper:
             logger.info(f"Ignoring unsupported SHOW command in SQLite: {query}")
             return "SELECT 1 WHERE 1=0"
         
-        # Remove database/schema prefixes for other queries
-        query = re.sub(r'"?[^".\s]+"\."[^".\s]+"."([^"\s]+)"?', r'\1', query)  # Remove DB.SCHEMA.TABLE
-        query = re.sub(r'"?[^".\s]+"."([^"\s]+)"?', r'\1', query)              # Remove SCHEMA.TABLE
-        query = re.sub(r'(\w+)\.(\w+)\.(\w+)', r'\3', query)                   # Remove unquoted DB.SCHEMA.TABLE
-        query = re.sub(r'(\w+)\.(\w+)', r'\2', query)                          # Remove unquoted SCHEMA.TABLE
+        # Remove only fully qualified database.schema.table patterns
+        query = re.sub(r'"?[^".\s]+"\."[^".\s]+"."([^"\s]+)"?', r'\1', query)  # Remove "DB"."SCHEMA"."TABLE"
+        query = re.sub(r'(\w+)\.(\w+)\.(\w+)(?=\s|$)', r'\3', query)           # Remove DB.SCHEMA.TABLE
+
+        # Do NOT remove schema.table or alias.column patterns
+        # Remove these lines:
+        # query = re.sub(r'"?[^".\s]+"."([^"\s]+)"?', r'\1', query)              # Remove SCHEMA.TABLE
+        # query = re.sub(r'(\w+)\.(\w+)(?!\s*=)', r'\2', query)                  # Remove unquoted SCHEMA.TABLE
         
         # Handle CREATE OR REPLACE TABLE
         if 'CREATE OR REPLACE TABLE' in query_upper:
@@ -835,7 +846,7 @@ class SQLiteCursorWrapper:
             )
         
         # Remove schema qualifiers
-        query = re.sub(r'(?:[^.\s]+\.){1,2}([^\s(]+)', r'\1', query)
+      #  query = re.sub(r'(?:[^.\s]+\.){1,2}([^\s(]+)', r'\1', query)
         
         # Handle INSERT INTO statements for BOT_SERVICING
         if 'INSERT INTO GENESIS_TEST.GENESIS_JL.BOT_SERVICING' in query_upper:

@@ -19,7 +19,7 @@ harvester_tools_functions = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "source_name": {"type": "string", "description": "The source name for the harvest control data.  This is probably the current source specified in your system prompt, such as Snowflake. "},
+                    "connection_id": {"type": "string", "description": "Connection id of the database connection.  This may be 'Snowflake' is using the default snowflake connection, or otherwise get it via _list_database_connections "},
                     "database_name": {"type": "string", "description": "The database name for the harvest control data. Offer to the get_databases function to help figure out whats available.  Make sure to set the case properly for the database, either all upper case, or mixed case as reported by get_databases"},
                     "initial_crawl_complete": {"type": "boolean", "description": "Flag indicating if the initial crawl is complete.", "default": False},
                     "refresh_interval": {"type": "integer", "description": "The interval at which the data is refreshed in minutes.  Use 5 minutes unless the user specifies otherwise."},

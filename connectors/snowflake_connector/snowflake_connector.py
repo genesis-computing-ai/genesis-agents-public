@@ -89,6 +89,7 @@ class SnowflakeConnector(DatabaseConnector):
             self.database = db_path
             self.source_name = "SQLite"
             self.user = "local"
+            self.role = 'default'
         else:
             account, database, user, password, warehouse, role = [None] * 6
 
@@ -428,7 +429,7 @@ class SnowflakeConnector(DatabaseConnector):
         # Encode the input string to bytes, then create a SHA256 hash and convert it to a hexadecimal string
         return hashlib.sha256(input_string.encode()).hexdigest()
 
-    def get_harvest_control_data_as_json(self, thread_id=None):
+    def get_harvest_control_data_as_json(self, thread_id=None, bot_id=None):
         """
         Retrieves all the data from the harvest control table and returns it as a JSON object.
 
@@ -464,17 +465,19 @@ class SnowflakeConnector(DatabaseConnector):
     # SEE IF THIS WAY OF DOING BIND VARS WORKS, if so do it everywhere
     def set_harvest_control_data(
         self,
-        source_name,
-        database_name,
+        connection_id = None,
+        database_name = None,
         initial_crawl_complete=False,
         refresh_interval=1,
         schema_exclusions=None,
         schema_inclusions=None,
         status="Include",
         thread_id=None,
+        source_name=None,
+        bot_id=None,
     ):
         """
-        Inserts or updates a row in the harvest control table using MERGE statement with explicit parameters for Snowflake.
+        Inserts or updates a row in the harvest control table using simple SQL statements.
 
         Args:
             source_name (str): The source name for the harvest control data.
@@ -485,81 +488,126 @@ class SnowflakeConnector(DatabaseConnector):
             schema_inclusions (list): A list of schema names to include. Defaults to an empty list.
             status (str): The status of the harvest control. Defaults to 'Include'.
         """
+        if source_name is not None and connection_id is None:
+            connection_id = source_name
+        source_name = connection_id
         try:
             # Set default values for schema_exclusions and schema_inclusions if None
             if schema_exclusions is None:
                 schema_exclusions = []
             if schema_inclusions is None:
                 schema_inclusions = []
-            # Confirm the database and schema names are correct and match the case
-            # First, get the list of databases and check the case
-            databases = self.get_visible_databases()
-            if database_name not in databases:
-                return {
-                    "Success": False,
-                    "Error": f"Database {database_name} does not exist.",
-                }
-            # Now, get the list of schemas in the database and check the case
-            schemas = self.get_schemas(database_name)
-            if schema_exclusions:
+
+            # Validate database and schema names for Snowflake source
+            if source_name == 'Snowflake':
+                databases = self.get_visible_databases()
+                if database_name not in databases:
+                    return {
+                        "Success": False,
+                        "Error": f"Database {database_name} does not exist.",
+                    }
+
+                schemas = self.get_schemas(database_name)
                 for schema in schema_exclusions:
                     if schema.upper() not in (s.upper() for s in schemas):
                         return {
                             "Success": False,
                             "Error": f"Schema exclusion {schema} does not exist in database {database_name}.",
                         }
-            if schema_inclusions:
                 for schema in schema_inclusions:
                     if schema.upper() not in (s.upper() for s in schemas):
                         return {
                             "Success": False,
                             "Error": f"Schema inclusion {schema} does not exist in database {database_name}.",
                         }
-            # Ensure the case of the database and schema names matches that returned by the get_databases and get_schemas functions
-            database_name = next(
-                (db for db in databases if db.upper() == database_name.upper()),
-                database_name,
-            )
-            schema_exclusions = [
-                next((sch for sch in schemas if sch.upper() == schema.upper()), schema)
-                for schema in schema_exclusions
-            ]
-            schema_inclusions = [
-                next((sch for sch in schemas if sch.upper() == schema.upper()), schema)
-                for schema in schema_inclusions
-            ]
 
-            # Prepare the MERGE statement for Snowflake
-            merge_statement = f"""
-            MERGE INTO {self.harvest_control_table_name} T
-            USING (SELECT %(source_name)s AS source_name, %(database_name)s AS database_name) S
-            ON T.source_name = S.source_name AND T.database_name = S.database_name
-            WHEN MATCHED THEN
-              UPDATE SET
-                initial_crawl_complete = %(initial_crawl_complete)s,
-                refresh_interval = %(refresh_interval)s,
-                schema_exclusions = %(schema_exclusions)s,
-                schema_inclusions = %(schema_inclusions)s,
-                status = %(status)s
-            WHEN NOT MATCHED THEN
-              INSERT (source_name, database_name, initial_crawl_complete, refresh_interval, schema_exclusions, schema_inclusions, status)
-              VALUES (%(source_name)s, %(database_name)s, %(initial_crawl_complete)s, %(refresh_interval)s, %(schema_exclusions)s, %(schema_inclusions)s, %(status)s)
+                # Match case with existing database and schema names
+                database_name = next(
+                    (db for db in databases if db.upper() == database_name.upper()),
+                    database_name,
+                )
+                schema_exclusions = [
+                    next((sch for sch in schemas if sch.upper() == schema.upper()), schema)
+                    for schema in schema_exclusions
+                ]
+                schema_inclusions = [
+                    next((sch for sch in schemas if sch.upper() == schema.upper()), schema)
+                    for schema in schema_inclusions
+                ]
+            else:
+                # For non-Snowflake sources, validate the connection_id exists
+                from connectors.customer_data_connector import CustomerDataConnector
+                connector = CustomerDataConnector()
+                connections = connector.list_database_connections(bot_id=bot_id)
+                if not connections['success']:
+                    return {
+                        "Success": False,
+                        "Error": f"Failed to validate connection: {connections.get('error')}",
+                    }
+                
+                valid_connections = [c['connection_id'] for c in connections['connections']]
+                if connection_id not in valid_connections:
+                    return {
+                        "Success": False, 
+                        "Error": f"Connection '{connection_id}' not found. Please add it first using the database connection tools."
+                    }      
+
+
+            # Check if record exists
+            check_query = f"""
+            SELECT COUNT(*)
+            FROM {self.harvest_control_table_name}
+            WHERE source_name = %s AND database_name = %s
             """
+            cursor = self.client.cursor()
+            cursor.execute(check_query, (source_name, database_name))
+            exists = cursor.fetchone()[0] > 0
 
-            # Execute the MERGE statement
-            self.client.cursor().execute(
-                merge_statement,
-                {
-                    "source_name": source_name,
-                    "database_name": database_name,
-                    "initial_crawl_complete": initial_crawl_complete,
-                    "refresh_interval": refresh_interval,
-                    "schema_exclusions": str(schema_exclusions),
-                    "schema_inclusions": str(schema_inclusions),
-                    "status": status,
-                },
-            )
+            if exists:
+                # Update existing record
+                update_query = f"""
+                UPDATE {self.harvest_control_table_name}
+                SET initial_crawl_complete = %s,
+                    refresh_interval = %s,
+                    schema_exclusions = %s,
+                    schema_inclusions = %s,
+                    status = %s
+                WHERE source_name = %s AND database_name = %s
+                """
+                cursor.execute(
+                    update_query,
+                    (
+                        initial_crawl_complete,
+                        refresh_interval,
+                        str(schema_exclusions),
+                        str(schema_inclusions),
+                        status,
+                        source_name,
+                        database_name,
+                    ),
+                )
+            else:
+                # Insert new record
+                insert_query = f"""
+                INSERT INTO {self.harvest_control_table_name}
+                (source_name, database_name, initial_crawl_complete, refresh_interval,
+                 schema_exclusions, schema_inclusions, status)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """
+                cursor.execute(
+                    insert_query,
+                    (
+                        source_name,
+                        database_name,
+                        initial_crawl_complete,
+                        refresh_interval,
+                        str(schema_exclusions),
+                        str(schema_inclusions),
+                        status,
+                    ),
+                )
 
+            self.client.commit()
             return {
                 "Success": True,
                 "Message": "Harvest control data set successfully.",
@@ -1486,6 +1534,7 @@ def get_status(site):
         embedding=None,
         memory_uuid=None,
         ddl_hash=None,
+        matching_connection=None,
     ):
         qualified_table_name = f'"{database_name}"."{schema_name}"."{table_name}"'
         if not memory_uuid:
@@ -1494,8 +1543,9 @@ def get_status(site):
         if not ddl_hash:
             ddl_hash = self.sha256_hash_hex_string(ddl)
 
-        # Assuming role_used_for_crawl is stored in self.connection_info["client_email"]
-        role_used_for_crawl = self.role
+        # Use self.role if available, otherwise keep existing role_used_for_crawl
+        if self.role is not None:
+            role_used_for_crawl = self.role
 
         # if cortex mode, load embedding_native else load embedding column
         if os.environ.get("CORTEX_MODE", 'False') == 'True':
@@ -1506,59 +1556,8 @@ def get_status(site):
         # Convert embedding list to string format if not None
         embedding_str = (",".join(str(e) for e in embedding) if embedding is not None else None)
 
-        # Construct the MERGE SQL statement with placeholders for parameters
-        merge_sql = f"""
-        MERGE INTO {self.metadata_table_name} USING (
-            SELECT
-                %(source_name)s AS source_name,
-                %(qualified_table_name)s AS qualified_table_name,
-                %(memory_uuid)s AS memory_uuid,
-                %(database_name)s AS database_name,
-                %(schema_name)s AS schema_name,
-                %(table_name)s AS table_name,
-                %(complete_description)s AS complete_description,
-                %(ddl)s AS ddl,
-                %(ddl_short)s AS ddl_short,
-                %(ddl_hash)s AS ddl_hash,
-                %(summary)s AS summary,
-                %(sample_data_text)s AS sample_data_text,
-                %(last_crawled_timestamp)s AS last_crawled_timestamp,
-                %(crawl_status)s AS crawl_status,
-                %(role_used_for_crawl)s AS role_used_for_crawl,
-                %(embedding)s AS {embedding_target}
-        ) AS new_data
-        ON {self.metadata_table_name}.qualified_table_name = new_data.qualified_table_name
-        WHEN MATCHED THEN UPDATE SET
-            source_name = new_data.source_name,
-            memory_uuid = new_data.memory_uuid,
-            database_name = new_data.database_name,
-            schema_name = new_data.schema_name,
-            table_name = new_data.table_name,
-            complete_description = new_data.complete_description,
-            ddl = new_data.ddl,
-            ddl_short = new_data.ddl_short,
-            ddl_hash = new_data.ddl_hash,
-            summary = new_data.summary,
-            sample_data_text = new_data.sample_data_text,
-            last_crawled_timestamp = TO_TIMESTAMP_NTZ(new_data.last_crawled_timestamp),
-            crawl_status = new_data.crawl_status,
-            role_used_for_crawl = new_data.role_used_for_crawl,
-            {embedding_target} = ARRAY_CONSTRUCT(new_data.{embedding_target})
-        WHEN NOT MATCHED THEN INSERT (
-            source_name, qualified_table_name, memory_uuid, database_name, schema_name, table_name,
-            complete_description, ddl, ddl_short, ddl_hash, summary, sample_data_text, last_crawled_timestamp,
-            crawl_status, role_used_for_crawl, {embedding_target}
-        ) VALUES (
-            new_data.source_name, new_data.qualified_table_name, new_data.memory_uuid, new_data.database_name,
-            new_data.schema_name, new_data.table_name, new_data.complete_description, new_data.ddl, new_data.ddl_short,
-            new_data.ddl_hash, new_data.summary, new_data.sample_data_text, TO_TIMESTAMP_NTZ(new_data.last_crawled_timestamp),
-            new_data.crawl_status, new_data.role_used_for_crawl, ARRAY_CONSTRUCT(new_data.{embedding_target})
-        );
-        """
-
-        # Set up the query parameters
         query_params = {
-            "source_name": self.source_name,
+            "source_name": matching_connection['connection_id'] if matching_connection is not None else self.source_name,
             "qualified_table_name": qualified_table_name,
             "memory_uuid": memory_uuid,
             "database_name": database_name,
@@ -1575,24 +1574,134 @@ def get_status(site):
             "role_used_for_crawl": role_used_for_crawl,
             "embedding": embedding_str,
         }
+        if self.source_name == 'Snowflake':
+            # Construct the MERGE SQL statement with placeholders for parameters
+            merge_sql = f"""
+            MERGE INTO {self.metadata_table_name} USING (
+                SELECT
+                    %(source_name)s AS source_name,
+                    %(qualified_table_name)s AS qualified_table_name,
+                    %(memory_uuid)s AS memory_uuid,
+                    %(database_name)s AS database_name,
+                    %(schema_name)s AS schema_name,
+                    %(table_name)s AS table_name,
+                    %(complete_description)s AS complete_description,
+                    %(ddl)s AS ddl,
+                    %(ddl_short)s AS ddl_short,
+                    %(ddl_hash)s AS ddl_hash,
+                    %(summary)s AS summary,
+                    %(sample_data_text)s AS sample_data_text,
+                    %(last_crawled_timestamp)s AS last_crawled_timestamp,
+                    %(crawl_status)s AS crawl_status,
+                    %(role_used_for_crawl)s AS role_used_for_crawl,
+                    %(embedding)s AS {embedding_target}
+            ) AS new_data
+            ON {self.metadata_table_name}.qualified_table_name = new_data.qualified_table_name
+            WHEN MATCHED THEN UPDATE SET
+                source_name = new_data.source_name,
+                memory_uuid = new_data.memory_uuid,
+                database_name = new_data.database_name,
+                schema_name = new_data.schema_name,
+                table_name = new_data.table_name,
+                complete_description = new_data.complete_description,
+                ddl = new_data.ddl,
+                ddl_short = new_data.ddl_short,
+                ddl_hash = new_data.ddl_hash,
+                summary = new_data.summary,
+                sample_data_text = new_data.sample_data_text,
+                last_crawled_timestamp = TO_TIMESTAMP_NTZ(new_data.last_crawled_timestamp),
+                crawl_status = new_data.crawl_status,
+                role_used_for_crawl = new_data.role_used_for_crawl,
+                {embedding_target} = ARRAY_CONSTRUCT(new_data.{embedding_target})
+            WHEN NOT MATCHED THEN INSERT (
+                source_name, qualified_table_name, memory_uuid, database_name, schema_name, table_name,
+                complete_description, ddl, ddl_short, ddl_hash, summary, sample_data_text, last_crawled_timestamp,
+                crawl_status, role_used_for_crawl, {embedding_target}
+            ) VALUES (
+                new_data.source_name, new_data.qualified_table_name, new_data.memory_uuid, new_data.database_name,
+                new_data.schema_name, new_data.table_name, new_data.complete_description, new_data.ddl, new_data.ddl_short,
+                new_data.ddl_hash, new_data.summary, new_data.sample_data_text, TO_TIMESTAMP_NTZ(new_data.last_crawled_timestamp),
+                new_data.crawl_status, new_data.role_used_for_crawl, ARRAY_CONSTRUCT(new_data.{embedding_target})
+            );
+            """
 
-        for param, value in query_params.items():
-            # logger.info(f'{param}: {value}')
-            if value is None:
-                # logger.info(f'{param} is null')
-                query_params[param] = "NULL"
+            # Set up the query parameters
 
-        # Execute the MERGE statement with parameters
-        try:
-            # logger.info("merge sql: ",merge_sql)
-            cursor = self.client.cursor()
-            cursor.execute(merge_sql, query_params)
-            self.client.commit()
-        except Exception as e:
-            logger.info(f"An error occurred while executing the MERGE statement: {e}")
-        finally:
-            if cursor is not None:
-                cursor.close()
+
+            for param, value in query_params.items():
+                # logger.info(f'{param}: {value}')
+                if value is None:
+                    # logger.info(f'{param} is null')
+                    query_params[param] = "NULL"
+
+            # Execute the MERGE statement with parameters
+            try:
+                # logger.info("merge sql: ",merge_sql)
+                cursor = self.client.cursor()
+                cursor.execute(merge_sql, query_params)
+                self.client.commit()
+            except Exception as e:
+                logger.info(f"An error occurred while executing the MERGE statement: {e}")
+            finally:
+                if cursor is not None:
+                    cursor.close()
+        else:
+            # Check if row exists
+            check_query = f"""
+                SELECT COUNT(*) 
+                FROM {self.metadata_table_name}  
+                WHERE source_name = :source_name 
+                AND qualified_table_name = :qualified_table_name
+                AND memory_uuid = :memory_uuid
+            """
+            cursor = None
+            try:
+                cursor = self.client.cursor()
+                cursor.execute(check_query, query_params)
+                count = cursor.fetchone()[0]
+                
+                if count > 0:
+                    # Update existing row
+                    update_sql = f"""
+                        UPDATE {self.metadata_table_name} 
+                        SET complete_description = :complete_description,
+                            ddl = :ddl,
+                            ddl_short = :ddl_short, 
+                            ddl_hash = :ddl_hash,
+                            summary = :summary,
+                            sample_data_text = :sample_data_text,
+                            last_crawled_timestamp = :last_crawled_timestamp,
+                            crawl_status = :crawl_status,
+                            role_used_for_crawl = :role_used_for_crawl,
+                            {embedding_target} = :embedding
+                        WHERE source_name = :source_name
+                        AND qualified_table_name = :qualified_table_name 
+                        AND memory_uuid = :memory_uuid
+                    """
+                    cursor.execute(update_sql, query_params)
+                else:
+                    # Insert new row
+                    insert_sql = f"""
+                        INSERT INTO {self.metadata_table_name}  (
+                            source_name, qualified_table_name, memory_uuid, database_name, 
+                            schema_name, table_name, complete_description, ddl, ddl_short,
+                            ddl_hash, summary, sample_data_text, last_crawled_timestamp,
+                            crawl_status, role_used_for_crawl, {embedding_target}
+                        ) VALUES (
+                            :source_name, :qualified_table_name, :memory_uuid, :database_name,
+                            :schema_name, :table_name, :complete_description, :ddl, :ddl_short,
+                            :ddl_hash, :summary, :sample_data_text, :last_crawled_timestamp,
+                            :crawl_status, :role_used_for_crawl, :embedding)
+    
+                    """
+                    cursor.execute(insert_sql, query_params)
+                
+                self.client.commit()
+            except Exception as e:
+                logger.info(f"An error occurred while executing the update/insert: {e}")
+            finally:
+                if cursor is not None:
+                    cursor.close()
 
     # make sure this is returning whats expected (array vs string)
     def get_table_ddl(self, database_name: str, schema_name: str, table_name=None):
@@ -1635,6 +1744,8 @@ def get_status(site):
     def check_cached_metadata(
         self, database_name: str, schema_name: str, table_name: str
     ):
+        if self.source_name != 'Snowflake':
+            return False
         try:
             if database_name and schema_name and table_name:
                 query = f"SELECT IFF(count(*)>0,TRUE,FALSE) from APP_SHARE.HARVEST_RESULTS where DATABASE_NAME = '{database_name}' AND SCHEMA_NAME = '{schema_name}' AND TABLE_NAME = '{table_name}';"
@@ -1859,8 +1970,13 @@ def get_status(site):
             query = f'SHOW SCHEMAS IN DATABASE "{database}"'
             cursor = self.connection.cursor()
             cursor.execute(query)
-            for row in cursor:
-                schemas.append(row[1])  # Assuming the schema name is in the second column
+            rows = cursor.fetchall()
+            for row in rows:
+                if self.source_name == 'SQLite':
+                    schema_col = 0
+                else:
+                    schema_col = 1
+                schemas.append(row[schema_col])  # Assuming schema name is in second column
             cursor.close()
         except Exception as e:
             # logger.info(f"error getting schemas for {database}: {e}")
@@ -1873,17 +1989,27 @@ def get_status(site):
             query = f'SHOW TABLES IN "{database}"."{schema}"'
             cursor = self.connection.cursor()
             cursor.execute(query)
-            for row in cursor:
+            rows = cursor.fetchall()
+            for row in rows:
+                if self.source_name == 'SQLite':
+                    table_col = 0
+                else:
+                    table_col = 1
                 tables.append(
-                    {"table_name": row[1], "object_type": "TABLE"}
+                    {"table_name": row[table_col], "object_type": "TABLE"}
                 )  # Assuming the table name is in the second column and DDL in the third
             cursor.close()
             query = f'SHOW VIEWS IN "{database}"."{schema}"'
             cursor = self.connection.cursor()
             cursor.execute(query)
-            for row in cursor:
+            rows = cursor.fetchall()
+            for row in rows:
+                if self.source_name == 'SQLite':
+                    table_col = 0
+                else:
+                    table_col = 1
                 tables.append(
-                    {"table_name": row[1], "object_type": "VIEW"}
+                    {"table_name": row[table_col], "object_type": "VIEW"}
                 )  # Assuming the table name is in the second column and DDL in the third
             cursor.close()
         except Exception as e:

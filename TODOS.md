@@ -10,6 +10,13 @@ speed up bot responses
 o1 via api with tool calling
 put eve back in as default bot in streamlit 
 demo with web research tools
+rationalize database connector with data_connector_tools
+test gsheet comments
+make sure clean sqlite works with new schema removal logic
+make sure harvester works ok in snowflake mode still (get schemas, get tables)
+test setting harvest control again with sqlite and snowflake (make sure using correct connection id)
+store standard queries for harvester for various db_types in a metadata table, and store new ones in there when they work
+
 
 todo:
 do bots have task id ok to check history?

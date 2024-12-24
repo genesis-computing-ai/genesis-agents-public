@@ -1826,7 +1826,7 @@ def load_default_processes_and_notebook(self, cursor):
         files = glob.glob(os.path.join(folder_path, '*.yaml'))
 
         if not files or len(files) == 0:
-            print("No files found in golden_defaults/golden_processes")
+            logger.info("No files found in golden_defaults/golden_processes")
             return
 
         for filename in files:
@@ -1967,83 +1967,83 @@ def upgrade_timestamp_columns(self, table_name):
     return
 
 def load_default_notes(self, cursor):
-        print("*** load_default_notes")
-        folder_path = 'golden_defaults/golden_notes'
-        notes_data = pd.DataFrame()
+    logger.info("load_default_notes")
+    folder_path = 'golden_defaults/golden_notes'
+    notes_data = pd.DataFrame()
 
-        files = glob.glob(os.path.join(folder_path, '*.yaml'))
-        if not files or len(files) == 0:
-            print("No files found in golden_defaults/golden_notes")
-            return
+    files = glob.glob(os.path.join(folder_path, '*.yaml'))
+    if not files or len(files) == 0:
+        logger.info("No files found in golden_defaults/golden_notes")
+        return
 
-        for filename in files:
-            with open(filename, 'r') as file:
-                yaml_data = yaml.safe_load(file)
+    for filename in files:
+        with open(filename, 'r') as file:
+            yaml_data = yaml.safe_load(file)
 
-            data = pd.DataFrame.from_dict(yaml_data, orient='index')
-            data.reset_index(inplace=True)
-            data.rename(columns={'index': 'NOTE_ID'}, inplace=True)
+        data = pd.DataFrame.from_dict(yaml_data, orient='index')
+        data.reset_index(inplace=True)
+        data.rename(columns={'index': 'NOTE_ID'}, inplace=True)
 
-            note_defaults = pd.concat([notes_data, data], ignore_index=True)
+        note_defaults = pd.concat([notes_data, data], ignore_index=True)
 
-        # Ensure TIMESTAMP column is timezone-aware
-        note_defaults['TIMESTAMP'] = pd.to_datetime(note_defaults['TIMESTAMP'], format='ISO8601', utc=True)
+    # Ensure TIMESTAMP column is timezone-aware
+    note_defaults['TIMESTAMP'] = pd.to_datetime(note_defaults['TIMESTAMP'], format='ISO8601', utc=True)
+
+    updated_note = False
+
+    for _, note_default in note_defaults.iterrows():
+        note_id = note_default['NOTE_ID']
+        timestamp_str = make_date_tz_aware(note_default['TIMESTAMP'])
+
+        query = f"SELECT * FROM {self.schema}.NOTEBOOK WHERE NOTE_ID = %s"
+        cursor.execute(query, (note_id,))
+        result = cursor.fetchone()
+        notebook_columns = [desc[0] for desc in cursor.description]
+
+        # ONE-TIME FIX - MAKE SURE TABLE HAS CREATED_AT AND UPDATED_AT COLUMNS
+        upgrade_timestamp_columns(self, 'NOTEBOOK')
 
         updated_note = False
+        note_found = False
+        if result is not None:
+            note_found = True
+            timestamp_index = notebook_columns.index('UPDATED_AT') if 'UPDATED_AT' in notebook_columns else None
+            db_timestamp = result[timestamp_index] if len(result) > 0 else None
 
-        for _, note_default in note_defaults.iterrows():
-            note_id = note_default['NOTE_ID']
-            timestamp_str = make_date_tz_aware(note_default['TIMESTAMP'])
+            # Ensure db_timestamp is timezone-aware
+            if isinstance(db_timestamp, str):
+                db_timestamp = pd.to_datetime(db_timestamp, utc=True)
+            if db_timestamp is None:
+                db_timestamp = datetime.now(pytz.UTC)
+            elif db_timestamp.tzinfo is None:
+                db_timestamp = db_timestamp.replace(tzinfo=pytz.UTC)
 
-            query = f"SELECT * FROM {self.schema}.NOTEBOOK WHERE NOTE_ID = %s"
-            cursor.execute(query, (note_id,))
-            result = cursor.fetchone()
-            notebook_columns = [desc[0] for desc in cursor.description]
+            if result[notebook_columns.index('NOTE_ID')] == note_id and db_timestamp < note_default['TIMESTAMP']:
+                # Remove old process
+                query = f"DELETE FROM {self.schema}.NOTEBOOK WHERE NOTE_ID = %s"
+                cursor.execute(query, (note_id,))
+                updated_note = True
+            elif result[notebook_columns.index('NOTE_ID')] == note_id:
+                continue
 
-            # ONE-TIME FIX - MAKE SURE TABLE HAS CREATED_AT AND UPDATED_AT COLUMNS
-            upgrade_timestamp_columns(self, 'NOTEBOOK')
+        placeholders = ', '.join(['%s'] * len(notebook_columns))
 
-            updated_note = False
-            note_found = False
-            if result is not None:
-                note_found = True
-                timestamp_index = notebook_columns.index('UPDATED_AT') if 'UPDATED_AT' in notebook_columns else None
-                db_timestamp = result[timestamp_index] if len(result) > 0 else None
-
-                # Ensure db_timestamp is timezone-aware
-                if isinstance(db_timestamp, str):
-                    db_timestamp = pd.to_datetime(db_timestamp, utc=True)
-                if db_timestamp is None:
-                    db_timestamp = datetime.now(pytz.UTC)
-                elif db_timestamp.tzinfo is None:
-                    db_timestamp = db_timestamp.replace(tzinfo=pytz.UTC)
-
-                if result[notebook_columns.index('NOTE_ID')] == note_id and db_timestamp < note_default['TIMESTAMP']:
-                    # Remove old process
-                    query = f"DELETE FROM {self.schema}.NOTEBOOK WHERE NOTE_ID = %s"
-                    cursor.execute(query, (note_id,))
-                    updated_note = True
-                elif result[notebook_columns.index('NOTE_ID')] == note_id:
-                    continue
-
-            placeholders = ', '.join(['%s'] * len(notebook_columns))
-
-            insert_values = []
-            for key in notebook_columns:
-                if key == 'NOTE_ID':
-                    insert_values.append(note_id)
-                elif key.lower() == 'updated_at' or key.lower() == 'created_at':
-                    insert_values.append(timestamp_str)
-                else:
-                    val = note_default.get(key, '') if note_default.get(key, '') is not None else ''
-                    if pd.isna(val):
-                        val = ''
-                    insert_values.append(val)
-            insert_query = f"INSERT INTO {self.schema}.NOTEBOOK ({', '.join(notebook_columns)}) VALUES ({placeholders})"
-            cursor.execute(insert_query, insert_values)
-            if updated_note:
-                logger.info(f"Note {note_id} updated successfully.")
-                updated_note = False
+        insert_values = []
+        for key in notebook_columns:
+            if key == 'NOTE_ID':
+                insert_values.append(note_id)
+            elif key.lower() == 'updated_at' or key.lower() == 'created_at':
+                insert_values.append(timestamp_str)
             else:
-                logger.info(f"Note {note_id} inserted successfully.")
-        cursor.close()
+                val = note_default.get(key, '') if note_default.get(key, '') is not None else ''
+                if pd.isna(val):
+                    val = ''
+                insert_values.append(val)
+        insert_query = f"INSERT INTO {self.schema}.NOTEBOOK ({', '.join(notebook_columns)}) VALUES ({placeholders})"
+        cursor.execute(insert_query, insert_values)
+        if updated_note:
+            logger.info(f"Note {note_id} updated successfully.")
+            updated_note = False
+        else:
+            logger.info(f"Note {note_id} inserted successfully.")
+    cursor.close()

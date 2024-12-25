@@ -1652,7 +1652,6 @@ def get_status(site):
                 FROM {self.metadata_table_name}  
                 WHERE source_name = :source_name 
                 AND qualified_table_name = :qualified_table_name
-                AND memory_uuid = :memory_uuid
             """
             cursor = None
             try:
@@ -1676,7 +1675,6 @@ def get_status(site):
                             {embedding_target} = :embedding
                         WHERE source_name = :source_name
                         AND qualified_table_name = :qualified_table_name 
-                        AND memory_uuid = :memory_uuid
                     """
                     cursor.execute(update_sql, query_params)
                 else:

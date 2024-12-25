@@ -2289,7 +2289,8 @@ def get_status(site):
         note_type = None,
         max_field_size = 5000,
         export_to_google_sheet = False,
-        export_title=None
+        export_title=None,
+        keep_db_schema = False
     ):
         """
         Executes a SQL query on Snowflake, with support for parameterized queries.
@@ -2407,7 +2408,11 @@ def get_status(site):
 }
 
         try:
-            cursor.execute(query)
+            if keep_db_schema and self.source_name == 'SQLite':
+                cursor.execute(f"KEEPSCHEMA::{query}")
+            else:
+                cursor.execute(query)
+
             if bot_id is not None and ("CREATE" in query.upper() and workspace_schema_name.upper() in query.upper()):
                 self.grant_all_bot_workspace(workspace_full_schema_name)
 
@@ -4213,7 +4218,18 @@ def get_status(site):
 
             # The `last_crawled_time` attribute should be a datetime object. Format it.
             last_crawled_time = result[0]['last_crawled_time']
-            timestamp_str = last_crawled_time.strftime("%Y%m%dT%H%M%S") + "Z"
+            if isinstance(last_crawled_time, str):
+                timestamp_str = last_crawled_time
+                if timestamp_str.endswith(':00'):
+                    timestamp_str = timestamp_str[:-3]
+                timestamp_str = timestamp_str.replace(" ", "T") 
+                timestamp_str = timestamp_str.replace(".", "")
+                timestamp_str = timestamp_str.replace("+", "")
+                timestamp_str = timestamp_str.replace("-", "")
+                timestamp_str = timestamp_str.replace(":", "")
+                timestamp_str = timestamp_str + "Z"
+            else:
+                timestamp_str = last_crawled_time.strftime("%Y%m%dT%H%M%S") + "Z"
 
             # Create the filename with the .ann extension
             filename = f"{timestamp_str}.ann"

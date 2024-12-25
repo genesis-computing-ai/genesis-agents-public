@@ -141,7 +141,7 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
             self.client = get_openai_client()
 
         #self.index, self.metadata_mapping = AnnoyIndexSingleton.get_index_and_metadata(self.meta_database_connector.metadata_table_name, vector_size, refresh=refresh)
-        self.index, self.metadata_mapping = load_or_create_embeddings_index(self.meta_database_connector.metadata_table_name, refresh=False)
+        self.index, self.metadata_mapping = load_or_create_embeddings_index(self.meta_database_connector.metadata_table_name, refresh=refresh)
 
 
     # Function to get embedding (reuse or modify your existing get_embedding function)
@@ -517,7 +517,7 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
             # Build structural filters
             filtered_entries = None
 
-            where_clauses = [f"source_name='{self.source_name.replace('', '')}'"]
+            where_clauses = ["1==1"] #[f"source_name='{self.source_name.replace('', '')}'"]
             if database:
                 where_clauses.append(f"database_name='{database.replace('', '')}'")
             if schema:
@@ -638,7 +638,7 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
 
             # Add error handling around the query execution
             try:
-                content = self.meta_database_connector.run_query(content_query)
+                content = self.meta_database_connector.run_query(content_query, keep_db_schema=True)
                 if not content:
                     return ["No results found matching your criteria."]
             except Exception as e:
@@ -649,6 +649,8 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
             next_results = results[top_n:min(top_n * 3, len(results))]
 
             # Sort content to match order of qualified table names
+            # Convert all dictionary keys to uppercase
+            content = [{k.upper(): v for k, v in row.items()} for row in content]
             content_dict = {row['FULL_TABLE_NAME']: row for row in content}
             sorted_content = []
             for qualified_name in qualified_names:

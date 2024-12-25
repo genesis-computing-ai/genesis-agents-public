@@ -344,12 +344,17 @@ class SQLiteCursorWrapper:
     def close(self):
         return self.real_cursor.close()
     
-    def _transform_query(self, query: str) -> str | list[str]:
+    def _transform_query(self, query: str, keep_db_schema: bool = False) -> str | list[str]:
         """Transform Snowflake SQL to SQLite compatible SQL"""
         
         if not query:
             return query
         
+        # Check for KEEPSCHEMA:: prefix and set flag accordingly
+        keep_db_schema = False
+        if query.startswith('KEEPSCHEMA::'):
+            keep_db_schema = True
+            query = query[len('KEEPSCHEMA::'):]
 
         # Remove schema prefix if it matches GENESIS_INTERNAL_DB_SCHEMA
         schema_prefix = os.environ.get('GENESIS_INTERNAL_DB_SCHEMA', '')
@@ -513,8 +518,9 @@ class SQLiteCursorWrapper:
             return "SELECT 1 WHERE 1=0"
         
         # Remove only fully qualified database.schema.table patterns
-        query = re.sub(r'"?[^".\s]+"\."[^".\s]+"."([^"\s]+)"?', r'\1', query)  # Remove "DB"."SCHEMA"."TABLE"
-        query = re.sub(r'(\w+)\.(\w+)\.(\w+)(?=\s|$)', r'\3', query)           # Remove DB.SCHEMA.TABLE
+        if not keep_db_schema:
+            query = re.sub(r'"?[^".\s]+"\."[^".\s]+"."([^"\s]+)"?', r'\1', query)  # Remove "DB"."SCHEMA"."TABLE"
+            query = re.sub(r'(\w+)\.(\w+)\.(\w+)(?=\s|$)', r'\3', query)           # Remove DB.SCHEMA.TABLE
 
         # Do NOT remove schema.table or alias.column patterns
         # Remove these lines:

@@ -856,6 +856,67 @@ image_functions = [
     },
 ]
 
+web_access_functions = [
+    {
+        "type": "function",
+        "function": {
+            "name": "_search_google",
+            "description": "This tool is designed to perform a semantic search for a specified query from a text's content across the internet. It utilizes the serper.dev API to fetch and display the most relevant search results based on the query provided by the user.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "The search query",
+                    }
+                },
+                "required": ["query"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "_scrape_url",
+            "description": "scrapes a website given its url and return LLM compatible response",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "url": {
+                        "type": "string",
+                        "description": "The url of the website to scrape.",
+                    }
+                },
+                "required": ["url"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "_crawl_url",
+            "description": "crawls a website given its url and return LLM compatible response",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "url": {
+                        "type": "string",
+                        "description": "The url of the website to crawl.",
+                    },
+                    "limit": {
+                        "type": "string",
+                        "description": "Number of pages to crawl.",
+                    }
+                },
+                "required": ["url"],
+            },
+        },
+    },
+]
+
+
+
+
 image_tools = {
     "_analyze_image": "db_adapter.image_analysis",
     "_generate_image": "db_adapter.image_generation",
@@ -895,7 +956,9 @@ manage_tests_tools = {"_manage_tests": "tool_belt.manage_tests"}
 process_manager_tools = {"_manage_processes": "tool_belt.manage_processes"}
 process_scheduler_tools = {"_process_scheduler": "tool_belt.process_scheduler"}
 notebook_manager_tools = {"_manage_notebook": "tool_belt.manage_notebook"}
-
+web_access_tools = {"_search_google": "tool_belt.search_google", 
+                   "_scrape_url": "tool_belt.scrape_url", 
+                   "_crawl_url": "tool_belt.crawl_url"}
 
 def bind_semantic_copilot(data_connection_info):
     def _semantic_copilot(prompt: str, semantic_model: str, prod: bool = True):

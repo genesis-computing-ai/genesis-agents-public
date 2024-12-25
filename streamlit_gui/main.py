@@ -331,12 +331,8 @@ if st.session_state.data:
     pages.add_page('grant_data', 'Grant Data Access', 'grant_data', 'grant_data')
     pages.add_page('config_custom_eai', 'Setup Custom Endpoints', 'config_custom_eai', 'config_custom_eai')
     pages.add_page('config_jira', 'Setup Jira API Params', 'config_jira', 'config_jira')
-    pages.add_page(
-        "config_g_sheets",
-        "Setup Google Workspace API",
-        "config_g_sheets",
-        "config_g_sheets",
-    )
+    pages.add_page('config_web_access', 'Setup WebAccess API Params', 'config_web_access', 'config_web_access')
+    pages.add_page("config_g_sheets","Setup Google Workspace API","config_g_sheets","config_g_sheets")
     pages.add_page('db_harvester', 'Harvester Status', 'db_harvester', 'db_harvester')
     pages.add_page('bot_config', 'Bot Configuration', 'bot_config', 'bot_config')
     pages.add_page('start_stop', 'Server Stop-Start', 'start_stop', 'start_stop')

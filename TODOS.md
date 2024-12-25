@@ -3,7 +3,7 @@ GENESIS BOT TODOS
 =================
 
 prerelease:
-check that adding a tool via streamlit doesnt mess up the thread with that bot (e.g. data connector tools)
+x check that adding a tool via streamlit doesnt mess up the thread with that bot (e.g. data connector tools)
 make sqlite sample data load from csv files vs binary
 speed up startup
 speed up bot responses
@@ -20,9 +20,10 @@ make the index for each bot separate and based on what data they have access to
 make metadata mapping have a source_name column
 make get_full_Table_details work with sqlite etc
 allow search_metadata_detailed and search_metadata to specify a source_name
-graphs out in streamlit in sqlite mode
-generate a text file with the numebrs from 1-10, sqlite mode, genesis gui error in streamlit
-
+x graphs out in streamlit in sqlite mode
+generate a text file with the numebrs from 1-10, sqlite mode, genesis gui error in streamlit (doesnt return the file anymore just the text)
+route queries to snowflake through data connector tools, so there is only one query_database tool
+route search metadata through data connector tools
 
 
 todo:

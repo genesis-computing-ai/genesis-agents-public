@@ -273,6 +273,28 @@ def chat_page():
                         #    image_format = csubtype
                         if ctype == "text" and csubtype in known_txt_types:
                             image_format = csubtype
+                            
+            # If format not determined from extension or mime type, try to detect from content
+            if file_content64 and not image_format and not text_format:
+                try:
+                    # Try to decode as text first
+                    decoded = base64.b64decode(file_content64)
+                    try:
+                        # Try to decode as UTF-8 text
+                        decoded.decode('utf-8')
+                        text_format = 'plain'
+                    except UnicodeDecodeError:
+                        # If not text, check for common image headers
+                        if decoded.startswith(b'\x89PNG\r\n'):
+                            image_format = 'png'
+                        elif decoded.startswith(b'\xff\xd8\xff'):
+                            image_format = 'jpeg'
+                        elif decoded.startswith(b'GIF87a') or decoded.startswith(b'GIF89a'):
+                            image_format = 'gif'
+                        elif decoded.startswith(b'<?xml') and b'svg' in decoded[:100]:
+                            image_format = 'svg'
+                except:
+                    pass # If detection fails, will fall back to generic link
 
             allow_html = False
             markdown = None

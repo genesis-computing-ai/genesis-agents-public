@@ -505,7 +505,7 @@ Always respond to greetings and pleasantries like 'hi' etc, unless specifically 
             validation_instructions=post_validation,
             input_adapters=input_adapters,
             knowledgebase_implementation=BotOsKnowledgeAnnoy_Metadata(
-                f"./kb_{bot_config['bot_id']}"
+                f"./kb_{bot_config['bot_id']}", refresh=True
             ),
             file_corpus=(
                 URLListFileCorpus(json.loads(bot_config["files"]))

@@ -536,7 +536,6 @@ data_connector_tools = ToolFuncGroup(
     lifetime="PERSISTENT"
 )
 
-
 @gc_tool(
     connection_id= "ID of the database connection to query",
     bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,

@@ -16,6 +16,13 @@ make sure clean sqlite works with new schema removal logic
 make sure harvester works ok in snowflake mode still (get schemas, get tables)
 test setting harvest control again with sqlite and snowflake (make sure using correct connection id)
 store standard queries for harvester for various db_types in a metadata table, and store new ones in there when they work
+make the index for each bot separate and based on what data they have access to
+make metadata mapping have a source_name column
+make get_full_Table_details work with sqlite etc
+allow search_metadata_detailed and search_metadata to specify a source_name
+graphs out in streamlit in sqlite mode
+generate a text file with the numebrs from 1-10, sqlite mode, genesis gui error in streamlit
+
 
 
 todo:

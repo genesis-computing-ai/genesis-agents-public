@@ -618,8 +618,8 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
             qualified_names = [f"'{result[2]}'" for result in top_results]
             if verbosity == "high":
                 content_query = f"""
-                    SELECT
-                        qualified_table_name as full_table_name,
+                    SELECT 
+                        source_name, qualified_table_name as full_table_name,
                         ddl as DDL_FULL,
                         sample_data_text as sample_data
                     FROM {self.meta_database_connector.metadata_table_name}
@@ -628,8 +628,8 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
                 """
             else:
                 content_query = f"""
-                    SELECT
-                        qualified_table_name as full_table_name,
+                    SELECT 
+                        source_name, qualified_table_name as full_table_name,
                         ddl_short
                     FROM {self.meta_database_connector.metadata_table_name}
                     WHERE {where_statement}

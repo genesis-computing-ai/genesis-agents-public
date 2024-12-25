@@ -210,13 +210,13 @@ while True:
     wake_up = False
     first_pass = True
     # skip the sleeping on bots inactive if we are running locally or on Sqlite metadata
+    i = 0
+    while not wake_up:
+        time.sleep(refresh_seconds)
     if harvester_db_connector.source_name == "SQLite":
         wake_up = True
     if os.getenv("GENESIS_LOCAL_RUNNER", "").upper() == "TRUE":
         wake_up = True
-    i = 0
-    while not wake_up:
-        time.sleep(refresh_seconds)
 
         cursor = harvester_db_connector.client.cursor()
         check_bot_active = f"DESCRIBE TABLE {harvester_db_connector.schema}.BOTS_ACTIVE"

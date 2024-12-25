@@ -97,7 +97,7 @@ class SchemaExplorer:
             j = ""
         return j
 
-    def store_table_memory(self, database, schema, table, summary=None, ddl=None, ddl_short=None, sample_data=None):
+    def store_table_memory(self, database, schema, table, summary=None, ddl=None, ddl_short=None, sample_data=None, dataset=None, matching_connection=None):
         """
         Generates a document including the DDL statement and a natural language description for a table.
         :param schema: The schema name.
@@ -111,7 +111,7 @@ class SchemaExplorer:
             sample_data_str = ""
             if not sample_data:
                 try:
-                    sample_data = self.db_connector.get_sample_data(database, schema, table)
+                    sample_data = self.get_sample_data(dataset or {'source_name': 'Snowflake', 'database_name': database, 'schema_name': schema}, table)
                     sample_data_str = ""
                 except Exception as e:
                     logger.info(f"Error getting sample data: {e}")
@@ -125,7 +125,7 @@ class SchemaExplorer:
                 #sample_data_str = sample_data_str.replace("\n", " ")  # Replace newlines with spaces
 
             #logger.info('sample data string: ',sample_data_str)
-            self.store_table_summary(database, schema, table, ddl=ddl, ddl_short=ddl_short,summary=summary, sample_data=sample_data_str)
+            self.store_table_summary(database, schema, table, ddl=ddl, ddl_short=ddl_short,summary=summary, sample_data=sample_data_str, dataset=dataset, matching_connection=matching_connection)
 
         except Exception as e:
             logger.info(f"Harvester Error for an object: {e}")
@@ -202,7 +202,7 @@ class SchemaExplorer:
         return result_value
 
 
-    def store_table_summary(self, database, schema, table, ddl, ddl_short="", summary="", sample_data="", memory_uuid="", ddl_hash="", matching_connection=None):
+    def store_table_summary(self, database, schema, table, ddl, ddl_short="", summary="", sample_data="", memory_uuid="", ddl_hash="", dataset=None, matching_connection=None):
         """
         Stores a document including the DDL and summary for a table in the memory system.
         :param schema: The schema name.
@@ -469,6 +469,86 @@ class SchemaExplorer:
             cursor.execute(query)
             self.db_connector.client.commit()
 
+    def get_table_columns(self, dataset, table_name):
+        """
+        Gets list of columns for a table in the given dataset.
+
+        Args:
+            dataset (dict): Dictionary containing source_name, database_name and schema_name
+            table_name (str): Name of the table to get columns for
+
+        Returns:
+            list: List of column names for the table
+        """
+        if dataset['source_name'] == 'Snowflake':
+            try:
+                columns = self.db_connector.get_columns(
+                    dataset['database_name'],
+                    dataset['schema_name'],
+                    table_name
+                )
+                return columns
+            except Exception as e:
+                logger.info(f'Error getting columns for table {table_name}: {e}')
+                return []
+        else:
+            try:
+                from connectors.customer_data_connector import CustomerDataConnector
+                connector = CustomerDataConnector()
+                
+                # Get connection type for the source
+                connections = connector.list_database_connections(bot_id='system', bot_id_override=True)
+                if connections['success']:
+                    connections = connections['connections']
+                else:
+                    logger.info(f'Error listing connections: {connections.get("error")}')
+                    return []
+                
+                # Find matching connection for database source
+                matching_connection = None
+                for conn in connections:
+                    if conn['connection_id'] == dataset['source_name']:
+                        matching_connection = conn
+                        break
+                
+                if matching_connection is None:
+                    logger.info(f"No matching connection found for source {dataset['source_name']}")
+                    return []
+
+                # Generate prompt to get SQL for column listing based on database type
+                p = [
+                    {"role": "user", "content": f"Write a SQL query to list all columns in a {matching_connection['db_type']} database table. Use placeholders !database_name!, !schema_name!, and !table_name! which will be replaced at runtime. Return only the SQL query without explanation, with no markdown, no ``` and no ```sql. The query should return a single column containing the column names."}
+                ]
+                
+                sql = self.run_prompt(p)
+                
+                # Replace placeholders in SQL query
+                sql = sql.replace('!database_name!', dataset['database_name'])
+                sql = sql.replace('!schema_name!', dataset['schema_name'])
+                sql = sql.replace('!table_name!', table_name)
+                
+                # Execute the generated SQL query through the connector
+                result = connector.query_database(
+                    connection_id=dataset['source_name'],
+                    bot_id='system',
+                    query=sql,
+                    max_rows=1000,
+                    max_rows_override=True,
+                    bot_id_override=True
+                )
+                
+                if isinstance(result, dict) and result.get('success'):
+                    return [row[0] for row in result['rows']]
+                elif isinstance(result, list):
+                    return [row[0] for row in result]
+                else:
+                    logger.info(f'Error getting columns from {dataset["source_name"]}: {result.get("error") if isinstance(result, dict) else "Unknown error"}')
+                    return []
+
+            except Exception as e:
+                logger.info(f'Error getting columns for table {table_name}: {e}')
+                return []
+
 
 
     def explore_and_summarize_tables_parallel(self, max_to_process=1000):
@@ -510,6 +590,8 @@ class SchemaExplorer:
         #logger.info('checking schemas: ',schemas)
 
         # todo, first build list of objects to harvest, then harvest them
+
+
 
         def process_dataset_step1(dataset, max_to_process = 1000):
             potential_tables = []
@@ -606,14 +688,18 @@ class SchemaExplorer:
                 check_query = f"""
                 SELECT qualified_table_name, table_name, ddl_hash, last_crawled_timestamp, ddl, ddl_short, summary, sample_data_text, memory_uuid, (SUMMARY = '{{!placeholder}}') as needs_full, {embedding_column} IS NULL as needs_embedding
                 FROM {self.db_connector.metadata_table_name}
-                WHERE source_name = '{self.db_connector.source_name}'
+                WHERE source_name = '{dataset['source_name']}'
                 AND database_name= '{db}' and schema_name = '{sch}';"""               
 
             try:
                 existing_tables_info = self.db_connector.run_query(check_query, max_rows=1000, max_rows_override=True)
-                existing_tables_set = {info['QUALIFIED_TABLE_NAME'] for info in existing_tables_info}
+                # Determine which field name is used for qualified table names
+                # Convert all dictionary keys to uppercase for consistency
+                existing_tables_info = [{k.upper(): v for k, v in table.items()} for table in existing_tables_info]
+                table_names_field = 'QUALIFIED_TABLE_NAME'
+                existing_tables_set = {info[table_names_field] for info in existing_tables_info}
                 non_existing_tables = [table for table in potential_tables if f'"{db}"."{sch}"."{table["table_name"]}"' not in existing_tables_set]
-                needs_updating = [table['QUALIFIED_TABLE_NAME']  for table in existing_tables_info if table["NEEDS_FULL"]]
+                needs_updating = [table[table_names_field]  for table in existing_tables_info if table["NEEDS_FULL"]]
                 needs_embedding = [(table['QUALIFIED_TABLE_NAME'], table['TABLE_NAME']) for table in existing_tables_info if table["NEEDS_EMBEDDING"]]
                 refresh_tables = [table for table in potential_tables if f'"{db}"."{sch}"."{table["table_name"]}"' in needs_updating]
                 # Print counts of each variable
@@ -658,13 +744,13 @@ class SchemaExplorer:
                                 sample_data = record['sample_data_text']
 
                                 # call store memory
-                                self.store_table_memory(database, schema, table, summary, ddl=ddl, ddl_short=ddl_short, sample_data=sample_data)
+                                self.store_table_memory(database, schema, table, summary, ddl=ddl, ddl_short=ddl_short, sample_data=sample_data, dataset=dataset)
 
                         else:
                             # Table is new, so get its DDL and hash
                             current_ddl = self.alt_get_ddl(table_name=quoted_table_name, dataset=dataset, matching_connection=matching_connection)
                             current_ddl_hash = self.db_connector.sha256_hash_hex_string(current_ddl)
-                            new_table = {"qualified_table_name": quoted_table_name, "ddl_hash": current_ddl_hash, "ddl": current_ddl}
+                            new_table = {"qualified_table_name": quoted_table_name, "ddl_hash": current_ddl_hash, "ddl": current_ddl, "dataset": dataset, "matching_connection": matching_connection}
                             logger.info('Newly found object added to harvest array (no cache hit)')
                             non_indexed_tables.append(new_table)
 
@@ -705,12 +791,15 @@ class SchemaExplorer:
                     logger.info(f'starting indexing of {len(non_indexed_tables)} objects...')
                 for row in non_indexed_tables:
                     try:
+                        dataset = row.get('dataset', None)
+                        matching_connection = row.get('matching_connection', None)
                         qualified_table_name = row.get('qualified_table_name',row)
                         logger.info("     -> An object")
                         database, schema, table = (part.strip('"') for part in qualified_table_name.split('.', 2))
 
                         # Proceed with generating the summary
-                        columns = self.db_connector.get_columns(database, schema, table)
+                        columns = self.get_table_columns(dataset, table)
+
                         prompt = self.generate_table_summary_prompt(database, schema, table, columns)
                         summary = self.generate_summary(prompt)
                         #logger.info(summary)
@@ -719,10 +808,10 @@ class SchemaExplorer:
                         ddl_short = self.get_ddl_short(ddl)
                         #logger.info(f"storing: database: {database}, schema: {schema}, table: {table}, summary len: {len(summary)}, ddl: {ddl}, ddl_short: {ddl_short} ")
                         logger.info('Storing summary for new object')
-                        self.store_table_memory(database, schema, table, summary, ddl=ddl, ddl_short=ddl_short)
+                        self.store_table_memory(database, schema, table, summary, ddl=ddl, ddl_short=ddl_short, dataset=dataset, matching_connection=matching_connection)
                     except Exception as e:
                         logger.info(f"Harvester Error on Object: {e}")
-                        self.store_table_memory(database, schema, table, summary=f"Harvester Error: {e}", ddl="Harvester Error", ddl_short="Harvester Error")
+                        self.store_table_memory(database, schema, table, summary=f"Harvester Error: {e}", ddl="Harvester Error", ddl_short="Harvester Error", dataset=dataset)
 
 
                     local_summaries[qualified_table_name] = summary
@@ -761,4 +850,90 @@ class SchemaExplorer:
                             break
                 except Exception as exc:
                     logger.info(f'Dataset {dataset} generated an exception: {exc}')
+
+
+    def get_sample_data(self, dataset, table_name):
+        """
+        Gets sample data for a table in the given dataset.
+
+        Args:
+            dataset (dict): Dictionary containing source_name, database_name and schema_name
+            table_name (str): Name of the table to get sample data for
+
+        Returns:
+            list: List of dictionaries containing sample data rows
+        """
+        if dataset['source_name'] == 'Snowflake':
+            try:
+                sample_data = self.db_connector.get_sample_data(
+                    dataset['database_name'],
+                    dataset['schema_name'],
+                    table_name
+                )
+                return sample_data
+            except Exception as e:
+                logger.info(f'Error getting sample data for table {table_name}: {e}')
+                return []
+        else:
+            try:
+                from connectors.customer_data_connector import CustomerDataConnector
+                connector = CustomerDataConnector()
+                
+                # Get connection type for the source
+                connections = connector.list_database_connections(bot_id='system', bot_id_override=True)
+                if connections['success']:
+                    connections = connections['connections']
+                else:
+                    logger.info(f'Error listing connections: {connections.get("error")}')
+                    return []
+                
+                # Find matching connection for database source
+                matching_connection = None
+                for conn in connections:
+                    if conn['connection_id'] == dataset['source_name']:
+                        matching_connection = conn
+                        break
+                
+                if matching_connection is None:
+                    logger.info(f"No matching connection found for source {dataset['source_name']}")
+                    return []
+
+                # Generate prompt to get SQL for sample data based on database type
+                p = [
+                    {"role": "user", "content": f"Write a SQL query to get a sample of rows from a {matching_connection['db_type']} database table. Use placeholders !database_name!, !schema_name!, and !table_name! which will be replaced at runtime. The query should return a random sample of 5 rows. Return only the SQL query without explanation, with no markdown formatting. IF the database type does not support schemas (like sqlite), do not use the database and schema placeholders."}
+                ]
+                
+                sql = self.run_prompt(p)
+                
+                # Replace placeholders in SQL query
+                sql = sql.replace('!database_name!', dataset['database_name'])
+                sql = sql.replace('!schema_name!', dataset['schema_name'])
+                sql = sql.replace('!table_name!', table_name)
+                
+                # Execute the generated SQL query through the connector
+                result = connector.query_database(
+                    connection_id=dataset['source_name'],
+                    bot_id='system',
+                    query=sql,
+                    max_rows=5,
+                    max_rows_override=True,
+                    bot_id_override=True
+                )
+                
+                if isinstance(result, dict) and result.get('success'):
+                    # Convert rows to list of dictionaries with column names as keys
+                    columns = [col for col in result['columns']]
+                    return [dict(zip(columns, row)) for row in result['rows']]
+                elif isinstance(result, list):
+                    # Assume first row contains column names
+                    columns = result[0]
+                    return [dict(zip(columns, row)) for row in result[1:]]
+                else:
+                    logger.info(f'Error getting sample data from {dataset["source_name"]}: {result.get("error") if isinstance(result, dict) else "Unknown error"}')
+                    return []
+
+            except Exception as e:
+                logger.info(f'Error getting sample data for table {table_name}: {e}')
+                return []
+
 

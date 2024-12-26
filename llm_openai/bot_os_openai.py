@@ -256,12 +256,8 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
             my_assistant = None
 
       if my_assistant is None:
-         my_assistants = self.client.beta.assistants.list(
-            order="desc", limit=100
-         )
-
-         logger.info('finding assistant...')
-
+         logger.info('finding assistant...')          
+         my_assistants = self.client.beta.assistants.list(order="desc", limit=100)
          my_assistants = [a for a in my_assistants if a.name == name]
 
       if True:

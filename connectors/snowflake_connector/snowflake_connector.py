@@ -1399,7 +1399,7 @@ def get_status(site):
 
     def db_update_llm_results(self, uu, message):
         """
-        Inserts a row into the LLM_RESULTS table.
+        Update a row in the LLM_RESULTS table.
 
         Args:
             uu (str): The unique identifier for the result.

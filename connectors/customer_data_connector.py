@@ -1,4 +1,3 @@
-
 from   core.bot_os_tools2       import (BOT_ID_IMPLICIT_FROM_CONTEXT, THREAD_ID_IMPLICIT_FROM_CONTEXT,
                                         ToolFuncGroup, ToolFuncParamDescriptor,
                                         gc_tool)
@@ -7,6 +6,9 @@ import os
 from   sqlalchemy               import create_engine, text
 from   urllib.parse             import quote_plus
 from   connectors               import get_global_db_connector
+from google_sheets.g_sheets     import (
+    create_google_sheet,
+)
 
 
 class CustomerDataConnector:
@@ -29,14 +31,12 @@ class CustomerDataConnector:
             cls._instance = super(CustomerDataConnector, cls).__new__(cls)
         return cls._instance
 
-
     def __init__(self):
         if not hasattr(self, '_initialized'):  # Check if already initialized
             self.db_adapter = get_global_db_connector()
             self.connections = {}  # Store SQLAlchemy engines
             self._ensure_tables_exist()
             self._initialized = True  # Mark as initialized
-
 
     def _ensure_tables_exist(self):
         """Create the necessary tables if they don't exist"""
@@ -59,7 +59,7 @@ class CustomerDataConnector:
         finally:
             cursor.close()
 
-    def add_connection(self, connection_id: str = None, connection_string: str = None, 
+    def add_connection(self, connection_id: str = None, connection_string: str = None,
                       bot_id: str=None, allowed_bot_ids: list = None, thread_id: str = None) -> dict:
         """
         Add or update a database connection configuration
@@ -72,19 +72,18 @@ class CustomerDataConnector:
             thread_id: Optional thread identifier for logging/tracking
         """
         try:
-
             allowed_bots_str = ','.join(allowed_bot_ids) if allowed_bot_ids else ''
-            
+
             # Test new connection first
             # URL encode any special characters in connection string
-      
+
             # Check if connection_id is the reserved 'snowflake' name
             if connection_id.lower() == 'snowflake':
                 return {
                     'success': False,
                     'error': "The connection_id 'snowflake' is reserved. You can connect to Snowflake but please use a different connection_id string."
                 }
-      
+
             engine = create_engine(connection_string)
             with engine.connect() as conn:
                 conn.execute(text('SELECT 1'))
@@ -100,12 +99,12 @@ class CustomerDataConnector:
                     (connection_id,)
                 )
                 existing = cursor.fetchone()
-                
+
                 if existing:
                     existing_owner = existing[0]
                     if existing_owner != bot_id:
                         raise ValueError("Only the owner bot can modify this connection")
-                    
+
                     cursor.execute(
                         f"""
                         UPDATE {self.db_adapter.schema}.CUST_DB_CONNECTIONS 
@@ -123,16 +122,16 @@ class CustomerDataConnector:
                         """,
                         (connection_id, connection_string.split('://')[0], connection_string, bot_id, allowed_bots_str)
                     )
-                
+
                 self.db_adapter.client.commit()
                 self.connections[connection_id] = engine
                 return {
                     'success': True
                 }
-                
+
             finally:
                 cursor.close()
-                
+
         except Exception as e:
             logger.error(f"Error adding connection: {str(e)}")
             resp =  {
@@ -143,102 +142,172 @@ class CustomerDataConnector:
                 resp['hint'] = "Don't use /mnt/data, just provide the full or relative file path as provided by the user"
             return resp
 
-    def query_database(self, connection_id: str = None, bot_id: str = None, 
-                      query: str = None, params: dict = None, 
-                      max_rows: int = 20, max_rows_override: bool = False,
-                      thread_id: str = None, bot_id_override: bool = False) -> dict:
+    def query_database(
+        self,
+        connection_id: str = None,
+        bot_id: str = None,
+        query: str = None,
+        params: dict = None,
+        max_rows: int = 20,
+        max_rows_override: bool = False,
+        thread_id: str = None,
+        bot_id_override: bool = False,
+        note_id=None,
+        note_name=None,
+        note_type=None,
+        export_to_google_sheet=False,
+        export_title=None,
+    ) -> dict:
         """Add thread_id parameter to docstring"""
         try:
-            # Check access permissions
-            # Remove USERQUERY: prefix if present
-            if query.startswith('USERQUERY::'):
-                query = query[11:]  # Remove the prefix
-            cursor = self.db_adapter.client.cursor()
-            try:
-                cursor.execute(
-                    f"""
-                    SELECT owner_bot_id, allowed_bot_ids, connection_string
-                    FROM {self.db_adapter.schema}.CUST_DB_CONNECTIONS 
-                    WHERE connection_id = %s
-                    """,
-                    (connection_id,)
-                )
-                result = cursor.fetchone()
-                
-                if not result:
-                    raise ValueError(f"Connection {connection_id} not found")
-                
-                owner_id, allowed_bots, connection_string = result  # Add connection_string to unpacking
-                if not bot_id_override and (bot_id != owner_id and 
-                    (not allowed_bots or bot_id not in allowed_bots.split(','))):
-                    raise ValueError("Bot does not have permission to access this connection")
-                
-                # Execute query using SQLAlchemy
-                if connection_id not in self.connections:
-                    self.connections[connection_id] = create_engine(connection_string)
-                engine = self.connections[connection_id]
-                with engine.connect() as conn:
-                    trans = conn.begin()
-                    try:
-                        query = query.replace('```', '')
-                        if query.lower().startswith('sql'):
-                            query = query[3:].lstrip()
-                        query_text = text(query)
-            
-                        if params:
-                            result = conn.execute(query_text, params)
-                        else:
-                            result = conn.execute(query_text)
-            
-                        if not result.returns_rows:
-                            trans.commit()
-                            # For non-select queries, return rowcount or 0 if None
-                            columns = ['rows_affected']
-                            rows = [[result.rowcount if result.rowcount is not None else 0]]
-                            
-                            response = {
-                                'success': True,
-                                'columns': columns,
-                                'rows': rows,
-                                'row_count': len(rows)
-                            }
-                            return response
-                        else:
-                            columns = list(result.keys())
-                            
-                            # Fetch all rows to get total count if needed
-                            all_rows = result.fetchall()
-                            total_row_count = len(all_rows)
-                            
-                            # Apply max_rows limit unless override is True
-                            rows = [list(row) for row in all_rows[:max_rows if not max_rows_override else None]]
-                            
-                            response = {
-                                'success': True,
-                                'columns': columns,
-                                'rows': rows,
-                                'row_count': len(rows)
-                            }
-                            
-                            # Add message if rows were limited
-                            if not max_rows_override and total_row_count > max_rows:
-                                response['message'] = (
-                                    f"Results limited to {max_rows} rows out of {total_row_count} total rows. "
-                                    "Use max_rows parameter to increase limit or set max_rows_override=true to fetch all rows."
-                                )
-                                response['total_row_count'] = total_row_count
-                            
-                            return response
+            if (query is None and note_id is None) or (query is not None and note_id is not None):
+                return {
+                    "success": False,
+                    "error": "Either a query or a note_id must be provided, but not both, and not neither.",
+                }
 
-                    except Exception as e:
-                        trans.rollback()
-                        return {
-                            'success': False,
-                            'error': str(e)
+            if note_id is not None or note_name is not None:
+                note_id = '' if note_id is None else note_id
+                note_name = '' if note_name is None else note_name
+                get_note_query = f"SELECT note_content, note_params, note_type FROM {self.schema}.NOTEBOOK WHERE NOTE_ID = '{note_id}'"
+                cursor = self.connection.cursor()
+                cursor.execute(get_note_query)
+                query_cursor = cursor.fetchone()
+
+                if query_cursor is None:
+                    return {
+                        "success": False,
+                        "error": "Note not found.",
                         }
 
-            finally:
-                cursor.close()
+                query = query_cursor[0]
+                note_type = query_cursor[2]
+
+                if note_type != 'sql':
+                    raise ValueError(f"Note type must be 'sql' to run sql with the run_query tool.  This note is type: {note_type}")
+        except ValueError as e:
+            return {
+                "success": False,
+                "error": str(e),
+            }
+        # Check access permissions
+        # Remove USERQUERY: prefix if present
+        if query.startswith('USERQUERY::'):
+            query = query[11:]  # Remove the prefix
+        cursor = self.db_adapter.client.cursor()
+        try:
+            cursor.execute(
+                f"""
+                SELECT owner_bot_id, allowed_bot_ids, connection_string
+                FROM {self.db_adapter.schema}.CUST_DB_CONNECTIONS 
+                WHERE connection_id = %s
+                """,
+                (connection_id,)
+            )
+            result = cursor.fetchone()
+
+            if not result:
+                raise ValueError(f"Connection {connection_id} not found")
+
+            owner_id, allowed_bots, connection_string = result  # Add connection_string to unpacking
+            if not bot_id_override and (bot_id != owner_id and
+                (not allowed_bots or bot_id not in allowed_bots.split(','))):
+                raise ValueError("Bot does not have permission to access this connection")
+
+            # Execute query using SQLAlchemy
+            if connection_id not in self.connections:
+                self.connections[connection_id] = create_engine(connection_string)
+            engine = self.connections[connection_id]
+            with engine.connect() as conn:
+                trans = conn.begin()
+                try:
+                    query = query.replace('```', '')
+                    if query.lower().startswith('sql'):
+                        query = query[3:].lstrip()
+                    query_text = text(query)
+
+                    if params:
+                        result = conn.execute(query_text, params)
+                    else:
+                        result = conn.execute(query_text)
+
+                    if not result.returns_rows:
+                        trans.commit()
+                        # For non-select queries, return rowcount or 0 if None
+                        columns = ['rows_affected']
+                        rows = [[result.rowcount if result.rowcount is not None else 0]]
+
+                        response = {
+                            'success': True,
+                            'columns': columns,
+                            'rows': rows,
+                            'row_count': len(rows)
+                        }
+                        return response
+                    else:
+                        columns = list(result.keys())
+
+                        # Fetch all rows to get total count if needed
+                        all_rows = result.fetchall()
+                        total_row_count = len(all_rows)
+
+                        if export_to_google_sheet:
+                            max_rows = 500
+
+                        # Apply max_rows limit unless override is True
+                        rows = [list(row) for row in all_rows[:max_rows if not max_rows_override else None]]
+
+                        response = {
+                            'success': True,
+                            'columns': columns,
+                            'rows': rows,
+                            'row_count': len(rows)
+                        }
+
+                        # Add message if rows were limited
+                        if not max_rows_override and total_row_count > max_rows:
+                            response['message'] = (
+                                f"Results limited to {max_rows} rows out of {total_row_count} total rows. "
+                                "Use max_rows parameter to increase limit or set max_rows_override=true to fetch all rows."
+                            )
+                            response['total_row_count'] = total_row_count
+
+                        def get_root_folder_id():
+                            cursor = self.connection.cursor()
+                            # cursor.execute(
+                            #     f"call core.run_arbitrary($$ grant read,write on stage app1.bot_git to application role app_public $$);"
+                            # )
+
+                            query = f"SELECT value from {self.schema}.EXT_SERVICE_CONFIG WHERE ext_service_name = 'g-sheets' AND parameter = 'shared_folder_id' and user = '{self.user}'"
+                            cursor.execute(query)
+                            row = cursor.fetchone()
+                            cursor.close()
+                            if row is not None:
+                                return {"Success": True, "result": row[0]}
+                            else:
+                                raise Exception("Missing shared folder ID")
+
+                        if export_to_google_sheet:
+                            from datetime import datetime
+
+                            shared_folder_id = get_root_folder_id()
+                            timestamp = datetime.now().strftime("%m%d%Y_%H:%M:%S")
+
+                            if export_title is None:
+                                export_title = 'Genesis Export'
+                            result = create_google_sheet(self, shared_folder_id['result'], title=f"{export_title}", data=rows )
+
+                            response["result"] = f'Data sent to Google Sheets - Link to folder: {result["folder_url"]} | Link to file: {result["file_url"]}'
+                            del response["rows"]
+
+                        return response
+
+                except Exception as e:
+                    trans.rollback()
+                    return {
+                        'success': False,
+                        'error': str(e)
+                    }
 
         except Exception as e:
             logger.error(f"Query execution error: {str(e)}")
@@ -246,6 +315,9 @@ class CustomerDataConnector:
                 'success': False,
                 'error': str(e)
             }
+
+        finally:
+            cursor.close()
 
     def _test_postgresql(self):
         """Test method specifically for PostgreSQL connections"""
@@ -256,23 +328,23 @@ class CustomerDataConnector:
             host = os.environ.get("POSTGRES_HOST_OVERRIDE", "localhost")
             port = os.environ.get("POSTGRES_PORT_OVERRIDE", "5432")
             database = os.environ.get("POSTGRES_DATABASE_OVERRIDE", "postgres")
-            
+
             # URL encode credentials for connection string
             user = quote_plus(user)
             password = quote_plus(password)
-            
+
             # For local connections with trust authentication
             test_conn_string = f"postgresql://{user}@{host}:{port}/{database}"
-            
+
             logger.info(f"Attempting to connect to PostgreSQL at {host}:{port}")
-            
+
             success = self.add_connection(
                 connection_id="test_postgresql",
                 connection_string=test_conn_string,
                 bot_id="test_bot",
                 allowed_bot_ids=["test_bot"]
             )
-            
+
             if not success or success.get('success') != True:
                 raise Exception(f"Failed to add PostgreSQL test connection: {success.get('error', '')}")
 
@@ -281,7 +353,7 @@ class CustomerDataConnector:
                 "test_bot",
                 "SELECT version()"
             )
-            
+
             if not result['success']:
                 raise Exception(f"Failed to query PostgreSQL: {result.get('error')}")
 
@@ -295,11 +367,11 @@ class CustomerDataConnector:
     def _test_mysql(self):
         """Test method specifically for MySQL connections"""
         try:
-            
+
             # Get credentials from environment variables
             user = os.environ.get("MYSQL_USER_OVERRIDE", "root")
             password = os.environ.get("MYSQL_PASSWORD_OVERRIDE", "")  # Empty default password for local connections
-            host = os.environ.get("MYSQL_HOST_OVERRIDE", "localhost") 
+            host = os.environ.get("MYSQL_HOST_OVERRIDE", "localhost")
             port = os.environ.get("MYSQL_PORT_OVERRIDE", "3306")
             database = os.environ.get("MYSQL_DATABASE_OVERRIDE", "mysql")
 
@@ -313,7 +385,7 @@ class CustomerDataConnector:
                 bot_id="test_bot",
                 allowed_bot_ids=["test_bot"]
             )
-            
+
             if not success or success.get('success') != True:
                 raise Exception("Failed to add MySQL test connection")
 
@@ -322,7 +394,7 @@ class CustomerDataConnector:
                 "test_bot",
                 "SELECT version()"
             )
-            
+
             if not result['success']:
                 raise Exception(f"Failed to query MySQL: {result.get('error')}")
 
@@ -342,31 +414,31 @@ class CustomerDataConnector:
             password = os.environ.get("SNOWFLAKE_PASSWORD_OVERRIDE", "your_password")
             database = os.environ.get("SNOWFLAKE_DATABASE_OVERRIDE", "your_database")
             warehouse = os.environ.get("SNOWFLAKE_WAREHOUSE_OVERRIDE", "your_warehouse")
-            
+
             # URL encode credentials for connection string
             user = quote_plus(user)
             password = quote_plus(password)
             database = quote_plus(database)
             warehouse = quote_plus(warehouse)
-            
+
             # Extract account identifier (remove any .snowflakecomputing.com if present)
             account = account.replace('.snowflakecomputing.com', '')
-            
+
             # Construct connection string with proper account format
             test_conn_string = (
                 f"snowflake://{user}:{password}@{account}.snowflakecomputing.com/"
                 f"?account={account}&warehouse={warehouse}&database={database}"
             )
-            
+
             logger.info(f"Attempting to connect to Snowflake with account: {account}")
-            
+
             success = self.add_connection(
                 connection_id="test_snowflake",
                 connection_string=test_conn_string,
                 bot_id="test_bot",
                 allowed_bot_ids=["test_bot"]
             )
-            
+
             if not success or success.get('success') != True:
                 raise Exception(f"Failed to add Snowflake test connection: {success.get('error', '')}")
 
@@ -375,7 +447,7 @@ class CustomerDataConnector:
                 "test_bot",
                 "SELECT CURRENT_VERSION()"
             )
-            
+
             if not result['success']:
                 raise Exception(f"Failed to query Snowflake: {result.get('error')}")
 
@@ -423,13 +495,13 @@ class CustomerDataConnector:
                     (connection_id,)
                 )
                 result = cursor.fetchone()
-                
+
                 if not result:
                     return False
-                
+
                 if result[0] != bot_id:
                     raise ValueError("Only the owner bot can delete this connection")
-                
+
                 # Proceed with deletion...
                 cursor.execute(
                     f"""
@@ -439,19 +511,18 @@ class CustomerDataConnector:
                     (connection_id,)
                 )
                 self.db_adapter.client.commit()
-                
+
                 if connection_id in self.connections:
                     del self.connections[connection_id]
-                    
+
                 return True
-                
+
             finally:
                 cursor.close()
-                
+
         except Exception as e:
             logger.error(f"Error deleting connection {connection_id}: {str(e)}")
             return False
-
 
     def _test(self):
         """
@@ -461,7 +532,7 @@ class CustomerDataConnector:
         self._test_postgresql()
         self._test_mysql()
         self._test_snowflake()
-   
+
         logger.info("All database connector tests completed successfully.")
 
     def list_database_connections(self, bot_id: str, thread_id: str = None, bot_id_override: bool = False) -> dict:
@@ -500,7 +571,7 @@ class CustomerDataConnector:
                         """,
                         (bot_id, f"%{bot_id}%")
                     )
-                
+
                 connections = []
                 for row in cursor.fetchall():
                     connections.append({
@@ -511,22 +582,21 @@ class CustomerDataConnector:
                         'created_at': row[4],
                         'updated_at': row[5]
                     })
-                
+
                 return {
                     'success': True,
                     'connections': connections
                 }
-                
+
             finally:
                 cursor.close()
-                
+
         except Exception as e:
             logger.error(f"Error listing connections: {str(e)}")
             return {
                 'success': False,
                 'error': str(e)
             }
-
 
 
 data_connector_tools = ToolFuncGroup(
@@ -546,11 +616,11 @@ data_connector_tools = ToolFuncGroup(
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
     _group_tags_=[data_connector_tools]
     )
-def _query_database(connection_id: str, 
+def _query_database(connection_id: str,
                     bot_id: str,
-                    query: str, 
-                    params: dict = None, 
-                    max_rows: int = 20, 
+                    query: str,
+                    params: dict = None,
+                    max_rows: int = 20,
                     max_rows_override: bool = False,
                     thread_id: str = None,
                     ) -> dict:
@@ -561,12 +631,12 @@ def _query_database(connection_id: str,
         dict: A dictionary containing the query results or an error message.
     """
     return CustomerDataConnector().query_database(
-        connection_id=connection_id, 
-        bot_id=bot_id, 
-        query=query, 
-        params=params, 
-        max_rows=max_rows, 
-        max_rows_override=max_rows_override, 
+        connection_id=connection_id,
+        bot_id=bot_id,
+        query=query,
+        params=params,
+        max_rows=max_rows,
+        max_rows_override=max_rows_override,
         thread_id=thread_id
     )
 
@@ -577,10 +647,10 @@ def _query_database(connection_id: str,
          allowed_bot_ids= "List of bot IDs that can access this connection",
          thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
          _group_tags_=[data_connector_tools])
-def _add_database_connection(connection_id: str, 
-                            connection_string: str, 
-                            bot_id: str, 
-                            allowed_bot_ids: list[str] = None, 
+def _add_database_connection(connection_id: str,
+                            connection_string: str,
+                            bot_id: str,
+                            allowed_bot_ids: list[str] = None,
                             thread_id: str = None
                             ) -> dict:
     """
@@ -590,13 +660,13 @@ def _add_database_connection(connection_id: str,
         dict: A dictionary containing the result of the connection addition.
     """
     return CustomerDataConnector().add_connection(
-        connection_id=connection_id, 
-        connection_string=connection_string, 
-        bot_id=bot_id, 
-        allowed_bot_ids=allowed_bot_ids, 
+        connection_id=connection_id,
+        connection_string=connection_string,
+        bot_id=bot_id,
+        allowed_bot_ids=allowed_bot_ids,
         thread_id=thread_id
     )
-    
+
 
 @gc_tool(
     connection_id= "ID of the database connection to delete",
@@ -604,36 +674,36 @@ def _add_database_connection(connection_id: str,
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
     _group_tags_=[data_connector_tools])
 def _delete_database_connection(
-                        connection_id: str, 
+                        connection_id: str,
                         bot_id: str,
                         thread_id: str = None
                         ) -> bool:
     '''Delete an existing named database connection'''
     return CustomerDataConnector().delete_connection(
-        connection_id=connection_id, 
-        bot_id=bot_id, 
+        connection_id=connection_id,
+        bot_id=bot_id,
         thread_id=thread_id
     )
-    
+
 
 @gc_tool(bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
          thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
          _group_tags_=[data_connector_tools],)
-def _list_database_connections(bot_id: str, 
+def _list_database_connections(bot_id: str,
                                thread_id: str = None
                                ) -> dict:
     '''List all database connections accessible to a bot'''
     return CustomerDataConnector().list_database_connections(
-        bot_id=bot_id, 
+        bot_id=bot_id,
         thread_id=thread_id
-    )   
+    )
 
 # holds the list of all dagster tool functions
 # NOTE: Update this list when adding new dagster tools (TODO: automate this by scanning the module?)
 _all_database_connections_functions = (
-    _query_database, 
-    _add_database_connection, 
-    _delete_database_connection, 
+    _query_database,
+    _add_database_connection,
+    _delete_database_connection,
     _list_database_connections)
 
 

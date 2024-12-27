@@ -26,7 +26,7 @@ def replace_genesis_bots_eai(input_file, output_file):
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
 # Define input and output file paths relative to the script directory
-files_to_change = ['snowflake_app/setup_script.sql','streamlit_gui/main.py','streamlit_gui/page_files/config_pool.py','streamlit_gui/page_files/start_service.py','streamlit_gui/page_files/start_stop.py']
+files_to_change = ['snowflake_app/setup_script.sql','streamlit_gui/Genesis.py','streamlit_gui/page_files/config_pool.py','streamlit_gui/page_files/start_service.py','streamlit_gui/page_files/start_stop.py']
 for file in files_to_change:
     input_file = os.path.join(script_dir, file)
     output_file = os.path.join(script_dir, file)

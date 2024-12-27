@@ -31,7 +31,7 @@ def locate_url_markup(txt, replace_with=None):
 
     This function searches for patterns in the text that match the url or image markdown format 
     '[description](url)' or '![description](url)]', where 'url' can be an HTTP, HTTPS, file, or 'sandbox'/'artifact' pseudo-URLs 
-    (used for speacial-case handling of file rendering).
+    (used for special-case handling of file rendering).
     It returns a list of triplets containing the description, URL, and the 
     original markup. Optionally, it can replace the found patterns with a specified 
     replacement string.
@@ -226,7 +226,7 @@ def chat_page():
             url_parts = urlsplit(url)
             file_content64 = None
             known_img_types = {'png', 'jpg', 'jpeg', 'gif', 'svg'}
-            known_txt_types = {'plain', 'html'}
+            known_txt_types = {'plain', 'html', 'txt', 'json', 'text', 'csv'}
 
             file_path = Path(url_parts.path)
             image_format = None # set if files is a known image type
@@ -278,13 +278,13 @@ def chat_page():
             markdown = None
             if file_content64 is not None:
                 # we have the file content
-                assert (image_format is not None) ^ (text_format is not None) #Either image_format or text_format must be set, but not both.
+                assert (image_format is None) or (text_format is None) # they can't both be set
                 if image_format:
                     # For common image types, use <img>
                     markdown = f'<img src="data:image/{image_format};base64,{file_content64}" style="max-width: 50%;display: block;">'
                 elif text_format:
                     text_content = base64.b64decode(file_content64).decode('utf-8')
-                    if text_format == 'plain':
+                    if text_format in ('plain', 'txt', 'text', 'json', 'csv'):
                         markdown = f'<pre>{text_content}</pre>'
                     else:
                         #text_content = html.escape(text_content)
@@ -295,9 +295,11 @@ def chat_page():
                                 border-radius: 5px;
                                 box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.1);
                                 padding: 15px;
+                                white-space: pre-wrap;
                             ">
                             <p>
                             {text_content}
+                            </p>
                             </div>
                             """)
                         markdown = html_content

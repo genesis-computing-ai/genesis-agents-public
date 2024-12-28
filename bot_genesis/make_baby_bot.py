@@ -9,7 +9,7 @@ import threading
 from   typing                   import Mapping
 
 from   connectors               import get_global_db_connector
-from   connectors.database_connector \
+from   connectors.connector_helpers \
                                 import llm_keys_and_types_struct
 from   core.logging_config      import logger
 
@@ -1136,7 +1136,7 @@ def make_baby_bot(
                 if files is not None and files != []:
                     conf += f'The array of files available to this bot is: {files}\n'
                 if slack_access_open:
-                    conf += f'When deployed to Slack, all Slack users will have access to talk to this bot, and if it has the database_tools, be able to run any query against the data it has access to.  Please especially confirm with the user that this is ok and expected.\n'
+                    conf += f'When deployed to Slack, all Slack users will have access to talk to this bot, and if it has the database_tools, be able to run any query against the data it has access to EXCEPT a query for Snowflake.  Snowflake queries require snowflake_tools. Please especially confirm with the user that this is ok and expected.\n'
                 if activate_slack == 'Y' and slack_access_open == False:
                     conf += f'When deployed to slack, no users will initially have access to the bot via slack until explicitly granted using _modify_slack_allow_list\n'
                 conf += "Please make sure you have validated all this with the user.  If you've already validated with the user, and ready to make the Bot, call this function again with the parameter confirmed=CONFIRMED"
@@ -1469,7 +1469,7 @@ MAKE_BABY_BOT_DESCRIPTIONS = [{
                 },
                 "available_tools": {
                     "type": "string",
-                    "description": "A comma-separated list of tools the new bot should have access to, if any.  Example of a valid string for this field: 'slack_tools,database_tools,image_tools'. Suggest those 3 tools for most bots you make. Use the get_available_tools tool to get a list of the tools that can be referenced here. ",
+                    "description": "A comma-separated list of tools the new bot should have access to, if any.  Example of a valid string for this field: 'slack_tools,database_tools, snowflake_tools, image_tools'. Suggest those 3 tools for most bots you make. Use the get_available_tools tool to get a list of the tools that can be referenced here. ",
                     "default": ""
                 },
                 "runner_id": {

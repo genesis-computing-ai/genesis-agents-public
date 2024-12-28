@@ -171,7 +171,7 @@ webpage_downloader_action_function_mapping = {
     "webpage_downloader": "tool_belt.download_webpage"
 }
 
-# A global list of tools (function groups) and their descriptions.  
+# A global list of tools (function groups) and their descriptions.
 # NOTE: This is used to populate the AVAILABLE_TOOLS table in the database.
 _tools_data = [
     (
@@ -195,19 +195,20 @@ _tools_data = [
         "webpage_downloader",
         "Access web pages on the internet and return their contents",
     ),
+    # (
+    #     "database_tools",
+    #     "Discover database metadata, find database tables, and run SQL queries on a non-Snowflake database",
+    # ),
     (
-        "database_tools",
-        "Discover database metadata, find database tables, and run SQL queries on a database",
+        "snowflake_tools",
+        "Discover database metadata, find database tables, and run SQL queries on a Snowflake database and read, update, write, list, and delete from Snowflake Stages",
     ),
     (
         "harvester_tools",
         "Control the database harvester, add new databases to harvest, add schema inclusions and exclusions, see harvest status",
     ),
     (
-        "snowflake_stage_tools",
-        "Read, update, write, list, and delete from Snowflake Stages including Snowflake Semantic Models.",
-    ),
-    ("image_tools", "Tools to interpret visual images and pictures"),
+        "image_tools", "Tools to interpret visual images and pictures"),
     (
         "autonomous_tools",
         "These tools are depreciated.  Use process_manager_tools and process_scheduler_tools instead.",
@@ -228,12 +229,10 @@ _tools_data = [
         "notebook_manager_tools",
         "Tools to manage bot notebook.",
     ),
-    # dagster tools have been converted to 'new type' tools (see bot_os_tools2.py)
-    # (
-    #     "dagster_tools",
-    #     "Tools to access and manage data pipelines orchestrated by a Dagster Cloud setup.",
-    # ),
-
+    (
+        "artifact_manager_tools",
+        "Tools to manage artifacts.",
+    )
 ]
 
 data_dev_tools_functions = [

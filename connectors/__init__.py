@@ -1,13 +1,13 @@
 import os, json
 from functools import lru_cache
-from .database_connector import DatabaseConnector
+# from .database_connector import DatabaseConnector
 
 # TODO: make the importing of SnowflakeConnector, BigQueryConnector etc to be lazy, inside _get_global_db_connector_cached
 # See Issue #79
 # This is left here for backward compatibility
 from .bigquery_connector import BigQueryConnector
 from .snowflake_connector.snowflake_connector import SnowflakeConnector
-from .bot_snowflake_connector import bot_credentials
+# from .bot_snowflake_connector import bot_credentials
 
 @lru_cache(maxsize=None)
 def _get_global_db_connector_cached(genesis_source_name, **kwargs):

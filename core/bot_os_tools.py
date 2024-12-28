@@ -44,15 +44,17 @@ from   jinja2                   import Template
 # from connectors.bigquery_connector import BigQueryConnector
 
 from   connectors.database_tools \
-                                import (autonomous_functions, autonomous_tools,
-                                        bind_run_query, bind_search_metadata,
-                                        bind_search_metadata_detailed,
-                                        bind_semantic_copilot,
-                                        database_tool_functions,
-                                        database_tools, google_drive_functions,
+                                import (
+                                        # autonomous_functions, autonomous_tools,
+                                        # bind_run_query, bind_search_metadata,
+                                        # bind_search_metadata_detailed,
+                                        # bind_semantic_copilot,
+                                        # database_tool_functions,
+                                        # database_tools,
+                                        google_drive_functions,
                                         google_drive_tools, image_functions,
-                                        image_tools, manage_tests_functions,
-                                        manage_tests_tools,
+                                        image_tools,
+                                        manage_tests_functions, manage_tests_tools,
                                         notebook_manager_functions,
                                         notebook_manager_tools,
                                         process_manager_functions,
@@ -60,8 +62,14 @@ from   connectors.database_tools \
                                         process_scheduler_functions,
                                         process_scheduler_tools,
                                         snowflake_stage_functions,
-                                        snowflake_stage_tools, 
+                                        snowflake_stage_tools,
                                         web_access_functions, web_access_tools)
+
+from connectors.snowflake_tools import (
+    bind_semantic_copilot,
+    snowflake_functions,
+    snowflake_tools,
+)
 from   development.integration_tools \
                                 import (integration_tool_descriptions,
                                         integration_tools)
@@ -3431,7 +3439,7 @@ class ToolBelt:
 
     def search_google(self, query, **kwargs):
         return self.web_access.search_google(query)
-    
+
     def scrape_url(self, url, **kwargs):
         return self.web_access.scrape_url(url)
 
@@ -3441,10 +3449,10 @@ class ToolBelt:
     # ====== PROCESSES END ====================================================================================
 
 def get_tools(
-    which_tools: list[str], 
-    db_adapter, 
-    slack_adapter_local=None, 
-    include_slack: bool = True, 
+    which_tools: list[str],
+    db_adapter,
+    slack_adapter_local=None,
+    include_slack: bool = True,
     tool_belt=None
     ) -> tuple[list, dict, dict]:
     """
@@ -3464,9 +3472,9 @@ def get_tools(
             - dict: A dictionary mapping tool (group) names to a list of function descriptors (dicts) for this tool (group)
     """
     func_descriptors = []
-    available_functions_loaded = {} # map function_name (str)--> 'locator' (str|callable) ; 
-                                    # 'locator' can be a callable or string. 
-                                    # If a string, it gets dyanmically evaluated below to the actual callable object
+    available_functions_loaded = {} # map function_name (str)--> 'locator' (str|callable) ;
+    # 'locator' can be a callable or string.
+    # If a string, it gets dyanmically evaluated below to the actual callable object
     tool_to_func_descriptors_map = {} # map of tool name to list of function descriptors
     if "autonomous_functions" in which_tools and "autonomous_tools" not in which_tools:
         which_tools = [
@@ -3480,14 +3488,14 @@ def get_tools(
             tool_name = tool.get("tool_name")
         except:
             tool_name = tool
-            
+
         # Resolve 'old style' tool names
-        #----------------------------------
-        if False:  # tool_name == 'integration_tools':
-            func_descriptors.extend(integration_tool_descriptions)
-            available_functions_loaded.update(integration_tools)
-            tool_to_func_descriptors_map[tool_name] = integration_tool_descriptions
-        elif tool_name == "google_drive_tools":
+        # ----------------------------------
+        # if tool_name == 'integration_tools':
+        #     func_descriptors.extend(integration_tool_descriptions)
+        #     available_functions_loaded.update(integration_tools)
+        #     tool_to_func_descriptors_map[tool_name] = integration_tool_descriptions
+        if tool_name == "google_drive_tools":
             func_descriptors.extend(google_drive_functions)
             available_functions_loaded.update(google_drive_tools)
             tool_to_func_descriptors_map[tool_name] = google_drive_functions
@@ -3522,28 +3530,29 @@ def get_tools(
             func_descriptors.extend(BOT_DISPATCH_DESCRIPTIONS)
             available_functions_loaded.update(bot_dispatch_tools)
             tool_to_func_descriptors_map[tool_name] = BOT_DISPATCH_DESCRIPTIONS
-        elif tool_name == "database_tools":
+        # database_tools have been converted to 'new type' tools (see bot_os_tools2.py)
+        # elif tool_name == "database_tools":
+        #     connection_info = {"Connection_Type": db_adapter.connection_info}
+        #     func_descriptors.extend(database_connector_functions)
+        #     available_functions_loaded.update(database_tools)
+        #     run_query_f = bind_run_query([connection_info])
+        #     search_metadata_f = bind_search_metadata("./kb_vector")
+        #     search_metadata_detailed_f = bind_search_metadata_detailed("./kb_vector")
+        #     # semantic_copilot_f = bind_semantic_copilot([connection_info])
+        #     tool_to_func_descriptors_map[tool_name] = database_connector_functions
+        elif tool_name == "snowflake_tools":
             connection_info = {"Connection_Type": db_adapter.connection_info}
-            func_descriptors.extend(database_tool_functions)
-            available_functions_loaded.update(database_tools)
-            run_query_f = bind_run_query([connection_info])
-            search_metadata_f = bind_search_metadata("./kb_vector")
-            search_metadata_detailed_f = bind_search_metadata_detailed("./kb_vector")
-            semantic_copilot_f = bind_semantic_copilot([connection_info])
-            tool_to_func_descriptors_map[tool_name] = database_tool_functions
+            func_descriptors.extend(snowflake_functions)
+            available_functions_loaded.update(snowflake_tools)
+            # run_query_f = bind_run_query([connection_info])
+            # search_metadata_f = bind_search_metadata("./kb_vector")
+            # search_metadata_detailed_f = bind_search_metadata_detailed("./kb_vector")
+            # semantic_copilot_f = bind_semantic_copilot([connection_info])
+            tool_to_func_descriptors_map[tool_name] = snowflake_functions
         elif tool_name == "image_tools":
             func_descriptors.extend(image_functions)
             available_functions_loaded.update(image_tools)
             tool_to_func_descriptors_map[tool_name] = image_functions
-        #    elif tool_name == "snowflake_semantic_tools":
-        #        logger.info('Note: Semantic Tools are currently disabled pending refactoring or removal.')
-        #        tools.extend(snowflake_semantic_functions)
-        #        available_functions_load.update(snowflake_semantic_tools)
-        #        function_to_tool_map[tool_name] = snowflake_semantic_functions
-        elif tool_name == "snowflake_stage_tools":
-            func_descriptors.extend(snowflake_stage_functions)
-            available_functions_loaded.update(snowflake_stage_tools)
-            tool_to_func_descriptors_map[tool_name] = snowflake_stage_functions
         elif tool_name == "autonomous_tools" or tool_name == "autonomous_functions":
             func_descriptors.extend(autonomous_functions)
             available_functions_loaded.update(autonomous_tools)
@@ -3564,6 +3573,10 @@ def get_tools(
             func_descriptors.extend(notebook_manager_functions)
             available_functions_loaded.update(notebook_manager_tools)
             tool_to_func_descriptors_map[tool_name] = notebook_manager_functions
+        elif tool_name == "artifact_manager_tools":
+            func_descriptors.extend(artifact_manager_functions)
+            available_functions_loaded.update(artifact_manager_tools)
+            tool_to_func_descriptors_map[tool_name] = artifact_manager_functions
         elif tool_name == "git_file_manager_tools":  # Add this section
             func_descriptors.extend(git_file_manager_functions)
             available_functions_loaded.update(git_file_manager_tools)
@@ -3583,14 +3596,14 @@ def get_tools(
             available_functions_loaded.update(web_access_tools)
             tool_to_func_descriptors_map[tool_name] = web_access_functions
         else:
-            # Resolve 'new style' tool functions 
+            # Resolve 'new style' tool functions
             # (from tool functions registry)
-            #----------------------------------
+            # ----------------------------------
             registry = get_global_tools_registry()
             tool_funcs : List[Callable] = registry.get_tool_funcs_by_group(tool_name)
             if tool_funcs:
                 descriptors : List(ToolFuncDescriptor) = [get_tool_func_descriptor(func) for func in tool_funcs]
-                func_descriptors.extend([descriptor.to_llm_description_dict() 
+                func_descriptors.extend([descriptor.to_llm_description_dict()
                                         for descriptor in descriptors])
                 available_functions_loaded.update({get_tool_func_descriptor(func).name : func
                                                 for func in tool_funcs})
@@ -3613,7 +3626,6 @@ def get_tools(
                 except:
                     logger.warn(f"Functions for tool '{tool_name}' could not be found.")
 
-    
     # Resolve 'old style' tool functions to actual callables
     available_functions = {}
     for name, function_handle in available_functions_loaded.items():

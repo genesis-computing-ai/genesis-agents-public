@@ -19,7 +19,9 @@ use role <authorized role>;
 delete from GENESIS_TEST.GENESIS_INTERNAL.LLM_TOKENS;
 
 select * from GENESIS_TEST.GENESIS_INTERNAL.bot_Servicing;
-update GENESIS_TEST.GENESIS_INTERNAL.bot_Servicing set available_tools = '["slack_tools", "make_baby_bot", "integrate_code", "webpage_downloader", "database_tools"]' where bot_id = 'jl-local-eve-test-1';
+update GENESIS_TEST.GENESIS_INTERNAL.bot_Servicing
+set available_tools = '["slack_tools", "make_baby_bot", "integrate_code", "webpage_downloader", "database_tools", "snowflake_tools"]'
+where bot_id = 'jl-local-eve-test-1';
 
 select * from GENESIS_TEST.GENESIS_INTERNAL.harvest_control;
 
@@ -48,7 +50,7 @@ use role <authorized role>;
 alter compute pool genesis_test_pool suspend;
 show compute pools;
 
-  
+
 GRANT USAGE, MONITOR ON COMPUTE POOL genesis_test_pool TO ROLE APP_OWNER_ROLE;
 
 GRANT ROLE APP_OWNER_ROLE TO USER JUSTIN;
@@ -90,13 +92,13 @@ CREATE or replace NETWORK RULE spcs_test.app_test_schema.allow_openai_ngrok
   use role <authorized role>;
 
   show warehouses;
-  
+
 CREATE OR REPLACE NETWORK RULE spcs_test.app_test_schema.GENESIS_RULE
  MODE = EGRESS TYPE = HOST_PORT
   VALUE_LIST = ('api.openai.com', 'connect.ngrok-agent.com:443', 'slack.com', 'www.slack.com', 'mmb84124.snowflakecomputing.com:443', 'wss-primary.slack.com',
 'wss-backup.slack.com',  'wss-primary.slack.com:443','wss-backup.slack.com:443');
 
-  
+
 CREATE or replace  EXTERNAL ACCESS INTEGRATION allow_openai_ngrok_genesis
   ALLOWED_NETWORK_RULES = (spcs_test.app_test_schema.GENESIS_RULE)
   ENABLED = true;
@@ -143,7 +145,7 @@ CREATE or replace NETWORK RULE genesis_test.public.snowflake_egress_access
   MODE = EGRESS
   TYPE = HOST_PORT
   VALUE_LIST = ('MMB84124.snowflakecomputing.com');
-  
+
 CREATE or replace EXTERNAL ACCESS INTEGRATION snowflake_egress_access_integration
   ALLOWED_NETWORK_RULES = (genesis_test.public.snowflake_egress_access)
   ENABLED = true;
@@ -154,7 +156,7 @@ grant usage on  INTEGRATION snowflake_egress_access_integration to role app_owne
 describe integration ALLOW_OPENAI_NGROK_GENESIS;
 
 use role app_owner_role;
-  
+
 select current_account();
 drop service spcs_test.app_test_schema.genesis_server;
 
@@ -166,7 +168,7 @@ CREATE SERVICE spcs_test.app_test_schema.genesis_server
       - name: genesis
         image: dshrnxx-genesis.registry.snowflakecomputing.com/spcs_test/app_test_schema/app_test_repository/genesis_app:latest
         env:
-            OPENAI_API_KEY: 
+            OPENAI_API_KEY:
             OPENAI_HARVESTER_EMBEDDING_MODEL: text-embedding-3-large
             OPENAI_HARVESTER_MODEL: gpt-4-1106-preview
             HARVESTER_REFRESH_SECONDS: 20
@@ -217,7 +219,7 @@ update genesis_test.genesis_new_1.bot_servicing  set bot_slack_user_id = null, a
 describe service spcs_test.app_test_schema.genesis_server;
 
 ALTER SERVICE  spcs_test.app_test_schema.genesis_server resume;
-   
+
 ALTER SERVICE  spcs_test.app_test_schema.genesis_server
   FROM SPECIFICATION $$
     spec:
@@ -225,7 +227,7 @@ ALTER SERVICE  spcs_test.app_test_schema.genesis_server
       - name: genesis
         image: dshrnxx-genesis.registry.snowflakecomputing.com/spcs_test/app_test_schema/app_test_repository/genesis_app:latest
         env:
-            OPENAI_API_KEY: 
+            OPENAI_API_KEY:
             OPENAI_MODEL_NAME: gpt-4-1106-preview
             OPENAI_HARVESTER_EMBEDDING_MODEL: text-embedding-3-large
             OPENAI_HARVESTER_MODEL: gpt-4-1106-preview
@@ -255,7 +257,7 @@ ALTER SERVICE  spcs_test.app_test_schema.genesis_server
             SNOWFLAKE_WAREHOUSE_OVERRIDE: XSMALL
             SNOWFLAKE_ROLE_OVERRIDE: <authorized role>
 */
-      
+
 use schema GENESIS_TEST.GENESIS_NEW_B;
 show tables;
 select current_role();
@@ -267,7 +269,7 @@ update GENESIS_TEST.GENESIS_NEW_B.BOT_SERVICING set AVAILABLE_TOOLS = null;
 
 select * from GENESIS_TEST.GENESIS_NEW_1.BOT_SERVICING;
 
-      
+
 use role <authorized role>;
 use role app_owner_role;
 
@@ -295,7 +297,7 @@ ls @genesis_test.genesis_internal.SEMANTIC_STAGE;
 
 
 CREATE STAGE genesis_test.genesis_internal.semantic_stage
-  ENCRYPTION = (TYPE = 'SNOWFLAKE_SSE'); 
+  ENCRYPTION = (TYPE = 'SNOWFLAKE_SSE');
 
 grant all on stage genesis_test.genesis_internal.semantic_stage to role app_owner_role;
 
@@ -304,7 +306,7 @@ use role app_owner_role;
 select current_account();
 select current_region();
 
-  
+
 SELECT SYSTEM$GET_SERVICE_STATUS('spcs_test.app_test_schema.genesis_server');
 SELECT SYSTEM$GET_SERVICE_LOGS('spcs_test.app_test_schema.genesis_server',0,'chattest',300);
 SHOW ENDPOINTS IN SERVICE spcs_test.app_test_schema.genesis_server;
@@ -709,7 +711,7 @@ CREATE or replace FUNCTION app_test_schema.get_metadata(metadata_type varchar)
   SERVICE=genesis_server
   ENDPOINT=udfendpoint
   AS '/udf_proxy/get_metadata';
-  
+
 
 
 CREATE or replace FUNCTION g_healthcheck ()
@@ -731,7 +733,7 @@ CREATE or replace FUNCTION response_udf (request_id varchar)
   SERVICE=echo_service
   ENDPOINT=udfendpoint
   AS '/lookup';
-  
+
 select get_slack_endpoints();
 
 grant usage on function app_test_schema.list_available_bots() to role <authorized role>;
@@ -740,7 +742,7 @@ show databases;
 
 select * from genesis_test.genesis_internal.slack_app_config_tokens;
 
-update genesis_test.genesis_internal.slack_app_config_tokens set slack_app_config_refresh_token = 'xoxe-1-My0xLTY1NTA2NTAyNjA0NDgtNjc4NzMzNDE0Mjk5My02OTcyNzQ4NzU2OTE0LTIxYTg0Y2UxOWE4MGViMzNhOTc1ZTY4ZmI0YWMxZDIyODQyMjI4NWQyN2IyYmMzM2Y5NDQzNWM4ZjZmYmIyMTQ' 
+update genesis_test.genesis_internal.slack_app_config_tokens set slack_app_config_refresh_token = 'xoxe-1-My0xLTY1NTA2NTAyNjA0NDgtNjc4NzMzNDE0Mjk5My02OTcyNzQ4NzU2OTE0LTIxYTg0Y2UxOWE4MGViMzNhOTc1ZTY4ZmI0YWMxZDIyODQyMjI4NWQyN2IyYmMzM2Y5NDQzNWM4ZjZmYmIyMTQ'
 where runner_id = 'jl-local-runner';
 
 /// simple test for udf
@@ -758,14 +760,14 @@ CREATE SERVICE echo_service
         env:
           SERVER_PORT: 8000
           CHARACTER_NAME: Bob
-          OPENAI_API_KEY: 
-          NGROK_AUTHTOKEN: 
+          OPENAI_API_KEY:
+          NGROK_AUTHTOKEN:
           SNOWFLAKE_HOST_OVERRIDE: "mmb84124.prod3.us-west-2.aws.snowflakecomputing.com"
           SNOWFLAKE_PORT_OVERRIDE: 443
           SNOWFLAKE_SCHEMA_OVERRIDE: APP_TEST_SCHEMA
           SNOWFLAKE_ACCOUNT_OVERRIDE: mmb84124
           SNOWFLAKE_USER_OVERRIDE: GENESIS_RUNNER_JL
-          SNOWFLAKE_PASSWORD_OVERRIDE: 
+          SNOWFLAKE_PASSWORD_OVERRIDE:
           SNOWFLAKE_DATABASE_OVERRIDE: GENESIS_TEST
           SNOWFLAKE_WAREHOUSE_OVERRIDE: XSMALL
           SNOWFLAKE_ROLE_OVERRIDE: APP_OWNER_ROLE
@@ -809,7 +811,7 @@ select response_udf('ae8d681d-d109-4860-8482-adfe64aa51f8');
 
 
 
-  
+
 
 show compute pools;
 select current_user();
@@ -852,7 +854,7 @@ CREATE SERVICE core.echo_service
     spec:
       containers:
       - name: echo
-        image: .../chattest_master/code_schema/service_repo/chatapp 
+        image: .../chattest_master/code_schema/service_repo/chatapp
         env:
           SERVER_PORT: 8000
           CHARACTER_NAME: Bob
@@ -887,7 +889,7 @@ CREATE SERVICE core.echo_service_min
     spec:
       containers:
       - name: echo
-        image: sfengineering-ss-lprpr-test1.registry.snowflakecomputing.com/chattest_master/code_schema/service_repo/chatapp 
+        image: sfengineering-ss-lprpr-test1.registry.snowflakecomputing.com/chattest_master/code_schema/service_repo/chatapp
         env:
           SERVER_PORT: 8000
           CHARACTER_NAME: Bob
@@ -920,7 +922,7 @@ CREATE or replace FUNCTION core.response_udf (request_id varchar)
   ENDPOINT=udfendpoint
   AS '/lookup';
 
-  
+
 DESCRIBE SERVICE echo_service_min;
 SELECT SYSTEM$GET_SERVICE_STATUS('echo_service_min');
 

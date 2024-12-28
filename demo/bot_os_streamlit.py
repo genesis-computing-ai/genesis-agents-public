@@ -6,11 +6,19 @@ from core.bot_os_defaults import ELSA_DATA_ANALYST_INSTRUCTIONS
 from core.bot_os_memory import BotOsKnowledgeAnnoy_Metadata
 from core.bot_os_server import BotOsServer
 from apscheduler.schedulers.background import BackgroundScheduler
+from connectors.snowflake_tools import (
+    bind_run_query,
+    bind_search_metadata,
+    bind_search_metadata_detailed,
+    snowflake_functions,
+    database_tool_functions
+)
 from connectors.database_tools import (
     bind_run_query,
     bind_search_metadata,
     bind_search_metadata_detailed,
     database_tool_functions,
+    snowflake_functions,
 )
 
 # from slack.slack_bot_os_adapter import SlackBotAdapter
@@ -65,7 +73,7 @@ if "initialized" not in st.session_state:
                 BotOsKnowledgeAnnoy_Metadata("./kb_vector")
             ),
         },
-        tools=database_tool_functions,
+        tools=[database_tool_functions, snowflake_functions],
         update_existing=True,
     )
 

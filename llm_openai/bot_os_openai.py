@@ -780,9 +780,9 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
        else:
            bot_is_openai = False
        return bot_is_openai
-   
+
    def reset_bot_if_not_openai(self,bot_id):
-       
+
        if not self.is_bot_openai(bot_id):
            os.environ[f'RESET_BOT_SESSION_{bot_id}'] = 'True'
            return True
@@ -835,7 +835,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                   # Check for cached assistant ID first
                   assistant_id_file = f"/tmp/assistant_id_{target_bot}.txt"
                   my_assistants = []
-                  
+
                   if os.path.exists(assistant_id_file):
                       with open(assistant_id_file, 'r') as f:
                           assistant_id = f.read().strip()
@@ -845,11 +845,11 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                                   my_assistants = [assistant]
                           except:
                               pass
-                              
+
                   if not my_assistants:
                       my_assistants = self.client.beta.assistants.list(order="desc", limit=100)
                       my_assistants = [a for a in my_assistants if a.name == target_bot]
-                      
+
                       # Cache the assistant ID if found
                       if my_assistants:
                           with open(assistant_id_file, 'w') as f:
@@ -858,12 +858,13 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                   for assistant in my_assistants:
 
                      new_instructions = assistant.instructions
-                     if "snowflake_stage_tools" in all_tools_for_bot and 'make_baby_bot' in all_tools_for_bot:
+                     if "snowflake_tools" in all_tools_for_bot and 'make_baby_bot' in all_tools_for_bot:
                            new_instructions += f"\nYour Internal Files Stage for bots is at snowflake stage: {self.genbot_internal_project_and_schema}.BOT_FILES_STAGE"
                            logger.info("Instruction for target bot updated with Internal Files Stage location.")
                      bot_tools_array = bot_tools_array + _BOT_OS_BUILTIN_TOOLS + [{"type": "code_interpreter"}, {"type": "file_search"}]
 
-                     if "database_tools" in all_tools_for_bot:
+                     # TODO JD - Do we need this for database_tools?
+                     if "snowflake_tools" in all_tools_for_bot:
                         workspace_schema_name = f"{global_flags.project_id}.{target_bot.replace(r'[^a-zA-Z0-9]', '_').replace('-', '_').replace('.', '_')}_WORKSPACE".upper()
                         new_instructions += f"\nYou have a workspace schema created specifically for you named {workspace_schema_name} that the user can also access. You may use this schema for creating tables, views, and stages that are required when generating answers to data analysis questions. Only use this schema if asked to create an object. Always return the full location of the object.\nYour default stage is {workspace_schema_name}.MY_STAGE."
 
@@ -893,10 +894,10 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                   if bot_details["slack_active"]=='Y':
                      instructions += "\nYour slack user_id: "+bot_details["bot_slack_user_id"]
 
-                  if "snowflake_stage_tools" in bot_details["available_tools"] and 'make_baby_bot' in bot_details["available_tools"]:
-                     instructions += f"\nYour Internal Files Stage for bots is at snowflake stage: {global_flags.genbot_internal_project_and_schema}.BOT_FILES_STAGE"
+                  # if "snowflake_tools" in bot_details["available_tools"] and 'make_baby_bot' in bot_details["available_tools"]:
+                  #    instructions += f"\nYour Internal Files Stage for bots is at snowflake stage: {global_flags.genbot_internal_project_and_schema}.BOT_FILES_STAGE"
 
-                  if "database_tools" in bot_details["available_tools"]:
+                  if "snowflake_tools" in bot_details["available_tools"]:
 
                      workspace_schema_name = f"{global_flags.project_id}.{target_bot.replace(r'[^a-zA-Z0-9]', '_').replace('-', '_').replace('.', '_')}_WORKSPACE".upper()
                      instructions += f"\nYou have a workspace schema created specifically for you named {workspace_schema_name} that the user can also access. You may use this schema for creating tables, views, and stages that are required when generating answers to data analysis questions. Only use this schema if asked to create an object. Always return the full location of the object."

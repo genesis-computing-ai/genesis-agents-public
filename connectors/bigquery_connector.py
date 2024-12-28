@@ -18,23 +18,23 @@ class BigQueryConnector(DatabaseConnector):
         super().__init__(connection_info, connection_name)
         self.client = self._create_client()
         self.genbot_internal_project_and_schema = os.getenv('GENESIS_INTERNAL_DB_SCHEMA','None')
-        if  self.genbot_internal_project_and_schema is None:       
+        if  self.genbot_internal_project_and_schema is None:
             self.genbot_internal_project_and_schema = os.getenv('ELSA_INTERNAL_DB_SCHEMA','None')
             logger.info("!! Please switch from using ELSA_INTERNAL_DB_SCHEMA ENV VAR to GENESIS_INTERNAL_DB_SCHEMA !!")
         if self.genbot_internal_project_and_schema == 'None':
-            # Todo remove, internal note 
+            # Todo remove, internal note
             logger.info("ENV Variable GENBOT_INTERNAL_DB_SCHEMA is not set.")
         if self.genbot_internal_project_and_schema is not None:
            self.genbot_internal_project_and_schema = self.genbot_internal_project_and_schema.upper()
         self.genbot_internal_harvest_table = os.getenv('GENESIS_INTERNAL_HARVEST_RESULTS_TABLE','harvest_results')
         self.genbot_internal_harvest_control_table = os.getenv('GENESIS_INTERNAL_HARVEST_CONTROL_TABLE','harvest_control')
         self.genbot_internal_message_log = os.getenv('GENESIS_INTERNAL_MESSAGE_LOG_TABLE','message_log')
-        
+
         logger.info("genbot_internal_project_and_schema: ", self.genbot_internal_project_and_schema)
         self.metadata_table_name = self.genbot_internal_project_and_schema+'.'+self.genbot_internal_harvest_table
         self.harvest_control_table_name = self.genbot_internal_project_and_schema+'.'+self.genbot_internal_harvest_control_table
         self.message_log_table_name = self.genbot_internal_project_and_schema+'.'+self.genbot_internal_message_log
-        
+
         logger.info("harvest_control_table_name: ", self.harvest_control_table_name)
         logger.info("metadata_table_name: ", self.metadata_table_name)
         logger.info("message_log_table_name: ", self.genbot_internal_message_log)
@@ -69,11 +69,11 @@ class BigQueryConnector(DatabaseConnector):
             json_data = json.dumps(rows, default=str)  # default=str to handle datetime and other non-serializable types
 
             return {"Success": True, "Data": json_data}
-        
+
         except Exception as e:
             err = f"An error occurred while retrieving the harvest summary: {e}"
             return {"Success": False, "Error": err}
-        
+
 
     def set_harvest_control_data(self, source_name, database_name, initial_crawl_complete=False, refresh_interval=1, schema_exclusions=None, schema_inclusions=None, status='Include', thread_id=None):
         """
@@ -125,7 +125,7 @@ class BigQueryConnector(DatabaseConnector):
             query_job.result()  # Wait for the job to complete
 
             return {"Success": True, "Message": "Harvest control data set successfully."}
-        
+
         except Exception as e:
             err = f"An error occurred while setting the harvest control data: {e}"
             return {"Success": False, "Error": err}
@@ -158,8 +158,8 @@ class BigQueryConnector(DatabaseConnector):
                 return {"Success": False, "Message": "No harvest records were found for that source and database.  You should check the source_name and database_name with the get_harvest_control_data tool ?"}
             else:
                 return {f"Success": True, "Message": "Harvest control data removed successfully. {query_job.num_dml_affected_rows} rows affected."}
-            
-        
+
+
         except Exception as e:
             err = f"An error occurred while removing the harvest control data: {e}"
             return {"Success": False, "Error": err}
@@ -189,12 +189,12 @@ class BigQueryConnector(DatabaseConnector):
             query_job.result()  # Wait for the job to complete
 
             return {"Success": True, "Message": "Metadata rows removed successfully."}
-        
+
         except Exception as e:
             err = f"An error occurred while removing the metadata rows: {e}"
             return {"Success": False, "Error": err}
 
-        
+
     def get_harvest_summary(self, thread_id=None):
         """
         Executes a query to retrieve a summary of the harvest results, including the source name, database name, schema name,
@@ -221,7 +221,7 @@ class BigQueryConnector(DatabaseConnector):
             json_data = json.dumps(summary, default=str)  # default=str to handle datetime and other non-serializable types
 
             return {"Success": True, "Data": json_data}
-        
+
         except Exception as e:
             err = f"An error occurred while retrieving the harvest summary: {e}"
             return {"Success": False, "Error": err}
@@ -317,12 +317,12 @@ class BigQueryConnector(DatabaseConnector):
             bigquery.SchemaField("status", "STRING", mode="REQUIRED"),
             bigquery.SchemaField("refresh_interval", "INTEGER", mode="REQUIRED"),
             bigquery.SchemaField("initial_crawl_complete", "BOOLEAN", mode="REQUIRED"),
-            
+
 
         ]
 
         table_hc = bigquery.Table(hc_table_id, schema=schema_hc)
-     
+
         # Check if the table exists
         try:
             self.client.get_table(table_hc)  # Make an API request.
@@ -331,7 +331,7 @@ class BigQueryConnector(DatabaseConnector):
             # If the table does not exist, create it
             self.client.create_table(table_hc)  # Make an API request.
             logger.info(f"Table {hc_table_id} created.")
-            self.client.get_table(table_hc) 
+            self.client.get_table(table_hc)
 
             query = f"""
             INSERT INTO `{self.harvest_control_table_name}` (source_name, database_name, schema_exclusions, status, refresh_interval, initial_crawl_complete)
@@ -362,7 +362,7 @@ class BigQueryConnector(DatabaseConnector):
         ]
 
         table = bigquery.Table(table_id, schema=schema)
-        
+
         # Check if the table exists
         try:
             self.client.get_table(table)  # Make an API request.
@@ -380,7 +380,7 @@ class BigQueryConnector(DatabaseConnector):
             logger.info("index create results: ",results)
 
             logger.info(f"Table {table_id} created.")
-            
+
 
     def insert_table_summary(self, database_name, schema_name, table_name, ddl, summary, sample_data_text, complete_description="", crawl_status="Completed", role_used_for_crawl="Default", embedding=None):
 
@@ -393,7 +393,7 @@ class BigQueryConnector(DatabaseConnector):
         role_used_for_crawl = self.connection_info["client_email"]
 
         last_crawled_timestamp_literal = f"TIMESTAMP '{last_crawled_timestamp}'"
-   
+
         # Construct the MERGE SQL statement with placeholders for parameters
         merge_sql = f"""
         MERGE INTO `{self.metadata_table_name}` T
@@ -457,7 +457,7 @@ class BigQueryConnector(DatabaseConnector):
         query_job = self.client.query(merge_sql, job_config=job_config)  # Make an API request.
         query_job.result()  # Wait for the job to complete.
 
-    
+
 
     def get_table_ddl(self, database_name:str, schema_name:str, table_name=None):
         """
@@ -473,7 +473,7 @@ class BigQueryConnector(DatabaseConnector):
             SELECT table_name, ddl
             FROM `{database_name}.{schema_name}.INFORMATION_SCHEMA.TABLES`
             WHERE table_name = '{table_name}';
-            """  
+            """
         else:
             query = f"""
             SELECT table_name, ddl
@@ -481,7 +481,7 @@ class BigQueryConnector(DatabaseConnector):
             """
         query_job = self.client.query(query)  # Make an API request.
         results = query_job.result()  # Wait for the job to complete.
- 
+
         if table_name:
             return {row.table_name: row.ddl for row in results}[table_name]
         else:
@@ -557,12 +557,12 @@ class BigQueryConnector(DatabaseConnector):
             query_job = self.client.query(query, job_config=job_config)  # Make an API request.
         else:
             query_job = self.client.query(query)  # Make an API request.
-        
+
         results = query_job.result()  # Wait for the job to complete.
 
         sample_data = [dict(row) for row in islice(results, max_rows)]
         return sample_data
-    
+
 
     def db_list_all_bots(self, project_id, dataset_name, bot_servicing_table, runner_id=None, full=False):
         """
@@ -599,7 +599,7 @@ class BigQueryConnector(DatabaseConnector):
         except Exception as e:
             logger.error(f"Failed to retrieve list of all bots with error: {e}")
             raise e
-        
+
     def get_bot_details_by_bot_id(self, project_id, dataset_name, bot_servicing_table, bot_id):
         """
         Retrieves the details of a bot given its bot_id.
@@ -770,8 +770,8 @@ class BigQueryConnector(DatabaseConnector):
 
         return True
 
-    def db_insert_new_bot(self, api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instructions, runner_id, slack_signing_secret, 
-                    slack_channel_id, available_tools, auth_url, auth_state, client_id, client_secret, udf_active, 
+    def db_insert_new_bot(self, api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instructions, runner_id, slack_signing_secret,
+                    slack_channel_id, available_tools, auth_url, auth_state, client_id, client_secret, udf_active,
                     slack_active, files, bot_implementation, project_id, dataset_name, bot_servicing_table):
         """
         Inserts a new bot configuration into the BOT_SERVICING table.
@@ -834,7 +834,7 @@ class BigQueryConnector(DatabaseConnector):
         except Exception as e:
             logger.info(f"Failed to insert new bot configuration for bot_id: {bot_id} with error: {e}")
             raise e
-        
+
 
     def db_update_bot_tools(self, project_id=None,dataset_name=None,bot_servicing_table=None, bot_id=None, updated_tools_str=None, new_tools_to_add=None, already_present=None, updated_tools=None):
 
@@ -867,7 +867,7 @@ class BigQueryConnector(DatabaseConnector):
         except Exception as e:
             logger.error(f"Failed to add new tools to bot_id: {bot_id} with error: {e}")
             return {"success": False, "error": str(e)}
-        
+
 
     def db_update_bot_files(self, project_id=None, dataset_name=None, bot_servicing_table=None, bot_id=None, updated_files_str=None, current_files=None, new_file_ids=None):
     # Query to update the files in the database
@@ -899,7 +899,7 @@ class BigQueryConnector(DatabaseConnector):
         except Exception as e:
             logger.error(f"Failed to add new file to bot_id: {bot_id} with error: {e}")
             return {"success": False, "error": str(e)}
-    
+
 
     def db_update_bot_instructions(self, project_id, dataset_name, bot_servicing_table, bot_id, instructions, runner_id):
 
@@ -933,7 +933,7 @@ class BigQueryConnector(DatabaseConnector):
         except Exception as e:
             logger.error(f"Failed to update bot_instructions for bot_id: {bot_id} with error: {e}")
             return {"success": False, "error": str(e)}
-        
+
     def db_update_bot_implementation(self, project_id, dataset_name, bot_servicing_table, bot_id, bot_implementation, runner_id):
         """
         Updates the bot_implementation field in the BOT_SERVICING table for a given bot_id.
@@ -980,7 +980,7 @@ class BigQueryConnector(DatabaseConnector):
         except Exception as e:
             logger.error(f"Failed to update bot_implementation for bot_id: {bot_id} with error: {e}")
             return {"success": False, "error": str(e)}
-        
+
     def db_get_bot_details(self, project_id, dataset_name, bot_servicing_table, bot_id):
         """
         Retrieves the details of a bot based on the provided bot_id from the BOT_SERVICING table.
@@ -1011,7 +1011,7 @@ class BigQueryConnector(DatabaseConnector):
             logger.exception(f"Failed to retrieve details for bot_id: {bot_id} with error: {e}")
             return None
 
-    def db_update_existing_bot(self, api_app_id, bot_id, bot_slack_user_id, client_id, client_secret, slack_signing_secret, 
+    def db_update_existing_bot(self, api_app_id, bot_id, bot_slack_user_id, client_id, client_secret, slack_signing_secret,
                             auth_url, auth_state, udf_active, slack_active, files, bot_implementation, project_id, dataset_name, bot_servicing_table):
         """
         Updates an existing bot configuration in the BOT_SERVICING table with new values for the provided parameters.
@@ -1191,7 +1191,7 @@ class BigQueryConnector(DatabaseConnector):
             FROM `{project_id}.{dataset_name}.{bot_servicing_table}`
             WHERE runner_id = '{runner_id}' and slack_active = 'Y'
             """
-      
+
         try:
             return self.run_query(query=select_query)
         except Exception as e:
@@ -1222,7 +1222,7 @@ class BigQueryConnector(DatabaseConnector):
             #logger.info(f"An error occurred: {e}")
             # Return a default filename or re-raise the exception based on your use case
             return "default_filename.ann", "default_metadata.json"
-        
+
 
     def fetch_embeddings(self, table_id):
 

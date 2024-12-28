@@ -116,11 +116,11 @@ Bot_DagsterExplorer_yaml = dedent(
         UDF_ACTIVE: Y
         ''')
 
-#TODO: define a specialized set of 'dagster dbt tools' (e.g. look at the dbt code) instead of the more dgaster-centric 'dagster tools'
+# TODO: define a specialized set of 'dagster dbt tools' (e.g. look at the dbt code) instead of the more dgaster-centric 'dagster tools'
 Bot_DBTExplorer_yaml = dedent(
         f'''
         BOT_ID: DBTExplorer
-        AVAILABLE_TOOLS: '[ "dagster_tools", "database_tools"]'
+        AVAILABLE_TOOLS: '[ "dagster_tools", "database_tools", "snowflake_tools"]'
         BOT_AVATAR_IMAGE: null
         BOT_IMPLEMENTATION: openai
         BOT_INSTRUCTIONS: >
@@ -142,10 +142,10 @@ Bot_DBTExplorer_yaml = dedent(
 
 # DagsterRCADetective - No delegation - the top level orchstrator with direct access to all the tools.
 Bot_DagsterRCADetective_yaml = dedent(
-        f'''
+    f"""
         BOT_ID: DagsterRCADetective
         BOT_NAME: DagsterRCADetective
-        AVAILABLE_TOOLS: '[ "dagster_tools", "database_tools"]'
+        AVAILABLE_TOOLS: '[ "dagster_tools", "database_tools", "snowflake_tools"]'
         BOT_AVATAR_IMAGE: null
         BOT_IMPLEMENTATION: openai
         BOT_INSTRUCTIONS: >
@@ -164,7 +164,8 @@ Bot_DagsterRCADetective_yaml = dedent(
         FILES: '[]'
         RUNNER_ID: snowflake-1
         UDF_ACTIVE: Y
-        ''')
+        """
+)
 
 
 # Delegating RCA manager
@@ -293,7 +294,6 @@ class _FlowBase:
             logger.info(f"Registering bot with BOT_ID={bot_def['BOT_ID']} with GenesisAPI")
             self._gclient.register_bot(bot_def)
         self._bot_registration_required = False
-
 
 
 class DagsterRCAFlow1(_FlowBase):
@@ -458,8 +458,6 @@ class DagsterRCAFlow1(_FlowBase):
         return rca_report
 
 
-
-
 class DagsterRCAFlow2(_FlowBase):
 
     def __init__(self, run_id:str, gclient: GenesisAPI, bot_registration_required: bool=True):
@@ -489,7 +487,6 @@ class DagsterRCAFlow2(_FlowBase):
         return rca_report
 
 
-
 def main():
     print("---------------------------------")
     print("  DAGSTER RCA DEMO BEGIN")
@@ -506,7 +503,7 @@ def main():
         # Registering the dagster tools offline:
         # 1) had to run the full server (flask mode) to update the various tables (AVAILABE TOOLS)
         # 2) Ran this offline to add the tools:
-        #    >> snow sql -c GENESIS_CVB  -q "update GENESIS_TEST.GENESIS_AD.BOT_SERVICING set  AVAILABLE_TOOLS = '[\"database_tools\", \"dagster_tools\"]' where bot_name = 'DagsterExplorer'
+        #    >> snow sql -c GENESIS_CVB  -q "update GENESIS_TEST.GENESIS_AD.BOT_SERVICING set  AVAILABLE_TOOLS = '[\"database_tools\", \"snowflake_tools\", \"dagster_tools\"]' where bot_name = 'DagsterExplorer'
         #
         # Turning off  Janice (to save time creating the session): (to restore, set it to 'snowflake-1')
         #    >> snow sql -c GENESIS_CVB  -q "update GENESIS_TEST.GENESIS_AD.BOT_SERVICING set RUNNER_ID=NULL  where BOT_ID='Janice'"

@@ -26,7 +26,7 @@ class LLMKeyHandler:
                 from connectors.sqlite_connector import SqliteConnector  # avoid circular imports as this is a core module
                 self.db_adapter = SqliteConnector(connection_name="Sqlite")
                 self.connection = 'Sqlite'
-            elif self.genesis_source == 'Snowflake':    
+            elif self.genesis_source == 'Snowflake':
                 from connectors.snowflake_connector.snowflake_connector import SnowflakeConnector  # avoid circular imports as this is a core module
                 self.db_adapter = SnowflakeConnector(connection_name='Snowflake')
                 self.connection = 'Snowflake'
@@ -34,9 +34,9 @@ class LLMKeyHandler:
                 raise ValueError('Invalid Source')
 
     def get_llm_key_from_env(self):
-        from connectors.database_connector import llm_keys_and_types_struct # avoid ciscular imports as this is a core module
+        from connectors.connector_helpers import llm_keys_and_types_struct # avoid ciscular imports as this is a core module
         self.default_llm_engine = BotLlmEngineEnum(os.getenv("BOT_OS_DEFAULT_LLM_ENGINE") or "cortex")
-        
+
         api_key_from_env = False
         llm_api_key = None
         llm_type = self.default_llm_engine
@@ -74,7 +74,7 @@ class LLMKeyHandler:
         else:
             api_key_from_env = True
             logger.info(f"Default LLM set to {self.default_llm_engine} because ENV Var is present")
-    
+
         try:
             #  insert key into db
             if llm_api_key:
@@ -83,7 +83,7 @@ class LLMKeyHandler:
         except Exception as e:
             logger.info(f"error updating llm key in database with error: {e}")
 
-        return api_key_from_env, llm_keys_and_types_struct(llm_key=llm_api_key, 
+        return api_key_from_env, llm_keys_and_types_struct(llm_key=llm_api_key,
                                                            llm_type=llm_type.value, # this struct expects the llm type (engine) name
                                                            llm_endpoint=llm_endpoint)
 
@@ -124,7 +124,7 @@ class LLMKeyHandler:
         # 8. Set the default LLM engine environment variable.
         # 9. Return the API key retrieval status and the LLM key structure.
 
-        import json 
+        import json
 
         if db_connector:
             db_adapter = db_connector
@@ -138,7 +138,7 @@ class LLMKeyHandler:
                 os.environ["CORTEX_MODE"] = "True"
                 os.environ["CORTEX_HARVESTER_MODEL"] = "reka-flash"
                 os.environ["CORTEX_EMBEDDING_MODEL"] = 'e5-base-v2'
-                os.environ["BOT_OS_DEFAULT_LLM_ENGINE"] = 'cortex' 
+                os.environ["BOT_OS_DEFAULT_LLM_ENGINE"] = 'cortex'
                 self.default_llm_engine = BotLlmEngineEnum.cortex
                 logger.info('&& CORTEX OVERRIDE FROM ENV VAR &&')
                 return False, 'cortex_no_key_needed', "cortex"
@@ -151,7 +151,7 @@ class LLMKeyHandler:
         except Exception as e:
             logger.info(f"Error retrieving LLM key from database: {e}")
             return False, None, None
-        
+
         if llm_key_struct.llm_key:
             if (llm_key_struct.llm_type.lower() == "openai"):
                 os.environ["OPENAI_API_KEY"] = llm_key_struct.llm_key
@@ -191,30 +191,30 @@ class LLMKeyHandler:
             logger.info("Cortex is not available. Falling back to OpenAI.")
             llm_key_struct.llm_type = "openai"
             # Attempt to get OpenAI key if it exists
-            
+
             # First, check if OPENAI_API_KEY is already set in the environment
             openai_key = os.environ.get("OPENAI_API_KEY", None)
             if openai_key ==  '':
                 openai_key = None
             if openai_key is not None:
                 api_key_from_env = True
-            
+
             if not openai_key:
                 # If not set in environment, try to get it from the database
-                llm_info = db_adapter.get_llm_info() 
+                llm_info = db_adapter.get_llm_info()
                 if llm_info["Success"]:
                     llm_data = json.loads(llm_info["Data"])
                     openai_key = next((item["llm_key"] for item in llm_data if item["llm_type"].lower() == "openai"), None)
                 else:
                     logger.info(f"Error retrieving LLM info: {llm_info.get('Error')}")
-            
+
             if openai_key:
                 llm_key = openai_key
                 os.environ["OPENAI_API_KEY"] = llm_key
             else:
                 logger.info("No OpenAI key found in environment or database and cortex not available. LLM functionality may be limited.")
                 llm_key = None
-            
+
             os.environ["CORTEX_MODE"] = "False"
 
         os.environ["BOT_OS_DEFAULT_LLM_ENGINE"] = llm_key_struct.llm_type.lower()

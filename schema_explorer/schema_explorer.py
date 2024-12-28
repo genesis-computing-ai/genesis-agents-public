@@ -42,8 +42,8 @@ class SchemaExplorer:
             return self.db_connector.alt_get_ddl(table_name)
         else:
             try:
-                from connectors.customer_data_connector import CustomerDataConnector
-                connector = CustomerDataConnector()
+                from connectors.database_connector import DatabaseConnector
+                connector = DatabaseConnector()
                 
                 # Generate prompt to get SQL for DDL based on database type
                 p = [
@@ -369,8 +369,8 @@ class SchemaExplorer:
             schemas = self.db_connector.get_schemas(database["database_name"])
         else:
             # handle non-snowflake sources
-            from connectors.customer_data_connector import CustomerDataConnector
-            connector = CustomerDataConnector()
+            from connectors.database_connector import DatabaseConnector
+            connector = DatabaseConnector()
             # Get connection type for the source
             connections = connector.list_database_connections(bot_id='system', bot_id_override=True)
             if connections['success']:
@@ -493,8 +493,8 @@ class SchemaExplorer:
                 return []
         else:
             try:
-                from connectors.customer_data_connector import CustomerDataConnector
-                connector = CustomerDataConnector()
+                from connectors.database_connector import DatabaseConnector
+                connector = DatabaseConnector()
                 
                 # Get connection type for the source
                 connections = connector.list_database_connections(bot_id='system', bot_id_override=True)
@@ -603,8 +603,8 @@ class SchemaExplorer:
                     logger.info(f'Error running get potential tables Error: {e}')
             else:
                 try:
-                    from connectors.customer_data_connector import CustomerDataConnector
-                    connector = CustomerDataConnector()
+                    from connectors.database_connector import DatabaseConnector
+                    connector = DatabaseConnector()
                     # Get connection type for the source
                     connections = connector.list_database_connections(bot_id='system', bot_id_override=True)
                     if connections['success']:
@@ -876,8 +876,8 @@ class SchemaExplorer:
                 return []
         else:
             try:
-                from connectors.customer_data_connector import CustomerDataConnector
-                connector = CustomerDataConnector()
+                from connectors.database_connector import DatabaseConnector
+                connector = DatabaseConnector()
                 
                 # Get connection type for the source
                 connections = connector.list_database_connections(bot_id='system', bot_id_override=True)

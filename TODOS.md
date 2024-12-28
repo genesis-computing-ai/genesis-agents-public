@@ -8,9 +8,9 @@ make sqlite sample data load from csv files vs binary
 speed up startup
 speed up bot responses
 o1 via api with tool calling
-put eve back in as default bot in streamlit 
+put eve back in as default bot in streamlit
 demo with web research tools
-rationalize database connector with data_connector_tools
+rationalize database connector with database_tools
 test gsheet comments
 make sure clean sqlite works with new schema removal logic
 make sure harvester works ok in snowflake mode still (get schemas, get tables)

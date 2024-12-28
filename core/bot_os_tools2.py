@@ -141,7 +141,7 @@ class ToolFuncParamDescriptor:
             ValueError: If the Python type annotation cannot be converted to an LLM type.
         """
         origin = get_origin(python_type) or python_type
-        args = get_args(python_type) 
+        args = get_args(python_type)
         if origin in (list, List):
             if not args: # a list without type arguments (e.g. x: List). We do 'best effort' and just ommit the items field
                 raise ValueError(f"type hint of type {python_type} is missing type arguments (did you mean List[int] or List[str]?)")
@@ -176,16 +176,16 @@ class ToolFuncParamDescriptor:
         return self.description.name < other.description.name
 
 
-# Use these two constants for teh common implicit 'bot_id' and 'thread_id' param descriptors 
+# Use these two constants for teh common implicit 'bot_id' and 'thread_id' param descriptors
 # that are expected to be provided by the calling context, not by the LLM
-BOT_ID_IMPLICIT_FROM_CONTEXT = ToolFuncParamDescriptor(name="bot_id", 
-                                                       description="bot_id", 
-                                                       llm_type_desc={"type": "string"}, 
+BOT_ID_IMPLICIT_FROM_CONTEXT = ToolFuncParamDescriptor(name="bot_id",
+                                                       description="bot_id",
+                                                       llm_type_desc={"type": "string"},
                                                        required=PARAM_IMPLICIT_FROM_CONTEXT)
-THREAD_ID_IMPLICIT_FROM_CONTEXT = ToolFuncParamDescriptor(name="thread_id", 
-                                                       description="thread_id", 
-                                                       llm_type_desc={"type": "string"}, 
-                                                       required=PARAM_IMPLICIT_FROM_CONTEXT)    
+THREAD_ID_IMPLICIT_FROM_CONTEXT = ToolFuncParamDescriptor(name="thread_id",
+                                                       description="thread_id",
+                                                       llm_type_desc={"type": "string"},
+                                                       required=PARAM_IMPLICIT_FROM_CONTEXT)
 
 class ToolFuncDescriptor:
     """
@@ -205,11 +205,11 @@ class ToolFuncDescriptor:
     """
 
     GC_TOOL_DESCRIPTOR_ATTR_NAME = "gc_tool_descriptor"
-    
-    def __init__(self, 
-                 name: str, 
-                 description: str, 
-                 parameters_desc: List[ToolFuncParamDescriptor], 
+
+    def __init__(self,
+                 name: str,
+                 description: str,
+                 parameters_desc: List[ToolFuncParamDescriptor],
                  groups: List[ToolFuncGroup] = (ORPHAN_TOOL_FUNCS_GROUP,)):
         self.name = name
         self.description = description
@@ -227,7 +227,7 @@ class ToolFuncDescriptor:
         """Generate the object used to describe this function to an LLM."""
         params_d = dict()
         for param in self.parameters_desc:
-            params_d.update(param.to_llm_description_dict())                    
+            params_d.update(param.to_llm_description_dict())
         return {
             "type": "function",
             "function": {
@@ -267,12 +267,12 @@ def gc_tool(_group_tags_: List[str], **param_descriptions):
             s = "\n".join([line for line in s.split("\n") if line])
             return s
 
-        # build/validate a ToolFuncParamDescriptor for each parameter in the signature        
+        # build/validate a ToolFuncParamDescriptor for each parameter in the signature
         params_desc_list = []
         for pname, pattrs in sig.parameters.items():
             if not pattrs.annotation or pattrs.annotation is pattrs.empty:
                 raise ValueError(f"Parameter {pname} has no type annotation")
-            
+
             # Check if a descriptor is provided for the parameter
             if pname not in param_descriptions:
                 if pattrs.default is pattrs.empty:  # Parameter is required
@@ -292,7 +292,7 @@ def gc_tool(_group_tags_: List[str], **param_descriptions):
                 # a ToolFuncParamDescriptor is provided. Validate it.
                 if param_desc.name != pname:
                     raise ValueError(f"Descriptor name '{param_desc.name}' does not match parameter name '{pname}'")
-                
+
                 # Check if the type hint matches the descriptor's param_type
                 expected_type = ToolFuncParamDescriptor._python_type_to_llm_type(pattrs.annotation)
                 if param_desc.llm_type != expected_type:
@@ -321,7 +321,7 @@ def gc_tool(_group_tags_: List[str], **param_descriptions):
             groups=_group_tags_
         )
         setattr(func, ToolFuncDescriptor.GC_TOOL_DESCRIPTOR_ATTR_NAME, descriptor)
-                                        
+
         return func
 
     return decorator
@@ -370,7 +370,7 @@ class ToolsFuncRegistry:
     """
     # NOTE that we put a class-level lock on this object since tools can be accessed and manipulated by multiple session threads
 
-    
+
     def __init__(self) -> None:
         """Initialize the ToolsFuncRegistry with an empty set of tool functions."""
         self._tool_funcs: set = set()
@@ -438,11 +438,11 @@ class ToolsFuncRegistry:
 
     def get_tool_funcs_by_group(self, group_name: str) -> List[callable]:
         """Retrieve tool functions by their group name."""
-        return sorted([func 
-                       for func in self._tool_funcs 
-                        if any(group.name == group_name 
+        return sorted([func
+                       for func in self._tool_funcs
+                        if any(group.name == group_name
                                for group in get_tool_func_descriptor(func).groups)
-                      ], 
+                      ],
                       key=lambda func: get_tool_func_descriptor(func).description)
 
 
@@ -453,7 +453,7 @@ class ToolsFuncRegistry:
         Returns:
             List[ToolFuncGroup]: A sorted list of unique ToolFuncGroup instances.
         """
-        return sorted(set(chain.from_iterable(get_tool_func_descriptor(func).groups 
+        return sorted(set(chain.from_iterable(get_tool_func_descriptor(func).groups
                                               for func in self._tool_funcs)))
 
 
@@ -470,7 +470,7 @@ def get_global_tools_registry():
     if _global_tools_registry is None:
         try:
             current_thread = threading.current_thread()
-                
+
             reg =  ToolsFuncRegistry()
 
             # Register all 'new type' PERSISTENT tools here explicitly
@@ -479,7 +479,7 @@ def get_global_tools_registry():
 
             import_locations = [
                 "data_pipeline_tools.gc_dagster.get_dagster_tool_functions",
-                "connectors.customer_data_connector.get_database_connections_functions"
+                "connectors.database_connector.get_database_connections_functions"
             ]
 
             for import_location in import_locations:
@@ -487,7 +487,7 @@ def get_global_tools_registry():
                     module_name, func_name = import_location.rsplit('.', 1)
                     module = importlib.import_module(module_name)
                     func_list = getattr(module, func_name)()
-                    
+
                     descs = [get_tool_func_descriptor(func) for func in func_list]
                     added_groups = {group.name for desc in descs for group in desc.groups}
                     logger.info(f"Registering {len(func_list)} tool functions for tool group(s) {added_groups} with the global tools registry")
@@ -504,7 +504,7 @@ def get_global_tools_registry():
             # register all the functions
             for func in funcs:
                 reg.add_tool_func(func)
-                
+
             # set the global registry
             _global_tools_registry = reg
         except Exception as e:

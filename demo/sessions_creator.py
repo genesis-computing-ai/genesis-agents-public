@@ -240,7 +240,7 @@ def make_session(
     # ToolBelt seems to be a local variable that is used as a global variable by some tools
     tool_belt = ToolBelt()
 
-    tools, available_functions, function_to_tool_map = get_tools(
+    tools, available_functions, _ = get_tools(
         bot_tools, slack_adapter_local=slack_adapter_local, db_adapter=db_adapter, tool_belt=tool_belt
     )
     logger.info(f"Number of available functions for bot {bot_id}: {len(available_functions)}")
@@ -276,7 +276,7 @@ def make_session(
     if bot_config["slack_active"] == "Y":
         instructions += "\nYour slack user_id: " + bot_config["bot_slack_user_id"]
 
-    if "snowflake_stage_tools" in bot_tools and "make_baby_bot" in bot_tools:
+    if "snowflake_tools" in bot_tools and "make_baby_bot" in bot_tools:
         instructions += f"\nYour Internal Files Stage for bots is at snowflake stage: {genbot_internal_project_and_schema}.BOT_FILES_STAGE"
         if not stream_mode:
             instructions += ". This BOT_FILES_STAGE stage is ONLY in this particular database & schema."
@@ -291,11 +291,11 @@ def make_session(
         # Initialize as an empty dictionary
         bot_llms = {}
 
-    # check if database_tools are in bot_tools
-    if "database_tools" in bot_tools:
+    # check if snowflake_tools are in bot_tools
+    # TODO JD - Do we need this for database_tools?
+    if "snowflake_tools" in bot_tools:
         try:
             # if so, create workspace schema
-
             workspace_schema_name = f"{global_flags.project_id}.{bot_id.replace(r'[^a-zA-Z0-9]', '_').replace('-', '_').replace('.', '_')}_WORKSPACE".upper()
             db_adapter.create_bot_workspace(workspace_schema_name)
             db_adapter.grant_all_bot_workspace(workspace_schema_name)

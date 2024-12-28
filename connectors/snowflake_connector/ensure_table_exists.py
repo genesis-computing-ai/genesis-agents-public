@@ -66,9 +66,25 @@ def one_time_db_fixes(self):
             bot_name, tools = bot
             if tools:
                 tools_list = json.loads(tools)
-                # tools_list = tools.split(',')
+                update = False
                 if 'notebook_manager_tools' not in tools_list:
                     tools_list.append('notebook_manager_tools')
+                    update = True
+
+                if 'database_tools' in tools_list:
+                    print("Found database_tools in tools list")
+                    if "snowflake_tools" not in tools_list:
+                        tools_list.append('snowflake_tools')
+                    update = True
+
+                if "snowflake_stage_tools" in tools_list:
+                    print("Found snowflake_stage_tools in tools list")
+                    tools_list.remove("snowflake_stage_tools")
+                    if "snowflake_tools" not in tools_list:
+                        tools_list.append("snowflake_tools")
+                    update = True
+
+                if update:
                     updated_tools = json.dumps(tools_list)
                     # updated_tools = ','.join(tools_list)
                     update_query = f"""
@@ -77,6 +93,9 @@ def one_time_db_fixes(self):
                     WHERE BOT_NAME = %s
                     """
                     cursor.execute(update_query, (updated_tools, bot_name))
+
+                    ### If database_tools, remove it and add snowflake_tools and database_tools
+
             else:
                 update_query = f"""
                 UPDATE {self.schema}.BOT_SERVICING
@@ -914,16 +933,17 @@ def ensure_table_exists(self):
             bot_instructions = BASE_EVE_BOT_INSTRUCTIONS
             available_tools = """[
                 "slack_tools",
-                "test_manager_tools",
+                "manage_tests_tools",
                 "make_baby_bot",
-                "snowflake_stage_tools",
+                "snowflake_tools",
+                "database_tools",
                 "image_tools",
                 "process_manager_tools",
                 "process_runner_tools",
                 "process_scheduler_tools",
                 "notebook_manager_tools",
                 "google_drive_tools",
-                "data_connector_tools",
+                "artifact_manager_tools",
                 "harvester_tools"]
                 """
             udf_active = "Y"
@@ -1098,7 +1118,7 @@ def ensure_table_exists(self):
         #                )
         bot_name = "Janice"
         bot_instructions = JANICE_JANITOR_INSTRUCTIONS
-        available_tools = '["slack_tools", "database_tools", "snowflake_stage_tools", "image_tools", "process_manager_tools", "process_runner_tools", "process_scheduler_tools", "notebook_manager_tools"]'
+        available_tools = '["slack_tools", "database_tools", "snowflake_tools", "image_tools", "process_manager_tools", "process_runner_tools", "process_scheduler_tools", "notebook_manager_tools", "artifact_manager_tools"]',
         udf_active = "Y"
         slack_active = "N"
         bot_intro_prompt = JANICE_INTRO_PROMPT

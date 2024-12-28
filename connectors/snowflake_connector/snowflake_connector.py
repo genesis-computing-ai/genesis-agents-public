@@ -1,4 +1,4 @@
-from snowflake.connector import connect
+from snowflake.connector import connect, SnowflakeConnection
 
 import os
 import json
@@ -18,7 +18,8 @@ from datetime import datetime
 
 from llm_openai.openai_utils import get_openai_client
 
-from ..database_connector import DatabaseConnector, llm_keys_and_types_struct
+from .snowflake_connector_base import SnowflakeConnectorBase
+from ..connector_helpers import llm_keys_and_types_struct
 from ..sqlite_adapter import SQLiteAdapter
 from .sematic_model_utils import *
 from .stage_utils import add_file_to_stage, read_file_from_stage, update_file_in_stage, delete_file_from_stage, list_stage_contents, test_stage_functions
@@ -44,8 +45,6 @@ import jwt
 
 from core.logging_config import logger
 
-from snowflake.connector import SnowflakeConnection
-
 def dict_list_to_markdown_table(data):
     """
     Convert a list of dictionaries to a Markdown table string.
@@ -67,9 +66,9 @@ def dict_list_to_markdown_table(data):
 
     return table
 
-class SnowflakeConnector(DatabaseConnector):
+class SnowflakeConnector(SnowflakeConnectorBase):
     def __init__(self, connection_name, bot_database_creds=None):
-        super().__init__(connection_name)
+        super().__init__()
         # logger.info('Snowflake connector entry...')
 
         # used to get the default value if not none, otherwise get env var. allows local mode to work with bot credentials
@@ -101,7 +100,7 @@ class SnowflakeConnector(DatabaseConnector):
                 warehouse = bot_database_creds.get("warehouse")
                 role = bot_database_creds.get("role")
 
-            
+
             self.account = get_env_or_default(account, "SNOWFLAKE_ACCOUNT_OVERRIDE")
             self.user = get_env_or_default(user, "SNOWFLAKE_USER_OVERRIDE")
             self.password = get_env_or_default(password, "SNOWFLAKE_PASSWORD_OVERRIDE")
@@ -536,21 +535,21 @@ class SnowflakeConnector(DatabaseConnector):
                 ]
             else:
                 # For non-Snowflake sources, validate the connection_id exists
-                from connectors.customer_data_connector import CustomerDataConnector
-                connector = CustomerDataConnector()
+                from connectors.database_connector import DatabaseConnector
+                connector = DatabaseConnector()
                 connections = connector.list_database_connections(bot_id=bot_id)
                 if not connections['success']:
                     return {
                         "Success": False,
                         "Error": f"Failed to validate connection: {connections.get('error')}",
                     }
-                
+
                 valid_connections = [c['connection_id'] for c in connections['connections']]
                 if connection_id not in valid_connections:
                     return {
-                        "Success": False, 
+                        "Success": False,
                         "Error": f"Connection '{connection_id}' not found. Please add it first using the database connection tools."
-                    }      
+                    }
 
 
             # Check if record exists
@@ -1658,7 +1657,7 @@ def get_status(site):
                 cursor = self.client.cursor()
                 cursor.execute(check_query, query_params)
                 count = cursor.fetchone()[0]
-                
+
                 if count > 0:
                     # Update existing row
                     update_sql = f"""
@@ -1693,7 +1692,7 @@ def get_status(site):
     
                     """
                     cursor.execute(insert_sql, query_params)
-                
+
                 self.client.commit()
             except Exception as e:
                 logger.info(f"An error occurred while executing the update/insert: {e}")
@@ -3057,7 +3056,8 @@ def get_status(site):
             self.connection.commit()
             logger.info(f"Successfully updated available_tools for bot_id: {bot_id}")
 
-            if "DATABASE_TOOLS" in updated_tools_str.upper():
+            if "SNOWFLAKE_TOOLS" in updated_tools_str.upper():
+                # TODO JD - Verify this change ^^
                 workspace_schema_name = f"{global_flags.project_id}.{bot_id.replace(r'[^a-zA-Z0-9]', '_').replace('-', '_')}_WORKSPACE".upper()
                 self.create_bot_workspace(workspace_schema_name)
                 self.grant_all_bot_workspace(workspace_schema_name)
@@ -4222,7 +4222,7 @@ def get_status(site):
                 timestamp_str = last_crawled_time
                 if timestamp_str.endswith(':00'):
                     timestamp_str = timestamp_str[:-3]
-                timestamp_str = timestamp_str.replace(" ", "T") 
+                timestamp_str = timestamp_str.replace(" ", "T")
                 timestamp_str = timestamp_str.replace(".", "")
                 timestamp_str = timestamp_str.replace("+", "")
                 timestamp_str = timestamp_str.replace("-", "")
@@ -4548,7 +4548,7 @@ result = 'Table FAKE_CUST created successfully.'
         - str: The result JSON of the code execution, which may include error messages, file references,
                and/or base64 encoded content.
         """
-        # IMPORTANT: keep the description/parameters of this method in sync with the tool description given to the bots (see database_tools.py)
+        # IMPORTANT: keep the description/parameters of this method in sync with the tool description given to the bots (see snowflake_tools.py)
 
         # Some solid examples to make bots invoke this:
         # use snowpark to create 5 rows of synthetic customer data using faker, return it in json

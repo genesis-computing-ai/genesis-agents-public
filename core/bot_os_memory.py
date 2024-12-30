@@ -517,7 +517,7 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
             # Build structural filters
             filtered_entries = None
 
-            where_clauses = ["1==1"] #[f"source_name='{self.source_name.replace('', '')}'"]
+            where_clauses = ["1=1"] #[f"source_name='{self.source_name.replace('', '')}'"]
             if database:
                 where_clauses.append(f"database_name='{database.replace('', '')}'")
             if schema:

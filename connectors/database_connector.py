@@ -11,6 +11,7 @@ from google_sheets.g_sheets     import (
 )
 from .connector_helpers import llm_keys_and_types_struct
 from .snowflake_connector.snowflake_connector import SnowflakeConnector
+# Import moved to __init__ to avoid circular import
 
 
 class DatabaseConnector:
@@ -165,9 +166,9 @@ class DatabaseConnector:
 
         # TODO - if connection_id (?) = Snowflake, run run_query
         if connection_id == 'Snowflake':
-            snowflake_connector = SnowflakeConnector(connection_id)
+            snowflake_connector = self.db_adapter
             result = snowflake_connector.run_query(
-                self,
+           #     self,
                 query=query,
                 max_rows=max_rows,
                 max_rows_override=False,

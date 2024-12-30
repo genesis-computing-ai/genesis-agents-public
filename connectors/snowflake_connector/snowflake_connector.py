@@ -486,7 +486,7 @@ class SnowflakeConnector(SnowflakeConnectorBase):
             schema_exclusions (list): A list of schema names to exclude. Defaults to an empty list.
             schema_inclusions (list): A list of schema names to include. Defaults to an empty list.
             status (str): The status of the harvest control. Defaults to 'Include'.
-        """
+        """        
         if source_name is not None and connection_id is None:
             connection_id = source_name
         source_name = connection_id
@@ -552,59 +552,98 @@ class SnowflakeConnector(SnowflakeConnectorBase):
                     }
 
 
-            # Check if record exists
-            check_query = f"""
-            SELECT COUNT(*)
-            FROM {self.harvest_control_table_name}
-            WHERE source_name = %s AND database_name = %s
-            """
-            cursor = self.client.cursor()
-            cursor.execute(check_query, (source_name, database_name))
-            exists = cursor.fetchone()[0] > 0
-
-            if exists:
-                # Update existing record
-                update_query = f"""
-                UPDATE {self.harvest_control_table_name}
-                SET initial_crawl_complete = %s,
-                    refresh_interval = %s,
-                    schema_exclusions = %s,
-                    schema_inclusions = %s,
-                    status = %s
+            if self.source_name != 'Snowflake':
+                # Check if record exists
+                check_query = f"""
+                SELECT COUNT(*)
+                FROM {self.harvest_control_table_name}
                 WHERE source_name = %s AND database_name = %s
                 """
-                cursor.execute(
-                    update_query,
-                    (
-                        initial_crawl_complete,
-                        refresh_interval,
-                        str(schema_exclusions),
-                        str(schema_inclusions),
-                        status,
+                cursor = self.client.cursor()
+                cursor.execute(check_query, (source_name, database_name))
+                exists = cursor.fetchone()[0] > 0
+
+                if exists:
+                    # Update existing record
+                    if self.source_name != 'Snowflake':
+                        update_query = f"""
+                        UPDATE {self.harvest_control_table_name}
+                        SET initial_crawl_complete = %s,
+                            refresh_interval = %s,
+                            schema_exclusions = %s,
+                            schema_inclusions = %s,
+                            status = %s
+                        WHERE source_name = %s AND database_name = %s
+                        """
+                        schema_exclusions = str(schema_exclusions)
+                        schema_inclusions = str(schema_inclusions)
+                        cursor.execute(
+                        update_query,
+                        (
+                            initial_crawl_complete,
+                            refresh_interval,
+                            schema_exclusions,
+                            schema_inclusions,
+                            status,
+                            source_name,
+                            database_name,
+                        ),
+                    )
+                else:
+                    # Insert new record
+                    insert_query = f"""
+                    INSERT INTO {self.harvest_control_table_name}
+                    (source_name, database_name, initial_crawl_complete, refresh_interval,
+                    schema_exclusions, schema_inclusions, status)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    """
+                    if self.source_name != 'Snowflake':
+                        schema_exclusions = str(schema_exclusions)
+                        schema_inclusions = str(schema_inclusions)
+                    cursor.execute(
+                        insert_query,
+                        (
                         source_name,
                         database_name,
+                        initial_crawl_complete,
+                        refresh_interval,
+                        schema_exclusions,
+                        schema_inclusions,
+                        status,
                     ),
                 )
             else:
-                # Insert new record
-                insert_query = f"""
-                INSERT INTO {self.harvest_control_table_name}
-                (source_name, database_name, initial_crawl_complete, refresh_interval,
-                 schema_exclusions, schema_inclusions, status)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    # Prepare the MERGE statement for Snowflake
+                merge_statement = f"""
+                MERGE INTO {self.harvest_control_table_name} T
+                USING (SELECT %(source_name)s AS source_name, %(database_name)s AS database_name) S
+                ON T.source_name = S.source_name AND T.database_name = S.database_name
+                WHEN MATCHED THEN
+                UPDATE SET
+                    initial_crawl_complete = %(initial_crawl_complete)s,
+                    refresh_interval = %(refresh_interval)s,
+                    schema_exclusions = %(schema_exclusions)s,
+                    schema_inclusions = %(schema_inclusions)s,
+                    status = %(status)s
+                WHEN NOT MATCHED THEN
+                INSERT (source_name, database_name, initial_crawl_complete, refresh_interval, schema_exclusions, schema_inclusions, status)
+                VALUES (%(source_name)s, %(database_name)s, %(initial_crawl_complete)s, %(refresh_interval)s, %(schema_exclusions)s, %(schema_inclusions)s, %(status)s)
                 """
-                cursor.execute(
-                    insert_query,
-                    (
-                        source_name,
-                        database_name,
-                        initial_crawl_complete,
-                        refresh_interval,
-                        str(schema_exclusions),
-                        str(schema_inclusions),
-                        status,
-                    ),
+
+                # Execute the MERGE statement
+                self.client.cursor().execute(
+                    merge_statement,
+                    {
+                        "source_name": source_name,
+                        "database_name": database_name,
+                        "initial_crawl_complete": initial_crawl_complete,
+                        "refresh_interval": refresh_interval,
+                        "schema_exclusions": str(schema_exclusions),
+                        "schema_inclusions": str(schema_inclusions),
+                        "status": status,
+                    },
                 )
+
 
             self.client.commit()
             return {

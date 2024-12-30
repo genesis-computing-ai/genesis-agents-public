@@ -85,43 +85,6 @@ harvester_tools_functions = [
             "parameters": {}
         }
     },
-    {
-        "type": "function",
-        "function": {
-            "name": "_get_visible_databases",
-            "description": "Retrieves a list of databases from the current source. Can be used to help the user decide which databases to include in the harvester.",
-            "parameters": {}
-            }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "_get_visible_schemas",
-            "description": "Retrieves a list of schemas for a given database from the current source. Helps the user decide what schemas to include or exclude when configuring the harvester. This doesn't include any schemas that are bound by a data share, so it won't show GENESIS_BOTS.BASEBALL or GENESIS_BOTS.FORMULA_1.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "database": {"type": "string", "description": "The database for which to retrieve the schemas."}
-                },
-                "required": [ "database"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "_get_visible_tables",
-            "description": "Retrieves a list of tables for a given schema in a database from the current source.  This is useful if the user wants to know what is in a particular schema.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "database": {"type": "string", "description": "The database for which to retrieve the tables."},
-                    "schema": {"type": "string", "description": "The schema for which to retrieve the tables."}
-                },
-                "required": [ "database", "schema"]
-            }
-        }
-    }
 ]
 
 
@@ -131,7 +94,4 @@ harvester_tools_list = {
     "_remove_metadata_for_database": "db_adapter.remove_metadata_for_database",
     "_get_harvest_summary": "db_adapter.get_harvest_summary",
     "_get_harvest_control_data": "db_adapter.get_harvest_control_data_as_json",
-    "_get_visible_databases": "db_adapter.get_visible_databases",
-    "_get_visible_schemas": "db_adapter.get_schemas",
-    "_get_visible_tables": "db_adapter.get_tables"
 }

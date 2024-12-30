@@ -74,7 +74,10 @@ def one_time_db_fixes(self):
                 if 'database_tools' in tools_list:
                     print("Found database_tools in tools list")
                     if "snowflake_tools" not in tools_list:
+                        tools_list.remove('database_tools')
                         tools_list.append('snowflake_tools')
+                    if "data_connector_tools" not in tools_list:
+                        tools_list.append("data_connector_tools")
                     update = True
 
                 if "snowflake_stage_tools" in tools_list:

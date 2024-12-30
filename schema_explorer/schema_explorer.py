@@ -598,7 +598,7 @@ class SchemaExplorer:
             matching_connection = None 
             if dataset['source_name'] == 'Snowflake':
                 try:
-                    potential_tables = self.db_connector.get_tables(dataset.split('.')[0], dataset.split('.')[1])
+                    potential_tables = self.db_connector.get_tables(dataset['database_name'], dataset['schema_name'])
                 except Exception as e:
                     logger.info(f'Error running get potential tables Error: {e}')
             else:

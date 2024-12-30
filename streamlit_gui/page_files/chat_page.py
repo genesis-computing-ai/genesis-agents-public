@@ -819,7 +819,7 @@ def chat_page():
       #          email_popup()
 
                 # Check if 'popup' exists in session state, if not, initialize it to False
-
+ 
         except Exception as e:
             st.error(f"Error running Genesis GUI: {e}")
     # Add this at the end of the chat_page function to update the sidebar

@@ -305,7 +305,7 @@ def make_session(
                 logger.info(
                     f"Setting data_cubes_ingress_url for {bot_id}: {data_cubes_ingress_url}"
                 )
-       #         instructions += f"\nWhenever you show the results from run_query that may have more than 10 rows, and if you are not in the middle of running a process, also provide a link to a datacube visualization to help them understand the data you used in the form: http://{data_cubes_ingress_url}%ssql_query=select%20*%20from%20spider_data.baseball.all_star -- replace the value of the sql_query query parameter with the query you used."
+       #         instructions += f"\nWhenever you show the results from query_database that may have more than 10 rows, and if you are not in the middle of running a process, also provide a link to a datacube visualization to help them understand the data you used in the form: http://{data_cubes_ingress_url}%ssql_query=select%20*%20from%20spider_data.baseball.all_star -- replace the value of the sql_query query parameter with the query you used."
         except Exception as e:
             logger.info(f"Error creating bot workspace for bot_id {bot_id}: {e} ")
 
@@ -452,7 +452,7 @@ Here is an example,
 <function=example_function_name>{"example_name": "example_value"}</function>
 
 Here is another example, with a parameter value containg properly escaped double quotes:
-<function=_run_query>{"query": "select * from \\"DATABASE_NAME\\".\\"SCHEMA_NAME\\".\\"TABLE_NAME\";"}</function>
+<function=_query_database>{"query": "select * from \\"DATABASE_NAME\\".\\"SCHEMA_NAME\\".\\"TABLE_NAME\";"}</function>
 
 Reminder:
 - Function calls MUST follow the specified format

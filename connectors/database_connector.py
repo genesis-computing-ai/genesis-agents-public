@@ -165,7 +165,7 @@ class DatabaseConnector:
 
         # TODO - if connection_id (?) = Snowflake, run run_query
         if connection_id == 'Snowflake':
-            snowflake_connector = SnowflakeConnector()
+            snowflake_connector = SnowflakeConnector(connection_id)
             result = snowflake_connector.run_query(
                 self,
                 query=query,

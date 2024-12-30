@@ -167,7 +167,7 @@ def execute_function(
                         recognized_context_params = ["bot_id", "run_id", "session_id", "thread_id"]
                         if param.name in recognized_context_params:
                             assert param.name in locals()
-                            s_arguments[param.name] = locals()[param.name]                            
+                            s_arguments[param.name] = locals()[param.name]
                         else:
                             raise ValueError(f"Function {func_name}: parameter  {param.name} flagged as 'PARAM_IMPLICIT_FROM_CONTEXT' but is "
                                             f"not one of the recognized context parameters: {recognized_context_params}")
@@ -176,7 +176,7 @@ def execute_function(
                 logger.error(err_msg)
                 completion_callback(err_msg)
                 return
-            
+
         # special case for dispatch_bot_id
         try:
             if "dispatch_bot_id" in function.__code__.co_varnames:  # FixMe: expose this as a tool arg that can be set by the AI
@@ -193,21 +193,21 @@ def execute_function(
                 s_arguments["session_id"] = session_id
                 s_arguments["input_metadata"] = input_metadata
                 s_arguments["run_id"] = run_id
-            if func_name in {'_run_query', '_run_snowpark_python', '_send_email', '_manage_artifact', '_manage_tests', '_set_harvest_control_data', '_get_harvest_control_data', '_list_database_connections'}:
+            if func_name in {'_run_snowpark_python', '_send_email', '_manage_artifact', '_manage_tests', '_set_harvest_control_data', '_get_harvest_control_data', '_list_database_connections'}:
                 s_arguments["bot_id"] = bot_id
                 if 'query' in s_arguments:
-                    s_arguments['query'] = 'USERQUERY::' + s_arguments['query']      
+                    s_arguments['query'] = 'USERQUERY::' + s_arguments['query']
             # Remove any arguments ending with _override
             s_arguments = {k: v for k, v in s_arguments.items() if k != 'bot_id_override' }
             completion_callback(
                 execute_function_blocking(func_name, s_arguments, available_functions)
             )
             return
-        try:
-            if func_name.upper() == "RUN_QUERY":
-                s_arguments["bot_id"] = bot_id
-        except:
-            pass
+        # try:
+        #     if func_name.upper() == "RUN_QUERY":
+        #         s_arguments["bot_id"] = bot_id
+        # except:
+        #     pass
         try:
             # Call the function (via a wrapper, runs in a separate process)
             #---------------------------------------------------------------

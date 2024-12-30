@@ -2347,7 +2347,7 @@ def get_status(site):
                 note_type = query_cursor[2]
 
                 if note_type != 'sql':
-                    raise ValueError(f"Note type must be 'sql' to run sql with the run_query tool.  This note is type: {note_type}")
+                    raise ValueError(f"Note type must be 'sql' to run sql with the query_database tool.  This note is type: {note_type}")
         except ValueError as e:
             return {
                 "success": False,

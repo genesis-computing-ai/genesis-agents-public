@@ -1321,7 +1321,7 @@ class ToolBelt:
             Simply return the first instruction on what needs to be done first without removing or changing any details.
 
             Also, if the instructions include a reference to note, don't look up the note contents, just pass on the note_id or note_name.
-            The note contents will be unpacked by whatever tool is used depending on the type of note, either run_query if the note is of
+            The note contents will be unpacked by whatever tool is used depending on the type of note, either query_database if the note is of
             type sql or run_snowpark_sql if the note is of type python.
 
             If a step of the instructions says to run another process, return '>> RECURSE' and the process name or process id as the first step

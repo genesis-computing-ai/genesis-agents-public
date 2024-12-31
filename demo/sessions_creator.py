@@ -33,7 +33,6 @@ from streamlit_gui.udf_proxy_bot_os_adapter import UDFBotOsInputAdapter
 from core.bot_os_task_input_adapter import TaskBotOsInputAdapter
 
 
-
 from core.logging_config import logger
 
 import core.global_flags as global_flags
@@ -141,8 +140,8 @@ def make_session(
     teams_enabled = bot_config.get("teams_active", "N") == "Y"
     runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
 
-#    if global_flags.slack_active is False and slack_enabled:
-#        global_flags.slack_active = False
+    #    if global_flags.slack_active is False and slack_enabled:
+    #        global_flags.slack_active = False
 
     input_adapters = []
 
@@ -157,7 +156,6 @@ def make_session(
             bot_id=bot_config["bot_id"]
         )
         input_adapters.append(teams_adapter_local)
-
 
     slack_adapter_local = None
     if existing_slack:
@@ -210,7 +208,7 @@ def make_session(
             logger.error(
                 f'Failed to create Slack adapter with the provided configuration for bot {bot_config["bot_name"]} '
             )
-      #      return None, None, None, None
+    #      return None, None, None, None
 
     # tools
     available_tools = get_available_tools()
@@ -235,7 +233,6 @@ def make_session(
     # remove slack tools if Slack is not enabled for this bot
     if not slack_enabled:
         bot_tools = [tool for tool in bot_tools if tool != "slack_tools"]
-
 
     # ToolBelt seems to be a local variable that is used as a global variable by some tools
     tool_belt = ToolBelt()
@@ -267,7 +264,7 @@ def make_session(
         instructions += f"\n\nFYI, here are some of the processes you have available:\n{process_info}.\nThey can be run with _run_process function if useful to your work. This list may not be up to date, you can use _manage_process with action LIST to get a full list, especially if you are asked to run a process that is not on this list.\n\n"
         logger.info(f'appended process list to prompt, len={len(processes_found)}')
 
-# TODO ADD INFO HERE
+    # TODO ADD INFO HERE
     instructions += BASE_BOT_INSTRUCTIONS_ADDENDUM
 
     instructions += f'\nYour default database connection is called "{genesis_source}".\n'
@@ -292,7 +289,7 @@ def make_session(
         bot_llms = {}
 
     # check if snowflake_tools are in bot_tools
-    # TODO JD - Do we need this for database_tools?
+    # TODO JD - Do we need this for data_connector_tools?
     if "snowflake_tools" in bot_tools:
         try:
             # if so, create workspace schema
@@ -305,11 +302,11 @@ def make_session(
                 logger.info(
                     f"Setting data_cubes_ingress_url for {bot_id}: {data_cubes_ingress_url}"
                 )
-       #         instructions += f"\nWhenever you show the results from query_database that may have more than 10 rows, and if you are not in the middle of running a process, also provide a link to a datacube visualization to help them understand the data you used in the form: http://{data_cubes_ingress_url}%ssql_query=select%20*%20from%20spider_data.baseball.all_star -- replace the value of the sql_query query parameter with the query you used."
+        #         instructions += f"\nWhenever you show the results from query_database that may have more than 10 rows, and if you are not in the middle of running a process, also provide a link to a datacube visualization to help them understand the data you used in the form: http://{data_cubes_ingress_url}%ssql_query=select%20*%20from%20spider_data.baseball.all_star -- replace the value of the sql_query query parameter with the query you used."
         except Exception as e:
             logger.info(f"Error creating bot workspace for bot_id {bot_id}: {e} ")
 
-    #add proces mgr instructions
+    # add proces mgr instructions
     if "process_manager_tools" in bot_tools or "notebook_manager_tools" in bot_tools:
         instructions += "\n" + BASE_BOT_PROCESS_TOOLS_INSTRUCTIONS
 
@@ -351,7 +348,7 @@ def make_session(
         proactive_instructions = ""
 
     # if True:
-#    if stream_mode:
+    #    if stream_mode:
     assistant_implementation = None
     actual_llm = None
     logger.info(f"Bot implementation from bot config: {bot_config.get('bot_implementation', 'Not specified')}")
@@ -412,29 +409,27 @@ def make_session(
 
         bot_llms_json = json.dumps(bot_llms)
 
-
         # Save the JSON string as an environment variable
         os.environ["BOT_LLMS"] = bot_llms_json
         os.environ["BOT_LLM_"+bot_id] = actual_llm
 
-        #if assistant_implementation == BotOsAssistantSnowflakeCortex and stream_mode:
+        # if assistant_implementation == BotOsAssistantSnowflakeCortex and stream_mode:
         if assistant_implementation == BotOsAssistantSnowflakeCortex and True:
             incoming_instructions = instructions
             # Tools: brave_search, wolfram_alpha, code_interpreter
 
-#Environment: ipython
-#
-#Cutting Knowledge Date: December 2023
-#Today Date: 23 Jul 2024
-
+            # Environment: ipython
+            #
+            # Cutting Knowledge Date: December 2023
+            # Today Date: 23 Jul 2024
 
             instructions = """
 
 # Tool Instructions
 """
-#""" - Always execute python code in messages that you share.
-# - When looking for real time information use relevant functions if available else fallback to brave_search
-#
+            # """ - Always execute python code in messages that you share.
+            # - When looking for real time information use relevant functions if available else fallback to brave_search
+            #
             instructions += """You have access to the following functions, only call them when needed to perform actions or lookup information that you do not already have:
 
 """ + json.dumps(tools) + """
@@ -488,8 +483,8 @@ Always respond to greetings and pleasantries like 'hi' etc, unless specifically 
 
 """
 
-   #         with open('./latest_instructions.txt', 'w') as file:
-   #             file.write(instructions)
+    #         with open('./latest_instructions.txt', 'w') as file:
+    #             file.write(instructions)
 
     try:
         # logger.warning(f"GenBot {bot_id} instructions:::  {instructions}")

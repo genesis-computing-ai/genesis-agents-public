@@ -760,10 +760,12 @@ class DatabaseConnector:
 
 
 database_connector_tools = ToolFuncGroup(
-    name="database_tools",
-    description=("Tools for managing and querying database connections, including adding new connections, deleting connections, "
-                  "listing available connections, and running queries against connected databases"),
-    lifetime="PERSISTENT"
+    name="data_connector_tools",
+    description=(
+        "Tools for managing and querying database connections, including adding new connections, deleting connections, "
+        "listing available connections, and running queries against connected databases"
+    ),
+    lifetime="PERSISTENT",
 )
 
 @gc_tool(

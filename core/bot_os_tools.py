@@ -122,54 +122,69 @@ from   core.bot_os_project_manager \
 from   core.file_diff_handler   import GitFileManager
 from   core.logging_config      import logger
 
+from core.bot_os_tools2 import (
+    BOT_ID_IMPLICIT_FROM_CONTEXT,
+    THREAD_ID_IMPLICIT_FROM_CONTEXT,
+    ToolFuncGroup,
+    ToolFuncParamDescriptor,
+    gc_tool,
+)
+
 genesis_source = os.getenv("GENESIS_SOURCE", default="Snowflake")
 
 # We use this URL to include the genesis logo in snowflake-generated emails.
 # TODO: use a permanent URL under the genesiscomputing.ai domain
 GENESIS_LOGO_URL = "https://i0.wp.com/genesiscomputing.ai/wp-content/uploads/2024/05/Genesis-Computing-Logo-White.png"
 
-# module level
-belts = 0
-
 class ToolBelt:
+    _instance = None  # Class variable to hold the single instance
+
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            cls._instance = super(ToolBelt, cls).__new__(cls)
+        return cls._instance
+
     def __init__(self):
-        # self.db_adapter = db_adapter
-        self.counter = {}
-        self.instructions = {}
-        self.process_config = {}
-        self.process_history = {}
-        self.done = {}
-        self.silent_mode = {}
-        self.last_fail= {}
-        self.fail_count = {}
-        self.lock = threading.Lock()
-        self.recurse_stack = []
-        self.recurse_level = 1
-        global belts
-        belts = belts + 1
-        self.process_id = {}
-        self.include_code = False
-
-        #  if genesis_source == 'Sqlite':
-        #      self.db_adapter = SqliteConnector(connection_name="Sqlite")
-        #      connection_info = {"Connection_Type": "Sqlite"}
-        #  elif genesis_source == 'Snowflake':  # Initialize Snowflake client
-
-        if os.getenv("SQLITE_OVERRIDE", "").lower() == "true":
-            from connectors import get_global_db_connector
+        from connectors import get_global_db_connector # to avoid circular import
+        if not hasattr(self, '_initialized'):  # Check if already initialized
             self.db_adapter = get_global_db_connector()
-        else:
-            self.db_adapter = SnowflakeConnector(connection_name="Snowflake")  # always use this for metadata
-        connection_info = {"Connection_Type": "Snowflake"}
-        # else:
-        #     raise ValueError('Invalid Source')
+            self.connections = {}  # Store SQLAlchemy engines
+            self._ensure_tables_exist()
+            self._initialized = True  # Mark as initialized
 
-        self.todos = ProjectManager(self.db_adapter)  # Initialize Todos instance
-        self.git_manager = GitFileManager()
-        self.server = None  # Will be set later
+            self.counter = {}
+            self.instructions = {}
+            self.process_config = {}
+            self.process_history = {}
+            self.done = {}
+            self.silent_mode = {}
+            self.last_fail= {}
+            self.fail_count = {}
+            self.lock = threading.Lock()
+            self.recurse_stack = []
+            self.recurse_level = 1
+            self.process_id = {}
+            self.include_code = False
 
-        self.sys_default_email = self.get_sys_email()
-    #     logger.info(belts)
+            #  if genesis_source == 'Sqlite':
+            #      self.db_adapter = SqliteConnector(connection_name="Sqlite")
+            #      connection_info = {"Connection_Type": "Sqlite"}
+            #  elif genesis_source == 'Snowflake':  # Initialize Snowflake client
+
+            if os.getenv("SQLITE_OVERRIDE", "").lower() == "true":
+                from connectors import get_global_db_connector
+                self.db_adapter = get_global_db_connector()
+            else:
+                self.db_adapter = SnowflakeConnector(connection_name="Snowflake")  # always use this for metadata
+            connection_info = {"Connection_Type": "Snowflake"}
+            # else:
+            #     raise ValueError('Invalid Source')
+
+            self.todos = ProjectManager(self.db_adapter)  # Initialize Todos instance
+            self.git_manager = GitFileManager()
+            self.server = None  # Will be set later
+
+            self.sys_default_email = self.get_sys_email()
 
     def set_server(self, server):
         """Set the server instance for this toolbelt"""
@@ -435,8 +450,7 @@ class ToolBelt:
         """
         Manages todos through various actions (CREATE, UPDATE, CHANGE_STATUS, LIST)
         """
-        return self.todos.manage_todos(action=action, bot_id=bot_id, todo_id=todo_id,
-                                     todo_details=todo_details, thread_id=thread_id)
+        return self.todos.manage_todos(action=action, bot_id=bot_id, todo_id=todo_id,todo_details=todo_details, thread_id=thread_id)
 
     def manage_projects(self, action, bot_id, project_id=None, project_details=None, thread_id=None):
         """
@@ -743,16 +757,16 @@ class ToolBelt:
             cursor.close()
 
     def send_email(self,
-                   to_addr_list: list,
-                   subject: str,
-                   body: str,
-                   bot_id: str,
-                   thread_id: str = None,
-                   purpose: str = None,
-                   mime_type: str = 'text/html',
-                   include_genesis_logo: bool = True,
-                   save_as_artifact = True,
-                   ):
+                to_addr_list: list,
+                subject: str,
+                body: str,
+                bot_id: str,
+                thread_id: str = None,
+                purpose: str = None,
+                mime_type: str = 'text/html',
+                include_genesis_logo: bool = True,
+                save_as_artifact = True,
+                ):
         """
         Sends an email using Snowflake's SYSTEM$SEND_EMAIL function.
 
@@ -829,9 +843,9 @@ class ToolBelt:
             if not app_ingress_base_url:
                 return None
             params = dict(bot_name=bot_config['bot_name'],
-                          action='show_artifact_context',  # IMPORTANT: keep this action name in sync with the action handling logic in the app.
-                          artifact_id=artifact_id,
-                          )
+                        action='show_artifact_context',  # IMPORTANT: keep this action name in sync with the action handling logic in the app.
+                        artifact_id=artifact_id,
+                        )
             linkback_url = urlunparse((
                 "http",                    # scheme
                 app_ingress_base_url,      # netloc (host)
@@ -1265,7 +1279,7 @@ class ToolBelt:
         self.clear_process_registers_by_thread(thread_id)
 
         # Try to get process info from PROCESSES table
-        process = self.get_process_info(bot_id, process_name=process_name, process_id=process_id)
+        process = self._get_process_info(bot_id, process_name=process_name, process_id=process_id)
 
         if len(process) == 0:
             # Get a list of processes for the bot
@@ -1721,10 +1735,6 @@ class ToolBelt:
             logger.info("No action specified.")
             return {"success": False, "message": "No action specified."}
 
-    # ====== RUN PROCESSES ==========================================================================================
-
-    # ====== NOTEBOOK START ==========================================================================================
-
     def get_notebook_list(self, bot_id="all"):
         db_adapter = self.db_adapter
         cursor = db_adapter.client.cursor()
@@ -2003,7 +2013,7 @@ class ToolBelt:
                 if note_id_created == False:
                     random_suffix = "".join(
                     random.choices(string.ascii_letters + string.digits, k=6)
-                     )
+                    )
                     note_id_with_suffix = note_id + "_" + random_suffix
                 else:
                     note_id_with_suffix = note_id
@@ -2261,7 +2271,7 @@ class ToolBelt:
                 if test_process_id_created == False:
                     random_suffix = "".join(
                     random.choices(string.ascii_letters + string.digits, k=6)
-                     )
+                    )
                     test_process_id_with_suffix = test_process_id + "_" + random_suffix
                 else:
                     test_process_id_with_suffix = test_process_id
@@ -2391,9 +2401,6 @@ class ToolBelt:
             if cursor is not None:
                 cursor.close()
 
-    # ====== NOTEBOOK END ==========================================================================================
-
-    # ====== ARTIFACTS BEGIN ==========================================================================================
     def manage_artifact(self,
                         action: str,
                         artifact_id: Optional[str] = None,
@@ -2411,7 +2418,7 @@ class ToolBelt:
 
         Returns:
             str: A dictionary containing the result of the action. E.g. for 'DESCRIBE', it includes the artifact metadata and a
-                 note for the LLMs on how to format an artifact reference
+                note for the LLMs on how to format an artifact reference
         """
         af = get_artifacts_store(self.db_adapter)
 
@@ -2434,8 +2441,6 @@ class ToolBelt:
 
         elif action == "DELETE":
             raise NotImplementedError()  # TODO: implement this
-
-    # ====== ARTIFACTS END ==========================================================================================
 
     def google_drive(
         self,
@@ -2884,8 +2889,6 @@ class ToolBelt:
         finally:
             cursor.close()
 
-    # ====== PROCESSES START ========================================================================================
-
     def get_processes_list(self, bot_id="all"):
         db_adapter = self.db_adapter
         cursor = db_adapter.client.cursor()
@@ -2914,7 +2917,7 @@ class ToolBelt:
         finally:
             cursor.close()
 
-    def get_process_info(self, bot_id=None, process_name=None, process_id=None):
+    def _get_process_info(self, bot_id=None, process_name=None, process_id=None):
         db_adapter = self.db_adapter
         cursor = db_adapter.client.cursor()
         try:
@@ -3200,10 +3203,10 @@ class ToolBelt:
 
             if process_id is not None or 'process_id' in process_details:
 
-                return self.get_process_info(bot_id=bot_id, process_id=process_id)
+                return self._get_process_info(bot_id=bot_id, process_id=process_id)
             else:
                 process_name = process_details['process_name']
-                return self.get_process_info(bot_id=bot_id, process_name=process_name)
+                return self._get_process_info(bot_id=bot_id, process_name=process_name)
 
         process_id_created = False
         if process_id is None:
@@ -3271,7 +3274,7 @@ class ToolBelt:
                 if process_id_created == False:
                     random_suffix = "".join(
                     random.choices(string.ascii_letters + string.digits, k=6)
-                     )
+                    )
                     process_id_with_suffix = process_id + "_" + random_suffix
                 else:
                     process_id_with_suffix = process_id
@@ -3381,61 +3384,98 @@ class ToolBelt:
         needs_help_flag="N",
         process_clarity_comments="",
     ):
-        """
-        Inserts a row into the PROCESS_HISTORY table.
+            """
+            Inserts a row into the PROCESS_HISTORY table.
 
-        Args:
-            process_id (str): The unique identifier for the process.
-            work_done_summary (str): A summary of the work done.
-            process_status (str): The status of the process.
-            updated_process_learnings (str): Any new learnings from the process.
-            report_message (str): The message to report about the process.
-            done_flag (bool): Flag indicating if the process is done.
-            needs_help_flag (bool): Flag indicating if help is needed.
-            process_clarity_comments (str): Comments on the clarity of the process.
-        """
-        db_adapter = self.db_adapter
-        insert_query = f"""
-            INSERT INTO {db_adapter.schema}.PROCESS_HISTORY (
-                process_id, work_done_summary, process_status, updated_process_learnings,
-                report_message, done_flag, needs_help_flag, process_clarity_comments
-            ) VALUES (
-                %s, %s, %s, %s, %s, %s, %s, %s
-            )
-        """ if db_adapter.schema else f"""
-            INSERT INTO PROCESS_HISTORY (
-                process_id, work_done_summary, process_status, updated_process_learnings,
-                report_message, done_flag, needs_help_flag, process_clarity_comments
-            ) VALUES (
-                %s, %s, %s, %s, %s, %s, %s, %s
-            )
-        """
-        try:
-            cursor = db_adapter.client.cursor()
-            cursor.execute(
-                insert_query,
-                (
-                    process_id,
-                    work_done_summary,
-                    process_status,
-                    updated_process_learnings,
-                    report_message,
-                    done_flag,
-                    needs_help_flag,
-                    process_clarity_comments,
-                ),
-            )
-            db_adapter.client.commit()
-            cursor.close()
-            logger.info(
-                f"Process history row inserted successfully for process_id: {process_id}"
-            )
-        except Exception as e:
-            logger.info(f"An error occurred while inserting the process history row: {e}")
-            if cursor is not None:
+            Args:
+                process_id (str): The unique identifier for the process.
+                work_done_summary (str): A summary of the work done.
+                process_status (str): The status of the process.
+                updated_process_learnings (str): Any new learnings from the process.
+                report_message (str): The message to report about the process.
+                done_flag (bool): Flag indicating if the process is done.
+                needs_help_flag (bool): Flag indicating if help is needed.
+                process_clarity_comments (str): Comments on the clarity of the process.
+            """
+            db_adapter = self.db_adapter
+            insert_query = f"""
+                INSERT INTO {db_adapter.schema}.PROCESS_HISTORY (
+                    process_id, work_done_summary, process_status, updated_process_learnings,
+                    report_message, done_flag, needs_help_flag, process_clarity_comments
+                ) VALUES (
+                    %s, %s, %s, %s, %s, %s, %s, %s
+                )
+            """ if db_adapter.schema else f"""
+                INSERT INTO PROCESS_HISTORY (
+                    process_id, work_done_summary, process_status, updated_process_learnings,
+                    report_message, done_flag, needs_help_flag, process_clarity_comments
+                ) VALUES (
+                    %s, %s, %s, %s, %s, %s, %s, %s
+                )
+            """
+            try:
+                cursor = db_adapter.client.cursor()
+                cursor.execute(
+                    insert_query,
+                    (
+                        process_id,
+                        work_done_summary,
+                        process_status,
+                        updated_process_learnings,
+                        report_message,
+                        done_flag,
+                        needs_help_flag,
+                        process_clarity_comments,
+                    ),
+                )
+                db_adapter.client.commit()
                 cursor.close()
+                logger.info(
+                    f"Process history row inserted successfully for process_id: {process_id}"
+                )
+            except Exception as e:
+                logger.info(f"An error occurred while inserting the process history row: {e}")
+                if cursor is not None:
+                    cursor.close()
 
-    # ====== PROCESSES END ====================================================================================
+
+tool_belt_tools = ToolFuncGroup(
+    name="tool_belt_tools",
+    description="Tools for managing processes, notes, tests, process scheduling, google drive, artifacts, todos, and more.",
+    lifetime="PERSISTENT"
+    )
+
+
+@gc_tool(
+    action="Action to perform (CREATE, UPDATE, CHANGE_STATUS, LIST)",
+    todo_id="ID of the todo item (required for UPDATE and CHANGE_STATUS)",
+    todo_details="Details for the todo item. For CREATE: requires project_id, todo_name, what_to_do, depends_on. For CHANGE_STATUS: requires only new_status.",
+    bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
+    thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
+    _group_tags_=[tool_belt_tools],
+)
+def _manage_todos(
+    action: str,
+    todo_id: str,
+    todo_details: dict,
+    bot_id: str,
+    allowed_bot_ids: list[str] = None,
+    thread_id: str = None
+    ) -> dict:
+    """
+    Manages todos through various actions (CREATE, UPDATE, CHANGE_STATUS, LIST)
+
+    Returns:
+        dict: A dictionary containing the result of the connection addition.
+    """
+    return ToolBelt().manage_todos(
+        action=action,
+        todo_id=todo_id,
+        todo_details=todo_details,
+        bot_id=bot_id,
+        allowed_bot_ids=allowed_bot_ids,
+        thread_id=thread_id
+    )
 
 def get_tools(
     which_tools: list[str],

@@ -971,8 +971,8 @@ def _get_full_table_details(
         thread_id=thread_id,
     )
 
-# holds the list of all customer data tool functions
-# NOTE: Update this list when adding new data tools (TODO: automate this by scanning the module?)
+# holds the list of all data connection tool functions
+# NOTE: Update this list when adding new data connection tools (TODO: automate this by scanning the module?)
 _all_database_connections_functions = (
     _query_database,
     _add_database_connection,
@@ -984,6 +984,6 @@ _all_database_connections_functions = (
 )
 
 
-# Called from bot_os_tools.py to update the global list of dagster tool functions
+# Called from bot_os_tools.py to update the global list of data connection tool functions
 def get_database_connections_functions():
     return _all_database_connections_functions

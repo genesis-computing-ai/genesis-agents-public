@@ -184,7 +184,7 @@ class ToolBelt:
             self.git_manager = GitFileManager()
             self.server = None  # Will be set later
 
-            self.sys_default_email = self.get_sys_email()
+            self.sys_default_email = self._get_sys_email()
 
     def set_server(self, server):
         """Set the server instance for this toolbelt"""
@@ -358,11 +358,11 @@ class ToolBelt:
                                 # Only summarize if response has changed since last check
                                 summary_response = ""
                                 if previous_summary == "":
-                                    summary_response = self.chat_completion(
+                                    summary_response = self._chat_completion(
                                         f"An AI bot is doing work, you are monitoring it. Please summarize in a few words what is happening in this ongoing response from another bot so far.  Be VERY Brief, use just a few words, not even a complete sentence.  Don't put a period on the end if its just one sentence or less.\nHere is the bots output so far:\n\n{response.strip()[:-2]}"
                                     , db_adapter=self.db_adapter, fast=True)
                                 else:
-                                    summary_response = self.chat_completion(
+                                    summary_response = self._chat_completion(
                                         f"An AI bot is doing work, you are monitoring it.  Based on its previous status updates, you have provided these summaries so far: \n<PREVIOUS_SUMMARIES_START>\n{previous_summary}\n</PREVIOUS_SUMMARIES_END>\n\nThe current output of the bot so far:\n<BOTS_OUTPUT_START>{response.strip()[:-2]}\n</BOTS_OUTPUT_END>\n\nNOW, Very briefly, in just a few words, summarize anything new the bot has done since the last update, that you have not mentioned yet in a previous summary.  Be VERY Brief, use just a few words, not even a complete sentence.  Don't put a period on the end if its just one sentence or less.  Don't repeat things you already said in previous summaries. If there has been no substantial change in the status, return only NO_CHANGE."
                                     , db_adapter=self.db_adapter, fast=True)
                                 if summary_response and summary_response != 'NO_CHANGE':
@@ -597,7 +597,7 @@ class ToolBelt:
         return data
 
     # Function for parsing HTML content, extracting links, and then chunking the beautified content
-    def parse_and_chunk_content(self, content, base_url, chunk_size=256 * 1024):
+    def _parse_and_chunk_content(self, content, base_url, chunk_size=256 * 1024):
         soup = BeautifulSoup(content, "html.parser")
         links = [urljoin(base_url, a["href"]) for a in soup.find_all("a", href=True)]
         pretty_content = soup.prettify()
@@ -621,7 +621,7 @@ class ToolBelt:
     def download_webpage(self, url, chunk_index=0, thread_id=None):
         try:
             content = self.get_webpage_content(url)
-            chunks, total_chunks = self.parse_and_chunk_content(content, url)
+            chunks, total_chunks = self._parse_and_chunk_content(content, url)
             if chunk_index >= total_chunks:
                 return {"error": "Requested chunk index exceeds available chunks."}
 
@@ -636,14 +636,14 @@ class ToolBelt:
         except Exception as e:
             return {"error": str(e)}
 
-    def chat_completion(self, message, db_adapter, bot_id = None, bot_name = None, thread_id=None, process_id="", process_name="", note_id = None, fast=False):
+    def _chat_completion(self, message, db_adapter, bot_id = None, bot_name = None, thread_id=None, process_id="", process_name="", note_id = None, fast=False):
         process_name = "" if process_name is None else process_name
         process_id = "" if process_id is None else process_id
         message_metadata ={"process_id": process_id, "process_name": process_name}
         return_msg = None
 
         if not fast:
-            self.write_message_log_row(db_adapter, bot_id, bot_name, thread_id, 'Supervisor Prompt', message, message_metadata)
+            self._write_message_log_row(db_adapter, bot_id, bot_name, thread_id, 'Supervisor Prompt', message, message_metadata)
 
         model = None
 
@@ -713,19 +713,19 @@ class ToolBelt:
                 logger.info("Cortex is not available.")
                 return None
             else:
-                response, status_code = db_adapter.cortex_chat_completion(message)
+                response, status_code = db_adapter.cortex__chat_completion(message)
                 return_msg = response
 
         if return_msg is None:
-            return_msg = 'Error Chat_completion, return_msg is none, llm_type = ',os.getenv("BOT_OS_DEFAULT_LLM_ENGINE").lower()
+            return_msg = 'Error _chat_completion, return_msg is none, llm_type = ',os.getenv("BOT_OS_DEFAULT_LLM_ENGINE").lower()
             logger.info(return_msg)
 
         if not fast:
-            self.write_message_log_row(db_adapter, bot_id, bot_name, thread_id, 'Supervisor Response', return_msg, message_metadata)
+            self._write_message_log_row(db_adapter, bot_id, bot_name, thread_id, 'Supervisor Response', return_msg, message_metadata)
 
         return return_msg
 
-    def write_message_log_row(self, db_adapter, bot_id="", bot_name="", thread_id="", message_type="", message_payload="", message_metadata={}):
+    def _write_message_log_row(self, db_adapter, bot_id="", bot_name="", thread_id="", message_type="", message_payload="", message_metadata={}):
         """
         Inserts a row into the MESSAGE_LOG table.
 
@@ -967,7 +967,7 @@ class ToolBelt:
             return {"Success": False, "Error": "No valid email addresses provided."}
 
         # Replace SYS$DEFAULT_EMAIL with the actual system default email
-        to_addr_list = [self.get_sys_email() if addr == 'SYS$DEFAULT_EMAIL' else addr for addr in to_addr_list]
+        to_addr_list = [self._get_sys_email() if addr == 'SYS$DEFAULT_EMAIL' else addr for addr in to_addr_list]
 
         # Join the email addresses with commas
         to_addr_string = ', '.join(to_addr_list)
@@ -1101,7 +1101,7 @@ class ToolBelt:
         assert result
         return result
 
-    def set_process_cache(self, bot_id, thread_id, process_id):
+    def _set_process_cache(self, bot_id, thread_id, process_id):
         cache_dir = "./process_cache"
         os.makedirs(cache_dir, exist_ok=True)
         cache_file = os.path.join(cache_dir, f"{bot_id}_{thread_id}_{process_id}.json")
@@ -1119,7 +1119,7 @@ class ToolBelt:
         with open(cache_file, 'w') as f:
             json.dump(cache_data, f)
 
-    def get_process_cache(self, bot_id, thread_id, process_id):
+    def _get_process_cache(self, bot_id, thread_id, process_id):
         cache_file = os.path.join("./process_cache", f"{bot_id}_{thread_id}_{process_id}.json")
 
         if os.path.exists(cache_file):
@@ -1158,7 +1158,7 @@ class ToolBelt:
             return True
         return False
 
-    def clear_process_cache(self, bot_id, thread_id, process_id):
+    def _clear_process_cache(self, bot_id, thread_id, process_id):
         cache_file = os.path.join("./process_cache", f"{bot_id}_{thread_id}_{process_id}.json")
 
         if os.path.exists(cache_file):
@@ -1166,15 +1166,15 @@ class ToolBelt:
             return True
         return False
 
-    def get_current_time_with_timezone(self):
+    def _get_current_time_with_timezone(self):
         current_time = datetime.now().astimezone()
         return current_time.strftime("%Y-%m-%d %H:%M:%S %Z")
 
-    def get_sys_email(self):
+    def _get_sys_email(self):
         cursor = self.db_adapter.client.cursor()
         try:
-            get_sys_email_query = f"SELECT default_email FROM {self.db_adapter.genbot_internal_project_and_schema}.DEFAULT_EMAIL"
-            cursor.execute(get_sys_email_query)
+            _get_sys_email_query = f"SELECT default_email FROM {self.db_adapter.genbot_internal_project_and_schema}.DEFAULT_EMAIL"
+            cursor.execute(_get_sys_email_query)
             result = cursor.fetchall()
             default_email = result[0][0] if result else None
             return default_email
@@ -1182,7 +1182,7 @@ class ToolBelt:
             #  logger.info(f"Error getting sys email: {e}")
             return None
 
-    def clear_process_registers_by_thread(self, thread_id):
+    def _clear_process_registers_by_thread(self, thread_id):
         # Initialize thread-specific data structures if not already present
         with self.lock:
             if thread_id not in self.counter:
@@ -1204,7 +1204,7 @@ class ToolBelt:
             if thread_id not in self.process_config:
                 self.process_config[thread_id] = {}
 
-    def clear_all_process_registers(self, thread_id):
+    def _clear_all_process_registers(self, thread_id):
         # Initialize thread-specific data structures if not already present
         with self.lock:
             self.counter[thread_id] = {}
@@ -1274,9 +1274,9 @@ class ToolBelt:
                 "Error": "Either process_name or process_id must be provided."
             }
 
-        self.sys_default_email = self.get_sys_email()
+        self.sys_default_email = self._get_sys_email()
 
-        self.clear_process_registers_by_thread(thread_id)
+        self._clear_process_registers_by_thread(thread_id)
 
         # Try to get process info from PROCESSES table
         process = self._get_process_info(bot_id, process_name=process_name, process_id=process_id)
@@ -1355,7 +1355,7 @@ class ToolBelt:
 
             """
 
-            first_step = self.chat_completion(extract_instructions, self.db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, process_id=process_id, process_name=process_name)
+            first_step = self._chat_completion(extract_instructions, self.db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, process_id=process_id, process_name=process_name)
 
             # Check if the first step contains ">>RECURSE"
             if ">> RECURSE" in first_step or ">>RECURSE" in first_step:
@@ -1422,8 +1422,8 @@ class ToolBelt:
                 line.lstrip() for line in self.instructions[thread_id][process_id].splitlines()
                 )
 
-            # Call set_process_cache to save the current state
-            self.set_process_cache(bot_id, thread_id, process_id)
+            # Call _set_process_cache to save the current state
+            self._set_process_cache(bot_id, thread_id, process_id)
             #    logger.info(f'Process cached with bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}')
 
             return {"Success": True, "Instructions": self.instructions[thread_id][process_id], "process_id": process_id}
@@ -1438,12 +1438,12 @@ class ToolBelt:
                 }
 
             # Load process cache
-            if not self.get_process_cache(bot_id, thread_id, process_id):
+            if not self._get_process_cache(bot_id, thread_id, process_id):
                 return {
                     "Success": False,
                     "Message": f"Error: Process cache for {process_id} couldn't be loaded. Please retry from KICKOFF_PROCESS."
                 }
-            # Print that the process cache has been loaded and the 3 params to get_process_cache
+            # Print that the process cache has been loaded and the 3 params to _get_process_cache
             logger.info(f"Process cache loaded with params: bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}")
 
             # Check if silent_mode is set for the thread and process
@@ -1523,13 +1523,13 @@ class ToolBelt:
 
             #     logger.info(f"\nSENT TO 2nd LLM:\n{check_response}\n")
 
-            result = self.chat_completion(check_response, self.db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, process_id=process_id, process_name = process_name)
+            result = self._chat_completion(check_response, self.db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, process_id=process_id, process_name = process_name)
 
             with self.lock:
                 self.process_history[thread_id][process_id] += "\nBots response: " + previous_response
 
             if not isinstance(result, str):
-                self.set_process_cache(bot_id, thread_id, process_id)
+                self._set_process_cache(bot_id, thread_id, process_id)
                 #         logger.info(f'Process cached with bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}')
 
                 return {
@@ -1548,7 +1548,7 @@ class ToolBelt:
                     self.process_history[thread_id][process_id] += "\nSupervisors concern: " + result
                 if self.fail_count[thread_id][process_id] <= 5:
                     logger.info(f"\nStep {self.counter[thread_id][process_id]} failed. Fail count={self.fail_count[thread_id][process_id]} Trying again up to 5 times...\n")
-                    self.set_process_cache(bot_id, thread_id, process_id)
+                    self._set_process_cache(bot_id, thread_id, process_id)
                     #       logger.info(f'Process cached with bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}')
 
                     return_dict = {
@@ -1569,7 +1569,7 @@ class ToolBelt:
 
                     with self.lock:
                         self.done[thread_id][process_id] = True
-                    self.clear_process_cache(bot_id, thread_id, process_id)
+                    self._clear_process_cache(bot_id, thread_id, process_id)
                     try:
                         del self.counter[thread_id][process_id]
                     except:
@@ -1613,7 +1613,7 @@ class ToolBelt:
             #     logger.info(f"\nEXTRACT NEXT STEP:\n{extract_instructions}\n")
 
             #     logger.info("RUN 2nd LLM...")
-            next_step = self.chat_completion(extract_instructions, self.db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, process_id=process_id, process_name=process_name)
+            next_step = self._chat_completion(extract_instructions, self.db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, process_id=process_id, process_name=process_name)
 
             #      logger.info(f"\nRESULT (NEXT_STEP_): {next_step}\n")
 
@@ -1623,7 +1623,7 @@ class ToolBelt:
                     self.fail_count[thread_id][process_id] = None
                     self.done[thread_id][process_id] = True
                 # Clear the process cache when the process is complete
-                self.clear_process_cache(bot_id, thread_id, process_id)
+                self._clear_process_cache(bot_id, thread_id, process_id)
                 logger.info(f'Process cache cleared for bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}')
 
                 return {
@@ -1694,7 +1694,7 @@ class ToolBelt:
             with self.lock:
                 self.process_history[thread_id][process_id] += "\nNext step: " + next_step
 
-            self.set_process_cache(bot_id, thread_id, process_id)
+            self._set_process_cache(bot_id, thread_id, process_id)
             logger.info(f'Process cached with bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}')
 
             return {
@@ -1708,11 +1708,11 @@ class ToolBelt:
             with self.lock:
                 self.done[thread_id][process_id] = True
 
-            self.clear_process_registers_by_thread(thread_id)
+            self._clear_process_registers_by_thread(thread_id)
 
             self.process_id[thread_id] = None
 
-            self.clear_process_cache(bot_id, thread_id, process_id)
+            self._clear_process_cache(bot_id, thread_id, process_id)
             logger.info(f'Process cache cleared for bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}')
 
             self.recurse_level -= 1
@@ -1721,7 +1721,7 @@ class ToolBelt:
             return {"success": True, "message": f'The process {process_name} has finished.  You may now end the process.'}
         if action == 'STOP_ALL_PROCESSES':
             try:
-                self.clear_all_process_registers(thread_id)
+                self._clear_all_process_registers(thread_id)
                 return {
                     "Success": True,
                     "Message": "All processes stopped (?)"
@@ -1735,7 +1735,7 @@ class ToolBelt:
             logger.info("No action specified.")
             return {"success": False, "message": "No action specified."}
 
-    def get_notebook_list(self, bot_id="all"):
+    def _get_notebook_list(self, bot_id="all"):
         db_adapter = self.db_adapter
         cursor = db_adapter.client.cursor()
         try:
@@ -1767,7 +1767,7 @@ class ToolBelt:
         finally:
             cursor.close()
 
-    def get_note_info(self, bot_id=None, note_id=None):
+    def _get_note_info(self, bot_id=None, note_id=None):
         db_adapter = self.db_adapter
         cursor = db_adapter.client.cursor()
         try:
@@ -1923,7 +1923,7 @@ class ToolBelt:
                     line.lstrip() for line in tidy_note_content.splitlines()
                 )
 
-                note_content = self.chat_completion(tidy_note_content, db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, note_id=note_id)
+                note_content = self._chat_completion(tidy_note_content, db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, note_id=note_id)
 
             if action == "CREATE":
                 return {
@@ -1967,7 +1967,7 @@ class ToolBelt:
 
         if action == "LIST":
             logger.info("Running get notebook list")
-            return self.get_notebook_list(bot_id if bot_id is not None else "all")
+            return self._get_notebook_list(bot_id if bot_id is not None else "all")
 
         if action == "SHOW":
             logger.info("Running show notebook info")
@@ -1977,10 +1977,10 @@ class ToolBelt:
                 return {"Success": False, "Error": "note_id is required for SHOW action"}
 
             if note_id is not None:
-                return self.get_note_info(bot_id=bot_id, note_id=note_id)
+                return self._get_note_info(bot_id=bot_id, note_id=note_id)
             else:
                 note_name = note_content['note_id']
-                return self.get_note_info(bot_id=bot_id, note_name=note_name)
+                return self._get_note_info(bot_id=bot_id, note_name=note_name)
 
         note_id_created = False
         if note_id is None:
@@ -2080,7 +2080,7 @@ class ToolBelt:
         finally:
             cursor.close()
 
-    def get_test_manager_list(self, bot_id="all"):
+    def _get_test_manager_list(self, bot_id="all"):
         db_adapter = self.db_adapter
         cursor = db_adapter.client.cursor()
         try:
@@ -2233,7 +2233,7 @@ class ToolBelt:
 
         if action == "LIST":
             logger.info("Running get test_process list")
-            return self.get_test_manager_list(bot_id if bot_id is not None else "all")
+            return self._get_test_manager_list(bot_id if bot_id is not None else "all")
 
         if action == "SHOW":
             logger.info("Running show test_process info")
@@ -2336,7 +2336,7 @@ class ToolBelt:
         finally:
             cursor.close()
 
-    def insert_notebook_history(
+    def _insert_notebook_history(
         self,
         note_id,
         work_done_summary,
@@ -2691,7 +2691,7 @@ class ToolBelt:
 
         if action == "TIME":
             return {
-                "current_system_time": db_adapter.get_current_time_with_timezone()
+                "current_system_time": db_adapter._get_current_time_with_timezone()
             }
         action = action.upper()
 
@@ -2700,7 +2700,7 @@ class ToolBelt:
                 "Success": False,
                 "Confirmation_Needed": "Please reconfirm all the scheduled process details with the user, then call this function again with the action CREATE_CONFIRMED to actually create the schedule for the process.   Make sure to be clear in the action_trigger_details field whether the process schedule is to be triggered one time, or if it is ongoing and recurring. Also make the next Next Check Timestamp is in the future, and aligns with when the user wants the task to run next",
                 "Process Schedule Details": task_details,
-                "Info": f"By the way the current system time is {db_adapter.get_current_time_with_timezone()}",
+                "Info": f"By the way the current system time is {db_adapter._get_current_time_with_timezone()}",
             }
         if action == "CREATE_CONFIRMED":
             action = "CREATE"
@@ -2711,7 +2711,7 @@ class ToolBelt:
                 "Success": False,
                 "Confirmation_Needed": "Please reconfirm all the updated process details with the user, then call this function again with the action UPDATE_CONFIRMED to actually update the schedule for the process.   Make sure to be clear in the action_trigger_details field whether the process schedule is to be triggered one time, or if it is ongoing and recurring. Also make the next Next Check Timestamp is in the future, and aligns with when the user wants the task to run next.",
                 "Proposed Updated Process Schedule Details": task_details,
-                "Info": f"By the way the current system time is {db_adapter.get_current_time_with_timezone()}",
+                "Info": f"By the way the current system time is {db_adapter._get_current_time_with_timezone()}",
             }
         if action == "UPDATE_CONFIRMED":
             action = "UPDATE"
@@ -2797,7 +2797,7 @@ class ToolBelt:
         # Check if the action is CREATE or UPDATE
         if action in ["CREATE", "UPDATE"] and task_details and "task_name" in task_details:
             # Check if the task_name is a valid process for the bot
-            valid_processes = self.get_processes_list(bot_id=bot_id)
+            valid_processes = self._get_processes_list(bot_id=bot_id)
             if not valid_processes["Success"]:
                 return {
                     "Success": False,
@@ -2823,13 +2823,13 @@ class ToolBelt:
                 return {
                     "Success": False,
                     "Error": f"Invalid timestamp format for 'next_check_ts'. Required format: 'YYYY-MM-DD HH:MM:SS' in system timezone. Error details: {ve}",
-                    "Info": f"Current system time in system timezone is {db_adapter.get_current_time_with_timezone()}. Please note that the timezone should not be included in the submitted timestamp.",
+                    "Info": f"Current system time in system timezone is {db_adapter._get_current_time_with_timezone()}. Please note that the timezone should not be included in the submitted timestamp.",
                 }
             if formatted_next_check_ts < datetime.now():
                 return {
                     "Success": False,
                     "Error": "The 'next_check_ts' is in the past.",
-                    "Info": f"Current system time is {db_adapter.get_current_time_with_timezone()}",
+                    "Info": f"Current system time is {db_adapter._get_current_time_with_timezone()}",
                 }
 
         try:
@@ -3064,7 +3064,7 @@ class ToolBelt:
                 actual SQL code, not a reference to SQL code, or only the word 'PYTHON' if the text contains actual Python code, not a reference to Python code.
                 If the text contains both, return only 'SQL + PYTHON'.  Do not return any other verbage.  If the text contains
                 neither, return only the word 'NO CODE':\n {process_details['process_instructions']}"""
-                result = self.chat_completion(check_for_code_instructions, self.db_adapter, bot_id=bot_id, bot_name='')
+                result = self._chat_completion(check_for_code_instructions, self.db_adapter, bot_id=bot_id, bot_name='')
 
                 if result != 'NO CODE':
                     return {
@@ -3149,7 +3149,7 @@ class ToolBelt:
                     line.lstrip() for line in tidy_process_instructions.splitlines()
                 )
 
-                process_details['process_instructions'] = self.chat_completion(tidy_process_instructions, self.db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, process_id=process_id, process_name=process_name)
+                process_details['process_instructions'] = self._chat_completion(tidy_process_instructions, self.db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, process_id=process_id, process_name=process_name)
 
             if action == "CREATE":
                 return {
@@ -3191,7 +3191,7 @@ class ToolBelt:
 
         if action == "LIST":
             logger.info("Running get processes list")
-            return self.get_processes_list(bot_id if bot_id is not None else "all")
+            return self._get_processes_list(bot_id if bot_id is not None else "all")
 
         if action == "SHOW":
             logger.info("Running show process info")
@@ -3373,7 +3373,7 @@ class ToolBelt:
         finally:
             cursor.close()
 
-    def insert_process_history(
+    def _insert_process_history(
         self,
         process_id,
         work_done_summary,
@@ -3447,11 +3447,48 @@ tool_belt_tools = ToolFuncGroup(
 
 
 @gc_tool(
-    action="Action to perform (CREATE, UPDATE, CHANGE_STATUS, LIST)",
+    action=ToolFuncParamDescriptor(
+        name="action",
+        description="Action to perform (CREATE, UPDATE, CHANGE_STATUS, LIST)",
+        required=True,
+        llm_type_desc=dict(
+            type="string", enum=["CREATE", "UPDATE", "CHANGE_STATUS", "LIST"]
+        ),
+    ),
+    bot_id="ID of the bot performing the action",
     todo_id="ID of the todo item (required for UPDATE and CHANGE_STATUS)",
-    todo_details="Details for the todo item. For CREATE: requires project_id, todo_name, what_to_do, depends_on. For CHANGE_STATUS: requires only new_status.",
-    bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
-    thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
+    todo_details=ToolFuncParamDescriptor(
+        name="todo_details",
+        description="Details for the todo item. For CREATE: requires project_id, todo_name, what_to_do, depends_on. "
+        "For CHANGE_STATUS: requires only new_status.",
+        llm_type_desc=dict(
+            type="object",
+            properties=dict(
+                project_id=dict(
+                    type="string",
+                    description="ID of the project this todo belongs to (required for CREATE)",
+                ),
+                todo_name=dict(type="string", description="Name of the todo item"),
+                what_to_do=dict(
+                    type="string", description="Description of what needs to be done"
+                ),
+                assigned_to_bot_id=dict(
+                    type="string",
+                    description="The bot_id (not just the name) of the bot assigned to this todo. Omit to assign it to yourself.",
+                ),
+                depends_on=dict(
+                    type="string",
+                    description="ID or array of IDs of todos that this todo depends on",
+                ),
+                new_status=dict(
+                    type=["string", "array", "null"],
+                    description="New status for the todo (required for CHANGE_STATUS)",
+                    enum=["NEW", "IN_PROGRESS", "ON_HOLD", "COMPLETED", "CANCELLED"],
+                ),
+            ),
+        ),
+        required=False,
+    ),
     _group_tags_=[tool_belt_tools],
 )
 def _manage_todos(
@@ -3883,3 +3920,20 @@ def make_session_for_dispatch(bot_config):
     #                       input_adapter=slack_adapter_local))
 
     return session  # , api_app_id, udf_adapter_local, slack_adapter_local
+
+# holds the list of all data connection tool functions
+# NOTE: Update this list when adding new data connection tools (TODO: automate this by scanning the module?)
+_all_tool_belt_functions = (
+    _query_database,
+    _add_database_connection,
+    _delete_database_connection,
+    _list_database_connections,
+    _search_metadata,
+    _data_explorer,
+    _get_full_table_details,
+)
+
+
+# Called from bot_os_tools.py to update the global list of data connection tool functions
+def get_tool_belt_functions():
+    return _all_tool_belt_functions

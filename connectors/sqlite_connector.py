@@ -1677,7 +1677,7 @@ class SqliteConnector(DatabaseConnector):
                 )
                 bot_name = "Eve"
                 bot_instructions = BASE_EVE_BOT_INSTRUCTIONS
-                available_tools = '["slack_tools", "make_baby_bot", "snowflake_tools", "database_tools", "image_tools"]'
+                available_tools = '["slack_tools", "make_baby_bot", "snowflake_tools", "data_connector_tools", "image_tools"]'
                 udf_active = "Y"
                 slack_active = "N"
                 bot_intro_prompt = EVE_INTRO_PROMPT
@@ -1713,7 +1713,7 @@ class SqliteConnector(DatabaseConnector):
                 )
                 bot_name = "Eliza"
                 bot_instructions = ELIZA_DATA_ANALYST_INSTRUCTIONS
-                available_tools = '["slack_tools", "database_tools", "snowflake_tools", "image_tools"]'
+                available_tools = '["slack_tools", "data_connector_tools", "snowflake_tools", "image_tools"]'
                 udf_active = "Y"
                 slack_active = "N"
                 bot_intro_prompt = ELIZA_INTRO_PROMPT
@@ -1747,7 +1747,7 @@ class SqliteConnector(DatabaseConnector):
             #          bot_id += ''.join(random.choices(string.ascii_letters + string.digits, k=6))
             #          bot_name = "Stuart"
             #          bot_instructions = STUART_DATA_STEWARD_INSTRUCTIONS
-            #          available_tools = '["slack_tools", "database_tools", "snowflake_tools", "snowflake_semantic_tools", "image_tools", "autonomous_tools"]'
+            #          available_tools = '["slack_tools", "data_connector_tools", "snowflake_tools", "snowflake_semantic_tools", "image_tools", "autonomous_tools"]'
             #          udf_active = "Y"
             #          slack_active = "N"
             #          bot_intro_prompt = STUART_INTRO_PROMPT

@@ -139,7 +139,7 @@ class SQLiteAdapter:
                     "manage_tests_tools",
                     "make_baby_bot",
                     "snowflake_tools",
-                    "database_tools",
+                    "data_connector_tools",
                     "image_tools",
                     "process_manager_tools",
                     "process_runner_tools",

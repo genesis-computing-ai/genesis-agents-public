@@ -120,7 +120,7 @@ Bot_DagsterExplorer_yaml = dedent(
 Bot_DBTExplorer_yaml = dedent(
         f'''
         BOT_ID: DBTExplorer
-        AVAILABLE_TOOLS: '[ "dagster_tools", "database_tools", "snowflake_tools"]'
+        AVAILABLE_TOOLS: '[ "dagster_tools", "data_connector_tools", "snowflake_tools"]'
         BOT_AVATAR_IMAGE: null
         BOT_IMPLEMENTATION: openai
         BOT_INSTRUCTIONS: >
@@ -145,7 +145,7 @@ Bot_DagsterRCADetective_yaml = dedent(
     f"""
         BOT_ID: DagsterRCADetective
         BOT_NAME: DagsterRCADetective
-        AVAILABLE_TOOLS: '[ "dagster_tools", "database_tools", "snowflake_tools"]'
+        AVAILABLE_TOOLS: '[ "dagster_tools", "data_connector_tools", "snowflake_tools"]'
         BOT_AVATAR_IMAGE: null
         BOT_IMPLEMENTATION: openai
         BOT_INSTRUCTIONS: >
@@ -503,7 +503,7 @@ def main():
         # Registering the dagster tools offline:
         # 1) had to run the full server (flask mode) to update the various tables (AVAILABE TOOLS)
         # 2) Ran this offline to add the tools:
-        #    >> snow sql -c GENESIS_CVB  -q "update GENESIS_TEST.GENESIS_AD.BOT_SERVICING set  AVAILABLE_TOOLS = '[\"database_tools\", \"snowflake_tools\", \"dagster_tools\"]' where bot_name = 'DagsterExplorer'
+        #    >> snow sql -c GENESIS_CVB  -q "update GENESIS_TEST.GENESIS_AD.BOT_SERVICING set  AVAILABLE_TOOLS = '[\"data_connector_tools\", \"snowflake_tools\", \"dagster_tools\"]' where bot_name = 'DagsterExplorer'
         #
         # Turning off  Janice (to save time creating the session): (to restore, set it to 'snowflake-1')
         #    >> snow sql -c GENESIS_CVB  -q "update GENESIS_TEST.GENESIS_AD.BOT_SERVICING set RUNNER_ID=NULL  where BOT_ID='Janice'"

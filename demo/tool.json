@@ -1,10 +1,103 @@
+{
+  "database_tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "search_metadata",
+        "description": "Searches metadata within a specified scope, defaulting to database table information, to find the top relevant data assets.  There may be more data in the database than returned by this tool, so don't assume that if something is not returned by a broad search that it is not there, you may need to run a more specific search.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "The search query to find relevant metadata about data assets."
+            },
+            "scope": {
+              "type": "string",
+              "description": "The scope of the search, defaulting to 'database_metadata' if not specified.",
+              "default": "database_metadata"
+            },
+            "top_n": {
+              "type": "integer",
+              "description": "How many of the top results to return, max 50, default 5",
+              "default": 5
+            },
+            "verbosity": {
+              "type": "string",
+              "description": "low: returns only table DDL, high: returns DDL and sample data",
+              "default": "low"
+            }
+          },
+          "required": ["query"]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "run_query",
+        "description": "Run a query against a data connection.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "The search query to find relevant metadata about data assets."
+            },
+            "connection": {
+              "type": "string",
+              "description": "The name of the data connection to run the query on, for example BigQuery."
+            },
+            "max_rows": {
+              "type": "integer",
+              "description": "The maximum number of rows to return.  This can be up to 100. The default is 20.",
+              "default": 20
+            }
+          },
+          "required": ["query", "connection", "max_rows"]
+        }
+      }
+    }
+  ],
 
-
-
-
-database tools:
-[{"type": "function", "function": {"name": "search_metadata", "description": "Searches metadata within a specified scope, defaulting to database table information, to find the top relevant data assets.  There may be more data in the database than returned by this tool, so don\'t assume that if something is not returned by a broad search that it is not there, you may need to run a more specific search.", "parameters": {"type": "object", "properties": {"query": {"type": "string", "description": "The search query to find relevant metadata about data assets."}, "scope": {"type": "string", "description": "The scope of the search, defaulting to \'database_metadata\' if not specified.", "default": "database_metadata"}, "top_n": {"type": "integer", "description": "How many of the top results to return, max 50, default 5", "default": 5}, "verbosity": {"type": "string", "description": "low: returns only table DDL, high: returns DDL and sample data", "default": "low"}}, "required": ["query"]}}}, {"type": "function", "function": {"name": "query_database", "description": "Run a query against a data connection.", "parameters": {"type": "object", "properties": {"query": {"type": "string", "description": "The search query to find relevant metadata about data assets."}, "connection": {"type": "string", "description": "The name of the data connection to run the query on, for example BigQuery."}, "max_rows": {"type": "integer", "description": "The maximum number of rows to return.  This can be up to 100. The default is 20.", "default": 20}}, "required": ["query", "connection", "max_rows"]}}}]
-
-slack tools:
-[{"type": "function", "function": {"name": "_send_slack_direct_message", "description": "send a direct message to a colleague on slack", "parameters": {"type": "object", "properties": {"slack_user_id": {"type": "string", "description": "The slack user id to send a message to."}, "message": {"type": "string", "description": "The text of the message to send"}}, "required": ["slack_user_id", "message"]}}}, {"type": "function", "function": {"name": "_lookup_slack_user_id", "description": "find user id by name", "parameters": {"type": "object", "properties": {"user_name": {"type": "string", "description": "Name of the user to find the slack user id for."}}, "required": ["user_name"]}}}]
-
+  "slack_tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "_send_slack_direct_message",
+        "description": "send a direct message to a colleague on slack",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "slack_user_id": {
+              "type": "string",
+              "description": "The slack user id to send a message to."
+            },
+            "message": {
+              "type": "string",
+              "description": "The text of the message to send"
+            }
+          },
+          "required": ["slack_user_id", "message"]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "_lookup_slack_user_id",
+        "description": "find user id by name",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "user_name": {
+              "type": "string",
+              "description": "Name of the user to find the slack user id for."
+            }
+          },
+          "required": ["user_name"]
+        }
+      }
+    }
+  ]
+}

@@ -57,7 +57,7 @@ VALUES
   ('make_baby_bot', 'Create, configure, and administer other bots programatically'),
   ('integrate_code', 'Create, test, and deploy new tools that bots can use'),
   ('webpage_downloader', 'Access web pages on the internet and return their contents'),
-  ('database_tools', 'Discover database metadata, find database tables, and run SQL queries on a non-Snowflake database'),
+  ('data_connector_tools', 'Discover database metadata, find database tables, and run SQL queries on a non-Snowflake database'),
   ('snowflake_tools', 'Discover Snowflake database metadata, find Snowflake database tables, and run SQL queries on Snowflake database');
 
 
@@ -82,7 +82,7 @@ INSERT INTO ELSA_INTERNAL.BOT_SERVICING (
     'xoxb-6550650260448-6860001078754-dWwiznPHUbyPgtBer5yZEAuR',
     '4ef684e61111ea8f515baf0befd631ea',
     'elsa_test_jt',
-    '["slack_tools", "make_baby_bot", "integrate_code", "webpage_downloader", "database_tools", "snowflake_tools"]'
+    '["slack_tools", "make_baby_bot", "integrate_code", "webpage_downloader", "data_connector_tools", "snowflake_tools"]'
 );
 
 -- Elsa New
@@ -107,7 +107,7 @@ INSERT INTO ELSA_INTERNAL.BOT_SERVICING (
     'xoxb-6550650260448-6711150401381-4OVOCDHDRMdHUAdYyphsXPaa',
     '6fbb5139eef6d320ffbb386ea3738536',
     'elsa_test_jt',
-    '["slack_tools", "webpage_downloader", "database_tools", "snowflake_tools"]'
+    '["slack_tools", "webpage_downloader", "data_connector_tools", "snowflake_tools"]'
 );
 
 

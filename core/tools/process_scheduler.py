@@ -2,8 +2,6 @@ from datetime import datetime
 from core.logging_config import logger
 
 from textwrap import dedent
-import re
-import os
 
 from core.bot_os_tools2 import (
     BOT_ID_IMPLICIT_FROM_CONTEXT,
@@ -12,6 +10,11 @@ from core.bot_os_tools2 import (
     ToolFuncParamDescriptor,
     gc_tool,
 )
+
+from core.bot_os_tools2 import get_processes_list
+
+from connectors import get_global_db_connector
+db_adapter = get_global_db_connector()
 
 process_scheduler_tools = ToolFuncGroup(
     name="process_scheduler_tools",
@@ -74,7 +77,7 @@ process_scheduler_tools = ToolFuncGroup(
     _group_tags_=[process_scheduler_tools],
 )
 def process_scheduler(
-    self, action, bot_id, task_id=None, task_details=None, thread_id=None, history_rows=10
+    action, bot_id, task_id=None, task_details=None, thread_id=None, history_rows=10
 ):
     import random
     import string
@@ -110,7 +113,6 @@ def process_scheduler(
     ]
 
     required_fields_update = ["task_active"]
-    db_adapter = self.db_adapter
     client = db_adapter.client
     cursor = client.cursor()
     if action == "HISTORY":
@@ -249,7 +251,7 @@ def process_scheduler(
     # Check if the action is CREATE or UPDATE
     if action in ["CREATE", "UPDATE"] and task_details and "task_name" in task_details:
         # Check if the task_name is a valid process for the bot
-        valid_processes = self._get_processes_list(bot_id=bot_id)
+        valid_processes = get_processes_list(bot_id=bot_id)
         if not valid_processes["Success"]:
             return {
                 "Success": False,
@@ -341,8 +343,13 @@ def process_scheduler(
     finally:
         cursor.close()
 
-_process_scheduler_functions = (process_scheduler,)
+def _get_current_time_with_timezone():
+    current_time = datetime.now().astimezone()
+    return current_time.strftime("%Y-%m-%d %H:%M:%S %Z")
+
+
+process_scheduler_functions = (process_scheduler,)
 
 # Called from bot_os_tools.py to update the global list of functions
 def get_google_drive_tool_functions():
-    return _process_scheduler_functions
+    return process_scheduler_functions

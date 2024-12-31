@@ -477,10 +477,15 @@ def get_global_tools_registry():
                 "connectors.data_connector.get_data_connections_functions"
                 "core.tools.google_drive.get_google_drive_tool_functions",
                 "core.tools.manage_todos.manage_todos_functions",
+                "core.tools.manage_tests.manage_tests_functions",
                 "core.tools.manage_notebook.manage_notebook_functions",
                 "core.tools.manage_processes.manage_processes_functions",
                 "core.tools.run_process.run_process_functions",
                 "core.tools.process_scheduler.process_scheduler_functions",
+                "core.tools.manage_artifact.manage_artifact_functions",
+                "core.tools.webpage_downloader.webpage_downloader_functions",
+                "core.tools.delegate_work.delegate_work_functions",
+
             ]
 
             for import_location in import_locations:

@@ -4,9 +4,85 @@ from core.logging_config import logger
 from core.bot_os_tools2 import BotLlmEngineEnum
 from core.bot_os_tools2 import get_openai_client
 
+from datetime import datetime
+
+
+def get_processes_list(bot_id="all"):
+    from connectors import get_global_db_connector
+    db_adapter = get_global_db_connector()
+    cursor = db_adapter.client.cursor()
+    try:
+        if bot_id == "all":
+            list_query = (
+                f"SELECT process_id, bot_id, process_name FROM {db_adapter.schema}.PROCESSES WHERE HIDDEN IS NULL OR HIDDEN = FALSE"
+                if db_adapter.schema
+                else f"SELECT process_id, bot_id, process_name FROM PROCESSES WHERE HIDDEN IS NULL OR HIDDEN = FALSE"
+            )
+            cursor.execute(list_query)
+        else:
+            list_query = (
+                f"SELECT process_id, bot_id, process_name FROM {db_adapter.schema}.PROCESSES WHERE upper(bot_id) = upper(%s) AND HIDDEN IS NULL OR HIDDEN = FALSE"
+                if db_adapter.schema
+                else f"SELECT process_id, bot_id, process_name FROM PROCESSES WHERE upper(bot_id) = upper(%s) AND HIDDEN IS NULL OR HIDDEN = FALSE"
+            )
+            cursor.execute(list_query, (bot_id,))
+        processs = cursor.fetchall()
+        process_list = []
+        for process in processs:
+            process_dict = {
+                "process_id": process[0],
+                "bot_id": process[1],
+                "process_name": process[2],
+            }
+            process_list.append(process_dict)
+        return {"Success": True, "processes": process_list}
+    except Exception as e:
+        return {
+            "Success": False,
+            "Error": f"Failed to list processs for bot {bot_id}: {e}",
+        }
+    finally:
+        cursor.close()
+
+def clear_process_registers_by_thread(self, thread_id):
+    # Initialize thread-specific data structures if not already present
+    with self.lock:
+        if thread_id not in self.counter:
+            self.counter[thread_id] = {}
+        #   if thread_id not in self.process:
+        #       self.process[thread_id] = {}
+        if thread_id not in self.last_fail:
+            self.last_fail[thread_id] = {}
+        if thread_id not in self.fail_count:
+            self.fail_count[thread_id] = {}
+        if thread_id not in self.instructions:
+            self.instructions[thread_id] = {}
+        if thread_id not in self.process_history:
+            self.process_history[thread_id] = {}
+        if thread_id not in self.done:
+            self.done[thread_id] = {}
+        if thread_id not in self.silent_mode:
+            self.silent_mode[thread_id] = {}
+        if thread_id not in self.process_config:
+            self.process_config[thread_id] = {}
+
+
+def get_sys_email():
+    from connectors import get_global_db_connector
+    db_adapter = get_global_db_connector()
+    cursor = db_adapter.client.cursor()
+    try:
+        _get_sys_email_query = f"SELECT default_email FROM {db_adapter.genbot_internal_project_and_schema}.DEFAULT_EMAIL"
+        cursor.execute(_get_sys_email_query)
+        result = cursor.fetchall()
+        default_email = result[0][0] if result else None
+        return default_email
+    except Exception as e:
+        #  logger.info(f"Error getting sys email: {e}")
+        return None
+
 
 def chat_completion(
-    self,
     message,
     db_adapter,
     bot_id=None,
@@ -23,7 +99,7 @@ def chat_completion(
     return_msg = None
 
     if not fast:
-        self._write_message_log_row(
+        _write_message_log_row(
             db_adapter,
             bot_id,
             bot_name,
@@ -118,7 +194,7 @@ def chat_completion(
         logger.info(return_msg)
 
     if not fast:
-        self._write_message_log_row(
+        _write_message_log_row(
             db_adapter,
             bot_id,
             bot_name,
@@ -129,3 +205,50 @@ def chat_completion(
         )
 
     return return_msg
+
+def _write_message_log_row(
+    db_adapter,
+    bot_id="",
+    bot_name="",
+    thread_id="",
+    message_type="",
+    message_payload="",
+    message_metadata={},
+):
+    """
+    Inserts a row into the MESSAGE_LOG table.
+
+    Args:
+        db_adapter: The database adapter to use for the insertion.
+        bot_id (str): The ID of the bot.
+        bot_name (str): The name of the bot.
+        thread_id (str): The ID of the thread.
+        message_type (str): The type of the message.
+        message_payload (str): The payload of the message.
+        message_metadata (str): The metadata of the message.
+    """
+    timestamp = datetime.now()
+    query = f"""
+        INSERT INTO {db_adapter.schema}.MESSAGE_LOG (timestamp, bot_id, bot_name, thread_id, message_type, message_payload, message_metadata)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
+    """
+    # logger.info(f"Writing message log row: {timestamp}, {bot_id}, {bot_name}, {thread_id}, {message_type}, {message_payload}, {message_metadata}")
+    values = (
+        timestamp,
+        bot_id,
+        bot_name,
+        thread_id,
+        message_type,
+        message_payload,
+        json.dumps(message_metadata),
+    )
+
+    try:
+        cursor = db_adapter.connection.cursor()
+        cursor.execute(query, values)
+        db_adapter.connection.commit()
+    except Exception as e:
+        logger.info(f"Error writing message log row: {e}")
+        db_adapter.connection.rollback()
+    finally:
+        cursor.close()

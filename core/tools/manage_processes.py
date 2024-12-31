@@ -12,7 +12,7 @@ from core.bot_os_tools2 import (
     gc_tool,
 )
 
-from core.tools.tool_helpers import chat_completion
+from core.tools.tool_helpers import chat_completion, get_processes_list
 
 from connectors import get_global_db_connector
 db_adapter = get_global_db_connector()
@@ -51,7 +51,7 @@ manage_processes_tools = ToolFuncGroup(
     _group_tags_=[manage_processes_tools],
 )
 def manage_processes(
-    self, action, bot_id=None, process_id=None, process_instructions=None, thread_id=None, process_name=None, process_config=None, hidden=False
+    action, bot_id=None, process_id=None, process_instructions=None, thread_id=None, process_name=None, process_config=None, hidden=False
 ):
     """
     Manages processs in the PROCESSES table with actions to create, delete, update a process, or stop all processes
@@ -288,7 +288,7 @@ def manage_processes(
 
     if action == "LIST":
         logger.info("Running get processes list")
-        return _get_processes_list(bot_id if bot_id is not None else "all")
+        return get_processes_list(bot_id if bot_id is not None else "all")
 
     if action == "SHOW":
         logger.info("Running show process info")
@@ -470,47 +470,7 @@ def manage_processes(
     finally:
         cursor.close()
 
-def _get_processes_list(self, bot_id="all"):
-    cursor = db_adapter.client.cursor()
-    try:
-        if bot_id == "all":
-            list_query = f"SELECT process_id, bot_id, process_name FROM {db_adapter.schema}.PROCESSES WHERE HIDDEN IS NULL OR HIDDEN = FALSE" if db_adapter.schema else f"SELECT process_id, bot_id, process_name FROM PROCESSES WHERE HIDDEN IS NULL OR HIDDEN = FALSE"
-            cursor.execute(list_query)
-        else:
-            list_query = f"SELECT process_id, bot_id, process_name FROM {db_adapter.schema}.PROCESSES WHERE upper(bot_id) = upper(%s) AND HIDDEN IS NULL OR HIDDEN = FALSE" if db_adapter.schema else f"SELECT process_id, bot_id, process_name FROM PROCESSES WHERE upper(bot_id) = upper(%s) AND HIDDEN IS NULL OR HIDDEN = FALSE"
-            cursor.execute(list_query, (bot_id,))
-        processs = cursor.fetchall()
-        process_list = []
-        for process in processs:
-            process_dict = {
-                "process_id": process[0],
-                "bot_id": process[1],
-                "process_name": process[2],
-            }
-            process_list.append(process_dict)
-        return {"Success": True, "processes": process_list}
-    except Exception as e:
-        return {
-            "Success": False,
-            "Error": f"Failed to list processs for bot {bot_id}: {e}",
-        }
-    finally:
-        cursor.close()
-
-def get_sys_email(self):
-    cursor = db_adapter.client.cursor()
-    try:
-        _get_sys_email_query = f"SELECT default_email FROM {db_adapter.genbot_internal_project_and_schema}.DEFAULT_EMAIL"
-        cursor.execute(_get_sys_email_query)
-        result = cursor.fetchall()
-        default_email = result[0][0] if result else None
-        return default_email
-    except Exception as e:
-        #  logger.info(f"Error getting sys email: {e}")
-        return None
-
-
-def get_process_info(self, bot_id=None, process_name=None, process_id=None):
+def get_process_info(bot_id=None, process_name=None, process_id=None):
     cursor = db_adapter.client.cursor()
     try:
         result = None
@@ -554,8 +514,77 @@ def get_process_info(self, bot_id=None, process_name=None, process_id=None):
     except Exception as e:
         return {}
 
-_manage_processes_functions = (manage_processes,)
+
+def insert_process_history(
+    process_id,
+    work_done_summary,
+    process_status,
+    updated_process_learnings,
+    report_message="",
+    done_flag=False,
+    needs_help_flag="N",
+    process_clarity_comments="",
+):
+    """
+    Inserts a row into the PROCESS_HISTORY table.
+
+    Args:
+        process_id (str): The unique identifier for the process.
+        work_done_summary (str): A summary of the work done.
+        process_status (str): The status of the process.
+        updated_process_learnings (str): Any new learnings from the process.
+        report_message (str): The message to report about the process.
+        done_flag (bool): Flag indicating if the process is done.
+        needs_help_flag (bool): Flag indicating if help is needed.
+        process_clarity_comments (str): Comments on the clarity of the process.
+    """
+    insert_query = (
+        f"""
+                INSERT INTO {db_adapter.schema}.PROCESS_HISTORY (
+                    process_id, work_done_summary, process_status, updated_process_learnings,
+                    report_message, done_flag, needs_help_flag, process_clarity_comments
+                ) VALUES (
+                    %s, %s, %s, %s, %s, %s, %s, %s
+                )
+            """
+        if db_adapter.schema
+        else f"""
+                INSERT INTO PROCESS_HISTORY (
+                    process_id, work_done_summary, process_status, updated_process_learnings,
+                    report_message, done_flag, needs_help_flag, process_clarity_comments
+                ) VALUES (
+                    %s, %s, %s, %s, %s, %s, %s, %s
+                )
+            """
+    )
+    try:
+        cursor = db_adapter.client.cursor()
+        cursor.execute(
+            insert_query,
+            (
+                process_id,
+                work_done_summary,
+                process_status,
+                updated_process_learnings,
+                report_message,
+                done_flag,
+                needs_help_flag,
+                process_clarity_comments,
+            ),
+        )
+        db_adapter.client.commit()
+        cursor.close()
+        logger.info(
+            f"Process history row inserted successfully for process_id: {process_id}"
+        )
+    except Exception as e:
+        logger.info(f"An error occurred while inserting the process history row: {e}")
+        if cursor is not None:
+            cursor.close()
+
+
+manage_processes_functions = (manage_processes,)
 
 # Called from bot_os_tools.py to update the global list of functions
 def get_google_drive_tool_functions():
-    return _manage_processes_functions
+    return manage_processes_functions

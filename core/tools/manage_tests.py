@@ -4,8 +4,6 @@ import random
 import string
 
 from textwrap import dedent
-import re
-import os
 
 from core.bot_os_tools2 import (
     BOT_ID_IMPLICIT_FROM_CONTEXT,
@@ -15,14 +13,16 @@ from core.bot_os_tools2 import (
     gc_tool,
 )
 
+from connectors import get_global_db_connector
+db_adapter = get_global_db_connector()
+
 manage_tests_tools = ToolFuncGroup(
     name="manage_tests_tools",
     description="",
     lifetime="PERSISTENT",
 )
 
-def _get_test_manager_list(self, bot_id="all"):
-    db_adapter = self.db_adapter
+def _get_test_manager_list(bot_id="all"):
     cursor = db_adapter.client.cursor()
     try:
         if bot_id == "all":
@@ -51,21 +51,34 @@ def _get_test_manager_list(self, bot_id="all"):
     finally:
         cursor.close()
 
+
+@gc_tool(
+    name="Manage Tests",
+    action="""
+        The action to perform on a tests: ADD, UPDATE, DELETE,
+        LIST, ENABLE, DISABLE returns a list of all tests, SHOW shows all fields of a test,
+        or TIME to get current system time.
+        """,
+    test_process_id="""
+            The unique identifier of the process_id. MAKE SURE TO DOUBLE-CHECK THAT YOU ARE USING THE CORRECT 
+            test_process_id ON UPDATES AND DELETES!  Required for CREATE, UPDATE, and DELETE.
+            """,
+    test_process_name="Human reable unique name for the test.",
+    test_type="The type of table, either enabled or disabled.",
+    test_priority="Determines the order in which the tests will run.  Lower numbers run first.",
+    bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
+    thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
+    _group_tags_=[manage_tests_tools],
+)
 def manage_tests(
-    self, action, bot_id=None, test_process_id = None, test_process_name = None, thread_id=None, test_type=None, test_priority = 1
+    action, bot_id=None, test_process_id = None, test_process_name = None, thread_id=None, test_type=None, test_priority = 1
 ):
     """
-    Manages tests in the test_process table with actions to create, delete, or update a test_process.
-
-    Args:
-        action (str): The action to perform
-        bot_id (str): The bot ID associated with the test_process.
-        test_process_id (str): The test_process ID for the test manager to add/remove.
-        test_priority (int): The priority used to order the run order of test_process.
-        test_type (str): The type of test_process to run.
-
-    Returns:
-        dict: A dictionary with the result of the operation.
+    Manages tests that will run when when the project is deployed, including adding, updating, listing and deleting tests from the list of tests to run when the
+    project is deployed, allowing bots to manage tests. Remember that this is not used to create new processes.  Make sure that the user is specifically 
+    asking for a test to be added to the deploy sequence, have its priority weighting updated, or deleted. This tool is not used to run a test.
+    If you are asked to run a tests, use the run process tool and pass the manage_process_id, do not use this tool.  If you aren't sure, ask the user to clarify.
+    If you are asked to enable a test, set its test_type to enabled.  If you are asked to disable a test, set its test_type to disabled.
     """
 
     required_fields_add = [
@@ -84,7 +97,6 @@ def manage_tests(
             "Error": "Invalid action.  test manager tool only accepts actions of ADD, ADD_CONFIRMED, UPDATE, UPDATE_CONFIRMED, DELETE, LIST, or TIME."
         }
 
-    db_adapter = self.db_adapter
     cursor = db_adapter.client.cursor()
 
     if action == "TIME":
@@ -278,8 +290,8 @@ def manage_tests(
         cursor.close()
 
 
-_manage_tests_functions = (manage_tests,)
+manage_tests_functions = (manage_tests,)
 
 # Called from bot_os_tools.py to update the global list of functions
 def get_google_drive_tool_functions():
-    return _manage_tests_functions
+    return manage_tests_functions

@@ -10,6 +10,21 @@ from core.bot_os_tools2 import (
     gc_tool,
 )
 
+from google_sheets.g_sheets import (
+    add_g_file_comment,
+    add_reply_to_g_file_comment,
+    find_g_file_by_name,
+    get_g_file_comments,
+    get_g_file_version,
+    get_g_file_web_link,
+    get_g_folder_directory,
+    read_g_sheet,
+    write_g_sheet_cell,
+)
+
+from connectors import get_global_db_connector
+db_adapter = get_global_db_connector()
+
 
 google_drive_tools = ToolFuncGroup(
     name="google_drive_tools",
@@ -50,7 +65,6 @@ google_drive_tools = ToolFuncGroup(
     _group_tags_=[google_drive_tools],
 )
 def google_drive(
-    self,
     action,
     g_folder_id=None,
     g_file_id=None,
@@ -114,7 +128,7 @@ def google_drive(
     if action == "LIST":
         try:
             files = get_g_folder_directory(
-                g_folder_id, None, user=self.db_adapter.user
+                g_folder_id, None, user=db_adapter.user
             )
             return {"Success": True, "files": files}
         except Exception as e:
@@ -122,7 +136,7 @@ def google_drive(
 
     elif action == "GET_FILE_BY_NAME":
         try:
-            file_id = find_g_file_by_name(g_file_name, None, self.db_adapter.user)
+            file_id = find_g_file_by_name(g_file_name, None, db_adapter.user)
             return {"Success": True, "id": file_id}
         except Exception as e:
             return {"Success": False, "Error": str(e)}
@@ -132,14 +146,14 @@ def google_drive(
 
     elif action == "GET_LINK_FROM_FILE_ID":
         try:
-            web_link = get_g_file_web_link(g_file_id, None, self.db_adapter.user)
+            web_link = get_g_file_web_link(g_file_id, None, db_adapter.user)
             return {"Success": True, "web_link": web_link}
         except Exception as e:
             return {"Success": False, "Error": str(e)}
 
     elif action == "GET_FILE_VERSION_NUM":
         try:
-            file_version_num = get_g_file_version(g_file_id, None, self)
+            file_version_num = get_g_file_version(g_file_id, None, db_adapter.user)
         except Exception as e:
             return {"Success": False, "Error": str(e)}
 
@@ -147,7 +161,7 @@ def google_drive(
 
     elif action == "GET_COMMENTS":
         try:
-            comments_and_replies = get_g_file_comments(self.db_adapter.user, g_file_id)
+            comments_and_replies = get_g_file_comments(db_adapter.user, g_file_id)
             return {"Success": True, "Comments & Replies": comments_and_replies}
         except Exception as e:
             return {"Success": False, "Error": str(e)}
@@ -155,7 +169,7 @@ def google_drive(
     elif action == "ADD_COMMENT":
         try:
             result = add_g_file_comment(
-                g_file_id, g_sheet_value, None, self.db_adapter.user
+                g_file_id, g_sheet_value, None, db_adapter.user
             )
             return {"Success": True, "Result": result}
         except Exception as e:
@@ -164,7 +178,7 @@ def google_drive(
     elif action == "ADD_REPLY_TO_COMMENT":
         try:
             result = add_reply_to_g_file_comment(
-                g_file_id, g_file_comment_id, g_sheet_value, g_file_comment_id, None, self.db_adapter.user
+                g_file_id, g_file_comment_id, g_sheet_value, g_file_comment_id, None, db_adapter.user
             )
             return {"Success": True, "Result": result}
         except Exception as e:
@@ -186,7 +200,7 @@ def google_drive(
         )
 
         write_g_sheet_cell(
-            g_file_id, g_sheet_cell, g_sheet_value, None, self.db_adapter.user
+            g_file_id, g_sheet_cell, g_sheet_value, None, db_adapter.user
         )
 
         return {
@@ -198,7 +212,7 @@ def google_drive(
         # cell_range = verify_single_cell(g_sheet_cell)
         try:
             value = read_g_sheet(
-                g_file_id, g_sheet_cell, None, self.db_adapter.user
+                g_file_id, g_sheet_cell, None, db_adapter.user
             )
             return {"Success": True, "value": value}
         except Exception as e:
@@ -224,15 +238,15 @@ def google_drive(
         return {"Success": "True", "auth_url": f"<{auth_url}|View Document>"}
 
     elif action == "SAVE_QUERY_RESULTS_TO_G_SHEET":
-        self.db_adapter.run_query(g_sheet_query, export_to_google_sheet = True)
+        db_adapter.run_query(g_sheet_query, export_to_google_sheet = True)
         pass
 
     return {"Success": False, "Error": "Invalid action specified."}
 
-_google_drive_functions = (
+google_drive_functions = (
     google_drive,
 )
 
 # Called from bot_os_tools.py to update the global list of functions
 def get_google_drive_tool_functions():
-    return _google_drive_functions
+    return google_drive_functions

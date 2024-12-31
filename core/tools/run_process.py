@@ -12,6 +12,8 @@ from core.bot_os_tools2 import (
     gc_tool,
 )
 
+from core.tools.tool_helpers import chat_completion, get_sys_email, clear_process_registers_by_thread
+
 run_process_tools = ToolFuncGroup(
     name="run_process_tools",
     description=dedent(
@@ -38,7 +40,6 @@ run_process_tools = ToolFuncGroup(
     _group_tags_=[run_process_tools],
 )
 def run_process(
-    self,
     action,
     previous_response="",
     process_name="",
@@ -93,9 +94,9 @@ def run_process(
             "Error": "Either process_name or process_id must be provided.",
         }
 
-    self.sys_default_email = self.get_sys_email()
+    sys_default_email = get_sys_email()
 
-    self.clear_process_registers_by_thread(thread_id)
+    clear_process_registers_by_thread(thread_id)
 
     # Try to get process info from PROCESSES table
     process = self.get_process_info(
@@ -178,7 +179,7 @@ def run_process(
 
             """
 
-        first_step = self.chat_completion(
+        first_step = chat_completion(
             extract_instructions,
             self.db_adapter,
             bot_id=bot_id,
@@ -379,7 +380,7 @@ def run_process(
 
         #     logger.info(f"\nSENT TO 2nd LLM:\n{check_response}\n")
 
-        result = self.chat_completion(
+        result = chat_completion(
             check_response,
             self.db_adapter,
             bot_id=bot_id,
@@ -621,7 +622,7 @@ def run_process(
         with self.lock:
             self.done[thread_id][process_id] = True
 
-        self.clear_process_registers_by_thread(thread_id)
+        clear_process_registers_by_thread(thread_id)
 
         self.process_id[thread_id] = None
 

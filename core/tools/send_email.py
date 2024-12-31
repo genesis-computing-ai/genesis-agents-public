@@ -10,6 +10,7 @@ from core.bot_os_artifacts import (
 )
 from urllib.parse import urlunparse, urlencode
 from bs4 import BeautifulSoup
+import collections.abc
 
 from textwrap import dedent
 import re
@@ -23,6 +24,11 @@ from core.bot_os_tools2 import (
     gc_tool,
 )
 
+from connectors import get_global_db_connector
+db_adapter = get_global_db_connector()
+
+from core.bot_os_artifacts import get_sys_email
+
 send_email_tools = ToolFuncGroup(
     name="send_email_tools",
     description="",
@@ -35,7 +41,6 @@ GENESIS_LOGO_URL = "https://i0.wp.com/genesiscomputing.ai/wp-content/uploads/202
 
 
 def send_email(
-    self,
     to_addr_list: list,
     subject: str,
     body: str,
@@ -63,7 +68,7 @@ def send_email(
     Returns:
         dict: Result of the email sending operation.
     """
-    art_store = get_artifacts_store(self.db_adapter)  # used by helper functions below
+    art_store = get_artifacts_store(db_adapter)  # used by helper functions below
 
     def _sanity_check_body(txt):
         # Check for HTML tags with 'href' or 'src' attributes using CID
@@ -110,7 +115,7 @@ def send_email(
             a string to use as the link (in text or HTML, depending on mime_type)
         """
         # fetch the metadata
-        dbtr = self.db_adapter
+        dbtr = db_adapter
         try:
             metadata = art_store.get_artifact_metadata(artifact_id)
         except Exception as e:
@@ -279,7 +284,7 @@ def send_email(
 
     # Replace SYS$DEFAULT_EMAIL with the actual system default email
     to_addr_list = [
-        self._get_sys_email() if addr == "SYS$DEFAULT_EMAIL" else addr
+        get_sys_email() if addr == "SYS$DEFAULT_EMAIL" else addr
         for addr in to_addr_list
     ]
 
@@ -411,7 +416,7 @@ def send_email(
         """
 
     # Execute the query using the database adapter's run_query method
-    query_result = self.db_adapter.run_query(query, thread_id=thread_id, bot_id=bot_id)
+    query_result = db_adapter.run_query(query, thread_id=thread_id, bot_id=bot_id)
 
     if isinstance(query_result, collections.abc.Mapping) and not query_result.get(
         "Success"

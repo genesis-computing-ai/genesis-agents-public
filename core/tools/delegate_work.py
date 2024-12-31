@@ -74,7 +74,7 @@ def delegate_work(
     og_thread_id = thread_id
 
 
-    def _update_streaming_status(self, target_bot, current_summary, run_id, session_id, thread_id, status_update_callback, input_metadata):
+    def _update_streaming_status(target_bot, current_summary, run_id, session_id, thread_id, status_update_callback, input_metadata):
         msg = f"      🤖 {target_bot}: _{current_summary}_"
 
         message_obj = {
@@ -98,7 +98,7 @@ def delegate_work(
             status_update_callback(session_id, BotOsOutputMessage(thread_id=thread_id, status="in_progress", output=msg+" 💬", messages=None, input_metadata=input_metadata))
 
     # current_summary = "Starting delegation"
-    # _update_streaming_status(self, target_bot, current_summary, run_id, session_id, thread_id, status_update_callback, input_metadata)
+    # _update_streaming_status(target_bot, current_summary, run_id, session_id, thread_id, status_update_callback, input_metadata)
 
     if server is None:
         return {
@@ -305,7 +305,6 @@ def delegate_work(
 delegate_work_functions = (
     delegate_work,
 )
-
 
 # Called from bot_os_tools.py to update the global list of functions
 def get_google_drive_tool_functions():

@@ -2,7 +2,7 @@ from datetime import datetime
 from core.logging_config import logger
 
 from textwrap import dedent
-import re
+import json
 import os
 
 from core.bot_os_tools2 import (
@@ -13,6 +13,11 @@ from core.bot_os_tools2 import (
     gc_tool,
 )
 
+from core.tools.tool_helpers import chat_completion, clear_process_registers_by_thread, get_sys_email
+
+from connectors import get_global_db_connector
+db_adapter = get_global_db_connector()
+
 run_process_tools = ToolFuncGroup(
     name="run_process_tools",
     description="",
@@ -20,7 +25,6 @@ run_process_tools = ToolFuncGroup(
 )
 
 def run_process(
-    self,
     action,
     previous_response="",
     process_name="",
@@ -32,8 +36,9 @@ def run_process(
     bot_name=None,
 ):
     #  logger.info(f"Running processes Action: {action} | process_id: {process_id or 'None'} | Thread ID: {thread_id or 'None'}")
-    #         self.recurse_level = 0
+    #         recurse_level = 0
     self.recurse_stack = {thread_id: thread_id, process_id: process_id}
+    sys_default_email = get_sys_email()
 
     if process_id is not None and process_id == "":
         process_id = None
@@ -75,9 +80,7 @@ def run_process(
             "Error": "Either process_name or process_id must be provided.",
         }
 
-    self.sys_default_email = self._get_sys_email()
-
-    self._clear_process_registers_by_thread(thread_id)
+    clear_process_registers_by_thread(thread_id)
 
     # Try to get process info from PROCESSES table
     process = self._get_process_info(
@@ -86,7 +89,7 @@ def run_process(
 
     if len(process) == 0:
         # Get a list of processes for the bot
-        processes = self.db_adapter.get_processes_list(bot_id)
+        processes = db_adapter.get_processes_list(bot_id)
         if processes is not None:
             process_list = ", ".join(
                 [p["process_name"] for p in processes["processes"]]
@@ -134,8 +137,8 @@ def run_process(
         extract_instructions = f"""
             You will need to break the process instructions below up into individual steps and and return them one at a time.
             By the way the current system time is {datetime.now()}.
-            By the way, the system default email address (SYS$DEFAULT_EMAIL) is {self.sys_default_email}.  If the instructions say to send an email
-            to SYS$DEFAULT_EMAIL, replace it with {self.sys_default_email}.
+            By the way, the system default email address (SYS$DEFAULT_EMAIL) is {get_default_email()}.  If the instructions say to send an email
+            to SYS$DEFAULT_EMAIL, replace it with {sys_default_email}.
             Start by returning the first step of the process instructions below.
             Simply return the first instruction on what needs to be done first without removing or changing any details.
 
@@ -160,9 +163,9 @@ def run_process(
 
             """
 
-        first_step = self._chat_completion(
+        first_step = chat_completion(
             extract_instructions,
-            self.db_adapter,
+            db_adapter,
             bot_id=bot_id,
             bot_name="",
             thread_id=thread_id,
@@ -211,7 +214,7 @@ def run_process(
                 Also, if you are asked to run either sql or snowpark_python from a given note_id, make sure you examine the note_type field and use the appropriate tool for
                 the note type.  Only pass the note_id, not the code itself, to the appropriate tool where the note will be handled.
                 """
-        if self.sys_default_email:
+        if sys_default_email:
             self.instructions[thread_id][
                 process_id
             ] += f"""
@@ -274,7 +277,7 @@ def run_process(
             }
 
         # Load process cache
-        if not self._get_process_cache(bot_id, thread_id, process_id):
+        if not _get_process_cache(bot_id, thread_id, process_id):
             return {
                 "Success": False,
                 "Message": f"Error: Process cache for {process_id} couldn't be loaded. Please retry from KICKOFF_PROCESS.",
@@ -361,9 +364,9 @@ def run_process(
 
         #     logger.info(f"\nSENT TO 2nd LLM:\n{check_response}\n")
 
-        result = self._chat_completion(
+        result = chat_completion(
             check_response,
-            self.db_adapter,
+            db_adapter,
             bot_id=bot_id,
             bot_name="",
             thread_id=thread_id,
@@ -427,7 +430,7 @@ def run_process(
 
                 with self.lock:
                     self.done[thread_id][process_id] = True
-                self._clear_process_cache(bot_id, thread_id, process_id)
+                _clear_process_cache(bot_id, thread_id, process_id)
                 try:
                     del self.counter[thread_id][process_id]
                 except:
@@ -451,8 +454,8 @@ def run_process(
             Extract the text for the next step from the process instructions and return it, using the section marked 'Process History' to see where you are in the process.
             Remember, the process instructions are a set of individual steps that need to be run in order.
             Return the text of the next step only, do not make any other comments or statements.
-            By the way, the system default email address (SYS$DEFAULT_EMAIL) is {self.sys_default_email}.  If the instructions say to send an email
-            to SYS$DEFAULT_EMAIL, replace it with {self.sys_default_email}.
+            By the way, the system default email address (SYS$DEFAULT_EMAIL) is {sys_default_email}.  If the instructions say to send an email
+            to SYS$DEFAULT_EMAIL, replace it with {sys_default_email}.
 
             If a step of the instructions says to run another process, return '>>RECURSE' and the process name or process id as the first step
             and then call _run_process with the action KICKOFF_PROCESS to get the first step of the next process to run.  Continue this process until
@@ -476,9 +479,9 @@ def run_process(
         #     logger.info(f"\nEXTRACT NEXT STEP:\n{extract_instructions}\n")
 
         #     logger.info("RUN 2nd LLM...")
-        next_step = self._chat_completion(
+        next_step = chat_completion(
             extract_instructions,
-            self.db_adapter,
+            db_adapter,
             bot_id=bot_id,
             bot_name="",
             thread_id=thread_id,
@@ -498,7 +501,7 @@ def run_process(
                 self.fail_count[thread_id][process_id] = None
                 self.done[thread_id][process_id] = True
             # Clear the process cache when the process is complete
-            self._clear_process_cache(bot_id, thread_id, process_id)
+            _clear_process_cache(bot_id, thread_id, process_id)
             logger.info(
                 f"Process cache cleared for bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}"
             )
@@ -603,11 +606,11 @@ def run_process(
         with self.lock:
             self.done[thread_id][process_id] = True
 
-        self._clear_process_registers_by_thread(thread_id)
+        clear_process_registers_by_thread(thread_id)
 
         self.process_id[thread_id] = None
 
-        self._clear_process_cache(bot_id, thread_id, process_id)
+        _clear_process_cache(bot_id, thread_id, process_id)
         logger.info(
             f"Process cache cleared for bot_id: {bot_id}, thread_id: {thread_id}, process_id: {process_id}"
         )
@@ -621,7 +624,7 @@ def run_process(
         }
     if action == "STOP_ALL_PROCESSES":
         try:
-            self._clear_all_process_registers(thread_id)
+            _clear_all_process_registers(thread_id)
             return {"Success": True, "Message": "All processes stopped (?)"}
         except Exception as e:
             return {"Success": False, "Error": f"Failed to stop all processes: {e}"}
@@ -629,9 +632,96 @@ def run_process(
         logger.info("No action specified.")
         return {"success": False, "message": "No action specified."}
 
+def _get_process_cache(self, bot_id, thread_id, process_id):
+    cache_file = os.path.join(
+        "./process_cache", f"{bot_id}_{thread_id}_{process_id}.json"
+    )
 
-_run_process_functions = (run_process,)
+    if os.path.exists(cache_file):
+        with open(cache_file, "r") as f:
+            cache_data = json.load(f)
+
+        with self.lock:
+            if thread_id not in self.counter:
+                self.counter[thread_id] = {}
+            self.counter[thread_id][process_id] = cache_data.get("counter")
+
+            if thread_id not in self.last_fail:
+                self.last_fail[thread_id] = {}
+            self.last_fail[thread_id][process_id] = cache_data.get("last_fail")
+
+            if thread_id not in self.fail_count:
+                self.fail_count[thread_id] = {}
+            self.fail_count[thread_id][process_id] = cache_data.get("fail_count")
+
+            if thread_id not in self.instructions:
+                self.instructions[thread_id] = {}
+            self.instructions[thread_id][process_id] = cache_data.get(
+                "instructions"
+            )
+
+            if thread_id not in self.process_history:
+                self.process_history[thread_id] = {}
+            self.process_history[thread_id][process_id] = cache_data.get(
+                "process_history"
+            )
+
+            if thread_id not in self.done:
+                self.done[thread_id] = {}
+            self.done[thread_id][process_id] = cache_data.get("done")
+
+            if thread_id not in self.silent_mode:
+                self.silent_mode[thread_id] = {}
+            self.silent_mode[thread_id][process_id] = cache_data.get(
+                "silent_mode", False
+            )
+
+        return True
+    return False
+
+def _set_process_cache(self, bot_id, thread_id, process_id):
+    cache_dir = "./process_cache"
+    os.makedirs(cache_dir, exist_ok=True)
+    cache_file = os.path.join(cache_dir, f"{bot_id}_{thread_id}_{process_id}.json")
+
+    cache_data = {
+        "counter": self.counter.get(thread_id, {}).get(process_id),
+        "last_fail": self.last_fail.get(thread_id, {}).get(process_id),
+        "fail_count": self.fail_count.get(thread_id, {}).get(process_id),
+        "instructions": self.instructions.get(thread_id, {}).get(process_id),
+        "process_history": self.process_history.get(thread_id, {}).get(process_id),
+        "done": self.done.get(thread_id, {}).get(process_id),
+        "silent_mode": self.silent_mode.get(thread_id, {}).get(process_id),
+    }
+
+    with open(cache_file, "w") as f:
+        json.dump(cache_data, f)
+
+def _clear_process_cache(self, bot_id, thread_id, process_id):
+    cache_file = os.path.join(
+        "./process_cache", f"{bot_id}_{thread_id}_{process_id}.json"
+    )
+
+    if os.path.exists(cache_file):
+        os.remove(cache_file)
+        return True
+    return False
+
+def _clear_all_process_registers(self, thread_id):
+    # Initialize thread-specific data structures if not already present
+    with self.lock:
+        self.counter[thread_id] = {}
+        self.last_fail[thread_id] = {}
+        self.fail_count[thread_id] = {}
+        self.instructions[thread_id] = {}
+        self.process_history[thread_id] = {}
+        self.done[thread_id] = {}
+        self.silent_mode[thread_id] = {}
+        self.process_config[thread_id] = {}
+
+
+run_process_functions = (run_process,)
 
 # Called from bot_os_tools.py to update the global list of functions
 def get_google_drive_tool_functions():
-    return _run_process_functions
+    return run_process_functions

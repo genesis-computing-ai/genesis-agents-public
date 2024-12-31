@@ -15,6 +15,11 @@ from core.bot_os_tools2 import (
     gc_tool,
 )
 
+from connectors import get_global_db_connector
+db_adapter = get_global_db_connector()
+
+from core.tools.tool_helpers import chat_completion, get_sys_email
+
 manage_notebook_tools = ToolFuncGroup(
     name="manage_notebook_tools",
     description="",
@@ -22,7 +27,6 @@ manage_notebook_tools = ToolFuncGroup(
 )
 
 def _insert_notebook_history(
-    self,
     note_id,
     work_done_summary,
     note_status,
@@ -45,7 +49,6 @@ def _insert_notebook_history(
         needs_help_flag (bool): Flag indicating if help is needed.
         note_clarity_comments (str): Comments on the clarity of the note.
     """
-    db_adapter = self.db_adapter
     insert_query = f"""
         INSERT INTO {db_adapter.schema}.NOTEBOOK_HISTORY (
             note_id, work_done_summary, note_status, updated_note_learnings,
@@ -86,8 +89,7 @@ def _insert_notebook_history(
         if cursor is not None:
             cursor.close()
 
-def _get_notebook_list(self, bot_id="all"):
-    db_adapter = self.db_adapter
+def _get_notebook_list(bot_id="all"):
     cursor = db_adapter.client.cursor()
     try:
         if bot_id == "all":
@@ -118,8 +120,7 @@ def _get_notebook_list(self, bot_id="all"):
     finally:
         cursor.close()
 
-def _get_note_info(self, bot_id=None, note_id=None):
-    db_adapter = self.db_adapter
+def _get_note_info(bot_id=None, note_id=None):
     cursor = db_adapter.client.cursor()
     try:
         result = None
@@ -150,7 +151,7 @@ def _get_note_info(self, bot_id=None, note_id=None):
         return {}
 
 def manage_notebook(
-    self, action, bot_id=None, note_id=None, note_name = None, note_content=None, note_params=None, thread_id=None, note_type=None, note_config = None
+    action, bot_id=None, note_id=None, note_name = None, note_content=None, note_params=None, thread_id=None, note_type=None, note_config = None
 ):
     """
     Manages notes in the NOTEBOOK table with actions to create, delete, or update a note.
@@ -201,7 +202,6 @@ def manage_notebook(
         }
     action = action.upper()
 
-    db_adapter = self.db_adapter
     cursor = db_adapter.client.cursor()
 
     try:
@@ -263,7 +263,7 @@ def manage_notebook(
             Return the updated and tidy instructions.  If there is an issue with the instructions, return an error message.
 
             If the note wants to send an email to a default email, or says to send an email but doesn't specify
-            a recipient address, note that the SYS$DEFAULT_EMAIL is currently set to {self.sys_default_email}.
+            a recipient address, note that the SYS$DEFAULT_EMAIL is currently set to {get_sys_email()}.
             Include the notation of SYS$DEFAULT_EMAIL in the instructions instead of the actual address, unless
             the instructions specify a different specific email address.
 
@@ -274,7 +274,7 @@ def manage_notebook(
                 line.lstrip() for line in tidy_note_content.splitlines()
             )
 
-            note_content = self._chat_completion(tidy_note_content, db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, note_id=note_id)
+            note_content = chat_completion(tidy_note_content, db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, note_id=note_id)
 
         if action == "CREATE":
             return {
@@ -431,8 +431,8 @@ def manage_notebook(
     finally:
         cursor.close()
 
-_manage_notebook_functions = (manage_notebook,)
+manage_notebook_functions = (manage_notebook,)
 
 # Called from bot_os_tools.py to update the global list of functions
 def get_google_drive_tool_functions():
-    return _manage_notebook_functions
+    return manage_notebook_functions

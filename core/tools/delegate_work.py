@@ -31,7 +31,6 @@ delegate_work = ToolFuncGroup(
     lifetime="PERSISTENT",
 )
 
-
 @gc_tool(
     prompt="The prompt to delegate to the target bot",
     target_bot="The bot ID or name to delegate the work to",

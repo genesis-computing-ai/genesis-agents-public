@@ -624,7 +624,7 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
                         sample_data_text as sample_data
                     FROM {self.meta_database_connector.metadata_table_name}
                     WHERE {where_statement}
-                    {f"AND qualified_table_name IN ({','.join(qualified_names)})" if qualified_names else ""}
+                    {f"AND source_name || '.' || qualified_table_name IN ({','.join(qualified_names)})" if qualified_names else ""}
                 """
             else:
                 content_query = f"""
@@ -633,7 +633,7 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
                         ddl_short
                     FROM {self.meta_database_connector.metadata_table_name}
                     WHERE {where_statement}
-                    {f"AND qualified_table_name IN ({','.join(qualified_names)})" if qualified_names else ""}
+                    {f"AND source_name || '.' || qualified_table_name IN ({','.join(qualified_names)})" if qualified_names else ""}
                 """
 
             # Add error handling around the query execution
@@ -651,11 +651,12 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
             # Sort content to match order of qualified table names
             # Convert all dictionary keys to uppercase
             content = [{k.upper(): v for k, v in row.items()} for row in content]
-            content_dict = {row['FULL_TABLE_NAME']: row for row in content}
+            content_dict = {row['DATABASE_CONNECTION_ID']+"."+row['FULL_TABLE_NAME']: row for row in content}
             sorted_content = []
             for qualified_name in qualified_names:
                 # Remove quotes around table name for lookup
                 table_name = qualified_name.strip("'")
+
                 if table_name in content_dict:
                     # Fix any _SUMMARY appended to table names in DDL_SHORT
                     if 'DDL_SHORT' in content_dict[table_name]:

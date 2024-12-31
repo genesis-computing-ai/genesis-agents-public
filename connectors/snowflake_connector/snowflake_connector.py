@@ -4182,7 +4182,7 @@ def get_status(site):
 
             while True:
                 # Modify the query to include LIMIT and OFFSET
-                query = f"SELECT qualified_table_name, {embedding_column} FROM {table_id} WHERE {embedding_column} IS NOT NULL LIMIT {batch_size} OFFSET {offset}"
+                query = f"SELECT qualified_table_name, {embedding_column}, source_name FROM {table_id} WHERE {embedding_column} IS NOT NULL LIMIT {batch_size} OFFSET {offset}"
                 #            logger.info('fetch query ',query)
 
                 cursor.execute(query)
@@ -4195,7 +4195,7 @@ def get_status(site):
                 for row in rows:
                     try:
                         temp_embeddings.append(json.loads('['+row[1][5:-3]+']'))
-                        temp_table_names.append(row[0])
+                        temp_table_names.append(row[2]+"."+row[0])
                         # logger.info('temp_embeddings len: ',len(temp_embeddings))
                         # logger.info('temp table_names: ',temp_table_names)
                     except:

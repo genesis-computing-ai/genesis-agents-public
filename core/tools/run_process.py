@@ -12,7 +12,7 @@ from core.bot_os_tools2 import (
     gc_tool,
 )
 
-from core.tools.tool_helpers import chat_completion, get_sys_email, clear_process_registers_by_thread
+from core.tools.tool_helpers import chat_completion, get_sys_email, clear_process_registers_by_thread, get_process_info
 
 run_process_tools = ToolFuncGroup(
     name="run_process_tools",
@@ -99,7 +99,7 @@ def run_process(
     clear_process_registers_by_thread(thread_id)
 
     # Try to get process info from PROCESSES table
-    process = self.get_process_info(
+    process = get_process_info(
         bot_id, process_name=process_name, process_id=process_id
     )
 

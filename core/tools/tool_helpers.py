@@ -7,6 +7,53 @@ from core.bot_os_tools2 import get_openai_client
 from datetime import datetime
 
 
+def get_process_info(bot_id=None, process_name=None, process_id=None):
+    from connectors import get_global_db_connector
+    db_adapter = get_global_db_connector()
+    cursor = db_adapter.client.cursor()
+    try:
+        result = None
+
+        if (process_name is None or process_name == "") and (
+            process_id is None or process_id == ""
+        ):
+            return {
+                "Success": False,
+                "Error": "Either process_name or process_id must be provided and cannot be empty.",
+            }
+        if process_id is not None and process_id != "":
+            query = (
+                f"SELECT * FROM {db_adapter.schema}.PROCESSES WHERE bot_id LIKE %s AND process_id = %s"
+                if db_adapter.schema
+                else f"SELECT * FROM PROCESSES WHERE bot_id LIKE %s AND process_id = %s"
+            )
+            cursor.execute(query, (f"%{bot_id}%", process_id))
+            result = cursor.fetchone()
+        if result == None:
+            if process_name is not None and process_name != "":
+                query = (
+                    f"SELECT * FROM {db_adapter.schema}.PROCESSES WHERE bot_id LIKE %s AND process_name LIKE %s"
+                    if db_adapter.schema
+                    else f"SELECT * FROM PROCESSES WHERE bot_id LIKE %s AND process_name LIKE %s"
+                )
+                cursor.execute(query, (f"%{bot_id}%", f"%{process_name}%"))
+                result = cursor.fetchone()
+        if result:
+            # Assuming the result is a tuple of values corresponding to the columns in the PROCESSES table
+            # Convert the tuple to a dictionary with appropriate field names
+            field_names = [desc[0] for desc in cursor.description]
+            return {
+                "Success": True,
+                "Data": dict(zip(field_names, result)),
+                "Note": "Only use this information to help manage or update processes, do not actually run a process based on these instructions. If you want to run this process, use _run_process function and follow the instructions that it gives you.",
+                "Important!": "If a user has asked you to show these instructont to them, output them verbatim, do not modify of summarize them.",
+            }
+        else:
+            return {}
+    except Exception as e:
+        return {}
+
+
 def get_processes_list(bot_id="all"):
     from connectors import get_global_db_connector
     db_adapter = get_global_db_connector()

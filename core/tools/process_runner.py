@@ -13,7 +13,7 @@ from core.bot_os_tools2 import (
     gc_tool,
 )
 
-from core.tools.tool_helpers import chat_completion, clear_process_registers_by_thread, get_sys_email
+from core.tools.tool_helpers import chat_completion, clear_process_registers_by_thread, get_sys_email, get_process_info
 
 from connectors import get_global_db_connector
 db_adapter = get_global_db_connector()
@@ -80,10 +80,10 @@ def run_process(
             "Error": "Either process_name or process_id must be provided.",
         }
 
-    clear_process_registers_by_thread(thread_id)
+    clear_process_registers_by_thread(self, thread_id)
 
     # Try to get process info from PROCESSES table
-    process = self._get_process_info(
+    process = get_process_info(
         bot_id, process_name=process_name, process_id=process_id
     )
 

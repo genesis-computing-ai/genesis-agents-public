@@ -70,7 +70,7 @@ manage_todos_tools = ToolFuncGroup(
     _group_tags_=[manage_todos_tools],
 )
 def manage_todos(
-    self, action, bot_id, todo_id=None, todo_details="", thread_id=None
+    action, bot_id, todo_id=None, todo_details="", thread_id=None
 ):
     """
     Manage todo items with various actions.  When creating Todos try to include any dependencies on other todos 
@@ -159,7 +159,7 @@ def record_todo_work(
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
     _group_tags_=[manage_todos_tools],
 )
-def get_project_todos(self, bot_id, project_id, thread_id=None):
+def get_project_todos(bot_id, project_id, thread_id=None):
     """
     Get all todos associated with a specific project
     """
@@ -174,7 +174,7 @@ def get_project_todos(self, bot_id, project_id, thread_id=None):
     _group_tags_=[manage_todos_tools],
 )
 def get_todo_dependencies(
-    self, bot_id, todo_id, include_reverse=False, thread_id=None
+    bot_id, todo_id, include_reverse=False, thread_id=None
 ):
     """
     Get all dependencies for a specific todo item
@@ -193,7 +193,7 @@ def get_todo_dependencies(
     _group_tags_=[manage_todos_tools],
 )
 def manage_todo_dependencies(
-    self, action, bot_id, todo_id, depends_on_todo_id=None, thread_id=None
+    action, bot_id, todo_id, depends_on_todo_id=None, thread_id=None
 ):
     """
     Manage dependencies between todo items, allowing you to specify that one todo must be completed before another can start
@@ -232,7 +232,6 @@ def manage_todo_dependencies(
     _group_tags_=[manage_todos_tools],
 )
 def manage_project_assets(
-    self,
     action,
     bot_id,
     project_id,

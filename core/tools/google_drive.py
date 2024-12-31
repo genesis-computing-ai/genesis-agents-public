@@ -187,7 +187,7 @@ def google_drive(
     # elif action == "GET_SHEET":
     #     cell_range = verify_single_cell(g_sheet_cell)
     #     try:
-    #         value = read_g_sheet(g_file_id, cell_range, None, self.db_adapter.user)
+    #         value = read_g_sheet(g_file_id, cell_range, None, db_adapter.user)
     #         return {"Success": True, "value": value}
     #     except Exception as e:
     #         return {"Success": False, "Error": str(e)}

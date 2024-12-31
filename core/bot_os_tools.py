@@ -100,6 +100,8 @@ class ToolBelt:
         """Set the server instance for this toolbelt"""
         self.server = server
 
+    # ====== RUN PROCESSES START ==========================================================================================
+
     def set_process_cache(self, bot_id, thread_id, process_id):
         cache_dir = "./process_cache"
         os.makedirs(cache_dir, exist_ok=True)
@@ -720,7 +722,7 @@ class ToolBelt:
             logger.info("No action specified.")
             return {"success": False, "message": "No action specified."}
 
-    # ====== RUN PROCESSES ==========================================================================================
+    # ====== RUN PROCESSES END ==========================================================================================
 
     # ====== NOTEBOOK START ==========================================================================================
 

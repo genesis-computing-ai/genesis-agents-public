@@ -3,6 +3,24 @@ from datetime import datetime
 import random
 import string
 
+from textwrap import dedent
+import re
+import os
+
+from core.bot_os_tools2 import (
+    BOT_ID_IMPLICIT_FROM_CONTEXT,
+    THREAD_ID_IMPLICIT_FROM_CONTEXT,
+    ToolFuncGroup,
+    ToolFuncParamDescriptor,
+    gc_tool,
+)
+
+manage_tests_tools = ToolFuncGroup(
+    name="manage_tests_tools",
+    description="",
+    lifetime="PERSISTENT",
+)
+
 def _get_test_manager_list(self, bot_id="all"):
     db_adapter = self.db_adapter
     cursor = db_adapter.client.cursor()
@@ -258,3 +276,10 @@ def manage_tests(
 
     finally:
         cursor.close()
+
+
+_manage_tests_functions = (manage_tests,)
+
+# Called from bot_os_tools.py to update the global list of functions
+def get_google_drive_tool_functions():
+    return _manage_tests_functions

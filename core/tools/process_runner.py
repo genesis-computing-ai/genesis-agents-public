@@ -1,6 +1,24 @@
 from datetime import datetime
 from core.logging_config import logger
 
+from textwrap import dedent
+import re
+import os
+
+from core.bot_os_tools2 import (
+    BOT_ID_IMPLICIT_FROM_CONTEXT,
+    THREAD_ID_IMPLICIT_FROM_CONTEXT,
+    ToolFuncGroup,
+    ToolFuncParamDescriptor,
+    gc_tool,
+)
+
+run_process_tools = ToolFuncGroup(
+    name="run_process_tools",
+    description="",
+    lifetime="PERSISTENT",
+)
+
 def run_process(
     self,
     action,
@@ -610,3 +628,10 @@ def run_process(
     else:
         logger.info("No action specified.")
         return {"success": False, "message": "No action specified."}
+
+
+_run_process_functions = (run_process,)
+
+# Called from bot_os_tools.py to update the global list of functions
+def get_google_drive_tool_functions():
+    return _run_process_functions

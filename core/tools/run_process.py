@@ -1,6 +1,42 @@
 from datetime import datetime
 from core.logging_config import logger
+from textwrap import dedent
+import re
+import os
 
+from core.bot_os_tools2 import (
+    BOT_ID_IMPLICIT_FROM_CONTEXT,
+    THREAD_ID_IMPLICIT_FROM_CONTEXT,
+    ToolFuncGroup,
+    ToolFuncParamDescriptor,
+    gc_tool,
+)
+
+run_process_tools = ToolFuncGroup(
+    name="run_process_tools",
+    description=dedent(
+    """
+    Runs a process by name or ID, allowing bots to manage processes.
+
+    Returns:
+        dict: A dictionary containing the result of the operation.
+    """
+    ),
+    lifetime="PERSISTENT",
+)
+
+
+# run_process
+@gc_tool(
+    action="The action to perform: KICKOFF_PROCESS, GET_NEXT_STEP, END_PROCESS, TIME, or STOP_ALL_PROCESSES.  Either process_name or process_id must also be specified.",
+    process_name="The name of the process to run",
+    process_id="The id of the process to run (note: this is NOT the task_id or process_schedule_id)",
+    previous_response="The previous response from the bot (for use with GET_NEXT_STEP)",
+    concise_mode="Optional, to run in low-verbosity/concise mode. Default to False.",
+    bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
+    thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
+    _group_tags_=[run_process_tools],
+)
 def run_process(
     self,
     action,
@@ -610,3 +646,9 @@ def run_process(
     else:
         logger.info("No action specified.")
         return {"success": False, "message": "No action specified."}
+
+_run_process_functions = (run_process,)
+
+# Called from bot_os_tools.py to update the global list of functions
+def get_google_drive_tool_functions():
+    return _run_process_functions

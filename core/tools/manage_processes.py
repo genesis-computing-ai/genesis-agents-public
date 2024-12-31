@@ -1,6 +1,55 @@
 from core.logging_config import logger
 from datetime import datetime
 
+from textwrap import dedent
+import random
+import string
+
+from core.bot_os_tools2 import (
+    BOT_ID_IMPLICIT_FROM_CONTEXT,
+    THREAD_ID_IMPLICIT_FROM_CONTEXT,
+    ToolFuncGroup,
+    gc_tool,
+)
+
+from core.tools.tool_helpers import chat_completion
+
+from connectors import get_global_db_connector
+db_adapter = get_global_db_connector()
+
+manage_processes_tools = ToolFuncGroup(
+    name="manage_processes_tools",
+    description=dedent(
+    """
+    Manages schedules to automatically run processes on a schedule (sometimes called tasks), including creating, updating,
+    and deleting schedules for processes.
+    """
+    ),
+    lifetime="PERSISTENT",
+)
+
+
+# manage processes
+@gc_tool(
+    action=dedent(
+        """The action to perform on a process: CREATE, UPDATE, DELETE, CREATE_PROCESS_CONFIG, UPDATE_PROCESS_CONFIG, DELETE_PROCESS_CONFIG, ALLOW_CODE, HIDE_PROCESS, UNHIDE_PROCESS
+            LIST returns a list of all processes, SHOW shows full instructions and details for a process, SHOW_CONFIG shows the configuration for a process,
+            HIDE_PROCESS hides the process from the list of processes, UNHIDE_PROCESS unhides the process from the list of processes,
+            or TIME to get current system time.  If you are trying to deactivate a schedule for a task, use _process_scheduler instead, don't just DELETE the process.
+            ALLOW_CODE is used to bypass the restriction that code must be added as a note"""
+    ),
+    process_id=dedent(
+        """The unique identifier of the process, create as bot_id_<random 6 character string>. MAKE SURE TO DOUBLE-CHECK THAT YOU ARE USING THE CORRECT process_id ON UPDATES AND DELETES!  
+            Required for CREATE, UPDATE, and DELETE."""
+    ),
+    process_name="The name of the process.  Required for SHOW.",
+    process_instructions="DETAILED instructions for completing the process  Do NOT summarize or simplify instructions provided by a user.",
+    process_config="Configuration string used by process when running.",
+    hidden="If true, the process will not be shown in the list of processes.  This is used to create processes to test the bots functionality without showing them to the user.",
+    bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
+    thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
+    _group_tags_=[manage_processes_tools],
+)
 def manage_processes(
     self, action, bot_id=None, process_id=None, process_instructions=None, thread_id=None, process_name=None, process_config=None, hidden=False
 ):
@@ -49,7 +98,7 @@ def manage_processes(
     action = action.upper()
 
     if action == "ALLOW_CODE":
-        self.include_code = True
+        include_code = True
         return {
             "Success": True,
             "Message": "User has confirmed that code will be allowed in the process instructions.",
@@ -61,7 +110,6 @@ def manage_processes(
         return {
             "current_system_time": datetime.now().astimezone()
         }
-    db_adapter = self.db_adapter
     cursor = db_adapter.client.cursor()
 
     try:
@@ -113,7 +161,7 @@ def manage_processes(
             actual SQL code, not a reference to SQL code, or only the word 'PYTHON' if the text contains actual Python code, not a reference to Python code.
             If the text contains both, return only 'SQL + PYTHON'.  Do not return any other verbage.  If the text contains
             neither, return only the word 'NO CODE':\n {process_details['process_instructions']}"""
-            result = self._chat_completion(check_for_code_instructions, self.db_adapter, bot_id=bot_id, bot_name='')
+            result = chat_completion(check_for_code_instructions, db_adapter, bot_id=bot_id, bot_name='')
 
             if result != 'NO CODE':
                 return {
@@ -170,7 +218,7 @@ def manage_processes(
             Do not create multiple options for the instructions, as whatever you return will be used immediately.
             Return the updated and tidy process.  If there is an issue with the process, return an error message."""
 
-            if not self.include_code:
+            if not include_code:
                 tidy_process_instructions = f"""
 
             Since the process contains either sql or snowpark_python code, you will need to ask the user if they want
@@ -183,7 +231,7 @@ def manage_processes(
             tidy_process_instructions = f"""
 
             If the process wants to send an email to a default email, or says to send an email but doesn't specify
-            a recipient address, note that the SYS$DEFAULT_EMAIL is currently set to {self.sys_default_email}.
+            a recipient address, note that the SYS$DEFAULT_EMAIL is currently set to {sys_default_email}.
             Include the notation of SYS$DEFAULT_EMAIL in the instructions instead of the actual address, unless
             the instructions specify a different specific email address.
 
@@ -198,7 +246,7 @@ def manage_processes(
                 line.lstrip() for line in tidy_process_instructions.splitlines()
             )
 
-            process_details['process_instructions'] = self._chat_completion(tidy_process_instructions, self.db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, process_id=process_id, process_name=process_name)
+            process_details['process_instructions'] = chat_completion(tidy_process_instructions, db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, process_id=process_id, process_name=process_name)
 
         if action == "CREATE":
             return {
@@ -240,7 +288,7 @@ def manage_processes(
 
     if action == "LIST":
         logger.info("Running get processes list")
-        return self._get_processes_list(bot_id if bot_id is not None else "all")
+        return _get_processes_list(bot_id if bot_id is not None else "all")
 
     if action == "SHOW":
         logger.info("Running show process info")
@@ -252,10 +300,10 @@ def manage_processes(
 
         if process_id is not None or 'process_id' in process_details:
 
-            return self._get_process_info(bot_id=bot_id, process_id=process_id)
+            return get_process_info(bot_id=bot_id, process_id=process_id)
         else:
             process_name = process_details['process_name']
-            return self._get_process_info(bot_id=bot_id, process_name=process_name)
+            return get_process_info(bot_id=bot_id, process_name=process_name)
 
     process_id_created = False
     if process_id is None:
@@ -421,3 +469,93 @@ def manage_processes(
 
     finally:
         cursor.close()
+
+def _get_processes_list(self, bot_id="all"):
+    cursor = db_adapter.client.cursor()
+    try:
+        if bot_id == "all":
+            list_query = f"SELECT process_id, bot_id, process_name FROM {db_adapter.schema}.PROCESSES WHERE HIDDEN IS NULL OR HIDDEN = FALSE" if db_adapter.schema else f"SELECT process_id, bot_id, process_name FROM PROCESSES WHERE HIDDEN IS NULL OR HIDDEN = FALSE"
+            cursor.execute(list_query)
+        else:
+            list_query = f"SELECT process_id, bot_id, process_name FROM {db_adapter.schema}.PROCESSES WHERE upper(bot_id) = upper(%s) AND HIDDEN IS NULL OR HIDDEN = FALSE" if db_adapter.schema else f"SELECT process_id, bot_id, process_name FROM PROCESSES WHERE upper(bot_id) = upper(%s) AND HIDDEN IS NULL OR HIDDEN = FALSE"
+            cursor.execute(list_query, (bot_id,))
+        processs = cursor.fetchall()
+        process_list = []
+        for process in processs:
+            process_dict = {
+                "process_id": process[0],
+                "bot_id": process[1],
+                "process_name": process[2],
+            }
+            process_list.append(process_dict)
+        return {"Success": True, "processes": process_list}
+    except Exception as e:
+        return {
+            "Success": False,
+            "Error": f"Failed to list processs for bot {bot_id}: {e}",
+        }
+    finally:
+        cursor.close()
+
+def get_sys_email(self):
+    cursor = db_adapter.client.cursor()
+    try:
+        _get_sys_email_query = f"SELECT default_email FROM {db_adapter.genbot_internal_project_and_schema}.DEFAULT_EMAIL"
+        cursor.execute(_get_sys_email_query)
+        result = cursor.fetchall()
+        default_email = result[0][0] if result else None
+        return default_email
+    except Exception as e:
+        #  logger.info(f"Error getting sys email: {e}")
+        return None
+
+
+def get_process_info(self, bot_id=None, process_name=None, process_id=None):
+    cursor = db_adapter.client.cursor()
+    try:
+        result = None
+
+        if (process_name is None or process_name == "") and (
+            process_id is None or process_id == ""
+        ):
+            return {
+                "Success": False,
+                "Error": "Either process_name or process_id must be provided and cannot be empty.",
+            }
+        if process_id is not None and process_id != "":
+            query = (
+                f"SELECT * FROM {db_adapter.schema}.PROCESSES WHERE bot_id LIKE %s AND process_id = %s"
+                if db_adapter.schema
+                else f"SELECT * FROM PROCESSES WHERE bot_id LIKE %s AND process_id = %s"
+            )
+            cursor.execute(query, (f"%{bot_id}%", process_id))
+            result = cursor.fetchone()
+        if result == None:
+            if process_name is not None and process_name != "":
+                query = (
+                    f"SELECT * FROM {db_adapter.schema}.PROCESSES WHERE bot_id LIKE %s AND process_name LIKE %s"
+                    if db_adapter.schema
+                    else f"SELECT * FROM PROCESSES WHERE bot_id LIKE %s AND process_name LIKE %s"
+                )
+                cursor.execute(query, (f"%{bot_id}%", f"%{process_name}%"))
+                result = cursor.fetchone()
+        if result:
+            # Assuming the result is a tuple of values corresponding to the columns in the PROCESSES table
+            # Convert the tuple to a dictionary with appropriate field names
+            field_names = [desc[0] for desc in cursor.description]
+            return {
+                "Success": True,
+                "Data": dict(zip(field_names, result)),
+                "Note": "Only use this information to help manage or update processes, do not actually run a process based on these instructions. If you want to run this process, use _run_process function and follow the instructions that it gives you.",
+                "Important!": "If a user has asked you to show these instructont to them, output them verbatim, do not modify of summarize them.",
+            }
+        else:
+            return {}
+    except Exception as e:
+        return {}
+
+_manage_processes_functions = (manage_processes,)
+
+# Called from bot_os_tools.py to update the global list of functions
+def get_google_drive_tool_functions():
+    return _manage_processes_functions

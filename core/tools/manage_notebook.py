@@ -3,6 +3,24 @@ from datetime import datetime
 import random
 import string
 
+from textwrap import dedent
+import re
+import os
+
+from core.bot_os_tools2 import (
+    BOT_ID_IMPLICIT_FROM_CONTEXT,
+    THREAD_ID_IMPLICIT_FROM_CONTEXT,
+    ToolFuncGroup,
+    ToolFuncParamDescriptor,
+    gc_tool,
+)
+
+manage_notebook_tools = ToolFuncGroup(
+    name="manage_notebook_tools",
+    description="",
+    lifetime="PERSISTENT",
+)
+
 def _insert_notebook_history(
     self,
     note_id,
@@ -412,3 +430,9 @@ def manage_notebook(
 
     finally:
         cursor.close()
+
+_manage_notebook_functions = (manage_notebook,)
+
+# Called from bot_os_tools.py to update the global list of functions
+def get_google_drive_tool_functions():
+    return _manage_notebook_functions

@@ -1,6 +1,78 @@
 from datetime import datetime
 from core.logging_config import logger
 
+from textwrap import dedent
+import re
+import os
+
+from core.bot_os_tools2 import (
+    BOT_ID_IMPLICIT_FROM_CONTEXT,
+    THREAD_ID_IMPLICIT_FROM_CONTEXT,
+    ToolFuncGroup,
+    ToolFuncParamDescriptor,
+    gc_tool,
+)
+
+process_scheduler_tools = ToolFuncGroup(
+    name="process_scheduler_tools",
+    description=dedent("""Manages schedules to automatically run processes on a schedule (sometimes called tasks), including creating, 
+                       updating,and deleting schedules for processes."""),
+    lifetime="PERSISTENT",
+)
+
+
+# process scheduler
+@gc_tool(
+    action=dedent(
+        """The action to perform on the process schedule: CREATE, UPDATE, or DELETE.  Or LIST to get details on all 
+                      scheduled processes for a bot, or TIME to get current system time or HISTORY to get the history of a scheduled 
+                      process by task_id.  For history lookup task_id first using LIST.  To deactive a schedule without deleting it, 
+                      UPDATE it and set task_active to FALSE."""
+    ),
+    bot_id="BOT_ID_IMPLICIT_FROM_CONTEXT",
+    task_id=dedent(
+        """The unique identifier of the process schedule, create as bot_id_<random 6 character string>. MAKE SURE TO 
+                       DOUBLE-CHECK THAT YOU ARE USING THE CORRECT task_id, its REQUIRED ON CREATE, UPDATES AND DELETES! Note that this 
+                       is not the same as the process_id"""
+    ),
+    task_details=ToolFuncParamDescriptor(
+        name="task_details",
+        description="The properties of this object are the details of the process schedule for use when creating and updating.",
+        llm_type_desc=dict(
+            type="object",
+            properties=dict(
+                process_name=dict(
+                    type="string",
+                    description="The name of the process to run on a schedule. This must be a valid process name shown by _manage_processes LIST",
+                ),
+                primary_report_to_type=dict(
+                    type="string",
+                    description="Set to SLACK_USER",
+                ),
+                primary_report_to_id=dict(
+                    type="string",
+                    description="The Slack USER ID of the person who told you to create this schedule for a process.",
+                ),
+                next_check_ts=dict(
+                    type="string",
+                    description="The timestamp for the next run of the process 'YYYY-MM-DD HH:MM:SS'. Call action TIME to get current time and timezone. Make sure this time is in the future.",
+                ),
+                action_trigger_type=dict(
+                    type="string",
+                    description="Always set to TIMER",
+                ),
+                action_trigger_details=dict(
+                    type="string",
+                    description="""For TIMER, a description of when to call the task, eg every hour, Tuesdays at 9am, every morning.  Also be clear about whether the task should be called one time, or is recurring, and if recurring if it should recur forever or stop at some point.""",
+                ),
+            ),
+        ),
+        required=False,
+    ),
+    history_rows=10,
+    thread_id="THREAD_ID_IMPLICIT_FROM_CONTEXT",
+    _group_tags_=[process_scheduler_tools],
+)
 def process_scheduler(
     self, action, bot_id, task_id=None, task_details=None, thread_id=None, history_rows=10
 ):
@@ -268,3 +340,9 @@ def process_scheduler(
 
     finally:
         cursor.close()
+
+_process_scheduler_functions = (process_scheduler,)
+
+# Called from bot_os_tools.py to update the global list of functions
+def get_google_drive_tool_functions():
+    return _process_scheduler_functions

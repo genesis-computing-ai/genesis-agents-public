@@ -468,12 +468,19 @@ def get_global_tools_registry():
             reg =  ToolsFuncRegistry()
 
             # Register all 'new type' PERSISTENT tools here explicitly
-            #----------------------------------------------------------
+            # ----------------------------------------------------------
             funcs = []
 
+            # IMPORT TOOL FUNCTIONS FROM OTHER MODULES
             import_locations = [
                 "data_pipeline_tools.gc_dagster.get_dagster_tool_functions",
-                "connectors.database_connector.get_database_connections_functions"
+                "connectors.data_connector.get_data_connections_functions"
+                "core.tools.google_drive.get_google_drive_tool_functions",
+                "core.tools.manage_todos.manage_todos_functions",
+                "core.tools.manage_notebook.manage_notebook_functions",
+                "core.tools.manage_processes.manage_processes_functions",
+                "core.tools.run_process.run_process_functions",
+                "core.tools.process_scheduler.process_scheduler_functions",
             ]
 
             for import_location in import_locations:

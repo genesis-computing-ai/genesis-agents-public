@@ -1,4 +1,54 @@
+from textwrap import dedent
+import re
+import os
 
+from core.bot_os_tools2 import (
+    BOT_ID_IMPLICIT_FROM_CONTEXT,
+    THREAD_ID_IMPLICIT_FROM_CONTEXT,
+    ToolFuncGroup,
+    ToolFuncParamDescriptor,
+    gc_tool,
+)
+
+
+google_drive_tools = ToolFuncGroup(
+    name="google_drive_tools",
+    description="Performs certain actions on Google Drive, including logging in, listing files, setting the root folder,and getting the version number of a google file (g_file).",
+    lifetime="PERSISTENT",
+)
+
+
+@gc_tool(
+    action=dedent(
+        """
+        The action to be performed on Google Drive.  Possible actions are:
+            LOGIN - Used to login in to Google Workspace with OAuth2.0.  Not implemented
+            LIST - Get's list of files in a folder.  Same as DIRECTORY, DIR, GET FILES IN FOLDER
+            SET_ROOT_FOLDER - Sets the root folder for the user on their drive
+            GET_FILE_VERSION_NUM - Gets the version numbergiven a g_file id
+            GET_COMMENTS - Gets the comments and replies for a file give a g_file_id
+            ADD_COMMENT - Adds a comment to a file given a g_file_id
+            ADD_REPLY_TO_COMMENT - Adds a reply to a comment given a g_file_id and a comment_id
+            GET_SHEET - (Also can be READ_SHEET) - Gets the contents of a Google Sheet given a g_file_id
+            EDIT_SHEET - (Also can be WRITE SHEET) - Edits a Google Sheet given a g_file_id and values.  Passing
+                a cell range is optional
+            GET_LINK_FROM_FILE_ID - Gets the url link to a file given a g_file_id
+            GET_FILE_BY_NAME - Searches for a file by name and returns the file id
+            SAVE_QUERY_RESULTS_TO_G_SHEET - Saves the results of a query to a Google Sheet
+    """
+    ),
+    g_folder_id="The unique identifier of a folder stored on Google Drive.",
+    g_file_id="The unique identifier of a file stored on Google Drive.",
+    g_sheet_cell="Cell in a Google Sheet to edit/update.",
+    g_sheet_value="Value to update the cell in a Google Sheet or update a comment.",
+    g_file_comment_id="The unique identifier of a comment stored on Google Drive.",
+    g_file_name="The name of a file, files, folder, or folders stored on Google Drive.",
+    g_sheet_query="Query string to run and save the results to a Google Sheet.",
+    user="""The unique identifier of the process_id. MAKE SURE TO DOUBLE-CHECK THAT YOU ARE USING THE CORRECT test_process_id 
+        ON UPDATES AND DELETES!  Required for CREATE, UPDATE, and DELETE.""",
+    thread_id="THREAD_ID_IMPLICIT_FROM_CONTEXT",
+    _group_tags_=[google_drive_tools],
+)
 def google_drive(
     self,
     action,
@@ -178,3 +228,11 @@ def google_drive(
         pass
 
     return {"Success": False, "Error": "Invalid action specified."}
+
+_google_drive_functions = (
+    google_drive,
+)
+
+# Called from bot_os_tools.py to update the global list of functions
+def get_google_drive_tool_functions():
+    return _google_drive_functions

@@ -11,10 +11,27 @@ from core.bot_os_artifacts import (
 from urllib.parse import urlunparse, urlencode
 from bs4 import BeautifulSoup
 
+from textwrap import dedent
+import re
+import os
+
+from core.bot_os_tools2 import (
+    BOT_ID_IMPLICIT_FROM_CONTEXT,
+    THREAD_ID_IMPLICIT_FROM_CONTEXT,
+    ToolFuncGroup,
+    ToolFuncParamDescriptor,
+    gc_tool,
+)
+
+send_email_tools = ToolFuncGroup(
+    name="send_email_tools",
+    description="",
+    lifetime="PERSISTENT",
+)
+
 # We use this URL to include the genesis logo in snowflake-generated emails.
 # TODO: use a permanent URL under the genesiscomputing.ai domain
 GENESIS_LOGO_URL = "https://i0.wp.com/genesiscomputing.ai/wp-content/uploads/2024/05/Genesis-Computing-Logo-White.png"
-
 
 
 def send_email(
@@ -415,3 +432,9 @@ def send_email(
             )
     assert result
     return result
+
+_send_email_functions = (send_email,)
+
+# Called from bot_os_tools.py to update the global list of functions
+def get_google_drive_tool_functions():
+    return _send_email_functions

@@ -881,7 +881,7 @@ def _search_metadata(
     knowledge_base_path: str = "./kb_vector",
     bot_id: str = None,
     thread_id: str = None,
-):
+) -> dict:
     """Search database metadata for tables, columns, and other objects"""
     return DatabaseConnector().search_metadata(
         query=query,
@@ -918,7 +918,7 @@ def _data_explorer(
     knowledge_base_path: str = "./kb_vector",
     bot_id: str = None,
     thread_id: str = None,
-):
+) -> dict:
     """Explore data"""
     return DatabaseConnector().search_metadata(
         query=query,
@@ -955,7 +955,7 @@ def _get_full_table_details(
     knowledge_base_path: str = "./kb_vector",
     bot_id: str = None,
     thread_id: str = None,
-):
+) -> dict:
     """Get full table details"""
     return DatabaseConnector().search_metadata_detailed(
         query=query,
@@ -973,7 +973,7 @@ def _get_full_table_details(
 
 # holds the list of all data connection tool functions
 # NOTE: Update this list when adding new data connection tools (TODO: automate this by scanning the module?)
-_all_data_connections_functions = (
+_all_database_connections_functions = (
     _query_database,
     _add_database_connection,
     _delete_database_connection,
@@ -986,4 +986,4 @@ _all_data_connections_functions = (
 
 # Called from bot_os_tools.py to update the global list of data connection tool functions
 def get_data_connections_functions():
-    return _all_data_connections_functions
+    return _all_database_connections_functions

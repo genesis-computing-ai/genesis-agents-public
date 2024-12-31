@@ -22,7 +22,6 @@ from   bot_genesis.make_baby_bot \
 from   jinja2                   import Template
 from   connectors.database_tools \
                                 import (
-                                        autonomous_functions, autonomous_tools,
                                         image_functions,
                                         image_tools,
                                         notebook_manager_functions,
@@ -1161,15 +1160,17 @@ def get_tools(
     """
     func_descriptors = []
     available_functions_loaded = {} # map function_name (str)--> 'locator' (str|callable) ;
-                                    # 'locator' can be a callable or string.
-                                    # If a string, it gets dyanmically evaluated below to the actual callable object
+    # 'locator' can be a callable or string.
+    # If a string, it gets dyanmically evaluated below to the actual callable object
     tool_to_func_descriptors_map = {} # map of tool name to list of function descriptors
-    if "autonomous_functions" in which_tools and "autonomous_tools" not in which_tools:
-        which_tools = [
-            tool if tool != "autonomous_functions" else "autonomous_tools"
-            for tool in which_tools
-        ]
-    which_tools = [tool for tool in which_tools if tool != "autonomous_functions"]
+
+    # if "autonomous_functions" in which_tools and "autonomous_tools" not in which_tools:
+    #     which_tools = [
+    #         tool if tool != "autonomous_functions" else "autonomous_tools"
+    #         for tool in which_tools
+    #     ]
+
+    which_tools = [tool for tool in which_tools]  # if tool != "autonomous_functions"
 
     for tool in which_tools:
         try:
@@ -1178,8 +1179,7 @@ def get_tools(
             tool_name = tool
 
         # Resolve 'old style' tool names
-        #----------------------------------
-
+        # ----------------------------------
         if tool_name == "bot_dispatch_tools":
             func_descriptors.extend(BOT_DISPATCH_DESCRIPTIONS)
             available_functions_loaded.update(bot_dispatch_tools)
@@ -1211,10 +1211,10 @@ def get_tools(
             func_descriptors.extend(image_functions)
             available_functions_loaded.update(image_tools)
             tool_to_func_descriptors_map[tool_name] = image_functions
-        elif tool_name == "autonomous_tools" or tool_name == "autonomous_functions":
-            func_descriptors.extend(autonomous_functions)
-            available_functions_loaded.update(autonomous_tools)
-            tool_to_func_descriptors_map[tool_name] = autonomous_functions
+        # elif tool_name == "autonomous_tools" or tool_name == "autonomous_functions":
+        #     func_descriptors.extend(autonomous_functions)
+        #     available_functions_loaded.update(autonomous_tools)
+        #     tool_to_func_descriptors_map[tool_name] = autonomous_functions
         elif tool_name == "process_runner_tools":
             func_descriptors.extend(process_runner_functions)
             available_functions_loaded.update(process_runner_tools)
@@ -1230,7 +1230,7 @@ def get_tools(
         else:
             # Resolve 'new style' tool functions
             # (from tool functions registry)
-            #----------------------------------
+            # ----------------------------------
             registry = get_global_tools_registry()
             tool_funcs : List[Callable] = registry.get_tool_funcs_by_group(tool_name)
             if tool_funcs:
@@ -1257,7 +1257,6 @@ def get_tools(
                     available_functions_loaded.update(func_af)
                 except:
                     logger.warn(f"Functions for tool '{tool_name}' could not be found.")
-
 
     # Resolve 'old style' tool functions to actual callables
     available_functions = {}
@@ -1287,7 +1286,6 @@ def get_tools(
                 func = getattr(module, func_name)
                 # logger.info("imported: ",func)
             available_functions[name] = func
-    # Insert additional code here if needed
 
     # add user extended tools
     user_extended_tools_definitions, user_extended_functions = load_user_extended_tools(db_adapter, project_id=global_flags.project_id,
@@ -1298,7 +1296,6 @@ def get_tools(
         tool_to_func_descriptors_map[tool_name] = user_extended_functions
 
     return func_descriptors, available_functions, tool_to_func_descriptors_map
-    # logger.info("imported: ",func)
 
 
 class BotOsDispatchInputAdapter(BotOsInputAdapter):

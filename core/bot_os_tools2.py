@@ -295,8 +295,10 @@ def gc_tool(_group_tags_: List[str], **param_descriptions):
                 
                 # Check if the type hint matches the descriptor's param_type
                 expected_type = ToolFuncParamDescriptor._python_type_to_llm_type(pattrs.annotation)
-                if param_desc.llm_type != expected_type:
+                if param_desc.llm_type['type'] != expected_type['type']:
+                    # Note that we allow for other keys in the user-provided descriptor, such as 'enum'. But we insist the hinted types should match.
                     raise ValueError(f"Type mismatch for parameter {pname}: expected {expected_type}, got {param_desc.llm_type}")
+                
 
                 # Check if the 'required' status matches the descriptor's required attribute
                 has_default_val = pattrs.default is not pattrs.empty

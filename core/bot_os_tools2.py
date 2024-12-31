@@ -481,7 +481,7 @@ def get_global_tools_registry():
 
             import_locations = [
                 "data_pipeline_tools.gc_dagster.get_dagster_tool_functions",
-                "connectors.database_connector.get_database_connections_functions"
+                "connectors.database_connector.get_data_connections_functions"
             ]
 
             for import_location in import_locations:

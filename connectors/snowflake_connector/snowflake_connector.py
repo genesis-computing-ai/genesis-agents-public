@@ -2501,7 +2501,7 @@ def get_status(site):
         try:
 
             results = cursor.fetchmany(max(1,max_rows))
-            columns = [col[0] for col in cursor.description]
+            columns = [col[0].upper() for col in cursor.description]
 
             fieldTrunced = False
             if userquery and max_field_size > 0:
@@ -4134,6 +4134,9 @@ def get_status(site):
         # Get the results from the query
         results = cursor.fetchall()
 
+        self.client.commit()
+        cursor.close()
+
         # Check if there are any results
         if results:
             # Process the results if needed
@@ -4141,9 +4144,7 @@ def get_status(site):
             return results
         else:
             # If no results, you might want to return None or an empty list
-            return None
-        self.client.commit()
-        cursor.close()
+            return None        
 
     def fetch_embeddings(self, table_id):
         # Initialize Snowflake connector

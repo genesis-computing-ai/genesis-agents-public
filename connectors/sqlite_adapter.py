@@ -621,6 +621,7 @@ class SQLiteCursorWrapper:
             'IFF\\(([^,]+),([^,]+),([^)]+)\\)': r'CASE WHEN \1 THEN \2 ELSE \3 END',
             'REPLACE\\(REPLACE\\(([^,]+),([^,]+),([^)]+)\\),([^,]+),([^)]+)\\)':
                 r'REPLACE(REPLACE(\1,\2,\3),\4,\5)',
+            'TO_TIMESTAMP': 'DATETIME'
         }
 
         # Apply replacements

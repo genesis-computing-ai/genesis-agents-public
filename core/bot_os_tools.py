@@ -16,7 +16,6 @@ from jinja2 import Template
 from core.bot_os_artifacts import (
     ARTIFACT_ID_REGEX,
     get_artifacts_store,
-    lookup_artifact_markdown,
 )
 
 from   connectors.bigquery_connector \
@@ -29,24 +28,13 @@ from   core.bot_os_tools_extended \
                                 import load_user_extended_tools
 from   llm_openai.bot_os_openai import StreamingEventHandler
 
-from   google_sheets.g_sheets   import (add_g_file_comment,
-                                        add_reply_to_g_file_comment,
-                                        find_g_file_by_name,
-                                        get_g_file_comments,
-                                        get_g_file_version,
-                                        get_g_file_web_link,
-                                        get_g_folder_directory, read_g_sheet,
-                                        write_g_sheet_cell)
-
-import collections
-import re
 from   typing                   import Optional
 
 from   bot_genesis.make_baby_bot \
                                 import (MAKE_BABY_BOT_DESCRIPTIONS,
                                         get_bot_details, make_baby_bot_tools)
-# from connectors import get_global_db_connector
-# from connectors.bigquery_connector import BigQueryConnector
+
+
 from connectors.database_tools import (
     autonomous_functions,
     autonomous_tools,
@@ -54,36 +42,13 @@ from connectors.database_tools import (
     image_tools,
 )
 
-from   development.integration_tools \
-                                import (integration_tool_descriptions,
-                                        integration_tools)
 from   llm_openai.openai_utils  import get_openai_client
 from   schema_explorer.harvester_tools \
                                 import (harvester_tools_functions,
                                         harvester_tools_list)
 from   slack.slack_tools        import slack_tools, slack_tools_descriptions
 
-# Commented out gut left for reference: dagster tools are 'new type' tools - registred with the ToolsFuncRegistry
-#
-# from data_pipeline_tools.gc_dagster import (
-#     dagster_tool_functions,
-#     dagster_tools,
-# )
-
-from   core.bot_os              import BotOsSession
-from   core.bot_os_corpus       import URLListFileCorpus
-from   core.bot_os_defaults     import (BASE_BOT_INSTRUCTIONS_ADDENDUM,
-                                        BASE_BOT_PRE_VALIDATION_INSTRUCTIONS,
-                                        BASE_BOT_PROACTIVE_INSTRUCTIONS,
-                                        BASE_BOT_VALIDATION_INSTRUCTIONS)
-from   core.bot_os_input        import BotOsInputAdapter
-from   core.bot_os_memory       import BotOsKnowledgeAnnoy_Metadata
-
-from   core.bot_os_input        import BotOsInputMessage, BotOsOutputMessage
-
-# import sys
-# sys.path.append('/Users/mglickman/helloworld/bot_os')  # Adjust the path as necessary
-
+from   core.bot_os_input        import BotOsOutputMessage
 
 from   core.bot_os_llm          import BotLlmEngineEnum
 from   core.bot_os_tool_descriptions \
@@ -114,8 +79,9 @@ from core.bot_os_tools2 import (
 )
 
 from textwrap import dedent
+from .bot_os_dispatch_input_adapter import BotOsDispatchInputAdapter
 
-from .tools.run_processes import run_process
+from .tools.process_runner import run_process
 from .tools.manage_processes import manage_processes
 from .tools.manage_notebook import manage_notebook
 from .tools.manage_tests import manage_tests
@@ -457,7 +423,7 @@ class ToolBelt:
                 "error": f"Error delegating work: {str(e)}"
             }
 
-    def manage_todos(self, action, bot_id, todo_id=None, todo_details=None, thread_id=None):
+    def manage_todos(self, action, bot_id, todo_id=None, todo_details="", thread_id=None):
         """
         Manages todos through various actions (CREATE, UPDATE, CHANGE_STATUS, LIST)
         """
@@ -1059,6 +1025,94 @@ tool_belt_tools = ToolFuncGroup(
     lifetime="PERSISTENT"
 )
 
+
+# git action
+@gc_tool(
+    action=ToolFuncParamDescriptor(
+        name="action",
+        description=dedent(
+            """The action to perform:
+                    - list_files: List all tracked files (optional: path)
+                    - read_file: Read file contents (requires: file_path)
+                    - write_file: Write content to file (requires: file_path, content; optional: commit_message)
+                    - generate_diff: Generate diff between contents (requires: old_content, new_content; optional: context_lines)
+                    - apply_diff: Apply a unified diff to a file (requires: file_path, diff_content; optional: commit_message)
+                    - commit: Commit changes (requires: message)
+                    - get_history: Get commit history (optional: file_path, max_count)
+                    - create_branch: Create new branch (requires: branch_name)
+                    - switch_branch: Switch to branch (requires: branch_name)
+                    - get_branch: Get current branch name
+                    - get_status: Get file status (optional: file_path)"""
+        ),
+        required=True,
+        llm_type_desc=dict(
+            type="string",
+            enum=[
+                "list_files",
+                "read_file",
+                "write_file",
+                "generate_diff",
+                "apply_diff",
+                "commit",
+                "get_history",
+                "create_branch",
+                "switch_branch",
+                "get_branch",
+                "get_status",
+            ],
+        ),
+    ),
+    file_path="Path to the file within the repository",
+    content="Content to write to the file",
+    commit_message="Message to use when committing changes",
+    old_content="Original content for generating diff",
+    new_content="New content for generating diff",
+    diff_content="Unified diff content to apply to a file",
+    branch_name="Name of the branch to create or switch to",
+    path="Optional path filter for listing files",
+    message="Message to use when committing changes",
+    max_count="Maximum number of commits to return",
+    context_lines="Number of context lines in generated diffs",
+    _group_tags_=[tool_belt_tools],
+    bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
+    thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
+    _group_tags_=[tool_belt_tools],
+)
+def _git_action(
+        action: str,
+        file_path: str = None,
+        content: str = None,
+        commit_message: str = None,
+        old_content: str = None,
+        new_content: str = None,
+        diff_content: str = None,
+        branch_name: str = None,
+        path: str = None,
+        message: str = None,
+        max_count: int = None,
+        context_lines: int = None,
+        bot_id: str = None,
+        thread_id: str = None,
+        _group_tags_=[tool_belt_tools],
+):
+    return ToolBelt().git_action(
+        action=action,
+        file_path=file_path,
+        content=content,
+        commit_message=commit_message,
+        old_content=old_content,
+        new_content=new_content,
+        diff_content=diff_content,
+        branch_name=branch_name,
+        path=path,
+        message=message,
+        max_count=max_count,
+        context_lines=context_lines,
+        bot_id=bot_id,
+        thread_id=thread_id
+    )
+
+# to-dos
 @gc_tool(
     action=ToolFuncParamDescriptor(
         name="action",
@@ -1112,7 +1166,7 @@ def _manage_todos(
         allowed_bot_ids: list[str] = None,
         thread_id: str = None,
         _group_tags_=[tool_belt_tools],
-        ) -> dict:
+        ):
     """
     Manages todos through various actions (CREATE, UPDATE, CHANGE_STATUS, LIST)
 
@@ -1128,7 +1182,44 @@ def _manage_todos(
         thread_id=thread_id
     )
 
+# run_process
+@gc_tool(
+    action="The action to perform: KICKOFF_PROCESS, GET_NEXT_STEP, END_PROCESS, TIME, or STOP_ALL_PROCESSES.  Either process_name or process_id must also be specified.",
+    process_name="The name of the process to run",
+    process_id="The id of the process to run (note: this is NOT the task_id or process_schedule_id)",
+    previous_response="The previous response from the bot (for use with GET_NEXT_STEP)",
+    concise_mode="Optional, to run in low-verbosity/concise mode. Default to False.",
+    bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
+    thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
+    _group_tags_=[tool_belt_tools],
+)
+def _run_process(
+        action: str,
+        process_name: str,
+        process_id: str,
+        previous_response: str,
+        bot_id: str,
+        thread_id: str,
+        concise_mode: bool = False,
+        _group_tags_=[tool_belt_tools],
+        ):
+    """
+    Runs a process by name or ID, allowing bots to manage processes.
 
+    Returns:
+        dict: A dictionary containing the result of the operation.
+    """
+    return ToolBelt().run_process(
+        action=action,
+        process_name=process_name,
+        process_id=process_id,
+        previous_response=previous_response,
+        concise_mode=concise_mode,
+        bot_id=bot_id,
+        thread_id=thread_id
+    )
+
+# manage processes
 @gc_tool(
     action=dedent(
         """The action to perform on a process: CREATE, UPDATE, DELETE, CREATE_PROCESS_CONFIG, UPDATE_PROCESS_CONFIG, DELETE_PROCESS_CONFIG, ALLOW_CODE, HIDE_PROCESS, UNHIDE_PROCESS
@@ -1147,7 +1238,7 @@ def _manage_todos(
     hidden="If true, the process will not be shown in the list of processes.  This is used to create processes to test the bots functionality without showing them to the user.",
     bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
-    _group_tags_=[tool_belt_tools]
+    _group_tags_=[tool_belt_tools],
 )
 # required fields - "action", "bot_id", "process_instructions"
 def _manage_processes(
@@ -1159,7 +1250,7 @@ def _manage_processes(
         bot_id: str,
         thread_id: str,
         _group_tags_=[tool_belt_tools],
-        ) -> dict:
+        ):
     """
     Manages processes for bots, including creating, updating, listing and deleting processes allowing bots to manage processes.
     Remember that this is not used to create new bots
@@ -1177,7 +1268,7 @@ def _manage_processes(
         thread_id=thread_id
     )
 
-
+# process scheduler
 @gc_tool(
     action=dedent(
         """The action to perform on the process schedule: CREATE, UPDATE, or DELETE.  Or LIST to get details on all 
@@ -1250,7 +1341,7 @@ def _process_scheduler(
         thread_id=thread_id
     )
 
-
+# google drive
 @gc_tool(
     action=dedent("""
         The action to be performed on Google Drive.  Possible actions are:
@@ -1359,18 +1450,10 @@ def get_tools(
 
         # Resolve 'old style' tool names
         # ----------------------------------
-        if tool_name == "google_drive_tools":
-            func_descriptors.extend(google_drive_functions)
-            available_functions_loaded.update(google_drive_tools)
-            tool_to_func_descriptors_map[tool_name] = google_drive_functions
-        elif tool_name == "bot_dispatch_tools":
+        if tool_name == "bot_dispatch_tools":
             func_descriptors.extend(BOT_DISPATCH_DESCRIPTIONS)
             available_functions_loaded.update(bot_dispatch_tools)
             tool_to_func_descriptors_map[tool_name] = BOT_DISPATCH_DESCRIPTIONS
-        elif tool_name == "manage_tests_tools":
-            func_descriptors.extend(manage_tests_functions)
-            available_functions_loaded.update(manage_tests_tools)
-            tool_to_func_descriptors_map[tool_name] = manage_tests_functions
         elif tool_name == "data_dev_tools":
             func_descriptors.extend(data_dev_tools_functions)
             available_functions_loaded.update(data_dev_tools)
@@ -1402,9 +1485,9 @@ def get_tools(
             func_descriptors.extend(autonomous_functions)
             available_functions_loaded.update(autonomous_tools)
             tool_to_func_descriptors_map[tool_name] = autonomous_functions
-        elif tool_name == "process_runner_tools":
-            func_descriptors.extend(process_runner_functions)
-            available_functions_loaded.update(process_runner_tools)
+        # elif tool_name == "process_runner_tools":
+        #     func_descriptors.extend(process_runner_functions)
+        #     available_functions_loaded.update(process_runner_tools)
             tool_to_func_descriptors_map[tool_name] = process_runner_functions
         elif tool_name == "git_file_manager_tools":  # Add this section
             func_descriptors.extend(git_file_manager_functions)
@@ -1470,7 +1553,6 @@ def get_tools(
                 func = getattr(module, func_name)
                 # logger.info("imported: ",func)
             available_functions[name] = func
-    # Insert additional code here if needed
 
     # add user extended tools
     user_extended_tools_definitions, user_extended_functions = load_user_extended_tools(db_adapter, project_id=global_flags.project_id,
@@ -1482,46 +1564,6 @@ def get_tools(
 
     return func_descriptors, available_functions, tool_to_func_descriptors_map
     # logger.info("imported: ",func)
-
-
-class BotOsDispatchInputAdapter(BotOsInputAdapter):
-    def __init__(self, bot_id) -> None:
-        bot_config = get_bot_details(bot_id=bot_id)
-        self.session = make_session_for_dispatch(bot_config)
-        self.tasks = {}
-
-    # allows for polling from source
-    def add_event(self, event):
-        pass
-
-    # allows for polling from source
-    def get_input(self, thread_map=None, active=None, processing=None, done_map=None):
-        pass
-
-    # allows response to be sent back with optional reply
-    def handle_response(
-        self,
-        session_id: str,
-        message: BotOsOutputMessage,
-        in_thread=None,
-        in_uuid=None,
-        task_meta=None,
-    ):
-        if message.status == "completed":
-            self.tasks[message.thread_id]["result"] = message.output
-
-    def dispatch_task(self, task):
-        # thread_id = self.session.add_task(task, self)
-        thread_id = self.session.create_thread(self)
-        self.tasks[thread_id] = {"task": task, "result": None}
-        self.session.add_message(BotOsInputMessage(thread_id=thread_id, msg=task))
-
-    def check_tasks(self):
-        self.session.execute()
-        if all(task["result"] is not None for task in self.tasks.values()):
-            return [task["result"] for task in self.tasks.values()]
-        else:
-            return False
 
 
 def dispatch_to_bots(task_template, args_array, dispatch_bot_id=None):
@@ -1603,99 +1645,27 @@ BOT_DISPATCH_DESCRIPTIONS = [
 bot_dispatch_tools = {"_delegate_work": "tool_belt.delegate_work"}
 
 
-def make_session_for_dispatch(bot_config):
-    input_adapters = []
-    bot_tools = json.loads(bot_config["available_tools"])
-
-    # Create a DB connector for this session.
-    # TODO - use the utility functions in the connectors module to DRY up.
-    genesis_source = os.getenv("GENESIS_SOURCE", default="BigQuery")
-
-    if genesis_source == "BigQuery":
-        credentials_path = os.getenv(
-            "GOOGLE_APPLICATION_CREDENTIALS", default=".secrets/gcp.json"
-        )
-        with open(credentials_path) as f:
-            connection_info = json.load(f)
-        # Initialize BigQuery client
-        db_adapter = BigQueryConnector(connection_info, "BigQuery")
-    else:  # Initialize BigQuery client
-        db_adapter = SnowflakeConnector(connection_name="Snowflake")
-        connection_info = {"Connection_Type": "Snowflake"}
-
-    logger.info("---> CONNECTED TO DATABASE: ", genesis_source)
-    tools, available_functions, function_to_tool_map = get_tools(
-        bot_tools, db_adapter, include_slack=False
-    )  # FixMe remove slack adapter if
-
-    instructions = (
-        bot_config["bot_instructions"] + "\n" + BASE_BOT_INSTRUCTIONS_ADDENDUM
-    )
-    logger.info(instructions, f'{bot_config["bot_name"]}, id: {bot_config["bot_id"]}')
-
-    # TESTING UDF ADAPTER W/EVE and ELSA
-    # add a map here to track botid to adapter mapping
-
-    bot_id = bot_config["bot_id"]
-    if os.getenv("BOT_DO_PLANNING_REFLECTION"):
-        pre_validation = BASE_BOT_PRE_VALIDATION_INSTRUCTIONS
-        post_validation = BASE_BOT_VALIDATION_INSTRUCTIONS
-    else:
-        pre_validation = ""
-        post_validation = None
-    if os.getenv("BOT_BE_PROACTIVE", "False").lower() == "true":
-        proactive_instructions = BASE_BOT_PROACTIVE_INSTRUCTIONS
-    else:
-        proactive_instructions = ""
-    session = BotOsSession(
-        bot_config["bot_id"],
-        instructions=instructions + proactive_instructions + pre_validation,
-        validation_instructions=post_validation,
-        input_adapters=input_adapters,
-        knowledgebase_implementation=BotOsKnowledgeAnnoy_Metadata(
-            f"./kb_{bot_config['bot_id']}"
-        ),
-        file_corpus=(
-            URLListFileCorpus(json.loads(bot_config["files"]))
-            if bot_config["files"]
-            else None
-        ),
-        log_db_connector=db_adapter,  # Ensure connection_info is defined or fetched appropriately
-        tools=tools,
-        available_functions=available_functions,
-        all_tools=tools,
-        all_functions=available_functions,
-        all_function_to_tool_map=function_to_tool_map,
-        bot_id=bot_config["bot_id"],
-    )
-    # if os.getenv("BOT_BE_PROACTIVE").lower() == "true" and slack_adapter_local:
-    #      session.add_task("Check in with Michael Gold to see if he has any tasks for you to work on.",
-    ##                       thread_id=session.create_thread(slack_adapter_local))
-    #                       input_adapter=slack_adapter_local))
-
-    return session  # , api_app_id, udf_adapter_local, slack_adapter_local
-
-# holds the list of all data connection tool functions
-# NOTE: Update this list when adding new data connection tools (TODO: automate this by scanning the module?)
+# holds the list of all tool_belt_tools functions
+# NOTE: Update this list when adding new tool_belt_tools (TODO: automate this by scanning the module?)
 _all_tool_belt_functions = (
     _manage_todos,
     _manage_processes,
     _process_scheduler,
     _google_drive,
+    _manage_notebook,
     _manage_artifact,
     _manage_tests,
-    _manage_notebook,
+    _manage_project_assets,
+    _manage_projects,
     _send_email,
     _download_webpage,
     _git_action,
     _delegate_work,
-    _manage_project_assets,
     _get_project_todos,
     _manage_todo_dependencies,
     _get_todo_dependencies,
     _delegate_work,
     _get_webpage_content,
-    _manage_projects
 )
 
 

@@ -1,7 +1,7 @@
 # TODO JD - Do I need this file?
 import json
 import os
-from connectors.database_connector import DatabaseConnector
+from connectors.data_connector import DatabaseConnector
 from connectors.sqlite_connector import SqliteConnector
 from core.logging_config import logger
 

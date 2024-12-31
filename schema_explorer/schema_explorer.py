@@ -42,7 +42,7 @@ class SchemaExplorer:
             return self.db_connector.alt_get_ddl(table_name)
         else:
             try:
-                from connectors.database_connector import DatabaseConnector
+                from connectors.data_connector import DatabaseConnector
                 connector = DatabaseConnector()
                 
                 # Pre-defined DDL queries for common database types
@@ -388,7 +388,7 @@ class SchemaExplorer:
             schemas = self.db_connector.get_schemas(database["database_name"])
         else:
             # handle non-snowflake sources
-            from connectors.database_connector import DatabaseConnector
+            from connectors.data_connector import DatabaseConnector
             connector = DatabaseConnector()
             # Get connection type for the source
             connections = connector.list_database_connections(bot_id='system', bot_id_override=True)
@@ -529,7 +529,7 @@ class SchemaExplorer:
                 return []
         else:
             try:
-                from connectors.database_connector import DatabaseConnector
+                from connectors.data_connector import DatabaseConnector
                 connector = DatabaseConnector()
                 
                 # Get connection type for the source
@@ -655,7 +655,7 @@ class SchemaExplorer:
                     logger.info(f'Error running get potential tables Error: {e}')
             else:
                 try:
-                    from connectors.database_connector import DatabaseConnector
+                    from connectors.data_connector import DatabaseConnector
                     connector = DatabaseConnector()
                     # Get connection type for the source
                     connections = connector.list_database_connections(bot_id='system', bot_id_override=True)
@@ -943,7 +943,7 @@ class SchemaExplorer:
                 return []
         else:
             try:
-                from connectors.database_connector import DatabaseConnector
+                from connectors.data_connector import DatabaseConnector
                 connector = DatabaseConnector()
                 
                 # Get connection type for the source

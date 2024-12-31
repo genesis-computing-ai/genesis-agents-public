@@ -19,7 +19,7 @@ import random, string
 import requests
 
 from llm_openai.openai_utils import get_openai_client
-from .database_connector import DatabaseConnector
+from .data_connector import DatabaseConnector
 from .connector_helpers import llm_keys_and_types_struct
 from core.bot_os_defaults import (
     BASE_EVE_BOT_INSTRUCTIONS,

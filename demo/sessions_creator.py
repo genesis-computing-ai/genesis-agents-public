@@ -2,7 +2,7 @@ import json
 import os
 import sys
 
-from connectors.database_connector import DatabaseConnector
+from connectors.data_connector import DatabaseConnector
 from llm_gemini.bot_os_gemini import BotOsAssistantGemini
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))

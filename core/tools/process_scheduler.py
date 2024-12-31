@@ -1,4 +1,5 @@
 from datetime import datetime
+from core.logging_config import logger
 
 def process_scheduler(
     self, action, bot_id, task_id=None, task_details=None, thread_id=None, history_rows=10

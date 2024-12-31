@@ -130,6 +130,8 @@ from core.bot_os_tools2 import (
     gc_tool,
 )
 
+from textwrap import dedent
+
 genesis_source = os.getenv("GENESIS_SOURCE", default="Snowflake")
 
 # We use this URL to include the genesis logo in snowflake-generated emails.
@@ -2445,7 +2447,6 @@ class ToolBelt:
     def google_drive(
         self,
         action,
-        thread_id=None,
         g_folder_id=None,
         g_file_id=None,
         g_sheet_cell=None,
@@ -2453,6 +2454,8 @@ class ToolBelt:
         g_file_comment_id=None,
         g_file_name=None,
         g_sheet_query=None,
+        user=None
+        thread_id=None,
     ):
         """
         A wrapper for LLMs to access/manage Google Drive files by performing specified actions such as listing or downloading files.
@@ -2889,7 +2892,7 @@ class ToolBelt:
         finally:
             cursor.close()
 
-    def get_processes_list(self, bot_id="all"):
+    def _get_processes_list(self, bot_id="all"):
         db_adapter = self.db_adapter
         cursor = db_adapter.client.cursor()
         try:
@@ -3438,13 +3441,13 @@ class ToolBelt:
                 if cursor is not None:
                     cursor.close()
 
+# ==================================================================================================================
 
 tool_belt_tools = ToolFuncGroup(
     name="tool_belt_tools",
     description="Tools for managing processes, notes, tests, process scheduling, google drive, artifacts, todos, and more.",
     lifetime="PERSISTENT"
-    )
-
+)
 
 @gc_tool(
     action=ToolFuncParamDescriptor(
@@ -3492,13 +3495,14 @@ tool_belt_tools = ToolFuncGroup(
     _group_tags_=[tool_belt_tools],
 )
 def _manage_todos(
-    action: str,
-    todo_id: str,
-    todo_details: dict,
-    bot_id: str,
-    allowed_bot_ids: list[str] = None,
-    thread_id: str = None
-    ) -> dict:
+        action: str,
+        todo_id: str,
+        todo_details: dict,
+        bot_id: str,
+        allowed_bot_ids: list[str] = None,
+        thread_id: str = None,
+        _group_tags_=[tool_belt_tools],
+        ) -> dict:
     """
     Manages todos through various actions (CREATE, UPDATE, CHANGE_STATUS, LIST)
 
@@ -3513,6 +3517,194 @@ def _manage_todos(
         allowed_bot_ids=allowed_bot_ids,
         thread_id=thread_id
     )
+
+
+@gc_tool(
+    action=dedent(
+        """The action to perform on a process: CREATE, UPDATE, DELETE, CREATE_PROCESS_CONFIG, UPDATE_PROCESS_CONFIG, DELETE_PROCESS_CONFIG, ALLOW_CODE, HIDE_PROCESS, UNHIDE_PROCESS
+            LIST returns a list of all processes, SHOW shows full instructions and details for a process, SHOW_CONFIG shows the configuration for a process,
+            HIDE_PROCESS hides the process from the list of processes, UNHIDE_PROCESS unhides the process from the list of processes,
+            or TIME to get current system time.  If you are trying to deactivate a schedule for a task, use _process_scheduler instead, don't just DELETE the process.
+            ALLOW_CODE is used to bypass the restriction that code must be added as a note"""
+    ),
+    process_id=dedent(
+        """The unique identifier of the process, create as bot_id_<random 6 character string>. MAKE SURE TO DOUBLE-CHECK THAT YOU ARE USING THE CORRECT process_id ON UPDATES AND DELETES!  
+            Required for CREATE, UPDATE, and DELETE."""
+    ),
+    process_name="The name of the process.  Required for SHOW.",
+    process_instructions="DETAILED instructions for completing the process  Do NOT summarize or simplify instructions provided by a user.",
+    process_config="Configuration string used by process when running.",
+    hidden="If true, the process will not be shown in the list of processes.  This is used to create processes to test the bots functionality without showing them to the user.",
+    bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
+    thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
+    _group_tags_=[tool_belt_tools]
+)
+# required fields - "action", "bot_id", "process_instructions"
+def _manage_processes(
+        action: str,
+        process_id: str,
+        process_name: str,
+        process_instructions: str,
+        process_config: str,
+        bot_id: str,
+        thread_id: str,
+        _group_tags_=[tool_belt_tools],
+        ) -> dict:
+    """
+    Manages processes for bots, including creating, updating, listing and deleting processes allowing bots to manage processes.
+    Remember that this is not used to create new bots
+
+    Returns:
+        dict: A dictionary containing the result of the operation.
+    """
+    return ToolBelt().manage_processes(
+        action=action,
+        process_id=process_id,
+        process_name=process_name,
+        process_instructions=process_instructions,
+        process_config=process_config,
+        bot_id=bot_id,
+        thread_id=thread_id
+    )
+
+
+@gc_tool(
+    action=dedent(
+        """The action to perform on the process schedule: CREATE, UPDATE, or DELETE.  Or LIST to get details on all 
+                      scheduled processes for a bot, or TIME to get current system time or HISTORY to get the history of a scheduled 
+                      process by task_id.  For history lookup task_id first using LIST.  To deactive a schedule without deleting it, 
+                      UPDATE it and set task_active to FALSE."""
+    ),
+    bot_id="BOT_ID_IMPLICIT_FROM_CONTEXT",
+    task_id=dedent(
+        """The unique identifier of the process schedule, create as bot_id_<random 6 character string>. MAKE SURE TO 
+                       DOUBLE-CHECK THAT YOU ARE USING THE CORRECT task_id, its REQUIRED ON CREATE, UPDATES AND DELETES! Note that this 
+                       is not the same as the process_id"""
+    ),
+    task_details=ToolFuncParamDescriptor(
+        name="task_details",
+        description="The properties of this object are the details of the process schedule for use when creating and updating.",
+        llm_type_desc=dict(
+            type="object",
+            properties=dict(
+                process_name=dict(
+                    type="string",
+                    description="The name of the process to run on a schedule. This must be a valid process name shown by _manage_processes LIST",
+                ),
+                primary_report_to_type=dict(
+                    type="string",
+                    description="Set to SLACK_USER",
+                ),
+                primary_report_to_id=dict(
+                    type="string",
+                    description="The Slack USER ID of the person who told you to create this schedule for a process."
+                ),
+                next_check_ts=dict(
+                    type="string",
+                    description="The timestamp for the next run of the process 'YYYY-MM-DD HH:MM:SS'. Call action TIME to get current time and timezone. Make sure this time is in the future.",
+                ),
+                action_trigger_type=dict(
+                    type="string",
+                    description="Always set to TIMER",
+                ),
+                action_trigger_details=dict(
+                    type="string",
+                    description="""For TIMER, a description of when to call the task, eg every hour, Tuesdays at 9am, every morning.  Also be clear about whether the task should be called one time, or is recurring, and if recurring if it should recur forever or stop at some point.""",
+                ),
+            ),
+        ),
+        required=False,
+    ),
+    history_rows=10,
+    thread_id="THREAD_ID_IMPLICIT_FROM_CONTEXT",
+    _group_tags_=[tool_belt_tools],
+)
+def _process_scheduler(
+        action: str,
+        bot_id: str,
+        task_id: str,
+        task_details: str,
+        thread_id: str,
+        history_rows: int = 10,
+    ):
+    """
+    Manages schedules to automatically run processes on a schedule (sometimes called tasks), including creating, updating,
+    and deleting schedules for processes.
+    """
+    return ToolBelt().process_scheduler(
+        action=action,
+        bot_id=bot_id,
+        task_id=task_id,
+        task_details=task_details,
+        history_rows=history_rows,
+        thread_id=thread_id
+    )
+
+
+@gc_tool(
+    action="""
+            The action to be performed on Google Drive.  Possible actions are:
+                LOGIN - Used to login in to Google Workspace with OAuth2.0.  Not implemented
+                LIST - Get's list of files in a folder.  Same as DIRECTORY, DIR, GET FILES IN FOLDER
+                SET_ROOT_FOLDER - Sets the root folder for the user on their drive
+                GET_FILE_VERSION_NUM - Gets the version numbergiven a g_file id
+                GET_COMMENTS - Gets the comments and replies for a file give a g_file_id
+                ADD_COMMENT - Adds a comment to a file given a g_file_id
+                ADD_REPLY_TO_COMMENT - Adds a reply to a comment given a g_file_id and a comment_id
+                GET_SHEET - (Also can be READ_SHEET) - Gets the contents of a Google Sheet given a g_file_id
+                EDIT_SHEET - (Also can be WRITE SHEET) - Edits a Google Sheet given a g_file_id and values.  Passing
+                    a cell range is optional
+                GET_LINK_FROM_FILE_ID - Gets the url link to a file given a g_file_id
+                GET_FILE_BY_NAME - Searches for a file by name and returns the file id
+                SAVE_QUERY_RESULTS_TO_G_SHEET - Saves the results of a query to a Google Sheet
+        """,
+    g_folder_id="The unique identifier of a folder stored on Google Drive.",
+    g_file_id="The unique identifier of a file stored on Google Drive.",
+    g_sheet_cell="Cell in a Google Sheet to edit/update.",
+    g_sheet_value="Value to update the cell in a Google Sheet or update a comment.",
+    g_file_comment_id="The unique identifier of a comment stored on Google Drive.",
+    g_file_name="The name of a file, files, folder, or folders stored on Google Drive.",
+    g_sheet_query="Query string to run and save the results to a Google Sheet.",
+    user="""The unique identifier of the process_id. MAKE SURE TO DOUBLE-CHECK THAT YOU ARE USING THE CORRECT test_process_id 
+        ON UPDATES AND DELETES!  Required for CREATE, UPDATE, and DELETE."""
+    thread_id="THREAD_ID_IMPLICIT_FROM_CONTEXT",
+    _group_tags_=[tool_belt_tools],
+)
+def _google_drive(
+    action: str,
+    g_folder_id: str,
+    g_file_id: str,
+    g_sheet_cell: str,
+    g_sheet_value: str,
+    g_file_comment_id: str,
+    g_file_name: str,
+    g_sheet_query: str,
+    user: str,
+    thread_id: str,
+):
+    """
+    Performs certain actions on Google Drive, including logging in, listing files, setting the root folder,
+    and getting the version number of a google file (g_file).
+
+    Args:
+        action (str): The action to perform on the Google Drive files. Supported actions are 'LIST' and 'DOWNLOAD'.
+
+    Returns:
+        dict: A dictionary containing the result of the action. E.g. for 'LIST', it includes the list of files in the Google Drive.
+    """
+    return ToolBelt().google_drive(
+        action=action,
+        g_folder_id=g_folder_id,
+        g_file_id=g_file_id,
+        g_sheet_cell=g_sheet_cell,
+        g_sheet_value=g_sheet_value,
+        g_file_comment_id=g_file_comment_id,
+        g_file_name=g_file_name,
+        g_sheet_query=g_sheet_query,
+        user=user,
+        thread_id=thread_id
+    )
+# ==================================================================================================================
 
 def get_tools(
     which_tools: list[str],
@@ -3557,10 +3749,6 @@ def get_tools(
 
         # Resolve 'old style' tool names
         # ----------------------------------
-        # if tool_name == 'integration_tools':
-        #     func_descriptors.extend(integration_tool_descriptions)
-        #     available_functions_loaded.update(integration_tools)
-        #     tool_to_func_descriptors_map[tool_name] = integration_tool_descriptions
         if tool_name == "google_drive_tools":
             func_descriptors.extend(google_drive_functions)
             available_functions_loaded.update(google_drive_tools)
@@ -3596,24 +3784,10 @@ def get_tools(
             func_descriptors.extend(BOT_DISPATCH_DESCRIPTIONS)
             available_functions_loaded.update(bot_dispatch_tools)
             tool_to_func_descriptors_map[tool_name] = BOT_DISPATCH_DESCRIPTIONS
-        # database_tools have been converted to 'new type' tools (see bot_os_tools2.py)
-        # elif tool_name == "database_tools":
-        #     connection_info = {"Connection_Type": db_adapter.connection_info}
-        #     func_descriptors.extend(database_connector_functions)
-        #     available_functions_loaded.update(database_tools)
-        #     run_query_f = bind_run_query([connection_info])
-        #     search_metadata_f = bind_search_metadata("./kb_vector")
-        #     search_metadata_detailed_f = bind_search_metadata_detailed("./kb_vector")
-        #     # semantic_copilot_f = bind_semantic_copilot([connection_info])
-        #     tool_to_func_descriptors_map[tool_name] = database_connector_functions
         elif tool_name == "snowflake_tools":
             connection_info = {"Connection_Type": db_adapter.connection_info}
             func_descriptors.extend(snowflake_functions)
             available_functions_loaded.update(snowflake_tools)
-            # run_query_f = bind_run_query([connection_info])
-            # search_metadata_f = bind_search_metadata("./kb_vector")
-            # search_metadata_detailed_f = bind_search_metadata_detailed("./kb_vector")
-            # semantic_copilot_f = bind_semantic_copilot([connection_info])
             tool_to_func_descriptors_map[tool_name] = snowflake_functions
         elif tool_name == "image_tools":
             func_descriptors.extend(image_functions)
@@ -3924,13 +4098,9 @@ def make_session_for_dispatch(bot_config):
 # holds the list of all data connection tool functions
 # NOTE: Update this list when adding new data connection tools (TODO: automate this by scanning the module?)
 _all_tool_belt_functions = (
-    _query_database,
-    _add_database_connection,
-    _delete_database_connection,
-    _list_database_connections,
-    _search_metadata,
-    _data_explorer,
-    _get_full_table_details,
+    _manage_todos,
+    _manage_processes,
+    _process_scheduler,
 )
 
 

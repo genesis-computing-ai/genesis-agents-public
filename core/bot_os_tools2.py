@@ -6,7 +6,7 @@ import inspect
 from   itertools                import chain
 from   textwrap                 import dedent
 import threading
-from   typing                   import Any, Dict, List, get_args, get_origin
+from   typing                   import Any, Dict, List, get_args, get_origin, Union, Callable
 from   weakref                  import WeakValueDictionary
 from   wrapt                    import synchronized
 
@@ -298,7 +298,7 @@ def gc_tool(_group_tags_: List[str], **param_descriptions):
                 if param_desc.llm_type['type'] != expected_type['type']:
                     # Note that we allow for other keys in the user-provided descriptor, such as 'enum'. But we insist the hinted types should match.
                     raise ValueError(f"Type mismatch for parameter {pname}: expected {expected_type}, got {param_desc.llm_type}")
-                
+
 
                 # Check if the 'required' status matches the descriptor's required attribute
                 has_default_val = pattrs.default is not pattrs.empty
@@ -372,11 +372,9 @@ class ToolsFuncRegistry:
     """
     # NOTE that we put a class-level lock on this object since tools can be accessed and manipulated by multiple session threads
 
-
     def __init__(self) -> None:
         """Initialize the ToolsFuncRegistry with an empty set of tool functions."""
         self._tool_funcs: set = set()
-
 
     def add_tool_func(self, func: callable) -> None:
         """Add a tool function to the registry."""
@@ -387,8 +385,7 @@ class ToolsFuncRegistry:
             raise ValueError(f"A function with the name {func_name} already exists in the registry.")
         self._tool_funcs.add(func)
 
-
-    def remove_tool_func(self, func: str or callable) -> callable:
+    def remove_tool_func(self, func: Union[str, Callable]) -> Callable:
         """
         Remove a tool function from the registry and return it.
 
@@ -419,7 +416,6 @@ class ToolsFuncRegistry:
         self._tool_funcs.remove(func_to_remove)
         return func_to_remove
 
-
     def get_tool_func(self, func_name: str) -> callable:
         """Retrieve a tool function by its name."""
         for func in self._tool_funcs:
@@ -427,16 +423,13 @@ class ToolsFuncRegistry:
                 return func
         raise ValueError(f"{self.__class__.__name__}: Could not find a tool function named {func_name}.")
 
-
     def list_tool_funcs(self) -> List[callable]:
         """List all tool functions sorted by their description."""
         return sorted(self._tool_funcs, key=lambda func: get_tool_func_descriptor(func).description)
 
-
     def list_tool_func_names(self) -> List[str]:
         """List all tool function names."""
         return [get_tool_func_descriptor(f).name for f in self.list_tool_funcs()]
-
 
     def get_tool_funcs_by_group(self, group_name: str) -> List[callable]:
         """Retrieve tool functions by their group name."""
@@ -446,7 +439,6 @@ class ToolsFuncRegistry:
                                for group in get_tool_func_descriptor(func).groups)
                       ],
                       key=lambda func: get_tool_func_descriptor(func).description)
-
 
     def list_groups(self) -> List[ToolFuncGroup]:
         """
@@ -513,4 +505,3 @@ def get_global_tools_registry():
             logger.error(f"Error creating global tools registry: {e}")
             raise e
     return _global_tools_registry
-

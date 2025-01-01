@@ -552,6 +552,22 @@ class SQLiteCursorWrapper:
                     f"DROP TABLE IF EXISTS {table_name}",
                     f"CREATE TABLE {table_name} ({column_def})"
                 ]
+        
+        if 'CREATE OR REPLACE TABLE' in query_upper:
+            match = re.match(
+                r'CREATE OR REPLACE TABLE\s+(.+) AS SELECT \* FROM\s+(.+)',
+                query_clean.replace(';', ''),
+                re.IGNORECASE
+            )
+
+            if match:
+                table_name = match.group(1)
+                source_table = match.group(2)
+
+                return [
+                    f"DROP TABLE IF EXISTS {table_name}",
+                    f"CREATE TABLE {table_name} AS SELECT * FROM {source_table}"
+                ]
 
         # Handle MERGE INTO statements
         if query_upper.startswith('MERGE INTO'):

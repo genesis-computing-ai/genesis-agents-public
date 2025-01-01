@@ -1,6 +1,7 @@
 from core.logging_config import logger
 from datetime import datetime
 
+from typing import Optional
 from textwrap import dedent
 import random
 import string
@@ -9,6 +10,7 @@ from core.bot_os_tools2 import (
     BOT_ID_IMPLICIT_FROM_CONTEXT,
     THREAD_ID_IMPLICIT_FROM_CONTEXT,
     ToolFuncGroup,
+    ToolFuncParamDescriptor,
     gc_tool,
 )
 
@@ -31,12 +33,28 @@ manage_processes_tools = ToolFuncGroup(
 
 # manage processes
 @gc_tool(
-    action=dedent(
-        """The action to perform on a process: CREATE, UPDATE, DELETE, CREATE_PROCESS_CONFIG, UPDATE_PROCESS_CONFIG, DELETE_PROCESS_CONFIG, ALLOW_CODE, HIDE_PROCESS, UNHIDE_PROCESS
-            LIST returns a list of all processes, SHOW shows full instructions and details for a process, SHOW_CONFIG shows the configuration for a process,
-            HIDE_PROCESS hides the process from the list of processes, UNHIDE_PROCESS unhides the process from the list of processes,
-            or TIME to get current system time.  If you are trying to deactivate a schedule for a task, use _process_scheduler instead, don't just DELETE the process.
-            ALLOW_CODE is used to bypass the restriction that code must be added as a note"""
+    action=ToolFuncParamDescriptor(
+        name="action",
+        description="The action to perform on a process: CREATE, UPDATE, DELETE, CREATE_PROCESS_CONFIG, UPDATE_PROCESS_CONFIG, DELETE_PROCESS_CONFIG, ALLOW_CODE, HIDE_PROCESS, UNHIDE_PROCESS LIST returns a list of all processes, SHOW shows full instructions and details for a process, SHOW_CONFIG shows the configuration for a process, HIDE_PROCESS hides the process from the list of processes, UNHIDE_PROCESS unhides the process from the list of processes, or TIME to get current system time. If you are trying to deactivate a schedule for a task, use _process_scheduler instead, don't just DELETE the process. ALLOW_CODE is used to bypass the restriction that code must be added as a note",
+        required=True,
+        llm_type_desc=dict(
+            type="string",
+            enum=[
+                "CREATE",
+                "UPDATE",
+                "DELETE",
+                "CREATE_PROCESS_CONFIG",
+                "UPDATE_PROCESS_CONFIG",
+                "DELETE_PROCESS_CONFIG",
+                "ALLOW_CODE",
+                "HIDE_PROCESS",
+                "UNHIDE_PROCESS",
+                "LIST",
+                "SHOW",
+                "SHOW_CONFIG",
+                "TIME",
+            ],
+        ),
     ),
     process_id=dedent(
         """The unique identifier of the process, create as bot_id_<random 6 character string>. MAKE SURE TO DOUBLE-CHECK THAT YOU ARE USING THE CORRECT process_id ON UPDATES AND DELETES!  
@@ -51,8 +69,15 @@ manage_processes_tools = ToolFuncGroup(
     _group_tags_=[manage_processes_tools],
 )
 def manage_processes(
-    action, bot_id=None, process_id=None, process_instructions=None, thread_id=None, process_name=None, process_config=None, hidden=False
-):
+    action: str,
+    bot_id: str = None,
+    process_id: str = None,
+    process_instructions: str = None,
+    thread_id: str = None,
+    process_name: str = None,
+    process_config: str = None,
+    hidden: bool = False,
+) -> None:
     """
     Manages processs in the PROCESSES table with actions to create, delete, update a process, or stop all processes
 
@@ -469,6 +494,7 @@ def manage_processes(
 
     finally:
         cursor.close()
+
 
 def insert_process_history(
     process_id,

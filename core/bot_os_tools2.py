@@ -474,7 +474,7 @@ def get_global_tools_registry():
             # IMPORT TOOL FUNCTIONS FROM OTHER MODULES
             import_locations = [
                 "data_pipeline_tools.gc_dagster.get_dagster_tool_functions",
-                "connectors.data_connector.get_data_connections_functions"
+                "connectors.data_connector.get_data_connections_functions",
                 "core.tools.google_drive.get_google_drive_tool_functions",
                 "core.tools.manage_todos.manage_todos_functions",
                 "core.tools.manage_tests.manage_tests_functions",

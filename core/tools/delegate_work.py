@@ -31,47 +31,48 @@ delegate_work = ToolFuncGroup(
     lifetime="PERSISTENT",
 )
 
+
 @gc_tool(
     prompt="The prompt to delegate to the target bot",
     target_bot="The bot ID or name to delegate the work to",
     max_retries="The maximum number of retries to wait for a valid JSON response",
     timeout_seconds="The maximum number of seconds to wait for a valid JSON response",
-    thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
     status_update_callback="The callback function to update the status of the delegation",
     session_id="The session ID for the delegation",
     input_metadata="The input metadata for the delegation",
     run_id="The run ID for the delegation",
     callback_id="The callback ID for the delegation",
-    # bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
+    bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
+    thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
     _group_tags_=[delegate_work],
 )
 def delegate_work(
-        # if fast model errors, use regular one
-        # x add a followup option to followup on a thread vs starting a new one
-        # todo, add system prompt override, add tool limits, have delegated jobs skip the thread knowledge injection, etc.
-        # x dont save to llm results table for a delegation
-        # x see if they have a better time finding other bots now
-        # x cancel the delegated run if timeout expires
-        # make STOP on the main thread also cancel any inflight delegations
-        # x fix bot todo updating, make sure full bot id is in assigned bot field so it can update todos, or allow name too
-        # x allow work and tool calls from downstream bots to optionally filter back up to show up in slack while they are working (maybe with a summary like o1 does of whats happening)
+    # if fast model errors, use regular one
+    # x add a followup option to followup on a thread vs starting a new one
+    # todo, add system prompt override, add tool limits, have delegated jobs skip the thread knowledge injection, etc.
+    # x dont save to llm results table for a delegation
+    # x see if they have a better time finding other bots now
+    # x cancel the delegated run if timeout expires
+    # make STOP on the main thread also cancel any inflight delegations
+    # x fix bot todo updating, make sure full bot id is in assigned bot field so it can update todos, or allow name too
+    # x allow work and tool calls from downstream bots to optionally filter back up to show up in slack while they are working (maybe with a summary like o1 does of whats happening)
     prompt: str,
-    target_bot: Optional[str] = None,
+    target_bot: str = None,
     max_retries: int = 3,
     timeout_seconds: int = 300,
-    thread_id: Optional[str] = None,
-    status_update_callback = None,
-    session_id = None,
-    input_metadata = None,
-    run_id = None,
-    callback_id = None,
+    status_update_callback: str = None,
+    session_id: str = None,
+    input_metadata: str = None,
+    run_id: str = None,
+    callback_id: str = None,
+    bot_id: str = None,
+    thread_id: str = None,
 ) -> Dict[str, Any]:
     """
     Internal method that implements the delegation logic.
     Creates a new thread with target bot and waits for JSON response.
     """
     og_thread_id = thread_id
-
 
     def _update_streaming_status(target_bot, current_summary, run_id, session_id, thread_id, status_update_callback, input_metadata):
         msg = f"      🤖 {target_bot}: _{current_summary}_"
@@ -300,6 +301,7 @@ def delegate_work(
             "success": False,
             "error": f"Error delegating work: {str(e)}"
         }
+
 
 delegate_work_functions = (
     delegate_work,

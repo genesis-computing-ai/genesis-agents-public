@@ -65,17 +65,17 @@ google_drive_tools = ToolFuncGroup(
     _group_tags_=[google_drive_tools],
 )
 def google_drive(
-    action,
-    g_folder_id=None,
-    g_file_id=None,
-    g_sheet_cell=None,
-    g_sheet_value=None,
-    g_file_comment_id=None,
-    g_file_name=None,
-    g_sheet_query=None,
-    user=None,
-    thread_id=None,
-):
+    action: str,
+    g_folder_id: str = None,
+    g_file_id: str = None,
+    g_sheet_cell: str = None,
+    g_sheet_value: str = None,
+    g_file_comment_id: str = None,
+    g_file_name: str = None,
+    g_sheet_query: str = None,
+    user: str = None,
+    thread_id: str = None,
+) -> None:
     """
     A wrapper for LLMs to access/manage Google Drive files by performing specified actions such as listing or downloading files.
 
@@ -243,9 +243,8 @@ def google_drive(
 
     return {"Success": False, "Error": "Invalid action specified."}
 
-google_drive_functions = (
-    google_drive,
-)
+
+google_drive_functions = (google_drive,)
 
 # Called from bot_os_tools.py to update the global list of functions
 def get_google_drive_tool_functions():

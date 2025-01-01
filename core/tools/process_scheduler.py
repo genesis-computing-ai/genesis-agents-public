@@ -11,7 +11,7 @@ from core.bot_os_tools2 import (
     gc_tool,
 )
 
-from core.bot_os_tools2 import get_processes_list
+from .tool_helpers import get_processes_list
 
 from connectors import get_global_db_connector
 db_adapter = get_global_db_connector()
@@ -72,13 +72,25 @@ process_scheduler_tools = ToolFuncGroup(
         ),
         required=False,
     ),
-    history_rows=10,
+    history_rows=ToolFuncParamDescriptor(
+        name="history_rows",
+        description="Number of history rows to retrieve.",
+        required=False,
+        llm_type_desc=dict(type="integer"),
+    ),
     thread_id="THREAD_ID_IMPLICIT_FROM_CONTEXT",
     _group_tags_=[process_scheduler_tools],
 )
 def process_scheduler(
-    action, bot_id, task_id=None, task_details=None, thread_id=None, history_rows=10
-):
+    action: str,
+    bot_id: str,
+    task_id: str = None,
+    task_details: dict = None,
+    thread_id: str = None,
+    history_rows: int = 10,
+) -> None:
+    """
+    Manages tasks in the TASKS table with actions to create, delete, or update a task."""
     import random
     import string
     """
@@ -342,6 +354,7 @@ def process_scheduler(
 
     finally:
         cursor.close()
+
 
 def _get_current_time_with_timezone():
     current_time = datetime.now().astimezone()

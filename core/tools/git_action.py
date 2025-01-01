@@ -1,3 +1,5 @@
+from typing import Optional, Dict, Any
+
 from core.bot_os_tools2 import (
     BOT_ID_IMPLICIT_FROM_CONTEXT,
     THREAD_ID_IMPLICIT_FROM_CONTEXT,
@@ -21,57 +23,103 @@ git_action = ToolFuncGroup(
     lifetime="PERSISTENT",
 )
 
+
 @gc_tool(
     action=ToolFuncParamDescriptor(
         name="action",
-        description=dedent(
-            """The action to perform:
-            - list_files: List all tracked files (optional: path)
-            - read_file: Read file contents (requires: file_path)
-            - write_file: Write content to file (requires: file_path, content; optional: commit_message)
-            - generate_diff: Generate diff between contents (requires: old_content, new_content; optional: context_lines)
-            - apply_diff: Apply a unified diff to a file (requires: file_path, diff_content; optional: commit_message)
-            - commit: Commit changes (requires: message)
-            - get_history: Get commit history (optional: file_path, max_count)
-            - create_branch: Create new branch (requires: branch_name)
-            - switch_branch: Switch to branch (requires: branch_name)
-            - get_branch: Get current branch name
-            - get_status: Get file status (optional: file_path)"""
-        ),
+        description="The git action to perform (list_files, read_file, write_file, etc.)",
         required=True,
         llm_type_desc=dict(
             type="string",
-            enum=[
-                "list_files",
-                "read_file",
-                "write_file",
-                "generate_diff",
-                "apply_diff",
-                "commit",
-                "get_history",
-                "create_branch",
-                "switch_branch",
-                "get_branch",
-                "get_status",
-            ],
+            enum=["list_files", "read_file", "write_file", "commit", "diff", "branch"],
         ),
     ),
-    file_path="Path to the file within the repository",
-    content="Content to write to the file",
-    commit_message="Message to use when committing changes",
-    old_content="Original content for generating diff",
-    new_content="New content for generating diff",
-    diff_content="Unified diff content to apply to a file",
-    branch_name="Name of the branch to create or switch to",
-    path="Optional path filter for listing files",
-    message="Message to use when committing changes",
-    max_count="Maximum number of commits to return",
-    context_lines="Number of context lines in generated diffs",
+    file_path=ToolFuncParamDescriptor(
+        name="file_path",
+        description="Path to the file within the repository",
+        required=False,
+        llm_type_desc=dict(type="string"),
+    ),
+    content=ToolFuncParamDescriptor(
+        name="content",
+        description="Content to write to the file",
+        required=False,
+        llm_type_desc=dict(type="string"),
+    ),
+    commit_message=ToolFuncParamDescriptor(
+        name="commit_message",
+        description="Message to use when committing changes",
+        required=False,
+        llm_type_desc=dict(type="string"),
+    ),
+    old_content=ToolFuncParamDescriptor(
+        name="old_content",
+        description="Original content for generating diff",
+        required=False,
+        llm_type_desc=dict(type="string"),
+    ),
+    new_content=ToolFuncParamDescriptor(
+        name="new_content",
+        description="New content for generating diff",
+        required=False,
+        llm_type_desc=dict(type="string"),
+    ),
+    diff_content=ToolFuncParamDescriptor(
+        name="diff_content",
+        description="Unified diff content to apply to a file",
+        required=False,
+        llm_type_desc=dict(type="string"),
+    ),
+    branch_name=ToolFuncParamDescriptor(
+        name="branch_name",
+        description="Name of the branch to create or switch to",
+        required=False,
+        llm_type_desc=dict(type="string"),
+    ),
+    path=ToolFuncParamDescriptor(
+        name="path",
+        description="Optional path filter for listing files",
+        required=False,
+        llm_type_desc=dict(type="string"),
+    ),
+    message=ToolFuncParamDescriptor(
+        name="message",
+        description="Message to use when committing changes",
+        required=False,
+        llm_type_desc=dict(type="string"),
+    ),
+    max_count=ToolFuncParamDescriptor(
+        name="max_count",
+        description="Maximum number of commits to return",
+        required=False,
+        llm_type_desc=dict(type="integer"),
+    ),
+    context_lines=ToolFuncParamDescriptor(
+        name="context_lines",
+        description="Number of context lines in generated diffs",
+        required=False,
+        llm_type_desc=dict(type="integer"),
+    ),
     bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
     _group_tags_=[git_action],
 )
-def git_action(action, **kwargs):
+def git_action(
+    action: str,
+    file_path: str = None,
+    content: str = None,
+    commit_message: str = None,
+    old_content: str = None,
+    new_content: str = None,
+    diff_content: str = None,
+    branch_name: str = None,
+    path: str = None,
+    message: str = None,
+    max_count: int = None,
+    context_lines: int = None,
+    bot_id: str = None,
+    thread_id: str = None,
+) -> Dict[str, Any]:
     """
     Wrapper for Git file management operations
 
@@ -83,6 +131,7 @@ def git_action(action, **kwargs):
         Dict containing operation result and any relevant data
     """
     return git_manager.git_action(action, **kwargs)
+
 
 git_action_functions = (git_action,)
 

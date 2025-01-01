@@ -4,6 +4,8 @@ from connectors import get_global_db_connector
 db_adapter = get_global_db_connector()
 from core.bot_os_project_manager import ProjectManager
 
+from typing import Dict, Optional
+
 from core.bot_os_tools2 import (
     BOT_ID_IMPLICIT_FROM_CONTEXT,
     THREAD_ID_IMPLICIT_FROM_CONTEXT,
@@ -20,13 +22,26 @@ manage_todos_tools = ToolFuncGroup(
     lifetime="PERSISTENT",
 )
 
+
 @gc_tool(
-    action="Action to perform (CREATE, UPDATE, CHANGE_STATUS, LIST)",
-    todo_id="ID of the todo item (required for UPDATE and CHANGE_STATUS)",
+    action=ToolFuncParamDescriptor(
+        name="action",
+        description="Action to perform (CREATE, UPDATE, CHANGE_STATUS, LIST)",
+        required=True,
+        llm_type_desc=dict(
+            type="string", enum=["CREATE", "UPDATE", "CHANGE_STATUS", "LIST"]
+        ),
+    ),
+    todo_id=ToolFuncParamDescriptor(
+        name="todo_id",
+        description="ID of the todo item (required for UPDATE and CHANGE_STATUS)",
+        required=False,
+        llm_type_desc=dict(type="string"),
+    ),
     todo_details=ToolFuncParamDescriptor(
         name="todo_details",
-        description="Details for the todo item. For CREATE: requires project_id, todo_name, what_to_do, depends_on. "
-        "For CHANGE_STATUS: requires only new_status.",
+        description="Details for the todo item. For CREATE: requires project_id, todo_name, what_to_do, depends_on. For CHANGE_STATUS: requires only new_status.",
+        required=False,
         llm_type_desc=dict(
             type="object",
             properties=dict(
@@ -46,7 +61,7 @@ manage_todos_tools = ToolFuncGroup(
                     type=["string", "array", "null"],
                     description="ID or array of IDs of todos that this todo depends on",
                 ),
-                new_status=ToolFuncParamDescriptor(
+                new_status=dict(
                     name="new_status",
                     description="New status for the todo (required for CHANGE_STATUS)",
                     required=True,
@@ -63,18 +78,31 @@ manage_todos_tools = ToolFuncGroup(
                 ),
             ),
         ),
-        required=False,
     ),
     bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
     _group_tags_=[manage_todos_tools],
 )
 def manage_todos(
-    action, bot_id, todo_id=None, todo_details="", thread_id=None
-):
+    action: str,
+    bot_id: str,
+    todo_id: str = None,
+    todo_details: Dict = None,
+    thread_id: str = None,
+) -> None:
     """
-    Manage todo items with various actions.  When creating Todos try to include any dependencies on other todos 
+    Manage todo items with various actions. When creating Todos try to include any dependencies on other todos
     where they exist, it is important to track those to make sure todos are done in the correct order.
+
+    Args:
+        action (str): Action to perform (CREATE, UPDATE, CHANGE_STATUS, LIST).
+        bot_id (str): The ID of the bot performing the action.
+        todo_id (str, optional): ID of the todo item (required for UPDATE and CHANGE_STATUS).
+        todo_details (dict, optional): Details for the todo item.
+        thread_id (str, optional): The ID of the thread.
+
+    Returns:
+        None
     """
     return todos.manage_todos(
         action=action,

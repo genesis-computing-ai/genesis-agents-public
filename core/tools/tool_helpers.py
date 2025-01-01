@@ -1,10 +1,10 @@
 import json
 import os
-from core.logging_config import logger
-from core.bot_os_tools2 import BotLlmEngineEnum
-from core.bot_os_tools2 import get_openai_client
-
 from datetime import datetime
+
+from core.logging_config import logger
+from core.bot_os_llm import BotLlmEngineEnum
+from llm_openai.openai_utils import get_openai_client
 
 
 def get_process_info(bot_id=None, process_name=None, process_id=None):

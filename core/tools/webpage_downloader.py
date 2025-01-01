@@ -4,7 +4,7 @@ import os
 from urllib.parse import urljoin
 import requests
 from bs4 import BeautifulSoup
-from textwrap import dedent
+from typing import Optional
 
 from core.bot_os_tools2 import (
     BOT_ID_IMPLICIT_FROM_CONTEXT,
@@ -20,16 +20,19 @@ webpage_downloader = ToolFuncGroup(
     lifetime="PERSISTENT",
 )
 
-
 @gc_tool(
-    name="Webpage Downloader",
     url="The URL of the webpage to download.",
     chunk_index="The specific chunk index to download, with each chunk being up to 512KB in size. Defaults to the first chunk (0) if not specified.",
-    # bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
+    bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
     _group_tags_=[webpage_downloader],
 )
-def webpage_downloader(url, chunk_index=0, thread_id=None):
+def download_webpage(
+    url: str,
+    chunk_index: int = 0,
+    bot_id: str = None,
+    thread_id: str = None,
+) -> None:
     """
     Downloads a webpage and returns its HTML content and hyperlinks in chunks, ensuring each chunk
     does not exceed 512KB. Allows specifying a chunk index to download specific parts of the beautified content.
@@ -52,6 +55,7 @@ def webpage_downloader(url, chunk_index=0, thread_id=None):
         return response
     except Exception as e:
         return {"error": str(e)}
+
 
 # Function to make HTTP request and get the entire content
 def get_webpage_content(url):

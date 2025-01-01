@@ -2,6 +2,7 @@ from core.logging_config import logger
 from datetime import datetime
 import random
 import string
+from typing import Optional
 
 from textwrap import dedent
 
@@ -53,12 +54,12 @@ def _get_test_manager_list(bot_id="all"):
 
 
 @gc_tool(
-    name="Manage Tests",
-    action="""
-        The action to perform on a tests: ADD, UPDATE, DELETE,
-        LIST, ENABLE, DISABLE returns a list of all tests, SHOW shows all fields of a test,
-        or TIME to get current system time.
-        """,
+   action=ToolFuncParamDescriptor(
+        name="action",
+        description="Action to perform (CREATE, UPDATE, CHANGE_STATUS, LIST)",
+        required=True,
+        llm_type_desc=dict(type="string", enum=["CREATE", "UPDATE", "CHANGE_STATUS", "LIST"])
+    ),
     test_process_id="""
             The unique identifier of the process_id. MAKE SURE TO DOUBLE-CHECK THAT YOU ARE USING THE CORRECT 
             test_process_id ON UPDATES AND DELETES!  Required for CREATE, UPDATE, and DELETE.
@@ -71,7 +72,13 @@ def _get_test_manager_list(bot_id="all"):
     _group_tags_=[manage_tests_tools],
 )
 def manage_tests(
-    action, bot_id=None, test_process_id = None, test_process_name = None, thread_id=None, test_type=None, test_priority = 1
+    action: str,
+    bot_id: str,
+    test_process_id: str,
+    test_process_name: str,
+    test_type: str,
+    test_priority: int = 1,
+    thread_id: str = None,
 ):
     """
     Manages tests that will run when when the project is deployed, including adding, updating, listing and deleting tests from the list of tests to run when the

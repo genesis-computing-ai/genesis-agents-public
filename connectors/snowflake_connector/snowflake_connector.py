@@ -4097,7 +4097,9 @@ def get_status(site):
                 if history:
                     output = ['By the way the current system date and time is {} and below are the summary of last {} conversations:'.format(self.get_current_time_with_timezone(), len(history))]
                     for row in history:
-                        output.append('\n\n{}:\n{}'.format(row['LAST_TIMESTAMP'].strftime('%Y-%m-%d %H:%M'), row['THREAD_SUMMARY']))
+                        if type(row['LAST_TIMESTAMP']) is not str:
+                            row['LAST_TIMESTAMP'] = row['LAST_TIMESTAMP'].strftime('%Y-%m-%d %H:%M')
+                        output.append('\n\n{}:\n{}'.format(row['LAST_TIMESTAMP'], row['THREAD_SUMMARY']))
                 knowledge['HISTORY'] += ''.join(output)
             return knowledge
         return {}

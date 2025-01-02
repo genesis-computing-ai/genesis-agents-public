@@ -1,4 +1,4 @@
-AVAILABLE_TOOLS: '["project_manager_tools", "data_connector_tools", "snowflake_tools", "slack_tools", "bot_dispatch_tools",
+AVAILABLE_TOOLS: '["todo_manager_tools", "data_connector_tools", "snowflake_tools", "slack_tools", "bot_dispatch_tools",
   "git_file_manager_tools", "notebook_manager_tools", "artifact_manager_tools"]'
 BOT_AVATAR_IMAGE: null
 BOT_ID: RequirementsPM-jllocal

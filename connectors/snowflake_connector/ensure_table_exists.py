@@ -76,6 +76,11 @@ def one_time_db_fixes(self):
                     tools_list.remove("autonomous_tools")
                     update = True
 
+                if "todo_manager_tools" in tools_list:
+                    tools_list.remove("todo_manager_tools")
+                    if "prject_manager_tools" not in tools_list:
+                        tools_list.append('project_manager_tools')
+
                 if 'database_tools' in tools_list:
                     print("Found database_tools in tools list")
                     tools_list.remove('database_tools')
@@ -945,6 +950,7 @@ def ensure_table_exists(self):
                 "process_manager_tools",
                 "process_runner_tools",
                 "process_scheduler_tools",
+                "project_manager_tools",
                 "notebook_manager_tools",
                 "google_drive_tools",
                 "artifact_manager_tools",

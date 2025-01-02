@@ -770,7 +770,7 @@ class DatabaseConnector:
             return "An error occurred while trying to find the memory."
 
 
-database_connector_tools = ToolFuncGroup(
+data_connector_tools = ToolFuncGroup(
     name="data_connector_tools",
     description=(
         "Tools for managing and querying database connections, including adding new connections, deleting connections, "
@@ -787,7 +787,7 @@ database_connector_tools = ToolFuncGroup(
     max_rows_override= "Override max rows limit if true (default False)",
     bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
-    _group_tags_=[database_connector_tools]
+    _group_tags_=[data_connector_tools]
     )
 def _query_database(connection_id: str,
                     bot_id: str,
@@ -819,7 +819,7 @@ def _query_database(connection_id: str,
          allowed_bot_ids= "List of bot IDs that can access this connection",
          bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
          thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
-         _group_tags_=[database_connector_tools])
+         _group_tags_=[data_connector_tools])
 def _add_database_connection(connection_id: str,
                             connection_string: str,
                             bot_id: str,
@@ -845,7 +845,7 @@ def _add_database_connection(connection_id: str,
     connection_id= "ID of the database connection to delete",
     bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
-    _group_tags_=[database_connector_tools])
+    _group_tags_=[data_connector_tools])
 def _delete_database_connection(
                         connection_id: str,
                         bot_id: str,
@@ -861,7 +861,7 @@ def _delete_database_connection(
 
 @gc_tool(bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
          thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
-         _group_tags_=[database_connector_tools],)
+         _group_tags_=[data_connector_tools],)
 def _list_database_connections(bot_id: str,
                                thread_id: str = None
                                ) -> dict:
@@ -881,7 +881,7 @@ def _list_database_connections(bot_id: str,
     knowledge_base_path="Path to the knowledge vector base",
     bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
-    _group_tags_=[database_connector_tools],
+    _group_tags_=[data_connector_tools],
 )
 def _search_metadata(
     query: str = None,
@@ -892,7 +892,7 @@ def _search_metadata(
     knowledge_base_path: str = "./kb_vector",
     bot_id: str = None,
     thread_id: str = None,
-) -> dict:
+):
     """Search database metadata for tables, columns, and other objects"""
     return DatabaseConnector().search_metadata(
         query=query,
@@ -918,7 +918,7 @@ def _search_metadata(
     knowledge_base_path="Path to the knowledge vector base",
     bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
-    _group_tags_=[database_connector_tools],
+    _group_tags_=[data_connector_tools],
 )
 def _data_explorer(
     query: str = None,
@@ -929,7 +929,7 @@ def _data_explorer(
     knowledge_base_path: str = "./kb_vector",
     bot_id: str = None,
     thread_id: str = None,
-) -> dict:
+):
     """Explore data"""
     return DatabaseConnector().search_metadata(
         query=query,
@@ -955,7 +955,7 @@ def _data_explorer(
     knowledge_base_path="Path to the knowledge vector base",
     bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
-    _group_tags_=[database_connector_tools],
+    _group_tags_=[data_connector_tools],
 )
 def _get_full_table_details(
     query: str = None,
@@ -966,7 +966,7 @@ def _get_full_table_details(
     knowledge_base_path: str = "./kb_vector",
     bot_id: str = None,
     thread_id: str = None,
-) -> dict:
+):
     """Get full table details"""
     return DatabaseConnector().search_metadata_detailed(
         query=query,
@@ -984,7 +984,7 @@ def _get_full_table_details(
 
 # holds the list of all data connection tool functions
 # NOTE: Update this list when adding new data connection tools (TODO: automate this by scanning the module?)
-_all_database_connections_functions = (
+_all_data_connections_functions = (
     _query_database,
     _add_database_connection,
     _delete_database_connection,
@@ -997,4 +997,4 @@ _all_database_connections_functions = (
 
 # Called from bot_os_tools.py to update the global list of data connection tool functions
 def get_data_connections_functions():
-    return _all_database_connections_functions
+    return _all_data_connections_functions

@@ -1,6 +1,6 @@
 from google.cloud import bigquery
 from google.oauth2 import service_account
-from .database_connector import DatabaseConnector
+from .data_connector import DatabaseConnector
 from google.cloud.exceptions import NotFound
 from itertools import islice
 from datetime import datetime

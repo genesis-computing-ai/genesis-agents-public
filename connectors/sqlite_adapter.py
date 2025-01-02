@@ -144,6 +144,7 @@ class SQLiteAdapter:
                     "process_manager_tools",
                     "process_runner_tools",
                     "process_scheduler_tools",
+                    "project_manager_tools",
                     "notebook_manager_tools",
                     "artifact_manager_tools",
                     "google_drive_tools",

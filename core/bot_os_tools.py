@@ -1187,17 +1187,13 @@ def get_tools(
 
         # Resolve 'old style' tool names
         # ----------------------------------
-        if tool_name == "bot_dispatch_tools":
+        if tool_name == "bot_dispatch_tools" or tool_name == "bot_dispatch":
             func_descriptors.extend(BOT_DISPATCH_DESCRIPTIONS)
             available_functions_loaded.update(bot_dispatch_tools)
             tool_to_func_descriptors_map[tool_name] = BOT_DISPATCH_DESCRIPTIONS
         elif tool_name == "data_dev_tools":
             func_descriptors.extend(data_dev_tools_functions)
             available_functions_loaded.update(data_dev_tools)
-        # elif tool_name == "project_manager_tools": #or tool_name == "todo_manager_tools":
-        #     func_descriptors.extend(PROJECT_MANAGER_FUNCTIONS)
-        #     available_functions_loaded.update(project_manager_tools)
-        #     tool_to_func_descriptors_map[tool_name] = PROJECT_MANAGER_FUNCTIONS
         elif include_slack and tool_name == "slack_tools":
             func_descriptors.extend(slack_tools_descriptions)
             available_functions_loaded.update(slack_tools)
@@ -1210,14 +1206,14 @@ def get_tools(
             func_descriptors.extend(MAKE_BABY_BOT_DESCRIPTIONS)
             available_functions_loaded.update(make_baby_bot_tools)
             tool_to_func_descriptors_map[tool_name] = MAKE_BABY_BOT_DESCRIPTIONS
-        elif tool_name == "bot_dispatch":
-            func_descriptors.extend(BOT_DISPATCH_DESCRIPTIONS)
-            available_functions_loaded.update(bot_dispatch_tools)
-            tool_to_func_descriptors_map[tool_name] = BOT_DISPATCH_DESCRIPTIONS
-        elif tool_name == "image_tools":
-            func_descriptors.extend(image_functions)
-            available_functions_loaded.update(image_tools)
-            tool_to_func_descriptors_map[tool_name] = image_functions
+        # elif tool_name == "bot_dispatch":
+        #     func_descriptors.extend(BOT_DISPATCH_DESCRIPTIONS)
+        #     available_functions_loaded.update(bot_dispatch_tools)
+        #     tool_to_func_descriptors_map[tool_name] = BOT_DISPATCH_DESCRIPTIONS
+        # elif tool_name == "image_tools":
+        #     func_descriptors.extend(image_functions)
+        #     available_functions_loaded.update(image_tools)
+        #     tool_to_func_descriptors_map[tool_name] = image_functions
         elif tool_name == "process_runner_tools":
             func_descriptors.extend(process_runner_functions)
             available_functions_loaded.update(process_runner_tools)

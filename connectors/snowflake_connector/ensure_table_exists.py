@@ -83,8 +83,8 @@ def one_time_db_fixes(self):
 
                 if 'database_tools' in tools_list:
                     print("Found database_tools in tools list")
+                    tools_list.remove('database_tools')
                     if "snowflake_tools" not in tools_list:
-                        tools_list.remove('database_tools')
                         tools_list.append('snowflake_tools')
                     if "data_connector_tools" not in tools_list:
                         tools_list.append("data_connector_tools")
@@ -950,6 +950,7 @@ def ensure_table_exists(self):
                 "process_manager_tools",
                 "process_runner_tools",
                 "process_scheduler_tools",
+                "project_manager_tools",
                 "notebook_manager_tools",
                 "google_drive_tools",
                 "artifact_manager_tools",

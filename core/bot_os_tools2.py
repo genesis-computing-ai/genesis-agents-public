@@ -476,16 +476,25 @@ def get_global_tools_registry():
                 "data_pipeline_tools.gc_dagster.get_dagster_tool_functions",
                 "connectors.data_connector.get_data_connections_functions",
                 "core.tools.google_drive.get_google_drive_tool_functions",
-                "core.tools.todo_manager.get_todo_manager_functions",
-                "core.tools.manage_tests.get_manage_tests_functions",
-                # "core.tools.manage_notebook.get_manage_notebook_functions",
-                "core.tools.manage_processes.get_manage_processes_functions",
-                # "core.tools.run_process.run_process_functions",
+                "core.tools.project_manager.get_project_manager_functions",
+                "core.tools.test_manager.get_test_manager_functions",
+                "core.tools.process_manager.get_process_manager_functions",
                 "core.tools.process_scheduler.get_process_scheduler_functions",
                 "core.tools.artifact_manager.get_artifact_manager_functions",
                 "core.tools.webpage_downloader.get_webpage_downloader_functions",
                 "core.tools.delegate_work.get_delegate_work_functions",
                 "core.tools.git_action.get_git_action_functions",
+                "core.tools.image_tools.get_image_functions",
+                # "core.tools.run_process.run_process_functions",
+                # "core.tools.notebook_manager.get_notebook_manager_functions",
+                # snowflake_connector
+                # git_file_manager_tools
+                # make_baby_bot
+                # harvester_tools
+                # bot_dispatch
+                # slock_tools
+                # bot_dispatch_tools
+                # data_dev_tools
             ]
 
             for import_location in import_locations:

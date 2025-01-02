@@ -14,10 +14,10 @@ from core.bot_os_tools2 import (
     gc_tool,
 )
 
-todos = ProjectManager(db_adapter)
+project_manager = ProjectManager(db_adapter)
 
-todo_manager_tools = ToolFuncGroup(
-    name="todo_manager_tools",
+project_manager_tools = ToolFuncGroup(
+    name="project_manager_tools",
     description="",
     lifetime="PERSISTENT",
 )
@@ -81,7 +81,7 @@ todo_manager_tools = ToolFuncGroup(
     ),
     bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
-    _group_tags_=[todo_manager_tools],
+    _group_tags_=[project_manager_tools],
 )
 def manage_todos(
     action: str,
@@ -94,7 +94,7 @@ def manage_todos(
     Manage todo items with various actions. When creating Todos try to include any dependencies on other todos
     where they exist, it is important to track those to make sure todos are done in the correct order.
     """
-    return todos.manage_todos(
+    return project_manager.manage_todos(
         action=action,
         bot_id=bot_id,
         todo_id=todo_id,
@@ -126,7 +126,7 @@ def manage_todos(
         required=False,
     ),
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
-    _group_tags_=[todo_manager_tools],
+    _group_tags_=[project_manager_tools],
 )
 def manage_projects(
     action: str,
@@ -138,7 +138,7 @@ def manage_projects(
     """
     Manages projects through various actions (CREATE, UPDATE, CHANGE_STATUS, LIST)
     """
-    return todos.manage_projects(
+    return project_manager.manage_projects(
         action=action,
         bot_id=bot_id,
         project_id=project_id,
@@ -153,7 +153,7 @@ def manage_projects(
     work_description="Detailed description of the work performed or progress made",
     work_results="Optional results, output, or findings from the work performed",
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
-    _group_tags_=[todo_manager_tools],
+    _group_tags_=[project_manager_tools],
 )
 def record_todo_work(
     bot_id: str,
@@ -166,7 +166,7 @@ def record_todo_work(
     Record work progress on a todo item without changing its status. Use this to log incremental progress, intermediate results, 
     or work updates.
     """
-    return todos.record_work(
+    return project_manager.record_work(
         bot_id=bot_id,
         todo_id=todo_id,
         work_description=work_description,
@@ -179,7 +179,7 @@ def record_todo_work(
     bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
     project_id="ID of the project to get todos for",
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
-    _group_tags_=[todo_manager_tools],
+    _group_tags_=[project_manager_tools],
 )
 def get_project_todos(
     bot_id: str,
@@ -188,7 +188,7 @@ def get_project_todos(
     """
     Get all todos associated with a specific project
     """
-    return todos.get_project_todos(bot_id=bot_id, project_id=project_id)
+    return project_manager.get_project_todos(bot_id=bot_id, project_id=project_id)
 
 
 @gc_tool(
@@ -196,7 +196,7 @@ def get_project_todos(
     todo_id="ID of the todo to get dependencies for",
     include_reverse="If true, also include todos that depend on this todo",
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
-    _group_tags_=[todo_manager_tools],
+    _group_tags_=[project_manager_tools],
 )
 def get_todo_dependencies(
     bot_id: str,
@@ -207,7 +207,7 @@ def get_todo_dependencies(
     """
     Get all dependencies for a specific todo item
     """
-    return todos._get_todo_dependencies(
+    return project_manager._get_todo_dependencies(
         bot_id=bot_id, todo_id=todo_id, include_reverse=include_reverse
     )
 
@@ -218,7 +218,7 @@ def get_todo_dependencies(
     todo_id="ID of the todo that has the dependency",
     depends_on_todo_id="ID of the todo that needs to be completed first",
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
-    _group_tags_=[todo_manager_tools],
+    _group_tags_=[project_manager_tools],
 )
 def manage_todo_dependencies(
     action: str,
@@ -230,7 +230,7 @@ def manage_todo_dependencies(
     """
     Manage dependencies between todo items, allowing you to specify that one todo must be completed before another can start
     """
-    return todos.manage_todo_dependencies(
+    return project_manager.manage_todo_dependencies(
         action=action,
         bot_id=bot_id,
         todo_id=todo_id,
@@ -261,7 +261,7 @@ def manage_todo_dependencies(
         required=False,
     ),
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
-    _group_tags_=[todo_manager_tools],
+    _group_tags_=[project_manager_tools],
 )
 def manage_project_assets(
     action: str,
@@ -274,7 +274,7 @@ def manage_project_assets(
     """
     Manage project assets including their descriptions and locations in the git system
     """
-    return todos.manage_project_assets(
+    return project_manager.manage_project_assets(
         action=action,
         bot_id=bot_id,
         project_id=project_id,
@@ -282,7 +282,7 @@ def manage_project_assets(
         asset_details=asset_details,
     )
 
-manage_todos_functions = (
+project_manager_functions = (
     manage_todos,
     manage_projects,
     record_todo_work,
@@ -294,5 +294,5 @@ manage_todos_functions = (
 
 
 # Called from bot_os_tools.py to update the global list of functions
-def get_todo_manager_functions():
-    return manage_todos_functions
+def get_project_manager_functions():
+    return project_manager_functions

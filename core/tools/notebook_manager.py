@@ -431,8 +431,8 @@
 #     finally:
 #         cursor.close()
 
-# manage_notebook_functions = (manage_notebook,)
+# notebook_manager_functions = (manage_notebook,)
 
 # # Called from bot_os_tools.py to update the global list of functions
-# def get_manage_notebook_functions():
-#     return manage_notebook_functions
+# def get_notebook_manager_functions():
+#     return notebook_manager_functions

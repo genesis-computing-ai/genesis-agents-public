@@ -297,8 +297,8 @@ def manage_tests(
         cursor.close()
 
 
-manage_tests_functions = (manage_tests,)
+test_manager_functions = (manage_tests,)
 
 # Called from bot_os_tools.py to update the global list of functions
-def get_manage_tests_functions():
-    return manage_tests_functions
+def get_test_manager_functions():
+    return test_manager_functions

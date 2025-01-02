@@ -564,8 +564,8 @@ def insert_process_history(
             cursor.close()
 
 
-manage_processes_functions = (manage_processes,)
+process_manage_functions = (manage_processes,)
 
 # Called from bot_os_tools.py to update the global list of functions
-def get_manage_processes_functions():
-    return manage_processes_functions
+def get_process_manager_functions():
+    return process_manage_functions

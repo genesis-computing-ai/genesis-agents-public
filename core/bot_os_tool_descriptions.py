@@ -191,10 +191,10 @@ _tools_data = [
         "Create, configure, and administer other bots programatically",
     ),
     # ('integrate_code', 'Create, test, and deploy new tools that bots can use'),
-    (
-        "webpage_downloader",
-        "Access web pages on the internet and return their contents",
-    ),
+    # (
+    #     "webpage_downloader",
+    #     "Access web pages on the internet and return their contents",
+    # ),
     # (
     #     "database_tools",
     #     "Discover database metadata, find database tables, and run SQL queries on a non-Snowflake database",
@@ -208,7 +208,8 @@ _tools_data = [
         "Control the database harvester, add new databases to harvest, add schema inclusions and exclusions, see harvest status",
     ),
     (
-        "image_tools", "Tools to interpret visual images and pictures"),
+        "image_tools", "Tools to interpret visual images and pictures"
+    ),
     # (
     #     "autonomous_tools",
     #     "These tools are depreciated.  Use process_manager_tools and process_scheduler_tools instead.",
@@ -217,22 +218,22 @@ _tools_data = [
         "process_runner_tools",
         "Tools to run processes.",
     ),
-    (
-        "process_manager_tools",
-        "Tools to create and manage processes.",
-    ),
-    (
-        "process_scheduler_tools",
-        "Tools to set schedules to automatically run processes.",
-    ),
+    # (
+    #     "process_manager_tools",
+    #     "Tools to create and manage processes.",
+    # ),
+    # (
+    #     "process_scheduler_tools",
+    #     "Tools to set schedules to automatically run processes.",
+    # ),
     (
         "notebook_manager_tools",
         "Tools to manage bot notebook.",
     ),
-    (
-        "artifact_manager_tools",
-        "Tools to manage artifacts.",
-    )
+    # (
+    #     "artifact_manager_tools",
+    #     "Tools to manage artifacts.",
+    # )
 ]
 
 data_dev_tools_functions = [
@@ -571,22 +572,22 @@ PROJECT_MANAGER_FUNCTIONS = [
     }
 ]
 
-project_manager_tools = {
-    "_manage_todos": "tool_belt.manage_todos",
-    "_manage_projects": "tool_belt.manage_projects",
-    "_record_todo_work": "tool_belt.record_todo_work",
-    "_manage_todo_dependencies": "tool_belt.manage_todo_dependencies",
-    "_get_project_todos": "tool_belt.get_project_todos",
-    "_get_todo_dependencies": "tool_belt.get_todo_dependencies",
-    "_manage_project_assets": "tool_belt.manage_project_assets"
-}
+# project_manager_tools = {
+#     "_manage_todos": "tool_belt.manage_todos",
+#     "_manage_projects": "tool_belt.manage_projects",
+#     "_record_todo_work": "tool_belt.record_todo_work",
+#     "_manage_todo_dependencies": "tool_belt.manage_todo_dependencies",
+#     "_get_project_todos": "tool_belt.get_project_todos",
+#     "_get_todo_dependencies": "tool_belt.get_todo_dependencies",
+#     "_manage_project_assets": "tool_belt.manage_project_assets"
+# }
 
-_tools_data.append(
-    (
-        "project_manager_tools",
-        "Tools for managing projects and their todo items including creating, updating, changing status and listing both projects and todos",
-    )
-)
+# _tools_data.append(
+#     (
+#         "project_manager_tools",
+#         "Tools for managing projects and their todo items including creating, updating, changing status and listing both projects and todos",
+#     )
+# )
 
 git_file_manager_functions = [
     {

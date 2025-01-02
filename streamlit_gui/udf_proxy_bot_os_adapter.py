@@ -171,9 +171,13 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
 
     def submit_udf_fn(self):
         '''
-        Main handler for input data sent by Snowflake.
+        Main handler for input data from the user to the BotOsServer.
 
-        This is be called from our Flask end point to handle requests sent to the UDF in narive mode (which routes to a Flask endpoint)
+        This is be called from our Flask end point to handle messages sent from the client to the BotOsServer via a Flask endpoint. 
+        Not that when the client (e.g. the streamlit app) runs as a native app by itself, its interface with the Flask servers is via a 
+        UDF in Snowflake which calles the Flask server running as an SPCS service - hence the "udf" in the name.
+        
+        It parses the request (JSON message) and passes it to the submit() method.
         '''
         message = request.json
      #   logger.debug(f'Received request: {message}')
@@ -218,8 +222,16 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
 
     def lookup_udf_fn(self):
         '''
-        Main handler for input data sent by Snowflake.
+        Main handler for output data from the the BotOsServer to the user.
+
+        This is be called from our Flask end point to handle messages from the BotOsServer to the user when the user polls the BotOsServer via a Flask endpoint. 
+        Not that when the client (e.g. the streamlit app) runs as a native app by itself, its interface with the Flask servers is via a 
+        UDF in Snowflake which calles the Flask server running as an SPCS service - hence the "udf" in the name.
+        
+        It parses the request (JSON message) and behaeves the same as lookup_udf() method.
         '''
+        # TODO: use lookup_udf() instead of replacing its logic
+        
         message = request.json
         #logger.debug(f'Received request: {message}')
 
@@ -259,6 +271,7 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
 
 
     def lookup_udf(self, in_uuid:str):
+        logger.debug(f"* lookup_udf({in_uuid}) called ")
         if in_uuid in self.response_map.keys():
             return self.response_map[in_uuid]
         else:

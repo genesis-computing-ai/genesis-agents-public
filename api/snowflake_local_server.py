@@ -1,93 +1,80 @@
+from   connectors               import get_global_db_connector
+from   demo.app.genesis_app     import genesis_app
+from   demo.routes              import udf_routes
+import json
 import os
-from typing import Dict
+import requests
 import uuid
-from connectors import get_global_db_connector
-from core.bot_os_llm import LLMKeyHandler
-from core.bot_os_server import BotOsServer
-from apscheduler.schedulers.background import BackgroundScheduler
-from demo.sessions_creator import create_sessions
 
-from .genesis_base import GenesisBot, GenesisMetadataStore, GenesisServer, SnowflakeMetadataStore, SqliteMetadataStore
-from streamlit_gui.udf_proxy_bot_os_adapter import UDFBotOsInputAdapter
-import core.global_flags as global_flags
+from   .genesis_base            import (GenesisBot, GenesisMetadataStore,
+                                        GenesisServer, SnowflakeMetadataStore,
+                                        SqliteMetadataStore)
+from   flask                    import Flask
+import threading
+
+
+LOCAL_FLASK_SERVER_IP = "127.0.0.1"
+LOCAL_FLASK_SERVER_HOST = f"http://{LOCAL_FLASK_SERVER_IP}"
+LOCAL_FLASK_SERVER_PORT = 8080
+LOCAL_FLASK_SERVER_URL = f"{LOCAL_FLASK_SERVER_HOST}:{LOCAL_FLASK_SERVER_PORT}"
 
 class GenesisLocalServer(GenesisServer):
+
+    _BOT_OS_DIRECT_MODE = False
+    "internal flag to control whether to call directly to the BotOsServer or via the Flask server, for methods that support both"
+    
     def __init__(self, scope, sub_scope="app1", bot_list=None, fast_start=False):
         super().__init__(scope, sub_scope)
-        if os.getenv("SQLITE_OVERRIDE",'Snowflake').lower() == "true": # should ALWAYS be Snowflake even for SQLite
-            self.db_source = "Snowflake"
-        else:
-            self.db_source = "Snowflake"
-        self.set_global_flags(fast_start=fast_start)
-        self.bot_id_to_udf_adapter_map: Dict[str, UDFBotOsInputAdapter] = {}
+
         if f"{scope}.{sub_scope}" != os.getenv("GENESIS_INTERNAL_DB_SCHEMA"):
-            raise Exception(f"Scope {scope}.{sub_scope} does not match environment variable GENESIS_INTERNAL_DB_SCHEMA {os.getenv('GENESIS_INTERNAL_DB_SCHEMA')}")
-        self.server = None
+             raise Exception(f"Scope {scope}.{sub_scope} does not match environment variable GENESIS_INTERNAL_DB_SCHEMA {os.getenv('GENESIS_INTERNAL_DB_SCHEMA')}")
+        # self.server = None
         self.bot_list = bot_list
+
+        #-----------------------------
+        self.genesis_app = genesis_app # Note that genesis_app is a global singleton instance of GenesisApp; this pointer is for convenience and encapsulation
+        self.genesis_app.set_internal_project_and_schema()
+        self.genesis_app.setup_databse(fast_start=fast_start)
+        self.genesis_app.set_llm_key_handler()
+
+        self.flask_app = None
+        self.flask_thread = None
+        
         self.restart()
 
+
     def restart(self):
-        if self.server is not None:
-            self.server.shutdown()
-        db_adapter = get_global_db_connector(self.db_source)
-        llm_key_handler = LLMKeyHandler(db_adapter=db_adapter)
-        _, llm_api_key_struct = llm_key_handler.get_llm_key_from_db()
-        if llm_api_key_struct is not None and llm_api_key_struct.llm_key is not None:
-            (
-                sessions,
-                api_app_id_to_session_map,
-                self.bot_id_to_udf_adapter_map,
-                bot_id_to_slack_adapter_map #SystemVariables.bot_id_to_slack_adapter_map,
-            ) = create_sessions(
-                db_adapter,
-                None, # bot_id_to_udf_adapter_map,
-                stream_mode=True,
-                bot_list=[{"bot_id": bot_id} for bot_id in self.bot_list] if self.bot_list is not None else None
-            )
 
-            self.bot_id_to_slack_adapter_map = bot_id_to_slack_adapter_map # We need to save it for a graceful shutdown
-
-            scheduler = BackgroundScheduler(
-                {
-                    "apscheduler.job_defaults.max_instances": 100,
-                    "apscheduler.job_defaults.coalesce": True,
-                }
-            )
-            self.server = BotOsServer(
-                None,
-                sessions=sessions,
-                scheduler=scheduler,
-                scheduler_seconds_interval=2,
-                slack_active=False, #global_flags.slack_active,
-                db_adapter=db_adapter,
-                bot_id_to_udf_adapter_map = self.bot_id_to_udf_adapter_map,
-                api_app_id_to_session_map = api_app_id_to_session_map,
-                bot_id_to_slack_adapter_map = self.bot_id_to_slack_adapter_map,
-            )
-            BotOsServer.stream_mode = True
-            scheduler.start() # Note: self.server.shutdown() shuts down the scheduler
+        bot_list_maps=[{"bot_id": bot_id} for bot_id in self.bot_list] if self.bot_list else None
+        self.genesis_app.create_app_sessions(bot_list=bot_list_maps)
+        self.genesis_app.start_server()
+        # start the flask server only once (regards to the state of the BotOsServer)
+        if self.flask_app is None:
+            self._start_flask_app()
 
 
+    def _start_flask_app(self):
+        def run_flask(): # flask thread function
+            # Monkey-patch flask.cli.show_server_banner to be a no-op function to avoid printing information to stdout 
+            try:
+                import flask.cli
+                if hasattr(flask.cli, 'show_server_banner'):
+                    flask.cli.show_server_banner = lambda *args, **kwargs: None
+            except ImportError:
+                pass
+            # Start the Flask app on local host
+            self.flask_app.run(host=LOCAL_FLASK_SERVER_IP, port=LOCAL_FLASK_SERVER_PORT, debug=False, use_reloader=False)
 
-    def set_global_flags(self, fast_start=False):
-        genbot_internal_project_and_schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "None")
-        if genbot_internal_project_and_schema == "None":
-            print("ENV Variable GENESIS_INTERNAL_DB_SCHEMA is not set.")
-        if genbot_internal_project_and_schema is not None:
-            genbot_internal_project_and_schema = genbot_internal_project_and_schema.upper()
-        db_schema = genbot_internal_project_and_schema.split(".")
-        project_id = db_schema[0]
-        global_flags.project_id = project_id
-        dataset_name = db_schema[1]
-        global_flags.genbot_internal_project_and_schema = genbot_internal_project_and_schema
+        assert self.flask_app is None and self.flask_thread is None
+        flask_app = Flask(self.__class__.__name__)
+        flask_app.register_blueprint(udf_routes)
 
-        db_adapter = get_global_db_connector(self.db_source)
-        if fast_start:
-            print("Genesis API Fast Start-Skipping Metadata Update Checks")
-        else:
-            db_adapter.one_time_db_fixes()
-            db_adapter.ensure_table_exists()
-            #db_adapter.create_google_sheets_creds()
+        
+        self.flask_app = flask_app
+        self.flask_thread = threading.Thread(target=run_flask)
+        self.flask_thread.setDaemon(True) # this allows the main thread to exit without 'joining' the flask thread
+        self.flask_thread.start()
+
 
     def get_metadata_store(self) -> GenesisMetadataStore:
         if os.getenv("SQLITE_OVERRIDE", "false").lower() == "true":
@@ -95,7 +82,15 @@ class GenesisLocalServer(GenesisServer):
         else:
             return SnowflakeMetadataStore(self.scope, self.sub_scope)
 
+
     def register_bot(self, bot: GenesisBot):
+        if self._BOT_OS_DIRECT_MODE:    
+            return self._register_bot_direct(bot)
+        else:
+            return self._register_bot_indirect(bot)
+
+    
+    def _register_bot_direct(self, bot: GenesisBot):
         return(self.server.make_baby_bot_wrapper(
             bot_id=bot.get("BOT_ID", None),
             bot_name=bot.get("BOT_NAME", None),
@@ -105,21 +100,82 @@ class GenesisLocalServer(GenesisServer):
             bot_instructions=bot.get("BOT_INSTRUCTIONS", None)
         ))
 
-    def add_message(self, bot_id, message, thread_id) -> str|dict: # returns request_id
+
+    def _register_bot_indirect(self, bot: GenesisBot):
+        url = LOCAL_FLASK_SERVER_URL + "/udf_proxy/create_baby_bot"
+        headers = {"Content-Type": "application/json"}
+        data = json.dumps({
+            "data": {
+                "bot_name": bot.get("BOT_NAME", None),
+                "bot_implementation": bot.get("BOT_IMPLEMENTATION", None),
+                "bot_id": bot.get("BOT_ID", None),
+                "files": bot.get("FILES", None),
+                "available_tools": bot.get("AVAILABLE_TOOLS", None),
+                "bot_instructions": bot.get("BOT_INSTRUCTIONS", None)
+            }
+        })
+        response = requests.post(url, headers=headers, data=data)
+        return response.json()
+        
+
+    def add_message(self, bot_id, message, thread_id=None) -> str|dict: # returns request_id
         if not thread_id:
             thread_id = str(uuid.uuid4())
-        request_id = self.bot_id_to_udf_adapter_map[bot_id].submit(message, thread_id, bot_id={})
+        if self._BOT_OS_DIRECT_MODE:
+            return self._add_message_direct(bot_id, message, thread_id)
+        else:
+            return self._add_message_indirect(bot_id, message, thread_id)
+
+    
+    def _add_message_direct(self, bot_id, message, thread_id) -> str|dict: # returns request_id
+        # Add the message directly to the BotOsServer's internal message queue, short-circuiting end-points (Flask) mechanism
+        request_id = self.genesis_app.bot_id_to_udf_adapter_map[bot_id].submit(message, thread_id, bot_id={})
         return {"request_id": request_id,
                 "bot_id": bot_id,
                 "thread_id": thread_id}
-        #return f"Request submitted on thread {thread_id} . To get response use: get_response --bot_id {bot_id} --request_id {request_id}"
+
+        
+    def _add_message_indirect(self, bot_id, message, thread_id) -> str|dict: # returns request_id        
+        url = LOCAL_FLASK_SERVER_URL + "/udf_proxy/submit_udf"
+        headers = {"Content-Type": "application/json"}
+        data = json.dumps({"data": [[1, message, thread_id, json.dumps({"bot_id": bot_id})]]})
+        
+        response = requests.post(url, headers=headers, data=data)
+        if response.status_code == 200:
+            response_data = response.json()["data"][0][1]
+            return {"request_id": response_data,
+                    "bot_id": bot_id,
+                    "thread_id": thread_id}
+        else:
+            raise Exception(f"Failed to submit message to UDF proxy: {response.text}")
+
 
     def get_message(self, bot_id, request_id) -> str:
-        return self.bot_id_to_udf_adapter_map[bot_id].lookup_udf(request_id)
+        if self._BOT_OS_DIRECT_MODE:
+            return self._get_message_direct(bot_id, request_id)
+        else:
+            return self._get_message_indirect(bot_id, request_id)
+
+
+    def _get_message_direct(self, bot_id, request_id) -> str:
+        # Get any pending message directly form the BotOsServer's internal message queues, short-circuiting end-points (Flask) mechanism
+        return self.genesis_app.bot_id_to_udf_adapter_map[bot_id].lookup_udf(request_id)
+
+
+    def _get_message_indirect(self, bot_id, request_id) -> str:
+        url = LOCAL_FLASK_SERVER_URL + "/udf_proxy/lookup_udf"
+        headers = {"Content-Type": "application/json"}
+        data = json.dumps({"data": [[1, request_id, bot_id]]})
+        response = requests.post(url, headers=headers, data=data)
+        if response.status_code == 200:
+            response_data = response.json()["data"][0][1]
+            if response_data.lower() != "not found":
+                return response_data
+        return None
 
 
     def run_tool(self, bot_id, tool_name, params):
-        session = next((s for s in self.server.sessions if s.bot_id == bot_id), None)
+        session = next((s for s in self.genesis_app.server.sessions if s.bot_id == bot_id), None)
         if session is None:
             raise ValueError(f"No session found for bot_id {bot_id}")
 
@@ -161,11 +217,8 @@ class GenesisLocalServer(GenesisServer):
 
     def shutdown(self):
         # shuts down the server (including the apscheduler)
-        self.server.shutdown()
-        # If there were any slack adapters created, shut them down
-        if self.bot_id_to_slack_adapter_map:
-            for slack_adapter in self.bot_id_to_slack_adapter_map.values():
-                slack_adapter.shutdown()
+        self.genesis_app.shutdown_server()
+
 
 
     def upload_file(self, file_path, file_name, contents):

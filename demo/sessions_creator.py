@@ -627,26 +627,33 @@ def create_sessions(
             logger.error(f"Error creating session for bot {bot_id}: {str(e)}")
             return None, None, None, None
 
-    # Execute session creation in parallel
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        future_to_bot = {
-            executor.submit(create_single_session, bot_config): bot_config
-            for bot_config in filtered_bots
-        }
+    # Execute session creation in parallel or serially based on max_workers
+    def handle_bot_config(bot_config):
+        try:
+            new_session, api_app_id, udf_adapter_local, slack_adapter_local = create_single_session(bot_config)
+            if new_session is not None:
+                sessions.append(new_session)
+                api_app_id_to_session_map[api_app_id] = new_session
+                if slack_adapter_local is not None:
+                    bot_id_to_slack_adapter_map[bot_config["bot_id"]] = slack_adapter_local
+                if udf_adapter_local is not None:
+                    bot_id_to_udf_adapter_map[bot_config["bot_id"]] = udf_adapter_local
+        except Exception as e:
+            logger.error(f"Error processing results for bot {bot_config['bot_id']}: {str(e)}")
 
-        for future in as_completed(future_to_bot):
-            bot_config = future_to_bot[future]
-            try:
-                new_session, api_app_id, udf_adapter_local, slack_adapter_local = future.result()
-                if new_session is not None:
-                    sessions.append(new_session)
-                    api_app_id_to_session_map[api_app_id] = new_session
-                    if slack_adapter_local is not None:
-                        bot_id_to_slack_adapter_map[bot_config["bot_id"]] = slack_adapter_local
-                    if udf_adapter_local is not None:
-                        bot_id_to_udf_adapter_map[bot_config["bot_id"]] = udf_adapter_local
-            except Exception as e:
-                logger.error(f"Error processing results for bot {bot_config['bot_id']}: {str(e)}")
+    if max_workers == 1:
+        for bot_config in filtered_bots:
+            handle_bot_config(bot_config)
+    else:
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_bot = {
+                executor.submit(create_single_session, bot_config): bot_config
+                for bot_config in filtered_bots
+            }
+
+            for future in as_completed(future_to_bot):
+                bot_config = future_to_bot[future]
+                handle_bot_config(bot_config)
 
     return (
         sessions,

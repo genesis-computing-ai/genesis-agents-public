@@ -51,6 +51,8 @@ from   connectors.database_tools \
                                         # bind_semantic_copilot,
                                         # database_tool_functions,
                                         # database_tools,
+                                        artifact_manager_functions,
+                                        artifact_manager_tools,
                                         google_drive_functions,
                                         google_drive_tools, image_functions,
                                         image_tools,
@@ -3553,10 +3555,10 @@ def get_tools(
             func_descriptors.extend(image_functions)
             available_functions_loaded.update(image_tools)
             tool_to_func_descriptors_map[tool_name] = image_functions
-        elif tool_name == "autonomous_tools" or tool_name == "autonomous_functions":
-            func_descriptors.extend(autonomous_functions)
-            available_functions_loaded.update(autonomous_tools)
-            tool_to_func_descriptors_map[tool_name] = autonomous_functions
+        # elif tool_name == "autonomous_tools" or tool_name == "autonomous_functions":
+        #     func_descriptors.extend(autonomous_functions)
+        #     available_functions_loaded.update(autonomous_tools)
+        #     tool_to_func_descriptors_map[tool_name] = autonomous_functions
         elif tool_name == "process_runner_tools":
             func_descriptors.extend(process_runner_functions)
             available_functions_loaded.update(process_runner_tools)

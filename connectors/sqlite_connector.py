@@ -1767,8 +1767,8 @@ class SqliteConnector(DatabaseConnector):
 
                 update_query = f"""
                     UPDATE {self.bot_servicing_table_name}
-                    SET AVAILABLE_TOOLS = REPLACE(REPLACE(AVAILABLE_TOOLS, 'vision_chat_analysis', 'image_tools'),'autonomous_functions','autonomous_tools')
-                    WHERE AVAILABLE_TOOLS LIKE '%vision_chat_analysis%' or AVAILABLE_TOOLS LIKE '%autonomous_functions%'
+                    SET AVAILABLE_TOOLS = REPLACE(REPLACE(AVAILABLE_TOOLS, 'vision_chat_analysis', 'image_tools'),)
+                    WHERE AVAILABLE_TOOLS LIKE '%vision_chat_analysis%'
                     """
                 cursor.execute(update_query)
                 self.client.commit()

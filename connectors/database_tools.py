@@ -91,7 +91,7 @@ process_scheduler_functions = [
 ]
 
 # depreciated
-autonomous_functions = []
+# autonomous_functions = []
 
 artifact_manager_functions = [
     {

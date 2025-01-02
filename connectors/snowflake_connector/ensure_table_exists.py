@@ -71,10 +71,15 @@ def one_time_db_fixes(self):
                     tools_list.append('notebook_manager_tools')
                     update = True
 
+                if "autonomous_tools" in tools_list:
+                    print("Found autonomous_tools in tools list")
+                    tools_list.remove("autonomous_tools")
+                    update = True
+
                 if 'database_tools' in tools_list:
                     print("Found database_tools in tools list")
+                    tools_list.remove('database_tools')
                     if "snowflake_tools" not in tools_list:
-                        tools_list.remove('database_tools')
                         tools_list.append('snowflake_tools')
                     if "data_connector_tools" not in tools_list:
                         tools_list.append("data_connector_tools")
@@ -991,8 +996,8 @@ def ensure_table_exists(self):
 
             update_query = f"""
             UPDATE {self.bot_servicing_table_name}
-            SET AVAILABLE_TOOLS = REPLACE(REPLACE(AVAILABLE_TOOLS, 'vision_chat_analysis', 'image_tools'),'autonomous_functions','autonomous_tools')
-            WHERE AVAILABLE_TOOLS LIKE '%vision_chat_analysis%' or AVAILABLE_TOOLS LIKE '%autonomous_functions%'
+            SET AVAILABLE_TOOLS = REPLACE(REPLACE(AVAILABLE_TOOLS, 'vision_chat_analysis', 'image_tools'),)
+            WHERE AVAILABLE_TOOLS LIKE '%vision_chat_analysis%' 
             """
             cursor.execute(update_query)
             self.client.commit()

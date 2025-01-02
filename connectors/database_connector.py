@@ -161,6 +161,7 @@ class DatabaseConnector:
         note_type=None,
         export_to_google_sheet=False,
         export_title=None,
+        database_name=None,
     ) -> dict:
         """Add thread_id parameter to docstring"""
 
@@ -243,6 +244,16 @@ class DatabaseConnector:
 
             # Execute query using SQLAlchemy
             if connection_id not in self.connections:
+                # Add database name to postgresql connection string if not present
+                if connection_string.lower().startswith('postgresql'):
+                    if database_name and f'/{database_name}' not in connection_string:
+                        # Replace /postgres with actual database name if present
+                        if connection_string.endswith('/postgres'):
+                            connection_string = connection_string[:-9] + f"/{database_name}"
+                        elif connection_string.endswith('/'):
+                            connection_string = f"{connection_string}/{database_name}"
+                        elif connection_string[-4:].isdigit():
+                            connection_string = f"{connection_string[:-4]}/{database_name}"
                 self.connections[connection_id] = create_engine(connection_string)
             engine = self.connections[connection_id]
             with engine.connect() as conn:

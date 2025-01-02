@@ -87,7 +87,8 @@ class SchemaExplorer:
                     query=sql,
                     max_rows=1,
                     max_rows_override=True,
-                    bot_id_override=True
+                    bot_id_override=True,
+                    database_name=database_name
                 )
                 
                 if result and 'rows' in result and len(result['rows']) > 0:
@@ -417,7 +418,7 @@ class SchemaExplorer:
                 db_type = 'mysql'
             schema_queries = {
                 'mysql': 'SELECT SCHEMA_NAME FROM information_schema.schemata WHERE SCHEMA_NAME NOT IN ("information_schema", "mysql", "performance_schema", "sys")',
-                'postgresql': 'SELECT schema_name FROM information_schema.schemata WHERE catalog_name = \'!database_name!\' AND schema_name NOT IN (\'information_schema\', \'pg_catalog\', \'pg_toast\')',
+                'postgresql': 'SELECT schema_name FROM !database_name!.information_schema.schemata WHERE catalog_name = \'!database_name!\' AND schema_name NOT IN (\'information_schema\', \'pg_catalog\', \'pg_toast\')',
                 'sqlite': 'SELECT \'main\' as schema_name',
                 'snowflake': 'SHOW SCHEMAS IN DATABASE !database_name!'
             }
@@ -438,7 +439,7 @@ class SchemaExplorer:
                 
             sql = sql.replace('!database_name!', database_name)
             try:
-                schemas = connector.query_database(connection_id=matching_connection['connection_id'], bot_id='system', query=sql, bot_id_override=True)
+                schemas = connector.query_database(connection_id=matching_connection['connection_id'], bot_id='system', query=sql, bot_id_override=True, database_name=database_name)
                 if isinstance(schemas, list):
                     # Extract schema names from result set based on first column
                     schemas = [row[0] for row in schemas if row[0]]
@@ -586,7 +587,8 @@ class SchemaExplorer:
                     query=sql,
                     max_rows=1000,
                     max_rows_override=True,
-                    bot_id_override=True
+                    bot_id_override=True,
+                    database_name=dataset['database_name']
                 )
                 
                 if isinstance(result, dict) and result.get('success'):
@@ -712,7 +714,8 @@ class SchemaExplorer:
                         query=sql,
                         max_rows=1000,
                         max_rows_override=True,
-                        bot_id_override=True
+                        bot_id_override=True,
+                        database_name=database_name
                     )
                     
                     if isinstance(result, dict) and result.get('success'):
@@ -1001,7 +1004,8 @@ class SchemaExplorer:
                     query=sql,
                     max_rows=5,
                     max_rows_override=True,
-                    bot_id_override=True
+                    bot_id_override=True,
+                    database_name=dataset['database_name']
                 )
                 
                 if isinstance(result, dict) and result.get('success'):

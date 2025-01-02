@@ -18,8 +18,8 @@ from core.bot_os_tools2 import (
 from connectors import get_global_db_connector
 db_adapter = get_global_db_connector()
 
-manage_artifact_tools = ToolFuncGroup(
-    name="manage_artifact_tools",
+artifact_manager_tools = ToolFuncGroup(
+    name="artifact_manager_tools",
     description="",
     lifetime="PERSISTENT",
 )
@@ -36,7 +36,7 @@ manage_artifact_tools = ToolFuncGroup(
     artifact_id="A valid artifact ID, which is a UUID-4 string.",
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
     bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
-    _group_tags_=[manage_artifact_tools],
+    _group_tags_=[artifact_manager_tools],
 )
 def manage_artifact(
         action: str,
@@ -73,5 +73,5 @@ manage_artifact_functions = (manage_artifact,)
 
 
 # Called from bot_os_tools.py to update the global list of functions
-def get_manage_artifacts_functions():
+def get_artifact_manager_functions():
     return manage_artifact_functions

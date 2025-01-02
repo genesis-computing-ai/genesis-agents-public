@@ -209,10 +209,10 @@ _tools_data = [
     ),
     (
         "image_tools", "Tools to interpret visual images and pictures"),
-    (
-        "autonomous_tools",
-        "These tools are depreciated.  Use process_manager_tools and process_scheduler_tools instead.",
-    ),
+    # (
+    #     "autonomous_tools",
+    #     "These tools are depreciated.  Use process_manager_tools and process_scheduler_tools instead.",
+    # ),
     (
         "process_runner_tools",
         "Tools to run processes.",

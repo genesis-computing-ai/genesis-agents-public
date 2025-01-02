@@ -16,8 +16,8 @@ from core.bot_os_tools2 import (
 
 todos = ProjectManager(db_adapter)
 
-manage_todos_tools = ToolFuncGroup(
-    name="manage_todos_tools",
+todo_manager_tools = ToolFuncGroup(
+    name="todo_manager_tools",
     description="",
     lifetime="PERSISTENT",
 )
@@ -81,7 +81,7 @@ manage_todos_tools = ToolFuncGroup(
     ),
     bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
-    _group_tags_=[manage_todos_tools],
+    _group_tags_=[todo_manager_tools],
 )
 def manage_todos(
     action: str,
@@ -126,7 +126,7 @@ def manage_todos(
         required=False,
     ),
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
-    _group_tags_=[manage_todos_tools],
+    _group_tags_=[todo_manager_tools],
 )
 def manage_projects(
     action: str,
@@ -153,7 +153,7 @@ def manage_projects(
     work_description="Detailed description of the work performed or progress made",
     work_results="Optional results, output, or findings from the work performed",
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
-    _group_tags_=[manage_todos_tools],
+    _group_tags_=[todo_manager_tools],
 )
 def record_todo_work(
     bot_id: str,
@@ -179,7 +179,7 @@ def record_todo_work(
     bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
     project_id="ID of the project to get todos for",
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
-    _group_tags_=[manage_todos_tools],
+    _group_tags_=[todo_manager_tools],
 )
 def get_project_todos(
     bot_id: str,
@@ -196,7 +196,7 @@ def get_project_todos(
     todo_id="ID of the todo to get dependencies for",
     include_reverse="If true, also include todos that depend on this todo",
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
-    _group_tags_=[manage_todos_tools],
+    _group_tags_=[todo_manager_tools],
 )
 def get_todo_dependencies(
     bot_id: str,
@@ -218,7 +218,7 @@ def get_todo_dependencies(
     todo_id="ID of the todo that has the dependency",
     depends_on_todo_id="ID of the todo that needs to be completed first",
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
-    _group_tags_=[manage_todos_tools],
+    _group_tags_=[todo_manager_tools],
 )
 def manage_todo_dependencies(
     action: str,
@@ -261,7 +261,7 @@ def manage_todo_dependencies(
         required=False,
     ),
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
-    _group_tags_=[manage_todos_tools],
+    _group_tags_=[todo_manager_tools],
 )
 def manage_project_assets(
     action: str,
@@ -294,5 +294,5 @@ manage_todos_functions = (
 
 
 # Called from bot_os_tools.py to update the global list of functions
-def get_manage_todos_functions():
+def get_todo_manager_functions():
     return manage_todos_functions

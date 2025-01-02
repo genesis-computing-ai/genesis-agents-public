@@ -109,7 +109,7 @@ image_tools = {
     "_generate_image": "db_adapter.image_generation",
 }
 
-autonomous_tools = {}
+# autonomous_tools = {}
 # autonomous_tools = {"_manage_tasks": "db_adapter.manage_tasks"}
 
 notebook_manager_tools = {"_manage_notebook": "tool_belt.manage_notebook"}

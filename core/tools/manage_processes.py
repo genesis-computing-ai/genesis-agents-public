@@ -19,8 +19,8 @@ from core.tools.tool_helpers import chat_completion, get_processes_list, get_pro
 from connectors import get_global_db_connector
 db_adapter = get_global_db_connector()
 
-manage_processes_tools = ToolFuncGroup(
-    name="manage_processes_tools",
+process_manager_tools = ToolFuncGroup(
+    name="process_manager_tools",
     description=dedent(
     """
     Manages schedules to automatically run processes on a schedule (sometimes called tasks), including creating, updating,
@@ -66,7 +66,7 @@ manage_processes_tools = ToolFuncGroup(
     hidden="If true, the process will not be shown in the list of processes.  This is used to create processes to test the bots functionality without showing them to the user.",
     bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
-    _group_tags_=[manage_processes_tools],
+    _group_tags_=[process_manager_tools],
 )
 def manage_processes(
     action: str,

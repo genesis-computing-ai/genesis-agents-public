@@ -71,6 +71,16 @@ def one_time_db_fixes(self):
                     tools_list.append('notebook_manager_tools')
                     update = True
 
+                if "autonomous_tools" in tools_list:
+                    print("Found autonomous_tools in tools list")
+                    tools_list.remove("autonomous_tools")
+                    update = True
+
+                if "project_manager_tools" in tools_list:
+                    tools_list.remove("project_manager_tools")
+                    if "todo_manager_tools" not in tools_list:
+                        tools_list.append('todo_manager_tools')
+
                 if 'database_tools' in tools_list:
                     print("Found database_tools in tools list")
                     if "snowflake_tools" not in tools_list:

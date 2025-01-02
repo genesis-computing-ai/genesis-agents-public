@@ -1209,10 +1209,10 @@ def get_tools(
             func_descriptors.extend(MAKE_BABY_BOT_DESCRIPTIONS)
             available_functions_loaded.update(make_baby_bot_tools)
             tool_to_func_descriptors_map[tool_name] = MAKE_BABY_BOT_DESCRIPTIONS
-        # elif tool_name == "bot_dispatch":
-        #     func_descriptors.extend(BOT_DISPATCH_DESCRIPTIONS)
-        #     available_functions_loaded.update(bot_dispatch_tools)
-        #     tool_to_func_descriptors_map[tool_name] = BOT_DISPATCH_DESCRIPTIONS
+        elif tool_name == "bot_dispatch":
+            func_descriptors.extend(BOT_DISPATCH_DESCRIPTIONS)
+            available_functions_loaded.update(bot_dispatch_tools)
+            tool_to_func_descriptors_map[tool_name] = BOT_DISPATCH_DESCRIPTIONS
         # elif tool_name == "image_tools":
         #     func_descriptors.extend(image_functions)
         #     available_functions_loaded.update(image_tools)

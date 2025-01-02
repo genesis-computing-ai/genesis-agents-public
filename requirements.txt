@@ -52,3 +52,4 @@ sqlalchemy
 psycopg2-binary
 pymysql
 snowflake-sqlalchemy
+spider-client

@@ -23,9 +23,6 @@ DIRECTORY_PATH=${DIRECTORY_PATH%/}
 snow spcs image-registry token --connection GENESIS-DEV-PROVIDER --format=JSON
 snow spcs image-registry token --connection GENESIS-DEV-PROVIDER --format=JSON | docker login dshrnxx-genesis-dev.registry.snowflakecomputing.com --username 0sessiontoken --password-stdin
 
-# Copy main.py to sis_launch.py
-cp ./streamlit_gui/main.py ./streamlit_gui/Genesis.py
-
 # Build Docker image
 docker build --rm -t genesis_app:latest --platform linux/amd64 .
 

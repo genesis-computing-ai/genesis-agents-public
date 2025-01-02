@@ -26,7 +26,8 @@ snow spcs image-registry token --connection GENESIS-ALPHA-PROVIDER --format=JSON
 
 
 # Run make_alpha_sis_launch.py
-python3 ./streamlit_gui/make_alpha_sis_launch.py
+# python3 ./streamlit_gui/make_alpha_sis_launch.py
+python3 -c "import sys; sys.path.append('./streamlit_gui'); from make_alpha_sis_launch import replace_genesis_bots; replace_genesis_bots()"
 
 # Build Docker image
 docker build --rm -t genesis_app:latest --platform linux/amd64 .
@@ -99,6 +100,8 @@ snow sql -c GENESIS-ALPHA-CONSUMER -q "call genesis_bots_alpha.core.run_arbitrar
 snow sql -c GENESIS-ALPHA-CONSUMER -q "call genesis_bots_alpha.core.run_arbitrary('grant select on GENESIS_BOTS_ALPHA.APP1.LLM_RESULTS to application role app_public;');"
 snow sql -c GENESIS-ALPHA-CONSUMER -q "call genesis_bots_alpha.core.run_arbitrary('grant all on schema genesis_bots_alpha.APP1 to application role app_public;');"
 snow sql -c GENESIS-ALPHA-CONSUMER -q "show applications;"
+
+python3 -c "import sys; sys.path.append('./streamlit_gui'); from make_alpha_sis_launch import revert_genesis_bots; revert_genesis_bots()"
 
 echo "Upgrade complete"
 

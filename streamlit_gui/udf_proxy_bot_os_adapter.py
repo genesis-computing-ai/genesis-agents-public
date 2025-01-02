@@ -43,7 +43,10 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
             self.events.append(event)
 
 
-    def get_input(self, thread_map=None,  active=None, processing=None, done_map=None):
+    def get_input(self, thread_map=None,  active=None, processing=None, done_map=None) -> BotOsInputMessage | None:
+        """
+        Called by the Genesis Server to get the next input message that was added from the user to the queue (if any)
+        """
         if len(self.events) == 0:
             return None
         try:
@@ -78,7 +81,7 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
 
 
     def handle_response(self, session_id: str, message: BotOsOutputMessage, in_thread=None, in_uuid=None, task_meta=None):
-        # Here you would implement how the Flask app should handle the response.
+        # Here you would implement how the Flask app should handle the response from the LLM.
         # For example, you might send the response back to the client via a WebSocket
         # or store it in a database for later retrieval.
         #logger.info("UDF output: ",message.output, ' in_uuid ', in_uuid)

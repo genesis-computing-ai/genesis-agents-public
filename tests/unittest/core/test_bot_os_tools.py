@@ -526,3 +526,76 @@ class TestGCTools(unittest.TestCase):
                 self.assertIsNotNone(description, f"Parameter '{name}' does not have a description")
             elif name == "b":
                 self.assertIsNone(description, f"Parameter '{name}' should not have a description")
+
+                def test_function_with_dict_param(self):
+                    ToolFuncGroup._clear_instances()  # avoid any lingering instances from previous tests
+
+                    gr1_tag = ToolFuncGroup("group1", "this is group 1")
+
+
+    def test_function_with_nested_dict_param(self):
+        ToolFuncGroup._clear_instances()  # avoid any lingering instances from previous tests
+        gr1_tag = ToolFuncGroup("group1", "this is group 1")
+
+        @gc_tool(
+                action=ToolFuncParamDescriptor(name="action", 
+                                                description="Action to perform (CREATE, UPDATE, CHANGE_STATUS, LIST)", 
+                                                required=True, 
+                                                llm_type_desc = dict(type="string", enum=["CREATE", "UPDATE", "CHANGE_STATUS", "LIST"]) ,
+                                                ),
+                bot_id="ID of the bot performing the action",
+                todo_id="ID of the todo item (required for UPDATE and CHANGE_STATUS)",
+                todo_details=ToolFuncParamDescriptor(
+                    name="todo_details", 
+                    description="Details for the todo item. For CREATE: requires project_id, todo_name, what_to_do, depends_on. "
+                                "For CHANGE_STATUS: requires only new_status.",
+                    llm_type_desc = dict(type="object", 
+                                        properties=dict(project_id=dict(type="string", description="ID of the project the todo item belongs to"),
+                                                        todo_name=dict(type="string", description="Name of the todo item"),
+                                                        what_to_do=dict(type="string", description="What the todo item is about"),
+                                                        depends_on=dict(type="string", description="ID of the todo item that this todo item depends on"),
+                                                        new_status=dict(type="string", description="New status for the todo item"),
+                                                        )
+                                        ),
+                    required=False,
+                    ),
+                _group_tags_=[gr1_tag]
+                )  
+        def manage_todos(action: str, bot_id: str, todo_id: str = None, todo_details: dict = None):
+            '''
+            Manage todo items with various actions.
+            When creating Todos try to include any dependencies on other todos where they exist
+            it is important to track those to make sure todos are done in the correct order.        
+            '''
+            pass
+
+
+        expected_dict = {'function': {'description': 'Manage todo items with various actions.\n'
+                            'When creating Todos try to include any dependencies on other todos where they exist\n'
+                            'it is important to track those to make sure todos are done in the correct order.        ',
+                                    'name': 'manage_todos',
+                                    'parameters': {'properties': {'action': {'description': 'Action to perform (CREATE, UPDATE, CHANGE_STATUS, LIST)',
+                                                                            'enum': ['CREATE', 'UPDATE', 'CHANGE_STATUS', 'LIST'],
+                                                                            'type': 'string'},
+                                                                    'bot_id': {'description': 'ID of the bot performing the action', 'type': 'string'},
+                                                                    'todo_details': {'description': 'Details for the todo item. For CREATE: requires project_id, todo_name, '
+                                                                                                    'what_to_do, depends_on. For CHANGE_STATUS: requires only new_status.',
+                                                                                    'properties': {'depends_on': {'description': 'ID of the todo item that this todo item '
+                                                                                                                                'depends on',
+                                                                                                                'type': 'string'},
+                                                                                                    'new_status': {'description': 'New status for the todo item',
+                                                                                                                'type': 'string'},
+                                                                                                    'project_id': {'description': 'ID of the project the todo item belongs '
+                                                                                                                                'to',
+                                                                                                                'type': 'string'},
+                                                                                                    'todo_name': {'description': 'Name of the todo item', 'type': 'string'},
+                                                                                                    'what_to_do': {'description': 'What the todo item is about',
+                                                                                                                'type': 'string'}},
+                                                                                    'type': 'object'},
+                                                                    'todo_id': {'description': 'ID of the todo item (required for UPDATE and CHANGE_STATUS)',
+                                                                                'type': 'string'}},
+                                                    'required': ['action', 'bot_id'],
+                                                    'type': 'object'}},
+                        'type': 'function'}
+
+        self.assertEqual(manage_todos.gc_tool_descriptor.to_llm_description_dict(), expected_dict)

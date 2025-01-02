@@ -21,9 +21,6 @@
 # Push Docker image
 #docker push dshrnxx-genesis-dev.registry.snowflakecomputing.com/genesisapp_master/code_schema/service_repo/genesis_app:latest
 
-# Copy main.py to sis_launch.py
-cp ./streamlit_gui/main.py ./streamlit_gui/Genesis.py
-
 # Clear stage
 snow sql -c GENESIS-DEV-PROVIDER -q "RM @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE"
 

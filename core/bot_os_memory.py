@@ -30,54 +30,54 @@ class BotOsKnowledgeBase:
 # Load the medium spaCy model
 #nlp = spacy.load("en_core_web_md")
 
-class DEPRECIATED_BotOsKnowledgeLocal(BotOsKnowledgeBase):
-    def __init__(self, base_directory_path) -> None:
-        self.base_directory_path = base_directory_path
-        # Create the base directory if it doesn't exist
-        if not os.path.exists(self.base_directory_path):
-            logger.info(f"creating base directory: {self.base_directory_path}")
-            os.makedirs(self.base_directory_path)
+# class DEPRECIATED_BotOsKnowledgeLocal(BotOsKnowledgeBase):
+#     def __init__(self, base_directory_path) -> None:
+#         self.base_directory_path = base_directory_path
+#         # Create the base directory if it doesn't exist
+#         if not os.path.exists(self.base_directory_path):
+#             logger.info(f"creating base directory: {self.base_directory_path}")
+#             os.makedirs(self.base_directory_path)
 
-    def store_memory(self, memory, scope="user_preferences"):
-        """Stores a new memory in its own file within the specified scope directory."""
-        scope_directory = f'{self.base_directory_path}/{scope}'
-        if not os.path.exists(scope_directory):
-            os.makedirs(scope_directory)  # Create the scope directory if it doesn't exist
-        
-        timestamp = time.strftime('%Y%m%d%H%M%S')
-        unique_id = uuid.uuid4()  # Generate a random UUID
-        file_name = f'memory_{timestamp}_{unique_id}.txt'
-        file_path = f'{scope_directory}/{file_name}'
-        with open(file_path, 'w') as file:
-            file.write(memory)
-    
-    def find_memory(self, query, scope="user_preferences", thresh=0.2) -> list[str]:
-        """Finds and returns memories that contain the query string within the specified scope."""
-        scope_directory = f'{self.base_directory_path}/{scope}'
-        if not os.path.exists(scope_directory) or not os.listdir(scope_directory):
-            return []  # Return an empty list if the directory doesn't exist or is empty
-        
-        query_doc = nlp(query)  # Process the query to get its vector representation
-        memories = []
-        # Iterate over each file in the scope directory
-        for filename in os.listdir(scope_directory):
-            file_path = os.path.join(scope_directory, filename)
-            # Skip directories
-            if os.path.isdir(file_path):
-                continue
-            with open(file_path, 'r') as file:
-                content = file.read()
-                content_doc = nlp(content)  # Process the memory content to get its vector representation
-                similarity = query_doc.similarity(content_doc)
-                if similarity > thresh:  # Threshold for similarity, adjust as needed
-                    memories.append(content.strip())
-        return memories
+#     def store_memory(self, memory, scope="user_preferences"):
+#         """Stores a new memory in its own file within the specified scope directory."""
+#         scope_directory = f'{self.base_directory_path}/{scope}'
+#         if not os.path.exists(scope_directory):
+#             os.makedirs(scope_directory)  # Create the scope directory if it doesn't exist
 
-    def reset(self):
-        """Clears out the entire Knowledge Base by removing all scopes and memories."""
-        if os.path.exists(self.base_directory_path):
-            shutil.rmtree(self.base_directory_path)
-            os.makedirs(self.base_directory_path)  # Recreate the base directory after clearing
+#         timestamp = time.strftime('%Y%m%d%H%M%S')
+#         unique_id = uuid.uuid4()  # Generate a random UUID
+#         file_name = f'memory_{timestamp}_{unique_id}.txt'
+#         file_path = f'{scope_directory}/{file_name}'
+#         with open(file_path, 'w') as file:
+#             file.write(memory)
+
+#     def find_memory(self, query, scope="user_preferences", thresh=0.2) -> list[str]:
+#         """Finds and returns memories that contain the query string within the specified scope."""
+#         scope_directory = f'{self.base_directory_path}/{scope}'
+#         if not os.path.exists(scope_directory) or not os.listdir(scope_directory):
+#             return []  # Return an empty list if the directory doesn't exist or is empty
+
+#         query_doc = nlp(query)  # Process the query to get its vector representation
+#         memories = []
+#         # Iterate over each file in the scope directory
+#         for filename in os.listdir(scope_directory):
+#             file_path = os.path.join(scope_directory, filename)
+#             # Skip directories
+#             if os.path.isdir(file_path):
+#                 continue
+#             with open(file_path, 'r') as file:
+#                 content = file.read()
+#                 content_doc = nlp(content)  # Process the memory content to get its vector representation
+#                 similarity = query_doc.similarity(content_doc)
+#                 if similarity > thresh:  # Threshold for similarity, adjust as needed
+#                     memories.append(content.strip())
+#         return memories
+
+#     def reset(self):
+#         """Clears out the entire Knowledge Base by removing all scopes and memories."""
+#         if os.path.exists(self.base_directory_path):
+#             shutil.rmtree(self.base_directory_path)
+#             os.makedirs(self.base_directory_path)  # Recreate the base directory after clearing
 
 
 class AnnoyIndexSingleton:
@@ -121,10 +121,10 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
             # Initialize BigQuery client
             self.meta_database_connector = BigQueryConnector(connection_info,'BigQuery')
             self.project_id = connection_info["project_id"]
-        elif self.source_name  == 'Sqlite':  
+        elif self.source_name  == 'Sqlite':
             self.meta_database_connector = SqliteConnector(connection_name='Sqlite')
             self.project_id = self.meta_database_connector.database
-        elif self.source_name  == 'Snowflake':  
+        elif self.source_name  == 'Snowflake':
             if os.getenv("SQLITE_OVERRIDE", "").lower() == "true":
                 from connectors import get_global_db_connector
                 self.meta_database_connector = get_global_db_connector()
@@ -139,14 +139,14 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
             self.embedding_model = os.getenv("OPENAI_HARVESTER_EMBEDDING_MODEL", 'text-embedding-3-large')
             logger.info("setting openai key in knowledge init")
             self.client = get_openai_client()
-  
+
         #self.index, self.metadata_mapping = AnnoyIndexSingleton.get_index_and_metadata(self.meta_database_connector.metadata_table_name, vector_size, refresh=refresh)
         self.index, self.metadata_mapping = load_or_create_embeddings_index(self.meta_database_connector.metadata_table_name, refresh=refresh)
 
 
     # Function to get embedding (reuse or modify your existing get_embedding function)
     # def get_embedding(self, text):
-        
+
     #     response = self.client.embeddings.create(
     #         model=self.embedding_model,
     #         input=text.replace("\n", " ")  # Replace newlines with spaces
@@ -163,10 +163,10 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
                 embedding_size = 768
             else:
                 embedding_size = 3072
-       
+
         if embedding_size == 768:
             escaped_messages = str(text[:512]).replace("'", "\\'")
-            try:           
+            try:
                 # review function used once new regions are unlocked in snowflake
                 model = os.getenv("CORTEX_EMBEDDING_MODEL", 'e5-base-v2')
                 embedding_result = self.meta_database_connector.run_query(f"SELECT SNOWFLAKE.CORTEX.EMBED_TEXT_768('{model}', '{escaped_messages}');")
@@ -192,56 +192,56 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
                 logger.info('Openai embed text didnt work in bot os memory')
                 embedding = ""
             return embedding
-        
-    def store_memory(self, memory, scope="user_preferences", thread_id=""):
-        if (scope == "user_preferences" or scope == "general") and len(self.find_memory_local(memory, scope=scope)) > 0:
-            logger.warn(f"store_memory - not storing duplicate memory {memory} in scope {scope} thread_id {thread_id}")
-            return # FixMe: change memories to be accumulated asynchronously by Locutus
-        """Stores a new memory in its own file within the specified scope directory."""
-        scope_directory = f'{self.base_directory_path}/{scope}'
-        if not os.path.exists(scope_directory):
-            os.makedirs(scope_directory)  # Create the scope directory if it doesn't exist
-        
-        timestamp = time.strftime('%Y%m%d%H%M%S')
-        unique_id = uuid.uuid4()  # Generate a random UUID
-        file_name = f'memory_{timestamp}_{unique_id}.txt'
-        file_path = f'{scope_directory}/{file_name}'
-        with open(file_path, 'w') as file:
-            file.write(memory)
-    
-    def find_memory_local(self, query, scope="user_preferences", thresh=0.2) -> list[str]:
-        """Finds and returns memories that contain the query string within the specified scope."""
-        scope_directory = f'{self.base_directory_path}/{scope}'
-        if not os.path.exists(scope_directory) or not os.listdir(scope_directory):
-            return []  # Return an empty list if the directory doesn't exist or is empty
-        
-        query_doc = nlp(query)  # Process the query to get its vector representation
-        memories = []
-        # Iterate over each file in the scope directory
-        for filename in os.listdir(scope_directory):
-            file_path = os.path.join(scope_directory, filename)
-            # Skip directories
-            if os.path.isdir(file_path):
-                continue
-            with open(file_path, 'r') as file:
-                content = file.read()
-                content_doc = nlp(content)  # Process the memory content to get its vector representation
-                similarity = query_doc.similarity(content_doc)
-                if similarity > thresh:  # Threshold for similarity, adjust as needed
-                    memories.append(content.strip())
-        return memories
 
-    
+    # def store_memory(self, memory, scope="user_preferences", thread_id=""):
+    #     if (scope == "user_preferences" or scope == "general") and len(self.find_memory_local(memory, scope=scope)) > 0:
+    #         logger.warn(f"store_memory - not storing duplicate memory {memory} in scope {scope} thread_id {thread_id}")
+    #         return # FixMe: change memories to be accumulated asynchronously by Locutus
+    #     """Stores a new memory in its own file within the specified scope directory."""
+    #     scope_directory = f'{self.base_directory_path}/{scope}'
+    #     if not os.path.exists(scope_directory):
+    #         os.makedirs(scope_directory)  # Create the scope directory if it doesn't exist
+
+    #     timestamp = time.strftime('%Y%m%d%H%M%S')
+    #     unique_id = uuid.uuid4()  # Generate a random UUID
+    #     file_name = f'memory_{timestamp}_{unique_id}.txt'
+    #     file_path = f'{scope_directory}/{file_name}'
+    #     with open(file_path, 'w') as file:
+    #         file.write(memory)
+
+    # def find_memory_local(self, query, scope="user_preferences", thresh=0.2) -> list[str]:
+    #     """Finds and returns memories that contain the query string within the specified scope."""
+    #     scope_directory = f'{self.base_directory_path}/{scope}'
+    #     if not os.path.exists(scope_directory) or not os.listdir(scope_directory):
+    #         return []  # Return an empty list if the directory doesn't exist or is empty
+
+    #     query_doc = nlp(query)  # Process the query to get its vector representation
+    #     memories = []
+    #     # Iterate over each file in the scope directory
+    #     for filename in os.listdir(scope_directory):
+    #         file_path = os.path.join(scope_directory, filename)
+    #         # Skip directories
+    #         if os.path.isdir(file_path):
+    #             continue
+    #         with open(file_path, 'r') as file:
+    #             content = file.read()
+    #             content_doc = nlp(content)  # Process the memory content to get its vector representation
+    #             similarity = query_doc.similarity(content_doc)
+    #             if similarity > thresh:  # Threshold for similarity, adjust as needed
+    #                 memories.append(content.strip())
+    #     return memories
+
+
     def get_full_metadata_details(self, source_name, database_name, schema_name, table_name):
         """
         Retrieves the full metadata details for the specified source database, schema, and table.
-        
+
         Args:
             source_name (str): The name of the source database.
             database_name (str): The name of the database.
             schema_name (str): The name of the schema.
             table_name (str): The name of the table.
-            
+
         Returns:
             dict: A dictionary containing the full metadata details or None if not found.
         """
@@ -250,7 +250,7 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
         database_name_escaped = database_name.replace("'", "''")
         schema_name_escaped = schema_name.replace("'", "''")
         table_name_escaped = table_name.replace("'", "''")
-        
+
         # Construct the SQL query to retrieve metadata
         query = f"""
             SELECT QUALIFIED_TABLE_NAME, COMPLETE_DESCRIPTION, DDL
@@ -259,7 +259,7 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
               AND database_name = '{database_name_escaped}'
               AND schema_name = '{schema_name_escaped}'
               AND table_name = '{table_name_escaped}';"""
-        
+
         # Execute the query and fetch the result
         try:
             result = self.meta_database_connector.run_query(query)
@@ -293,9 +293,9 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
             logger.error(f"Error retrieving metadata details: {e}")
             return None
 
-    
+
     def find_memory_oldold(self, query, scope="database_metadata", top_n=15, full_ddl='false',verbosity="low", database=None, schema=None, table=None) -> list[str]:
-        
+
         if full_ddl.lower == 'true':
             verbosity='high'
 
@@ -335,7 +335,7 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
             elif schema:
                 query += " "+schema
             elif database:
-                query += " "+database                
+                query += " "+database
 
             # Check if the EMBEDDING_SIZE environment variable is set
             embedding_size = os.environ.get('EMBEDDING_SIZE',None)
@@ -385,27 +385,27 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
             if schema:
                 schema_escaped = schema.replace("'", "''")
                 where_clauses.append(f"schema_name='{schema_escaped}'")
-            
+
             where_statement = " AND ".join(where_clauses) + f" AND qualified_table_name IN ({file_names_str})"
-            
+
             if verbosity == "high":
-      
+
                 q = f"SELECT qualified_table_name as full_table_name, ddl as DDL_FULL, sample_data_text as sample_data FROM {self.meta_database_connector.metadata_table_name} WHERE {where_statement} LIMIT {top_n}"
             #    logger.info(q)
                 content = self.meta_database_connector.run_query(q)
             else:
                 q = f"SELECT qualified_table_name as full_table_name, ddl_short FROM {self.meta_database_connector.metadata_table_name} WHERE {where_statement} LIMIT {top_n}"
-           #     logger.info(q) 
+           #     logger.info(q)
                 content = self.meta_database_connector.run_query(q)
-     
+
 #            for row in content:
 #                try:
 ##                    logger.info(row["FULL_TABLE_NAME"][:200]+"...")
 #                    logger.info(row["FULL_TABLE_NAME"][:200]+"...")
-#                except: 
+#                except:
 #                    logger.info(row["ddl"][:200]+"...")
-   
-      #      content.append({"SEMANTIC_MODEL_NAME": '"!SEMANTIC"."GENESIS_TEST"."GENESIS_INTERNAL"."SEMANTIC_STAGE"."revenue.yaml"', 
+
+      #      content.append({"SEMANTIC_MODEL_NAME": '"!SEMANTIC"."GENESIS_TEST"."GENESIS_INTERNAL"."SEMANTIC_STAGE"."revenue.yaml"',
       #                      'DESCRIPTION': 'This semantic model points to data related to revenue history and revenue forecast, including COGS and other related items.',
       #                      'USAGE INSTRUCTIONS': "You can use the semantic_copilot function to use this semantic model to access data about these topics."})
 
@@ -440,7 +440,7 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
     def find_memory(self, query, scope="database_metadata", top_n=15, verbosity="low", database=None, schema=None, table=None, full_ddl='false') -> list[str]:
         """
         Find relevant metadata using a combination of structural filtering and vector similarity search.
-        
+
         Args:
             query (str): The search query
             scope (str): The search scope (default: "database_metadata")
@@ -460,21 +460,21 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
             # Handle empty index
             if len(self.metadata_mapping) <= 1:
                 self.index, self.metadata_mapping = load_or_create_embeddings_index(
-                    self.meta_database_connector.metadata_table_name, 
+                    self.meta_database_connector.metadata_table_name,
                     refresh=True
                 )
-            
+
             # If schema is specified without a database, require both for clarity
             if schema and not database:
                 # Get list of available databases
                 databases = self.meta_database_connector.run_query("SHOW DATABASES", max_rows=500, max_rows_override=True)
-                database_list = "\n- " + "\n- ".join([db[0] for db in databases])            
+                database_list = "\n- " + "\n- ".join([db[0] for db in databases])
                 return [f"Please specify both database and schema if you want to filter by schema. This helps avoid confusion with similarly named schemas across different databases.\n\nAvailable databases:{database_list}"]
             # Validate database if specified
     #       if database and not schema:
     #           # Get list of available databases
     #           schemas = self.meta_database_connector.run_query("SHOW SCHEMAS",  max_rows=500, max_rows_override=True)
-    #           schema_list = "\n- " + "\n- ".join([db[0] for db in schemas])            
+    #           schema_list = "\n- " + "\n- ".join([db[0] for db in schemas])
     #           return [f"Please specify both schema and database if you want to filter by database. \nSome of the available schemas in this database are: {database_list}. Note that this list may not be comprehensive as it does not include shared schemas such as the genesis default example data on baseball and formula1."]
     #       # Validate database if specified
             if database:
@@ -483,7 +483,7 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
                 if database.upper() not in [db.upper() for db in database_list]:
                     database_options = "\n- " + "\n- ".join(database_list)
                     return [f"Database '{database}' not found. Available databases:{database_options}"]
-                
+
                 # If schema specified, validate it exists in this database
         #        if schema:
         #            schemas = self.meta_database_connector.run_query(f"SHOW SCHEMAS IN DATABASE {database}")
@@ -524,19 +524,19 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
                 where_clauses.append(f"schema_name='{schema.replace('', '')}'")
             if table:
                 where_clauses.append(f"table_name='{table.replace('','')}'")
-            
+
             where_statement = " AND ".join(where_clauses)
 
             if any([database, schema, table]):
 
                 # Get all entries matching structural criteria
                 filtered_entries_query = f"""
-                    SELECT qualified_table_name 
+                    SELECT qualified_table_name
                     FROM {self.meta_database_connector.metadata_table_name}
                     WHERE {where_statement}
                 """
                 filtered_entries = self.meta_database_connector.run_query(filtered_entries_query, max_rows=1000, max_rows_override=True)
-                
+
                 if not filtered_entries:
 
                     # Get current tables in the schema from database
@@ -544,7 +544,7 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
                     current_table_set = set(table['table_name'] for table in current_tables)
 
                     # Find tables that exist but aren't harvested
-                    unharvested_tables = current_table_set 
+                    unharvested_tables = current_table_set
 
                     # Add note about unharvested tables if any found
                     if unharvested_tables:
@@ -552,7 +552,7 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
                         msg = (f'Note: Found {len(unharvested_list)} tables in {schema} schema that may not be harvested yet: '
                             f'{", ".join(unharvested_list)}. '
                             f'You can use get_full_table_details to get more information about these tables.')
-                        
+
                         if len(unharvested_tables) > 50:
                             msg += f' (and {len(unharvested_tables)-50} more)'
                         content = []
@@ -589,19 +589,19 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
 
             # Map filtered entries to their Annoy indices and get distances
             results = []
-            
+
             # Convert embedding to list of floats if it's not already
             embedding_vector = embedding if isinstance(embedding, list) else [embedding]
-            
+
             # Get nearest neighbors using Annoy's get_nns_by_vector
             # Get 20x more results than requested to filter down to those in filtered_table_names
             nn_indices, nn_distances = self.index.get_nns_by_vector(embedding_vector, 1000, include_distances=True)
-            
+
             # Convert filtered entries to a set of qualified table names if structural filters were applied
             filtered_table_names = None
             if filtered_entries:
                 filtered_table_names = {entry['QUALIFIED_TABLE_NAME'] for entry in filtered_entries}
-            
+
             # Filter results to only include tables that match structural criteria
             results = []
             for idx, dist in zip(nn_indices, nn_distances):
@@ -610,7 +610,7 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
                     results.append((idx, dist, metadata))
                 elif metadata in filtered_table_names:
                     results.append((idx, dist, metadata))
-            
+
             # Take top_n results
             top_results = results[:min(top_n, len(results))]
 
@@ -647,7 +647,7 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
 
             # Get next set of results for reference
             next_results = results[top_n:min(top_n * 3, len(results))]
-            
+
             # Sort content to match order of qualified table names
             # Convert all dictionary keys to uppercase
             content = [{k.upper(): v for k, v in row.items()} for row in content]
@@ -662,7 +662,7 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
                     if 'DDL_SHORT' in content_dict[table_name]:
                         table_name_no_quotes = table_name.split('.')[-1].strip('"')
                         content_dict[table_name]['DDL_SHORT'] = content_dict[table_name]['DDL_SHORT'].replace(
-                            f"{table_name_no_quotes}_SUMMARY", 
+                            f"{table_name_no_quotes}_SUMMARY",
                             table_name_no_quotes
                         )
                     sorted_content.append(content_dict[table_name])
@@ -686,13 +686,13 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
 
                     # Find tables that exist but aren't harvested
                     unharvested_tables = current_table_set - harvested_tables
-                    
+
                     # Remove any results that no longer exist in the database
-                    content = [row for row in content if isinstance(row, str) or 
+                    content = [row for row in content if isinstance(row, str) or
                             row['FULL_TABLE_NAME'].split('.')[-1].strip('"') in current_table_set]
                     # Remove tables from next_results that no longer exist in the database
                 # if next_results:
-                #     next_results = [result for result in next_results 
+                #     next_results = [result for result in next_results
                 #                   if result[2].split('.')[-1] in current_table_set]
 
                     # Add note about unharvested tables if any found
@@ -732,7 +732,7 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
 
             logger.info(f'Search metadata: returned {len(content)} objects')
             return content
-    
+
         except Exception as e:
             error_details = {
                 "success": False,

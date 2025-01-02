@@ -11,6 +11,7 @@ import time
 from   typing                   import Any, Callable, Dict, List
 from   urllib.parse             import urlencode, urljoin, urlunparse
 import uuid
+from core.bot_os_web_access import WebAccess
 
 from   connectors.bigquery_connector \
                                 import BigQueryConnector
@@ -41,29 +42,29 @@ from   bot_genesis.make_baby_bot \
 from   jinja2                   import Template
 # from connectors import get_global_db_connector
 # from connectors.bigquery_connector import BigQueryConnector
-from connectors.database_tools import (
-    autonomous_functions,
-    autonomous_tools,
-    artifact_manager_functions,
-    artifact_manager_tools,
-    # bind_run_query,
-    # bind_search_metadata,
-    # bind_search_metadata_detailed,
-    # database_connector_functions,
-    # database_tools,
-    google_drive_functions,
-    google_drive_tools,
-    image_functions,
-    image_tools,
-    manage_tests_functions,
-    manage_tests_tools,
-    notebook_manager_functions,
-    notebook_manager_tools,
-    process_manager_functions,
-    process_manager_tools,
-    process_scheduler_functions,
-    process_scheduler_tools,
-)
+
+from   connectors.database_tools \
+                                import (
+                                        # autonomous_functions, autonomous_tools,
+                                        # bind_run_query, bind_search_metadata,
+                                        # bind_search_metadata_detailed,
+                                        # bind_semantic_copilot,
+                                        # database_tool_functions,
+                                        # database_tools,
+                                        google_drive_functions,
+                                        google_drive_tools, image_functions,
+                                        image_tools,
+                                        manage_tests_functions, manage_tests_tools,
+                                        notebook_manager_functions,
+                                        notebook_manager_tools,
+                                        process_manager_functions,
+                                        process_manager_tools,
+                                        process_scheduler_functions,
+                                        process_scheduler_tools,
+                                        snowflake_stage_functions,
+                                        snowflake_stage_tools,
+                                        web_access_functions, web_access_tools)
+
 from connectors.snowflake_tools import (
     bind_semantic_copilot,
     snowflake_functions,
@@ -165,6 +166,7 @@ class ToolBelt:
         #     raise ValueError('Invalid Source')
 
         self.todos = ProjectManager(self.db_adapter)  # Initialize Todos instance
+        self.web_access = WebAccess(self.db_adapter)
         self.git_manager = GitFileManager()
         self.server = None  # Will be set later
 
@@ -3435,6 +3437,15 @@ class ToolBelt:
             if cursor is not None:
                 cursor.close()
 
+    def search_google(self, query, **kwargs):
+        return self.web_access.search_google(query)
+
+    def scrape_url(self, url, **kwargs):
+        return self.web_access.scrape_url(url)
+
+    def crawle_url(self, url, **kwargs):
+        return self.web_access.crawle_url(url, **kwargs)
+
     # ====== PROCESSES END ====================================================================================
 
 def get_tools(
@@ -3580,6 +3591,10 @@ def get_tools(
         #     func_descriptors.extend(dagster_tool_functions)
         #     available_functions_loaded.update(dagster_tools)
         #     tool_to_func_descriptors_map[tool_name] = dagster_tool_functions
+        elif tool_name == "web_access_tools":
+            func_descriptors.extend(web_access_functions)
+            available_functions_loaded.update(web_access_tools)
+            tool_to_func_descriptors_map[tool_name] = web_access_functions
         else:
             # Resolve 'new style' tool functions
             # (from tool functions registry)

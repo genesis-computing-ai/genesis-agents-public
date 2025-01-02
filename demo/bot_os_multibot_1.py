@@ -6,25 +6,26 @@ from demo.routes import realtime_routes, slack_routes
 from demo.routes import udf_routes, main_routes, auth_routes
 import core.global_flags as global_flags
 
-runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
-multbot_mode = True
+def main():
 
-global_flags.runner_id = runner_id
-global_flags.multibot_mode = True
+    runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
+    global_flags.runner_id = runner_id
+    global_flags.multibot_mode = True
 
+    app = Flask(__name__)
+    app_https = Flask(__name__)
 
-app = Flask(__name__)
-app_https = Flask(__name__)
+    app.register_blueprint(main_routes)
+    app.register_blueprint(realtime_routes)
+    app.register_blueprint(slack_routes)
+    app.register_blueprint(udf_routes)
+    app_https.register_blueprint(auth_routes)
 
-app.register_blueprint(main_routes)
-app.register_blueprint(realtime_routes)
-app.register_blueprint(slack_routes)
-app.register_blueprint(udf_routes)
-app_https.register_blueprint(auth_routes)
+    SERVICE_HOST = os.getenv("SERVER_HOST", "0.0.0.0")
 
-SERVICE_HOST = os.getenv("SERVER_HOST", "0.0.0.0")
-
-genesis_app.start()
-if __name__ == "__main__":    
+    genesis_app.start()
     app.run(host=SERVICE_HOST, port=8080, debug=False, use_reloader=False)
     app_https.run(host=SERVICE_HOST, port=8082, ssl_context='adhoc', debug=False, use_reloader=False)
+
+if __name__ == "__main__":    
+    main()

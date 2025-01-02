@@ -1,23 +1,21 @@
 import re
 import os
 
-def replace_genesis_bots(input_file, output_file):
-    with open(input_file, 'r') as file:
+def replace_genesis_bots():
+    file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'Genesis.py')
+    with open(file_path, 'r') as file:
         content = file.read()
-    
-    # Replace the specific line
     modified_content = re.sub(r'app_name = "GENESIS_BOTS"', 'app_name = "GENESIS_BOTS_ALPHA"', content)
-    
-    with open(output_file, 'w') as file:
+    with open(file_path, 'w') as file:
         file.write(modified_content)
 
-# Get the directory of this script
-script_dir = os.path.dirname(os.path.abspath(__file__))
+def revert_genesis_bots():
+    file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'Genesis.py')
+    with open(file_path, 'r') as file:
+        content = file.read()
+    modified_content = re.sub(r'app_name = "GENESIS_BOTS_ALPHA"', 'app_name = "GENESIS_BOTS"', content)
+    with open(file_path, 'w') as file:
+        file.write(modified_content)
 
-# Define input and output file paths relative to the script directory
-input_file = os.path.join(script_dir, 'main.py')
-output_file = os.path.join(script_dir, 'Genesis.py')
-
-# Usage
-replace_genesis_bots(input_file, output_file)
-print(f"Replacement complete. New file '{output_file}' created with GENESIS_BOTS_ALPHA.")
+# These functions can now be imported and called from other scripts:
+# from your_script_name import replace_genesis_bots, revert_genesis_bots

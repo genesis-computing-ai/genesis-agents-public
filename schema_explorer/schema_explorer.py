@@ -46,10 +46,70 @@ class SchemaExplorer:
                 connector = DatabaseConnector()
                 
                 # Pre-defined DDL queries for common database types
-                sql = None
                 ddl_queries = {
+                    'postgresql': '''
+                        SELECT 
+                            'CREATE TABLE ' || table_schema || '.' || table_name || E'\n(\n' ||
+                            string_agg(
+                                '    ' || column_name || ' ' || 
+                                CASE 
+                                    WHEN udt_name = 'varchar' THEN 'character varying(' || character_maximum_length || ')'
+                                    WHEN udt_name = 'bpchar' THEN 'character(' || character_maximum_length || ')'
+                                    WHEN udt_name = 'numeric' AND numeric_precision IS NOT NULL AND numeric_scale IS NOT NULL 
+                                        THEN 'numeric(' || numeric_precision || ',' || numeric_scale || ')'
+                                    ELSE data_type
+                                END ||
+                                CASE 
+                                    WHEN column_default IS NOT NULL THEN ' DEFAULT ' || column_default
+                                    ELSE ''
+                                END ||
+                                CASE 
+                                    WHEN is_nullable = 'NO' THEN ' NOT NULL'
+                                    ELSE ''
+                                END,
+                                E',\n'
+                                ORDER BY ordinal_position
+                            ) ||
+                            CASE 
+                                WHEN (
+                                    SELECT string_agg(
+                                        E',\n    CONSTRAINT ' || constraint_name || ' ' || constraint_definition,
+                                        ''
+                                    )
+                                    FROM (
+                                        SELECT DISTINCT
+                                            pgc.conname AS constraint_name,
+                                            pg_get_constraintdef(pgc.oid) AS constraint_definition
+                                        FROM pg_constraint pgc
+                                        JOIN pg_namespace nsp ON nsp.oid = pgc.connamespace
+                                        WHERE conrelid = (quote_ident(table_schema) || '.' || quote_ident(table_name))::regclass
+                                        AND nsp.nspname = table_schema
+                                    ) constraints
+                                ) IS NOT NULL 
+                                THEN E',\n' || (
+                                    SELECT string_agg(
+                                        E'    CONSTRAINT ' || constraint_name || ' ' || constraint_definition,
+                                        E',\n'
+                                    )
+                                    FROM (
+                                        SELECT DISTINCT
+                                            pgc.conname AS constraint_name,
+                                            pg_get_constraintdef(pgc.oid) AS constraint_definition
+                                        FROM pg_constraint pgc
+                                        JOIN pg_namespace nsp ON nsp.oid = pgc.connamespace
+                                        WHERE conrelid = (quote_ident(table_schema) || '.' || quote_ident(table_name))::regclass
+                                        AND nsp.nspname = table_schema
+                                    ) constraints
+                                )
+                                ELSE ''
+                            END ||
+                            E'\n);' as ddl
+                        FROM information_schema.columns
+                        WHERE table_schema = '!schema_name!'
+                          AND table_name = '!table_name!'
+                        GROUP BY table_schema, table_name;
+                    ''',
                     'mysql': 'SHOW CREATE TABLE !schema_name!.!table_name!',
-                    'postgresql': 'SELECT pg_get_tabledef(\'"!schema_name!"."!table_name!"\') as ddl',
                     'sqlite': 'SELECT sql FROM sqlite_master WHERE type=\'table\' AND name=!table_name!',
                     'snowflake': 'SELECT GET_DDL(\'TABLE\', \'!database_name!.!schema_name!.!table_name!\')'
                 }
@@ -92,9 +152,28 @@ class SchemaExplorer:
                 )
                 
                 if result and 'rows' in result and len(result['rows']) > 0:
-                    if matching_connection['db_type'].lower() == 'sqlite':
+                    if matching_connection['db_type'].lower() == 'sqlite' or matching_connection['db_type'].lower() == 'postgresql': # confirmed for sqlite and postgresql
                         return result['rows'][0][0]
-                    return result['rows'][0][1]  # confirmed for mysql
+                    elif matching_connection['db_type'].lower() == 'mysql':
+                        return result['rows'][0][1]  # confirmed for mysql
+                    else:
+                        # Try each return type and use first valid non-empty result
+                        try:
+                            result_0 = result['rows'][0][0]
+                            if result_0:
+                                return result_0
+                        except:
+                            pass
+                            
+                        try:
+                            result_1 = result['rows'][0][1] 
+                            if result_1:
+                                return result_1
+                        except:
+                            pass
+
+                        logger.info(f'Could not get DDL for database type: {matching_connection["db_type"]}')
+                        return ""
                 return ""
                 
             except Exception as e:
@@ -752,7 +831,7 @@ class SchemaExplorer:
                 check_query = f"""
                 SELECT qualified_table_name, table_name, ddl_hash, last_crawled_timestamp, ddl, ddl_short, summary, sample_data_text, memory_uuid, (SUMMARY = '{{!placeholder}}') as needs_full, NULLIF(COALESCE(ARRAY_TO_STRING({embedding_column}, ','), ''), '') IS NULL as needs_embedding
                 FROM {self.db_connector.metadata_table_name}
-                WHERE source_name = '{self.db_connector.source_name}'
+                WHERE  source_name = '{dataset['source_name']}'
                 AND database_name= '{db}' and schema_name = '{sch}';"""
             else:
                 check_query = f"""

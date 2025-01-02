@@ -5,6 +5,7 @@ from urllib.parse import urljoin
 import requests
 from bs4 import BeautifulSoup
 from typing import Optional
+from textwrap import dedent
 
 from core.bot_os_tools2 import (
     BOT_ID_IMPLICIT_FROM_CONTEXT,
@@ -16,13 +17,29 @@ from core.bot_os_tools2 import (
 
 webpage_downloader = ToolFuncGroup(
     name="webpage_downloader",
-    description="",
+    description=dedent("""
+        Downloads a webpage and returns its HTML content and hyperlinks in chunks, ensuring each chunk does not 
+        exceed 512KB. Allows specifying a chunk index to download specific parts of the beautified content. This tool is particularly 
+        useful for large and complex webpages and utilizes BeautifulSoup for parsing. It might require multiple sequential chunk 
+        downloads to capture the complete content relevant to the user's request.
+    """),
     lifetime="PERSISTENT",
 )
 
+
 @gc_tool(
-    url="The URL of the webpage to download.",
-    chunk_index="The specific chunk index to download, with each chunk being up to 512KB in size. Defaults to the first chunk (0) if not specified.",
+    url=ToolFuncParamDescriptor(
+        name="url",
+        description="The URL of the webpage to download.",
+        required=True,
+        llm_type_desc=dict(type="string"),
+    ),
+    chunk_index=ToolFuncParamDescriptor(
+        name="chunk_index",
+        description="The specific chunk index to download, with each chunk being up to 512KB in size. Defaults to the first chunk (0) if not specified.",
+        required=False,
+        llm_type_desc=dict(type="integer"),
+    ),
     bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
     _group_tags_=[webpage_downloader],
@@ -123,8 +140,8 @@ def _parse_and_chunk_content(content, base_url, chunk_size=256 * 1024):
 
     return chunks, len(chunks)  # Return chunks and total number of chunks
 
-webpage_downloader_functions = (webpage_downloader,)
+webpage_downloader_functions = (download_webpage,)
 
 # Called from bot_os_tools.py to update the global list of functions
-def get_google_drive_tool_functions():
+def get_webpage_downloader_functions():
     return webpage_downloader_functions

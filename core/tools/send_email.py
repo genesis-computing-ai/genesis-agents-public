@@ -441,5 +441,5 @@ def send_email(
 _send_email_functions = (send_email,)
 
 # Called from bot_os_tools.py to update the global list of functions
-def get_google_drive_tool_functions():
+def get_send_email_functions():
     return _send_email_functions

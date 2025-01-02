@@ -300,5 +300,5 @@ def manage_tests(
 manage_tests_functions = (manage_tests,)
 
 # Called from bot_os_tools.py to update the global list of functions
-def get_google_drive_tool_functions():
+def get_manage_tests_functions():
     return manage_tests_functions

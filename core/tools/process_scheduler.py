@@ -364,5 +364,5 @@ def _get_current_time_with_timezone():
 process_scheduler_functions = (process_scheduler,)
 
 # Called from bot_os_tools.py to update the global list of functions
-def get_google_drive_tool_functions():
+def get_process_scheduler_functions():
     return process_scheduler_functions

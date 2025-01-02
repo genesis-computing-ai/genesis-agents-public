@@ -651,5 +651,5 @@ def run_process(
 _run_process_functions = (run_process,)
 
 # Called from bot_os_tools.py to update the global list of functions
-def get_google_drive_tool_functions():
+def get_run_process_functions():
     return _run_process_functions

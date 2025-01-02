@@ -567,5 +567,5 @@ def insert_process_history(
 manage_processes_functions = (manage_processes,)
 
 # Called from bot_os_tools.py to update the global list of functions
-def get_google_drive_tool_functions():
+def get_manage_processes_functions():
     return manage_processes_functions

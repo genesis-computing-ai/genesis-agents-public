@@ -73,5 +73,5 @@ manage_artifact_functions = (manage_artifact,)
 
 
 # Called from bot_os_tools.py to update the global list of functions
-def get_google_drive_tool_functions():
+def get_manage_artifacts_functions():
     return manage_artifact_functions

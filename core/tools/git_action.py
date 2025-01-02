@@ -136,5 +136,5 @@ def git_action(
 git_action_functions = (git_action,)
 
 # Called from bot_os_tools.py to update the global list of functions
-def get_google_drive_tool_functions():
+def get_git_action_functions():
     return git_action_functions

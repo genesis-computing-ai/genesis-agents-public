@@ -93,16 +93,6 @@ def manage_todos(
     """
     Manage todo items with various actions. When creating Todos try to include any dependencies on other todos
     where they exist, it is important to track those to make sure todos are done in the correct order.
-
-    Args:
-        action (str): Action to perform (CREATE, UPDATE, CHANGE_STATUS, LIST).
-        bot_id (str): The ID of the bot performing the action.
-        todo_id (str, optional): ID of the todo item (required for UPDATE and CHANGE_STATUS).
-        todo_details (dict, optional): Details for the todo item.
-        thread_id (str, optional): The ID of the thread.
-
-    Returns:
-        None
     """
     return todos.manage_todos(
         action=action,
@@ -122,7 +112,7 @@ def manage_todos(
         description="Details for the project. For CREATE: requires project_name, project_description. "
         "For UPDATE: requires only new_status.",
         llm_type_desc=dict(
-            type="object",
+            type="string",
             properties=dict(
                 project_name=dict(type="string", description="Name of the project"),
                 project_description=dict(
@@ -139,7 +129,11 @@ def manage_todos(
     _group_tags_=[manage_todos_tools],
 )
 def manage_projects(
-    action, bot_id, project_id=None, project_details=None, thread_id=None
+    action: str,
+    bot_id: str,
+    project_id: str=None,
+    project_details: str=None,
+    thread_id: str=None
 ):
     """
     Manages projects through various actions (CREATE, UPDATE, CHANGE_STATUS, LIST)
@@ -162,11 +156,11 @@ def manage_projects(
     _group_tags_=[manage_todos_tools],
 )
 def record_todo_work(
-    bot_id,
-    todo_id,
-    work_description,
-    work_results=None,
-    thread_id=None,
+    bot_id: str,
+    todo_id: str,
+    work_description: str,
+    work_results: str=None,
+    thread_id: str=None,
 ):
     """
     Record work progress on a todo item without changing its status. Use this to log incremental progress, intermediate results, 
@@ -187,7 +181,10 @@ def record_todo_work(
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
     _group_tags_=[manage_todos_tools],
 )
-def get_project_todos(bot_id, project_id, thread_id=None):
+def get_project_todos(
+    bot_id: str,
+    project_id: str,
+    thread_id: str=None):
     """
     Get all todos associated with a specific project
     """
@@ -202,7 +199,10 @@ def get_project_todos(bot_id, project_id, thread_id=None):
     _group_tags_=[manage_todos_tools],
 )
 def get_todo_dependencies(
-    bot_id, todo_id, include_reverse=False, thread_id=None
+    bot_id: str,
+    todo_id: str,
+    include_reverse: bool=False,
+    thread_id: str=None
 ):
     """
     Get all dependencies for a specific todo item
@@ -221,7 +221,11 @@ def get_todo_dependencies(
     _group_tags_=[manage_todos_tools],
 )
 def manage_todo_dependencies(
-    action, bot_id, todo_id, depends_on_todo_id=None, thread_id=None
+    action: str,
+    bot_id: str,
+    todo_id: str,
+    depends_on_todo_id: str=None,
+    thread_id: str=None
 ):
     """
     Manage dependencies between todo items, allowing you to specify that one todo must be completed before another can start
@@ -243,7 +247,7 @@ def manage_todo_dependencies(
         name="asset_details",
         description="Details for the asset (required for CREATE and UPDATE actions)",
         llm_type_desc=dict(
-            type="object",
+            type="string",
             properties=dict(
                 description=dict(
                     type="string", description="Description of what the asset is for"
@@ -260,12 +264,12 @@ def manage_todo_dependencies(
     _group_tags_=[manage_todos_tools],
 )
 def manage_project_assets(
-    action,
-    bot_id,
-    project_id,
-    asset_id=None,
-    asset_details=None,
-    thread_id=None,
+    action: str,
+    bot_id: str,
+    project_id: str,
+    asset_id: str=None,
+    asset_details: str=None,
+    thread_id: str=None,
 ):
     """
     Manage project assets including their descriptions and locations in the git system
@@ -290,5 +294,5 @@ manage_todos_functions = (
 
 
 # Called from bot_os_tools.py to update the global list of functions
-def get_google_drive_tool_functions():
+def get_manage_todos_functions():
     return manage_todos_functions

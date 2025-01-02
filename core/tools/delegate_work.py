@@ -308,5 +308,5 @@ delegate_work_functions = (
 )
 
 # Called from bot_os_tools.py to update the global list of functions
-def get_google_drive_tool_functions():
+def get_delegate_work_functions():
     return delegate_work_functions

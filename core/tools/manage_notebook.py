@@ -434,5 +434,5 @@
 # manage_notebook_functions = (manage_notebook,)
 
 # # Called from bot_os_tools.py to update the global list of functions
-# def get_google_drive_tool_functions():
+# def get_manage_notebook_functions():
 #     return manage_notebook_functions

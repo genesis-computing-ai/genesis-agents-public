@@ -226,7 +226,7 @@ class DatabaseConnector:
         try:
             cursor.execute(
                 f"""
-                SELECT owner_bot_id, allowed_bot_ids, connection_string
+                SELECT owner_bot_id, allowed_bot_ids, connection_string, db_type
                 FROM {self.db_adapter.schema}.CUST_DB_CONNECTIONS 
                 WHERE connection_id = %s
                 """,
@@ -237,13 +237,36 @@ class DatabaseConnector:
             if not result:
                 raise ValueError(f"Connection {connection_id} not found")
 
-            owner_id, allowed_bots, connection_string = result  # Add connection_string to unpacking
+            owner_id, allowed_bots, connection_string, db_type = result
+            
+            # For postgresql, parse database name from connection string if not provided
+            if database_name is None and db_type.lower() == 'postgresql':
+                if '/' in connection_string:
+                    database_name_in_string = connection_string.split('/')[-1]
+                    # Remove port number if present
+                    if ':' in database_name_in_string:
+                        database_name_in_string = database_name_in_string.split(':')[0]
+                    return {
+                        "success": False,
+                        "error": f"When querying PostgreSQL databases, the database name must be specified using the database_name parameter. The default database is '{database_name_in_string}' but your query may reference a different database in the FROM clause."
+                    }
+                else:
+                    return {
+                        "success": False,
+                        "error": "When querying PostgreSQL databases, the database name must be specified using the database_name parameter."
+                    }
+
+            owner_id, allowed_bots, connection_string, db_type = result  # Add connection_string to unpacking
             if not bot_id_override and (bot_id != owner_id and
                 (not allowed_bots or bot_id not in allowed_bots.split(','))):
                 raise ValueError("Bot does not have permission to access this connection")
 
             # Execute query using SQLAlchemy
-            if connection_id not in self.connections:
+            # Create connection id string with database name for postgres
+            connection_id_string = connection_id
+            if db_type.lower() == 'postgresql' and database_name: # postgres needs seprate connections for each database
+                connection_id_string = f"{connection_id}_{database_name}"
+            if connection_id_string not in self.connections:
                 # Add database name to postgresql connection string if not present
                 if connection_string.lower().startswith('postgresql'):
                     if database_name and f'/{database_name}' not in connection_string:
@@ -254,8 +277,8 @@ class DatabaseConnector:
                             connection_string = f"{connection_string}/{database_name}"
                         elif connection_string[-4:].isdigit():
                             connection_string = f"{connection_string[:-4]}/{database_name}"
-                self.connections[connection_id] = create_engine(connection_string)
-            engine = self.connections[connection_id]
+                self.connections[connection_id_string] = create_engine(connection_string)
+            engine = self.connections[connection_id_string]
             with engine.connect() as conn:
                 trans = conn.begin()
                 try:
@@ -785,6 +808,7 @@ data_connector_tools = ToolFuncGroup(
     params= "Optional parameters for the SQL query",
     max_rows= "Maximum number of rows to return (default 20)",
     max_rows_override= "Override max rows limit if true (default False)",
+    database_name= "Name of the database to query (required when querying postgres)",
     bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
     _group_tags_=[data_connector_tools]
@@ -795,6 +819,7 @@ def _query_database(connection_id: str,
                     params: dict = None,
                     max_rows: int = 20,
                     max_rows_override: bool = False,
+                    database_name: str = None,
                     thread_id: str = None,
                     ) -> dict:
     """
@@ -810,7 +835,8 @@ def _query_database(connection_id: str,
         params=params,
         max_rows=max_rows,
         max_rows_override=max_rows_override,
-        thread_id=thread_id
+        thread_id=thread_id,
+        database_name=database_name,
     )
 
 

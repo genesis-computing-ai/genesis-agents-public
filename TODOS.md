@@ -33,6 +33,11 @@ make connection, harvest, search metadata, and query database work directly via 
 make search meatdata work with a connection id, and if nothing harvested provide response for bot to list directly available tables
 on add connection, make sure to suggest harvesting the new connection
 harvest control, if database not found, return list of connections
+remove file uploads to openai when none needed
+dont return snowflake permissions suggestion if not snowflake
+make database and schema params work when not snowflake on find_memory
+is search metadata returning the type of database?  would be useful ...
+
 
 todo:
 do bots have task id ok to check history?

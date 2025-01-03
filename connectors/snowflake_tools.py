@@ -303,23 +303,14 @@ snowflake_semantic_functions = [
     },
 ]
 
-snowflake_semantic_tools = {
-  #  "_modify_semantic_model": "db_adapter.modify_and_update_semantic_model",
-  #  "_initialize_semantic_model": "db_adapter.initialize_semantic_model",
-  #  "_deploy_semantic_model": "db_adapter.deploy_semantic_model",
-  #  "_load_semantic_model": "db_adapter.load_semantic_model",
-}
+# snowflake_semantic_tools = {
+#   #  "_modify_semantic_model": "db_adapter.modify_and_update_semantic_model",
+#   #  "_initialize_semantic_model": "db_adapter.initialize_semantic_model",
+#   #  "_deploy_semantic_model": "db_adapter.deploy_semantic_model",
+#   #  "_load_semantic_model": "db_adapter.load_semantic_model",
+# }
 
 snowflake_tools = {
-    # Moved to database_tools
-    # "_run_query":             "db_adapter.run_query",
-    # "search_metadata":        "search_metadata_f.local",
-    # "data_explorer":          "search_metadata_detailed_f.local",
-    # "get_full_table_details": "search_metadata_f.local",
-
-    # Moved to artifact_manager tools
-    # "_manage_artifact":       "tool_belt.manage_artifact",
-
     "_run_snowpark_python": "db_adapter.run_python_code",
     "_cortex_search": "db_adapter.cortex_search",
     "_list_stage_contents": "db_adapter.list_stage_contents",
@@ -329,23 +320,23 @@ snowflake_tools = {
 }
 
 
-def bind_semantic_copilot(data_connection_info):
-    def _semantic_copilot(prompt: str, semantic_model: str, prod: bool = True):
-        #   if connection == 'Snowflake':
-        my_dc = SnowflakeConnector("Snowflake")
-        #   else:
-        #       raise ValueError("Semantic copilot is only available for Snowflake connections.")
+# def bind_semantic_copilot(data_connection_info):
+#     def _semantic_copilot(prompt: str, semantic_model: str, prod: bool = True):
+#         #   if connection == 'Snowflake':
+#         my_dc = SnowflakeConnector("Snowflake")
+#         #   else:
+#         #       raise ValueError("Semantic copilot is only available for Snowflake connections.")
 
-        logger.info(
-            f"Semantic copilot called with prompt: {prompt} and semantic model: {semantic_model}"
-        )
-        try:
-            result = my_dc.semantic_copilot(
-                prompt=prompt, semantic_model=semantic_model, prod=prod
-            )
-            return result
-        except Exception as e:
-            logger.error(f"Error in semantic_copilot: {str(e)}")
-            return f"An error occurred while trying to generate SQL from the semantic model. {e}"
+#         logger.info(
+#             f"Semantic copilot called with prompt: {prompt} and semantic model: {semantic_model}"
+#         )
+#         try:
+#             result = my_dc.semantic_copilot(
+#                 prompt=prompt, semantic_model=semantic_model, prod=prod
+#             )
+#             return result
+#         except Exception as e:
+#             logger.error(f"Error in semantic_copilot: {str(e)}")
+#             return f"An error occurred while trying to generate SQL from the semantic model. {e}"
 
-    return _semantic_copilot
+#     return _semantic_copilot

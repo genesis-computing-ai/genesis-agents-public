@@ -75,110 +75,102 @@ def dict_list_to_markdown_table(data):
     return table
 
 class SnowflakeConnector(SnowflakeConnectorBase):
-    _instance = None  # Class variable to hold the single instance
-
-    def __new__(cls, *args, **kwargs):
-        if cls._instance is None:
-            cls._instance = super(SnowflakeConnectorBase, cls).__new__(cls)
-        return cls._instance
-
     def __init__(self, connection_name, bot_database_creds=None):
         super().__init__()
-        if not hasattr(self, '_initialized'):
 
         # used to get the default value if not none, otherwise get env var. allows local mode to work with bot credentials
-            def get_env_or_default(value, env_var):
-                return value if value is not None else os.getenv(env_var)
+        def get_env_or_default(value, env_var):
+            return value if value is not None else os.getenv(env_var)
 
-            if os.getenv("SQLITE_OVERRIDE", "").upper() == "TRUE":
-                # Use SQLite with compatibility layer
-                # Set default LLM engine to openai if not specified
-                if not os.getenv("BOT_OS_DEFAULT_LLM_ENGINE"):
-                    os.environ["BOT_OS_DEFAULT_LLM_ENGINE"] = "openai"
-                db_path = os.getenv("SQLITE_DB_PATH", "genesis.db")
-                self.client = SQLiteAdapter(db_path)
-                self.connection = self.client
-                # Set other required attributes
-                self.schema = "main"  # SQLite default schema
-                self.database = db_path
-                self.source_name = "SQLite"
-                self.user = "local"
-                self.role = 'default'
-            else:
-                account, database, user, password, warehouse, role = [None] * 6
+        if os.getenv("SQLITE_OVERRIDE", "").upper() == "TRUE":
+            # Use SQLite with compatibility layer
+            # Set default LLM engine to openai if not specified
+            if not os.getenv("BOT_OS_DEFAULT_LLM_ENGINE"):
+                os.environ["BOT_OS_DEFAULT_LLM_ENGINE"] = "openai"
+            db_path = os.getenv("SQLITE_DB_PATH", "genesis.db")
+            self.client = SQLiteAdapter(db_path)
+            self.connection = self.client
+            # Set other required attributes
+            self.schema = "main"  # SQLite default schema
+            self.database = db_path
+            self.source_name = "SQLite"
+            self.user = "local"
+            self.role = 'default'
+        else:
+            account, database, user, password, warehouse, role = [None] * 6
 
-                if bot_database_creds:
-                    account = bot_database_creds.get("account")
-                    database = bot_database_creds.get("database")
-                    user = bot_database_creds.get("user")
-                    password = bot_database_creds.get("pwd")
-                    warehouse = bot_database_creds.get("warehouse")
-                    role = bot_database_creds.get("role")
+            if bot_database_creds:
+                account = bot_database_creds.get("account")
+                database = bot_database_creds.get("database")
+                user = bot_database_creds.get("user")
+                password = bot_database_creds.get("pwd")
+                warehouse = bot_database_creds.get("warehouse")
+                role = bot_database_creds.get("role")
 
-                self.account = get_env_or_default(account, "SNOWFLAKE_ACCOUNT_OVERRIDE")
-                self.user = get_env_or_default(user, "SNOWFLAKE_USER_OVERRIDE")
-                self.password = get_env_or_default(password, "SNOWFLAKE_PASSWORD_OVERRIDE")
-                self.database = get_env_or_default(database, "SNOWFLAKE_DATABASE_OVERRIDE")
-                self.warehouse = get_env_or_default(warehouse, "SNOWFLAKE_WAREHOUSE_OVERRIDE")
-                self.role = get_env_or_default(role, "SNOWFLAKE_ROLE_OVERRIDE")
-                self.source_name = "Snowflake"
+            self.account = get_env_or_default(account, "SNOWFLAKE_ACCOUNT_OVERRIDE")
+            self.user = get_env_or_default(user, "SNOWFLAKE_USER_OVERRIDE")
+            self.password = get_env_or_default(password, "SNOWFLAKE_PASSWORD_OVERRIDE")
+            self.database = get_env_or_default(database, "SNOWFLAKE_DATABASE_OVERRIDE")
+            self.warehouse = get_env_or_default(warehouse, "SNOWFLAKE_WAREHOUSE_OVERRIDE")
+            self.role = get_env_or_default(role, "SNOWFLAKE_ROLE_OVERRIDE")
+            self.source_name = "Snowflake"
 
-                self.default_data = pd.DataFrame()
+            self.default_data = pd.DataFrame()
 
-                # logger.info('Calling _create_connection...')
-                self.token_connection = False
-                self.connection: SnowflakeConnection = self._create_connection()
+            # logger.info('Calling _create_connection...')
+            self.token_connection = False
+            self.connection: SnowflakeConnection = self._create_connection()
 
-                self.semantic_models_map = {}
+            self.semantic_models_map = {}
 
-                self.client = self.connection
+            self.client = self.connection
 
-            self.schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "GENESIS_INTERNAL")
+        self.schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "GENESIS_INTERNAL")
 
-            if os.getenv("CORTEX_MODEL", None) is not None:
-                # TODO: rename self.llm_engine to self.llm_model_name.
-                # (in the rest of the code we typically we use the term 'engine' for the provider's name
-                # (e.g. openai, cortex))
-                self.llm_engine =  os.getenv("CORTEX_MODEL", None)
-            else:
-                self.llm_engine = 'llama3.1-405b'
+        if os.getenv("CORTEX_MODEL", None) is not None:
+            # TODO: rename self.llm_engine to self.llm_model_name.
+            # (in the rest of the code we typically we use the term 'engine' for the provider's name
+            # (e.g. openai, cortex))
+            self.llm_engine =  os.getenv("CORTEX_MODEL", None)
+        else:
+            self.llm_engine = 'llama3.1-405b'
 
-            # self.client = self._create_client()
-            self.genbot_internal_project_and_schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "None")
-            if self.genbot_internal_project_and_schema == "None":
-                # Todo remove, internal note
-                logger.info("ENV Variable GENESIS_INTERNAL_DB_SCHEMA is not set.")
-            if self.genbot_internal_project_and_schema is not None:
-                self.genbot_internal_project_and_schema = (self.genbot_internal_project_and_schema.upper() )
+        # self.client = self._create_client()
+        self.genbot_internal_project_and_schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "None")
+        if self.genbot_internal_project_and_schema == "None":
+            # Todo remove, internal note
+            logger.info("ENV Variable GENESIS_INTERNAL_DB_SCHEMA is not set.")
+        if self.genbot_internal_project_and_schema is not None:
+            self.genbot_internal_project_and_schema = (self.genbot_internal_project_and_schema.upper() )
 
-            if self.database:
-                self.project_id = self.database
-            else:
-                db, sch = self.genbot_internal_project_and_schema.split('.')
-                self.project_id = db
+        if self.database:
+            self.project_id = self.database
+        else:
+            db, sch = self.genbot_internal_project_and_schema.split('.')
+            self.project_id = db
 
-            self.genbot_internal_harvest_table = os.getenv("GENESIS_INTERNAL_HARVEST_RESULTS_TABLE", "harvest_results" )
-            self.genbot_internal_harvest_control_table = os.getenv("GENESIS_INTERNAL_HARVEST_CONTROL_TABLE", "harvest_control")
-            self.genbot_internal_processes_table = os.getenv("GENESIS_INTERNAL_PROCESSES_TABLE", "PROCESSES" )
-            self.genbot_internal_process_history_table = os.getenv("GENESIS_INTERNAL_PROCESS_HISTORY_TABLE", "PROCESS_HISTORY" )
-            self.app_share_schema = "APP_SHARE"
+        self.genbot_internal_harvest_table = os.getenv("GENESIS_INTERNAL_HARVEST_RESULTS_TABLE", "harvest_results" )
+        self.genbot_internal_harvest_control_table = os.getenv("GENESIS_INTERNAL_HARVEST_CONTROL_TABLE", "harvest_control")
+        self.genbot_internal_processes_table = os.getenv("GENESIS_INTERNAL_PROCESSES_TABLE", "PROCESSES" )
+        self.genbot_internal_process_history_table = os.getenv("GENESIS_INTERNAL_PROCESS_HISTORY_TABLE", "PROCESS_HISTORY" )
+        self.app_share_schema = "APP_SHARE"
 
-            # logger.info("genbot_internal_project_and_schema: ", self.genbot_internal_project_and_schema)
-            self.metadata_table_name = self.genbot_internal_project_and_schema+ "."+ self.genbot_internal_harvest_table
-            self.harvest_control_table_name = self.genbot_internal_project_and_schema + "."+ self.genbot_internal_harvest_control_table
-            self.message_log_table_name = self.genbot_internal_project_and_schema+ "."+ os.getenv("GENESIS_INTERNAL_MESSAGE_LOG_TABLE", "MESSAGE_LOG")
-            self.knowledge_table_name = self.genbot_internal_project_and_schema+ "."+ os.getenv("GENESIS_INTERNAL_KNOWLEDGE_TABLE", "KNOWLEDGE")
-            self.processes_table_name = self.genbot_internal_project_and_schema+ "."+ self.genbot_internal_processes_table
-            self.process_history_table_name = self.genbot_internal_project_and_schema+ "."+ self.genbot_internal_process_history_table
-            self.user_bot_table_name = self.genbot_internal_project_and_schema+ "."+ os.getenv("GENESIS_INTERNAL_USER_BOT_TABLE", "USER_BOT")
-            self.tool_knowledge_table_name = self.genbot_internal_project_and_schema+ "."+ os.getenv("GENESIS_INTERNAL_TOOL_KNOWLEDGE_TABLE", "TOOL_KNOWLEDGE")
-            self.data_knowledge_table_name = self.genbot_internal_project_and_schema+ "."+ os.getenv("GENESIS_INTERNAL_DATA_KNOWLEDGE_TABLE", "DATA_KNOWLEDGE")
-            self.proc_knowledge_table_name = self.genbot_internal_project_and_schema+ "."+ os.getenv("GENESIS_INTERNAL_PROC_KNOWLEDGE_TABLE", "PROC_KNOWLEDGE")
-            self.slack_tokens_table_name = self.genbot_internal_project_and_schema + "." + "SLACK_APP_CONFIG_TOKENS"
-            self.available_tools_table_name = self.genbot_internal_project_and_schema + "." + "AVAILABLE_TOOLS"
-            self.bot_servicing_table_name = self.genbot_internal_project_and_schema + "." + "BOT_SERVICING"
-            self.ngrok_tokens_table_name = self.genbot_internal_project_and_schema + "." + "NGROK_TOKENS"
-            self.images_table_name = self.app_share_schema + "." + "IMAGES"
+        # logger.info("genbot_internal_project_and_schema: ", self.genbot_internal_project_and_schema)
+        self.metadata_table_name = self.genbot_internal_project_and_schema+ "."+ self.genbot_internal_harvest_table
+        self.harvest_control_table_name = self.genbot_internal_project_and_schema + "."+ self.genbot_internal_harvest_control_table
+        self.message_log_table_name = self.genbot_internal_project_and_schema+ "."+ os.getenv("GENESIS_INTERNAL_MESSAGE_LOG_TABLE", "MESSAGE_LOG")
+        self.knowledge_table_name = self.genbot_internal_project_and_schema+ "."+ os.getenv("GENESIS_INTERNAL_KNOWLEDGE_TABLE", "KNOWLEDGE")
+        self.processes_table_name = self.genbot_internal_project_and_schema+ "."+ self.genbot_internal_processes_table
+        self.process_history_table_name = self.genbot_internal_project_and_schema+ "."+ self.genbot_internal_process_history_table
+        self.user_bot_table_name = self.genbot_internal_project_and_schema+ "."+ os.getenv("GENESIS_INTERNAL_USER_BOT_TABLE", "USER_BOT")
+        self.tool_knowledge_table_name = self.genbot_internal_project_and_schema+ "."+ os.getenv("GENESIS_INTERNAL_TOOL_KNOWLEDGE_TABLE", "TOOL_KNOWLEDGE")
+        self.data_knowledge_table_name = self.genbot_internal_project_and_schema+ "."+ os.getenv("GENESIS_INTERNAL_DATA_KNOWLEDGE_TABLE", "DATA_KNOWLEDGE")
+        self.proc_knowledge_table_name = self.genbot_internal_project_and_schema+ "."+ os.getenv("GENESIS_INTERNAL_PROC_KNOWLEDGE_TABLE", "PROC_KNOWLEDGE")
+        self.slack_tokens_table_name = self.genbot_internal_project_and_schema + "." + "SLACK_APP_CONFIG_TOKENS"
+        self.available_tools_table_name = self.genbot_internal_project_and_schema + "." + "AVAILABLE_TOOLS"
+        self.bot_servicing_table_name = self.genbot_internal_project_and_schema + "." + "BOT_SERVICING"
+        self.ngrok_tokens_table_name = self.genbot_internal_project_and_schema + "." + "NGROK_TOKENS"
+        self.images_table_name = self.app_share_schema + "." + "IMAGES"
 
     def ensure_table_exists(self):
         return ensure_table_exists(self)

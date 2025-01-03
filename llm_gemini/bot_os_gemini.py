@@ -8,34 +8,34 @@ import uuid
 from typing_extensions import override
 import google.generativeai as genai
 from google.generativeai import caching
-from connectors import database_tools
+from connectors import snowflake_tools
 from core.bot_os_assistant_base import BotOsAssistantInterface, execute_function
 from core.bot_os_input import BotOsInputMessage, BotOsOutputMessage
 from core.logging_config import logger
 
 class BotOsAssistantGemini(BotOsAssistantInterface):
-    def __init__(self, name:str, instructions:str, 
-                tools:list[dict] = [], available_functions={}, files=[], 
-                update_existing=False, log_db_connector=None, bot_id='default_bot_id', bot_name='default_bot_name', 
+    def __init__(self, name:str, instructions:str,
+                tools:list[dict] = [], available_functions={}, files=[],
+                update_existing=False, log_db_connector=None, bot_id='default_bot_id', bot_name='default_bot_name',
                 all_tools:list[dict]=[], all_functions={},all_function_to_tool_map={},skip_vectors=False) -> None:
         super().__init__(name, instructions, tools, available_functions, files, update_existing, skip_vectors=False)
         #self.active_runs = deque()
         self.llm_engine = 'gemini-1.5-pro-001' # 'gemini-1.5-pro' #'models/gemini-1.5-pro-001'
-        self.instructions = instructions 
+        self.instructions = instructions
         self.tools = tools
         self.available_functions = available_functions
         #self.done_map = {}
         self.thread_run_map = {}
         #self.active_runs = deque()
         #self.processing_runs = deque()
-        
+
         #self.my_tools = tools
         self.log_db_connector = log_db_connector
         #self.callback_closures = {}
         #self.user_allow_cache = {}
-        #self.clear_access_cache = False 
+        #self.clear_access_cache = False
         #self.run_meta_map = {}
-        self.requests  = deque() 
+        self.requests  = deque()
         #self.responses = deque()
 
         # genai.configure(api_key=os.environ['GEMINI_API_KEY'])
@@ -53,7 +53,7 @@ class BotOsAssistantGemini(BotOsAssistantInterface):
                 model=self.llm_engine,
                 display_name=bot_id, # used to identify the cache
                 system_instruction=instructions,
-                contents=files_uploaded, 
+                contents=files_uploaded,
                 ttl=datetime.timedelta(minutes=5),
                 tools='code_execution',
             )
@@ -93,7 +93,7 @@ class BotOsAssistantGemini(BotOsAssistantInterface):
     @override
     def is_active(self) -> deque:
        return self.requests
-   
+
     @override
     def is_processing_runs(self) -> deque:
        return self.requests
@@ -107,7 +107,7 @@ class BotOsAssistantGemini(BotOsAssistantInterface):
         chat  = self.model.start_chat(enable_automatic_function_calling=True)
         self.thread_run_map[thread_id] = {"chat": chat}
         return thread_id
-    
+
     def add_message(self, input_message:BotOsInputMessage):
         #async def handle_response():
         def handle_response():
@@ -117,9 +117,9 @@ class BotOsAssistantGemini(BotOsAssistantInterface):
             #if response:
             #    self.responses.append({"response": response, "input_message": input_message})  # Store the response in the messages deque
             #return {"response": response, "input_message": input_message}
-            return {"response": response, "thread_id": input_message.thread_id, "timestamp": datetime.datetime.now().strftime("%Y%m%d%H%M%S%f"), 
+            return {"response": response, "thread_id": input_message.thread_id, "timestamp": datetime.datetime.now().strftime("%Y%m%d%H%M%S%f"),
                     "metadata": input_message.metadata}
-        
+
         # asyncio.run(handle_response)
         self.requests.append(handle_response)
         #asyncio.create_task(handle_response())
@@ -137,7 +137,7 @@ class BotOsAssistantGemini(BotOsAssistantInterface):
         except IndexError:
         #    logger.info(f"BotOsAssistantGemini:check_runs - no active runs for: {self.bot_id}")
             return
-        
+
         response = next_response["response"]
         thread_id= next_response["thread_id"]
         input_metadata = next_response["metadata"]
@@ -149,12 +149,12 @@ class BotOsAssistantGemini(BotOsAssistantInterface):
                 timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S%f")
                 self._process_tool_call(thread_id, timestamp, fn.name, args, input_metadata)
             else:
-                event_callback(str(self.model), BotOsOutputMessage(thread_id=thread_id, 
-                                                                    status="completed", 
-                                                                    output=part.text, 
+                event_callback(str(self.model), BotOsOutputMessage(thread_id=thread_id,
+                                                                    status="completed",
+                                                                    output=part.text,
                                                                     messages=None,
                                                                     input_metadata=input_metadata))
-        
+
     def _process_tool_call(self, thread_id, timestamp, function_to_call, arguments, message_metadata):
         try:
             cb_closure = self._generate_callback_closure(thread_id, func_name=function_to_call, timestamp=timestamp, message_metadata=message_metadata)
@@ -185,7 +185,7 @@ class BotOsAssistantGemini(BotOsAssistantInterface):
 
     def _generate_callback_closure(self, thread_id, func_name, timestamp, message_metadata):
       def callback_closure(func_response):  # FixMe: need to break out as a generate closure so tool_call_id isn't copied
-        #  try:                     
+        #  try:
         #     del self.running_tools[tool_call_id]
         #  except Exception as e:
         #     logger.error(f"callback_closure - tool call already deleted - caught exception: {e}")
@@ -204,7 +204,7 @@ class BotOsAssistantGemini(BotOsAssistantInterface):
 def gemini_test():
     import datetime
     import json
-    
+
     from connectors.database_tools import database_tool_functions
 
     # Mock event callback
@@ -212,10 +212,11 @@ def gemini_test():
         logger.info(f"Event callback triggered with model: {model} and message: {message.output}")
 
     # Create an instance of the class (assuming the class name is BotOsGemini)
-    bot = BotOsAssistantGemini(name="test_gemini", instructions="you are a Genesis AI agent",
+    bot = BotOsAssistantGemini(name="test_gemini",
+                               instructions="you are a Genesis AI agent",
                                tools=database_tool_functions,
-                               available_functions=database_tools)
-    
+                               available_functions=snowflake_tools)
+
     thread_id = bot.create_thread()
 
     # Add a message and check runs instead

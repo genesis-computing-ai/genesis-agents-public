@@ -92,7 +92,7 @@ ASSISTANT: {"tool_name":"search_metadata","parameters":{"query": "potatoes"}}
 
 Example 2:
 USER: run a query to find 1+1 using the bigquery database
-ASSISTANT: {"tool_name":"run_query","parameters":{"query": "select 1+1", "connection": "BigQuery", "max_rows": 1}}
+ASSISTANT: {"tool_name":"query_database","parameters":{"query": "select 1+1", "connection": "BigQuery", "max_rows": 1}}
 
 Example 3:
 USER: Hi, how are you today?

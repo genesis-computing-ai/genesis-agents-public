@@ -19,7 +19,8 @@ import random, string
 import requests
 
 from llm_openai.openai_utils import get_openai_client
-from .database_connector import DatabaseConnector, llm_keys_and_types_struct
+from .data_connector import DatabaseConnector
+from .connector_helpers import llm_keys_and_types_struct
 from core.bot_os_defaults import (
     BASE_EVE_BOT_INSTRUCTIONS,
     ELIZA_DATA_ANALYST_INSTRUCTIONS,
@@ -69,7 +70,6 @@ class SqliteConnector(DatabaseConnector):
         self.images_table_name =  "APP_SHARE_IMAGES"
         self.source_name = "Sqlite"
 
-
     def is_using_local_runner(self):
         val = os.environ.get('GENESIS_LOCAL_RUNNER', None)
         if val:
@@ -78,7 +78,6 @@ class SqliteConnector(DatabaseConnector):
             else:
                 logger.warning(f"Ignoring invalid value for env var GENESIS_LOCAL_RUNNER = {val} (expected 'TRUE')")
         return False
-
 
     def check_cortex_available(self):
         return False
@@ -576,7 +575,6 @@ class SqliteConnector(DatabaseConnector):
                 "Error": f"Failed to list processs for bot {bot_id}: {e}",
             }
 
-
     def get_process_info(self, bot_id, process_name):
         cursor = self.client.cursor()
         try:
@@ -592,7 +590,6 @@ class SqliteConnector(DatabaseConnector):
                 return {}
         except Exception as e:
             return {}
-
 
     def OLD_OLD_manage_processes(
         self, action, bot_id=None, process_id=None, process_details=None, thread_id=None
@@ -672,13 +669,13 @@ class SqliteConnector(DatabaseConnector):
 
                     process_details['process_instructions'] = response.choices[0].message.content
 
-           #     elif os.getenv("BOT_OS_DEFAULT_LLM_ENGINE") == 'cortex':
-           #         if not self.check_cortex_available():
-           #             logger.info("Cortex is not available.")
-           #             return None
-           #         else:
-           #             response, status_code = self.cortex_chat_completion(tidy_process_instructions)
-           #             process_details['process_instructions'] = response
+            #     elif os.getenv("BOT_OS_DEFAULT_LLM_ENGINE") == 'cortex':
+            #         if not self.check_cortex_available():
+            #             logger.info("Cortex is not available.")
+            #             return None
+            #         else:
+            #             response, status_code = self.cortex_chat_completion(tidy_process_instructions)
+            #             process_details['process_instructions'] = response
 
             if action == "CREATE":
                 return {
@@ -696,7 +693,6 @@ class SqliteConnector(DatabaseConnector):
 
         except Exception as e:
             return {"Success": False, "Error": f"Error connecting to LLM: {e}"}
-
 
         if action == "CREATE_CONFIRMED":
             action = "CREATE"
@@ -1391,7 +1387,6 @@ class SqliteConnector(DatabaseConnector):
                     logger.info(f"Process {process_id} already in PROCESSES and it is up to date.")
             cursor.close()
 
-
     def ensure_table_exists(self):
         import core.bot_os_tool_descriptions
 
@@ -1512,7 +1507,6 @@ class SqliteConnector(DatabaseConnector):
             if cursor is not None:
                 cursor.close()
 
-
         try:
             os.makedirs(os.path.join(self.stages, 'SEMANTIC_MODELS_DEV'))
             logger.info(f"Stage SEMANTIC_MODELS_DEV created.")
@@ -1524,7 +1518,6 @@ class SqliteConnector(DatabaseConnector):
             logger.info(f"Stage SEMANTIC_MODELS created.")
         except Exception as e:
             logger.info(f"Stage SEMANTIC_MODELS already exists.")
-
 
         udf_check_query = f"SHOW USER FUNCTIONS LIKE 'SET_BOT_APP_LEVEL_KEY' IN SCHEMA;"
         try:
@@ -1546,7 +1539,6 @@ class SqliteConnector(DatabaseConnector):
                 )
         except Exception as e:
             logger.info(f"UDF not created in  {e}.  This is expected in Sqlite mode." )
-
 
         try:
             os.makedirs(os.path.join(self.stages, 'BOT_FILES_STAGE'))
@@ -1685,7 +1677,7 @@ class SqliteConnector(DatabaseConnector):
                 )
                 bot_name = "Eve"
                 bot_instructions = BASE_EVE_BOT_INSTRUCTIONS
-                available_tools = '["slack_tools", "make_baby_bot", "snowflake_stage_tools", "image_tools"]'
+                available_tools = '["slack_tools", "make_baby_bot", "snowflake_tools", "data_connector_tools", "image_tools"]'
                 udf_active = "Y"
                 slack_active = "N"
                 bot_intro_prompt = EVE_INTRO_PROMPT
@@ -1721,7 +1713,7 @@ class SqliteConnector(DatabaseConnector):
                 )
                 bot_name = "Eliza"
                 bot_instructions = ELIZA_DATA_ANALYST_INSTRUCTIONS
-                available_tools = '["slack_tools", "database_tools", "snowflake_stage_tools", "image_tools"]'
+                available_tools = '["slack_tools", "data_connector_tools", "snowflake_tools", "image_tools"]'
                 udf_active = "Y"
                 slack_active = "N"
                 bot_intro_prompt = ELIZA_INTRO_PROMPT
@@ -1755,7 +1747,7 @@ class SqliteConnector(DatabaseConnector):
             #          bot_id += ''.join(random.choices(string.ascii_letters + string.digits, k=6))
             #          bot_name = "Stuart"
             #          bot_instructions = STUART_DATA_STEWARD_INSTRUCTIONS
-            #          available_tools = '["slack_tools", "database_tools", "snowflake_stage_tools", "snowflake_semantic_tools", "image_tools", "autonomous_tools"]'
+            #          available_tools = '["slack_tools", "data_connector_tools", "snowflake_tools", "snowflake_semantic_tools", "image_tools", "autonomous_tools"]'
             #          udf_active = "Y"
             #          slack_active = "N"
             #          bot_intro_prompt = STUART_INTRO_PROMPT
@@ -1775,8 +1767,8 @@ class SqliteConnector(DatabaseConnector):
 
                 update_query = f"""
                     UPDATE {self.bot_servicing_table_name}
-                    SET AVAILABLE_TOOLS = REPLACE(REPLACE(AVAILABLE_TOOLS, 'vision_chat_analysis', 'image_tools'),'autonomous_functions','autonomous_tools')
-                    WHERE AVAILABLE_TOOLS LIKE '%vision_chat_analysis%' or AVAILABLE_TOOLS LIKE '%autonomous_functions%'
+                    SET AVAILABLE_TOOLS = REPLACE(REPLACE(AVAILABLE_TOOLS, 'vision_chat_analysis', 'image_tools'),)
+                    WHERE AVAILABLE_TOOLS LIKE '%vision_chat_analysis%'
                     """
                 cursor.execute(update_query)
                 self.client.commit()
@@ -2327,7 +2319,6 @@ class SqliteConnector(DatabaseConnector):
         except Exception as e:
             logger.info(f"An error occurred while executing the MERGE statement: {e}")
 
-
     # make sure this is returning whats expected (array vs string)
     def get_table_ddl(self, database_name: str, schema_name: str, table_name=None):
         """
@@ -2639,7 +2630,7 @@ class SqliteConnector(DatabaseConnector):
                 key = " UNIQUE"
             ddl_statement += f"    {column_name} {column_type}{nullable}{default}{key}{comment},\n"
         ddl_statement = ddl_statement.rstrip(',\n') + "\n);"
-        #logger.info(ddl_statement)
+        # logger.info(ddl_statement)
         return ddl_statement
 
     def create_bot_workspace(self, workspace_schema_name):
@@ -2713,7 +2704,6 @@ class SqliteConnector(DatabaseConnector):
              "Error:": "Error! Query must end with a semicolon.  Add a ; to the end and RUN THIS TOOL AGAIN NOW! Also replace all ' (single quotes) with 🏑"
             }
 
-
         if isinstance(max_rows, str):
             try:
                 max_rows = int(max_rows)
@@ -2776,7 +2766,7 @@ class SqliteConnector(DatabaseConnector):
             columns = [col[0].upper() for col in cursor.description]
             sample_data = [dict(zip(columns, row)) for row in results]
 
-        # Replace occurrences of triple backticks with triple single quotes in sample data
+            # Replace occurrences of triple backticks with triple single quotes in sample data
             sample_data = [
                 {key: (value.replace("```", "\`\`\`") if isinstance(value, str) else value) for key, value in row.items()}
                 for row in sample_data
@@ -3290,7 +3280,8 @@ class SqliteConnector(DatabaseConnector):
             self.client.commit()
             logger.info(f"Successfully updated available_tools for bot_id: {bot_id}")
 
-            if "DATABASE_TOOLS" in updated_tools_str.upper():
+            if "SNOWFLAKE_TOOLS" in updated_tools_str.upper():
+                # TODO JD - VERIFY THIS CHANGE
                 workspace_schema_name = f"{global_flags.project_id}.{bot_id.replace(r'[^a-zA-Z0-9]', '_').replace('-', '_').replace('.', '_')}_WORKSPACE".upper()
                 self.create_bot_workspace(workspace_schema_name)
                 self.grant_all_bot_workspace(workspace_schema_name)
@@ -5780,7 +5771,7 @@ class SqliteConnector(DatabaseConnector):
         # First, get the total number of rows to set up the progress bar
         total_rows_query = f"SELECT COUNT(*) as total FROM {table_id}"
         cursor = self.client.cursor()
-    # logger.info('total rows query: ',total_rows_query)
+        # logger.info('total rows query: ',total_rows_query)
         cursor.execute(total_rows_query)
         total_rows_result = cursor.fetchone()
         total_rows = total_rows_result[0]
@@ -5789,7 +5780,7 @@ class SqliteConnector(DatabaseConnector):
             while True:
                 # Modify the query to include LIMIT and OFFSET
                 query = f"SELECT qualified_table_name, embedding FROM {table_id} LIMIT {batch_size} OFFSET {offset}"
-    #            logger.info('fetch query ',query)
+                #            logger.info('fetch query ',query)
                 cursor.execute(query)
                 rows = cursor.fetchall()
 
@@ -5801,8 +5792,8 @@ class SqliteConnector(DatabaseConnector):
                     try:
                         temp_embeddings.append(json.loads('['+row[1][5:-3]+']'))
                         temp_table_names.append(row[0])
-    #                    logger.info('temp_embeddings len: ',len(temp_embeddings))
-    #                    logger.info('temp table_names: ',temp_table_names)
+                    #                    logger.info('temp_embeddings len: ',len(temp_embeddings))
+                    #                    logger.info('temp table_names: ',temp_table_names)
                     except:
                         try:
                             temp_embeddings.append(json.loads('['+row[1][5:-10]+']'))
@@ -5832,8 +5823,8 @@ class SqliteConnector(DatabaseConnector):
                 offset += batch_size
 
         cursor.close()
-    #   logger.info('table names ',table_names)
-    #   logger.info('embeddings len ',len(embeddings))
+        #   logger.info('table names ',table_names)
+        #   logger.info('embeddings len ',len(embeddings))
         return table_names, embeddings
 
     def generate_filename_from_last_modified(self, table_id):
@@ -5852,12 +5843,11 @@ class SqliteConnector(DatabaseConnector):
                 result = None
             cursor.close()
 
-
             # Ensure we have a valid result and last_crawled_time is not None
             if not result or result[0]['last_crawled_time'] is None:
                 raise ValueError("No data crawled - This is expected on fresh install.")
                 return('NO_DATA_CRAWLED')
-                #raise ValueError("Table last crawled timestamp is None. Unable to generate filename.")
+                # raise ValueError("Table last crawled timestamp is None. Unable to generate filename.")
 
             # The `last_crawled_time` attribute should be a datetime object. Format it.
             last_crawled_time = result[0]['last_crawled_time']
@@ -5869,11 +5859,9 @@ class SqliteConnector(DatabaseConnector):
             return filename, metafilename
         except Exception as e:
             # Handle errors: for example, table not found, or API errors
-            #logger.info(f"An error occurred: {e}, possibly no data yet harvested, using default name for index file.")
+            # logger.info(f"An error occurred: {e}, possibly no data yet harvested, using default name for index file.")
             # Return a default filename or re-raise the exception based on your use case
             return "default_filename.ann", "default_metadata.json"
-
-
 
     def one_time_db_fixes(self):
         # Remove BOT_FUNCTIONS if it exists
@@ -5961,7 +5949,6 @@ class SqliteConnector(DatabaseConnector):
                 cursor.close()
 
         return
-
 
     def get_llm_info(self, thread_id=None):
         """

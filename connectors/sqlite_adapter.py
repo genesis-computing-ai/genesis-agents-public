@@ -18,14 +18,14 @@ from core.bot_os_defaults import (
 
 class SQLiteAdapter:
     """Adapts Snowflake-style operations to work with SQLite"""
-    
+
     # Class-level flag to track if tables have been initialized
     _tables_initialized = False
-    
+
     def __init__(self, db_path="genesis.db"):
         logger.info(f"Initializing SQLiteAdapter with db_path: {db_path}")
         self.db_path = db_path
-        
+
         # Test database connection and write permissions
         try:
             self.connection = sqlite3.connect(db_path, check_same_thread=False)
@@ -37,7 +37,7 @@ class SQLiteAdapter:
         except sqlite3.Error as e:
             logger.error(f"Failed to initialize database connection: {e}")
             raise Exception(f"Database initialization failed: {e}")
-        
+
         # Ensure tables exist only once per class
         if not SQLiteAdapter._tables_initialized:
             try:
@@ -49,12 +49,12 @@ class SQLiteAdapter:
             except Exception as e:
                 logger.error(f"Failed to initialize tables: {e}")
                 raise
-    
+
     def _ensure_bot_servicing_table(self):
         """Ensure BOT_SERVICING table exists with correct constraints"""
         logger.info("Starting BOT_SERVICING table verification")
         cursor = self.connection.cursor()
-        
+
         try:
             # First verify if table exists
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='BOT_SERVICING'")
@@ -97,27 +97,27 @@ class SQLiteAdapter:
                                 CLIENT_SECRET TEXT
                             )
                         """
-                        
+
                         # Drop the table if it exists (to ensure clean creation)
                         self.connection.execute("DROP TABLE IF EXISTS BOT_SERVICING")
                         self.connection.execute(create_table_sql)
                         self.connection.commit()
-                        
+
                         # Verify the primary key constraint
                         cursor.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='BOT_SERVICING'")
                         table_def = cursor.fetchone()[0]
                         logger.info(f"Created table with definition: {table_def}")
-                        
+
                         # Verify the primary key constraint exists
                         cursor.execute("PRAGMA table_info(BOT_SERVICING)")
                         columns = cursor.fetchall()
                         pk_columns = [col for col in columns if col[5] > 0]  # Column 5 is the pk flag
                         logger.info(f"Primary key columns: {pk_columns}")
-                        
+
                 except Exception as e:
                     logger.error(f"Error during table creation: {e}")
                     raise
-                
+
             # Final verification
             cursor.execute("SELECT COUNT(*) FROM BOT_SERVICING")
             c = cursor.fetchone()
@@ -126,7 +126,7 @@ class SQLiteAdapter:
             else:
                 count = 0
             logger.info(f"Final verification successful. Row count: {count}")
-                
+
             # After successful table creation, insert Eve
             if not exists:
                 logger.info("Inserting initial Eve row")
@@ -136,16 +136,20 @@ class SQLiteAdapter:
                 bot_instructions = BASE_EVE_BOT_INSTRUCTIONS
                 available_tools = """[
                     "slack_tools",
-                    "test_manager_tools",
+                    "manage_tests_tools",
                     "make_baby_bot",
-                    "snowflake_stage_tools",
+                    "snowflake_tools",
+                    "data_connector_tools",
                     "image_tools",
                     "process_manager_tools",
                     "process_runner_tools",
                     "process_scheduler_tools",
+                    "project_manager_tools",
                     "notebook_manager_tools",
-                    "google_drive_tools"]
-                    """
+                    "artifact_manager_tools",
+                    "google_drive_tools",
+                    "harvester_tools"
+                ]"""
                 udf_active = 'Y'  # Using 1 instead of "Y" for SQLite boolean
                 slack_active = 'N'  # Using 0 instead of "N" for SQLite boolean
                 bot_intro_prompt = EVE_INTRO_PROMPT
@@ -165,7 +169,7 @@ class SQLiteAdapter:
                     SLACK_ACTIVE = excluded.SLACK_ACTIVE,
                     BOT_INTRO_PROMPT = excluded.BOT_INTRO_PROMPT
                 """
-                
+
                 cursor.execute(
                     insert_eve_query,
                     (
@@ -181,18 +185,18 @@ class SQLiteAdapter:
                 )
                 self.connection.commit()
                 logger.info("Initial Eve row inserted successfully")
-                    
+
         except Exception as e:
             logger.error(f"Error in _ensure_bot_servicing_table: {e}")
             raise
-    
+
     def _ensure_llm_tokens_table(self):
         """Ensure llm_tokens table exists with correct constraints"""
         cursor = self.connection.cursor()
         # First drop the table to ensure clean creation
         # cursor.execute("DROP TABLE IF EXISTS llm_tokens")
         # self.commit()
-        
+
         # Create the table with explicit constraints
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS llm_tokens (
@@ -209,7 +213,7 @@ class SQLiteAdapter:
             )
         """)
         self.commit()
-    
+
     def _ensure_slack_config_table(self):
         """Ensure slack_app_config_tokens table exists"""
         cursor = self.connection.cursor()
@@ -223,7 +227,7 @@ class SQLiteAdapter:
             )
         """)
         self.commit()
-    
+
     def cursor(self):
         if self.connection is None:
             logger.error("No database connection")
@@ -238,41 +242,41 @@ class SQLiteAdapter:
             # Try to reconnect
             self.connection = sqlite3.connect(self.db_path, check_same_thread=False)
             return SQLiteCursorWrapper(self.connection.cursor())
-    
+
     def commit(self):
         return self.connection.commit()
-        
+
     def rollback(self):
         return self.connection.rollback()
 
 class SQLiteCursorWrapper:
     def __init__(self, real_cursor):
         self.real_cursor = real_cursor
-    
+
     def __enter__(self):
         return self
-    
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
         return False  # Re-raise any exceptions
-    
+
     @property
     def description(self):
         return self.real_cursor.description or []
-    
+
     @property
     def rowcount(self):
         return self.real_cursor.rowcount
-    
+
     def execute(self, query: str, params: Any = None) -> Any:
         try:
             # Replace %s with ? for SQLite
             query = query.replace('%s', '?')
-            
+
             # Log original parameters
             logger.debug(f"Original params count: {len(params) if params else 0}")
             logger.debug(f"Original params: {params}")
-            
+
             # Handle parameter count for MERGE/UPSERT operations before query transformation
             if params and isinstance(params, (list, tuple)):
                 if len(params) == 8 and 'llm_tokens' in query.lower() and 'MERGE INTO' in query.upper():
@@ -283,11 +287,11 @@ class SQLiteCursorWrapper:
                     # Adjust parameters to match the transformed query
                     params = params[:3]
                     logger.debug(f"Using first 3 params for slack_app_config_tokens: {params}")
-            
+
             modified_query = self._transform_query(query)
             logger.debug(f"Transformed query: {modified_query}")
             logger.debug(f"Final params count: {len(params) if params else 0}")
-            
+
             # Execute the modified query
             if isinstance(modified_query, str):
                 if params is None:
@@ -320,16 +324,16 @@ class SQLiteCursorWrapper:
             logger.error(f"Query: {query}")
             logger.error(f"Params: {params}")
             raise
-    
+
     def fetchone(self):
         return self.real_cursor.fetchone()
-    
+
     def fetchall(self):
         try:
             return self.real_cursor.fetchall()
         except Exception:
             return []
-    
+
     def fetchmany(self, size=None):
         """Fetch the next set of rows of a query result"""
         try:
@@ -338,38 +342,49 @@ class SQLiteCursorWrapper:
             return self.real_cursor.fetchmany(size)
         except Exception:
             return []
-    
+
     def close(self):
         return self.real_cursor.close()
-    
-    def _transform_query(self, query: str) -> str | list[str]:
+
+    def _transform_query(self, query: str, keep_db_schema: bool = False) -> str | list[str]:
         """Transform Snowflake SQL to SQLite compatible SQL"""
-        
+
         if not query:
             return query
-        
+
+        # Check for KEEPSCHEMA:: prefix and set flag accordingly
+        keep_db_schema = False
+        if query.startswith('KEEPSCHEMA::'):
+            keep_db_schema = True
+            query = query[len('KEEPSCHEMA::'):]
+
+        # Remove schema prefix if it matches GENESIS_INTERNAL_DB_SCHEMA
+        schema_prefix = os.environ.get('GENESIS_INTERNAL_DB_SCHEMA', '')
+        if schema_prefix and schema_prefix + '.' in query:
+            query = query.replace(schema_prefix + '.', '')
+
         # Clean up query for easier pattern matching
         query_clean = ' '.join(query.split())
         query_upper = query_clean.upper()
-        
+
         # Convert HYBRID TABLE to just TABLE
         query = re.sub(r'(?i)HYBRID\s+TABLE', 'TABLE', query)
-        
+
         # Remove INDEX definitions from CREATE TABLE statements
         query = re.sub(r',\s*INDEX\s+\w+\s*\([^)]+\)', '', query)
-        
+
         # Handle GRANT statements - convert to no-op
         if query_upper.startswith('GRANT'):
             logger.debug(f"Converting GRANT statement to no-op: {query}")
             return "SELECT 1 WHERE 1=0"
-        
+
         # First clean up any newlines/extra spaces for easier pattern matching
         query_clean = ' '.join(query.split())
         query_upper = query_clean.upper()
-        
+
         # Replace %s with ? for SQLite
         query = query.replace('%s', '?')
-        
+
         # Handle JSON extraction and type casting
         if '::varchar' in query:
             # Replace Snowflake's JSON parsing and type casting with SQLite's json_extract
@@ -378,7 +393,7 @@ class SQLiteCursorWrapper:
                 r'json_extract(\1, "$.\2")',
                 query
             )
-        
+
         # Handle CALL statements (new)
         if query_upper.startswith('CALL'):
             logger.debug("Converting CALL statement to SELECT")
@@ -401,7 +416,7 @@ class SQLiteCursorWrapper:
             """
 
         # Skip certain operations that don't apply in SQLite mode
-        
+
         skip_patterns = [
             r'(?i)ENCODED_IMAGE_DATA',
             r'(?i)APP_SHARE\.',
@@ -413,18 +428,18 @@ class SQLiteCursorWrapper:
             r'(?i)LAST_QUERY_ID\(\)',
             r'(?i)UPDATE.*BOT_SERVICING.*SET.*FROM.*IMAGES'
         ]
-        
+
         # Check if query should be skipped
         for pattern in skip_patterns:
             if re.search(pattern, query_clean):
                 logger.debug(f"Skipping query due to APP_SHARE or other pattern match: {query_clean}")
                 return "SELECT 1 WHERE 1=0"  # No-op query
-        
+
         # Handle CREATE TABLE statements
         if query_upper.startswith('CREATE TABLE'):
             # Remove schema qualifiers
             query = re.sub(r'(?:[^.\s]+\.){1,2}([^\s(]+)', r'\1', query)
-            
+
             # Convert types and defaults
             query = re.sub(r'VARCHAR\([^)]+\)', 'TEXT', query)
             query = re.sub(r'TIMESTAMP', 'DATETIME', query)
@@ -439,13 +454,13 @@ class SQLiteCursorWrapper:
                 "DEFAULT CURRENT_TIMESTAMP",
                 query
             )
-            
+
             # Add IF NOT EXISTS to prevent errors
             if 'IF NOT EXISTS' not in query_upper:
                 query = query.replace('CREATE TABLE', 'CREATE TABLE IF NOT EXISTS')
-            
+
             return query
-        
+
         # List of Snowflake-specific commands that should be no-ops in SQLite
         snowflake_specific_commands = [
             ('CREATE STAGE', 'stage creation'),
@@ -460,56 +475,60 @@ class SQLiteCursorWrapper:
             ('CREATE OR REPLACE PROCEDURE', 'stored procedure creation'),
             ('CREATE PROCEDURE', 'stored procedure creation'),
         ]
-        
+
         # Check for Snowflake-specific commands that should be no-ops
         for command, feature in snowflake_specific_commands:
             if command in query_upper:
                 logger.info(f"Ignoring {feature} command - not supported in SQLite")
                 return "SELECT 1 WHERE 1=0"  # No-op query
-        
+
         # Handle SHOW commands
         if query_upper.startswith('SHOW'):
             if query_upper == 'SHOW DATABASES':
                 return "SELECT name FROM pragma_database_list"
-            
-            elif query_upper == 'SHOW SCHEMAS':
+
+            elif query_upper == 'SHOW SCHEMAS' or query_upper.startswith('SHOW SCHEMAS IN'):
                 # SQLite doesn't have schemas, return 'main' as default schema
                 return "SELECT 'main' as name"
-            
+
             elif query_upper.startswith('SHOW TABLES'):
                 # Extract the LIKE pattern if it exists
                 like_match = re.search(r"LIKE\s+'([^']+)'", query, re.IGNORECASE)
                 like_pattern = like_match.group(1) if like_match else None
-                
+
                 base_query = """
                     SELECT name as "name" 
                     FROM sqlite_master 
                     WHERE type='table' 
                     AND name NOT LIKE 'sqlite_%'
                 """
-                
+
                 if like_pattern:
                     base_query += f" AND name LIKE '{like_pattern}'"
-                    
+
                 return base_query + " ORDER BY name"
-            
+
             elif query_upper.startswith('SHOW COLUMNS'):
                 # Extract table name from "SHOW COLUMNS IN table"
                 table_match = re.search(r'SHOW\s+COLUMNS\s+IN\s+(\w+)', query, re.IGNORECASE)
                 if table_match:
                     table_name = table_match.group(1)
                     return f"PRAGMA table_info({table_name})"
-                
+
             # Handle other SHOW commands as no-ops
             logger.info(f"Ignoring unsupported SHOW command in SQLite: {query}")
             return "SELECT 1 WHERE 1=0"
-        
-        # Remove database/schema prefixes for other queries
-        query = re.sub(r'"?[^".\s]+"\."[^".\s]+"."([^"\s]+)"?', r'\1', query)  # Remove DB.SCHEMA.TABLE
-        query = re.sub(r'"?[^".\s]+"."([^"\s]+)"?', r'\1', query)              # Remove SCHEMA.TABLE
-        query = re.sub(r'(\w+)\.(\w+)\.(\w+)', r'\3', query)                   # Remove unquoted DB.SCHEMA.TABLE
-        query = re.sub(r'(\w+)\.(\w+)', r'\2', query)                          # Remove unquoted SCHEMA.TABLE
-        
+
+        # Remove only fully qualified database.schema.table patterns
+        if not keep_db_schema:
+            query = re.sub(r'"?[^".\s]+"\."[^".\s]+"."([^"\s]+)"?', r'\1', query)  # Remove "DB"."SCHEMA"."TABLE"
+            query = re.sub(r'(\w+)\.(\w+)\.(\w+)(?=\s|$)', r'\3', query)           # Remove DB.SCHEMA.TABLE
+
+        # Do NOT remove schema.table or alias.column patterns
+        # Remove these lines:
+        # query = re.sub(r'"?[^".\s]+"."([^"\s]+)"?', r'\1', query)              # Remove SCHEMA.TABLE
+        # query = re.sub(r'(\w+)\.(\w+)(?!\s*=)', r'\2', query)                  # Remove unquoted SCHEMA.TABLE
+
         # Handle CREATE OR REPLACE TABLE
         if 'CREATE OR REPLACE TABLE' in query_upper:
             # Extract table name and column definition
@@ -518,30 +537,46 @@ class SQLiteCursorWrapper:
                 query_clean,
                 re.IGNORECASE
             )
-            
+
             if match:
                 table_name = match.group(1)
                 column_def = match.group(2)
-                
+
                 # Convert types
                 column_def = re.sub(r'STRING', 'TEXT', column_def)
                 column_def = re.sub(r'VARCHAR\([^)]+\)', 'TEXT', column_def)
-                
+
                 # Handle quoted column names
                 column_def = re.sub(r'"([^"]+)"', r'`\1`', column_def)
-                
+
                 return [
                     f"DROP TABLE IF EXISTS {table_name}",
                     f"CREATE TABLE {table_name} ({column_def})"
                 ]
         
+        if 'CREATE OR REPLACE TABLE' in query_upper:
+            match = re.match(
+                r'CREATE OR REPLACE TABLE\s+(.+) AS SELECT \* FROM\s+(.+)',
+                query_clean.replace(';', ''),
+                re.IGNORECASE
+            )
+
+            if match:
+                table_name = match.group(1)
+                source_table = match.group(2)
+
+                return [
+                    f"DROP TABLE IF EXISTS {table_name}",
+                    f"CREATE TABLE {table_name} AS SELECT * FROM {source_table}"
+                ]
+
         # Handle MERGE INTO statements
         if query_upper.startswith('MERGE INTO'):
             # Extract table name and remove schema qualifiers
             table_match = re.search(r'MERGE\s+INTO\s+(?:[^.\s]+\.)?(?:[^.\s]+\.)?([^\s]+)', query, re.IGNORECASE)
             if table_match:
                 table_name = table_match.group(1)
-                
+
                 # For llm_tokens table
                 if 'llm_tokens' in table_name.lower():
                     logger.debug("Transforming llm_tokens MERGE query")
@@ -558,7 +593,7 @@ class SQLiteCursorWrapper:
 
                 # For BOT_SERVICING table with USING SELECT pattern
                 if 'BOT_SERVICING' in table_name.upper() and 'USING (SELECT' in query_upper:
-                    logger.debug("Transforming BOT_SERVICING MERGE query with USING SELECT") 
+                    logger.debug("Transforming BOT_SERVICING MERGE query with USING SELECT")
                     return [
                         """DELETE FROM BOT_SERVICING WHERE BOT_ID = ?1 AND (?2 IS NOT NULL OR ?3 IS NOT NULL OR ?4 IS NOT NULL OR ?5 IS NOT NULL OR ?6 IS NOT NULL OR ?7 IS NOT NULL OR ?8 IS NOT NULL)""",
                         """
@@ -587,10 +622,10 @@ class SQLiteCursorWrapper:
                     FROM pragma_table_info('{table_name}')
                     ORDER BY cid
                 """
-        
+
         # Convert %s placeholders to ? for SQLite
         query = re.sub(r'%s', '?', query)
-        
+
         # Define Snowflake to SQLite syntax replacements
         replacements = {
             'CURRENT_TIMESTAMP\\(\\)': "datetime('now')",
@@ -601,18 +636,19 @@ class SQLiteCursorWrapper:
             'TIMESTAMP_NTZ': 'DATETIME',
             'VARIANT': 'TEXT',
             'IFF\\(([^,]+),([^,]+),([^)]+)\\)': r'CASE WHEN \1 THEN \2 ELSE \3 END',
-            'REPLACE\\(REPLACE\\(([^,]+),([^,]+),([^)]+)\\),([^,]+),([^)]+)\\)': 
+            'REPLACE\\(REPLACE\\(([^,]+),([^,]+),([^)]+)\\),([^,]+),([^)]+)\\)':
                 r'REPLACE(REPLACE(\1,\2,\3),\4,\5)',
+            'TO_TIMESTAMP': 'DATETIME'
         }
-        
+
         # Apply replacements
         for pattern, replacement in replacements.items():
             query = re.sub(pattern, replacement, query)
-        
+
         # Handle TIMESTAMP keyword with special cases
         # Case 1: Double TIMESTAMP -> TIMESTAMP DATETIME
         query = re.sub(r'\bTIMESTAMP\s+TIMESTAMP\b', 'TIMESTAMP DATETIME', query)
-        
+
         # Case 2: Don't modify TIMESTAMP in ORDER BY clause
         # Handle TIMESTAMP keyword, excluding ORDER BY clauses
         parts = query.split('ORDER BY')
@@ -624,21 +660,21 @@ class SQLiteCursorWrapper:
             # No ORDER BY - replace all TIMESTAMP except when followed by TIMESTAMP
             query = re.sub(r'\bTIMESTAMP\b(?!\s+TIMESTAMP)', 'DATETIME', query)
 
-        
+
         # Handle ALTER TABLE ADD COLUMN statements
         if 'ALTER TABLE' in query_upper and 'ADD COLUMN' in query_upper:
             # Remove schema qualifiers
             query = re.sub(r'(?:[^.\s]+\.){1,2}([^\s(]+)', r'\1', query)
-            
+
             # Extract table name and columns
             match = re.match(r'ALTER TABLE\s+(\w+)\s+ADD\s+COLUMN\s+(.+)', query, re.IGNORECASE)
             if match:
                 table_name = match.group(1)
                 columns_str = match.group(2).strip(';')
-                
+
                 # Split multiple columns and create separate ALTER TABLE statements
                 columns = [col.strip() for col in columns_str.split(',')]
-                
+
                 # Convert Snowflake types to SQLite types
                 statements = []
                 for col in columns:
@@ -648,10 +684,10 @@ class SQLiteCursorWrapper:
                     col = re.sub(r'ARRAY', 'TEXT', col)
                     col = re.sub(r'STRING', 'TEXT', col)
                     col = re.sub(r'BOOLEAN', 'INTEGER', col)
-                    
+
                     # Extract column name (part before first space)
                     col_name = col.split()[0]
-                    
+
                     # Only try to add column if it doesn't exist
                     statements.append(f"""
                         SELECT CASE 
@@ -664,7 +700,7 @@ class SQLiteCursorWrapper:
                             )
                         END;
                     """)
-                    
+
                     # The actual ALTER will only be executed if the column doesn't exist
                     statements.append(f"""
                         SELECT CASE 
@@ -677,9 +713,9 @@ class SQLiteCursorWrapper:
                             )
                         END;
                     """)
-                
+
                 return statements
-        
+
         # Handle SHOW COLUMNS or DESCRIBE TABLE commands
         if query_upper.startswith('SHOW COLUMNS') or query_upper.startswith('DESCRIBE TABLE'):
             # Extract table name
@@ -708,28 +744,28 @@ class SQLiteCursorWrapper:
                     FROM pragma_table_info('{table_name}')
                     ORDER BY cid
                 """
-        
+
         # Convert boolean values
         query = re.sub(r'=\s*True\b', '= 1', query, flags=re.IGNORECASE)
         query = re.sub(r'=\s*False\b', '= 0', query, flags=re.IGNORECASE)
-        
+
         # Handle specific llm_tokens queries
         if 'llm_tokens' in query_upper:
             query = query.replace('active = TRUE', 'active = 1')
             query = query.replace('active = FALSE', 'active = 0')
-        
+
         # Handle UDF and STAGE creation (make them no-ops)
         if 'CREATE' in query_upper:
             if any(keyword in query_upper for keyword in ['FUNCTION', 'STAGE']):
                 object_type = 'FUNCTION' if 'FUNCTION' in query_upper else 'STAGE'
                 logger.debug(f"Skipping {object_type} creation in SQLite mode: {query}")
                 return "SELECT 1 WHERE 1=0"
-        
+
         # Handle Snowflake-specific functions like RESULT_SCAN
         if 'RESULT_SCAN' in query_upper or 'LAST_QUERY_ID()' in query_upper:
             logger.debug("Skipping RESULT_SCAN query in SQLite mode")
             return "SELECT NULL as EAI_LIST WHERE 1=0"  # No-op query that returns empty result with correct column
-        
+
         # Handle Snowflake-specific functions
         snowflake_specific_functions = [
             'RESULT_SCAN',
@@ -737,15 +773,15 @@ class SQLiteCursorWrapper:
             'GET_DDL',
             'SHOW_DDL'
         ]
-        
+
         if any(func in query_upper for func in snowflake_specific_functions):
             # Extract the AS clause to get the column alias
             as_match = re.search(r'as\s+(\w+)', query_upper)
             column_name = as_match.group(1) if as_match else 'RESULT'
-            
+
             logger.debug(f"Skipping Snowflake-specific function query in SQLite mode: {query}")
             return f"SELECT NULL as {column_name} WHERE 1=0"
-        
+
         # Handle UPDATE with FROM clause
         if query_upper.startswith('UPDATE') and ' FROM ' in query_upper:
             # Extract the basic parts of the query
@@ -754,13 +790,13 @@ class SQLiteCursorWrapper:
                 query,
                 re.IGNORECASE | re.DOTALL
             )
-            
+
             if match:
                 table = match.group(1)
                 set_clause = match.group(2)
                 subquery = match.group(3)
                 where_clause = match.group(5) if match.group(5) else ''
-                
+
                 # Transform to SQLite syntax using a subquery in the SET clause
                 return f"""
                     UPDATE {table} 
@@ -771,7 +807,7 @@ class SQLiteCursorWrapper:
                         WHERE {where_clause if where_clause else '1=1'}
                     )
                 """
-        
+
         # Skip certain operations that don't apply in SQLite mode
         skip_operations = {
             'CREATE OR REPLACE FUNCTION': 'UDF creation',
@@ -791,7 +827,7 @@ class SQLiteCursorWrapper:
             if re.search(pattern, query_upper, re.IGNORECASE):
                 logger.debug(f"Skipping {operation_type} in SQLite mode: {query}")
                 return "SELECT 1 WHERE 1=0"  # No-op query
-        
+
         # Handle CREATE OR REPLACE HYBRID TABLE
         if re.search(r'CREATE\s+(?:OR\s+REPLACE\s+)?(?:HYBRID\s+)?TABLE', query_upper):
             # Extract table name and column definitions
@@ -799,32 +835,32 @@ class SQLiteCursorWrapper:
             if match:
                 table_name = match.group(1)
                 column_defs = match.group(2).strip()
-                
+
                 # Remove INDEX definition
                 column_defs = re.sub(r',\s*INDEX.*?\([^)]+\)', '', column_defs)
-                
+
                 # Convert data types
                 column_defs = re.sub(r'VARCHAR\(\d+\)', 'TEXT', column_defs)
                 column_defs = re.sub(r'VARCHAR', 'TEXT', column_defs)
                 column_defs = re.sub(r'TIMESTAMP', 'DATETIME', column_defs)
-                
+
                 # Convert CURRENT_TIMESTAMP
                 column_defs = re.sub(r'CURRENT_TIMESTAMP', "CURRENT_TIMESTAMP", column_defs)
-                
+
                 # Clean up any extra whitespace
                 column_defs = re.sub(r'\s+', ' ', column_defs).strip()
-                
+
                 return [
                     f"DROP TABLE IF EXISTS {table_name}",
                     f"CREATE TABLE {table_name} ({column_defs})"
                 ]
-        
+
         # Handle column name differences between Snowflake and SQLite
         column_mappings = {
             'LAST_CRAWLED_DATETIME': 'LAST_CRAWLED_TIMESTAMP',
         #    'DATETIME': 'CREATED_AT'
         }
-        
+
         # Apply column name mappings
         for old_name, new_name in column_mappings.items():
             query = re.sub(
@@ -833,10 +869,10 @@ class SQLiteCursorWrapper:
                 query,
                 flags=re.IGNORECASE
             )
-        
+
         # Remove schema qualifiers
-        query = re.sub(r'(?:[^.\s]+\.){1,2}([^\s(]+)', r'\1', query)
-        
+      #  query = re.sub(r'(?:[^.\s]+\.){1,2}([^\s(]+)', r'\1', query)
+
         # Handle INSERT INTO statements for BOT_SERVICING
         if 'INSERT INTO GENESIS_TEST.GENESIS_JL.BOT_SERVICING' in query_upper:
             # Replace %s with ? for SQLite
@@ -878,7 +914,7 @@ class SQLiteCursorWrapper:
             if insert_cols_match:
                 columns = [col.strip() for col in insert_cols_match.group(1).split(',')]
                 placeholders = ','.join(['?' for _ in columns])
-                
+
                 return f"""
                     INSERT INTO BOT_SERVICING 
                         ({', '.join(columns)})

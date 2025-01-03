@@ -66,9 +66,38 @@ def one_time_db_fixes(self):
             bot_name, tools = bot
             if tools:
                 tools_list = json.loads(tools)
-                # tools_list = tools.split(',')
+                update = False
                 if 'notebook_manager_tools' not in tools_list:
                     tools_list.append('notebook_manager_tools')
+                    update = True
+
+                if "autonomous_tools" in tools_list:
+                    print("Found autonomous_tools in tools list")
+                    tools_list.remove("autonomous_tools")
+                    update = True
+
+                if "todo_manager_tools" in tools_list:
+                    tools_list.remove("todo_manager_tools")
+                    if "prject_manager_tools" not in tools_list:
+                        tools_list.append('project_manager_tools')
+
+                if 'database_tools' in tools_list:
+                    print("Found database_tools in tools list")
+                    tools_list.remove('database_tools')
+                    if "snowflake_tools" not in tools_list:
+                        tools_list.append('snowflake_tools')
+                    if "data_connector_tools" not in tools_list:
+                        tools_list.append("data_connector_tools")
+                    update = True
+
+                if "snowflake_stage_tools" in tools_list:
+                    print("Found snowflake_stage_tools in tools list")
+                    tools_list.remove("snowflake_stage_tools")
+                    if "snowflake_tools" not in tools_list:
+                        tools_list.append("snowflake_tools")
+                    update = True
+
+                if update:
                     updated_tools = json.dumps(tools_list)
                     # updated_tools = ','.join(tools_list)
                     update_query = f"""
@@ -77,6 +106,9 @@ def one_time_db_fixes(self):
                     WHERE BOT_NAME = %s
                     """
                     cursor.execute(update_query, (updated_tools, bot_name))
+
+                    ### If database_tools, remove it and add snowflake_tools and database_tools
+
             else:
                 update_query = f"""
                 UPDATE {self.schema}.BOT_SERVICING
@@ -161,7 +193,6 @@ def ensure_table_exists(self):
     else:
         all_schema_tables = None
 
-
     def _check_table_exists(tbl_name):
         ''' return true if tbl_name (unqualified) exists in self.schema '''
         sqlite = isinstance(self.client, SQLiteAdapter)
@@ -170,7 +201,6 @@ def ensure_table_exists(self):
                 cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (tbl_name,))
                 return cursor.fetchone() is not None
         return tbl_name in all_schema_tables
-
 
     def _create_table_if_not_exist(tbl_name, ddl, raise_on_failure=False):
         """
@@ -209,12 +239,10 @@ def ensure_table_exists(self):
     # <<< END  helper functions
     # -------------------------------
 
-
     # Get the current timestamp
     current_timestamp = self.get_current_time_with_timezone()
     # Format the timestamp as a string
     timestamp_str = current_timestamp
-
 
     # Create or replace the bots_active table with the current timestamp
     create_bots_active_table_query = f"""CREATE OR REPLACE TABLE {self.schema}.bots_active ("{timestamp_str}" STRING); """
@@ -244,7 +272,7 @@ def ensure_table_exists(self):
     )
 
     # LLM_RESULTS
-    #---------------------
+    # ---------------------
     try:
         create_llm_results_table_ddl = f"""
         CREATE OR REPLACE HYBRID TABLE {self.schema}.LLM_RESULTS (
@@ -407,7 +435,7 @@ def ensure_table_exists(self):
             pass
 
     # TASKS
-    #---------------------
+    # ---------------------
     _create_table_if_not_exist(
         'TASKS',
         f"""
@@ -430,7 +458,7 @@ def ensure_table_exists(self):
     )
 
     # TASK_HISTORY
-    #---------------------
+    # ---------------------
     create_task_history_table_ddl = f"""
     CREATE TABLE {self.schema}.TASK_HISTORY (
         task_id VARCHAR(255),
@@ -447,7 +475,7 @@ def ensure_table_exists(self):
     _create_table_if_not_exist('TASK_HISTORY', create_task_history_table_ddl)
 
     # SEMANTIC_MODELS_DEV
-    #---------------------
+    # ---------------------
     semantic_stage_check_query = (
         f"SHOW STAGES LIKE 'SEMANTIC_MODELS_DEV' IN SCHEMA {self.schema};"
     )
@@ -473,7 +501,7 @@ def ensure_table_exists(self):
             cursor.close()
 
     # SEMANTIC_MODELS
-    #---------------------
+    # ---------------------
     semantic_stage_check_query = (
         f"SHOW STAGES LIKE 'SEMANTIC_MODELS' IN SCHEMA {self.schema};"
     )
@@ -499,7 +527,7 @@ def ensure_table_exists(self):
             cursor.close()
 
     # SET_BOT_APP_LEVEL_KEY
-    #---------------------
+    # ---------------------
     udf_check_query = (
         f"SHOW USER FUNCTIONS LIKE 'SET_BOT_APP_LEVEL_KEY' IN SCHEMA {self.schema};"
     )
@@ -526,7 +554,7 @@ def ensure_table_exists(self):
         )
 
     # BOT_FILES_STAGE
-    #---------------------
+    # ---------------------
     bot_files_stage_check_query = f"SHOW STAGES LIKE 'BOT_FILES_STAGE' IN SCHEMA {self.genbot_internal_project_and_schema};"
     try:
         cursor = self.client.cursor()
@@ -554,7 +582,7 @@ def ensure_table_exists(self):
             cursor.close()
 
     # LLM_TOKENS
-    #---------------------
+    # ---------------------
     try:
         runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
         cursor = self.client.cursor()
@@ -676,7 +704,7 @@ def ensure_table_exists(self):
             cursor.close()
 
     # LLM_TOKENS
-    #---------------------
+    # ---------------------
 
     # Check if LLM_ENDPOINT column exists in LLM_TOKENS table
     check_llm_endpoint_query = f"DESCRIBE TABLE {self.genbot_internal_project_and_schema}.LLM_TOKENS;"
@@ -914,15 +942,19 @@ def ensure_table_exists(self):
             bot_instructions = BASE_EVE_BOT_INSTRUCTIONS
             available_tools = """[
                 "slack_tools",
-                "test_manager_tools",
+                "manage_tests_tools",
                 "make_baby_bot",
-                "snowflake_stage_tools",
+                "snowflake_tools",
+                "data_connector_tools",
                 "image_tools",
                 "process_manager_tools",
                 "process_runner_tools",
                 "process_scheduler_tools",
+                "project_manager_tools",
                 "notebook_manager_tools",
-                "google_drive_tools"]
+                "google_drive_tools",
+                "artifact_manager_tools",
+                "harvester_tools"]
                 """
             udf_active = "Y"
             slack_active = "N"
@@ -965,14 +997,13 @@ def ensure_table_exists(self):
                 f"Inserted initial Eve row into {self.bot_servicing_table_name} with runner_id: {runner_id}"
             )
 
-
         else:
             # Check if the 'ddl_short' column exists in the metadata table
 
             update_query = f"""
             UPDATE {self.bot_servicing_table_name}
-            SET AVAILABLE_TOOLS = REPLACE(REPLACE(AVAILABLE_TOOLS, 'vision_chat_analysis', 'image_tools'),'autonomous_functions','autonomous_tools')
-            WHERE AVAILABLE_TOOLS LIKE '%vision_chat_analysis%' or AVAILABLE_TOOLS LIKE '%autonomous_functions%'
+            SET AVAILABLE_TOOLS = REPLACE(REPLACE(AVAILABLE_TOOLS, 'vision_chat_analysis', 'image_tools'),)
+            WHERE AVAILABLE_TOOLS LIKE '%vision_chat_analysis%' 
             """
             cursor.execute(update_query)
             self.client.commit()
@@ -1096,7 +1127,7 @@ def ensure_table_exists(self):
         #                )
         bot_name = "Janice"
         bot_instructions = JANICE_JANITOR_INSTRUCTIONS
-        available_tools = '["slack_tools", "database_tools", "snowflake_stage_tools", "image_tools", "process_manager_tools", "process_runner_tools", "process_scheduler_tools", "notebook_manager_tools"]'
+        available_tools = '["slack_tools", "database_tools", "snowflake_tools", "image_tools", "process_manager_tools", "process_runner_tools", "process_scheduler_tools", "notebook_manager_tools", "artifact_manager_tools"]',
         udf_active = "Y"
         slack_active = "N"
         bot_intro_prompt = JANICE_INTRO_PROMPT
@@ -1145,7 +1176,6 @@ def ensure_table_exists(self):
     #                file_name="./default_files/janice/*",
     #            )
     #           logger.info(result)
-
 
     # NGROK_TOKENS
     # -------------------
@@ -1511,7 +1541,7 @@ def ensure_table_exists(self):
     _create_table_if_not_exist('DATA_KNOWLEDGE', user_bot_table_ddl)
 
     # USER_BOT
-    #--------------------
+    # --------------------
     user_bot_table_ddl = f"""
     CREATE TABLE IF NOT EXISTS {self.user_bot_table_name} (
         timestamp TIMESTAMP NOT NULL,
@@ -1525,7 +1555,7 @@ def ensure_table_exists(self):
     _create_table_if_not_exist('USER_BOT', user_bot_table_ddl)
 
     # TEST_MANAGER
-    #------------------
+    # ------------------
     # Create test_manager table if it doesn't exist
     bot_test_manager_table_check_query = f"SHOW TABLES LIKE 'test_manager' IN SCHEMA {self.schema};"
     cursor = self.client.cursor()
@@ -1556,7 +1586,7 @@ def ensure_table_exists(self):
     )
 
     # HARVEST CONTROL (self.harvest_control_table_name)
-    #--------------------------------
+    # --------------------------------
     try:
         cursor.execute(hc_table_check_query)
         if not cursor.fetchone():
@@ -1583,7 +1613,7 @@ def ensure_table_exists(self):
         )
 
     # METADATA TABLE FOR HARVESTER RESULTS
-    #---------------------------------------
+    # ---------------------------------------
     metadata_table_id = self.genbot_internal_harvest_table
     metadata_table_check_query = (
         f"SHOW TABLES LIKE '{metadata_table_id.upper()}' IN SCHEMA {self.schema};"
@@ -1672,7 +1702,7 @@ def ensure_table_exists(self):
     af.setup_db_objects(replace_if_exists=False)
 
     # USER EXTENDED TOOLS
-    #-----------------------
+    # -----------------------
     user_extended_tools_table_ddl = f"""
     CREATE TABLE {self.schema}.USER_EXTENDED_TOOLS (
         TOOL_NAME STRING NOT NULL,

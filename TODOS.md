@@ -3,13 +3,41 @@ GENESIS BOT TODOS
 =================
 
 prerelease:
-check that adding a tool via streamlit doesnt mess up the thread with that bot (e.g. data connector tools)
+x check that adding a tool via streamlit doesnt mess up the thread with that bot (e.g. data connector tools)
 make sqlite sample data load from csv files vs binary
 speed up startup
 speed up bot responses
 o1 via api with tool calling
-put eve back in as default bot in streamlit 
+put eve back in as default bot in streamlit
+test web research tools
 demo with web research tools
+x rationalize database connector with database_tools
+test gsheet comments
+make sure clean sqlite works with new schema removal logic
+x make sure harvester works ok in snowflake mode still (get schemas, get tables)
+test setting harvest control again with sqlite and snowflake (make sure using correct connection id)
+x store standard queries for harvester for various db_types in a metadata table, and store new ones in there when they work
+make the index for each bot separate and based on what data they have access to
+x make metadata mapping have a source_name column
+make get_full_Table_details work with sqlite etc
+allow search_metadata_detailed and search_metadata to specify a source_name
+x graphs out in streamlit in sqlite mode
+generate a text file with the numebrs from 1-10, sqlite mode, genesis gui error in streamlit (doesnt return the file anymore just the text)
+x route queries to snowflake through data connector tools, so there is only one query_database tool
+x route search metadata through data connector tools
+make harvester on non-snowflake also get views
+x test harvester on mysql
+test harvester on postgres
+test harvester on sqlite again
+make connection, harvest, search metadata, and query database work directly via api 
+make search meatdata work with a connection id, and if nothing harvested provide response for bot to list directly available tables
+on add connection, make sure to suggest harvesting the new connection
+harvest control, if database not found, return list of connections
+remove file uploads to openai when none needed
+dont return snowflake permissions suggestion if not snowflake
+make database and schema params work when not snowflake on find_memory
+is search metadata returning the type of database?  would be useful ...
+
 
 todo:
 do bots have task id ok to check history?

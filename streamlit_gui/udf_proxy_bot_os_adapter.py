@@ -87,25 +87,25 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
         #logger.info("UDF output: ",message.output, ' in_uuid ', in_uuid)
 
         self.in_to_out_thread_map[message.input_metadata['thread_id']] = message.thread_id
+        output = message.output
         if in_uuid is not None:
             if message.output == '!NO_RESPONSE_REQUIRED':
                 self.response_map[in_uuid] = "(no response needed)"
-            elif message.status == 'completed' and message.files:
-                output = message.output
+            elif message.status == 'completed' and message.files:    
                 for file in message.files:
                     filename = os.path.basename(file)
-                    output += f'\n ![](sandbox:/mnt/data/{filename})'
+                    output += f'\n ![Link](sandbox:/mnt/data/{filename})'
                 self.response_map[in_uuid] = output
             else:
                 self.response_map[in_uuid] = message.output
         # write the value to the hybrid table
         if in_uuid in self.pending_map:
             if not message.input_metadata["thread_id"].startswith('delegate_'):
-                self.db_connector.db_insert_llm_results(in_uuid, message.output)
+                self.db_connector.db_insert_llm_results(in_uuid, output)
             del self.pending_map[in_uuid]
         else:
             if not message.input_metadata["thread_id"].startswith('delegate_'):
-                self.db_connector.db_update_llm_results(in_uuid, message.output)
+                self.db_connector.db_update_llm_results(in_uuid, output)
 
 
     def lookup_fn(self):

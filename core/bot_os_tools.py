@@ -6,12 +6,9 @@ import string
 import threading
 import time
 from   typing                   import Any, Callable, Dict, List
-from   urllib.parse             import urlencode, urljoin, urlunparse
-import uuid
 from core.bot_os_web_access import WebAccess
 
-from   connectors.bigquery_connector \
-                                import BigQueryConnector
+
 from   core                     import global_flags
 from   core.bot_os_tools2       import (ToolFuncDescriptor,
                                         get_global_tools_registry,
@@ -21,14 +18,13 @@ from   core.bot_os_tools_extended \
 
 from   bot_genesis.make_baby_bot \
                                 import (MAKE_BABY_BOT_DESCRIPTIONS,
-                                        get_bot_details, make_baby_bot_tools)
+                                        make_baby_bot_tools)
 from   jinja2                   import Template
-from   connectors.database_tools \
-                                import (
-                                        image_functions,
-                                        image_tools,
-                                        notebook_manager_functions,
-                                        notebook_manager_tools,
+from connectors.database_tools import (
+    web_access_functions,
+    web_access_tools,
+    notebook_manager_functions,
+    notebook_manager_tools,
 )
 
 from   schema_explorer.harvester_tools \
@@ -36,16 +32,11 @@ from   schema_explorer.harvester_tools \
                                         harvester_tools_list)
 from   slack.slack_tools        import slack_tools, slack_tools_descriptions
 
-from   core.bot_os              import BotOsSession
-from   core.bot_os_corpus       import URLListFileCorpus
+
 from   core.bot_os_defaults     import (BASE_BOT_INSTRUCTIONS_ADDENDUM,
                                         BASE_BOT_PRE_VALIDATION_INSTRUCTIONS,
                                         BASE_BOT_PROACTIVE_INSTRUCTIONS,
                                         BASE_BOT_VALIDATION_INSTRUCTIONS)
-from   core.bot_os_input        import BotOsInputAdapter
-from   core.bot_os_memory       import BotOsKnowledgeAnnoy_Metadata
-
-from   core.bot_os_input        import BotOsInputMessage, BotOsOutputMessage
 
 from   core.bot_os_tool_descriptions \
                                 import (
@@ -64,8 +55,7 @@ from connectors.snowflake_tools import (snowflake_tools,
                                         snowflake_functions,
                                         )
 
-from   core.bot_os_project_manager \
-                                import ProjectManager
+
 from   core.file_diff_handler   import GitFileManager
 from   core.logging_config      import logger
 
@@ -1209,14 +1199,6 @@ def get_tools(
             func_descriptors.extend(MAKE_BABY_BOT_DESCRIPTIONS)
             available_functions_loaded.update(make_baby_bot_tools)
             tool_to_func_descriptors_map[tool_name] = MAKE_BABY_BOT_DESCRIPTIONS
-        elif tool_name == "bot_dispatch":
-            func_descriptors.extend(BOT_DISPATCH_DESCRIPTIONS)
-            available_functions_loaded.update(bot_dispatch_tools)
-            tool_to_func_descriptors_map[tool_name] = BOT_DISPATCH_DESCRIPTIONS
-        # elif tool_name == "image_tools":
-        #     func_descriptors.extend(image_functions)
-        #     available_functions_loaded.update(image_tools)
-        #     tool_to_func_descriptors_map[tool_name] = image_functions
         elif tool_name == "process_runner_tools":
             func_descriptors.extend(process_runner_functions)
             available_functions_loaded.update(process_runner_tools)

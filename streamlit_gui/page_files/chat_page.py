@@ -340,7 +340,7 @@ def chat_page():
             messages.append(ChatMessage(role="assistant", content=markdown, avatar=message_avatar))
 
 
-    def handle_pending_request(thread_id, request_id ):
+    def handle_pending_request(thread_id, request_id):
         messages = get_chat_history(thread_id)
 
         response = ""
@@ -372,13 +372,22 @@ def chat_page():
         if "stop_streaming" not in st.session_state:
             st.session_state.stop_streaming = False
 
+        # Don't create a new chat message if the last message was from the assistant
+        # Instead, reuse the existing message container
+        should_append = True
+        if messages and messages[-1].role == "assistant":
+            should_append = False
+            # Remove the last message since we'll update it
+            messages.pop()
+
         with st.chat_message("assistant", avatar=bot_avatar_image_url):
-            response = emulate_write_stream(response_generator(None,request_id=request_id, selected_bot_id=selected_bot_id))
+            response = emulate_write_stream(response_generator(None, request_id=request_id, selected_bot_id=selected_bot_id))
 
         st.session_state.stop_streaming = False
 
-        # Add the response to the chat history
-        messages.append(ChatMessage(role="assistant", content=response, avatar='🤖'))
+        # Only append if we didn't find an existing assistant message to update
+        if should_append:
+            messages.append(ChatMessage(role="assistant", content=response, avatar='🤖'))
 
         # render any file/url markups that were pushed into the session
         render_url_markup(selected_bot_id, thread_id, bot_avatar_image_url, '🤖')
@@ -782,9 +791,17 @@ def chat_page():
 
                     # Display chat messages from history
                     messages = st.session_state[f"messages_{selected_thread_id}"]
-                    for message in messages:
+                    for i, message in enumerate(messages):
+                        # Skip intro prompts
                         if message.is_intro_prompt:
-                            continue # intro prompts are hidden in the chat display
+                            continue
+                        
+                        # Skip the last message if there's a pending request OR if it's a duplicate intro message
+                        if (i == len(messages)-1 and 
+                            (selected_thread_id in st.session_state.session_message_uuids or
+                             (i > 0 and message.content == messages[i-1].content))):  # Check for duplicate content
+                            continue
+                        
                         if message.role == "assistant" and bot_avatar_image_url is not None:
                             with st.chat_message(message.role, avatar=bot_avatar_image_url):
                                 st.markdown(message.content, unsafe_allow_html=True)

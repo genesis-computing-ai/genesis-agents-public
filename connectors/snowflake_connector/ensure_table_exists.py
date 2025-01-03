@@ -1000,16 +1000,16 @@ def ensure_table_exists(self):
         else:
             # Check if the 'ddl_short' column exists in the metadata table
 
-            update_query = f"""
-            UPDATE {self.bot_servicing_table_name}
-            SET AVAILABLE_TOOLS = REPLACE(REPLACE(AVAILABLE_TOOLS, 'vision_chat_analysis', 'image_tools'),)
-            WHERE AVAILABLE_TOOLS LIKE '%vision_chat_analysis%' 
-            """
-            cursor.execute(update_query)
-            self.client.commit()
-            logger.info(
-                f"Updated 'vision_chat_analysis' to 'image_analysis' in AVAILABLE_TOOLS where applicable in {self.bot_servicing_table_name}."
-            )
+            # update_query = f"""
+            # UPDATE {self.bot_servicing_table_name}
+            # SET AVAILABLE_TOOLS = REPLACE(REPLACE(AVAILABLE_TOOLS, 'vision_chat_analysis', 'image_tools'),)
+            # WHERE AVAILABLE_TOOLS LIKE '%vision_chat_analysis%' 
+            # """
+            # cursor.execute(update_query)
+            # self.client.commit()
+            # logger.info(
+            #     f"Updated 'vision_chat_analysis' to 'image_analysis' in AVAILABLE_TOOLS where applicable in {self.bot_servicing_table_name}."
+            # )
 
             check_query = f"DESCRIBE TABLE {self.bot_servicing_table_name};"
             try:

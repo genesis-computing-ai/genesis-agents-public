@@ -88,9 +88,22 @@ class DatabaseConnector:
                     'error': "The connection_id 'snowflake' is reserved. You can connect to Snowflake but please use a different connection_id string."
                 }
 
+            # Extract db_type from connection string
+            db_type = connection_string.split('://')[0]
+            if '+' in db_type:
+                # Handle cases like oracle+oracledb:// or postgresql+psycopg2://
+                db_type = db_type.split('+')[0]
+
             engine = create_engine(connection_string)
             with engine.connect() as conn:
-                conn.execute(text('SELECT 1'))
+                # Oracle requires FROM DUAL for simple SELECT statements
+                # and needs to be committed to avoid ORA-01000: maximum open cursors exceeded
+                if db_type == 'oracle':
+                    conn.execute(text('SELECT 1 FROM DUAL'))
+                    conn.commit()
+                else:
+                    conn.execute(text('SELECT 1'))
+                    conn.commit()
 
             cursor = self.db_adapter.client.cursor()
             try:
@@ -304,6 +317,8 @@ class DatabaseConnector:
                             'rows': rows,
                             'row_count': len(rows)
                         }
+                        if cursor:
+                            cursor.close()
                         return response
                     else:
                         columns = list(result.keys())
@@ -317,6 +332,10 @@ class DatabaseConnector:
 
                         # Apply max_rows limit unless override is True
                         rows = [list(row) for row in all_rows[:max_rows if not max_rows_override else None]]
+                        # Commit transaction and close cursor if it exists
+                        trans.commit()
+                        if cursor:
+                            cursor.close()
 
                         response = {
                             'success': True,

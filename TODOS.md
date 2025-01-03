@@ -37,6 +37,10 @@ remove file uploads to openai when none needed
 dont return snowflake permissions suggestion if not snowflake
 make database and schema params work when not snowflake on find_memory
 is search metadata returning the type of database?  would be useful ...
+x streamlit repeating first message
+oracle support, test harvest (Add to harvest, then harvest, them search metadata)
+add a way to store metadata queries in a local file to ease support for new databases, and support them for override of existing metadata queries in harvester
+
 
 
 todo:

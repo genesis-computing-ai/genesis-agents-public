@@ -271,7 +271,10 @@ class SQLiteCursorWrapper:
     def execute(self, query: str, params: Any = None) -> Any:
         try:
             # Replace %s with ? for SQLite
-            query = query.replace('%s', '?')
+            if type(params) == dict:
+                converted_query = re.sub(r'%\(([a-zA-Z0-9_]+)\)s', r':\1', query)
+            else:
+                converted_query = re.sub(r'%\([a-zA-Z0-9_]*\)s|%s', '?', query)
 
             # Log original parameters
             logger.debug(f"Original params count: {len(params) if params else 0}")
@@ -288,7 +291,7 @@ class SQLiteCursorWrapper:
                     params = params[:3]
                     logger.debug(f"Using first 3 params for slack_app_config_tokens: {params}")
 
-            modified_query = self._transform_query(query)
+            modified_query = self._transform_query(converted_query)
             logger.debug(f"Transformed query: {modified_query}")
             logger.debug(f"Final params count: {len(params) if params else 0}")
 

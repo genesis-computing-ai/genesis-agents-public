@@ -22,13 +22,24 @@ docker logs oracle-xe -f
 
 -- get into sqlplus
 docker exec -it oracle-xe sqlplus system/my_password123@XEPDB1
+-- test connection with demo user
+docker exec -it oracle-xe sqlplus oracle_demo/demo_password@XEPDB1
+-- Grant execute permission on DBMS_METADATA package to oracle_demo user
+-- Note: This requires SYSDBA privileges. Run as SYS user:
+
+CONNECT sys/my_password123@XEPDB1 AS SYSDBA;
+GRANT EXECUTE ON sys.dbms_metadata TO oracle_demo;
+
 
 login with system/my_password
 
 -- run demo script
 
 docker cp ./demo/database_demos/oracle_demo.sql oracle-xe:/opt/oracle/
-docker exec -it oracle-xe sqlplus system/my_password123@XEPDB1 @/opt/oracle/oracle_demo.sql
+docker exec -it oracle-xe sqlplus sys/my_password123@XEPDB1 as sysdba @/opt/oracle/oracle_demo.sql
+
+
+
 
 
 -- create demo database with data:

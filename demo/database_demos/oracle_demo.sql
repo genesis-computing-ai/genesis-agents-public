@@ -68,6 +68,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON movies.actors TO oracle_demo;
 GRANT SELECT, INSERT, UPDATE, DELETE ON movies.film_actors TO oracle_demo;
 GRANT SELECT, INSERT, UPDATE, DELETE ON tv.shows TO oracle_demo;
 GRANT SELECT, INSERT, UPDATE, DELETE ON tv.episodes TO oracle_demo;
+GRANT EXECUTE ON sys.dbms_metadata TO oracle_demo;
 
 -- Sample Movies Data
 INSERT INTO movies.films VALUES (1, 'The Shawshank Redemption', 1994, 'Frank Darabont', 'Drama', 58.80);
@@ -113,3 +114,6 @@ UNION ALL
 SELECT 'TV Shows', COUNT(*) FROM tv.shows
 UNION ALL
 SELECT 'Episodes', COUNT(*) FROM tv.episodes;
+
+CONNECT sys/my_password123@XEPDB1 AS SYSDBA;
+GRANT EXECUTE ON sys.dbms_metadata TO oracle_demo;

@@ -51,7 +51,8 @@ from   core.bot_os_tool_descriptions \
 from   connectors.snowflake_connector.snowflake_connector \
                                 import SnowflakeConnector
 
-from connectors.snowflake_tools import (snowflake_tools,
+from connectors.snowflake_tools import (
+                                        snowflake_tools,
                                         snowflake_functions,
                                         )
 
@@ -1207,10 +1208,10 @@ def get_tools(
             func_descriptors.extend(notebook_manager_functions)
             available_functions_loaded.update(notebook_manager_tools)
             tool_to_func_descriptors_map[tool_name] = notebook_manager_functions
-        elif tool_name == "snowflake_tools":
-            func_descriptors.extend(snowflake_functions)
-            available_functions_loaded.update(snowflake_tools)
-            tool_to_func_descriptors_map[tool_name] = snowflake_functions
+        # elif tool_name == "snowflake_tools":
+        #     func_descriptors.extend(snowflake_functions)
+        #     available_functions_loaded.update(snowflake_tools)
+        #     tool_to_func_descriptors_map[tool_name] = snowflake_functions
         elif tool_name == "git_file_manager_tools":  # Add this section
             func_descriptors.extend(git_file_manager_functions)
             available_functions_loaded.update(git_file_manager_tools)

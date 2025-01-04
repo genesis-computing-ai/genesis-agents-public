@@ -476,6 +476,7 @@ def get_global_tools_registry():
             import_locations = [
                 "data_pipeline_tools.gc_dagster.get_dagster_tool_functions",
                 "connectors.data_connector.get_data_connections_functions",
+                "connectors.snowflake_connector.snowflake_connector.get_snowflake_connector_functions",
                 "core.tools.google_drive.get_google_drive_tool_functions",
                 "core.tools.project_manager.get_project_manager_functions",
                 "core.tools.test_manager.get_test_manager_functions",
@@ -488,7 +489,6 @@ def get_global_tools_registry():
                 "core.tools.image_tools.get_image_functions",
                 # "core.tools.run_process.run_process_functions",
                 # "core.tools.notebook_manager.get_notebook_manager_functions",
-                # snowflake_connector
                 # git_file_manager_tools
                 # make_baby_bot
                 # harvester_tools

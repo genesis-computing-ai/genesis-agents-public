@@ -1688,9 +1688,9 @@ def get_status(site):
         else:
             # Check if row exists
             check_query = f"""
-                SELECT COUNT(*) 
-                FROM {self.metadata_table_name}  
-                WHERE source_name = :source_name 
+                SELECT COUNT(*)
+                FROM {self.metadata_table_name}
+                WHERE source_name = :source_name
                 AND qualified_table_name = :qualified_table_name
             """
             cursor = None
@@ -1702,10 +1702,10 @@ def get_status(site):
                 if count > 0:
                     # Update existing row
                     update_sql = f"""
-                        UPDATE {self.metadata_table_name} 
+                        UPDATE {self.metadata_table_name}
                         SET complete_description = :complete_description,
                             ddl = :ddl,
-                            ddl_short = :ddl_short, 
+                            ddl_short = :ddl_short,
                             ddl_hash = :ddl_hash,
                             summary = :summary,
                             sample_data_text = :sample_data_text,
@@ -1714,14 +1714,14 @@ def get_status(site):
                             role_used_for_crawl = :role_used_for_crawl,
                             {embedding_target} = :embedding
                         WHERE source_name = :source_name
-                        AND qualified_table_name = :qualified_table_name 
+                        AND qualified_table_name = :qualified_table_name
                     """
                     cursor.execute(update_sql, query_params)
                 else:
                     # Insert new row
                     insert_sql = f"""
                         INSERT INTO {self.metadata_table_name}  (
-                            source_name, qualified_table_name, memory_uuid, database_name, 
+                            source_name, qualified_table_name, memory_uuid, database_name,
                             schema_name, table_name, complete_description, ddl, ddl_short,
                             ddl_hash, summary, sample_data_text, last_crawled_timestamp,
                             crawl_status, role_used_for_crawl, {embedding_target}
@@ -1730,7 +1730,7 @@ def get_status(site):
                             :schema_name, :table_name, :complete_description, :ddl, :ddl_short,
                             :ddl_hash, :summary, :sample_data_text, :last_crawled_timestamp,
                             :crawl_status, :role_used_for_crawl, :embedding)
-    
+
                     """
                     cursor.execute(insert_sql, query_params)
 
@@ -4968,7 +4968,7 @@ def _list_stage_contents(
     Lists the contents of a given Snowflake stage, up to 50 results (use pattern param if more than that).
     Run SHOW STAGES IN SCHEMA <database>.<schema> to find stages.
     """
-    return SnowflakeConnector().list_stage_contents(
+    return SnowflakeConnector("Snowflake").list_stage_contents(
         database=database,
         schema=schema,
         stage=stage,
@@ -4996,7 +4996,7 @@ def _add_file_to_stage(
     """
     Uploads a file from an OpenAI FileID to a Snowflake stage. Replaces if exists.
     """
-    return SnowflakeConnector().add_file_to_stage(
+    return SnowflakeConnector("Snowflake").add_file_to_stage(
         database=database,
         schema=schema,
         stage=stage,
@@ -5025,7 +5025,7 @@ def _delete_file_from_stage(
     """
     Deletes a file from a Snowflake stage.
     """
-    return SnowflakeConnector().delete_file_from_stage(
+    return SnowflakeConnector("Snowflake").delete_file_from_stage(
         database=database,
         schema=schema,
         stage=stage,
@@ -5057,7 +5057,7 @@ def _read_file_from_stage(
     """
     Reads a file from a Snowflake stage.
     """
-    return SnowflakeConnector().read_file_from_stage(
+    return SnowflakeConnector("Snowflake").read_file_from_stage(
         database=database,
         schema=schema,
         stage=stage,
@@ -5087,7 +5087,7 @@ def _cortex_search(
     Use this to search a cortex full text search index.  Do not use this to look for database metadata or tables, for
     that use search_metadata instead.
     """
-    return SnowflakeConnector().cortex_search(
+    return SnowflakeConnector("Snowflake").cortex_search(
         query=query,
         service_name=service_name,
         top_n=top_n,
@@ -5100,16 +5100,16 @@ def _cortex_search(
     purpose="A detailed explanation in English of what this code is supposed to do. This will be used to help validate and debug your code..",
     code=dedent(
     """
-    The Python code to execute in Snowflake Snowpark. The snowpark 'session' is already 
-    created and ready for your code's use, do NOT create a new session. Run queries inside of 
-    Snowpark versus inserting a lot of static data in the code. Use the full names of any stages 
-    with database and schema. If you want to access a file, first save it to stage, and then access 
-    it at its stage path, not just /tmp. Always set 'result' variable at the end of the code execution 
-    in the global scope to what you want to return. DO NOT return a path to a file. Instead, return 
-    the file content by first saving the content to /tmp (not root) then base64-encode it and respond 
-    like this: image_bytes = base64.b64encode(image_bytes).decode('utf-8')\nresult = { 'type': 'base64file', 
+    The Python code to execute in Snowflake Snowpark. The snowpark 'session' is already
+    created and ready for your code's use, do NOT create a new session. Run queries inside of
+    Snowpark versus inserting a lot of static data in the code. Use the full names of any stages
+    with database and schema. If you want to access a file, first save it to stage, and then access
+    it at its stage path, not just /tmp. Always set 'result' variable at the end of the code execution
+    in the global scope to what you want to return. DO NOT return a path to a file. Instead, return
+    the file content by first saving the content to /tmp (not root) then base64-encode it and respond
+    like this: image_bytes = base64.b64encode(image_bytes).decode('utf-8')\nresult = { 'type': 'base64file',
     'filename': file_name, 'content': image_bytes, mime_type: <mime_type>}. Be sure to properly escape any
-    double quotes in the code. 
+    double quotes in the code.
     """
     ),
     packages="A comma-separated list of required non-default Python packages to be pip installed for code execution (do not include any standard python libraries).",
@@ -5142,14 +5142,14 @@ def _run_snowpark_python(
     """
     Executes a string of Python snowflake snowpark code using a precreated and provided 'session', do not create
     a new session. Use this instead of code_interpreter when directed to use snowpark, or when you want to run
-    python that can directly interact with the user's snowflake session, tables, and stages.  Results should only 
+    python that can directly interact with the user's snowflake session, tables, and stages.  Results should only
     have a single object.  Multiple objects are not allowed.  Provide EITHER the 'code' field with the python code
     to run, or the 'note_id' field with the id of the note that contains the code you want to run. Do not ever attempt
     to load the code from the note.  If the note id is present, pass only id to the tool.  The tool will know how to get
     the code from the note. this function has an existing snowflake session inside that you can use called session so do
     not try to create a new session or connection.
     """
-    return SnowflakeConnector().run_python_code(
+    return SnowflakeConnector("Snowflake").run_python_code(
         purpose=purpose,
         code=code,
         packages=packages,

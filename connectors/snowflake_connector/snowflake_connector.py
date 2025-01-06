@@ -29,6 +29,14 @@ from google_sheets.g_sheets import (
     create_google_sheet,
 )
 
+from core.bot_os_tools2 import (
+    BOT_ID_IMPLICIT_FROM_CONTEXT,
+    THREAD_ID_IMPLICIT_FROM_CONTEXT,
+    ToolFuncGroup,
+    ToolFuncParamDescriptor,
+    gc_tool,
+)
+
 from core.bot_os_llm import BotLlmEngineEnum
 
 # from database_connector import DatabaseConnector
@@ -69,7 +77,6 @@ def dict_list_to_markdown_table(data):
 class SnowflakeConnector(SnowflakeConnectorBase):
     def __init__(self, connection_name, bot_database_creds=None):
         super().__init__()
-        # logger.info('Snowflake connector entry...')
 
         # used to get the default value if not none, otherwise get env var. allows local mode to work with bot credentials
         def get_env_or_default(value, env_var):
@@ -100,7 +107,6 @@ class SnowflakeConnector(SnowflakeConnectorBase):
                 warehouse = bot_database_creds.get("warehouse")
                 role = bot_database_creds.get("role")
 
-
             self.account = get_env_or_default(account, "SNOWFLAKE_ACCOUNT_OVERRIDE")
             self.user = get_env_or_default(user, "SNOWFLAKE_USER_OVERRIDE")
             self.password = get_env_or_default(password, "SNOWFLAKE_PASSWORD_OVERRIDE")
@@ -118,7 +124,6 @@ class SnowflakeConnector(SnowflakeConnectorBase):
             self.semantic_models_map = {}
 
             self.client = self.connection
-
 
         self.schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "GENESIS_INTERNAL")
 
@@ -486,7 +491,7 @@ class SnowflakeConnector(SnowflakeConnectorBase):
             schema_exclusions (list): A list of schema names to exclude. Defaults to an empty list.
             schema_inclusions (list): A list of schema names to include. Defaults to an empty list.
             status (str): The status of the harvest control. Defaults to 'Include'.
-        """        
+        """
         if source_name is not None and connection_id is None:
             connection_id = source_name
         source_name = connection_id
@@ -551,7 +556,6 @@ class SnowflakeConnector(SnowflakeConnectorBase):
                         "Error": f"Connection '{connection_id}' not found. Please add it first using the database connection tools."
                     }
 
-
             if self.source_name != 'Snowflake':
                 # Check if record exists
                 check_query = f"""
@@ -613,7 +617,7 @@ class SnowflakeConnector(SnowflakeConnectorBase):
                     ),
                 )
             else:
-                    # Prepare the MERGE statement for Snowflake
+                # Prepare the MERGE statement for Snowflake
                 merge_statement = f"""
                 MERGE INTO {self.harvest_control_table_name} T
                 USING (SELECT %(source_name)s AS source_name, %(database_name)s AS database_name) S
@@ -643,7 +647,6 @@ class SnowflakeConnector(SnowflakeConnectorBase):
                         "status": status,
                     },
                 )
-
 
             self.client.commit()
             return {
@@ -1665,7 +1668,6 @@ def get_status(site):
 
             # Set up the query parameters
 
-
             for param, value in query_params.items():
                 # logger.info(f'{param}: {value}')
                 if value is None:
@@ -1686,9 +1688,9 @@ def get_status(site):
         else:
             # Check if row exists
             check_query = f"""
-                SELECT COUNT(*) 
-                FROM {self.metadata_table_name}  
-                WHERE source_name = :source_name 
+                SELECT COUNT(*)
+                FROM {self.metadata_table_name}
+                WHERE source_name = :source_name
                 AND qualified_table_name = :qualified_table_name
             """
             cursor = None
@@ -1700,10 +1702,10 @@ def get_status(site):
                 if count > 0:
                     # Update existing row
                     update_sql = f"""
-                        UPDATE {self.metadata_table_name} 
+                        UPDATE {self.metadata_table_name}
                         SET complete_description = :complete_description,
                             ddl = :ddl,
-                            ddl_short = :ddl_short, 
+                            ddl_short = :ddl_short,
                             ddl_hash = :ddl_hash,
                             summary = :summary,
                             sample_data_text = :sample_data_text,
@@ -1712,14 +1714,14 @@ def get_status(site):
                             role_used_for_crawl = :role_used_for_crawl,
                             {embedding_target} = :embedding
                         WHERE source_name = :source_name
-                        AND qualified_table_name = :qualified_table_name 
+                        AND qualified_table_name = :qualified_table_name
                     """
                     cursor.execute(update_sql, query_params)
                 else:
                     # Insert new row
                     insert_sql = f"""
                         INSERT INTO {self.metadata_table_name}  (
-                            source_name, qualified_table_name, memory_uuid, database_name, 
+                            source_name, qualified_table_name, memory_uuid, database_name,
                             schema_name, table_name, complete_description, ddl, ddl_short,
                             ddl_hash, summary, sample_data_text, last_crawled_timestamp,
                             crawl_status, role_used_for_crawl, {embedding_target}
@@ -1728,7 +1730,7 @@ def get_status(site):
                             :schema_name, :table_name, :complete_description, :ddl, :ddl_short,
                             :ddl_hash, :summary, :sample_data_text, :last_crawled_timestamp,
                             :crawl_status, :role_used_for_crawl, :embedding)
-    
+
                     """
                     cursor.execute(insert_sql, query_params)
 
@@ -1881,12 +1883,12 @@ def get_status(site):
         SNOWFLAKE_HOST = os.getenv("SNOWFLAKE_HOST", None)
         logger.info("Checking possible SPCS ENV vars -- Account, Host: {}, {}".format(SNOWFLAKE_ACCOUNT, SNOWFLAKE_HOST))
 
-   #     logger.info("SNOWFLAKE_HOST: %s", os.getenv("SNOWFLAKE_HOST"))
-   #     logger.info("SNOWFLAKE_ACCOUNT: %s", os.getenv("SNOWFLAKE_ACCOUNT"))
-   #     logger.info("SNOWFLAKE_PORT: %s", os.getenv("SNOWFLAKE_PORT"))
+        #     logger.info("SNOWFLAKE_HOST: %s", os.getenv("SNOWFLAKE_HOST"))
+        #     logger.info("SNOWFLAKE_ACCOUNT: %s", os.getenv("SNOWFLAKE_ACCOUNT"))
+        #     logger.info("SNOWFLAKE_PORT: %s", os.getenv("SNOWFLAKE_PORT"))
         #  logger.warn('SNOWFLAKE_WAREHOUSE: %s', os.getenv('SNOWFLAKE_WAREHOUSE'))
-   #     logger.info("SNOWFLAKE_DATABASE: %s", os.getenv("SNOWFLAKE_DATABASE"))
-   #     logger.info("SNOWFLAKE_SCHEMA: %s", os.getenv("SNOWFLAKE_SCHEMA"))
+        #     logger.info("SNOWFLAKE_DATABASE: %s", os.getenv("SNOWFLAKE_DATABASE"))
+        #     logger.info("SNOWFLAKE_SCHEMA: %s", os.getenv("SNOWFLAKE_SCHEMA"))
 
         if (SNOWFLAKE_ACCOUNT and SNOWFLAKE_HOST and os.getenv("SNOWFLAKE_PASSWORD_OVERRIDE", None) == None):
             # token based connection from SPCS
@@ -4146,7 +4148,7 @@ def get_status(site):
             return results
         else:
             # If no results, you might want to return None or an empty list
-            return None        
+            return None
 
     def fetch_embeddings(self, table_id):
         # Initialize Snowflake connector
@@ -4570,7 +4572,8 @@ result = 'Table FAKE_CUST created successfully.'
                         note_name = None,
                         note_type = None,
                         return_base64 = False,
-                        save_artifacts=True) -> str|dict:
+                        save_artifacts=True
+                        ) -> str|dict:
         """
         Executes a given Python code snippet within a Snowflake Snowpark environment, handling various
         scenarios such as code retrieval from notes, package management, and result processing.
@@ -4916,7 +4919,7 @@ result = 'Table FAKE_CUST created successfully.'
         return result
 
     def db_get_user_extended_tools(self, project_id, dataset_name) -> list[dict]:
-        #runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
+        # runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
         cursor = self.client.cursor()
 
         try:
@@ -4933,3 +4936,236 @@ result = 'Table FAKE_CUST created successfully.'
         except Exception as e:
             logger.error(f"Failed to fetch user extended tools definitions: {e}")
             return []
+
+snowflake_tools = ToolFuncGroup(
+    name="snowflake_tools",
+    description=(
+        "Tools for managing and querying database connections, including adding new connections, deleting connections, "
+        "listing available connections, and running queries against connected databases"
+    ),
+    lifetime="PERSISTENT",
+)
+
+
+@gc_tool(
+    database="The name of the database.",
+    schema="The name of the schema.",
+    stage="The name of the stage to list contents for.",
+    pattern="The pattern to match when listing contents.",
+    bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
+    thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
+    _group_tags_=[snowflake_tools],
+)
+def _list_stage_contents(
+    database: str,
+    schema: str,
+    stage: str,
+    pattern: str = None,
+    bot_id: str = None,
+    thread_id: str = None,
+):
+    """
+    Lists the contents of a given Snowflake stage, up to 50 results (use pattern param if more than that).
+    Run SHOW STAGES IN SCHEMA <database>.<schema> to find stages.
+    """
+    return SnowflakeConnector("Snowflake").list_stage_contents(
+        database=database,
+        schema=schema,
+        stage=stage,
+        pattern=pattern,
+        bot_id=bot_id,
+        thread_id=thread_id,
+    )
+
+@gc_tool(
+    database="The name of the database. Use your WORKSPACE database unless told to use something else.",
+    schema="The name of the schema.  Use your WORKSPACE schema unless told to use something else.",
+    stage="The name of the stage to add the file to. Use your WORKSPACE stage unless told to use something else.",
+    file_name="The original filename of the file, human-readable. Can optionally include a relative path, such as bot_1_files/file_name.txt",
+    bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
+    thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
+    _group_tags_=[snowflake_tools],)
+def _add_file_to_stage(
+    database: str,
+    schema: str,
+    stage: str,
+    file_name: str,
+    bot_id: str = None,
+    thread_id: str = None,
+):
+    """
+    Uploads a file from an OpenAI FileID to a Snowflake stage. Replaces if exists.
+    """
+    return SnowflakeConnector("Snowflake").add_file_to_stage(
+        database=database,
+        schema=schema,
+        stage=stage,
+        file_name=file_name,
+        bot_id=bot_id,
+        thread_id=thread_id,
+    )
+
+@gc_tool(
+    database="The name of the database. Use your WORKSPACE database unless told to use something else.",
+    schema="The name of the schema.  Use your WORKSPACE schema unless told to use something else.",
+    stage="The name of the stage to add the file to. Use your WORKSPACE stage unless told to use something else.",
+    file_name="The original filename of the file, human-readable. Can optionally include a relative path, such as bot_1_files/file_name.txt",
+    bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
+    thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
+    _group_tags_=[snowflake_tools]
+)
+def _delete_file_from_stage(
+    database: str,
+    schema: str,
+    stage: str,
+    file_name: str,
+    bot_id: str = None,
+    thread_id: str = None,
+    ):
+    """
+    Deletes a file from a Snowflake stage.
+    """
+    return SnowflakeConnector("Snowflake").delete_file_from_stage(
+        database=database,
+        schema=schema,
+        stage=stage,
+        file_name=file_name,
+        bot_id=bot_id,
+        thread_id=thread_id,
+    )
+
+@gc_tool(
+    database="The name of the database. Use your WORKSPACE database unless told to use something else.",
+    schema="The name of the schema.  Use your WORKSPACE schema unless told to use something else.",
+    stage="The name of the stage to add the file to. Use your WORKSPACE stage unless told to use something else.",
+    file_name="The original filename of the file, human-readable. Can optionally include a relative path, such as bot_1_files/file_name.txt",
+    return_contents="Whether to return the contents of the file or just the file name.",
+    is_binary="Whether to return the contents of the file as binary or text.",
+    bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
+    thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
+    _group_tags_=[snowflake_tools],)
+def _read_file_from_stage(
+        database: str,
+        schema: str,
+        stage: str,
+        file_name: str,
+        return_contents: bool = False,
+        is_binary: bool = False,
+        bot_id: str = None,
+        thread_id: str = None,
+    ):
+    """
+    Reads a file from a Snowflake stage.
+    """
+    return SnowflakeConnector("Snowflake").read_file_from_stage(
+        database=database,
+        schema=schema,
+        stage=stage,
+        file_name=file_name,
+        return_contents=return_contents,
+        is_binary=is_binary,
+        bot_id=bot_id,
+        thread_id=thread_id,
+    )
+
+@gc_tool(
+        query="A short search query of what kind of data the user is looking for.",
+        service_name="Name of the service. You must know this in advance and specify it exactly.",
+        top_n="How many of the top results to return, max 25, default 15.  Use 15 to start.",
+        bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
+        thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
+        _group_tags_=[snowflake_tools],
+        )
+def _cortex_search(
+    query: str,
+    service_name: str,
+    top_n: int = 15,
+    bot_id: str = None,
+    thread_id: str = None,
+):
+    """
+    Use this to search a cortex full text search index.  Do not use this to look for database metadata or tables, for
+    that use search_metadata instead.
+    """
+    return SnowflakeConnector("Snowflake").cortex_search(
+        query=query,
+        service_name=service_name,
+        top_n=top_n,
+        bot_id=bot_id,
+        thread_id=thread_id,
+    )
+
+
+@gc_tool(
+    purpose="A detailed explanation in English of what this code is supposed to do. This will be used to help validate and debug your code..",
+    code=dedent(
+    """
+    The Python code to execute in Snowflake Snowpark. The snowpark 'session' is already
+    created and ready for your code's use, do NOT create a new session. Run queries inside of
+    Snowpark versus inserting a lot of static data in the code. Use the full names of any stages
+    with database and schema. If you want to access a file, first save it to stage, and then access
+    it at its stage path, not just /tmp. Always set 'result' variable at the end of the code execution
+    in the global scope to what you want to return. DO NOT return a path to a file. Instead, return
+    the file content by first saving the content to /tmp (not root) then base64-encode it and respond
+    like this: image_bytes = base64.b64encode(image_bytes).decode('utf-8')\nresult = { 'type': 'base64file',
+    'filename': file_name, 'content': image_bytes, mime_type: <mime_type>}. Be sure to properly escape any
+    double quotes in the code.
+    """
+    ),
+    packages="A comma-separated list of required non-default Python packages to be pip installed for code execution (do not include any standard python libraries).",
+    note_id=dedent(
+        """An id for a note in the notebook table.  The note_id will be used to look up the
+        python code from the note content in lieu of the code field. A note_id will take precendent
+        over the code field, that is, if the note_id is not empty, the contents of the note will be run
+        instead of the content of the code field."""
+    ),
+    save_artifacts=dedent(
+        """A flag determining whether to save any output from the executed python code
+        (encoded as a base64 string) as an 'artifact'. When this flag is set, the result will contain
+        a UUID called 'artifact_id' for referencing the output in the future. When this flag is not set,
+        any output from the python code will be saved to a local file and the result will contain a path
+        to that file.  This local file should not be considered accessible by outside systems."""
+    ),
+    bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
+    thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
+    _group_tags_=[snowflake_tools],
+)
+def _run_snowpark_python(
+    purpose: str = None,
+    code: str = None,
+    packages: str = None,
+    note_id: str = None,
+    save_artifacts: bool = True,
+    bot_id: str = None,
+    thread_id: str = None,
+    ):
+    """
+    Executes a string of Python snowflake snowpark code using a precreated and provided 'session', do not create
+    a new session. Use this instead of code_interpreter when directed to use snowpark, or when you want to run
+    python that can directly interact with the user's snowflake session, tables, and stages.  Results should only
+    have a single object.  Multiple objects are not allowed.  Provide EITHER the 'code' field with the python code
+    to run, or the 'note_id' field with the id of the note that contains the code you want to run. Do not ever attempt
+    to load the code from the note.  If the note id is present, pass only id to the tool.  The tool will know how to get
+    the code from the note. this function has an existing snowflake session inside that you can use called session so do
+    not try to create a new session or connection.
+    """
+    return SnowflakeConnector("Snowflake").run_python_code(
+        purpose=purpose,
+        code=code,
+        packages=packages,
+        note_id=note_id,
+    )
+
+_all_snowflake_connector_functions = (
+    _list_stage_contents,
+    _add_file_to_stage,
+    _delete_file_from_stage,
+    _read_file_from_stage,
+    _cortex_search,
+    _run_snowpark_python,
+)
+
+
+# Called from bot_os_tools.py to update the global list of data connection tool functions
+def get_snowflake_connector_functions():
+    return _all_snowflake_connector_functions

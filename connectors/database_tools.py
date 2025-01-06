@@ -59,51 +59,6 @@ notebook_manager_functions = [
     }
 ]
 
-image_functions = [
-    {
-        "type": "function",
-        "function": {
-            "name": "_analyze_image",
-            "description": "Generates a textual description of an image.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "query": {
-                        "type": "string",
-                        "description": "The question about the image.",
-                    },
-                    "openai_file_id": {
-                        "type": "string",
-                        "description": "The OpenAI file ID of the image.",
-                    },
-                    "file_name": {
-                        "type": "string",
-                        "description": "The name of the image file.",
-                    },
-                },
-                "required": ["query", "openai_file_id", "file_name"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "_generate_image",
-            "description": "Generates an image using OpenAI's DALL-E 3. Use this only to make pictures. To make PDFs or files, use Snowpark not this.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "prompt": {
-                        "type": "string",
-                        "description": "Description of the image to create.",
-                    }
-                },
-                "required": ["prompt"],
-            },
-        },
-    },
-]
-
 web_access_functions = [
     {
         "type": "function",
@@ -154,7 +109,7 @@ web_access_functions = [
                     "limit": {
                         "type": "string",
                         "description": "Number of pages to crawl.",
-                    }
+                    },
                 },
                 "required": ["url"],
             },
@@ -162,20 +117,66 @@ web_access_functions = [
     },
 ]
 
+# image_functions = [
+#     {
+#         "type": "function",
+#         "function": {
+#             "name": "_analyze_image",
+#             "description": "Generates a textual description of an image.",
+#             "parameters": {
+#                 "type": "object",
+#                 "properties": {
+#                     "query": {
+#                         "type": "string",
+#                         "description": "The question about the image.",
+#                     },
+#                     "openai_file_id": {
+#                         "type": "string",
+#                         "description": "The OpenAI file ID of the image.",
+#                     },
+#                     "file_name": {
+#                         "type": "string",
+#                         "description": "The name of the image file.",
+#                     },
+#                 },
+#                 "required": ["query", "openai_file_id", "file_name"],
+#             },
+#         },
+#     },
+#     {
+#         "type": "function",
+#         "function": {
+#             "name": "_generate_image",
+#             "description": "Generates an image using OpenAI's DALL-E 3. Use this only to make pictures. To make PDFs or files, use Snowpark not this.",
+#             "parameters": {
+#                 "type": "object",
+#                 "properties": {
+#                     "prompt": {
+#                         "type": "string",
+#                         "description": "Description of the image to create.",
+#                     }
+#                 },
+#                 "required": ["prompt"],
+#             },
+#         },
+#     },
+# ]
 
-
-
-image_tools = {
-    "_analyze_image": "db_adapter.image_analysis",
-    "_generate_image": "db_adapter.image_generation",
+notebook_manager_tools = {"_manage_notebook": "tool_belt.manage_notebook"}
+web_access_tools = {
+    "_search_google": "tool_belt.search_google",
+    "_scrape_url": "tool_belt.scrape_url",
+    "_crawl_url": "tool_belt.crawl_url",
 }
+
+
+# image_tools = {
+#     "_analyze_image": "db_adapter.image_analysis",
+#     "_generate_image": "db_adapter.image_generation",
+# }
 
 # autonomous_tools = {}
 # autonomous_tools = {"_manage_tasks": "db_adapter.manage_tasks"}
 
-notebook_manager_tools = {"_manage_notebook": "tool_belt.manage_notebook"}
-web_access_tools = {"_search_google": "tool_belt.search_google",
-                   "_scrape_url": "tool_belt.scrape_url",
-                   "_crawl_url": "tool_belt.crawl_url"}
-# artifact_manager_tools = {"_manage_artifact": "tool_belt.manage_artifact"}
 
+# artifact_manager_tools = {"_manage_artifact": "tool_belt.manage_artifact"}

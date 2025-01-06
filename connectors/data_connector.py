@@ -17,12 +17,12 @@ from .snowflake_connector.snowflake_connector import SnowflakeConnector
 class DatabaseConnector:
     """
     DatabaseConnector is a singleton class responsible for managing database connections.
-    
+
     This class provides methods to add, delete, list, and query database connections. It ensures
-    that the necessary tables for storing connection metadata are created and maintained. The 
-    connections are stored as SQLAlchemy engines, and access control is managed through ownership 
+    that the necessary tables for storing connection metadata are created and maintained. The
+    connections are stored as SQLAlchemy engines, and access control is managed through ownership
     and allowed bot IDs.
-    
+
     Attributes:
         db_adapter: An adapter for interacting with the database.
         connections: A dictionary to store SQLAlchemy engines.
@@ -67,7 +67,7 @@ class DatabaseConnector:
                       bot_id: str=None, allowed_bot_ids: list = None, thread_id: str = None) -> dict:
         """
         Add or update a database connection configuration
-        
+
         Args:
             connection_id: Unique identifier for the connection
             connection_string: Full SQLAlchemy connection string
@@ -88,16 +88,29 @@ class DatabaseConnector:
                     'error': "The connection_id 'snowflake' is reserved. You can connect to Snowflake but please use a different connection_id string."
                 }
 
+            # Extract db_type from connection string
+            db_type = connection_string.split('://')[0]
+            if '+' in db_type:
+                # Handle cases like oracle+oracledb:// or postgresql+psycopg2://
+                db_type = db_type.split('+')[0]
+
             engine = create_engine(connection_string)
             with engine.connect() as conn:
-                conn.execute(text('SELECT 1'))
+                # Oracle requires FROM DUAL for simple SELECT statements
+                # and needs to be committed to avoid ORA-01000: maximum open cursors exceeded
+                if db_type == 'oracle':
+                    conn.execute(text('SELECT 1 FROM DUAL'))
+                    conn.commit()
+                else:
+                    conn.execute(text('SELECT 1'))
+                    conn.commit()
 
             cursor = self.db_adapter.client.cursor()
             try:
                 cursor.execute(
                     f"""
-                    SELECT owner_bot_id 
-                    FROM {self.db_adapter.schema}.CUST_DB_CONNECTIONS 
+                    SELECT owner_bot_id
+                    FROM {self.db_adapter.schema}.CUST_DB_CONNECTIONS
                     WHERE connection_id = %s
                     """,
                     (connection_id,)
@@ -111,7 +124,7 @@ class DatabaseConnector:
 
                     cursor.execute(
                         f"""
-                        UPDATE {self.db_adapter.schema}.CUST_DB_CONNECTIONS 
+                        UPDATE {self.db_adapter.schema}.CUST_DB_CONNECTIONS
                         SET connection_string = %s, allowed_bot_ids = %s
                         WHERE connection_id = %s
                         """,
@@ -120,7 +133,7 @@ class DatabaseConnector:
                 else:
                     cursor.execute(
                         f"""
-                        INSERT INTO {self.db_adapter.schema}.CUST_DB_CONNECTIONS 
+                        INSERT INTO {self.db_adapter.schema}.CUST_DB_CONNECTIONS
                         (connection_id, db_type, connection_string, owner_bot_id, allowed_bot_ids, created_at, updated_at)
                         VALUES (%s, %s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                         """,
@@ -227,7 +240,7 @@ class DatabaseConnector:
             cursor.execute(
                 f"""
                 SELECT owner_bot_id, allowed_bot_ids, connection_string, db_type
-                FROM {self.db_adapter.schema}.CUST_DB_CONNECTIONS 
+                FROM {self.db_adapter.schema}.CUST_DB_CONNECTIONS
                 WHERE connection_id = %s
                 """,
                 (connection_id,)
@@ -238,7 +251,7 @@ class DatabaseConnector:
                 raise ValueError(f"Connection {connection_id} not found")
 
             owner_id, allowed_bots, connection_string, db_type = result
-            
+
             # For postgresql, parse database name from connection string if not provided
             if database_name is None and db_type.lower() == 'postgresql':
                 if '/' in connection_string:
@@ -304,6 +317,8 @@ class DatabaseConnector:
                             'rows': rows,
                             'row_count': len(rows)
                         }
+                        if cursor:
+                            cursor.close()
                         return response
                     else:
                         columns = list(result.keys())
@@ -317,6 +332,10 @@ class DatabaseConnector:
 
                         # Apply max_rows limit unless override is True
                         rows = [list(row) for row in all_rows[:max_rows if not max_rows_override else None]]
+                        # Commit transaction and close cursor if it exists
+                        trans.commit()
+                        if cursor:
+                            cursor.close()
 
                         response = {
                             'success': True,
@@ -525,7 +544,7 @@ class DatabaseConnector:
         try:
             cursor.execute(
                 f"""
-                DELETE FROM {self.db_adapter.schema}.CUST_DB_CONNECTIONS 
+                DELETE FROM {self.db_adapter.schema}.CUST_DB_CONNECTIONS
                 WHERE connection_id = %s
                 """,
                 (connection_id,)
@@ -538,7 +557,7 @@ class DatabaseConnector:
     def delete_connection(self, connection_id: str, bot_id: str, thread_id: str = None) -> bool:
         """
         Delete a database connection configuration
-        
+
         Args:
             connection_id: The ID of the connection to delete
             bot_id: ID of the bot requesting deletion
@@ -550,7 +569,7 @@ class DatabaseConnector:
                 # Check ownership
                 cursor.execute(
                     f"""
-                    SELECT owner_bot_id FROM {self.db_adapter.schema}.CUST_DB_CONNECTIONS 
+                    SELECT owner_bot_id FROM {self.db_adapter.schema}.CUST_DB_CONNECTIONS
                     WHERE connection_id = %s
                     """,
                     (connection_id,)
@@ -566,7 +585,7 @@ class DatabaseConnector:
                 # Proceed with deletion...
                 cursor.execute(
                     f"""
-                    DELETE FROM {self.db_adapter.schema}.CUST_DB_CONNECTIONS 
+                    DELETE FROM {self.db_adapter.schema}.CUST_DB_CONNECTIONS
                     WHERE connection_id = %s
                     """,
                     (connection_id,)
@@ -599,11 +618,11 @@ class DatabaseConnector:
     def list_database_connections(self, bot_id: str, thread_id: str = None, bot_id_override: bool = False) -> dict:
         """
         List all database connections accessible to a bot
-        
+
         Args:
             bot_id: ID of the bot requesting the connection list
             thread_id: Optional thread identifier for logging/tracking
-            
+
         Returns:
             Dictionary containing:
             - success: Boolean indicating if operation was successful
@@ -616,7 +635,7 @@ class DatabaseConnector:
                 if bot_id_override:
                     cursor.execute(
                         f"""
-                        SELECT connection_id, db_type, owner_bot_id, allowed_bot_ids, 
+                        SELECT connection_id, db_type, owner_bot_id, allowed_bot_ids,
                                created_at, updated_at
                         FROM {self.db_adapter.schema}.CUST_DB_CONNECTIONS
                         """
@@ -624,10 +643,10 @@ class DatabaseConnector:
                 else:
                     cursor.execute(
                         f"""
-                        SELECT connection_id, db_type, owner_bot_id, allowed_bot_ids, 
+                        SELECT connection_id, db_type, owner_bot_id, allowed_bot_ids,
                                created_at, updated_at
-                        FROM {self.db_adapter.schema}.CUST_DB_CONNECTIONS 
-                        WHERE owner_bot_id = %s 
+                        FROM {self.db_adapter.schema}.CUST_DB_CONNECTIONS
+                        WHERE owner_bot_id = %s
                         OR allowed_bot_ids LIKE %s
                         """,
                         (bot_id, f"%{bot_id}%")
@@ -675,7 +694,7 @@ class DatabaseConnector:
     ) -> dict:
         """
         Search database metadata for tables, columns, and other objects
-        
+
         Args:
             query: SQL query to execute
             database: Database name
@@ -688,7 +707,7 @@ class DatabaseConnector:
             knowledge_base_path: Path to the knowledge base directory
             bot_id: ID of the bot requesting the metadata search
             thread_id: Optional thread identifier for logging/tracking
-        
+
         Returns:
             Dictionary containing:
             - success: Boolean indicating if operation was successful
@@ -732,7 +751,7 @@ class DatabaseConnector:
             return result
         except Exception as e:
             logger.error(f"Error in find_memory_openai_callable: {str(e)}")
-            return "An error occurred while trying to find the memory."
+            return {"error": "An error occurred while trying to find the memory."}
 
     def _search_metadata_detailed(
         self,

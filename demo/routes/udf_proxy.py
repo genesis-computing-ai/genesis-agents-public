@@ -40,7 +40,7 @@ udf_routes = Blueprint('udf_routes', __name__)
 
 @udf_routes.route("/udf_proxy/submit_udf", methods=["POST"])
 def submit_udf():
-    # print("\nReached submit_udf endpoint\n")
+    logger.info('Flask invocation: /udf_proxy/submit_udf')
     message = request.json
     input_rows = message["data"]
     if type(input_rows[0][3]) == str:
@@ -69,7 +69,7 @@ def submit_udf():
 
 @udf_routes.route("/udf_proxy/lookup_udf", methods=["POST"])
 def lookup_udf():
-    # print("\nReached lookup_udf endpoint\n")
+    logger.debug('Flask invocation: /udf_proxy/lookup_udf')
     message = request.json
     input_rows = message["data"]
     bot_id = input_rows[0][2]
@@ -83,8 +83,7 @@ def lookup_udf():
 
 @udf_routes.route("/udf_proxy/list_available_bots", methods=["POST"])
 def list_available_bots_fn():
-
-    logger.info('-> streamlit called list available bots')
+    logger.info('Flask invocation: /udf_proxy/list_available_bots')
     message = request.json
     input_rows = message["data"]
     row = input_rows[0]
@@ -120,6 +119,59 @@ def list_available_bots_fn():
     response.headers["Content-type"] = "application/json"
     logger.debug(f"Sending response: {response.json}")
     return response
+
+
+@udf_routes.route("/udf_proxy/create_baby_bot", methods=["POST"])
+def create_baby_bot():
+    """
+    Endpoint to create a new 'baby bot' using the Genesis server.
+
+    This endpoint expects a JSON payload with the following structure:
+    {
+        "data": {
+            "bot_name": <bot_name>,
+            "bot_implementation": <bot_implementation>,
+            "bot_id": <bot_id>,
+            "files": <files>,
+            "available_tools": <available_tools>,
+            "bot_instructions": <bot_instructions>
+        }
+    }
+
+    Returns:
+        A JSON response indicating success or failure of the bot creation process.
+        On success, the response will include the data returned by the bot creation process.
+        On failure, the response will include an error message.
+    """
+    logger.info('Flask invocation: /udf_proxy/create_baby_bot')
+    try:
+        data = request.get_json()['data']
+        # TODO: validate the json schema
+        
+        bot_name = data.get("bot_name")
+        bot_implementation = data.get("bot_implementation")
+        bot_id = data.get("bot_id")
+        files = data.get("files")
+        available_tools = data.get("available_tools")
+        bot_instructions = data.get("bot_instructions")
+
+        if not bot_name or not bot_implementation:
+            return make_response({"Success": False, "Message": "Bot name and implementation are required"}), 400
+
+        result = genesis_app.server.make_baby_bot_wrapper(
+            bot_id=bot_id,
+            bot_name=bot_name,
+            bot_implementation=bot_implementation,
+            files=files,
+            available_tools=available_tools,
+            bot_instructions=bot_instructions
+        )
+        return make_response({"Success": True, "Data": result}), 200
+
+    except Exception as e:
+        logger.error(f"Error in create_baby_bot: {str(e)}")
+        return make_response({"Success": False, "Message": str(e)}), 500
+
 
 
 def file_to_bytes(file_path):
@@ -682,7 +734,7 @@ def configure_llm():
             )
 
             genesis_app.create_app_sessions()
-            genesis_app.generate_server()
+            genesis_app.start_server()
 
             # Assuming 'babybot' is an instance of a class that has the 'set_llm_key' method
             # and it has been instantiated and imported above in the code.

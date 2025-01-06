@@ -45,8 +45,12 @@ class SchemaExplorer:
                 from connectors.data_connector import DatabaseConnector
                 connector = DatabaseConnector()
                 
+                db_type = matching_connection['db_type'].split('+')[0] if '+' in matching_connection['db_type'] else matching_connection['db_type']
+                sql = self.load_custom_query(db_type, 'get_ddl')
+
                 # Pre-defined DDL queries for common database types
-                ddl_queries = {
+                if sql is None:
+                    ddl_queries = {
                     'postgresql': '''
                         SELECT 
                             'CREATE TABLE ' || table_schema || '.' || table_name || E'\n(\n' ||
@@ -112,22 +116,18 @@ class SchemaExplorer:
                     'mysql': 'SHOW CREATE TABLE !schema_name!.!table_name!',
                     'sqlite': 'SELECT sql FROM sqlite_master WHERE type=\'table\' AND name=!table_name!',
                     'snowflake': 'SELECT GET_DDL(\'TABLE\', \'!database_name!.!schema_name!.!table_name!\')'
-                }
+                    }
 
-                # Check if we have a pre-defined query for this database type
-                if matching_connection['db_type'] == 'mysql+pymysql':
-                    matching_connection['db_type'] = 'mysql'
+                    if matching_connection['db_type'].lower() in ddl_queries:
+                        sql = ddl_queries[matching_connection['db_type'].lower()]
 
-                if matching_connection['db_type'].lower() in ddl_queries:
-                    sql = ddl_queries[matching_connection['db_type'].lower()]
-
-                if sql is None:
-                    # Generate prompt to get SQL for DDL based on database type
-                    p = [
-                        {"role": "user", "content": f"Write a SQL query to get the DDL or CREATE TABLE statement for a table in a {matching_connection['db_type']} database.  You can include placeholders !table_name!, !schema_name!, !database_name! in the query to be replaced by the actual values at runtime.  Return only the SQL query without any explanation or additional text, with no markdown formatting. The query should return a single column containing the DDL text."}
-                    ]
-                
-                    sql = self.run_prompt(p)
+                    if sql is None:
+                        # Generate prompt to get SQL for DDL based on database type
+                        p = [
+                            {"role": "user", "content": f"Write a SQL query to get the DDL or CREATE TABLE statement for a table in a {matching_connection['db_type']} database.  You can include placeholders !table_name!, !schema_name!, !database_name! in the query to be replaced by the actual values at runtime.  Return only the SQL query without any explanation or additional text, with no markdown formatting. The query should return a single column containing the DDL text."}
+                        ]
+                    
+                        sql = self.run_prompt(p)
                 
                 # Extract database, schema, table from qualified name
                 parts = table_name.strip('"').split('.')
@@ -462,6 +462,41 @@ class SchemaExplorer:
         return [item for item in databases if item['status'] == 'Include']
 
 
+    def load_custom_query(self, db_type, query_type):
+        """
+        Loads custom SQL query from local config file if it exists.
+        
+        Args:
+            db_type (str): Database type (e.g. postgresql, mysql) 
+            query_type (str): Type of query (e.g. get_schemas, get_tables)
+            
+        Returns:
+            str: Custom SQL query if found, None otherwise
+        """
+        try:
+            import configparser
+            config = configparser.ConfigParser()
+            if not config.read('./harvester_queries.conf'):
+                return None
+                
+            db_type = db_type.lower()
+            if db_type not in config:
+                return None
+                
+            if query_type not in config[db_type]:
+                return None
+                
+            query = config[db_type][query_type]
+            # Strip quotes from start/end if present
+            if query.startswith('"') and query.endswith('"'):
+                query = query[1:-1]
+            return query
+            
+        except Exception as e:
+            logger.info(f'Error loading custom query for {db_type}.{query_type}: {e}')
+            return None
+
+
     def get_active_schemas(self, database):
 
         if database['source_name'] == 'Snowflake':
@@ -489,22 +524,24 @@ class SchemaExplorer:
                 return []
 
             db_type = matching_connection['db_type']
+            if '+' in db_type:
+                    db_type = db_type.split('+')[0]
+
             database_name = database['database_name']
 
-            # Pre-defined schema listing queries for common database types
-            sql = None
-            if db_type == 'mysql+pymysql':
-                db_type = 'mysql'
-            schema_queries = {
-                'mysql': 'SELECT SCHEMA_NAME FROM information_schema.schemata WHERE SCHEMA_NAME NOT IN ("information_schema", "mysql", "performance_schema", "sys")',
-                'postgresql': 'SELECT schema_name FROM !database_name!.information_schema.schemata WHERE catalog_name = \'!database_name!\' AND schema_name NOT IN (\'information_schema\', \'pg_catalog\', \'pg_toast\')',
-                'sqlite': 'SELECT \'main\' as schema_name',
-                'snowflake': 'SHOW SCHEMAS IN DATABASE !database_name!'
-            }
+            sql = self.load_custom_query(db_type, 'get_schemas')
 
-            # Check if we have a pre-defined query for this database type
-            if db_type.lower() in schema_queries:
-                sql = schema_queries[db_type.lower()]
+            if sql is None:  
+                schema_queries = {
+                    'mysql': 'SELECT SCHEMA_NAME FROM information_schema.schemata WHERE SCHEMA_NAME NOT IN ("information_schema", "mysql", "performance_schema", "sys")',
+                    'postgresql': 'SELECT schema_name FROM !database_name!.information_schema.schemata WHERE catalog_name = \'!database_name!\' AND schema_name NOT IN (\'information_schema\', \'pg_catalog\', \'pg_toast\')',
+                    'sqlite': 'SELECT \'main\' as schema_name',
+                    'snowflake': 'SHOW SCHEMAS IN DATABASE !database_name!'
+                }
+        
+                # Check if we have a pre-defined query for this database type
+                if db_type.lower() in schema_queries:
+                    sql = schema_queries[db_type.lower()]
 
             if sql is None:
             # Generate prompt to get SQL for schema listing based on database type
@@ -633,9 +670,12 @@ class SchemaExplorer:
 
                 # Pre-defined column listing queries for common database types
                 sql = None
-                if matching_connection['db_type'] == 'mysql+pymysql':
-                    matching_connection['db_type'] = 'mysql'
-                column_queries = {
+
+                db_type = matching_connection['db_type'].split('+')[0] if '+' in matching_connection['db_type'] else matching_connection['db_type']
+                sql = self.load_custom_query(db_type, 'get_columns')
+
+                if sql is None:
+                    column_queries = {
                     'mysql': 'SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = \'!schema_name!\' AND TABLE_NAME = \'!table_name!\' ORDER BY ORDINAL_POSITION',
                     'postgresql': 'SELECT column_name FROM information_schema.columns WHERE table_catalog = \'!database_name!\' AND table_schema = \'!schema_name!\' AND table_name = \'!table_name!\' ORDER BY ordinal_position',
                     'sqlite': 'SELECT name FROM pragma_table_info(\'!table_name!\')',
@@ -643,17 +683,17 @@ class SchemaExplorer:
                 }
 
                 # Check if we have a pre-defined query for this database type
-                if matching_connection['db_type'].lower() in column_queries:
-                    sql = column_queries[matching_connection['db_type'].lower()]
+                    if matching_connection['db_type'].lower() in column_queries:
+                        sql = column_queries[matching_connection['db_type'].lower()]
 
-                if sql is None:
-                    # Generate prompt to get SQL for column listing based on database type
-                    p = [
-                        {"role": "user", "content": f"Write a SQL query to list all columns in a {matching_connection['db_type']} database table. Use placeholders !database_name!, !schema_name!, and !table_name! which will be replaced at runtime. Return only the SQL query without explanation, with no markdown, no ``` and no ```sql. The query should return a single column containing the column names."}
-                    ]
+                    if sql is None:
+                        # Generate prompt to get SQL for column listing based on database type
+                        p = [
+                            {"role": "user", "content": f"Write a SQL query to list all columns in a {matching_connection['db_type']} database table. Use placeholders !database_name!, !schema_name!, and !table_name! which will be replaced at runtime. Return only the SQL query without explanation, with no markdown, no ``` and no ```sql. The query should return a single column containing the column names."}
+                        ]
+                        
+                        sql = self.run_prompt(p)
                     
-                    sql = self.run_prompt(p)
-                
                 # Replace placeholders in SQL query
                 sql = sql.replace('!database_name!', dataset['database_name'])
                 sql = sql.replace('!schema_name!', dataset['schema_name'])
@@ -758,30 +798,35 @@ class SchemaExplorer:
                         return None, None
 
                     db_type = matching_connection['db_type']
+                    if '+' in db_type:
+                        db_type = db_type.split('+')[0]
+                    
                     database_name = dataset['database_name']
                     schema_name = dataset['schema_name']
 
                     # Pre-defined table listing queries for common database types
-                    sql = None
-                    table_queries = {
-                        'mysql': 'SELECT TABLE_NAME as table_name FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = \'!schema_name!\'',
-                        'postgresql': 'SELECT table_name FROM information_schema.tables WHERE table_catalog = \'!database_name!\' AND table_schema = \'!schema_name!\' AND table_type = \'BASE TABLE\'',
-                        'sqlite': 'SELECT name as table_name FROM sqlite_master WHERE type=\'table\'',
-                        'snowflake': 'SHOW TABLES IN SCHEMA !database_name!.!schema_name!'
-                    }
+                    sql = self.load_custom_query(db_type, 'get_tables')
 
-                    # Check if we have a pre-defined query for this database type
-                    if db_type == 'mysql+pymysql':
-                        db_type = 'mysql'
-                    if db_type.lower() in table_queries:
-                        sql = table_queries[db_type.lower()]
-                    else:
-                        # Generate prompt to get SQL for table listing based on database type
-                        p = [
-                            {"role": "user", "content": f"Write a SQL query to list all tables in a {db_type} database named with the placeholder !database_name!, in the schema named with the placeholder !schema_name!, which will be replaced by the actual database name and schema name at runtime. Return only the SQL query without any explanation or additional text, with no markdown formatting. For schema-less databases like sqlite, do not use the placeholders as they aren't applicable. The query should return a single column named 'table_name'."}
-                        ]
-                    
-                        sql = self.run_prompt(p)
+                    if sql is None:
+                        table_queries = {
+                            'mysql': 'SELECT TABLE_NAME as table_name FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = \'!schema_name!\'',
+                            'oracle': 'SELECT table_name FROM all_tables WHERE owner = \'!schema_name!\' AND tablespace_name NOT IN (\'SYSTEM\', \'SYSAUX\')',
+                            'postgresql': 'SELECT table_name FROM information_schema.tables WHERE table_catalog = \'!database_name!\' AND table_schema = \'!schema_name!\' AND table_type = \'BASE TABLE\'',
+                            'sqlite': 'SELECT name as table_name FROM sqlite_master WHERE type=\'table\'',
+                            'snowflake': 'SHOW TABLES IN SCHEMA !database_name!.!schema_name!'
+                        }
+
+                        # Check if we have a pre-defined query for this database type
+
+                        if db_type.lower() in table_queries:
+                            sql = table_queries[db_type.lower()]
+                        else:
+                            # Generate prompt to get SQL for table listing based on database type
+                            p = [
+                                {"role": "user", "content": f"Write a SQL query to list all tables in a {db_type} database named with the placeholder !database_name!, in the schema named with the placeholder !schema_name!, which will be replaced by the actual database name and schema name at runtime. Return only the SQL query without any explanation or additional text, with no markdown formatting. For schema-less databases like sqlite, do not use the placeholders as they aren't applicable. The query should return a single column named 'table_name'."}
+                            ]
+                        
+                            sql = self.run_prompt(p)
                     
                     # Replace placeholders in SQL query
                     sql = sql.replace('!database_name!', database_name)
@@ -1048,20 +1093,18 @@ class SchemaExplorer:
                     return []
 
                 # Pre-defined sample data queries for common database types
-                sql = None
-                sample_queries = {
-                    'mysql': 'SELECT * FROM !schema_name!.!table_name! ORDER BY RAND() LIMIT 5',
-                    'postgresql': 'SELECT * FROM !database_name!.!schema_name!.!table_name! ORDER BY RANDOM() LIMIT 5', 
-                    'sqlite': 'SELECT * FROM !table_name! ORDER BY RANDOM() LIMIT 5',
-                    'snowflake': 'SELECT * FROM !database_name!.!schema_name!.!table_name! SAMPLE (5 ROWS)'
-                }
+                db_type = matching_connection['db_type'].split('+')[0] if '+' in matching_connection['db_type'] else matching_connection['db_type']
+                sql = self.load_custom_query(db_type, 'get_sample_data')
+                if sql is None:
+                    sample_queries = {
+                        'mysql': 'SELECT * FROM !schema_name!.!table_name! ORDER BY RAND() LIMIT 5',
+                        'postgresql': 'SELECT * FROM !database_name!.!schema_name!.!table_name! ORDER BY RANDOM() LIMIT 5', 
+                        'sqlite': 'SELECT * FROM !table_name! ORDER BY RANDOM() LIMIT 5',
+                        'snowflake': 'SELECT * FROM !database_name!.!schema_name!.!table_name! SAMPLE (5 ROWS)'
+                    }
 
-                # Check if we have a pre-defined query for this database type
-                if matching_connection['db_type'] == 'mysql+pymysql':
-                    matching_connection['db_type'] = 'mysql'
-
-                if matching_connection['db_type'].lower() in sample_queries:
-                    sql = sample_queries[matching_connection['db_type'].lower()]
+                    if matching_connection['db_type'].lower() in sample_queries:
+                        sql = sample_queries[matching_connection['db_type'].lower()]
 
                 if sql is None:
                     # Generate prompt to get SQL for sample data based on database type

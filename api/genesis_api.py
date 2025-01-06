@@ -14,7 +14,7 @@ class GenesisAPI:
                  sub_scope:str="app1",
                  bot_list=None,
                  server_type: type = GenesisLocalServer,
-                 fast_start=False
+                 fast_start=None
                  ):
         # Set default environment variables if not already set
         import os

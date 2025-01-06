@@ -27,6 +27,8 @@ class GenesisApp:
             cls._instance = super(GenesisApp, cls).__new__(cls)
             cls._instance.__init__()
         return cls._instance
+
+    
     def __init__(self):
         """
         Initializes a new instance of the GenesisApp class.
@@ -78,6 +80,7 @@ class GenesisApp:
             except Exception as e:
                 logger.info(f"Error deleting {index_size_file}: {e}")
 
+
     def set_internal_project_and_schema(self):
         """
         Sets the internal project and schema for the GenesisApp.
@@ -106,14 +109,17 @@ class GenesisApp:
         self.dataset_name = dataset_name
 
 
-    def set_db_adapter(self):
+    def setup_databse(self, fast_start=None):
         """
-        Sets up the database adapter for the GenesisApp.
+        Configures the internal database for the GenesisApp.
 
-        This method determines the database source from environment variables and initializes a
-        global database connector. If the application is not in test mode, it applies necessary 
-        one-time database fixes, ensures required tables exist, and sets up Google Sheets credentials. 
-        It also updates the global flags to reflect the current database source.
+        This method identifies the database source from environment variables and sets up a
+        global database connector. If the application is not in fast start mode, it performs 
+        necessary one-time database fixes, ensures required tables exist, and configures Google 
+        Sheets credentials. It also updates the global flags to reflect the current database source.
+
+        Args:
+            fast_start (bool, optional): If True, skips certain setup steps for faster startup.
 
         Attributes:
             db_adapter: The database adapter instance for connecting to the database.
@@ -122,12 +128,33 @@ class GenesisApp:
         genesis_source = os.getenv("GENESIS_SOURCE", default="Snowflake")
         db_adapter = get_global_db_connector(genesis_source)
 
-        if os.getenv("TEST_MODE", "false").lower() == "true":
+        test_mode =  os.getenv("TEST_MODE")
+        if fast_start is None:
+            # set fast_start based on TEST_MODE env var
+            if test_mode is not None:
+                test_mode = test_mode.lower()
+                if test_mode in ["true", "1", "yes", "y", "on", "enable", "enabled", "active", "enabled"]:
+                    logger.info(f"Env var TEST_MODE set to {test_mode} - setting FAST_START to True")
+                    fast_start = True
+                elif test_mode in ["false", "0", "no", "n", "off", "disable", "disabled", "inactive", "disabled"]:
+                    logger.info(f"Env var TEST_MODE set to {test_mode} - setting FAST_START to False")
+                    fast_start = False
+                else:
+                    logger.warning(f"Ignoring Env var TEST_MODE = {test_mode} - unrecognized value. Defaulting to False")
+                    fast_start = False
+            else:
+                logger.info("TEST_MODE not defined in environment - setting FAST_START to False")
+                fast_start = False
+        else:
+            if test_mode is not None:
+                logger.warning(f"FAST_START set to {fast_start} by caller. Ignoring TEST_MODE = {test_mode}")
+
+        if fast_start:
             logger.info("()()()()()()()()()()()()()")
-            logger.info("TEST_MODE - ensure table exists skipped")
+            logger.info("FAST START - ensure table exists skipped")
             logger.info("()()()()()()()()()()()()()")
         else:
-            logger.info("NOT RUNNING TEST MODE - APPLYING ONE TIME DB FIXES AND CREATING TABLES")
+            logger.info("NOT RUNNING FAST START - APPLYING ONE TIME DB FIXES AND CREATING TABLES")
             db_adapter.one_time_db_fixes()
             db_adapter.ensure_table_exists()
             db_adapter.create_google_sheets_creds()
@@ -136,6 +163,7 @@ class GenesisApp:
         global_flags.source = genesis_source
         
         self.db_adapter = db_adapter
+
 
     def set_llm_key_handler(self):
         """
@@ -159,6 +187,7 @@ class GenesisApp:
             logger.error(f"Failed to get LLM key from database: {e}")
             llm_api_key_struct = None
         self.llm_api_key_struct = llm_api_key_struct
+
 
     def set_data_cubes_ingress_url(self):
         """
@@ -184,6 +213,7 @@ class GenesisApp:
         logger.info(f"Endpoints: {data_cubes_ingress_url=}; udf endpoint={ep}")
         self.data_cubes_ingress_url = data_cubes_ingress_url
 
+
     def set_slack_config(self):
         """
         Sets the Slack configuration for the GenesisApp.
@@ -205,22 +235,20 @@ class GenesisApp:
 
         logger.info(f"...Slack Connector Active Flag: {global_flags.slack_active}")
 
-    def create_app_sessions(self):
+
+    def create_app_sessions(self, bot_list=None):
         """
         Creates the sessions for the GenesisApp.
 
-        This method creates the sessions for the GenesisApp by calling create_sessions()
-        with the database adapter, LLM key structure, and data cubes ingress URL.
-        It also sets the global flag `SystemVariables.bot_id_to_slack_adapter_map` and
-        assigns the session instances, the map of API app IDs to session instances, the
-        map of bot IDs to UDF adapter instances, and the map of bot IDs to Slack adapter
-        instances to the class attributes.
+        This method initializes the sessions for the GenesisApp by invoking the create_sessions()
+        function with the necessary parameters such as the database adapter, LLM key structure,
+        and data cubes ingress URL. It also updates the global flag `SystemVariables.bot_id_to_slack_adapter_map`
+        and assigns the created session instances, the map of API app IDs to session instances,
+        the map of bot IDs to UDF adapter instances, and the map of bot IDs to Slack adapter
+        instances to the corresponding class attributes.
 
-        Attributes:
-            sessions (list[BotOsSession]): The list of session instances.
-            api_app_id_to_session_map (dict): The map of API app IDs to session instances.
-            bot_id_to_udf_adapter_map (dict): The map of bot IDs to UDF adapter instances.
-            bot_id_to_slack_adapter_map (dict): The map of bot IDs to Slack adapter instances.
+        Args:
+            bot_list (list, optional): A list of bot configurations to create sessions for. Defaults to None.
         """
         db_adapter = self.db_adapter
         llm_api_key_struct = self.llm_api_key_struct
@@ -236,20 +264,21 @@ class GenesisApp:
                 self.bot_id_to_udf_adapter_map,
                 stream_mode=True,
                 data_cubes_ingress_url=data_cubes_ingress_url,
+                bot_list=bot_list,
             )
+            SystemVariables.bot_id_to_slack_adapter_map = bot_id_to_slack_adapter_map
+            self.sessions = sessions
+            self.api_app_id_to_session_map = api_app_id_to_session_map
+            self.bot_id_to_udf_adapter_map = bot_id_to_udf_adapter_map
+            self.bot_id_to_slack_adapter_map = bot_id_to_slack_adapter_map
         else:
             # wait to collect API key from Streamlit user, then make sessions later
             pass
-        SystemVariables.bot_id_to_slack_adapter_map = bot_id_to_slack_adapter_map
-        self.sessions = sessions
-        self.api_app_id_to_session_map = api_app_id_to_session_map
-        self.bot_id_to_udf_adapter_map = bot_id_to_udf_adapter_map
-        self.bot_id_to_slack_adapter_map = bot_id_to_slack_adapter_map
 
 
-    def generate_server(self):
+    def start_server(self):
         """
-        Generates the server instance for the GenesisApp.
+        Creaters and starts the server instance for the GenesisApp.
 
         This method creates a BotOsServer instance with the provided database adapter,
         LLM key structure, data cubes ingress URL, sessions, API app ID to session map,
@@ -295,6 +324,27 @@ class GenesisApp:
         self.scheduler.start()
 
 
+    def is_server_running(self):
+        return self.server is not None and self.scheduler is not None
+    
+
+    def shutdown_server(self):
+        ''' shuts down the server (including the apscheduler) '''
+        if not self.is_server_running():
+            logger.info("Server is not running, nothing to shutdown")
+            return  
+        
+        self.server.shutdown()
+
+        # If there were any slack adapters created, shut them down
+        if self.bot_id_to_slack_adapter_map:
+            for slack_adapter in self.bot_id_to_slack_adapter_map.values():
+                slack_adapter.shutdown()
+                
+        self.server = None
+        self.scheduler = None
+
+
     def run_ngrok(self):
         """
         Start ngrok and update the Slack app endpoint URLs if slack is active.
@@ -306,18 +356,19 @@ class GenesisApp:
         ngrok_active = launch_ngrok_and_update_bots(update_endpoints=global_flags.slack_active)
 
 
-    def start(self):
+    def start_all(self):
         self.generate_index_file()
         self.set_internal_project_and_schema()
-        self.set_db_adapter()
+        self.setup_databse()
         self.set_llm_key_handler()
         self.set_data_cubes_ingress_url()
         self.set_slack_config()
         self.run_ngrok()
         self.create_app_sessions()
-        self.generate_server()
-        
+        self.start_server()
 
+
+# singleton instance of app.
 genesis_app = GenesisApp()
 
 

@@ -100,6 +100,12 @@ git_action = ToolFuncGroup(
         required=False,
         llm_type_desc=dict(type="integer"),
     ),
+    kwargs=ToolFuncParamDescriptor(
+        name="kwargs",
+        description="Additional arguments needed for the specific action",
+        required=True,
+        llm_type_desc=dict(type="object"),
+    ),
     bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
     _group_tags_=[git_action],
@@ -126,13 +132,43 @@ def git_action(
 
     Args:
         action: The git action to perform (list_files, read_file, write_file, etc.)
-        **kwargs: Additional arguments needed for the specific action
+        file_path: Path to the file to operate on
+        content: Content to write to file
+        commit_message: Message for git commit
+        old_content: Previous content for comparison
+        new_content: New content for comparison
+        diff_content: Content for diff operation
+        branch_name: Name of git branch
+        path: Alternative path specification
+        message: Alternative message specification
+        max_count: Maximum number of items to return
+        context_lines: Number of context lines to include
+        bot_id: Bot identifier
+        thread_id: Thread identifier
+        kwargs: Additional arguments needed for the specific action
 
     Returns:
         Dict containing operation result and any relevant data
     """
-    return git_manager.git_action(action, **kwargs)
-
+    params = {
+            'file_path': file_path,
+            'content': content,
+            'commit_message': commit_message,
+            'old_content': old_content,
+            'new_content': new_content,
+            'diff_content': diff_content,
+            'branch_name': branch_name,
+            'path': path,
+            'message': message,
+            'max_count': max_count,
+            'context_lines': context_lines,
+            'bot_id': bot_id,
+            'thread_id': thread_id,
+            **kwargs
+        }
+    # Remove None values
+    params = {k: v for k, v in params.items() if v is not None}
+    return git_manager.git_action(action, **params)
 
 git_action_functions = (git_action,)
 

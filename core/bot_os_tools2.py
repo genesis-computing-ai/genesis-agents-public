@@ -17,10 +17,10 @@ class ToolFuncGroupLifetime(Enum):
 
 class ToolFuncGroup:
     """
-    Represents a group of functions, often refers elsewhere as 'tool name'. 
+    Represents a group of functions, often refers elsewhere as 'tool name'.
     Each tool function is associated with one or more groups.
     group names must be globally unique.
-    
+
     Attributes:
         name (str): The name of the group
         description (str): The description of the group tag.
@@ -167,6 +167,8 @@ class ToolFuncParamDescriptor:
             return {'type': 'float'}
         elif python_type is bool:
             return {'type': 'boolean'}
+        elif python_type is Any:
+            return {'type': 'object'}
         else:
             raise ValueError(f"Could not convert annotation type {repr(python_type)} to llm type")
 
@@ -196,7 +198,7 @@ class ToolFuncDescriptor:
         name (str): The name of the tool function.
         description (str): A brief description of the tool function.
         parameters_desc (List[_ToolFuncParamDescriptor]): A list of parameter descriptors for the tool function.
-        groups (List[ToolFuncGroup]): A list of groups to which the tool function belongs. 
+        groups (List[ToolFuncGroup]): A list of groups to which the tool function belongs.
                 Defaults to ORPHAN_TOOL_FUNCS_GROUP (which is an ephemeral group and should not be used for server-side tools).
 
     Methods:
@@ -369,7 +371,7 @@ class ToolsFuncRegistry:
     """
     A registry for managing tool functions.
 
-    This class provides methods to add, remove, retrieve, and list tool functions.    
+    This class provides methods to add, remove, retrieve, and list tool functions.
     """
     # NOTE that we put a class-level lock on this object since tools can be accessed and manipulated by multiple session threads
 

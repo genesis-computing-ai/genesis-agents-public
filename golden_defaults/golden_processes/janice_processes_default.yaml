@@ -2,17 +2,17 @@ formula1_analysis_example:
   BOT_ID: "Janice"
   PROCESS_NAME: "formula1_analysis_example"
   PROCESS_INSTRUCTIONS: |
-    1. **User Confirmation**: 
+    1. **User Confirmation**:
       Inform the user in a fun manner that this is a demonstration process to locate data about Formula 1 in the sample data provided with Genesis. The process will find the driver with the most wins and return this result. Ask if they'd like to proceed with running it. Pause and wait for their agreement. If the user does not agree, end the process. Include racing-related emojiis and use racing lingo as you run this process..
-    2. **Search Metadata**: 
+    2. **Search Metadata**:
       Search the metadata for 'formula 1 race results'.  Show the user the names and brief descriptions of some of the tables that you find that are related to this task.
-    3. **Query for Top Driver**: 
+    3. **Query for Top Driver**:
       Create a new note with a query to determine the Formula 1 driver with the most wins. Inform the user about the new note but don't ask for permission to create it. The RESULTS table may be a good starting point.  DRIVERSTANDINGS is another option but is per-season data, so RESULTS may be a better choice.
-    4. **Run Note and Return Result**: 
+    4. **Run Note and Return Result**:
       Pass the note_id to the run query tool and return the result to the user, with the name and win count of the winningest driver.  Mention that the data in this demo dataset is only through 2017.
-    5. **Instruction Review**: 
+    5. **Instruction Review**:
       Ask if the user would like to see the full instructions for this demonstration process. Pause and wait for their response.
-    6. **Show Full Instructions**: 
+    6. **Show Full Instructions**:
       - If the user agrees, use the manage process tool with the SHOW action to get the full process instructions and output them verbatim to the user.
       - If the user does not agree, end the process and suggest another task that can be performed next.
   PROCESS_DESCRIPTION:  This process is used as an example to show off your skills.  If a user asks to analyze Formula 1 (F1) Demo Data results, run this process.
@@ -29,7 +29,7 @@ janice_monitor_unused_tables_golden:
 
     ## Process Steps:
     1. **Identify The Top 10 Largest Unused Tables Across All Databases:**
-       - Use your run query tool with note_id janice_10_unused_tables to identify the 10 largest unused tables across all databases and schemas in the Snowflake account. 
+       - Use your run query tool with note_id janice_10_unused_tables to identify the 10 largest unused tables across all databases and schemas in the Snowflake account.
        - Confirm with the supervisor that you have run the query and note the number of rows you received in response.
 
     2. **Draft a Compelling Email:**
@@ -43,7 +43,7 @@ janice_monitor_unused_tables_golden:
          - Format the email as an HTML document unless expicilty instructed otherwise.
          - Use standard HTML headers (like <h2>, <h3>) and paragraph (<p>) tags for readability.
          - DO NOT use <h1> headers.
-         - Ensure proper line breaks within paragraphs using the standard line break indicator (<br>).         
+         - Ensure proper line breaks within paragraphs using the standard line break indicator (<br>).
          - Use the necessary styles and layout elements for a professional appearance.
        - When outputing the draft email body itself to the user, DO NOT wrap the html text in backticks. Wrap it in newlines (`\n`) instead.
 
@@ -73,7 +73,7 @@ janice_top_warehouses_spillage_golden:
     1. **Identify The Top 3 Warehouses With Data Spilling:**
       - Use your run query tool with note_id janice_query_1 to identify top 3 warehouses with data spilling in theSnowflake account.
       - Confirm with the supervisor that you have run the query and note the number of rows you received in response.
-      
+
     2. **Average Queuing Times Per Month:**
       - Execute the SQL query in your notebook with note_id = 'janice_query_2' to identify the average queuing times per month.
       - Confirm with the supervisor that you have run the query and note the number of rows you received in response.
@@ -99,7 +99,7 @@ janice_top_warehouses_spillage_golden:
       - When outputing the draft email body itself to the user, DO NOT wrap the html text in backticks. Wrap it in newlines (`\n`) instead.
 
     4. **Send the Email, or Tell the User to Activate the Default Email:**
-        - If SYS$DEFAULT_EMAIL is not 'None' and is an email address, send the email to `SYS$DEFAULT_EMAIL`, otherwise don't send am email and instead tell the user they can set the Default Email in the Genesis Streamlit GUI to activate sending of emails. If sending an email, use mime_type='text/html' unless expicilty instructed to use other formats.        
+        - If SYS$DEFAULT_EMAIL is not 'None' and is an email address, send the email to `SYS$DEFAULT_EMAIL`, otherwise don't send am email and instead tell the user they can set the Default Email in the Genesis Streamlit GUI to activate sending of emails. If sending an email, use mime_type='text/html' unless expicilty instructed to use other formats.
 
     ## Conclusion
     This process helps in identifying performance issues related to data spillage and queuing times, enabling stakeholders to optimize warehouse configurations for better performance.
@@ -107,7 +107,7 @@ janice_top_warehouses_spillage_golden:
     ## Example Email Output Structure
     - **Subject:** :snowflake: Performance Alert: Warehouse Optimization Needed :hammer_and_wrench:
     - **Body:**
-      
+
       Hello,
 
       We've identified performance issues in our Snowflake environment related to data spillage and queuing times. When a warehouse spills bytes to local and remote storage, it indicates that the warehouse doesn't have sufficient memory to process queries efficiently, leading to slower performance.
@@ -125,7 +125,7 @@ janice_top_warehouses_spillage_golden:
 
       Regards,
       Janice
-      
+
   PROCESS_DESCRIPTION: "Analyze and Identify Top 3 Snowflake Warehouses Experiencing Performance Issues Due to Data Spillage and Extended Queuing Times. This process involves querying Snowflake metadata to gather performance metrics, specifically focusing on bytes spilled to local and remote storage, as well as average queuing times. The analysis aims to pinpoint warehouses that may require configuration optimization to enhance overall system efficiency and reduce operational costs. The findings will be summarized in a detailed report, including specific warehouse names, spillage amounts, and queuing durations, to facilitate targeted improvements in the Snowflake environment."
   TIMESTAMP: "2024-10-25 03:00:00+00:00"
 
@@ -134,8 +134,8 @@ janice_check_MFA_use_golden:
   PROCESS_NAME: "Janice Check MFA Use"
   PROCESS_INSTRUCTIONS: |
     1. **Query to Retrieve User Data**:
-      - Use run_query function with note_id 'QUERY_3' to collect necessary data.
-     
+      - Use query_database function with note_id 'QUERY_3' to collect necessary data.
+
     2. **Draft a Compelling Email:**
       - As you write the email remember you're talking about security so the tone should be serious
       - Draft an email with a catchy but serious sounding subject line including tone appropriate Unicode emojis about ensuring data safety through using MFA
@@ -156,7 +156,7 @@ janice_check_MFA_use_golden:
         - When outputing the draft email body itself to the user, DO NOT wrap the html text in backticks. Wrap it in newlines (`\n`) instead.
 
     3. **Send the Email, or Tell the User to Activate the Default Email:**
-        - If SYS$DEFAULT_EMAIL is not 'None' and is an email address, send the email to `SYS$DEFAULT_EMAIL`, otherwise don't send am email and instead tell the user they can set the Default Email in the Genesis Streamlit GUI to activate sending of emails. If sending an email, use mime_type='text/html' unless expicilty instructed to use other formats.        
+        - If SYS$DEFAULT_EMAIL is not 'None' and is an email address, send the email to `SYS$DEFAULT_EMAIL`, otherwise don't send am email and instead tell the user they can set the Default Email in the Genesis Streamlit GUI to activate sending of emails. If sending an email, use mime_type='text/html' unless expicilty instructed to use other formats.
         - Then use run_process to continue running the rest of the steps
 
     4. **Generate Report and Recommendations**:
@@ -181,7 +181,7 @@ janice_dangerous_user_report_golden:
   BOT_ID: "Janice"
   PROCESS_NAME: "Janice Dangerous User Report"
   PROCESS_INSTRUCTIONS: |
-    1. Use run_query with note_id 'QUERY_4' to gather data on user roles and privileges. 
+    1. Use query_database with note_id 'QUERY_4' to gather data on user roles and privileges.
 
     2. **Draft a Compelling Email:**
       - As you write the email remember you are talking about security so the tone should be serious
@@ -202,9 +202,9 @@ janice_dangerous_user_report_golden:
             - Ensure that the table is structured with proper tags like <table>, <thead>, <tbody>, <tr>, <th>, <td> etc.
           - Use the necessary styles and layout elements for a professional appearance.
       - When outputing the draft email body itself to the user, DO NOT wrap the html text in backticks. Wrap it in newlines (`\n`) instead.
-         
+
     3. **Send the Email, or Tell the User to Activate the Default Email:**
-        - If SYS$DEFAULT_EMAIL is not 'None' and is an email address, send the email to `SYS$DEFAULT_EMAIL`, otherwise don't send am email and instead tell the user they can set the Default Email in the Genesis Streamlit GUI to activate sending of emails. If sending an email, use mime_type='text/html' unless expicilty instructed to use other formats.        
+        - If SYS$DEFAULT_EMAIL is not 'None' and is an email address, send the email to `SYS$DEFAULT_EMAIL`, otherwise don't send am email and instead tell the user they can set the Default Email in the Genesis Streamlit GUI to activate sending of emails. If sending an email, use mime_type='text/html' unless expicilty instructed to use other formats.
         - Then use run_process to continue running the rest of the steps
 
     4. Analyze the results based on the following criteria:

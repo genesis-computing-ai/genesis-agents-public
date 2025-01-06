@@ -14,7 +14,7 @@ from core.bot_os_tools2 import (
     gc_tool,
 )
 
-from core.tools.tool_helpers import chat_completion, get_processes_list, get_process_info
+from core.tools.tool_helpers import chat_completion, get_processes_list, get_process_info, get_sys_email
 
 from connectors import get_global_db_connector
 db_adapter = get_global_db_connector()
@@ -29,18 +29,6 @@ process_manager_tools = ToolFuncGroup(
     ),
     lifetime="PERSISTENT",
 )
-
-def get_sys_email(self):
-    cursor = self.db_adapter.client.cursor()
-    try:
-        get_sys_email_query = f"SELECT default_email FROM {self.db_adapter.genbot_internal_project_and_schema}.DEFAULT_EMAIL"
-        cursor.execute(get_sys_email_query)
-        result = cursor.fetchall()
-        default_email = result[0][0] if result else None
-        return default_email
-    except Exception as e:
-        #  logger.info(f"Error getting sys email: {e}")
-        return None
 
 
 # manage processes
@@ -133,6 +121,7 @@ def manage_processes(
     ]
 
     action = action.upper()
+    include_code = False
 
     if action == "ALLOW_CODE":
         include_code = True

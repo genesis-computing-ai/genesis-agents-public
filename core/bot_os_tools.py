@@ -60,7 +60,7 @@ from   connectors.snowflake_connector.snowflake_connector \
 from   core.file_diff_handler   import GitFileManager
 from   core.logging_config      import logger
 
-from  core.tools.tool_helpers import get_sys_email
+from  core.tools.tool_helpers import get_sys_email, get_process_info
 
 genesis_source = os.getenv("GENESIS_SOURCE", default="Snowflake")
 
@@ -265,7 +265,7 @@ class ToolBelt:
         self.clear_process_registers_by_thread(thread_id)
 
         # Try to get process info from PROCESSES table
-        process = self.get_process_info(bot_id, process_name=process_name, process_id=process_id)
+        process = get_process_info(bot_id, process_name=process_name, process_id=process_id)
 
         if len(process) == 0:
             # Get a list of processes for the bot

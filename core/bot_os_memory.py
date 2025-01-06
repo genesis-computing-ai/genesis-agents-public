@@ -479,7 +479,7 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
     #       # Validate database if specified
             if database:
                 databases = self.meta_database_connector.run_query("SHOW DATABASES",  max_rows=500, max_rows_override=True)
-                database_list = [db['name'] for db in databases]
+                database_list = [db['NAME'] for db in databases]
                 if database.upper() not in [db.upper() for db in database_list]:
                     database_options = "\n- " + "\n- ".join(database_list)
                     return [f"Database '{database}' not found. Available databases:{database_options}"]
@@ -618,7 +618,7 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
             qualified_names = [f"'{result[2]}'" for result in top_results]
             if verbosity == "high":
                 content_query = f"""
-                    SELECT 
+                    SELECT
                         source_name as database_connection_id, qualified_table_name as full_table_name,
                         ddl as DDL_FULL,
                         sample_data_text as sample_data
@@ -628,7 +628,7 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
                 """
             else:
                 content_query = f"""
-                    SELECT 
+                    SELECT
                         source_name as database_connection_id, qualified_table_name as full_table_name,
                         ddl_short
                     FROM {self.meta_database_connector.metadata_table_name}

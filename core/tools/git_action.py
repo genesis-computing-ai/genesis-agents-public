@@ -119,6 +119,7 @@ def git_action(
     context_lines: int = None,
     bot_id: str = None,
     thread_id: str = None,
+    **kwargs: Any,
 ) -> Dict[str, Any]:
     """
     Wrapper for Git file management operations

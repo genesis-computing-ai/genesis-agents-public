@@ -78,7 +78,7 @@ def get_global_db_connector(genesis_source_name=None, **kwargs):
     if genesis_source_name is None:
         assert not kwargs  # we do not allow kwargs without an explicit source name
         # Resolve the connector type and extra params (if any) from env
-        genesis_source_name = os.getenv("GENESIS_SOURCE")
+        genesis_source_name = os.getenv("GENESIS_SOURCE", default="Snowflake")
         if not genesis_source_name:
             raise ValueError("Cannot automatically resolve GENESIS_SOURCE from the environment")
         genesis_source_name = genesis_source_name.upper()

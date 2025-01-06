@@ -113,7 +113,7 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
         self.next_id = 0
         self.bot_id = bot_id
 
-        self.source_name = os.getenv('GENESIS_SOURCE',default="BigQuery")
+        self.source_name = os.getenv('GENESIS_SOURCE',default="Snowflake")
         
 
         if self.source_name  == 'BigQuery':

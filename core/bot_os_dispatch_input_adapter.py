@@ -70,7 +70,7 @@ def make_session_for_dispatch(bot_config):
 
     # Create a DB connector for this session.
     # TODO - use the utility functions in the connectors module to DRY up.
-    genesis_source = os.getenv("GENESIS_SOURCE", default="BigQuery")
+    genesis_source = os.getenv("GENESIS_SOURCE", default="Snowflake")
 
     if genesis_source == "BigQuery":
         credentials_path = os.getenv(

@@ -15,7 +15,7 @@ class LLMKeyHandler:
         self.llm_api_key = None
         self.api_key_from_env = False
         self.connection = None
-        self.genesis_source = os.getenv('GENESIS_SOURCE',default="BigQuery")
+        self.genesis_source = os.getenv('GENESIS_SOURCE',default="Snowflake")
 
         if db_adapter:
             self.db_adapter = db_adapter

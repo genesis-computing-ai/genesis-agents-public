@@ -14,7 +14,7 @@ from schema_explorer import SchemaExplorer
 from core.bot_os_llm import LLMKeyHandler
 #import schema_explorer.embeddings_index_handler as embeddings_handler
 from core.logging_config import logger
-genesis_source = os.getenv('GENESIS_SOURCE',default="BigQuery")
+genesis_source = os.getenv('GENESIS_SOURCE',default="Snowflake")
 
 logger.info("waiting 60 seconds for other services to start first...")
 if os.getenv('HARVEST_TEST', 'FALSE').upper() != 'TRUE' and os.getenv('HARVEST_NO_WAIT', 'FALSE').upper() != 'TRUE':

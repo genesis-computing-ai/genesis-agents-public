@@ -143,7 +143,11 @@ class DatabaseConnector:
                 self.db_adapter.client.commit()
                 self.connections[connection_id] = engine
                 return {
-                    'success': True
+                    'success': True,
+                    'message': f"Connection {connection_id} {'updated' if existing else 'added'} successfully",
+                    'connection_string': connection_string,
+                    'allowed_bot_ids': allowed_bots_str,
+                    'note': "Remember: All bots that need access should be in a comma-separated string for allowed_bot_ids if more than one, including yourself if applicable (e.g. 'bot1,bot2')"
                 }
 
             finally:
@@ -873,9 +877,9 @@ def _query_database(connection_id: str,
     )
 
 
-@gc_tool(connection_id= "ID of the database connection to create",
+@gc_tool(connection_id= "ID of the database connection to create or update",
          connection_string= "Full SQLAlchemy connection string.",
-         allowed_bot_ids= "List of bot IDs that can access this connection",
+         allowed_bot_ids= "List of bot IDs that can access this connection, including yourself if applicable, comma-separated e.g bot1,bot2 if more than one",
          bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
          thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
          _group_tags_=[data_connector_tools])
@@ -886,10 +890,10 @@ def _add_database_connection(connection_id: str,
                             thread_id: str = None
                             ) -> dict:
     """
-    Add a new named database connection.
+    Add a new named database connection, or update an existing one
 
     Returns:
-        dict: A dictionary containing the result of the connection addition.
+        dict: A dictionary containing the result of the connection addition or update
     """
     return DatabaseConnector().add_connection(
         connection_id=connection_id,

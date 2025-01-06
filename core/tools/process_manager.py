@@ -30,6 +30,18 @@ process_manager_tools = ToolFuncGroup(
     lifetime="PERSISTENT",
 )
 
+def get_sys_email(self):
+    cursor = self.db_adapter.client.cursor()
+    try:
+        get_sys_email_query = f"SELECT default_email FROM {self.db_adapter.genbot_internal_project_and_schema}.DEFAULT_EMAIL"
+        cursor.execute(get_sys_email_query)
+        result = cursor.fetchall()
+        default_email = result[0][0] if result else None
+        return default_email
+    except Exception as e:
+        #  logger.info(f"Error getting sys email: {e}")
+        return None
+
 
 # manage processes
 @gc_tool(
@@ -57,7 +69,7 @@ process_manager_tools = ToolFuncGroup(
         ),
     ),
     process_id=dedent(
-        """The unique identifier of the process, create as bot_id_<random 6 character string>. MAKE SURE TO DOUBLE-CHECK THAT YOU ARE USING THE CORRECT process_id ON UPDATES AND DELETES!  
+        """The unique identifier of the process, create as bot_id_<random 6 character string>. MAKE SURE TO DOUBLE-CHECK THAT YOU ARE USING THE CORRECT process_id ON UPDATES AND DELETES!
             Required for CREATE, UPDATE, and DELETE."""
     ),
     process_name="The name of the process.  Required for SHOW.",
@@ -220,6 +232,8 @@ def manage_processes(
                     "Success": False,
                     "Error": f"Process with name {process_details['process_name']} is a system process and can not be updated.  Suggest making a copy with a new name."
                 }
+
+        sys_default_email = get_sys_email()
 
         if action == "CREATE" or action == "UPDATE":
             # Check for dupe name

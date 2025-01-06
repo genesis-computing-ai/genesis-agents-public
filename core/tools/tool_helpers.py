@@ -230,7 +230,7 @@ def chat_completion(
             logger.info("Cortex is not available.")
             return None
         else:
-            response, status_code = db_adapter.cortex__chat_completion(message)
+            response, status_code = db_adapter.cortex_chat_completion(message)
             return_msg = response
 
     if return_msg is None:

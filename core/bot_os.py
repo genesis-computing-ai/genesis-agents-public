@@ -84,9 +84,11 @@ def _get_future_datetime(delta_string: str) -> datetime.datetime:
 
 
 class BotOsSession:
-    last_annoy_refresh = datetime.datetime.now()
-    refresh_lock = False
+
     clear_access_cache = False
+    # Add new class-level dictionary to store knowledge implementations
+    knowledge_implementations = {}
+    
 
     def __init__(
         self,
@@ -113,6 +115,8 @@ class BotOsSession:
         assistant_id=None,
     ):
       #  logger.info(skip_vectors)
+        self.last_annoy_refresh = datetime.datetime.now()
+        self.refresh_lock = False
         BotOsAssistantOpenAI.stream_mode = stream_mode
         BotOsAssistantSnowflakeCortex.stream_mode = stream_mode
         self.session_name = session_name
@@ -177,6 +181,9 @@ class BotOsSession:
         self.runs = {}
         self.log_db_connector = log_db_connector
         self.knowledge_impl = knowledgebase_implementation
+        # Store the knowledge implementation in the class-level dictionary
+        if knowledgebase_implementation is not None:
+            BotOsSession.knowledge_implementations[bot_id] = knowledgebase_implementation
         self.available_functions["_store_memory"] = self.knowledge_impl.store_memory  # type: ignore
         self.lock = threading.Lock()
         self.tasks = []
@@ -192,7 +199,7 @@ class BotOsSession:
 
 
      #   sanitized_bot_id = re.sub(r"[^a-zA-Z0-9]", "", self.bot_id)
-    #    thread_maps_filename = f"./thread_maps_{sanitized_bot_id}.pickle"
+     #   thread_maps_filename = f"./thread_maps_{sanitized_bot_id}.pickle"
      #   if os.path.exists(thread_maps_filename):
       #      with open(thread_maps_filename, "rb") as handle:
        #         maps = pickle.load(handle)
@@ -508,20 +515,22 @@ Now, with that as background...\n''' + input_message.msg
 
             logger.debug("execute completed")
 
-        current_time = datetime.datetime.now()
-        if (
-            current_time - BotOsSession.last_annoy_refresh
-        ).total_seconds() > 120 and not BotOsSession.refresh_lock:
-            BotOsSession.refresh_lock = True
-            BotOsSession.last_annoy_refresh = current_time
-            if current_time == BotOsSession.last_annoy_refresh:
-                self._refresh_cached_annoy()
-            BotOsSession.last_annoy_refresh = current_time
-            BotOsSession.refresh_lock = False
+        # this is now handled as needed in the knowledge base code
+        # current_time = datetime.datetime.now()
+        # if (
+        #     current_time - self.last_annoy_refresh
+        # ).total_seconds() > 180 and not self.refresh_lock:
+        #     logger.info(f"*********** REFRESHING ANNOY and bot id {self.bot_id}")
+        #     self.refresh_lock = True
+        #     self.last_annoy_refresh = current_time
+        #     if current_time == self.last_annoy_refresh:
+        #         self._refresh_cached_annoy()
+        #     self.last_annoy_refresh = current_time
+        #     self.refresh_lock = False
 
     def _refresh_cached_annoy(self):
         table = self.knowledge_impl.meta_database_connector.metadata_table_name
-        embeddings_handler.load_or_create_embeddings_index(table, refresh=True)
+        embeddings_handler.load_or_create_embeddings_index(table, refresh=True, bot_id=self.bot_id)
 
     def _reminder_callback(self, message: str):
         logger.info(f"reminder_callback - {message}")

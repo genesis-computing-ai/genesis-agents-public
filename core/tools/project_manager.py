@@ -58,13 +58,14 @@ project_manager_tools = ToolFuncGroup(
                     description="The bot_id (not just the name) of the bot assigned to this todo. Omit to assign it to yourself.",
                 ),
                 depends_on=dict(
-                    type=["string", "array", "null"],
+#                    type=["string", "array", "null"],
+                    type="string",
                     description="ID or array of IDs of todos that this todo depends on",
                 ),
                 new_status=dict(
                     name="new_status",
                     description="New status for the todo (required for CHANGE_STATUS)",
-                    required=True,
+               #     required=True,
                     llm_type_desc=dict(
                         type="string",
                         enum=[

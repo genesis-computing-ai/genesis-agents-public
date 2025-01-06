@@ -29,6 +29,33 @@ def _get_global_db_connector_cached(genesis_source_name, **kwargs):
     else:
         raise ValueError(f"Invalid Source name '{genesis_source_name}'")
 
+# Global dictionary to store Annoy index handlers per bot_id
+_global_annoy_handlers = {}
+
+def set_global_annoy_handler(bot_id: str, handler):
+    """
+    Sets a global Annoy index handler for a specific bot_id.
+    
+    Args:
+        bot_id (str): The ID of the bot
+        handler: The Annoy index handler to store
+    """
+    global _global_annoy_handlers
+    _global_annoy_handlers[bot_id] = handler
+
+def get_global_annoy_handler(bot_id: str):
+    """
+    Gets the global Annoy index handler for a specific bot_id.
+    
+    Args:
+        bot_id (str): The ID of the bot
+        
+    Returns:
+        The stored Annoy index handler for the bot_id, or None if not found
+    """
+    return _global_annoy_handlers.get(bot_id)
+
+
 
 def get_global_db_connector(genesis_source_name=None, **kwargs):
     """

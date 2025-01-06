@@ -191,8 +191,6 @@ while True:
     logger.info(f"Checking for new tables... (once per {refresh_seconds} seconds)")
  #   sys.stdout.write(f"Checking for new tables... (once per {refresh_seconds} seconds)...\n")
  #   sys.stdout.flush()
-    #embeddings_handler.load_or_create_embeddings_index(bigquery_connector.metadata_table_name, refresh=True)
-   # logger.info('Checking if LLM API Key updated for harvester...')
     llm_key_handler = LLMKeyHandler(harvester_db_connector)
     latest_llm_type = None
     api_key_from_env, latest_llm_api_key_struct = llm_key_handler.get_llm_key_from_db(harvester_db_connector)

@@ -8,7 +8,7 @@ make sqlite sample data load from csv files vs binary
 speed up startup
 speed up bot responses
 o1 via api with tool calling
-put eve back in as default bot in streamlit
+(MR) put eve back in as default bot in streamlit
 test web research tools
 demo with web research tools
 x rationalize database connector with database_tools
@@ -17,10 +17,10 @@ make sure clean sqlite works with new schema removal logic
 x make sure harvester works ok in snowflake mode still (get schemas, get tables)
 test setting harvest control again with sqlite and snowflake (make sure using correct connection id)
 x store standard queries for harvester for various db_types in a metadata table, and store new ones in there when they work
-make the index for each bot separate and based on what data they have access to
+x make the index for each bot separate and based on what data they have access to
 x make metadata mapping have a source_name column
 make get_full_Table_details work with sqlite etc
-allow search_metadata_detailed and search_metadata to specify a source_name
+JL NEXT - allow search_metadata_detailed and search_metadata to specify a source_name
 x graphs out in streamlit in sqlite mode
 generate a text file with the numebrs from 1-10, sqlite mode, genesis gui error in streamlit (doesnt return the file anymore just the text)
 x route queries to snowflake through data connector tools, so there is only one query_database tool
@@ -36,11 +36,16 @@ harvest control, if database not found, return list of connections
 remove file uploads to openai when none needed
 dont return snowflake permissions suggestion if not snowflake
 make database and schema params work when not snowflake on find_memory
-is search metadata returning the type of database?  would be useful ...
+is search metadata returning the type of database?  would be useful ...  (it would need to be added to the metadata table)
 x streamlit repeating first message
 x oracle support, test harvest (Add to harvest, then harvest, them search metadata)
-add a way to store metadata queries in a local file to ease support for new databases, and support them for override of existing metadata queries in harvester
+xadd a way to store metadata queries in a local file to ease support for new databases, and support them for override of existing metadata queries in harvester
+make config querys conf generate if not existing 
 test system with redshift, bigquery, databricks
+signal to reset the annoy indexes when connections or connection rbac are changed
+make snowpark python work when you just have a regular connection to snowflake
+x (no) does local harvester need to signal when it has done new harvesting so cached annoy indexes are updated?
+dont give files search tool when no files 
 
 
 todo:

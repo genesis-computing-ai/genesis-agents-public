@@ -104,15 +104,17 @@ class AnnoyIndexSingleton:
         return i, m
 
 class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
-    def __init__(self, base_directory_path, vector_size=3072, n_trees=10, refresh=True ):
+    def __init__(self, base_directory_path, vector_size=3072, n_trees=10, refresh=True, bot_id=None ):
         self.base_directory_path = base_directory_path
         self.vector_size = vector_size
         self.n_trees = n_trees
         #self.index = AnnoyIndex(vector_size, 'angular')  # Using angular distance
         self.id_map = {}  # Maps Annoy ids to memory identifiers
         self.next_id = 0
+        self.bot_id = bot_id
 
         self.source_name = os.getenv('GENESIS_SOURCE',default="BigQuery")
+        
 
         if self.source_name  == 'BigQuery':
             credentials_path = os.getenv('GOOGLE_APPLICATION_CREDENTIALS',default=".secrets/gcp.json")
@@ -129,7 +131,9 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
                 from connectors import get_global_db_connector
                 self.meta_database_connector = get_global_db_connector()
             else:
-                self.meta_database_connector = SnowflakeConnector(connection_name='Snowflake')
+                from connectors import get_global_db_connector
+                self.meta_database_connector = get_global_db_connector()
+                #self.meta_database_connector = SnowflakeConnector(connection_name='Snowflake')
             self.project_id = self.meta_database_connector.database
 
         # check if cortex or openai
@@ -141,7 +145,11 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
             self.client = get_openai_client()
 
         #self.index, self.metadata_mapping = AnnoyIndexSingleton.get_index_and_metadata(self.meta_database_connector.metadata_table_name, vector_size, refresh=refresh)
-        self.index, self.metadata_mapping = load_or_create_embeddings_index(self.meta_database_connector.metadata_table_name, refresh=refresh)
+        self.index, self.metadata_mapping = load_or_create_embeddings_index(self.meta_database_connector.metadata_table_name, refresh=refresh, bot_id=bot_id)
+
+
+    def refresh_annoy(self):
+        self.index, self.metadata_mapping = load_or_create_embeddings_index(self.meta_database_connector.metadata_table_name, refresh=True, bot_id=self.bot_id)
 
 
     # Function to get embedding (reuse or modify your existing get_embedding function)
@@ -294,149 +302,7 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
             return None
 
 
-    def find_memory_oldold(self, query, scope="database_metadata", top_n=15, full_ddl='false',verbosity="low", database=None, schema=None, table=None) -> list[str]:
-
-        if full_ddl.lower == 'true':
-            verbosity='high'
-
-        if scope == "database_metadata":
-
-            # Check if the query is a 3-part table name
-            match = re.match(r'^"?([^"\.]+)"?\."?([^"\.]+)"?\."?([^"\.]+)"?$', query.strip())
-            parts = match.groups() if match and match.group() == query.strip() else []
-            if len(parts) == 3:
-                database, schema, table = parts
-                # Remove any quotes from the parts
-                database = database.strip('"')
-                schema = schema.strip('"')
-                table = table.strip('"')
-
-            if table:
-                full_metadata = self.get_full_metadata_details(source_name=self.source_name, database_name=database, schema_name=schema, table_name=table)
-                if full_metadata:
-                    return [full_metadata]
-                else:
-                    return [f"No metadata details found for table '{table}' in schema '{schema}', database '{database}', source '{self.source_name}'."]
-
-            memories = []
-
-            if len(self.metadata_mapping) <= 1:
-              #  logger.info('getting fresh stuff')
-                self.index, self.metadata_mapping = load_or_create_embeddings_index(self.meta_database_connector.metadata_table_name, refresh=True)
-
-            try:
-                if self.metadata_mapping == ['empty_index']:
-                    return ["There is no data harvested, the search index is empty. Tell the user to use the Genesis Streamlit GUI to grant access to their data to Genesis, or to specify a specfic DATABASE and SCHEMA that has already been granted to see what is in it."]
-            except:
-                pass
-
-            if database and schema:
-                query += " "+database+'.'+schema
-            elif schema:
-                query += " "+schema
-            elif database:
-                query += " "+database
-
-            # Check if the EMBEDDING_SIZE environment variable is set
-            embedding_size = os.environ.get('EMBEDDING_SIZE',None)
-            if embedding_size:
-                # Convert the embedding_size to an integer
-                embedding_size = int(embedding_size)
-                # Call get_embedding with the embedding_size parameter
-                embedding = self.get_embedding(query, embedding_size=embedding_size)
-            else:
-                # If EMBEDDING_SIZE is not set, call get_embedding without the parameter
-                embedding = self.get_embedding(query)
-
-            logger.info(f'embedding len {len(embedding)}')
-
-            if top_n > 25:
-                top_n = 25
-
-            run_n = top_n
-            if database or schema:
-                run_n *= 3
-
-            top_matches = self.index.get_nns_by_vector(embedding, run_n, include_distances=True)
-
-            logger.info(f'top_matches len {len(top_matches[0])}')
-       #     logger.info(f'top_matches {top_matches}')
-
-        #    logger.info(f'self index: {self.index}')
-
-            file_names = []
-            for match in top_matches[0]:
-         #       logger.info(f'match: {match}')
-        #        logger.info(f'self.metadata_mapping: {self.metadata_mapping}')
-        #        logger.info(f'self.metadata_mapping[match]: {self.metadata_mapping[match]}')
-                file_name = self.metadata_mapping[match]
-           #     logger.info(f'filename: {file_name}')
-                file_names.append(file_name)
-          #  logger.info(f'file names {file_names}')
-
-            file_names_str = "'" + "', '".join(file_names) + "'"
-            source_name_escaped = self.source_name.replace("'", "''")
-
-            where_clauses = [f"source_name='{source_name_escaped}'"]
-            # this isnt good as it post filters improperly
-            if database:
-                database_escaped = database.replace("'", "''")
-                where_clauses.append(f"database_name='{database_escaped}'")
-            if schema:
-                schema_escaped = schema.replace("'", "''")
-                where_clauses.append(f"schema_name='{schema_escaped}'")
-
-            where_statement = " AND ".join(where_clauses) + f" AND qualified_table_name IN ({file_names_str})"
-
-            if verbosity == "high":
-
-                q = f"SELECT qualified_table_name as full_table_name, ddl as DDL_FULL, sample_data_text as sample_data FROM {self.meta_database_connector.metadata_table_name} WHERE {where_statement} LIMIT {top_n}"
-            #    logger.info(q)
-                content = self.meta_database_connector.run_query(q)
-            else:
-                q = f"SELECT qualified_table_name as full_table_name, ddl_short FROM {self.meta_database_connector.metadata_table_name} WHERE {where_statement} LIMIT {top_n}"
-           #     logger.info(q)
-                content = self.meta_database_connector.run_query(q)
-
-#            for row in content:
-#                try:
-##                    logger.info(row["FULL_TABLE_NAME"][:200]+"...")
-#                    logger.info(row["FULL_TABLE_NAME"][:200]+"...")
-#                except:
-#                    logger.info(row["ddl"][:200]+"...")
-
-      #      content.append({"SEMANTIC_MODEL_NAME": '"!SEMANTIC"."GENESIS_TEST"."GENESIS_INTERNAL"."SEMANTIC_STAGE"."revenue.yaml"',
-      #                      'DESCRIPTION': 'This semantic model points to data related to revenue history and revenue forecast, including COGS and other related items.',
-      #                      'USAGE INSTRUCTIONS': "You can use the semantic_copilot function to use this semantic model to access data about these topics."})
-
-            if len(content) >= top_n:
-                msg = f'Note! There may be more tables for this query, these were the first top_n {top_n}. If you dont see what youre looking for call it with a larger top_n (up to 50) or with a more specific search query.  Also if you are looking for a specific table you know the name of, try get_full_table_details.'
-                content.append(msg)
-            memories.append(content)
-            try:
-                logger.info(f'Search metadata: returned {len(memories[0])} objects')
-            except:
-                pass
-          #  logger.info(str(content))
-            return memories
-            #    file_name = self.metadata_mapping[idx[0]]
-
-                # Todo, get the memories in a single query with an IN list, and add error handling
-            #    content = self.meta_database_connector.run_query("SELECT ddl, summary, sample_data_text as sample_data from hello-prototype.ELSA_INTERNAL.database_metadata where memory_file_name='"+file_name+"'")
-            #    logger.info(f"Match in DB: {file_name}, Score: {idx[1]}, Content Preview: {content[:100]}\n")
-            #    memories.append(content[0])
-
-                #with open(self.base_directory_path+'/'+scope+'/'+file_name, 'r') as file:
-                #    content = file.read()
-                #    logger.info(f"Match: {file_name}, Score: {idx[1]}, Content Preview: {content[:100]}\n")
-                #    memories.append(content)
-
-            #return memories
-        else:
-            return self.find_memory_local(scope=scope, query=query)
-
-
-
+  
     def find_memory(self, query, scope="database_metadata", top_n=15, verbosity="low", database=None, schema=None, table=None, full_ddl='false') -> list[str]:
         """
         Find relevant metadata using a combination of structural filtering and vector similarity search.

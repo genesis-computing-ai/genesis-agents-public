@@ -4150,7 +4150,7 @@ def get_status(site):
             # If no results, you might want to return None or an empty list
             return None
 
-    def fetch_embeddings(self, table_id):
+    def fetch_embeddings(self, table_id, bot_id="system"):
         # Initialize Snowflake connector
 
         # Initialize variables
@@ -4163,10 +4163,44 @@ def get_status(site):
         table_names = []
         # update to use embedding_native column if cortex mode
 
+        # Get array of allowed bots
+        allowed_connections_query = f"""
+        select connection_id from genesis_test.genesis_jl.cust_db_connections 
+        where owner_bot_id = '{bot_id}' 
+        or allowed_bot_ids='{bot_id}' 
+        or allowed_bot_ids in (',{bot_id}', '{bot_id},')
+        """
+        cursor = self.connection.cursor()
+        cursor.execute(allowed_connections_query)
+        allowed_connections = [row[0] for row in cursor.fetchall()]
+ 
         # First, get the total number of rows to set up the progress bar
-        total_rows_query_openai = f"SELECT COUNT(*) as total FROM {table_id} WHERE embedding IS NOT NULL"
-        total_rows_query_native = f"SELECT COUNT(*) as total FROM {table_id} WHERE embedding_native IS NOT NULL"
-        missing_native_count = f"SELECT COUNT(*) as total FROM {table_id} WHERE embedding_native is NULL and embedding is NULL and "
+        # Format list of connections with proper quoting
+        connection_list = ','.join([f"'{x}'" for x in allowed_connections])
+        if connection_list == '':
+            connection_list = "('Snowflake')"
+        else:
+            connection_list = f"('Snowflake',{connection_list})"
+
+        # Build queries using the formatted connection list
+        total_rows_query_openai = f"""
+            SELECT COUNT(*) as total 
+            FROM {table_id} 
+            WHERE embedding IS NOT NULL 
+        """
+
+        total_rows_query_native = f"""
+            SELECT COUNT(*) as total 
+            FROM {table_id} 
+            WHERE embedding_native IS NOT NULL 
+        """
+
+        missing_native_count = f"""
+            SELECT COUNT(*) as total 
+            FROM {table_id} 
+            WHERE embedding_native IS NULL 
+            AND embedding IS NULL 
+        """
 
         cursor = self.connection.cursor()
         cursor.execute(total_rows_query_openai)
@@ -4181,13 +4215,26 @@ def get_status(site):
         else:
             embedding_column = 'embedding_native'
 
-        total_rows = max(total_rows_openai, total_rows_native)
+        new_total_rows_query = f"""
+            SELECT COUNT(*) as total 
+            FROM {table_id} 
+            WHERE {embedding_column} IS NOT NULL 
+            and source_name in {connection_list}
+            """
+        cursor = self.connection.cursor()
+        cursor.execute(new_total_rows_query)
+        total_rows_result = cursor.fetchone()
+        total_rows = total_rows_result[0]
 
-        with tqdm(total=total_rows, desc="Fetching embeddings") as pbar:
+        with tqdm(total=total_rows, desc=f"Fetching embeddings for {bot_id}") as pbar:
 
             while True:
                 # Modify the query to include LIMIT and OFFSET
-                query = f"SELECT qualified_table_name, {embedding_column}, source_name FROM {table_id} WHERE {embedding_column} IS NOT NULL LIMIT {batch_size} OFFSET {offset}"
+                query = f"""SELECT qualified_table_name, {embedding_column}, source_name 
+                    FROM {table_id} 
+                    WHERE {embedding_column} IS NOT NULL 
+                    AND (source_name IN {connection_list})
+                    LIMIT {batch_size} OFFSET {offset}"""
                 #            logger.info('fetch query ',query)
 
                 cursor.execute(query)
@@ -4236,9 +4283,12 @@ def get_status(site):
         #   logger.info('embeddings len ',len(embeddings))
         return table_names, embeddings
 
-    def generate_filename_from_last_modified(self, table_id):
+    def generate_filename_from_last_modified(self, table_id, bot_id=None):
 
         database, schema, table = table_id.split('.')
+
+        if bot_id is None:
+            bot_id = 'default'
 
         try:
             # Fetch the maximum LAST_CRAWLED_TIMESTAMP from the harvest_results table
@@ -4276,14 +4326,14 @@ def get_status(site):
                 timestamp_str = last_crawled_time.strftime("%Y%m%dT%H%M%S") + "Z"
 
             # Create the filename with the .ann extension
-            filename = f"{timestamp_str}.ann"
-            metafilename = f"{timestamp_str}.json"
+            filename = f"{timestamp_str}_{bot_id}.ann"
+            metafilename = f"{timestamp_str}_{bot_id}.json"
             return filename, metafilename
         except Exception as e:
             # Handle errors: for example, table not found, or API errors
             # logger.info(f"An error occurred: {e}, possibly no data yet harvested, using default name for index file.")
             # Return a default filename or re-raise the exception based on your use case
-            return "default_filename.ann", "default_metadata.json"
+            return f"default_filename_{bot_id}.ann", f"default_metadata_{bot_id}.json"
 
     def chat_completion_for_escallation(self, message):
         # self.write_message_log_row(db_adapter, bot_id, bot_name, thread_id, 'Supervisor Prompt', message, message_metadata)

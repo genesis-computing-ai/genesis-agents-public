@@ -717,6 +717,8 @@ class DatabaseConnector:
 
         from core.logging_config import logger
         from core.bot_os_memory import BotOsKnowledgeAnnoy_Metadata
+        from core.bot_os import BotOsSession  # Add this import
+
 
         # logger.info(f"Search metadata called with query: {query}, scope: {scope}, top_n: {top_n}, verbosity: {verbosity}")
         try:
@@ -736,7 +738,12 @@ class DatabaseConnector:
             )
             # Adjusted to include scope in the call to find_memory
             # logger.info(f"GETTING NEW ANNOY - Refresh True - --- Search metadata called with query: {query}, scope: {scope}, top_n: {top_n}, verbosity: {verbosity}")
-            my_kb = BotOsKnowledgeAnnoy_Metadata(knowledge_base_path, refresh=True)
+            my_kb = BotOsSession.knowledge_implementations.get(bot_id)
+            if my_kb is None:
+                # If not found, create new one
+                my_kb = BotOsKnowledgeAnnoy_Metadata(knowledge_base_path, refresh=True, bot_id=bot_id)
+            else:
+                my_kb.refresh_annoy()
             # logger.info(f"CALLING FIND MEMORY  --- Search metadata called with query: {query}, scope: {scope}, top_n: {top_n}, verbosity: {verbosity}")
             result = my_kb.find_memory(
                 query,
@@ -748,7 +755,7 @@ class DatabaseConnector:
                 verbosity=verbosity,
                 full_ddl=full_ddl,
             )
-            return result
+            return result   
         except Exception as e:
             logger.error(f"Error in find_memory_openai_callable: {str(e)}")
             return {"error": "An error occurred while trying to find the memory."}
@@ -775,6 +782,7 @@ class DatabaseConnector:
 
         from core.logging_config import logger
         from core.bot_os_memory import BotOsKnowledgeAnnoy_Metadata
+        from core.bot_os import BotOsSession
 
         # logger.info(f"Search metadata called with query: {query}, scope: {scope}, top_n: {top_n}, verbosity: {verbosity}")
         try:
@@ -794,7 +802,13 @@ class DatabaseConnector:
             )
             # Adjusted to include scope in the call to find_memory
             # logger.info(f"GETTING NEW ANNOY - Refresh True - --- Search metadata called with query: {query}, scope: {scope}, top_n: {top_n}, verbosity: {verbosity}")
-            my_kb = BotOsKnowledgeAnnoy_Metadata(knowledge_base_path, refresh=True)
+            my_kb = BotOsSession.knowledge_implementations.get(bot_id)
+            if my_kb is None:
+                # If not found, create new one
+                my_kb = BotOsKnowledgeAnnoy_Metadata(knowledge_base_path, refresh=True, bot_id=bot_id)
+            else:
+                my_kb.refresh_annoy()
+
             # logger.info(f"CALLING FIND MEMORY  --- Search metadata called with query: {query}, scope: {scope}, top_n: {top_n}, verbosity: {verbosity}")
             result = my_kb.find_memory(
                 query,

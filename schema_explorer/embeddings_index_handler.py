@@ -206,11 +206,11 @@ def create_annoy_index(embeddings, n_trees=10):
 
 
 
-def make_and_save_index(table_id):
+def make_and_save_index(table_id, bot_id=None):
     emb_db_adapter = get_global_db_connector()
-    table_names, embeddings = emb_db_adapter.fetch_embeddings(table_id)
+    table_names, embeddings = emb_db_adapter.fetch_embeddings(table_id, bot_id)
 
-    logger.info("indexing ",len(embeddings)," embeddings...")
+    logger.info(f"indexing {len(embeddings)} embeddings for bot {bot_id}...")
 
     if len(embeddings) == 0:
         embeddings = []
@@ -236,7 +236,7 @@ def make_and_save_index(table_id):
 
     # save with timestamp filename
     emb_db_adapter = get_global_db_connector()
-    index_file_name, meta_file_name = emb_db_adapter.generate_filename_from_last_modified(table_id)
+    index_file_name, meta_file_name = emb_db_adapter.generate_filename_from_last_modified(table_id, bot_id=bot_id)
     try:
         annoy_index.save(os.path.join(index_file_path,index_file_name))
     except Exception as e:
@@ -248,7 +248,7 @@ def make_and_save_index(table_id):
         json.dump(table_names, f)
 
     # save with default filename
-    index_file_name, meta_file_name = 'latest_cached_index.ann', 'latest_cached_metadata.json'
+    index_file_name, meta_file_name = f'latest_cached_index_{bot_id}.ann', f'latest_cached_metadata_{bot_id}.json'
     annoy_index.save(os.path.join(index_file_path,index_file_name))
 
     logger.info("saving mappings to default cached files...")
@@ -290,22 +290,25 @@ def search_and_display_results(search_term, annoy_index, metadata_mapping):
         logger.info(f"Match: {table_name}, Score: {idx[1]}")
 
 
-def load_or_create_embeddings_index(table_id, refresh=True):
+def load_or_create_embeddings_index(table_id, refresh=True, bot_id=None):
 
     # if cortex_mode then 768 else
     if os.environ.get("CORTEX_MODE", 'False') == 'True':
         embedding_size = 768
     else:
         embedding_size = 3072
+    
+    if bot_id is None:
+        bot_id = 'default'
 
     index_file_path = './tmp/'
     # embedding_size = 3072
 
     emb_db_adapter = get_global_db_connector()
     if refresh:
-        index_file_name, meta_file_name = emb_db_adapter.generate_filename_from_last_modified(table_id)
+        index_file_name, meta_file_name = emb_db_adapter.generate_filename_from_last_modified(table_id, bot_id=bot_id)
     else:
-        index_file_name, meta_file_name = 'latest_cached_index.ann', 'latest_cached_metadata.json'
+        index_file_name, meta_file_name = f'latest_cached_index_{bot_id}.ann', f'latest_cached_metadata_{bot_id}.json'
 
     index_size_file = os.path.join(index_file_path, 'index_size.txt')
     if os.path.exists(index_size_file):
@@ -338,7 +341,7 @@ def load_or_create_embeddings_index(table_id, refresh=True):
             if refresh:
                 if not os.path.exists(index_file_path):
                     os.makedirs(index_file_path)
-                copy_index_file_name, copy_meta_file_name = 'latest_cached_index.ann', 'latest_cached_metadata.json'
+                copy_index_file_name, copy_meta_file_name = f'latest_cached_index_{bot_id}.ann', f'latest_cached_metadata_{bot_id}.json'
                 try:
                     annoy_index.save(os.path.join(index_file_path,copy_index_file_name))
                 except Exception as e:
@@ -356,21 +359,12 @@ def load_or_create_embeddings_index(table_id, refresh=True):
         except OSError:
          #   logger.error("Annoy Cache Manager: Refreshing locally cached Annoy index as Harvest Results table has changed due to harvester activity")
             logger.info("Annoy Cache Manager: Refreshing locally cached Annoy index as Harvest Results table has changed due to harvester activity")
-            annoy_index, metadata_mapping = make_and_save_index(table_id)
+            annoy_index, metadata_mapping = make_and_save_index(table_id, bot_id=bot_id)
     else:
        # logger.error("Annoy Cache Manager: Refreshing locally cached Annoy index as Harvest Results table has changed due to harvester activity")
-        logger.info("Annoy Cache Manager: Refreshing locally cached Annoy index as Harvest Results table has changed due to harvester activity")
-        annoy_index, metadata_mapping = make_and_save_index(table_id)
+        logger.info(f"Annoy Cache Manager: Refreshing locally cached Annoy index for bot {bot_id} as Harvest Results table has changed due to harvester activity")
+        annoy_index, metadata_mapping = make_and_save_index(table_id, bot_id=bot_id)
 
-  #  logger.info(f'returning  {annoy_index},{metadata_mapping}')
-    # logger.info('returning  ',annoy_index,metadata_mapping)
     return annoy_index, metadata_mapping
-#table_id = "hello-prototype.ELSA_INTERNAL.database_harvest"
-#annoy_index, metadata_mapping = load_or_create_embeddings_index(table_id)
-
-#while True:
-#    search_term = input("Enter your search term: ")
-#    logger.info('\n\n')
-#    search_and_display_results(search_term, annoy_index, metadata_mapping)
 
 

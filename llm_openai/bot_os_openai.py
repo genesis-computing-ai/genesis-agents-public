@@ -266,7 +266,6 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
             vector_store_name = self.bot_id + '_vectorstore'
             self.vector_store = self.create_vector_store(vector_store_name=vector_store_name, files=files)
             if self.vector_store is not None:
-            # tool_resources = {"file_search": {"vector_store_ids": [vector_store]}}
                self.tool_resources = {"file_search": {"vector_store_ids": [self.vector_store]}}
             else:
                self.tool_resources = {}

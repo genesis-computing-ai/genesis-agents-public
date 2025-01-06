@@ -40,10 +40,10 @@ from   core.bot_os_defaults     import (BASE_BOT_INSTRUCTIONS_ADDENDUM,
 
 from   core.bot_os_tool_descriptions \
                                 import (
-                                        data_dev_tools,
-                                        data_dev_tools_functions,
-                                        git_file_manager_functions,
-                                        git_file_manager_tools,
+                                        # data_dev_tools,
+                                        # data_dev_tools_functions,
+                                        # git_file_manager_functions,
+                                        # git_file_manager_tools,
                                         process_runner_functions,
                                         process_runner_tools,
 )
@@ -51,10 +51,10 @@ from   core.bot_os_tool_descriptions \
 from   connectors.snowflake_connector.snowflake_connector \
                                 import SnowflakeConnector
 
-from connectors.snowflake_tools import (
-                                        snowflake_tools,
-                                        snowflake_functions,
-                                        )
+# from connectors.snowflake_tools import (
+#                                         snowflake_tools,
+#                                         snowflake_functions,
+#                                         )
 
 
 from   core.file_diff_handler   import GitFileManager
@@ -1182,13 +1182,15 @@ def get_tools(
         # Resolve 'old style' tool names
         # ----------------------------------
         if tool_name == "bot_dispatch_tools" or tool_name == "bot_dispatch":
-            func_descriptors.extend(BOT_DISPATCH_DESCRIPTIONS)
-            available_functions_loaded.update(bot_dispatch_tools)
-            tool_to_func_descriptors_map[tool_name] = BOT_DISPATCH_DESCRIPTIONS
-        elif tool_name == "data_dev_tools":
-            func_descriptors.extend(data_dev_tools_functions)
-            available_functions_loaded.update(data_dev_tools)
-        elif include_slack and tool_name == "slack_tools":
+            tool_name = "delegate_work"
+
+        if tool_name == "git_file_manager_tools":
+            tool_name = "git_action"
+
+        if tool_name == "data_dev_tools":
+            tool_name = "jira_connector"
+
+        if include_slack and tool_name == "slack_tools":
             func_descriptors.extend(slack_tools_descriptions)
             available_functions_loaded.update(slack_tools)
             tool_to_func_descriptors_map[tool_name] = slack_tools_descriptions
@@ -1208,28 +1210,35 @@ def get_tools(
             func_descriptors.extend(notebook_manager_functions)
             available_functions_loaded.update(notebook_manager_tools)
             tool_to_func_descriptors_map[tool_name] = notebook_manager_functions
+        elif tool_name == "web_access_tools":
+            func_descriptors.extend(web_access_functions)
+            available_functions_loaded.update(web_access_tools)
+            tool_to_func_descriptors_map[tool_name] = web_access_functions
         # elif tool_name == "snowflake_tools":
         #     func_descriptors.extend(snowflake_functions)
         #     available_functions_loaded.update(snowflake_tools)
         #     tool_to_func_descriptors_map[tool_name] = snowflake_functions
-        elif tool_name == "git_file_manager_tools":  # Add this section
-            func_descriptors.extend(git_file_manager_functions)
-            available_functions_loaded.update(git_file_manager_tools)
-            tool_to_func_descriptors_map[tool_name] = git_file_manager_functions
+        # elif tool_name == "git_file_manager_tools":  # Add this section
+        #     func_descriptors.extend(git_file_manager_functions)
+        #     available_functions_loaded.update(git_file_manager_tools)
+        #     tool_to_func_descriptors_map[tool_name] = git_file_manager_functions
         # elif tool_name == "webpage_downloader":
         #     func_descriptors.extend(webpage_downloader_functions)
         #     available_functions_loaded.update(webpage_downloader_tools)
         #     tool_to_func_descriptors_map[tool_name] = webpage_downloader_functions
         # dagster tools have been converted to 'new type' tools (see bot_os_tools2.py)
-        #
         # elif tool_name == "dagster_tools":
         #     func_descriptors.extend(dagster_tool_functions)
         #     available_functions_loaded.update(dagster_tools)
         #     tool_to_func_descriptors_map[tool_name] = dagster_tool_functions
-        elif tool_name == "web_access_tools":
-            func_descriptors.extend(web_access_functions)
-            available_functions_loaded.update(web_access_tools)
-            tool_to_func_descriptors_map[tool_name] = web_access_functions
+        # elif tool_name == "bot_dispatch_tools" or tool_name == "bot_dispatch":
+        #     func_descriptors.extend(BOT_DISPATCH_DESCRIPTIONS)
+        #     available_functions_loaded.update(bot_dispatch_tools)
+        #     tool_to_func_descriptors_map[tool_name] = BOT_DISPATCH_DESCRIPTIONS
+        # elif tool_name == "data_dev_tools":
+        #     func_descriptors.extend(data_dev_tools_functions)
+        #     available_functions_loaded.update(data_dev_tools)
+
         else:
             # Resolve 'new style' tool functions
             # (from tool functions registry)

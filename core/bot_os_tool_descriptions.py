@@ -11,41 +11,73 @@
 # Keeping the secondary LLM focused on adjudicating the step results and deciding what should be done next should keep everything on track
 # But it will be mediated by the tool so it doesn’t need to talk directly to any of the bots which keeps it simpler
 
-BOT_DISPATCH_DESCRIPTIONS = [
-    {
-        "type": "function",
-        "function": {
-            "name": "dispatch_to_bots",
-            "description": 'Specify an arry of templated natual language tasks you want to execute in parallel to a set of bots like you. for example, "Who is the president of {{ country_name }}". Never use this tool for arrays with < 2 items.',
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "task_template": {
-                        "type": "string",
-                        "description": "Jinja template for the tasks you want to farm out to other bots",
-                    },
-                    "args_array": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": 'Arguments you want to fill in for each jinja template variable of the form [{"country_name": "france"}, {"country_name": "spain"}]',
-                    },
-                },
-                "required": ["task_template", "args_array"],
-                "bot_id": {
-                    "type": "string",
-                    "description": "The unique identifier for an existing bot you are aware of to dispatch the tasks to. Should be the bot_name dash a 6 letter alphanumeric random code, for example mybot-w73hxg. Pass None to dispatch to yourself.",
-                },
-            },
-        },
-    }
+# A global list of tools (function groups) and their descriptions.
+# NOTE: This is used to populate the AVAILABLE_TOOLS table in the database.
+_tools_data = [
+    (
+        "google_drive_tools",
+        "A suite of tools for interacting with Google Drive",
+    ),
+    (
+        "manage_tests_tools",
+        "List, add, update, and delete tests that run at deploy time.",
+    ),
+    (
+        "slack_tools",
+        "Lookup slack users by name, and send direct messages in Slack",
+    ),
+    (
+        "make_baby_bot",
+        "Create, configure, and administer other bots programatically",
+    ),
+    # ('integrate_code', 'Create, test, and deploy new tools that bots can use'),
+    (
+        "webpage_downloader",
+        "Access web pages on the internet and return their contents",
+    ),
+    (
+        "snowflake_tools",
+        "Discover database metadata, find database tables, and run SQL queries on a Snowflake database and read, update, write, list, and delete from Snowflake Stages",
+    ),
+    (
+        "harvester_tools",
+        "Control the database harvester, add new databases to harvest, add schema inclusions and exclusions, see harvest status",
+    ),
+    ("image_tools", "Tools to interpret visual images and pictures"),
+    (
+        "process_runner_tools",
+        "Tools to run processes.",
+    ),
+    (
+        "process_manager_tools",
+        "Tools to create and manage processes.",
+    ),
+    (
+        "process_scheduler_tools",
+        "Tools to set schedules to automatically run processes.",
+    ),
+    (
+        "notebook_manager_tools",
+        "Tools to manage bot notebook.",
+    ),
+    (
+        "artifact_manager_tools",
+        "Tools to manage artifacts.",
+    ),
+    (
+        "data_dev_tools",
+        "Tools for data development workflows including Jira integration",
+    ),
+    (
+        "project_manager_tools",
+        "Tools for managing projects and their todo items including creating, updating, changing status and listing both projects and todos",
+    ),
+    (
+        "git_file_manager_tools",
+        "Tools for managing files in a local Git repository including reading, writing, generating and applying diffs, and managing commits",
+    ),
+    ("bot_dispatch_tools", "Tools delegating work to bots"),
 ]
-# "bot_id": {
-#     "type": "string",
-#     "description": "The unique identifier for an existing bot you are aware of to dispatch the tasks to. Should be the bot_name dash a 6 letter alphanumeric random code, for example mybot-w73hxg."
-# }
-
-
-bot_dispatch_tools = {"dispatch_to_bots": "core.bot_os_tools.dispatch_to_bots"}
 
 process_runner_functions = [
     {
@@ -79,55 +111,12 @@ process_runner_functions = [
                         "default": False,
                         "description": "Optional, to run in low-verbosity/concise mode. Default to False.",
                     },
-         #           "goto_step": {
-         #               "type": "string",
-         #               "description": "Directs the process runner to update the program counter",
-         #           },
+                    #           "goto_step": {
+                    #               "type": "string",
+                    #               "description": "Directs the process runner to update the program counter",
+                    #           },
                 },
                 "required": ["action"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "_send_email",
-            "description": ("Sends an email in either text/plain or text/html format. Prefer to use text/html. DO NOT use attachments nor CIDs as those are NOT supported. "
-                            "Instead, to embed an artifact in an email use artifact markdown notation in the body of the email."),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "to_addr_list": {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        },
-                        "description": "A list of recipient email addresses.",
-                    },
-                    "subject": {
-                        "type": "string",
-                        "description": "The subject of the email.",
-                    },
-                    "body": {
-                        "type": "string",
-                        "description": "The body content of the email. "
-                                       "When using mime_type='text/plain' you CAN use Slack-compatible markdown syntax. "
-                                       "When using mime_type='text/html' DO NOT use markdown. Use appropriate html tags instead. Use this format as the default for most emails",
-                    },
-                    "bot_id": {
-                        "type": "string",
-                        "description": "The bot_id that invoked this tool",
-                    },
-                    "purpose": {
-                        "type": "string",
-                        "description": "A short description of the purpose of this email. This is stored as metadata for this email.",
-                    },
-                    "mime_type": {
-                        "type": "string",
-                        "description": "The MIME type of the email body. Accepts 'text/plain' or 'text/html'. Defaults to 'text/html'.",
-                    }
-                },
-                "required": ["to_addr_list", "subject", "body", "bot_id", "purpose"],
             },
         },
     },
@@ -135,176 +124,130 @@ process_runner_functions = [
 
 process_runner_tools = {
     "_run_process": "tool_belt.run_process",
-    "_send_email": "tool_belt.send_email"
+    "_send_email": "tool_belt.send_email",
 }
 
-# Start of Generated Description
-webpage_downloader_functions = [
-    {
-        "type": "function",
-        "function": {
-            "name": "_webpage_downloader",
-            "description": "Downloads a webpage and returns its HTML content and hyperlinks in chunks, ensuring each chunk does not exceed 512KB. Allows specifying a chunk index to download specific parts of the beautified content. This tool is particularly useful for large and complex webpages and utilizes BeautifulSoup for parsing. It might require multiple sequential chunk downloads to capture the complete content relevant to the user's request.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "url": {
-                        "type": "string",
-                        "description": "The URL of the webpage to download.",
-                    },
-                    "chunk_index": {
-                        "type": "integer",
-                        "default": 0,
-                        "description": "The specific chunk index to download, with each chunk being up to 512KB in size. Defaults to the first chunk (0) if not specified.",
-                    },
-                },
-                "required": ["url"],
-            },
-        },
-    }
-]
 
-webpage_downloader_tools = {
-    "_webpage_downloader": "tool_belt.download_webpage"
-}
-webpage_downloader_action_function_mapping = {
-    "webpage_downloader": "tool_belt.download_webpage"
-}
+def get_persistent_tools_descriptions() -> list[tuple[str, str]]:
+    """
+    Retrieves a list of all tool descriptions for tools that have a 'persistent' lifetime.
 
-# A global list of tools (function groups) and their descriptions.
-# NOTE: This is used to populate the AVAILABLE_TOOLS table in the database.
-_tools_data = [
-    (
-        "google_drive_tools",
-        "A suite of tools for interacting with Google Drive",
-    ),
-    (
-        "manage_tests_tools",
-        "List, add, update, and delete tests that run at deploy time.",
-    ),
-    (
-        "slack_tools",
-        "Lookup slack users by name, and send direct messages in Slack",
-    ),
-    (
-        "make_baby_bot",
-        "Create, configure, and administer other bots programatically",
-    ),
-    # ('integrate_code', 'Create, test, and deploy new tools that bots can use'),
-    # (
-    #     "webpage_downloader",
-    #     "Access web pages on the internet and return their contents",
-    # ),
-    # (
-    #     "database_tools",
-    #     "Discover database metadata, find database tables, and run SQL queries on a non-Snowflake database",
-    # ),
-    (
-        "snowflake_tools",
-        "Discover database metadata, find database tables, and run SQL queries on a Snowflake database and read, update, write, list, and delete from Snowflake Stages",
-    ),
-    (
-        "harvester_tools",
-        "Control the database harvester, add new databases to harvest, add schema inclusions and exclusions, see harvest status",
-    ),
-    (
-        "image_tools", "Tools to interpret visual images and pictures"
-    ),
-    # (
-    #     "autonomous_tools",
-    #     "These tools are depreciated.  Use process_manager_tools and process_scheduler_tools instead.",
-    # ),
-    (
-        "process_runner_tools",
-        "Tools to run processes.",
-    ),
-    # (
-    #     "process_manager_tools",
-    #     "Tools to create and manage processes.",
-    # ),
-    # (
-    #     "process_scheduler_tools",
-    #     "Tools to set schedules to automatically run processes.",
-    # ),
-    (
-        "notebook_manager_tools",
-        "Tools to manage bot notebook.",
-    ),
-    # (
-    #     "artifact_manager_tools",
-    #     "Tools to manage artifacts.",
-    # )
-]
+    Returns:
+        list: A list of tuples where each tuple contains the name and description of a tool group.
+    """
+    # Impl note: This function copies the global _tools_data list - AKA 'old-style' tool registry  - and appends descriptions of tool groups
+    # from the global tools registry - AKA 'new-style' tool registry - where all tools in the group have a 'PERSISTENT' lifetime.
+    from core.bot_os_tools2 import get_global_tools_registry, ToolFuncGroupLifetime
 
-data_dev_tools_functions = [
-    {
-        "type": "function",
-        "function": {
-            "name": "_jira_connector",
-            "description": "Interact with Jira to create, update, and query issues",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "action": {
-                        "type": "string",
-                        "description": """The action to perform: CREATE_ISSUE, UPDATE_ISSUE, GET_ISSUE, or SEARCH_ISSUES. If asked to assign or update a user, or search for issues by user, capture the user_name.
-                                        Do not capture description variable unless told to update or add a description or comment.
-                                        If looking for issues that are unassigned, set user_name to Unassigned.
-                        """,
-                    },
-                    "project_key": {
-                        "type": "string",
-                        "description": "The Jira project key (e.g., 'DATA', 'DEV')",
-                    },
-                    "summary": {
-                        "type": "string",
-                        "description": "Issue summary/title for CREATE_ISSUE or SEARCH_ISSUE action",
-                    },
-                    "description": {
-                        "type": "string",
-                        "description": "Detailed description or comment for CREATE_ISSUE or UPDATE_ISSUE or SEARCH_ISSUE actions. Use only the text entered by the user, do not auto create this field.",
-                    },
-                    "status": {
-                        "type": "string",
-                        "description": "Jira issue status to be updated exactly as requested for CREATE_ISSUE or UPDATE_ISSUE or SEARCH_ISSUE actions.",
-                    },
-                    "issue_key": {
-                        "type": "string",
-                        "description": "The Jira issue key for UPDATE_ISSUE or GET_ISSUE or SEARCH_ISSUE actions (e.g., 'DATA-123')",
-                    },
-                    "issue_type": {
-                        "type": "string",
-                        "description": "The Jira issue type for UPDATE_ISSUE or CREATE_ISSUE or SEARCH_ISSUE actions (e.g., 'Task')",
-                    },
-                    "priority": {
-                        "type": "string",
-                        "description": "The Jira issue priority or CREATE_ISSUE or UPDATE_ISSUE or SEARCH_ISSUE actions (e.g. 'Low','High','Highest')",
-                    },
-                    "jql": {
-                        "type": "string",
-                        "description": "JQL query string optional for SEARCH_ISSUES action",
-                    },
-                    "user_name": {
-                        "type": "string",
-                        "description": "Jira user name for SEARCH_ISSUES, CREATE_ISSUE, or UPDATE_ISSUE actions",
-                    }
-                },
-                "required": ["action"],
-            },
-        },
-    }
-]
+    global _tools_data
+    tools_data = _tools_data.copy()
 
-data_dev_tools = {
-    "_jira_connector": "data_dev_tools.jira_connector._jira_connector"
-}
+    registry = get_global_tools_registry()
+    for group in registry.list_groups():
+        if group.lifetime == ToolFuncGroupLifetime.PERSISTENT:
+            tools_data.append((group.name, group.description))
+    return tools_data
 
-_tools_data.append(
-    (
-        "data_dev_tools",
-        "Tools for data development workflows including Jira integration",
-    )
-)
+
+# BOT_DISPATCH_DESCRIPTIONS = [
+#     {
+#         "type": "function",
+#         "function": {
+#             "name": "dispatch_to_bots",
+#             "description": 'Specify an arry of templated natual language tasks you want to execute in parallel to a set of bots like you. for example, "Who is the president of {{ country_name }}". Never use this tool for arrays with < 2 items.',
+#             "parameters": {
+#                 "type": "object",
+#                 "properties": {
+#                     "task_template": {
+#                         "type": "string",
+#                         "description": "Jinja template for the tasks you want to farm out to other bots",
+#                     },
+#                     "args_array": {
+#                         "type": "array",
+#                         "items": {"type": "string"},
+#                         "description": 'Arguments you want to fill in for each jinja template variable of the form [{"country_name": "france"}, {"country_name": "spain"}]',
+#                     },
+#                 },
+#                 "required": ["task_template", "args_array"],
+#                 "bot_id": {
+#                     "type": "string",
+#                     "description": "The unique identifier for an existing bot you are aware of to dispatch the tasks to. Should be the bot_name dash a 6 letter alphanumeric random code, for example mybot-w73hxg. Pass None to dispatch to yourself.",
+#                 },
+#             },
+#         },
+#     }
+# ]
+# # "bot_id": {
+# #     "type": "string",
+# #     "description": "The unique identifier for an existing bot you are aware of to dispatch the tasks to. Should be the bot_name dash a 6 letter alphanumeric random code, for example mybot-w73hxg."
+# # }
+
+
+# bot_dispatch_tools = {"dispatch_to_bots": "core.bot_os_tools.dispatch_to_bots"}
+
+
+# data_dev_tools_functions = [
+#     {
+#         "type": "function",
+#         "function": {
+#             "name": "_jira_connector",
+#             "description": "Interact with Jira to create, update, and query issues",
+#             "parameters": {
+#                 "type": "object",
+#                 "properties": {
+#                     "action": {
+#                         "type": "string",
+#                         "description": """The action to perform: CREATE_ISSUE, UPDATE_ISSUE, GET_ISSUE, or SEARCH_ISSUES. If asked to assign or update a user, or search for issues by user, capture the user_name.
+#                                         Do not capture description variable unless told to update or add a description or comment.
+#                                         If looking for issues that are unassigned, set user_name to Unassigned.
+#                         """,
+#                     },
+#                     "project_key": {
+#                         "type": "string",
+#                         "description": "The Jira project key (e.g., 'DATA', 'DEV')",
+#                     },
+#                     "summary": {
+#                         "type": "string",
+#                         "description": "Issue summary/title for CREATE_ISSUE or SEARCH_ISSUE action",
+#                     },
+#                     "description": {
+#                         "type": "string",
+#                         "description": "Detailed description or comment for CREATE_ISSUE or UPDATE_ISSUE or SEARCH_ISSUE actions. Use only the text entered by the user, do not auto create this field.",
+#                     },
+#                     "status": {
+#                         "type": "string",
+#                         "description": "Jira issue status to be updated exactly as requested for CREATE_ISSUE or UPDATE_ISSUE or SEARCH_ISSUE actions.",
+#                     },
+#                     "issue_key": {
+#                         "type": "string",
+#                         "description": "The Jira issue key for UPDATE_ISSUE or GET_ISSUE or SEARCH_ISSUE actions (e.g., 'DATA-123')",
+#                     },
+#                     "issue_type": {
+#                         "type": "string",
+#                         "description": "The Jira issue type for UPDATE_ISSUE or CREATE_ISSUE or SEARCH_ISSUE actions (e.g., 'Task')",
+#                     },
+#                     "priority": {
+#                         "type": "string",
+#                         "description": "The Jira issue priority or CREATE_ISSUE or UPDATE_ISSUE or SEARCH_ISSUE actions (e.g. 'Low','High','Highest')",
+#                     },
+#                     "jql": {
+#                         "type": "string",
+#                         "description": "JQL query string optional for SEARCH_ISSUES action",
+#                     },
+#                     "user_name": {
+#                         "type": "string",
+#                         "description": "Jira user name for SEARCH_ISSUES, CREATE_ISSUE, or UPDATE_ISSUE actions",
+#                     }
+#                 },
+#                 "required": ["action"],
+#             },
+#         },
+#     }
+# ]
+
+# data_dev_tools = {
+#     "_jira_connector": "data_dev_tools.jira_connector._jira_connector"
+# }
 
 # PROJECT_MANAGER_FUNCTIONS = [
 #     {
@@ -582,128 +525,86 @@ _tools_data.append(
 #     "_manage_project_assets": "tool_belt.manage_project_assets"
 # }
 
-# _tools_data.append(
-#     (
-#         "project_manager_tools",
-#         "Tools for managing projects and their todo items including creating, updating, changing status and listing both projects and todos",
-#     )
-# )
+# git_file_manager_functions = [
+#     {
+#         "type": "function",
+#         "function": {
+#             "name": "_git_action",
+#             "description": "Manage files in a local Git repository including reading, writing, generating diffs, and committing changes",
+#             "parameters": {
+#                 "type": "object",
+#                 "properties": {
+#                     "action": {
+#                         "type": "string",
+#                         "description": """
+#                         The action to perform:
+#                         - list_files: List all tracked files (optional: path)
+#                         - read_file: Read file contents (requires: file_path)
+#                         - write_file: Write content to file (requires: file_path, content; optional: commit_message)
+#                         - generate_diff: Generate diff between contents (requires: old_content, new_content; optional: context_lines)
+#                         - apply_diff: Apply a unified diff to a file (requires: file_path, diff_content; optional: commit_message)
+#                         - commit: Commit changes (requires: message)
+#                         - get_history: Get commit history (optional: file_path, max_count)
+#                         - create_branch: Create new branch (requires: branch_name)
+#                         - switch_branch: Switch to branch (requires: branch_name)
+#                         - get_branch: Get current branch name
+#                         - get_status: Get file status (optional: file_path)
+#                         """,
+#                         "enum": [
+#                             "list_files", "read_file", "write_file", "generate_diff",
+#                             "apply_diff", "commit", "get_history", "create_branch",
+#                             "switch_branch", "get_branch", "get_status"
+#                         ]
+#                     },
+#                     "file_path": {
+#                         "type": "string",
+#                         "description": "Path to the file within the repository"
+#                     },
+#                     "content": {
+#                         "type": "string",
+#                         "description": "Content to write to the file"
+#                     },
+#                     "commit_message": {
+#                         "type": "string",
+#                         "description": "Message to use when committing changes"
+#                     },
+#                     "old_content": {
+#                         "type": "string",
+#                         "description": "Original content for generating diff"
+#                     },
+#                     "new_content": {
+#                         "type": "string",
+#                         "description": "New content for generating diff"
+#                     },
+#                     "diff_content": {
+#                         "type": "string",
+#                         "description": "Unified diff content to apply to a file"
+#                     },
+#                     "branch_name": {
+#                         "type": "string",
+#                         "description": "Name of the branch to create or switch to"
+#                     },
+#                     "path": {
+#                         "type": "string",
+#                         "description": "Optional path filter for listing files"
+#                     },
+#                     "max_count": {
+#                         "type": "integer",
+#                         "description": "Maximum number of history entries to return",
+#                         "default": 10
+#                     },
+#                     "context_lines": {
+#                         "type": "integer",
+#                         "description": "Number of context lines in generated diffs",
+#                         "default": 3
+#                     }
+#                 },
+#                 "required": ["action"]
+#             }
+#         }
+#     }
+# ]
 
-git_file_manager_functions = [
-    {
-        "type": "function",
-        "function": {
-            "name": "_git_action",
-            "description": "Manage files in a local Git repository including reading, writing, generating diffs, and committing changes",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "action": {
-                        "type": "string",
-                        "description": """
-                        The action to perform:
-                        - list_files: List all tracked files (optional: path)
-                        - read_file: Read file contents (requires: file_path)
-                        - write_file: Write content to file (requires: file_path, content; optional: commit_message)
-                        - generate_diff: Generate diff between contents (requires: old_content, new_content; optional: context_lines)
-                        - apply_diff: Apply a unified diff to a file (requires: file_path, diff_content; optional: commit_message)
-                        - commit: Commit changes (requires: message)
-                        - get_history: Get commit history (optional: file_path, max_count)
-                        - create_branch: Create new branch (requires: branch_name)
-                        - switch_branch: Switch to branch (requires: branch_name)
-                        - get_branch: Get current branch name
-                        - get_status: Get file status (optional: file_path)
-                        """,
-                        "enum": [
-                            "list_files", "read_file", "write_file", "generate_diff",
-                            "apply_diff", "commit", "get_history", "create_branch",
-                            "switch_branch", "get_branch", "get_status"
-                        ]
-                    },
-                    "file_path": {
-                        "type": "string",
-                        "description": "Path to the file within the repository"
-                    },
-                    "content": {
-                        "type": "string",
-                        "description": "Content to write to the file"
-                    },
-                    "commit_message": {
-                        "type": "string",
-                        "description": "Message to use when committing changes"
-                    },
-                    "old_content": {
-                        "type": "string",
-                        "description": "Original content for generating diff"
-                    },
-                    "new_content": {
-                        "type": "string",
-                        "description": "New content for generating diff"
-                    },
-                    "diff_content": {
-                        "type": "string",
-                        "description": "Unified diff content to apply to a file"
-                    },
-                    "branch_name": {
-                        "type": "string",
-                        "description": "Name of the branch to create or switch to"
-                    },
-                    "path": {
-                        "type": "string",
-                        "description": "Optional path filter for listing files"
-                    },
-                    "max_count": {
-                        "type": "integer",
-                        "description": "Maximum number of history entries to return",
-                        "default": 10
-                    },
-                    "context_lines": {
-                        "type": "integer",
-                        "description": "Number of context lines in generated diffs",
-                        "default": 3
-                    }
-                },
-                "required": ["action"]
-            }
-        }
-    }
-]
-
-git_file_manager_tools = {
-    "_git_action": "tool_belt.git_action"
-}
-
-_tools_data.append(
-    (
-        "git_file_manager_tools",
-        "Tools for managing files in a local Git repository including reading, writing, generating and applying diffs, and managing commits"
-    )
-)
-
-
-_tools_data.append(
-    (
-        "bot_dispatch_tools",
-        "Tools delegating work to bots"
-    )
-)
-
-
-def get_persistent_tools_descriptions() -> list[tuple[str, str]]:
-    """
-    Retrieves a list of all tool descriptions for tools that have a 'persistent' lifetime.
-
-    Returns:
-        list: A list of tuples where each tuple contains the name and description of a tool group.
-    """
-    # Impl note: This function copies the global _tools_data list - AKA 'old-style' tool registry  - and appends descriptions of tool groups
-    # from the global tools registry - AKA 'new-style' tool registry - where all tools in the group have a 'PERSISTENT' lifetime.
-    from core.bot_os_tools2 import get_global_tools_registry, ToolFuncGroupLifetime
-    global _tools_data
-    tools_data = _tools_data.copy()
-
-    registry = get_global_tools_registry()
-    for group in registry.list_groups():
-        if group.lifetime == ToolFuncGroupLifetime.PERSISTENT:
-            tools_data.append((group.name, group.description))
-    return tools_data
+# git_file_manager_tools = {
+#     "_git_action": "tool_belt.git_action"
+# }

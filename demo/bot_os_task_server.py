@@ -7,14 +7,7 @@ import sys
 
 
 from flask import Flask, request, jsonify, make_response
-from core.bot_os import BotOsSession
-from core.bot_os_corpus import URLListFileCorpus
-from core.bot_os_defaults import (
-    BASE_BOT_INSTRUCTIONS_ADDENDUM,
-    BASE_BOT_PRE_VALIDATION_INSTRUCTIONS,
-    BASE_BOT_PROACTIVE_INSTRUCTIONS,
-    BASE_BOT_VALIDATION_INSTRUCTIONS,
-)
+from core.tools.process_scheduler import process_scheduler
 from core.bot_os_input import BotOsInputMessage
 from core.bot_os_memory import BotOsKnowledgeAnnoy_Metadata
 from core.bot_os_server import BotOsServer
@@ -1110,7 +1103,7 @@ def task_log_and_update(bot_id, task_id, task_result):
         task_active = False
     else:
         task_active = True
-    tool_belt.process_scheduler(
+    process_scheduler(
         action="UPDATE_CONFIRMED",
         bot_id=bot_id,
         task_id=task_id,
@@ -1194,7 +1187,7 @@ def tasks_loop():
             bot_id = session.bot_id
             if os.getenv("TEST_TASK_MODE", "false").lower() == "true":
                 logger.info('test task mode - looking for tasks for bot ',bot_id)
-            tasks = tool_belt.process_scheduler(action="LIST", bot_id=bot_id, task_id=None)
+            tasks = process_scheduler(action="LIST", bot_id=bot_id, task_id=None)
            # if os.getenv("TEST_TASK_MODE", "false").lower() == "true":
            #     logger.info('test task mode - tasks are: ',tasks)
             if tasks.get("Success"):
@@ -1248,7 +1241,7 @@ def tasks_loop():
             )
             response_map = input_adapter.response_map
             bot_id = session.bot_id
-            tasks = tool_belt.process_scheduler(action="LIST", bot_id=bot_id, task_id=None)
+            tasks = process_scheduler(action="LIST", bot_id=bot_id, task_id=None)
             processed_tasks = []
             for task_id, response in response_map.items():
 
@@ -1425,7 +1418,7 @@ def tasks_loop():
 
                         processed_tasks.append(task_id)
 
-                        tool_belt.process_scheduler(
+                        process_scheduler(
                             action="UPDATE_CONFIRMED",
                             bot_id=bot_id,
                             task_id=task_id,

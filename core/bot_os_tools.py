@@ -60,7 +60,7 @@ from   connectors.snowflake_connector.snowflake_connector \
 from   core.file_diff_handler   import GitFileManager
 from   core.logging_config      import logger
 
-from  core.tools.tool_helpers import get_sys_email, get_process_info
+from  core.tools.tool_helpers import get_sys_email, get_process_info, chat_completion
 
 genesis_source = os.getenv("GENESIS_SOURCE", default="Snowflake")
 
@@ -341,7 +341,7 @@ class ToolBelt:
 
             """
 
-            first_step = self.chat_completion(extract_instructions, self.db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, process_id=process_id, process_name=process_name)
+            first_step = chat_completion(extract_instructions, self.db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, process_id=process_id, process_name=process_name)
 
             # Check if the first step contains ">>RECURSE"
             if ">> RECURSE" in first_step or ">>RECURSE" in first_step:
@@ -509,7 +509,7 @@ class ToolBelt:
 
             #     logger.info(f"\nSENT TO 2nd LLM:\n{check_response}\n")
 
-            result = self.chat_completion(check_response, self.db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, process_id=process_id, process_name = process_name)
+            result = chat_completion(check_response, self.db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, process_id=process_id, process_name = process_name)
 
             with self.lock:
                 self.process_history[thread_id][process_id] += "\nBots response: " + previous_response
@@ -599,7 +599,7 @@ class ToolBelt:
             #     logger.info(f"\nEXTRACT NEXT STEP:\n{extract_instructions}\n")
 
             #     logger.info("RUN 2nd LLM...")
-            next_step = self.chat_completion(extract_instructions, self.db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, process_id=process_id, process_name=process_name)
+            next_step = chat_completion(extract_instructions, self.db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, process_id=process_id, process_name=process_name)
 
             #      logger.info(f"\nRESULT (NEXT_STEP_): {next_step}\n")
 
@@ -913,7 +913,7 @@ class ToolBelt:
                     line.lstrip() for line in tidy_note_content.splitlines()
                 )
 
-                note_content = self.chat_completion(tidy_note_content, db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, note_id=note_id)
+                note_content = chat_completion(tidy_note_content, db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, note_id=note_id)
 
             if action == "CREATE":
                 return {

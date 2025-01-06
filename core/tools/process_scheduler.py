@@ -12,6 +12,7 @@ from core.bot_os_tools2 import (
 )
 
 from .tool_helpers import get_processes_list
+from core.bot_os_utils import datetime_to_string
 
 from connectors import get_global_db_connector
 db_adapter = get_global_db_connector()
@@ -205,7 +206,7 @@ def process_scheduler(
             for task in tasks:
                 next_check = None
                 if task[5] is not None:
-                    next_check = task[5].strftime("%Y-%m-%d %H:%M:%S")
+                    next_check = datetime_to_string(task[5])
                 task_dict = {
                     "task_id": task[0],
                     "bot_id": task[1],

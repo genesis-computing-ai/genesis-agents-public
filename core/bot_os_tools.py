@@ -48,7 +48,7 @@ from   core.bot_os_memory       import BotOsKnowledgeAnnoy_Metadata
 from   core.bot_os_input        import BotOsInputMessage, BotOsOutputMessage
 
 from   core.bot_os_tool_descriptions \
-                                import (PROJECT_MANAGER_FUNCTIONS,
+                                import (
                                         data_dev_tools,
                                         data_dev_tools_functions,
                                         git_file_manager_functions,

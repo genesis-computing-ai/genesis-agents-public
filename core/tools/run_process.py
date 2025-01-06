@@ -40,6 +40,7 @@ run_process_tools = ToolFuncGroup(
     _group_tags_=[run_process_tools],
 )
 def run_process(
+    self,
     action,
     previous_response="",
     process_name="",

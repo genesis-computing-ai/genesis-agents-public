@@ -49,7 +49,7 @@ class KnowledgeServer:
         self.thread_set = set()
         self.thread_set_lock = threading.Lock()
         self.llm_type = llm_type.lower()
-        self.sleepytime = False
+        self.sleepytime = True
         if llm_type == 'openai':
             self.openai_api_key = os.getenv("OPENAI_API_KEY")
             self.client = get_openai_client()
@@ -63,26 +63,6 @@ class KnowledgeServer:
 
     def producer(self):
         while True:
-
-            # join inside snowflake
-            cutoff = (datetime.now() - timedelta(minutes=10)).strftime("%Y-%m-%d %H:%M:%S")
-            threads = self.db_connector.query_threads_message_log(cutoff)
-            logger.info(f"Producer found {len(threads)} threads")
-            for thread in threads:
-                thread_id = thread["THREAD_ID"]
-                with self.thread_set_lock:
-                    if thread_id not in self.thread_set:
-                        self.thread_set.add(thread_id)
-                    else:
-                        continue
-
-                with self.condition:
-                    if self.thread_queue.full():
-                        logger.info("Queue is full, producer is waiting...")
-                        self.condition.wait()
-                    self.thread_queue.put(thread)
-                    logger.info(f"Produced {thread_id}")
-                    self.condition.notify()
 
             wake_up = False
             i = 0
@@ -106,11 +86,30 @@ class KnowledgeServer:
                 if time_difference < timedelta(minutes=5):
                     wake_up = True
                     self.sleepytime = False
+
+            # join inside snowflake
+            cutoff = (datetime.now() - timedelta(minutes=10)).strftime("%Y-%m-%d %H:%M:%S")
+            threads = self.db_connector.query_threads_message_log(cutoff)
+            logger.info(f"Producer found {len(threads)} threads")
+            for thread in threads:
+                thread_id = thread["THREAD_ID"]
+                with self.thread_set_lock:
+                    if thread_id not in self.thread_set:
+                        self.thread_set.add(thread_id)
+                    else:
+                        continue
+
+                with self.condition:
+                    if self.thread_queue.full():
+                        logger.info("Queue is full, producer is waiting...")
+                        self.condition.wait()
+                    self.thread_queue.put(thread)
+                    logger.info(f"Produced {thread_id}")
+                    self.condition.notify()
     #                logger.info("Bot is active")
 
     def consumer(self):
         while True:
-            if self.sleepytime: time.sleep(120); continue;
             with self.condition:
                 if self.thread_queue.empty():
                     #logger.info("Queue is empty, consumer is waiting...")
@@ -259,10 +258,7 @@ class KnowledgeServer:
                 logger.info(f"Consumed {thread_id}")
 
     def refiner(self):
-
-
         while True:
-            if self.sleepytime: time.sleep(120); continue;
             if self.user_queue.empty():
                 #logger.info("Queue is empty, refiner is waiting...")
                 time.sleep(refresh_seconds)

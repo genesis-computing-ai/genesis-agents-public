@@ -1247,7 +1247,7 @@ def get_tools(
             registry = get_global_tools_registry()
             tool_funcs : List[Callable] = registry.get_tool_funcs_by_group(tool_name)
             if tool_funcs:
-                descriptors : List(ToolFuncDescriptor) = [get_tool_func_descriptor(func) for func in tool_funcs]
+                descriptors : List[ToolFuncDescriptor] = [get_tool_func_descriptor(func) for func in tool_funcs]
                 func_descriptors.extend([descriptor.to_llm_description_dict()
                                         for descriptor in descriptors])
                 available_functions_loaded.update({get_tool_func_descriptor(func).name : func
@@ -1269,7 +1269,7 @@ def get_tools(
                     func_af = getattr(module, functs_func)
                     available_functions_loaded.update(func_af)
                 except:
-                    logger.warn(f"Functions for tool '{tool_name}' could not be found.")
+                    logger.warning(f"Functions for tool '{tool_name}' could not be found.")
 
     # Resolve 'old style' tool functions to actual callables
     available_functions = {}

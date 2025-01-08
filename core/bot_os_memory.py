@@ -105,6 +105,8 @@ class AnnoyIndexSingleton:
 
 class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
     def __init__(self, base_directory_path, vector_size=3072, n_trees=10, refresh=True, bot_id=None ):
+        # Add debug logging
+        logger.info(f"Initializing with vector_size: {vector_size}")
         self.base_directory_path = base_directory_path
         self.vector_size = vector_size
         self.n_trees = n_trees
@@ -303,7 +305,7 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
 
 
   
-    def find_memory(self, query, scope="database_metadata", top_n=15, verbosity="low", database=None, schema=None, table=None, full_ddl='false') -> list[str]:
+    def find_memory(self, query, scope="database_metadata", top_n=15, verbosity="low", database=None, schema=None, table=None, connection_id=None, full_ddl='false') -> list[str]:
         """
         Find relevant metadata using a combination of structural filtering and vector similarity search.
 
@@ -390,6 +392,8 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
                 where_clauses.append(f"schema_name='{schema.replace('', '')}'")
             if table:
                 where_clauses.append(f"table_name='{table.replace('','')}'")
+            if connection_id:
+                where_clauses.append(f"source_name='{connection_id.replace('','')}'")
 
             where_statement = " AND ".join(where_clauses)
 
@@ -444,6 +448,9 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
 
             # Enhance query with context if provided
             enhanced_query = query
+            # Remove "USERQUERY::" prefix if present
+            if enhanced_query.startswith("USERQUERY::"):
+                enhanced_query = enhanced_query[len("USERQUERY::"):]
         #   if database:
         #       enhanced_query += f" {database}"
         #   if schema:
@@ -453,15 +460,23 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
             embedding_size = int(os.environ.get('EMBEDDING_SIZE', -1))
             embedding = self.get_embedding(enhanced_query, embedding_size=embedding_size)
 
-            # Map filtered entries to their Annoy indices and get distances
-            results = []
-
+            # # Debug the embedding
+            # logger.info(f"Query embedding shape: {len(embedding)}")
+            # logger.info(f"Query embedding sample: {embedding[:5]}")  # Look at first 5 values
+            
+            # # Before get_nns_by_vector
+            # logger.info(f"Index size: {self.index.get_n_items()}")
+            # logger.info(f"Index dimension: {self.index.f}")
             # Convert embedding to list of floats if it's not already
             embedding_vector = embedding if isinstance(embedding, list) else [embedding]
 
             # Get nearest neighbors using Annoy's get_nns_by_vector
             # Get 20x more results than requested to filter down to those in filtered_table_names
             nn_indices, nn_distances = self.index.get_nns_by_vector(embedding_vector, 1000, include_distances=True)
+
+            # # Debug the results
+            # logger.info(f"Unique distances: {set(nn_distances)}")
+            # logger.info(f"First few indices and distances: {list(zip(nn_indices[:5], nn_distances[:5]))}")
 
             # Convert filtered entries to a set of qualified table names if structural filters were applied
             filtered_table_names = None

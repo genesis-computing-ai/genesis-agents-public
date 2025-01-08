@@ -692,6 +692,7 @@ class DatabaseConnector:
         top_n: int = 10,
         verbosity: str = "low",
         full_ddl: bool = False,
+        connection_id: str = None,
         knowledge_base_path: str = "./kb_vector",
         bot_id: str = None,
         thread_id: str = None,
@@ -708,6 +709,7 @@ class DatabaseConnector:
             top_n: Number of rows to return
             verbosity: Level of verbosity in the response
             full_ddl: Return full DDL for the table
+            connection_id: optional connection ID of the database connection to query
             knowledge_base_path: Path to the knowledge base directory
             bot_id: ID of the bot requesting the metadata search
             thread_id: Optional thread identifier for logging/tracking
@@ -747,6 +749,8 @@ class DatabaseConnector:
                 # If not found, create new one
                 my_kb = BotOsKnowledgeAnnoy_Metadata(knowledge_base_path, refresh=True, bot_id=bot_id)
             else:
+
+
                 my_kb.refresh_annoy()
             # logger.info(f"CALLING FIND MEMORY  --- Search metadata called with query: {query}, scope: {scope}, top_n: {top_n}, verbosity: {verbosity}")
             result = my_kb.find_memory(
@@ -758,6 +762,7 @@ class DatabaseConnector:
                 top_n=top_n,
                 verbosity=verbosity,
                 full_ddl=full_ddl,
+                connection_id=connection_id,
             )
             return result   
         except Exception as e:
@@ -937,11 +942,12 @@ def _list_database_connections(bot_id: str,
 
 @gc_tool(
     query='SQL query to execute',
-    database='Database name',
-    schema='Schema name',
-    table='Table name',
+    connection_id='ID of the database connection to optionally limit search to',
+    database='Database name to optionally limit search to',
+    schema='Schema name to optionally limit search to',
+    table='Table name to optionally limit search to',
     top_n='Number of rows to return',
-    knowledge_base_path="Path to the knowledge vector base",
+  #  knowledge_base_path="Path to the knowledge vector base",
     bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
     _group_tags_=[data_connector_tools],
@@ -952,6 +958,7 @@ def _search_metadata(
     schema: str = None,
     table: str = None,
     top_n: int = 8,
+    connection_id: str = None,
     knowledge_base_path: str = "./kb_vector",
     bot_id: str = None,
     thread_id: str = None,
@@ -966,6 +973,7 @@ def _search_metadata(
         top_n=top_n,
         verbosity="low",
         full_ddl="false",
+        connection_id=connection_id,
         knowledge_base_path=knowledge_base_path,
         bot_id=bot_id,
         thread_id=thread_id,

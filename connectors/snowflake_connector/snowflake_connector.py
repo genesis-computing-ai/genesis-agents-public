@@ -4168,7 +4168,8 @@ def get_status(site):
         select connection_id from genesis_test.genesis_jl.cust_db_connections 
         where owner_bot_id = '{bot_id}' 
         or allowed_bot_ids='{bot_id}' 
-        or allowed_bot_ids in (',{bot_id}', '{bot_id},')
+        or allowed_bot_ids like '%,{bot_id}' 
+        or allowed_bot_ids like '{bot_id},%'
         """
         cursor = self.connection.cursor()
         cursor.execute(allowed_connections_query)
@@ -4246,7 +4247,10 @@ def get_status(site):
 
                 for row in rows:
                     try:
-                        temp_embeddings.append(json.loads('['+row[1][5:-3]+']'))
+                        if self.source_name == 'Snowflake':
+                            temp_embeddings.append(json.loads('['+row[1][5:-3]+']'))
+                        else:
+                            temp_embeddings.append(json.loads('['+row[1]+']'))
                         temp_table_names.append(row[2]+"."+row[0])
                         # logger.info('temp_embeddings len: ',len(temp_embeddings))
                         # logger.info('temp table_names: ',temp_table_names)

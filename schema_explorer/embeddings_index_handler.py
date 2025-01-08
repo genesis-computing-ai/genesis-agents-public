@@ -65,16 +65,38 @@ def fetch_embeddings_from_snow(table_id):
 
             for row in rows:
                 try:
-                    temp_embeddings.append(json.loads('['+row[1][5:-3]+']'))
+                    # Debug the raw string before parsing
+                    if len(embeddings) == 0:
+                        logger.info(f"Raw embedding string sample: {row[1][:100]}...")
+                    
+                    # Current problematic parsing
+                    # embedding = json.loads('['+row[1][5:-3]+']')
+                    
+                    # New safer parsing approach
+                    embedding_str = row[1]
+                    # Remove any 'array' prefix if present
+                    if embedding_str.lower().startswith('array['):
+                        embedding_str = embedding_str[6:-1]  # Remove 'array[' and final ']'
+                    elif embedding_str.startswith('['):
+                        embedding_str = embedding_str[1:-1]  # Remove outer brackets
+                        
+                    # Split and convert to float, handling scientific notation
+                    embedding = [float(x.strip()) for x in embedding_str.split(',')]
+                    
+                    # Verify the parsed values
+                    if len(embeddings) == 0:
+                        logger.info(f"First few parsed values: {embedding[:5]}")
+                        import numpy as np
+                        norm = np.linalg.norm(embedding)
+                        logger.info(f"Parsed embedding norm: {norm}")
+                    
+                    temp_embeddings.append(embedding)
                     temp_table_names.append(row[0])
-#                    logger.info('temp_embeddings len: ',len(temp_embeddings))
-#                    logger.info('temp table_names: ',temp_table_names)
-                except:
-                    try:
-                        temp_embeddings.append(json.loads('['+row[1][5:-10]+']'))
-                        temp_table_names.append(row[0])
-                    except:
-                        logger.info('Cant load array from Snowflake')
+                    
+                except Exception as e:
+                    logger.error(f"Error parsing embedding: {str(e)}")
+                    logger.error(f"Problematic row: {row[1][:100]}...")
+                    continue
                   # Assuming qualified_table_name is the first column
 
             # Check if the batch was empty and exit the loop if so
@@ -178,16 +200,21 @@ def load_embeddings_from_csv(csv_file_path):
 
 
 def create_annoy_index(embeddings, n_trees=10):
-
-   # logger.info('creating index')
-   # logger.info('len embeddings ',len(embeddings))
     dimension = max(len(embedding) for embedding in embeddings)
-    # Find the longest embedding length
-   # logger.info('dimension ',dimension)
-
-    index = AnnoyIndex(dimension, 'angular')  # Using angular distance
-    #logger.info('index 1 ',index)
-
+    logger.info(f"Creating Annoy index with dimension {dimension}")
+    
+    # Verify embeddings are normalized
+    import numpy as np
+    norms = [np.linalg.norm(emb) for emb in embeddings]
+    logger.info(f"Embedding norms min/max/mean: {min(norms):.3f}/{max(norms):.3f}/{np.mean(norms):.3f}")
+    
+    if any(abs(n - 1.0) > 0.01 for n in norms):
+        logger.warning("Some embeddings are not normalized!")
+        # Normalize embeddings
+        embeddings = [np.array(emb)/np.linalg.norm(emb) for emb in embeddings]
+    
+    index = AnnoyIndex(dimension, 'angular')
+    
     try:
         with tqdm(total=len(embeddings), desc="Indexing embeddings") as pbar:
             for i, embedding in enumerate(embeddings):

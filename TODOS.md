@@ -6,7 +6,7 @@ prerelease:
 x check that adding a tool via streamlit doesnt mess up the thread with that bot (e.g. data connector tools)
 make sqlite sample data load from csv files vs binary
 speed up startup
-speed up bot responses
+(in progress) speed up bot responses
 o1 via api with tool calling
 (MR) put eve back in as default bot in streamlit
 test web research tools
@@ -30,7 +30,8 @@ x test harvester on mysql
 test harvester on postgres
 test harvester on sqlite again
 make connection, harvest, search metadata, and query database work directly via api 
-make search meatdata work with a connection id, and if nothing harvested provide response for bot to list directly available tables
+x make search meatdata work with a connection id,
+when nothing is harvested provide response for bot to list directly available tables, and explain that the data may not be set up to be harvested
 on add connection, make sure to suggest harvesting the new connection
 harvest control, if database not found, return list of connections
 remove file uploads to openai when none needed
@@ -45,11 +46,13 @@ test system with redshift, bigquery, databricks
 signal to reset the annoy indexes when connections or connection rbac are changed
 make snowpark python work when you just have a regular connection to snowflake
 x (no) does local harvester need to signal when it has done new harvesting so cached annoy indexes are updated?
-(maybe?) dont give files search tool when no files 
+(test with files) dont give files search tool when no files 
 add a tool to update bot access to a connection, which properly handles the string of bot ids (list, add, remove, etc.)
 set a flag when bot data access changes so annoy indexes can be refreshed, have annoy index name logic use that if later than update in the metadata table
 make assigning bots files possible in sqlite mode
 x add checking of repeated tool call failures in openai
+x figure out why all results have the same score in search metadata vector lookup search
+x test search metadata in sqlite mode more, its not returning the right results ?
 
 todo:
 do bots have task id ok to check history?

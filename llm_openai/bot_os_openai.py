@@ -5,6 +5,7 @@ from core.bot_os_assistant_base import BotOsAssistantInterface, execute_function
 from collections import deque
 import datetime
 import time
+import random
 
 import threading
 import core.global_flags as global_flags
@@ -200,7 +201,10 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       self.running_tools = {}
       self.tool_completion_status = {}
       self.log_db_connector = log_db_connector
-      my_tools = tools + [{"type": "file_search"}]  + [{"type": "code_interpreter"}]
+      if files is None or files == []:
+         my_tools = tools + [{"type": "code_interpreter"}]
+      else:
+         my_tools = tools + [{"type": "file_search"}]  + [{"type": "code_interpreter"}]
       #my_tools = tools
       #logger.info(f'yoyo mytools {my_tools}')
       #logger.warn(f'yoyo mytools {my_tools}')
@@ -221,6 +225,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       self.thread_fast_mode_map = {}
       self.first_message_map = {}
       self.failed_retry_run_count_map = {}
+      self.tool_failure_map = {}
      # self.last_stop_time_map = {}
 
       genbot_internal_project_and_schema = os.getenv('GENESIS_INTERNAL_DB_SCHEMA','None')
@@ -786,22 +791,93 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
 
    def _submit_tool_outputs(self, run_id, thread_id, tool_call_id, function_call_details, func_response, metadata=None):
-
+# ncl, obB, dvj
      # logger.debug(f"_submit_tool_outputs - {thread_id} {run_id} {tool_call_id} - {function_call_details} - {func_response}")
-
+# 9ef, xjf
       new_response = func_response
 
+
+
+# aj, od, 9p
+#song.txt
+#add this file to bot Janice
   #    if function_call_details[0][0] == '_lookup_slack_user_id' and isinstance(func_response, str):
   #          new_response = {"response": func_response}
   #          func_response = new_response
+      if isinstance(func_response, dict) and len(func_response) == 1 and 'error' in func_response:
+          new_response = {"success": False, "error": func_response[0]['error']}
+          func_response = new_response
+          logger.info(f'openai submit_tool_outputs list with error converted to: {func_response}')
 
       if isinstance(func_response, str):
          try:
-            new_response = {"success": False, "message": func_response}
+            new_response = {"success": False, "error": func_response}
             func_response = new_response
             logger.info(f'openai submit_tool_outputs string response converted call: {function_call_details}, response: {func_response}')
          except:
             logger.info(f'openai submit_tool_outputs string response converted call to JSON.')
+
+      if isinstance(func_response, dict) and func_response.get('success') == False and 'error' in func_response:
+
+         # Create object with run details kw,tg,add bot files. song.txt
+         # run_details = {
+         #    "run_id": run_id,
+         #    "thread_id": thread_id,
+         #    "function_name": function_call_details[0][0],
+         #    "function_args": function_call_details[0][1],
+         #    "function_response": func_response
+         # }
+         # Create a string hash of the run details
+         run_details_str = f"{run_id}_{thread_id}_{function_call_details[0][0]}_{function_call_details[0][1]}_{func_response}"
+         run_hash = str(hash(run_details_str))
+
+         if run_hash in self.tool_failure_map:
+            self.tool_failure_map[run_hash]["fail_count"] += 1
+            if self.tool_failure_map[run_hash]["fail_count"] == 2:
+                func_response['warning'] = "Note: Please do not retry this failed operation more than twice to avoid getting stuck in a retry loop. " 
+            if self.tool_failure_map[run_hash]["fail_count"] >= 3:
+               func_response = {
+                  "success": False,
+                  "message": "The tool call has repeatedly failed, please inform the user that this tool call has failed and cannot be immediately retried."
+               }
+            if self.tool_failure_map[run_hash]["fail_count"] > 3:
+               logger.warning(f"Tool call has failed {self.tool_failure_map[run_hash]['fail_count']} times, attempting to cancel run. Details: function={function_call_details[0][0]}, thread_id={thread_id}, run_id={run_id}")
+               try:
+                  self.client.beta.threads.runs.cancel(
+                        thread_id=thread_id,
+                        run_id=run_id
+                  )
+                  # Add thread back to active runs so check_runs can properly handle the failure
+                  if thread_id not in self.active_runs:
+                     if thread_id in self.processing_runs:
+                         self.processing_runs.remove(thread_id)
+                     self.active_runs.append(thread_id)
+               except Exception as e:
+                  logger.error(f"Failed to cancel run after repeated tool failures: {str(e)}")
+               if run_id in StreamingEventHandler.run_id_to_output_stream:
+                   StreamingEventHandler.run_id_to_output_stream[run_id] += "\n\nTool call has failed too many times, cancelling request."
+               return
+         else:
+            self.tool_failure_map[run_hash] = {
+               "first_fail_timestamp": datetime.datetime.now(),
+               "fail_count": 1
+            }
+         # Randomly clean old failures from map (1% chance)
+
+         if random.randint(0,100) >= 0:
+             current_time = datetime.datetime.now()
+             # Create list of keys to remove to avoid modifying dict during iteration
+             keys_to_remove = []
+             for run_hash, failure_data in self.tool_failure_map.items():
+                 time_diff = current_time - failure_data["first_fail_timestamp"] 
+                 if time_diff.total_seconds() > 3600: # 60 minutes
+                     keys_to_remove.append(run_hash)
+             
+             # Remove old entries
+             for key in keys_to_remove:
+                 del self.tool_failure_map[key]
+      
+         
 
       try:
          if function_call_details[0][0] == '_modify_slack_allow_list' and (func_response.get('success',False)==True or func_response.get('Success',False)==True):
@@ -1048,7 +1124,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
    #                model=model,
                    event_handler=StreamingEventHandler(self.client, thread_id,   StreamingEventHandler.run_id_to_bot_assist[run_id],  meta, self)
                ) as stream:
-                  logger.info('.. (not) sleeping 0.0 seconds before requeing run after submit_tool_outputs...')
+             #     logger.info('.. (not) sleeping 0.0 seconds before requeing run after submit_tool_outputs...')
                 #  time.sleep(0.2)
                   if thread_id in self.processing_runs:
                      self.processing_runs.remove(thread_id)
@@ -1063,8 +1139,8 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
             )
             logger.debug(f"_submit_tool_outputs - {updated_run}")
             meta = updated_run.metadata
-            logger.info('...sleeping 0.2 seconds before requeing run after submit_tool_outputs...')
-            time.sleep(0.2)
+            logger.info('...sleeping 0.1 seconds before requeing run after submit_tool_outputs...')
+            time.sleep(0.1)
             if thread_id in self.processing_runs:
                self.processing_runs.remove(thread_id)
             if thread_id not in self.active_runs:
@@ -1271,8 +1347,11 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
            # logger.info(run.status)
 
-            if run.status == "failed":
-               logger.info(f"!!!!!!!!!! FAILED JOB, run.lasterror {run.last_error} !!!!!!!")
+            if run.status == "failed" or run.status == "cancelled":
+               if run.status == "cancelled":
+                  logger.info(f"!!!!!!!!!! {run.status} JOB, TOO MANY REPEATED FAILED TOOL CALLS  !!!!!!!")
+               else:
+                  logger.info(f"!!!!!!!!!! {run.status} JOB, run.lasterror {run.last_error} !!!!!!!")
                # resubmit tool output if throttled
                #tools_to_rerun = {k: v for k, v in self.tool_completion_status[run.id].items() if v is not None}
                #self._run_tools(thread_id, run, tools_to_rerun) # type: ignore
@@ -1285,12 +1364,15 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                else:
                    self.failed_retry_run_count_map[thread_id] = 1
 
-               if self.failed_retry_run_count_map[thread_id] <=2 :
+               if run.status == "failed"  and self.failed_retry_run_count_map[thread_id] <=2 :
                   output = StreamingEventHandler.run_id_to_output_stream.get(run.id,'') + f"\n\n!! Error from OpenAI, run.lasterror {run.last_error} on run {run.id} for thread {thread_id}, attempting retry #{self.failed_retry_run_count_map[thread_id]} of 2\n 💬"
                   restarting_flag = True
                   failed_but_restarting_flag = True
                else:
-                  output = StreamingEventHandler.run_id_to_output_stream.get(run.id,'') + f"\n\n!! Error from OpenAI, run.lasterror {run.last_error} on run {run.id} for thread {thread_id}, 2 retrys have failed, stopping attempts to retry."
+                  if run.status != "cancelled":
+                     output = StreamingEventHandler.run_id_to_output_stream.get(run.id,'') + f"\n\n!! Error from OpenAI, run.lasterror {run.last_error} on run {run.id} for thread {thread_id}, 2 retrys have failed, stopping attempts to retry."
+                  else:
+                     output = StreamingEventHandler.run_id_to_output_stream.get(run.id,'') + f"\n\n!! Too many repeated identical tool calls from LLM on run {run.id} for thread {thread_id}. Stopping run."
                   restarting_flag = False
                   # Clear the failed retry count map for this run
                   if thread_id in self.failed_retry_run_count_map:

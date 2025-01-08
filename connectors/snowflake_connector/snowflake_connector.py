@@ -193,19 +193,19 @@ class SnowflakeConnector(SnowflakeConnectorBase):
         file_name: str = None,
         file_content: str = None,
         thread_id=None,
+        bot_id=None,
     ):
         return add_file_to_stage(self, database,schema,stage,openai_file_id,file_name,file_content,thread_id)
 
-    def read_file_from_stage(self, database, schema, stage, file_name, return_contents=True,is_binary=False,for_bot=None,thread_id=None):
+    def read_file_from_stage(self, database, schema, stage, file_name, return_contents=True,is_binary=False,for_bot=None,thread_id=None, bot_id=None):
         return read_file_from_stage(self, database, schema, stage, file_name, return_contents, is_binary, for_bot, thread_id)
-
-    def update_file_in_stage(self, database=None, schema=None, stage=None,file_name=None, thread_id=None):
+    def update_file_in_stage(self, database=None, schema=None, stage=None, file_name=None, thread_id=None, bot_id=None):
         return update_file_in_stage(self, database, schema, stage, file_name, thread_id)
 
-    def delete_file_from_stage(self, database=None, schema=None, stage=None,file_name=None, thread_id=None):
+    def delete_file_from_stage(self, database=None, schema=None, stage=None, file_name=None, thread_id=None, bot_id=None):
         return delete_file_from_stage(self, database, schema, stage, file_name, thread_id)
 
-    def list_stage_contents(self, database=None, schema=None, stage=None, pattern=None, thread_id=None):
+    def list_stage_contents(self, database=None, schema=None, stage=None, pattern=None, thread_id=None, bot_id=None):
         return list_stage_contents(self, database, schema, stage, pattern, thread_id)
 
     def test_stage_functions():

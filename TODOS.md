@@ -45,9 +45,11 @@ test system with redshift, bigquery, databricks
 signal to reset the annoy indexes when connections or connection rbac are changed
 make snowpark python work when you just have a regular connection to snowflake
 x (no) does local harvester need to signal when it has done new harvesting so cached annoy indexes are updated?
-dont give files search tool when no files 
+(maybe?) dont give files search tool when no files 
 add a tool to update bot access to a connection, which properly handles the string of bot ids (list, add, remove, etc.)
 set a flag when bot data access changes so annoy indexes can be refreshed, have annoy index name logic use that if later than update in the metadata table
+make assigning bots files possible in sqlite mode
+x add checking of repeated tool call failures in openai
 
 todo:
 do bots have task id ok to check history?

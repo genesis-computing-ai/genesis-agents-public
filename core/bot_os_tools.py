@@ -1189,7 +1189,7 @@ def get_tools(
             tool_name = "git_action"
 
         if tool_name == "data_dev_tools":
-            tool_name = "jira_connector"
+            tool_name = "jira_connector_tools" # FIXME
 
         if include_slack and tool_name == "slack_tools":
             func_descriptors.extend(slack_tools_descriptions)

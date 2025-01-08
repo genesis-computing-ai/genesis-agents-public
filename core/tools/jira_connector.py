@@ -598,7 +598,7 @@ jira_connector_tools = ToolFuncGroup(
     # bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
     _group_tags_=[jira_connector_tools],
 )
-def _jira_connector(
+def jira_connector(
     action: str,
     project_key: str = None,
     summary: str = None,
@@ -643,7 +643,7 @@ def _jira_connector(
         thread_id=thread_id
     )
 
-jira_connector_functions = (_jira_connector,)
+jira_connector_functions = (jira_connector,)
 
 # Called from bot_os_tools.py to update the global list of functions
 def get_jira_connector_functions():

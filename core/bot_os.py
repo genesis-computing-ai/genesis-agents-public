@@ -416,6 +416,7 @@ class BotOsSession:
 
             if out_thread is None:
                 # logger.error(f"NO Map to Out thread ... making new one for ->> In Thead {input_message.thread_id}")
+                
                 out_thread = self.create_thread(a)
                 if input_message.thread_id is None:
                     input_message.thread_id = out_thread
@@ -468,7 +469,12 @@ Now, with that as background...\n''' + input_message.msg
 
             if input_message is None or input_message.msg == "":
                 continue
+           
             ret = self.add_message(input_message, self._validate_response)
+            # Log time taken for add_message 🕐
+#            time_after_add = datetime.datetime.now()
+#            time_diff = time_after_add - current_time
+#            logger.info(f"Time taken for add_message: {time_diff.total_seconds():.3f} seconds")
             if ret == False and input_message is not None:
                 is_bot = input_message.metadata.get("is_bot", "TRUE")
                 if is_bot == "FALSE":

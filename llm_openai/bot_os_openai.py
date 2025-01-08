@@ -72,6 +72,7 @@ class StreamingEventHandler(AssistantEventHandler):
       if delta is not None and isinstance(delta.value, str):
          StreamingEventHandler.run_id_to_output_stream[self.run_id] += delta.value
 
+
    @override
    def on_end(self, ):
        pass
@@ -227,6 +228,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       self.failed_retry_run_count_map = {}
       self.tool_failure_map = {}
      # self.last_stop_time_map = {}
+      self.thread_working_set = {}
 
       genbot_internal_project_and_schema = os.getenv('GENESIS_INTERNAL_DB_SCHEMA','None')
       if genbot_internal_project_and_schema is not None:
@@ -532,7 +534,9 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
    def create_thread(self) -> str:
       #logger.debug("BotOsAssistantOpenAI:create_thread")
-      thread_id = self.client.beta.threads.create().id
+      thread = self.client.beta.threads.create()
+      thread_id = thread.id
+      self.thread_working_set[thread_id] = thread
       logger.info(f"{self.bot_name} openai new_thread -> {thread_id}")
       self.first_message_map[thread_id] = True
 
@@ -662,55 +666,65 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 #      print ("&#&$&$&$&$&$&$&$ TEMP: ",thread_id in self.active_runs or thread_id in self.processing_runs)
       if thread_id is None:
          raise(Exception("thread_id is None"))
+    
+      thread = self.thread_working_set.get(thread_id)
+      if thread is None:
+          thread = self.client.beta.threads.retrieve(thread_id)
+          self.thread_working_set[thread_id] = thread
 
-      thread = self.client.beta.threads.retrieve(thread_id)
       #logger.warn(f"ADDING MESSAGE -- input thread_id: {thread_id} -> openai thread: {thread}")
-      try:
-         #logger.error("REMINDER: Update for message new files line 117 on botosopenai.py")
-         #logger.info('... openai add_message before upload_files, input_message.files = ', input_message.files)
-         file_ids, file_map = self._upload_files(input_message.files, thread_id=thread_id)
-         #logger.info('... openai add_message file_id, file_map: ', file_ids, file_map)
-         attachments = []
-         for file_id in file_ids:
-             tools = []
-             # Retrieve the file name from the file_map using the file_id
-             file_name = next((item['file_name'] for item in file_map if item['file_id'] == file_id), None)
-             # Only include the file_search tool if the file_name does not have a PNG extension
-             if file_name and any(file_name.lower().endswith(ext) for ext in self.allowed_types_search):
-                 tools.insert(0, {"type": "file_search"})
-             if file_name and any(file_name.lower().endswith(ext) for ext in self.allowed_types_code_i):
-                 tools.append({"type": "code_interpreter"})
-             attachments.append({"file_id": file_id, "tools": tools})
-         if input_message.metadata and input_message.metadata.get("response_authorized", 'TRUE') == 'FALSE':
-               input_message.msg = "THIS IS AN INFORMATIONAL MESSAGE ONLY ABOUT ACTIVITY IN THIS THREAD BETWEEN OTHER USERS.  RESPOND ONLY WITH '!NO_RESPONSE_REQUIRED'\nHere is the rest of the message so you know whats going on: \n\n"+ input_message.msg  + "\n REMINDER: RESPOND ONLY WITH '!NO_RESPONSE_REQUIRED'."
-               # don't add a run if there is no response needed do to an unauthorized user, but do make the bot aware of the thread message
-         content = input_message.msg
-         if file_map:
-             content += "\n\nFile Name to Id Mappings:\n"
-             for mapping in file_map:
-                 content += f"- {mapping['file_name']}: {mapping['file_id']}\n"
-        # logger.info('... openai add_message attachments: ', attachments)
-         thread_message = self.client.beta.threads.messages.create(
-            thread_id=thread_id, attachments=attachments, content=content,
-            role="user",
-         )
-      except Exception as e:
-         fixed = False
+      if input_message.files is not None and len(input_message.files) > 0:
          try:
-            if 'while a run' in e.body.get('message') and self.first_message == True:
-               run_id_match = re.search(r'run_([a-zA-Z0-9]+)', e.body.get('message'))
-               if run_id_match:
-                  run_id = "run_" + run_id_match.group(1)
-                  logger.info(f"Extracted run_id: {run_id}")
-                  self.client.beta.threads.runs.cancel(run_id=run_id, thread_id=thread_id)
-                  logger.info(f"Cancelled run_id: {run_id}")
-                  thread_message = self.client.beta.threads.messages.create(
-                     thread_id=thread_id, attachments=attachments, content=content,
-                     role="user",
-                  )
-               fixed = True
+            #logger.error("REMINDER: Update for message new files line 117 on botosopenai.py")
+            #logger.info('... openai add_message before upload_files, input_message.files = ', input_message.files)
+            file_ids, file_map = self._upload_files(input_message.files, thread_id=thread_id)
+            #logger.info('... openai add_message file_id, file_map: ', file_ids, file_map)
+            attachments = []
+            for file_id in file_ids:
+               tools = []
+               # Retrieve the file name from the file_map using the file_id
+               file_name = next((item['file_name'] for item in file_map if item['file_id'] == file_id), None)
+               # Only include the file_search tool if the file_name does not have a PNG extension
+               if file_name and any(file_name.lower().endswith(ext) for ext in self.allowed_types_search):
+                  tools.insert(0, {"type": "file_search"})
+               if file_name and any(file_name.lower().endswith(ext) for ext in self.allowed_types_code_i):
+                  tools.append({"type": "code_interpreter"})
+               attachments.append({"file_id": file_id, "tools": tools})
+            if input_message.metadata and input_message.metadata.get("response_authorized", 'TRUE') == 'FALSE':
+                  input_message.msg = "THIS IS AN INFORMATIONAL MESSAGE ONLY ABOUT ACTIVITY IN THIS THREAD BETWEEN OTHER USERS.  RESPOND ONLY WITH '!NO_RESPONSE_REQUIRED'\nHere is the rest of the message so you know whats going on: \n\n"+ input_message.msg  + "\n REMINDER: RESPOND ONLY WITH '!NO_RESPONSE_REQUIRED'."
+                  # don't add a run if there is no response needed do to an unauthorized user, but do make the bot aware of the thread message
+            content = input_message.msg
+            if file_map:
+               content += "\n\nFile Name to Id Mappings:\n"
+               for mapping in file_map:
+                  content += f"- {mapping['file_name']}: {mapping['file_id']}\n"
+         # logger.info('... openai add_message attachments: ', attachments)
+            thread_message = self.client.beta.threads.messages.create(
+               thread_id=thread_id, attachments=attachments, content=content,
+               role="user",
+            )
          except Exception as e:
-            pass
+            fixed = False
+            try:
+               if 'while a run' in e.body.get('message') and self.first_message == True:
+                  run_id_match = re.search(r'run_([a-zA-Z0-9]+)', e.body.get('message'))
+                  if run_id_match:
+                     run_id = "run_" + run_id_match.group(1)
+                     logger.info(f"Extracted run_id: {run_id}")
+                     self.client.beta.threads.runs.cancel(run_id=run_id, thread_id=thread_id)
+                     logger.info(f"Cancelled run_id: {run_id}")
+                     thread_message = self.client.beta.threads.messages.create(
+                        thread_id=thread_id, attachments=attachments, content=content,
+                        role="user",
+                     )
+                  fixed = True
+            except Exception as e:
+               pass
+      else:
+            thread_message = self.client.beta.threads.messages.create(
+               thread_id=thread_id, content=input_message.msg,
+               role="user")
+            attachments=None
        # removed some stuff here 6/15/24
        #logger.debug(f"add_message - created {thread_message}")
       self.first_message = False
@@ -739,6 +753,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                   metadata=input_message.metadata,
                ) as stream:
                   stream.until_done()
+       
          except Exception as e:
             try:
                if e.status_code == 400 and 'already has an active run' in e.message:

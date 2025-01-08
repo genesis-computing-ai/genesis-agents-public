@@ -576,8 +576,12 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
 
 
+
+
    def add_message(self, input_message:BotOsInputMessage):#thread_id:str, message:str, files):
       #logger.debug("BotOsA ssistantOpenAI:add_message")
+
+      use_assistants = os.getenv("OPENAI_USE_ASSISTANTS", "True").lower() == "true"
 
       thread_id = input_message.thread_id
 
@@ -660,17 +664,21 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
    #   if thread_id in self.thread_stop_map:
    #         self.thread_stop_map.pop(thread_id)
-
+   
       if thread_id in self.active_runs or thread_id in self.processing_runs:
          return False
 #      print ("&#&$&$&$&$&$&$&$ TEMP: ",thread_id in self.active_runs or thread_id in self.processing_runs)
       if thread_id is None:
          raise(Exception("thread_id is None"))
     
-      thread = self.thread_working_set.get(thread_id)
-      if thread is None:
-          thread = self.client.beta.threads.retrieve(thread_id)
-          self.thread_working_set[thread_id] = thread
+      if use_assistants:
+         thread = self.thread_working_set.get(thread_id)
+         if thread is None:
+            thread = self.client.beta.threads.retrieve(thread_id)
+            self.thread_working_set[thread_id] = thread
+      else:
+         # get tread from local thread storage
+         pass
 
       #logger.warn(f"ADDING MESSAGE -- input thread_id: {thread_id} -> openai thread: {thread}")
       if input_message.files is not None and len(input_message.files) > 0:
@@ -721,9 +729,10 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
             except Exception as e:
                pass
       else:
-            thread_message = self.client.beta.threads.messages.create(
-               thread_id=thread_id, content=input_message.msg,
-               role="user")
+            if use_assistants:
+               thread_message = self.client.beta.threads.messages.create(
+                  thread_id=thread_id, content=input_message.msg,
+                  role="user")
             attachments=None
        # removed some stuff here 6/15/24
        #logger.debug(f"add_message - created {thread_message}")
@@ -733,52 +742,58 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       if fast_mode == True:
           input_message.metadata['fast_mode'] = 'TRUE'
 
-      if BotOsAssistantOpenAI.stream_mode == True:
-         try:
-         #   logger.info('MINI override')
-            if fast_mode:
-               with self.client.beta.threads.runs.stream(
-                  thread_id=thread.id,
-                  assistant_id=self.assistant.id,
-                  event_handler=StreamingEventHandler(self.client, thread.id, self.assistant.id, input_message.metadata, self),
-                  metadata=input_message.metadata,
-                  model=os.getenv('OPENAI_FAST_MODEL_NAME', 'gpt-4o-mini')
-               ) as stream:
-                  stream.until_done()
-            else:
-               with self.client.beta.threads.runs.stream(
-                  thread_id=thread.id,
-                  assistant_id=self.assistant.id,
-                  event_handler=StreamingEventHandler(self.client, thread.id, self.assistant.id, input_message.metadata, self),
-                  metadata=input_message.metadata,
-               ) as stream:
-                  stream.until_done()
-       
-         except Exception as e:
+      if use_assistants:
+         if BotOsAssistantOpenAI.stream_mode == True:
             try:
-               if e.status_code == 400 and 'already has an active run' in e.message:
-                  logger.info('bot_os_openai add_message thread already has an active run, putting event back on queue...')
-                  return False
-            except:
-               pass
-            logger.info('bot_os_openai add_message Error from OpenAI on run.streams: ',e)
-            return False
+            #   logger.info('MINI override')
+               if fast_mode:
+                  with self.client.beta.threads.runs.stream(
+                     thread_id=thread.id,
+                     assistant_id=self.assistant.id,
+                     event_handler=StreamingEventHandler(self.client, thread.id, self.assistant.id, input_message.metadata, self),
+                     metadata=input_message.metadata,
+                     model=os.getenv('OPENAI_FAST_MODEL_NAME', 'gpt-4o-mini')
+                  ) as stream:
+                     stream.until_done()
+               else:
+                  with self.client.beta.threads.runs.stream(
+                     thread_id=thread.id,
+                     assistant_id=self.assistant.id,
+                     event_handler=StreamingEventHandler(self.client, thread.id, self.assistant.id, input_message.metadata, self),
+                     metadata=input_message.metadata,
+                  ) as stream:
+                     stream.until_done()
+            except Exception as e:
+               try:
+                  if e.status_code == 400 and 'already has an active run' in e.message:
+                     logger.info('bot_os_openai add_message thread already has an active run, putting event back on queue...')
+                     return False
+               except:
+                  pass
+               logger.info('bot_os_openai add_message Error from OpenAI on run.streams: ',e)
+               return False
       else:
-         run = self.client.beta.threads.runs.create(
-            thread_id=thread.id, assistant_id=self.assistant.id, metadata=input_message.metadata)
-         if task_meta is not None:
-            self.run_meta_map[run.id]=task_meta
-         self.thread_run_map[thread_id] = {"run": run.id, "completed_at": None}
-         self.active_runs.append(thread_id)
+         # handle non-stream mode?
+         # get a stream handler first...
+         model_name = os.getenv("OPENAI_MODEL_NAME", "gpt-4o")
+         completion = openai.ChatCompletion.create(
+                  model=model_name,
+                  messages=openai_messages
+               )
+               # You can store or process the single-shot completion here
+         content = completion["choices"][0]["message"]["content"]
+               # Possibly keep run_id_to_output_stream for consistency
+         StreamingEventHandler.run_id_to_output_stream[self.assistant.id] = content
+         #return True
 
       primary_user = json.dumps({'user_id': input_message.metadata.get('user_id', 'unknown_id'),
                                  'user_name': input_message.metadata.get('user_name', 'unknown_name'),
                                  'user_email': input_message.metadata.get('user_email', 'unknown_email')})
 
       self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id,
-                                                    message_type='User Prompt', message_payload=input_message.msg, message_metadata=input_message.metadata, files=attachments,
-                                                    channel_type=input_message.metadata.get("channel_type", None), channel_name=input_message.metadata.get("channel", None),
-                                                    primary_user=primary_user)
+                                                   message_type='User Prompt', message_payload=input_message.msg, message_metadata=input_message.metadata, files=attachments,
+                                                   channel_type=input_message.metadata.get("channel_type", None), channel_name=input_message.metadata.get("channel", None),
+                                                   primary_user=primary_user)
       return True
 
    def is_bot_openai(self,bot_id):

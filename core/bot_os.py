@@ -1,6 +1,6 @@
 import datetime
 import random
-import time 
+import time
 import re
 import os
 import threading
@@ -88,35 +88,78 @@ class BotOsSession:
     clear_access_cache = False
     # Add new class-level dictionary to store knowledge implementations
     knowledge_implementations = {}
-    
+
 
     def __init__(
         self,
         session_name: str,
-        instructions=None,
-        validation_instructions=None,
-        tools=None,
-        available_functions=None,
-        assistant_implementation=None,
-        reminder_implementation=RemindersTest,
-        file_corpus: FileCorpus = None,  # Updated to use FileCorpus type
-        knowledgebase_implementation=None,
-        log_db_connector=None,
+        instructions: str = None,
+        validation_instructions: str = None,
+        tools: list[dict] = None,
+        available_functions: dict = None,
+        assistant_implementation: type = None,
+        reminder_implementation: type = RemindersTest,
+        file_corpus: FileCorpus = None,
+        knowledgebase_implementation: object = None,
+        log_db_connector: object = None,
         input_adapters: list[BotOsInputAdapter] = [],
-        update_existing=False,
-        bot_id="default_bot_id",
-        bot_name="default_bot_name",
-        all_tools=None,
-        all_functions=None,
-        all_function_to_tool_map=None,
-        stream_mode=False,
-        tool_belt=None,
-        skip_vectors=False,
-        assistant_id=None,
+        update_existing: bool = False,
+        bot_id: str = "default_bot_id",
+        bot_name: str = "default_bot_name",
+        all_tools: list = None,
+        all_functions: dict = None,
+        all_function_to_tool_map: dict = None,
+        stream_mode: bool = False,
+        tool_belt: object = None,
+        skip_vectors: bool = False,
+        assistant_id: str = None,
     ):
-      #  logger.info(skip_vectors)
-        self.last_annoy_refresh = datetime.datetime.now()
-        self.refresh_lock = False
+        """
+        Initialize a BotOsSession instance.
+
+        Args:
+            session_name (str): 
+                The name of the session.
+            instructions (str, optional): 
+                Instructions for the session. Defaults to None.
+            validation_instructions (str, optional): 
+                Validation instructions for the session. Defaults to None.
+            tools (list, optional): 
+                List of tool-func descriptors (e.g. {"type": "function", "function": ....}) available for the session. Defaults to None.
+            available_functions (dict, optional): 
+                Dictionary mapping tool-func names avialable for this session to their callable objects. Defaults to None.
+            assistant_implementation (type, optional): 
+                The assistant implementation class. Defaults to None.
+            reminder_implementation (type, optional): 
+                The reminder implementation class. Defaults to RemindersTest.
+            file_corpus (FileCorpus, optional): 
+                The file corpus to be used. Defaults to None.
+            knowledgebase_implementation (object, optional): 
+                The knowledgebase implementation. Defaults to None.
+            log_db_connector (object, optional): 
+                The database connector for logging. Defaults to None.
+            input_adapters (list[BotOsInputAdapter], optional): 
+                List of input adapters. Defaults to an empty list.
+            update_existing (bool, optional): 
+                Flag to update existing data. Defaults to False.
+            bot_id (str, optional): 
+                The bot ID. Defaults to "default_bot_id".
+            bot_name (str, optional): 
+                The bot name. Defaults to "default_bot_name".
+            all_tools (list, optional): 
+                List of all the tool-func descriptors (e.g. {"type": "function", "function": ....}) regardless of the session. Defaults to None.
+            all_functions (dict, optional): 
+                Dictionary mapping tool-func names avialable any session to their callable objects. Defaults to None.
+            all_function_to_tool_map (dict, optional): 
+                Dictionary mapping tool (group) names to a list of tool-func descriptors associated with that tool (group). Defaults to None.
+            stream_mode (bool, optional): 
+                Flag for stream mode. Defaults to False.
+            tool_belt (object, optional): 
+                The tool belt object. Defaults to None.
+            skip_vectors (bool, optional): 
+                Flag to skip vectors. Defaults to False.
+            assistant_id (str, optional): The assistant ID. Defaults to None.
+        """
         BotOsAssistantOpenAI.stream_mode = stream_mode
         BotOsAssistantSnowflakeCortex.stream_mode = stream_mode
         self.session_name = session_name
@@ -213,7 +256,17 @@ class BotOsSession:
         self.threads[thread.thread_id] = thread
         return thread.thread_id
 
+
     def _retrieve_memories(self, msg: str) -> str:
+        """
+        Retrieves memories from the knowledge base.
+
+        Args:
+            msg (str): The message to search for memories.
+
+        Returns:
+            str: The retrieved memories.
+        """
         user_memories = self.knowledge_impl.find_memory(msg, scope="user_preferences")
         gen_memories = self.knowledge_impl.find_memory(msg, scope="general")
 
@@ -223,6 +276,7 @@ class BotOsSession:
         if len(gen_memories) > 0:
             mem += f". Here are a few general memories from your knowledge base to consider: {'. '.join(gen_memories[:3])}. Do not store these in your knowledge base."
         return mem
+
 
     def add_message(
         self, input_message: BotOsInputMessage, event_callback = None
@@ -289,6 +343,18 @@ class BotOsSession:
     def _validate_response(
         self, session_id: str, output_message: BotOsOutputMessage
     ):  # thread_id:str, status:str, output:str, messages:str, attachments:list):
+        """
+        Handles the response received from the LLM's.
+
+        Args:
+            session_id (str): The session identifier.
+            output_message (BotOsOutputMessage): The output message from the bot.
+
+        This method checks if the response is completed by checking the status of the response and other metadata.
+        If "reflection" is needed, it appends the next message with the internal validation_instructions
+        and retrieved memories from the knowledge base. 
+        Otherwise, it passes the response to the corresponding thread handler (which will pass it on to the corresponding "input adapter")
+        """
         thread = self.threads[output_message.thread_id]
         if (
             output_message.status == "completed"
@@ -297,7 +363,7 @@ class BotOsSession:
             and output_message.output.find("!NEED_INPUT") == -1
             and output_message.output != "!COMPLETE"
             and output_message.output != "!NEED_INPUT"
-        ):
+            ):
             #  logger.info(f'{self.bot_id} ****needs review: ',output_message.output)
             self.next_messages.append(
                 BotOsInputMessage(
@@ -307,20 +373,9 @@ class BotOsSession:
                     metadata=output_message.input_metadata,
                 )
             )
-       #else:
-            #            if not self.task_test_mode:
-            # //                txt = output_message.output[:50]
-            #            else:
-            #                txt = output_message.output
-            #            if len(txt) == 50:
-            #                txt += '...'
-            #try:
-                #logger.info(f"{self.bot_name} bot_os response, len={len(output_message.output)}")
-              #  if len(output_message.output) == 0:
-              #      pass
-           # except:
-           #     pass
+
         thread.handle_response(session_id, output_message)
+
 
     def get_current_time_with_timezone(self):
         current_time = datetime.datetime.now().astimezone()
@@ -331,7 +386,7 @@ class BotOsSession:
         # Check if last_table_update is more than 60 seconds ags
         if not global_flags.multibot_mode:
             return
-        
+
         current_time = datetime.datetime.now()
         if not hasattr(self, 'last_table_update') or (current_time - self.last_table_update).total_seconds() > 60:
             self.last_table_update = current_time
@@ -339,15 +394,15 @@ class BotOsSession:
             return
 
         current_timestamp = self.get_current_time_with_timezone()
-        
+
         # Format the timestamp as a string
         timestamp_str = current_timestamp
-        
+
         # Create or replace the bots_active table with the current timestamp
         create_bots_active_table_query = f"""
         CREATE OR REPLACE TABLE {self.schema}.bots_active ("{timestamp_str}" STRING);
         """
-        
+
         try:
             cursor = self.log_db_connector.connection.cursor()
             cursor.execute(create_bots_active_table_query)
@@ -416,7 +471,7 @@ class BotOsSession:
 
             if out_thread is None:
                 # logger.error(f"NO Map to Out thread ... making new one for ->> In Thead {input_message.thread_id}")
-                
+
                 out_thread = self.create_thread(a)
                 if input_message.thread_id is None:
                     input_message.thread_id = out_thread
@@ -431,7 +486,7 @@ class BotOsSession:
 
                 if os.getenv("USE_KNOWLEDGE", "false").lower() == 'true' and not input_message.msg.startswith('NOTE--'):
 
-                    primary_user = json.dumps({'user_id': input_message.metadata.get('user_id', 'unknown_id'), 
+                    primary_user = json.dumps({'user_id': input_message.metadata.get('user_id', 'unknown_id'),
                                                'user_name': input_message.metadata.get('user_name', 'unknown_name'),
                                                'user_email': input_message.metadata.get('user_email', 'unknown_email')})
                     if input_message.metadata.get('user_email', 'unknown_email') != 'unknown_email':
@@ -439,7 +494,7 @@ class BotOsSession:
                     else:
                         user_query = input_message.metadata.get('user_id', 'unknown_id')
 
-                    if 'unknown' not in user_query:   
+                    if 'unknown' not in user_query:
                         if os.getenv("LAST_K_KNOWLEGE", "1").isdigit():
                             last_k = int(os.getenv("LAST_K_KNOWLEGE", "1"))
                         else:
@@ -447,8 +502,8 @@ class BotOsSession:
                         knowledge = self.log_db_connector.extract_knowledge(user_query, self.bot_id, k = last_k)
                         knowledge_len = len(''.join([knowledge.get(key, '') for key in ['USER_LEARNING', 'TOOL_LEARNING', 'DATA_LEARNING', 'HISTORY']]))
                         logger.info(f'bot_os {self.bot_id} knowledge injection, user len={len(primary_user)} len knowledge={knowledge_len}')
-                        logger.telemetry('add_knowledge:', input_message.thread_id, self.bot_id, 
-                                        input_message.metadata.get('user_email', 'unknown_email'), 
+                        logger.telemetry('add_knowledge:', input_message.thread_id, self.bot_id,
+                                        input_message.metadata.get('user_email', 'unknown_email'),
                                         os.getenv("BOT_OS_DEFAULT_LLM_ENGINE", ""), 'all_knowledge', knowledge_len)
                         if knowledge:
                             input_message.msg = f'''NOTE--Here are some things you know about this user from previous interactions, that may be helpful to this conversation:
@@ -463,13 +518,13 @@ Data related: {knowledge['DATA_LEARNING']}
 
 Now, with that as background...\n''' + input_message.msg
                         #input_message.metadata["user_knowledge"] = 'True'
-                
+
 
             input_message.thread_id = out_thread
 
             if input_message is None or input_message.msg == "":
                 continue
-           
+
             ret = self.add_message(input_message, self._validate_response)
             # Log time taken for add_message 🕐
 #            time_after_add = datetime.datetime.now()
@@ -490,7 +545,7 @@ Now, with that as background...\n''' + input_message.msg
                             logger.info(f"Message added back to queue. Attempt {added_back_count + 1} of 10")
                         else:
                             logger.info(f"Message has been added back 20 times. Stopping further attempts.")
-                         
+
                             continue
                        # logger.info(input_message.metadata["event_ts"])
                         a.add_back_event( input_message.metadata)
@@ -510,14 +565,14 @@ Now, with that as background...\n''' + input_message.msg
                             logger.info(f"Message added back to queue. Attempt {added_back_count + 1} of 10")
                         else:
                             logger.info(f"Message has been added back 10 times. Stopping further attempts.")
-                            
+
                             continue
                         # logger.info(input_message.metadata["event_ts"])
                         a.add_back_event( input_message.metadata)
                         time.sleep(0.5)
                     except Exception as e:
                         pass
-    
+
 
             logger.debug("execute completed")
 

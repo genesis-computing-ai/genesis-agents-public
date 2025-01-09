@@ -210,7 +210,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
          else:
             my_tools = tools + [{"type": "file_search"}]  + [{"type": "code_interpreter"}]
       else:
-         my_tools = tools 
+         my_tools = tools
       #my_tools = tools
       #logger.info(f'yoyo mytools {my_tools}')
       #logger.warn(f'yoyo mytools {my_tools}')
@@ -274,7 +274,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                my_assistant = None
 
          if my_assistant is None:
-            logger.info('finding assistant...')          
+            logger.info('finding assistant...')
             my_assistants = self.client.beta.assistants.list(order="desc", limit=100)
             my_assistants = [a for a in my_assistants if a.name == name]
 
@@ -676,13 +676,13 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
    #   if thread_id in self.thread_stop_map:
    #         self.thread_stop_map.pop(thread_id)
-   
+
       if thread_id in self.active_runs or thread_id in self.processing_runs:
          return False
 #      print ("&#&$&$&$&$&$&$&$ TEMP: ",thread_id in self.active_runs or thread_id in self.processing_runs)
       if thread_id is None:
          raise(Exception("thread_id is None"))
-    
+
       if self.use_assistants:
          thread = self.thread_working_set.get(thread_id)
          if thread is None:
@@ -829,7 +829,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
             logger.info(f"----> completions-based run is {run_id}")
             if thread_id not in self.active_runs:
                self.active_runs.append(thread_id)
-            
+
             # Check if we have existing messages for this thread
             if thread_id in self.completion_threads:
                 # Get existing messages and append new user message
@@ -860,12 +860,12 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                   #tools=[{"type": "code_interpreter"}],
                   messages=openai_messages,
                #   stream=False,
-               #   stream_options={"include_usage": True} 
+               #   stream_options={"include_usage": True}
                )
                usage = response.usage
                if response.choices[0].message.content is not None:
                   StreamingEventHandler.run_id_to_output_stream[run_id] += response.choices[0].message.content
-               tool_calls_array = response.choices[0].message.tool_calls 
+               tool_calls_array = response.choices[0].message.tool_calls
                tool_calls = []
                if tool_calls_array is not None:
                   for tool_call in tool_calls_array:
@@ -877,7 +877,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                   #tools=[{"type": "code_interpreter"}],
                   messages=openai_messages,
                   stream=True,
-                  stream_options={"include_usage": True} 
+                  stream_options={"include_usage": True}
                )
 
                # Collect streaming chunks f
@@ -946,7 +946,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                            "role": "assistant",
                            "content": StreamingEventHandler.run_id_to_output_stream[run_id]
                      })
-               
+
             return True
 
          except Exception as e:
@@ -1044,7 +1044,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
          if run_hash in self.tool_failure_map:
             self.tool_failure_map[run_hash]["fail_count"] += 1
             if self.tool_failure_map[run_hash]["fail_count"] == 2:
-                func_response['warning'] = "Note: Please do not retry this failed operation more than twice to avoid getting stuck in a retry loop. " 
+                func_response['warning'] = "Note: Please do not retry this failed operation more than twice to avoid getting stuck in a retry loop. "
             if self.tool_failure_map[run_hash]["fail_count"] >= 3:
                func_response = {
                   "success": False,
@@ -1079,15 +1079,15 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
              # Create list of keys to remove to avoid modifying dict during iteration
              keys_to_remove = []
              for run_hash, failure_data in self.tool_failure_map.items():
-                 time_diff = current_time - failure_data["first_fail_timestamp"] 
+                 time_diff = current_time - failure_data["first_fail_timestamp"]
                  if time_diff.total_seconds() > 3600: # 60 minutes
                      keys_to_remove.append(run_hash)
-             
+
              # Remove old entries
              for key in keys_to_remove:
                  del self.tool_failure_map[key]
-      
-         
+
+
 
       try:
          if function_call_details[0][0] == '_modify_slack_allow_list' and (func_response.get('success',False)==True or func_response.get('Success',False)==True):
@@ -1301,7 +1301,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
        #        self.active_runs.append(thread_id)
             self.add_message(BotOsInputMessage(thread_id=thread_id, msg='Tool call completed, results', metadata=metadata), reuse_run_id=run_id)   # self.completions_runs[run_id].usage = usage
 
-         return 
+         return
         # raise('not implemented')
 
       run = self.client.beta.threads.runs.retrieve(thread_id = thread_id, run_id = run_id)
@@ -1592,7 +1592,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                   # Create a SimpleNamespace object instead of dict to allow attribute access
                   run = self.completions_runs[thread_run["run"]]
             # Handle non-assistant runs
-               
+
             except:
                retry_count = 0
                max_retries = 3
@@ -1751,7 +1751,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                   for tool_call in run.tool_calls:
                      function_details.append((tool_call['function']['name'], tool_call['function']['arguments'], tool_call['id']))
                   parallel_tool_call_ids = [f[2] for f in function_details]
-               
+
            #    if self.tool_completion_status.get(run.id,None) is not None:
            #       function_details = [f for f in function_details if f[2] not in self.tool_completion_status[run.id]]
                try:
@@ -1941,6 +1941,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                            else:
                               logger.info(f'!! function was missing from self.all_functions, restored from backup, still missing func: {func_name}, len of backup={len(BotOsAssistantOpenAI.all_functions_backup)}')
 
+                        # Execute the tool function
                         execute_function(func_name, func_args, self.all_functions, callback_closure,
                                        thread_id = thread_id, bot_id=self.bot_id, status_update_callback=event_callback if event_callback else None, session_id=self.assistant.id if self.assistant.id is not None else None, input_metadata=run.metadata if run.metadata is not None else None, run_id =run.id )#, dispatch_task_callback=dispatch_task_callback)
 

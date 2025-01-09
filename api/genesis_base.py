@@ -1,15 +1,12 @@
-from abc import ABC
-import sqlite3
-from pydantic import BaseModel
-import sys
-from pydantic import BaseModel
-from typing import Dict, Any, Optional, Tuple, List
-import os
+from   abc                      import ABC
+from   datetime                 import datetime
 import json
-from datetime import datetime
-from snowflake.connector import SnowflakeConnection
-from connectors.sqlite_adapter import SQLiteAdapter
+import os
 import pandas as pd
+from   pydantic                 import BaseModel
+from   snowflake.connector      import SnowflakeConnection
+import sys
+from   typing                   import Dict, Optional, Tuple
 
 class GenesisBot(BaseModel):
     BOT_ID: str
@@ -48,8 +45,8 @@ class GenesisBot(BaseModel):
 class GenesisToolDefinition(BaseModel):
     TOOL_NAME: str
     TOOL_DESCRIPTION: str
-    PARAMETERS: Dict[str, Dict[str, str]]  # {"param_name": { "type": "string", "description": "description" }, 
-                       
+    PARAMETERS: Dict[str, Dict[str, str]]  # {"param_name": { "type": "string", "description": "description" },
+
 class GenesisMetadataStore():
     scope: str
     sub_scope: str
@@ -89,15 +86,25 @@ class GenesisServer(ABC):
     def shutdown(self):
         pass
 
-class GenesisLocalServer(GenesisServer):
-    def __init__(self, scope, sub_scope):
-        super().__init__(scope, sub_scope)
-    def add_message(self, bot_id, message, thread_id) -> dict:
-        return {"request_id": "Request_12345",
-                "bot_id": bot_id,
-                "thread_id": thread_id}
-    def get_message(self, bot_id, request_id):
-        return "Message from Request_12345"
+    def add_client_tool(self, bot_id, tool_func):
+        raise NotImplementedError("add_client_tool not implemented")
+
+# class GenesisLocalServer(GenesisServer):
+#     def __init__(self, scope, sub_scope):
+#         super().__init__(scope, sub_scope)
+
+
+#     def add_message(self, bot_id, message, thread_id) -> dict:
+#         return {"request_id": "Request_12345",
+#                 "bot_id": bot_id,
+#                 "thread_id": thread_id}
+
+
+#     def get_message(self, bot_id, request_id):
+#         return "Message from Request_12345"
+
+
+
 
 class LocalMetadataStore(GenesisMetadataStore):
     metadata_dir: str = "./metadata"  # Set a default value for metadata_dir
@@ -200,7 +207,7 @@ class DatabaseMetadataStore(GenesisMetadataStore):
                 metadata_dict = metadata.model_dump()
             except AttributeError:
                 metadata_dict = metadata.dict()
-        
+
         metadata_dict['type'] = metadata.__class__.__name__  # Store the class name for later instantiation
 
         # Exclude 'type' from columns
@@ -225,7 +232,7 @@ class DatabaseMetadataStore(GenesisMetadataStore):
 
         cursor.execute(query)
         self.conn.commit()
-        
+
     def get_metadata(self, metadata_type: str, name: str) -> BaseModel:
         cursor = self.conn.cursor()
         table_name, filter_column, _ = self.metadata_type_mapping.get(metadata_type, (None, None))
@@ -249,9 +256,9 @@ class DatabaseMetadataStore(GenesisMetadataStore):
             return metadata_class(**metadata_dict)
         else:
             return None
-        
+
     def get_all_metadata(self, metadata_type: str, first_filter=None, second_filter=None, last_n:int=None, fields_to_return=None):
-        
+
         table_name, filter_column, second_filter_field = self.metadata_type_mapping.get(metadata_type, (None, None, None))
         if not table_name:
             raise ValueError(f"Unknown metadata type: {metadata_type}")
@@ -335,18 +342,21 @@ class SqliteMetadataStore(DatabaseMetadataStore):
         conn = get_global_db_connector("Snowflake").connection  # this is correct, Snowflake, not SQLite
         super().__init__(scope, sub_scope, conn)
 
-# class GenesisLocalServer(GenesisServer):
-#     def __init__(self, scope):
-#         super().__init__(scope)
-#     def add_message(self, bot_id, message, thread_id) -> dict:
-#         return {"request_id": "Request_12345",
-#                 "bot_id": bot_id,
-#                 "thread_id": thread_id}
-#     def get_message(self, bot_id, request_id):
-#         return "Message from Request_12345"
+class GenesisLocalServer(GenesisServer):
+    # TODO: remove? rename to xxxStub?
+    def __init__(self, scope):
+        super().__init__(scope)
 
-#     def get_metadata_store(self) -> GenesisMetadataStore:
-#         return LocalMetadataStore(self.scope)
+
+    def add_message(self, bot_id, message, thread_id) -> dict:
+        return {"request_id": "Request_12345",
+                "bot_id": bot_id,
+                "thread_id": thread_id}
+    def get_message(self, bot_id, request_id):
+        return "Message from Request_12345"
+
+    def get_metadata_store(self) -> GenesisMetadataStore:
+        return LocalMetadataStore(self.scope)
 
 class GenesisProject(BaseModel):
     PROJECT_ID: str
@@ -422,3 +432,22 @@ class GenesisMessage(BaseModel):
     CHANNEL_NAME: str
     PRIMARY_USER: str
     TASK_ID: str
+
+
+# Clent-side bot_tool support
+#-----------------------------------------
+from   core                     import bot_os_tools2 as core_tools
+
+
+def bot_client_tool(**param_descriptions):
+    return core_tools.gc_tool(_group_tags_=core_tools.REMOTE_TOOL_FUNCS_GROUP,
+                   **param_descriptions)
+
+
+def is_bot_client_tool(func):
+    return (core_tools.is_tool_func(func)
+            and core_tools.REMOTE_TOOL_FUNCS_GROUP in core_tools.get_tool_func_descriptor(func).groups)
+
+
+def get_tool_func_descriptor(func):
+    return core_tools.get_tool_func_descriptor(func)

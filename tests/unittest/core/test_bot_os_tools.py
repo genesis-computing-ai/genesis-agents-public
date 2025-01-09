@@ -7,11 +7,11 @@ class TestGCTools(unittest.TestCase):
 
         ToolFuncGroup._clear_instances() # avoid any lingering instances from previous tests
 
-        
+
         gr1_tag = ToolFuncGroup("group1", "this is group 1")
         gr2_tag = ToolFuncGroup("group2", "this is group 2")
 
-        # Test gc_tool decorator with a multiple group tag    
+        # Test gc_tool decorator with a multiple group tag
         @gc_tool(_group_tags_=[gr1_tag, gr2_tag], x="this is param x")
         def sample_function(x: int):
             "this is the sample_function description"
@@ -54,43 +54,43 @@ class TestGCTools(unittest.TestCase):
 
     def test_python_type_to_llm_type(self):
         # Test integer type
-        self.assertEqual(ToolFuncParamDescriptor._python_type_to_llm_type(int), 
+        self.assertEqual(ToolFuncParamDescriptor._python_type_to_llm_type(int),
                          {'type': 'integer'})
 
         # Test string type
-        self.assertEqual(ToolFuncParamDescriptor._python_type_to_llm_type(str), 
+        self.assertEqual(ToolFuncParamDescriptor._python_type_to_llm_type(str),
                          {'type': 'string'})
 
         # Test float type
-        self.assertEqual(ToolFuncParamDescriptor._python_type_to_llm_type(float), 
+        self.assertEqual(ToolFuncParamDescriptor._python_type_to_llm_type(float),
                          {'type': 'float'})
 
         # Test boolean type
-        self.assertEqual(ToolFuncParamDescriptor._python_type_to_llm_type(bool), 
+        self.assertEqual(ToolFuncParamDescriptor._python_type_to_llm_type(bool),
                          {'type': 'boolean'})
 
         # Test list of integers
-        self.assertEqual(ToolFuncParamDescriptor._python_type_to_llm_type(List[int]), 
+        self.assertEqual(ToolFuncParamDescriptor._python_type_to_llm_type(List[int]),
                          {'type': 'array', 'items': {'type': 'integer'}})
 
         # Test list of strings
-        self.assertEqual(ToolFuncParamDescriptor._python_type_to_llm_type(List[str]), 
+        self.assertEqual(ToolFuncParamDescriptor._python_type_to_llm_type(List[str]),
                          {'type': 'array', 'items': {'type': 'string'}})
 
         # Test dictionary with string keys and integer values
-        self.assertEqual(ToolFuncParamDescriptor._python_type_to_llm_type(Dict[str, int]), 
+        self.assertEqual(ToolFuncParamDescriptor._python_type_to_llm_type(Dict[str, int]),
                          {'type': 'object', 'properties': {'string': {'type': 'integer'}}})
 
         # Test dictionary with string keys and list of integers as values
-        self.assertEqual(ToolFuncParamDescriptor._python_type_to_llm_type(Dict[str, List[int]]), 
-                         {'type': 'object', 'properties': {'string': {'type': 'array', 
+        self.assertEqual(ToolFuncParamDescriptor._python_type_to_llm_type(Dict[str, List[int]]),
+                         {'type': 'object', 'properties': {'string': {'type': 'array',
                                                                              'items': {'type': 'integer'}}}})
 
         # Test unsupported type
         with self.assertRaises(ValueError):
             ToolFuncParamDescriptor._python_type_to_llm_type(complex)
 
-            
+
 
     def test_gc_tool_with_list_and_dict_params(self):
         ToolFuncGroup._clear_instances() # avoid any lingering instances from previous tests
@@ -182,7 +182,7 @@ class TestGCTools(unittest.TestCase):
         print(llm_dict)
         self.assertEqual(llm_dict, expected_dict)
 
-        
+
     def test_tool_funcs_with_lifecycle(self):
         ToolFuncGroup._clear_instances() # avoid any lingering instances from previous tests
         registry = ToolsFuncRegistry()
@@ -230,15 +230,15 @@ class TestGCTools(unittest.TestCase):
         registry.remove_tool_func(ephemeral_function)
         self.assertNotIn("ephemeral_function", registry.list_tool_func_names())
 
-        
+
     def test_tools_func_registry(self):
 
         ToolFuncGroup._clear_instances() # avoid any lingering instances from previous tests
 
-        
+
         registry = ToolsFuncRegistry()
         gr1_tag = ToolFuncGroup("gr1", "this is group 1")
-        
+
         # Test adding a tool function
         @gc_tool(_group_tags_=[gr1_tag], y="this is param y")
         def another_function(y: int):
@@ -325,7 +325,7 @@ class TestGCTools(unittest.TestCase):
     def test_gc_tool_with_mixed_param_descriptions(self):
 
         ToolFuncGroup._clear_instances() # avoid any lingering instances from previous tests
-        
+
         # Test gc_tool decorator with mixed parameter descriptions
         gr3_tag = ToolFuncGroup("gr3", "this is group 3")
 
@@ -445,9 +445,9 @@ class TestGCTools(unittest.TestCase):
         gr1_tag = ToolFuncGroup("group1", "this is group 1")
 
         # Test gc_tool decorator with a parameter having required=FROM_CONTEXT
-        param_desc = ToolFuncParamDescriptor(name="bot_id", 
-                                             description="this is param bot_id", 
-                                             llm_type_desc={"type": "string"}, 
+        param_desc = ToolFuncParamDescriptor(name="bot_id",
+                                             description="this is param bot_id",
+                                             llm_type_desc={"type": "string"},
                                              required=PARAM_IMPLICIT_FROM_CONTEXT)
         @gc_tool(_group_tags_=[gr1_tag], bot_id=param_desc)
         def function_with_from_context_param(bot_id: str):
@@ -527,10 +527,62 @@ class TestGCTools(unittest.TestCase):
             elif name == "b":
                 self.assertIsNone(description, f"Parameter '{name}' should not have a description")
 
-                def test_function_with_dict_param(self):
-                    ToolFuncGroup._clear_instances()  # avoid any lingering instances from previous tests
 
-                    gr1_tag = ToolFuncGroup("group1", "this is group 1")
+    def test_tool_func_descriptor_json_methods(self):
+        ToolFuncGroup._clear_instances()  # avoid any lingering instances from previous tests
+
+        gr11_tag = ToolFuncGroup("group11", "this is group 11")
+
+        # Test gc_tool decorator with all parameters having descriptions
+        @gc_tool(_group_tags_=[gr11_tag], a="description for a", b="description for b")
+        def function_with_descriptions(a: int, b: str="blah"):
+            "this is the function_with_descriptions description"
+            return a + b
+
+        descriptor = function_with_descriptions.gc_tool_descriptor
+
+        # Convert descriptor to JSON
+        descriptor_json = descriptor.to_json()
+        self.assertDictEqual(descriptor_json,
+                             {
+                                 'name': 'function_with_descriptions',
+                                 'description': 'this is the function_with_descriptions description',
+                                 'parameters_desc': [
+                                     {
+                                         'name': 'a',
+                                         'description': 'description for a',
+                                         'llm_type': {'type': 'integer'},
+                                         'required': True
+                                     },
+                                     {
+                                         'name': 'b',
+                                         'description': 'description for b',
+                                         'llm_type': {'type': 'string'},
+                                         'required': False
+                                     }
+                                 ],
+                                 'groups': [
+                                     {
+                                         'name': 'group11',
+                                         'description': 'this is group 11',
+                                         'lifetime': 'EPHEMERAL'
+                                     }
+                                 ]
+                             })
+
+        # Create a new descriptor from JSON
+        new_descriptor = ToolFuncDescriptor.from_json(descriptor_json)
+
+        # Check that the new descriptor matches the original descriptor
+        self.assertEqual(descriptor.name, new_descriptor.name)
+        self.assertEqual(descriptor.description, new_descriptor.description)
+        self.assertEqual(len(descriptor.parameters_desc), len(new_descriptor.parameters_desc))
+
+        for original_param, new_param in zip(descriptor.parameters_desc, new_descriptor.parameters_desc):
+            self.assertEqual(original_param.name, new_param.name)
+            self.assertEqual(original_param.description, new_param.description)
+            self.assertEqual(original_param.llm_type, new_param.llm_type)
+            self.assertEqual(original_param.required, new_param.required)
 
 
     def test_function_with_nested_dict_param(self):
@@ -538,18 +590,18 @@ class TestGCTools(unittest.TestCase):
         gr1_tag = ToolFuncGroup("group1", "this is group 1")
 
         @gc_tool(
-                action=ToolFuncParamDescriptor(name="action", 
-                                                description="Action to perform (CREATE, UPDATE, CHANGE_STATUS, LIST)", 
-                                                required=True, 
+                action=ToolFuncParamDescriptor(name="action",
+                                                description="Action to perform (CREATE, UPDATE, CHANGE_STATUS, LIST)",
+                                                required=True,
                                                 llm_type_desc = dict(type="string", enum=["CREATE", "UPDATE", "CHANGE_STATUS", "LIST"]) ,
                                                 ),
                 bot_id="ID of the bot performing the action",
                 todo_id="ID of the todo item (required for UPDATE and CHANGE_STATUS)",
                 todo_details=ToolFuncParamDescriptor(
-                    name="todo_details", 
+                    name="todo_details",
                     description="Details for the todo item. For CREATE: requires project_id, todo_name, what_to_do, depends_on. "
                                 "For CHANGE_STATUS: requires only new_status.",
-                    llm_type_desc = dict(type="object", 
+                    llm_type_desc = dict(type="object",
                                         properties=dict(project_id=dict(type="string", description="ID of the project the todo item belongs to"),
                                                         todo_name=dict(type="string", description="Name of the todo item"),
                                                         what_to_do=dict(type="string", description="What the todo item is about"),
@@ -560,7 +612,7 @@ class TestGCTools(unittest.TestCase):
                     required=False,
                     ),
                 _group_tags_=[gr1_tag]
-                )  
+                )
         def manage_todos(action: str, bot_id: str, todo_id: str = None, todo_details: dict = None):
             '''
             Manage todo items with various actions.
@@ -599,3 +651,111 @@ class TestGCTools(unittest.TestCase):
                         'type': 'function'}
 
         self.assertEqual(manage_todos.gc_tool_descriptor.to_llm_description_dict(), expected_dict)
+
+
+    def test_tools_func_registry_basic_operations(self):
+        ToolFuncGroup._clear_instances()  # avoid any lingering instances from previous tests
+
+        registry = ToolsFuncRegistry()
+        gr1_tag = ToolFuncGroup("gr1", "this is group 1")
+
+        # Test adding a tool function
+        @gc_tool(_group_tags_=[gr1_tag], param="this is a parameter")
+        def sample_function(param: int):
+            "this is a sample function"
+            return param * 2
+
+        registry.add_tool_func(sample_function)
+        self.assertIn("sample_function", registry.list_tool_func_names())
+
+        # Test retrieving a tool function
+        retrieved_func = registry.get_tool_func("sample_function")
+        self.assertEqual(retrieved_func, sample_function)
+
+        # Test removing a tool function by name
+        removed_func = registry.remove_tool_func("sample_function")
+        self.assertEqual(removed_func, sample_function)
+        self.assertNotIn("sample_function", registry.list_tool_func_names())
+
+        # Test removing a tool function by function object
+        registry.add_tool_func(sample_function)
+        removed_func = registry.remove_tool_func(sample_function)
+        self.assertEqual(removed_func, sample_function)
+        self.assertNotIn("sample_function", registry.list_tool_func_names())
+
+        # Test adding a duplicate tool function
+        registry.add_tool_func(sample_function)
+        with self.assertRaises(ValueError):
+            registry.add_tool_func(sample_function)
+
+        # Test getting a non-existent tool function
+        with self.assertRaises(ValueError):
+            registry.get_tool_func("non_existent_function")
+
+        # Test removing a non-existent tool function
+        with self.assertRaises(ValueError):
+            registry.remove_tool_func("non_existent_function")
+
+        # Test listing tool functions
+        self.assertEqual(len(registry.list_tool_funcs()), 1)
+        self.assertIn("sample_function", registry.list_tool_func_names())
+
+        # Test getting tool functions by tag
+        funcs_by_tag = registry.get_tool_funcs_by_group("gr1")
+        self.assertEqual(len(funcs_by_tag), 1)
+        self.assertEqual(funcs_by_tag[0], sample_function)
+
+        # Test getting all unique group tags
+        groups = registry.list_groups()
+        self.assertEqual({group.name for group in groups}, {"gr1"})
+
+
+    def test_tools_func_registry_ephemeral_operations(self):
+        ToolFuncGroup._clear_instances()  # avoid any lingering instances from previous tests
+
+        registry = ToolsFuncRegistry()
+
+        grP = ToolFuncGroup("gr1", "this is group 1")
+        grE = ToolFuncGroup("gr2", "this is group 2", lifetime=ToolFuncGroupLifetime.EPHEMERAL)
+
+        # Test adding a non-ephemeral tool function
+        @gc_tool(_group_tags_=[grP], param="this is a parameter")
+        def non_ephemeral_function(param: int):
+            "this is a non-ephemeral function"
+            return param * 3
+
+        registry.add_tool_func(non_ephemeral_function)
+        self.assertIn(non_ephemeral_function, registry.list_tool_funcs())
+
+        # Test adding an ephemeral tool function
+        @gc_tool(_group_tags_=[grE], param="this is a parameter")
+        def ephemeral_function(param: int):
+            "this is an ephemeral function"
+            return param * 3
+
+        registry.add_tool_func(ephemeral_function)
+        self.assertIn(ephemeral_function, registry.list_tool_funcs())
+
+        # Test assigning an ephemeral tool function to a bot
+        registry.assign_ephemeral_tool_func_to_bot("bot_1", ephemeral_function)
+        self.assertIn(ephemeral_function, registry.get_ephemeral_tool_funcs_for_bot("bot_1"))
+
+        # Test assigning the same ephemeral tool function to the same bot again
+        with self.assertLogs(logger, level='INFO') as log:
+            registry.assign_ephemeral_tool_func_to_bot("bot_1", "ephemeral_function")
+            self.assertIn("Function ephemeral_function is already assigned to bot_id bot_1. No action taken.", log.output[0])
+
+        # Test revoking an ephemeral tool function from a bot
+        revoked_func = registry.revoke_ephemeral_tool_func_from_bot("bot_1", ephemeral_function)
+        self.assertEqual(revoked_func, ephemeral_function)
+        self.assertNotIn(ephemeral_function, registry.get_ephemeral_tool_funcs_for_bot("bot_1"))
+
+        # Test revoking a non-existent ephemeral tool function from a bot
+        with self.assertRaises(ValueError):
+            registry.revoke_ephemeral_tool_func_from_bot("bot_1", "non_existent_function")
+
+        # Test getting ephemeral tools for a bot with no assigned tools
+        self.assertEqual(len(registry.get_ephemeral_tool_funcs_for_bot("bot_2")), 0)
+
+        # Validate that no ephemeral tools are assigned to bot_1 after revocation
+        self.assertEqual(len(registry.get_ephemeral_tool_funcs_for_bot("bot_1")), 0)

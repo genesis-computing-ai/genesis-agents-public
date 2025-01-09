@@ -168,6 +168,7 @@ def execute_function(
                         if param.name in recognized_context_params:
                             assert param.name in locals()
                             s_arguments[param.name] = locals()[param.name]
+                            s_arguments[param.name] = locals()[param.name]
                         else:
                             raise ValueError(f"Function {func_name}: parameter  {param.name} flagged as 'PARAM_IMPLICIT_FROM_CONTEXT' but is "
                                             f"not one of the recognized context parameters: {recognized_context_params}")
@@ -177,6 +178,7 @@ def execute_function(
                 completion_callback(err_msg)
                 return
 
+
         # special case for dispatch_bot_id
         try:
             if "dispatch_bot_id" in function.__code__.co_varnames:  # FixMe: expose this as a tool arg that can be set by the AI
@@ -185,7 +187,7 @@ def execute_function(
             pass
         if True or func_name.startswith("_"):  # run internal BotOS functions in-process
             if func_name.startswith("_"):
-                s_arguments["thread_id"] = thread_id # redundant for 'new style' tool functions
+                s_arguments["thread_id"] = thread_id # redundant for 'new style' tool functions, which specify this explicitly
             if func_name == '_run_process':
                 s_arguments["bot_id"] = bot_id
 
@@ -198,25 +200,24 @@ def execute_function(
                 s_arguments["bot_id"] = bot_id
                 if 'query' in s_arguments:
                     s_arguments['query'] = 'USERQUERY::' + s_arguments['query']
-            # Remove any arguments ending with _override
-            s_arguments = {k: v for k, v in s_arguments.items() if k != 'bot_id_override' }
+            # execute the function
             completion_callback(
                 execute_function_blocking(func_name, s_arguments, available_functions)
             )
-            return
-        # try:
-        #     if func_name.upper() == "RUN_QUERY":
-        #         s_arguments["bot_id"] = bot_id
-        # except:
-        #     pass
-        try:
-            # Call the function (via a wrapper, runs in a separate process)
-            #---------------------------------------------------------------
-            wrapper = create_func_wrapper(function, func_name)
-            completion_callback(wrapper(s_arguments))
-        except Exception as e:
-            completion_callback(f"caught exception {str(e)} trying to run {func_name}")
+        else:
+            # out-of-process execution (deprecated)
+            try:
+                if func_name.upper() == "RUN_QUERY":
+                    s_arguments["bot_id"] = bot_id
+            except:
+                pass
+            try:
+                wrapper = create_func_wrapper(function, func_name)
+                completion_callback(wrapper(s_arguments))
+            except Exception as e:
+                completion_callback(f"caught exception {str(e)} trying to run {func_name}")
     else:
+        # function not found
         completion_callback(
             f"!FN_MISSING - Error function {func_name} does not exist for bot {bot_id}.\n Calling it again will not help, check the function name and make sure its correct including any _'s in the name. Available functions, len:\n{len(available_functions)}"
         )

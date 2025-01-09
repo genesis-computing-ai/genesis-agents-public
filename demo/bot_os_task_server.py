@@ -22,7 +22,7 @@ from bot_genesis.make_baby_bot import (
     update_slack_app_level_key,
     set_llm_key,
     get_llm_key,
-    get_available_tools,
+    get_available_persistent_tools,
     get_ngrok_auth_token,
     set_ngrok_auth_token,
     get_bot_details,

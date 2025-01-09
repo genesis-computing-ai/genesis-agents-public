@@ -5,7 +5,7 @@ from   .genesis_base             import (GenesisBot, GenesisKnowledge,
                                         GenesisLocalServer,
                                         GenesisMetadataStore, GenesisNote,
                                         GenesisProcess, GenesisProject,
-                                        GenesisServer, GenesisToolDefinition)
+                                        GenesisServer, GenesisToolDefinition, )
 
 class GenesisAPI:
 
@@ -54,6 +54,10 @@ class GenesisAPI:
 
     def run_tool(self, bot_id, tool_name, tool_parameters: dict):
         return self.registered_server.run_tool(bot_id, tool_name, tool_parameters)
+
+
+    def add_client_tool(self, bot_id, tool_func):
+        self.registered_server.add_client_tool(bot_id, tool_func)
 
 
     def register_project(self, project: GenesisProject):
@@ -182,3 +186,5 @@ class GenesisAPI:
     def __exit__(self, exc_type, exc_value, traceback):
         # Allow ClientAPI to be used as a resource manager that shuts itself down
         self.shutdown()
+
+

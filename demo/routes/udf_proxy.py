@@ -1,39 +1,31 @@
+from   core                     import global_flags
+from   core.logging_config      import logger
+from   demo.app                 import genesis_app
+from   flask                    import (Blueprint, jsonify, make_response,
+                                        request)
 import os
-from flask import Blueprint
-from core.logging_config import logger
-from flask import request, jsonify, make_response
-from bot_genesis.make_baby_bot import get_bot_details
-from demo.app import genesis_app
-import core.global_flags as global_flags
 
 import json
-from core.system_variables import SystemVariables
 
-import tempfile
 import base64
-from pathlib import Path
+from   pathlib                  import Path
+import tempfile
 
-from core.bot_os_server import BotOsServer
-from core.bot_os_artifacts import get_artifacts_store
-from embed.embed_openbb import openbb_query
-from llm_openai.openai_utils import get_openai_client
+from   core.bot_os_artifacts    import get_artifacts_store
+from   core.bot_os_tools2       import add_api_client_tool
+from   embed.embed_openbb       import openbb_query
+from   llm_openai.openai_utils  import get_openai_client
 
-from bot_genesis.make_baby_bot import (
-    make_baby_bot,
-    update_slack_app_level_key,
-    set_llm_key,
-    get_ngrok_auth_token,
-    set_ngrok_auth_token,
-    get_bot_details,
-    set_remove_pointers,
-    list_all_bots,
-    get_slack_config_tokens,
-    set_slack_config_tokens,
-)
-from auto_ngrok.auto_ngrok import launch_ngrok_and_update_bots
-from core.system_variables import SystemVariables
-from demo.sessions_creator import create_sessions
-from demo.routes.slack import bot_install_followup
+from   auto_ngrok.auto_ngrok    import launch_ngrok_and_update_bots
+from   bot_genesis.make_baby_bot \
+                                import (get_bot_details, get_ngrok_auth_token,
+                                        get_slack_config_tokens, list_all_bots,
+                                        make_baby_bot, set_llm_key,
+                                        set_ngrok_auth_token,
+                                        set_slack_config_tokens,
+                                        update_slack_app_level_key)
+from   core.system_variables    import SystemVariables
+from   demo.routes.slack        import bot_install_followup
 
 udf_routes = Blueprint('udf_routes', __name__)
 
@@ -49,6 +41,7 @@ def submit_udf():
         bot_id = input_rows[0][3]["bot_id"]
     row = input_rows[0]
 
+    # lookup the adapater and invoke its handler function (the Flask request context will be read there)
     bots_udf_adapter = genesis_app.bot_id_to_udf_adapter_map.get(bot_id, None)
     if bots_udf_adapter is not None:
         return bots_udf_adapter.submit_udf_fn()
@@ -147,7 +140,7 @@ def create_baby_bot():
     try:
         data = request.get_json()['data']
         # TODO: validate the json schema
-        
+
         bot_name = data.get("bot_name")
         bot_implementation = data.get("bot_implementation")
         bot_id = data.get("bot_id")
@@ -773,3 +766,33 @@ def embed_openbb():
         default_bot_id=list(genesis_app.bot_id_to_udf_adapter_map.keys())[0],
     )
 
+
+@udf_routes.route("/udf_proxy/add_client_tool", methods=["POST"])
+def add_client_tool():
+    """
+    Endpoint to add a client tool function dynamically.
+
+    Returns:
+        A JSON response indicating success or failure of the tool function registration.
+    """
+    logger.info('Flask invocation: /udf_proxy/add_client_tool')
+    try:
+        # Parse the JSON payload
+        data = request.get_json()
+        bot_id = data.get("bot_id")
+        tool_func_descriptor = data.get("tool_func_descriptor")
+
+        if not bot_id or not tool_func_descriptor:
+            raise ValueError("Both 'bot_id' and 'tool_func_descriptor' are required.")
+
+        # Delegate the core logic to the bot_os_tools2 module
+        response = add_api_client_tool(bot_id, tool_func_descriptor, genesis_app.server)
+
+    except Exception as e:
+        logger.error(f"Error adding client tool: {str(e)}")
+        response = {
+            "Success": False,
+            "Message": f"An error occurred while adding the client tool: {str(e)}"
+        }
+
+    return jsonify(response)

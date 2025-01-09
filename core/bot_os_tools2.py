@@ -1,4 +1,6 @@
-from   core.bot_os_utils        import tupleize
+from   collections              import defaultdict
+from   collections.abc          import Iterable
+from   core.bot_os_utils        import is_iterable, tupleize
 from   core.logging_config      import logger
 from   enum                     import Enum
 import importlib
@@ -6,10 +8,10 @@ import inspect
 from   itertools                import chain
 from   textwrap                 import dedent
 import threading
-from   typing                   import Any, Dict, List, get_args, get_origin, Union, Callable
+from   typing                   import (Any, Dict, List, Union, get_args,
+                                        get_origin)
 from   weakref                  import WeakValueDictionary
 from   wrapt                    import synchronized
-
 
 class ToolFuncGroupLifetime(Enum):
     PERSISTENT = "PERSISTENT" # Saved to the tools and bots-specific tables and can be delegate by Eve to other bots
@@ -30,7 +32,12 @@ class ToolFuncGroup:
 
     def __new__(cls, name: str, description: str, lifetime: ToolFuncGroupLifetime = "EPHEMERAL"):
         if name in cls._instances:
-            raise ValueError(f"An instance with the name '{name}' already exists.")
+            existing_instance = cls._instances[name]
+            # Assert that all other fields match
+            if existing_instance.description != description or existing_instance.lifetime != ToolFuncGroupLifetime(lifetime):
+                raise ValueError(f"A {cls.__name__} instance with the name '{name}' already exists, but with different description or lifetime.")
+            return existing_instance
+
         instance = super().__new__(cls)
         cls._instances[name] = instance
         return instance
@@ -68,10 +75,43 @@ class ToolFuncGroup:
         cls._instances.clear()
 
 
+    def to_json(self) -> dict:
+        """
+        Converts the ToolFuncGroup instance to a JSON-compatible dictionary.
+        """
+        return {
+            "name": self.name,
+            "description": self.description,
+            "lifetime": self.lifetime.value
+        }
+
+    @classmethod
+    def from_json(cls, data: dict):
+        """
+        Creates a ToolFuncGroup instance from a JSON-compatible dictionary.
+        Returns:
+            ToolFuncGroup: The created instance.
+        """
+        if 'name' not in data or 'description' not in data or 'lifetime' not in data:
+            raise ValueError("Missing required fields in data to create ToolFuncGroup")
+
+        return cls(
+            name=data['name'],
+            description=data['description'],
+            lifetime=ToolFuncGroupLifetime(data['lifetime'])
+        )
+
+
 ORPHAN_TOOL_FUNCS_GROUP = ToolFuncGroup(name="ORPHAN_TOOL_FUNCS_GROUP", description="Default group for tools that do not specify a group", lifetime="EPHEMERAL")
 """
 A default group for functions that do not specify a group. Ephemeral by definition - i.e. such functions will not be part of a group that persists to registered bots
 """
+
+REMOTE_TOOL_FUNCS_GROUP = ToolFuncGroup(name="REMOTE_TOOL_FUNCS_GROUP", description="Special group for tools whose python code is defined remotely (client side)", lifetime="EPHEMERAL")
+"""
+Special group for tools whose python code is defined remotely (client side) and are not invoked on the server side. Instead, their invocation is delegated to the client side. Ephemeral by definition.
+"""
+
 
 # Define a unique token for FROM_CONTEXT
 PARAM_IMPLICIT_FROM_CONTEXT = object()
@@ -178,16 +218,46 @@ class ToolFuncParamDescriptor:
         return self.description.name < other.description.name
 
 
+    def to_json(self) -> dict:
+        """
+        Converts the ToolFuncParamDescriptor instance to a JSON-compatible dictionary.
+        """
+        return {
+            "name": self.name,
+            "description": self.description,
+            "llm_type": self.llm_type,
+            "required": self.required
+        }
+
+    @classmethod
+    def from_json(cls, data: dict):
+        """
+        Creates a ToolFuncParamDescriptor instance from a JSON-compatible dictionary.
+        Returns:
+            ToolFuncParamDescriptor: The created instance.
+        """
+        if 'name' not in data or 'description' not in data or 'llm_type' not in data or 'required' not in data:
+            raise ValueError("Missing required fields in data to create ToolFuncParamDescriptor")
+
+        return cls(
+            name=data['name'],
+            description=data['description'],
+            llm_type_desc=data['llm_type'],
+            required=data['required']
+        )
+
+
 # Use these two constants for teh common implicit 'bot_id' and 'thread_id' param descriptors
 # that are expected to be provided by the calling context, not by the LLM
 BOT_ID_IMPLICIT_FROM_CONTEXT = ToolFuncParamDescriptor(name="bot_id",
                                                        description="bot_id",
                                                        llm_type_desc={"type": "string"},
                                                        required=PARAM_IMPLICIT_FROM_CONTEXT)
+
 THREAD_ID_IMPLICIT_FROM_CONTEXT = ToolFuncParamDescriptor(name="thread_id",
-                                                       description="thread_id",
-                                                       llm_type_desc={"type": "string"},
-                                                       required=PARAM_IMPLICIT_FROM_CONTEXT)
+                                                          description="thread_id",
+                                                          llm_type_desc={"type": "string"},
+                                                          required=PARAM_IMPLICIT_FROM_CONTEXT)
 
 class ToolFuncDescriptor:
     """
@@ -211,37 +281,110 @@ class ToolFuncDescriptor:
     def __init__(self,
                  name: str,
                  description: str,
-                 parameters_desc: List[ToolFuncParamDescriptor],
-                 groups: List[ToolFuncGroup] = (ORPHAN_TOOL_FUNCS_GROUP,)):
-        self.name = name
-        self.description = description
-        self.parameters_desc = parameters_desc
+                 parameters_desc: Iterable[ToolFuncParamDescriptor],
+                 groups: Iterable[ToolFuncGroup] = (ORPHAN_TOOL_FUNCS_GROUP,)):
+        self._name = str(name)
+        self._description = str(description)
+        # validate the parameters_desc list
+        if not is_iterable(parameters_desc) or not all(isinstance(param, ToolFuncParamDescriptor) for param in parameters_desc):
+            raise ValueError("expecting parameters_desc to be an interable of ToolFuncParamDescriptor objects")
+        self._parameters_desc = tuple(parameters_desc)
+        # validate the group list
+        if groups is None or not groups: # we never allow an empty group list
+            groups = ORPHAN_TOOL_FUNCS_GROUP
+        groups = tupleize(groups)
         if not all(isinstance(gr, ToolFuncGroup) for gr in groups):
             raise ValueError("All group_tags must be instances of ToolFuncGroupTag")
-        groups = tupleize(groups)
+
         lifetimes = {group.lifetime for group in groups}
         if len(lifetimes) > 1:
             raise ValueError(f"All groups for function {name} must have the same lifetime type. Found lifetimes: {lifetimes}")
-        self.groups = groups
+        self._groups = groups
 
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @property
+    def description(self) -> str:
+        return self._description
+
+    @property
+    def parameters_desc(self) -> Iterable[ToolFuncParamDescriptor]:
+        return self._parameters_desc
+
+    @property
+    def groups(self) -> List[ToolFuncGroup]:
+        return self._groups
 
     def to_llm_description_dict(self) -> Dict[str, Any]:
         """Generate the object used to describe this function to an LLM."""
         params_d = dict()
-        for param in self.parameters_desc:
+        for param in self._parameters_desc:
             params_d.update(param.to_llm_description_dict())
         return {
             "type": "function",
             "function": {
-                "name": self.name,
-                "description": self.description,
+                "name": self._name,
+                "description": self._description,
                 "parameters": {
                     "type": "object",
                     "properties": params_d,
-                    "required": [param.name for param in self.parameters_desc if param.required is True]
+                    "required": [param.name for param in self._parameters_desc if param.required is True]
                 },
             }
         }
+
+    def to_json(self) -> dict:
+        """
+        Converts the ToolFuncDescriptor instance to a JSON-compatible dictionary.
+
+        Returns:
+            dict: A dictionary representation of the instance.
+        """
+        return {
+            "name": self._name,
+            "description": self._description,
+            "parameters_desc": [param.to_json() for param in self._parameters_desc],
+            "groups": [group.to_json() for group in self._groups]
+        }
+
+    @classmethod
+    def from_json(cls, data: dict):
+        """
+        Creates a ToolFuncDescriptor instance from a JSON-compatible dictionary.
+
+        Args:
+            data (dict): A dictionary containing the data to create the instance.
+
+        Returns:
+            ToolFuncDescriptor: The created instance.
+        """
+        if 'name' not in data or 'description' not in data or 'parameters_desc' not in data or 'groups' not in data:
+            raise ValueError("Missing required fields in data to create ToolFuncDescriptor")
+
+        parameters_desc = [ToolFuncParamDescriptor.from_json(param) for param in data['parameters_desc']]
+        groups = [ToolFuncGroup.from_json(group) for group in data['groups']]
+
+        return cls(
+            name=data['name'],
+            description=data['description'],
+            parameters_desc=parameters_desc,
+            groups=groups
+        )
+
+
+    def with_added_param(self, param_desc: ToolFuncParamDescriptor) -> 'ToolFuncDescriptor':
+        """
+        Returns a new ToolFuncDescriptor with the given parameter descriptor added to the existing parameters.
+        """
+        return ToolFuncDescriptor(
+            name=self._name,
+            description=self._description,
+            parameters_desc=self._parameters_desc + (param_desc,),
+            groups=self._groups
+        )
+
 
 
 def gc_tool(_group_tags_: List[str], **param_descriptions):
@@ -300,7 +443,6 @@ def gc_tool(_group_tags_: List[str], **param_descriptions):
                 if param_desc.llm_type['type'] != expected_type['type']:
                     # Note that we allow for other keys in the user-provided descriptor, such as 'enum'. But we insist the hinted types should match.
                     raise ValueError(f"Type mismatch for parameter {pname}: expected {expected_type}, got {param_desc.llm_type}")
-
 
 
                 # Check if the 'required' status matches the descriptor's required attribute
@@ -366,6 +508,21 @@ def get_tool_func_descriptor(func):
         raise ValueError(f"Function {func.__name__} is not a proper 'tool function'.")
 
 
+def is_ephemeral_tool_func(func) -> bool:
+    """
+    Check if a function is ephemeral, meaning all its associated groups are ephemeral.
+
+    Args:
+        func (callable): The function to check.
+
+    Returns:
+        bool: True if the function is ephemeral, False otherwise.
+    """
+    descriptor = get_tool_func_descriptor(func)
+    return all(group.lifetime == ToolFuncGroupLifetime.EPHEMERAL
+               for group in descriptor.groups)
+
+
 @synchronized
 class ToolsFuncRegistry:
     """
@@ -375,9 +532,12 @@ class ToolsFuncRegistry:
     """
     # NOTE that we put a class-level lock on this object since tools can be accessed and manipulated by multiple session threads
 
+
     def __init__(self) -> None:
         """Initialize the ToolsFuncRegistry with an empty set of tool functions."""
-        self._tool_funcs: set = set()
+        self._tool_funcs: set = set() # set of registered tool-func callables . These are not associated with any bot_id for the scope of this class.
+        self._ephem_func_to_bot_map = defaultdict(set) # map from callables of ephemeral tool functions to a set of bot_ids for which this function has been assigned
+
 
     def add_tool_func(self, func: callable) -> None:
         """Add a tool function to the registry."""
@@ -388,7 +548,8 @@ class ToolsFuncRegistry:
             raise ValueError(f"A function with the name {func_name} already exists in the registry.")
         self._tool_funcs.add(func)
 
-    def remove_tool_func(self, func: Union[str, Callable]) -> Callable:
+
+    def remove_tool_func(self, func: Union[str, callable]) -> callable:
         """
         Remove a tool function from the registry and return it.
 
@@ -434,6 +595,7 @@ class ToolsFuncRegistry:
         """List all tool function names."""
         return [get_tool_func_descriptor(f).name for f in self.list_tool_funcs()]
 
+
     def get_tool_funcs_by_group(self, group_name: str) -> List[callable]:
         """Retrieve tool functions by their group name."""
         return sorted([func
@@ -441,7 +603,7 @@ class ToolsFuncRegistry:
                         if any(group.name == group_name
                                for group in get_tool_func_descriptor(func).groups)
                       ],
-                      key=lambda func: get_tool_func_descriptor(func).description)
+                      key=lambda func: get_tool_func_descriptor(func).name)
 
     def list_groups(self) -> List[ToolFuncGroup]:
         """
@@ -452,6 +614,92 @@ class ToolsFuncRegistry:
         """
         return sorted(set(chain.from_iterable(get_tool_func_descriptor(func).groups
                                               for func in self._tool_funcs)))
+
+
+    def assign_ephemeral_tool_func_to_bot(self, bot_id: str, callable_or_func_name: Union[str, callable]) -> None:
+        """
+        Assign a remote tool function (already added to the registry) to the given bot_id.
+        This func-bot association is kept in memory and is not persisted.
+        This will allow the bot to use the ephemeral tool function in any session, as long as the server is running.        
+
+        Args:
+            bot_id (str): The ID of the bot.
+            callable_or_func_name (str or callable): The tool function to add, either by name or as a callable. 
+            It must have already been added to the registry and it must be ephemeral (i.e. all its associated groups must be ephemeral).
+
+        Raises:
+            ValueError: If the function is not ephemeral, is already associated with the bot_id, is not in the registry, or the bot_id is invalid.
+        """
+        func = None
+        if isinstance(callable_or_func_name, str):
+            try:
+                func = self.get_tool_func(callable_or_func_name)
+            except ValueError:
+                raise ValueError(f"Function named {callable_or_func_name} is not in the registry.")
+        elif callable(callable_or_func_name) and is_tool_func(callable_or_func_name):
+            func = callable_or_func_name
+            if func not in self._tool_funcs:
+                raise ValueError(f"Function {func.__name__} is not in the registry.")
+        else:
+            raise ValueError("Argument must be either a function name (str) or a tool function (callable).")
+        assert func is not None and is_tool_func(func)
+
+        #TODO: valiate the bot_id...
+
+        # check that the function is ephemeral
+        if not is_ephemeral_tool_func(func):
+            raise ValueError(f"Function {func.__name__} must be ephemeral.")
+
+        if bot_id in self._ephem_func_to_bot_map[func]:
+            logger.info(f"Function {func.__name__} is already assigned to bot_id {bot_id}. No action taken.")
+        else:
+            self._ephem_func_to_bot_map[func].add(bot_id)
+
+
+    def revoke_ephemeral_tool_func_from_bot(self, bot_id: str, func_name_or_callable: Union[str, callable]) -> callable:
+        """
+        Revoke the association of a remote tool function with a bot_id.
+        Note that this does not remove the function from the registry.
+
+        Args:
+            bot_id (str): The ID of the bot.
+            func_name_or_callable (str or callable): The name or callable of the tool function to remove.
+
+        Returns:
+            callable: The function object that was removed.
+
+        Raises:
+            ValueError: If the function is not found or the bot_id does not exist.
+        """
+        func = None
+        if isinstance(func_name_or_callable, str):
+            try:
+                func = self.get_tool_func(func_name_or_callable)
+            except ValueError:
+                raise ValueError(f"Function named {func_name_or_callable} is not in the registry.")
+        elif callable(func_name_or_callable) and is_tool_func(func_name_or_callable):
+            func = func_name_or_callable
+            if func not in self._tool_funcs:
+                raise ValueError(f"Function {func.__name__} is not in the registry.")
+        else:
+            raise ValueError("Argument must be either a function name (str) or a tool function (callable).")
+        assert func is not None and is_tool_func(func)
+
+        if bot_id not in self._ephem_func_to_bot_map.get(func, set()):
+            raise ValueError(f"Function {func.__name__} not associated with bot_id {bot_id}.")
+
+        self._ephem_func_to_bot_map[func].remove(bot_id)
+        return func
+
+
+    def get_ephemeral_tool_funcs_for_bot(self, bot_id: str) -> List[callable]:
+        """
+        Get all ephemeral tool functions assigned to a bot_id
+        """
+        return sorted(
+            [func for func in self._tool_funcs if bot_id in self._ephem_func_to_bot_map[func]],
+            key=lambda func: get_tool_func_descriptor(func).name
+        )
 
 
 # Singleton "tools registry for all 'new type' tools.
@@ -527,3 +775,85 @@ def get_global_tools_registry():
             logger.error(f"Error creating global tools registry: {e}")
             raise e
     return _global_tools_registry
+
+
+def add_api_client_tool(bot_id: str,
+                        tool_func_descriptor: dict, # json-parsed ToolFuncDescriptor
+                        botos_server,  # BotOsServer instance (do not import to avoid circular imports)
+                        ):
+    from core.bot_os_input import BosOsClientAsyncToolInvocationHandle
+
+    # Construct a ToolFuncDescriptor instance
+    tool_func_descriptor = ToolFuncDescriptor.from_json(tool_func_descriptor)
+
+    # Add a thread_id parameter to the tool_func_descriptor. The proxy function below will use this to lookup
+    # the thread_obj to which to route the tool invocation request.
+    param_names = [desc.name for desc in tool_func_descriptor.parameters_desc]
+    if "thread_id" in param_names:
+        return {
+            "Success": False,
+            "Message": f"Tool function '{tool_func_descriptor.name}' cannot accept a 'thread_id' parameter. This name is reserved for internal use."
+        }
+
+    tool_func_descriptor = tool_func_descriptor.with_added_param(THREAD_ID_IMPLICIT_FROM_CONTEXT)
+
+    # Create a callable function proxy for this specific tool function.
+    # Note that a new callable is created for each invocation of this function.
+    # We take the client's function tool_func_descriptor, attach it to this
+    # instance, and then register it with the global tools
+    # registry for the given bot_id.
+    def _client_tool_func_proxy(**kwargs):
+        logger.info(f"client_tool_func_proxy for {tool_func_descriptor.name} called with kwargs: {kwargs}")
+
+        thread_id = kwargs.pop("thread_id") # remove from the params
+        assert thread_id is not None
+
+        # lookup the BotOsThread instance for this thread_id
+        thread_obj = None
+
+        for session in botos_server.sessions:
+            thh_obj = session.threads.get(thread_id)
+            if thh_obj and thh_obj.thread_id == thread_id:
+                if thread_obj is None:
+                    thread_obj = thh_obj
+                else:
+                    assert False, f"multiple thread_obj found for thread_id {thread_id}"
+        if thread_obj is None:
+            raise ValueError(f"thread_obj not found for thread_id {kwargs['thread_id']}")
+
+        # Send a message to the thread asking for the client to run this tool func
+        action_request_msg = BosOsClientAsyncToolInvocationHandle(
+            thread_id=thread_id,
+            tool_func_descriptor=tool_func_descriptor,
+            invocation_kwargs=kwargs,
+            input_metadata=dict(input_thread=thread_id,
+                                thread_id=thread_id,
+                                input_uuid=None,
+                                )
+            )
+        thread_obj.handle_response(session_id=None,
+                                   output_message=action_request_msg)
+        res = action_request_msg.get_func_result(timeout=10)
+
+        logger.info(f"client_tool_func_proxy for {tool_func_descriptor.name} returned: {res}")
+        return {"success": True, "result": res}
+
+    # Bind the ToolFuncDescriptor to the callable
+    setattr(_client_tool_func_proxy, ToolFuncDescriptor.GC_TOOL_DESCRIPTOR_ATTR_NAME, tool_func_descriptor)
+
+    # Register the callable with the global tools registry and with the bot_id
+    tools_registry = get_global_tools_registry()
+    tools_registry.add_tool_func(_client_tool_func_proxy)
+    tools_registry.assign_ephemeral_tool_func_to_bot(bot_id, _client_tool_func_proxy)
+
+    # Reset the sessions for this bot after adding the new ephemeral tools
+    for session in botos_server.sessions:
+        if session.bot_id == bot_id:
+            logger.info(f"Resetting session for bot_id '{bot_id}' since we added a new ephemeral tool")
+            botos_server.reset_session(bot_id, session)
+
+    return {
+        "Success": True,
+        "Message": f"Tool function '{tool_func_descriptor.name}' added successfully for bot_id '{bot_id}'."
+    }
+

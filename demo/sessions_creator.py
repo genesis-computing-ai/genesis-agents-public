@@ -1,43 +1,48 @@
 import json
 import os
 import sys
+import types
 
-from connectors.data_connector import DatabaseConnector
-from llm_gemini.bot_os_gemini import BotOsAssistantGemini
+
+from   connectors.data_connector \
+                                import DatabaseConnector
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-from core.bot_os import BotOsSession
-from core.bot_os_corpus import URLListFileCorpus
-from core.bot_os_defaults import (
-    BASE_BOT_INSTRUCTIONS_ADDENDUM,
-    BASE_BOT_PRE_VALIDATION_INSTRUCTIONS,
-    BASE_BOT_PROACTIVE_INSTRUCTIONS,
-    BASE_BOT_VALIDATION_INSTRUCTIONS,
-    BASE_BOT_DB_CONDUCT_INSTRUCTIONS,
-    BASE_BOT_PROCESS_TOOLS_INSTRUCTIONS,
-    BASE_BOT_SLACK_TOOLS_INSTRUCTIONS
-)
+from   core.bot_os              import BotOsSession
+from   core.bot_os_corpus       import URLListFileCorpus
+from   core.bot_os_defaults     import (BASE_BOT_DB_CONDUCT_INSTRUCTIONS,
+                                        BASE_BOT_INSTRUCTIONS_ADDENDUM,
+                                        BASE_BOT_PRE_VALIDATION_INSTRUCTIONS,
+                                        BASE_BOT_PROACTIVE_INSTRUCTIONS,
+                                        BASE_BOT_PROCESS_TOOLS_INSTRUCTIONS,
+                                        BASE_BOT_SLACK_TOOLS_INSTRUCTIONS,
+                                        BASE_BOT_VALIDATION_INSTRUCTIONS)
 
-from core.bot_os_memory import BotOsKnowledgeAnnoy_Metadata
+from   core.bot_os_memory       import BotOsKnowledgeAnnoy_Metadata
 
-from core.bot_os_tools import get_tools, ToolBelt
-from llm_cortex.bot_os_cortex import BotOsAssistantSnowflakeCortex
-from llm_openai.bot_os_openai import BotOsAssistantOpenAI
-from slack.slack_bot_os_adapter import SlackBotAdapter
-from bot_genesis.make_baby_bot import (
-    get_available_tools,
-    get_all_bots_full_details,
-)
+from   bot_genesis.make_baby_bot \
+                                import (get_all_bots_full_details,
+                                        get_available_persistent_tools)
+from   core.bot_os_tools        import ToolBelt, get_tools
+from   core.bot_os_tools2       import (get_global_tools_registry,
+                                        get_tool_func_descriptor)
+from   llm_cortex.bot_os_cortex import BotOsAssistantSnowflakeCortex
+from   llm_openai.bot_os_openai import BotOsAssistantOpenAI
+from   slack.slack_bot_os_adapter \
+                                import SlackBotAdapter
 
-from streamlit_gui.udf_proxy_bot_os_adapter import UDFBotOsInputAdapter
-from core.bot_os_task_input_adapter import TaskBotOsInputAdapter
+from   core.bot_os_task_input_adapter \
+                                import TaskBotOsInputAdapter
+from   streamlit_gui.udf_proxy_bot_os_adapter \
+                                import UDFBotOsInputAdapter
 
 
-from core.logging_config import logger
 
-import core.global_flags as global_flags
+from   core.logging_config      import logger
 
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from   core                     import global_flags
+
+from   concurrent.futures       import ThreadPoolExecutor, as_completed
 
 genbot_internal_project_and_schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "None")
 if genbot_internal_project_and_schema == "None":
@@ -95,6 +100,93 @@ def get_legacy_sessions(bot_id: str, db_adapter) -> dict:
 
     return threads
 
+
+def _resolve_session_tools_info(bot_config, slack_adapter_local, db_adapter):
+    '''helper function for make_session(...) to resolve tools & tool-functions info for a given bot '''
+
+    #NOTE on nameing: 'tools' are named groups of tool-functions
+
+
+    # fetch some bot attributes that are needed for tool resolution
+    bot_id = bot_config["bot_id"]
+    slack_enabled = bot_config.get("slack_active", "Y") == "Y"
+
+    # get the names of all tools (function groups) persistent in the DB (which are not bot-specific)
+    all_p_tools_descriptions = get_available_persistent_tools()
+    all_p_tools_names = [tool["tool_name"] for tool in all_p_tools_descriptions]
+
+    logger.info(f"Number of all available persistent tools (listed in the DB) {len(all_p_tools_names)}")
+
+    # get the list of tool (group) names that are configured for this bot.
+    # Those currently do not include ephemetal tools
+    if bot_config.get("available_tools", None) is not None:
+        bot_p_tool_names = set(json.loads(bot_config["available_tools"]))
+    else:
+        bot_p_tool_names = set()
+
+    logger.info(f"Number of bot-specific tools from bot config: {len(bot_p_tool_names)}")
+
+    # remove slack tools if Slack is not enabled for this bot
+    slack_enabled = bot_config.get("slack_active", "Y") == "Y"
+    if not slack_enabled:
+        bot_p_tool_names.discard("slack_tools")
+
+    # NOTE: Legacy? ToolBelt seems to be a local variable that is used as a global variable by some tools
+    # TODO: clean this up
+    tool_belt = ToolBelt()
+
+    # get functions metadata for the (persistent) tools configured for this bot
+    (available_p_func_descriptors,            # list of func descriptors dicts
+     available_p_callables_map,               # map from func name to its callable
+     tool_to_func_descs_map                   # map from tool (group) name to a list of func descriptors
+     ) = get_tools(
+        list(bot_p_tool_names), slack_adapter_local=slack_adapter_local, db_adapter=db_adapter, tool_belt=tool_belt
+    )
+    logger.info(f"Number of available persistent functions for bot {bot_id}: {len(available_p_callables_map)}")
+
+    # get ephemeral functions that are assigned to this bot and convert them to the same info structure as the persistent functions
+    tools_registry = get_global_tools_registry()
+    ephemeral_bot_callables = tools_registry.get_ephemeral_tool_funcs_for_bot(bot_id)
+    logger.info(f"Number of available ephemeral functions for bot {bot_id}: {len(ephemeral_bot_callables)}")
+    available_e_func_descriptors = [get_tool_func_descriptor(func).to_llm_description_dict()
+                                    for func in ephemeral_bot_callables]
+    available_e_callables_map = {get_tool_func_descriptor(func).name: func
+                                 for func in ephemeral_bot_callables}
+
+    # combine the avaialble persistent and ephemeral strcutures for the bot
+    bot_e_tool_names = set(group.name
+                           for func in ephemeral_bot_callables
+                           for group in get_tool_func_descriptor(func).groups)
+    bot_tool_names = bot_p_tool_names | bot_e_tool_names
+    available_func_descriptors = available_p_func_descriptors + available_e_func_descriptors
+    available_callables_map = {**available_p_callables_map, **available_e_callables_map}
+
+    # get functions metadata for all the (persistent) tools (not bot-specific)
+    all_tool_names = all_p_tools_names + list(bot_e_tool_names)
+    (all_func_descriptions,                 # list of func descriptors dicts
+     all_callables_map,                     # map from func name to its callable
+     all_tool_to_func_descs_map             # map from tool (group) name to a list of func descriptors
+     ) = get_tools(
+        all_tool_names, slack_adapter_local=slack_adapter_local, db_adapter=db_adapter, tool_belt=tool_belt
+    )
+    logger.info(f"Number of all persistent functions: {len(all_callables_map)}")
+
+    # Return a simple object with the resolved tools and functions
+    info = types.SimpleNamespace(
+        available_tool_names = bot_tool_names,
+        available_func_descriptors = available_func_descriptors,
+        available_callables_map = available_callables_map,
+        all_func_descriptions = all_func_descriptions,
+        all_callables_map = all_callables_map,
+        all_tool_to_func_descs_map = all_tool_to_func_descs_map,
+        ephemeral_bot_callables = ephemeral_bot_callables,
+
+        tool_belt=tool_belt
+    )
+
+    return info
+
+
 def make_session(
     bot_config,
     db_adapter,
@@ -139,9 +231,6 @@ def make_session(
     slack_enabled = bot_config.get("slack_active", "Y") == "Y"
     teams_enabled = bot_config.get("teams_active", "N") == "Y"
     runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
-
-    #    if global_flags.slack_active is False and slack_enabled:
-    #        global_flags.slack_active = False
 
     input_adapters = []
 
@@ -202,53 +291,16 @@ def make_session(
                 )  # Adjust field name if necessary
             input_adapters.append(slack_adapter_local)
         except:
-            logger.info(
-                f'Failed to create Slack adapter with the provided configuration for bot {bot_config["bot_name"]} '
-            )
-            logger.error(
-                f'Failed to create Slack adapter with the provided configuration for bot {bot_config["bot_name"]} '
-            )
-    #      return None, None, None, None
+            logger.info(f'Failed to create Slack adapter with the provided configuration for bot {bot_config["bot_name"]}')
+            logger.error(f'Failed to create Slack adapter with the provided configuration for bot {bot_config["bot_name"]}')
 
-    # tools
-    available_tools = get_available_tools()
-    logger.info(f"Number of available tools: {len(available_tools)}")
-    # available_tools.append({'tool_name': "integration_tools", 'tool_description': 'integration tools'})
-    # available_tools.append({'tool_name': "activate_marketing_campaign", 'tool_description': 'activate_marketing_campaign'})
-    # available_tools.append({'tool_name': "send_email_via_webhook", 'tool_description': 'send_email_via_webhook'})
-
-    if bot_config.get("available_tools", None) is not None:
-        bot_tools = json.loads(bot_config["available_tools"])
-        logger.info(f"Number of bot-specific tools: {len(bot_tools)}")
-        # bot_tools.append({'tool_name': "integration_tools", 'tool_description': 'integration tools'})
-        # bot_tools.append({'tool_name': "activate_marketing_campaign", 'tool_description': 'activate_marketing_campaign'})
-        # bot_tools.append({'tool_name': "send_email_via_webhook", 'tool_description': 'send_email_via_webhook'})
-    else:
-        bot_tools = []
-
-    # Check if SIMPLE_MODE environment variable is set to 'true'
-    bot_id = bot_config["bot_id"]
-    logger.info(f"setting local bot id = {bot_id}")
-
-    # remove slack tools if Slack is not enabled for this bot
-    if not slack_enabled:
-        bot_tools = [tool for tool in bot_tools if tool != "slack_tools"]
-
-    # ToolBelt seems to be a local variable that is used as a global variable by some tools
-    tool_belt = ToolBelt()
-
-    tools, available_functions, _ = get_tools(
-        bot_tools, slack_adapter_local=slack_adapter_local, db_adapter=db_adapter, tool_belt=tool_belt
-    )
-    logger.info(f"Number of available functions for bot {bot_id}: {len(available_functions)}")
-    all_tools, all_functions, all_function_to_tool_map = get_tools(
-        available_tools, slack_adapter_local=slack_adapter_local, db_adapter=db_adapter, tool_belt=tool_belt
-    )
-    logger.info(f"Number of all functions listed in the DB: {len(all_functions)}")
+    # Use _resolve_session_tools_info to get tool information
+    tools_info = _resolve_session_tools_info(bot_config, slack_adapter_local, db_adapter)
 
     simple_mode = os.getenv("SIMPLE_MODE", "false").lower() == "true"
 
     instructions = bot_config["bot_instructions"] + "\n"
+    bot_id = bot_config["bot_id"]
 
     cursor = db_adapter.client.cursor()
     query = f"SELECT process_name, process_id, process_description FROM {db_adapter.schema}.PROCESSES where bot_id = %s"
@@ -265,6 +317,7 @@ def make_session(
         logger.info(f'appended process list to prompt, len={len(processes_found)}')
 
     # TODO ADD INFO HERE
+    # TODO ADD INFO HERE
     instructions += BASE_BOT_INSTRUCTIONS_ADDENDUM
 
     instructions += f'\nYour default database connection is called "{genesis_source}".\n'
@@ -273,7 +326,7 @@ def make_session(
     if bot_config["slack_active"] == "Y":
         instructions += "\nYour slack user_id: " + bot_config["bot_slack_user_id"]
 
-    if "snowflake_tools" in bot_tools and "make_baby_bot" in bot_tools:
+    if "snowflake_stage_tools" in tools_info.available_tool_names and "make_baby_bot" in tools_info.available_tool_names:
         instructions += f"\nYour Internal Files Stage for bots is at snowflake stage: {genbot_internal_project_and_schema}.BOT_FILES_STAGE"
         if not stream_mode:
             instructions += ". This BOT_FILES_STAGE stage is ONLY in this particular database & schema."
@@ -288,11 +341,11 @@ def make_session(
         # Initialize as an empty dictionary
         bot_llms = {}
 
-    # check if snowflake_tools are in bot_tools
-    # TODO JD - Do we need this for data_connector_tools?
-    if "snowflake_tools" in bot_tools:
+    # check if database_tools are in bot_tools
+    if "database_tools" in tools_info.available_tool_names:
         try:
             # if so, create workspace schema
+
             workspace_schema_name = f"{global_flags.project_id}.{bot_id.replace(r'[^a-zA-Z0-9]', '_').replace('-', '_').replace('.', '_')}_WORKSPACE".upper()
             db_adapter.create_bot_workspace(workspace_schema_name)
             db_adapter.grant_all_bot_workspace(workspace_schema_name)
@@ -302,21 +355,16 @@ def make_session(
                 logger.info(
                     f"Setting data_cubes_ingress_url for {bot_id}: {data_cubes_ingress_url}"
                 )
-        #         instructions += f"\nWhenever you show the results from query_database that may have more than 10 rows, and if you are not in the middle of running a process, also provide a link to a datacube visualization to help them understand the data you used in the form: http://{data_cubes_ingress_url}%ssql_query=select%20*%20from%20spider_data.baseball.all_star -- replace the value of the sql_query query parameter with the query you used."
+                #instructions += f"\nWhenever you show the results from run_query that may have more than 10 rows, and if you are not in the middle of running a process, also provide a link to a datacube visualization to help them understand the data you used in the form: http://{data_cubes_ingress_url}%ssql_query=select%20*%20from%20spider_data.baseball.all_star -- replace the value of the sql_query query parameter with the query you used."
         except Exception as e:
             logger.info(f"Error creating bot workspace for bot_id {bot_id}: {e} ")
 
-    # add proces mgr instructions
-    if "process_manager_tools" in bot_tools or "notebook_manager_tools" in bot_tools:
+    #add proces mgr instructions
+    if "process_manager_tools" in tools_info.available_tool_names or "notebook_manager_tools" in tools_info.available_tool_names:
         instructions += "\n" + BASE_BOT_PROCESS_TOOLS_INSTRUCTIONS
 
-    if "slack_tools" in bot_tools:
+    if "slack_tools" in tools_info.available_tool_names:
         instructions += "\n" + BASE_BOT_SLACK_TOOLS_INSTRUCTIONS
-
-    # logger.info(instructions, f'{bot_config["bot_name"]}, id: {bot_config["bot_id"]}' )
-
-    # TESTING UDF ADAPTER W/EVE and ELSA
-    # add a map here to track botid to adapter mapping
 
     if existing_udf:
         udf_adapter_local = existing_udf
@@ -347,8 +395,6 @@ def make_session(
     else:
         proactive_instructions = ""
 
-    # if True:
-    #    if stream_mode:
     assistant_implementation = None
     actual_llm = None
     logger.info(f"Bot implementation from bot config: {bot_config.get('bot_implementation', 'Not specified')}")
@@ -416,23 +462,14 @@ def make_session(
         # if assistant_implementation == BotOsAssistantSnowflakeCortex and stream_mode:
         if assistant_implementation == BotOsAssistantSnowflakeCortex and True:
             incoming_instructions = instructions
-            # Tools: brave_search, wolfram_alpha, code_interpreter
-
-            # Environment: ipython
-            #
-            # Cutting Knowledge Date: December 2023
-            # Today Date: 23 Jul 2024
 
             instructions = """
 
 # Tool Instructions
 """
-            # """ - Always execute python code in messages that you share.
-            # - When looking for real time information use relevant functions if available else fallback to brave_search
-            #
-            instructions += """You have access to the following functions, only call them when needed to perform actions or lookup information that you do not already have:
+            instructions += """You have access to the following groups of functions, only call them when needed to perform actions or lookup information that you do not already have:
 
-""" + json.dumps(tools) + """
+""" + json.dumps(tools_info.available_tool_names) + """
 
 
 If a you choose to call a function ONLY reply in the following format:
@@ -483,16 +520,8 @@ Always respond to greetings and pleasantries like 'hi' etc, unless specifically 
 
 """
 
-    #         with open('./latest_instructions.txt', 'w') as file:
-    #             file.write(instructions)
-
     try:
-        # logger.warning(f"GenBot {bot_id} instructions:::  {instructions}")
-        # logger.info(f'tools: {tools}')
-        asst_impl = (
-#            assistant_implementation if stream_mode else None
-            assistant_implementation
-        )  # test this - may need separate BotOsSession call for stream mode
+        asst_impl = assistant_implementation # test this - may need separate BotOsSession call for stream mode
         logger.info(f"assistant impl : {assistant_implementation}")
         session = BotOsSession(
             bot_config["bot_id"],
@@ -510,16 +539,15 @@ Always respond to greetings and pleasantries like 'hi' etc, unless specifically 
             update_existing=True,
             assistant_implementation=asst_impl,
             log_db_connector=db_adapter,  # Ensure connection_info is defined or fetched appropriately
-            # tools=slack_tools + integration_tool_descriptions + [TOOL_FUNCTION_DESCRIPTION_WEBPAGE_DOWNLOADER],
-            tools=tools,
+            tools=tools_info.available_func_descriptors,
             bot_name=bot_config["bot_name"],
-            available_functions=available_functions,
-            all_tools=all_tools,
-            all_functions=all_functions,
-            all_function_to_tool_map=all_function_to_tool_map,
+            available_functions=tools_info.available_callables_map,
+            all_tools=tools_info.all_func_descriptions,
+            all_functions=tools_info.all_callables_map,
+            all_function_to_tool_map=tools_info.all_tool_to_func_descs_map,
             bot_id=bot_config["bot_id"],
             stream_mode=stream_mode,
-            tool_belt=tool_belt,
+            tool_belt=tools_info.tool_belt,
             skip_vectors=skip_vectors,
             assistant_id=assistant_id
         )
@@ -528,9 +556,7 @@ Always respond to greetings and pleasantries like 'hi' etc, unless specifically 
         raise (e)
     if os.getenv("BOT_BE_PROACTIVE", "FALSE").lower() == "true" and slack_adapter_local:
         if not slack_adapter_local.channel_id:
-            logger.warn(
-                "not adding initial task - slack_adapter_local channel_id is null"
-            )
+            logger.warn("not adding initial task - slack_adapter_local channel_id is null")
         if not os.getenv("BOT_OS_MANAGER_NAME"):
             logger.warn("not adding initial task - BOT_OS_MANAGER_NAME not set.")
         else:

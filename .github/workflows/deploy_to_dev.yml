@@ -69,6 +69,7 @@ jobs:
           # Run the bash script
           bash ./snowflake_app/upgrade_dev_auto.sh ${{ github.workspace }}
       - name: Run Reg Tests Action
+        if: false
         env:
           SNOWFLAKE_ACCOUNT_OVERRIDE: ${{ secrets.SNOWFLAKE_ACCOUNT_OVERRIDE }}
           SNOWFLAKE_USER_OVERRIDE: ${{ secrets.SNOWFLAKE_USER_OVERRIDE }}

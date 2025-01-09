@@ -167,7 +167,7 @@ class GenesisAPI:
                 if done:
                     return response
 
-            time.sleep(1)
+            time.sleep(0.2)
         return None
 
 

@@ -940,22 +940,7 @@ def ensure_table_exists(self):
             #                )
             bot_name = "Eve"
             bot_instructions = BASE_EVE_BOT_INSTRUCTIONS
-            available_tools = """[
-                "slack_tools",
-                "manage_tests_tools",
-                "make_baby_bot",
-                "snowflake_tools",
-                "data_connector_tools",
-                "image_tools",
-                "process_manager_tools",
-                "process_runner_tools",
-                "process_scheduler_tools",
-                "project_manager_tools",
-                "notebook_manager_tools",
-                "google_drive_tools",
-                "artifact_manager_tools",
-                "harvester_tools"]
-                """
+            available_tools = """["slack_tools", "manage_tests_tools", "make_baby_bot", "snowflake_tools", "data_connector_tools", "image_tools", "process_manager_tools", "process_runner_tools", "process_scheduler_tools", "project_manager_tools", "notebook_manager_tools", "google_drive_tools", "artifact_manager_tools", "harvester_tools"]"""
             udf_active = "Y"
             slack_active = "N"
             bot_intro_prompt = EVE_INTRO_PROMPT
@@ -1127,7 +1112,7 @@ def ensure_table_exists(self):
         #                )
         bot_name = "Janice"
         bot_instructions = JANICE_JANITOR_INSTRUCTIONS
-        available_tools = '["slack_tools", "database_tools", "snowflake_tools", "image_tools", "process_manager_tools", "process_runner_tools", "process_scheduler_tools", "notebook_manager_tools", "artifact_manager_tools"]',
+        available_tools = '["slack_tools", "database_tools", "snowflake_tools", "image_tools", "process_manager_tools", "process_runner_tools", "process_scheduler_tools", "notebook_manager_tools", "artifact_manager_tools"]'
         udf_active = "Y"
         slack_active = "N"
         bot_intro_prompt = JANICE_INTRO_PROMPT
@@ -1711,6 +1696,10 @@ def ensure_table_exists(self):
     );
     """
     _create_table_if_not_exist('USER_EXTENDED_TOOLS', user_extended_tools_table_ddl)
+
+    # init db connector as it has its own ensure_tables_exist method
+    from connectors.data_connector import DatabaseConnector
+    connector = DatabaseConnector()
 
     # EXTENDED TOOLS SCHEMA for storing extended tools
     try:

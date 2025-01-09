@@ -134,22 +134,7 @@ class SQLiteAdapter:
                 bot_id = "Eve"
                 bot_name = "Eve"
                 bot_instructions = BASE_EVE_BOT_INSTRUCTIONS
-                available_tools = """[
-                    "slack_tools",
-                    "manage_tests_tools",
-                    "make_baby_bot",
-                    "snowflake_tools",
-                    "data_connector_tools",
-                    "image_tools",
-                    "process_manager_tools",
-                    "process_runner_tools",
-                    "process_scheduler_tools",
-                    "project_manager_tools",
-                    "notebook_manager_tools",
-                    "artifact_manager_tools",
-                    "google_drive_tools",
-                    "harvester_tools"
-                ]"""
+                available_tools = """["slack_tools", "manage_tests_tools", "make_baby_bot", "snowflake_tools", "data_connector_tools", "image_tools", "process_manager_tools", "process_runner_tools", "process_scheduler_tools", "project_manager_tools", "notebook_manager_tools", "artifact_manager_tools", "google_drive_tools", "harvester_tools"]"""
                 udf_active = 'Y'  # Using 1 instead of "Y" for SQLite boolean
                 slack_active = 'N'  # Using 0 instead of "N" for SQLite boolean
                 bot_intro_prompt = EVE_INTRO_PROMPT
@@ -877,11 +862,11 @@ class SQLiteCursorWrapper:
       #  query = re.sub(r'(?:[^.\s]+\.){1,2}([^\s(]+)', r'\1', query)
 
         # Handle INSERT INTO statements for BOT_SERVICING
-        if 'INSERT INTO GENESIS_TEST.GENESIS_JL.BOT_SERVICING' in query_upper:
+        if f'INSERT INTO {schema_prefix.upper()}.BOT_SERVICING' in query_upper:
             # Replace %s with ? for SQLite
             query = query.replace('%s', '?')
             # Remove schema qualifiers
-            query = re.sub(r'GENESIS_TEST\.GENESIS_JL\.', '', query)
+            query = re.sub(f'{schema_prefix.upper()}.', '', query)
             return query
         # Handle the specific message_log thread query
         if "parse_json(message_metadata):thread_ts::varchar" in query:

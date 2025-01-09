@@ -170,6 +170,7 @@ class SnowflakeConnector(SnowflakeConnectorBase):
         self.available_tools_table_name = self.genbot_internal_project_and_schema + "." + "AVAILABLE_TOOLS"
         self.bot_servicing_table_name = self.genbot_internal_project_and_schema + "." + "BOT_SERVICING"
         self.ngrok_tokens_table_name = self.genbot_internal_project_and_schema + "." + "NGROK_TOKENS"
+        self.cust_db_connections_table_name = self.genbot_internal_project_and_schema + "." + "CUST_DB_CONNECTIONS"
         self.images_table_name = self.app_share_schema + "." + "IMAGES"
 
     def ensure_table_exists(self):
@@ -4165,7 +4166,7 @@ def get_status(site):
 
         # Get array of allowed bots
         allowed_connections_query = f"""
-        select connection_id from genesis_test.genesis_jl.cust_db_connections 
+        select connection_id from {self.cust_db_connections_table_name} 
         where owner_bot_id = '{bot_id}' 
         or allowed_bot_ids='{bot_id}' 
         or allowed_bot_ids like '%,{bot_id}' 

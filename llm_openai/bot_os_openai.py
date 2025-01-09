@@ -1253,12 +1253,40 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
       if self.use_assistants == False:
          # Add tool response to completion_threads as user message
+
+         # Check if all parallel tool calls for this run are complete
+         if run_id not in self.tool_completion_status:
+            self.tool_completion_status[run_id] = {}
+         
+         # Add the current tool call response to the completion status map
+         self.tool_completion_status[run_id][tool_call_id] = func_response
+         
+         # Get all tool calls for this run
+   #      all_tool_calls = self.completions_runs[run_id].tool_calls if run_id in self.completions_runs else []
+   #      if not all_tool_calls:
+   #         return
+
+         all_tool_calls = self.completions_runs[run_id].tool_calls
+         if not all_tool_calls:
+            return
+            
+         # Get list of all tool call IDs that need to complete
+         pending_tool_call_ids = [tc['id'] for tc in all_tool_calls]
+         
+         # Check if any tool calls are still pending completion
+         for tc_id in pending_tool_call_ids:
+            if tc_id not in self.tool_completion_status[run_id] or self.tool_completion_status[run_id][tc_id] is None:
+               logger.info(f"Waiting for parallel tool call {tc_id} to complete")
+               return
+
+
          if thread_id in self.completion_threads:
-            self.completion_threads[thread_id].append({
-               "role": "tool", 
-               "tool_call_id": tool_call_id,
-               "content": str(new_response)
-            })
+            for tc_id in self.tool_completion_status[run_id]:
+               self.completion_threads[thread_id].append({
+                  "role": "tool",
+                  "tool_call_id": tc_id,
+                  "content": str(self.tool_completion_status[run_id][tc_id])
+               })
          # Set run status to completed in completions_runs map
          if run_id in self.completions_runs:
          #   self.completions_runs[run_id].status = ""

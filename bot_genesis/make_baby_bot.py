@@ -29,11 +29,11 @@ project_id = db_schema[0]
 dataset_name = db_schema[1]
 bot_servicing_table = os.getenv('BOT_SERVICING_TABLE', 'BOT_SERVICING')
 
-def list_all_bots(runner_id=None, slack_details=False, with_instructions=False):
+def list_all_bots(runner_id=None, slack_details=False, with_instructions=False, thread_id=None, bot_id=None):
     bb_db_connector = get_global_db_connector()
     return bb_db_connector.db_list_all_bots(project_id=project_id, dataset_name=dataset_name, bot_servicing_table=bot_servicing_table, runner_id=runner_id, full=False, slack_details=slack_details, with_instructions=with_instructions)
 
-def list_all_bots_wrap(runner_id=None, slack_details=False, with_instructions=False):
+def list_all_bots_wrap(runner_id=None, slack_details=False, with_instructions=False, thread_id=None, bot_id=None):
     bb_db_connector = get_global_db_connector()
     result = bb_db_connector.db_list_all_bots(project_id=project_id, dataset_name=dataset_name, bot_servicing_table=bot_servicing_table, runner_id=runner_id, full=False, slack_details=slack_details, with_instructions=with_instructions)
     result = json.loads(json.dumps(result).replace('!NO_RESPONSE_REQUIRED', '(exclamation point)NO_RESPONSE_REQUIRED'))
@@ -1534,7 +1534,7 @@ MAKE_BABY_BOT_DESCRIPTIONS.append({
 MAKE_BABY_BOT_DESCRIPTIONS.append({
     "type": "function",
     "function": {
-        "name": "list_all_bots",
+        "name": "_list_all_bots",
         "description": "Lists all the bots being served by the system, including their bot_ids, slack_user_id, runner IDs, names, instructions, tools, auth_url, etc.  This is useful to find information about a bot, or to search for a particular bot.",
         "parameters": {
             "type": "object",
@@ -1773,7 +1773,7 @@ MAKE_BABY_BOT_DESCRIPTIONS.append({
 make_baby_bot_tools = {"make_baby_bot": "bot_genesis.make_baby_bot.make_baby_bot"}
 make_baby_bot_tools["get_available_tools"] = "bot_genesis.make_baby_bot.get_available_tools"
 make_baby_bot_tools["_remove_bot"] = "bot_genesis.make_baby_bot._remove_bot"
-make_baby_bot_tools["list_all_bots"] = "bot_genesis.make_baby_bot.list_all_bots_wrap"
+make_baby_bot_tools["_list_all_bots"] = "bot_genesis.make_baby_bot.list_all_bots_wrap"
 make_baby_bot_tools["update_bot_instructions"] = "bot_genesis.make_baby_bot.update_bot_instructions"
 make_baby_bot_tools["add_new_tools_to_bot"] = "bot_genesis.make_baby_bot.add_new_tools_to_bot"
 make_baby_bot_tools["add_bot_files"] = "bot_genesis.make_baby_bot.add_bot_files"

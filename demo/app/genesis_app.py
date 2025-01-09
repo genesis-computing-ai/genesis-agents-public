@@ -61,6 +61,15 @@ class GenesisApp:
         self.bot_id_to_slack_adapter_map = None
         self.server = None
         
+    def get_server(self):
+        """
+        Returns the server instance associated with this GenesisApp.
+
+        Returns:
+            The server instance or None if no server is running.
+        """
+        return self.server
+
 
     def generate_index_file(self):    
         """

@@ -2,6 +2,11 @@
 GENESIS BOT TODOS
 =================
 
+for direct non-assistant mode:
+make adding tools and changing instructions work on the fly 
+test in snowflake metadata mode
+test again in assistant mode
+
 prerelease:
 x check that adding a tool via streamlit doesnt mess up the thread with that bot (e.g. data connector tools)
 make sqlite sample data load from csv files vs binary

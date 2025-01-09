@@ -9,6 +9,7 @@ from llm_openai.bot_os_openai import StreamingEventHandler
 from llm_openai.openai_utils import get_openai_client
 from core.bot_os_llm import BotLlmEngineEnum
 from core.bot_os_input import BotOsOutputMessage
+from demo.app import genesis_app
 
 from core.bot_os_tools2 import (
     BOT_ID_IMPLICIT_FROM_CONTEXT,
@@ -23,14 +24,11 @@ from core.tools.tool_helpers import chat_completion
 from connectors import get_global_db_connector
 db_adapter = get_global_db_connector()
 
-server = None  # Will be set later
-
 delegate_work = ToolFuncGroup(
     name="delegate_work",
     description="",
     lifetime="PERSISTENT",
 )
-
 
 @gc_tool(
     prompt="The prompt to delegate to the target bot",
@@ -46,7 +44,7 @@ delegate_work = ToolFuncGroup(
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
     _group_tags_=[delegate_work],
 )
-def delegate_work(
+def _delegate_work(
     # if fast model errors, use regular one
     # x add a followup option to followup on a thread vs starting a new one
     # todo, add system prompt override, add tool limits, have delegated jobs skip the thread knowledge injection, etc.
@@ -99,6 +97,8 @@ def delegate_work(
 
     # current_summary = "Starting delegation"
     # _update_streaming_status(target_bot, current_summary, run_id, session_id, thread_id, status_update_callback, input_metadata)
+
+    server = genesis_app.server
 
     if server is None:
         return {
@@ -304,7 +304,7 @@ def delegate_work(
 
 
 delegate_work_functions = (
-    delegate_work,
+    _delegate_work,
 )
 
 # Called from bot_os_tools.py to update the global list of functions

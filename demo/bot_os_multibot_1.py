@@ -6,6 +6,8 @@ from demo.routes import realtime_routes, slack_routes
 from demo.routes import udf_routes, main_routes, auth_routes
 import core.global_flags as global_flags
 
+main_server = None
+
 def main():
 
     runner_id = os.getenv("RUNNER_ID", "jl-local-runner")

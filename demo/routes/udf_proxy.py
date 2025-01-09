@@ -299,6 +299,11 @@ def set_metadata():
         input_rows = message["data"]
         metadata_type = input_rows[0][1]
 
+        print('=====')
+        print('message: ', message)
+        print('input_rows: ', input_rows)
+        print('metadata_type: ', metadata_type)
+
         if metadata_type.startswith('set_endpoint '):
             metadata_parts = metadata_type.split()
             if len(metadata_parts) == 4:

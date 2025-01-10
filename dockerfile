@@ -34,8 +34,6 @@ COPY llm_gemini ./llm_gemini
 COPY llm_anthropic ./llm_anthropic
 COPY schema_explorer ./schema_explorer
 COPY knowledge ./knowledge
-#COPY default_data ./default_data
-COPY default_files ./default_files
 COPY golden_defaults ./golden_defaults
 COPY default_functions ./default_functions
 COPY slack ./slack
@@ -50,7 +48,6 @@ COPY embed ./embed
 COPY generated_modules ./generated_modules
 COPY entrypoint.sh /entrypoint.sh
 COPY teams ./teams
-COPY nodetest ./nodetest
 COPY data_dev_tools ./data_dev_tools
 COPY data_pipeline_tools ./data_pipeline_tools
 COPY google_sheets ./google_sheets

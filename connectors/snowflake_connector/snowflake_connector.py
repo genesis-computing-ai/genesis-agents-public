@@ -3046,11 +3046,18 @@ def get_status(site):
             logger.info(f"Successfully inserted new bot configuration for bot_id: {bot_id}")
 
             if not slack_user_allow:
-                slack_user_allow_update_query = f"""
-                    UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
-                    SET slack_user_allow = parse_json(%s)
-                    WHERE upper(bot_id) = upper(%s)
-                    """
+                if self.source_name.lower() == "snowflake":
+                    slack_user_allow_update_query = f"""
+                        UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
+                        SET slack_user_allow = parse_json(%s)
+                        WHERE upper(bot_id) = upper(%s)
+                        """
+                else:
+                    slack_user_allow_update_query = f"""
+                        UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
+                        SET slack_user_allow = %s
+                        WHERE upper(bot_id) = upper(%s)
+                        """
                 slack_user_allow_value = '["!BLOCK_ALL"]'
                 try:
                     cursor.execute(
@@ -3333,11 +3340,18 @@ def get_status(site):
         """
 
         # Query to update the SLACK_USER_ALLOW list in the database
-        update_query = f"""
-            UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
-            SET SLACK_USER_ALLOW = parse_json(%s)
-            WHERE upper(bot_id) = upper(%s)
-        """
+        if self.source_name.lower() == "snowflake":
+            update_query = f"""
+                UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
+                SET slack_user_allow = parse_json(%s)
+                WHERE upper(bot_id) = upper(%s)
+                """
+        else:
+            update_query = f"""
+                UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
+                SET slack_user_allow = %s
+                WHERE upper(bot_id) = upper(%s)
+                """
 
         # Convert the list to a format suitable for database storage (e.g., JSON string)
         slack_user_allow_list_str = json.dumps(slack_user_allow_list)

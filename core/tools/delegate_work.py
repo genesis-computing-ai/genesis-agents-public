@@ -115,19 +115,23 @@ def _delegate_work(
                 break
 
         if not target_session:
-            # Get list of valid bot IDs and names
-            valid_bots = [
-                {
-                    "id": session.bot_id,
-                    "name": session.bot_name
-                }
-                for session in server.sessions
-            ]
 
-            return {
-                "success": False,
-                "error": f"Could not find target bot with ID: {target_bot}. Valid bots are: {valid_bots}"
-            }
+            bots_udf_adapter = genesis_app.bot_id_to_udf_adapter_map.get(target_bot, None)
+            if bots_udf_adapter is None:
+                try:
+                    from demo.routes.slack import bot_install_followup
+
+                    bot_install_followup(target_bot, no_slack=True)
+                    bots_udf_adapter = genesis_app.bot_id_to_udf_adapter_map.get(target_bot, None)
+
+                    for session in server.sessions:
+                        if (target_bot is not None and session.bot_id.upper() == target_bot.upper()) or (target_bot is not None and session.bot_name.upper() == target_bot.upper()):
+                            target_session = session
+                            break
+                except Exception as e:
+                    pass
+            if bots_udf_adapter is None:
+                raise ValueError(f'Bot {target_bot} not found, use list_all_bots to get the bot_id for Barry to use it as a target bot for the first time')
 
         # Create new thread
         # Find the UDFBotOsInputAdapter

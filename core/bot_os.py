@@ -30,7 +30,7 @@ class BotOsThread:
         else:
             self.thread_id = thread_id
         self.input_adapter = input_adapter
-        self.input_adapter.thread_id = self.thread_id
+        #self.input_adapter.thread_id = self.thread_id # JL COMMENT OUT FOR NOW
         self.validated = False
 
     def add_message(self, message: BotOsInputMessage, event_callback=None):
@@ -190,6 +190,7 @@ class BotOsSession:
         self.current_task_index = 0
         self.in_to_out_thread_map = {}
         self.out_to_in_thread_map = {}
+        self.addback_map = {}
 
         self.next_messages = []
         self.bot_id = bot_id
@@ -477,20 +478,29 @@ Now, with that as background...\n''' + input_message.msg
 #            logger.info(f"Time taken for add_message: {time_diff.total_seconds():.3f} seconds")
             if ret == False and input_message is not None:
                 is_bot = input_message.metadata.get("is_bot", "TRUE")
+                import hashlib
+                message_hash = hashlib.md5(
+                        f"{input_message.msg}{input_message.thread_id}{json.dumps(input_message.metadata, sort_keys=True)}".encode()
+                    ).hexdigest()
+                if message_hash in self.addback_map:
+                    self.addback_map[message_hash] += 1
+                else:
+                    self.addback_map[message_hash] = 0
                 if is_bot == "FALSE":
                     logger.info(
                         "bot os message from human - thread already running - put back on queue.."
                     )
+
                     try:
-                        added_back_count = input_message.metadata.get('added_back', 0)
+                        # Create a hash of the input message to track duplicates
+                       
+                        added_back_count = self.addback_map[message_hash]
                         if added_back_count < 20:
-                            if 'added_back' not in input_message.metadata:
-                                input_message.metadata['added_back'] = 0
-                            input_message.metadata['added_back'] = added_back_count + 1
-                            logger.info(f"Message added back to queue. Attempt {added_back_count + 1} of 10")
+                        #    self.addback_map[message_hash] = added_back_count + 1
+                            logger.info(f"Message added back to queue. Attempt {self.addback_map[message_hash] } of 20")
                         else:
                             logger.info(f"Message has been added back 20 times. Stopping further attempts.")
-                         
+                            del self.addback_map[message_hash]
                             continue
                        # logger.info(input_message.metadata["event_ts"])
                         a.add_back_event( input_message.metadata)
@@ -502,15 +512,13 @@ Now, with that as background...\n''' + input_message.msg
                         "bot os message from bot - thread already running - put back on queue.."
                     )
                     try:
-                        added_back_count = input_message.metadata.get('added_back', 0)
+                        added_back_count = self.addback_map[message_hash]
                         if added_back_count < 10:
-                            if 'added_back' not in input_message.metadata:
-                                input_message.metadata['added_back'] = 0
-                            input_message.metadata['added_back'] = added_back_count + 1
-                            logger.info(f"Message added back to queue. Attempt {added_back_count + 1} of 10")
+                          #  self.addback_map[message_hash] += 1
+                            logger.info(f"Message added back to queue. Attempt {self.addback_map[message_hash]} of 10")
                         else:
                             logger.info(f"Message has been added back 10 times. Stopping further attempts.")
-                            
+                            del self.addback_map[message_hash]
                             continue
                         # logger.info(input_message.metadata["event_ts"])
                         a.add_back_event( input_message.metadata)

@@ -534,8 +534,8 @@ def chat_page():
 
 
             # get bot details
-            # make sure Janice is first if exists
-            bot_details.sort(key=lambda bot: (not "Janice" in bot["bot_name"], bot["bot_name"]))
+            # make sure Eve is first if exists
+            bot_details.sort(key=lambda bot: (not "Eve" in bot["bot_name"], bot["bot_name"]))
             bot_names = [bot["bot_name"] for bot in bot_details]
             bot_ids = [bot["bot_id"] for bot in bot_details]
             bot_intro_prompts_map = {bot["bot_name"]: bot["bot_intro_prompt"]

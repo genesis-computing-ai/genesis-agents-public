@@ -14,8 +14,6 @@ from   connectors.connector_helpers \
 from   core.logging_config      import logger
 
 
-
-
 genbot_internal_project_and_schema = os.getenv('GENESIS_INTERNAL_DB_SCHEMA','None')
 if  genbot_internal_project_and_schema is None:
     genbot_internal_project_and_schema = os.getenv('ELSA_INTERNAL_DB_SCHEMA','None')
@@ -999,6 +997,7 @@ def add_or_update_available_tool(tool_name, tool_description):
     bb_db_connector = get_global_db_connector()
     return bb_db_connector.db_add_or_update_available_tool(tool_name=tool_name, tool_description=tool_description, project_id=project_id, dataset_name=dataset_name)
 
+
 def make_baby_bot(
     bot_id: str,
     bot_name: str,
@@ -1285,7 +1284,6 @@ def make_baby_bot(
                 bot_avatar_image=bot_avatar_image,
                 slack_user_allow=slack_access_open
             )
-
         #    "message": f"Created {bot_id} named {bot_name}.  Now ask the user to use this authentication URL to complete the installation of the new app into their Slack workspace: {oauth_authorize_url}",
     #    logger.info(oauth_authorize_url)
         if not api_bot_update and slack_active == 'Y':
@@ -1418,15 +1416,15 @@ def _remove_bot(bot_id, thread_id=None, confirmed=None):
                 response_data = response.json()
                 if response_data.get('ok'):
                     logger.info(f"Successfully deleted bot with bot_id: {bot_id} via the Slack API.")
-                    return(f"Successfully deleted bot with bot_id: {bot_id}.")
+                    return {"success": True, "message": f"Successfully deleted bot with bot_id: {bot_id}."}
                 else:
-                    return(f"Removed, but could not find on Slack: {response_data.get('error')}")
+                    return {"success": True, "message": f"Removed, but could not find on Slack: {response_data.get('error')}"}
             else:
-                return(f"Removed, but failed to delete bot via Slack API, status code: {response.status_code}")
+                return {"success": True, "message": f"Removed, but failed to delete bot via Slack API, status code: {response.status_code}"}
         else:
-            return(f"Removed, but no app_id or Slack app configuration token found for bot_id: {bot_id}. Cannot delete bot via Slack API.")
+            return {"success": True, "message": f"Removed, but no app_id or Slack app configuration token found for bot_id: {bot_id}. Cannot delete bot via Slack API."}
     else:
-        return(f"Successfully deleted bot with bot_id: {bot_id}.")
+        return {"success": True, "message": f"Successfully deleted bot with bot_id: {bot_id}."}
 
 
 def update_bot_implementation(bot_id, bot_implementation, thread_id=None):

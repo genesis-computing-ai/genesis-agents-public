@@ -4,8 +4,15 @@ GENESIS BOT TODOS
 
 for direct non-assistant mode:
 make adding tools and changing instructions work on the fly 
-test in snowflake metadata mode
-test again in assistant mode
+x test in snowflake metadata mode
+x test again in assistant mode
+files in for image analyze
+files out for generate image
+add bot level param for completion vs assistant mode
+test gxs with completion mode (w/git etc)
+cancel run checks that stay in progress for more than 10 min with no response
+
+gsheets comment check
 
 prerelease:
 x check that adding a tool via streamlit doesnt mess up the thread with that bot (e.g. data connector tools)

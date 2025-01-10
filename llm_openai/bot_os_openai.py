@@ -548,10 +548,15 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
    def create_thread(self) -> str:
       #logger.debug("BotOsAssistantOpenAI:create_thread")
-      thread = self.client.beta.threads.create()
-      thread_id = thread.id
+      if self.use_assistants == False:
+         thread_id = "completion_thread_" + str(uuid.uuid4())
+         thread = thread_id
+         logger.info(f"{self.bot_name} openai completion new_thread -> {thread_id}")
+      else:
+         thread = self.client.beta.threads.create()
+         thread_id = thread.id
+         logger.info(f"{self.bot_name} openai assistant new_thread -> {thread_id}")
       self.thread_working_set[thread_id] = thread
-      logger.info(f"{self.bot_name} openai new_thread -> {thread_id}")
       self.first_message_map[thread_id] = True
 
       return thread_id
@@ -596,6 +601,12 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       #logger.debug("BotOsA ssistantOpenAI:add_message")
 
       thread_id = input_message.thread_id
+
+      if input_message.metadata and 'thread_id' in input_message.metadata:
+          if input_message.thread_id.startswith('delegate_'):
+             pass
+          # thread_id = input_message.thread_id
+          
 
       stop_flag = False
       fast_mode = False
@@ -873,7 +884,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
             else:
                stream = self.client.chat.completions.create(
                   model=model_name,
-                  tools=self.tools,
+                  **({'tools': self.tools} if self.tools and len(self.tools) > 0 else {}),
                   #tools=[{"type": "code_interpreter"}],
                   messages=openai_messages,
                   stream=True,

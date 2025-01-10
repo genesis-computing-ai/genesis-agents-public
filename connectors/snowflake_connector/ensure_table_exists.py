@@ -52,6 +52,8 @@ def one_time_db_fixes(self):
         logger.info(f"Table {self.schema}.BOT_NOTEBOOK renamed NOTEBOOK.")
 
     # Add manage_notebook_tool to existing bots
+    # JL REMOVED 1-9-2025, not needed
+    
     bots_table_check_query = f"SHOW TABLES LIKE 'BOT_SERVICING' IN SCHEMA {self.schema};"
     cursor = self.client.cursor()
     cursor.execute(bots_table_check_query)
@@ -67,9 +69,9 @@ def one_time_db_fixes(self):
             if tools:
                 tools_list = json.loads(tools)
                 update = False
-                if 'notebook_manager_tools' not in tools_list:
-                    tools_list.append('notebook_manager_tools')
-                    update = True
+           #     if 'notebook_manager_tools' not in tools_list:
+           #         tools_list.append('notebook_manager_tools')
+           #         update = True
 
                 if "autonomous_tools" in tools_list:
                     print("Found autonomous_tools in tools list")
@@ -109,16 +111,16 @@ def one_time_db_fixes(self):
 
                     ### If database_tools, remove it and add snowflake_tools and database_tools
 
-            else:
-                update_query = f"""
-                UPDATE {self.schema}.BOT_SERVICING
-                SET AVAILABLE_TOOLS = '[notebook_manager_tools]'
-                WHERE NAME = %s
-                """
-                cursor.execute(update_query, (bot_name,))
+            #else:
+            #    update_query = f"""
+            #    UPDATE {self.schema}.BOT_SERVICING
+            #    SET AVAILABLE_TOOLS = '[notebook_manager_tools]'
+            #    WHERE NAME = %s
+            #    """
+            #    cursor.execute(update_query, (bot_name,))
 
         self.client.commit()
-        logger.info("Added notebook_manager_tools to all existing bots.")
+       # logger.info("Added notebook_manager_tools to all existing bots.")
     else:
         logger.info("BOTS table does not exist. Skipping tool addition.")
 

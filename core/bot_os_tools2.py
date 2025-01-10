@@ -777,7 +777,7 @@ def get_global_tools_registry():
     return _global_tools_registry
 
 
-DEFAULT_CLIENT_TOOL_SERVER_TIMEOUT_SECONDS = 10 # the deault timeout (sec) the server will wait on a client tool call if not specified otherwise by the client
+DEFAULT_CLIENT_TOOL_SERVER_TIMEOUT_SECONDS = 60 # the deault timeout (sec) the server will wait on a client tool call if not specified otherwise by the client
 
 def add_api_client_tool(bot_id: str,
                         tool_func_descriptor: dict, # json-parsed ToolFuncDescriptor

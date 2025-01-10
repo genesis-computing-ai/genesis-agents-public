@@ -56,8 +56,8 @@ class GenesisAPI:
         return self.registered_server.run_tool(bot_id, tool_name, tool_parameters)
 
 
-    def add_client_tool(self, bot_id, tool_func):
-        self.registered_server.add_client_tool(bot_id, tool_func)
+    def add_client_tool(self, bot_id, tool_func, timeout_seconds=10):
+        self.registered_server.add_client_tool(bot_id, tool_func, timeout_seconds)
 
 
     def register_project(self, project: GenesisProject):

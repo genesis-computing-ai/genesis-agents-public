@@ -892,12 +892,12 @@ def add_client_tool():
         data = request.get_json()
         bot_id = data.get("bot_id")
         tool_func_descriptor = data.get("tool_func_descriptor")
-
+        timeout_seconds = data.get("timeout_seconds")
         if not bot_id or not tool_func_descriptor:
             raise ValueError("Both 'bot_id' and 'tool_func_descriptor' are required.")
 
         # Delegate the core logic to the bot_os_tools2 module
-        response = add_api_client_tool(bot_id, tool_func_descriptor, genesis_app.server)
+        response = add_api_client_tool(bot_id, tool_func_descriptor, genesis_app.server, timeout_seconds)
 
     except Exception as e:
         logger.error(f"Error adding client tool: {str(e)}")

@@ -777,9 +777,12 @@ def get_global_tools_registry():
     return _global_tools_registry
 
 
+DEFAULT_CLIENT_TOOL_SERVER_TIMEOUT_SECONDS = 10 # the deault timeout (sec) the server will wait on a client tool call if not specified otherwise by the client
+
 def add_api_client_tool(bot_id: str,
                         tool_func_descriptor: dict, # json-parsed ToolFuncDescriptor
                         botos_server,  # BotOsServer instance (do not import to avoid circular imports)
+                        timeout_seconds: int = DEFAULT_CLIENT_TOOL_SERVER_TIMEOUT_SECONDS,
                         ):
     from core.bot_os_input import BosOsClientAsyncToolInvocationHandle
 
@@ -833,7 +836,7 @@ def add_api_client_tool(bot_id: str,
             )
         thread_obj.handle_response(session_id=None,
                                    output_message=action_request_msg)
-        res = action_request_msg.get_func_result(timeout=10)
+        res = action_request_msg.get_func_result(timeout=timeout_seconds)
 
         logger.info(f"client_tool_func_proxy for {tool_func_descriptor.name} returned: {res}")
         return {"success": True, "result": res}

@@ -8,6 +8,7 @@ from   collections              import deque
 from   core.bot_os_input        import (BosOsClientAsyncToolInvocationHandle,
                                         BotOsInputAdapter, BotOsInputMessage,
                                         BotOsOutputMessage)
+from   core.bot_os_utils        import truncate_string
 import functools
 import json
 import types
@@ -313,7 +314,7 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
                 if invocation_handle is None:
                     logger.warning(f"No matching invocation handle found for user-submitted invocation_id: {invocation_id}. Message ignored.")
                     return None
-                logger.info(f"UDFBotOsInputAdapter: Submitting action_result for invocation_id: {invocation_id}")
+                logger.info(f"UDFBotOsInputAdapter: Submitting action_result for invocation_id: {invocation_id} : {truncate_string(str(result), 20)}")
                 invocation_handle.submit_func_result(invocation_id, result)
                 return invocation_id
             else:

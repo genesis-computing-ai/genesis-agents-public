@@ -6,6 +6,8 @@ from   core.logging_config      import logger
 import time
 from   typing                   import Optional
 import uuid
+from enum import Enum
+
 
 
 class BotOsInputMessage:
@@ -57,6 +59,15 @@ class BotOsOutputMessage:
 
 
 class BosOsClientAsyncToolInvocationHandle(BotOsOutputMessage):
+
+
+    class ResultStatusEnum(Enum):
+        UNSET = "UNSET"
+        PENDING_CONSUMPTION = "PENDING_CONSUMPTION"
+        CONSUMED_SUCCESS = "CONSUMED_SUCCESS"
+        CONSUMED_TIMEOUT = "CONSUMED_TIMEOUT"
+
+    # the status code for a user_invocation_required message
     """
     Represents an asynchronous tool invocation handle for a client.
 
@@ -85,6 +96,8 @@ class BosOsClientAsyncToolInvocationHandle(BotOsOutputMessage):
         self._invocation_kwargs = invocation_kwargs
         self._tool_func_descriptor = tool_func_descriptor
         self._result_obj = None
+        self._result_status = self.ResultStatusEnum.UNSET
+        self._result_poll_count = 0
 
 
     @property
@@ -105,17 +118,29 @@ class BosOsClientAsyncToolInvocationHandle(BotOsOutputMessage):
     def submit_func_result(self, invocation_id, result_obj):
         assert invocation_id == self.invocation_id, f"Invocation id mismatch: got: {invocation_id}, expected: {self._invocation_id}"
         assert self._result_obj is None, f"Result already submitted for invocation {self._invocation_id}"
+        self._result_status = self.ResultStatusEnum.PENDING_CONSUMPTION
         self._result_obj = result_obj
 
 
     def get_func_result(self, timeout:float=None) -> str | None:
+        assert self._result_status not in (self.ResultStatusEnum.CONSUMED_SUCCESS, self.ResultStatusEnum.CONSUMED_TIMEOUT), (
+            f"Result for invocation_id: {self._invocation_id} has already been consumed with status: {self._result_status}"
+        )
+
         start_time = time.time()
-        while self._result_obj is None:
+        # poll the result status until we have
+        while self._result_status != self.ResultStatusEnum.PENDING_CONSUMPTION:
+            #logger.debug(f"get_func_result: polling (#{self._result_poll_count}) on result for invocation_id: {self._invocation_id}")
+            self._result_poll_count += 1
             if timeout is not None and (time.time() - start_time) > timeout:
-                err_msg = f"Timeout expired without receiving a result for invocation_id: {self._invocation_id} for {self._tool_func_descriptor.name}"
+                err_msg = f"Timeout expired without receiving a result for invocation_id: {self._invocation_id} of function {self._tool_func_descriptor.name}. "
+                self._result_status = self.ResultStatusEnum.CONSUMED_TIMEOUT
                 logger.warning(err_msg)
                 raise TimeoutError(err_msg)
             time.sleep(0.1)  # Polling interval
+
+        self._result_status = self.ResultStatusEnum.CONSUMED_SUCCESS
+        logger.debug(f"get_func_result: returning result for invocation_id: {self._invocation_id} after {self._result_poll_count} polls ({time.time() - start_time} seconds)")
         return self._result_obj
 
 

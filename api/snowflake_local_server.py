@@ -388,7 +388,7 @@ class GenesisLocalServer(GenesisServer):
             cursor.close()
 
 
-    def add_client_tool(self, bot_id, tool_func):
+    def add_client_tool(self, bot_id, tool_func, timeout_seconds):
         # Validate that tool_func is a proper bot_tool function
         if not is_bot_client_tool(tool_func):
             raise ValueError("The provided tool_func is not a valid bot_tool function")
@@ -402,7 +402,8 @@ class GenesisLocalServer(GenesisServer):
         headers = {"Content-Type": "application/json"}
         payload = {
             "bot_id": bot_id,
-            "tool_func_descriptor": tool_func_descriptor.to_json()
+            "tool_func_descriptor": tool_func_descriptor.to_json(),
+            "timeout_seconds": timeout_seconds
         }
 
         # Call the endpoint to add the client tool

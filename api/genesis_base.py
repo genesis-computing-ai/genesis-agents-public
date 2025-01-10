@@ -438,10 +438,9 @@ class GenesisMessage(BaseModel):
 #-----------------------------------------
 from   core                     import bot_os_tools2 as core_tools
 
-
 def bot_client_tool(**param_descriptions):
     return core_tools.gc_tool(_group_tags_=core_tools.REMOTE_TOOL_FUNCS_GROUP,
-                   **param_descriptions)
+                             **param_descriptions)
 
 
 def is_bot_client_tool(func):

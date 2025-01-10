@@ -40,7 +40,7 @@ class BotOsServer:
 
     def __init__(
         self,
-        flask_app: Flask|None,
+        flask_app: Flask|None, # not tested - flagges as not supported
         sessions: list[BotOsSession],
         scheduler: BackgroundScheduler,
         scheduler_seconds_interval=2,
@@ -52,6 +52,7 @@ class BotOsServer:
         bot_id_to_slack_adapter_map = None,
     ):
         logger.debug(f"BotOsServer:__init__ creating server")
+        assert flask_app is None, "Flask app is currently assumed to be extrnal to the BotOsServer" # TODO : refactor flask app into the BotOsServer or remove this attribute
         self.app = flask_app
         self.sessions = sessions
         self.scheduler = scheduler
@@ -312,6 +313,7 @@ class BotOsServer:
 
 
     def run(self, *args, **kwargs):
+        assert False, "Flask app is currently assumed to be extrnal to the BotOsServer" # TODO : refactor flask app into the BotOsServer or remove this attribute
         if self.app is not None:
             # Start the Flask application
             self.app.run(*args, **kwargs)

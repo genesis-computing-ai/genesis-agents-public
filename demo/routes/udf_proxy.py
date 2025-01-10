@@ -1,39 +1,31 @@
+from   core                     import global_flags
+from   core.logging_config      import logger
+from   demo.app                 import genesis_app
+from   flask                    import (Blueprint, jsonify, make_response,
+                                        request)
 import os
-from flask import Blueprint
-from core.logging_config import logger
-from flask import request, jsonify, make_response
-from bot_genesis.make_baby_bot import get_bot_details
-from demo.app import genesis_app
-import core.global_flags as global_flags
 
 import json
-from core.system_variables import SystemVariables
 
-import tempfile
 import base64
-from pathlib import Path
+from   pathlib                  import Path
+import tempfile
 
-from core.bot_os_server import BotOsServer
-from core.bot_os_artifacts import get_artifacts_store
-from embed.embed_openbb import openbb_query
-from llm_openai.openai_utils import get_openai_client
+from   core.bot_os_artifacts    import get_artifacts_store
+from   core.bot_os_tools2       import add_api_client_tool
+from   embed.embed_openbb       import openbb_query
+from   llm_openai.openai_utils  import get_openai_client
 
-from bot_genesis.make_baby_bot import (
-    make_baby_bot,
-    update_slack_app_level_key,
-    set_llm_key,
-    get_ngrok_auth_token,
-    set_ngrok_auth_token,
-    get_bot_details,
-    set_remove_pointers,
-    list_all_bots,
-    get_slack_config_tokens,
-    set_slack_config_tokens,
-)
-from auto_ngrok.auto_ngrok import launch_ngrok_and_update_bots
-from core.system_variables import SystemVariables
-from demo.sessions_creator import create_sessions
-from demo.routes.slack import bot_install_followup
+from   auto_ngrok.auto_ngrok    import launch_ngrok_and_update_bots
+from   bot_genesis.make_baby_bot \
+                                import (get_bot_details, get_ngrok_auth_token,
+                                        get_slack_config_tokens, list_all_bots,
+                                        make_baby_bot, set_llm_key,
+                                        set_ngrok_auth_token,
+                                        set_slack_config_tokens,
+                                        update_slack_app_level_key)
+from   core.system_variables    import SystemVariables
+from   demo.routes.slack        import bot_install_followup
 
 udf_routes = Blueprint('udf_routes', __name__)
 
@@ -49,6 +41,7 @@ def submit_udf():
         bot_id = input_rows[0][3]["bot_id"]
     row = input_rows[0]
 
+    # lookup the adapater and invoke its handler function (the Flask request context will be read there)
     bots_udf_adapter = genesis_app.bot_id_to_udf_adapter_map.get(bot_id, None)
     if bots_udf_adapter is not None:
         return bots_udf_adapter.submit_udf_fn()
@@ -147,7 +140,7 @@ def create_baby_bot():
     try:
         data = request.get_json()['data']
         # TODO: validate the json schema
-        
+
         bot_name = data.get("bot_name")
         bot_implementation = data.get("bot_implementation")
         bot_id = data.get("bot_id")
@@ -184,6 +177,117 @@ def file_to_bytes(file_path):
 
 @udf_routes.route("/udf_proxy/get_metadata", methods=["POST"])
 def get_metadata():
+    try:
+        message = request.json
+        input_rows = message["data"]
+        metadata_type = input_rows[0][1]
+
+        if metadata_type == "harvest_control":
+            result = genesis_app.db_adapter.get_harvest_control_data_as_json()
+        elif metadata_type == "harvest_summary":
+            result = genesis_app.db_adapter.get_harvest_summary()
+        elif metadata_type == "available_databases":
+            result = genesis_app.db_adapter.get_available_databases()
+        elif metadata_type == "bot_images":
+            result = genesis_app.db_adapter.get_bot_images()
+        elif metadata_type == "llm_info":
+            result = genesis_app.db_adapter.get_llm_info()
+        elif metadata_type == 'cortex_search_services':
+            result = genesis_app.db_adapter.get_cortex_search_service()
+        elif metadata_type == "bot_llms":
+            if "BOT_LLMS" in os.environ and os.environ["BOT_LLMS"]:
+                result = {"Success": True, "Data": os.environ["BOT_LLMS"]}
+            else:
+                result = {"Success": False, "Error": "Environment variable not set"}
+        elif metadata_type.startswith('test_email '):
+            email = metadata_type.split('test_email ')[1].strip()
+            result = genesis_app.db_adapter.send_test_email(email)
+        elif metadata_type.startswith('get_email'):
+            result = genesis_app.db_adapter.get_email()
+        elif metadata_type.startswith('check_eai_assigned'):
+            result = genesis_app.db_adapter.check_eai_assigned()
+        elif metadata_type.startswith('get_endpoints'):
+            result = genesis_app.db_adapter.get_endpoints()
+        elif metadata_type.startswith('delete_endpoint_group '):
+            metadata_parts = metadata_type.split()
+            if len(metadata_parts) == 2:
+                group_name = metadata_parts[1].strip()
+            else:
+                logger.info("missing group name to delete")
+            result = genesis_app.db_adapter.delete_endpoint_group(group_name)
+        elif metadata_type.startswith('set_endpoint '):
+            metadata_parts = metadata_type.split()
+            if len(metadata_parts) == 4:
+                group_name = metadata_parts[1].strip()
+                endpoint = metadata_parts[2].strip()
+                type = metadata_parts[3].strip()
+            result = genesis_app.db_adapter.set_endpoint(group_name, endpoint, type)
+        elif metadata_type.startswith('set_model_name '):
+            model_name, embedding_model_name = metadata_type.split('set_model_name ')[1].split(' ')[:2]
+            # model_name = metadata_type.split('set_model_name ')[1].strip()
+            # embedding_model_name = metadata_type.split('set_model_name ')[1].strip()
+            result = genesis_app.db_adapter.update_model_params(model_name, embedding_model_name)
+        elif metadata_type.startswith('logging_status'):
+            status = genesis_app.db_adapter.check_logging_status()
+            result = {"Success": True, "Data": status}
+        elif metadata_type.startswith('check_eai '):
+            metadata_parts = metadata_type.split()
+            if len(metadata_parts) == 2:
+                site = metadata_parts[1].strip()
+            else:
+                logger.info("missing metadata")
+            result = genesis_app.db_adapter.eai_test(site=site)
+        elif 'sandbox' in metadata_type:
+            _, bot_id, thread_id_in, file_name = metadata_type.split('|')
+            logger.info('****get_metadata, file_name', file_name)
+            logger.info('****get_metadata, thread_id_in', thread_id_in)
+            logger.info('****get_metadata, bot_id', bot_id)
+            bots_udf_adapter = genesis_app.bot_id_to_udf_adapter_map.get(bot_id, None)
+            logger.info('****get_metadata, bots_udf_adapter', bots_udf_adapter)
+            try:
+                logger.info(f'**** in to out map: {bots_udf_adapter.in_to_out_thread_map}')
+                thread_id_out = bots_udf_adapter.in_to_out_thread_map[thread_id_in]
+                logger.info('****get_metadata, thread_id_out', thread_id_out)
+                file_path = f'./downloaded_files/{thread_id_out}/{file_name}'
+                logger.info('****get_metadata, file_path', file_path)
+                result = {"Success": True, "Data": json.dumps(file_to_bytes(file_path))}
+                logger.info('result: Success len ', len(json.dumps(file_to_bytes(file_path))))
+            except Exception as e:
+                logger.info('****get_metadata, thread_id_out exception ',e)
+                result = {"Success": False, "Error": e}
+        elif metadata_type.lower().startswith("artifact"):
+            parts = metadata_type.split('|')
+            if len(parts) != 2:
+                raise ValueError(f"Invalid params for artifact metadata: expected 'artifact|<artifact_id>', got {metadata_type}")
+            _, artifact_id = parts
+            af = get_artifacts_store(genesis_app.db_adapter)
+            try:
+                m = af.get_artifact_metadata()
+                result = {"Success": True, "Metadata": m}
+            except Exception as e:
+                result = {"Success": False, "Error": e}
+        else:
+            raise ValueError(
+                "Invalid metadata_type provided."
+            )
+
+        if result["Success"]:
+            output_rows = [[input_rows[0][0], json.loads(result["Data"])]]
+        else:
+            output_rows = [[input_rows[0][0], {"Success": False, "Message": result["Error"]}]]
+
+    except Exception as e:
+        logger.info(f"***** error in metadata: {str(e)}")
+        output_rows = [[input_rows[0][0], {"Success": False, "Message": str(e)}]]
+
+    response = make_response({"data": output_rows})
+    response.headers["Content-type"] = "application/json"
+    logger.debug(f"Sending response: {response.json}")
+    return response
+
+
+@udf_routes.route("/udf_proxy/get_metadata3", methods=["POST"])
+def get_metadata3():
     try:
         message = request.json
         input_rows = message["data"]
@@ -773,3 +877,33 @@ def embed_openbb():
         default_bot_id=list(genesis_app.bot_id_to_udf_adapter_map.keys())[0],
     )
 
+
+@udf_routes.route("/udf_proxy/add_client_tool", methods=["POST"])
+def add_client_tool():
+    """
+    Endpoint to add a client tool function dynamically.
+
+    Returns:
+        A JSON response indicating success or failure of the tool function registration.
+    """
+    logger.info('Flask invocation: /udf_proxy/add_client_tool')
+    try:
+        # Parse the JSON payload
+        data = request.get_json()
+        bot_id = data.get("bot_id")
+        tool_func_descriptor = data.get("tool_func_descriptor")
+
+        if not bot_id or not tool_func_descriptor:
+            raise ValueError("Both 'bot_id' and 'tool_func_descriptor' are required.")
+
+        # Delegate the core logic to the bot_os_tools2 module
+        response = add_api_client_tool(bot_id, tool_func_descriptor, genesis_app.server)
+
+    except Exception as e:
+        logger.error(f"Error adding client tool: {str(e)}")
+        response = {
+            "Success": False,
+            "Message": f"An error occurred while adding the client tool: {str(e)}"
+        }
+
+    return jsonify(response)

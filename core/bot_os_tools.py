@@ -15,6 +15,20 @@ from   core.bot_os_tools2       import (ToolFuncDescriptor,
                                         get_tool_func_descriptor)
 from   core.bot_os_tools_extended \
                                 import load_user_extended_tools
+from   llm_openai.bot_os_openai import StreamingEventHandler
+
+from   google_sheets.g_sheets   import (add_g_file_comment,
+                                        add_reply_to_g_file_comment,
+                                        find_g_file_by_name,
+                                        get_g_file_comments,
+                                        get_g_file_version,
+                                        get_g_file_web_link,
+                                        get_g_folder_directory, read_g_sheet,
+                                        write_g_sheet_cell)
+
+import collections
+import re
+from   typing                   import Optional
 
 from   bot_genesis.make_baby_bot \
                                 import (MAKE_BABY_BOT_DESCRIPTIONS,

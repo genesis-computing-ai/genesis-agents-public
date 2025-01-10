@@ -1,16 +1,21 @@
+from   .genesis_base            import (GenesisBot, GenesisMetadataStore,
+                                        GenesisServer, SnowflakeMetadataStore,
+                                        SqliteMetadataStore,
+                                        get_tool_func_descriptor,
+                                        is_bot_client_tool)
 from   connectors               import get_global_db_connector
 from   demo.app.genesis_app     import genesis_app
-from   demo.routes              import udf_routes
+from   demo.routes              import main_routes, udf_routes
+from   flask                    import Flask
 import json
 import os
 import requests
-import uuid
-
-from   .genesis_base            import (GenesisBot, GenesisMetadataStore,
-                                        GenesisServer, SnowflakeMetadataStore,
-                                        SqliteMetadataStore)
-from   flask                    import Flask
+from   streamlit_gui.udf_proxy_bot_os_adapter \
+                                import UDFBotOsInputAdapter
 import threading
+import time
+from   typing                   import Dict
+import uuid
 
 
 LOCAL_FLASK_SERVER_IP = "127.0.0.1"
@@ -22,7 +27,7 @@ class GenesisLocalServer(GenesisServer):
 
     _BOT_OS_DIRECT_MODE = False
     "internal flag to control whether to call directly to the BotOsServer or via the Flask server, for methods that support both"
-    
+
     def __init__(self, scope, sub_scope="app1", bot_list=None, fast_start=False):
         super().__init__(scope, sub_scope)
 
@@ -39,7 +44,10 @@ class GenesisLocalServer(GenesisServer):
 
         self.flask_app = None
         self.flask_thread = None
-        
+
+        self.client_tool_func_map: Dict[str, callable] = {} # maps names of client tool functions to their callable implementations. See add_client_tool
+
+        # start the server
         self.restart()
 
 
@@ -55,25 +63,44 @@ class GenesisLocalServer(GenesisServer):
 
     def _start_flask_app(self):
         def run_flask(): # flask thread function
-            # Monkey-patch flask.cli.show_server_banner to be a no-op function to avoid printing information to stdout 
+            # Monkey-patch flask.cli.show_server_banner to be a no-op function to avoid printing information to stdout
             try:
                 import flask.cli
                 if hasattr(flask.cli, 'show_server_banner'):
                     flask.cli.show_server_banner = lambda *args, **kwargs: None
             except ImportError:
                 pass
-            # Start the Flask app on local host
+            # Start the (lightweigth debug) Flask app on local host
             self.flask_app.run(host=LOCAL_FLASK_SERVER_IP, port=LOCAL_FLASK_SERVER_PORT, debug=False, use_reloader=False)
+
 
         assert self.flask_app is None and self.flask_thread is None
         flask_app = Flask(self.__class__.__name__)
         flask_app.register_blueprint(udf_routes)
+        flask_app.register_blueprint(main_routes)
 
-        
+
         self.flask_app = flask_app
         self.flask_thread = threading.Thread(target=run_flask)
         self.flask_thread.setDaemon(True) # this allows the main thread to exit without 'joining' the flask thread
         self.flask_thread.start()
+        # Wait for the Flask app to actually start running before we return, to avoid race condition
+        self._test_flask_app_is_ready(timeout=0.5)
+
+
+    def _test_flask_app_is_ready(self, timeout):
+        start_time = time.time()
+        url = LOCAL_FLASK_SERVER_URL + "/healthcheck"
+        while True:
+            try:
+                response = requests.get(url)
+                if response.status_code == 200:
+                    break
+            except requests.ConnectionError:
+                pass
+            if time.time() - start_time > timeout:
+                raise TimeoutError("Flask app did not start within the expected time.")
+            time.sleep(0.1)
 
 
     def get_metadata_store(self) -> GenesisMetadataStore:
@@ -84,12 +111,12 @@ class GenesisLocalServer(GenesisServer):
 
 
     def register_bot(self, bot: GenesisBot):
-        if self._BOT_OS_DIRECT_MODE:    
+        if self._BOT_OS_DIRECT_MODE:
             return self._register_bot_direct(bot)
         else:
             return self._register_bot_indirect(bot)
 
-    
+
     def _register_bot_direct(self, bot: GenesisBot):
         return(self.server.make_baby_bot_wrapper(
             bot_id=bot.get("BOT_ID", None),
@@ -116,9 +143,9 @@ class GenesisLocalServer(GenesisServer):
         })
         response = requests.post(url, headers=headers, data=data)
         return response.json()
-        
 
-    def add_message(self, bot_id, message, thread_id=None) -> str|dict: # returns request_id
+
+    def add_message(self, bot_id, message, thread_id=None) -> dict: # returns a dict with request_id, bot_id, thread_id
         if not thread_id:
             thread_id = str(uuid.uuid4())
         if self._BOT_OS_DIRECT_MODE:
@@ -126,20 +153,21 @@ class GenesisLocalServer(GenesisServer):
         else:
             return self._add_message_indirect(bot_id, message, thread_id)
 
-    
-    def _add_message_direct(self, bot_id, message, thread_id) -> str|dict: # returns request_id
+
+    def _add_message_direct(self, bot_id, message, thread_id) -> dict: # returns request_id
         # Add the message directly to the BotOsServer's internal message queue, short-circuiting end-points (Flask) mechanism
         request_id = self.genesis_app.bot_id_to_udf_adapter_map[bot_id].submit(message, thread_id, bot_id={})
         return {"request_id": request_id,
                 "bot_id": bot_id,
                 "thread_id": thread_id}
 
-        
-    def _add_message_indirect(self, bot_id, message, thread_id) -> str|dict: # returns request_id        
+
+    def _add_message_indirect(self, bot_id, message, thread_id) -> dict: # returns a dict with request_id, bot_id, thread_id
+        # send the message through the end point.
         url = LOCAL_FLASK_SERVER_URL + "/udf_proxy/submit_udf"
         headers = {"Content-Type": "application/json"}
         data = json.dumps({"data": [[1, message, thread_id, json.dumps({"bot_id": bot_id})]]})
-        
+
         response = requests.post(url, headers=headers, data=data)
         if response.status_code == 200:
             response_data = response.json()["data"][0][1]
@@ -151,10 +179,47 @@ class GenesisLocalServer(GenesisServer):
 
 
     def get_message(self, bot_id, request_id) -> str:
+        """
+        Get a response message from the BotOsServer.
+        Returns:
+            The message, or None if no message is found.
+        """
         if self._BOT_OS_DIRECT_MODE:
-            return self._get_message_direct(bot_id, request_id)
+            msg = self._get_message_direct(bot_id, request_id)
         else:
-            return self._get_message_indirect(bot_id, request_id)
+            msg = self._get_message_indirect(bot_id, request_id)
+
+        if msg is None:
+            return None
+
+        # check is this is a special action message
+        try:
+            action_msg = UDFBotOsInputAdapter.parse_action_msg(msg)
+        except ValueError as e:
+            pass # not an action message - regular chat response message
+        else:
+            if action_msg["action_type"] == "action_required":
+                # LLM requesting us to call a client tool.
+                # We expect all the following fields to be present in the action_msg:
+                invocation_id = action_msg["invocation_id"]
+                tool_func_name = action_msg["tool_func_name"]
+                invocation_kwargs = action_msg["invocation_kwargs"]
+                # invoke the tool and return the result
+                try:
+                    func_result = self._invoke_client_tool(tool_func_name, invocation_kwargs)
+                except Exception as e:
+                    func_result = f"Error invoking client tool: {str(e)}"
+                # send the result back to the LLM
+                result_msg = UDFBotOsInputAdapter.format_action_msg("action_result",
+                                                                    invocation_id=invocation_id,
+                                                                    func_result=func_result)
+                self.add_message(bot_id, result_msg)
+                msg = None # this is an internal message. Hide it from the client.
+            else:
+                # We do not recognize this action message.
+                raise ValueError(f"Internal error:Unrecognized action message: {action_msg}")
+
+        return msg
 
 
     def _get_message_direct(self, bot_id, request_id) -> str:
@@ -163,6 +228,7 @@ class GenesisLocalServer(GenesisServer):
 
 
     def _get_message_indirect(self, bot_id, request_id) -> str:
+        # poll for responses through the end point.
         url = LOCAL_FLASK_SERVER_URL + "/udf_proxy/lookup_udf"
         headers = {"Content-Type": "application/json"}
         data = json.dumps({"data": [[1, request_id, bot_id]]})
@@ -173,46 +239,65 @@ class GenesisLocalServer(GenesisServer):
                 return response_data
         return None
 
+    # deprecated tool handling logic
+    #--------------------------------
+    # def run_tool(self, bot_id, tool_name, params):
+    #     session = next((s for s in self.genesis_app.server.sessions if s.bot_id == bot_id), None)
+    #     if session is None:
+    #         raise ValueError(f"No session found for bot_id {bot_id}")
 
-    def run_tool(self, bot_id, tool_name, params):
-        session = next((s for s in self.genesis_app.server.sessions if s.bot_id == bot_id), None)
-        if session is None:
-            raise ValueError(f"No session found for bot_id {bot_id}")
+    #     if tool_name == 'run_snowpark_python':
+    #         params['return_base64'] = True
+    #         params['save_artifacts'] = False
 
-        if tool_name == 'run_snowpark_python':
-            params['return_base64'] = True
-            params['save_artifacts'] = False
+    #     # Search for the tool in the assistant's available functions
+    #     tool = session.available_functions.get(tool_name)
+    #     if tool is None:
+    #         # Try appending an underscore to the front of the tool name
+    #         tool = session.available_functions.get(f"_{tool_name}")
+    #     if tool is None:
+    #         raise ValueError(f"Tool {tool_name} not found for bot {bot_id}")
 
-        # Search for the tool in the assistant's available functions
-        tool = session.available_functions.get(tool_name)
-        if tool is None:
-            # Try appending an underscore to the front of the tool name
-            tool = session.available_functions.get(f"_{tool_name}")
-        if tool is None:
-            raise ValueError(f"Tool {tool_name} not found for bot {bot_id}")
+    #     # Run the tool with the query
+    #     try:
+    #         tool_result = tool(**params)
+    #         return {"success": True, "results": tool_result}
+    #     except Exception as tool_error:
+    #         return {"success": False, "message": f"Error running tool: {str(tool_error)}"}
 
-        # Run the tool with the query
-        try:
-            tool_result = tool(**params)
-            return {"success": True, "results": tool_result}
-        except Exception as tool_error:
-            return {"success": False, "message": f"Error running tool: {str(tool_error)}"}
+    # def get_all_tools(self, bot_id):
+    #     session = next((s for s in self.server.sessions if s.bot_id == bot_id), None)
+    #     if session is None:
+    #         raise ValueError(f"No session found for bot_id {bot_id}")
+    #     return [t['function']['name'] for t in session.tools]
 
-    def get_all_tools(self, bot_id):
-        session = next((s for s in self.server.sessions if s.bot_id == bot_id), None)
-        if session is None:
-            raise ValueError(f"No session found for bot_id {bot_id}")
-        return [t['function']['name'] for t in session.tools]
+    # def get_tool(self, bot_id, tool_name):
+    #     session = next((s for s in self.server.sessions if s.bot_id == bot_id), None)
+    #     if session is None:
+    #         raise ValueError(f"No session found for bot_id {bot_id}")
+    #     # Search for the tool in the assistant's available tools
+    #     tool = next((t for t in session.tools if t.get('function', {}).get('name') == tool_name or t.get('function', {}).get('name') == f'_{tool_name}'), None)
+    #     if tool is None:
+    #         raise ValueError(f"Tool {tool_name} not found for bot {bot_id}")
+    #     return tool['function']
 
-    def get_tool(self, bot_id, tool_name):
-        session = next((s for s in self.server.sessions if s.bot_id == bot_id), None)
-        if session is None:
-            raise ValueError(f"No session found for bot_id {bot_id}")
-        # Search for the tool in the assistant's available tools
-        tool = next((t for t in session.tools if t.get('function', {}).get('name') == tool_name or t.get('function', {}).get('name') == f'_{tool_name}'), None)
-        if tool is None:
-            raise ValueError(f"Tool {tool_name} not found for bot {bot_id}")
-        return tool['function']
+
+    def _invoke_client_tool(self, tool_name:str, kwargs):
+        """
+        Invoke a client tool function by its name with the provided keyword arguments.
+        Args:
+            tool_name: Name of the client tool function to invoke
+            **kwargs: Keyword arguments to pass to the client tool function
+        Returns:
+            The result of the client tool function invocation
+        Raises:
+            ValueError: If the tool_name is not found in the client_tool_func_map
+        """
+        tool_func = self.client_tool_func_map.get(tool_name)
+        if tool_func is None:
+            raise ValueError(f"Client tool function '{tool_name}' not found")
+        res = tool_func(**kwargs)
+        return res
 
 
     def shutdown(self):
@@ -301,3 +386,34 @@ class GenesisLocalServer(GenesisServer):
             return False
         finally:
             cursor.close()
+
+
+    def add_client_tool(self, bot_id, tool_func):
+        # Validate that tool_func is a proper bot_tool function
+        if not is_bot_client_tool(tool_func):
+            raise ValueError("The provided tool_func is not a valid bot_tool function")
+        # Extract the tool function descriptor
+        tool_func_descriptor = get_tool_func_descriptor(tool_func)
+        if tool_func_descriptor is None:
+            raise ValueError("The provided tool_func does not have a valid ToolFuncDescriptor")
+
+        # Prepare the payload for the endpoint
+        url = LOCAL_FLASK_SERVER_URL + "/udf_proxy/add_client_tool"
+        headers = {"Content-Type": "application/json"}
+        payload = {
+            "bot_id": bot_id,
+            "tool_func_descriptor": tool_func_descriptor.to_json()
+        }
+
+        # Call the endpoint to add the client tool
+        response = requests.post(url, headers=headers, json=payload)
+
+        if response.status_code != 200:
+            raise RuntimeError(f"Failed to add client tool: {response.text}")
+
+        # Remember this function since we might be asked to call it later
+        self.client_tool_func_map[tool_func_descriptor.name] = tool_func
+
+        # respond
+        resp = response.json()
+        return resp

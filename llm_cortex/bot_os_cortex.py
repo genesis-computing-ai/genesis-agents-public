@@ -350,7 +350,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             if BotOsAssistantSnowflakeCortex.stream_mode == True:
                 if self.event_callback:
                     self.event_callback(self.bot_id, BotOsOutputMessage(thread_id=thread_id, 
-                                                                        status='complete', 
+                                                                        status='completed', 
                                                                         output=resp, 
                                                                         messages=None, 
                                                                         input_metadata=json.loads(message_metadata)))
@@ -555,7 +555,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             pass
 
         postfix = ""
-        status = 'complete'
+        status = 'completed'
         if "</function>" in resp[-30:]:
             postfix = " 💬"
    
@@ -629,8 +629,8 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         if postfix.endswith('💬'):
             status = 'in_progress'
 
-        if resp != '' and ( ( BotOsAssistantSnowflakeCortex.stream_mode == True )  or (
-  message_metadata is not None and 'task_meta' in message_metadata and status == 'complete' and not postfix.endswith('💬')
+        if resp != '' and ((BotOsAssistantSnowflakeCortex.stream_mode == True) or (
+            message_metadata is not None and 'task_meta' in message_metadata and status == 'completed' and not postfix.endswith('💬')
         )):
             if ( BotOsAssistantSnowflakeCortex.stream_mode == True ):
                 output = resp + postfix

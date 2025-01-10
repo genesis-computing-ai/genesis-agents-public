@@ -609,7 +609,7 @@ def modify_slack_allow_list(bot_id, action, user_name=None, user_identifier=None
 
 def add_new_tools_to_bot(bot_id, new_tools):
     """
-    Adds new tools to an existing bot's available_tools list if they are not already present.
+    Adds new (non-ephemeral) tools to an existing bot's available_tools list if they are not already present.
 
     Args:
         bot_id (str): The unique identifier for the bot.
@@ -985,9 +985,12 @@ def get_bot_details(bot_id):
     return bb_db_connector.db_get_bot_details(project_id=project_id, dataset_name=dataset_name, bot_servicing_table=bot_servicing_table, bot_id=bot_id)
 
 
-def get_available_tools():
+def get_available_persistent_tools():
     bb_db_connector = get_global_db_connector()
     return bb_db_connector.db_get_available_tools(project_id=project_id, dataset_name=dataset_name)
+
+get_available_tools = get_available_persistent_tools # for backward compatibility
+
 
 def get_default_avatar():
     bb_db_connector = get_global_db_connector()
@@ -1093,7 +1096,7 @@ def make_baby_bot(
                         return _make_retval(False, error_msg=f"Tool call error: Tool '{tool}' has leading or trailing whitespace in available_tools. Please remove any extra spaces from your list.")
 
                 # Retrieve the list of available tools from the database
-                db_available_tools = get_available_tools()
+                db_available_tools = get_available_persistent_tools()
                 db_tool_names = [tool['tool_name'] for tool in db_available_tools]
 
                 # Check if the provided available tools match the database tools

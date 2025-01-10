@@ -323,8 +323,7 @@ def get_g_folder_directory(folder_id, creds=None, user=None):
                 SERVICE_ACCOUNT_FILE, scopes=SCOPES
             )
         except Exception as e:
-            print(f"Error loading credentials: {e}")
-            return None
+            return False
 
     try:
         service = build("drive", "v3", credentials=creds)

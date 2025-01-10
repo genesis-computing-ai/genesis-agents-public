@@ -1007,19 +1007,33 @@ class SnowflakeConnector(SnowflakeConnectorBase):
 
                     value = value.replace("\n", "")
 
-                    merge_query = f"""
-                    MERGE INTO {self.genbot_internal_project_and_schema}.EXT_SERVICE_CONFIG AS target
-                    USING (SELECT '{service_name}' AS ext_service_name, '{key}' AS parameter, '{value}' AS value, '{self.user}' as user) AS source
-                    ON target.ext_service_name = source.ext_service_name AND target.parameter = source.parameter
-                    WHEN MATCHED THEN
-                        UPDATE SET
-                            target.value = source.value,
-                            target.updated = CURRENT_TIMESTAMP()
-                    WHEN NOT MATCHED THEN
-                        INSERT (ext_service_name, parameter, value, created, updated)
-                        VALUES (source.ext_service_name, source.parameter, source.value, CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP());
+                    # Check if record exists
+                    check_query = f"""
+                    SELECT COUNT(*) FROM {self.genbot_internal_project_and_schema}.EXT_SERVICE_CONFIG 
+                    WHERE ext_service_name = '{service_name}' AND parameter = '{key}'
                     """
-                    cursor.execute(merge_query)
+                    cursor.execute(check_query)
+                    exists = cursor.fetchone()[0] > 0
+
+                    if exists:
+                        # Update existing record
+                        update_query = f"""
+                        UPDATE {self.genbot_internal_project_and_schema}.EXT_SERVICE_CONFIG 
+                        SET value = '{value}',
+                            updated = CURRENT_TIMESTAMP()
+                        WHERE ext_service_name = '{service_name}' 
+                        AND parameter = '{key}'
+                        """
+                        cursor.execute(update_query)
+                    else:
+                        # Insert new record
+                        insert_query = f"""
+                        INSERT INTO {self.genbot_internal_project_and_schema}.EXT_SERVICE_CONFIG
+                        (ext_service_name, parameter, value, created, updated)
+                        VALUES ('{service_name}', '{key}', '{value}', 
+                                CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP())
+                        """
+                        cursor.execute(insert_query)
 
                 # Commit the changes
                 self.client.commit()

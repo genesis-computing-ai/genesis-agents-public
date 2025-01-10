@@ -130,7 +130,10 @@ def google_drive(
             files = get_g_folder_directory(
                 g_folder_id, None, user=db_adapter.user
             )
-            return {"Success": True, "files": files}
+            if files is False:
+                return {"Success": False, "Error": "Could not get files from Google Drive, missing credentials."}
+            else:
+                return {"Success": True, "files": files}
         except Exception as e:
             return {"Success": False, "Error": str(e)}
 

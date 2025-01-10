@@ -12,16 +12,19 @@ files out for generate image
 add bot level param for completion vs assistant mode
 test gxs with completion mode (w/git etc)
 cancel run checks that stay in progress for more than 10 min with no response
+after tool calls, the first few new chars get missed sometimes in the output 
 
-gsheets comment check
+gdrive connector:
+JD-json file with credentials needs to be created properly?
+JD-comments on gsheets, bot needs to know what cell they are on
 
 prerelease:
 x check that adding a tool via streamlit doesnt mess up the thread with that bot (e.g. data connector tools)
 make sqlite sample data load from csv files vs binary
-speed up startup
-(in progress) speed up bot responses
-o1 via api with tool calling
-(MR) put eve back in as default bot in streamlit
+x speed up startup
+x (in progress) speed up bot responses
+x o1 via api with tool calling
+x put eve back in as default bot in streamlit
 test web research tools
 demo with web research tools
 x rationalize database connector with database_tools
@@ -33,7 +36,7 @@ x store standard queries for harvester for various db_types in a metadata table,
 x make the index for each bot separate and based on what data they have access to
 x make metadata mapping have a source_name column
 make get_full_Table_details work with sqlite etc
-JL NEXT - allow search_metadata_detailed and search_metadata to specify a source_name
+(done?) JL NEXT - allow search_metadata_detailed and search_metadata to specify a source_name
 x graphs out in streamlit in sqlite mode
 generate a text file with the numebrs from 1-10, sqlite mode, genesis gui error in streamlit (doesnt return the file anymore just the text)
 x route queries to snowflake through data connector tools, so there is only one query_database tool

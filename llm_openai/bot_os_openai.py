@@ -845,10 +845,11 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
             if thread_id in self.completion_threads:
                 # Get existing messages and append new user message
                 openai_messages = self.completion_threads[thread_id]
-                openai_messages.append({
-                    "role": "user",
-                    "content": input_message.msg
-                })
+                if input_message.msg != "Tool call completed, results":
+                    openai_messages.append({
+                        "role": "user",
+                        "content": input_message.msg
+                    })
             else:
                 # Initialize new message thread
                 openai_messages = [
@@ -885,6 +886,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                   for tool_call in tool_calls_array:
                      tool_calls.append({"id": tool_call.id, "type": "function", "function": {"name": tool_call.function.name, "arguments": tool_call.function.arguments}})
             else:
+               
                stream = self.client.chat.completions.create(
                   model=model_name,
                   **({'tools': self.tools} if self.tools and len(self.tools) > 0 else {}),

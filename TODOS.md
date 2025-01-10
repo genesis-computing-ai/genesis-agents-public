@@ -3,7 +3,8 @@ GENESIS BOT TODOS
 =================
 
 for direct non-assistant mode:
-make adding tools and changing instructions work on the fly 
+make adding/removing tools on the fly work
+x make changing instructions work on the fly 
 x test in snowflake metadata mode
 x test again in assistant mode
 files in for image analyze

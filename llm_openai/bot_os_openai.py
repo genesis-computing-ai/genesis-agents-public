@@ -863,6 +863,9 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                 ]
                 self.completion_threads[thread_id] = openai_messages
 
+            # Update first message content to current instructions
+            openai_messages[0]["content"] = self.instructions
+
             # Begin streaming from OpenAI directly
             if model_name == 'o1' or model_name == 'o1-mini':
                response = self.client.chat.completions.create(
@@ -1201,6 +1204,8 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
                   if "slack_tools" in bot_details["available_tools"]:
                      instructions += "\n" + BASE_BOT_SLACK_TOOLS_INSTRUCTIONS
+
+                  genesis_app.server.sessions
 
                   if not self.reset_bot_if_not_openai(bot_id=target_bot):
 

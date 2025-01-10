@@ -867,6 +867,17 @@ def update_bot_instructions(bot_id, new_instructions=None, bot_instructions=None
             "new_instructions": new_instructions,
         }
 
+
+    session = None
+    for s in server_point.sessions:
+        if s.bot_id == bot_id:
+            session = s
+            break
+    
+    if session is not None:
+        if session.assistant_impl.__class__.__name__ == "BotOsAssistantOpenAI":
+            session.assistant_impl.instructions = new_instructions
+
     return bb_db_connector.db_update_bot_instructions(project_id=project_id, dataset_name=dataset_name, bot_servicing_table=bot_servicing_table, bot_id=bot_id, instructions=new_instructions, runner_id=runner_id)
 
 
@@ -1376,15 +1387,19 @@ def _remove_bot(bot_id, thread_id=None, confirmed=None):
     # Proceed with deletion if confirmation is provided
 
     # Retrieve the session using the API App ID from the map
-    api_app_id = bot_details.get('api_app_id')
-    session = map_point.get(api_app_id)
+    #api_app_id = bot_details.get('api_app_id')
+    session = None
+    for s in server_point.sessions:
+        if s.bot_id == bot_id:
+            session = s
+            break
 
     # If a session is found, attempt to remove it
     if session:
         server_point.remove_session(session)
-        logger.info(f"Session {session} for bot with API App ID {api_app_id} has been removed.")
+        logger.info(f"Session {session} for bot with Bot ID {bot_id} has been removed.")
     else:
-        logger.info(f"No session found for bot with API App ID {api_app_id} proceeding to delete from database and Slack.")
+        logger.info(f"No session found for bot with Bot ID {bot_id} proceeding to delete from database and Slack.")
 
     bb_db_connector = get_global_db_connector()
     bb_db_connector.db_delete_bot(project_id=project_id, dataset_name=dataset_name, bot_servicing_table=bot_servicing_table, bot_id=bot_id)

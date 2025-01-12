@@ -72,6 +72,7 @@ class KnowledgeServer:
                 cursor = self.db_connector.client.cursor()
                 check_bot_active = f"DESCRIBE TABLE {self.db_connector.schema}.BOTS_ACTIVE"
                 cursor.execute(check_bot_active)
+                print('KNOWLEDGE_SERVER:', 'RUN DESCRIBE TABLE BOTS_ACTIVE')
                 result = cursor.fetchone()
 
                 bot_active_time_dt = datetime.strptime(result[0], '%Y-%m-%d %H:%M:%S %Z')
@@ -84,12 +85,14 @@ class KnowledgeServer:
                     i = 0
 
                 if time_difference < timedelta(minutes=5):
+                    logger.info(f"Knowledge Server is Active | TIME DIFFERENCE: {time_difference}")
                     wake_up = True
                     self.sleepytime = False
 
             # join inside snowflake
             cutoff = (datetime.now() - timedelta(minutes=10)).strftime("%Y-%m-%d %H:%M:%S")
             threads = self.db_connector.query_threads_message_log(cutoff)
+            print('KNOWLEDGE_SERVER:', 'query_threads_message_log')
             logger.info(f"Producer found {len(threads)} threads")
             for thread in threads:
                 thread_id = thread["THREAD_ID"]
@@ -125,6 +128,7 @@ class KnowledgeServer:
                 last_timestamp = thread["LAST_TIMESTAMP"]
 
             msg_log = self.db_connector.query_timestamp_message_log(thread_id, last_timestamp, max_rows=50)
+            print('KNOWLEDGE_SERVER:', 'query_timestamp_message_log')
 
             non_bot_users_query = f"""
                 WITH BOTS AS (SELECT BOT_SLACK_USER_ID,
@@ -142,6 +146,7 @@ class KnowledgeServer:
                 """
                 # this is needed to exclude channels with more than one user
             count_non_bot_users = self.db_connector.run_query(non_bot_users_query)
+            print('KNOWLEDGE_SERVER:', 'count_non_bot_users')
 
             skipped_thread = False
             if count_non_bot_users and count_non_bot_users[0]["CNT"] != 1:
@@ -159,6 +164,7 @@ class KnowledgeServer:
                 query = f"""SELECT DISTINCT(knowledge_thread_id) FROM {self.db_connector.knowledge_table_name}
                             WHERE thread_id = '{thread_id}';"""
                 knowledge_thread_id = self.db_connector.run_query(query)
+                print('KNOWLEDGE_SERVER:', 'knowledge_thread_id')
                 if knowledge_thread_id and self.llm_type == 'openai':
                     knowledge_thread_id = knowledge_thread_id[0]["KNOWLEDGE_THREAD_ID"]
                     content = f"""Find a new batch of conversations between the user and agent and update 4 requested information in the original prompt and return it in JSON format:
@@ -225,6 +231,7 @@ class KnowledgeServer:
                 else:
                     system = "You are a Knowledge Explorer to extract, synthesize, and inject knowledge that bots learn from doing their jobs"
                     res, status_code  = self.db_connector.cortex_chat_completion(content, system=system)
+                    print('KNOWLEDGE_SERVER:', 'cortex_chat_completion')
                     response = ast.literal_eval(res.split("```")[1])
 
 
@@ -247,6 +254,7 @@ class KnowledgeServer:
                     self.db_connector.run_insert(self.db_connector.knowledge_table_name, timestamp=timestamp,thread_id=thread_id,knowledge_thread_id=knowledge_thread_id,
                                                 primary_user=primary_user,bot_id=bot_id,last_timestamp=last_timestamp,thread_summary=thread_summary,
                                                 user_learning=user_learning,tool_learning=tool_learning,data_learning=data_learning)
+                    print('KNOWLEDGE_SERVER:', 'run_insert - line 256')
                     if not skipped_thread:
                         self.user_queue.put((primary_user, bot_id, response))
             except Exception as e:
@@ -286,6 +294,7 @@ class KnowledgeServer:
                         LIMIT 1;"""
 
             user_bot_knowledge = self.db_connector.run_query(query)
+            print('KNOWLEDGE_SERVER:', 'user_bot_knowledge - line 296')
 
             new_knowledge = {}
             prompts = {
@@ -324,6 +333,7 @@ class KnowledgeServer:
                     system = f"Use the following raw knowledge information about the interaction of the user and the bot, \
                                     summarize what we learned about the {prompt} in bullet point."
                     response, status_code  = self.db_connector.cortex_chat_completion(content, system=system)
+                    print('KNOWLEDGE_SERVER:', 'cortex_chat_completion - line 335')
                     new_knowledge[item] = response
 
 
@@ -332,6 +342,7 @@ class KnowledgeServer:
                 self.db_connector.run_insert(self.db_connector.user_bot_table_name, timestamp=timestamp, primary_user=user_query, bot_id=bot_id,
                                               user_learning=new_knowledge["USER_LEARNING"],tool_learning=new_knowledge["TOOL_LEARNING"],
                                               data_learning=new_knowledge["DATA_LEARNING"])
+                print('KNOWLEDGE_SERVER:', 'run_insert - line 344')
             except Exception as e:
                 logger.info(f"Encountered errors while inserting into {self.db_connector.user_bot_table_name} row: {e}")
                 logger.info(traceback.format_exc())
@@ -339,7 +350,10 @@ class KnowledgeServer:
 
     def tool_knowledge(self):
         while True:
-            if self.sleepytime: time.sleep(120); continue;
+            if self.sleepytime:
+                logger.info("tool_knowledge is sleeping for 120 seconds...") 
+                time.sleep(120)
+                continue
             cutoff = (datetime.now() - timedelta(minutes=10)).strftime("%Y-%m-%d %H:%M:%S")
             query = f"""
                     WITH K AS (SELECT COALESCE(max(last_timestamp),  DATE('2000-01-01')) as last_timestamp FROM {self.db_connector.tool_knowledge_table_name})
@@ -349,6 +363,7 @@ class KnowledgeServer:
                     ORDER by timestamp;
                     """
             tools = self.db_connector.run_query(query, max_rows=100)
+            print('KNOWLEDGE_SERVER:', 'run_query - line 362')
             if tools:
                 last_timestamp = max([row['TIMESTAMP'] for row in tools])
                 function_name = None
@@ -389,16 +404,21 @@ class KnowledgeServer:
                             response = response.choices[0].message.content
                         else:
                             response, status_code  = self.db_connector.cortex_chat_completion(content, system=system)
+                            print('KNOWLEDGE_SERVER:', 'cortex_chat_completion - line 403')
                         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                         self.db_connector.run_insert(self.db_connector.tool_knowledge_table_name, timestamp=timestamp,
                                                     last_timestamp=last_timestamp, bot_id=bot_id, tool = function_name, summary=response)
-            else:
-                logger.info(f"Pausing Tool Knowledge for {refresh_seconds} seconds before next check.")
-                time.sleep(refresh_seconds)
+                        print('KNOWLEDGE_SERVER:', 'run_insert - line 407')
+
+            logger.info(f"Pausing Tool Knowledge for {refresh_seconds} seconds before next check.")
+            time.sleep(refresh_seconds)
 
     def data_knowledge(self):
         while True:
-            if self.sleepytime: time.sleep(120); continue;
+            if self.sleepytime:
+                logger.info("data_knowledge is sleeping for 120 seconds...") 
+                time.sleep(120)
+                continue
             cutoff = (datetime.now() - timedelta(minutes=10)).strftime("%Y-%m-%d %H:%M:%S")
             query = f"""
                     WITH K AS (SELECT COALESCE(max(last_timestamp),  DATE('2000-01-01')) as last_timestamp FROM {self.db_connector.data_knowledge_table_name})
@@ -408,6 +428,7 @@ class KnowledgeServer:
                     ORDER by timestamp;
                     """
             tools = self.db_connector.run_query(query, max_rows=100)
+            print('KNOWLEDGE_SERVER:', 'run_query - data_knowledge')
             if tools:
                 last_timestamp = max([row['TIMESTAMP'] for row in tools])
                 groups = {}
@@ -449,16 +470,20 @@ class KnowledgeServer:
                             response = response.choices[0].message.content
                         else:
                             response, status_code  = self.db_connector.cortex_chat_completion(content, system=system)
+                            print('KNOWLEDGE_SERVER:', 'cortex_chat_completion - line 466')
                         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                         self.db_connector.run_insert(self.db_connector.data_knowledge_table_name, timestamp=timestamp,
                                                     last_timestamp=last_timestamp, bot_id=bot_id, dataset = dataset, summary=response)
-            else:
-                logger.info(f"Pausing Data Knowledge for {refresh_seconds} seconds before next check.")
-                time.sleep(refresh_seconds)
+                        print('KNOWLEDGE_SERVER:', 'run_insert - line 470')
+            logger.info(f"Pausing Data Knowledge for {refresh_seconds} seconds before next check.")
+            time.sleep(refresh_seconds)
 
     def proc_knowledge(self):
         while True:
-            if self.sleepytime: time.sleep(120); continue;
+            if self.sleepytime:
+                logger.info("proc_knowledge is sleeping for 120 seconds...")  
+                time.sleep(120)
+                continue
             cutoff = (datetime.now() - timedelta(minutes=10)).strftime("%Y-%m-%d %H:%M:%S")
             query = f"""
                     WITH K AS (SELECT COALESCE(max(last_timestamp),  DATE('2000-01-01')) as last_timestamp FROM {self.db_connector.proc_knowledge_table_name})
@@ -467,6 +492,7 @@ class KnowledgeServer:
                     AND MESSAGE_PAYLOAD LIKE '%run_process%';
                     """
             processes = self.db_connector.run_query(query, max_rows=100)
+            print('KNOWLEDGE_SERVER:', 'run_query - line 486')
             for process in processes:
                 thread_id = process['THREAD_ID']
                 query = f"""
@@ -516,12 +542,14 @@ class KnowledgeServer:
                         response = response.choices[0].message.content
                     else:
                         response, status_code  = self.db_connector.cortex_chat_completion(content, system=system)
+                        print('KNOWLEDGE_SERVER:', 'cortex_chat_completion - line 536')
                     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     self.db_connector.run_insert(self.db_connector.proc_knowledge_table_name, timestamp=timestamp,
                                                  last_timestamp=last_timestamp, bot_id=bot_id, process = process_name, summary=response)
-            else:
-                logger.info(f"Pausing Proc Knowledge for {refresh_seconds} seconds before next check.")
-                time.sleep(refresh_seconds)
+                    print('KNOWLEDGE_SERVER:', 'run_insert - line 540')
+
+            logger.info(f"Pausing Proc Knowledge for {refresh_seconds} seconds before next check.")
+            time.sleep(refresh_seconds)
 
     def start_threads(self):
         producer_thread = threading.Thread(target=self.producer)

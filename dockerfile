@@ -9,11 +9,12 @@ EXPOSE 8501 8080 8000 5678 1234 3000 8081 8502 7681
 COPY genesis-voice ./genesis-voice
 
 # Install Node.js 18.x and npm
-WORKDIR /src/app/genesis-voice
-RUN apt-get update && apt-get install -y curl && \
-    curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
-    apt-get install -y nodejs && \
-    npm install -g npm@latest
+# WORKDIR /src/app/genesis-voice
+# RUN apt-get update && apt-get install -y curl && \
+#     curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
+#     apt-get install -y nodejs && \
+#     npm install -g npm@latest
+
 # Install git
 RUN apt-get update && \
     apt-get install -y git && \
@@ -21,9 +22,9 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 # Verify git is accessible from Python
 RUN python3 -c "import subprocess; subprocess.run(['git', '--version'], check=True)"
-RUN npm install express cors node-fetch dotenv http https ws http-proxy
-RUN npm i github:openai/openai-realtime-api-beta --save
-RUN npm install react-scripts
+# RUN npm install express cors node-fetch dotenv http https ws http-proxy
+# RUN npm i github:openai/openai-realtime-api-beta --save
+# RUN npm install react-scripts
 
 WORKDIR /src/app
 COPY llm_openai ./llm_openai

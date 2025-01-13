@@ -4,7 +4,7 @@ COPY requirements.txt /src/app
 RUN apt-get update && apt-get install gcc -y && apt-get install g++ -y && apt-get install python3-dev -y && apt-get clean
 RUN pip install --upgrade pip && \
     pip install -r requirements.txt
-RUN python3 -m spacy download en_core_web_md
+# RUN python3 -m spacy download en_core_web_md
 EXPOSE 8501 8080 8000 5678 1234 3000 8081 8502 7681
 COPY genesis-voice ./genesis-voice
 

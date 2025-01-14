@@ -1009,7 +1009,7 @@ class SnowflakeConnector(SnowflakeConnectorBase):
 
                     # Check if record exists
                     check_query = f"""
-                    SELECT COUNT(*) FROM {self.genbot_internal_project_and_schema}.EXT_SERVICE_CONFIG 
+                    SELECT COUNT(*) FROM {self.genbot_internal_project_and_schema}.EXT_SERVICE_CONFIG
                     WHERE ext_service_name = '{service_name}' AND parameter = '{key}'
                     """
                     cursor.execute(check_query)
@@ -1018,21 +1018,21 @@ class SnowflakeConnector(SnowflakeConnectorBase):
                     if exists:
                         # Update existing record
                         update_query = f"""
-                        UPDATE {self.genbot_internal_project_and_schema}.EXT_SERVICE_CONFIG 
+                        UPDATE {self.genbot_internal_project_and_schema}.EXT_SERVICE_CONFIG
                         SET value = '{value}',
                             updated = CURRENT_TIMESTAMP()
-                        WHERE ext_service_name = '{service_name}' 
+                        WHERE ext_service_name = '{service_name}'
                         AND parameter = '{key}'
                         """
                         cursor.execute(update_query)
                     else:
                         # Insert new record
-                        insert_query = f"""
+                        insert_query = dedent(f"""
                         INSERT INTO {self.genbot_internal_project_and_schema}.EXT_SERVICE_CONFIG
-                        (ext_service_name, parameter, value, created, updated)
-                        VALUES ('{service_name}', '{key}', '{value}', 
-                                CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP())
-                        """
+                        (ext_service_name, parameter, value, user, created, updated)
+                        VALUES ('{service_name}', '{key}', '{value}', '{self.user}',
+                        CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP())
+                        """)
                         cursor.execute(insert_query)
 
                 # Commit the changes
@@ -4203,7 +4203,7 @@ def get_status(site):
         cursor = self.connection.cursor()
         cursor.execute(allowed_connections_query)
         allowed_connections = [row[0] for row in cursor.fetchall()]
- 
+
         # First, get the total number of rows to set up the progress bar
         # Format list of connections with proper quoting
         connection_list = ','.join([f"'{x}'" for x in allowed_connections])
@@ -4214,22 +4214,22 @@ def get_status(site):
 
         # Build queries using the formatted connection list
         total_rows_query_openai = f"""
-            SELECT COUNT(*) as total 
-            FROM {table_id} 
-            WHERE embedding IS NOT NULL 
+            SELECT COUNT(*) as total
+            FROM {table_id}
+            WHERE embedding IS NOT NULL
         """
 
         total_rows_query_native = f"""
-            SELECT COUNT(*) as total 
-            FROM {table_id} 
-            WHERE embedding_native IS NOT NULL 
+            SELECT COUNT(*) as total
+            FROM {table_id}
+            WHERE embedding_native IS NOT NULL
         """
 
         missing_native_count = f"""
-            SELECT COUNT(*) as total 
-            FROM {table_id} 
-            WHERE embedding_native IS NULL 
-            AND embedding IS NULL 
+            SELECT COUNT(*) as total
+            FROM {table_id}
+            WHERE embedding_native IS NULL
+            AND embedding IS NULL
         """
 
         cursor = self.connection.cursor()
@@ -4246,9 +4246,9 @@ def get_status(site):
             embedding_column = 'embedding_native'
 
         new_total_rows_query = f"""
-            SELECT COUNT(*) as total 
-            FROM {table_id} 
-            WHERE {embedding_column} IS NOT NULL 
+            SELECT COUNT(*) as total
+            FROM {table_id}
+            WHERE {embedding_column} IS NOT NULL
             and source_name in {connection_list}
             """
         cursor = self.connection.cursor()
@@ -4260,9 +4260,9 @@ def get_status(site):
 
             while True:
                 # Modify the query to include LIMIT and OFFSET
-                query = f"""SELECT qualified_table_name, {embedding_column}, source_name 
-                    FROM {table_id} 
-                    WHERE {embedding_column} IS NOT NULL 
+                query = f"""SELECT qualified_table_name, {embedding_column}, source_name
+                    FROM {table_id}
+                    WHERE {embedding_column} IS NOT NULL
                     AND (source_name IN {connection_list})
                     LIMIT {batch_size} OFFSET {offset}"""
                 #            logger.info('fetch query ',query)

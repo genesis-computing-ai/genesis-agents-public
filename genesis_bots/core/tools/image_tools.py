@@ -104,7 +104,7 @@ def image_generation(
 
         # Create a sanitized filename from the first 50 characters of the prompt
         sanitized_prompt = "".join(e if e.isalnum() else "_" for e in prompt[:50])
-        file_path = f"./downloaded_files/{thread_id}/{sanitized_prompt}.png"
+        file_path = f"./runtime/downloaded_files/{thread_id}/{sanitized_prompt}.png"
         # Save the image to the local downloaded_files folder
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         with open(file_path, "wb") as image_file:
@@ -174,8 +174,8 @@ def image_analysis(
     if openai_file_id is not None and "/" in openai_file_id:
         openai_file_id = openai_file_id.split("/")[-1]
 
-    file_path = f"./downloaded_files/{thread_id}/" + file_name
-    existing_location = f"./downloaded_files/{thread_id}/{openai_file_id}"
+    file_path = f"./runtime/downloaded_files/{thread_id}/" + file_name
+    existing_location = f"./runtime/downloaded_files/{thread_id}/{openai_file_id}"
 
     if os.path.isfile(existing_location) and (file_path != existing_location):
         with open(existing_location, "rb") as source_file:

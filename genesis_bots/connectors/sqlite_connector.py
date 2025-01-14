@@ -4085,7 +4085,7 @@ class SqliteConnector(DatabaseConnector):
 
             # Create a sanitized filename from the first 50 characters of the prompt
             sanitized_prompt = "".join(e if e.isalnum() else "_" for e in prompt[:50])
-            file_path = f"./downloaded_files/{thread_id}/{sanitized_prompt}.png"
+            file_path = f"./runtime/downloaded_files/{thread_id}/{sanitized_prompt}.png"
             # Save the image to the local downloaded_files folder
             os.makedirs(os.path.dirname(file_path), exist_ok=True)
             with open(file_path, "wb") as image_file:
@@ -4137,8 +4137,8 @@ class SqliteConnector(DatabaseConnector):
         if openai_file_id is not None and "/" in openai_file_id:
             openai_file_id = openai_file_id.split("/")[-1]
 
-        file_path = f"./downloaded_files/{thread_id}/" + file_name
-        existing_location = f"./downloaded_files/{thread_id}/{openai_file_id}"
+        file_path = f"./runtime/downloaded_files/{thread_id}/" + file_name
+        existing_location = f"./runtime/downloaded_files/{thread_id}/{openai_file_id}"
 
         if os.path.isfile(existing_location) and (file_path != existing_location):
             with open(existing_location, "rb") as source_file:
@@ -4249,8 +4249,8 @@ class SqliteConnector(DatabaseConnector):
                 if "/" in openai_file_id:
                     openai_file_id = openai_file_id.split("/")[-1]
 
-                file_path = f"./downloaded_files/{thread_id}/" + file_name
-                existing_location = f"./downloaded_files/{thread_id}/{openai_file_id}"
+                file_path = f"./runtime/downloaded_files/{thread_id}/" + file_name
+                existing_location = f"./runtime/downloaded_files/{thread_id}/{openai_file_id}"
 
                 if not os.path.exists(os.path.dirname(file_path)):
                     os.makedirs(os.path.dirname(file_path))
@@ -4280,7 +4280,7 @@ class SqliteConnector(DatabaseConnector):
 
             if file_content is not None:
                 # Ensure the directory exists
-                directory = f"./downloaded_files/{thread_id}"
+                directory = f"./runtime/downloaded_files/{thread_id}"
                 if not os.path.exists(directory):
                     os.makedirs(directory)
 
@@ -4391,7 +4391,7 @@ class SqliteConnector(DatabaseConnector):
             if "/" in file_name:
                 file_name = file_name.split("/")[-1]
 
-            file_path = f"./downloaded_files/{thread_id}/" + file_name
+            file_path = f"./runtime/downloaded_files/{thread_id}/" + file_name
 
             if not os.path.isfile(file_path):
 

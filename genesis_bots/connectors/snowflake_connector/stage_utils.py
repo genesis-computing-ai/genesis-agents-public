@@ -52,8 +52,8 @@ def add_file_to_stage(
                 if "/" in openai_file_id:
                     openai_file_id = openai_file_id.split("/")[-1]
 
-            file_path = f"./downloaded_files/{thread_id}/" + file_name
-            existing_location = f"./downloaded_files/{thread_id}/{openai_file_id}"
+            file_path = f"./runtime/downloaded_files/{thread_id}/" + file_name
+            existing_location = f"./runtime/downloaded_files/{thread_id}/{openai_file_id}"
 
             if not os.path.exists(os.path.dirname(file_path)):
                 os.makedirs(os.path.dirname(file_path))
@@ -83,7 +83,7 @@ def add_file_to_stage(
 
         if file_content is not None:
             # Ensure the directory exists
-            directory = f"./downloaded_files/{thread_id}"
+            directory = f"./runtime/downloaded_files/{thread_id}"
             if not os.path.exists(directory):
                 os.makedirs(directory)
 
@@ -224,7 +224,7 @@ def update_file_in_stage(
         if "/" in file_name:
             file_name = file_name.split("/")[-1]
 
-        file_path = f"./downloaded_files/{thread_id}/" + file_name
+        file_path = f"./runtime/downloaded_files/{thread_id}/" + file_name
 
         if not os.path.isfile(file_path):
 

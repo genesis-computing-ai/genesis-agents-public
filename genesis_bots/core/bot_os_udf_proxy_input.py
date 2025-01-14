@@ -187,8 +187,8 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
             file = json.loads(file)
         files = []
         if file:
-            file_path = f"./downloaded_files/{event.thread_id}/{file['filename']}"
-            os.makedirs(f"./downloaded_files/{event.thread_id}", exist_ok=True)
+            file_path = f"./runtime/downloaded_files/{event.thread_id}/{file['filename']}"
+            os.makedirs(f"./runtime/downloaded_files/{event.thread_id}", exist_ok=True)
             with open(file_path, 'wb') as f:
                 f.write(base64.b64decode(file['content']))
             files.append(file_path)

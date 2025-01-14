@@ -270,7 +270,7 @@ class SlackBotAdapter(BotOsInputAdapter):
             url_private = file_info.get("url_private")
             file_name = file_info.get("name")
             if url_private and file_name:
-                local_path = f"./downloaded_files/{thread_id}/{file_name}"
+                local_path = f"./runtime/downloaded_files/{thread_id}/{file_name}"
                 #  logger.info('... downloading slack file ',file_name,' from ',url_private,' to ',local_path)
                 os.makedirs(os.path.dirname(local_path), exist_ok=True)
                 try:
@@ -712,7 +712,7 @@ class SlackBotAdapter(BotOsInputAdapter):
         contain local path placeholders, and transforms them into actual local paths.
 
         This function searches for specific patterns in the message that represent local file links
-        like 'sandbox:", "./downloaded_files", etc. and converts these links into local file paths
+        like 'sandbox:", "./runtime/downloaded_files", etc. and converts these links into local file paths
         based on the message thread ID.
 
         Args:
@@ -728,22 +728,22 @@ class SlackBotAdapter(BotOsInputAdapter):
         patterns = [
             # typical image path using sandbox:
             (r"\[.*?\]\((sandbox:/mnt/data(?:/downloads)?/.*?)\)",
-                lambda match: match.replace("sandbox:/mnt/data/downloads", f"./downloaded_files/{message_thread_id}").replace("sandbox:/mnt/data", f"./downloaded_files/{message_thread_id}")),
+                lambda match: match.replace("sandbox:/mnt/data/downloads", f"./runtime/downloaded_files/{message_thread_id}").replace("sandbox:/mnt/data", f"./runtime/downloaded_files/{message_thread_id}")),
             # 'task' path
-            (r"\[(.*?)\]\(./downloaded_files/thread_(.*?)/(.*?)\)",
-                lambda match: f"./downloaded_files/thread_{match[1]}/{match[2]}"),
+            (r"\[(.*?)\]\(./runtime/downloaded_files/thread_(.*?)/(.*?)\)",
+                lambda match: f"./runtime/downloaded_files/thread_{match[1]}/{match[2]}"),
             # paths that use /mnt/data
             (r"\[.*?\]\((sandbox:/mnt/data/downloaded_files/.*?)\)",
                 lambda match: match.replace("sandbox:/mnt/data", ".")),
             # 'chart' patterns
             (r"\(sandbox:/mnt/data/(.*?)\)\n2\. \[(.*?)\]",
-                lambda match: f"./downloaded_files/{message_thread_id}/{match}"),
+                lambda match: f"./runtime/downloaded_files/{message_thread_id}/{match}"),
             # when using attachment:
             (r"!\[.*?\]\(attachment://\.(.*?)\)",
                 lambda match: match),
             # using thread id + file ## duplicate??
-            (r"!\[.*?\]\(\./downloaded_files/thread_(.*?)/(.+?)\)",
-                lambda match: f"./downloaded_files/thread_{match[0]}/{match[1]}")
+            (r"!\[.*?\]\(\./runtime/downloaded_files/thread_(.*?)/(.+?)\)",
+                lambda match: f"./runtime/downloaded_files/thread_{match[0]}/{match[1]}")
         ]
 
         # match patterns and apply transformations
@@ -1122,7 +1122,7 @@ class SlackBotAdapter(BotOsInputAdapter):
 
                     msg = re.sub(f"(?i)\(sandbox:/mnt/data/{filename}\)", f"<{{msg_url}}>",
                                  msg)
-                    alt_pattern = re.compile(r"\[(.*?)\]\(\./downloaded_files/thread_(.*?)/(.+?)\)" )
+                    alt_pattern = re.compile(r"\[(.*?)\]\(\./runtime/downloaded_files/thread_(.*?)/(.+?)\)" )
                     msg = re.sub(alt_pattern, f"<{{msg_url}}|\\1>", msg)
 
                     # Catch the pattern with thread ID and replace it with the correct URL
@@ -1264,7 +1264,7 @@ class SlackBotAdapter(BotOsInputAdapter):
         for attachment in attachments:
             if "image_url" in attachment:
                 image_path = attachment["image_url"]
-                if image_path.startswith("./downloaded_files/"):
+                if image_path.startswith("./runtime/downloaded_files/"):
                     files_to_attach.append(image_path)
 
         # Extract file paths from the message and add them to files_in array
@@ -1283,7 +1283,7 @@ class SlackBotAdapter(BotOsInputAdapter):
         pineapple_matches = pineapple_pattern.findall(msg)
         for pineapple_match in pineapple_matches:
             local_pineapple_path = (
-                f"./downloaded_files/thread_{pineapple_match[1]}/{pineapple_match[2]}"
+                f"./runtime/downloaded_files/thread_{pineapple_match[1]}/{pineapple_match[2]}"
             )
             if local_pineapple_path not in files_to_attach:
                 files_to_attach.append(local_pineapple_path)
@@ -1292,7 +1292,7 @@ class SlackBotAdapter(BotOsInputAdapter):
         chart_pattern = re.compile(r"\(sandbox:/mnt/data/(.*?)\)\n2\. \[(.*?)\]")
         chart_matches = chart_pattern.findall(msg)
         for chart_match in chart_matches:
-            local_chart_path = f"./downloaded_files/{chart_match}"
+            local_chart_path = f"./runtime/downloaded_files/{chart_match}"
             if local_chart_path not in files_to_attach:
                 files_to_attach.append(local_chart_path)
 
@@ -1305,11 +1305,11 @@ class SlackBotAdapter(BotOsInputAdapter):
                 files_to_attach.append(local_file_path)
 
         local_pattern = re.compile(
-            r"!\[.*?\]\(\./downloaded_files/thread_(.*?)/(.+?)\)"
+            r"!\[.*?\]\(\./runtime/downloaded_files/thread_(.*?)/(.+?)\)"
         )
         local_pattern_matches = local_pattern.findall(msg)
         for local_match in local_pattern_matches:
-            local_path = f"./downloaded_files/thread_{local_match[0]}/{local_match[1]}"
+            local_path = f"./runtime/downloaded_files/thread_{local_match[0]}/{local_match[1]}"
             if local_path not in files_to_attach:
                 files_to_attach.append(local_path)
 
@@ -1341,7 +1341,7 @@ class SlackBotAdapter(BotOsInputAdapter):
 
             msg = re.sub(f"(?i)\(sandbox:/mnt/data/{filename}\)", f"<{{msg_url}}>", msg)
             alt_pattern = re.compile(
-                r"\[(.*?)\]\(\./downloaded_files/thread_(.*?)/(.+?)\)"
+                r"\[(.*?)\]\(\./runtime/downloaded_files/thread_(.*?)/(.+?)\)"
             )
             msg = re.sub(alt_pattern, f"<{{msg_url}}|\\1>", msg)
             # Catch the pattern with thread ID and replace it with the correct URL
@@ -1388,7 +1388,7 @@ class SlackBotAdapter(BotOsInputAdapter):
             )
             matches = image_pattern.findall(message)
             for match in matches:
-                local_path = match.replace("sandbox:/mnt/data/downloads", f"./downloaded_files/{thread_id}").replace("sandbox:/mnt/data", f"./downloaded_files/{thread_id}")
+                local_path = match.replace("sandbox:/mnt/data/downloads", f"./runtime/downloaded_files/{thread_id}").replace("sandbox:/mnt/data", f"./runtime/downloaded_files/{thread_id}")
 
                 if local_path not in files_in:
                     #      logger.info(f"Pattern 0 found, attaching {local_path}")
@@ -1475,7 +1475,7 @@ class SlackBotAdapter(BotOsInputAdapter):
         )
         matches = image_pattern.findall(message)
         for match in matches:
-            local_path = match.replace("sandbox:/mnt/data/downloads", f"./downloaded_files/{thread_id}").replace("sandbox:/mnt/data", f"./downloaded_files/{thread_id}")
+            local_path = match.replace("sandbox:/mnt/data/downloads", f"./runtime/downloaded_files/{thread_id}").replace("sandbox:/mnt/data", f"./runtime/downloaded_files/{thread_id}")
 
             if local_path not in files_in:
                 #      logger.info(f"Pattern 0 found, attaching {local_path}")

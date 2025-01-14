@@ -731,7 +731,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                 if os.path.isfile(file):
                     # Get the filename from the full path
                     file_name = os.path.basename(file)
-                    target_path = f"./downloaded_files/{thread_id}/" + file_name
+                    target_path = f"./runtime/downloaded_files/{thread_id}/" + file_name
                     if file != target_path:
                     # Ensure the target directory exists
                         os.makedirs(os.path.dirname(target_path), exist_ok=True)

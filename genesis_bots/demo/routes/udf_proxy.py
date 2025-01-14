@@ -248,7 +248,7 @@ def get_metadata():
                 logger.info(f'**** in to out map: {bots_udf_adapter.in_to_out_thread_map}')
                 thread_id_out = bots_udf_adapter.in_to_out_thread_map[thread_id_in]
                 logger.info('****get_metadata, thread_id_out', thread_id_out)
-                file_path = f'./downloaded_files/{thread_id_out}/{file_name}'
+                file_path = f'./runtime/downloaded_files/{thread_id_out}/{file_name}'
                 logger.info('****get_metadata, file_path', file_path)
                 result = {"Success": True, "Data": json.dumps(file_to_bytes(file_path))}
                 logger.info('result: Success len ', len(json.dumps(file_to_bytes(file_path))))
@@ -359,7 +359,7 @@ def get_metadata3():
                 logger.info(f'**** in to out map: {bots_udf_adapter.in_to_out_thread_map}')
                 thread_id_out = bots_udf_adapter.in_to_out_thread_map[thread_id_in]
                 logger.info('****get_metadata, thread_id_out', thread_id_out)
-                file_path = f'./downloaded_files/{thread_id_out}/{file_name}'
+                file_path = f'./runtime/downloaded_files/{thread_id_out}/{file_name}'
                 logger.info('****get_metadata, file_path', file_path)
                 result = {"Success": True, "Data": json.dumps(file_to_bytes(file_path))}
                 logger.info('result: Success len ', len(json.dumps(file_to_bytes(file_path))))

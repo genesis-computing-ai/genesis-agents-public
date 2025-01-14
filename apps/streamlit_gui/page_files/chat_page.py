@@ -29,24 +29,24 @@ def locate_url_markup(txt, replace_with=None):
     """
     Locate and optionally replace URL or pseudo-URL markup in a given text.
 
-    This function searches for patterns in the text that match the url or image markdown format 
-    '[description](url)' or '![description](url)]', where 'url' can be an HTTP, HTTPS, file, or 'sandbox'/'artifact' pseudo-URLs 
+    This function searches for patterns in the text that match the url or image markdown format
+    '[description](url)' or '![description](url)]', where 'url' can be an HTTP, HTTPS, file, or 'sandbox'/'artifact' pseudo-URLs
     (used for special-case handling of file rendering).
-    It returns a list of triplets containing the description, URL, and the 
-    original markup. Optionally, it can replace the found patterns with a specified 
+    It returns a list of triplets containing the description, URL, and the
+    original markup. Optionally, it can replace the found patterns with a specified
     replacement string.
 
     Args:
         txt (str): The input text containing potential URL markup.
-        replace_with (str, optional): A string to replace the found URL markup. 
+        replace_with (str, optional): A string to replace the found URL markup.
                                       Defaults to None, which means skip replacement.
 
     Returns:
-        tuple: A 3-tuple containing 
+        tuple: A 3-tuple containing
             (a) a list of triplets and the modified text.
                 The triplets are in the form (description, URL, original (full) markup).
             (b) the input text modified by replacing with 'replace_with' is provided.
-            (c) a boolean flag 'has_partial' indicating if the end of the text 
+            (c) a boolean flag 'has_partial' indicating if the end of the text
                 *may* potentially look like a prefix of an incomplete URL markup
     """
     pattern = r'(!?\[([^\]]+)\]\(((http[s]?|file|sandbox|artifact):/+[^\)]+)\))'  # regex for strings of the form '[description](url)' and '![description](url)'
@@ -242,7 +242,7 @@ def chat_page():
                     text_format = subtype
 
             if url_parts.scheme == 'sandbox':
-                # special handling for the 'sandbox' URLs which are used for our internal app storage (./downloaded_files)
+                # special handling for the 'sandbox' URLs which are used for our internal app storage (./runtime/downloaded_files)
                 try:
                     file_content64 = get_metadata2('|'.join(('sandbox',bot_id, thread_id, file_path.name)))
                 except:
@@ -273,7 +273,7 @@ def chat_page():
                         #    image_format = csubtype
                         if ctype == "text" and csubtype in known_txt_types:
                             image_format = csubtype
-                            
+
             # If format not determined from extension or mime type, try to detect from content
             if file_content64 and not image_format and not text_format:
                 try:
@@ -420,8 +420,8 @@ def chat_page():
                       fast_mode_override=False,
                       file=None, # or provide a dict {'filename' : file_name}
                       ):
-        """ 
-        Submits a prompt into the current chat session 
+        """
+        Submits a prompt into the current chat session
         """
 
         current_thread_id = st.session_state["current_thread_id"]
@@ -566,7 +566,7 @@ def chat_page():
                         # set initial bot message, if provided
                         initial_bot_message = initial_chat_session_data.get('initial_message')
                     st.session_state.initial_chat_session_data = None # This effectively marks this initial session data as 'visited' (don't inspect again)
-                if not initial_bot_name and available_bots:                    
+                if not initial_bot_name and available_bots:
                     initial_bot_name = bot_names[0]
                 assert initial_bot_name
 
@@ -795,13 +795,13 @@ def chat_page():
                         # Skip intro prompts
                         if message.is_intro_prompt:
                             continue
-                        
+
                         # Skip the last message if there's a pending request OR if it's a duplicate intro message
-                        if (i == len(messages)-1 and 
+                        if (i == len(messages)-1 and
                             (selected_thread_id in st.session_state.session_message_uuids or
                              (i > 0 and message.content == messages[i-1].content))):  # Check for duplicate content
                             continue
-                        
+
                         if message.role == "assistant" and bot_avatar_image_url is not None:
                             with st.chat_message(message.role, avatar=bot_avatar_image_url):
                                 st.markdown(message.content, unsafe_allow_html=True)
@@ -836,7 +836,7 @@ def chat_page():
       #          email_popup()
 
                 # Check if 'popup' exists in session state, if not, initialize it to False
- 
+
         except Exception as e:
             st.error(f"Error running Genesis GUI: {e}")
     # Add this at the end of the chat_page function to update the sidebar

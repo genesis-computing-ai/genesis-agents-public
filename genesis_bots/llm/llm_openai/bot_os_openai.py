@@ -350,7 +350,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                seen_names = set()
                duplicate_names = set()
                unique_tools = []
-               
+
                for tool in my_tools:
                    if 'function' in tool:
                        name = tool['function']['name']
@@ -361,10 +361,10 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                            duplicate_names.add(name)
                    else:
                        unique_tools.append(tool)
-                       
+
                if duplicate_names:
                    logger.info(f"Found duplicate tool names, combining them: {', '.join(duplicate_names)}")
-                   
+
                my_tools = unique_tools
              #  logger.debug(f"Number of unique tools after deduplication: {len(my_tools)}")
 
@@ -495,8 +495,8 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
           # Read each file from the stage and save it to a local location
           try:
               # Assuming 'self' has an attribute 'snowflake_connector' which is an instance of the SnowflakeConnector class
-            new_file_location = f"./downloaded_files/{for_bot}_BOT_DOCS/{file}"
-            os.makedirs(f"./downloaded_files/{for_bot}_BOT_DOCS", exist_ok=True)
+            new_file_location = f"./runtime/downloaded_files/{for_bot}_BOT_DOCS/{file}"
+            os.makedirs(f"./runtime/downloaded_files/{for_bot}_BOT_DOCS", exist_ok=True)
             contents = self.log_db_connector.read_file_from_stage(
                   database=self.internal_db_name,
                   schema=self.internal_schema_name,
@@ -592,10 +592,10 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
          original_file_location = f
          file_name = original_file_location.split('/')[-1]
-         new_file_location = f"./downloaded_files/{thread_id}/{file_name}"
-         os.makedirs(f"./downloaded_files/{thread_id}", exist_ok=True)
+         new_file_location = f"./runtime/downloaded_files/{thread_id}/{file_name}"
+         os.makedirs(f"./runtime/downloaded_files/{thread_id}", exist_ok=True)
          with open(original_file_location, 'rb') as source_file:
-             with open(f"./downloaded_files/{thread_id}/{file_name}", 'wb') as dest_file:
+             with open(f"./runtime/downloaded_files/{thread_id}/{file_name}", 'wb') as dest_file:
                  dest_file.write(source_file.read())
 
     #     logger.info("loading files")
@@ -605,7 +605,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
          file_ids.append(file.id)
 
          # make a copy based on the new openai file.id as well in case the bot needs it by this reference later
-         new_file_location_file_id = f"./downloaded_files/{thread_id}/{file.id}"
+         new_file_location_file_id = f"./runtime/downloaded_files/{thread_id}/{file.id}"
          with open(original_file_location, 'rb') as source_file:
              with open(new_file_location_file_id, 'wb') as dest_file:
                  dest_file.write(source_file.read())
@@ -1509,7 +1509,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
      #    except Exception as e:
      #        logger.info(f"{self.bot_name} open_ai download_file file_id: {file_id} ERROR couldn't get file length: {e}")
 
-         local_file_path = os.path.join(f"./downloaded_files/{thread_id}/", os.path.basename(file_info.filename))
+         local_file_path = os.path.join(f"./runtime/downloaded_files/{thread_id}/", os.path.basename(file_info.filename))
       #   logger.info(f"{self.bot_name} open_ai download_file file_id: {file_id} localpath: {local_file_path}")
 
          # Ensure the directory exists
@@ -1523,7 +1523,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
          # Save a copy of the file with the file_id as the file name
          try:
-            file_id_based_path = f"./downloaded_files/{thread_id}/{file_id}"
+            file_id_based_path = f"./runtime/downloaded_files/{thread_id}/{file_id}"
             file_contents.write_to_file(file_id_based_path)
          except Exception as e:
             logger.info(f"{self.bot_name} open_ai download_file - error - couldnt write to {file_id_based_path} err: {e}")
@@ -1930,7 +1930,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
                            try:
                               file_id = func_args_dict['openai_file_id'].split('/')[-1]
-                              existing_location = f"./downloaded_files/{thread_id}/{file_id}"
+                              existing_location = f"./runtime/downloaded_files/{thread_id}/{file_id}"
                               if not os.path.exists(existing_location):
                                  # If the file does not exist at the existing location, download it from OpenAI
                                  try:

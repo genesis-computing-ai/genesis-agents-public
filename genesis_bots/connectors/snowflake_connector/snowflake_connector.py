@@ -16,7 +16,7 @@ import functools
 
 from datetime import datetime
 
-from llm_openai.openai_utils import get_openai_client
+from genesis_bots.llm.llm_openai.openai_utils import get_openai_client
 
 from .snowflake_connector_base import SnowflakeConnectorBase
 from ..connector_helpers import llm_keys_and_types_struct
@@ -25,11 +25,11 @@ from .sematic_model_utils import *
 from .stage_utils import add_file_to_stage, read_file_from_stage, update_file_in_stage, delete_file_from_stage, list_stage_contents, test_stage_functions
 from .ensure_table_exists import ensure_table_exists, one_time_db_fixes, get_process_info, get_processes_list
 
-from google_sheets.g_sheets import (
+from genesis_bots.google_sheets.g_sheets import (
     create_google_sheet,
 )
 
-from core.bot_os_tools2 import (
+from genesis_bots.core.bot_os_tools2 import (
     BOT_ID_IMPLICIT_FROM_CONTEXT,
     THREAD_ID_IMPLICIT_FROM_CONTEXT,
     ToolFuncGroup,
@@ -37,7 +37,7 @@ from core.bot_os_tools2 import (
     gc_tool,
 )
 
-from core.bot_os_llm import BotLlmEngineEnum
+from genesis_bots.core.bot_os_llm import BotLlmEngineEnum
 
 # from database_connector import DatabaseConnector
 from threading import Lock
@@ -51,7 +51,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.backends import default_backend
 import jwt
 
-from core.logging_config import logger
+from genesis_bots.core.logging_config import logger
 
 def dict_list_to_markdown_table(data):
     """

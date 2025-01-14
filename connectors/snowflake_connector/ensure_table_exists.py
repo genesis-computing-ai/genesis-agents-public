@@ -31,6 +31,18 @@ def one_time_db_fixes(self):
     except Exception as e:
         pass
 
+    try:
+        remove_null_user_ddl = f"""
+            DELETE FROM {self.schema}.EXT_SERVICE_CONFIG
+            WHERE user IS NULL;
+        """
+        cursor = self.client.cursor()
+        cursor.execute(remove_null_user_ddl)
+        self.client.commit()
+        logger.info(f"Remove rows with no user EXT_SERVICE_CONFIG table.")
+    except Exception as e:
+        pass
+
     # Remove BOT_FUNCTIONS is it exists
     bot_functions_table_check_query = f"SHOW TABLES LIKE 'BOT_FUNCTIONS' IN SCHEMA {self.schema};"
     cursor = self.client.cursor()
@@ -53,7 +65,7 @@ def one_time_db_fixes(self):
 
     # Add manage_notebook_tool to existing bots
     # JL REMOVED 1-9-2025, not needed
-    
+
     bots_table_check_query = f"SHOW TABLES LIKE 'BOT_SERVICING' IN SCHEMA {self.schema};"
     cursor = self.client.cursor()
     cursor.execute(bots_table_check_query)
@@ -69,9 +81,9 @@ def one_time_db_fixes(self):
             if tools:
                 tools_list = json.loads(tools)
                 update = False
-           #     if 'notebook_manager_tools' not in tools_list:
-           #         tools_list.append('notebook_manager_tools')
-           #         update = True
+                #     if 'notebook_manager_tools' not in tools_list:
+                #         tools_list.append('notebook_manager_tools')
+                #         update = True
 
                 if "autonomous_tools" in tools_list:
                     print("Found autonomous_tools in tools list")
@@ -111,7 +123,7 @@ def one_time_db_fixes(self):
 
                     ### If database_tools, remove it and add snowflake_tools and database_tools
 
-            #else:
+            # else:
             #    update_query = f"""
             #    UPDATE {self.schema}.BOT_SERVICING
             #    SET AVAILABLE_TOOLS = '[notebook_manager_tools]'
@@ -120,7 +132,7 @@ def one_time_db_fixes(self):
             #    cursor.execute(update_query, (bot_name,))
 
         self.client.commit()
-       # logger.info("Added notebook_manager_tools to all existing bots.")
+    # logger.info("Added notebook_manager_tools to all existing bots.")
     else:
         logger.info("BOTS table does not exist. Skipping tool addition.")
 
@@ -990,7 +1002,7 @@ def ensure_table_exists(self):
             # update_query = f"""
             # UPDATE {self.bot_servicing_table_name}
             # SET AVAILABLE_TOOLS = REPLACE(REPLACE(AVAILABLE_TOOLS, 'vision_chat_analysis', 'image_tools'),)
-            # WHERE AVAILABLE_TOOLS LIKE '%vision_chat_analysis%' 
+            # WHERE AVAILABLE_TOOLS LIKE '%vision_chat_analysis%'
             # """
             # cursor.execute(update_query)
             # self.client.commit()

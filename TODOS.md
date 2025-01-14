@@ -2,6 +2,10 @@
 GENESIS BOT TODOS
 =================
 
+
+restructure:
+x tool calling with cortex (mrs eliza on cortex?)
+
 for direct non-assistant mode:
 make adding/removing tools on the fly work
 x make changing instructions work on the fly 
@@ -19,6 +23,8 @@ JD-json file with credentials needs to be created properly?
 JD-comments on gsheets, bot needs to know what cell they are on
 
 prerelease:
+add baseball and f1 connections by default to eve 
+add preharvest for baseball and f1
 x check that adding a tool via streamlit doesnt mess up the thread with that bot (e.g. data connector tools)
 make sqlite sample data load from csv files vs binary
 x speed up startup

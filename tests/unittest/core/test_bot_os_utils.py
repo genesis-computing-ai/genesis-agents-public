@@ -1,6 +1,6 @@
 # tests/unittests/core/test_bot_os_util.py
 import unittest
-from core.bot_os_utils import *
+from genesis_bots.core.bot_os_utils import *
 
 class TestTupleize(unittest.TestCase):
 

@@ -1,1 +1,0 @@
-from .genesis_app import genesis_app

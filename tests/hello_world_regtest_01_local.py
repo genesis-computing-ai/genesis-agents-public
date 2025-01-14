@@ -7,7 +7,7 @@ from cryptography.hazmat.primitives import serialization
 import requests, json, sys
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'core')))
-from logging_config import logger
+from ..genesis_bots.core.logging_config import logger
 # from streamlit_gui.utils import submit_to_udf_proxy, get_response_from_udf_proxy
 
 # import uuid

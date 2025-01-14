@@ -1,0 +1,93 @@
+import streamlit as st
+import pandas as pd
+from apps.streamlit_gui.utils import ( get_metadata)
+import json
+
+def db_harvester():
+    harvest_control = get_metadata("harvest_control")
+    harvest_summary = get_metadata("harvest_summary")
+
+    if harvest_control == []:
+        harvest_control = None
+    if harvest_summary == []:
+        harvest_summary = None
+
+    # Initialize empty DataFrames with appropriate columns if no data is present
+    if harvest_control:
+        harvest_control_df = pd.DataFrame(harvest_control).rename(columns=str.lower)
+        harvest_control_df["schema_exclusions"] = harvest_control_df[
+            "schema_exclusions"
+        ].apply(lambda x: ["None"] if not x else x)
+        harvest_control_df["schema_inclusions"] = harvest_control_df[
+            "schema_inclusions"
+        ].apply(lambda x: ["All"] if not x else x)
+    else:
+        harvest_control_df = pd.DataFrame(
+            columns=[
+                "source_name",
+                "database_name",
+                "schema_name",
+                "schema_exclusions",
+                "schema_inclusions",
+                "status",
+                "refresh_interval",
+                "initial_crawl_complete",
+            ]
+        )
+
+    column_order = [
+        "source_name",
+        "database_name",
+        "schema_name",
+        "role_used_for_crawl",
+        "last_change_ts",
+        "objects_crawled",
+    ]
+
+    if harvest_summary:
+        harvest_summary_df = pd.DataFrame(harvest_summary).rename(columns=str.lower)
+        # Reordering columns instead of sorting rows
+        harvest_summary_df = harvest_summary_df[column_order]
+        # Calculate the sum of objects_crawled using the DataFrame
+        total_objects_crawled = harvest_summary_df["objects_crawled"].sum()
+        # Find the most recent change timestamp using the DataFrame
+        most_recent_change_str = str(harvest_summary_df["last_change_ts"].max()).split(
+            "."
+        )[0]
+    else:
+        harvest_summary_df = pd.DataFrame(columns=column_order)
+        total_objects_crawled = 0
+        most_recent_change_str = "N/A"
+
+    harvester_status = "Active" if harvest_control and harvest_summary else "Inactive"
+    # Display metrics at the top
+    col0, col1, col2 = st.columns(3)
+    with col0:
+        st.metric(label="Harvester Status", value=harvester_status)
+    with col1:
+        st.metric(label="Total Objects Crawled", value=total_objects_crawled)
+    with col2:
+        st.metric(label="Most Recent Change", value=most_recent_change_str)
+
+    st.subheader("Sources and Databases being Harvested")
+    st.markdown(
+        "Note: It may take 2-5 minutes for newly-granted data to appear here, and 5-10 minutes to be available to the bots"
+    )
+
+    # Convert JSON strings in 'schema_inclusions' to Python lists, handling nulls and non-list values
+    if not harvest_control_df.empty:
+        harvest_control_df["schema_inclusions"] = harvest_control_df[
+            "schema_inclusions"
+        ].apply(
+            lambda x: (
+                json.loads(x) if isinstance(x, str) else (["All"] if x is None else x)
+            )
+        )
+        # Display the DataFrame in Streamlit
+        st.dataframe(harvest_control_df, use_container_width=True)
+
+    st.subheader("Database and Schema Harvest Status")
+    if not harvest_summary_df.empty:
+        st.dataframe(harvest_summary_df, use_container_width=True, height=300)
+    else:
+        st.write("No data available for Database and Schema Harvest Status.")

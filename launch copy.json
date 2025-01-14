@@ -1,0 +1,334 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+
+        {
+            "name": "Python: Sqlite",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/api/demo_local_api_02.py",
+            "console": "integratedTerminal",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}",
+                "OPENAI_API_KEY": "sk-proj-QHUPVPK4klSJb2Q9Xq4RT3BlbkFJqorYSW6AfuxPanFO1Smc",
+                "GENESIS_INTERNAL_DB_SCHEMA": "IGNORED.genesis",
+                "SQLITE_OVERRIDE": "true",
+                "RUNNER_ID": "snowflake-1",
+                "BOT_OS_DEFAULT_LLM_ENGINE": "openai",
+                "OPENAI_USE_ASSISTANTS": "false",
+
+            },
+            "justMyCode": true
+        },
+{
+    "name": "Python: Run demo_remote_mapping_reqs.py",
+    "type": "python",
+    "request": "launch",
+    "program": "${workspaceFolder}/api/demo_remote_mapping_reqs.py",
+    "console": "integratedTerminal",
+    "env": {
+        "PYTHONPATH": "${workspaceFolder}",
+        "SNOWFLAKE_ACCOUNT_OVERRIDE": "eqb52188",
+        "SNOWFLAKE_USER_OVERRIDE": "JL_LOCAL_RUNNER",
+        "SNOWFLAKE_PASSWORD_OVERRIDE": "NGZXZqSfHm@JLN62je6363",
+        "SNOWFLAKE_DATABASE_OVERRIDE": "GENESIS_TEST",
+        "SNOWFLAKE_WAREHOUSE_OVERRIDE": "XSMALL",
+        "SNOWFLAKE_ROLE_OVERRIDE": "ACCOUNTADMIN",
+        "GENESIS_INTERNAL_DB_SCHEMA": "GENESIS_TEST.GENESIS_JL",
+        "GENESIS_SOURCE": "Snowflake",
+        "RUNNER_ID": "snowflake-1",
+        "GIT_PATH": "./bot_git",
+        "LANGCHAIN_TRACING_V2": "true",
+        "LANGCHAIN_ENDPOINT": "https://api.smith.langchain.com",
+        "LANGCHAIN_API_KEY": "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",
+        "LANGCHAIN_PROJECT": "gxs-flexicard",
+        "LOG_LEVEL": "ERROR",
+        "SQLITE_OVERRIDE": "true",
+        "OPENAI_O1_OVERRIDE_MODEL": "o1-preview",
+        "OPENAI_API_KEY": "sk-proj-QHUPVPK4klSJb2Q9Xq4RT3BlbkFJqorYSW6AfuxPanFO1Smc",
+        "NGROK_AUTH_TOKEN": "2ce4bWGvzt5lBCDn6c2WsymnVSr_3m7QssHXhUHLi1BVCguRN"
+    },
+    "justMyCode": true
+},
+
+        {
+            "name": "Python: Flask",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/demo/bot_os_multibot_1.py",
+            "env": {
+                "FLASK_APP": "./demo/bot_os_multibot_1.py",
+                "FLASK_DEBUG": "0",
+                "SNOWFLAKE_ACCOUNT_OVERRIDE": "eqb52188",
+                "SNOWFLAKE_USER_OVERRIDE": "JL_LOCAL_RUNNER",
+                "SNOWFLAKE_PASSWORD_OVERRIDE": "NGZXZqSfHm@JLN62je6363",
+                "SNOWFLAKE_DATABASE_OVERRIDE": "GENESIS_TEST",
+                "SNOWFLAKE_WAREHOUSE_OVERRIDE": "XSMALL",
+                "SNOWFLAKE_ROLE_OVERRIDE": "ACCOUNTADMIN",
+                "SQLITE_OVERRIDE": "true",
+                "GENESIS_INTERNAL_DB_SCHEMA": "GENESIS_TEST.GENESIS_JL",
+                "AUTO_HARVEST": "FALSE",
+                "CORTEX_OFF": "false",
+                "USE_KNOWLEDGE": "TRUE",
+                "GENESIS_LOCAL_RUNNER": "TRUE",
+                "OPENAI_MODEL_NAME": "gpt-4o",
+                "OPENAI_MODEL_SUPERVISOR": "gpt-4o",
+                "OPENAI_O1_OVERRIDE_MODEL": "gpt-4o",
+                "O1_OVERRIDE_BOT": "",
+                "CORTEX_MODEL": "llama3.1-405b",
+                "CORTEX_FAST_MODEL_NAME": "llama3.1-70b",
+                "RUNNER_ID": "snowflake-1",
+                "NGROK_AUTH_TOKEN": "2ce4bWGvzt5lBCDn6c2WsymnVSr_3m7QssHXhUHLi1BVCguRN",
+                "PYTHONPATH": "${env:PYTHONPATH}:~/bot_os",
+                "SHOW_COST": "true",
+                "TASK_TEST_MODE": "false",
+                "TEST_MODE": "false",
+                "TEST_BOT": "ALL",
+                "GIT_PATH": "./bot_git",
+                "OPENAI_USE_ASSISTANTS": "false",
+                "OPENAI_API_KEY": "sk-proj-QHUPVPK4klSJb2Q9Xq4RT3BlbkFJqorYSW6AfuxPanFO1Smc",
+                "BOT_OS_DEFAULT_LLM_ENGINE": 
+            },
+            "args": [
+                "run",
+                "--no-debugger",
+                "--no-reload",
+                "--port", "8080"
+            ],
+            "jinja": true,
+            "justMyCode": true,
+        },
+        {
+            "name": "Python: RunAndDone",
+            "type": "python",
+            "request": "launch",
+            "program": "./demo/bot_os_run_and_done.py",
+            "env": {
+                "SNOWFLAKE_ACCOUNT_OVERRIDE": "eqb52188",
+                "SNOWFLAKE_USER_OVERRIDE": "JL_LOCAL_RUNNER",
+                "SNOWFLAKE_PASSWORD_OVERRIDE": "NGZXZqSfHm@JLN62je6363",
+                "SNOWFLAKE_DATABASE_OVERRIDE": "GENESIS_TEST",
+                "SNOWFLAKE_WAREHOUSE_OVERRIDE": "XSMALL",
+                "SNOWFLAKE_ROLE_OVERRIDE": "ACCOUNTADMIN",
+                "GENESIS_SOURCE": "Snowflake",
+                "GENESIS_INTERNAL_DB_SCHEMA": "GENESIS_TEST.GENESIS_JL",
+                "AUTO_HARVEST": "FALSE",
+                "CORTEX_OFF": "false",
+                "USE_KNOWLEDGE": "TRUE",
+                "GENESIS_LOCAL_RUNNER": "TRUE",
+                "OPENAI_MODEL_NAME": "gpt-4o-2024-11-20",
+                "OPENAI_MODEL_SUPERVISOR": "gpt-4o-2024-08-06",
+                "OPENAI_O1_OVERRIDE_MODEL": "o1-preview",
+                "O1_OVERRIDE_BOT": "",
+                "CORTEX_MODEL": "llama3.1-405b",
+                "CORTEX_FAST_MODEL_NAME": "llama3.1-70b",
+                "RUNNER_ID": "snowflake-1",
+                "NGROK_AUTH_TOKEN": "2ce4bWGvzt5lBCDn6c2WsymnVSr_3m7QssHXhUHLi1BVCguRN",
+                "PYTHONPATH": "${env:PYTHONPATH}:~/bot_os",
+                "SHOW_COST": "true",
+                "TASK_TEST_MODE": "false",
+                "TEST_MODE": "true",
+                "TEST_BOT": "ALL",
+                "GIT_PATH": "./bot_git",
+                "LOG_LEVEL": "ERROR"
+            },
+            "args": [
+                "run",
+                "--no-debugger",
+                "--no-reload",
+                "--port", "8080"
+            ],
+            "jinja": true,
+            "justMyCode": true,
+        },
+            {
+                "name": "Python: Harvester",
+                "type": "python",
+                "request": "launch",
+                "module": "flask",
+                "env": {
+                    "FLASK_APP": "./schema_explorer/standalone_harvester.py",
+                    "FLASK_DEBUG": "0",
+                    "SNOWFLAKE_ACCOUNT_OVERRIDE": "eqb52188",
+                    "SNOWFLAKE_USER_OVERRIDE": "JL_LOCAL_RUNNER",
+                    "SNOWFLAKE_PASSWORD_OVERRIDE": "NGZXZqSfHm@JLN62je6363",
+                    "SNOWFLAKE_DATABASE_OVERRIDE": "GENESIS_TEST",
+                    "SNOWFLAKE_WAREHOUSE_OVERRIDE": "XSMALL",
+                    "SNOWFLAKE_ROLE_OVERRIDE": "ACCOUNTADMIN",
+                    "GENESIS_SOURCE": "Snowflake",
+                    "GENESIS_INTERNAL_DB_SCHEMA": "GENESIS_TEST.GENESIS_JL",
+                    "AUTO_HARVEST": "FALSE",
+                    "USE_KNOWLEDGE": "TRUE",
+                    "GENESIS_LOCAL_RUNNER": "TRUE",
+                    "OPENAI_MODEL_NAME": "gpt-4o",
+                    "OPENAI_MODEL_SUPERVISOR": "gpt-4o",
+                    "OPENAI_O1_OVERRIDE_MODEL": "o1-preview",
+                    "O1_OVERRIDE_BOT": "",
+                    "CORTEX_MODEL": "llama3.1-405b",
+                    "CORTEX_FAST_MODEL_NAME": "llama3.1-70b",
+                    "CORTEX_OFF": "false",
+                    "RUNNER_ID": "snowflake-1",
+                    "NGROK_AUTH_TOKEN": "2ce4bWGvzt5lBCDn6c2WsymnVSr_3m7QssHXhUHLi1BVCguRN",
+                    "PYTHONPATH": "${env:PYTHONPATH}:~/bot_os",
+                    "HARVEST_TEST": "false",
+                    "HARVEST_NO_WAIT": "true",
+                    "SQLITE_OVERRIDE": "false",
+                    },
+                    "args": [
+                        "run",
+                        "--no-debugger",
+                        "--no-reload",
+                        "--port", "8080"
+                    ],
+                    "jinja": true,
+                    "justMyCode": true
+                },
+        {
+            "name": "Python: TaskServer",
+            "type": "python",
+            "request": "launch",
+            "module": "flask",
+            "env": {
+                "FLASK_APP": "./demo/bot_os_task_server.py",
+                "FLASK_DEBUG": "0",
+                "SNOWFLAKE_ACCOUNT_OVERRIDE": "eqb52188",
+                "SNOWFLAKE_USER_OVERRIDE": "JL_LOCAL_RUNNER",
+                "SNOWFLAKE_PASSWORD_OVERRIDE": "NGZXZqSfHm@JLN62je6363",
+                "SNOWFLAKE_DATABASE_OVERRIDE": "GENESIS_TEST",
+                "SNOWFLAKE_WAREHOUSE_OVERRIDE": "XSMALL",
+                "SNOWFLAKE_ROLE_OVERRIDE": "ACCOUNTADMIN",
+                "GENESIS_SOURCE": "Snowflake",
+                "GENESIS_INTERNAL_DB_SCHEMA": "GENESIS_TEST.GENESIS_JL",
+                "AUTO_HARVEST": "FALSE",
+                "USE_KNOWLEDGE": "TRUE",
+                "GENESIS_LOCAL_RUNNER": "TRUE",
+                "OPENAI_MODEL_NAME": "gpt-4o-2024-08-06",
+                "CORTEX_OFF": "false",
+                "OPENAI_MODEL_SUPERVISOR": "gpt-4o-2024-08-06",
+                "OPENAI_O1_OVERRIDE_MODEL": "o1-preview",
+                "O1_OVERRIDE_BOT": "",
+                "CORTEX_MODEL": "llama3.1-405b",
+                "CORTEX_FAST_MODEL_NAME": "llama3.1-70b",
+                "RUNNER_ID": "snowflake-1",
+                "NGROK_AUTH_TOKEN": "2ce4bWGvzt5lBCDn6c2WsymnVSr_3m7QssHXhUHLi1BVCguRN",
+                "PYTHONPATH": "${env:PYTHONPATH}:~/bot_os",
+                "SHOW_COST": "true",
+                "TEST_TASK_MODE": "false"
+                },
+            "args": [
+                "run",
+                "--no-debugger",
+                "--no-reload",
+                "--port", "8080"
+            ],
+            "jinja": true,
+            "justMyCode": true
+        },
+{
+        "name": "Python: KnowledgeServer",
+        "type": "python",
+        "request": "launch",
+        "program": "./knowledge/bot_os_knowledge.py",
+        "env": {
+            "FLASK_APP": "./knowledge/bot_os_knowledge.py",
+            "FLASK_DEBUG": "0",
+            "SNOWFLAKE_ACCOUNT_OVERRIDE": "eqb52188",
+            "SNOWFLAKE_USER_OVERRIDE": "JL_LOCAL_RUNNER",
+            "SNOWFLAKE_PASSWORD_OVERRIDE": "NGZXZqSfHm@JLN62je6363",
+            "SNOWFLAKE_DATABASE_OVERRIDE": "GENESIS_TEST",
+            "SNOWFLAKE_WAREHOUSE_OVERRIDE": "XSMALL",
+            "SNOWFLAKE_ROLE_OVERRIDE": "ACCOUNTADMIN",
+            "GENESIS_SOURCE": "Snowflake",
+            "GENESIS_INTERNAL_DB_SCHEMA": "GENESIS_TEST.GENESIS_JL",
+            "AUTO_HARVEST": "FALSE",
+            "USE_KNOWLEDGE": "TRUE",
+            "GENESIS_LOCAL_RUNNER": "TRUE",
+            "OPENAI_MODEL_NAME": "gpt-4o-2024-08-06",
+            "OPENAI_MODEL_SUPERVISOR": "gpt-4o-2024-08-06",
+            "OPENAI_O1_OVERRIDE_MODEL": "o1-preview",
+            "O1_OVERRIDE_BOT": "",
+            "CORTEX_MODEL": "llama3.1-405b",
+            "CORTEX_OFF": "false",
+            "CORTEX_FAST_MODEL_NAME": "llama3.1-70b",
+            "RUNNER_ID": "snowflake-1",
+            "NGROK_AUTH_TOKEN": "2ce4bWGvzt5lBCDn6c2WsymnVSr_3m7QssHXhUHLi1BVCguRN",
+            "PYTHONPATH": "${env:PYTHONPATH}:~/bot_os",
+            "SHOW_COST": "true",
+            "TEST_TASK_MODE": "false"
+            },
+        "args": [
+            "run",
+            "--no-debugger",
+            "--no-reload",
+            "--port", "8080"
+        ],
+        "jinja": true,
+        "justMyCode": true
+    },
+
+        {
+            "name": "Streamlit: GENESIS_BOTS_ALPHA",
+            "type": "python",
+            "request": "launch",
+            "module": "streamlit",
+            "args": [
+                "run",
+                "streamlit_gui/Genesis.py",
+                "--server.port",
+                "8501"
+            ],
+            // "env": {
+            //     "GENESIS_INTERNAL_DB_SCHEMA": "YOUR_DB_SCHEMA_HERE"
+            // },
+            "jinja": true,
+            "justMyCode": true
+        },
+
+        {
+            "name": "Streamlit: DataCube",
+            "type": "python",
+            "request": "launch",
+            "module": "streamlit",
+            "args": [
+                "run",
+                "streamlit_gui/streamlit_show_datacube.py",
+                "--server.port",
+                "8501"
+            ],
+            // "env": {
+            //     "GENESIS_INTERNAL_DB_SCHEMA": "YOUR_DB_SCHEMA_HERE"
+            // },
+            "jinja": true,
+            "justMyCode": true
+        },
+        {
+            "name": "Python: Remote Attach",
+            "type": "python",
+            "request": "attach",
+            "connect": {
+              "host": "ogaaoakz-dshrnxx-genesis-dev-consumer.snowflakecomputing.app",
+              "port": 5678
+            },
+            "pathMappings": [
+              {
+                "localRoot": "${workspaceFolder}",
+                "remoteRoot": "/src/app"
+              }
+            ]
+        },
+        {
+            "name": "Python: Current File with Genesis",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/bot_os:${workspaceFolder}/src/app:${workspaceFolder}"
+            },
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+    ]
+}

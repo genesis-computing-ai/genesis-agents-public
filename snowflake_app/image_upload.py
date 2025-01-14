@@ -4,7 +4,7 @@ import io
 import os
 import sys
 import base64
-from core.logging_config import logger
+from ..genesis_bots.core.logging_config import logger
 
 # simple script to upload image files to a table
 
@@ -12,7 +12,7 @@ from core.logging_config import logger
 conn = snowflake.connector.connect(
     user=os.getenv('SNOWFLAKE_USER_OVERRIDE',None),
     password=os.getenv('SNOWFLAKE_PASSWORD_OVERRIDE', None),
-    account=os.getenv('SNOWFLAKE_ACCOUNT_OVERRIDE',None), 
+    account=os.getenv('SNOWFLAKE_ACCOUNT_OVERRIDE',None),
     database=os.getenv('SNOWFLAKE_DATABASE_OVERRIDE', None),
     schema=os.getenv('SNOWFLAKE_SCHEMA_OVERRIDE', 'PUBLIC'),
     warehouse=os.getenv('SNOWFLAKE_WAREHOUSE_OVERRIDE', None)

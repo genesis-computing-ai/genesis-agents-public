@@ -29,6 +29,7 @@ $$
             GENESIS_INTERNAL_DB_SCHEMA: {{app_db_sch}}
             GENESIS_SOURCE: Snowflake
             SNOWFLAKE_SECURE: FALSE
+            LAUNCH_GUI: FALSE
             OPENAI_HARVESTER_EMBEDDING_MODEL: text-embedding-3-large
             OPENAI_MODEL_NAME: gpt-4o-2024-11-20
             OPENAI_MODEL_SUPERVISOR: gpt-4o

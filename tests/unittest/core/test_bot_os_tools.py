@@ -1,5 +1,5 @@
 import unittest
-from core.bot_os_tools2 import *
+from genesis_bots.core.bot_os_tools2 import *
 
 class TestGCTools(unittest.TestCase):
 
@@ -617,40 +617,74 @@ class TestGCTools(unittest.TestCase):
             '''
             Manage todo items with various actions.
             When creating Todos try to include any dependencies on other todos where they exist
-            it is important to track those to make sure todos are done in the correct order.        
+            it is important to track those to make sure todos are done in the correct order.
             '''
             pass
 
+        expected_dict = {
+            "type": "function",
+            "function": {
+                "name": "manage_todos",
+                "description": "Manage todo items with various actions.\nWhen creating Todos try to include any dependencies on other todos where they exist\nit is important to track those to make sure todos are done in the correct order.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "action": {
+                            "type": "string",
+                            "enum": [
+                                "CREATE",
+                                "UPDATE",
+                                "CHANGE_STATUS",
+                                "LIST"
+                            ],
+                            "description": "Action to perform (CREATE, UPDATE, CHANGE_STATUS, LIST)"
+                        },
+                        "bot_id": {
+                            "type": "string",
+                            "description": "ID of the bot performing the action"
+                        },
+                        "todo_id": {
+                            "type": "string",
+                            "description": "ID of the todo item (required for UPDATE and CHANGE_STATUS)"
+                        },
+                        "todo_details": {
+                            "type": "object",
+                            "properties": {
+                                "project_id": {
+                                    "type": "string",
+                                    "description": "ID of the project the todo item belongs to"
+                                },
+                                "todo_name": {
+                                    "type": "string",
+                                    "description": "Name of the todo item"
+                                },
+                                "what_to_do": {
+                                    "type": "string",
+                                    "description": "What the todo item is about"
+                                },
+                                "depends_on": {
+                                    "type": "string",
+                                    "description": "ID of the todo item that this todo item depends on"
+                                },
+                                "new_status": {
+                                    "type": "string",
+                                    "description": "New status for the todo item"
+                                }
+                            },
+                            "description": "Details for the todo item. For CREATE: requires project_id, todo_name, what_to_do, depends_on. For CHANGE_STATUS: requires only new_status."
+                        }
+                    },
+                    "required": [
+                        "action",
+                        "bot_id"
+                    ]
+                }
+            }
+        }
 
-        expected_dict = {'function': {'description': 'Manage todo items with various actions.\n'
-                            'When creating Todos try to include any dependencies on other todos where they exist\n'
-                            'it is important to track those to make sure todos are done in the correct order.        ',
-                                    'name': 'manage_todos',
-                                    'parameters': {'properties': {'action': {'description': 'Action to perform (CREATE, UPDATE, CHANGE_STATUS, LIST)',
-                                                                            'enum': ['CREATE', 'UPDATE', 'CHANGE_STATUS', 'LIST'],
-                                                                            'type': 'string'},
-                                                                    'bot_id': {'description': 'ID of the bot performing the action', 'type': 'string'},
-                                                                    'todo_details': {'description': 'Details for the todo item. For CREATE: requires project_id, todo_name, '
-                                                                                                    'what_to_do, depends_on. For CHANGE_STATUS: requires only new_status.',
-                                                                                    'properties': {'depends_on': {'description': 'ID of the todo item that this todo item '
-                                                                                                                                'depends on',
-                                                                                                                'type': 'string'},
-                                                                                                    'new_status': {'description': 'New status for the todo item',
-                                                                                                                'type': 'string'},
-                                                                                                    'project_id': {'description': 'ID of the project the todo item belongs '
-                                                                                                                                'to',
-                                                                                                                'type': 'string'},
-                                                                                                    'todo_name': {'description': 'Name of the todo item', 'type': 'string'},
-                                                                                                    'what_to_do': {'description': 'What the todo item is about',
-                                                                                                                'type': 'string'}},
-                                                                                    'type': 'object'},
-                                                                    'todo_id': {'description': 'ID of the todo item (required for UPDATE and CHANGE_STATUS)',
-                                                                                'type': 'string'}},
-                                                    'required': ['action', 'bot_id'],
-                                                    'type': 'object'}},
-                        'type': 'function'}
-
-        self.assertEqual(manage_todos.gc_tool_descriptor.to_llm_description_dict(), expected_dict)
+        res = manage_todos.gc_tool_descriptor.to_llm_description_dict()
+        print(res)
+        self.assertEqual(res, expected_dict)
 
 
     def test_tools_func_registry_basic_operations(self):

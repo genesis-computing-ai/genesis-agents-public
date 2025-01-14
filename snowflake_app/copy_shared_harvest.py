@@ -1,10 +1,10 @@
 import os
-import sys 
+import sys
 import json
 from snowflake.connector import connect
 import uuid
 from datetime import datetime
-from core.logging_config import logger
+from ..genesis_bots.core.logging_config import logger
 
 def _create_connection_target():
     account = os.getenv('SNOWFLAKE_ACCOUNT_OVERRIDE_E')
@@ -24,7 +24,7 @@ def _create_connection_target():
         host=host,
         database=database,
         role=role
-    ) 
+    )
 
 
 
@@ -43,7 +43,7 @@ def _create_connection_source():
         warehouse=warehouse,
         database=database,
         role=role
-    ) 
+    )
 
 def insert_table_summary(self, database_name, schema_name, table_name, ddl, ddl_short, summary, sample_data_text, complete_description="", crawl_status="Completed", role_used_for_crawl="Default", embedding=None):
 
@@ -150,7 +150,7 @@ def insert_table_summary(self, database_name, schema_name, table_name, ddl, ddl_
 if __name__ == "__main__":
     # Open a connection to source Snowflake
     source_conn = _create_connection_source()
-    
+
     # Open a connection to target Snowflake
     target_conn = _create_connection_target()
 
@@ -360,7 +360,7 @@ if __name__ == "__main__":
             logger.info(f"An error occurred while comparing hash aggregates: {e}")
             raise e
 
-            
+
     except Exception as e:
         logger.info(f"An error occurred while copying data: {e}")
         source_conn.close()

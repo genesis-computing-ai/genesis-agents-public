@@ -12,7 +12,7 @@ def run_command(command):
 
 def main():
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    output_file = f"/Users/alexuslau/Genesis/tacotuesday_{timestamp}.txt"
+    output_file = f"tacotuesday_{timestamp}.txt"  #Output file in the current directory
     with open(output_file, "w") as file:  # Open the file in write mode
     
         GITHUB_USERNAME = os.getenv("GITHUB_USERNAME")
@@ -22,13 +22,21 @@ def main():
             print("Error: GITHUB_USERNAME or GITHUB_TOKEN environment variable is not set.")
             return
 
+        # Load repository URL
         repo_url = f"https://{GITHUB_USERNAME}:{GITHUB_TOKEN}@github.com/genesis-gh-jlangseth/genesis"
-        repo_dir = "/Users/alexuslau/Genesis/genesis/"
-        parent_dir = "/Users/alexuslau/Genesis/"
-    
-        if not os.path.exists(parent_dir):
-            os.makedirs(parent_dir)
-            print(f"Created directory: {parent_dir}")
+        
+        # Use environment variable for parent directory and expand user home
+        parent_dir = os.getenv("PARENT_DIR", "~/genesis")
+        parent_dir = os.path.expanduser(parent_dir)  # Expand ~ to the user's home directory
+        repo_dir = os.path.join(parent_dir, "genesis-gh-copy")
+
+        # Ensure parent directory exists
+        try:
+            os.makedirs(parent_dir, exist_ok=True)
+            print(f"Ensured directory exists: {parent_dir}")
+        except Exception as e:
+            print(f"Error creating directory: {e}")
+            return
 
         # Remove any existing directory
         if os.path.exists(repo_dir):
@@ -52,17 +60,17 @@ def main():
             print(f"Created __init__.py file at {init_file_path}")
 
         # Change to the repo directory
-        if os.path.exists(repo_dir):
+        try:
             os.chdir(repo_dir)
-            print("Changed directory to repo_dir.")
-        else:
-            print(f"Error: {repo_dir} was not created after cloning.")
+            print(f"Changed directory to {repo_dir}.")
+        except Exception as e:
+            print(f"Error changing directory: {e}")
             return
 
         # Run pylint
         print("Running pylint...")
-        pylint_result = run_command("pylint --disable=W,R,C /Users/alexuslau/Genesis/genesis")
-        file.write("Pylint output:")
+        pylint_result = run_command(f"pylint --disable=W,R,C {repo_dir}")
+        file.write("Pylint output:\n")
         file.write(pylint_result.stdout)
         print(pylint_result.stdout or "No output from pylint.\n")
         if pylint_result.returncode != 0:
@@ -71,7 +79,6 @@ def main():
         # Run safety
         print("Running safety...")
         safety_result = run_command("safety check")
-        print("Safety output:")
         file.write("Safety output:\n")
         file.write(safety_result.stdout)
         if safety_result.returncode != 0:
@@ -80,7 +87,6 @@ def main():
         # Run bandit
         print("Running bandit...")
         bandit_result = run_command("bandit -r .")
-        print("Bandit output:")
         file.write("Bandit output:\n")
         file.write(bandit_result.stdout)
         if bandit_result.returncode != 0:

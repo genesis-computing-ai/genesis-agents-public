@@ -48,26 +48,29 @@ with GenesisAPI(server_type=GenesisLocalServer,
                 scope=scope, sub_scope=sub_scope, fast_start=False) as client:
 
 
-    bots = client.get_all_bots()
-    print(f"\n>>> Found the following Bots registered with the client: {bots}")
-
-    request = client.add_message("Janice", "hello, Can you translate phrases in English to Swedish? Show me an example.") # "Janice"
+    req_msg = "hello, Can you translate phrases in English to Swedish? Show me an example."
+    print(f"\n>>>> Requesting: {req_msg}")
+    request = client.add_message("Janice", req_msg) # "Janice"
     response = client.get_response("Janice", request["request_id"])
-    print("\n>>>>", response)
+    #print("\n>>>>", response)
 
     client.add_client_tool("Janice", retrieve_english_phrase, timeout_seconds=2)
 
-    request = client.add_message("Janice", "Use a tool to fetch 5 random famous English phrases and translate them to Swedish. "
-                                           "Return the result as an HTML table with two columns: 'Orig Phrase' and 'Translation'.")
+    req_msg = ("Use a tool to fetch 5 random famous English phrases and translate them to Swedish. " \
+              "Return the result as a nicely formatted text table with two columns: 'Orig Phrase' and 'Translation'.")
+    print(f"\n>>>> Requesting: {req_msg}")
+    request = client.add_message("Janice", req_msg)
     response = client.get_response("Janice", request["request_id"])
+    #print("\n>>>>", response)
 
-    print("\n>>>>", response)
     saved_translated_phrases = response
 
     client.add_client_tool("Janice", get_all_translated_phrases)
 
-    request = client.add_message("Janice", "Fetch a table of previously translated phrases using the proper tool. "
+    req_msg = ("Fetch a table of previously translated phrases using the proper tool. "
                                  "For each tranlsation of a phrase, detect its language and translate it to english. "
                                  "Return a plain text table with 4 columns: 'orig phrase', 'translation', langage of translation', and 'translted to english'.")
+    print(f"\n>>>> Requesting: {req_msg}")
+    request = client.add_message("Janice", req_msg)
     response = client.get_response("Janice", request["request_id"])
-    print("\n>>>>", response)
+    #print("\n>>>>", response)

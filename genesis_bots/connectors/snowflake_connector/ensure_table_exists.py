@@ -268,7 +268,7 @@ def ensure_table_exists(self):
             self.client.commit()
         logger.info(f"Table {self.schema}.bots_active created or replaced successfully with timestamp: {timestamp_str}")
     except Exception as e:
-        logger.info(f"An error occurred while creating or replacing the bots_active table: {e}")
+        logger.error(f"An error occurred while creating or replacing the bots_active table: {e}")
 
     streamlitdc_url = os.getenv("DATA_CUBES_INGRESS_URL", None)
     logger.info(f"streamlit data cubes ingress URL: {streamlitdc_url}")
@@ -301,7 +301,7 @@ def ensure_table_exists(self):
         _create_table_if_not_exist('LLM_RESULTS', create_llm_results_table_ddl, raise_on_failure=True)
 
     except Exception as e:
-        logger.info(f"Unable to execute 'SHOW TABLES' query: {e}\nQuery attempted: {create_llm_results_table_ddl}")
+        logger.error(f"Unable to execute 'SHOW TABLES' query: {e}\nQuery attempted: {create_llm_results_table_ddl}")
         raise Exception(
             f"Unable to execute 'SHOW TABLES' query: {e}\nQuery attempted: {create_llm_results_table_ddl}"
         )
@@ -324,9 +324,7 @@ def ensure_table_exists(self):
         else:
             logger.info(f"Table {self.schema}.EXT_SERVICE_CONFIG already exists.")
     except Exception as e:
-        logger.info(
-            f"An error occurred while checking or creating the EXT_SERVICE_CONFIG table: {e}"
-        )
+        logger.error(f"An error occurred while checking or creating the EXT_SERVICE_CONFIG table: {e}")
     finally:
         if cursor is not None:
             cursor.close()
@@ -339,7 +337,7 @@ def ensure_table_exists(self):
         cursor.execute(ext_service_config_table_check_query)
 
     except Exception as e:
-        logger.info(f"Unable to execute 'SHOW TABLES' query: {e}\nQuery attempted: {ext_service_config_table_check_query}")
+        logger.error(f"Unable to execute 'SHOW TABLES' query: {e}\nQuery attempted: {ext_service_config_table_check_query}")
         raise Exception(
             f"Unable to execute 'SHOW TABLES' query: {e}\nQuery attempted: {ext_service_config_table_check_query}"
         )
@@ -362,9 +360,7 @@ def ensure_table_exists(self):
         else:
             logger.info(f"Table {self.schema}.EXT_SERVICE_CONFIG already exists.")
     except Exception as e:
-        logger.info(
-            f"An error occurred while checking or creating the EXT_SERVICE_CONFIG table: {e}"
-        )
+        logger.error(f"An error occurred while checking or creating the EXT_SERVICE_CONFIG table: {e}")
     finally:
         if cursor is not None:
             cursor.close()
@@ -377,7 +373,7 @@ def ensure_table_exists(self):
         cursor.execute(g_drive_file_version_table_check_query)
 
     except Exception as e:
-        logger.info(f"Unable to execute 'SHOW TABLES' query: {e}\nQuery attempted: {g_drive_file_version_table_check_query}")
+        logger.error(f"Unable to execute 'SHOW TABLES' query: {e}\nQuery attempted: {g_drive_file_version_table_check_query}")
         raise Exception(
             f"Unable to execute 'SHOW TABLES' query: {e}\nQuery attempted: {g_drive_file_version_table_check_query}"
         )
@@ -402,7 +398,7 @@ def ensure_table_exists(self):
         else:
             logger.info(f"Table {self.schema}.G_DRIVE_FILE_VERSION already exists.")
     except Exception as e:
-        logger.info(
+        logger.error(
             f"An error occurred while checking or creating the G_DRIVE_FILE_VERSION table: {e}"
         )
     finally:
@@ -417,7 +413,7 @@ def ensure_table_exists(self):
         cursor.execute(llm_results_table_check_query)
 
     except Exception as e:
-        logger.info(f"Unable to execute 'SHOW TABLES' query: {e}\nQuery attempted: {llm_results_table_check_query}")
+        logger.error(f"Unable to execute 'SHOW TABLES' query: {e}\nQuery attempted: {llm_results_table_check_query}")
         raise Exception(f"Unable to execute 'SHOW TABLES' query: {e}\nQuery attempted: {llm_results_table_check_query}")
     try:
         if not cursor.fetchone():
@@ -437,7 +433,7 @@ def ensure_table_exists(self):
             logger.info(f"Table {self.schema}.LLM_RESULTS already exists.")
     except Exception as e:
         try:
-            logger.info("Falling back to create non-hybrid table for LLM_RESULTS")
+            logger.error("Falling back to create non-hybrid table for LLM_RESULTS")
             create_llm_results_table_ddl = f"""
             CREATE OR REPLACE TABLE {self.schema}.LLM_RESULTS (
                 uu VARCHAR(40) PRIMARY KEY,
@@ -509,9 +505,7 @@ def ensure_table_exists(self):
         else:
             logger.info(f"Stage {self.schema}.SEMANTIC_MODELS_DEV already exists.")
     except Exception as e:
-        logger.info(
-            f"An error occurred while checking or creating stage SEMANTIC_MODELS_DEV: {e}"
-        )
+        logger.error(f"An error occurred while checking or creating stage SEMANTIC_MODELS_DEV: {e}" )
     finally:
         if cursor is not None:
             cursor.close()
@@ -535,9 +529,7 @@ def ensure_table_exists(self):
         else:
             logger.info(f"Stage {self.schema}.SEMANTIC_MODELS already exists.")
     except Exception as e:
-        logger.info(
-            f"An error occurred while checking or creating stage SEMANTIC_MODELS: {e}"
-        )
+        logger.error(f"An error occurred while checking or creating stage SEMANTIC_MODELS: {e}")
     finally:
         if cursor is not None:
             cursor.close()
@@ -591,9 +583,7 @@ def ensure_table_exists(self):
                 f"Stage {self.genbot_internal_project_and_schema}.BOT_FILES_STAGE already exists."
             )
     except Exception as e:
-        logger.info(
-            f"An error occurred while checking or creating stage BOT_FILES_STAGE: {e}"
-        )
+        logger.error(f"An error occurred while checking or creating stage BOT_FILES_STAGE: {e}")
     finally:
         if cursor is not None:
             cursor.close()
@@ -710,12 +700,12 @@ def ensure_table_exists(self):
                     logger.info(f"Merged cortex row into {self.genbot_internal_project_and_schema}.LLM_TOKENS with runner_id: {runner_id}")
 
             except Exception as e:
-                logger.info(
+                logger.error(
                     f"An error occurred while checking or altering table {self.genbot_internal_project_and_schema}.LLM_TOKENS to add ACTIVE column: {e}"
                 )
             #               logger.info(f"Table {self.schema}.LLM_TOKENS already exists.")
     except Exception as e:
-        logger.info(f"An error occurred while checking or creating table LLM_TOKENS: {e}")
+        logger.error(f"An error occurred while checking or creating table LLM_TOKENS: {e}")
     finally:
         if cursor is not None:
             cursor.close()
@@ -785,7 +775,7 @@ def ensure_table_exists(self):
                 f"Table {self.slack_tokens_table_name} already exists."
             )  # SLACK_APP_CONFIG_TOKENS
     except Exception as e:
-        logger.info(
+        logger.error(
             f"An error occurred while checking or creating table {self.slack_tokens_table_name}: {e}"
         )
     finally:
@@ -846,7 +836,7 @@ def ensure_table_exists(self):
                     f"Updated EAI_CONFIG table from services"
                 )
         except Exception as e:
-            logger.info(
+            logger.error(
                 f"An error occurred while checking or creating table EAI_CONFIG: {e}"
             )
         finally:
@@ -895,7 +885,7 @@ def ensure_table_exists(self):
                         cursor.close()
 
         except Exception as e:
-            logger.info(
+            logger.error(
                 f"An error occurred while checking or creating table CUSTOM_ENDPOINTS: {e}"
             )
         finally:
@@ -1086,7 +1076,7 @@ def ensure_table_exists(self):
                     )
 
             except Exception as e:
-                logger.info(
+                logger.error(
                     f"An error occurred while checking or altering table {self.bot_servicing_table_name} to add BOT_IMPLEMENTATION column: {e}"
                 )
             # except Exception as e:
@@ -1107,7 +1097,7 @@ def ensure_table_exists(self):
             f"Initial 'BOT_AVATAR_IMAGE' data inserted into table {self.bot_servicing_table_name}."
         )
     except Exception as e:
-        logger.info(
+        logger.error(
             f"An error occurred while checking or creating table {self.bot_servicing_table_name}: {e}"
         )
     finally:
@@ -1210,7 +1200,7 @@ def ensure_table_exists(self):
         else:
             logger.info(f"Table {self.ngrok_tokens_table_name} already exists.")
     except Exception as e:
-        logger.info(
+        logger.error(
             f"An error occurred while checking or creating table {self.ngrok_tokens_table_name}: {e}"
         )
     finally:
@@ -1247,7 +1237,7 @@ def ensure_table_exists(self):
         else:
             logger.info(f"Table {self.available_tools_table_name} already exists.")
     except Exception as e:
-        logger.info(
+        logger.error(
             f"An error occurred while checking or creating table {self.available_tools_table_name}: {e}"
         )
     finally:
@@ -1324,10 +1314,10 @@ def ensure_table_exists(self):
                             f"Column '{col}' added to table {chat_history_table_id}."
                         )
             except Exception as e:
-                logger.info("Error adding column FILES to MESSAGE_LOG: ", e)
+                logger.error("Error adding column FILES to MESSAGE_LOG: ", e)
             logger.info(f"Table {self.message_log_table_name} already exists.")
     except Exception as e:
-        logger.info(
+        logger.error(
             f"An error occurred while checking or creating table {self.message_log_table_name}: {e}"
         )
 
@@ -1362,7 +1352,7 @@ def ensure_table_exists(self):
             check_query = f"DESCRIBE TABLE {self.knowledge_table_name};"
             logger.info(f"Table {self.knowledge_table_name} already exists.")
     except Exception as e:
-        logger.info(
+        logger.error(
             f"An error occurred while checking or creating table {self.knowledge_table_name}: {e}"
         )
 
@@ -1436,7 +1426,7 @@ def ensure_table_exists(self):
             upgrade_timestamp_columns(self, 'PROCESSES')
 
     except Exception as e:
-        logger.info(
+        logger.error(
             f"An error occurred while checking or creating the PROCESSES table: {e}"
         )
 
@@ -1482,7 +1472,7 @@ def ensure_table_exists(self):
         else:
             logger.info("PROCESS_CONFIG column already exists in PROCESSES table.")
     except Exception as e:
-        logger.info(f"An error occurred while checking or adding PROCESS_CONFIG column: {e}")
+        logger.error(f"An error occurred while checking or adding PROCESS_CONFIG column: {e}")
 
     load_default_processes_and_notebook(self, cursor)
 
@@ -1610,7 +1600,7 @@ def ensure_table_exists(self):
         else:
             logger.info(f"Table {hc_table_id} already exists.")
     except Exception as e:
-        logger.info(
+        logger.error(
             f"An error occurred while checking or creating table {hc_table_id}: {e}"
         )
 
@@ -1661,7 +1651,7 @@ def ensure_table_exists(self):
                 self.client.commit()
                 logger.info(f"Inserted initial rows into {metadata_table_id}")
             except Exception as e:
-                logger.info(
+                logger.error(
                     f"Initial rows from APP_SHARE.HARVEST_RESULTS NOT ADDED into {metadata_table_id} due to erorr {e}"
                 )
 
@@ -1677,7 +1667,7 @@ def ensure_table_exists(self):
                     self.client.commit()
                     logger.info(f"Column 'ddl_short' added to table {metadata_table_id}.")
             except Exception as e:
-                logger.info(
+                logger.error(
                     f"An error occurred while checking or altering table {metadata_table_id}: {e}"
                 )
             # Check if the 'embedding_native' column exists in the metadata table
@@ -1688,12 +1678,12 @@ def ensure_table_exists(self):
                     self.client.commit()
                     logger.info(f"Column 'embedding_native' added to table {metadata_table_id}.")
             except Exception as e:
-                logger.info(
+                logger.error(
                     f"An error occurred while checking or altering table {metadata_table_id}: {e}"
                 )
             logger.info(f"Table {metadata_table_id} already exists.")
     except Exception as e:
-        logger.info(
+        logger.error(
             f"An error occurred while checking or creating table {metadata_table_id}: {e}"
         )
 
@@ -1828,7 +1818,7 @@ def insert_process_history(
             f"Process history row inserted successfully for process_id: {process_id}"
         )
     except Exception as e:
-        logger.info(f"An error occurred while inserting the process history row: {e}")
+        logger.error(f"An error occurred while inserting the process history row: {e}")
         if cursor is not None:
             cursor.close()
 
@@ -1995,7 +1985,7 @@ def upgrade_timestamp_columns(self, table_name):
             logger.info(f"TIMESTAMP column dropped from {table_name}.")
 
     except Exception as e:
-        logger.info(f"An error occurred while checking or adding new timestamp columns: {e}")
+        logger.error(f"An error occurred while checking or adding new timestamp columns: {e}")
 
     finally:
         cursor.close()

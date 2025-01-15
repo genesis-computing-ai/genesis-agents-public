@@ -4196,15 +4196,16 @@ def get_status(site):
         allowed_connections_query = f"""
         select connection_id from {self.cust_db_connections_table_name}
         where owner_bot_id = '{bot_id}'
-        or allowed_bot_ids='{bot_id}'
-        or allowed_bot_ids like '%,{bot_id}'
-        or allowed_bot_ids like '{bot_id},%'
+        OR allowed_bot_ids = '*'  
+        OR allowed_bot_ids = '{bot_id}'
+        OR allowed_bot_ids like '%,{bot_id}'
+        OR allowed_bot_ids like '{bot_id},%'
+        OR allowed_bot_ids like '%,{bot_id},%'
         """
         cursor = self.connection.cursor()
         cursor.execute(allowed_connections_query)
         allowed_connections = [row[0] for row in cursor.fetchall()]
 
-        # First, get the total number of rows to set up the progress bar
         # Format list of connections with proper quoting
         connection_list = ','.join([f"'{x}'" for x in allowed_connections])
         if connection_list == '':

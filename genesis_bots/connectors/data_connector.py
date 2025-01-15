@@ -300,7 +300,7 @@ class DatabaseConnector:
 
             owner_id, allowed_bots, connection_string, db_type = result  # Add connection_string to unpacking
             if not bot_id_override and (bot_id != owner_id and
-                (not allowed_bots or bot_id not in allowed_bots.split(','))):
+                (not allowed_bots or (allowed_bots != '*' and bot_id not in allowed_bots.split(',')))):
                 raise ValueError("Bot does not have permission to access this connection")
 
             # Execute query using SQLAlchemy
@@ -676,10 +676,11 @@ class DatabaseConnector:
                                created_at, updated_at
                         FROM {self.db_adapter.schema}.CUST_DB_CONNECTIONS
                         WHERE owner_bot_id = %s 
-                        or allowed_bot_ids = %s
+                        OR allowed_bot_ids = '*'
+                        OR allowed_bot_ids = %s
                         OR allowed_bot_ids LIKE %s
-                        or allowed_bot_ids LIKE %s
-                        or allowed_bot_ids LIKE %s
+                        OR allowed_bot_ids LIKE %s
+                        OR allowed_bot_ids LIKE %s
                         """,
                         (bot_id, bot_id, f"{bot_id},%", f"%,{bot_id},%", f"%,{bot_id}")
                     )
@@ -913,7 +914,7 @@ def _query_database(connection_id: str,
 
 @gc_tool(connection_id= "ID of the database connection to create or update",
          connection_string= "Full SQLAlchemy connection string.",
-         allowed_bot_ids= "List of bot IDs that can access this connection, including yourself if applicable, comma-separated e.g bot1,bot2 if more than one",
+         allowed_bot_ids= "List of bot IDs that can access this connection. Use '*' to allow all bots access, or provide comma-separated bot IDs (e.g., 'bot1,bot2') for specific access",
          bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
          thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
          _group_tags_=[data_connector_tools])

@@ -44,11 +44,14 @@ class SQLiteAdapter:
                 self._ensure_bot_servicing_table()
                 self._ensure_llm_tokens_table()
                 self._ensure_slack_config_table()
+                self._ensure_cust_db_connections_table()
                 SQLiteAdapter._tables_initialized = True
                 logger.info("All tables initialized successfully")
             except Exception as e:
                 logger.error(f"Failed to initialize tables: {e}")
                 raise
+
+
 
     def _ensure_bot_servicing_table(self):
         """Ensure BOT_SERVICING table exists with correct constraints"""
@@ -212,6 +215,75 @@ class SQLiteAdapter:
             )
         """)
         self.commit()
+
+    def _ensure_cust_db_connections_table(self):
+        """Ensure CUST_DB_CONNECTIONS table exists with correct schema"""
+        logger.info("Starting CUST_DB_CONNECTIONS table verification")
+        cursor = self.connection.cursor()
+
+        try:
+            # Create table if it doesn't exist
+            create_table_sql = """
+                CREATE TABLE IF NOT EXISTS CUST_DB_CONNECTIONS (
+                    connection_id TEXT PRIMARY KEY NOT NULL,
+                    db_type TEXT NOT NULL,
+                    connection_string TEXT NOT NULL,
+                    owner_bot_id TEXT NOT NULL,
+                    allowed_bot_ids TEXT,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """
+            cursor.execute(create_table_sql)
+            self.connection.commit()
+            
+            # Define the connections to check/create
+            connections = [
+                {
+                    'connection_id': 'baseball_sqlite',
+                    'db_type': 'sqlite',
+                    'connection_string': 'sqlite:///./apps/demos/demo_data/baseball.sqlite',
+                    'owner_bot_id': 'Eve',
+                    'allowed_bot_ids': '*'
+                },
+                {
+                    'connection_id': 'formula_1_sqlite',
+                    'db_type': 'sqlite',
+                    'connection_string': 'sqlite:///./apps/demos/demo_data/formula_1.sqlite',
+                    'owner_bot_id': 'Eve',
+                    'allowed_bot_ids': '*'
+                }
+            ]
+            
+            # Check and insert each connection if it doesn't exist
+            for conn in connections:
+                cursor.execute("SELECT COUNT(*) FROM CUST_DB_CONNECTIONS WHERE connection_id = ?", 
+                             (conn['connection_id'],))
+                exists = cursor.fetchone()[0] > 0
+                
+                if not exists:
+                    insert_sql = """
+                        INSERT INTO CUST_DB_CONNECTIONS (
+                            connection_id,
+                            db_type,
+                            connection_string,
+                            owner_bot_id,
+                            allowed_bot_ids
+                        ) VALUES (?, ?, ?, ?, ?)
+                    """
+                    cursor.execute(insert_sql, (
+                        conn['connection_id'],
+                        conn['db_type'],
+                        conn['connection_string'],
+                        conn['owner_bot_id'],
+                        conn['allowed_bot_ids']
+                    ))
+                    self.connection.commit()
+                    logger.info(f"Inserted {conn['connection_id']} record")
+
+        except Exception as e:
+            logger.error(f"Error in _ensure_cust_db_connections_table: {e}")
+            raise
 
     def cursor(self):
         if self.connection is None:

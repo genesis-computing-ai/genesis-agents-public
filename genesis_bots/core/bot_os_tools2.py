@@ -738,6 +738,7 @@ def get_global_tools_registry():
                 "genesis_bots.core.tools.git_action.get_git_action_functions",
                 "genesis_bots.core.tools.image_tools.get_image_functions",
                 "genesis_bots.core.tools.jira_connector.get_jira_connector_functions",
+                "genesis_bots.core.bot_os_web_access.get_web_access_functions",
                 # "core.tools.run_process.run_process_functions",
                 # "core.tools.notebook_manager.get_notebook_manager_functions",
                 # make_baby_bot

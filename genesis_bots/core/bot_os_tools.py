@@ -35,10 +35,12 @@ from   genesis_bots.bot_genesis.make_baby_bot \
                                         make_baby_bot_tools)
 from   jinja2                   import Template
 from genesis_bots.connectors.database_tools import (
-    web_access_functions,
-    web_access_tools,
     notebook_manager_functions,
     notebook_manager_tools,
+)
+from genesis_bots.core.bot_os_web_access import (
+    web_access_tools,  # This is the ToolFuncGroup
+    get_web_access_functions  # Add this to get the actual functions
 )
 
 from   genesis_bots.schema_explorer.harvester_tools \
@@ -1225,10 +1227,12 @@ def get_tools(
             func_descriptors.extend(notebook_manager_functions)
             available_functions_loaded.update(notebook_manager_tools)
             tool_to_func_descriptors_map[tool_name] = notebook_manager_functions
-        elif tool_name == "web_access_tools":
-            func_descriptors.extend(web_access_functions)
-            available_functions_loaded.update(web_access_tools)
-            tool_to_func_descriptors_map[tool_name] = web_access_functions
+        # elif tool_name == "web_access_tools":
+        #     func_descriptors.extend(get_web_access_functions())
+        #     available_functions_loaded.update({
+        #         func.__name__: func for func in get_web_access_functions()
+        #     })
+        #     tool_to_func_descriptors_map[tool_name] = get_web_access_functions()
         # elif tool_name == "snowflake_tools":
         #     func_descriptors.extend(snowflake_functions)
         #     available_functions_loaded.update(snowflake_tools)

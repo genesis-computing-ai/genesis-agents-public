@@ -17,17 +17,24 @@ add bot level param for completion vs assistant mode
 test gxs with completion mode (w/git etc)
 n cancel run checks that stay in progress for more than 10 min with no response
 after tool calls, the first few new chars get missed sometimes in the output 
+make grants to yourself for tools work without disrupting the thread (keep more arrays in the state.. pending threads etc ) 
+give web access by default to eve 
+give eve a suggestion on tools that all bots may want when making bots 
+
 
 gdrive connector:
 JD-json file with credentials needs to be created properly?
 JD-comments on gsheets, bot needs to know what cell they are on
 
 prerelease:
-add baseball and f1 connections by default to eve 
+links from web search results dont show right in streamlit 
+have search metadata return the list of any data connections as well that may not be harvested 
+x add baseball and f1 connections by default to eve 
 add preharvest for baseball and f1
 x check that adding a tool via streamlit doesnt mess up the thread with that bot (e.g. data connector tools)
 make sqlite sample data load from csv files vs binary
 x speed up startup
+change default to sqlite mode and to non-assistant mode
 x (in progress) speed up bot responses
 x o1 via api with tool calling
 x put eve back in as default bot in streamlit

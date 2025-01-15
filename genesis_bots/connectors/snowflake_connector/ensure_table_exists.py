@@ -273,9 +273,9 @@ def ensure_table_exists(self):
     streamlitdc_url = os.getenv("DATA_CUBES_INGRESS_URL", None)
     logger.info(f"streamlit data cubes ingress URL: {streamlitdc_url}")
 
-    _create_table_if_not_exist(
-        'EXT_SERVICE_CONFIG',
-        f"""
+    # EXT_SERVICE_CONFIG
+    # ---------------------
+    create_external_service_config_table_ddl = f"""
         CREATE OR REPLACE TABLE {self.schema}.EXT_SERVICE_CONFIG (
             ext_service_name VARCHAR NOT NULL,
             parameter VARCHAR NOT NULL,
@@ -285,86 +285,11 @@ def ensure_table_exists(self):
             updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
         """
-    )
+    _create_table_if_not_exist('EXT_SERVICE_CONFIG', create_external_service_config_table_ddl, raise_on_failure=True)
 
-    # LLM_RESULTS
+    # G_DRIVE_FILE_VERSION
     # ---------------------
-    try:
-        create_llm_results_table_ddl = f"""
-        CREATE OR REPLACE HYBRID TABLE {self.schema}.LLM_RESULTS (
-            uu VARCHAR(40) PRIMARY KEY,
-            message VARCHAR NOT NULL,
-            created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            INDEX uu_idx (uu)
-        );
-        """
-        _create_table_if_not_exist('LLM_RESULTS', create_llm_results_table_ddl, raise_on_failure=True)
-
-    except Exception as e:
-        logger.error(f"Unable to execute 'SHOW TABLES' query: {e}\nQuery attempted: {create_llm_results_table_ddl}")
-        raise Exception(
-            f"Unable to execute 'SHOW TABLES' query: {e}\nQuery attempted: {create_llm_results_table_ddl}"
-        )
-    try:
-        if not cursor.fetchone():
-            create_external_service_config_table_ddl = f"""
-            CREATE OR REPLACE TABLE {self.schema}.EXT_SERVICE_CONFIG (
-                ext_service_name VARCHAR NOT NULL,
-                parameter VARCHAR NOT NULL,
-                value VARCHAR NOT NULL,
-                user VARCHAR,
-                created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-            """
-            cursor = self.client.cursor()
-            cursor.execute(create_external_service_config_table_ddl)
-            self.client.commit()
-            logger.info(f"Table {self.schema}.EXT_SERVICE_CONFIG created as Table successfully.")
-        else:
-            logger.info(f"Table {self.schema}.EXT_SERVICE_CONFIG already exists.")
-    except Exception as e:
-        logger.error(f"An error occurred while checking or creating the EXT_SERVICE_CONFIG table: {e}")
-    finally:
-        if cursor is not None:
-            cursor.close()
-
-    ext_service_config_table_check_query = (
-        f"SHOW TABLES LIKE 'EXT_SERVICE_CONFIG' IN SCHEMA {self.schema};"
-    )
-    try:
-        cursor = self.client.cursor()
-        cursor.execute(ext_service_config_table_check_query)
-
-    except Exception as e:
-        logger.error(f"Unable to execute 'SHOW TABLES' query: {e}\nQuery attempted: {ext_service_config_table_check_query}")
-        raise Exception(
-            f"Unable to execute 'SHOW TABLES' query: {e}\nQuery attempted: {ext_service_config_table_check_query}"
-        )
-    try:
-        if not cursor.fetchone():
-            create_external_service_config_table_ddl = f"""
-            CREATE OR REPLACE TABLE {self.schema}.EXT_SERVICE_CONFIG (
-                ext_service_name VARCHAR NOT NULL,
-                parameter VARCHAR NOT NULL,
-                value VARCHAR NOT NULL,
-                user VARCHAR,
-                created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-            """
-            cursor = self.client.cursor()
-            cursor.execute(create_external_service_config_table_ddl)
-            self.client.commit()
-            logger.info(f"Table {self.schema}.EXT_SERVICE_CONFIG created as Table successfully.")
-        else:
-            logger.info(f"Table {self.schema}.EXT_SERVICE_CONFIG already exists.")
-    except Exception as e:
-        logger.error(f"An error occurred while checking or creating the EXT_SERVICE_CONFIG table: {e}")
-    finally:
-        if cursor is not None:
-            cursor.close()
-
+    # TODO: refactor to use _create_table_if_not_exist
     g_drive_file_version_table_check_query = (
         f"SHOW TABLES LIKE 'G_DRIVE_FILE_VERSION' IN SCHEMA {self.schema};"
     )
@@ -405,6 +330,9 @@ def ensure_table_exists(self):
         if cursor is not None:
             cursor.close()
 
+    # LLM_RESULTS
+    # ---------------------
+    # TODO: refactor to use _create_table_if_not_exist
     llm_results_table_check_query = (
         f"SHOW TABLES LIKE 'LLM_RESULTS' IN SCHEMA {self.schema};"
     )
@@ -488,6 +416,7 @@ def ensure_table_exists(self):
 
     # SEMANTIC_MODELS_DEV
     # ---------------------
+    # TODO: refactor to use _create_table_if_not_exist
     semantic_stage_check_query = (
         f"SHOW STAGES LIKE 'SEMANTIC_MODELS_DEV' IN SCHEMA {self.schema};"
     )
@@ -512,6 +441,7 @@ def ensure_table_exists(self):
 
     # SEMANTIC_MODELS
     # ---------------------
+    # TODO: refactor to use _create_table_if_not_exist
     semantic_stage_check_query = (
         f"SHOW STAGES LIKE 'SEMANTIC_MODELS' IN SCHEMA {self.schema};"
     )
@@ -536,6 +466,7 @@ def ensure_table_exists(self):
 
     # SET_BOT_APP_LEVEL_KEY
     # ---------------------
+    # TODO: refactor to use _create_table_if_not_exist
     udf_check_query = (
         f"SHOW USER FUNCTIONS LIKE 'SET_BOT_APP_LEVEL_KEY' IN SCHEMA {self.schema};"
     )
@@ -564,6 +495,7 @@ def ensure_table_exists(self):
 
     # BOT_FILES_STAGE
     # ---------------------
+    # TODO: refactor to use _create_table_if_not_exist
     bot_files_stage_check_query = f"SHOW STAGES LIKE 'BOT_FILES_STAGE' IN SCHEMA {self.genbot_internal_project_and_schema};"
     try:
         cursor = self.client.cursor()
@@ -590,6 +522,7 @@ def ensure_table_exists(self):
 
     # LLM_TOKENS
     # ---------------------
+    # TODO: refactor to use _create_table_if_not_exist
     try:
         runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
         cursor = self.client.cursor()
@@ -712,7 +645,7 @@ def ensure_table_exists(self):
 
     # LLM_TOKENS
     # ---------------------
-
+    # TODO: refactor to use _create_table_if_not_exist
     # Check if LLM_ENDPOINT column exists in LLM_TOKENS table
     check_llm_endpoint_query = f"DESCRIBE TABLE {self.genbot_internal_project_and_schema}.LLM_TOKENS;"
     try:
@@ -741,6 +674,8 @@ def ensure_table_exists(self):
     # & EAI_CONFIG
     # & CUSTOM_ENDPOINTS
     # -------------------------
+    # TODO: refactor to use _create_table_if_not_exist
+
     slack_tokens_table_check_query = (
         f"SHOW TABLES LIKE 'SLACK_APP_CONFIG_TOKENS' IN SCHEMA {self.schema};"
     )

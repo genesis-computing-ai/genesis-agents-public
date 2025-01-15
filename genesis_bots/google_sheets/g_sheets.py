@@ -5,17 +5,21 @@ import os.path
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+from googleapiclient.http import MediaIoBaseDownload, MediaFileUpload
 from datetime import datetime
 # import mimetypes
 import os
-import google.auth
+
 from genesis_bots.google_sheets.format_g_sheets import format_genesis_g_sheets
 
 ## test
 from concurrent.futures import ThreadPoolExecutor
-import copy
 import time
 from tenacity import retry, stop_after_attempt, wait_exponential
+
+import openpyxl
+import requests
+from io import BytesIO
 
 
 # If modifying these scopes, delete the file token.json.
@@ -141,12 +145,13 @@ def get_g_file_comments(user, file_id):
         creds = Credentials.from_service_account_file(
             SERVICE_ACCOUNT_FILE, scopes=SCOPES
         )
+
         service = build("drive", "v3", credentials=creds)
 
         # Get the comments on the document
         comments = (
             service.comments()
-            .list(fileId=file_id, fields="comments(id,content,author(displayName,emailAddress),replies(id,content,author(displayName,emailAddress),htmlContent))")
+            .list(fileId=file_id, fields="comments(anchor, id,content,author(kind, displayName,emailAddress),replies(id,content,author(displayName,emailAddress),htmlContent))")
             .execute()
         )
 
@@ -154,11 +159,38 @@ def get_g_file_comments(user, file_id):
         file_metadata = service.files().get(fileId=file_id, fields="webViewLink").execute()
         file_url = file_metadata.get("webViewLink")
 
+        flat_comments = []
+
         # Add the URL to each comment
         for comment in comments.get("comments", []):
             comment["url"] = f"{file_url}?comment={comment['id']}"
             for reply in comment.get("replies", []):
                 reply["url"] = f"{file_url}?comment={comment['id']}&reply={reply['id']}"
+
+            flat_comments.append(comment['content'])
+
+        request = service.files().export_media(fileId=file_id, mimeType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        fh = BytesIO()
+        downloader = MediaIoBaseDownload(fh, request)
+        done = False
+        while done is False:
+            status, done = downloader.next_chunk()
+            print("Download %d%%" % int(status.progress() * 100))
+        fh.seek(0)
+        workbook = openpyxl.load_workbook(filename=fh, data_only=False)
+        worksheet = workbook['Sheet1']
+        res = []
+        for i, row in enumerate(worksheet.iter_rows()):
+            for j, cell in enumerate(row):
+                if cell.comment:
+                    try:
+                        comment_index = flat_comments.index(cell.comment.text.split("\n", 1)[0])
+                    except ValueError:
+                        continue
+                    comments['comments'][comment_index]["cellRC"] = number_to_column(j + 1).strip() + str(i + 1).strip()
+                    comments["comments"][comment_index]["columnIndex"] = (
+                        number_to_column(j + 1)
+                    )
 
         return comments.get("comments", [])
 

@@ -41,9 +41,9 @@ google_drive_tools = ToolFuncGroup(
             LIST - Get's list of files in a folder.  Same as DIRECTORY, DIR, GET FILES IN FOLDER
             SET_ROOT_FOLDER - Sets the root folder for the user on their drive
             GET_FILE_VERSION_NUM - Gets the version numbergiven a g_file id
-            GET_COMMENTS - Gets the comments and replies for a file give a g_file_id
+            GET_COMMENTS - Gets the comments and replies for a file give a g_file_id.  Also includes the anchor tag which specifies the cell where the comment is located
             ADD_COMMENT - Adds a comment to a file given a g_file_id
-            ADD_REPLY_TO_COMMENT - Adds a reply to a comment given a g_file_id and a comment_id
+            ADD_REPLY_TO_COMMENT - Adds a reply to a comment given a g_file_id and a comment_id.  Also includes the anchor tag which specifies the cell where the comment is located
             GET_SHEET - (Also can be READ_SHEET) - Gets the contents of a Google Sheet given a g_file_id
             EDIT_SHEET - (Also can be WRITE SHEET) - Edits a Google Sheet given a g_file_id and values.  Passing
                 a cell range is optional
@@ -59,6 +59,7 @@ google_drive_tools = ToolFuncGroup(
     g_file_comment_id="The unique identifier of a comment stored on Google Drive.",
     g_file_name="The name of a file, files, folder, or folders stored on Google Drive.",
     g_sheet_query="Query string to run and save the results to a Google Sheet.",
+    g_sheet_anchor="The anchor tag which specifies the cell where the comment is located.",
     user="""The unique identifier of the process_id. MAKE SURE TO DOUBLE-CHECK THAT YOU ARE USING THE CORRECT test_process_id
         ON UPDATES AND DELETES!  Required for CREATE, UPDATE, and DELETE.""",
     thread_id="THREAD_ID_IMPLICIT_FROM_CONTEXT",
@@ -73,6 +74,7 @@ def google_drive(
     g_file_comment_id: str = None,
     g_file_name: str = None,
     g_sheet_query: str = None,
+    g_sheet_anchor: str = None,
     user: str = None,
     thread_id: str = None,
 ) -> None:

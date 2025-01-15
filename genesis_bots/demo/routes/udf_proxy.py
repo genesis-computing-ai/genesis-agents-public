@@ -32,7 +32,7 @@ udf_routes = Blueprint('udf_routes', __name__)
 
 @udf_routes.route("/udf_proxy/submit_udf", methods=["POST"])
 def submit_udf():
-    logger.info('Flask invocation: /udf_proxy/submit_udf')
+   # logger.info('Flask invocation: /udf_proxy/submit_udf')
     message = request.json
     input_rows = message["data"]
     if type(input_rows[0][3]) == str:

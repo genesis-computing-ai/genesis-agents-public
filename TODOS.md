@@ -7,7 +7,7 @@ restructure:
 x tool calling with cortex (mrs eliza on cortex?)
 
 for direct non-assistant mode:
-make adding/removing tools on the fly work
+x make adding/removing tools on the fly work
 x make changing instructions work on the fly 
 x test in snowflake metadata mode
 x test again in assistant mode
@@ -15,7 +15,7 @@ files in for image analyze
 files out for generate image
 add bot level param for completion vs assistant mode
 test gxs with completion mode (w/git etc)
-cancel run checks that stay in progress for more than 10 min with no response
+n cancel run checks that stay in progress for more than 10 min with no response
 after tool calls, the first few new chars get missed sometimes in the output 
 
 gdrive connector:

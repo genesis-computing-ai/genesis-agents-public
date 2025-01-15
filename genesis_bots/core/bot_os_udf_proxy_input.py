@@ -86,6 +86,14 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
     #        not associated  of the chat request-response cycle.
     #      * The proxy function can now unblock and return the result to the LLM.
 
+    # Shared class-level maps for all instances
+    _shared_in_to_out_thread_map = {}
+    _shared_response_map = {}
+    _shared_events = {}
+    _shared_events_map = {}
+    _shared_pending_map = {}
+    _shared_user_actions = {}
+
     ACTION_MSG_DELIM = "<!!-ACTION_MSG-!!>"
     '''prefix/suffix delimeter for special 'action' messages that distinguish them from normal chat messages'''
 
@@ -122,19 +130,39 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
         return d
 
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, bot_id = None):
+        super().__init__(bot_id=bot_id)
         self.genbot_internal_project_and_schema = os.getenv('GENESIS_INTERNAL_DB_SCHEMA','None')
-        self.in_to_out_thread_map = {} # map of input thread IDs to output thread IDs
+        
+        # Generate a unique name for this adapter instance if needed
+        if self.bot_id is None:
+            self.adapter_name = str(uuid.uuid4())
+        else:
+            self.adapter_name = self.bot_id
 
-        self.response_map = {} # maps input event UUIDs to response (output) strings
-        self.events = deque() # queue of input event objects added by the submit() method
-        self.events_map = {} # map of UUIDs to event objects
-        self.pending_map = {} # map of UUIDs to 'True' indicating if the event is pending response (acts like a set)
+        # Initialize shared maps for this adapter
+        if self.adapter_name not in self.__class__._shared_in_to_out_thread_map:
+            self.__class__._shared_in_to_out_thread_map[self.adapter_name] = {}
+        if self.adapter_name not in self.__class__._shared_response_map:
+            self.__class__._shared_response_map[self.adapter_name] = {}
+        if self.adapter_name not in self.__class__._shared_events:
+            self.__class__._shared_events[self.adapter_name] = deque()
+        if self.adapter_name not in self.__class__._shared_events_map:
+            self.__class__._shared_events_map[self.adapter_name] = {}
+        if self.adapter_name not in self.__class__._shared_pending_map:
+            self.__class__._shared_pending_map[self.adapter_name] = {}
+        if self.adapter_name not in self.__class__._shared_user_actions:
+            self.__class__._shared_user_actions[self.adapter_name] = types.SimpleNamespace()
+            self.__class__._shared_user_actions[self.adapter_name].unprocessed_q = deque()
+            self.__class__._shared_user_actions[self.adapter_name].pending_result_q = deque()
 
-        self.user_actions_tacker = types.SimpleNamespace()
-        self.user_actions_tacker.unprocessed_q = deque()
-        self.user_actions_tacker.pending_result_q = deque()
+        # Set instance variables to reference the shared collections
+        self.in_to_out_thread_map = self.__class__._shared_in_to_out_thread_map[self.adapter_name]
+        self.response_map = self.__class__._shared_response_map[self.adapter_name]
+        self.events = self.__class__._shared_events[self.adapter_name]
+        self.events_map = self.__class__._shared_events_map[self.adapter_name]
+        self.pending_map = self.__class__._shared_pending_map[self.adapter_name]
+        self.user_actions_tacker = self.__class__._shared_user_actions[self.adapter_name]
 
 
     @functools.cached_property

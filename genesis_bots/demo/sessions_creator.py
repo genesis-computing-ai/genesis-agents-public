@@ -375,12 +375,12 @@ def make_session(
             udf_adapter_local = bot_id_to_udf_adapter_map[bot_id]
         else:
             udf_adapter_local = (
-                UDFBotOsInputAdapter() if stream_mode else TaskBotOsInputAdapter()
+                UDFBotOsInputAdapter(bot_id=bot_id) if stream_mode else TaskBotOsInputAdapter()
             )
             bot_id_to_udf_adapter_map[bot_id] = udf_adapter_local
-        udf_adapter_local = (
-            UDFBotOsInputAdapter() if stream_mode else TaskBotOsInputAdapter()
-        )
+     #   udf_adapter_local = (
+     #       UDFBotOsInputAdapter(bot_id=bot_id) if stream_mode else TaskBotOsInputAdapter()
+     #   )
         input_adapters.append(udf_adapter_local)
 
     if not simple_mode and stream_mode or os.getenv("BOT_DO_PLANNING_REFLECTION"):
@@ -585,7 +585,7 @@ def create_sessions(
     data_cubes_ingress_url=None,
     bot_list=None,
     skip_slack=False,
-    max_workers=10 # New parameter to control parallel execution
+    max_workers=1 # New parameter to control parallel execution
 ):
     """
     Create (multiple) sessions for bots in parallel based on the provided configurations.

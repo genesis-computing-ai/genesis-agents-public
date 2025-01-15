@@ -28,6 +28,7 @@ from genesis_bots.llm.llm_openai.openai_utils import get_openai_client
 class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
 
     stream_mode = False
+    _shared_thread_history = {}  # Maps bot names to their thread histories
 
     def __init__(self, name:str, instructions:str,
                 tools:list[dict] = [], available_functions={}, files=[],
@@ -75,8 +76,11 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         self.thread_tool_call_counter = {}
         self.thread_tool_call_counter_failsafe = {}
 
-    # Create a map to store thread history
-        self.thread_history = {}
+        # Initialize shared thread history for this bot name if needed
+        if name not in self.__class__._shared_thread_history:
+            self.__class__._shared_thread_history[name] = {}
+        self.thread_history = self.__class__._shared_thread_history[name]
+
         self.thread_busy_list = deque()
 
         self.thread_full_response = {}
@@ -807,6 +811,11 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                    "timestamp": timestamp.isoformat()
                }
             self.thread_history[thread_id].append(system_message_object)
+        else:
+            # Update the first (system) message with current instructions
+            if self.thread_history[thread_id][0]["message_type"] == "system":
+                self.thread_history[thread_id][0]["content"] = self.instructions
+            
         self.thread_history[thread_id].append(message_object)
 
         try:

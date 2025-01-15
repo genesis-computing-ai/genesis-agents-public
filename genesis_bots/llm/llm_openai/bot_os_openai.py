@@ -179,6 +179,8 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
    stream_mode = False
    all_functions_backup = None
+   _shared_completion_threads = {}  # Maps bot names to their completion threads
+   _shared_thread_working_set = {}  # Maps bot names to their thread working sets
 
    def __init__(self, name:str, instructions:str,
                 tools:list[dict] = [], available_functions={}, files=[],
@@ -240,7 +242,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       self.instructions = instructions
       self.tools = my_tools
       self.completion_threads = {}
-
+      
       genbot_internal_project_and_schema = os.getenv('GENESIS_INTERNAL_DB_SCHEMA','None')
       if genbot_internal_project_and_schema is not None:
          genbot_internal_project_and_schema = genbot_internal_project_and_schema.upper()
@@ -397,6 +399,18 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       else:
          self.assistant = types.SimpleNamespace()
          self.assistant.id = "no_assistant"
+
+
+      # Initialize shared thread working set for this bot name if needed
+
+      if name not in self.__class__._shared_thread_working_set:
+            self.__class__._shared_thread_working_set[name] = {}
+      self.thread_working_set = self.__class__._shared_thread_working_set[name]
+
+      # Initialize shared completion threads for this bot name if needed
+      if name not in self.__class__._shared_completion_threads:
+         self.__class__._shared_completion_threads[name] = {}
+      self.completion_threads = self.__class__._shared_completion_threads[name]
 
    @override
    def is_active(self) -> bool:
@@ -861,7 +875,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                if not reuse_run_id or run_id not in StreamingEventHandler.run_id_to_output_stream:
                   StreamingEventHandler.run_id_to_output_stream[run_id] = ""
             self.thread_run_map[thread_id] = {"run": run_id, "completed_at": None}
-            logger.info(f"----> completions-based run is {run_id}")
+          #  logger.info(f"----> {self.jl_id} completions-based run is {run_id} for thread_id: {thread_id}")
             if thread_id not in self.active_runs:
                self.active_runs.append(thread_id)
 
@@ -1017,6 +1031,8 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       return True
 
    def is_bot_openai(self,bot_id):
+       if self.use_assistants == False:
+          return False
        bot_details = get_bot_details(bot_id)
        bot_is_openai = False
        if bot_details.get("bot_implementation") == "openai":
@@ -1241,7 +1257,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                      for assistant in my_assistants:
                         self.client.beta.assistants.update(assistant.id,instructions=instructions)
 
-                  logger.info(f"Bot instructions for {target_bot} updated: {instructions}")
+                  logger.info(f"Bot instructions for {target_bot} updated, len={len(instructions)}")
 
                   #new_response.pop("new_instructions", None)
          if (function_call_details[0][0] == 'add_bot_files' or function_call_details[0][0] == 'remove_bot_files' ) and (func_response.get('success',False)==True or func_response.get('Success',False)==True):
@@ -1606,6 +1622,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       threads_completed = {}
       threads_still_pending = []
 #      for thread_id in self.thread_run_map:
+  
       try:
          thread_id = self.active_runs.popleft()
          if thread_id is None:
@@ -1902,7 +1919,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                                                                      channel_type=meta.get("channel_type", None), channel_name=meta.get("channel", None),
                                                                      primary_user=primary_user)
                         logger.telemetry('execute_function:', thread_id, self.bot_id, meta.get('user_email', 'unknown_email'),
-                                         os.getenv("BOT_OS_DEFAULT_LLM_ENGINE", ""), func_name, func_args)
+                                         os.getenv("BOT_OS_DEFAULT_LLM_ENGINE", ""), func_name, 'arg len:'+str(len(func_args)))
                         func_args_dict = json.loads(func_args)
                         if "image_data" in func_args_dict: # FixMe: find a better way to convert file_id back to stored file
                            func_args_dict["image_data"] = self.file_storage.get(func_args_dict["image_data"].removeprefix('/mnt/data/'))
@@ -2179,7 +2196,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
            # if thread_id in self.processing_runs:
            #    if run.status == 'cancelled':
        #           self.processing_runs.remove(thread_id)
-           #       return
+       #       return
         # else:
         #    if restarting_flag == False:
         #       self.active_runs.append(thread_id)

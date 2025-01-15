@@ -33,8 +33,10 @@ class BotOsThread:
         #self.input_adapter.thread_id = self.thread_id # JL COMMENT OUT FOR NOW
         self.validated = False
 
-    def add_message(self, message: BotOsInputMessage, event_callback=None):
+    def add_message(self, message: BotOsInputMessage, event_callback=None, current_assistant=None):
         # logger.debug("BotOsThread:add message")
+        if current_assistant is not None:
+            self.assistant_impl = current_assistant
         if isinstance(self.assistant_impl, BotOsAssistantSnowflakeCortex):
             ret = self.assistant_impl.add_message(message, event_callback=event_callback)
         else:
@@ -88,7 +90,10 @@ class BotOsSession:
     clear_access_cache = False
     # Add new class-level dictionary to store knowledge implementations
     knowledge_implementations = {}
-
+    # Add new class-level dictionaries for thread management
+    _shared_threads = {}  # Maps bot names to their threads
+    _shared_in_to_out_thread_map = {}  # Maps bot names to their in->out thread maps
+    _shared_out_to_in_thread_map = {}  # Maps bot names to their out->in thread maps
 
     def __init__(
         self,
@@ -199,7 +204,24 @@ class BotOsSession:
             all_functions["_add_reminder"] = self._add_reminder
 
         self.input_adapters = input_adapters
-        self.threads = {}
+
+        # Initialize shared thread dictionaries for this bot name if needed
+        if session_name not in self.__class__._shared_threads:
+            self.__class__._shared_threads[session_name] = {}
+        if session_name not in self.__class__._shared_in_to_out_thread_map:
+            self.__class__._shared_in_to_out_thread_map[session_name] = {}
+        if session_name not in self.__class__._shared_out_to_in_thread_map:
+            self.__class__._shared_out_to_in_thread_map[session_name] = {}
+
+        self.threads = self.__class__._shared_threads[session_name]
+        self.in_to_out_thread_map = self.__class__._shared_in_to_out_thread_map[session_name]
+        self.out_to_in_thread_map = self.__class__._shared_out_to_in_thread_map[session_name]
+        # Set instance variables to reference the shared dictionaries
+
+       # self.threads = {}
+       # self.in_to_out_thread_map = {}
+       # self.out_to_in_thread_map = {}
+
         self.instructions = instructions
         self.validation_instructions = validation_instructions
         if assistant_implementation is None:
@@ -231,8 +253,6 @@ class BotOsSession:
         self.lock = threading.Lock()
         self.tasks = []
         self.current_task_index = 0
-        self.in_to_out_thread_map = {}
-        self.out_to_in_thread_map = {}
         self.addback_map = {}
 
         self.next_messages = []
@@ -283,7 +303,7 @@ class BotOsSession:
         self, input_message: BotOsInputMessage, event_callback = None
     ):  # thread_id:str, message:str, files=[]):
 
-        if input_message.thread_id not in self.threads:
+        if input_message.thread_id not in self.threads:  #32a
             logger.info(
                 f"{self.bot_name} bot_os add_message new_thread for {input_message.thread_id} not found in existing threads."
             )
@@ -335,7 +355,7 @@ class BotOsSession:
                 if input_message.metadata["user_authorized"] == "TRUE":
                     self.assistant_impl.user_allow_cache[user_id] = True
 
-        ret = thread.add_message(input_message, event_callback=event_callback)
+        ret = thread.add_message(input_message, event_callback=event_callback, current_assistant=self.assistant_impl)
         if ret == False:
             logger.info("bot os session add false - thread already running")
             return False
@@ -463,7 +483,7 @@ class BotOsSession:
             # populate map
             # out_thread = self.in_to_out_thread_map.get(input_message.thread_id,None)
 
-            out_thread = self.in_to_out_thread_map.get(input_message.thread_id, None)
+            out_thread = self.in_to_out_thread_map.get(input_message.thread_id, None)  # 3434 -> 32a , map has 4 ...
             if out_thread is None:
                 # check to see if the thread_id is actually an output thread, and if so change it back to the correct input thread id
                 if input_message.thread_id in self.out_to_in_thread_map:

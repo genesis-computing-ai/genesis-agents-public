@@ -155,7 +155,8 @@ class BosOsClientAsyncToolInvocationHandle(BotOsOutputMessage):
 
 
 class BotOsInputAdapter:
-    def __init__(self) -> None:
+    def __init__(self, bot_id: Optional[str] = None) -> None:
+        self.bot_id = bot_id
         self.thread_id = None
 
     # allows for polling from source

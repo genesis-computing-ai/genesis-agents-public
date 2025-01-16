@@ -13,8 +13,7 @@ from   genesis_bots.core                     import global_flags
 from   genesis_bots.core.bot_os_tools2       import (ToolFuncDescriptor,
                                         get_global_tools_registry,
                                         get_tool_func_descriptor)
-from   genesis_bots.core.bot_os_tools_extended \
-                                import load_user_extended_tools
+
 # from   genesis_bots.llm.llm_openai.bot_os_openai import StreamingEventHandler
 
 from   genesis_bots.google_sheets.g_sheets   import (add_g_file_comment,
@@ -1317,14 +1316,6 @@ def get_tools(
                 func = getattr(module, func_name)
                 # logger.info("imported: ",func)
             available_functions[name] = func
-
-    # add user extended tools
-    user_extended_tools_definitions, user_extended_functions = load_user_extended_tools(db_adapter, project_id=global_flags.project_id,
-                                                                                        dataset_name=global_flags.genbot_internal_project_and_schema.split(".")[1])
-    if user_extended_functions:
-        func_descriptors.extend(user_extended_functions)
-        available_functions_loaded.update(user_extended_tools_definitions)
-        tool_to_func_descriptors_map[tool_name] = user_extended_functions
 
     return func_descriptors, available_functions, tool_to_func_descriptors_map
 

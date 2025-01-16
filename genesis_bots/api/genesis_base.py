@@ -164,7 +164,6 @@ class DatabaseMetadataStore(GenesisMetadataStore):
         "GenesisKnowledge": ("KNOWLEDGE", "KNOWLEDGE_THREAD_ID", None),
         "GenesisHarvestResults": ("HARVEST_RESULTS", "SOURCE_NAME", None),
         "GenesisMessage": ("MESSAGE_LOG", "BOT_ID", "THREAD_ID"),
-        "GenesisToolDefinition": ("USER_EXTENDED_TOOLS", "TOOL_NAME", None),
     }
     conn: SnowflakeConnection = None
 
@@ -299,29 +298,7 @@ class DatabaseMetadataStore(GenesisMetadataStore):
         finally:
             cursor.close()
         return metadata_list
-    def upload_extended_tool(self, tool: GenesisToolDefinition, python_code: str, return_type: str, packages: list[str] = None):
-        cursor = self.conn.cursor()
-        stored_proc_name = f"{self.scope}.EXTENDED_TOOLS.{tool.TOOL_NAME}"
-        packages = packages if packages else [] + ['snowflake-snowpark-python', 'pandas']
-        query = f"""
-            CREATE OR REPLACE PROCEDURE {stored_proc_name}(
-                {', '.join([f'{param_name} {param_details["type"]}' for param_name, param_details in tool.PARAMETERS.items()])}
-            )
-            RETURNS {return_type}
-            LANGUAGE PYTHON
-            RUNTIME_VERSION = '3.8'
-            PACKAGES = ({', '.join([f"'{package}'" for package in packages])})
-            HANDLER = '{tool.TOOL_NAME}'
-            AS
-            $$
-{python_code}
-            $$
-        """
-        if self.sub_scope == "app1": # only necessary if connecting remotely
-            cursor.execute("call core.run_arbitrary('%s')" % query) # TODO: don't need run_arbitrary if running locally
-        else:
-            cursor.execute(query)
-        self.insert_or_update_metadata("GenesisToolDefinition", tool.TOOL_NAME, tool)
+
 
 class SnowflakeMetadataStore(DatabaseMetadataStore):
     def __init__(self, scope, sub_scope="app1"):

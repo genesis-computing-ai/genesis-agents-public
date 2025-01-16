@@ -1628,32 +1628,6 @@ def ensure_table_exists(self):
     af = get_artifacts_store(self)
     af.setup_db_objects(replace_if_exists=False)
 
-    # USER EXTENDED TOOLS
-    # -----------------------
-    user_extended_tools_table_ddl = f"""
-    CREATE TABLE {self.schema}.USER_EXTENDED_TOOLS (
-        TOOL_NAME STRING NOT NULL,
-        TOOL_DESCRIPTION STRING NOT NULL,
-        PARAMETERS VARIANT NOT NULL
-    );
-    """
-    _create_table_if_not_exist('USER_EXTENDED_TOOLS', user_extended_tools_table_ddl)
-
-    # init db connector as it has its own ensure_tables_exist method
-    from genesis_bots.connectors.data_connector import DatabaseConnector
-    connector = DatabaseConnector()
-
-    # EXTENDED TOOLS SCHEMA for storing extended tools
-    try:
-        extended_tools_schema_check_query = f"SHOW SCHEMAS LIKE 'EXTENDED_TOOLS' IN DATABASE {self.database};"
-        cursor.execute(extended_tools_schema_check_query)
-        if not cursor.fetchone():
-            create_extended_tools_schema_ddl = f"CREATE SCHEMA IF NOT EXISTS EXTENDED_TOOLS;"
-            cursor.execute(create_extended_tools_schema_ddl)
-            self.client.commit()
-            logger.info(f"Schema EXTENDED_TOOLS created.")
-    except Exception as e:
-        logger.error(f"An error occurred while creating Schema EXTENDED_TOOLS: {e}")
 
 
 def get_processes_list(self, bot_id="all"):

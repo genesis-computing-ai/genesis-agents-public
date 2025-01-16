@@ -5002,24 +5002,6 @@ result = 'Table FAKE_CUST created successfully.'
             result = self.add_hints(purpose, result, code, packages)
         return result
 
-    def db_get_user_extended_tools(self, project_id, dataset_name) -> list[dict]:
-        # runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
-        cursor = self.client.cursor()
-
-        try:
-            cursor.execute(f"SELECT TOOL_NAME, TOOL_DESCRIPTION, PARAMETERS FROM {project_id}.{dataset_name}.USER_EXTENDED_TOOLS")# WHERE RUNNER_ID = '{runner_id}'")
-            user_extended_tools_data = cursor.fetchall()
-            user_extended_tools = []
-            for tool in user_extended_tools_data:
-                user_extended_tools.append({
-                    "tool_name": tool[0],
-                    "tool_description": tool[1],
-                    "parameters": json.loads(tool[2])
-                })
-            return user_extended_tools
-        except Exception as e:
-            logger.error(f"Failed to fetch user extended tools definitions: {e}")
-            return []
 
 snowflake_tools = ToolFuncGroup(
     name="snowflake_tools",

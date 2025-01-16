@@ -2,7 +2,6 @@
 GENESIS BOT TODOS
 =================
 
-
 restructure:
 x tool calling with cortex (mrs eliza on cortex?)
 
@@ -11,47 +10,47 @@ x make adding/removing tools on the fly work
 x make changing instructions work on the fly 
 x test in snowflake metadata mode
 x test again in assistant mode
-files in for image analyze
+x files in for image analyze
 files out for generate image
-add bot level param for completion vs assistant mode
-test gxs with completion mode (w/git etc)
+(later) add bot level param for completion vs assistant mode
+(wait on aviv) test gxs with completion mode (w/git etc)
 n cancel run checks that stay in progress for more than 10 min with no response
 after tool calls, the first few new chars get missed sometimes in the output 
-make grants to yourself for tools work without disrupting the thread (keep more arrays in the state.. pending threads etc ) 
-give web access by default to eve 
-give eve a suggestion on tools that all bots may want when making bots 
-
+NEXT->make grants to yourself for tools work without disrupting the thread (keep more arrays in the state.. pending threads etc ) 
+NEXT->give web access by default to eve 
+NEXT->give eve a suggestion on tools that all bots may want when making bots 
 
 gdrive connector:
-JD-json file with credentials needs to be created properly?
+x JD-json file with credentials needs to be created properly?
 JD-comments on gsheets, bot needs to know what cell they are on
 
 prerelease:
-links from web search results dont show right in streamlit 
+TEST-test various tools (git for example)
+REZA-links from web search results dont show right in streamlit 
 have search metadata return the list of any data connections as well that may not be harvested 
 x add baseball and f1 connections by default to eve 
-add preharvest for baseball and f1
+NEXT->add preharvest for baseball and f1
 x check that adding a tool via streamlit doesnt mess up the thread with that bot (e.g. data connector tools)
-make sqlite sample data load from csv files vs binary
+(later) make sqlite sample data load from csv files vs binary
 x speed up startup
-change default to sqlite mode and to non-assistant mode
+NEXT->change default to sqlite mode and to non-assistant mode
 x (in progress) speed up bot responses
 x o1 via api with tool calling
 x put eve back in as default bot in streamlit
-test web research tools
-demo with web research tools
+x test web research tools
+REZA-demo with web research tools
 x rationalize database connector with database_tools
-test gsheet comments
-make sure clean sqlite works with new schema removal logic
+x test gsheet comments
+TEST-make sure clean sqlite works with new schema removal logic
 x make sure harvester works ok in snowflake mode still (get schemas, get tables)
-test setting harvest control again with sqlite and snowflake (make sure using correct connection id)
+TEST-test setting harvest control again with sqlite and snowflake (make sure using correct connection id)
 x store standard queries for harvester for various db_types in a metadata table, and store new ones in there when they work
 x make the index for each bot separate and based on what data they have access to
 x make metadata mapping have a source_name column
-make get_full_Table_details work with sqlite etc
-(done?) JL NEXT - allow search_metadata_detailed and search_metadata to specify a source_name
+NEXT->make get_full_Table_details work with sqlite etc
+TEST-(done?) JL NEXT - allow search_metadata_detailed and search_metadata to specify a source_name
 x graphs out in streamlit in sqlite mode
-generate a text file with the numebrs from 1-10, sqlite mode, genesis gui error in streamlit (doesnt return the file anymore just the text)
+REZA-generate a text file with the numebrs from 1-10, sqlite mode, genesis gui error in streamlit (doesnt return the file anymore just the text)
 x route queries to snowflake through data connector tools, so there is only one query_database tool
 x route search metadata through data connector tools
 make harvester on non-snowflake also get views

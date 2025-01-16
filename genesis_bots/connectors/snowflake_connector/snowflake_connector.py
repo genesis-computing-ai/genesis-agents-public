@@ -3966,7 +3966,7 @@ def get_status(site):
             logger.info(f"imagegen Error generating image with DALL-E 3: {e}")
             return None
 
-    def image_analysis(
+    def _OLD_OLD_REMOVE_image_analysis(
         self,
         query=None,
         openai_file_id: str = None,

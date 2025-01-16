@@ -188,6 +188,15 @@ def execute_function(
         if True or func_name.startswith("_"):  # run internal BotOS functions in-process
             if func_name.startswith("_"):
                 s_arguments["thread_id"] = thread_id # redundant for 'new style' tool functions, which specify this explicitly
+            if func_name == '_image_analysis':
+                try:
+                    if "thread_ts" in input_metadata:
+                        s_arguments["input_thread_id"] = input_metadata["thread_ts"]
+                    elif "thread_id" in input_metadata:
+                        s_arguments["input_thread_id"] = input_metadata["thread_id"] 
+                except:
+                    pass
+
             if func_name == '_run_process':
                 s_arguments["bot_id"] = bot_id
 

@@ -181,6 +181,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
    all_functions_backup = None
    _shared_completion_threads = {}  # Maps bot names to their completion threads
    _shared_thread_working_set = {}  # Maps bot names to their thread working sets
+   _thread_io_map = {}  # Maps input thread IDs to output thread IDs
 
    def __init__(self, name:str, instructions:str,
                 tools:list[dict] = [], available_functions={}, files=[],
@@ -742,7 +743,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
          pass
 
       #logger.warn(f"ADDING MESSAGE -- input thread_id: {thread_id} -> openai thread: {thread}")
-      if input_message.files is not None and len(input_message.files) > 0:
+      if self.use_assistants and input_message.files is not None and len(input_message.files) > 0:
          try:
             #logger.error("REMINDER: Update for message new files line 117 on botosopenai.py")
             #logger.info('... openai add_message before upload_files, input_message.files = ', input_message.files)
@@ -879,6 +880,14 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
             if thread_id not in self.active_runs:
                self.active_runs.append(thread_id)
 
+            if input_message.files is not None and len(input_message.files) > 0:
+                # Add note about uploaded files to message
+                files_info = "\n[User has attached the following files:\n"
+                for file in input_message.files:
+                    files_info += f"- {file}\n"
+                files_info += "You can reference these files in future calls using their full paths as shown above.]"
+                input_message.msg += files_info
+                
             # Check if we have existing messages for this thread
             if thread_id in self.completion_threads:
                 # Get existing messages and append new user message
@@ -923,7 +932,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                if tool_calls_array is not None:
                   for tool_call in tool_calls_array:
                      tool_calls.append({"id": tool_call.id, "type": "function", "function": {"name": tool_call.function.name, "arguments": tool_call.function.arguments}})
-            else:
+            else:  
 
                stream = self.client.chat.completions.create(
                   model=model_name,

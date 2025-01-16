@@ -103,7 +103,7 @@ CREATE SECRET IF NOT EXISTS cortex_search_secret
         )
     st.dataframe(cortex_search_services_df, use_container_width=True)
 
-    st.markdown("""4. Follow the insruction <a href="https://docs.snowflake.com/en/user-guide/snowflake-cortex/cortex-search/cortex-search-overview" target="_blank">here</a> to add a new Cortex Search Service to your schemas""", unsafe_allow_html=True)
+    st.markdown("""4. Follow the instructions <a href="https://docs.snowflake.com/en/user-guide/snowflake-cortex/cortex-search/cortex-search-overview" target="_blank">here</a> to add a new Cortex Search Service to your schemas""", unsafe_allow_html=True)
 
     st.info("If you need any assistance, please check our [documentation](https://genesiscomputing.ai/docs/) or join our [Slack community](https://communityinviter.com/apps/genesisbotscommunity/genesis-bots-community).")
 

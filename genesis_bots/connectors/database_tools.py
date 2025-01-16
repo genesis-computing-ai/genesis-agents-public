@@ -170,13 +170,3 @@ web_access_tools = {
 }
 
 
-# image_tools = {
-#     "_analyze_image": "db_adapter.image_analysis",
-#     "_generate_image": "db_adapter.image_generation",
-# }
-
-# autonomous_tools = {}
-# autonomous_tools = {"_manage_tasks": "db_adapter.manage_tasks"}
-
-
-# artifact_manager_tools = {"_manage_artifact": "tool_belt.manage_artifact"}

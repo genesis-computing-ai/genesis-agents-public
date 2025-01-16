@@ -55,7 +55,7 @@ def config_web_access():
     st.markdown('<p class="big-font">Spider Cloud API</p>',unsafe_allow_html=True )
     st.markdown("""Spider is the fastest open source scraper and crawler that returns LLM-ready data.
                 It converts any website into pure HTML, markdown, metadata or text while enabling you to
-                crawl with custom actions using AI. Follow the insruction <a href="https://spider.cloud/" target="_blank">here</a> to get an API key""", unsafe_allow_html=True)
+                crawl with custom actions using AI. Follow the instructions <a href="https://spider.cloud/" target="_blank">here</a> to get an API key""", unsafe_allow_html=True)
     spider_api_key = st.text_input("Spider API Key")
 
     # Handle submission of Jira parameters

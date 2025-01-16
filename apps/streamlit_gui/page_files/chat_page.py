@@ -49,7 +49,7 @@ def locate_url_markup(txt, replace_with=None):
             (c) a boolean flag 'has_partial' indicating if the end of the text
                 *may* potentially look like a prefix of an incomplete URL markup
     """
-    pattern = r'(!?\[([^\]]+)\]\(((http[s]?|file|sandbox|artifact):/+[^\)]+)\))'  # regex for strings of the form '[description](url)' and '![description](url)'
+    pattern = r'(!?\[([^\]]+)\]\(((file|sandbox|artifact):/+[^\)]+)\))'  # regex for strings of the form '[description](url)' and '![description](url)'
                                                                                   # TOOD: support other standard URL schemas (use urllib?)
     matches = re.findall(pattern, txt)
     triplets = [(match[1], match[2], match[0])
@@ -259,6 +259,8 @@ def chat_page():
                     # TODO: handle more mime types, not just images or text. We fallback to a generic href with octet-stream)
                 except:
                     pass # best effort failed. fallback to a generic link (which is likely broken)
+            elif url_parts.scheme == 'https' or url_parts.scheme == 'http':
+                file_content64 = None
             else:
                 # get the content using GET.
                 response = requests.get(url)
@@ -331,7 +333,8 @@ def chat_page():
                 allow_html = True
             else:
                 # not able to download the content. Leave it as a file markdown.
-                markdown = f'[{file_path.name}](url)'
+                allow_html = True
+                markdown = f'[{url}]({url})'
 
             # render
             assert markdown is not None

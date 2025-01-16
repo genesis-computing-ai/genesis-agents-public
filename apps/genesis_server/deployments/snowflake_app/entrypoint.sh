@@ -59,26 +59,26 @@ else
     export PYTHONPATH=$PYTHONPATH:/src/app/
     export PYTHONPATH=$PYTHONPATH:/
 
-    echo "Running Genesis Voice Demo Server"
+    # echo "Running Genesis Voice Demo Server"
 
-    cd genesis-voice
+    # cd genesis-voice
 
-    # npm cache clean --force
+    # # npm cache clean --force
 
-    # npm i
-    # npm install --verbose | tee /dev/stdout
+    # # npm i
+    # # npm install --verbose | tee /dev/stdout
 
-    echo "Running Relay server on 8081"
-
-
-    PORT=8081 npm run relay &
-
-    echo "Running Voice server on port 3000"
+    # echo "Running Relay server on 8081"
 
 
-    DANGEROUSLY_DISABLE_HOST_CHECK=true PORT=3000 npm start &
+    # PORT=8081 npm run relay &
 
-    cd ..
+    # echo "Running Voice server on port 3000"
+
+
+    # DANGEROUSLY_DISABLE_HOST_CHECK=true PORT=3000 npm start &
+
+    # cd ..
 
 #    echo "Running Datacube Endpoint"
 

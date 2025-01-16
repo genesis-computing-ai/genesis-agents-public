@@ -6,7 +6,7 @@ RUN pip install --upgrade pip && \
     pip install -r requirements.txt
 # RUN python3 -m spacy download en_core_web_md
 EXPOSE 8501 8080 8000 5678 1234 3000 8081 8502 7681
-COPY genesis-voice ./genesis-voice
+# COPY genesis-voice ./genesis-voice
 
 # Install Node.js 18.x and npm
 # WORKDIR /src/app/genesis-voice

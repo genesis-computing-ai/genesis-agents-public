@@ -19,7 +19,7 @@ DIRECTORY_PATH=${1:-~/}
 DIRECTORY_PATH=${DIRECTORY_PATH%/}
 
 # Run make_alpha_sis_launch.py
-python3 ./make_community_compute_pool.py
+python3 ../../apps/streamlit_gui/make_community_compute_pool.py
 
 
 # Login to image repo
@@ -37,16 +37,16 @@ docker push dshrnxx-genesis.registry.snowflakecomputing.com/genesisapp_master/co
 snow sql -c GENESIS-ALPHA-PROVIDER -q "RM @GENESISAPP_APP_PKG_COMM.CODE_SCHEMA.APP_CODE_STAGE"
 
 # Upload streamlit files
-snow sql -c GENESIS-ALPHA-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/streamlit_gui/Genesis.py @GENESISAPP_APP_PKG_COMM.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
-snow sql -c GENESIS-ALPHA-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/streamlit_gui/utils.py @GENESISAPP_APP_PKG_COMM.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
-snow sql -c GENESIS-ALPHA-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/streamlit_gui/*.png @GENESISAPP_APP_PKG_COMM.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
-snow sql -c GENESIS-ALPHA-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/streamlit_gui/*.yml @GENESISAPP_APP_PKG_COMM.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
+snow sql -c GENESIS-ALPHA-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/apps/streamlit_gui/Genesis.py @GENESISAPP_APP_PKG_COMM.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
+snow sql -c GENESIS-ALPHA-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/apps/streamlit_gui/utils.py @GENESISAPP_APP_PKG_COMM.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
+snow sql -c GENESIS-ALPHA-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/apps/streamlit_gui/*.png @GENESISAPP_APP_PKG_COMM.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
+snow sql -c GENESIS-ALPHA-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/apps/streamlit_gui/*.yml @GENESISAPP_APP_PKG_COMM.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
 
 # Upload streamlit files
-snow sql -c GENESIS-ALPHA-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/streamlit_gui/.streamlit/config.toml @GENESISAPP_APP_PKG_COMM.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit/.streamlit AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
+snow sql -c GENESIS-ALPHA-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/apps/streamlit_gui/.streamlit/config.toml @GENESISAPP_APP_PKG_COMM.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit/.streamlit AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
 
 # Upload streamlit page files
-snow sql -c GENESIS-ALPHA-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/streamlit_gui/page_files/*.py @GENESISAPP_APP_PKG_COMM.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit/page_files AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
+snow sql -c GENESIS-ALPHA-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/apps/streamlit_gui/page_files/*.py @GENESISAPP_APP_PKG_COMM.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit/page_files AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
 
 # Upload SQL files
 snow sql -c GENESIS-ALPHA-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/snowflake_app/setup_script.sql @GENESISAPP_APP_PKG_COMM.CODE_SCHEMA.APP_CODE_STAGE AUTO_COMPRESS=FALSE OVERWRITE=TRUE"

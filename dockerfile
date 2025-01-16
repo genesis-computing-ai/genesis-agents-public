@@ -27,31 +27,10 @@ RUN python3 -c "import subprocess; subprocess.run(['git', '--version'], check=Tr
 # RUN npm install react-scripts
 
 WORKDIR /src/app
-COPY llm_openai ./llm_openai
-COPY llm_reka ./llm_reka
-COPY llm_mistral ./llm_mistral
-COPY llm_cortex ./llm_cortex
-COPY llm_gemini ./llm_gemini
-COPY llm_anthropic ./llm_anthropic
-COPY schema_explorer ./schema_explorer
-COPY knowledge ./knowledge
-COPY golden_defaults ./golden_defaults
-COPY default_functions ./default_functions
-COPY slack ./slack
-COPY streamlit_gui ./streamlit_gui
-COPY bot_genesis ./bot_genesis
-COPY connectors ./connectors
-COPY auto_ngrok ./auto_ngrok
-COPY core ./core
-COPY demo ./demo
-COPY development ./development
-COPY embed ./embed
-COPY generated_modules ./generated_modules
-COPY entrypoint.sh /entrypoint.sh
-COPY teams ./teams
-COPY data_dev_tools ./data_dev_tools
-COPY data_pipeline_tools ./data_pipeline_tools
-COPY google_sheets ./google_sheets
+COPY genesis_bots ./genesis_bots
+COPY apps/genesis_server/bot_os_multibot_1.py .apps/genesis_server/bot_os_multibot_1.py
+COPY apps/streamlit_gui ./apps/streamlit_gui
+COPY apps/genesis_server/deployments/snowflake_app/entrypoint.sh /entrypoint.sh
 
 RUN apt-get update && apt-get install -y procps
 RUN apt-get -y update && \

@@ -1632,13 +1632,13 @@ MAKE_BABY_BOT_DESCRIPTIONS.append({
     "type": "function",
     "function": {
         "name": "update_bot_instructions",
-        "description": "Updates the bot_instructions for the specified bot_id.",
+        "description": "Updates the bot_instructions (system prompt) for the specified bot_id. Use your own bot_id to update yourself.",
         "parameters": {
             "type": "object",
             "properties": {
                 "bot_id": {
                     "type": "string",
-                    "description": "The unique identifier for the bot."
+                    "description": "The unique identifier for the bot. It's totally fine to use this on yourself."
                 },
                 "new_instructions": {
                     "type": "string",

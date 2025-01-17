@@ -2,87 +2,83 @@
 GENESIS BOT TODOS
 =================
 
-restructure:
-x tool calling with cortex (mrs eliza on cortex?)
+NEXT->add preharvest for baseball and f1
+NEXT->change default to sqlite mode and to non-assistant mode
+NEXT->make get_full_Table_details work with sqlite etc
+after tool calls, the first few new chars get missed sometimes in the output 
+test sonnet on cortex, and test mid flight tool and instruction changes again on cortex
+have search metadata return the list of any data connections as well that may not be harvested 
+(reza) files out for generate image
+(later) add bot level param for completion vs assistant mode
+(aviv) test gxs with completion mode (w/git etc)
+(test) JD-comments on gsheets, bot needs to know what cell they are on
+(reza) links from web search results dont show right in streamlit 
+(later) make sqlite sample data load from csv files vs binary
+(aviv) make connection, harvest, search metadata, and query database work directly via api 
+(test) setting harvest control again with sqlite and snowflake (make sure using correct connection id)
+(test)  allow search_metadata_detailed and search_metadata to specify a source_name
+(test) harvester on postgres
+(test) harvester on sqlite again
+(reza) generate a text file with the numebrs from 1-10, sqlite mode, genesis gui error in streamlit (doesnt return the file anymore just the text)
+make harvester on non-snowflake also get views
+add a way for Eve to write a serper key to the db
+when nothing is harvested provide response for bot to list directly available tables, and explain that the data may not be set up to be harvested
+on add connection, make sure to suggest harvesting the new connection
+harvest control, if database not found, return list of connections
+dont return snowflake permissions suggestion if not snowflake
+make database and schema params work when not snowflake on find_memory
+is search metadata returning the type of database?  would be useful ...  (it would need to be added to the metadata table)
+make config querys conf generate if not existing 
+test fix for redshift, bigquery, databricks
+signal to reset the annoy indexes when connections or connection rbac are changed
+make snowpark python work when you just have a regular connection to snowflake
+add a tool to update bot access to a connection, which properly handles the string of bot ids (list, add, remove, etc.)
+set a flag when bot data access changes so annoy indexes can be refreshed, have annoy index name logic use that if later than update in the metadata table
+test all tools
 
-for direct non-assistant mode:
+DONE:
+n remove file uploads to openai when none needed
+x TEST-make sure clean sqlite works with new schema removal logic
+x add baseball and f1 connections by default to eve 
+x check that adding a tool via streamlit doesnt mess up the thread with that bot (e.g. data connector tools)
+x speed up startup
+x make sure harvester works ok in snowflake mode still (get schemas, get tables)
+x (test) test various tools (git for example)
 x make adding/removing tools on the fly work
 x make changing instructions work on the fly 
 x test in snowflake metadata mode
 x test again in assistant mode
 x files in for image analyze
-files out for generate image
-(later) add bot level param for completion vs assistant mode
-(wait on aviv) test gxs with completion mode (w/git etc)
 n cancel run checks that stay in progress for more than 10 min with no response
-after tool calls, the first few new chars get missed sometimes in the output 
-NEXT->make grants to yourself for tools work without disrupting the thread (keep more arrays in the state.. pending threads etc ) 
-NEXT->give web access by default to eve 
-NEXT->give eve a suggestion on tools that all bots may want when making bots 
-
-gdrive connector:
+x make grants to yourself for tools work without disrupting the thread (keep more arrays in the state.. pending threads etc ) 
+x give git & web access by default to eve 
+x give eve a suggestion on tools that all bots may want when making bots 
+x tool calling with cortex (mrs eliza on cortex?)
 x JD-json file with credentials needs to be created properly?
-JD-comments on gsheets, bot needs to know what cell they are on
-
-prerelease:
-TEST-test various tools (git for example)
-REZA-links from web search results dont show right in streamlit 
-have search metadata return the list of any data connections as well that may not be harvested 
-x add baseball and f1 connections by default to eve 
-NEXT->add preharvest for baseball and f1
-x check that adding a tool via streamlit doesnt mess up the thread with that bot (e.g. data connector tools)
-(later) make sqlite sample data load from csv files vs binary
-x speed up startup
-NEXT->change default to sqlite mode and to non-assistant mode
 x (in progress) speed up bot responses
 x o1 via api with tool calling
 x put eve back in as default bot in streamlit
 x test web research tools
-REZA-demo with web research tools
 x rationalize database connector with database_tools
-x test gsheet comments
-TEST-make sure clean sqlite works with new schema removal logic
-x make sure harvester works ok in snowflake mode still (get schemas, get tables)
-TEST-test setting harvest control again with sqlite and snowflake (make sure using correct connection id)
-x store standard queries for harvester for various db_types in a metadata table, and store new ones in there when they work
-x make the index for each bot separate and based on what data they have access to
-x make metadata mapping have a source_name column
-NEXT->make get_full_Table_details work with sqlite etc
-TEST-(done?) JL NEXT - allow search_metadata_detailed and search_metadata to specify a source_name
-x graphs out in streamlit in sqlite mode
-REZA-generate a text file with the numebrs from 1-10, sqlite mode, genesis gui error in streamlit (doesnt return the file anymore just the text)
-x route queries to snowflake through data connector tools, so there is only one query_database tool
-x route search metadata through data connector tools
-make harvester on non-snowflake also get views
-x test harvester on mysql
-test harvester on postgres
-test harvester on sqlite again
-make connection, harvest, search metadata, and query database work directly via api 
+x test gsheet commentsREZA-demo with web research tools
 x make search meatdata work with a connection id,
-when nothing is harvested provide response for bot to list directly available tables, and explain that the data may not be set up to be harvested
-on add connection, make sure to suggest harvesting the new connection
-harvest control, if database not found, return list of connections
-remove file uploads to openai when none needed
-dont return snowflake permissions suggestion if not snowflake
-make database and schema params work when not snowflake on find_memory
-is search metadata returning the type of database?  would be useful ...  (it would need to be added to the metadata table)
 x streamlit repeating first message
 x oracle support, test harvest (Add to harvest, then harvest, them search metadata)
-xadd a way to store metadata queries in a local file to ease support for new databases, and support them for override of existing metadata queries in harvester
-make config querys conf generate if not existing 
-test system with redshift, bigquery, databricks
-signal to reset the annoy indexes when connections or connection rbac are changed
-make snowpark python work when you just have a regular connection to snowflake
+x add a way to store metadata queries in a local file to ease support for new databases, and support them for override of existing metadata queries in harvester
 x (no) does local harvester need to signal when it has done new harvesting so cached annoy indexes are updated?
-(test with files) dont give files search tool when no files 
-add a tool to update bot access to a connection, which properly handles the string of bot ids (list, add, remove, etc.)
-set a flag when bot data access changes so annoy indexes can be refreshed, have annoy index name logic use that if later than update in the metadata table
-make assigning bots files possible in sqlite mode
+x (no, defaulting to non-assistant mode) (test with files) dont give files search tool when no files 
+n make assigning bots files possible in sqlite mode 
 x add checking of repeated tool call failures in openai
 x figure out why all results have the same score in search metadata vector lookup search
 x test search metadata in sqlite mode more, its not returning the right results ?
+x store standard queries for harvester for various db_types in a metadata table, and store new ones in there when they work
+x make the index for each bot separate and based on what data they have access to
+x make metadata mapping have a source_name column
+x graphs out in streamlit in sqlite mode
+x route queries to snowflake through data connector tools, so there is only one query_database tool
+x route search metadata through data connector tools
 
-todo:
+OLD TODOS:
 do bots have task id ok to check history?
 ADD DEFAULT HEADER ON SEND_EMAILS
 MR-cross region enablement for LLM (if not us-east/us-west), data granting (maybe we mention this here too), email sending 

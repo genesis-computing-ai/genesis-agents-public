@@ -8,11 +8,8 @@ import os
 
 from genesis_bots.core.bot_os_defaults import (
     BASE_EVE_BOT_INSTRUCTIONS,
-    JANICE_JANITOR_INSTRUCTIONS,
+    BASE_EVE_BOT_AVAILABLE_TOOLS,
     EVE_INTRO_PROMPT,
-    ELIZA_INTRO_PROMPT,
-    STUART_INTRO_PROMPT,
-    JANICE_INTRO_PROMPT
 )
 
 
@@ -45,6 +42,7 @@ class SQLiteAdapter:
                 self._ensure_llm_tokens_table()
                 self._ensure_slack_config_table()
                 self._ensure_cust_db_connections_table()
+             #   self._ensure_harvest_control_table()
                 SQLiteAdapter._tables_initialized = True
                 logger.info("All tables initialized successfully")
             except Exception as e:
@@ -137,7 +135,8 @@ class SQLiteAdapter:
                 bot_id = "Eve"
                 bot_name = "Eve"
                 bot_instructions = BASE_EVE_BOT_INSTRUCTIONS
-                available_tools = """["slack_tools", "manage_tests_tools", "make_baby_bot", "snowflake_tools", "data_connector_tools", "image_tools", "process_manager_tools", "process_runner_tools", "process_scheduler_tools", "project_manager_tools", "notebook_manager_tools", "artifact_manager_tools", "google_drive_tools", "harvester_tools"]"""
+                available_tools = BASE_EVE_BOT_AVAILABLE_TOOLS
+
                 udf_active = 'Y'  # Using 1 instead of "Y" for SQLite boolean
                 slack_active = 'N'  # Using 0 instead of "N" for SQLite boolean
                 bot_intro_prompt = EVE_INTRO_PROMPT
@@ -284,6 +283,64 @@ class SQLiteAdapter:
         except Exception as e:
             logger.error(f"Error in _ensure_cust_db_connections_table: {e}")
             raise
+
+    def _ensure_harvest_control_table(self):
+        """Ensure HARVEST_CONTROL table exists with correct schema and default entries"""
+        logger.info("Starting HARVEST_CONTROL table verification")
+        cursor = self.connection.cursor()
+
+        try:
+            # Create table if it doesn't exist
+            create_table_sql = """
+                CREATE TABLE IF NOT EXISTS HARVEST_CONTROL (
+                    source_name TEXT NOT NULL,
+                    database_name TEXT NOT NULL,
+                    schema_inclusions TEXT,  -- Will store ARRAY as JSON
+                    schema_exclusions TEXT,  -- Will store ARRAY as JSON
+                    status TEXT NOT NULL,
+                    refresh_interval INTEGER NOT NULL,
+                    initial_crawl_complete INTEGER NOT NULL,
+                    PRIMARY KEY (source_name)
+                )
+            """
+            cursor.execute(create_table_sql)
+            self.connection.commit()
+
+            # Check if default entries exist
+            cursor.execute("SELECT COUNT(*) FROM HARVEST_CONTROL WHERE source_name IN (?, ?)", 
+                          ('baseball_sqlite', 'formula_1_sqlite'))
+            count = cursor.fetchone()[0]
+
+            if count < 2:
+                # Insert or update default entries
+                insert_sql = """
+                    INSERT OR REPLACE INTO HARVEST_CONTROL (
+                        source_name,
+                        database_name,
+                        schema_inclusions,
+                        schema_exclusions,
+                        status,
+                        refresh_interval,
+                        initial_crawl_complete
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                """
+                
+                default_entries = [
+                    ('baseball_sqlite', 'baseball_sqlite', '[]', '["INFORMATION_SCHEMA"]', 'Include', 10, 0),
+                    ('formula_1_sqlite', 'formula_1_sqlite', '[]', '["INFORMATION_SCHEMA"]', 'Include', 10, 0)
+                ]
+
+                for entry in default_entries:
+                    cursor.execute(insert_sql, entry)
+                
+                self.connection.commit()
+                logger.info("Default HARVEST_CONTROL entries added successfully")
+
+        except Exception as e:
+            logger.error(f"Error in _ensure_harvest_control_table: {e}")
+            raise
+
+
 
     def cursor(self):
         if self.connection is None:

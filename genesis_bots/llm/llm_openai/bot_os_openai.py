@@ -182,6 +182,21 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
    _shared_completion_threads = {}  # Maps bot names to their completion threads
    _shared_thread_working_set = {}  # Maps bot names to their thread working sets
    _thread_io_map = {}  # Maps input thread IDs to output thread IDs
+   _shared_thread_run_map = {}  # Maps thread IDs to their run information
+   _shared_active_runs = {}  # Maps bot names to their active runs deque
+   _shared_processing_runs = {}  # Maps bot names to their processing runs deque
+   _shared_tool_completion_status = {}  # Maps run IDs to tool completion status
+   _shared_failed_retry_run_count_map = {}  # Maps thread IDs to retry counts
+   _shared_run_id_to_output_stream = {}  # Maps run IDs to their output streams
+   _shared_done_map = {}  # Maps bot names to their completed runs
+   _shared_thread_stop_map = {}  # Maps thread IDs to stop timestamps
+   _shared_stop_result_map = {}  # Maps thread IDs to stop results
+   _shared_first_message_map = {}  # Maps thread IDs to first message flags
+   _shared_thread_fast_mode_map = {}  # Maps thread IDs to fast mode settings
+   _shared_tool_failure_map = {}  # Maps run hashes to failure counts and timestamps
+   _shared_invalid_threads = set()  # Set of thread IDs that are known to be invalid
+   _shared_thread_creation_map = {}  # Maps thread IDs to creation timestamps
+   _shared_completions_runs = {}  # Maps bot names to their completion runs
 
    def __init__(self, name:str, instructions:str,
                 tools:list[dict] = [], available_functions={}, files=[],
@@ -402,16 +417,82 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
          self.assistant.id = "no_assistant"
 
 
-      # Initialize shared thread working set for this bot name if needed
+      if self.use_assistants == False:
+         # Initialize shared thread working set for this bot name if needed
+         if name not in self.__class__._shared_thread_working_set:
+               self.__class__._shared_thread_working_set[name] = {}
+         self.thread_working_set = self.__class__._shared_thread_working_set[name]
 
-      if name not in self.__class__._shared_thread_working_set:
-            self.__class__._shared_thread_working_set[name] = {}
-      self.thread_working_set = self.__class__._shared_thread_working_set[name]
+         # Initialize shared completion threads for this bot name if needed
+         if name not in self.__class__._shared_completion_threads:
+            self.__class__._shared_completion_threads[name] = {}
+         self.completion_threads = self.__class__._shared_completion_threads[name]
+         
+         # Initialize other shared resources for this bot name
+         if name not in self.__class__._shared_thread_run_map:
+            self.__class__._shared_thread_run_map[name] = {}
+         self.thread_run_map = self.__class__._shared_thread_run_map[name]
+         
+         if name not in self.__class__._shared_active_runs:
+            self.__class__._shared_active_runs[name] = deque()
+         self.active_runs = self.__class__._shared_active_runs[name]
+         
+         if name not in self.__class__._shared_processing_runs:
+            self.__class__._shared_processing_runs[name] = deque()
+         self.processing_runs = self.__class__._shared_processing_runs[name]
+         
+         if name not in self.__class__._shared_tool_completion_status:
+            self.__class__._shared_tool_completion_status[name] = {}
+         self.tool_completion_status = self.__class__._shared_tool_completion_status[name]
+         
+         if name not in self.__class__._shared_failed_retry_run_count_map:
+            self.__class__._shared_failed_retry_run_count_map[name] = {}
+         self.failed_retry_run_count_map = self.__class__._shared_failed_retry_run_count_map[name]
+         
+         # Initialize shared done_map for this bot name
+         if name not in self.__class__._shared_done_map:
+            self.__class__._shared_done_map[name] = {}
+         self.done_map = self.__class__._shared_done_map[name]
+         
+         # Initialize the new shared variables
+         if name not in self.__class__._shared_thread_stop_map:
+            self.__class__._shared_thread_stop_map[name] = {}
+         self.thread_stop_map = self.__class__._shared_thread_stop_map[name]
+         
+         if name not in self.__class__._shared_stop_result_map:
+            self.__class__._shared_stop_result_map[name] = {}
+         self.stop_result_map = self.__class__._shared_stop_result_map[name]
+         
+         if name not in self.__class__._shared_first_message_map:
+            self.__class__._shared_first_message_map[name] = {}
+         self.first_message_map = self.__class__._shared_first_message_map[name]
+         
+         if name not in self.__class__._shared_thread_fast_mode_map:
+            self.__class__._shared_thread_fast_mode_map[name] = {}
+         self.thread_fast_mode_map = self.__class__._shared_thread_fast_mode_map[name]
+         
+         if name not in self.__class__._shared_tool_failure_map:
+            self.__class__._shared_tool_failure_map[name] = {}
+         self.tool_failure_map = self.__class__._shared_tool_failure_map[name]
+         
+         # Note: run_id_to_output_stream is handled by StreamingEventHandler class
 
-      # Initialize shared completion threads for this bot name if needed
-      if name not in self.__class__._shared_completion_threads:
-         self.__class__._shared_completion_threads[name] = {}
-      self.completion_threads = self.__class__._shared_completion_threads[name]
+         # Initialize shared completions runs for this bot name
+         if name not in self.__class__._shared_completions_runs:
+            self.__class__._shared_completions_runs[name] = {}
+         self.completions_runs = self.__class__._shared_completions_runs[name]
+      else:
+         self.active_runs = deque()
+         self.processing_runs = deque()
+         self.tool_completion_status = {}
+         self.failed_retry_run_count_map = {}
+         self.done_map = {}
+         self.thread_stop_map = {}
+         self.stop_result_map = {}
+         self.first_message_map = {}
+         self.thread_fast_mode_map = {}
+         self.tool_failure_map = {}
+         self.completions_runs = {}
 
    @override
    def is_active(self) -> bool:
@@ -586,19 +667,19 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
 
    def create_thread(self) -> str:
-      #logger.debug("BotOsAssistantOpenAI:create_thread")
-      if self.use_assistants == False:
-         thread_id = "completion_thread_" + str(uuid.uuid4())
-         thread = thread_id
-         logger.info(f"{self.bot_name} openai completion new_thread -> {thread_id}")
-      else:
-         thread = self.client.beta.threads.create()
-         thread_id = thread.id
-         logger.info(f"{self.bot_name} openai assistant new_thread -> {thread_id}")
-      self.thread_working_set[thread_id] = thread
-      self.first_message_map[thread_id] = True
+        if self.use_assistants == False:
+            thread_id = "completion_thread_" + str(uuid.uuid4())
+            thread = thread_id
+            logger.info(f"{self.bot_name} openai completion new_thread -> {thread_id}")
+        else:
+            thread = self.client.beta.threads.create()
+            thread_id = thread.id
+            logger.info(f"{self.bot_name} openai assistant new_thread -> {thread_id}")
+        
+        self.thread_working_set[thread_id] = thread
+        self.first_message_map[thread_id] = True
 
-      return thread_id
+        return thread_id
 
    def _upload_files(self, files, thread_id=None):
       file_ids = []
@@ -1216,7 +1297,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
                      self.client.beta.assistants.update(assistant.id,tools=bot_tools_array, instructions=new_instructions)
 
-               else: # target bot is not openai
+               else: # target bot is not openai assistant-backed
                   # this will start a new session with the updated tools and proper instructions
                   self.reset_bot_if_not_openai(bot_id=target_bot)
 

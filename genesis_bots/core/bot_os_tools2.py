@@ -733,7 +733,7 @@ def get_global_tools_registry():
                 "genesis_bots.core.tools.process_manager.get_process_manager_functions",
                 "genesis_bots.core.tools.process_scheduler.get_process_scheduler_functions",
                 "genesis_bots.core.tools.artifact_manager.get_artifact_manager_functions",
-                "genesis_bots.core.tools.webpage_downloader.get_webpage_downloader_functions",
+          #      "genesis_bots.core.tools.webpage_downloader.get_webpage_downloader_functions",
                 "genesis_bots.core.tools.delegate_work.get_delegate_work_functions",
                 "genesis_bots.core.tools.git_action.get_git_action_functions",
                 "genesis_bots.core.tools.image_tools.get_image_functions",

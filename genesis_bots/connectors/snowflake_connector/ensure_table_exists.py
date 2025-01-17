@@ -14,6 +14,7 @@ from genesis_bots.connectors.sqlite_adapter import SQLiteAdapter
 
 from   genesis_bots.core.bot_os_defaults     import (BASE_EVE_BOT_INSTRUCTIONS,
                                         ELIZA_INTRO_PROMPT, EVE_INTRO_PROMPT,
+                                        BASE_EVE_BOT_AVAILABLE_TOOLS_SNOWFLAKE,
                                         JANICE_INTRO_PROMPT,
                                         JANICE_JANITOR_INSTRUCTIONS,
                                         STUART_INTRO_PROMPT)
@@ -882,7 +883,7 @@ def ensure_table_exists(self):
             #                )
             bot_name = "Eve"
             bot_instructions = BASE_EVE_BOT_INSTRUCTIONS
-            available_tools = """["slack_tools", "manage_tests_tools", "make_baby_bot", "snowflake_tools", "data_connector_tools", "image_tools", "process_manager_tools", "process_runner_tools", "process_scheduler_tools", "project_manager_tools", "notebook_manager_tools", "google_drive_tools", "artifact_manager_tools", "harvester_tools"]"""
+            available_tools = BASE_EVE_BOT_AVAILABLE_TOOLS_SNOWFLAKE
             udf_active = "Y"
             slack_active = "N"
             bot_intro_prompt = EVE_INTRO_PROMPT

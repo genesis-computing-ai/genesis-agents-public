@@ -38,11 +38,11 @@ _tools_data = [
         "data_dev_tools",
         "Tools for data development workflows including Jira integration",
     ),
-    (
-        "git_file_manager_tools",
-        "Tools for managing files in a local Git repository including reading, writing, generating and applying diffs, and managing commits",
-    ),
-    ("bot_dispatch_tools", "Tools delegating work to bots"),
+ #  (
+ #       "git_file_manager_tools",
+ #       "Tools for managing files in a local Git repository including reading, writing, generating and applying diffs, and managing commits",
+ #   ),
+  #  ("bot_dispatch_tools", "Tools delegating work to bots"),
 ]
 
 process_runner_functions = [

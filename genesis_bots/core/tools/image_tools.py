@@ -107,9 +107,11 @@ def image_generation(
 
         logger.info(f"imagegen Image generated and saved to {file_path}")
 
+        reference_path = 'sandbox:/mnt/data' + file_path[1:]
+
         result = {
                 "success": True,
-                "local_file_name": file_path,
+                "local_file_name": reference_path,
                 "prompt": prompt,
             }
 

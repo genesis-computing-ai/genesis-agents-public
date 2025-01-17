@@ -686,13 +686,27 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       file_map = []
       for f in files:
 
+
          original_file_location = f
          file_name = original_file_location.split('/')[-1]
          new_file_location = f"./runtime/downloaded_files/{thread_id}/{file_name}"
+
+         # Convert .JPEG extension to .JPG if present
+         if file_name.upper().endswith('.JPEG'):
+             new_file_location = new_file_location[:-5] + '.jpg'
+             file_name = file_name[:-5] + '.jpg'
+
          os.makedirs(f"./runtime/downloaded_files/{thread_id}", exist_ok=True)
          with open(original_file_location, 'rb') as source_file:
              with open(f"./runtime/downloaded_files/{thread_id}/{file_name}", 'wb') as dest_file:
                  dest_file.write(source_file.read())
+
+         # Validate file type is allowed
+         file_ext = os.path.splitext(new_file_location)[1].lower()
+         allowed_types = self.allowed_types_search + self.allowed_types_code_i
+         if not any(file_ext.endswith(ext) for ext in allowed_types):
+             logger.warning(f"Skipping file {f} - extension {file_ext} not in allowed types")
+             continue
 
     #     logger.info("loading files")
          fo = open(new_file_location,"rb")
@@ -730,6 +744,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
       stop_flag = False
       fast_mode = False
+      attachments = []
 
       if input_message.msg.endswith('<<!!FAST_MODE!!>>') or thread_id in self.thread_fast_mode_map:
          # fast_mode = True
@@ -968,6 +983,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                     files_info += f"- {file}\n"
                 files_info += "You can reference these files in future calls using their full paths as shown above.]"
                 input_message.msg += files_info
+                attachments = input_message.files
                 
             # Check if we have existing messages for this thread
             if thread_id in self.completion_threads:

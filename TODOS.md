@@ -21,6 +21,7 @@ have search metadata return the list of any data connections as well that may no
 (test) harvester on sqlite again
 (reza) generate a text file with the numebrs from 1-10, sqlite mode, genesis gui error in streamlit (doesnt return the file anymore just the text)
 make harvester on non-snowflake also get views
+add a database connections page to streamlit to see database connections
 add a way for Eve to write a serper key to the db
 when nothing is harvested provide response for bot to list directly available tables, and explain that the data may not be set up to be harvested
 on add connection, make sure to suggest harvesting the new connection

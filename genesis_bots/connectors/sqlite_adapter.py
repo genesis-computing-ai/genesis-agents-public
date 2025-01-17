@@ -42,7 +42,9 @@ class SQLiteAdapter:
                 self._ensure_llm_tokens_table()
                 self._ensure_slack_config_table()
                 self._ensure_cust_db_connections_table()
-             #   self._ensure_harvest_control_table()
+                self._ensure_harvest_control_table()
+                self._ensure_harvest_results_table()
+                self.import_harvest()
                 SQLiteAdapter._tables_initialized = True
                 logger.info("All tables initialized successfully")
             except Exception as e:
@@ -284,6 +286,116 @@ class SQLiteAdapter:
             logger.error(f"Error in _ensure_cust_db_connections_table: {e}")
             raise
 
+    def import_harvest(self):
+        """Import HARVEST_RESULTS table from JSON file if table is empty"""
+        try:
+            cursor = self.connection.cursor()
+            
+            # Check if table has any rows
+            cursor.execute("SELECT COUNT(*) FROM HARVEST_RESULTS")
+            count = cursor.fetchone()[0]
+            
+            if count > 0:
+                logger.info("HARVEST_RESULTS table already contains data, skipping import")
+                return
+            
+            import json
+            input_file = "./apps/demos/demo_data/harvest_results.json"
+            
+            # Check if file exists
+            if not os.path.exists(input_file):
+                logger.warning(f"Harvest results file not found at {input_file}")
+                return
+            
+            # Read JSON file
+            with open(input_file, 'r') as f:
+                data = json.load(f)
+            
+            if not data:
+                logger.info("No data found in harvest results file")
+                return
+            
+            # Insert data
+            insert_sql = """
+                INSERT OR REPLACE INTO HARVEST_RESULTS (
+                    source_name,
+                    qualified_table_name,
+                    database_name,
+                    memory_uuid,
+                    schema_name,
+                    table_name,
+                    complete_description,
+                    ddl,
+                    ddl_short,
+                    ddl_hash,
+                    summary,
+                    sample_data_text,
+                    last_crawled_timestamp,
+                    crawl_status,
+                    role_used_for_crawl,
+                    embedding,
+                    embedding_native
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """
+            
+            for row in data:
+                cursor.execute(insert_sql, (
+                    row.get('source_name'),
+                    row.get('qualified_table_name'),
+                    row.get('database_name'),
+                    row.get('memory_uuid'),
+                    row.get('schema_name'),
+                    row.get('table_name'),
+                    row.get('complete_description'),
+                    row.get('ddl'),
+                    row.get('ddl_short'),
+                    row.get('ddl_hash'),
+                    row.get('summary'),
+                    row.get('sample_data_text'),
+                    row.get('last_crawled_timestamp'),
+                    row.get('crawl_status'),
+                    row.get('role_used_for_crawl'),
+                    str(row.get('embedding')),  # Convert ARRAY to TEXT
+                    str(row.get('embedding_native'))  # Convert ARRAY to TEXT
+                ))
+            
+            self.connection.commit()
+            logger.info(f"Successfully imported harvest results from {input_file}")
+            
+        except Exception as e:
+            logger.error(f"Error importing harvest results: {e}")
+            raise
+
+    def export_harvest(self):
+        """Export HARVEST_RESULTS table to JSON file"""
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute("SELECT * FROM HARVEST_RESULTS")
+            rows = cursor.fetchall()
+            
+            # Get column names
+            column_names = [description[0] for description in cursor.description]
+            
+            # Convert to list of dicts
+            data = []
+            for row in rows:
+                data.append(dict(zip(column_names, row)))
+
+            # Create demos/demo_data directory if it doesn't exist
+            os.makedirs("./apps/demos/demo_data", exist_ok=True)
+            
+            # Save to JSON file
+            import json
+            output_file = "./apps/demos/demo_data/harvest_results.json"
+            with open(output_file, 'w') as f:
+                json.dump(data, f, indent=2, default=str)
+            
+            logger.info(f"Successfully exported HARVEST_RESULTS to {output_file}")
+
+        except Exception as e:
+            logger.error(f"Error exporting HARVEST_RESULTS: {e}")
+            raise
+
     def _ensure_harvest_control_table(self):
         """Ensure HARVEST_CONTROL table exists with correct schema and default entries"""
         logger.info("Starting HARVEST_CONTROL table verification")
@@ -295,12 +407,11 @@ class SQLiteAdapter:
                 CREATE TABLE IF NOT EXISTS HARVEST_CONTROL (
                     source_name TEXT NOT NULL,
                     database_name TEXT NOT NULL,
-                    schema_inclusions TEXT,  -- Will store ARRAY as JSON
-                    schema_exclusions TEXT,  -- Will store ARRAY as JSON
+                    schema_inclusions TEXT,  -- ARRAY in Snowflake, TEXT in SQLite
+                    schema_exclusions TEXT,  -- ARRAY in Snowflake, TEXT in SQLite
                     status TEXT NOT NULL,
                     refresh_interval INTEGER NOT NULL,
-                    initial_crawl_complete INTEGER NOT NULL,
-                    PRIMARY KEY (source_name)
+                    initial_crawl_complete INTEGER NOT NULL  -- BOOLEAN in Snowflake, INTEGER in SQLite
                 )
             """
             cursor.execute(create_table_sql)
@@ -340,7 +451,42 @@ class SQLiteAdapter:
             logger.error(f"Error in _ensure_harvest_control_table: {e}")
             raise
 
+    def _ensure_harvest_results_table(self):
+        """Ensure HARVEST_RESULTS table exists with correct schema"""
+        logger.info("Starting HARVEST_RESULTS table verification")
+        cursor = self.connection.cursor()
 
+        try:
+            # Create table if it doesn't exist
+            create_table_sql = """
+                CREATE TABLE IF NOT EXISTS HARVEST_RESULTS (
+                    source_name TEXT NOT NULL,
+                    qualified_table_name TEXT NOT NULL,
+                    database_name TEXT NOT NULL,
+                    memory_uuid TEXT NOT NULL,
+                    schema_name TEXT NOT NULL,
+                    table_name TEXT NOT NULL,
+                    complete_description TEXT NOT NULL,
+                    ddl TEXT NOT NULL,
+                    ddl_short TEXT,
+                    ddl_hash TEXT NOT NULL,
+                    summary TEXT NOT NULL,
+                    sample_data_text TEXT NOT NULL,
+                    last_crawled_timestamp TIMESTAMP NOT NULL,
+                    crawl_status TEXT NOT NULL,
+                    role_used_for_crawl TEXT NOT NULL,
+                    embedding TEXT,
+                    embedding_native TEXT,
+                    PRIMARY KEY (source_name, qualified_table_name)
+                )
+            """
+            cursor.execute(create_table_sql)
+            self.connection.commit()
+            logger.info("HARVEST_RESULTS table verified")
+
+        except Exception as e:
+            logger.error(f"Error in _ensure_harvest_results_table: {e}")
+            raise
 
     def cursor(self):
         if self.connection is None:

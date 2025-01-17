@@ -29,13 +29,8 @@ image_tools = ToolFuncGroup(
         description="Description of the image to create.",
         required=True,
         llm_type_desc=dict(type="string"),
-    ),
-    thread_id=ToolFuncParamDescriptor(
-        name="thread_id",
-        description="The thread ID to use for the image generation.",
-        required=False,
-        llm_type_desc=dict(type="string"),
-    ),
+    ),         
+    thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
     _group_tags_=[image_tools],
 )
 def image_generation(

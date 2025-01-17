@@ -26,6 +26,7 @@ from   genesis_bots.bot_genesis.make_baby_bot \
                                         update_slack_app_level_key)
 from   genesis_bots.core.system_variables    import SystemVariables
 from   genesis_bots.demo.routes.slack        import bot_install_followup
+from genesis_bots.core.bot_os import BotOsSession
 
 udf_routes = Blueprint('udf_routes', __name__)
 
@@ -238,20 +239,20 @@ def get_metadata():
                 logger.info("missing metadata")
             result = genesis_app.db_adapter.eai_test(site=site)
         elif 'sandbox' in metadata_type:
-            _, bot_id, thread_id_in, file_name = metadata_type.split('|')
+            _, bot_id, thread_id_in, file_name = metadata_type.split('|')            
             logger.info('****get_metadata, file_name', file_name)
             logger.info('****get_metadata, thread_id_in', thread_id_in)
-            logger.info('****get_metadata, bot_id', bot_id)
-            bots_udf_adapter = genesis_app.bot_id_to_udf_adapter_map.get(bot_id, None)
-            logger.info('****get_metadata, bots_udf_adapter', bots_udf_adapter)
+            logger.info('****get_metadata, bot_id', bot_id)            
             try:
-                logger.info(f'**** in to out map: {bots_udf_adapter.in_to_out_thread_map}')
-                thread_id_out = bots_udf_adapter.in_to_out_thread_map[thread_id_in]
-                logger.info('****get_metadata, thread_id_out', thread_id_out)
-                file_path = f'./runtime/downloaded_files/{thread_id_out}/{file_name}'
-                logger.info('****get_metadata, file_path', file_path)
-                result = {"Success": True, "Data": json.dumps(file_to_bytes(file_path))}
-                logger.info('result: Success len ', len(json.dumps(file_to_bytes(file_path))))
+                thread_id_out = BotOsSession._shared_in_to_out_thread_map.get(bot_id, {}).get(thread_id_in)
+                if not thread_id_out:
+                    result = {"Success": False, "Error": 'Thread id not found'}
+                else:
+                    logger.info('****get_metadata, thread_id_out', thread_id_out)
+                    file_path = f'./runtime/downloaded_files/{thread_id_out}/{file_name}'
+                    logger.info('****get_metadata, file_path', file_path)
+                    result = {"Success": True, "Data": json.dumps(file_to_bytes(file_path))}
+                    logger.info('result: Success len ', len(json.dumps(file_to_bytes(file_path))))
             except Exception as e:
                 logger.info('****get_metadata, thread_id_out exception ',e)
                 result = {"Success": False, "Error": e}

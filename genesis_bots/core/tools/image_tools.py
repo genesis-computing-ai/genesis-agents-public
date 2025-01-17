@@ -33,7 +33,7 @@ image_tools = ToolFuncGroup(
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
     _group_tags_=[image_tools],
 )
-def image_generation(
+def _image_generation(
     prompt: str,
     thread_id: str=None
     ):
@@ -141,6 +141,7 @@ def image_generation(
     _group_tags_=[image_tools],
 )
 def _image_analysis(
+def _image_analysis(
     query: str=None,
     openai_file_id: str = None,
     file_name: str = None,
@@ -240,7 +241,7 @@ def _image_analysis(
             "error": f"OpenAI API call failed with status code {response.status_code}: {response.text}",
         }
 
-image_functions = (image_generation, _image_analysis,)
+image_functions = (_image_generation, _image_analysis,)
 
 # Called from bot_os_tools.py to update the global list of functions
 def get_image_functions():

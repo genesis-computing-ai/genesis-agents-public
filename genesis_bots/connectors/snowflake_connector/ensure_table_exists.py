@@ -1045,7 +1045,7 @@ def ensure_table_exists(self):
             cursor.close()
 
     # check if Janice exists in BOT_SERVCING table
-    
+
     if self.source_name == 'Snowflake':
         cursor = self.client.cursor()
         check_janice_query = f"SELECT * FROM {self.bot_servicing_table_name} WHERE BOT_ID = 'Janice';"
@@ -1754,7 +1754,7 @@ def make_date_tz_aware(date, tz='UTC'):
     return date_str
 
 def load_default_processes_and_notebook(self, cursor):
-        folder_path = 'golden_defaults/golden_processes'
+        folder_path = 'genesis_bots/golden_defaults/golden_processes'
         self.process_data = pd.DataFrame()
 
         files = glob.glob(os.path.join(folder_path, '*.yaml'))
@@ -1902,7 +1902,7 @@ def upgrade_timestamp_columns(self, table_name):
 
 def load_default_notes(self, cursor):
     logger.info("load_default_notes")
-    folder_path = 'golden_defaults/golden_notes'
+    folder_path = 'genesis_bots/golden_defaults/golden_notes'
     notes_data = pd.DataFrame()
 
     files = glob.glob(os.path.join(folder_path, '*.yaml'))

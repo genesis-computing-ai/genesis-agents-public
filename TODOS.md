@@ -2,7 +2,6 @@
 GENESIS BOT TODOS
 =================
 
-remove files from bot creation/ remove add files, etc 
 NEXT->change default to sqlite mode and to non-assistant mode
 after tool calls, the first few new chars get missed sometimes in the output 
 test sonnet on cortex, and test mid flight tool and instruction changes again on cortex
@@ -38,6 +37,7 @@ set a flag when bot data access changes so annoy indexes can be refreshed, have 
 test all tools
 
 DONE:
+x remove files from bot creation/ remove add files, etc 
 x allow search_metadata_detailed and search_metadata to specify a source_name
 x preharvest for baseball and f1
 x make database and schema params work when not snowflake on find_memory

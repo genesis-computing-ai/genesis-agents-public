@@ -415,12 +415,12 @@ def insert_new_bot(api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instruct
         slack_signing_secret (str): The Slack signing secret for the bot.
         slack_channel_id (str): The Slack channel ID where the bot will operate.
         tools (str): A list of tools the bot has access to.
-        files (json-embedded list): A list of files to include with the bot.
         bot_implementation: openai or cortex or gemini ...
         bot_intro_prompt: Prompt to generate default bot greeting.
         bot_avatar_image: Default GenBots avatar image
     """
     bb_db_connector = get_global_db_connector()
+    files = []
     return bb_db_connector.db_insert_new_bot(api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instructions, runner_id, slack_signing_secret,
                    slack_channel_id, available_tools, auth_url, auth_state, client_id, client_secret, udf_active,
                    slack_active, files, bot_implementation, bot_avatar_image, bot_intro_prompt, slack_user_allow, project_id, dataset_name, bot_servicing_table)
@@ -1067,6 +1067,7 @@ def make_baby_bot(
 
     bot_implementation = bot_implementation.lower()
 
+    files = []  # files system no longer supported
     try:
         files_array = json.loads(files)
         if isinstance(files_array, list):
@@ -1492,10 +1493,10 @@ MAKE_BABY_BOT_DESCRIPTIONS = [{
                     "type": "string",
                     "description": "Use this only if instructed by a response from this bot.  DO NOT SET IT AS CONFIRMED UNTIL YOU HAVE GONE BACK AND DOUBLECHECKED ALL PARAMETERS WITH THE END USER IN YOUR MAIN THREAD."
                 },
-                "files": {
-                    "type": "string",
-                    "description": "a commma-separated list of files to be available to the bot, they must first be added to the Internal Bot File Stage"
-                },
+             #   "files": {
+             #       "type": "string",
+             #       "description": "a commma-separated list of files to be available to the bot, they must first be added to the Internal Bot File Stage"
+             #   },
                 "bot_implementation": {
                     "type": "string",
                     "description": "The implementation type for the bot. Examples include 'openai', 'cortex', or custom implementations.",
@@ -1650,55 +1651,55 @@ MAKE_BABY_BOT_DESCRIPTIONS.append({
     }
 })
 
-MAKE_BABY_BOT_DESCRIPTIONS.append({
-    "type": "function",
-    "function": {
-        "name": "add_bot_files",
-        "description": "Adds to the files list for the specified bot_id by adding new files if they are not already present.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "bot_id": {
-                    "type": "string",
-                    "description": "The unique identifier for the bot."
-                },
-                "new_file_names": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    },
-                    "description": "A list of the filenames from the Internal File Stage for Bots to assign to the bot. A file_name can optionally be a wildcard representing a whole folder of files within the stage, such as bot_1_files/*. When adding with wildcards, do NOT add each file separately."
-                }
-            },
-            "required": ["bot_id", "new_file_names"]
-        }
-    }
-})
+# MAKE_BABY_BOT_DESCRIPTIONS.append({
+#     "type": "function", 
+#     "function": {
+#         "name": "add_bot_files",
+#         "description": "Adds to the files list for the specified bot_id by adding new files if they are not already present.",
+#         "parameters": {
+#             "type": "object",
+#             "properties": {
+#                 "bot_id": {
+#                     "type": "string",
+#                     "description": "The unique identifier for the bot."
+#                 },
+#                 "new_file_names": {
+#                     "type": "array",
+#                     "items": {
+#                         "type": "string"
+#                     },
+#                     "description": "A list of the filenames from the Internal File Stage for Bots to assign to the bot. A file_name can optionally be a wildcard representing a whole folder of files within the stage, such as bot_1_files/*. When adding with wildcards, do NOT add each file separately."
+#                 }
+#             },
+#             "required": ["bot_id", "new_file_names"]
+#         }
+#     }
+# })
 
-MAKE_BABY_BOT_DESCRIPTIONS.append({
-    "type": "function",
-    "function": {
-        "name": "remove_bot_files",
-        "description": "Removes files from the files list for the specified bot_id if they are present.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "bot_id": {
-                    "type": "string",
-                    "description": "The unique identifier for the bot."
-                },
-                "file_ids_to_remove": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    },
-                    "description": "A list of the filenames from the Internal File Stage for Bots to remove from the bot. A file_id can optionally be a wildcard representing a whole folder of files within the stage, such as bot_1_files/*"
-                }
-            },
-            "required": ["bot_id", "file_ids_to_remove"]
-        }
-    }
-})
+# MAKE_BABY_BOT_DESCRIPTIONS.append({
+#     "type": "function",
+#     "function": {
+#         "name": "remove_bot_files",
+#         "description": "Removes files from the files list for the specified bot_id if they are present.",
+#         "parameters": {
+#             "type": "object",
+#             "properties": {
+#                 "bot_id": {
+#                     "type": "string",
+#                     "description": "The unique identifier for the bot."
+#                 },
+#                 "file_ids_to_remove": {
+#                     "type": "array",
+#                     "items": {
+#                         "type": "string"
+#                     },
+#                     "description": "A list of the filenames from the Internal File Stage for Bots to remove from the bot. A file_id can optionally be a wildcard representing a whole folder of files within the stage, such as bot_1_files/*"
+#                 }
+#             },
+#             "required": ["bot_id", "file_ids_to_remove"]
+#         }
+#     }
+# })
 
 
 MAKE_BABY_BOT_DESCRIPTIONS.append({
@@ -1784,8 +1785,8 @@ make_baby_bot_tools["_remove_bot"] = "bot_genesis.make_baby_bot._remove_bot"
 make_baby_bot_tools["_list_all_bots"] = "bot_genesis.make_baby_bot.list_all_bots_wrap"
 make_baby_bot_tools["update_bot_instructions"] = "bot_genesis.make_baby_bot.update_bot_instructions"
 make_baby_bot_tools["add_new_tools_to_bot"] = "bot_genesis.make_baby_bot.add_new_tools_to_bot"
-make_baby_bot_tools["add_bot_files"] = "bot_genesis.make_baby_bot.add_bot_files"
-make_baby_bot_tools["remove_bot_files"] = "bot_genesis.make_baby_bot.remove_bot_files"
+#make_baby_bot_tools["add_bot_files"] = "bot_genesis.make_baby_bot.add_bot_files"
+#make_baby_bot_tools["remove_bot_files"] = "bot_genesis.make_baby_bot.remove_bot_files"
 make_baby_bot_tools["update_app_level_key"] = "bot_genesis.make_baby_bot.update_slack_app_level_key"
 make_baby_bot_tools["_update_bot_implementation"] = "bot_genesis.make_baby_bot.update_bot_implementation"
 make_baby_bot_tools["_modify_slack_allow_list"] = "bot_genesis.make_baby_bot.modify_slack_allow_list"

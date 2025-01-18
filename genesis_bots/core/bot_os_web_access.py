@@ -14,6 +14,12 @@ web_access_tools = ToolFuncGroup(
 )
 
 class WebAccess(object):
+    _instance = None  
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            cls._instance = super(WebAccess, cls).__new__(cls)
+        return cls._instance
+
     def __init__(self, db_adapter):
         self.db_adapter = db_adapter
         self.serper_api_key = None
@@ -86,6 +92,8 @@ class WebAccess(object):
             'error': 'Spider API key not set. You can obtain a key at https://spiderapi.com and set it via the Genesis GUI on the "Setup Webaccess API Keys" page.'
         }
 
+web_access = WebAccess(get_global_db_connector())
+
 @gc_tool(
     query="Search query string to send to Google",
     bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
@@ -103,8 +111,6 @@ def _search_google(
     Returns:
         dict: Google search results including organic results, knowledge graph, etc.
     """
-    db_adapter = get_global_db_connector()
-    web_access = WebAccess(db_adapter)
     return web_access.search_google(query)
 
 @gc_tool(
@@ -124,8 +130,6 @@ def _scrape_url(
     Returns:
         dict: Scraped content from the webpage
     """
-    db_adapter = get_global_db_connector()
-    web_access = WebAccess(db_adapter)
     return web_access.scrape_url(url)
 
 @gc_tool(
@@ -147,8 +151,6 @@ def _crawl_url(
     Returns:
         dict: Crawl results including content from multiple pages
     """
-    db_adapter = get_global_db_connector()
-    web_access = WebAccess(db_adapter)
     return web_access.crawl_url(url, **(crawler_params or {}))
 
 # List of all web access tool functions

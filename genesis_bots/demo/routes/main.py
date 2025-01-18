@@ -8,7 +8,7 @@ main_routes = Blueprint('main_routes', __name__)
 
 @main_routes.get("/healthcheck")
 def readiness_probe():
-    logger.info("Flask: /healthcheck probe received")
+    # logger.info("Flask: /healthcheck probe received")
     return "I'm ready!"
 
 @main_routes.post("/echo")

@@ -1,8 +1,10 @@
 from   collections              import defaultdict
 from   collections.abc          import Iterable
-from   genesis_bots.core.bot_os_utils        import is_iterable, tupleize
-from   genesis_bots.core.logging_config      import logger
 from   enum                     import Enum
+from   genesis_bots.core.bot_os_utils \
+                                import is_iterable, tupleize
+from   genesis_bots.core.logging_config \
+                                import logger
 import importlib
 import inspect
 from   itertools                import chain
@@ -12,6 +14,8 @@ from   typing                   import (Any, Dict, List, Union, get_args,
                                         get_origin)
 from   weakref                  import WeakValueDictionary
 from   wrapt                    import synchronized
+
+_ALL_BOTS_TOKEN_ = "_ALL_BOTS_" # special token used for applying operations (e.g. registering/unregistering client tools) for all bots.
 
 class ToolFuncGroupLifetime(Enum):
     PERSISTENT = "PERSISTENT" # Saved to the tools and bots-specific tables and can be delegate by Eve to other bots
@@ -539,13 +543,25 @@ class ToolsFuncRegistry:
         self._ephem_func_to_bot_map = defaultdict(set) # map from callables of ephemeral tool functions to a set of bot_ids for which this function has been assigned
 
 
-    def add_tool_func(self, func: callable) -> None:
-        """Add a tool function to the registry."""
+    def add_tool_func(self, func: callable, replace_if_exists: bool = False) -> None:
+        """
+        Add a tool function to the registry.
+
+        Args:
+            func (callable): The tool function to add.
+            replace_if_exists (bool): If True, replace the existing function with the same name. Default is False.
+
+        Raises:
+            ValueError: If the function is not a proper tool function or if a function with the same name already exists and replace_if_exists is False.
+        """
         if not is_tool_func(func):
             raise ValueError(f"Function {func.__name__} does not have the gc_tool_descriptor attribute. Did you forget to decorate it with @gc_tool?")
         func_name = get_tool_func_descriptor(func).name
         if func_name in self.list_tool_func_names():
-            raise ValueError(f"A function with the name {func_name} already exists in the registry.")
+            if replace_if_exists:
+                self.remove_tool_func(func_name)
+            else:
+                raise ValueError(f"A function with the name {func_name} already exists in the registry.")
         self._tool_funcs.add(func)
 
 
@@ -580,6 +596,7 @@ class ToolsFuncRegistry:
         self._tool_funcs.remove(func_to_remove)
         return func_to_remove
 
+
     def get_tool_func(self, func_name: str) -> callable:
         """Retrieve a tool function by its name."""
         for func in self._tool_funcs:
@@ -587,9 +604,11 @@ class ToolsFuncRegistry:
                 return func
         raise ValueError(f"{self.__class__.__name__}: Could not find a tool function named {func_name}.")
 
+
     def list_tool_funcs(self) -> List[callable]:
         """List all tool functions sorted by their description."""
         return sorted(self._tool_funcs, key=lambda func: get_tool_func_descriptor(func).description)
+
 
     def list_tool_func_names(self) -> List[str]:
         """List all tool function names."""
@@ -604,6 +623,7 @@ class ToolsFuncRegistry:
                                for group in get_tool_func_descriptor(func).groups)
                       ],
                       key=lambda func: get_tool_func_descriptor(func).name)
+
 
     def list_groups(self) -> List[ToolFuncGroup]:
         """
@@ -656,17 +676,17 @@ class ToolsFuncRegistry:
             self._ephem_func_to_bot_map[func].add(bot_id)
 
 
-    def revoke_ephemeral_tool_func_from_bot(self, bot_id: str, func_name_or_callable: Union[str, callable]) -> callable:
+    def revoke_ephemeral_tool_func_from_bot(self, bot_id: str, func_name_or_callable: Union[str, callable]) -> Iterable[str]:
         """
         Revoke the association of a remote tool function with a bot_id.
         Note that this does not remove the function from the registry.
 
         Args:
-            bot_id (str): The ID of the bot.
+            bot_id (str): The ID of the bot. Use _ALL_BOTS_TOKEN_ to remove the tool for all bots.
             func_name_or_callable (str or callable): The name or callable of the tool function to remove.
 
         Returns:
-            callable: The function object that was removed.
+            Iterable[str]: An iterable of bot_ids from which the function was revoked.
 
         Raises:
             ValueError: If the function is not found or the bot_id does not exist.
@@ -685,11 +705,20 @@ class ToolsFuncRegistry:
             raise ValueError("Argument must be either a function name (str) or a tool function (callable).")
         assert func is not None and is_tool_func(func)
 
-        if bot_id not in self._ephem_func_to_bot_map.get(func, set()):
-            raise ValueError(f"Function {func.__name__} not associated with bot_id {bot_id}.")
+        revoked_bot_ids = []
 
-        self._ephem_func_to_bot_map[func].remove(bot_id)
-        return func
+        if bot_id == _ALL_BOTS_TOKEN_:
+            if func not in self._ephem_func_to_bot_map:
+                raise ValueError(f"Function {func.__name__} is not associated with any bot.")
+            revoked_bot_ids = list(self._ephem_func_to_bot_map[func])
+            del self._ephem_func_to_bot_map[func]
+        else:
+            if bot_id not in self._ephem_func_to_bot_map.get(func, set()):
+                raise ValueError(f"Function {func.__name__} not associated with bot_id {bot_id}.")
+            self._ephem_func_to_bot_map[func].remove(bot_id)
+            revoked_bot_ids.append(bot_id)
+
+        return revoked_bot_ids
 
 
     def get_ephemeral_tool_funcs_for_bot(self, bot_id: str) -> List[callable]:
@@ -700,6 +729,13 @@ class ToolsFuncRegistry:
             [func for func in self._tool_funcs if bot_id in self._ephem_func_to_bot_map[func]],
             key=lambda func: get_tool_func_descriptor(func).name
         )
+
+
+    def get_bots_for_ephemeral_tool_func(self, func: callable) -> List[str]:
+        """
+        Get all bot_ids for which an ephemeral tool function is assigned.
+        """
+        return list(self._ephem_func_to_bot_map.get(func, set()))
 
 
 # Singleton "tools registry for all 'new type' tools.
@@ -786,6 +822,7 @@ def add_api_client_tool(bot_id: str,
                         timeout_seconds: int = DEFAULT_CLIENT_TOOL_SERVER_TIMEOUT_SECONDS,
                         ):
     from genesis_bots.core.bot_os_input import BosOsClientAsyncToolInvocationHandle
+    logger.info(f"Adding client tool {tool_func_descriptor.get('name')} for bot {bot_id} with timeout {timeout_seconds}")
 
     # Construct a ToolFuncDescriptor instance
     tool_func_descriptor = ToolFuncDescriptor.from_json(tool_func_descriptor)
@@ -847,7 +884,7 @@ def add_api_client_tool(bot_id: str,
 
     # Register the callable with the global tools registry and with the bot_id
     tools_registry = get_global_tools_registry()
-    tools_registry.add_tool_func(_client_tool_func_proxy)
+    tools_registry.add_tool_func(_client_tool_func_proxy, replace_if_exists=True) # TODO: be more conservative about replacing existing functions? Right now we assume that the client is always right
     tools_registry.assign_ephemeral_tool_func_to_bot(bot_id, _client_tool_func_proxy)
 
     # Reset the sessions for this bot after adding the new ephemeral tools
@@ -861,3 +898,55 @@ def add_api_client_tool(bot_id: str,
         "Message": f"Tool function '{tool_func_descriptor.name}' added successfully for bot_id '{bot_id}'."
     }
 
+
+def remove_api_client_tool(bot_id, func_name, botos_server):
+    """
+    Remove a client tool function for a specific bot or all bots.
+
+    Args:
+        bot_id: The ID of the bot for which the tool function should be removed. Use _ALL_BOTS_TOKEN_ to remove the tool for all bots.
+        func_name: The name of the tool function to remove.
+        botos_server: The server instance managing the bot sessions.
+
+    Returns:
+        A dictionary indicating success or failure of the tool function removal.
+    """
+    logger.info(f"Removing client tool-func {func_name} for bot {bot_id}")
+    tools_registry = get_global_tools_registry()
+
+    # Check if the tool function exists in the registry
+    tool_func = tools_registry.get_tool_func(func_name)
+    if tool_func is None:
+        return {
+            "Success": False,
+            "Message": f"Tool function '{func_name}' not found."
+        }
+
+    # Unassign the tool function from the bot or all bots
+    try:
+        revoked_bot_ids = tools_registry.revoke_ephemeral_tool_func_from_bot(bot_id, tool_func)
+    except Exception as e:
+        return {
+            "Success": False,
+            "Message": str(e)
+        }
+    # Remove the tool function from the global registry if it is not assigned to any bot
+    if len(tools_registry.get_bots_for_ephemeral_tool_func(tool_func)) == 0:
+        tools_registry.remove_tool_func(tool_func)
+
+    # reset the sessions for the bots for which the tool was removed
+    revoked_bot_ids = tupleize(revoked_bot_ids)
+    if len(revoked_bot_ids) > 0:
+        # Reset the sessions for the bot for which the tool was removed
+        for revoked_bot_id in revoked_bot_ids:
+            for session in botos_server.sessions:
+                if session.bot_id == revoked_bot_id:
+                    logger.info(f"Resetting session for bot_id '{revoked_bot_id}' since we removed a tool")
+                    botos_server.reset_session(revoked_bot_id, session)
+
+    # Return Success
+    revoked_bot_ids_str = (", ".join(revoked_bot_ids)) or "<none>"
+    return {
+        "Success": True,
+        "Message": f"Tool function '{func_name}' removed successfully for bot_id(s): '{revoked_bot_ids_str}'."
+    }

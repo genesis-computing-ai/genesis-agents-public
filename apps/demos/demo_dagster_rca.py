@@ -1,6 +1,4 @@
-from   genesis_bots.api.genesis_api          import GenesisAPI
-from   genesis_bots.api.snowflake_local_server \
-                                import GenesisLocalServer
+from   genesis_bots.api         import GenesisAPI, RESTGenesisServerProxy, EmbeddedGenesisServerProxy
 from   langsmith                import Client, traceable
 
 
@@ -8,10 +6,12 @@ from   pprint                   import pprint
 from   textwrap                 import dedent, indent
 import yaml
 
-from   genesis_bots.core.logging_config      import log_level_ctx
+from   genesis_bots.core.logging_config \
+                                import log_level_ctx
 from   typing                   import Dict, List, Mapping
 
-from genesis_bots.core.logging_config import logger
+from   genesis_bots.core.logging_config \
+                                import logger
 
 # Initialize LangSmith client at the top of your file
 langsmith_client = Client()
@@ -173,7 +173,7 @@ Bot_DagsterRCAMgr_yaml = (dedent(
         f'''
         BOT_ID: DagsterRCAMgr
         BOT_NAME: DagsterRCAMgr
-        AVAILABLE_TOOLS: '[ "bot_dispatch_tools", ]'
+        AVAILABLE_TOOLS: '[ "delegate_work", ]'
         BOT_AVATAR_IMAGE: null
         BOT_IMPLEMENTATION: openai
         BOT_INSTRUCTIONS: >
@@ -311,7 +311,7 @@ class DagsterRCAFlow1(_FlowBase):
 
 
     @traceable(name="task_collect_run_id_failure_data")
-    def task_collect_run_id_failure_data(self, run_id):
+    def task_collect_run_id_failure_data(self, run_id):# -> Anyr:
 
         #TASK: fetch_failed_run_debug_information
         report = self.call_genesis_bot('DagsterExplorer', dedent(
@@ -491,15 +491,11 @@ def main():
     print("---------------------------------")
     print("  DAGSTER RCA DEMO BEGIN")
     print("---------------------------------")
-    try:
 
-        gclient = GenesisAPI(server_type=GenesisLocalServer,
-                            scope="GENESIS_TEST",
-                            sub_scope="GENESIS_AD")
-
-        # register all the local bot defs with the GC client
-        #register_bots(gclient)
-
+    # choose which server proxy mode to use
+    #server_proxy = EmbeddedGenesisServerProxy(fast_start=True)
+    server_proxy = RESTGenesisServerProxy() # default to localhost
+    with GenesisAPI(server_proxy=server_proxy) as gclient:
         # Registering the dagster tools offline:
         # 1) had to run the full server (flask mode) to update the various tables (AVAILABE TOOLS)
         # 2) Ran this offline to add the tools:
@@ -508,17 +504,15 @@ def main():
         # Turning off  Janice (to save time creating the session): (to restore, set it to 'snowflake-1')
         #    >> snow sql -c GENESIS_CVB  -q "update GENESIS_TEST.GENESIS_AD.BOT_SERVICING set RUNNER_ID=NULL  where BOT_ID='Janice'"
         #
-        if (1):
-            run_id = '975f848d-11f2-4655-8970-740bbf66edda' # Dagster RUN_ID
-            #flow = DagsterRCAFlow1(gclient=gclient, run_id=run_id)
-            flow = DagsterRCAFlow2(gclient=gclient, run_id=run_id)
-            result = flow.run()
-            print("---------------------------------")
-            print("          FINAL RESULT:")
-            print("---------------------------------")
-            pprint(result)
-    finally:
-        gclient.shutdown()
+
+        run_id = '975f848d-11f2-4655-8970-740bbf66edda' # Dagster RUN_ID
+        #flow = DagsterRCAFlow1(gclient=gclient, run_id=run_id)
+        flow = DagsterRCAFlow2(gclient=gclient, run_id=run_id)
+        result = flow.run()
+        print("---------------------------------")
+        print("          FINAL RESULT:")
+        print("---------------------------------")
+        pprint(result)
 
 
 if __name__ == "__main__":

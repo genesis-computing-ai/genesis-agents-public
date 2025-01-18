@@ -63,48 +63,6 @@ class GenesisMetadataStore():
     def upload_extended_tool(self, tool: GenesisToolDefinition, python_code: str, return_type: str, packages: list[str] = None):
         raise NotImplementedError("upload_extended_tool not implemented")
 
-class GenesisServer(ABC):
-    def __init__(self, scope, sub_scope):
-        self.scope = scope
-        self.sub_scope = sub_scope
-    def get_metadata_store(self) -> GenesisMetadataStore:
-        raise NotImplementedError("get_metadata_store not implemented")
-    def register_bot(self, bot: GenesisBot):
-        raise NotImplementedError("register_bot not implemented")
-    def run_tool(self, bot_id, tool_name, tool_parameters):
-        raise NotImplementedError("run_tool not implemented")
-    def upload_file(self, file_path, file_name, contents):
-        raise NotImplementedError("upload_file not implemented")
-    def get_file_contents(self, file_path, file_name):
-        raise NotImplementedError("get_file_contents not implemented")
-    def remove_file(self, file_path, file_name):
-        raise NotImplementedError("remove_file not implemented")
-    def add_message(self, bot_id, message, thread_id) -> str|dict: # returns request_id
-        raise NotImplementedError("add_message not implemented")
-    def get_message(self, bot_id, request_id) -> str:
-        raise NotImplementedError("get_message not implemented")
-    def shutdown(self):
-        pass
-
-    def add_client_tool(self, bot_id, tool_func):
-        raise NotImplementedError("add_client_tool not implemented")
-
-# class GenesisLocalServer(GenesisServer):
-#     def __init__(self, scope, sub_scope):
-#         super().__init__(scope, sub_scope)
-
-
-#     def add_message(self, bot_id, message, thread_id) -> dict:
-#         return {"request_id": "Request_12345",
-#                 "bot_id": bot_id,
-#                 "thread_id": thread_id}
-
-
-#     def get_message(self, bot_id, request_id):
-#         return "Message from Request_12345"
-
-
-
 
 class LocalMetadataStore(GenesisMetadataStore):
     metadata_dir: str = "./metadata"  # Set a default value for metadata_dir
@@ -319,21 +277,6 @@ class SqliteMetadataStore(DatabaseMetadataStore):
         conn = get_global_db_connector("Snowflake").connection  # this is correct, Snowflake, not SQLite
         super().__init__(scope, sub_scope, conn)
 
-class GenesisLocalServer(GenesisServer):
-    # TODO: remove? rename to xxxStub?
-    def __init__(self, scope):
-        super().__init__(scope)
-
-
-    def add_message(self, bot_id, message, thread_id) -> dict:
-        return {"request_id": "Request_12345",
-                "bot_id": bot_id,
-                "thread_id": thread_id}
-    def get_message(self, bot_id, request_id):
-        return "Message from Request_12345"
-
-    def get_metadata_store(self) -> GenesisMetadataStore:
-        return LocalMetadataStore(self.scope)
 
 class GenesisProject(BaseModel):
     PROJECT_ID: str
@@ -414,6 +357,8 @@ class GenesisMessage(BaseModel):
 # Clent-side bot_tool support
 #-----------------------------------------
 from   genesis_bots.core                     import bot_os_tools2 as core_tools
+
+_ALL_BOTS_ = core_tools._ALL_BOTS_TOKEN_
 
 def bot_client_tool(**param_descriptions):
     return core_tools.gc_tool(_group_tags_=core_tools.REMOTE_TOOL_FUNCS_GROUP,

@@ -1,4 +1,4 @@
-AVAILABLE_TOOLS: '["data_connector_tools", "snowflake_tools", "notebook_manager_tools", "git_file_manager_tools","artifact_manager_tools"]'
+AVAILABLE_TOOLS: '["data_connector_tools", "snowflake_tools", "notebook_manager_tools", "git_action","artifact_manager_tools"]'
 BOT_AVATAR_IMAGE: null
 BOT_ID: sourceResearchBot-jllocal
 BOT_IMPLEMENTATION: openai

@@ -1,10 +1,10 @@
-import time
-import os
-from genesis_bots.api.genesis_api import GenesisAPI
-from genesis_bots.api.genesis_base import bot_client_tool
-from genesis_bots.api.snowflake_local_server import GenesisLocalServer
+from   genesis_bots.api         import (EmbeddedGenesisServerProxy, GenesisAPI,
+                                        RESTGenesisServerProxy,
+                                        bot_client_tool)
 
-from dotenv import load_dotenv
+import os
+
+from   dotenv                   import load_dotenv
 load_dotenv()  # load environment variables
 
 scope, sub_scope = os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "GENESIS_TEST.GENSIS_LOCAL").split(".")
@@ -43,18 +43,19 @@ def get_all_translated_phrases() -> str:
     """
     return saved_translated_phrases
 
+# choose which server proxy mode to use
+#server_proxy = EmbeddedGenesisServerProxy(fast_start=True)
+server_proxy = RESTGenesisServerProxy() # default to localhost
 
-with GenesisAPI(server_type=GenesisLocalServer,
-                scope=scope, sub_scope=sub_scope, fast_start=False) as client:
 
-
+with GenesisAPI(server_proxy=server_proxy) as client:
     req_msg = "hello, Can you translate phrases in English to Swedish? Show me an example."
     print(f"\n>>>> Requesting: {req_msg}")
     request = client.add_message("Janice", req_msg) # "Janice"
     response = client.get_response("Janice", request["request_id"])
     #print("\n>>>>", response)
 
-    client.add_client_tool("Janice", retrieve_english_phrase, timeout_seconds=2)
+    client.register_client_tool("Janice", retrieve_english_phrase, timeout_seconds=2)
 
     req_msg = ("Use a tool to fetch 5 random famous English phrases and translate them to Swedish. " \
               "Return the result as a nicely formatted text table with two columns: 'Orig Phrase' and 'Translation'.")
@@ -65,7 +66,7 @@ with GenesisAPI(server_type=GenesisLocalServer,
 
     saved_translated_phrases = response
 
-    client.add_client_tool("Janice", get_all_translated_phrases)
+    client.register_client_tool("Janice", get_all_translated_phrases)
 
     req_msg = ("Fetch a table of previously translated phrases using the proper tool. "
                                  "For each tranlsation of a phrase, detect its language and translate it to english. "

@@ -1,15 +1,13 @@
-import time, uuid
-from genesis_bots.api.genesis_api import GenesisAPI
-from langsmith import Client
-from langsmith import traceable
+from   langsmith                import Client, traceable
+import uuid
 
-import snowflake.connector
 import json
+import snowflake.connector
 
-import os, yaml
+import yaml
 
-from genesis_bots.api.genesis_api import GenesisAPI
-from genesis_bots.api.snowflake_local_server import GenesisLocalServer
+from   genesis_bots.api         import EmbeddedGenesisServerProxy, GenesisAPI, RESTGenesisServerProxy
+
 import os
 
 #requires these environment variables:
@@ -833,215 +831,212 @@ def main():
 
     scope, sub_scope = internal_schema.split(".")
 
-    client = GenesisAPI(server_type=GenesisLocalServer, scope=scope, sub_scope=sub_scope,
-                        bot_list=local_bots, fast_start=False) # ["marty-l6kx7d"]
+    with GenesisAPI(server_proxy=RESTGenesisServerProxy()) as client:
 
-    # if you want to see what bots are already on the server
-    #bots = client.get_all_bots()
-    #print("Existing local bots: ",bots)
+        # if you want to see what bots are already on the server
+        #bots = client.get_all_bots()
+        #print("Existing local bots: ",bots)
 
-    # LOAD AND ACTIVATE BOTS FROM YAML FILES
-    # adds or updates bots defined in YAML to metadata and activates the listed bots
+        # LOAD AND ACTIVATE BOTS FROM YAML FILES
+        # adds or updates bots defined in YAML to metadata and activates the listed bots
 
-    pm_bot_id = 'RequirementsPM-jllocal'
-    source_research_bot_id = 'sourceResearchBot-jllocal'
-    mapping_proposer_bot_id = 'mappingProposerBot-jllocal'
-    confidence_analyst_bot_id = 'confidenceanalyst-jllocal'
+        pm_bot_id = 'RequirementsPM-jllocal'
+        source_research_bot_id = 'sourceResearchBot-jllocal'
+        mapping_proposer_bot_id = 'mappingProposerBot-jllocal'
+        confidence_analyst_bot_id = 'confidenceanalyst-jllocal'
 
-    bot_team_path = './demo/bot_team'
-    load_bots_from_yaml(client=client, bot_team_path=bot_team_path) # , onlybot=source_research_bot_id)  # takes bot definitions from yaml files at the specified path and injects/updates those bots into the running local server
+        bot_team_path = os.path.join(os.path.dirname(__file__), 'bot_team')
+        load_bots_from_yaml(client=client, bot_team_path=bot_team_path) # , onlybot=source_research_bot_id)  # takes bot definitions from yaml files at the specified path and injects/updates those bots into the running local server
 
-    # MAIN WORKFLOW
-    try:
+        # MAIN WORKFLOW
+        try:
 
-        run_number = 22;
-        table_name = "genesis_gxs.requirements.flexicard_pm_jl_set2"  # Changed from genesis_gxs.requirements.flexicard_pm
-        focus_field = 'EXPOSURE_END_DATE';
-       # focus_field = None
-        skip_confidence = True
+            run_number = 22;
+            table_name = "genesis_gxs.requirements.flexicard_pm_jl_set2"  # Changed from genesis_gxs.requirements.flexicard_pm
+            focus_field = 'EXPOSURE_END_DATE';
+        # focus_field = None
+            skip_confidence = True
 
-        # Reset the requirements table before starting
-        cursor = conn.cursor()
-        reset_sql = f"""
-            update {table_name}
-            set upstream_table = null,
-                upstream_column = null,
-                source_research = null,
-                git_source_research_stage_link = null,
-                mapping_proposal = null,
-                git_mapping_proposal_stage_link = null,
-                confidence_output = null,
-                git_confidence_output_stage_link = null,
-                confidence_summary = null,
-                pm_bot_comments = null,
-                transformation_logic = null,
-                evaluation_results=null,
-                which_mapping_correct = null,
-                correct_answer = null,
-                confidence_score = null,
-                primary_issues = null,
-                secondary_issues = null,
-                status = 'NEW'
-            where physical_column_name = '{focus_field}'
-            ;
-        """
+            # Reset the requirements table before starting
+            cursor = conn.cursor()
+            reset_sql = f"""
+                update {table_name}
+                set upstream_table = null,
+                    upstream_column = null,
+                    source_research = null,
+                    git_source_research_stage_link = null,
+                    mapping_proposal = null,
+                    git_mapping_proposal_stage_link = null,
+                    confidence_output = null,
+                    git_confidence_output_stage_link = null,
+                    confidence_summary = null,
+                    pm_bot_comments = null,
+                    transformation_logic = null,
+                    evaluation_results=null,
+                    which_mapping_correct = null,
+                    correct_answer = null,
+                    confidence_score = null,
+                    primary_issues = null,
+                    secondary_issues = null,
+                    status = 'NEW'
+                where physical_column_name = '{focus_field}'
+                ;
+            """
 
-       #focus_field = None
-        if focus_field:
-            cursor.execute(reset_sql)
+        #focus_field = None
+            if focus_field:
+                cursor.execute(reset_sql)
 
-        # get the work to do
-        cursor = conn.cursor()
-        if focus_field:
-            query = f'''SELECT * FROM {table_name} WHERE physical_column_name = '{focus_field}' '''
-            cursor.execute(query)
-        else:
-            cursor.execute(f"SELECT * FROM {table_name} WHERE status = 'NEW'")
-        results = cursor.fetchall()
-        columns = [col[0] for col in cursor.description]
+            # get the work to do
+            cursor = conn.cursor()
+            if focus_field:
+                query = f'''SELECT * FROM {table_name} WHERE physical_column_name = '{focus_field}' '''
+                cursor.execute(query)
+            else:
+                cursor.execute(f"SELECT * FROM {table_name} WHERE status = 'NEW'")
+            results = cursor.fetchall()
+            columns = [col[0] for col in cursor.description]
 
-        # Convert results to array of JSON objects
-        requirements = []
-        for row in results:
-            requirement = {}
-            for i, value in enumerate(row):
-                requirement[columns[i]] = value
-            requirements.append(requirement)
+            # Convert results to array of JSON objects
+            requirements = []
+            for row in results:
+                requirement = {}
+                for i, value in enumerate(row):
+                    requirement[columns[i]] = value
+                requirements.append(requirement)
 
-        print("Found", len(requirements), "requirements with NEW status:")
+            print("Found", len(requirements), "requirements with NEW status:")
 
-        if not requirements:
-            requirements = [{
-                'PHYSICAL_COLUMN_NAME': 'CUSTOMER_ID',
-                'LOGICAL_COLUMN_NAME': 'Customer ID',
-                'COLUMN_DESCRIPTION': 'Unique identifier for the customer',
-                'DATA_TYPE': 'VARCHAR',
-                'LENGTH': 20,
-                'LIST_OF_VALUES': None,
-                'STATUS': 'NEW'
-            }]
-        # loop over the work to do
-        for requirement in requirements:
+            if not requirements:
+                requirements = [{
+                    'PHYSICAL_COLUMN_NAME': 'CUSTOMER_ID',
+                    'LOGICAL_COLUMN_NAME': 'Customer ID',
+                    'COLUMN_DESCRIPTION': 'Unique identifier for the customer',
+                    'DATA_TYPE': 'VARCHAR',
+                    'LENGTH': 20,
+                    'LIST_OF_VALUES': None,
+                    'STATUS': 'NEW'
+                }]
+            # loop over the work to do
+            for requirement in requirements:
 
-            try:
-                filtered_requirement = {
-                    'PHYSICAL_COLUMN_NAME': requirement['PHYSICAL_COLUMN_NAME'],
-                    'LOGICAL_COLUMN_NAME': requirement['LOGICAL_COLUMN_NAME'],
-                    'COLUMN_DESCRIPTION': requirement['COLUMN_DESCRIPTION'],
-                    'DATA_TYPE': requirement['DATA_TYPE'],
-                    'LENGTH': requirement['LENGTH'],
-                    'LIST_OF_VALUES': requirement['LIST_OF_VALUES']
-                }
-                print("\033[34mWorking on requirement:", filtered_requirement, "\033[0m")
+                try:
+                    filtered_requirement = {
+                        'PHYSICAL_COLUMN_NAME': requirement['PHYSICAL_COLUMN_NAME'],
+                        'LOGICAL_COLUMN_NAME': requirement['LOGICAL_COLUMN_NAME'],
+                        'COLUMN_DESCRIPTION': requirement['COLUMN_DESCRIPTION'],
+                        'DATA_TYPE': requirement['DATA_TYPE'],
+                        'LENGTH': requirement['LENGTH'],
+                        'LIST_OF_VALUES': requirement['LIST_OF_VALUES']
+                    }
+                    print("\033[34mWorking on requirement:", filtered_requirement, "\033[0m")
 
-                paths = setup_paths(requirement["PHYSICAL_COLUMN_NAME"], run_number=run_number)
-
-
-                # test source
-
-        #      # Test source research first
-        #      source_research_result = test_source_research(client, filtered_requirement, paths, 'sourceResearchBot-jllocal')
-        #      if not source_research_result:
-        #          print("\033[91mSource research test failed\033[0m")
-        #          continue
+                    paths = setup_paths(requirement["PHYSICAL_COLUMN_NAME"], run_number=run_number)
 
 
-                source_research = perform_source_research_new(client, filtered_requirement, paths, source_research_bot_id)
+                    # test source
 
-                mapping_proposal = perform_mapping_proposal_new(client, filtered_requirement, paths, mapping_proposer_bot_id)
+            #      # Test source research first
+            #      source_research_result = test_source_research(client, filtered_requirement, paths, 'sourceResearchBot-jllocal')
+            #      if not source_research_result:
+            #          print("\033[91mSource research test failed\033[0m")
+            #          continue
 
-                if not skip_confidence:
-                    confidence_report = perform_confidence_analysis_new(client, filtered_requirement, paths, confidence_analyst_bot_id)
 
-                summary = perform_pm_summary(client, filtered_requirement, paths, pm_bot_id, skip_confidence)
+                    source_research = perform_source_research_new(client, filtered_requirement, paths, source_research_bot_id)
 
-                # Get the full content of each file from git
-                source_research_content = client.get_file_contents(
-                    f"{paths['stage_base']}{paths['base_git_path']}",
-                    paths["source_research_file"]
-                )
-                mapping_proposal_content = client.get_file_contents(
-                    f"{paths['stage_base']}{paths['base_git_path']}",
-                    paths["mapping_proposal_file"]
-                )
-            #    confidence_output_content = client.get_file_contents(
-            #        f"{paths['stage_base']}{paths['base_git_path']}",
-            #        paths["confidence_report_file"]
-            #    )
-                confidence_output_content = 'bypassed by jl comment'
-                # Evaluate results
-                evaluation, eval_json  = evaluate_results(client, paths, filtered_requirement, pm_bot_id, source_research_content, mapping_proposal_content, confidence_output_content, summary)
-            #  print("\033[34mEvaluation results:", evaluation, "\033[0m")
+                    mapping_proposal = perform_mapping_proposal_new(client, filtered_requirement, paths, mapping_proposer_bot_id)
 
-                # Prepare fields for database update
-                db_fields = {
-                    'upstream_table': summary['UPSTREAM_TABLE'],
-                    'upstream_column': summary['UPSTREAM_COLUMN'],
-                    'source_research': source_research_content,
-                    'git_source_research_stage_link': f"{paths['stage_base']}{paths['base_git_path']}{paths['source_research_file']}",
-                    'mapping_proposal': mapping_proposal_content,
-                    'git_mapping_proposal_stage_link': f"{paths['stage_base']}{paths['base_git_path']}{paths['mapping_proposal_file']}",
-                    'confidence_output': confidence_output_content,
-                    'git_confidence_output_stage_link': f"{paths['stage_base']}{paths['base_git_path']}{paths['confidence_report_file']}",
-                    'confidence_score': summary['CONFIDENCE_SCORE'],
-                    'confidence_summary': summary['CONFIDENCE_SUMMARY'],
-                    'pm_bot_comments': summary['PM_BOT_COMMENTS'],
-                    'transformation_logic': summary['TRANSFORMATION_LOGIC'],
-                    'evaluation_results': evaluation,
-                    'which_mapping_correct': eval_json['WHICH_MAPPING_CORRECT'],
-                    'correct_answer': eval_json['CORRECT_ANSWER'],
-                    'primary_issues': eval_json['PRIMARY_ISSUES'],
-                    'secondary_issues': eval_json['SECONDARY_ISSUES'],
-                }
+                    if not skip_confidence:
+                        confidence_report = perform_confidence_analysis_new(client, filtered_requirement, paths, confidence_analyst_bot_id)
 
-                # Save results of work to database
-                save_pm_summary_to_requirements(
-                    requirement['PHYSICAL_COLUMN_NAME'],
-                    db_fields,
-                    table_name
-                )
-                print("\033[32mSuccessfully saved results to database for requirement:", requirement['PHYSICAL_COLUMN_NAME'], "\033[0m")
+                    summary = perform_pm_summary(client, filtered_requirement, paths, pm_bot_id, skip_confidence)
 
-                # prevent unintentional runaway runs while developing/testing
-                #i = input('next? ')
+                    # Get the full content of each file from git
+                    source_research_content = client.get_file_contents(
+                        f"{paths['stage_base']}{paths['base_git_path']}",
+                        paths["source_research_file"]
+                    )
+                    mapping_proposal_content = client.get_file_contents(
+                        f"{paths['stage_base']}{paths['base_git_path']}",
+                        paths["mapping_proposal_file"]
+                    )
+                #    confidence_output_content = client.get_file_contents(
+                #        f"{paths['stage_base']}{paths['base_git_path']}",
+                #        paths["confidence_report_file"]
+                #    )
+                    confidence_output_content = 'bypassed by jl comment'
+                    # Evaluate results
+                    evaluation, eval_json  = evaluate_results(client, paths, filtered_requirement, pm_bot_id, source_research_content, mapping_proposal_content, confidence_output_content, summary)
+                #  print("\033[34mEvaluation results:", evaluation, "\033[0m")
 
-            except Exception as e:
-                print(f"\033[31mError occurred: {e}\033[0m")
+                    # Prepare fields for database update
+                    db_fields = {
+                        'upstream_table': summary['UPSTREAM_TABLE'],
+                        'upstream_column': summary['UPSTREAM_COLUMN'],
+                        'source_research': source_research_content,
+                        'git_source_research_stage_link': f"{paths['stage_base']}{paths['base_git_path']}{paths['source_research_file']}",
+                        'mapping_proposal': mapping_proposal_content,
+                        'git_mapping_proposal_stage_link': f"{paths['stage_base']}{paths['base_git_path']}{paths['mapping_proposal_file']}",
+                        'confidence_output': confidence_output_content,
+                        'git_confidence_output_stage_link': f"{paths['stage_base']}{paths['base_git_path']}{paths['confidence_report_file']}",
+                        'confidence_score': summary['CONFIDENCE_SCORE'],
+                        'confidence_summary': summary['CONFIDENCE_SUMMARY'],
+                        'pm_bot_comments': summary['PM_BOT_COMMENTS'],
+                        'transformation_logic': summary['TRANSFORMATION_LOGIC'],
+                        'evaluation_results': evaluation,
+                        'which_mapping_correct': eval_json['WHICH_MAPPING_CORRECT'],
+                        'correct_answer': eval_json['CORRECT_ANSWER'],
+                        'primary_issues': eval_json['PRIMARY_ISSUES'],
+                        'secondary_issues': eval_json['SECONDARY_ISSUES'],
+                    }
 
-                # Save error state to database for this field
-                error_fields = {
-                    'upstream_table': None,
-                    'upstream_column': None,
-                    'source_research': str(e),
-                    'git_source_research_stage_link': None,
-                    'mapping_proposal': None,
-                    'git_mapping_proposal_stage_link': None,
-                    'confidence_output': None,
-                    'git_confidence_output_stage_link': None,
-                    'confidence_score': 0,
-                    'confidence_summary': None,
-                    'pm_bot_comments': f'Error: {str(e)}',
-                    'transformation_logic': None,
-                    'evaluation_results': None,
-                    'which_mapping_correct': 'error',
-                    'correct_answer': None,
-                    'primary_issues': f'Error: {str(e)}',
-                    'secondary_issues': None
-                }
+                    # Save results of work to database
+                    save_pm_summary_to_requirements(
+                        requirement['PHYSICAL_COLUMN_NAME'],
+                        db_fields,
+                        table_name
+                    )
+                    print("\033[32mSuccessfully saved results to database for requirement:", requirement['PHYSICAL_COLUMN_NAME'], "\033[0m")
 
-                save_pm_summary_to_requirements(
-                    requirement['PHYSICAL_COLUMN_NAME'],
-                    error_fields,
-                    table_name
-                )
-                print(f"\033[33mSaved error state to database for requirement: {requirement['PHYSICAL_COLUMN_NAME']}\033[0m")
+                    # prevent unintentional runaway runs while developing/testing
+                    #i = input('next? ')
 
-            #raise e
-    except Exception as e:
-            raise e
+                except Exception as e:
+                    print(f"\033[31mError occurred: {e}\033[0m")
 
-    finally:
-        client.shutdown()
+                    # Save error state to database for this field
+                    error_fields = {
+                        'upstream_table': None,
+                        'upstream_column': None,
+                        'source_research': str(e),
+                        'git_source_research_stage_link': None,
+                        'mapping_proposal': None,
+                        'git_mapping_proposal_stage_link': None,
+                        'confidence_output': None,
+                        'git_confidence_output_stage_link': None,
+                        'confidence_score': 0,
+                        'confidence_summary': None,
+                        'pm_bot_comments': f'Error: {str(e)}',
+                        'transformation_logic': None,
+                        'evaluation_results': None,
+                        'which_mapping_correct': 'error',
+                        'correct_answer': None,
+                        'primary_issues': f'Error: {str(e)}',
+                        'secondary_issues': None
+                    }
+
+                    save_pm_summary_to_requirements(
+                        requirement['PHYSICAL_COLUMN_NAME'],
+                        error_fields,
+                        table_name
+                    )
+                    print(f"\033[33mSaved error state to database for requirement: {requirement['PHYSICAL_COLUMN_NAME']}\033[0m")
+
+                #raise e
+        except Exception as e:
+                raise e
+
 
 if __name__ == "__main__":
     main()

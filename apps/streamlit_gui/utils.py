@@ -1,10 +1,9 @@
-import streamlit as st
+from   genesis_bots.core.bot_os_udf_proxy_input \
+                                import UDFBotOsInputAdapter
 import json
-import time
-import uuid
-import datetime
-import pandas as pd
 import requests
+import streamlit as st
+
 
 LOCAL_SERVER_URL = "http://127.0.0.1:8080/"
 
@@ -325,7 +324,10 @@ def submit_to_udf_proxy(input_text, thread_id, bot_id, file={}):
         else:
             raise Exception(f"Failed to submit to UDF proxy: {response.text}")
 
-def get_response_from_udf_proxy(uu, bot_id):
+def get_response_from_udf_proxy(uu, bot_id) -> str:
+    not_found_msg = "not found" # TODO: use a constant shared with the Chat page logic
+    response = None
+
     if st.session_state.NativeMode:
         try:
             session = get_session()
@@ -337,20 +339,40 @@ def get_response_from_udf_proxy(uu, bot_id):
             if data and len(data) > 0 and len(data[0]) > 0:
                 response = data[0][0]
             else:
-                response = "not found"
-            return response
+                response = not_found_msg
         except Exception as e:
             st.write("!! Exception on get_response_from_udf_proxy: ", e)
-            return "!!EXCEPTION_NEEDS_RETRY!!"
+            response = "!!EXCEPTION_NEEDS_RETRY!!"
     else:
         url = LOCAL_SERVER_URL + "udf_proxy/lookup_udf"
         headers = {"Content-Type": "application/json"}
         data = json.dumps({"data": [[1, uu, bot_id]]})
         response = requests.post(url, headers=headers, data=data)
-        if response.status_code == 200:
-            return response.json()["data"][0][1]
+        if response.status_code != 200:
+            response = not_found_msg
         else:
-            return "not found"
+            response = response.json()["data"][0][1]
+
+    # See if this reposnse is a special 'action' message. This can happen if we assigned an ephemeral tool to this bot in some other chat context
+    # and the user prompted the bot such that it decided to use that tool.
+    # In Streamlit chat we currently do not support actions, so we need to send a special message back to the LLM to let it know that the tool is not available.
+    try:
+        action_msg = UDFBotOsInputAdapter.parse_action_msg(response)
+    except ValueError as e:
+        pass  # regular response
+    else:
+        # handle the action request
+        invocation_id = action_msg.get("invocation_id", None)
+        action_result = f"ERROR: actions not supported by the current client interface which is an interactive chat UI"
+        # send the result back to the LLM
+        result_msg = UDFBotOsInputAdapter.format_action_msg("action_result",
+                                                            invocation_id=invocation_id,
+                                                            func_result=action_result)
+        submit_to_udf_proxy(result_msg, thread_id="null", bot_id=bot_id)
+        response = not_found_msg
+
+    return response
+
 
 def deploy_bot(bot_id):
     if st.session_state.NativeMode:

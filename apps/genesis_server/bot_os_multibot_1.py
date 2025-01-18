@@ -1,11 +1,17 @@
-import os, subprocess, sys
-from flask import Flask
-from pathlib import Path
+from   flask                    import Flask
+import os
+from   pathlib                  import Path
+import subprocess
+import sys
 
-from genesis_bots.demo.app import genesis_app
-from genesis_bots.demo.routes import realtime_routes, slack_routes
-from genesis_bots.demo.routes import udf_routes, main_routes, auth_routes
-from genesis_bots.core import global_flags
+from   genesis_bots.core        import global_flags
+from   genesis_bots.demo.app.genesis_app    import (DEFAULT_HTTPS_ENDPOINT_PORT,
+                                        DEFAULT_HTTP_ENDPOINT_PORT,
+                                        DEFAULT_STREAMLIT_APP_PORT,
+                                        genesis_app)
+from   genesis_bots.demo.routes import (auth_routes, main_routes,
+                                        realtime_routes, slack_routes,
+                                        udf_routes)
 
 main_server = None
 
@@ -35,11 +41,11 @@ def main():
             subprocess.Popen([
                 sys.executable, "-m", "streamlit", "run",
                 str(streamlit_path),
-                "--server.port", "8501"
+                "--server.port", str(DEFAULT_STREAMLIT_APP_PORT)
             ])
 
-    app.run(host=SERVICE_HOST, port=8080, debug=False, use_reloader=False)
-    app_https.run(host=SERVICE_HOST, port=8082, ssl_context='adhoc', debug=False, use_reloader=False)
+    app.run(host=SERVICE_HOST, port=DEFAULT_HTTP_ENDPOINT_PORT, debug=False, use_reloader=False)
+    app_https.run(host=SERVICE_HOST, port=DEFAULT_HTTPS_ENDPOINT_PORT, ssl_context='adhoc', debug=False, use_reloader=False)
 
 if __name__ == "__main__":
     main()

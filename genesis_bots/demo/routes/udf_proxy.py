@@ -1,8 +1,9 @@
-from   genesis_bots.core                     import global_flags
-from   genesis_bots.core.logging_config      import logger
-from   genesis_bots.demo.app                 import genesis_app
 from   flask                    import (Blueprint, jsonify, make_response,
                                         request)
+from   genesis_bots.core        import global_flags
+from   genesis_bots.core.logging_config \
+                                import logger
+from   genesis_bots.demo.app    import genesis_app
 import os
 
 import json
@@ -11,12 +12,18 @@ import base64
 from   pathlib                  import Path
 import tempfile
 
-from   genesis_bots.core.bot_os_artifacts    import get_artifacts_store
-from   genesis_bots.core.bot_os_tools2       import add_api_client_tool
-from   genesis_bots.embed.embed_openbb       import openbb_query
-from   genesis_bots.llm.llm_openai.openai_utils  import get_openai_client
+from   genesis_bots.core.bot_os_artifacts \
+                                import get_artifacts_store
+from   genesis_bots.core.bot_os_tools2 \
+                                import (add_api_client_tool,
+                                        remove_api_client_tool)
+from   genesis_bots.embed.embed_openbb \
+                                import openbb_query
+from   genesis_bots.llm.llm_openai.openai_utils \
+                                import get_openai_client
 
-from   genesis_bots.auto_ngrok.auto_ngrok    import launch_ngrok_and_update_bots
+from   genesis_bots.auto_ngrok.auto_ngrok \
+                                import launch_ngrok_and_update_bots
 from   genesis_bots.bot_genesis.make_baby_bot \
                                 import (get_bot_details, get_ngrok_auth_token,
                                         get_slack_config_tokens, list_all_bots,
@@ -24,8 +31,10 @@ from   genesis_bots.bot_genesis.make_baby_bot \
                                         set_ngrok_auth_token,
                                         set_slack_config_tokens,
                                         update_slack_app_level_key)
-from   genesis_bots.core.system_variables    import SystemVariables
-from   genesis_bots.demo.routes.slack        import bot_install_followup
+from   genesis_bots.core.system_variables \
+                                import SystemVariables
+from   genesis_bots.demo.routes.slack \
+                                import bot_install_followup
 from genesis_bots.core.bot_os import BotOsSession
 
 udf_routes = Blueprint('udf_routes', __name__)
@@ -239,10 +248,10 @@ def get_metadata():
                 logger.info("missing metadata")
             result = genesis_app.db_adapter.eai_test(site=site)
         elif 'sandbox' in metadata_type:
-            _, bot_id, thread_id_in, file_name = metadata_type.split('|')            
+            _, bot_id, thread_id_in, file_name = metadata_type.split('|')
             logger.info('****get_metadata, file_name', file_name)
             logger.info('****get_metadata, thread_id_in', thread_id_in)
-            logger.info('****get_metadata, bot_id', bot_id)            
+            logger.info('****get_metadata, bot_id', bot_id)
             try:
                 thread_id_out = BotOsSession._shared_in_to_out_thread_map.get(bot_id, {}).get(thread_id_in)
                 if not thread_id_out:
@@ -879,15 +888,15 @@ def embed_openbb():
     )
 
 
-@udf_routes.route("/udf_proxy/add_client_tool", methods=["POST"])
-def add_client_tool():
+@udf_routes.route("/udf_proxy/register_client_tool", methods=["POST"])
+def register_client_tool():
     """
-    Endpoint to add a client tool function dynamically.
+    Endpoint to add a client tool function dynamically, for a specific bot.
 
     Returns:
         A JSON response indicating success or failure of the tool function registration.
     """
-   # logger.info('Flask invocation: /udf_proxy/add_client_tool')
+   # logger.info('Flask invocation: /udf_proxy/register_client_tool')
     try:
         # Parse the JSON payload
         data = request.get_json()
@@ -905,6 +914,37 @@ def add_client_tool():
         response = {
             "Success": False,
             "Message": f"An error occurred while adding the client tool: {str(e)}"
+        }
+
+    return jsonify(response)
+
+
+@udf_routes.route("/udf_proxy/unregister_client_tool", methods=["POST"])
+def unregister_client_tool():
+    """
+    Endpoint to remove a client tool function dynamically, for a specific bot or all bots.
+
+    Returns:
+        A JSON response indicating success or failure of the tool function unregistration.
+    """
+    try:
+        # Parse the JSON payload
+        data = request.get_json()
+        bot_id = data.get("bot_id")
+        if not bot_id:
+            raise ValueError("'bot_id' is required.")
+        tool_name = data.get("tool_name")
+        if not tool_name:
+            raise ValueError("'tool_name' is required.")
+
+        # Delegate the core logic to the bot_os_tools2 module
+        response = remove_api_client_tool(bot_id, tool_name, genesis_app.server)
+
+    except Exception as e:
+        logger.error(f"Error removing client tool: {str(e)}")
+        response = {
+            "Success": False,
+            "Message": f"An error occurred while removing the client tool: {str(e)}"
         }
 
     return jsonify(response)

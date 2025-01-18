@@ -156,8 +156,8 @@ class BotOsServer:
         if replace_existing:
             # Attempt to remove sessions with the same name as the new session
             try:
-                logger.info(self.sessions)
-                logger.info(session.session_name)
+                logger.info(f"add_session: current sessions {[s.session_name for s in self.sessions]}")
+                logger.info(f"add_session: session to remove: {session.session_name}")
                 self.sessions = [
                     s for s in self.sessions if s.session_name != session.session_name
                 ]

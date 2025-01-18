@@ -1,5 +1,5 @@
 from genesis_bots.api.genesis_api import GenesisAPI
-from genesis_bots.api.snowflake_local_server import GenesisLocalServer
+from genesis_bots.api.snowflake_local_server import EmbeddedGenesisServerProxy
 import os
 
 #requires these environment variables:
@@ -10,7 +10,7 @@ import os
     #"BOT_OS_DEFAULT_LLM_ENGINE": "openai"
 
 bot_id = "Janice"
-client = GenesisAPI(server_type=GenesisLocalServer,
+client = GenesisAPI(server_proxy=EmbeddedGenesisServerProxy,
                     scope = "IGNORED",
                     sub_scope = "genesis",
                     bot_list=[bot_id])

@@ -133,7 +133,7 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
     def __init__(self, bot_id = None):
         super().__init__(bot_id=bot_id)
         self.genbot_internal_project_and_schema = os.getenv('GENESIS_INTERNAL_DB_SCHEMA','None')
-        
+
         # Generate a unique name for this adapter instance if needed
         if self.bot_id is None:
             self.adapter_name = str(uuid.uuid4())
@@ -415,8 +415,8 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
 
     def _lookup_response(self, in_uuid:str):
         response = None
-        # First, handle any pending action invications
-        # request for actions (e.g. client tool invocations) takes precedence since they are part of a pending request.
+        # First, handle any pending action invocations.
+        # A request for actions (e.g. client tool invocations) takes precedence since they are part of a pending request context.
         log_ctxt = self.__class__.__name__ + "::_lookup_response"
 
         # handle any new requested user actions (e.g. tool invocaitons) that are waiting in the self.pending_user_actions.unprocessed_q.

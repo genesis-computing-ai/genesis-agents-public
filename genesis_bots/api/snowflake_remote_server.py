@@ -1,10 +1,10 @@
 import uuid
 from snowflake.connector import SnowflakeConnection
-from genesis_bots.api.genesis_base import GenesisMetadataStore, GenesisServer, SnowflakeMetadataStore
+from genesis_bots.api.genesis_base import GenesisMetadataStore, GenesisServerProxy, SnowflakeMetadataStore
 import os
 import urllib.parse
 
-class GenesisSnowflakeServer(GenesisServer):
+class GenesisSnowflakeServer(GenesisServerProxy):
     def __init__(self, scope, sub_scope, bot_list=None, fast_start=False):
         super().__init__(scope, sub_scope)
         self.conn = SnowflakeConnection(

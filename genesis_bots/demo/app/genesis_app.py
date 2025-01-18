@@ -9,6 +9,11 @@ from genesis_bots.demo.sessions_creator import create_sessions
 from apscheduler.schedulers.background import BackgroundScheduler
 from genesis_bots.auto_ngrok.auto_ngrok import launch_ngrok_and_update_bots
 
+
+DEFAULT_HTTP_ENDPOINT_PORT = 8080
+DEFAULT_HTTPS_ENDPOINT_PORT = 8082
+DEFAULT_STREAMLIT_APP_PORT = 8501
+
 class GenesisApp:
     _instance = None
 
@@ -217,7 +222,7 @@ class GenesisApp:
                 data_cubes_ingress_url = db_adapter.db_get_endpoint_ingress_url("streamlitdatacubes")
             except Exception as e:
                 logger.warning(f"Error on get_endpoints {e} ")
-        data_cubes_ingress_url = data_cubes_ingress_url if data_cubes_ingress_url else "localhost:8501"
+        data_cubes_ingress_url = data_cubes_ingress_url if data_cubes_ingress_url else ("localhost:" + str(DEFAULT_STREAMLIT_APP_PORT))
         logger.info(f"Endpoints: {data_cubes_ingress_url=}; udf endpoint={ep}")
         self.data_cubes_ingress_url = data_cubes_ingress_url
 
@@ -327,7 +332,7 @@ class GenesisApp:
                         api_app_id_to_session_map = api_app_id_to_session_map,
                         data_cubes_ingress_url = data_cubes_ingress_url,
                         bot_id_to_slack_adapter_map = SystemVariables.bot_id_to_slack_adapter_map,
-            )            
+            )
         self.server = server
         self.scheduler = scheduler
         self.scheduler.start()

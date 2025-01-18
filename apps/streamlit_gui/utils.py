@@ -1,5 +1,3 @@
-from   genesis_bots.core.bot_os_udf_proxy_input \
-                                import UDFBotOsInputAdapter
 import json
 import requests
 import streamlit as st
@@ -324,6 +322,40 @@ def submit_to_udf_proxy(input_text, thread_id, bot_id, file={}):
         else:
             raise Exception(f"Failed to submit to UDF proxy: {response.text}")
 
+
+ACTION_MSG_DELIM = "<!!-ACTION_MSG-!!>"
+'''prefix/suffix delimeter for special 'action' messages that distinguish them from normal chat messages'''
+
+ACTION_MSG_TYPES = ("action_required", # we are requesting the client to run some action (e.g. a tool function)
+                    "action_result")   # the client has run the action and is submitting the result
+
+
+def format_action_msg(action_type, **action_params):
+    '''
+    Builds a special 'action' message that distinguishes it from normal chat messages.
+    '''
+    assert action_type in ACTION_MSG_TYPES, f"Unrecognized action_type value: {action_type}. Expected one of: {ACTION_MSG_TYPES}"
+    d = dict(action_type=action_type, **action_params)
+    dj = json.dumps(d)
+    return f"{ACTION_MSG_DELIM}{dj}{ACTION_MSG_DELIM}"
+
+
+def parse_action_msg(msg):
+    '''
+    Parses a special 'action' message that distinguishes it from normal chat messages.
+    Will raise a ValueError if the message is not a valid action message.
+    '''
+    if not msg.startswith(ACTION_MSG_DELIM) or not msg.endswith(ACTION_MSG_DELIM):
+        raise ValueError(f"Expected action message to start with {ACTION_MSG_DELIM} and end with {ACTION_MSG_DELIM}, got: {msg}")
+    dj = msg[len(ACTION_MSG_DELIM):-len(ACTION_MSG_DELIM)]
+    try:
+        d = json.loads(dj)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Failed to parse JSON from action message: {e}")
+    if 'action_type' not in d:
+        raise ValueError(f"Expected action message to contain an action_type field, got: {d}")
+    return d
+
 def get_response_from_udf_proxy(uu, bot_id) -> str:
     not_found_msg = "not found" # TODO: use a constant shared with the Chat page logic
     response = None
@@ -357,7 +389,7 @@ def get_response_from_udf_proxy(uu, bot_id) -> str:
     # and the user prompted the bot such that it decided to use that tool.
     # In Streamlit chat we currently do not support actions, so we need to send a special message back to the LLM to let it know that the tool is not available.
     try:
-        action_msg = UDFBotOsInputAdapter.parse_action_msg(response)
+        action_msg = parse_action_msg(response)
     except ValueError as e:
         pass  # regular response
     else:
@@ -365,7 +397,7 @@ def get_response_from_udf_proxy(uu, bot_id) -> str:
         invocation_id = action_msg.get("invocation_id", None)
         action_result = f"ERROR: actions not supported by the current client interface which is an interactive chat UI"
         # send the result back to the LLM
-        result_msg = UDFBotOsInputAdapter.format_action_msg("action_result",
+        result_msg = format_action_msg("action_result",
                                                             invocation_id=invocation_id,
                                                             func_result=action_result)
         submit_to_udf_proxy(result_msg, thread_id="null", bot_id=bot_id)

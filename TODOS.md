@@ -3,9 +3,7 @@ GENESIS BOT TODOS
 =================
 
 remove files from bot creation/ remove add files, etc 
-x  preharvest for baseball and f1
 NEXT->change default to sqlite mode and to non-assistant mode
-NEXT->make get_full_Table_details work with sqlite etc
 after tool calls, the first few new chars get missed sometimes in the output 
 test sonnet on cortex, and test mid flight tool and instruction changes again on cortex
 have search metadata return the list of any data connections as well that may not be harvested 
@@ -17,10 +15,12 @@ have search metadata return the list of any data connections as well that may no
 (later) make sqlite sample data load from csv files vs binary
 (aviv) make connection, harvest, search metadata, and query database work directly via api 
 (test) setting harvest control again with sqlite and snowflake (make sure using correct connection id)
-(test)  allow search_metadata_detailed and search_metadata to specify a source_name
 (test) harvester on postgres
 (test) harvester on sqlite again
 (reza) generate a text file with the numebrs from 1-10, sqlite mode, genesis gui error in streamlit (doesnt return the file anymore just the text)
+make harvester autostart with main service, make it part of main service?
+trigger immediate harvest on adding something to the harvester
+add an option on add connection to add to harvest and immediately harvest
 make harvester on non-snowflake also get views
 add a database connections page to streamlit to see database connections
 add a way for Eve to write a serper key to the db
@@ -28,10 +28,9 @@ when nothing is harvested provide response for bot to list directly available ta
 on add connection, make sure to suggest harvesting the new connection
 harvest control, if database not found, return list of connections
 dont return snowflake permissions suggestion if not snowflake
-make database and schema params work when not snowflake on find_memory
 is search metadata returning the type of database?  would be useful ...  (it would need to be added to the metadata table)
-make config querys conf generate if not existing 
-test fix for redshift, bigquery, databricks
+make config querys conf file generate if not existing 
+test/fix redshift, bigquery, databricks
 signal to reset the annoy indexes when connections or connection rbac are changed
 make snowpark python work when you just have a regular connection to snowflake
 add a tool to update bot access to a connection, which properly handles the string of bot ids (list, add, remove, etc.)
@@ -39,6 +38,10 @@ set a flag when bot data access changes so annoy indexes can be refreshed, have 
 test all tools
 
 DONE:
+x allow search_metadata_detailed and search_metadata to specify a source_name
+x preharvest for baseball and f1
+x make database and schema params work when not snowflake on find_memory
+x make get_full_Table_details work with sqlite etc
 n remove file uploads to openai when none needed
 x TEST-make sure clean sqlite works with new schema removal logic
 x add baseball and f1 connections by default to eve 

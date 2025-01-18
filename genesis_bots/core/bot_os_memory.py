@@ -129,6 +129,7 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
             self.meta_database_connector = SqliteConnector(connection_name='Sqlite')
             self.project_id = self.meta_database_connector.database
         elif self.source_name  == 'Snowflake':
+            #TODO remove if statement
             if os.getenv("SQLITE_OVERRIDE", "").lower() == "true":
                 from genesis_bots.connectors import get_global_db_connector
                 self.meta_database_connector = get_global_db_connector()

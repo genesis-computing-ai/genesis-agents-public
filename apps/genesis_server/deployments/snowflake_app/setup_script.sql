@@ -40,6 +40,7 @@ $$
             CORTEX_FAST_MODEL_NAME: llama3.1-70b
             USE_KNOWLEDGE: TRUE
             LAST_K_KNOWLEGE: 0
+            OPENAI_USE_ASSISTANTS: FALSE
             GIT_PATH: /opt/bot_git
         readinessProbe:
             port: 8080
@@ -169,6 +170,7 @@ $$
             SNOWFLAKE_SECURE: FALSE
             GENESIS_INTERNAL_DB_SCHEMA: {{app_db_sch}}
             GENESIS_SOURCE: Snowflake
+            OPENAI_USE_ASSISTANTS: FALSE
             GIT_PATH: /opt/bot_git
       volumes:
       - name: botgit

@@ -723,9 +723,9 @@ def ensure_table_exists(self):
             cursor.close()
 
         try:
-            eai_config_table_check_query = f"DESCRIBE TABLE {self.genbot_internal_project_and_schema}.EAI_CONFIG;"
+            # eai_config_table_check_query = f"SHOW TABLES LIKE EAI_CONFIG in schema {self.schema};"
             cursor = self.client.cursor()
-            cursor.execute(eai_config_table_check_query)
+            # cursor.execute(eai_config_table_check_query)
             if not _check_table_exists('EAI_CONFIG'):
                 eai_config_table_ddl = f"""
                 CREATE OR REPLACE TABLE {self.genbot_internal_project_and_schema}.EAI_CONFIG (

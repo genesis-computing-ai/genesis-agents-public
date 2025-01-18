@@ -27,8 +27,10 @@ RUN python3 -c "import subprocess; subprocess.run(['git', '--version'], check=Tr
 # RUN npm install react-scripts
 
 WORKDIR /src/app
+RUN mkdir -p /src/app/apps/genesis_server
+RUN mkdir -p /src/app/apps/streamlit_gui
 COPY genesis_bots ./genesis_bots
-COPY apps/genesis_server/bot_os_multibot_1.py .apps/genesis_server/bot_os_multibot_1.py
+COPY apps/genesis_server/bot_os_multibot_1.py ./apps/genesis_server/bot_os_multibot_1.py
 COPY apps/streamlit_gui ./apps/streamlit_gui
 COPY apps/genesis_server/deployments/snowflake_app/entrypoint.sh /entrypoint.sh
 

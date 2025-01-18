@@ -2,7 +2,8 @@
 GENESIS BOT TODOS
 =================
 
-NEXT->add preharvest for baseball and f1
+remove files from bot creation/ remove add files, etc 
+x  preharvest for baseball and f1
 NEXT->change default to sqlite mode and to non-assistant mode
 NEXT->make get_full_Table_details work with sqlite etc
 after tool calls, the first few new chars get missed sometimes in the output 

@@ -541,7 +541,7 @@ class SnowflakeConnector(SnowflakeConnectorBase):
                 ]
             else:
                 # For non-Snowflake sources, validate the connection_id exists
-                from connectors.data_connector import DatabaseConnector
+                from genesis_bots.connectors.data_connector import DatabaseConnector
                 connector = DatabaseConnector()
                 connections = connector.list_database_connections(bot_id=bot_id)
                 if not connections['success']:

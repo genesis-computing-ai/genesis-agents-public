@@ -109,13 +109,13 @@ class SQLiteAdapter:
                         # Verify the primary key constraint
                         cursor.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='BOT_SERVICING'")
                         table_def = cursor.fetchone()[0]
-                        logger.info(f"Created table with definition: {table_def}")
+                        #logger.info(f"Created BOT_SERVICING table with definition: {table_def}")
 
                         # Verify the primary key constraint exists
                         cursor.execute("PRAGMA table_info(BOT_SERVICING)")
                         columns = cursor.fetchall()
                         pk_columns = [col for col in columns if col[5] > 0]  # Column 5 is the pk flag
-                        logger.info(f"Primary key columns: {pk_columns}")
+                       # logger.info(f"Primary key columns: {pk_columns}")
 
                 except Exception as e:
                     logger.error(f"Error during table creation: {e}")
@@ -231,13 +231,24 @@ class SQLiteAdapter:
                     connection_string TEXT NOT NULL,
                     owner_bot_id TEXT NOT NULL,
                     allowed_bot_ids TEXT,
+                    description TEXT,
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
             """
+            # Check if description column exists
             cursor.execute(create_table_sql)
             self.connection.commit()
-            
+
+            cursor.execute("PRAGMA table_info(CUST_DB_CONNECTIONS)")
+            columns = cursor.fetchall()
+            has_description = any(col[1] == 'description' for col in columns)
+
+            if not has_description:
+                cursor.execute("ALTER TABLE CUST_DB_CONNECTIONS ADD COLUMN description TEXT")
+                self.connection.commit()
+                logger.info("Added description column to CUST_DB_CONNECTIONS table")
+
             # Define the connections to check/create
             connections = [
                 {
@@ -245,14 +256,16 @@ class SQLiteAdapter:
                     'db_type': 'sqlite',
                     'connection_string': 'sqlite:///./apps/demos/demo_data/baseball.sqlite',
                     'owner_bot_id': 'Eve',
-                    'allowed_bot_ids': '*'
+                    'allowed_bot_ids': '*',
+                    'description': 'Demo Baseball data up to 2015'
                 },
                 {
                     'connection_id': 'formula_1_sqlite',
                     'db_type': 'sqlite',
                     'connection_string': 'sqlite:///./apps/demos/demo_data/formula_1.sqlite',
                     'owner_bot_id': 'Eve',
-                    'allowed_bot_ids': '*'
+                    'allowed_bot_ids': '*',
+                    'description': 'Demo Formula 1 data up to 2024'
                 }
             ]
             
@@ -269,15 +282,17 @@ class SQLiteAdapter:
                             db_type,
                             connection_string,
                             owner_bot_id,
-                            allowed_bot_ids
-                        ) VALUES (?, ?, ?, ?, ?)
+                            allowed_bot_ids,
+                            description
+                        ) VALUES (?, ?, ?, ?, ?, ?)
                     """
                     cursor.execute(insert_sql, (
                         conn['connection_id'],
                         conn['db_type'],
                         conn['connection_string'],
                         conn['owner_bot_id'],
-                        conn['allowed_bot_ids']
+                        conn['allowed_bot_ids'],
+                        conn['description']
                     ))
                     self.connection.commit()
                     logger.info(f"Inserted {conn['connection_id']} record")
@@ -300,7 +315,7 @@ class SQLiteAdapter:
                 return
             
             import json
-            input_file = "./apps/demos/demo_data/harvest_results.json"
+            input_file = "./apps/demos/demo_data/demo_harvest_results.json"
             
             # Check if file exists
             if not os.path.exists(input_file):

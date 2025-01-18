@@ -198,6 +198,8 @@ def make_session(
     assistant_id=None,
     skip_slack=False
 ):
+    from   genesis_bots.connectors               import get_global_db_connector
+    from   textwrap                 import dedent, indent
     """
     Create a single session for a bot based on the provided configuration.
 
@@ -340,8 +342,37 @@ def make_session(
         # Initialize as an empty dictionary
         bot_llms = {}
 
-    # check if database_tools are in bot_tools
-    if "database_tools" in tools_info.available_tool_names:
+    if "data_connector_tools" in tools_info.available_tool_names:
+        instructions += "\n" + dedent("""
+            When working with database connections:
+            - Use _list_database_connections to see available connections
+            - Use _search_metadata to find relevant tables and columns
+            - Use _get_full_table_details for complete table information
+            - Always verify connection exists before trying to query it
+            """)
+
+        from genesis_bots.connectors.data_connector import DatabaseConnector
+        connector = DatabaseConnector()
+        connections = connector.list_database_connections(bot_id=bot_id)
+        # Get list of available database connections for this bot
+        try:
+            if connections and len(connections) > 0:
+                logger.info(f"Found {len(connections['connections'])} database connections for bot {bot_id}")
+                conn_list = []
+                for conn in connections['connections']:
+                    conn_details = f"- Connection ID: {conn['connection_id']}\n"
+                    conn_details += f"  Type: {conn['db_type']}\n"
+                    if conn['description']:
+                        conn_details += f"  Description: {conn['description']}\n"
+                    conn_list.append(conn_details)
+                
+                conn_list_str = "\n".join(conn_list)
+                instructions += f"\n\nYou have access to the following database connections:\n{conn_list_str}\n"
+        except Exception as e:
+            logger.info(f"Error getting database connections for bot_id {bot_id}: {e}")
+
+    # check if snowflake_tools are in bot_tools
+    if "snowflake_tools" in tools_info.available_tool_names:
         try:
             # if so, create workspace schema
 

@@ -54,17 +54,30 @@ class DatabaseConnector:
                 connection_string TEXT NOT NULL,
                 owner_bot_id VARCHAR(255) NOT NULL,
                 allowed_bot_ids TEXT,
+                description TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
             """
             cursor.execute(create_connections_table)
             self.db_adapter.client.commit()
+
+            # Check if description column exists
+            check_description_query = f"DESCRIBE TABLE {self.db_adapter.schema}.CUST_DB_CONNECTIONS;"
+            cursor.execute(check_description_query)
+            columns = [col[0] for col in cursor.fetchall()]
+
+            if "DESCRIPTION" not in columns and "description" not in columns:
+                # Add description column if it doesn't exist
+                alter_table_query = f"ALTER TABLE {self.db_adapter.schema}.CUST_DB_CONNECTIONS ADD COLUMN DESCRIPTION TEXT;"
+                cursor.execute(alter_table_query)
+                self.db_adapter.client.commit()
+                logger.info(f"Column 'DESCRIPTION' added to table {self.db_adapter.schema}.CUST_DB_CONNECTIONS.")
         finally:
             cursor.close()
 
     def add_connection(self, connection_id: str = None, connection_string: str = None,
-                      bot_id: str=None, allowed_bot_ids: list = None, thread_id: str = None) -> dict:
+                      bot_id: str=None, allowed_bot_ids: list = None, thread_id: str = None, description: str = None) -> dict:
         """
         Add or update a database connection configuration
 
@@ -80,6 +93,15 @@ class DatabaseConnector:
 
             # Test new connection first
             # URL encode any special characters in connection string
+            # Check if description is provided
+            if not description:
+                return {
+                    'success': False,
+                    'error': "A description is required when adding a database connection. Please provide a description that explains the purpose and contents of this connection."
+                }
+
+            # URL encode special characters in connection string
+            connection_string = quote_plus(connection_string)
 
             # Check if connection_id is the reserved 'snowflake' name
             if connection_id.lower() == 'snowflake':
@@ -150,19 +172,19 @@ class DatabaseConnector:
                     cursor.execute(
                         f"""
                         UPDATE {self.db_adapter.schema}.CUST_DB_CONNECTIONS
-                        SET connection_string = %s, allowed_bot_ids = %s
+                        SET connection_string = %s, allowed_bot_ids = %s, description = %s
                         WHERE connection_id = %s
                         """,
-                        (connection_string, allowed_bots_str, connection_id)
+                        (connection_string, allowed_bots_str, description, connection_id)
                     )
                 else:
                     cursor.execute(
                         f"""
                         INSERT INTO {self.db_adapter.schema}.CUST_DB_CONNECTIONS
-                        (connection_id, db_type, connection_string, owner_bot_id, allowed_bot_ids, created_at, updated_at)
-                        VALUES (%s, %s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                        (connection_id, db_type, connection_string, owner_bot_id, allowed_bot_ids, created_at, updated_at, description)
+                        VALUES (%s, %s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, %s)
                         """,
-                        (connection_id, connection_string.split('://')[0], connection_string, bot_id, allowed_bots_str)
+                        (connection_id, connection_string.split('://')[0], connection_string, bot_id, allowed_bots_str, description)
                     )
 
                 self.db_adapter.client.commit()
@@ -172,6 +194,7 @@ class DatabaseConnector:
                     'message': f"Connection {connection_id} {'updated' if existing else 'added'} successfully",
                     'connection_string': connection_string,
                     'allowed_bot_ids': allowed_bots_str,
+                    'description': description,
                     'note': "Remember: All bots that need access should be in a comma-separated string for allowed_bot_ids if more than one, including yourself if applicable (e.g. 'bot1,bot2')"
                 }
 
@@ -451,7 +474,8 @@ class DatabaseConnector:
                 connection_id="test_postgresql",
                 connection_string=test_conn_string,
                 bot_id="test_bot",
-                allowed_bot_ids=["test_bot"]
+                allowed_bot_ids=["test_bot"],
+                description="Demo PostgreSQL connection"
             )
 
             if not success or success.get('success') != True:
@@ -492,7 +516,8 @@ class DatabaseConnector:
                 connection_id="test_mysql",
                 connection_string=test_conn_string,
                 bot_id="test_bot",
-                allowed_bot_ids=["test_bot"]
+                allowed_bot_ids=["test_bot"],
+                description="Demo MySQL connection"
             )
 
             if not success or success.get('success') != True:
@@ -545,7 +570,8 @@ class DatabaseConnector:
                 connection_id="test_snowflake",
                 connection_string=test_conn_string,
                 bot_id="test_bot",
-                allowed_bot_ids=["test_bot"]
+                allowed_bot_ids=["test_bot"],
+                description="Demo Snowflake connection"
             )
 
             if not success or success.get('success') != True:
@@ -665,15 +691,15 @@ class DatabaseConnector:
                     cursor.execute(
                         f"""
                         SELECT connection_id, db_type, owner_bot_id, allowed_bot_ids,
-                               created_at, updated_at
+                               created_at, updated_at, description
                         FROM {self.db_adapter.schema}.CUST_DB_CONNECTIONS
                         """
                     )
                 else:
                     cursor.execute(
                         f"""
-                        SELECT connection_id, db_type, owner_bot_id, allowed_bot_ids,
-                               created_at, updated_at
+                        SELECT connection_id, db_type, owner_bot_id, allowed_bot_ids, 
+                               created_at, updated_at, description
                         FROM {self.db_adapter.schema}.CUST_DB_CONNECTIONS
                         WHERE owner_bot_id = %s 
                         OR allowed_bot_ids = '*'
@@ -691,7 +717,8 @@ class DatabaseConnector:
                         'db_type': row[1],
                         'owner_bot_id': row[2],
                         'created_at': row[4],
-                        'updated_at': row[5]
+                        'updated_at': row[5],
+                        'description': row[6]
                     }
                     if row[2] == bot_id:
                         connection['allowed_bot_ids'] = row[3].split(',') if row[3] else []
@@ -765,8 +792,8 @@ class DatabaseConnector:
                 except ValueError:
                     top_n = 8
             logger.info(
-                "Search metadata: query len=",
-                len(query),
+                "Search metadata_detailed: query len=",
+                len(query) if query else 0,
                 " Top_n: ",
                 top_n,
                 " Verbosity: ",
@@ -799,9 +826,10 @@ class DatabaseConnector:
             logger.error(f"Error in find_memory_openai_callable: {str(e)}")
             return {"error": "An error occurred while trying to find the memory."}
 
-    def _search_metadata_detailed(
+    def search_metadata_detailed(
         self,
         query: str,
+        connection_id: str = None,
         scope="database_metadata",
         database=None,
         schema=None,
@@ -832,8 +860,8 @@ class DatabaseConnector:
                 except ValueError:
                     top_n = 8
             logger.info(
-                "Search metadata_detailed: query len=",
-                len(query),
+                "Search metadata_detailed: ",
+             #   len(query),
                 " Top_n: ",
                 top_n,
                 " Verbosity: ",
@@ -852,6 +880,7 @@ class DatabaseConnector:
             result = my_kb.find_memory(
                 query,
                 database=database,
+                connection_id=connection_id,
                 schema=schema,
                 table=table,
                 scope=scope,
@@ -915,6 +944,7 @@ def _query_database(connection_id: str,
 @gc_tool(connection_id= "ID of the database connection to create or update",
          connection_string= "Full SQLAlchemy connection string.",
          allowed_bot_ids= "List of bot IDs that can access this connection. Use '*' to allow all bots access, or provide comma-separated bot IDs (e.g., 'bot1,bot2') for specific access",
+         description= "Description of the database connection",
          bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
          thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
          _group_tags_=[data_connector_tools])
@@ -922,6 +952,7 @@ def _add_database_connection(connection_id: str,
                             connection_string: str,
                             bot_id: str,
                             allowed_bot_ids: list[str] = None,
+                            description: str = None,
                             thread_id: str = None
                             ) -> dict:
     """
@@ -935,6 +966,7 @@ def _add_database_connection(connection_id: str,
         connection_string=connection_string,
         bot_id=bot_id,
         allowed_bot_ids=allowed_bot_ids,
+        description=description,
         thread_id=thread_id
     )
 
@@ -987,7 +1019,7 @@ def _search_metadata(
     database: str = None,
     schema: str = None,
     table: str = None,
-    top_n: int = 8,
+    top_n: int = 15,
     connection_id: str = None,
     knowledge_base_path: str = "./kb_vector",
     bot_id: str = None,
@@ -1028,6 +1060,7 @@ def _data_explorer(
     table: str = None,
     top_n: int = 10,
     knowledge_base_path: str = "./kb_vector",
+    connection_id: str = None,
     bot_id: str = None,
     thread_id: str = None,
 ):
@@ -1041,6 +1074,7 @@ def _data_explorer(
         top_n=8,
         verbosity="high",
         full_ddl="true",
+        connection_id=connection_id,
         knowledge_base_path=knowledge_base_path,
         bot_id=bot_id,
         thread_id=thread_id,
@@ -1048,7 +1082,8 @@ def _data_explorer(
 
 
 @gc_tool(
-    query="SQL query to execute",
+ #   query="SQL query to execute",
+    connection_id="ID of the database connection to query",
     database="Database name",
     schema="Schema name",
     table="Table name",
@@ -1059,6 +1094,7 @@ def _data_explorer(
     _group_tags_=[data_connector_tools],
 )
 def _get_full_table_details(
+    connection_id: str = None,
     query: str = None,
     database: str = None,
     schema: str = None,
@@ -1071,6 +1107,7 @@ def _get_full_table_details(
     """Get full table details"""
     return DatabaseConnector().search_metadata_detailed(
         query=query,
+        connection_id=connection_id,
         database=database,
         schema=schema,
         table=table,

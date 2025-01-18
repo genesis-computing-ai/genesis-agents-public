@@ -242,7 +242,7 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
     #     return memories
 
 
-    def get_full_metadata_details(self, source_name, database_name, schema_name, table_name):
+    def get_full_metadata_details(self, source_name, connection_id, database_name, schema_name, table_name):
         """
         Retrieves the full metadata details for the specified source database, schema, and table.
 
@@ -255,20 +255,23 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
         Returns:
             dict: A dictionary containing the full metadata details or None if not found.
         """
+        
         # Escape single quotes for SQL query
-        source_name_escaped = source_name.replace("'", "''")
-        database_name_escaped = database_name.replace("'", "''")
-        schema_name_escaped = schema_name.replace("'", "''")
-        table_name_escaped = table_name.replace("'", "''")
+       # source_name_escaped = source_name.replace("'", "''") if source_name is not None else ""
+        connection_id_escaped = connection_id.replace("'", "''") if connection_id is not None else ""
+        database_name_escaped = database_name.replace("'", "''") if database_name is not None else ""
+        schema_name_escaped = schema_name.replace("'", "''") if schema_name is not None else ""
+        table_name_escaped = table_name.replace("'", "''") if table_name is not None else ""
 
         # Construct the SQL query to retrieve metadata
         query = f"""
             SELECT QUALIFIED_TABLE_NAME, COMPLETE_DESCRIPTION, DDL
             FROM {self.meta_database_connector.metadata_table_name}
-            WHERE source_name = '{source_name_escaped}'
-              AND database_name = '{database_name_escaped}'
-              AND schema_name = '{schema_name_escaped}'
-              AND table_name = '{table_name_escaped}';"""
+            WHERE 1=1 
+              {f"AND source_name = '{connection_id_escaped}'" if connection_id_escaped else ""}
+              {f"AND database_name = '{database_name_escaped}'" if database_name_escaped else ""}
+              {f"AND schema_name = '{schema_name_escaped}'" if schema_name_escaped else ""}
+              {f"AND table_name = '{table_name_escaped}'" if table_name_escaped else ""};"""
 
         # Execute the query and fetch the result
         try:
@@ -277,31 +280,45 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
                 # Assuming result is a list of dictionaries, return the first one
                 return result[0]
             else:
-                # If no result is found, return None
-
                 # If no result is found, try to describe the table using the database connector
-                try:
-                    describe_query = f"DESCRIBE TABLE {database_name_escaped}.{schema_name_escaped}.{table_name_escaped}"
-                    describe_result = self.meta_database_connector.run_query(describe_query)
-                    if describe_result:
+                if connection_id == 'Snowflake':
+                    try:
+                        describe_query = f"DESCRIBE TABLE {database_name_escaped}.{schema_name_escaped}.{table_name_escaped}"
+                        describe_result = self.meta_database_connector.run_query(describe_query)
+                        if describe_result:
+                            return {
+                                "source_name": connection_id,
+                                "database_name": database_name,
+                                "schema_name": schema_name,
+                                "table_name": table_name,
+                                "describe_table_result": describe_result
+                            }
+                        else:
+                            return None
+                    except Exception as e:
+                        logger.error(f"Error describing table: {e}")
                         return {
-                            "source_name": source_name,
-                            "database_name": database_name,
-                            "schema_name": schema_name,
-                            "table_name": table_name,
-                            "describe_table_result": describe_result
+                            "success": False,
+                            "error": f"Unable to describe table {database_name}.{schema_name}.{table_name}: {str(e)}",
+                            "message": "The table was not found in harvested metadata and an error occurred trying to describe it directly from the database."
                         }
-                    else:
-                        return None
-                except Exception as e:
-                    logger.error(f"Error describing table: {e}")
-                    return None
+                else:
+                    # For non-Snowflake databases, return message about table not being in harvest results
+                    # but offering to describe the table if needed
+                    return {
+                        "success": False,
+                        "message": f"Table not found in harvested metadata. "
+                                 f"If you know this table exists, you can try using a query on the database's metadata (using the specific sql or other commands required by that type of database to list tables) "
+                                 f"for the {connection_id} connection to get its details directly from the database. Also BTW database, schema, and table names are case sensitive."
+                    }
 
-
-                return None
         except Exception as e:
             logger.error(f"Error retrieving metadata details: {e}")
-            return None
+            return {
+                "success": False,
+                "error": f"Error retrieving metadata details: {str(e)}",
+                "message": "An error occurred while trying to retrieve metadata from the database. Please check the connection settings and try again. If the problem persists, contact your system administrator."
+            }
 
 
 
@@ -317,13 +334,14 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
             database (str): Optional database name to filter by
             schema (str): Optional schema name to filter by
             table (str): Optional table name to filter by
+            connection_id (str): Optional connection id to filter by
         """
         if full_ddl.lower() == 'true':
             verbosity='high'
 
         try:
             if scope != "database_metadata":
-                return self.find_memory_local(scope=scope, query=query)
+                return {"error": f"Invalid scope '{scope}'. Only 'database_metadata' scope is currently supported."}
 
             # Handle empty index
             if len(self.metadata_mapping) <= 1:
@@ -332,41 +350,53 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
                     refresh=True
                 )
 
-            # If schema is specified without a database, require both for clarity
-            if schema and not database:
-                # Get list of available databases
-                databases = self.meta_database_connector.run_query("SHOW DATABASES", max_rows=500, max_rows_override=True)
-                database_list = "\n- " + "\n- ".join([db[0] for db in databases])
-                return [f"Please specify both database and schema if you want to filter by schema. This helps avoid confusion with similarly named schemas across different databases.\n\nAvailable databases:{database_list}"]
+            # Check if connection_id is specified when filtering by database, schema, or table
+            if (database or schema or table) and not connection_id:
+                return {
+                    "Success": False,
+                    "Error": "Please specify a connection_id when filtering by database, schema, or table.",
+                    "Message": "Use list_database_connections to see available connections first."
+                }
+
+
             # Validate database if specified
-    #       if database and not schema:
-    #           # Get list of available databases
-    #           schemas = self.meta_database_connector.run_query("SHOW SCHEMAS",  max_rows=500, max_rows_override=True)
-    #           schema_list = "\n- " + "\n- ".join([db[0] for db in schemas])
-    #           return [f"Please specify both schema and database if you want to filter by database. \nSome of the available schemas in this database are: {database_list}. Note that this list may not be comprehensive as it does not include shared schemas such as the genesis default example data on baseball and formula1."]
-    #       # Validate database if specified
             if database:
-                databases = self.meta_database_connector.run_query("SHOW DATABASES",  max_rows=500, max_rows_override=True)
-                database_list = [db['NAME'] for db in databases]
+                databases_query = f"""
+                    SELECT DISTINCT database_name 
+                    FROM {self.meta_database_connector.metadata_table_name}
+                    WHERE source_name = '{connection_id}'
+                    ORDER BY database_name
+                """
+                databases = self.meta_database_connector.run_query(databases_query, max_rows=500, max_rows_override=True)
+                database_list = [db['DATABASE_NAME'] for db in databases]
                 if database.upper() not in [db.upper() for db in database_list]:
                     database_options = "\n- " + "\n- ".join(database_list)
-                    return [f"Database '{database}' not found. Available databases:{database_options}"]
+                    return [f"Database '{database}' not found in harvested metadata. Available databases:{database_options}", "If you are sure this database exists, you may want to use harvester tools to add it to the harvest if the user agrees, or use database specific sql or metadata queries to find it using query_database."]
 
-                # If schema specified, validate it exists in this database
-        #        if schema:
-        #            schemas = self.meta_database_connector.run_query(f"SHOW SCHEMAS IN DATABASE {database}")
-        #            schema_list = [s['name'] for s in schemas]
-        #            if schema.upper() not in [s.upper() for s in schema_list]:
-        #                schema_options = "\n- " + "\n- ".join(schema_list)
-        #i'd lik                return [f"Schema '{schema}' not found in database '{database}'. Available schemas in {database}:{schema_options}"]
+            # Validate schema if specified
+            if schema:
+                schemas_query = f"""
+                    SELECT DISTINCT schema_name 
+                    FROM {self.meta_database_connector.metadata_table_name}
+                    WHERE source_name = '{connection_id}'
+                    {f"AND database_name = '{database}'" if database else ""}
+                    ORDER BY schema_name
+                """
+                schemas = self.meta_database_connector.run_query(schemas_query, max_rows=500, max_rows_override=True)
+                schema_list = [s['SCHEMA_NAME'] for s in schemas]
+                if schema.upper() not in [s.upper() for s in schema_list]:
+                    schema_options = "\n- " + "\n- ".join(schema_list)
+                    return [f"Schema '{schema}' not found in harvested metadata{' for database ' + database if database else ''}. Available schemas:{schema_options}", "If you are sure this schema exists, you may want to use harvester tools to add it to the harvest if the user agrees, or use database specific sql or metadata queries to find it using query_database."]
 
-
+            if query is None:
+                query = ""
             # Check for exact table match first
             match = re.match(r'^"?([^"\.]+)"?\."?([^"\.]+)"?\."?([^"\.]+)"?$', query.strip())
             if match:
                 database, schema, table = [part.strip('"') for part in match.groups()]
                 full_metadata = self.get_full_metadata_details(
                     source_name=self.source_name,
+                    connection_id=connection_id,
                     database_name=database,
                     schema_name=schema,
                     table_name=table
@@ -376,7 +406,7 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
                 return [f"No metadata details found for table '{table}' in schema '{schema}', database '{database}', source '{self.source_name}'."]
 
             if table:
-                full_metadata = self.get_full_metadata_details(source_name=self.source_name, database_name=database, schema_name=schema, table_name=table)
+                full_metadata = self.get_full_metadata_details(source_name=self.source_name, connection_id=connection_id, database_name=database, schema_name=schema, table_name=table)
                 if full_metadata:
                     return [full_metadata]
                 else:
@@ -397,11 +427,11 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
 
             where_statement = " AND ".join(where_clauses)
 
-            if any([database, schema, table]):
+            if any([database, schema, table, connection_id]):
 
                 # Get all entries matching structural criteria
                 filtered_entries_query = f"""
-                    SELECT qualified_table_name
+                    SELECT source_name||'.'||qualified_table_name as QUALIFIED_TABLE_NAME
                     FROM {self.meta_database_connector.metadata_table_name}
                     WHERE {where_statement}
                 """
@@ -409,36 +439,54 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
 
                 if not filtered_entries:
 
-                    # Get current tables in the schema from database
-                    current_tables = self.meta_database_connector.get_tables(database, schema)
-                    current_table_set = set(table['table_name'] for table in current_tables)
+                    if self.meta_database_connector.source_name == 'Snowflake':
+                        # Get current tables in the schema from database
+                        current_tables = self.meta_database_connector.get_tables(database, schema)
+                        current_table_set = set(table['table_name'] for table in current_tables)
 
-                    # Find tables that exist but aren't harvested
-                    unharvested_tables = current_table_set
+                        # Find tables that exist but aren't harvested
+                        unharvested_tables = current_table_set
 
-                    # Add note about unharvested tables if any found
-                    if unharvested_tables:
-                        unharvested_list = sorted(list(unharvested_tables))[:50]
-                        msg = (f'Note: Found {len(unharvested_list)} tables in {schema} schema that may not be harvested yet: '
-                            f'{", ".join(unharvested_list)}. '
-                            f'You can use get_full_table_details to get more information about these tables.')
+                        # Add note about unharvested tables if any found
+                        if unharvested_tables:
+                            unharvested_list = sorted(list(unharvested_tables))[:50]
+                            msg = (f'Note: Found {len(unharvested_list)} tables in {schema} schema that may not be harvested yet: '
+                                f'{", ".join(unharvested_list)}. '
+                                f'You can use get_full_table_details to get more information about these tables.')
 
-                        if len(unharvested_tables) > 50:
-                            msg += f' (and {len(unharvested_tables)-50} more)'
-                        content = []
-                        content.append(msg)
+                            if len(unharvested_tables) > 50:
+                                msg += f' (and {len(unharvested_tables)-50} more)'
+                            content = []
+                            content.append(msg)
 
-                        if schema and schema.endswith('_WORKSPACE'):
-                            content.append("Note: You searched within a bot workspace schema. If you didn't find what you were looking for, try using search_metadata without specifying a database and schema to search more broadly.")
+                            if schema and schema.endswith('_WORKSPACE'):
+                                content.append("Note: You searched within a bot workspace schema. If you didn't find what you were looking for, try using search_metadata without specifying a database and schema to search more broadly.")
 
-                        return(content)
+                            return(content)
 
-                    else:
-                        if schema and schema.endswith('_WORKSPACE'):
-                            return ["Note: You searched within a bot workspace schema and it was empty. If you didn't find what you were looking for, try using search_metadata without specifying a database and schema to search more broadly."]
                         else:
-                            return ["No tables found matching the specified criteria."]
-
+                            if schema and schema.endswith('_WORKSPACE'):
+                                return ["Note: You searched within a bot workspace schema and it was empty. If you didn't find what you were looking for, try using search_metadata without specifying a database and schema to search more broadly."]
+                            else:
+                                return ["No tables found matching the specified criteria."]
+                    else:
+                        # Build message about which criteria were provided
+                        criteria_parts = []
+                        if connection_id:
+                            criteria_parts.append(f"connection '{connection_id}'")
+                        if database:
+                            criteria_parts.append(f"database '{database}'")
+                        if schema:
+                            criteria_parts.append(f"schema '{schema}'")
+                        
+                        criteria_msg = " and ".join(criteria_parts)
+                        
+                        return [
+                            f"No harvested objects were found matching the specified {criteria_msg}. "
+                            "This may be because Genesis is not yet set up to harvest schema meatdata from this location. "
+                            "You may want to add this connection to the harvest using the harvester tools."
+                            "You can try using regular SQL commands to list available tables in this location directly."
+                        ]
 
             try:
                 if self.metadata_mapping == ['empty_index']:
@@ -551,7 +599,7 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
 
         # If schema is specified, check for tables that might not be harvested yet
             current_tables = None
-            if schema is not None:
+            if self.meta_database_connector.source_name == 'Snowflake' and schema is not None:
                 try:
                     # Get current tables in the schema from database
                     current_tables = self.meta_database_connector.get_tables(database, schema)
@@ -589,7 +637,6 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
                 except Exception as e:
                     logger.warning(f"Error checking for unharvested tables: {str(e)}")
 
-
             if next_results:
                 additional_tables = [result[2] for result in next_results]
                 reference_msg = (f'For reference, the next {len(additional_tables)} most relevant tables are named: '
@@ -604,9 +651,9 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
                 content.append(msg)
 
             # Add note about searching across all DBs/schemas if not specified
-            if not database and not schema:
-                msg = ("Note: This search was performed across all databases and schemas. If you're having trouble finding "
-                    "the right tables, we could get better results by narrowing the search to a specific database and schema. "
+            if not connection_id and not database and not schema:
+                msg = ("Note: This search was performed across all database connections, databases, and schemas. If you're having trouble finding "
+                    "the right tables, we could get better results by narrowing the search to a specific database connection, database, and/or schema. "
                     "You may want to work with the user to see if they can constrain the search to a specific database or schema, unless you've found what you're looking for already with these results.")
                 content.append(msg)
 

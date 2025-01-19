@@ -3,8 +3,8 @@ from genesis_bots.core.bot_os_tools2 import (BOT_ID_IMPLICIT_FROM_CONTEXT, THREA
 import http.client
 import json
 from spider import Spider
-from genesis_bots.connectors.database_tools import DatabaseConnector
 from genesis_bots.connectors import get_global_db_connector
+from genesis_bots.core.logging_config import logger
 
 # Define tool group for web access functions
 web_access_tools = ToolFuncGroup(
@@ -46,8 +46,8 @@ class WebAccess(object):
                 self.spider_app = Spider(api_key=self.spider_api_key)
                 return True
             return False
-
-    def search_google(self, query):
+        
+    def serper_search_api(self, query, search_type):
         if self.serper_api_key is not None or self.set_serper_api_key():
             conn = http.client.HTTPSConnection("google.serper.dev")
             payload = json.dumps({"q": query})
@@ -55,18 +55,35 @@ class WebAccess(object):
                 'X-API-KEY': self.serper_api_key,
                 'Content-Type': 'application/json'
             }
-            conn.request("POST", "/search", payload, headers)
+            conn.request("POST", f"/{search_type}", payload, headers)
             res = conn.getresponse()
             data = res.read()
-            print(data.decode("utf-8"))
-            return {
-                'success': True,
-                'data': json.loads(data)
-            }
+            logger.debug(data.decode("utf-8"))
+            return {'success': True, 'data': json.loads(data)}
         return {
             'success': False,
             'error': 'Serper API key not set. You can obtain a key at https://serper.dev and set it via the Genesis GUI on the "Setup Webaccess API Keys" page.'
         }
+    
+    def serper_scrape_api(self, url):
+        if self.serper_api_key is not None or self.set_serper_api_key():
+            conn = http.client.HTTPSConnection("scrape.serper.dev")
+            payload = json.dumps({"url": url})
+            headers = {
+                'X-API-KEY': self.serper_api_key,
+                'Content-Type': 'application/json'
+            }
+            conn.request("POST", "/", payload, headers)
+            res = conn.getresponse()
+            data = res.read()
+            logger.debug(data.decode("utf-8"))
+            return {'success': True, 'data': json.loads(data)}
+        return {
+            'success': False,
+            'error': 'Serper API key not set. You can obtain a key at https://serper.dev and set it via the Genesis GUI on the "Setup Webaccess API Keys" page.'
+        }
+
+
 
     def scrape_url(self, url): 
         if self.spider_api_key is not None or self.set_spider_api_key():
@@ -95,7 +112,7 @@ class WebAccess(object):
 web_access = WebAccess(get_global_db_connector())
 
 @gc_tool(
-    query="Search query string to send to Google",
+    query="Query string to search in Google",
     bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
     _group_tags_=[web_access_tools]
@@ -111,7 +128,45 @@ def _search_google(
     Returns:
         dict: Google search results including organic results, knowledge graph, etc.
     """
-    return web_access.search_google(query)
+    return web_access.serper_search_api(query, 'search')
+
+@gc_tool(
+    query="Query string to search in Google Image",
+    bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
+    thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
+    _group_tags_=[web_access_tools]
+)
+def _image_google(
+    query: str,
+    bot_id: str = None,
+    thread_id: str = None
+) -> dict:
+    """
+    Perform a Google image search using the Serper API
+    
+    Returns:
+        dict: Google search results including organic results, knowledge graph, etc.
+    """
+    return web_access.serper_search_api(query, 'images')
+
+@gc_tool(
+    query="Query string to search in Google Shopping",
+    bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
+    thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
+    _group_tags_=[web_access_tools]
+)
+def _shopping_google(
+    query: str,
+    bot_id: str = None,
+    thread_id: str = None
+) -> dict:
+    """
+    Perform a Google shopping search using the Serper API
+    
+    Returns:
+        dict: Google search results including organic results, knowledge graph, etc.
+    """
+    return web_access.serper_search_api(query, 'shopping')
 
 @gc_tool(
     url="URL of the webpage to scrape",
@@ -125,12 +180,12 @@ def _scrape_url(
     thread_id: str = None
 ) -> dict:
     """
-    Scrape content from a specific URL using Spider API
+    Scrape content from a specific URL using Serper API
     
     Returns:
         dict: Scraped content from the webpage
     """
-    return web_access.scrape_url(url)
+    return web_access.serper_scrape_api(url)
 
 @gc_tool(
     url="URL to crawl",
@@ -156,8 +211,10 @@ def _crawl_url(
 # List of all web access tool functions
 _all_web_access_functions = (
     _search_google,
+    _image_google,
     _scrape_url,
-    _crawl_url,
+    _shopping_google
+    # _crawl_url,
 )
 
 def get_web_access_functions():

@@ -1,5 +1,5 @@
 import streamlit as st
-from apps.streamlit_gui.utils import (
+from utils import (
  get_session, get_metadata)
 import pandas as pd
 

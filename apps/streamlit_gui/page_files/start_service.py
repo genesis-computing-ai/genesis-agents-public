@@ -1,6 +1,6 @@
 import streamlit as st
 
-from apps.streamlit_gui.utils import get_session
+from utils import get_session
 import time
 import pandas as pd
 

@@ -1,6 +1,6 @@
 import json
 import streamlit as st
-from apps.streamlit_gui.utils import (check_eai_status, get_references, get_session, set_metadata, upgrade_services)
+from utils import (check_eai_status, get_references, get_session, set_metadata, upgrade_services)
 
 def config_jira():
     # Initialize session state variables

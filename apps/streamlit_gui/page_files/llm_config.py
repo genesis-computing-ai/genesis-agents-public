@@ -1,6 +1,6 @@
 import streamlit as st
 import time
-from apps.streamlit_gui.utils import (
+from utils import (
     check_eai_assigned,
     get_bot_details,
     get_metadata,

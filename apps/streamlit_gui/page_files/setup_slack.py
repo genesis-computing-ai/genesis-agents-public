@@ -1,5 +1,5 @@
 import streamlit as st
-from apps.streamlit_gui.utils import (
+from utils import (
     get_references,
     get_slack_tokens,
     set_slack_tokens,

@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from apps.streamlit_gui.utils import (
+from utils import (
     check_eai_assigned,
     get_metadata,
     upgrade_services,

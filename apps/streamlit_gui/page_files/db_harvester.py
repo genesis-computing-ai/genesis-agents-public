@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from apps.streamlit_gui.utils import ( get_metadata)
+from utils import ( get_metadata)
 import json
 
 def db_harvester():

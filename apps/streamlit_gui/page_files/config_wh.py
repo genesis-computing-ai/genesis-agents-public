@@ -1,5 +1,5 @@
 import streamlit as st
-from apps.streamlit_gui.utils import ( get_session, upgrade_services, check_eai_status, get_references)
+from utils import ( get_session, upgrade_services, check_eai_status, get_references)
 import pandas as pd
 
 def config_wh():

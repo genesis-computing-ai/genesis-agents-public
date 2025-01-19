@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 
-from apps.streamlit_gui.utils import get_session
+from utils import get_session
 
 def show_server_logs():
 

@@ -1,6 +1,6 @@
 import time
 import streamlit as st
-from apps.streamlit_gui.utils import (get_session, get_metadata)
+from utils import (get_session, get_metadata)
 import snowflake.permissions as permissions
 
 

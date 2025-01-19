@@ -1,5 +1,5 @@
 import streamlit as st
-from apps.streamlit_gui.utils import get_bot_details, get_slack_tokens, get_metadata, deploy_bot, provide_slack_level_key
+from utils import get_bot_details, get_slack_tokens, get_metadata, deploy_bot, provide_slack_level_key
 
 def bot_config():
     get_bot_details.clear()

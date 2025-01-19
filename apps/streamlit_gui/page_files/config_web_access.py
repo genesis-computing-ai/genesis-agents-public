@@ -1,6 +1,6 @@
 import json
 import streamlit as st
-from apps.streamlit_gui.utils import ( get_metadata, set_metadata)
+from utils import ( get_metadata, set_metadata)
 
 def config_web_access():
     # Page Title

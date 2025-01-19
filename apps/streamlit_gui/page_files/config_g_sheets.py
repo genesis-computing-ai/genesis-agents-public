@@ -3,7 +3,7 @@ import sys
 sys.path.append(".")
 
 import streamlit as st
-from apps.streamlit_gui.utils import (
+from utils import (
     check_eai_status, get_references, get_session, set_metadata, upgrade_services
 )
 from snowflake.connector import SnowflakeConnection

@@ -113,60 +113,33 @@ web_access = WebAccess(get_global_db_connector())
 
 @gc_tool(
     query="Query string to search in Google",
+    search_type="Search type (search, images, videos, places, maps, news, shopping, scholar, patent)",
     bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
     _group_tags_=[web_access_tools]
 )
 def _search_google(
     query: str,
+    search_type: str,
     bot_id: str = None,
     thread_id: str = None
 ) -> dict:
     """
-    Perform a Google search using the Serper API
+    Perform a Google search using the Serper API and depending on the search type:
+        - search: returns organic results
+        - images: returns Google image results
+        - videos: returns Google video results
+        - places: returns Google place results
+        - maps: returns Google map results
+        - news: returns Google news results
+        - shopping: returns Google shopping results        
+        - scholar: returns Google scholar results
+        - patent: returns Google patent results
     
     Returns:
         dict: Google search results including organic results, knowledge graph, etc.
     """
-    return web_access.serper_search_api(query, 'search')
-
-@gc_tool(
-    query="Query string to search in Google Image",
-    bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
-    thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
-    _group_tags_=[web_access_tools]
-)
-def _image_google(
-    query: str,
-    bot_id: str = None,
-    thread_id: str = None
-) -> dict:
-    """
-    Perform a Google image search using the Serper API
-    
-    Returns:
-        dict: Google search results including organic results, knowledge graph, etc.
-    """
-    return web_access.serper_search_api(query, 'images')
-
-@gc_tool(
-    query="Query string to search in Google Shopping",
-    bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
-    thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
-    _group_tags_=[web_access_tools]
-)
-def _shopping_google(
-    query: str,
-    bot_id: str = None,
-    thread_id: str = None
-) -> dict:
-    """
-    Perform a Google shopping search using the Serper API
-    
-    Returns:
-        dict: Google search results including organic results, knowledge graph, etc.
-    """
-    return web_access.serper_search_api(query, 'shopping')
+    return web_access.serper_search_api(query, search_type)
 
 @gc_tool(
     url="URL of the webpage to scrape",
@@ -211,9 +184,7 @@ def _crawl_url(
 # List of all web access tool functions
 _all_web_access_functions = (
     _search_google,
-    _image_google,
     _scrape_url,
-    _shopping_google
     # _crawl_url,
 )
 

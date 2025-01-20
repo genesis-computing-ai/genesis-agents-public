@@ -733,7 +733,7 @@ class SlackBotAdapter(BotOsInputAdapter):
             (r"\[(.*?)\]\(./runtime/downloaded_files/thread_(.*?)/(.*?)\)",
                 lambda match: f"./runtime/downloaded_files/thread_{match[1]}/{match[2]}"),
             # paths that use /mnt/data
-            (r"\[.*?\]\((sandbox:/mnt/data/downloaded_files/.*?)\)",
+            (r"\[.*?\]\((sandbox:/mnt/data/runtime/downloaded_files/.*?)\)",
                 lambda match: match.replace("sandbox:/mnt/data", ".")),
             # 'chart' patterns
             (r"\(sandbox:/mnt/data/(.*?)\)\n2\. \[(.*?)\]",
@@ -1120,13 +1120,12 @@ class SlackBotAdapter(BotOsInputAdapter):
                     filename = msg_url.split("/")[-1]
                     msg_prime = msg
 
-                    msg = re.sub(f"(?i)\(sandbox:/mnt/data/{filename}\)", f"<{{msg_url}}>",
-                                 msg)
+                    msg = re.sub(f"(?i)\(sandbox:/mnt/data/{filename}\)", f"<{{msg_url}}>",msg)
                     alt_pattern = re.compile(r"\[(.*?)\]\(\./runtime/downloaded_files/thread_(.*?)/(.+?)\)" )
                     msg = re.sub(alt_pattern, f"<{{msg_url}}|\\1>", msg)
 
                     # Catch the pattern with thread ID and replace it with the correct URL
-                    thread_file_pattern = re.compile(r"\[(.*?)\]\(sandbox:/mnt/data/downloaded_files/thread_(.*?)/(.+?)\)")
+                    thread_file_pattern = re.compile(r"\[(.*?)\]\(sandbox:/mnt/data/runtime/downloaded_files/thread_(.*?)/(.+?)\)")
                     msg = re.sub(thread_file_pattern, f"<{{msg_url}}|\\1>", msg)
 
                     msg = msg.replace("{msg_url}", msg_url)

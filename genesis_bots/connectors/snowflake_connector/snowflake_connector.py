@@ -3863,8 +3863,8 @@ def get_status(site):
             results = self.run_query(query1)
             udf_endpoint_url = None
             for endpoint in results:
-                if endpoint["name"] == endpoint_name:
-                    udf_endpoint_url = endpoint["ingress_url"]
+                if endpoint["NAME"] == endpoint_name:
+                    udf_endpoint_url = endpoint["INGRESS_URL"]
                     break
             return udf_endpoint_url
         except Exception as e:
@@ -4196,7 +4196,7 @@ def get_status(site):
         allowed_connections_query = f"""
         select connection_id from {self.cust_db_connections_table_name}
         where owner_bot_id = '{bot_id}'
-        OR allowed_bot_ids = '*'  
+        OR allowed_bot_ids = '*'
         OR allowed_bot_ids = '{bot_id}'
         OR allowed_bot_ids like '%,{bot_id}'
         OR allowed_bot_ids like '{bot_id},%'

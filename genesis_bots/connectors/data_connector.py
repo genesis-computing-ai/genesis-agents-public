@@ -135,12 +135,12 @@ class DatabaseConnector:
                     # Get all valid bot IDs from BOT_SERVICING
                     cursor.execute(
                         f"""
-                        SELECT DISTINCT bot_id 
+                        SELECT DISTINCT bot_id
                         FROM {self.db_adapter.schema}.BOT_SERVICING
                         """
                     )
                     valid_bot_ids = {row[0] for row in cursor.fetchall()}
-                    
+
                     # Check if all provided bot IDs are valid
                     invalid_bots = [bid for bid in bot_ids_to_check if bid not in valid_bot_ids]
                     if invalid_bots:
@@ -698,10 +698,10 @@ class DatabaseConnector:
                 else:
                     cursor.execute(
                         f"""
-                        SELECT connection_id, db_type, owner_bot_id, allowed_bot_ids, 
+                        SELECT connection_id, db_type, owner_bot_id, allowed_bot_ids,
                                created_at, updated_at, description
                         FROM {self.db_adapter.schema}.CUST_DB_CONNECTIONS
-                        WHERE owner_bot_id = %s 
+                        WHERE owner_bot_id = %s
                         OR allowed_bot_ids = '*'
                         OR allowed_bot_ids = %s
                         OR allowed_bot_ids LIKE %s
@@ -723,6 +723,16 @@ class DatabaseConnector:
                     if row[2] == bot_id:
                         connection['allowed_bot_ids'] = row[3].split(',') if row[3] else []
                     connections.append(connection)
+
+                # Add snowflake connection id if not already in the list
+                if self.db_adapter.source_name == "Snowflake":
+                    snowflake_exists = any(conn['connection_id'] == 'Snowflake' for conn in connections)
+                    if not snowflake_exists:
+                        connections.append({
+                            'connection_id': 'Snowflake',
+                            'db_type': 'Snowflake',
+                            'description': 'Snowflake database connection'
+                        })
 
                 return {
                     'success': True,

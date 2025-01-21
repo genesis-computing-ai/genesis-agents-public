@@ -1,7 +1,7 @@
 from   flask                    import Flask, Response
 from   genesis_bots.api.genesis_base \
-                                import (get_tool_func_descriptor,
-                                        is_bot_client_tool, _ALL_BOTS_)
+                                import (_ALL_BOTS_, get_tool_func_descriptor,
+                                        is_bot_client_tool)
 from   genesis_bots.core.bot_os_udf_proxy_input \
                                 import UDFBotOsInputAdapter
 from   genesis_bots.demo.app.genesis_app \
@@ -12,11 +12,11 @@ import requests
 
 from   abc                      import ABC, abstractmethod
 import socket
+import sqlalchemy as sqla
 import threading
 import time
 from   typing                   import Any, Dict
 import uuid
-
 
 class GenesisServerProxyBase(ABC):
     """
@@ -271,9 +271,13 @@ class RESTGenesisServerProxy(GenesisServerProxyBase):
     LOCAL_FLASK_SERVER_PORT = DEFAULT_HTTP_ENDPOINT_PORT
     LOCAL_FLASK_SERVER_URL = f"{LOCAL_FLASK_SERVER_HOST}:{LOCAL_FLASK_SERVER_PORT}"
 
-    def __init__(self, server_url: str = LOCAL_FLASK_SERVER_URL):
+    def __init__(self,
+                 server_url:str=LOCAL_FLASK_SERVER_URL,
+                 _use_endpoint_router: bool=False # for testing only
+                 ):
         super().__init__()
         self.server_url = server_url
+        self._use_endpoint_router = _use_endpoint_router
 
 
     def _connect(self):
@@ -291,9 +295,13 @@ class RESTGenesisServerProxy(GenesisServerProxyBase):
                           content_type="application/json",
                           extra_headers=None
                           ) -> Response:
-
+        # normalize the endpoint name
         if not endpoint_name.startswith('/'):
             endpoint_name = '/' + endpoint_name
+        # use the endpoint router if requested
+        if self._use_endpoint_router:
+            return self._send_REST_request_via_endpoint_router(op_name, endpoint_name, payload, content_type, extra_headers)
+        # otherwise, send the request directly to the endpoint
         url = self.server_url + endpoint_name
         headers_dict = {"Content-Type": content_type}
         if extra_headers:
@@ -304,6 +312,33 @@ class RESTGenesisServerProxy(GenesisServerProxyBase):
         response = op_func(url, headers=headers_dict, data=payload)
         if response.status_code != 200:
             raise Exception(f"Failed to submit message to UDF proxy: {response.text}")
+        return response
+
+
+    def _send_REST_request_via_endpoint_router(self,
+                          op_name, # POST, GET, etc
+                          endpoint_name,
+                          payload,
+                          content_type="application/json",
+                          extra_headers=None
+                          ) -> Response:
+
+        # Pack the request details into a JSON object
+        request_data = json.dumps({
+            "endpoint_name": endpoint_name,
+            "op_name": op_name,
+            "headers": {"Content-Type": content_type, **(extra_headers or {})},
+            "payload": payload
+        })
+
+        # Send the request to the endpoint router
+        url = self.server_url + "/udf_proxy/endpoint_router"
+        response = requests.post(url, headers={"Content-Type": "application/json"}, data=request_data)
+
+        # Check the response status
+        if response.status_code != 200:
+            raise Exception(f"Failed to submit message to UDF proxy: {response.text}")
+
         return response
 
 
@@ -323,9 +358,50 @@ class RESTGenesisServerProxy(GenesisServerProxyBase):
 
 
 class SPCSServerProxy(GenesisServerProxyBase):
-    # TODO: implement this for connecting to the Genesis server running as an SPCS service, using the UDF proxy mechanism
-    pass
+    """
+    SPCSServerProxy is a concrete subclass of GenesisServerProxyBase that connects to the Genesis server
+    running as a Snowflake native app (SPCS).
+    """
+    def __init__(self,
+                 connection_url: str, # a SQLAlchemy connection string
+                 connect_args: Dict[str, str] = None, # optional connection arguments passed to SQLAlchemy create_engine
+                 ):
 
+        super().__init__()
+        # validate the connection string
+        try:
+            self._connection_url = sqla.engine.url.make_url(connection_url)
+        except Exception as e:
+            raise ValueError(f"Invalid SQLAlchemy connection string: {str(e)}")
+
+        self._engine = None
+        self._genesis_db = "GENESIS_BOTS"
+        self._genesis_schema = "APP1"
+        self._connect_args = connect_args or {}
+
+
+    def _connect(self):
+        # Create an engine and test the connection
+        try:
+            self._engine = sqla.create_engine(self._connection_url, connect_args=self._connect_args)
+            with self._engine.connect() as conn:
+                conn.execute(sqla.text("SELECT current_version()"))
+        except Exception as e:
+            raise RuntimeError(f"Failed to connect to the Snowflake database at {self._connection_url}: {str(e)}")
+
+
+    def _send_REST_request(self,
+                          op_name, # POST, GET, etc
+                          endpoint_name,
+                          payload,
+                          content_type="application/json",
+                          extra_headers=None
+                          ) -> Response:
+        sql = f"select {self._genesis_db}.{self._genesis_schema}.ENDPOINT_ROUTER_UDF(:op_name, :endpoint_name, :payload)"
+        with self._engine.connect() as conn:
+            rowset = conn.execute(sqla.text(sql), parameters={"op_name": op_name, "endpoint_name": endpoint_name, "payload": payload})
+            response = list(rowset.fetchone())[0] # the response is a single row with a single column (contains the JSON string response from the target endpoint)
+        return Response(response, status=200, mimetype="application/json")
 
 class EmbeddedGenesisServerProxy(RESTGenesisServerProxy):
     """

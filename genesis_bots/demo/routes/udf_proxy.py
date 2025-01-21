@@ -1,5 +1,6 @@
-from   flask                    import (Blueprint, jsonify, make_response,
-                                        request)
+import re
+from   flask                    import (Blueprint, Response, jsonify,
+                                        make_response, request, current_app)
 from   genesis_bots.core        import global_flags
 from   genesis_bots.core.logging_config \
                                 import logger
@@ -31,18 +32,19 @@ from   genesis_bots.bot_genesis.make_baby_bot \
                                         set_ngrok_auth_token,
                                         set_slack_config_tokens,
                                         update_slack_app_level_key)
+from   genesis_bots.core.bot_os import BotOsSession
 from   genesis_bots.core.system_variables \
                                 import SystemVariables
 from   genesis_bots.demo.routes.slack \
                                 import bot_install_followup
-from genesis_bots.core.bot_os import BotOsSession
+import requests
 
 udf_routes = Blueprint('udf_routes', __name__)
 
 
 @udf_routes.route("/udf_proxy/submit_udf", methods=["POST"])
 def submit_udf():
-   # logger.info('Flask invocation: /udf_proxy/submit_udf')
+    logger.info('Flask invocation: /udf_proxy/submit_udf')
     message = request.json
     input_rows = message["data"]
     if type(input_rows[0][3]) == str:
@@ -72,7 +74,7 @@ def submit_udf():
 
 @udf_routes.route("/udf_proxy/lookup_udf", methods=["POST"])
 def lookup_udf():
- #   logger.debug('Flask invocation: /udf_proxy/lookup_udf')
+    logger.debug('Flask invocation: /udf_proxy/lookup_udf')
     message = request.json
     input_rows = message["data"]
     bot_id = input_rows[0][2]
@@ -936,3 +938,45 @@ def unregister_client_tool():
         }
 
     return jsonify(response)
+
+
+@udf_routes.route("/udf_proxy/endpoint_router", methods=["POST"])
+def endpoint_router():
+    try:
+        # Parse the incoming JSON request
+        message = request.json
+        endpoint_name = message.get("endpoint_name")
+        op_name = message.get("op_name").lower()
+        headers = message.get("headers", {})
+        payload_str = message.get("payload", None)
+        payload = None
+        if payload_str:
+            payload = json.loads(payload_str)
+        logger.debug(f"Flask endpoint_router: forwarding {op_name} request to {endpoint_name}: {str(payload_str)[:20]}")
+
+        # Validate the operation name
+        assert op_name in ["post", "get", "put", "delete"], "Invalid operation name"
+
+        # Validate the endpoint name is internal to this flask app
+        flask_app = current_app
+        if not any(r.rule == endpoint_name for r in flask_app.url_map.iter_rules()):
+            return jsonify({"Success": False, "Message": f"Endpoint name {endpoint_name} is not registered with Flask app {flask_app.name}"}), 400
+
+        # Construct the full URL for the target endpoint
+        full_url = request.host_url.rstrip('/') + endpoint_name
+
+        # Use the requests library to forward the request
+        op_func = getattr(requests, op_name)
+        response = op_func(full_url, headers=headers, json=payload)
+
+        # Return the response from the target endpoint.
+        resp_str = str(response.content)
+        logger.debug(f"Flask endpoint_router: Response from {endpoint_name}: {resp_str}")
+        return Response(response.content, status=response.status_code, headers=response.headers)
+    except Exception as e:
+        logger.error(f"Error in endpoint_router: {str(e)}")
+        return jsonify({"Success": False, "Message": str(e)}), 500
+
+
+
+

@@ -358,7 +358,10 @@ class RESTGenesisServerProxy(GenesisServerProxyBase):
 
 
 class SPCSServerProxy(GenesisServerProxyBase):
-
+    """
+    SPCSServerProxy is a concrete subclass of GenesisServerProxyBase that connects to the Genesis server
+    running as a Snowflake native app (SPCS).
+    """
     def __init__(self,
                  connection_url: str, # a SQLAlchemy connection string
                  connect_args: Dict[str, str] = None, # optional connection arguments passed to SQLAlchemy create_engine

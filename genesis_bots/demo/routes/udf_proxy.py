@@ -945,10 +945,33 @@ def endpoint_router():
     try:
         # Parse the incoming JSON request
         message = request.json
-        endpoint_name = message.get("endpoint_name")
-        op_name = message.get("op_name").lower()
-        headers = message.get("headers", {})
-        payload_str = message.get("payload", None)
+        op_name = None
+        endpoint_name = None
+        payload_str = None
+        headers = None
+        if "data" in message:
+            # this message was sent by a Snowflake UDF which passes params as rows.
+            # The UDF definition lives in setup_script.sql
+            # For UDF proxies for endpoints,see
+            # https://docs.snowflake.com/en/developer-guide/snowpark-container-services/working-with-services#label-snowpark-containers-service-communicating-service-function
+            input_rows = message["data"]
+            if len(input_rows) != 1:
+                raise ValueError(f"/udf_proxy/endpoint_router: Expected 1 row, got {len(input_rows)}")
+            params_arr = input_rows[0]
+            if len(params_arr) == 2:
+                op_name, endpoint_name = params_arr
+            elif len(params_arr) == 3:
+                op_name, endpoint_name, payload_str = params_arr
+            else:
+                raise ValueError(f"/udf_proxy/endpoint_router: Expected 2 or 3 params,  got {len(params_arr)}")
+        else:
+            op_name = message.get("op_name")
+            endpoint_name = message.get("endpoint_name")
+            headers = message.get("headers") # respected if passed in direct HTTP request (not via UDF - see TODO in server_proxy.py)
+            payload_str = message.get("payload")
+        # canonicalize/parse the arguments
+        op_name = op_name.lower()
+        headers = headers or {"content_type": "application/json"}
         payload = None
         if payload_str:
             payload = json.loads(payload_str)

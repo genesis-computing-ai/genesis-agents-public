@@ -394,10 +394,11 @@ class SPCSServerProxy(GenesisServerProxyBase):
                           op_name, # POST, GET, etc
                           endpoint_name,
                           payload,
-                          content_type="application/json",
-                          extra_headers=None
+                          content_type="application/json", # ignored, assumed to always be JSON
+                          extra_headers=None # ignored
                           ) -> Response:
-        sql = f"select {self._genesis_db}.{self._genesis_schema}.ENDPOINT_ROUTER_UDF(:op_name, :endpoint_name, :payload)"
+        # TODO: respect the content_type and extra_headers - add them to the UDF signature. For now we are not using extra headers and always use JSON as content_type.
+        sql = f"select {self._genesis_db}.{self._genesis_schema}.ENDPOINT_ROUTER(:op_name, :endpoint_name, :payload)"
         with self._engine.connect() as conn:
             rowset = conn.execute(sqla.text(sql), parameters={"op_name": op_name, "endpoint_name": endpoint_name, "payload": payload})
             response = list(rowset.fetchone())[0] # the response is a single row with a single column (contains the JSON string response from the target endpoint)

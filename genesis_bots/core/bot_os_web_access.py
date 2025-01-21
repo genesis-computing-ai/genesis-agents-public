@@ -48,6 +48,12 @@ class WebAccess(object):
             return False
         
     def serper_search_api(self, query, search_type):
+        if search_type == 'set_key':
+            result = self.db_adapter.set_api_config_params('serper', json.dumps({"api_key": query}))
+            if result["Success"]:
+                self.serper_api_key = query
+                return {'success': True, 'data': 'API key set successfully'}
+            return {'success': False, 'error': f'Failed to set API key: {result.get("Error", "Unknown error")}'}
         if self.serper_api_key is not None or self.set_serper_api_key():
             conn = http.client.HTTPSConnection("google.serper.dev")
             payload = json.dumps({"q": query})
@@ -62,7 +68,7 @@ class WebAccess(object):
             return {'success': True, 'data': json.loads(data)}
         return {
             'success': False,
-            'error': 'Serper API key not set. You can obtain a key at https://serper.dev and set it via the Genesis GUI on the "Setup Webaccess API Keys" page.'
+            'error': 'Serper API key not set. You can ask the user to obtain a free key at https://serper.dev and then give it to you, and then you can set the key programmatically by calling this function with search_type="set_key" and passing the API key as the query parameter if the user provides it to you.'
         }
     
     def serper_scrape_api(self, url):
@@ -80,7 +86,7 @@ class WebAccess(object):
             return {'success': True, 'data': json.loads(data)}
         return {
             'success': False,
-            'error': 'Serper API key not set. You can obtain a key at https://serper.dev and set it via the Genesis GUI on the "Setup Webaccess API Keys" page.'
+            'error': 'Serper API key not set. You can ask the user to obtain a free key at https://serper.dev and then give it to you, and then you can set the key programmatically by calling search_google function with search_type="set_key" and passing the API key as the query parameter if the user provides it to you.'
         }
 
 

@@ -6,7 +6,6 @@ import os
     #"PYTHONPATH": "${workspaceFolder}",
     #"OPENAI_API_KEY": "...",
     #"GENESIS_INTERNAL_DB_SCHEMA": "IGNORED.genesis",
-    #"SQLITE_OVERRIDE": "True",
     #"BOT_OS_DEFAULT_LLM_ENGINE": "openai"
 
 bot_id = "Janice"

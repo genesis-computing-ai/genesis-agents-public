@@ -2,17 +2,18 @@
 GENESIS BOT TODOS
 =================
 
+make sure ngrok key is in place when in local mode before activating slack 
 repeated tool calls failure on 5 calls to search google when no serper key, not completing the handling right 
-check tool call messages in slack
-have search metada return list of connections that are not on harvest list or are not yet harvested
+streamlit page to show project project
+x check tool call messages in slack
+x have search metada return list of connections that are not on harvest list or are not yet harvested
 x check connection string add for sqlite, decoding issues
 x eve create tables in sqlite, having trouble
 x give bots a workspace in sqlite
 x project manager tools, give to eve
-streamlitr page to show project project
 x a way to make a new sqlite database to sqlite/db connector
-NEXT->change default to sqlite mode and to non-assistant mode
-xafter tool calls, the first few new chars get missed sometimes in the output 
+x change default to sqlite mode and to non-assistant mode
+x after tool calls, the first few new chars get missed sometimes in the output 
 test sonnet on cortex, and test mid flight tool and instruction changes again on cortex
 have search metadata return the list of any data connections as well that may not be harvested 
 (reza) files out for generate image

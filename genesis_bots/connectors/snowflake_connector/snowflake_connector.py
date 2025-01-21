@@ -82,7 +82,7 @@ class SnowflakeConnector(SnowflakeConnectorBase):
         def get_env_or_default(value, env_var):
             return value if value is not None else os.getenv(env_var)
 
-        if os.getenv("SQLITE_OVERRIDE", "").upper() == "TRUE":
+        if os.getenv("SNOWFLAKE_METADATA", "False").lower() == "false":
             # Use SQLite with compatibility layer
             # Set default LLM engine to openai if not specified
             if not os.getenv("BOT_OS_DEFAULT_LLM_ENGINE"):
@@ -1889,7 +1889,7 @@ def get_status(site):
     def _create_connection(self):
         # Snowflake token testing
 
-        if os.getenv("SQLITE_OVERRIDE", "").upper() == "TRUE":
+        if os.getenv("SNOWFLAKE_METADATA", "False").upper() == "FALSE":
             return self.client
 
         self.token_connection = False

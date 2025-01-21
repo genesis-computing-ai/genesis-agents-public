@@ -101,7 +101,7 @@ class ToolBelt:
         self.include_code = False
         self.sys_default_email = get_sys_email()
 
-        if os.getenv("SQLITE_OVERRIDE", "").lower() == "true":
+        if os.getenv("SNOWFLAKE_METADATA", "False").lower() == "false":
             from genesis_bots.connectors import get_global_db_connector
             self.db_adapter = get_global_db_connector()
         else:

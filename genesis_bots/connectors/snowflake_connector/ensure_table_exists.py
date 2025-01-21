@@ -490,7 +490,7 @@ def ensure_table_exists(self):
                 f"UDF set_bot_app_level_key already exists in schema {self.schema}."
             )
     except Exception as e:
-        if os.getenv("SQLITE_OVERRIDE", "false").lower() == "false":
+        if os.getenv("SNOWFLAKE_METADATA", "false").lower() == "true":
             logger.info(
                 f"UDF not created in {self.schema} {e}.  This is expected in Local mode when running against Snowflake-based metadata."
             )

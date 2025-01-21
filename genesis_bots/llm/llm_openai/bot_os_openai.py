@@ -209,7 +209,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
       name = bot_id
       logger.info(f"-> OpenAI Model == {model_name}")
-      self.use_assistants = os.getenv("OPENAI_USE_ASSISTANTS", "True").lower() == "true"
+      self.use_assistants = os.getenv("OPENAI_USE_ASSISTANTS", "False").lower() == "true"
       self.thread_run_map = {}
       self.active_runs = deque()
       self.processing_runs = deque()

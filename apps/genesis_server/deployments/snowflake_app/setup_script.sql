@@ -26,6 +26,7 @@ $$
           mountPath: /opt/bot_git
         env:
             RUNNER_ID: snowflake-1
+            SNOWFLAKE_METADATA: TRUE
             GENESIS_INTERNAL_DB_SCHEMA: {{app_db_sch}}
             GENESIS_SOURCE: Snowflake
             SNOWFLAKE_SECURE: FALSE
@@ -92,6 +93,7 @@ $$
         env:
             GENESIS_MODE: HARVESTER
             AUTO_HARVEST: TRUE
+            SNOWFLAKE_METADATA: TRUE
             OPENAI_HARVESTER_EMBEDDING_MODEL: text-embedding-3-large
             OPENAI_MODEL_NAME: gpt-4o-2024-11-20
             OPENAI_MODEL_SUPERVISOR: gpt-4o
@@ -128,6 +130,7 @@ $$
             KNOWLEDGE_REFRESH_SECONDS: 120
             RUNNER_ID: snowflake-1
             SNOWFLAKE_SECURE: FALSE
+            SNOWFLAKE_METADATA: TRUE
             OPENAI_MODEL_NAME: gpt-4o-2024-11-20
             OPENAI_MODEL_SUPERVISOR: gpt-4o
             OPENAI_O1_OVERRIDE_MODEL: o1-preview
@@ -161,6 +164,7 @@ $$
         env:
             GENESIS_MODE: TASK_SERVER
             AUTO_HARVEST: TRUE
+            SNOWFLAKE_METADATA: TRUE
             OPENAI_HARVESTER_EMBEDDING_MODEL: text-embedding-3-large
             OPENAI_MODEL_NAME: gpt-4o-2024-11-20
             OPENAI_MODEL_SUPERVISOR: gpt-4o

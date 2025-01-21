@@ -447,7 +447,7 @@ def modify_slack_allow_list(bot_id, action, user_name=None, user_identifier=None
         # This ensures that only one thread can modify the list at a time
 
 
-        from genesis_bots.bot_genesis.core.system_variables import SystemVariables
+        from genesis_bots.core.system_variables import SystemVariables
 
         bot_details = get_bot_details(bot_id)
         if bot_details is None:

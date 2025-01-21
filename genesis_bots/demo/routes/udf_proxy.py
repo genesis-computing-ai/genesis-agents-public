@@ -975,27 +975,25 @@ def endpoint_router():
         payload = None
         if payload_str:
             payload = json.loads(payload_str)
-        logger.debug(f"Flask endpoint_router: forwarding {op_name} request to {endpoint_name}: {str(payload_str)[:20]}")
+        logger.debug(f"Flask endpoint_router: forwarding {op_name} request to {endpoint_name}. Payload: {str(payload_str)[:20]}")
 
         # Validate the operation name
         assert op_name in ["post", "get", "put", "delete"], "Invalid operation name"
 
         # Validate the endpoint name is internal to this flask app
         flask_app = current_app
-        if not any(r.rule == endpoint_name for r in flask_app.url_map.iter_rules()):
+        rule = next((r for r in flask_app.url_map.iter_rules() if r.rule == endpoint_name), None)
+        if not rule:
             return jsonify({"Success": False, "Message": f"Endpoint name {endpoint_name} is not registered with Flask app {flask_app.name}"}), 400
 
-        # Construct the full URL for the target endpoint
-        full_url = request.host_url.rstrip('/') + endpoint_name
-
-        # Use the requests library to forward the request
-        op_func = getattr(requests, op_name)
-        response = op_func(full_url, headers=headers, json=payload)
+        # Call the endpoint function directly
+        endpoint_func = flask_app.view_functions[rule.endpoint]
+        with flask_app.test_request_context(endpoint_name, method=op_name.upper(), json=payload):
+            response = endpoint_func()
 
         # Return the response from the target endpoint.
-        resp_str = str(response.content)
-        logger.debug(f"Flask endpoint_router: Response from {endpoint_name}: {resp_str}")
-        return Response(response.content, status=response.status_code, headers=response.headers)
+        logger.debug(f"Flask endpoint_router: Response from {endpoint_name}: Response: {response}")
+        return response
     except Exception as e:
         logger.error(f"Error in endpoint_router: {str(e)}")
         return jsonify({"Success": False, "Message": str(e)}), 500

@@ -2,6 +2,11 @@
 GENESIS BOT TODOS
 =================
 
+check connection string add for sqlite, decoding issues
+eve create tables in sqlite, having trouble
+project manager tools, give to eve
+streamlitr page to show project project
+a way to make a new sqlite database to sqlite/db connector
 NEXT->change default to sqlite mode and to non-assistant mode
 after tool calls, the first few new chars get missed sometimes in the output 
 test sonnet on cortex, and test mid flight tool and instruction changes again on cortex

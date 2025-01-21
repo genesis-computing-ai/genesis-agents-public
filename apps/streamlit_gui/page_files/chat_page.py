@@ -172,12 +172,12 @@ def chat_page():
                         )
                     ):
                         offset = 0
-                        new_increment = "\n\n"  + response[
-                            max(len(previous_response) - 2, 0) : len(response) - offset
+                        new_increment = ""  + response[
+                            max(len(previous_response) - 4, 0) : len(response) - offset
                         ]
                     else:
                         if len(response) >= 2 and ord(response[-1]) == 128172:
-                            offset = -2
+                            offset = 0
                         else:
                             offset = 0
                         new_increment = response[

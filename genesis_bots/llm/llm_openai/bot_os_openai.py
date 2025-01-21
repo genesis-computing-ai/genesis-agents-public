@@ -68,14 +68,12 @@ class StreamingEventHandler(AssistantEventHandler):
 
    @override
    def on_text_delta(self, delta, snapshot):
-       # logger.info(f"\nassistant on_text_delta > {delta.value}")
-#       logger.info(f"{delta.value}")
-      if self.run_id not in StreamingEventHandler.run_id_to_output_stream:
-          StreamingEventHandler.run_id_to_output_stream[self.run_id] = ""
-      if delta is not None and isinstance(delta.value, str):
-         StreamingEventHandler.run_id_to_output_stream[self.run_id] += delta.value
-
-
+       if self.run_id not in StreamingEventHandler.run_id_to_output_stream:
+           StreamingEventHandler.run_id_to_output_stream[self.run_id] = ""
+       if delta is not None and isinstance(delta.value, str):
+           current_text = StreamingEventHandler.run_id_to_output_stream[self.run_id]
+           StreamingEventHandler.run_id_to_output_stream[self.run_id] += delta.value
+      
    @override
    def on_end(self, ):
        pass
@@ -1074,6 +1072,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
             #         StreamingEventHandler.run_id_to_output_stream[run_id] = ""
                      if delta_content is not None and isinstance(delta_content, str):
                         StreamingEventHandler.run_id_to_output_stream[run_id] += delta_content
+                   #     print(f"\n\n-->>: '{StreamingEventHandler.run_id_to_output_stream[run_id]}'")
 
            #       event_handler.on_chunk(delta_content)
             # Mark run as completed
@@ -1831,26 +1830,29 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                 #logger.info(StreamingEventHandler.run_id_to_output_stream[run.id])
 
                output = StreamingEventHandler.run_id_to_output_stream[run.id]+" 💬"
-               if thread_id in self.thread_stop_map:
-                  stop_timestamp = self.thread_stop_map[thread_id]
-                  if isinstance(stop_timestamp, datetime.datetime) and (time.time() - stop_timestamp.timestamp()) <= 0:
-                     self.stop_result_map[thread_id] = 'stopped'
-                     self.thread_stop_map[thread_id] = time.time()
-                     output = output[:-2]
-                     output += ' `Stopped`'
-                     try:
-                        self.client.beta.threads.runs.cancel(thread_id=thread_id, run_id=run.id)
-                     except:
-                        # thread already completed
-                        pass
-                     logger.info(f"Cancelled run_id: {run.id} for thread_id: {thread_id}")
                if output != " 💬":
-                  event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id,
-                                                      status=run.status,
-                                                      output=output,
-                                                      messages=None,
-                                                      input_metadata=run.metadata))
-           #    continue
+                  output = output.strip()
+                  if thread_id in self.thread_stop_map:
+                     stop_timestamp = self.thread_stop_map[thread_id]
+                     if isinstance(stop_timestamp, datetime.datetime) and (time.time() - stop_timestamp.timestamp()) <= 0:
+                        self.stop_result_map[thread_id] = 'stopped'
+                        self.thread_stop_map[thread_id] = time.time()
+                        output = output[:-2]
+                        output += ' `Stopped`'
+                        try:
+                           self.client.beta.threads.runs.cancel(thread_id=thread_id, run_id=run.id)
+                        except:
+                           # thread already completed
+                           pass
+                        logger.info(f"Cancelled run_id: {run.id} for thread_id: {thread_id}")
+                  if output != " 💬":
+                    # print(f"\n\n---> {output}")
+                     event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id,
+                                                         status=run.status,
+                                                         output=output,
+                                                         messages=None,
+                                                         input_metadata=run.metadata))
+            #    continue
 
             #logger.info(f"run.status {run.status} Thread: {thread_id}")
             logger.info(f"{self.bot_name} open_ai check_runs {run.status} thread: {thread_id} runid: {run.id}")
@@ -2256,6 +2258,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
          #
          #   StreamingEventHandler.run_id_to_messages[run.id]
+         #      print(f"\n\n=======> {output}")
                event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id,
                                                                      status=run.status,
                                                                      output=output,

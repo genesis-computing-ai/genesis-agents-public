@@ -35,14 +35,20 @@ def main():
     genesis_app.start_all()
 
     if os.getenv("LAUNCH_GUI", "true").lower() != "false":
-
-        streamlit_path = Path("apps/streamlit_gui/Genesis.py")
+        streamlit_path = Path(__file__).parent.parent / "streamlit_gui" / "Genesis.py"
         if streamlit_path.exists():
-            subprocess.Popen([
-                sys.executable, "-m", "streamlit", "run",
-                str(streamlit_path),
-                "--server.port", str(DEFAULT_STREAMLIT_APP_PORT)
-            ])
+            try:
+                if os.name == 'nt':  # Windows
+                    cmd = f'{sys.executable} -m streamlit run "{str(streamlit_path)}" --server.port {DEFAULT_STREAMLIT_APP_PORT}'
+                    subprocess.Popen(cmd, shell=True)
+                else:  # Unix-like systems
+                    subprocess.Popen([
+                        sys.executable, "-m", "streamlit", "run",
+                        str(streamlit_path),
+                        "--server.port", str(DEFAULT_STREAMLIT_APP_PORT)
+                    ])
+            except Exception as e:
+                print(f"Failed to start Streamlit: {e}")
 
     app.run(host=SERVICE_HOST, port=DEFAULT_HTTP_ENDPOINT_PORT, debug=False, use_reloader=False)
     app_https.run(host=SERVICE_HOST, port=DEFAULT_HTTPS_ENDPOINT_PORT, ssl_context='adhoc', debug=False, use_reloader=False)

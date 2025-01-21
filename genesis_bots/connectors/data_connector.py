@@ -91,6 +91,16 @@ class DatabaseConnector:
         try:
             allowed_bots_str = ','.join(allowed_bot_ids) if isinstance(allowed_bot_ids, list) and allowed_bot_ids else ''
 
+            # Decode URL-encoded connection string before testing
+            try:
+                from urllib.parse import unquote_plus
+                decoded_connection_string = unquote_plus(connection_string)
+            except Exception as e:
+                return {
+                    'success': False,
+                    'error': f"Failed to decode connection string: {str(e)}"
+                }
+
             # Test new connection first
             # URL encode any special characters in connection string
             # Check if description is provided
@@ -101,7 +111,7 @@ class DatabaseConnector:
                 }
 
             # URL encode special characters in connection string
-            connection_string = quote_plus(connection_string)
+            connection_string = quote_plus(decoded_connection_string)
 
             # Check if connection_id is the reserved 'snowflake' name
             if connection_id.lower() == 'snowflake':
@@ -116,7 +126,7 @@ class DatabaseConnector:
                 # Handle cases like oracle+oracledb:// or postgresql+psycopg2://
                 db_type = db_type.split('+')[0]
 
-            engine = create_engine(connection_string)
+            engine = create_engine(decoded_connection_string)
             with engine.connect() as conn:
                 # Oracle requires FROM DUAL for simple SELECT statements
                 # and needs to be committed to avoid ORA-01000: maximum open cursors exceeded
@@ -128,7 +138,7 @@ class DatabaseConnector:
                     conn.commit()
 
             # Verify allowed bot IDs exist in BOT_SERVICING table
-            if allowed_bots_str:
+            if allowed_bots_str and allowed_bots_str != '*':
                 bot_ids_to_check = [bid.strip() for bid in allowed_bots_str.split(',')]
                 cursor = self.db_adapter.client.cursor()
                 try:

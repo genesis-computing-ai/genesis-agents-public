@@ -2,20 +2,24 @@
 GENESIS BOT TODOS
 =================
 
-check connection string add for sqlite, decoding issues
-eve create tables in sqlite, having trouble
-project manager tools, give to eve
+repeated tool calls failure on 5 calls to search google when no serper key, not completing the handling right 
+check tool call messages in slack
+have search metada return list of connections that are not on harvest list or are not yet harvested
+x check connection string add for sqlite, decoding issues
+x eve create tables in sqlite, having trouble
+x give bots a workspace in sqlite
+x project manager tools, give to eve
 streamlitr page to show project project
-a way to make a new sqlite database to sqlite/db connector
+x a way to make a new sqlite database to sqlite/db connector
 NEXT->change default to sqlite mode and to non-assistant mode
-after tool calls, the first few new chars get missed sometimes in the output 
+xafter tool calls, the first few new chars get missed sometimes in the output 
 test sonnet on cortex, and test mid flight tool and instruction changes again on cortex
 have search metadata return the list of any data connections as well that may not be harvested 
 (reza) files out for generate image
 (later) add bot level param for completion vs assistant mode
 (aviv) test gxs with completion mode (w/git etc)
 (test) JD-comments on gsheets, bot needs to know what cell they are on
-(reza) links from web search results dont show right in streamlit 
+test - (reza) links from web search results dont show right in streamlit 
 (later) make sqlite sample data load from csv files vs binary
 (aviv) make connection, harvest, search metadata, and query database work directly via api 
 (test) setting harvest control again with sqlite and snowflake (make sure using correct connection id)

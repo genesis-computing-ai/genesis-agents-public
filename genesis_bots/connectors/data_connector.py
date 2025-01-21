@@ -94,7 +94,7 @@ class DatabaseConnector:
             # Decode URL-encoded connection string before testing
             try:
                 from urllib.parse import unquote_plus
-                decoded_connection_string = unquote_plus(connection_string)
+                connection_string = unquote_plus(connection_string)
             except Exception as e:
                 return {
                     'success': False,
@@ -111,13 +111,13 @@ class DatabaseConnector:
                 }
 
             # URL encode special characters in connection string
-            connection_string = quote_plus(decoded_connection_string)
+           # connection_string = quote_plus(decoded_connection_string)
 
             # Check if connection_id is the reserved 'snowflake' name
             if connection_id.lower() == 'snowflake':
                 return {
                     'success': False,
-                    'error': "The connection_id 'snowflake' is reserved. You can connect to Snowflake but please use a different connection_id string."
+                    'error': "The connection_id 'Snowflake' is reserved. You can connect to Snowflake but please use a different connection_id string."
                 }
 
             # Extract db_type from connection string
@@ -126,7 +126,7 @@ class DatabaseConnector:
                 # Handle cases like oracle+oracledb:// or postgresql+psycopg2://
                 db_type = db_type.split('+')[0]
 
-            engine = create_engine(decoded_connection_string)
+            engine = create_engine(connection_string)
             with engine.connect() as conn:
                 # Oracle requires FROM DUAL for simple SELECT statements
                 # and needs to be committed to avoid ORA-01000: maximum open cursors exceeded
@@ -205,7 +205,8 @@ class DatabaseConnector:
                     'connection_string': connection_string,
                     'allowed_bot_ids': allowed_bots_str,
                     'description': description,
-                    'note': "Remember: All bots that need access should be in a comma-separated string for allowed_bot_ids if more than one, including yourself if applicable (e.g. 'bot1,bot2')"
+                    'note': "Remember: All bots that need access should be in a comma-separated string in allowed_bot_ids if more than one, including yourself if applicable (e.g. 'bot1,bot2'), or wildcard '*' to allow all bots",
+                    'reminder': "Consider suggesting to next use the harvester tools _set_harvest_control_data function to add this new database connection and its database to the harvest to enable metadata search and discovery capabilities"
                 }
 
             finally:
@@ -242,6 +243,11 @@ class DatabaseConnector:
 
         # TODO - if connection_id (?) = Snowflake, run run_query
         if connection_id == 'Snowflake':
+            if self.db_adapter.source_name != 'Snowflake':
+                return {
+                    "success": False,
+                    "error": "Connection 'Snowflake' is not available when running in Sqlite mode. List database connections to see valid connections you can use."
+                }
             snowflake_connector = self.db_adapter
             result = snowflake_connector.run_query(
            #     self,
@@ -266,17 +272,21 @@ class DatabaseConnector:
             if (query is None and note_id is None) or (query is not None and note_id is not None):
                 return {
                     "success": False,
-                    "error": "Either a query or a note_id must be provided, but not both, and not neither.",
+                    "error": "Either a query or a (note_id or note_name) must be provided, but not both, and not neither.",
                 }
 
             if note_id is not None or note_name is not None:
                 note_id = '' if note_id is None else note_id
+                if note_id == '':
+                    note_id = note_name
                 note_name = '' if note_name is None else note_name
-                get_note_query = f"SELECT note_content, note_params, note_type FROM {self.schema}.NOTEBOOK WHERE NOTE_ID = '{note_id}'"
-                cursor = self.connection.cursor()
+                if note_name == '':
+                    note_name = note_id
+                get_note_query = f"SELECT note_content, note_params, note_type FROM {self.db_adapter.schema}.NOTEBOOK WHERE (NOTE_ID = '{note_id}') or (NOTE_NAME = '{note_name}') and BOT_ID='{bot_id}'"
+                cursor = self.db_adapter.client.cursor()
                 cursor.execute(get_note_query)
                 query_cursor = cursor.fetchone()
-
+                print(query_cursor)
                 if query_cursor is None:
                     return {
                         "success": False,
@@ -660,14 +670,64 @@ class DatabaseConnector:
                 if connection_id in self.connections:
                     del self.connections[connection_id]
 
-                return True
+                # Delete related records from harvest_control and harvest_summary
+                cursor.execute(
+                    f"""
+                    SELECT COUNT(*) FROM {self.db_adapter.schema}.HARVEST_CONTROL 
+                    WHERE source_name = %s
+                    """,
+                    (connection_id,)
+                )
+                harvest_control_count = cursor.fetchone()[0]
+
+                cursor.execute(
+                    f"""
+                    SELECT COUNT(*) FROM {self.db_adapter.schema}.HARVEST_RESULTS
+                    WHERE source_name = %s
+                    """,
+                    (connection_id,)
+                )
+                harvest_results_count = cursor.fetchone()[0]
+
+                cursor.execute(
+                    f"""
+                    DELETE FROM {self.db_adapter.schema}.HARVEST_CONTROL 
+                    WHERE source_name = %s
+                    """,
+                    (connection_id,)
+                )
+                
+                cursor.execute(
+                    f"""
+                    DELETE FROM {self.db_adapter.schema}.HARVEST_RESULTS
+                    WHERE source_name = %s
+                    """, 
+                    (connection_id,)
+                )
+                self.db_adapter.client.commit()
+
+                response = {
+                    'success': True,
+                    'message': 'Connection deleted successfully'
+                }
+                
+                if harvest_control_count > 0 or harvest_results_count > 0:
+                    response['harvest_data_removed'] = {
+                        'harvest_control_records': harvest_control_count,
+                        'harvest_results_records': harvest_results_count
+                    }
+                    
+                return response
 
             finally:
                 cursor.close()
 
         except Exception as e:
             logger.error(f"Error deleting connection {connection_id}: {str(e)}")
-            return False
+            return {
+                'success': False,
+                'error': str(e)
+            }
 
     def _test(self):
         """
@@ -927,27 +987,37 @@ data_connector_tools = ToolFuncGroup(
     connection_id= "ID of the database connection to query",
     query= "SQL query to execute",
     params= "Optional parameters for the SQL query",
-    max_rows= "Maximum number of rows to return (default 20)",
+    max_rows= "Maximum number of rows to return (if not specified, default is 20, note this when considering the results of your queries as there may be more results available)",
     max_rows_override= "Override max rows limit if true (default False)",
     database_name= "Name of the database to query (required when querying postgres)",
+    note_id= "Optional note ID to execute a saved query, instead of providing the query text in query param",
+    note_name= "Optional note name to execute a saved query",
+ #   note_type= "Optional note type to execute a saved query",
+    export_to_google_sheet= "Export results to Google Sheets if true (default False)",
+    export_title= "Title for the exported Google Sheet",
     bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
     _group_tags_=[data_connector_tools]
     )
 def _query_database(connection_id: str,
                     bot_id: str,
-                    query: str,
+                    query: str = None,
                     params: dict = None,
                     max_rows: int = 20,
                     max_rows_override: bool = False,
                     database_name: str = None,
                     thread_id: str = None,
+                    note_id: str = None,
+                    note_name: str = None,
+              #      note_type: str = None,
+                    export_to_google_sheet: bool = False,
+                    export_title: str = None,
                     ) -> dict:
     """
     Query a connected database with SQL
 
     Returns:
-        dict: A dictionary containing the query results or an error message.
+        dict: A dictionary containing the query results or an error message.  This will be limited to the first max_rows (default 20) rows returned.  If you get 20, there may be more results available with a higher max_rows or more focused query.
     """
     return DatabaseConnector().query_database(
         connection_id=connection_id,
@@ -958,6 +1028,11 @@ def _query_database(connection_id: str,
         max_rows_override=max_rows_override,
         thread_id=thread_id,
         database_name=database_name,
+        note_id=note_id,
+        note_name=note_name,
+    #    note_type=note_type,
+        export_to_google_sheet=export_to_google_sheet,
+        export_title=export_title,
     )
 
 

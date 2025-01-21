@@ -746,19 +746,19 @@ class ToolBelt:
         cursor = db_adapter.client.cursor()
         try:
             if bot_id == "all":
-                list_query = f"SELECT * FROM {db_adapter.schema}.NOTEBOOK" if db_adapter.schema else f"SELECT note_id, bot_id FROM NOTEBOOK"
+                list_query = f"SELECT created_at, bot_id, note_id, note_name, note_type, note_content, note_params FROM {db_adapter.schema}.NOTEBOOK" if db_adapter.schema else f"SELECT created_at, bot_id, note_id, note_name, note_type, note_content, note_params FROM NOTEBOOK"
                 cursor.execute(list_query)
             else:
-                list_query = f"SELECT * FROM {db_adapter.schema}.NOTEBOOK WHERE upper(bot_id) = upper(%s)" if db_adapter.schema else f"SELECT note_id, bot_id FROM NOTEBOOK WHERE upper(bot_id) = upper(%s)"
+                list_query = f"SELECT created_at, bot_id, note_id, note_name, note_type, note_content, note_params FROM {db_adapter.schema}.NOTEBOOK WHERE upper(bot_id) = upper(%s)" if db_adapter.schema else f"SELECT created_at, bot_id, note_id, note_name, note_type, note_content, note_params FROM NOTEBOOK WHERE upper(bot_id) = upper(%s)"
                 cursor.execute(list_query, (bot_id,))
             notes = cursor.fetchall()
             note_list = []
             for note in notes:
                 note_dict = {
-                    "timestamp": note[0],
+                    "timestamp": note[0], 
                     "bot_id": note[1],
                     "note_id": note[2],
-                    'note_name': note[3],
+                    'note_name': note[3], 
                     'note_type': note[4],
                     'note_content': note[5],
                     'note_params': note[6]
@@ -825,6 +825,7 @@ class ToolBelt:
             "note_id",
             "bot_id",
             "note_name",
+            "note_type",
             "note_content",
         ]
 
@@ -934,7 +935,7 @@ class ToolBelt:
             if action == "CREATE":
                 return {
                     "Success": False,
-                    "Fields": {"note_id": note_id, "note_name": note_name, "bot_id": bot_id, "note content": note_content, "note_params:": note_params},
+                    "Fields": {"note_id": note_id, "note_name": note_name, "bot_id": bot_id, "note_type": note_type, "note content": note_content, "note_params:": note_params},
                     "Confirmation_Needed": "Please reconfirm the field values with the user, then call this function again with the action CREATE_CONFIRMED to actually create the note.  If the user does not want to create a note, allow code in the process instructions",
                     "Suggestion": "If possible, for a sql or python note, suggest to the user that we test the sql or python before making the note to make sure it works properly",
                     "Next Step": "If you're ready to create this note or the user has chosen not to create a note, call this function again with action CREATE_CONFIRMED instead of CREATE.  If the user chooses to allow code in the process, allow them to do so and include the code directly in the process."
@@ -1000,15 +1001,15 @@ class ToolBelt:
             if action == "CREATE":
                 insert_query = f"""
                     INSERT INTO {db_adapter.schema}.NOTEBOOK (
-                        created_at, updated_at, note_id, bot_id, note_name, note_content, note_params
+                        created_at, updated_at, note_id, bot_id, note_name, note_type, note_content, note_params
                     ) VALUES (
-                        current_timestamp(), current_timestamp(), %(note_id)s, %(bot_id)s, %(note_name)s, %(note_content)s, %(note_params)s
+                        current_timestamp(), current_timestamp(), %(note_id)s, %(bot_id)s, %(note_name)s, %(note_type)s, %(note_content)s, %(note_params)s
                     )
                 """ if db_adapter.schema else f"""
                     INSERT INTO NOTEBOOK (
-                        created_at, updated_at, note_id, bot_id, note_name, note_content, note_params
+                        created_at, updated_at, note_id, bot_id, note_name, note_type, note_content, note_params
                     ) VALUES (
-                        current_timestamp(), current_timestamp(), %(note_id)s, %(bot_id)s, %(note_name)s, %(note_content)s, %(note_params)s
+                        current_timestamp(), current_timestamp(), %(note_id)s, %(bot_id)s, %(note_name)s, %(note_type)s, %(note_content)s, %(note_params)s
                     )
                 """
 
@@ -1029,6 +1030,7 @@ class ToolBelt:
                         "note_id": note_id_with_suffix,
                         "bot_id": bot_id,
                         "note_name": note_name,
+                        "note_type": note_type,
                         "note_content": note_content,
                         "note_params": note_params,
                     },

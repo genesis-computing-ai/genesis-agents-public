@@ -2378,17 +2378,21 @@ def get_status(site):
         userquery = False
         fieldTrunced = False
 
-        if (query is None and note_id is None) or (query is not None and note_id is not None):
+        if (query is None and note_id is None and note_name is None) or (query is not None and (note_id is not None or note_name is not None)):
             return {
                 "success": False,
-                "error": "Either a query or a note_id must be provided, but not both, and not neither.",
+                "error": "Either a query or a (note_id or note_name) must be provided, but not both, and not neither.",
             }
 
         try:
             if note_id is not None or note_name is not None:
                 note_id = '' if note_id is None else note_id
+                if note_id == '':
+                    note_id = note_name
                 note_name = '' if note_name is None else note_name
-                get_note_query = f"SELECT note_content, note_params, note_type FROM {self.schema}.NOTEBOOK WHERE NOTE_ID = '{note_id}'"
+                if note_name == '':
+                    note_name = note_id
+                get_note_query = f"SELECT note_content, note_params, note_type FROM {self.schema}.NOTEBOOK WHERE (NOTE_ID = '{note_id}') or (NOTE_NAME = '{note_name}') and BOT_ID='{bot_id}'"
                 cursor = self.connection.cursor()
                 cursor.execute(get_note_query)
                 query_cursor = cursor.fetchone()

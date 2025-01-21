@@ -41,10 +41,9 @@ class SQLiteAdapter:
                 self._ensure_bot_servicing_table()
                 self._ensure_llm_tokens_table()
                 self._ensure_slack_config_table()
-                self._ensure_cust_db_connections_table()
                 self._ensure_harvest_control_table()
                 self._ensure_harvest_results_table()
-                self.import_harvest()
+                self._ensure_cust_db_connections_table()
                 SQLiteAdapter._tables_initialized = True
                 logger.info("All tables initialized successfully")
             except Exception as e:
@@ -222,84 +221,100 @@ class SQLiteAdapter:
         logger.info("Starting CUST_DB_CONNECTIONS table verification")
         cursor = self.connection.cursor()
 
-        try:
-            # Create table if it doesn't exist
-            create_table_sql = """
-                CREATE TABLE IF NOT EXISTS CUST_DB_CONNECTIONS (
-                    connection_id TEXT PRIMARY KEY NOT NULL,
-                    db_type TEXT NOT NULL,
-                    connection_string TEXT NOT NULL,
-                    owner_bot_id TEXT NOT NULL,
-                    allowed_bot_ids TEXT,
-                    description TEXT,
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-                )
-            """
-            # Check if description column exists
-            cursor.execute(create_table_sql)
-            self.connection.commit()
+        # Check if table exists
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='CUST_DB_CONNECTIONS'")
+        exists = cursor.fetchone() is not None
+        logger.info(f"CUST_DB_CONNECTIONS table exists: {exists}")
 
-            cursor.execute("PRAGMA table_info(CUST_DB_CONNECTIONS)")
-            columns = cursor.fetchall()
-            has_description = any(col[1] == 'description' for col in columns)
-
-            if not has_description:
-                cursor.execute("ALTER TABLE CUST_DB_CONNECTIONS ADD COLUMN description TEXT")
+        if not exists:
+            try:
+                # Create table if it doesn't exist
+                create_table_sql = """
+                    CREATE TABLE IF NOT EXISTS CUST_DB_CONNECTIONS (
+                        connection_id TEXT PRIMARY KEY NOT NULL,
+                        db_type TEXT NOT NULL,
+                        connection_string TEXT NOT NULL,
+                        owner_bot_id TEXT NOT NULL,
+                        allowed_bot_ids TEXT,
+                        description TEXT,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                    )
+                """
+                # Check if description column exists
+                cursor.execute(create_table_sql)
                 self.connection.commit()
-                logger.info("Added description column to CUST_DB_CONNECTIONS table")
 
-            # Define the connections to check/create
-            connections = [
-                {
-                    'connection_id': 'baseball_sqlite',
-                    'db_type': 'sqlite',
-                    'connection_string': 'sqlite:///./apps/demos/demo_data/baseball.sqlite',
-                    'owner_bot_id': 'Eve',
-                    'allowed_bot_ids': '*',
-                    'description': 'Demo Baseball data up to 2015'
-                },
-                {
-                    'connection_id': 'formula_1_sqlite',
-                    'db_type': 'sqlite',
-                    'connection_string': 'sqlite:///./apps/demos/demo_data/formula_1.sqlite',
-                    'owner_bot_id': 'Eve',
-                    'allowed_bot_ids': '*',
-                    'description': 'Demo Formula 1 data up to 2024'
-                }
-            ]
-            
-            # Check and insert each connection if it doesn't exist
-            for conn in connections:
-                cursor.execute("SELECT COUNT(*) FROM CUST_DB_CONNECTIONS WHERE connection_id = ?", 
-                             (conn['connection_id'],))
-                exists = cursor.fetchone()[0] > 0
-                
-                if not exists:
-                    insert_sql = """
-                        INSERT INTO CUST_DB_CONNECTIONS (
-                            connection_id,
-                            db_type,
-                            connection_string,
-                            owner_bot_id,
-                            allowed_bot_ids,
-                            description
-                        ) VALUES (?, ?, ?, ?, ?, ?)
-                    """
-                    cursor.execute(insert_sql, (
-                        conn['connection_id'],
-                        conn['db_type'],
-                        conn['connection_string'],
-                        conn['owner_bot_id'],
-                        conn['allowed_bot_ids'],
-                        conn['description']
-                    ))
+                cursor.execute("PRAGMA table_info(CUST_DB_CONNECTIONS)")
+                columns = cursor.fetchall()
+                has_description = any(col[1] == 'description' for col in columns)
+
+                if not has_description:
+                    cursor.execute("ALTER TABLE CUST_DB_CONNECTIONS ADD COLUMN description TEXT")
                     self.connection.commit()
-                    logger.info(f"Inserted {conn['connection_id']} record")
+                    logger.info("Added description column to CUST_DB_CONNECTIONS table")
 
-        except Exception as e:
-            logger.error(f"Error in _ensure_cust_db_connections_table: {e}")
-            raise
+                # Define the connections to check/create
+                connections = [
+                    {
+                        'connection_id': 'baseball_sqlite',
+                        'db_type': 'sqlite',
+                        'connection_string': 'sqlite:///./apps/demos/demo_data/baseball.sqlite',
+                        'owner_bot_id': 'Eve',
+                        'allowed_bot_ids': '*',
+                        'description': 'Demo Baseball data up to 2015'
+                    },
+                    {
+                        'connection_id': 'formula_1_sqlite',
+                        'db_type': 'sqlite',
+                        'connection_string': 'sqlite:///./apps/demos/demo_data/formula_1.sqlite',
+                        'owner_bot_id': 'Eve',
+                        'allowed_bot_ids': '*',
+                        'description': 'Demo Formula 1 data up to 2024'
+                    },
+                    {
+                        'connection_id': 'workspace_sqlite',
+                        'db_type': 'sqlite',
+                        'connection_string': 'sqlite:///./apps/demos/demo_data/workspace.sqlite',
+                        'owner_bot_id': 'Eve',
+                        'allowed_bot_ids': '*', 
+                        'description': 'Workspace/scratchpad database you can use for storing data and creating new tables'
+                    },
+                ]
+                
+                # Check and insert each connection if it doesn't exist
+                for conn in connections:
+                    cursor.execute("SELECT COUNT(*) FROM CUST_DB_CONNECTIONS WHERE connection_id = ?", 
+                                (conn['connection_id'],))
+                    exists = cursor.fetchone()[0] > 0
+                    
+                    if not exists:
+                        insert_sql = """
+                            INSERT INTO CUST_DB_CONNECTIONS (
+                                connection_id,
+                                db_type,
+                                connection_string,
+                                owner_bot_id,
+                                allowed_bot_ids,
+                                description
+                            ) VALUES (?, ?, ?, ?, ?, ?)
+                        """
+                        cursor.execute(insert_sql, (
+                            conn['connection_id'],
+                            conn['db_type'],
+                            conn['connection_string'],
+                            conn['owner_bot_id'],
+                            conn['allowed_bot_ids'],
+                            conn['description']
+                        ))
+                        self.connection.commit()
+                        logger.info(f"Inserted {conn['connection_id']} record")
+                    
+                    self.import_harvest()
+
+            except Exception as e:
+                logger.error(f"Error in _ensure_cust_db_connections_table: {e}")
+                raise
 
     def import_harvest(self):
         """Import HARVEST_RESULTS table from JSON file if table is empty"""
@@ -431,36 +446,67 @@ class SQLiteAdapter:
             """
             cursor.execute(create_table_sql)
             self.connection.commit()
+            
+            # Define the default harvest control entries
+            default_entries = [
+                {
+                    'source_name': 'baseball_sqlite',
+                    'database_name': 'baseball_sqlite',
+                    'schema_inclusions': '[]',
+                    'schema_exclusions': '["INFORMATION_SCHEMA"]',
+                    'status': 'Include',
+                    'refresh_interval': 10,
+                    'initial_crawl_complete': 0
+                },
+                {
+                    'source_name': 'formula_1_sqlite', 
+                    'database_name': 'formula_1_sqlite',
+                    'schema_inclusions': '[]',
+                    'schema_exclusions': '["INFORMATION_SCHEMA"]',
+                    'status': 'Include',
+                    'refresh_interval': 10,
+                    'initial_crawl_complete': 0
+                },
+                {
+                    'source_name': 'workspace_sqlite',
+                    'database_name': 'workspace_sqlite', 
+                    'schema_inclusions': '[]',
+                    'schema_exclusions': '["INFORMATION_SCHEMA"]',
+                    'status': 'Include',
+                    'refresh_interval': 1,
+                    'initial_crawl_complete': 0
+                }
+            ]
 
-            # Check if default entries exist
-            cursor.execute("SELECT COUNT(*) FROM HARVEST_CONTROL WHERE source_name IN (?, ?)", 
-                          ('baseball_sqlite', 'formula_1_sqlite'))
-            count = cursor.fetchone()[0]
+            # Check and add each entry
+            for entry in default_entries:
+                cursor.execute("SELECT COUNT(*) FROM HARVEST_CONTROL WHERE source_name = ?", 
+                             (entry['source_name'],))
+                count = cursor.fetchone()[0]
 
-            if count < 2:
-                # Insert or update default entries
-                insert_sql = """
-                    INSERT OR REPLACE INTO HARVEST_CONTROL (
-                        source_name,
-                        database_name,
-                        schema_inclusions,
-                        schema_exclusions,
-                        status,
-                        refresh_interval,
-                        initial_crawl_complete
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
-                """
-                
-                default_entries = [
-                    ('baseball_sqlite', 'baseball_sqlite', '[]', '["INFORMATION_SCHEMA"]', 'Include', 10, 0),
-                    ('formula_1_sqlite', 'formula_1_sqlite', '[]', '["INFORMATION_SCHEMA"]', 'Include', 10, 0)
-                ]
-
-                for entry in default_entries:
-                    cursor.execute(insert_sql, entry)
-                
-                self.connection.commit()
-                logger.info("Default HARVEST_CONTROL entries added successfully")
+                if count == 0:
+                    insert_sql = """
+                        INSERT INTO HARVEST_CONTROL (
+                            source_name,
+                            database_name,
+                            schema_inclusions,
+                            schema_exclusions,
+                            status, 
+                            refresh_interval,
+                            initial_crawl_complete
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """
+                    cursor.execute(insert_sql, (
+                        entry['source_name'],
+                        entry['database_name'],
+                        entry['schema_inclusions'],
+                        entry['schema_exclusions'],
+                        entry['status'],
+                        entry['refresh_interval'],
+                        entry['initial_crawl_complete']
+                    ))
+                    self.connection.commit()
+                    logger.info(f"Added {entry['source_name']} entry to HARVEST_CONTROL")
 
         except Exception as e:
             logger.error(f"Error in _ensure_harvest_control_table: {e}")
@@ -635,6 +681,10 @@ class SQLiteCursorWrapper:
         if query.startswith('KEEPSCHEMA::'):
             keep_db_schema = True
             query = query[len('KEEPSCHEMA::'):]
+
+        # Convert current_timestamp() to CURRENT_TIMESTAMP
+        query = re.sub(r'current_timestamp\(\)', 'CURRENT_TIMESTAMP', query, flags=re.IGNORECASE)
+        query = re.sub(r'CURRENT_TIMESTAMP\(\)', 'CURRENT_TIMESTAMP', query)
 
         # Remove schema prefix if it matches GENESIS_INTERNAL_DB_SCHEMA
         schema_prefix = os.environ.get('GENESIS_INTERNAL_DB_SCHEMA', '')

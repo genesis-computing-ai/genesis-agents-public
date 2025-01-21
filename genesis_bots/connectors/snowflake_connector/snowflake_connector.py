@@ -2093,15 +2093,15 @@ def get_status(site):
 
         ddl_statement = "CREATE TABLE " + table_name + " (\n"
         for column in describe_result:
-            column_name = column['name']
-            column_type = column['type']
-            nullable = " NOT NULL" if not column['null?'] else ""
-            default = f" DEFAULT {column['default']}" if column['default'] is not None else ""
-            comment = f" COMMENT '{column['comment']}'" if 'comment' in column and column['comment'] is not None else ""
+            column_name = column['NAME']
+            column_type = column['TYPE']
+            nullable = " NOT NULL" if not column['NULL?'] else ""
+            default = f" DEFAULT {column['DEFAULT']}" if column['DEFAULT'] is not None else ""
+            comment = f" COMMENT '{column['COMMENT']}'" if 'COMMENT' in column and column['COMMENT'] is not None else ""
             key = ""
-            if column.get('primary_key', False):
+            if column.get('PRIMARY_KEY', False):
                 key = " PRIMARY KEY"
-            elif column.get('unique_key', False):
+            elif column.get('UNIQUE_KEY', False):
                 key = " UNIQUE"
             ddl_statement += f"    {column_name} {column_type}{nullable}{default}{key}{comment},\n"
         ddl_statement = ddl_statement.rstrip(',\n') + "\n);"

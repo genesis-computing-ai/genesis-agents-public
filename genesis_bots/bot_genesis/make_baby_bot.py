@@ -1178,7 +1178,7 @@ def make_baby_bot(
                 logger.warning(f"Running query to check endpoints: {query1}")
                 bb_db_connector = get_global_db_connector()
                 results = bb_db_connector.run_query(query1)
-                udf_endpoint_url = next((endpoint['ingress_url'] for endpoint in results if endpoint['name'] == 'udfendpoint'), None)
+                udf_endpoint_url = next((endpoint['INGRESS_URL'] for endpoint in results if endpoint['NAME'] == 'udfendpoint'), None)
                 return udf_endpoint_url
             except Exception as e:
                 logger.warning(f"Failed to get UDF endpoint URL with error: {e}")
@@ -1652,7 +1652,7 @@ MAKE_BABY_BOT_DESCRIPTIONS.append({
 })
 
 # MAKE_BABY_BOT_DESCRIPTIONS.append({
-#     "type": "function", 
+#     "type": "function",
 #     "function": {
 #         "name": "add_bot_files",
 #         "description": "Adds to the files list for the specified bot_id by adding new files if they are not already present.",

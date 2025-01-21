@@ -46,7 +46,7 @@ def get_all_translated_phrases() -> str:
 # choose which server proxy mode to use
 #server_proxy = EmbeddedGenesisServerProxy(fast_start=True)
 server_proxy = RESTGenesisServerProxy() # default to localhost
-server_proxy = SPCSServerProxy() # default to localhost
+#server_proxy = SPCSServerProxy() # default to localhost
 
 
 

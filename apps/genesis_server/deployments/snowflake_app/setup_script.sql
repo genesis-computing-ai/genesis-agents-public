@@ -55,6 +55,9 @@ $$
       - name: streamlit
         port: 8501
         public: true
+      - name: streamlitdatacubes
+        port: 8502
+        public: true
       - name: debuggenesis
         port: 1234
         public: true
@@ -72,6 +75,7 @@ $$
       endpoints:
       - udfendpoint
       - streamlit
+      - streamlitdatacubes
       - debuggenesis
       - voicedemo
       - voicerelay
@@ -471,7 +475,11 @@ BEGIN
       EXECUTE IMMEDIATE
         'CREATE FUNCTION if not exists '|| :INSTANCE_NAME ||'.set_metadata (metadata_type varchar)  RETURNS varchar SERVICE='|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||' ENDPOINT=udfendpoint AS '||chr(39)||'/udf_proxy/set_metadata'||chr(39);
 
+      EXECUTE IMMEDIATE
+        'CREATE FUNCTION if not exists '|| :INSTANCE_NAME ||'.endpoint_router (op_name varchar, endpoint_name varchar, payload varchar)  RETURNS varchar SERVICE='|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||' ENDPOINT=udfendpoint AS '||chr(39)||'/udf_proxy/endpoint_router'||chr(39);
 
+      EXECUTE IMMEDIATE
+        'GRANT USAGE ON FUNCTION '|| :INSTANCE_NAME ||'.endpoint_router ( varchar, varchar, varchar)  TO APPLICATION ROLE APP_PUBLIC';
       -- REVOKE USAGE ON FUNCTION APP1.get_artifact(varchar) FROM APPLICATION ROLE APP_PUBLIC;
 
       BEGIN
